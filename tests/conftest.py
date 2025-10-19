@@ -2,11 +2,12 @@
 
 import asyncio
 import os
-from collections.abc import Generator
+from collections.abc import AsyncGenerator, Generator
 
 os.environ.setdefault("SECRET_KEY", "test-secret-key")
 
 import pytest
+import pytest_asyncio
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -15,7 +16,7 @@ from sqlalchemy.pool import StaticPool
 from app.api.deps import get_db
 from app.db import models  # noqa: F401  # Imported for side effects
 from app.db.base import Base
-from app.db.models import User
+from app.db.models import User, VocabularyWord
 from app.main import create_app
 
 
@@ -33,11 +34,11 @@ def db_engine():
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
-    Base.metadata.create_all(bind=engine, tables=[User.__table__])
+    Base.metadata.create_all(bind=engine, tables=[User.__table__, VocabularyWord.__table__])
     try:
         yield engine
     finally:
-        Base.metadata.drop_all(bind=engine, tables=[User.__table__])
+        Base.metadata.drop_all(bind=engine, tables=[User.__table__, VocabularyWord.__table__])
 
 
 @pytest.fixture()
@@ -60,3 +61,19 @@ def client(db_session: Session) -> Generator[TestClient, None, None]:
     app.dependency_overrides[get_db] = override_get_db
     with TestClient(app) as test_client:
         yield test_client
+
+
+@pytest_asyncio.fixture()
+async def async_client(db_session: Session) -> AsyncGenerator["httpx.AsyncClient", None]:
+    import httpx
+
+    app = create_app()
+
+    async def override_get_db() -> AsyncGenerator[Session, None]:
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_get_db
+
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        yield client
