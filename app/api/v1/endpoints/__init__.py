@@ -1,3 +1,5 @@
 """API endpoint modules for v1."""
 
-__all__ = []
+from app.api.v1.endpoints import auth, users, vocabulary
+
+__all__ = ["auth", "users", "vocabulary"]

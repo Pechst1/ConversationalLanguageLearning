@@ -5,7 +5,7 @@ import uuid
 from datetime import date, datetime, time
 from typing import Optional
 
-from pydantic import BaseModel, EmailStr, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
 
 class UserBase(BaseModel):
@@ -49,3 +49,23 @@ class UserRead(UserBase):
     last_activity_date: Optional[date]
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class UserUpdate(BaseModel):
+    """Schema for partial updates to the current user profile."""
+
+    full_name: Optional[str] = Field(default=None, max_length=255)
+    native_language: Optional[str] = Field(default=None, max_length=10)
+    target_language: Optional[str] = Field(default=None, max_length=10)
+    proficiency_level: Optional[str] = Field(default=None, max_length=20)
+    daily_goal_minutes: Optional[int] = Field(default=None, ge=0)
+    notifications_enabled: Optional[bool] = None
+    preferred_session_time: Optional[time] = None
+
+    model_config = ConfigDict(extra="forbid")
+
+    @model_validator(mode="after")
+    def ensure_payload_not_empty(self) -> "UserUpdate":
+        if not any(value is not None for value in self.model_dump().values()):
+            raise ValueError("At least one field must be provided")
+        return self

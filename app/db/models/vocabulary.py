@@ -1,8 +1,9 @@
 """Vocabulary database models."""
-from sqlalchemy import ARRAY, Column, DateTime, Integer, String, Text
+from sqlalchemy import Column, DateTime, Integer, String, Text
 from sqlalchemy.sql import func
 
 from app.db.base import Base
+from app.db.types import StringList
 
 
 class VocabularyWord(Base):
@@ -27,7 +28,7 @@ class VocabularyWord(Base):
     usage_notes = Column(Text)
 
     difficulty_level = Column(Integer, default=1)
-    topic_tags = Column(ARRAY(Text))
+    topic_tags = Column(StringList, nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

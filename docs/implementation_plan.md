@@ -18,11 +18,11 @@ The roadmap is executed in sequential phases. Each phase is broken into concrete
 - [x] Build authentication service and FastAPI routes.
 - [x] Add integration tests covering registration and login.
 
-### Day 8-10 — Basic API Structure *(Upcoming)*
-- [ ] Initialize FastAPI app with CORS and middleware.
-- [ ] Implement base routers for users and vocabulary operations.
-- [ ] Add request validation and OpenAPI documentation enhancements.
-- [ ] Smoke test endpoints via HTTPX or curl scripts.
+### Day 8-10 — Basic API Structure *(In Progress)*
+- [x] Initialize FastAPI app with CORS and middleware.
+- [x] Implement base routers for users and vocabulary operations.
+- [x] Add request validation and OpenAPI documentation enhancements.
+- [x] Smoke test endpoints via HTTPX or curl scripts.
 
 ## Phase 2: SRS Algorithm (Week 3)
 - [ ] Implement FSRS algorithm module and scheduler integration.
