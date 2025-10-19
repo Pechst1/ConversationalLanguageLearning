@@ -3,7 +3,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import List, Optional
 
-from pydantic import AnyUrl, BaseSettings, Field
+from pydantic import AnyUrl, Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -35,9 +36,10 @@ class Settings(BaseSettings):
     CELERY_BROKER_URL: Optional[AnyUrl] = None
     CELERY_RESULT_BACKEND: Optional[AnyUrl] = None
 
-    class Config:
-        env_file = Path(__file__).resolve().parent.parent / ".env"
-        env_file_encoding = "utf-8"
+    model_config = SettingsConfigDict(
+        env_file=Path(__file__).resolve().parent.parent / ".env",
+        env_file_encoding="utf-8",
+    )
 
 
 @lru_cache()
