@@ -17,6 +17,7 @@ from app.api.deps import get_db
 from app.db import models  # noqa: F401  # Imported for side effects
 from app.db.base import Base
 from app.db.models import User, VocabularyWord
+from app.db.models.progress import ReviewLog, UserVocabularyProgress
 from app.main import create_app
 
 
@@ -34,11 +35,27 @@ def db_engine():
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
-    Base.metadata.create_all(bind=engine, tables=[User.__table__, VocabularyWord.__table__])
+    Base.metadata.create_all(
+        bind=engine,
+        tables=[
+            User.__table__,
+            VocabularyWord.__table__,
+            UserVocabularyProgress.__table__,
+            ReviewLog.__table__,
+        ],
+    )
     try:
         yield engine
     finally:
-        Base.metadata.drop_all(bind=engine, tables=[User.__table__, VocabularyWord.__table__])
+        Base.metadata.drop_all(
+            bind=engine,
+            tables=[
+                ReviewLog.__table__,
+                UserVocabularyProgress.__table__,
+                VocabularyWord.__table__,
+                User.__table__,
+            ],
+        )
 
 
 @pytest.fixture()

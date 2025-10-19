@@ -3,6 +3,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import Column, Date, DateTime, Float, ForeignKey, Integer, String
+from sqlalchemy.types import JSON
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -44,7 +45,7 @@ class UserVocabularyProgress(Base):
     times_used_correctly = Column(Integer, default=0)
     times_used_incorrectly = Column(Integer, default=0)
 
-    error_types = Column(JSONB, default=list)
+    error_types = Column(JSONB().with_variant(JSON(), "sqlite"), default=list)
 
     first_seen_date = Column(DateTime(timezone=True), server_default=func.now())
     mastered_date = Column(DateTime(timezone=True))

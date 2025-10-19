@@ -25,9 +25,9 @@ The roadmap is executed in sequential phases. Each phase is broken into concrete
 - [x] Smoke test endpoints via HTTPX or curl scripts.
 
 ## Phase 2: SRS Algorithm (Week 3)
-- [ ] Implement FSRS algorithm module and scheduler integration.
-- [ ] Provide unit tests validating interval and rating calculations.
-- [ ] Expose progress endpoints for vocabulary tracking.
+- [x] Implement FSRS algorithm module and scheduler integration.
+- [x] Provide unit tests validating interval and rating calculations.
+- [x] Expose progress endpoints for vocabulary tracking.
 
 ## Phase 3: LLM Integration (Week 4)
 - [ ] Implement LLM service abstraction with OpenAI/Anthropic providers.
