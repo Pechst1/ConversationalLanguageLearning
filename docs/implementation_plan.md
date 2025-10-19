@@ -12,11 +12,11 @@ The roadmap is executed in sequential phases. Each phase is broken into concrete
 - [x] Implement vocabulary seed script with sample CSV generator.
 - [ ] Validate migration against a live PostgreSQL instance.
 
-### Day 4-7 — Authentication & User Management *(Upcoming)*
-- [ ] Implement password hashing and JWT utilities in `app/core/security.py`.
-- [ ] Create Pydantic schemas for user registration/login flows.
-- [ ] Build authentication service and FastAPI routes.
-- [ ] Add integration tests covering registration and login.
+### Day 4-7 — Authentication & User Management *(In Progress)*
+- [x] Implement password hashing and JWT utilities in `app/core/security.py`.
+- [x] Create Pydantic schemas for user registration/login flows.
+- [x] Build authentication service and FastAPI routes.
+- [x] Add integration tests covering registration and login.
 
 ### Day 8-10 — Basic API Structure *(Upcoming)*
 - [ ] Initialize FastAPI app with CORS and middleware.
