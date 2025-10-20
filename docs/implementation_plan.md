@@ -34,6 +34,7 @@ The roadmap is executed in sequential phases. Each phase is broken into concrete
 - [x] Build conversation prompt templates and evaluation harness.
 - [x] Integrate fallback logic and error handling for conversation generation.
 - [x] Deliver rule-based error detection heuristics and spaCy integration.
+- [x] Implement conversation generator that merges SRS queues with prompt assembly.
 - [ ] Wire LLM-assisted error analysis into session flows.
 
 ## Phase 4: Session Management (Week 5)
