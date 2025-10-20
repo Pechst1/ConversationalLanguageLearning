@@ -46,6 +46,10 @@ class Settings(BaseSettings):
     )
     LLM_REQUEST_TIMEOUT_SECONDS: float = Field(30.0, description="Timeout for LLM HTTP calls")
     LLM_MAX_RETRIES: int = Field(3, description="Retry attempts for failed LLM calls")
+    FRENCH_NLP_MODEL: str = Field(
+        "fr_core_news_sm",
+        description="spaCy model used for French linguistic analysis",
+    )
 
     CELERY_BROKER_URL: Optional[AnyUrl] = None
     CELERY_RESULT_BACKEND: Optional[AnyUrl] = None

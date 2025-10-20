@@ -10,6 +10,7 @@ This repository contains the backend implementation for the Conversational Langu
 - PostgreSQL 15+
 - Redis 7+
 - (Optional) Docker and Docker Compose for containerized setup
+- spaCy French model (`fr_core_news_sm`) installed locally
 
 ### Installation
 
@@ -39,6 +40,16 @@ ANTHROPIC_MODEL=claude-3-5-sonnet
 You can also override the API base URLs for self-hosted compatible gateways by setting
 `OPENAI_API_BASE` or `ANTHROPIC_API_BASE`. Timeout and retry behaviour is controlled via
 `LLM_REQUEST_TIMEOUT_SECONDS` and `LLM_MAX_RETRIES`.
+
+#### Language Processing
+
+The error detection pipeline relies on spaCy for part-of-speech tagging. Install the
+French model (configurable via `FRENCH_NLP_MODEL`) after setting up the virtual
+environment:
+
+```bash
+python -m spacy download fr_core_news_sm
+```
 
 ### Database Migrations
 
