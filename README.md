@@ -22,6 +22,24 @@ cp .env.example .env
 
 Update `.env` with your secrets and infrastructure endpoints.
 
+#### LLM Configuration
+
+Set the provider credentials and preferred models to unlock the conversational features. The
+service supports automatic fallback between OpenAI and Anthropic compatible APIs.
+
+```
+OPENAI_API_KEY="sk-..."
+ANTHROPIC_API_KEY="anthropic-..."  # optional fallback
+PRIMARY_LLM_PROVIDER=openai
+SECONDARY_LLM_PROVIDER=anthropic
+OPENAI_MODEL=gpt-4o-mini
+ANTHROPIC_MODEL=claude-3-5-sonnet
+```
+
+You can also override the API base URLs for self-hosted compatible gateways by setting
+`OPENAI_API_BASE` or `ANTHROPIC_API_BASE`. Timeout and retry behaviour is controlled via
+`LLM_REQUEST_TIMEOUT_SECONDS` and `LLM_MAX_RETRIES`.
+
 ### Database Migrations
 
 The project uses Alembic for migrations.
