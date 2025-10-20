@@ -32,6 +32,20 @@ class Settings(BaseSettings):
 
     OPENAI_API_KEY: Optional[str] = None
     ANTHROPIC_API_KEY: Optional[str] = None
+    PRIMARY_LLM_PROVIDER: str = Field("openai", description="Preferred LLM provider key")
+    SECONDARY_LLM_PROVIDER: Optional[str] = Field(
+        "anthropic", description="Fallback LLM provider key"
+    )
+    OPENAI_MODEL: str = Field("gpt-4o-mini", description="Default OpenAI chat model")
+    OPENAI_API_BASE: Optional[AnyUrl] = Field(
+        None, description="Override base URL for OpenAI-compatible endpoints"
+    )
+    ANTHROPIC_MODEL: str = Field("claude-3-5-sonnet", description="Default Anthropic model")
+    ANTHROPIC_API_BASE: Optional[AnyUrl] = Field(
+        None, description="Override base URL for Anthropic endpoints"
+    )
+    LLM_REQUEST_TIMEOUT_SECONDS: float = Field(30.0, description="Timeout for LLM HTTP calls")
+    LLM_MAX_RETRIES: int = Field(3, description="Retry attempts for failed LLM calls")
 
     CELERY_BROKER_URL: Optional[AnyUrl] = None
     CELERY_RESULT_BACKEND: Optional[AnyUrl] = None
