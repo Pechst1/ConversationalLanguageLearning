@@ -30,9 +30,11 @@ The roadmap is executed in sequential phases. Each phase is broken into concrete
 - [x] Expose progress endpoints for vocabulary tracking.
 
 ## Phase 3: LLM Integration (Week 4)
-- [ ] Implement LLM service abstraction with OpenAI/Anthropic providers.
-- [ ] Build conversation prompt templates and evaluation harness.
-- [ ] Integrate fallback logic and error handling for conversation generation.
+- [x] Implement LLM service abstraction with OpenAI/Anthropic providers.
+- [x] Build conversation prompt templates and evaluation harness.
+- [x] Integrate fallback logic and error handling for conversation generation.
+- [x] Deliver rule-based error detection heuristics and spaCy integration.
+- [ ] Wire LLM-assisted error analysis into session flows.
 
 ## Phase 4: Session Management (Week 5)
 - [ ] Implement session creation and lifecycle services.
