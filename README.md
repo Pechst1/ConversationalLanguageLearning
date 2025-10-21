@@ -82,6 +82,31 @@ The SRS module powers the learner progress endpoints exposed under `/api/v1/prog
 - `POST /api/v1/progress/review` – submit a rating (0-3) after reviewing a word to receive the next scheduled review time.
 - `GET /api/v1/progress/{word_id}` – inspect the stored stability, difficulty, and repetition counters for a specific word.
 
+### Real-time Session Stream
+
+Interactive tutoring sessions exchange turn results over a WebSocket channel at
+`/api/v1/sessions/{session_id}/ws`. Authenticate by providing the learner's access token
+either as a `token` query parameter or via an `Authorization: Bearer <token>` header.
+
+Upon connection the server emits a `session_ready` envelope containing the latest session
+summary and currently connected user IDs. Clients can then send the following payloads:
+
+```json
+// Submit a learner turn and optional suggested vocabulary IDs
+{ "type": "user_message", "content": "J'adore les baguettes!", "suggested_words": [123, 456] }
+
+// Broadcast typing indicators to other participants
+{ "type": "typing", "is_typing": true }
+
+// Keep the connection alive and receive a server timestamp
+{ "type": "heartbeat" }
+```
+
+Every accepted learner message results in a `turn_result` response that mirrors the REST
+`POST /sessions/{id}/messages` payload (session overview, assistant reply, XP awarded, and
+word-level feedback). Heartbeats return the server time and typing indicators are
+rebroadcast to all active connections for that session.
+
 ## Project Structure
 
 ```

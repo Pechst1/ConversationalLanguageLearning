@@ -112,3 +112,43 @@ else:
     @pytest.fixture()
     def async_client():  # pragma: no cover - skip when dependency missing
         pytest.skip("pytest-asyncio is not installed")
+
+
+@pytest.fixture()
+def french_vocabulary(db_session):
+    words = [
+        VocabularyWord(
+            language="fr",
+            word="baguette",
+            normalized_word="baguette",
+            part_of_speech="noun",
+            frequency_rank=10,
+            english_translation="baguette",
+            difficulty_level=1,
+        ),
+        VocabularyWord(
+            language="fr",
+            word="fromage",
+            normalized_word="fromage",
+            part_of_speech="noun",
+            frequency_rank=11,
+            english_translation="cheese",
+            difficulty_level=1,
+        ),
+        VocabularyWord(
+            language="fr",
+            word="bonjour",
+            normalized_word="bonjour",
+            part_of_speech="interjection",
+            frequency_rank=5,
+            english_translation="hello",
+            difficulty_level=1,
+        ),
+    ]
+    db_session.add_all(words)
+    db_session.commit()
+    try:
+        yield words
+    finally:
+        db_session.query(VocabularyWord).delete()
+        db_session.commit()
