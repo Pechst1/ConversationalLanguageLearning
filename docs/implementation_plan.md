@@ -39,7 +39,7 @@ The roadmap is executed in sequential phases. Each phase is broken into concrete
 
 ## Phase 4: Session Management (Week 5)
 - [x] Implement session creation and lifecycle services.
-- [ ] Build WebSocket real-time messaging channel.
+- [x] Build WebSocket real-time messaging channel.
 - [x] Integrate SRS updates and error detection responses.
 
 ## Phase 5: Analytics & Polish (Week 6)

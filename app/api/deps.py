@@ -15,6 +15,7 @@ from app.db.session import SessionLocal
 from app.schemas import TokenPayload
 from app.services.llm_service import LLMService
 from app.services.progress import ProgressService
+from app.services.realtime import SessionConnectionManager, build_default_connection_manager
 from app.services.session_service import SessionService
 from app.core.conversation import ConversationGenerator
 from app.core.error_detection import ErrorDetector
@@ -23,6 +24,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login
 
 _llm_service_singleton: LLMService | None = None
 _error_detector_singleton: ErrorDetector | None = None
+_connection_manager_singleton: SessionConnectionManager | None = None
 
 
 def get_db() -> Session:
@@ -108,3 +110,12 @@ def get_session_service(
         error_detector=error_detector,
         llm_service=llm_service,
     )
+
+
+def get_connection_manager() -> SessionConnectionManager:
+    """Return a process-wide connection manager for WebSocket sessions."""
+
+    global _connection_manager_singleton
+    if _connection_manager_singleton is None:
+        _connection_manager_singleton = build_default_connection_manager()
+    return _connection_manager_singleton

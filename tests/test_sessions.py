@@ -10,7 +10,6 @@ import spacy
 from app.api import deps
 from app.db.models.session import LearningSession
 from app.db.models.user import User
-from app.db.models.vocabulary import VocabularyWord
 from app.db.models.progress import UserVocabularyProgress
 from app.services.llm_service import LLMResult
 from app.services.progress import ProgressService
@@ -90,46 +89,6 @@ def stubbed_session_service(client: TestClient, db_session):
         client.app.dependency_overrides.pop(deps.get_llm_service, None)
         deps._llm_service_singleton = None
         deps._error_detector_singleton = None
-
-
-@pytest.fixture()
-def french_vocabulary(db_session):
-    words = [
-        VocabularyWord(
-            language="fr",
-            word="baguette",
-            normalized_word="baguette",
-            part_of_speech="noun",
-            frequency_rank=10,
-            english_translation="baguette",
-            difficulty_level=1,
-        ),
-        VocabularyWord(
-            language="fr",
-            word="fromage",
-            normalized_word="fromage",
-            part_of_speech="noun",
-            frequency_rank=11,
-            english_translation="cheese",
-            difficulty_level=1,
-        ),
-        VocabularyWord(
-            language="fr",
-            word="bonjour",
-            normalized_word="bonjour",
-            part_of_speech="interjection",
-            frequency_rank=5,
-            english_translation="hello",
-            difficulty_level=1,
-        ),
-    ]
-    db_session.add_all(words)
-    db_session.commit()
-    try:
-        yield words
-    finally:
-        db_session.query(VocabularyWord).delete()
-        db_session.commit()
 
 
 def register_and_login(client: TestClient, email: str, password: str) -> str:
