@@ -35,12 +35,12 @@ The roadmap is executed in sequential phases. Each phase is broken into concrete
 - [x] Integrate fallback logic and error handling for conversation generation.
 - [x] Deliver rule-based error detection heuristics and spaCy integration.
 - [x] Implement conversation generator that merges SRS queues with prompt assembly.
-- [ ] Wire LLM-assisted error analysis into session flows.
+- [x] Wire LLM-assisted error analysis into session flows.
 
 ## Phase 4: Session Management (Week 5)
-- [ ] Implement session creation and lifecycle services.
+- [x] Implement session creation and lifecycle services.
 - [ ] Build WebSocket real-time messaging channel.
-- [ ] Integrate SRS updates and error detection responses.
+- [x] Integrate SRS updates and error detection responses.
 
 ## Phase 5: Analytics & Polish (Week 6)
 - [ ] Create analytics service delivering progress summaries.

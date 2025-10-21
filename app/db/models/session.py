@@ -1,8 +1,9 @@
 """Session and conversation database models."""
 import uuid
 
-from sqlalchemy import ARRAY, Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.types import JSON
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -65,11 +66,11 @@ class ConversationMessage(Base):
     content = Column(Text, nullable=False)
     sequence_number = Column(Integer, nullable=False)
 
-    target_words = Column(ARRAY(Integer), default=list)
+    target_words = Column(JSONB().with_variant(JSON(), "sqlite"), default=list)
 
-    errors_detected = Column(JSONB)
-    words_used = Column(ARRAY(Integer), default=list)
-    suggested_words_used = Column(ARRAY(Integer), default=list)
+    errors_detected = Column(JSONB().with_variant(JSON(), "sqlite"))
+    words_used = Column(JSONB().with_variant(JSON(), "sqlite"), default=list)
+    suggested_words_used = Column(JSONB().with_variant(JSON(), "sqlite"), default=list)
     xp_earned = Column(Integer, default=0)
 
     generation_prompt = Column(String)

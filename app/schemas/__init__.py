@@ -7,6 +7,22 @@ from app.schemas.progress import (
     ReviewRequest,
     ReviewResponse,
 )
+from app.schemas.session import (
+    AssistantTurnRead,
+    DetectedErrorRead,
+    ErrorFeedback,
+    SessionCreateRequest,
+    SessionMessageListResponse,
+    SessionMessageRead,
+    SessionMessageRequest,
+    SessionOverview,
+    SessionStartResponse,
+    SessionStatusUpdate,
+    SessionSummaryResponse,
+    SessionTurnResponse,
+    SessionTurnWordFeedback,
+    TargetWordRead,
+)
 from app.schemas.user import UserBase, UserCreate, UserLogin, UserRead, UserUpdate
 from app.schemas.vocabulary import VocabularyListResponse, VocabularyWordRead
 
@@ -17,6 +33,20 @@ __all__ = [
     "QueueWord",
     "ReviewRequest",
     "ReviewResponse",
+    "AssistantTurnRead",
+    "DetectedErrorRead",
+    "ErrorFeedback",
+    "SessionCreateRequest",
+    "SessionMessageListResponse",
+    "SessionMessageRead",
+    "SessionMessageRequest",
+    "SessionOverview",
+    "SessionStartResponse",
+    "SessionStatusUpdate",
+    "SessionSummaryResponse",
+    "SessionTurnResponse",
+    "SessionTurnWordFeedback",
+    "TargetWordRead",
     "UserBase",
     "UserCreate",
     "UserLogin",
