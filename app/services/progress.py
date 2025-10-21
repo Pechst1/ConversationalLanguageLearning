@@ -1,0 +1,274 @@
+"""Business logic for learner vocabulary progress."""
+from __future__ import annotations
+
+import uuid
+from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
+
+from sqlalchemy import and_, func, not_, or_, select
+from sqlalchemy.orm import Session, joinedload
+
+from app.db.models.progress import ReviewLog, UserVocabularyProgress
+from app.db.models.user import User
+from app.db.models.vocabulary import VocabularyWord
+from app.services.srs import FSRSScheduler, ReviewOutcome, SchedulerState
+
+
+@dataclass(slots=True)
+class QueueItem:
+    """Representation of a queue entry returned to the API."""
+
+    word: VocabularyWord
+    progress: UserVocabularyProgress | None
+    is_new: bool
+
+
+class ProgressService:
+    """High level helper for vocabulary progress workflows."""
+
+    def __init__(self, db: Session, *, scheduler: FSRSScheduler | None = None) -> None:
+        self.db = db
+        self.scheduler = scheduler or FSRSScheduler()
+
+    # ------------------------------------------------------------------
+    # Query helpers
+    # ------------------------------------------------------------------
+    def _progress_query(self, user_id: User.id, word_id: int) -> select:
+        return select(UserVocabularyProgress).where(
+            and_(
+                UserVocabularyProgress.user_id == user_id,
+                UserVocabularyProgress.word_id == word_id,
+            )
+        )
+
+    def get_progress(self, *, user_id: User.id, word_id: int) -> UserVocabularyProgress | None:
+        """Return an existing progress row if present."""
+
+        stmt = self._progress_query(user_id, word_id).options(joinedload(UserVocabularyProgress.word))
+        return self.db.scalars(stmt).first()
+
+    def get_or_create_progress(
+        self, *, user_id: User.id, word_id: int
+    ) -> UserVocabularyProgress:
+        """Return an existing row or create a new one in-memory."""
+
+        progress = self.db.scalars(self._progress_query(user_id, word_id)).first()
+        if progress is None:
+            progress = UserVocabularyProgress(user_id=user_id, word_id=word_id, state="new")
+            self.db.add(progress)
+            self.db.flush([progress])
+            progress = self.db.get(UserVocabularyProgress, progress.id)
+        return progress
+
+    def get_learning_queue(
+        self,
+        *,
+        user: User,
+        limit: int,
+        now: datetime | None = None,
+        new_word_budget: int | None = None,
+    ) -> list[QueueItem]:
+        """Return due and new words for a learner."""
+
+        now = now or datetime.now(timezone.utc)
+        due_stmt = (
+            select(UserVocabularyProgress)
+            .options(joinedload(UserVocabularyProgress.word))
+            .where(UserVocabularyProgress.user_id == user.id)
+            .where(
+                or_(
+                    UserVocabularyProgress.due_date.is_(None),
+                    UserVocabularyProgress.due_date <= now.date(),
+                )
+            )
+            .order_by(
+                UserVocabularyProgress.due_date.nullsfirst(),
+                UserVocabularyProgress.created_at,
+            )
+            .limit(limit)
+        )
+        due_progress = list(self.db.scalars(due_stmt))
+        items: list[QueueItem] = [
+            QueueItem(word=progress.word, progress=progress, is_new=False)
+            for progress in due_progress
+        ]
+
+        if len(items) >= limit:
+            return items
+
+        words_seen_subquery = select(UserVocabularyProgress.word_id).where(
+            UserVocabularyProgress.user_id == user.id
+        )
+
+        missing = limit - len(items)
+        if new_word_budget is not None:
+            missing = min(missing, new_word_budget)
+
+        if missing <= 0:
+            return items
+
+        new_conditions = [not_(VocabularyWord.id.in_(words_seen_subquery))]
+        if user.target_language:
+            new_conditions.append(VocabularyWord.language == user.target_language)
+        new_word_stmt = (
+            select(VocabularyWord)
+            .where(and_(*new_conditions))
+            .order_by(VocabularyWord.frequency_rank)
+            .limit(missing)
+        )
+        new_words = list(self.db.scalars(new_word_stmt))
+
+        items.extend(QueueItem(word=word, progress=None, is_new=True) for word in new_words)
+        return items
+
+    def count_due_reviews(self, user_id: uuid.UUID, now: datetime | None = None) -> int:
+        """Return how many reviews are currently due for the learner."""
+
+        now = now or datetime.now(timezone.utc)
+        count = (
+            self.db.query(func.count(UserVocabularyProgress.id))
+            .filter(
+                UserVocabularyProgress.user_id == user_id,
+                or_(
+                    UserVocabularyProgress.due_date.is_(None),
+                    UserVocabularyProgress.due_date <= now.date(),
+                ),
+            )
+            .scalar()
+        )
+        return int(count or 0)
+
+    def calculate_new_word_budget(
+        self,
+        user_id: uuid.UUID,
+        session_capacity: int,
+        now: datetime | None = None,
+    ) -> int:
+        """Determine how many new words can be introduced in the current session."""
+
+        due_reviews = self.count_due_reviews(user_id, now=now)
+        if due_reviews >= session_capacity:
+            return 0
+
+        remaining_capacity = session_capacity - due_reviews
+        max_new_words = int(session_capacity * 0.5)
+        new_word_budget = min(remaining_capacity, max_new_words)
+        return max(0, new_word_budget)
+
+    def calculate_review_performance(
+        self,
+        user_id: uuid.UUID,
+        lookback_days: int = 7,
+        now: datetime | None = None,
+    ) -> float:
+        """Calculate a learner's recent review performance score."""
+
+        now = now or datetime.now(timezone.utc)
+        cutoff_date = now - timedelta(days=lookback_days)
+        recent_reviews = (
+            self.db.query(ReviewLog)
+            .join(UserVocabularyProgress)
+            .filter(
+                UserVocabularyProgress.user_id == user_id,
+                ReviewLog.review_date >= cutoff_date,
+            )
+            .all()
+        )
+
+        if not recent_reviews:
+            return 0.5
+
+        rating_to_score = {3: 1.0, 2: 0.66, 1: 0.33, 0: 0.0}
+        total_score = sum(rating_to_score.get(review.rating, 0.0) for review in recent_reviews)
+        return total_score / len(recent_reviews)
+
+    def calculate_adaptive_review_ratio(self, user_id: uuid.UUID) -> float:
+        """Return the desired review ratio based on learner performance."""
+
+        performance = self.calculate_review_performance(user_id)
+        if performance < 0.5:
+            return 0.75
+        if performance < 0.7:
+            return 0.60
+        return 0.45
+
+    # ------------------------------------------------------------------
+    # Review helpers
+    # ------------------------------------------------------------------
+    def _state_from_progress(self, progress: UserVocabularyProgress) -> SchedulerState:
+        return SchedulerState(
+            stability=progress.stability or 0.0,
+            difficulty=progress.difficulty or 5.0,
+            reps=progress.reps or 0,
+            lapses=progress.lapses or 0,
+            scheduled_days=progress.scheduled_days or 0,
+            state=progress.state or "new",
+        )
+
+    def record_review(
+        self,
+        *,
+        user: User,
+        word: VocabularyWord,
+        rating: int,
+        now: datetime | None = None,
+    ) -> tuple[UserVocabularyProgress, ReviewLog, ReviewOutcome]:
+        """Persist a learner review and return the updated progress."""
+
+        now = now or datetime.now(timezone.utc)
+        progress = self.get_or_create_progress(user_id=user.id, word_id=word.id)
+        previous_schedule = progress.scheduled_days
+        state = self._state_from_progress(progress)
+        outcome = self.scheduler.review(
+            state=state,
+            rating=rating,
+            last_review_at=progress.last_review_date,
+            now=now,
+        )
+
+        progress.stability = outcome.stability
+        progress.difficulty = outcome.difficulty
+        progress.elapsed_days = outcome.elapsed_days
+        progress.scheduled_days = outcome.scheduled_days
+        progress.state = outcome.state
+        progress.mark_review(review_date=now, next_review=outcome.next_review, rating=rating)
+        progress.updated_at = now
+
+        review_log = ReviewLog(
+            progress=progress,
+            rating=rating,
+            review_date=now,
+            state_transition=f"{state.state}->{outcome.state}",
+        )
+        review_log.set_schedule_transition(before=previous_schedule, after=outcome.scheduled_days)
+
+        self.db.add(review_log)
+        self.db.flush([progress, review_log])
+        return progress, review_log, outcome
+
+    # ------------------------------------------------------------------
+    # Aggregation helpers
+    # ------------------------------------------------------------------
+    def progress_summary(self, *, user_id: User.id, word_id: int) -> dict[str, int]:
+        """Return aggregate counters for UI consumption."""
+
+        progress = self.get_progress(user_id=user_id, word_id=word_id)
+        if not progress:
+            return {
+                "reps": 0,
+                "lapses": 0,
+                "correct_count": 0,
+                "incorrect_count": 0,
+            }
+
+        review_count = self.db.scalar(
+            select(func.count()).select_from(ReviewLog).where(ReviewLog.progress_id == progress.id)
+        )
+
+        return {
+            "reps": progress.reps or 0,
+            "lapses": progress.lapses or 0,
+            "correct_count": progress.correct_count or 0,
+            "incorrect_count": progress.incorrect_count or 0,
+            "reviews_logged": int(review_count or 0),
+        }
