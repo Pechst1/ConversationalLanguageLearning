@@ -5,6 +5,8 @@ from uuid import UUID
 import pytest
 from fastapi.testclient import TestClient
 
+import spacy
+
 from app.api import deps
 from app.db.models.session import LearningSession
 from app.db.models.user import User
@@ -71,6 +73,7 @@ def stubbed_session_service(client: TestClient, db_session):
             conversation_generator=generator,
             error_detector=stub_detector,
             llm_service=stub_llm,
+            nlp=spacy.blank("fr"),
         )
 
     client.app.dependency_overrides[deps.get_llm_service] = override_llm_service

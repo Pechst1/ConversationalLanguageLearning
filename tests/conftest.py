@@ -7,7 +7,10 @@ from collections.abc import AsyncGenerator, Generator
 os.environ.setdefault("SECRET_KEY", "test-secret-key")
 
 import pytest
-import pytest_asyncio
+try:  # pragma: no cover - optional dependency
+    import pytest_asyncio
+except ImportError:  # pragma: no cover
+    pytest_asyncio = None  # type: ignore[assignment]
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -87,17 +90,25 @@ def client(db_session: Session) -> Generator[TestClient, None, None]:
         yield test_client
 
 
-@pytest_asyncio.fixture()
-async def async_client(db_session: Session) -> AsyncGenerator["httpx.AsyncClient", None]:
-    import httpx
+if pytest_asyncio is not None:
 
-    app = create_app()
+    @pytest_asyncio.fixture()
+    async def async_client(db_session: Session) -> AsyncGenerator["httpx.AsyncClient", None]:
+        import httpx
 
-    async def override_get_db() -> AsyncGenerator[Session, None]:
-        yield db_session
+        app = create_app()
 
-    app.dependency_overrides[get_db] = override_get_db
+        async def override_get_db() -> AsyncGenerator[Session, None]:
+            yield db_session
 
-    transport = httpx.ASGITransport(app=app)
-    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
-        yield client
+        app.dependency_overrides[get_db] = override_get_db
+
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+            yield client
+
+else:
+
+    @pytest.fixture()
+    def async_client():  # pragma: no cover - skip when dependency missing
+        pytest.skip("pytest-asyncio is not installed")
