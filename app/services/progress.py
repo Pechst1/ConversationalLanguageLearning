@@ -1,8 +1,9 @@
 """Business logic for learner vocabulary progress."""
 from __future__ import annotations
 
+import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import and_, func, not_, or_, select
 from sqlalchemy.orm import Session, joinedload
@@ -65,6 +66,7 @@ class ProgressService:
         user: User,
         limit: int,
         now: datetime | None = None,
+        new_word_budget: int | None = None,
     ) -> list[QueueItem]:
         """Return due and new words for a learner."""
 
@@ -86,7 +88,10 @@ class ProgressService:
             .limit(limit)
         )
         due_progress = list(self.db.scalars(due_stmt))
-        items: list[QueueItem] = [QueueItem(word=progress.word, progress=progress, is_new=False) for progress in due_progress]
+        items: list[QueueItem] = [
+            QueueItem(word=progress.word, progress=progress, is_new=False)
+            for progress in due_progress
+        ]
 
         if len(items) >= limit:
             return items
@@ -96,6 +101,12 @@ class ProgressService:
         )
 
         missing = limit - len(items)
+        if new_word_budget is not None:
+            missing = min(missing, new_word_budget)
+
+        if missing <= 0:
+            return items
+
         new_conditions = [not_(VocabularyWord.id.in_(words_seen_subquery))]
         if user.target_language:
             new_conditions.append(VocabularyWord.language == user.target_language)
@@ -109,6 +120,77 @@ class ProgressService:
 
         items.extend(QueueItem(word=word, progress=None, is_new=True) for word in new_words)
         return items
+
+    def count_due_reviews(self, user_id: uuid.UUID, now: datetime | None = None) -> int:
+        """Return how many reviews are currently due for the learner."""
+
+        now = now or datetime.now(timezone.utc)
+        count = (
+            self.db.query(func.count(UserVocabularyProgress.id))
+            .filter(
+                UserVocabularyProgress.user_id == user_id,
+                or_(
+                    UserVocabularyProgress.due_date.is_(None),
+                    UserVocabularyProgress.due_date <= now.date(),
+                ),
+            )
+            .scalar()
+        )
+        return int(count or 0)
+
+    def calculate_new_word_budget(
+        self,
+        user_id: uuid.UUID,
+        session_capacity: int,
+        now: datetime | None = None,
+    ) -> int:
+        """Determine how many new words can be introduced in the current session."""
+
+        due_reviews = self.count_due_reviews(user_id, now=now)
+        if due_reviews >= session_capacity:
+            return 0
+
+        remaining_capacity = session_capacity - due_reviews
+        max_new_words = int(session_capacity * 0.5)
+        new_word_budget = min(remaining_capacity, max_new_words)
+        return max(0, new_word_budget)
+
+    def calculate_review_performance(
+        self,
+        user_id: uuid.UUID,
+        lookback_days: int = 7,
+        now: datetime | None = None,
+    ) -> float:
+        """Calculate a learner's recent review performance score."""
+
+        now = now or datetime.now(timezone.utc)
+        cutoff_date = now - timedelta(days=lookback_days)
+        recent_reviews = (
+            self.db.query(ReviewLog)
+            .join(UserVocabularyProgress)
+            .filter(
+                UserVocabularyProgress.user_id == user_id,
+                ReviewLog.review_date >= cutoff_date,
+            )
+            .all()
+        )
+
+        if not recent_reviews:
+            return 0.5
+
+        rating_to_score = {3: 1.0, 2: 0.66, 1: 0.33, 0: 0.0}
+        total_score = sum(rating_to_score.get(review.rating, 0.0) for review in recent_reviews)
+        return total_score / len(recent_reviews)
+
+    def calculate_adaptive_review_ratio(self, user_id: uuid.UUID) -> float:
+        """Return the desired review ratio based on learner performance."""
+
+        performance = self.calculate_review_performance(user_id)
+        if performance < 0.5:
+            return 0.75
+        if performance < 0.7:
+            return 0.60
+        return 0.45
 
     # ------------------------------------------------------------------
     # Review helpers

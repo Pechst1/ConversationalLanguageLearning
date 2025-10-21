@@ -8,8 +8,10 @@ from datetime import datetime, timezone
 from typing import Sequence
 
 from loguru import logger
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, joinedload
+
+from app.config import settings
 
 from app.core.conversation import ConversationGenerator, ConversationHistoryMessage, ConversationPlan
 from app.core.error_detection import ErrorDetectionResult, ErrorDetector
@@ -20,6 +22,11 @@ from app.db.models.vocabulary import VocabularyWord
 from app.services.llm_service import LLMResult, LLMService
 from app.services.progress import ProgressService
 
+try:  # pragma: no cover - imported for typing
+    from spacy.language import Language
+except ImportError:  # pragma: no cover
+    Language = object  # type: ignore[misc,assignment]
+
 
 @dataclass(slots=True)
 class XPConfig:
@@ -29,6 +36,9 @@ class XPConfig:
     correct_review: int = 15
     correct_new: int = 12
     partial_credit: int = 6
+    difficulty_multipliers: dict[int, float] = field(
+        default_factory=lambda: {1: 1.0, 2: 1.2, 3: 1.5, 4: 1.8, 5: 2.0}
+    )
 
 
 @dataclass(slots=True)
@@ -101,6 +111,7 @@ class SessionService:
         error_detector: ErrorDetector | None = None,
         llm_service: LLMService | None = None,
         xp_config: XPConfig | None = None,
+        nlp: Language | None = None,
     ) -> None:
         self.db = db
         self.progress_service = progress_service or ProgressService(db)
@@ -111,10 +122,42 @@ class SessionService:
         )
         self.error_detector = error_detector or ErrorDetector(llm_service=self.llm_service)
         self.xp_config = xp_config or XPConfig()
+        if nlp is None:
+            try:
+                import spacy
+
+                self.nlp = spacy.load(settings.FRENCH_NLP_MODEL)
+            except Exception:  # pragma: no cover - fallback if model missing
+                import spacy
+
+                self.nlp = spacy.blank("fr")
+        else:
+            self.nlp = nlp
 
     # ------------------------------------------------------------------
     # Session lifecycle helpers
     # ------------------------------------------------------------------
+    def _calculate_session_capacity(self, planned_duration_minutes: int) -> dict[str, int]:
+        """Estimate how many turns and target words to surface for a session."""
+
+        minutes = max(planned_duration_minutes, 1)
+        minutes_per_turn = 3.0
+        estimated_turns = max(1, int(minutes / minutes_per_turn))
+
+        if minutes <= 10:
+            words_per_turn = 4
+        elif minutes <= 20:
+            words_per_turn = 6
+        else:
+            words_per_turn = 8
+
+        total_capacity = estimated_turns * words_per_turn
+        return {
+            "estimated_turns": estimated_turns,
+            "words_per_turn": words_per_turn,
+            "total_capacity": total_capacity,
+        }
+
     def create_session(
         self,
         *,
@@ -126,6 +169,8 @@ class SessionService:
         generate_greeting: bool = True,
     ) -> SessionStartResult:
         """Create a new session and optionally bootstrap the greeting turn."""
+
+        session_capacity = self._calculate_session_capacity(planned_duration_minutes)
 
         session = LearningSession(
             user_id=user.id,
@@ -142,10 +187,11 @@ class SessionService:
 
         assistant_turn: AssistantTurn | None = None
         if generate_greeting:
-            assistant_turn = self._generate_and_persist_assistant_turn(
+            assistant_turn = self._generate_and_persist_assistant_turn_with_context(
                 session=session,
                 user=user,
                 history=[],
+                session_capacity=session_capacity,
             )
 
         self.db.commit()
@@ -200,6 +246,130 @@ class SessionService:
             assignments.append((word, interaction.interaction_type == "target_new"))
         return assignments
 
+    def _lemmatize_with_context(self, text: str) -> set[str]:
+        """Return a set of lemmas and surface forms from the learner text."""
+
+        doc = self.nlp(text)
+        lemmas: set[str] = set()
+        for token in doc:
+            if token.lemma_:
+                lemmas.add(token.lemma_.lower())
+            lemmas.add(token.text.lower())
+        return lemmas
+
+    def _check_word_usage(
+        self,
+        target_word: VocabularyWord,
+        learner_text: str,
+        learner_lemmas: set[str],
+    ) -> tuple[bool, str | None]:
+        """Determine whether the learner used the target vocabulary word."""
+
+        word_base = target_word.word.lower()
+        word_normalized = _normalize_text(word_base)
+        word_lemma = (target_word.normalized_word or target_word.word).lower()
+
+        lower_text = learner_text.lower()
+        if word_base in lower_text:
+            return True, word_base
+
+        normalized_text = _normalize_text(lower_text)
+        if word_normalized in normalized_text:
+            doc = self.nlp(learner_text)
+            for token in doc:
+                if _normalize_text(token.text.lower()) == word_normalized:
+                    return True, token.text
+
+        if word_lemma in learner_lemmas:
+            doc = self.nlp(learner_text)
+            for token in doc:
+                if token.lemma_ and token.lemma_.lower() == word_lemma:
+                    return True, token.text
+
+        return False, None
+
+    def _calculate_word_rating(
+        self,
+        *,
+        was_used: bool,
+        is_new: bool,
+        had_error: bool,
+        error_severity: str | None,
+    ) -> int | None:
+        """Map usage and error severity to an FSRS rating value."""
+
+        if not was_used:
+            if is_new:
+                return None
+            return 1
+
+        if not had_error:
+            return 3
+
+        if error_severity == "low":
+            return 2
+        if error_severity == "medium":
+            return 1
+        return 0
+
+    def _detect_unknown_words_used(
+        self,
+        learner_text: str,
+        learner_lemmas: set[str],
+        known_word_ids: set[int],
+        user: User,
+    ) -> list[tuple[VocabularyWord, str]]:
+        """Return vocabulary entries the learner used without being prompted."""
+
+        doc = self.nlp(learner_text)
+        unknown_words: list[tuple[VocabularyWord, str]] = []
+        for token in doc:
+            if token.is_stop or token.is_punct or token.is_space:
+                continue
+
+            lemma = token.lemma_.lower() if token.lemma_ else token.text.lower()
+            if lemma not in learner_lemmas and token.text.lower() not in learner_lemmas:
+                continue
+            vocab_word = (
+                self.db.query(VocabularyWord)
+                .filter(
+                    VocabularyWord.language == user.target_language,
+                    or_(
+                        VocabularyWord.normalized_word == lemma,
+                        VocabularyWord.word == token.text.lower(),
+                    ),
+                )
+                .first()
+            )
+            if vocab_word and vocab_word.id not in known_word_ids:
+                unknown_words.append((vocab_word, token.text))
+
+        return unknown_words
+
+    def _evaluate_unknown_word(
+        self,
+        word: VocabularyWord,
+        matched_form: str,
+        error_result: ErrorDetectionResult,
+    ) -> tuple[int, int]:
+        """Assign a rating and initial difficulty for spontaneous vocabulary usage."""
+
+        matching_errors = [
+            err
+            for err in error_result.errors
+            if matched_form.lower() in err.span.lower()
+        ]
+
+        if not matching_errors:
+            return 3, 1
+
+        severities = {err.severity for err in matching_errors}
+        if "high" in severities:
+            return 0, 5
+        if "medium" in severities:
+            return 1, 3
+        return 2, 2
+
     def _determine_word_feedback(
         self,
         *,
@@ -207,28 +377,30 @@ class SessionService:
         learner_text: str,
         error_result: ErrorDetectionResult,
         previous_targets: list[tuple[VocabularyWord, bool]],
+        learner_lemmas: set[str] | None = None,
     ) -> list[WordFeedback]:
-        normalized_message = _normalize_text(learner_text)
+        learner_lemmas = learner_lemmas or self._lemmatize_with_context(learner_text)
         feedback: list[WordFeedback] = []
+
         for word, is_new in previous_targets:
-            normalized_word = _normalize_text(word.normalized_word or word.word)
-            was_used = normalized_word in normalized_message
+            was_used, matched_form = self._check_word_usage(
+                word, learner_text, learner_lemmas
+            )
             matching_error: DetectedError | None = None
-            for error in error_result.errors:
-                span = _normalize_text(error.span)
-                if normalized_word and normalized_word in span:
-                    matching_error = error
-                    break
+            if was_used and matched_form:
+                for error in error_result.errors:
+                    if matched_form.lower() in error.span.lower():
+                        matching_error = error
+                        break
+
             had_error = matching_error is not None
-            rating: int | None
-            if was_used and not had_error:
-                rating = 3
-            elif was_used:
-                rating = 2
-            elif is_new:
-                rating = None
-            else:
-                rating = 1
+            rating = self._calculate_word_rating(
+                was_used=was_used,
+                is_new=is_new,
+                had_error=had_error,
+                error_severity=matching_error.severity if matching_error else None,
+            )
+
             feedback.append(
                 WordFeedback(
                     word=word,
@@ -239,6 +411,7 @@ class SessionService:
                     error=matching_error,
                 )
             )
+
         user_message.words_used = [fb.word.id for fb in feedback if fb.was_used]
         user_message.suggested_words_used = [fb.word.id for fb in feedback if fb.was_used]
         return feedback
@@ -290,10 +463,29 @@ class SessionService:
         for item in feedback:
             if not item.was_used:
                 continue
+
+            difficulty = item.word.difficulty_level or 1
+            multiplier = self.xp_config.difficulty_multipliers.get(difficulty, 1.0)
+
             if item.rating and item.rating >= 3:
-                xp += self.xp_config.correct_new if item.is_new else self.xp_config.correct_review
+                base_xp = self.xp_config.correct_new if item.is_new else self.xp_config.correct_review
             elif item.rating and item.rating >= 2:
-                xp += self.xp_config.partial_credit
+                base_xp = self.xp_config.partial_credit
+            else:
+                base_xp = 0
+
+            scaled_xp = int(base_xp * multiplier)
+            xp += scaled_xp
+
+            logger.debug(
+                "Word XP calculated",
+                word=item.word.word,
+                rating=item.rating,
+                difficulty=difficulty,
+                base=base_xp,
+                multiplier=multiplier,
+                scaled=scaled_xp,
+            )
         return xp
 
     def _refresh_session_stats(
@@ -342,10 +534,27 @@ class SessionService:
         user: User,
         history: Sequence[ConversationHistoryMessage],
     ) -> AssistantTurn:
-        generated = self.conversation_generator.generate_turn(
+        session_capacity = self._calculate_session_capacity(session.planned_duration_minutes or 15)
+        return self._generate_and_persist_assistant_turn_with_context(
+            session=session,
+            user=user,
+            history=history,
+            session_capacity=session_capacity,
+        )
+
+    def _generate_and_persist_assistant_turn_with_context(
+        self,
+        *,
+        session: LearningSession,
+        user: User,
+        history: Sequence[ConversationHistoryMessage],
+        session_capacity: dict[str, int],
+    ) -> AssistantTurn:
+        generated = self.conversation_generator.generate_turn_with_context(
             user=user,
             learner_level=user.proficiency_level or "B1",
             style=session.conversation_style or "tutor",
+            session_capacity=session_capacity,
             history=history,
         )
         sequence = self._next_sequence_number(session.id)
@@ -393,6 +602,7 @@ class SessionService:
         if session.status not in {"in_progress", "created", "paused"}:
             raise ValueError("Cannot add messages to a completed or abandoned session")
 
+        session_capacity = self._calculate_session_capacity(session.planned_duration_minutes or 15)
         history = self._collect_history(session)
         sequence = self._next_sequence_number(session.id)
         user_message = ConversationMessage(
@@ -425,11 +635,13 @@ class SessionService:
         )
         user_message.errors_detected = self._serialize_errors(error_result)
 
+        learner_lemmas = self._lemmatize_with_context(content)
         feedback = self._determine_word_feedback(
             user_message=user_message,
             learner_text=content,
             error_result=error_result,
             previous_targets=previous_targets,
+            learner_lemmas=learner_lemmas,
         )
 
         self._apply_progress_updates(user=user, feedback=feedback)
@@ -441,16 +653,67 @@ class SessionService:
             learner_text=content,
         )
 
+        known_word_ids = {word.id for word, _ in previous_targets}
+        unknown_words = self._detect_unknown_words_used(
+            content,
+            learner_lemmas,
+            known_word_ids,
+            user,
+        )
+
+        processed_spontaneous: set[int] = set()
+        for vocab_word, matched_form in unknown_words:
+            if vocab_word.id in processed_spontaneous:
+                continue
+            rating, suggested_difficulty = self._evaluate_unknown_word(
+                vocab_word,
+                matched_form,
+                error_result,
+            )
+
+            progress = self.progress_service.get_or_create_progress(
+                user_id=user.id,
+                word_id=vocab_word.id,
+            )
+            if progress.reps == 0:
+                progress.difficulty = float(suggested_difficulty)
+
+            self.progress_service.record_review(
+                user=user,
+                word=vocab_word,
+                rating=rating,
+            )
+
+            interaction = WordInteraction(
+                session_id=session.id,
+                user_id=user.id,
+                word_id=vocab_word.id,
+                message_id=user_message.id,
+                interaction_type="spontaneous_use",
+                user_response=content,
+                was_suggested=False,
+            )
+            self.db.add(interaction)
+            processed_spontaneous.add(vocab_word.id)
+
+            logger.info(
+                "User spontaneously used unknown word",
+                word=vocab_word.word,
+                rating=rating,
+                difficulty=suggested_difficulty,
+            )
+
         xp_awarded = self._calculate_xp(feedback)
         user_message.xp_earned = xp_awarded
         self._refresh_session_stats(session=session, feedback=feedback, xp_awarded=xp_awarded)
         self._apply_user_xp(user, session, xp_awarded)
 
         history.append(ConversationHistoryMessage(role="user", content=content))
-        assistant_turn = self._generate_and_persist_assistant_turn(
+        assistant_turn = self._generate_and_persist_assistant_turn_with_context(
             session=session,
             user=user,
             history=history,
+            session_capacity=session_capacity,
         )
 
         self.db.commit()
@@ -458,6 +721,14 @@ class SessionService:
         self.db.refresh(assistant_turn.message)
         self.db.refresh(session)
         self.db.refresh(user)
+
+        logger.info(
+            "Message processed with adaptive features",
+            session_id=str(session.id),
+            words_used=len([fb for fb in feedback if fb.was_used]),
+            spontaneous_words=len(processed_spontaneous),
+            xp_awarded=xp_awarded,
+        )
 
         return SessionTurnResult(
             session=session,

@@ -82,39 +82,59 @@ class ConversationGenerator:
     # ------------------------------------------------------------------
     # Vocabulary planning helpers
     # ------------------------------------------------------------------
-    def _select_queue_items(self, *, user: User) -> list[QueueItem]:
+    def _select_queue_items(
+        self,
+        *,
+        user: User,
+        dynamic_limit: int | None = None,
+        dynamic_review_ratio: float | None = None,
+        new_word_budget: int | None = None,
+    ) -> list[QueueItem]:
         """Return queue entries prioritizing reviews before new vocabulary."""
 
-        if self.target_limit == 0:
+        effective_limit = dynamic_limit if dynamic_limit is not None else self.target_limit
+        effective_ratio = (
+            max(0.0, min(dynamic_review_ratio, 1.0))
+            if dynamic_review_ratio is not None
+            else self.review_ratio
+        )
+
+        if effective_limit == 0:
             return []
 
-        queue = list(self.progress_service.get_learning_queue(user=user, limit=self.target_limit))
+        queue = list(
+            self.progress_service.get_learning_queue(
+                user=user,
+                limit=effective_limit,
+                new_word_budget=new_word_budget,
+            )
+        )
         if not queue:
             return []
 
         due_items = [item for item in queue if not item.is_new]
         new_items = [item for item in queue if item.is_new]
 
-        desired_reviews = int(round(self.target_limit * self.review_ratio))
+        desired_reviews = int(round(effective_limit * effective_ratio))
         desired_reviews = max(0, min(desired_reviews, len(due_items)))
 
         selected: list[QueueItem] = due_items[:desired_reviews]
 
-        remaining = self.target_limit - len(selected)
+        remaining = effective_limit - len(selected)
         if remaining > 0 and new_items:
             selected.extend(new_items[:remaining])
 
-        remaining = self.target_limit - len(selected)
+        remaining = effective_limit - len(selected)
         if remaining > 0:
             for item in due_items[desired_reviews:]:
                 selected.append(item)
-                if len(selected) >= self.target_limit:
+                if len(selected) >= effective_limit:
                     break
 
-        if len(selected) < self.target_limit:
+        if len(selected) < effective_limit:
             for item in new_items:
                 selected.append(item)
-                if len(selected) >= self.target_limit:
+                if len(selected) >= effective_limit:
                     break
 
         seen: set[int] = set()
@@ -125,7 +145,7 @@ class ConversationGenerator:
                 continue
             ordered.append(item)
             seen.add(word_id)
-            if len(ordered) >= self.target_limit:
+            if len(ordered) >= effective_limit:
                 break
 
         logger.debug(
@@ -231,22 +251,40 @@ class ConversationGenerator:
         logger.debug("Built message payload", message_count=len(messages))
         return messages
 
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
-    def generate_turn(
+    def generate_turn_with_context(
         self,
         *,
         user: User,
         learner_level: str,
         style: str,
+        session_capacity: dict,
         history: Sequence[ConversationHistoryMessage] | None = None,
         temperature: float | None = None,
     ) -> GeneratedTurn:
-        """Generate the next assistant response."""
+        """Generate a turn while respecting the adaptive session context."""
 
         history = history or ()
-        queue_items = self._select_queue_items(user=user)
+        total_capacity = max(0, int(session_capacity.get("total_capacity", self.target_limit)))
+        words_per_turn = max(0, int(session_capacity.get("words_per_turn", self.target_limit)))
+
+        adaptive_ratio = self.progress_service.calculate_adaptive_review_ratio(user.id)
+        new_budget = self.progress_service.calculate_new_word_budget(user.id, total_capacity)
+        queue_items = self._select_queue_items(
+            user=user,
+            dynamic_limit=words_per_turn,
+            dynamic_review_ratio=adaptive_ratio,
+            new_word_budget=new_budget,
+        )
+
+        logger.info(
+            "Adaptive queue calculated",
+            user_id=str(user.id),
+            performance=adaptive_ratio,
+            review_ratio=adaptive_ratio,
+            new_budget=new_budget,
+            capacity=total_capacity,
+        )
+
         plan = self._build_plan(queue_items)
         messages = self._build_messages(
             plan=plan,
@@ -271,8 +309,39 @@ class ConversationGenerator:
             style=style,
             tokens=result.total_tokens,
             target_count=len(plan.target_words),
+            adaptive_ratio=adaptive_ratio,
+            new_budget=new_budget,
         )
         return generated
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+    def generate_turn(
+        self,
+        *,
+        user: User,
+        learner_level: str,
+        style: str,
+        history: Sequence[ConversationHistoryMessage] | None = None,
+        temperature: float | None = None,
+    ) -> GeneratedTurn:
+        """Generate the next assistant response."""
+
+        history = history or ()
+        fallback_capacity = {
+            "estimated_turns": 1,
+            "words_per_turn": self.target_limit,
+            "total_capacity": max(self.target_limit, 0),
+        }
+        return self.generate_turn_with_context(
+            user=user,
+            learner_level=learner_level,
+            style=style,
+            session_capacity=fallback_capacity,
+            history=history,
+            temperature=temperature,
+        )
 
 
 def iter_target_vocabulary(plan: ConversationPlan) -> Iterable[VocabularyWord]:
