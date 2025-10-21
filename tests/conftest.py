@@ -18,6 +18,7 @@ from app.db import models  # noqa: F401  # Imported for side effects
 from app.db.base import Base
 from app.db.models import User, VocabularyWord
 from app.db.models.progress import ReviewLog, UserVocabularyProgress
+from app.db.models.session import ConversationMessage, LearningSession, WordInteraction
 from app.main import create_app
 
 
@@ -42,6 +43,9 @@ def db_engine():
             VocabularyWord.__table__,
             UserVocabularyProgress.__table__,
             ReviewLog.__table__,
+            LearningSession.__table__,
+            ConversationMessage.__table__,
+            WordInteraction.__table__,
         ],
     )
     try:
@@ -50,6 +54,9 @@ def db_engine():
         Base.metadata.drop_all(
             bind=engine,
             tables=[
+                WordInteraction.__table__,
+                ConversationMessage.__table__,
+                LearningSession.__table__,
                 ReviewLog.__table__,
                 UserVocabularyProgress.__table__,
                 VocabularyWord.__table__,
