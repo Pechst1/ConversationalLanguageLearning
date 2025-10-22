@@ -24,6 +24,7 @@ from app.db.models.analytics import AnalyticsSnapshot
 from app.db.models.progress import ReviewLog, UserVocabularyProgress
 from app.db.models.session import ConversationMessage, LearningSession, WordInteraction
 from app.main import create_app
+from app.utils.cache import cache_backend
 
 
 @pytest.fixture(scope="session")
@@ -79,6 +80,15 @@ def db_session(db_engine) -> Generator[Session, None, None]:
         yield db
     finally:
         db.close()
+
+
+@pytest.fixture(autouse=True)
+def clear_cache() -> Generator[None, None, None]:
+    cache_backend.clear()
+    try:
+        yield
+    finally:
+        cache_backend.clear()
 
 
 @pytest.fixture()

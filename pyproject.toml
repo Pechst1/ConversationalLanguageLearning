@@ -38,7 +38,8 @@ dev = [
     "pytest-cov>=4.1",
     "faker>=19.6",
     "httpx>=0.25",
-    "ruff>=0.1"
+    "ruff>=0.1",
+    "locust>=2.20"
 ]
 
 [tool.setuptools.packages.find]

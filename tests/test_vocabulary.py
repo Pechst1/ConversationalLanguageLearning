@@ -8,6 +8,8 @@ from app.db.models.vocabulary import VocabularyWord
 
 @pytest.fixture()
 def sample_vocabulary(db_session):
+    db_session.query(VocabularyWord).delete()
+    db_session.commit()
     words = [
         VocabularyWord(
             language="es",

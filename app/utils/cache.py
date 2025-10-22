@@ -118,6 +118,17 @@ class CacheBackend:
                 if cache_key.startswith(pattern):
                     self._local.pop(cache_key, None)
 
+    def clear(self, *, include_redis: bool = False) -> None:
+        """Reset the in-memory cache (and optionally Redis) for test environments."""
+
+        with self._lock:
+            self._local.clear()
+        if include_redis and self._redis is not None:
+            try:
+                self._redis.flushdb()
+            except Exception:
+                self._redis = None
+
 
 cache_backend = CacheBackend(str(settings.REDIS_URL) if settings.REDIS_URL else None)
 

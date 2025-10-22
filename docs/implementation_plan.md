@@ -10,7 +10,7 @@ The roadmap is executed in sequential phases. Each phase is broken into concrete
 - [x] Define SQLAlchemy models for all core tables (users, vocabulary, progress, sessions, analytics, achievements).
 - [x] Create Alembic environment with initial migration reflecting the schema.
 - [x] Implement vocabulary seed script with sample CSV generator.
-- [ ] Validate migration against a live PostgreSQL instance.
+- [x] Validate migration against a live PostgreSQL instance.
 
 ### Day 4-7 — Authentication & User Management *(In Progress)*
 - [x] Implement password hashing and JWT utilities in `app/core/security.py`.
@@ -45,11 +45,11 @@ The roadmap is executed in sequential phases. Each phase is broken into concrete
 ## Phase 5: Analytics & Polish (Week 6)
 - [x] Create analytics service delivering progress summaries.
 - [x] Add Redis caching utilities and apply to hot endpoints.
-- [ ] Expand automated test suite and documentation.
+- [x] Expand automated test suite and documentation.
 
 ## Phase 6: Deployment (Week 7)
-- [ ] Containerize application and configure docker-compose environments.
-- [ ] Set up CI/CD workflow for linting, testing, and migrations.
-- [ ] Document deployment runbooks for staging and production.
+- [x] Containerize application and configure docker-compose environments.
+- [x] Set up CI/CD workflow for linting, testing, and migrations.
+- [x] Document deployment runbooks for staging and production.
 
 Progress is tracked in this document and updated as tasks are completed.
