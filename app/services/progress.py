@@ -12,6 +12,7 @@ from app.db.models.progress import ReviewLog, UserVocabularyProgress
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
 from app.services.srs import FSRSScheduler, ReviewOutcome, SchedulerState
+from app.utils.cache import cache_backend
 
 
 @dataclass(slots=True)
@@ -125,6 +126,12 @@ class ProgressService:
         """Return how many reviews are currently due for the learner."""
 
         now = now or datetime.now(timezone.utc)
+        today = now.date()
+        cache_key = f"{user_id}:{today.isoformat()}"
+        cached = cache_backend.get("progress:due_reviews", cache_key)
+        if cached is not None:
+            return int(cached)
+
         count = (
             self.db.query(func.count(UserVocabularyProgress.id))
             .filter(
@@ -136,7 +143,9 @@ class ProgressService:
             )
             .scalar()
         )
-        return int(count or 0)
+        result = int(count or 0)
+        cache_backend.set("progress:due_reviews", cache_key, result, ttl_seconds=60)
+        return result
 
     def calculate_new_word_budget(
         self,
@@ -244,6 +253,7 @@ class ProgressService:
 
         self.db.add(review_log)
         self.db.flush([progress, review_log])
+        cache_backend.invalidate("progress:due_reviews", prefix=f"{user.id}:")
         return progress, review_log, outcome
 
     # ------------------------------------------------------------------

@@ -20,6 +20,7 @@ from app.api.deps import get_db
 from app.db import models  # noqa: F401  # Imported for side effects
 from app.db.base import Base
 from app.db.models import User, VocabularyWord
+from app.db.models.analytics import AnalyticsSnapshot
 from app.db.models.progress import ReviewLog, UserVocabularyProgress
 from app.db.models.session import ConversationMessage, LearningSession, WordInteraction
 from app.main import create_app
@@ -43,6 +44,7 @@ def db_engine():
         bind=engine,
         tables=[
             User.__table__,
+            AnalyticsSnapshot.__table__,
             VocabularyWord.__table__,
             UserVocabularyProgress.__table__,
             ReviewLog.__table__,
@@ -62,6 +64,7 @@ def db_engine():
                 LearningSession.__table__,
                 ReviewLog.__table__,
                 UserVocabularyProgress.__table__,
+                AnalyticsSnapshot.__table__,
                 VocabularyWord.__table__,
                 User.__table__,
             ],

@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.api import deps
 from app.schemas import VocabularyListResponse, VocabularyWordRead
 from app.services.vocabulary import VocabularyNotFoundError, VocabularyService
+from app.utils.cache import cache_backend, build_cache_key
 
 router = APIRouter(prefix="/vocabulary", tags=["vocabulary"])
 
@@ -20,18 +21,34 @@ def list_vocabulary(
 ) -> VocabularyListResponse:
     """Return vocabulary items with optional pagination."""
 
+    cache_key = build_cache_key(language=language, limit=limit, offset=offset)
+    cached = cache_backend.get("vocabulary:list", cache_key)
+    if cached is not None:
+        return cached
+
     service = VocabularyService(db)
     items = service.list_words(language=language, limit=limit, offset=offset)
     total = service.count_words(language=language)
-    return VocabularyListResponse(total=total, items=items)
+    response = VocabularyListResponse(total=total, items=items)
+    payload = response.model_dump(mode="json")
+    cache_backend.set("vocabulary:list", cache_key, payload, ttl_seconds=3600)
+    return payload
 
 
 @router.get("/{word_id}", response_model=VocabularyWordRead)
 def get_vocabulary_word(word_id: int, db: Session = Depends(deps.get_db)) -> VocabularyWordRead:
     """Retrieve a vocabulary word by identifier."""
 
+    cache_key = build_cache_key(word_id=word_id)
+    cached = cache_backend.get("vocabulary:item", cache_key)
+    if cached is not None:
+        return cached
+
     service = VocabularyService(db)
     try:
-        return service.get_word(word_id)
+        word = service.get_word(word_id)
     except VocabularyNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    payload = VocabularyWordRead.model_validate(word).model_dump(mode="json")
+    cache_backend.set("vocabulary:item", cache_key, payload, ttl_seconds=3600)
+    return payload

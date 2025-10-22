@@ -1,7 +1,15 @@
 """API router for version 1."""
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import auth, progress, sessions, sessions_ws, users, vocabulary
+from app.api.v1.endpoints import (
+    analytics,
+    auth,
+    progress,
+    sessions,
+    sessions_ws,
+    users,
+    vocabulary,
+)
 
 
 api_router = APIRouter()
@@ -11,3 +19,4 @@ api_router.include_router(progress.router)
 api_router.include_router(sessions.router)
 api_router.include_router(sessions_ws.router)
 api_router.include_router(vocabulary.router)
+api_router.include_router(analytics.router)

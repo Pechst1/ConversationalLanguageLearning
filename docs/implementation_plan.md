@@ -43,8 +43,8 @@ The roadmap is executed in sequential phases. Each phase is broken into concrete
 - [x] Integrate SRS updates and error detection responses.
 
 ## Phase 5: Analytics & Polish (Week 6)
-- [ ] Create analytics service delivering progress summaries.
-- [ ] Add Redis caching utilities and apply to hot endpoints.
+- [x] Create analytics service delivering progress summaries.
+- [x] Add Redis caching utilities and apply to hot endpoints.
 - [ ] Expand automated test suite and documentation.
 
 ## Phase 6: Deployment (Week 7)

@@ -107,6 +107,22 @@ Every accepted learner message results in a `turn_result` response that mirrors 
 word-level feedback). Heartbeats return the server time and typing indicators are
 rebroadcast to all active connections for that session.
 
+### Analytics & Cached Lookups
+
+Learner dashboards are powered by the analytics endpoints exposed at `/api/v1/analytics`:
+
+- `GET /analytics/summary` – headline XP, streak, mastery, and review workload metrics.
+- `GET /analytics/statistics` – rolling time series for XP, accuracy, minutes practiced, and reviews.
+- `GET /analytics/streak` – current/longest streak values plus a calendar heatmap window.
+- `GET /analytics/vocabulary` – vocabulary mastery counts grouped by FSRS state.
+- `GET /analytics/errors` – the most frequent learner mistakes captured during sessions.
+
+These responses are cached for 15 minutes in Redis to minimise query load. Additional
+caches back the vocabulary listing/detail endpoints (1 hour TTL), user profile reads
+(5 minute TTL), and the due-review counters (60 second TTL). Cache invalidation is
+triggered automatically whenever sessions complete, reviews are logged, or profiles are
+updated to ensure dashboards stay fresh.
+
 ## Project Structure
 
 ```
@@ -124,8 +140,8 @@ alembic/              # Migration environment and versions
 
 ## Next Steps
 
-- Integrate the conversation generation pipeline backed by LLM providers.
-- Implement the full FSRS algorithm tuning and expose progress analytics dashboards.
+- Finalise analytics documentation and broaden dashboard coverage.
+- Wire nightly snapshot tasks and Celery scheduling for long-term reporting.
 - Expand automated testing and continuous integration workflows.
 
 Refer to the [project wiki](https://github.com/Pechst1/ConversationalLanguageLearning/wiki) for the comprehensive roadmap.
