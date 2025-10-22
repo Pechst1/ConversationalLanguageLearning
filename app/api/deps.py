@@ -13,6 +13,7 @@ from app.core.security import InvalidTokenError, decode_token
 from app.db.models.user import User
 from app.db.session import SessionLocal
 from app.schemas import TokenPayload
+from app.services.analytics import AnalyticsService
 from app.services.llm_service import LLMService
 from app.services.progress import ProgressService
 from app.services.realtime import SessionConnectionManager, build_default_connection_manager
@@ -119,3 +120,10 @@ def get_connection_manager() -> SessionConnectionManager:
     if _connection_manager_singleton is None:
         _connection_manager_singleton = build_default_connection_manager()
     return _connection_manager_singleton
+
+
+def get_analytics_service(db: Session = Depends(get_db)) -> AnalyticsService:
+    """Instantiate the analytics service for the current request."""
+
+    progress_service = ProgressService(db)
+    return AnalyticsService(db, progress_service=progress_service)

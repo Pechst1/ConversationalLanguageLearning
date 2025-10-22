@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models.user import User
 from app.schemas.user import UserUpdate
+from app.utils.cache import cache_backend, build_cache_key
 
 
 class UserNotFoundError(ValueError):
@@ -38,6 +39,7 @@ class UserService:
         self.db.add(user)
         self.db.commit()
         self.db.refresh(user)
+        cache_backend.invalidate("user:profile", key=build_cache_key(user_id=str(user.id)))
         return user
 
     def list_users(self, limit: int = 50, offset: int = 0) -> list[User]:

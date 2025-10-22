@@ -21,6 +21,7 @@ from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
 from app.services.llm_service import LLMResult, LLMService
 from app.services.progress import ProgressService
+from app.utils.cache import cache_backend, build_cache_key
 
 try:  # pragma: no cover - imported for typing
     from spacy.language import Language
@@ -158,6 +159,17 @@ class SessionService:
             "total_capacity": total_capacity,
         }
 
+    def _invalidate_analytics_cache(self, user_id: User.id) -> None:
+        prefix = f"{user_id}:"
+        for namespace in (
+            "analytics:summary",
+            "analytics:statistics",
+            "analytics:streak",
+            "analytics:heatmap",
+            "analytics:error_patterns",
+        ):
+            cache_backend.invalidate(namespace, prefix=prefix)
+
     def create_session(
         self,
         *,
@@ -198,6 +210,7 @@ class SessionService:
         if assistant_turn:
             self.db.refresh(assistant_turn.message)
         self.db.refresh(session)
+        self._invalidate_analytics_cache(user.id)
         return SessionStartResult(session=session, assistant_turn=assistant_turn)
 
     def _next_sequence_number(self, session_id) -> int:
@@ -514,6 +527,7 @@ class SessionService:
             user.level = new_level
         session.level_after = user.level
         user.mark_activity()
+        cache_backend.invalidate("user:profile", key=build_cache_key(user_id=str(user.id)))
 
     def _collect_history(self, session: LearningSession) -> list[ConversationHistoryMessage]:
         records = (
@@ -721,6 +735,7 @@ class SessionService:
         self.db.refresh(assistant_turn.message)
         self.db.refresh(session)
         self.db.refresh(user)
+        self._invalidate_analytics_cache(user.id)
 
         logger.info(
             "Message processed with adaptive features",
@@ -774,6 +789,7 @@ class SessionService:
             session.completed_at = datetime.now(timezone.utc)
         self.db.commit()
         self.db.refresh(session)
+        self._invalidate_analytics_cache(session.user_id)
         return session
 
     def session_summary(self, session: LearningSession) -> dict:
