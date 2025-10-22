@@ -51,11 +51,53 @@ environment:
 python -m spacy download fr_core_news_sm
 ```
 
+### Running with Docker
+
+Container orchestration is provided via Compose files in the `docker/` directory.
+
+**Local development with hot reload**
+
+```bash
+cp .env.example .env
+docker compose -f docker/docker-compose.dev.yml up --build
+```
+
+The API is exposed at http://localhost:8000 and automatically reloads when you edit
+source files. PostgreSQL and Redis data are stored in local Docker volumes.
+
+**Staging environment preview**
+
+```bash
+cp .env.example .env.staging  # populate with staging secrets
+docker compose -f docker/docker-compose.staging.yml up --detach
+```
+
+The staging compose file assumes you have already published a container image to the
+GitHub Container Registry (`ghcr.io/pechst1/conversational-language-learning:latest`).
+
+**Production deployment blueprint**
+
+```bash
+cp .env.example .env.prod  # populate with production secrets
+docker compose -f docker/docker-compose.prod.yml pull
+docker compose -f docker/docker-compose.prod.yml up -d
+```
+
+The production stack runs two API replicas behind the Compose orchestrator while reusing
+managed PostgreSQL and Redis instances.
+
 ### Database Migrations
 
 The project uses Alembic for migrations.
 
 ```bash
+alembic upgrade head
+```
+
+To verify downgrade safety when targeting PostgreSQL run:
+
+```bash
+alembic downgrade base
 alembic upgrade head
 ```
 
@@ -107,6 +149,18 @@ Every accepted learner message results in a `turn_result` response that mirrors 
 word-level feedback). Heartbeats return the server time and typing indicators are
 rebroadcast to all active connections for that session.
 
+### Load Testing
+
+Scenario scripts live in `tests/load/locustfile.py` and exercise the most common learner
+flows (registration, session creation, conversational turns, and analytics reads).
+
+```bash
+locust -f tests/load/locustfile.py --host http://localhost:8000
+```
+
+Scale the number of simulated users to confirm the platform sustains 100 concurrent
+learners with sub-500 ms p95 latency, as outlined in the roadmap.
+
 ### Analytics & Cached Lookups
 
 Learner dashboards are powered by the analytics endpoints exposed at `/api/v1/analytics`:
@@ -138,10 +192,32 @@ scripts/              # CLI utilities (e.g., seeders)
 alembic/              # Migration environment and versions
 ```
 
+## Continuous Integration
+
+Every push and pull request triggers the GitHub Actions workflow defined in
+`.github/workflows/ci.yml`. The pipeline performs the following checks:
+
+1. Installs dependencies (including spaCy) and runs Ruff linting.
+2. Executes the pytest suite with coverage reporting.
+3. Applies Alembic migrations against a PostgreSQL 15 service, downgrades back to base,
+   and reapplies the head migration to guarantee reversibility.
+4. Builds the production Docker image to catch packaging regressions.
+
+CI logs are attached to pull requests so reviewers can confirm build health before
+merging.
+
+## Deployment Runbook
+
+1. Build and push the container image: `docker build . -t ghcr.io/<org>/conversational-language-learning:TAG`.
+2. Publish the image with `docker push` and update the staging Compose file if the tag changes.
+3. Deploy to staging via `docker compose -f docker/docker-compose.staging.yml up -d` and run smoke tests (basic API calls plus a sample conversational session).
+4. Promote to production by pulling the new tag and running `docker compose -f docker/docker-compose.prod.yml up -d`.
+5. Monitor Redis/DB metrics and review the analytics endpoints for anomalies after rollout.
+
 ## Next Steps
 
-- Finalise analytics documentation and broaden dashboard coverage.
-- Wire nightly snapshot tasks and Celery scheduling for long-term reporting.
-- Expand automated testing and continuous integration workflows.
+- Add Celery beat scheduling to generate nightly analytics snapshots automatically.
+- Integrate Prometheus exporters and Grafana dashboards for long-term observability.
+- Experiment with adaptive conversation personas powered by live evaluation metrics.
 
 Refer to the [project wiki](https://github.com/Pechst1/ConversationalLanguageLearning/wiki) for the comprehensive roadmap.

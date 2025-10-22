@@ -28,6 +28,18 @@ def _duration_expr() -> Any:
     )
 
 
+def _coerce_day(value: Any) -> date:
+    if isinstance(value, date):
+        return value
+    if isinstance(value, str):
+        return date.fromisoformat(value)
+    raise TypeError(f"Unsupported date payload: {value!r}")
+
+
+def _iso_day(value: Any) -> str:
+    return _coerce_day(value).isoformat()
+
+
 @dataclass(slots=True)
 class StreakStats:
     current: int
@@ -161,22 +173,22 @@ class AnalyticsService:
         )
 
         accuracy = [
-            {"date": row.day.isoformat(), "value": float(row.accuracy or 0)}
+            {"date": _iso_day(row.day), "value": float(row.accuracy or 0)}
             for row in session_rows
             if row.day is not None
         ]
         xp = [
-            {"date": row.day.isoformat(), "value": int(row.xp or 0)}
+            {"date": _iso_day(row.day), "value": int(row.xp or 0)}
             for row in session_rows
             if row.day is not None
         ]
         minutes = [
-            {"date": row.day.isoformat(), "value": int(row.minutes or 0)}
+            {"date": _iso_day(row.day), "value": int(row.minutes or 0)}
             for row in session_rows
             if row.day is not None
         ]
         reviews = [
-            {"date": row.day.isoformat(), "value": int(row.count or 0)}
+            {"date": _iso_day(row.day), "value": int(row.count or 0)}
             for row in review_rows
             if row.day is not None
         ]
@@ -215,7 +227,7 @@ class AnalyticsService:
 
         streaks = self._calculate_streaks(user.id)
         calendar = [
-            {"date": row.day.isoformat(), "completed": int(row.count or 0)}
+            {"date": _iso_day(row.day), "completed": int(row.count or 0)}
             for row in calendar_rows
             if row.day is not None
         ]
@@ -344,7 +356,7 @@ class AnalyticsService:
             .distinct()
             .all()
         )
-        day_set = {row[0] for row in dates if row[0] is not None}
+        day_set = {_coerce_day(row[0]) for row in dates if row[0] is not None}
         if not day_set:
             return StreakStats(current=0, longest=0)
 
