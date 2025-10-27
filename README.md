@@ -75,58 +75,6 @@ docker compose -f docker/docker-compose.staging.yml up --detach
 The staging compose file assumes you have already published a container image to the
 GitHub Container Registry (`ghcr.io/pechst1/conversational-language-learning:latest`).
 
-## Mobile Client (Expo)
-
-The `mobile/` directory hosts an Expo-managed React Native client that targets iOS for
-TestFlight distribution.
-
-### Prerequisites
-
-- Node.js 18+
-- `npm` 9+ or `yarn` 1.22+
-- Expo CLI (`npm install -g expo-cli`) and EAS CLI (`npm install -g eas-cli`)
-
-### Local development
-
-```bash
-cd mobile
-cp .env.example .env
-npm install
-npm run start
-```
-
-Expo will display a QR code to launch the iOS simulator or a physical device via the Expo
-Go app. Update `.env` whenever API endpoints or feature toggles change.
-
-### Environment variables
-
-The mobile client reads configuration from build-time environment variables prefixed with
-`EXPO_PUBLIC_`. Copy `mobile/.env.example` and update the values for your deployment:
-
-| Variable | Description |
-| --- | --- |
-| `EXPO_PUBLIC_API_BASE_URL` | Required. Points to the production Conversational Language Learning API. |
-| `EXPO_PUBLIC_API_BASE_URL_STAGING` | Optional. Overrides the API host for preview and staging builds. |
-| `EXPO_PUBLIC_FEATURE_FLAG_SPEECH_TRAINER` | Enables or disables the speech pronunciation trainer modules. |
-| `EXPO_PUBLIC_FEATURE_FLAG_GRAMMAR_HINTS` | Toggles inline grammar hints for lessons. |
-
-Set these variables in `.env` for local runs and in your CI/CD secrets when creating EAS
-builds.
-
-### TestFlight builds
-
-EAS CI is configured via `mobile/eas.json`. To produce a TestFlight artifact from CI or a
-developer workstation run:
-
-```bash
-cd mobile
-eas build --platform ios --profile production
-eas submit --platform ios --profile production
-```
-
-The `production` profile uses the managed workflow, increments the build number
-automatically, and targets the App Store Connect project defined in the submit section.
-
 **Production deployment blueprint**
 
 ```bash
@@ -213,6 +161,56 @@ locust -f tests/load/locustfile.py --host http://localhost:8000
 Scale the number of simulated users to confirm the platform sustains 100 concurrent
 learners with sub-500 ms p95 latency, as outlined in the roadmap.
 
+
+
+## Background Tasks & Scheduled Jobs
+
+The application uses Celery with Redis for background task processing and scheduled jobs.
+
+### Running Celery Workers
+
+**Development:**
+```bash
+# Start worker
+celery -A app.celery_app worker --loglevel=info
+
+# Start beat scheduler
+celery -A app.celery_app beat --loglevel=info
+
+# Start Flower monitoring UI
+celery -A app.celery_app flower --port=5555
+```
+
+Access Flower dashboard at http://localhost:5555
+
+**Production:**
+```bash
+docker compose -f docker/docker-compose.prod.yml up -d celery-worker celery-beat
+```
+
+### Scheduled Tasks
+
+| Task | Schedule | Description |
+|------|----------|-------------|
+| `generate_daily_snapshots` | Daily at 2 AM UTC | Generate analytics snapshots for all active users |
+| `cleanup_old_snapshots` | Weekly (Sunday 3 AM) | Remove snapshots older than 365 days |
+| `send_streak_reminders` | Daily at 6 PM UTC | Send reminders to users with active streaks |
+
+### Manual Task Execution
+
+```bash
+# Generate snapshots for all users
+python scripts/trigger_analytics.py --date 2024-01-15
+
+# Generate snapshot for specific user
+python scripts/trigger_analytics.py --user-id <uuid>
+
+# Queue task asynchronously
+python scripts/trigger_analytics.py --async
+```
+
+
+
 ### Analytics & Cached Lookups
 
 Learner dashboards are powered by the analytics endpoints exposed at `/api/v1/analytics`:
@@ -268,8 +266,8 @@ merging.
 
 ## Next Steps
 
-- Add Celery beat scheduling to generate nightly analytics snapshots automatically.
+- Implement the achievement service and learner badge endpoints.
 - Integrate Prometheus exporters and Grafana dashboards for long-term observability.
-- Experiment with adaptive conversation personas powered by live evaluation metrics.
+- Build push-notification delivery (FCM/APNs) for streak reminders and session nudges.
 
 Refer to the [project wiki](https://github.com/Pechst1/ConversationalLanguageLearning/wiki) for the comprehensive roadmap.
