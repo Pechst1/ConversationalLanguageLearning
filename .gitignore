@@ -11,3 +11,53 @@ __pycache__/
 htmlcov/
 .vscode/
 .DS_Store
+
+# Dependencies
+web-frontend/node_modules/
+web-frontend/.next/
+web-frontend/out/
+web-frontend/build/
+
+# Environment files
+web-frontend/.env.local
+web-frontend/.env.production.local
+web-frontend/.env.development.local
+
+# Logs
+web-frontend/npm-debug.log*
+web-frontend/yarn-debug.log*
+web-frontend/yarn-error.log*
+
+# Runtime data
+web-frontend/pids
+web-frontend/*.pid
+web-frontend/*.seed
+web-frontend/*.pid.lock
+
+# Coverage directory used by tools like istanbul
+web-frontend/coverage/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+
+# Node.js
+web-frontend/node_modules/
+web-frontend/.next/
+web-frontend/out/
+web-frontend/.env.local
+web-frontend/.env.*.local
+web-frontend/npm-debug.log*
+web-frontend/yarn-debug.log*
+web-frontend/yarn-error.log*
+
+# OS
+.DS_Store
+*.log
+
