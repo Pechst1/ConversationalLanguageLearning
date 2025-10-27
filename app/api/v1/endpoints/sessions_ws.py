@@ -1,6 +1,7 @@
 """Real-time WebSocket endpoint for session messaging."""
 from __future__ import annotations
 
+import json
 import uuid
 from datetime import datetime, timezone
 
@@ -97,6 +98,22 @@ async def session_stream(
             try:
                 data = await websocket.receive_json()
             except WebSocketDisconnect:
+                break
+            except json.JSONDecodeError:
+                await connection_manager.send_personal_message(
+                    session_id=session.id,
+                    user_id=user.id,
+                    message={
+                        "type": "error",
+                        "data": {
+                            "detail": "invalid_json",
+                            "message": "Message must be valid JSON",
+                        },
+                    },
+                )
+                continue
+            except Exception as exc:  # pragma: no cover - defensive logging
+                logger.error("WebSocket receive error", error=str(exc))
                 break
 
             try:

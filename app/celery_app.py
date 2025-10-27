@@ -23,7 +23,11 @@ celery_app = Celery(
     "conversational_language_learning",
     broker=_resolve_broker_url(),
     backend=_resolve_result_backend(),
-    include=["app.tasks.analytics", "app.tasks.notifications"],
+    include=[
+        "app.tasks.analytics",
+        "app.tasks.notifications",
+        "app.tasks.achievements",
+    ],
 )
 
 celery_app.conf.update(
