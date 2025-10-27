@@ -50,6 +50,7 @@ def generate_daily_snapshots(self, target_date: str | None = None) -> dict[str, 
                         total=len(active_users),
                     )
             except Exception as exc:  # pragma: no cover - defensive logging
+                db.rollback()
                 logger.error(
                     "Failed to generate snapshot",
                     user_id=str(user.id),
