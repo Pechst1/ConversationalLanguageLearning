@@ -46,3 +46,18 @@ web-frontend/coverage/
 ehthumbs.db
 Thumbs.db
 
+
+# Node.js
+web-frontend/node_modules/
+web-frontend/.next/
+web-frontend/out/
+web-frontend/.env.local
+web-frontend/.env.*.local
+web-frontend/npm-debug.log*
+web-frontend/yarn-debug.log*
+web-frontend/yarn-error.log*
+
+# OS
+.DS_Store
+*.log
+
