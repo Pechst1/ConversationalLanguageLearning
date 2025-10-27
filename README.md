@@ -75,6 +75,58 @@ docker compose -f docker/docker-compose.staging.yml up --detach
 The staging compose file assumes you have already published a container image to the
 GitHub Container Registry (`ghcr.io/pechst1/conversational-language-learning:latest`).
 
+## Mobile Client (Expo)
+
+The `mobile/` directory hosts an Expo-managed React Native client that targets iOS for
+TestFlight distribution.
+
+### Prerequisites
+
+- Node.js 18+
+- `npm` 9+ or `yarn` 1.22+
+- Expo CLI (`npm install -g expo-cli`) and EAS CLI (`npm install -g eas-cli`)
+
+### Local development
+
+```bash
+cd mobile
+cp .env.example .env
+npm install
+npm run start
+```
+
+Expo will display a QR code to launch the iOS simulator or a physical device via the Expo
+Go app. Update `.env` whenever API endpoints or feature toggles change.
+
+### Environment variables
+
+The mobile client reads configuration from build-time environment variables prefixed with
+`EXPO_PUBLIC_`. Copy `mobile/.env.example` and update the values for your deployment:
+
+| Variable | Description |
+| --- | --- |
+| `EXPO_PUBLIC_API_BASE_URL` | Required. Points to the production Conversational Language Learning API. |
+| `EXPO_PUBLIC_API_BASE_URL_STAGING` | Optional. Overrides the API host for preview and staging builds. |
+| `EXPO_PUBLIC_FEATURE_FLAG_SPEECH_TRAINER` | Enables or disables the speech pronunciation trainer modules. |
+| `EXPO_PUBLIC_FEATURE_FLAG_GRAMMAR_HINTS` | Toggles inline grammar hints for lessons. |
+
+Set these variables in `.env` for local runs and in your CI/CD secrets when creating EAS
+builds.
+
+### TestFlight builds
+
+EAS CI is configured via `mobile/eas.json`. To produce a TestFlight artifact from CI or a
+developer workstation run:
+
+```bash
+cd mobile
+eas build --platform ios --profile production
+eas submit --platform ios --profile production
+```
+
+The `production` profile uses the managed workflow, increments the build number
+automatically, and targets the App Store Connect project defined in the submit section.
+
 **Production deployment blueprint**
 
 ```bash
