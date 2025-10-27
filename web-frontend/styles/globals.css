@@ -1,0 +1,12 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #__next { height: 100%; }
+
+/* Custom components */
+.learning-card { @apply bg-white rounded-xl border border-gray-200 shadow-sm p-4; }
+.message-bubble { @apply px-4 py-2 rounded-2xl; }
+.message-user { @apply bg-primary-600 text-white ml-auto max-w-[80%]; }
+.message-ai { @apply bg-gray-100 text-gray-900 max-w-[80%]; }
+.vocabulary-word { @apply inline-flex items-center px-3 py-1 rounded-full bg-primary-100 text-primary-800; }
