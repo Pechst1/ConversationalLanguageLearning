@@ -1,5 +1,10 @@
 """Pydantic schemas package."""
 
+from app.schemas.achievement import (
+    AchievementProgressResponse,
+    AchievementRead,
+    AchievementUnlockResponse,
+)
 from app.schemas.analytics import (
     AnalyticsStatisticsResponse,
     AnalyticsSummary,
@@ -38,6 +43,9 @@ from app.schemas.user import UserBase, UserCreate, UserLogin, UserRead, UserUpda
 from app.schemas.vocabulary import VocabularyListResponse, VocabularyWordRead
 
 __all__ = [
+    "AchievementProgressResponse",
+    "AchievementRead",
+    "AchievementUnlockResponse",
     "AnalyticsStatisticsResponse",
     "AnalyticsSummary",
     "Token",

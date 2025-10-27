@@ -18,6 +18,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.api.deps import get_db
 from app.db import models  # noqa: F401  # Imported for side effects
+from app.db.models.achievement import Achievement, UserAchievement
 from app.db.base import Base
 from app.db.models import User, VocabularyWord
 from app.db.models.analytics import AnalyticsSnapshot
@@ -45,6 +46,8 @@ def db_engine():
         bind=engine,
         tables=[
             User.__table__,
+            Achievement.__table__,
+            UserAchievement.__table__,
             AnalyticsSnapshot.__table__,
             VocabularyWord.__table__,
             UserVocabularyProgress.__table__,
@@ -67,6 +70,8 @@ def db_engine():
                 UserVocabularyProgress.__table__,
                 AnalyticsSnapshot.__table__,
                 VocabularyWord.__table__,
+                UserAchievement.__table__,
+                Achievement.__table__,
                 User.__table__,
             ],
         )

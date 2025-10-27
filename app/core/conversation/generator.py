@@ -266,6 +266,7 @@ class ConversationGenerator:
         history = history or ()
         total_capacity = max(0, int(session_capacity.get("total_capacity", self.target_limit)))
         words_per_turn = max(0, int(session_capacity.get("words_per_turn", self.target_limit)))
+        words_per_turn = min(words_per_turn, self.target_limit)
 
         adaptive_ratio = self.progress_service.calculate_adaptive_review_ratio(user.id)
         new_budget = self.progress_service.calculate_new_word_budget(user.id, total_capacity)

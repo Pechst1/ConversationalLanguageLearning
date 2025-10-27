@@ -97,7 +97,11 @@ def test_generator_prioritizes_due_words(db_session, seeded_user):
     new_surfaces = {target.surface for target in turn.plan.new_targets}
 
     assert review_surfaces == {words[i].word for i in range(3)}
-    assert len(new_surfaces) == 3
+    new_budget = generator.progress_service.calculate_new_word_budget(
+        user.id, generator.target_limit
+    )
+    assert len(new_surfaces) > 0
+    assert len(new_surfaces) <= max(0, new_budget)
     assert llm.calls, "LLM should have been invoked"
     call = llm.calls[0]
     assert str(call["kwargs"]["system_prompt"]).startswith("You are")

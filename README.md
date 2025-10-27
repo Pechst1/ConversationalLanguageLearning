@@ -209,6 +209,47 @@ python scripts/trigger_analytics.py --user-id <uuid>
 python scripts/trigger_analytics.py --async
 ```
 
+## Achievement System
+
+The platform includes a gamification layer that rewards learners for consistent practice and milestone achievements.
+
+### Achievement Categories
+
+- **Session**: Completing learning sessions
+- **Streak**: Maintaining daily practice streaks (3, 7, 30 days)
+- **Vocabulary**: Mastering vocabulary words (50, 200, 500 words)
+- **XP**: Earning experience points (500, 2000, 5000 XP)
+- **Accuracy**: High-accuracy performance (95%+ accuracy over 100 sessions)
+
+### Seeding Achievements
+
+```bash
+python scripts/seed_achievements.py
+```
+
+### Achievement Endpoints
+
+- `GET /api/v1/achievements` – List all available achievements
+- `GET /api/v1/achievements/my` – Get current user's achievement progress
+- `POST /api/v1/achievements/check` – Manually trigger achievement check
+
+### Automatic Achievement Checking
+
+Achievements are automatically checked and unlocked when:
+
+- A learning session is completed
+- The periodic Celery task runs (optional)
+
+### Manual Achievement Check
+
+```bash
+# Trigger achievement check for specific user
+python scripts/trigger_achievements.py --user-id <uuid>
+
+# Queue task asynchronously
+python scripts/trigger_achievements.py --user-id <uuid> --async
+```
+
 
 
 ### Analytics & Cached Lookups

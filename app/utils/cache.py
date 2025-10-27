@@ -31,7 +31,15 @@ def _json_default(value: Any) -> Any:
 def build_cache_key(**components: Any) -> str:
     """Return a stable hash for the provided components."""
 
-    payload = json.dumps(components, sort_keys=True, default=_json_default)
+    def normalize_value(val: Any) -> Any:
+        if isinstance(val, dict):
+            return {k: normalize_value(v) for k, v in sorted(val.items())}
+        if isinstance(val, (list, tuple)):
+            return [normalize_value(item) for item in val]
+        return val
+
+    normalized = normalize_value(components)
+    payload = json.dumps(normalized, sort_keys=True, default=_json_default)
     return hashlib.sha1(payload.encode("utf-8")).hexdigest()
 
 

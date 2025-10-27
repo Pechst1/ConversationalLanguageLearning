@@ -19,6 +19,7 @@ from app.core.error_detection.rules import DetectedError
 from app.db.models.session import ConversationMessage, LearningSession, WordInteraction
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
+from app.services.achievement import AchievementService
 from app.services.llm_service import LLMResult, LLMService
 from app.services.progress import ProgressService
 from app.utils.cache import cache_backend, build_cache_key
@@ -587,7 +588,7 @@ class SessionService:
         for queue_item in generated.plan.queue_items:
             interaction = WordInteraction(
                 session_id=session.id,
-                user_id=session.user_id,
+                user_id=user.id,
                 word_id=queue_item.word.id,
                 message_id=message.id,
                 interaction_type="target_new" if queue_item.is_new else "target_review",
@@ -737,6 +738,8 @@ class SessionService:
         self.db.refresh(user)
         self._invalidate_analytics_cache(user.id)
 
+        self._trigger_achievement_check(user)
+
         logger.info(
             "Message processed with adaptive features",
             session_id=str(session.id),
@@ -753,6 +756,26 @@ class SessionService:
             xp_awarded=xp_awarded,
             word_feedback=list(feedback),
         )
+
+    def _trigger_achievement_check(self, user: User) -> None:
+        """Trigger achievement evaluation for the learner."""
+
+        try:
+            achievement_service = AchievementService(self.db)
+            newly_unlocked = achievement_service.check_and_unlock(user=user)
+            if newly_unlocked:
+                logger.info(
+                    "Achievements unlocked",
+                    user_id=str(user.id),
+                    count=len(newly_unlocked),
+                    achievements=[item.achievement_key for item in newly_unlocked],
+                )
+        except Exception as exc:  # pragma: no cover - defensive logging
+            logger.warning(
+                "Achievement check failed",
+                user_id=str(user.id),
+                error=str(exc),
+            )
 
     # ------------------------------------------------------------------
     # Retrieval helpers
