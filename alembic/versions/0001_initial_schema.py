@@ -17,8 +17,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.execute("CREATE EXTENSION IF NOT EXISTS uuid-ossp")
-
+    op.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
     op.create_table(
         "users",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True, server_default=sa.text("uuid_generate_v4()")),
