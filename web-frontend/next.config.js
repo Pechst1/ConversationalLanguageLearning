@@ -16,10 +16,6 @@ const nextConfig = {
         source: '/api/backend/:path*',
         destination: `${process.env.API_URL || 'http://localhost:8000'}/api/v1/:path*`,
       },
-      {
-        source: '/ws/:path*',
-        destination: `${process.env.WS_URL || 'ws://localhost:8000'}/api/v1/:path*`,
-      },
     ];
   },
   webpack: (config) => {
@@ -32,3 +28,4 @@ const nextConfig = {
 };
 
 module.exports = nextConfig;
+

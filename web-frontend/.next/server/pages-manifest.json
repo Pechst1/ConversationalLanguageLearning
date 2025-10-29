@@ -1,0 +1,12 @@
+{
+  "/_app": "pages/_app.js",
+  "/_error": "pages/_error.js",
+  "/_document": "pages/_document.js",
+  "/auth/signin": "pages/auth/signin.js",
+  "/api/auth/[...nextauth]": "pages/api/auth/[...nextauth].js",
+  "/dashboard": "pages/dashboard.js",
+  "/learn/new": "pages/learn/new.js",
+  "/practice": "pages/practice.js",
+  "/sessions": "pages/sessions.js",
+  "/progress": "pages/progress.js"
+}
