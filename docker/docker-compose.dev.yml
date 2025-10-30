@@ -33,7 +33,7 @@ services:
     env_file:
       - ../.env
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/docs"]
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8000/api/v1/docs > /dev/null"]
       interval: 10s
       timeout: 5s
       retries: 5
