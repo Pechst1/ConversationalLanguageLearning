@@ -51,6 +51,105 @@ environment:
 python -m spacy download fr_core_news_sm
 ```
 
+### Full Stack Quickstart (Docker)
+
+To boot the entire platform locally — API, PostgreSQL, Redis, Celery worker & beat,
+and the Flower monitoring dashboard — follow the sequence below from a clean clone.
+
+```bash
+# 1. Clone & enter the repository
+git clone https://github.com/pechst1/ConversationalLanguageLearning.git
+cd ConversationalLanguageLearning
+
+# 2. Provision a virtual environment for local tooling (optional but recommended)
+python -m venv .venv
+source .venv/bin/activate
+
+# 3. Install development dependencies (needed for Alembic, linting, etc.)
+pip install -e .[dev]
+
+# 4. Prepare environment variables
+cp .env.example .env
+# Edit .env and supply database passwords, JWT secrets, and LLM credentials
+
+# 5. Download the required spaCy language model once
+python -m spacy download fr_core_news_sm
+
+# 6. Build & launch the complete stack with hot reload
+docker compose -f docker/docker-compose.dev.yml up --build
+```
+
+Once all services are healthy you can access:
+
+- API: http://localhost:8000/api/v1
+- Interactive API docs (served by FastAPI): http://localhost:8000/api/v1/docs
+- Flower dashboard (Celery monitoring): http://localhost:5555
+- PostgreSQL: localhost:5432 (`postgres` / `postgres` by default)
+- Redis: localhost:6379
+
+Shut everything down with `Ctrl+C` or `docker compose -f docker/docker-compose.dev.yml down`.
+
+#### Smoke test the conversational flow
+
+With the stack running you can exercise a full learner journey via `curl`. The
+examples below assume you have [`jq`](https://stedolan.github.io/jq/) installed
+to capture values from JSON responses.
+
+```bash
+# Register a learner profile (only required once)
+curl -X POST http://localhost:8000/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+        "email": "learner@example.com",
+        "password": "ChangeMe123!",
+        "full_name": "Demo Learner"
+      }'
+
+# Authenticate and store the issued JWT access token
+ACCESS_TOKEN=$(curl -s -X POST http://localhost:8000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+        "email": "learner@example.com",
+        "password": "ChangeMe123!"
+      }' | jq -r '.access_token')
+
+# Start a new guided session and capture the session identifier
+SESSION_ID=$(curl -s -X POST http://localhost:8000/api/v1/sessions \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
+        "planned_duration_minutes": 15,
+        "topic": "Ordering food",
+        "conversation_style": "tutor",
+        "difficulty_preference": "beginner",
+        "generate_greeting": true
+      }' | jq -r '.session.id')
+
+# Send a learner utterance to receive corrective feedback and XP
+curl -X POST http://localhost:8000/api/v1/sessions/${SESSION_ID}/messages \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
+        "content": "Bonjour, je voudrais une baguette s'il vous plaît",
+        "suggested_word_ids": []
+      }' | jq '.assistant_turn.message.content, .error_feedback.summary'
+
+# Inspect the running transcript
+curl -X GET http://localhost:8000/api/v1/sessions/${SESSION_ID}/messages \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}" | jq '.items[] | {sender, content}'
+```
+
+The assistant response includes vocabulary targets, awarded experience, and any
+detected errors that can guide the learner's next turn. Continue sending
+messages or close the session with:
+
+```bash
+curl -X PATCH http://localhost:8000/api/v1/sessions/${SESSION_ID} \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{"status": "completed"}'
+```
+
 ### Running with Docker
 
 Container orchestration is provided via Compose files in the `docker/` directory.
