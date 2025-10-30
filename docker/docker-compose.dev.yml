@@ -32,6 +32,11 @@ services:
       context: ..
     env_file:
       - ../.env
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/docs"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     environment:
       DATABASE_URL: postgresql+psycopg2://postgres:postgres@db:5432/language_learning
       REDIS_URL: redis://redis:6379/0
@@ -63,10 +68,9 @@ services:
     volumes:
       - ..:/app
     depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+      api:
+        condition: service_healthy # Warten, bis die API bereit ist
+
 
   celery-beat:
     build:
@@ -82,10 +86,8 @@ services:
     volumes:
       - ..:/app
     depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+      api:
+        condition: service_healthy # Warten, bis die API bereit ist
 
   flower:
     build:
@@ -99,10 +101,8 @@ services:
     ports:
       - "5555:5555"
     depends_on:
-      redis:
-        condition: service_healthy
-      celery-worker:
-        condition: service_started
+      api:
+        condition: service_healthy # Warten, bis die API bereit ist
 
 volumes:
   pg_data:
