@@ -42,3 +42,26 @@ class VocabularyService:
         if not word:
             raise VocabularyNotFoundError("Vocabulary word not found")
         return word
+
+    def lookup_word(self, *, term: str, language: str | None = None) -> VocabularyWord:
+        """Return the first vocabulary entry matching the supplied surface form."""
+
+        value = term.strip().lower()
+        if not value:
+            raise VocabularyNotFoundError("Vocabulary word not found")
+
+        stmt = select(VocabularyWord).where(
+            func.lower(VocabularyWord.word) == value
+        )
+        if language:
+            stmt = stmt.where(VocabularyWord.language == language)
+
+        word = self.db.scalars(stmt.limit(1)).first()
+        if not word:
+            stmt = select(VocabularyWord).where(VocabularyWord.normalized_word == value)
+            if language:
+                stmt = stmt.where(VocabularyWord.language == language)
+            word = self.db.scalars(stmt.limit(1)).first()
+        if not word:
+            raise VocabularyNotFoundError("Vocabulary word not found")
+        return word

@@ -157,6 +157,16 @@ class ApiService {
     return this.post(`/sessions/${sessionId}/difficult_words`, { word_id: data.word_id, exposure_type: 'flag' });
   }
 
+  async lookupVocabulary(word: string, language?: string) {
+    const params = new URLSearchParams({ word });
+    if (language) params.set('language', language);
+    return this.get(`/vocabulary/lookup?${params.toString()}`);
+  }
+
+  async listVocabulary(params?: { language?: string; limit?: number; offset?: number }) {
+    return this.get('/vocabulary/', { params });
+  }
+
   // Progress endpoints
   async getProgressQueue() {
     return this.get('/progress/queue');

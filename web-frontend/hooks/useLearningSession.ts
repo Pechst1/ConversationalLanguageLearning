@@ -51,6 +51,14 @@ export function useLearningSession(sessionId: string) {
   const [suggested, setSuggested] = useState<TargetWord[]>([]);
   const ws = useWebSocket(sessionId);
 
+  const mapQueueWord = useCallback((item: any) => ({
+    id: item.word_id,
+    word: item.word,
+    translation: item.english_translation || '',
+    familiarity: item.is_new ? 'new' : 'learning',
+    isNew: item.is_new,
+  }), []);
+
   const load = useCallback(async () => {
     if (!sessionId) return;
     const sessionResponse = await api.get(`/sessions/${sessionId}`);
@@ -70,15 +78,20 @@ export function useLearningSession(sessionId: string) {
       // fallback: fetch queue to populate suggestions when backend delivered none yet
       try {
         const queue = await api.getProgressQueue();
-        const fallback = Array.isArray(queue)
-          ? queue.map((item: any) => ({
-              id: item.word_id,
-              word: item.word,
-              translation: item.english_translation,
-              familiarity: item.state === 'new' ? 'new' : 'learning',
-              isNew: item.is_new,
-            }))
-          : [];
+        let fallback = Array.isArray(queue) ? queue.map(mapQueueWord) : [];
+
+        if (!fallback.length) {
+          const vocab = await api.listVocabulary({ limit: 8 });
+          const items = Array.isArray(vocab?.items) ? vocab.items : [];
+          fallback = items.map((item: any) => ({
+            id: item.id,
+            word: item.word,
+            translation: item.english_translation || '',
+            familiarity: 'new',
+            isNew: true,
+          }));
+        }
+
         if (fallback.length) {
           setSuggested(fallback);
         }
@@ -86,7 +99,7 @@ export function useLearningSession(sessionId: string) {
         console.debug('Failed to load fallback vocabulary', error);
       }
     }
-  }, [sessionId]);
+  }, [sessionId, mapQueueWord]);
 
   useEffect(() => {
     if (!sessionId) return;

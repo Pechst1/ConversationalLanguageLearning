@@ -1,6 +1,7 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import type { ChatMessage, TargetWord } from '@/hooks/useLearningSession';
+import apiService from '@/services/api';
 
 type Props = {
   messages: ChatMessage[];
@@ -20,6 +21,10 @@ const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\
 
 export default function ConversationHistory({ messages, onWordInteract, onWordFlag }: Props) {
   const [hovered, setHovered] = useState<Record<number, boolean>>({});
+  const [hoveredWord, setHoveredWord] = useState<string | null>(null);
+  const [tooltipPosition, setTooltipPosition] = useState<{ x: number; y: number } | null>(null);
+  const [wordDefinition, setWordDefinition] = useState<{ word: string; translation: string } | null>(null);
+  const lookupCache = useRef<Record<string, { id?: number; translation: string }>>({});
 
   const handleHover = (target: TargetWord) => {
     if (hovered[target.id]) return;
@@ -38,19 +43,71 @@ export default function ConversationHistory({ messages, onWordInteract, onWordFl
     onWordFlag?.(target.id);
   };
 
-  // Add new handlers for generic (non-target) words
-  const handleGenericWordHover = useCallback((word: string) => {
-    console.log('Hovered over generic word:', word);
-    // Future enhancement: Trigger a new prop, e.g., onWordLookup(word: string)
+  const handleWordLeave = useCallback(() => {
+    setHoveredWord(null);
+    setTooltipPosition(null);
+    setWordDefinition(null);
   }, []);
 
-  const handleGenericWordClick = useCallback((word: string) => {
-    toast(`Clicked on "${word}"`, {
-      icon: '❓',
-      duration: 2000,
-    });
-    // This could also trigger a lookup API call
+  const ensureLookup = useCallback(async (word: string) => {
+    const key = word.toLowerCase();
+    if (lookupCache.current[key]) {
+      return lookupCache.current[key];
+    }
+    try {
+      const result = await apiService.lookupVocabulary(word);
+      const entry = {
+        id: result?.id,
+        translation:
+          result?.english_translation ||
+          result?.definition ||
+          result?.example_translation ||
+          'Translation unavailable',
+      };
+      lookupCache.current[key] = entry;
+      return entry;
+    } catch (error) {
+      const fallback = { translation: 'Translation unavailable' };
+      lookupCache.current[key] = fallback;
+      return fallback;
+    }
   }, []);
+
+  const handleGenericWordHover = useCallback(
+    async (word: string, event: React.MouseEvent<HTMLSpanElement>) => {
+      const rect = event.currentTarget.getBoundingClientRect();
+      setHoveredWord(word);
+      setTooltipPosition({
+        x: rect.left + rect.width / 2,
+        y: rect.top,
+      });
+
+      const entry = await ensureLookup(word);
+      setWordDefinition({
+        word,
+        translation: entry.translation,
+      });
+
+      if (entry.id) {
+        onWordInteract?.(entry.id, 'hint');
+      }
+    },
+    [ensureLookup, onWordInteract]
+  );
+
+  const handleGenericWordClick = useCallback(
+    async (word: string) => {
+      const entry = await ensureLookup(word);
+      if (entry.id) {
+        toast.success(`"${word}" added to practice`, { icon: '🧠', duration: 2500 });
+        onWordFlag?.(entry.id);
+        onWordInteract?.(entry.id, 'translation');
+      } else {
+        toast(`Lookup for "${word}" not found`, { icon: '❓', duration: 2000 });
+      }
+    },
+    [ensureLookup, onWordFlag, onWordInteract]
+  );
 
   // Add a helper function to make plain text interactive
   const renderInteractiveSegment = useCallback((text: string, keyPrefix: string): React.ReactNode[] => {
@@ -64,7 +121,8 @@ export default function ConversationHistory({ messages, onWordInteract, onWordFl
           <span
             key={`${keyPrefix}-${index}`}
             className="rounded-md px-1 transition-colors hover:shadow-sm cursor-pointer bg-gray-100 text-gray-700 hover:bg-gray-200" // Style for generic words
-            onMouseEnter={() => handleGenericWordHover(part)}
+            onMouseEnter={(e) => handleGenericWordHover(part, e)}
+            onMouseLeave={handleWordLeave}
             onClick={() => handleGenericWordClick(part)}
             title={`Look up "${part}"`}
           >
@@ -74,7 +132,7 @@ export default function ConversationHistory({ messages, onWordInteract, onWordFl
       }
       return part; // Return non-word parts (spaces, punctuation) as is
     });
-  }, [handleGenericWordHover, handleGenericWordClick]);
+  }, [handleGenericWordHover, handleGenericWordClick, handleWordLeave]);
 
   const renderContent = useCallback(
     (message: ChatMessage) => {
@@ -117,6 +175,7 @@ export default function ConversationHistory({ messages, onWordInteract, onWordFl
                 key={`${target.id}-${offset}-${segmentIndex}`}
                 className={`rounded-md px-1 font-semibold transition-colors hover:shadow-sm cursor-pointer ${className}`}
                 onMouseEnter={() => handleHover(target)}
+                onMouseLeave={handleWordLeave}
                 onClick={() => handleClick(target)}
                 title={target.translation || target.hintTranslation || ''}
               >
@@ -156,6 +215,27 @@ export default function ConversationHistory({ messages, onWordInteract, onWordFl
           <div className="whitespace-pre-wrap leading-relaxed">{renderContent(message)}</div>
         </div>
       ))}
+
+      {hoveredWord && tooltipPosition && wordDefinition && (
+        <div
+          style={{
+            position: 'fixed',
+            left: tooltipPosition.x,
+            top: tooltipPosition.y - 12,
+            transform: 'translateX(-50%) translateY(-100%)',
+            zIndex: 1000,
+            background: 'white',
+            border: '1px solid #d1d5db',
+            borderRadius: '6px',
+            padding: '8px 10px',
+            boxShadow: '0 8px 20px rgba(15, 23, 42, 0.15)',
+            maxWidth: '220px',
+          }}
+        >
+          <p className="text-sm font-semibold text-gray-900">{wordDefinition.word}</p>
+          <p className="text-xs text-gray-600">{wordDefinition.translation}</p>
+        </div>
+      )}
     </div>
   );
 }

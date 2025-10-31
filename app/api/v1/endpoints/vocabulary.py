@@ -1,7 +1,7 @@
 """Vocabulary browsing endpoints."""
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.api import deps
@@ -51,4 +51,28 @@ def get_vocabulary_word(word_id: int, db: Session = Depends(deps.get_db)) -> Voc
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     payload = VocabularyWordRead.model_validate(word).model_dump(mode="json")
     cache_backend.set("vocabulary:item", cache_key, payload, ttl_seconds=3600)
+    return payload
+
+
+@router.get("/lookup", response_model=VocabularyWordRead)
+def lookup_vocabulary_word(
+    word: str = Query(..., min_length=1, description="Surface form to look up"),
+    language: str | None = Query(default=None, max_length=10),
+    db: Session = Depends(deps.get_db),
+) -> VocabularyWordRead:
+    """Lookup a vocabulary word by its surface form."""
+
+    cache_key = build_cache_key(word=word.strip().lower(), language=language)
+    cached = cache_backend.get("vocabulary:lookup", cache_key)
+    if cached is not None:
+        return cached
+
+    service = VocabularyService(db)
+    try:
+        vocab_word = service.lookup_word(term=word, language=language)
+    except VocabularyNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+    payload = VocabularyWordRead.model_validate(vocab_word).model_dump(mode="json")
+    cache_backend.set("vocabulary:lookup", cache_key, payload, ttl_seconds=600)
     return payload
