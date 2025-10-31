@@ -68,10 +68,12 @@ class ProgressService:
         limit: int,
         now: datetime | None = None,
         new_word_budget: int | None = None,
+        exclude_ids: set[int] | None = None,
     ) -> list[QueueItem]:
         """Return due and new words for a learner."""
 
         now = now or datetime.now(timezone.utc)
+        exclude_ids = exclude_ids or set()
         due_stmt = (
             select(UserVocabularyProgress)
             .options(joinedload(UserVocabularyProgress.word))
@@ -88,6 +90,8 @@ class ProgressService:
             )
             .limit(limit)
         )
+        if exclude_ids:
+            due_stmt = due_stmt.where(UserVocabularyProgress.word_id.notin_(exclude_ids))
         due_progress = list(self.db.scalars(due_stmt))
         items: list[QueueItem] = [
             QueueItem(word=progress.word, progress=progress, is_new=False)
@@ -134,10 +138,11 @@ class ProgressService:
         new_conditions = [not_(VocabularyWord.id.in_(words_seen_subquery))]
         if user.target_language:
             new_conditions.append(VocabularyWord.language == user.target_language)
+        new_word_stmt = select(VocabularyWord).where(and_(*new_conditions))
+        if exclude_ids:
+            new_word_stmt = new_word_stmt.where(VocabularyWord.id.notin_(exclude_ids))
         new_word_stmt = (
-            select(VocabularyWord)
-            .where(and_(*new_conditions))
-            .where(func.length(VocabularyWord.word) > 2)
+            new_word_stmt.where(func.length(VocabularyWord.word) > 2)
             .where(func.lower(VocabularyWord.word).notin_(stopwords))
             .order_by(func.random())
             .limit(missing)
@@ -147,7 +152,13 @@ class ProgressService:
         items.extend(QueueItem(word=word, progress=None, is_new=True) for word in new_words)
         return items
 
-    def sample_vocabulary(self, *, user: User, limit: int) -> list[VocabularyWord]:
+    def sample_vocabulary(
+        self,
+        *,
+        user: User,
+        limit: int,
+        exclude_ids: set[int] | None = None,
+    ) -> list[VocabularyWord]:
         stopwords = {
             "le",
             "la",
@@ -175,9 +186,10 @@ class ProgressService:
             .filter(VocabularyWord.language == (user.target_language or "fr"))
             .filter(func.length(VocabularyWord.word) > 2)
             .filter(func.lower(VocabularyWord.word).notin_(stopwords))
-            .order_by(func.random())
-            .limit(limit)
         )
+        if exclude_ids:
+            query = query.filter(~VocabularyWord.id.in_(exclude_ids))
+        query = query.order_by(func.random()).limit(limit)
         return list(query.all())
 
     def count_due_reviews(self, user_id: uuid.UUID, now: datetime | None = None) -> int:

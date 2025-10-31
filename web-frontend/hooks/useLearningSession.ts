@@ -20,9 +20,21 @@ export type ChatMessage = {
   xp?: number;
 };
 
+const isValidId = (value: number | undefined): value is number =>
+  typeof value === 'number' && Number.isFinite(value) && value > 0;
+
+const filterValidTargets = (list: TargetWord[]): TargetWord[] => list.filter((item) => isValidId(item.id));
+
+function normalizeId(value: any): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  const parsed = Number.parseInt(String(value ?? ''), 10);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
 function mapTarget(detail: any): TargetWord {
+  const id = normalizeId(detail.word_id);
   return {
-    id: detail.word_id,
+    id: id ?? -1,
     word: detail.word,
     translation: detail.translation ?? undefined,
     familiarity: detail.familiarity ?? undefined,
@@ -34,7 +46,7 @@ function mapTarget(detail: any): TargetWord {
 
 function mapMessage(item: any): ChatMessage {
   const targets = Array.isArray(item.target_details)
-    ? item.target_details.map(mapTarget)
+    ? filterValidTargets(item.target_details.map(mapTarget))
     : [];
   return {
     id: item.id,
@@ -52,7 +64,7 @@ export function useLearningSession(sessionId: string) {
   const ws = useWebSocket(sessionId);
 
   const mapQueueWord = useCallback((item: any) => ({
-    id: item.word_id,
+    id: normalizeId(item.word_id) ?? -1,
     word: item.word,
     translation: item.english_translation || '',
     familiarity: item.is_new ? 'new' : 'learning',
@@ -78,18 +90,22 @@ export function useLearningSession(sessionId: string) {
       // fallback: fetch queue to populate suggestions when backend delivered none yet
       try {
         const queue = await api.getProgressQueue();
-        let fallback = Array.isArray(queue) ? queue.map(mapQueueWord) : [];
+        let fallback = Array.isArray(queue)
+          ? queue.map(mapQueueWord).filter((item) => isValidId(item.id))
+          : [];
 
         if (!fallback.length) {
           const vocab = await api.listVocabulary({ limit: 8 });
           const items = Array.isArray(vocab?.items) ? vocab.items : [];
-          fallback = items.map((item: any) => ({
-            id: item.id,
-            word: item.word,
-            translation: item.english_translation || '',
-            familiarity: 'new',
-            isNew: true,
-          }));
+          fallback = items
+            .map((item: any) => ({
+              id: normalizeId(item.id) ?? -1,
+              word: item.word,
+              translation: item.english_translation || '',
+              familiarity: 'new',
+              isNew: true,
+            }))
+            .filter((item) => isValidId(item.id));
         }
 
         if (fallback.length) {
@@ -138,7 +154,7 @@ export function useLearningSession(sessionId: string) {
             updates.push(assistantMessage);
 
             const targets = Array.isArray(data.assistant_turn.targets)
-              ? data.assistant_turn.targets.map(mapTarget)
+              ? filterValidTargets(data.assistant_turn.targets.map(mapTarget))
               : [];
             const usedIds = new Set<number>(
               Array.isArray(data.word_feedback)
@@ -146,7 +162,7 @@ export function useLearningSession(sessionId: string) {
                 : []
             );
             setSuggested((prev) => {
-              const keep = prev.filter((w) => !usedIds.has(w.id));
+              const keep = prev.filter((w) => isValidId(w.id) && !usedIds.has(w.id));
               const merged = [...keep];
               for (const t of targets) {
                 if (!merged.find((m) => m.id === t.id)) merged.push(t);
@@ -195,7 +211,7 @@ export function useLearningSession(sessionId: string) {
       }
       if (result?.assistant_turn?.message) {
         const targets = Array.isArray(result.assistant_turn.targets)
-          ? result.assistant_turn.targets.map(mapTarget)
+          ? filterValidTargets(result.assistant_turn.targets.map(mapTarget))
           : [];
         updates.push(
           mapMessage({
@@ -210,7 +226,7 @@ export function useLearningSession(sessionId: string) {
             : []
         );
         setSuggested((prev) => {
-          const keep = prev.filter((w) => !usedIds.has(w.id));
+          const keep = prev.filter((w) => isValidId(w.id) && !usedIds.has(w.id));
           const merged = [...keep];
           for (const t of targets) {
             if (!merged.find((m) => m.id === t.id)) merged.push(t);

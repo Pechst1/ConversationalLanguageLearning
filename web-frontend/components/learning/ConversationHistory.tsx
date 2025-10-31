@@ -56,8 +56,15 @@ export default function ConversationHistory({ messages, onWordInteract, onWordFl
     }
     try {
       const result = await apiService.lookupVocabulary(word);
+      const rawId =
+        typeof result?.id === 'number'
+          ? result.id
+          : result?.id != null
+          ? Number.parseInt(String(result.id), 10)
+          : undefined;
+      const parsedId = typeof rawId === 'number' && Number.isFinite(rawId) ? rawId : undefined;
       const entry = {
-        id: result?.id,
+        id: parsedId,
         translation:
           result?.english_translation ||
           result?.definition ||
@@ -87,21 +94,18 @@ export default function ConversationHistory({ messages, onWordInteract, onWordFl
         word,
         translation: entry.translation,
       });
-
-      if (entry.id) {
-        onWordInteract?.(entry.id, 'hint');
-      }
     },
-    [ensureLookup, onWordInteract]
+    [ensureLookup]
   );
 
   const handleGenericWordClick = useCallback(
     async (word: string) => {
       const entry = await ensureLookup(word);
-      if (entry.id) {
+      const wordId = typeof entry.id === 'number' ? entry.id : undefined;
+      if (wordId) {
         toast.success(`"${word}" added to practice`, { icon: '🧠', duration: 2500 });
-        onWordFlag?.(entry.id);
-        onWordInteract?.(entry.id, 'translation');
+        onWordFlag?.(wordId);
+        onWordInteract?.(wordId, 'translation');
       } else {
         toast(`Lookup for "${word}" not found`, { icon: '❓', duration: 2000 });
       }

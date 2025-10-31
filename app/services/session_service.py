@@ -946,8 +946,16 @@ class SessionService:
         user: User,
         history: Sequence[ConversationHistoryMessage],
         session_capacity: dict[str, int],
+        exclude_word_ids: Sequence[int] | None = None,
     ) -> AssistantTurn:
         review_focus = self._compute_review_focus(session=session, user=user)
+        exclude_set: set[int] = set()
+        if exclude_word_ids:
+            for word_id in exclude_word_ids:
+                try:
+                    exclude_set.add(int(word_id))
+                except (TypeError, ValueError):
+                    logger.debug("Skipping non-numeric exclude id", value=word_id)
         generated = self.conversation_generator.generate_turn_with_context(
             user=user,
             learner_level=user.proficiency_level or "B1",
@@ -956,6 +964,7 @@ class SessionService:
             history=history,
             review_focus=review_focus,
             topic=session.topic,
+            exclude_ids=exclude_set,
         )
         sequence = self._next_sequence_number(session.id)
         message = ConversationMessage(
@@ -1122,11 +1131,22 @@ class SessionService:
         self._apply_user_xp(user, session, xp_awarded)
 
         history.append(ConversationHistoryMessage(role="user", content=content))
+        previous_target_ids = {word.id for word, _ in previous_targets}
+        exclude_ids: set[int] = set()
+        if suggested_word_ids:
+            for word_id in suggested_word_ids:
+                try:
+                    exclude_ids.add(int(word_id))
+                except (TypeError, ValueError):
+                    logger.debug("Skipping non-numeric suggested id", value=word_id)
+        exclude_ids.update(previous_target_ids)
+
         assistant_turn = self._generate_and_persist_assistant_turn_with_context(
             session=session,
             user=user,
             history=history,
             session_capacity=session_capacity,
+            exclude_word_ids=exclude_ids,
         )
 
         self.db.commit()

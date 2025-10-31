@@ -180,6 +180,7 @@ class ConversationGenerator:
         dynamic_limit: int | None = None,
         dynamic_review_ratio: float | None = None,
         new_word_budget: int | None = None,
+        exclude_ids: set[int] | None = None,
     ) -> list[QueueItem]:
         """Return queue entries prioritizing reviews before new vocabulary."""
 
@@ -198,10 +199,15 @@ class ConversationGenerator:
                 user=user,
                 limit=effective_limit,
                 new_word_budget=new_word_budget,
+                exclude_ids=exclude_ids,
             )
         )
         if not queue:
-            fallback_words = self.progress_service.sample_vocabulary(user=user, limit=effective_limit)
+            fallback_words = self.progress_service.sample_vocabulary(
+                user=user,
+                limit=effective_limit,
+                exclude_ids=exclude_ids or set(),
+            )
             return [QueueItem(word=word, progress=None, is_new=True) for word in fallback_words]
 
         due_items = [item for item in queue if not item.is_new]
@@ -371,6 +377,7 @@ class ConversationGenerator:
         temperature: float | None = None,
         review_focus: float | None = None,
         topic: str | None = None,
+        exclude_ids: set[int] | None = None,
     ) -> GeneratedTurn:
         """Generate a turn while respecting the adaptive session context."""
 
@@ -388,6 +395,7 @@ class ConversationGenerator:
             dynamic_limit=words_per_turn,
             dynamic_review_ratio=adaptive_ratio,
             new_word_budget=new_budget,
+            exclude_ids=exclude_ids,
         )
 
         logger.info(
@@ -452,6 +460,7 @@ class ConversationGenerator:
         history: Sequence[ConversationHistoryMessage] | None = None,
         temperature: float | None = None,
         topic: str | None = None,
+        exclude_ids: set[int] | None = None,
     ) -> GeneratedTurn:
         """Generate the next assistant response."""
 
@@ -469,6 +478,7 @@ class ConversationGenerator:
             history=history,
             temperature=temperature,
             topic=topic,
+            exclude_ids=exclude_ids,
         )
 
 
