@@ -120,6 +120,7 @@ class AnalyticsService:
             "total_minutes": total_minutes,
             "average_minutes": total_minutes / total_sessions if total_sessions else 0,
             "xp_earned": total_xp,
+            "total_xp": total_xp,
             "accuracy_rate": avg_accuracy,
             "current_streak": streaks.current,
             "longest_streak": streaks.longest,

@@ -108,19 +108,77 @@ class ProgressService:
         if missing <= 0:
             return items
 
+        stopwords = {
+            "le",
+            "la",
+            "les",
+            "de",
+            "des",
+            "du",
+            "un",
+            "une",
+            "et",
+            "a",
+            "au",
+            "aux",
+            "en",
+            "dans",
+            "que",
+            "qui",
+            "ce",
+            "cet",
+            "cette",
+            "pour",
+        }
+
         new_conditions = [not_(VocabularyWord.id.in_(words_seen_subquery))]
         if user.target_language:
             new_conditions.append(VocabularyWord.language == user.target_language)
         new_word_stmt = (
             select(VocabularyWord)
             .where(and_(*new_conditions))
-            .order_by(VocabularyWord.frequency_rank)
+            .where(func.length(VocabularyWord.word) > 2)
+            .where(func.lower(VocabularyWord.word).notin_(stopwords))
+            .order_by(func.random())
             .limit(missing)
         )
         new_words = list(self.db.scalars(new_word_stmt))
 
         items.extend(QueueItem(word=word, progress=None, is_new=True) for word in new_words)
         return items
+
+    def sample_vocabulary(self, *, user: User, limit: int) -> list[VocabularyWord]:
+        stopwords = {
+            "le",
+            "la",
+            "les",
+            "de",
+            "des",
+            "du",
+            "un",
+            "une",
+            "et",
+            "a",
+            "au",
+            "aux",
+            "en",
+            "dans",
+            "que",
+            "qui",
+            "ce",
+            "cet",
+            "cette",
+            "pour",
+        }
+        query = (
+            self.db.query(VocabularyWord)
+            .filter(VocabularyWord.language == (user.target_language or "fr"))
+            .filter(func.length(VocabularyWord.word) > 2)
+            .filter(func.lower(VocabularyWord.word).notin_(stopwords))
+            .order_by(func.random())
+            .limit(limit)
+        )
+        return list(query.all())
 
     def count_due_reviews(self, user_id: uuid.UUID, now: datetime | None = None) -> int:
         """Return how many reviews are currently due for the learner."""

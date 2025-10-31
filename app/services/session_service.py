@@ -1,10 +1,14 @@
 """Service layer for orchestrating learning sessions."""
 from __future__ import annotations
 
+import csv
 import math
+import re
 import unicodedata
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from pathlib import Path
+from uuid import UUID
 from typing import Sequence
 
 from loguru import logger
@@ -13,9 +17,16 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.config import settings
 
-from app.core.conversation import ConversationGenerator, ConversationHistoryMessage, ConversationPlan
+from app.core.conversation import (
+    ConversationGenerator,
+    ConversationHistoryMessage,
+    ConversationPlan,
+    GeneratedTurn,
+    TargetWord,
+)
 from app.core.error_detection import ErrorDetectionResult, ErrorDetector
 from app.core.error_detection.rules import DetectedError
+from app.db.models.progress import UserVocabularyProgress
 from app.db.models.session import ConversationMessage, LearningSession, WordInteraction
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
@@ -23,6 +34,7 @@ from app.services.achievement import AchievementService
 from app.services.llm_service import LLMResult, LLMService
 from app.services.progress import ProgressService
 from app.utils.cache import cache_backend, build_cache_key
+from app.schemas import PracticeIssue, TargetWordRead
 
 try:  # pragma: no cover - imported for typing
     from spacy.language import Language
@@ -62,6 +74,7 @@ class AssistantTurn:
     message: ConversationMessage
     plan: ConversationPlan
     llm_result: LLMResult
+    target_details: list[TargetWordRead] | None = None
 
 
 @dataclass(slots=True)
@@ -103,6 +116,28 @@ class SessionService:
     """Coordinate session lifecycle, message flow, and XP updates."""
 
     VALID_STATUSES = {"created", "in_progress", "paused", "completed", "abandoned"}
+    COMMON_STOPWORDS = {
+        "le",
+        "la",
+        "les",
+        "de",
+        "des",
+        "du",
+        "un",
+        "une",
+        "et",
+        "a",
+        "au",
+        "aux",
+        "en",
+        "dans",
+        "que",
+        "qui",
+        "ce",
+        "cet",
+        "cette",
+        "pour",
+    }
 
     def __init__(
         self,
@@ -160,6 +195,45 @@ class SessionService:
             "total_capacity": total_capacity,
         }
 
+    def _ensure_vocabulary_seeded(self) -> None:
+        exists = self.db.query(VocabularyWord.id).limit(1).first()
+        if exists:
+            return
+        sample_path = Path(__file__).resolve().parents[2] / "vocabulary_fr_sample.csv"
+        if not sample_path.exists():
+            logger.warning("Vocabulary sample file missing", path=str(sample_path))
+            return
+
+        with sample_path.open(newline="", encoding="utf-8") as handle:
+            reader = csv.DictReader(handle)
+            records: list[VocabularyWord] = []
+            for row in reader:
+                try:
+                    word = VocabularyWord(
+                        id=int(row["rank"]),
+                        language="fr",
+                        word=row["word"],
+                        normalized_word=row["word"].lower(),
+                        part_of_speech=row.get("part_of_speech"),
+                        gender=row.get("gender"),
+                        frequency_rank=int(row["rank"]),
+                        english_translation=row.get("translation"),
+                        definition=row.get("definition"),
+                        example_sentence=row.get("example"),
+                        example_translation=row.get("example_translation"),
+                        usage_notes=None,
+                        difficulty_level=1,
+                        topic_tags=[tag.strip() for tag in (row.get("topics") or "").split(";") if tag.strip()],
+                    )
+                    records.append(word)
+                except Exception as exc:  # pragma: no cover - defensive
+                    logger.warning("Failed to seed vocabulary word", row=row, error=str(exc))
+            if records:
+                logger.info("Seeding vocabulary sample", count=len(records))
+                self.db.bulk_save_objects(records, return_defaults=False)
+                self.db.commit()
+                self.db.flush()
+
     def _invalidate_analytics_cache(self, user_id: User.id) -> None:
         prefix = f"{user_id}:"
         for namespace in (
@@ -183,6 +257,7 @@ class SessionService:
     ) -> SessionStartResult:
         """Create a new session and optionally bootstrap the greeting turn."""
 
+        self._ensure_vocabulary_seeded()
         session_capacity = self._calculate_session_capacity(planned_duration_minutes)
 
         session = LearningSession(
@@ -445,7 +520,7 @@ class SessionService:
                 rating=item.rating,
             )
             is_correct = item.rating >= 2
-            progress.record_usage(correct=is_correct)
+            progress.record_usage(correct=is_correct, is_new=item.is_new)
 
     def _update_word_interactions(
         self,
@@ -472,35 +547,50 @@ class SessionService:
                 interaction.correction = item.error.suggestion
             self.db.add(interaction)
 
-    def _calculate_xp(self, feedback: Sequence[WordFeedback]) -> int:
-        xp = self.xp_config.base_message
-        for item in feedback:
-            if not item.was_used:
-                continue
+    def _calculate_xp(
+        self,
+        feedback: Sequence[WordFeedback],
+        *,
+        creative_count: int = 0,
+        error_result: ErrorDetectionResult,
+    ) -> int:
+        xp = 5  # base engagement bonus
+        suggested_used = [item for item in feedback if item.was_used]
 
-            difficulty = item.word.difficulty_level or 1
-            multiplier = self.xp_config.difficulty_multipliers.get(difficulty, 1.0)
-
-            if item.rating and item.rating >= 3:
-                base_xp = self.xp_config.correct_new if item.is_new else self.xp_config.correct_review
-            elif item.rating and item.rating >= 2:
-                base_xp = self.xp_config.partial_credit
+        for item in suggested_used:
+            if item.is_new:
+                gain = 15 if not item.had_error else 5
             else:
-                base_xp = 0
-
-            scaled_xp = int(base_xp * multiplier)
-            xp += scaled_xp
-
+                gain = 10 if not item.had_error else 4
+            xp += gain
             logger.debug(
-                "Word XP calculated",
+                "XP for suggested word",
                 word=item.word.word,
-                rating=item.rating,
-                difficulty=difficulty,
-                base=base_xp,
-                multiplier=multiplier,
-                scaled=scaled_xp,
+                is_new=item.is_new,
+                had_error=item.had_error,
+                gained=gain,
             )
-        return xp
+
+        if creative_count:
+            creative_gain = creative_count * 8
+            xp += creative_gain
+            logger.debug(
+                "XP for creative vocabulary",
+                count=creative_count,
+                gained=creative_gain,
+            )
+
+        if feedback:
+            required = min(3, len(feedback))
+            if len(suggested_used) >= required:
+                xp += 5
+            else:
+                xp = max(0, xp - 5)
+
+        if not error_result.errors:
+            xp = int(xp * 1.5)
+
+        return max(0, xp)
 
     def _refresh_session_stats(
         self,
@@ -542,6 +632,298 @@ class SessionService:
             for record in records
         ]
 
+    def _load_progress_map(
+        self,
+        *,
+        user_id: User.id,
+        word_ids: Sequence[int],
+    ) -> dict[int, UserVocabularyProgress]:
+        unique_ids = {word_id for word_id in word_ids if word_id}
+        if not unique_ids:
+            return {}
+        rows = (
+            self.db.query(UserVocabularyProgress)
+            .filter(
+                UserVocabularyProgress.user_id == user_id,
+                UserVocabularyProgress.word_id.in_(unique_ids),
+            )
+            .all()
+        )
+        return {row.word_id: row for row in rows}
+
+    def _classify_familiarity(
+        self,
+        *,
+        is_new: bool,
+        progress: UserVocabularyProgress | None,
+    ) -> str:
+        if is_new:
+            return "new"
+        if progress and (progress.proficiency_score or 0) >= 70:
+            return "familiar"
+        return "learning"
+
+    def _build_target_details_from_plan(
+        self,
+        *,
+        user: User,
+        targets: Sequence[TargetWord],
+    ) -> list[TargetWordRead]:
+        if not targets:
+            return []
+        word_ids = [target.id for target in targets]
+        progress_map = self._load_progress_map(user_id=user.id, word_ids=word_ids)
+        vocab_map = {
+            word.id: word
+            for word in self.db.query(VocabularyWord).filter(VocabularyWord.id.in_(word_ids)).all()
+        }
+        details: list[TargetWordRead] = []
+        for target in targets:
+            vocab = vocab_map.get(target.id)
+            progress = progress_map.get(target.id)
+            translation = (
+                vocab.english_translation
+                if vocab and vocab.english_translation
+                else target.translation
+            )
+            hint_sentence = vocab.example_sentence if vocab else None
+            hint_translation = None
+            if vocab:
+                if vocab.example_translation:
+                    hint_translation = vocab.example_translation
+                elif vocab.english_translation:
+                    hint_translation = vocab.english_translation
+            familiarity = self._classify_familiarity(is_new=target.is_new, progress=progress)
+            word_text = vocab.word if vocab else target.surface
+            details.append(
+                TargetWordRead(
+                    word_id=target.id,
+                    word=word_text,
+                    translation=translation,
+                    is_new=target.is_new,
+                    familiarity=familiarity,
+                    hint_sentence=hint_sentence,
+                    hint_translation=hint_translation,
+                )
+            )
+        return details
+
+    def build_message_target_map(
+        self,
+        *,
+        user: User,
+        message_ids: Sequence[UUID],
+    ) -> dict[UUID, list[TargetWordRead]]:
+        if not message_ids:
+            return {}
+        # Fetch assistant interactions
+        interactions = (
+            self.db.query(WordInteraction)
+            .filter(WordInteraction.message_id.in_(message_ids))
+            .filter(WordInteraction.interaction_type.in_(["target_new", "target_review"]))
+            .all()
+        )
+
+        messages = (
+            self.db.query(ConversationMessage)
+            .filter(ConversationMessage.id.in_(message_ids))
+            .all()
+        )
+        message_map = {m.id: m for m in messages}
+
+        word_ids = {interaction.word_id for interaction in interactions}
+        vocab_map = {
+            word.id: word
+            for word in self.db.query(VocabularyWord).filter(VocabularyWord.id.in_(word_ids)).all()
+        }
+        progress_map = self._load_progress_map(user_id=user.id, word_ids=word_ids)
+        payload: dict[UUID, list[TargetWordRead]] = {}
+        for interaction in interactions:
+            vocab = vocab_map.get(interaction.word_id)
+            progress = progress_map.get(interaction.word_id)
+            is_new = interaction.interaction_type == "target_new"
+            familiarity = self._classify_familiarity(is_new=is_new, progress=progress)
+            hint_sentence = vocab.example_sentence if vocab else None
+            hint_translation = None
+            if vocab:
+                if vocab.example_translation:
+                    hint_translation = vocab.example_translation
+                elif vocab.english_translation:
+                    hint_translation = vocab.english_translation
+            translation = vocab.english_translation if vocab else None
+            word_text = vocab.word if vocab else ""
+            item = TargetWordRead(
+                word_id=interaction.word_id,
+                word=word_text,
+                translation=translation,
+                is_new=is_new,
+                familiarity=familiarity,
+                hint_sentence=hint_sentence,
+                hint_translation=hint_translation,
+            )
+            payload.setdefault(interaction.message_id, []).append(item)
+
+        # Augment assistant messages with any vocabulary words present in text
+        # (limited scan of top-frequency words to avoid heavy queries)
+        extra_vocab = (
+            self.db.query(VocabularyWord)
+            .filter(VocabularyWord.language == (user.target_language or "fr"))
+            .filter(func.length(VocabularyWord.word) > 2)
+            .filter(func.lower(VocabularyWord.word).notin_(self.COMMON_STOPWORDS))
+            .order_by(func.random())
+            .limit(800)
+            .all()
+        )
+        for msg_id, message in message_map.items():
+            if message.sender != "assistant" or not message.content:
+                continue
+            existing_ids = {d.word_id for d in payload.get(msg_id, [])}
+            text_lower = message.content.lower()
+            additions: list[TargetWordRead] = []
+            for vocab in extra_vocab:
+                if vocab.id in existing_ids:
+                    continue
+                w = vocab.word.lower()
+                if w in self.COMMON_STOPWORDS:
+                    continue
+                if re.search(rf"\b{re.escape(w)}\b", text_lower):
+                    progress = self.progress_service.get_progress(user_id=user.id, word_id=vocab.id)
+                    familiarity = self._classify_familiarity(is_new=(progress is None), progress=progress)
+                    additions.append(
+                        TargetWordRead(
+                            word_id=vocab.id,
+                            word=vocab.word,
+                            translation=vocab.english_translation,
+                            is_new=progress is None,
+                            familiarity=familiarity,
+                            hint_sentence=vocab.example_sentence,
+                            hint_translation=vocab.example_translation or vocab.english_translation,
+                        )
+                    )
+            if additions:
+                payload.setdefault(msg_id, []).extend(additions)
+
+        return payload
+
+    def _compute_review_focus(self, *, session: LearningSession, user: User) -> float | None:
+        preference = (session.difficulty_preference or "").lower()
+        mapping = {
+            "review": 0.85,
+            "balanced": 0.6,
+            "new": 0.35,
+        }
+        return mapping.get(preference)
+
+    def _build_target_details_from_ids(
+        self,
+        *,
+        user: User,
+        word_ids: Sequence[int],
+    ) -> list[TargetWordRead]:
+        unique_ids = [word_id for word_id in dict.fromkeys(word_ids) if word_id]
+        if not unique_ids:
+            return []
+        vocab_map = {
+            word.id: word
+            for word in self.db.query(VocabularyWord).filter(VocabularyWord.id.in_(unique_ids)).all()
+        }
+        progress_map = self._load_progress_map(user_id=user.id, word_ids=unique_ids)
+        details: list[TargetWordRead] = []
+        for word_id in unique_ids:
+            vocab = vocab_map.get(word_id)
+            progress = progress_map.get(word_id)
+            is_new = not progress or (progress.reps or 0) == 0
+            familiarity = self._classify_familiarity(is_new=is_new, progress=progress)
+            hint_sentence = vocab.example_sentence if vocab else None
+            hint_translation = None
+            if vocab:
+                if vocab.example_translation:
+                    hint_translation = vocab.example_translation
+                elif vocab.english_translation:
+                    hint_translation = vocab.english_translation
+            translation = vocab.english_translation if vocab else None
+            word_text = vocab.word if vocab else ""
+            details.append(
+                TargetWordRead(
+                    word_id=word_id,
+                    word=word_text,
+                    translation=translation,
+                    is_new=is_new,
+                    familiarity=familiarity,
+                    hint_sentence=hint_sentence,
+                    hint_translation=hint_translation,
+                )
+            )
+        return details
+
+    def record_word_exposure(
+        self,
+        *,
+        session: LearningSession,
+        user: User,
+        word_id: int,
+        exposure_type: str,
+    ) -> None:
+        exposure_key = exposure_type if exposure_type in {"hint", "translation"} else "hint"
+        vocab = self.db.get(VocabularyWord, word_id)
+        if not vocab:
+            return
+        interaction = WordInteraction(
+            session_id=session.id,
+            user_id=user.id,
+            word_id=word_id,
+            interaction_type=f"exposure_{exposure_key}",
+            was_suggested=False,
+        )
+        self.db.add(interaction)
+
+        progress = self.progress_service.get_or_create_progress(user_id=user.id, word_id=word_id)
+        penalty = -5 if exposure_key == "translation" else -3
+        progress.hint_count = (progress.hint_count or 0) + 1
+        progress.times_seen = (progress.times_seen or 0) + 1
+        progress.adjust_proficiency(penalty)
+        now = datetime.now(timezone.utc)
+        progress.next_review_date = now
+        progress.due_date = now.date()
+
+        self.db.commit()
+        self._invalidate_analytics_cache(user.id)
+
+    def mark_word_difficult(
+        self,
+        *,
+        session: LearningSession,
+        user: User,
+        word_id: int,
+        reason: str | None = None,
+    ) -> None:
+        vocab = self.db.get(VocabularyWord, word_id)
+        if not vocab:
+            return
+        progress = self.progress_service.get_or_create_progress(user_id=user.id, word_id=word_id)
+        if (progress.difficulty or 0) < 5.0:
+            progress.difficulty = 5.0
+        progress.state = "learning"
+        progress.adjust_proficiency(-20)
+        now = datetime.now(timezone.utc)
+        progress.next_review_date = now
+        progress.due_date = now.date()
+        progress.updated_at = now
+
+        if reason != "summary":
+            interaction = WordInteraction(
+                session_id=session.id,
+                user_id=user.id,
+                word_id=word_id,
+                interaction_type="flag_difficult",
+                context_sentence=None,
+                was_suggested=True,
+                error_type=reason,
+            )
+            self.db.add(interaction)
+        self.db.commit()
+        self._invalidate_analytics_cache(user.id)
+
     def _generate_and_persist_assistant_turn(
         self,
         *,
@@ -565,12 +947,15 @@ class SessionService:
         history: Sequence[ConversationHistoryMessage],
         session_capacity: dict[str, int],
     ) -> AssistantTurn:
+        review_focus = self._compute_review_focus(session=session, user=user)
         generated = self.conversation_generator.generate_turn_with_context(
             user=user,
             learner_level=user.proficiency_level or "B1",
             style=session.conversation_style or "tutor",
             session_capacity=session_capacity,
             history=history,
+            review_focus=review_focus,
+            topic=session.topic,
         )
         sequence = self._next_sequence_number(session.id)
         message = ConversationMessage(
@@ -601,8 +986,20 @@ class SessionService:
             "Assistant message generated",
             session_id=str(session.id),
             target_count=len(generated.plan.target_words),
+            review_focus=review_focus,
         )
-        return AssistantTurn(message=message, plan=generated.plan, llm_result=generated.llm_result)
+        target_details = None
+        if generated.plan.target_words:
+            target_details = self._build_target_details_from_plan(
+                user=user,
+                targets=generated.plan.target_words,
+            )
+        return AssistantTurn(
+            message=message,
+            plan=generated.plan,
+            llm_result=generated.llm_result,
+            target_details=target_details,
+        )
 
     def process_user_message(
         self,
@@ -698,6 +1095,7 @@ class SessionService:
                 word=vocab_word,
                 rating=rating,
             )
+            progress.record_usage(correct=rating >= 2, is_new=False)
 
             interaction = WordInteraction(
                 session_id=session.id,
@@ -718,7 +1116,7 @@ class SessionService:
                 difficulty=suggested_difficulty,
             )
 
-        xp_awarded = self._calculate_xp(feedback)
+        xp_awarded = self._calculate_xp(feedback, creative_count=len(processed_spontaneous), error_result=error_result)
         user_message.xp_earned = xp_awarded
         self._refresh_session_stats(session=session, feedback=feedback, xp_awarded=xp_awarded)
         self._apply_user_xp(user, session, xp_awarded)
@@ -804,6 +1202,24 @@ class SessionService:
             query = query.limit(limit)
         return list(query.all())
 
+    def list_sessions(
+        self,
+        *,
+        user: User,
+        limit: int = 20,
+        offset: int = 0,
+    ) -> list[LearningSession]:
+        query = (
+            self.db.query(LearningSession)
+            .filter(LearningSession.user_id == user.id)
+            .order_by(LearningSession.started_at.desc())
+        )
+        if offset:
+            query = query.offset(offset)
+        if limit:
+            query = query.limit(limit)
+        return list(query.all())
+
     def update_status(self, session: LearningSession, status: str) -> LearningSession:
         if status not in self.VALID_STATUSES:
             raise ValueError(f"Invalid session status: {status}")
@@ -816,6 +1232,118 @@ class SessionService:
         return session
 
     def session_summary(self, session: LearningSession) -> dict:
+        user = session.user or self.db.get(User, session.user_id)
+        interactions = (
+            self.db.query(WordInteraction)
+            .filter(WordInteraction.session_id == session.id)
+            .order_by(WordInteraction.created_at)
+            .all()
+        )
+        messages = (
+            self.db.query(ConversationMessage)
+            .filter(ConversationMessage.session_id == session.id)
+            .all()
+        )
+        message_map = {message.id: message.content for message in messages}
+        success_examples: list[dict] = []
+        error_examples: list[dict] = []
+        flashcard_word_ids: set[int] = set()
+
+        vocab_map: dict[int, VocabularyWord] = {}
+        if interactions:
+            word_ids = {interaction.word_id for interaction in interactions}
+            vocab_map = {
+                word.id: word
+                for word in self.db.query(VocabularyWord).filter(VocabularyWord.id.in_(word_ids)).all()
+            }
+
+        for interaction in interactions:
+            vocab = vocab_map.get(interaction.word_id)
+            word_text = vocab.word if vocab else ""
+            translation = vocab.english_translation if vocab else None
+
+            if (
+                interaction.interaction_type == "learner_use"
+                and not interaction.error_type
+                and len(success_examples) < 3
+            ):
+                success_examples.append(
+                    {
+                        "word": word_text,
+                        "translation": translation,
+                        "sentence": interaction.user_response,
+                    }
+                )
+
+            if interaction.error_type and len(error_examples) < 5:
+                error_examples.append(
+                    {
+                        "word": word_text,
+                        "issue": interaction.error_description or interaction.error_type,
+                        "correction": interaction.correction,
+                        "category": interaction.error_type,
+                    }
+                )
+                flashcard_word_ids.add(interaction.word_id)
+
+            if interaction.interaction_type in {"learner_skip", "exposure_hint", "exposure_translation"}:
+                flashcard_word_ids.add(interaction.word_id)
+
+        practice_items: list[PracticeIssue] = []
+        seen_practice: set[tuple] = set()
+        difficult_ids: set[int] = set()
+        for interaction in interactions:
+            if not interaction.error_type or interaction.error_type == "flag":
+                continue
+            vocab = vocab_map.get(interaction.word_id)
+            sentence = message_map.get(interaction.message_id) if interaction.message_id else None
+            key = (interaction.word_id, interaction.error_type, interaction.error_description)
+            if key in seen_practice:
+                continue
+            seen_practice.add(key)
+            practice_items.append(
+                PracticeIssue(
+                    word=vocab.word if vocab else interaction.error_type,
+                    translation=vocab.english_translation if vocab else None,
+                    category=interaction.error_type,
+                    issue=interaction.error_description,
+                    correction=interaction.correction,
+                    sentence=sentence,
+                )
+            )
+            difficult_ids.add(interaction.word_id)
+
+        # Include errors detected but not tied to vocab words
+        for message in messages:
+            payload = message.errors_detected or {}
+            for error in payload.get("errors", []):
+                key = (error.get("span"), error.get("category"), error.get("message"))
+                if key in seen_practice:
+                    continue
+                seen_practice.add(key)
+                practice_items.append(
+                    PracticeIssue(
+                        word=error.get("span", ""),
+                        translation=None,
+                        category=error.get("category"),
+                        issue=error.get("message"),
+                        correction=error.get("suggestion"),
+                        sentence=message.content,
+                    )
+                )
+
+        flashcard_words: list[TargetWordRead] = []
+        if user and (flashcard_word_ids or difficult_ids):
+            combined_ids = list(flashcard_word_ids.union(difficult_ids))
+            fl_detail = self._build_target_details_from_ids(user=user, word_ids=combined_ids)
+            flashcard_words = fl_detail
+            for word_detail in fl_detail:
+                difficult_ids.add(word_detail.word_id)
+
+        if user and difficult_ids:
+            for word_id in difficult_ids:
+                self.mark_word_difficult(session=session, user=user, word_id=word_id, reason="summary")
+
         return {
             "xp_earned": session.xp_earned,
             "words_practiced": session.words_practiced,
@@ -825,6 +1353,10 @@ class SessionService:
             "correct_responses": session.correct_responses,
             "incorrect_responses": session.incorrect_responses,
             "status": session.status,
+            "success_examples": success_examples,
+            "error_examples": error_examples,
+            "flashcard_words": flashcard_words,
+            "practice_items": practice_items,
         }
 
 
@@ -836,4 +1368,3 @@ __all__ = [
     "WordFeedback",
     "XPConfig",
 ]
-

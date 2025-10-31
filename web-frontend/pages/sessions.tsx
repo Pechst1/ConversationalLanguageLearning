@@ -124,7 +124,18 @@ export async function getServerSideProps(context: any) {
     };
 
     const response = await fetch(`${baseUrl}/api/v1/sessions?limit=20`, { headers });
-    const sessions = response.ok ? await response.json() : [];
+    const raw = response.ok ? await response.json() : [];
+    const sessions = Array.isArray(raw)
+      ? raw.map((item: any) => ({
+          id: item.id,
+          topic: item.topic || 'General Conversation',
+          created_at: item.started_at || new Date().toISOString(),
+          completed_at: item.completed_at || null,
+          xp_awarded: item.xp_earned || 0,
+          message_count: item.words_practiced || 0,
+          status: item.status === 'completed' ? 'completed' : 'active',
+        }))
+      : [];
 
     return {
       props: {

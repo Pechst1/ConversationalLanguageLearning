@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     )
 
     OPENAI_API_KEY: Optional[str] = None
+    OPENAI_ORG_ID: Optional[str] = None
     ANTHROPIC_API_KEY: Optional[str] = None
     PRIMARY_LLM_PROVIDER: str = Field("openai", description="Preferred LLM provider key")
     SECONDARY_LLM_PROVIDER: Optional[str] = Field(

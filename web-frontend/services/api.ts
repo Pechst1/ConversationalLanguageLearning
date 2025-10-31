@@ -119,7 +119,13 @@ class ApiService {
   }
 
   // Session endpoints
-  async createSession(data: { topic?: string; difficulty?: string }) {
+  async createSession(data: {
+    topic?: string;
+    planned_duration_minutes: number;
+    conversation_style?: string;
+    difficulty_preference?: string;
+    generate_greeting?: boolean;
+  }) {
     return this.post('/sessions', data);
   }
 
@@ -131,8 +137,24 @@ class ApiService {
     return this.get('/sessions', { params });
   }
 
-  async sendMessage(sessionId: string, data: { content: string; suggested_words?: number[] }) {
+  async sendMessage(sessionId: string, data: { content: string; suggested_word_ids?: number[] }) {
     return this.post(`/sessions/${sessionId}/messages`, data);
+  }
+
+  async logExposure(sessionId: string, data: { word_id: number; exposure_type: 'hint' | 'translation' }) {
+    return this.post(`/sessions/${sessionId}/exposures`, data);
+  }
+
+  async updateSessionStatus(sessionId: string, status: 'in_progress' | 'paused' | 'completed' | 'abandoned') {
+    return this.patch(`/sessions/${sessionId}`, { status });
+  }
+
+  async getSessionSummary(sessionId: string) {
+    return this.get(`/sessions/${sessionId}/summary`);
+  }
+
+  async markWordDifficult(sessionId: string, data: { word_id: number }) {
+    return this.post(`/sessions/${sessionId}/difficult_words`, { word_id: data.word_id, exposure_type: 'flag' });
   }
 
   // Progress endpoints

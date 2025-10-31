@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 
 from app.api.deps import get_current_user, get_session_service
 from app.api.v1.endpoints.session_utils import (
@@ -24,6 +24,7 @@ from app.schemas import (
     SessionStatusUpdate,
     SessionSummaryResponse,
     SessionTurnResponse,
+    WordExposureRequest,
 )
 from app.services.session_service import SessionService
 
@@ -49,8 +50,23 @@ def create_session(
         generate_greeting=payload.generate_greeting,
     )
     session_schema = session_to_overview(result.session)
-    assistant_schema = assistant_turn_to_schema(result.assistant_turn)
+    assistant_schema = assistant_turn_to_schema(
+        result.assistant_turn,
+        target_details=result.assistant_turn.target_details if result.assistant_turn else None,
+    )
     return SessionStartResponse(session=session_schema, assistant_turn=assistant_schema)
+
+
+@router.get("", response_model=list[SessionOverview])
+def list_sessions(
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    *,
+    service: SessionService = Depends(get_session_service),
+    current_user: User = Depends(get_current_user),
+) -> list[SessionOverview]:
+    records = service.list_sessions(user=current_user, limit=limit, offset=offset)
+    return [session_to_overview(record) for record in records]
 
 
 def _resolve_session(
@@ -84,7 +100,14 @@ def list_session_messages(
 ) -> SessionMessageListResponse:
     session = _resolve_session(service, session_id, current_user)
     messages = service.list_messages(session=session, limit=limit, offset=offset)
-    items = [message_to_schema(message) for message in messages]
+    target_map = service.build_message_target_map(
+        user=current_user,
+        message_ids=[message.id for message in messages],
+    )
+    items = [
+        message_to_schema(message, target_details=target_map.get(message.id, []))
+        for message in messages
+    ]
     return SessionMessageListResponse(items=items, total=len(items))
 
 
@@ -109,7 +132,10 @@ def post_session_message(
 
     session_schema = session_to_overview(result.session)
     user_message = message_to_schema(result.user_message)
-    assistant_schema = assistant_turn_to_schema(result.assistant_turn)
+    assistant_schema = assistant_turn_to_schema(
+        result.assistant_turn,
+        target_details=result.assistant_turn.target_details if result.assistant_turn else None,
+    )
     error_feedback = error_feedback_from_result(result)
     word_feedback = word_feedback_to_schema(result.word_feedback)
     return SessionTurnResponse(
@@ -120,6 +146,42 @@ def post_session_message(
         error_feedback=error_feedback,
         word_feedback=word_feedback,
     )
+
+
+@router.post("/{session_id}/exposures", status_code=status.HTTP_204_NO_CONTENT)
+def log_word_exposure(
+    session_id: UUID,
+    payload: WordExposureRequest,
+    *,
+    service: SessionService = Depends(get_session_service),
+    current_user: User = Depends(get_current_user),
+) -> Response:
+    session = _resolve_session(service, session_id, current_user)
+    service.record_word_exposure(
+        session=session,
+        user=current_user,
+        word_id=payload.word_id,
+        exposure_type=payload.exposure_type,
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/{session_id}/difficult_words", status_code=status.HTTP_204_NO_CONTENT)
+def mark_word_difficult(
+    session_id: UUID,
+    payload: WordExposureRequest,
+    *,
+    service: SessionService = Depends(get_session_service),
+    current_user: User = Depends(get_current_user),
+) -> Response:
+    session = _resolve_session(service, session_id, current_user)
+    service.mark_word_difficult(
+        session=session,
+        user=current_user,
+        word_id=payload.word_id,
+        reason=payload.exposure_type,
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.patch("/{session_id}", response_model=SessionOverview)
@@ -148,4 +210,3 @@ def get_session_summary(
     session = _resolve_session(service, session_id, current_user)
     summary = service.session_summary(session)
     return SessionSummaryResponse(**summary)
-

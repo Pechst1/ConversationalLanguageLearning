@@ -162,7 +162,13 @@ docker compose -f docker/docker-compose.dev.yml up --build
 ```
 
 The API is exposed at http://localhost:8000 and automatically reloads when you edit
-source files. PostgreSQL and Redis data are stored in local Docker volumes.
+source files. PostgreSQL and Redis data are stored in local Docker volumes. The
+containers run Alembic migrations on startup; if you interrupt the first boot or see
+database errors you can manually ensure the schema is up to date with:
+
+```bash
+docker compose -f docker/docker-compose.dev.yml run --rm api alembic upgrade head
+```
 
 **Staging environment preview**
 

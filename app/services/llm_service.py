@@ -57,10 +57,14 @@ class OpenAIProvider:
     }
 
     def _build_headers(self) -> Dict[str, str]:
-        return {
+        headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
         }
+        # Optionally set organization header when supplied
+        if settings and getattr(settings, "OPENAI_ORG_ID", None):  # type: ignore[truthy-bool]
+            headers["OpenAI-Organization"] = settings.OPENAI_ORG_ID  # type: ignore[attr-defined]
+        return headers
 
     def _estimate_cost(self, usage: Dict[str, Any]) -> float:
         model_rates = self.COST_PER_1K_TOKENS.get(self.model, {"prompt": 0.0, "completion": 0.0})
@@ -281,7 +285,8 @@ class LLMService:
                 "temperature": temperature,
                 "max_tokens": max_tokens,
             }
-            if response_format:
+            # Only OpenAI chat supports response_format in our usage
+            if response_format and provider.name == "openai":
                 payload_kwargs["response_format"] = response_format
             if system_prompt and provider.name == "anthropic":
                 payload_kwargs["system"] = system_prompt

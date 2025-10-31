@@ -93,7 +93,7 @@ class WebSocketService {
       // Handle specific message types
       const handler = this.messageHandlers.get(message.type);
       if (handler) {
-        handler(message);
+        handler(message.data ?? message);
       }
       
       // Handle global message types

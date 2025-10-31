@@ -68,18 +68,22 @@ class UserVocabularyProgress(Base):
         if rating <= 2:
             self.lapses += 1
 
-    def record_usage(self, correct: bool, used_hint: bool = False) -> None:
+    def record_usage(self, correct: bool, *, used_hint: bool = False, is_new: bool = False) -> None:
         """Update usage counters based on conversation events."""
 
         self.times_seen += 1
         if correct:
             self.times_used_correctly += 1
             self.correct_count += 1
+            delta = 15 if is_new else 10
+            self.adjust_proficiency(delta)
         else:
             self.times_used_incorrectly += 1
             self.incorrect_count += 1
+            self.adjust_proficiency(-10)
         if used_hint:
             self.hint_count += 1
+            self.adjust_proficiency(-5)
 
     def adjust_proficiency(self, delta: int) -> None:
         """Adjust proficiency score within 0-100 bounds."""

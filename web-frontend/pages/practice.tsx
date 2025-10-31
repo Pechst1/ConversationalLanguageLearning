@@ -6,13 +6,15 @@ import apiService from '@/services/api';
 import { CheckCircle, XCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+interface PracticeWord {
+  wordId: number;
+  word: string;
+  translation: string;
+  difficulty: number;
+}
+
 interface PracticeProps {
-  queueWords: {
-    id: number;
-    text: string;
-    translation: string;
-    difficulty: number;
-  }[];
+  queueWords: PracticeWord[];
 }
 
 export default function PracticePage({ queueWords }: PracticeProps) {
@@ -26,7 +28,7 @@ export default function PracticePage({ queueWords }: PracticeProps) {
   const handleRating = async (rating: number) => {
     try {
       await apiService.submitReview({
-        word_id: currentWord.id,
+        word_id: currentWord.wordId,
         rating,
       });
 
@@ -99,7 +101,7 @@ export default function PracticePage({ queueWords }: PracticeProps) {
       <Card>
         <CardHeader>
           <CardTitle className="text-center text-3xl font-bold">
-            {currentWord.text}
+            {currentWord.word}
           </CardTitle>
           <CardDescription className="text-center">
             How well do you know this word?
@@ -186,7 +188,15 @@ export async function getServerSideProps(context: any) {
     };
 
     const response = await fetch(`${baseUrl}/api/v1/progress/queue`, { headers });
-    const queueWords = response.ok ? await response.json() : [];
+    const raw = response.ok ? await response.json() : [];
+    const queueWords = Array.isArray(raw)
+      ? raw.map((item: any) => ({
+          wordId: item.word_id,
+          word: item.word,
+          translation: item.english_translation || '',
+          difficulty: item.difficulty_level || 1,
+        }))
+      : [];
 
     return {
       props: {

@@ -1,51 +1,250 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import api from '@/services/api';
 import { useWebSocket } from '@/services/websocket';
 
-export type ChatMessage = { id: string; role: 'user' | 'assistant'; content: string };
+export type TargetWord = {
+  id: number;
+  word: string;
+  translation?: string;
+  familiarity?: 'new' | 'learning' | 'familiar';
+  hintSentence?: string | null;
+  hintTranslation?: string | null;
+  isNew?: boolean;
+};
+
+export type ChatMessage = {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  targets?: TargetWord[];
+  xp?: number;
+};
+
+function mapTarget(detail: any): TargetWord {
+  return {
+    id: detail.word_id,
+    word: detail.word,
+    translation: detail.translation ?? undefined,
+    familiarity: detail.familiarity ?? undefined,
+    hintSentence: detail.hint_sentence ?? undefined,
+    hintTranslation: detail.hint_translation ?? undefined,
+    isNew: detail.is_new ?? undefined,
+  };
+}
+
+function mapMessage(item: any): ChatMessage {
+  const targets = Array.isArray(item.target_details)
+    ? item.target_details.map(mapTarget)
+    : [];
+  return {
+    id: item.id,
+    role: item.sender === 'user' ? 'user' : 'assistant',
+    content: item.content ?? '',
+    targets,
+    xp: item.xp_earned ?? undefined,
+  };
+}
 
 export function useLearningSession(sessionId: string) {
   const [session, setSession] = useState<any>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [suggested, setSuggested] = useState<TargetWord[]>([]);
   const ws = useWebSocket(sessionId);
-  const mounted = useRef(false);
 
   const load = useCallback(async () => {
-    const s = await api.get(`/sessions/${sessionId}`);
-    setSession(s);
-    const m = await api.get(`/sessions/${sessionId}/messages`);
-    setMessages(m);
+    if (!sessionId) return;
+    const sessionResponse = await api.get(`/sessions/${sessionId}`);
+    setSession(sessionResponse);
+
+    const response = await api.get(`/sessions/${sessionId}/messages`);
+    const items = Array.isArray(response?.items) ? response.items : [];
+    const mapped = items.map(mapMessage);
+    setMessages(mapped);
+
+    const lastAssistant = [...mapped]
+      .reverse()
+      .find((message) => message.role === 'assistant' && message.targets && message.targets.length > 0);
+    if (lastAssistant?.targets) {
+      setSuggested(lastAssistant.targets);
+    } else {
+      // fallback: fetch queue to populate suggestions when backend delivered none yet
+      try {
+        const queue = await api.getProgressQueue();
+        const fallback = Array.isArray(queue)
+          ? queue.map((item: any) => ({
+              id: item.word_id,
+              word: item.word,
+              translation: item.english_translation,
+              familiarity: item.state === 'new' ? 'new' : 'learning',
+              isNew: item.is_new,
+            }))
+          : [];
+        if (fallback.length) {
+          setSuggested(fallback);
+        }
+      } catch (error) {
+        console.debug('Failed to load fallback vocabulary', error);
+      }
+    }
   }, [sessionId]);
 
   useEffect(() => {
-    if (mounted.current) return;
-    mounted.current = true;
-    load();
-    ws.connect();
+    if (!sessionId) return;
+    let cancelled = false;
 
-    ws.onMessage('turn_result', (data: any) => {
-      setMessages((prev) => [
-        ...prev,
-        { id: crypto.randomUUID(), role: 'assistant', content: data.reply?.content ?? '' },
-      ]);
-    });
+    (async () => {
+      if (cancelled) return;
+      await load();
+      try {
+        if (cancelled) return;
+        await ws.connect();
+
+        ws.onMessage('session_ready', (data: any) => {
+          if (data?.session) {
+            setSession(data.session);
+          }
+        });
+
+        ws.onMessage('turn_result', (data: any) => {
+          if (!data) return;
+          if (data.session) {
+            setSession(data.session);
+          }
+          const updates: ChatMessage[] = [];
+
+          if (data.user_message) {
+            updates.push(mapMessage({ ...data.user_message, sender: 'user' }));
+          }
+
+          if (data.assistant_turn?.message) {
+            const assistantMessage = mapMessage({
+              ...data.assistant_turn.message,
+              sender: 'assistant',
+              target_details: data.assistant_turn.targets ?? [],
+            });
+            updates.push(assistantMessage);
+
+            const targets = Array.isArray(data.assistant_turn.targets)
+              ? data.assistant_turn.targets.map(mapTarget)
+              : [];
+            const usedIds = new Set<number>(
+              Array.isArray(data.word_feedback)
+                ? data.word_feedback.filter((wf: any) => wf.was_used).map((wf: any) => wf.word_id)
+                : []
+            );
+            setSuggested((prev) => {
+              const keep = prev.filter((w) => !usedIds.has(w.id));
+              const merged = [...keep];
+              for (const t of targets) {
+                if (!merged.find((m) => m.id === t.id)) merged.push(t);
+              }
+              return merged;
+            });
+          }
+
+          if (updates.length) {
+            setMessages((prev) => [...prev, ...updates]);
+          }
+        });
+      } catch (error) {
+        console.error('Failed to establish WebSocket connection', error);
+      }
+    })();
 
     return () => {
+      cancelled = true;
       ws.disconnect();
     };
-  }, [load, ws]);
+  }, [sessionId, load, ws]);
 
   const send = useCallback(
-    async (text: string, suggested?: number[]) => {
-      setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: 'user', content: text }]);
-      await api.post(`/sessions/${sessionId}/messages`, {
+    async (text: string, suggestedWordIds?: number[]) => {
+      if (!text.trim()) {
+        return;
+      }
+
+      if (ws.isConnected()) {
+        ws.sendMessage(text, suggestedWordIds);
+        return;
+      }
+
+      const result = await api.post(`/sessions/${sessionId}/messages`, {
         content: text,
-        suggested_words: suggested,
+        suggested_word_ids: suggestedWordIds,
       });
-      ws.sendMessage(text, suggested);
+
+      if (result?.session) {
+        setSession(result.session);
+      }
+      const updates: ChatMessage[] = [];
+      if (result?.user_message) {
+        updates.push(mapMessage({ ...result.user_message, sender: 'user' }));
+      }
+      if (result?.assistant_turn?.message) {
+        const targets = Array.isArray(result.assistant_turn.targets)
+          ? result.assistant_turn.targets.map(mapTarget)
+          : [];
+        updates.push(
+          mapMessage({
+            ...result.assistant_turn.message,
+            sender: 'assistant',
+            target_details: result.assistant_turn.targets ?? [],
+          })
+        );
+        const usedIds = new Set<number>(
+          Array.isArray(result.word_feedback)
+            ? result.word_feedback.filter((wf: any) => wf.was_used).map((wf: any) => wf.word_id)
+            : []
+        );
+        setSuggested((prev) => {
+          const keep = prev.filter((w) => !usedIds.has(w.id));
+          const merged = [...keep];
+          for (const t of targets) {
+            if (!merged.find((m) => m.id === t.id)) merged.push(t);
+          }
+          return merged;
+        });
+      }
+
+      if (updates.length) {
+        setMessages((prev) => [...prev, ...updates]);
+      }
     },
     [sessionId, ws]
   );
 
-  return { session, messages, send };
+  const logExposure = useCallback(
+    async (wordId: number, exposureType: 'hint' | 'translation') => {
+      if (!sessionId) return;
+      try {
+        await api.logExposure(sessionId, {
+          word_id: wordId,
+          exposure_type: exposureType,
+        });
+      } catch (error) {
+        console.debug('Exposure logging failed', error);
+      }
+    },
+    [sessionId]
+  );
+
+  const flagWord = useCallback(
+    async (wordId: number) => {
+      if (!sessionId) return;
+      try {
+        await api.markWordDifficult(sessionId, { word_id: wordId });
+      } catch (error) {
+        console.debug('Mark difficult failed', error);
+      }
+    },
+    [sessionId]
+  );
+
+  const complete = useCallback(async () => {
+    if (!sessionId) return null;
+    await api.updateSessionStatus(sessionId, 'completed');
+    return api.getSessionSummary(sessionId);
+  }, [sessionId]);
+
+  return { session, messages, send, suggested, logExposure, flagWord, complete };
 }

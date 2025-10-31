@@ -27,6 +27,7 @@ from app.schemas.session import (
     AssistantTurnRead,
     DetectedErrorRead,
     ErrorFeedback,
+    PracticeIssue,
     SessionCreateRequest,
     SessionMessageListResponse,
     SessionMessageRead,
@@ -38,6 +39,7 @@ from app.schemas.session import (
     SessionTurnResponse,
     SessionTurnWordFeedback,
     TargetWordRead,
+    WordExposureRequest,
 )
 from app.schemas.user import UserBase, UserCreate, UserLogin, UserRead, UserUpdate
 from app.schemas.vocabulary import VocabularyListResponse, VocabularyWordRead
@@ -75,6 +77,8 @@ __all__ = [
     "SessionTurnResponse",
     "SessionTurnWordFeedback",
     "TargetWordRead",
+    "PracticeIssue",
+    "WordExposureRequest",
     "UserBase",
     "UserCreate",
     "UserLogin",

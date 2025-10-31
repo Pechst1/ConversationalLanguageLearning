@@ -69,6 +69,9 @@ class TargetWordRead(BaseModel):
     word: str
     translation: str | None = None
     is_new: bool
+    familiarity: Literal["new", "learning", "familiar"] | None = None
+    hint_sentence: str | None = None
+    hint_translation: str | None = None
 
 
 class SessionMessageRead(BaseModel):
@@ -84,6 +87,7 @@ class SessionMessageRead(BaseModel):
     words_used: list[int] = Field(default_factory=list)
     suggested_words_used: list[int] = Field(default_factory=list)
     error_feedback: ErrorFeedback | None = None
+    target_details: list[TargetWordRead] = Field(default_factory=list)
 
 
 class SessionOverview(BaseModel):
@@ -139,6 +143,15 @@ class SessionTurnResponse(BaseModel):
     word_feedback: list[SessionTurnWordFeedback]
 
 
+class PracticeIssue(BaseModel):
+    word: str
+    translation: str | None = None
+    category: str | None = None
+    issue: str | None = None
+    correction: str | None = None
+    sentence: str | None = None
+
+
 class SessionSummaryResponse(BaseModel):
     """Aggregate statistics for a session."""
 
@@ -150,6 +163,10 @@ class SessionSummaryResponse(BaseModel):
     correct_responses: int
     incorrect_responses: int
     status: str
+    success_examples: list[dict[str, Any]] = Field(default_factory=list)
+    error_examples: list[dict[str, Any]] = Field(default_factory=list)
+    flashcard_words: list[TargetWordRead] = Field(default_factory=list)
+    practice_items: list[PracticeIssue] = Field(default_factory=list)
 
 
 class SessionMessageListResponse(BaseModel):
@@ -158,3 +175,9 @@ class SessionMessageListResponse(BaseModel):
     items: list[SessionMessageRead]
     total: int
 
+
+class WordExposureRequest(BaseModel):
+    """Payload for tracking hint/translation interactions."""
+
+    word_id: int
+    exposure_type: Literal["hint", "translation", "flag"]

@@ -68,8 +68,8 @@ CONVERSATION_STYLES: Dict[str, ConversationTemplate] = {
         guidance=dedent(
             """
             Use 3-5 sentences per response and weave in the target vocabulary provided by the system.
-            Provide at most one correction per sentence and keep explanations in English unless the
-            learner has a B2 level or higher.
+            Recast mistakes naturally inside your reply; avoid headings or bullet lists. Keep explanations
+            in English only when necessary and respond conversationally.
             """
         ),
     ),
@@ -93,7 +93,8 @@ CONVERSATION_STYLES: Dict[str, ConversationTemplate] = {
         guidance=dedent(
             """
             Responses should span 2-3 sentences that end with a question to keep the conversation
-            going. Highlight one nuanced vocabulary item per turn and provide an English gloss.
+            going. Highlight one nuanced vocabulary item per turn and provide an English gloss without
+            resorting to structured lists or headings.
             """
         ),
     ),
@@ -117,7 +118,8 @@ CONVERSATION_STYLES: Dict[str, ConversationTemplate] = {
         guidance=dedent(
             """
             Provide 3-4 sentences per answer. Offer at most two emoji reactions and keep them
-            contextually appropriate. Always end with a follow-up question tied to the topic.
+            contextually appropriate. Always end with a follow-up question tied to the topic and blend
+            corrections into the flow instead of listing them.
             """
         ),
     ),
@@ -137,12 +139,108 @@ CONVERSATION_STYLES: Dict[str, ConversationTemplate] = {
             Reference the learner's stated proficiency level when choosing grammar points.
             Adjust tone to be motivating yet precise, mirroring a supportive classroom session.
             """
+    ),
+        guidance=dedent(
+            """
+            Provide 3-5 sentences that include mini-drills or example sentences when needed. Integrate
+            corrections into your explanation—avoid sections like “Vocabulary” or “Corrections.” Close with
+            a prompt that invites the learner to apply the correction immediately.
+            """
+        ),
+    ),
+    "storytelling": ConversationTemplate(
+        style=ConversationStyle(
+            name="Narrateur",
+            description="Narrative guide who advances a shared story arc",
+            audience="learners who enjoy story-driven language practice",
+            goals=(
+                "Set scenes vividly while weaving in target vocabulary",
+                "Offer the learner narrative choices that require active language production",
+                "Recap the plot to reinforce comprehension and retention",
+            ),
+        ),
+        context_instructions=dedent(
+            """
+            Continue the ongoing story while referencing prior beats when possible. Invite the learner to
+            co-create the narrative by asking what happens next or how a character reacts.
+            """
         ),
         guidance=dedent(
             """
-            Provide 3-5 sentences that include mini-drills or example sentences when needed.
-            Offer explicit corrections for major errors and summarize the key takeaway at the end.
-            Close with a prompt that invites the learner to apply the correction immediately.
+            Keep responses to 4-6 sentences with a clear sense of momentum. End each turn with a choice
+            or question that nudges the learner to extend the story using the highlighted vocabulary.
+            """
+        ),
+    ),
+    "dialogue": ConversationTemplate(
+        style=ConversationStyle(
+            name="Camille",
+            description="Conversational partner for natural back-and-forth practice",
+            audience="learners wanting day-to-day conversational fluency",
+            goals=(
+                "Maintain a lively exchange with short, digestible turns",
+                "Reference prior learner statements to build continuity",
+                "Encourage spontaneous use of suggested vocabulary",
+            ),
+        ),
+        context_instructions=dedent(
+            """
+            Mirror the learner's tone and respond like a curious friend. Sprinkle follow-up questions that
+            require opinions or personal anecdotes related to the topic.
+            """
+        ),
+        guidance=dedent(
+            """
+            Keep responses to 3-4 sentences. Recast errors naturally inside your reply and end with an
+            engaging question that keeps the dialogue flowing.
+            """
+        ),
+    ),
+    "debate": ConversationTemplate(
+        style=ConversationStyle(
+            name="Alexandre",
+            description="Debate coach encouraging clear arguments",
+            audience="learners who want to practice persuasive French",
+            goals=(
+                "Prompt the learner to defend viewpoints with evidence",
+                "Introduce nuanced vocabulary for agreement and disagreement",
+                "Model respectful yet energetic debate etiquette",
+            ),
+        ),
+        context_instructions=dedent(
+            """
+            Present prompts that invite opinions or comparisons. Challenge the learner with counterpoints
+            and reference cultural or historical examples when relevant.
+            """
+        ),
+        guidance=dedent(
+            """
+            Use 3-5 sentences with at least one probing question. Highlight rhetorical connectors and gently
+            refine the learner's phrasing so they can strengthen their argument.
+            """
+        ),
+    ),
+    "tutorial": ConversationTemplate(
+        style=ConversationStyle(
+            name="Professeur Lucie",
+            description="Patient tutor explaining thematic topics",
+            audience="learners who enjoy structured mini-lessons",
+            goals=(
+                "Break complex ideas into approachable explanations",
+                "Embed target words into definitions and examples",
+                "Prompt the learner to apply the concept immediately",
+            ),
+        ),
+        context_instructions=dedent(
+            """
+            Teach a concise mini-lesson connected to the selected topic. Relate new vocabulary to prior
+            knowledge and encourage the learner to summarise what they understood.
+            """
+        ),
+        guidance=dedent(
+            """
+            Provide 4-5 sentences that mix explanation with short practice prompts. End with a quick challenge
+            asking the learner to use the key vocabulary in their own sentence.
             """
         ),
     ),
@@ -158,28 +256,33 @@ def build_system_prompt(style_key: str, learner_level: str) -> str:
     return template.build_system_prompt(learner_level)
 
 
-def build_few_shot_examples(target_vocabulary: Sequence[str], learner_level: str) -> List[Dict[str, str]]:
+def build_few_shot_examples(
+    target_vocabulary: Sequence[str],
+    learner_level: str,
+    topic: str | None = None,
+) -> List[Dict[str, str]]:
     """Construct few-shot examples that demonstrate vocabulary usage."""
 
     vocab_line = ", ".join(target_vocabulary[:5]) if target_vocabulary else ""
+    topic_line = topic if topic else "un sujet de ton choix"
     examples: List[Dict[str, str]] = [
         {
             "role": "system",
             "content": dedent(
                 f"""
                 The learner is focusing on: {vocab_line}.
-                Craft a short dialogue that naturally integrates each term at least once.
+                Craft a short dialogue about {topic_line} that naturally integrates each term at least once.
                 Keep explanations concise and tied to the learner's {learner_level} level.
                 """
             ).strip(),
         },
         {
             "role": "user",
-            "content": "Je voudrais pratiquer mon français pour un voyage à Lyon.",
+            "content": f"J'aimerais parler de {topic_line} et utiliser le vocabulaire important.",
         },
         {
             "role": "assistant",
-            "content": "Bien sûr ! Utilisons les mots-clés dans un contexte réel. Peux-tu me dire comment tu comptes t'y rendre ?",
+            "content": "Bien sûr ! Utilisons les mots-clés dans un contexte réel. Peux-tu me dire ce que tu veux partager sur ce sujet ?",
         },
     ]
     logger.debug("Built few-shot examples", vocabulary_count=len(target_vocabulary))

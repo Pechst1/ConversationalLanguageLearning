@@ -111,7 +111,7 @@ class ErrorDetector:
             target_vocabulary,
             learner_level,
         )
-        schema = build_error_detection_schema()
+        # Prefer a broad JSON object mode for maximum provider compatibility.
         system_prompt = (
             "You are a meticulous French writing tutor. Return JSON matching the provided schema "
             "and avoid additional commentary."
@@ -120,7 +120,7 @@ class ErrorDetector:
             result = self.llm_service.generate_chat_completion(
                 [{"role": "user", "content": prompt}],
                 system_prompt=system_prompt,
-                response_format={"type": "json_schema", "json_schema": schema},
+                response_format={"type": "json_object"},
                 temperature=0.2,
                 max_tokens=600,
             )

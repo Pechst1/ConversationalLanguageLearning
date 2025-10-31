@@ -31,7 +31,11 @@ def session_to_overview(session: LearningSession) -> SessionOverview:
     )
 
 
-def message_to_schema(message: ConversationMessage) -> SessionMessageRead:
+def message_to_schema(
+    message: ConversationMessage,
+    *,
+    target_details: list[TargetWordRead] | None = None,
+) -> SessionMessageRead:
     payload = message.errors_detected or {}
     error_feedback = None
     if isinstance(payload, dict) and payload.get("summary"):
@@ -52,23 +56,30 @@ def message_to_schema(message: ConversationMessage) -> SessionMessageRead:
         words_used=message.words_used or [],
         suggested_words_used=message.suggested_words_used or [],
         error_feedback=error_feedback,
+        target_details=target_details or [],
     )
 
 
-def assistant_turn_to_schema(turn: AssistantTurn | None) -> AssistantTurnRead | None:
+def assistant_turn_to_schema(
+    turn: AssistantTurn | None,
+    *,
+    target_details: list[TargetWordRead] | None = None,
+) -> AssistantTurnRead | None:
     if not turn:
         return None
-    message_schema = message_to_schema(turn.message)
-    targets = [
-        TargetWordRead(
-            word_id=target.id,
-            word=target.surface,
-            translation=target.translation,
-            is_new=target.is_new,
-        )
-        for target in turn.plan.target_words
-    ]
-    return AssistantTurnRead(message=message_schema, targets=targets)
+    details = target_details
+    if details is None:
+        details = [
+            TargetWordRead(
+                word_id=target.id,
+                word=target.surface,
+                translation=target.translation,
+                is_new=target.is_new,
+            )
+            for target in turn.plan.target_words
+        ]
+    message_schema = message_to_schema(turn.message, target_details=details)
+    return AssistantTurnRead(message=message_schema, targets=details)
 
 
 def word_feedback_to_schema(items: Iterable[WordFeedback]) -> list[SessionTurnWordFeedback]:

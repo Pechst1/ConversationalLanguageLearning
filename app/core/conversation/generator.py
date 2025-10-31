@@ -80,6 +80,97 @@ class ConversationGenerator:
         self.max_tokens = max_tokens
 
     # ------------------------------------------------------------------
+    # Fallback helpers
+    # ------------------------------------------------------------------
+    def _truncate_text(self, value: str, *, limit: int = 160) -> str:
+        """Compact user text for insertion into template replies."""
+
+        compact = " ".join(value.split())
+        if len(compact) <= limit:
+            return compact
+        return f"{compact[: limit - 3]}..."
+
+    def _last_user_message(self, history: Sequence[ConversationHistoryMessage]) -> str:
+        for message in reversed(history):
+            if message.role == "user" and message.content:
+                return message.content
+        return ""
+
+    def _build_template_reply(
+        self,
+        *,
+        plan: ConversationPlan,
+        history: Sequence[ConversationHistoryMessage],
+        style: str,
+        user: User,
+        topic: str | None,
+        error: Exception,
+    ) -> LLMResult:
+        tone_map = {
+            "casual": "Salut ! Merci pour ton message.",
+            "tutor": "Merci pour ton message, continuons ensemble.",
+            "exam-prep": "C'est une bonne preparation, restons concentres.",
+            "business": "Merci pour cette information, travaillons sur ton francais professionnel.",
+            "storytelling": "Continuons notre histoire ensemble.",
+            "dialogue": "Content de discuter avec toi !",
+            "debate": "Merci pour ton point de vue, debattons-en.",
+            "tutorial": "Voici une petite explication pour avancer.",
+        }
+        opener = tone_map.get(style.lower(), "Merci pour ton message !")
+
+        last_user_text = self._last_user_message(history)
+        lines: list[str] = [opener]
+        if topic:
+            lines.append(f"Le sujet de la fois: {topic}.")
+        if last_user_text:
+            lines.append(f"Tu as mentionne: \"{self._truncate_text(last_user_text)}\".")
+
+        targets = plan.target_words
+        if targets:
+            formatted_targets: list[str] = []
+            example_sentences: list[str] = []
+            for target in targets:
+                translation = f" ({target.translation})" if target.translation else ""
+                descriptor = "nouveau" if target.is_new else "en revision"
+                formatted_targets.append(f"{target.surface}{translation} [{descriptor}]")
+            lines.append("Concentrons-nous sur les mots suivants: " + ", ".join(formatted_targets) + ".")
+
+            for target in targets[:2]:
+                translation = f" ({target.translation})" if target.translation else ""
+                example_sentences.append(
+                    f"Essaie une phrase avec \"{target.surface}\"{translation} liee a ta situation."
+                )
+            if example_sentences:
+                lines.append("Par exemple: " + " ".join(example_sentences))
+            lines.append("Peux-tu repondre en utilisant au moins l'un de ces mots ?")
+        else:
+            lines.append("Continuons a discuter pour pratiquer ton francais." )
+            lines.append("Ajoute un ou deux details de plus dans ta prochaine reponse.")
+
+        lines.append("A toi !")
+        reply_text = " ".join(lines)
+
+        logger.warning(
+            "LLM generation unavailable, using template reply",
+            provider_error=type(error).__name__,
+        )
+
+        return LLMResult(
+            provider="template",
+            model="rule-based",
+            content=reply_text,
+            prompt_tokens=0,
+            completion_tokens=0,
+            total_tokens=0,
+            cost=0.0,
+            raw_response={
+                "fallback": True,
+                "error_type": type(error).__name__,
+                "error_message": str(error),
+            },
+        )
+
+    # ------------------------------------------------------------------
     # Vocabulary planning helpers
     # ------------------------------------------------------------------
     def _select_queue_items(
@@ -110,7 +201,8 @@ class ConversationGenerator:
             )
         )
         if not queue:
-            return []
+            fallback_words = self.progress_service.sample_vocabulary(user=user, limit=effective_limit)
+            return [QueueItem(word=word, progress=None, is_new=True) for word in fallback_words]
 
         due_items = [item for item in queue if not item.is_new]
         new_items = [item for item in queue if item.is_new]
@@ -190,14 +282,25 @@ class ConversationGenerator:
     # ------------------------------------------------------------------
     # Prompt preparation helpers
     # ------------------------------------------------------------------
-    def _build_target_context(self, *, plan: ConversationPlan, learner_level: str, user: User) -> str:
+    def _build_target_context(
+        self,
+        *,
+        plan: ConversationPlan,
+        learner_level: str,
+        user: User,
+        topic: str | None = None,
+    ) -> str:
         """Return a context block describing vocabulary and learner profile."""
 
         lines: list[str] = [
             f"Learner proficiency level: {learner_level}",
             f"Learner native language: {user.native_language or 'unknown'}",
-            "Target vocabulary for this turn:",
         ]
+
+        if topic:
+            lines.append(f"Conversation topic: {topic}")
+
+        lines.append("Target vocabulary for this turn:")
 
         if plan.target_words:
             if plan.review_targets:
@@ -237,14 +340,20 @@ class ConversationGenerator:
         history: Sequence[ConversationHistoryMessage] = (),
         learner_level: str,
         user: User,
+        topic: str | None = None,
     ) -> list[dict[str, str]]:
         """Assemble the chat completion payload."""
 
-        target_context = self._build_target_context(plan=plan, learner_level=learner_level, user=user)
+        target_context = self._build_target_context(
+            plan=plan,
+            learner_level=learner_level,
+            user=user,
+            topic=topic,
+        )
         context_message = {"role": "system", "content": target_context}
 
         vocabulary_terms = [target.surface for target in plan.target_words]
-        few_shot = build_few_shot_examples(vocabulary_terms, learner_level)
+        few_shot = build_few_shot_examples(vocabulary_terms, learner_level, topic)
         history_messages = self._prepare_history(history)
 
         messages = [context_message, *few_shot, *history_messages]
@@ -260,6 +369,8 @@ class ConversationGenerator:
         session_capacity: dict,
         history: Sequence[ConversationHistoryMessage] | None = None,
         temperature: float | None = None,
+        review_focus: float | None = None,
+        topic: str | None = None,
     ) -> GeneratedTurn:
         """Generate a turn while respecting the adaptive session context."""
 
@@ -269,6 +380,8 @@ class ConversationGenerator:
         words_per_turn = min(words_per_turn, self.target_limit)
 
         adaptive_ratio = self.progress_service.calculate_adaptive_review_ratio(user.id)
+        if review_focus is not None:
+            adaptive_ratio = max(0.0, min(1.0, (adaptive_ratio + review_focus) / 2))
         new_budget = self.progress_service.calculate_new_word_budget(user.id, total_capacity)
         queue_items = self._select_queue_items(
             user=user,
@@ -292,17 +405,28 @@ class ConversationGenerator:
             history=history,
             learner_level=learner_level,
             user=user,
+            topic=topic,
         )
 
         system_prompt = build_system_prompt(style, learner_level)
         applied_temperature = temperature if temperature is not None else self.default_temperature
 
-        result = self.llm_service.generate_chat_completion(
-            messages,
-            temperature=applied_temperature,
-            max_tokens=self.max_tokens,
-            system_prompt=system_prompt,
-        )
+        try:
+            result = self.llm_service.generate_chat_completion(
+                messages,
+                temperature=applied_temperature,
+                max_tokens=self.max_tokens,
+                system_prompt=system_prompt,
+            )
+        except Exception as exc:  # pragma: no cover - defensive fallback for offline dev
+            result = self._build_template_reply(
+                plan=plan,
+                history=history,
+                style=style,
+                user=user,
+                topic=topic,
+                error=exc,
+            )
 
         generated = GeneratedTurn(text=result.content, plan=plan, llm_result=result)
         logger.info(
@@ -312,6 +436,7 @@ class ConversationGenerator:
             target_count=len(plan.target_words),
             adaptive_ratio=adaptive_ratio,
             new_budget=new_budget,
+            requested_review_focus=review_focus,
         )
         return generated
 
@@ -326,6 +451,7 @@ class ConversationGenerator:
         style: str,
         history: Sequence[ConversationHistoryMessage] | None = None,
         temperature: float | None = None,
+        topic: str | None = None,
     ) -> GeneratedTurn:
         """Generate the next assistant response."""
 
@@ -342,6 +468,7 @@ class ConversationGenerator:
             session_capacity=fallback_capacity,
             history=history,
             temperature=temperature,
+            topic=topic,
         )
 
 
