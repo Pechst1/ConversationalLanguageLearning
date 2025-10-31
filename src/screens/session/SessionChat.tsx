@@ -1,8 +1,10 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { WebSocketClient, SessionSummaryPayload } from "../../services/realtime/WebSocketClient";
 import { VocabularyChip } from "../../components/VocabularyChip";
+import { InteractiveText } from "../../components/InteractiveText";
 import { XPProgress } from "../../components/XPProgress";
 import { TypingIndicator } from "../../components/TypingIndicator";
+import { VocabularyManager, LearnerSettings, WordStatus } from "../../services/vocabulary/VocabularyManager";
 
 export interface ChatMessage {
   id: string;
@@ -18,8 +20,16 @@ export interface SessionChatProps {
   token?: string;
   initialMessages?: ChatMessage[];
   targetVocabulary?: string[];
+  learnerSettings?: LearnerSettings;
   onSummary?: (summary: SessionSummaryPayload) => void;
+  onVocabularyUpdate?: (words: string[]) => void;
 }
+
+const DEFAULT_LEARNER_SETTINGS: LearnerSettings = {
+  mode: 'mixed',
+  maxWordsPerSession: 10,
+  difficultyPreference: 'adaptive',
+};
 
 export const SessionChat: React.FC<SessionChatProps> = ({
   sessionId,
@@ -27,7 +37,9 @@ export const SessionChat: React.FC<SessionChatProps> = ({
   token,
   initialMessages = [],
   targetVocabulary = [],
+  learnerSettings = DEFAULT_LEARNER_SETTINGS,
   onSummary,
+  onVocabularyUpdate,
 }) => {
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [pendingMessage, setPendingMessage] = useState<string>("");
@@ -36,8 +48,69 @@ export const SessionChat: React.FC<SessionChatProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [xpEarned, setXpEarned] = useState<number>(0);
   const [summary, setSummary] = useState<SessionSummaryPayload | null>(null);
+  const [currentVocabulary, setCurrentVocabulary] = useState<string[]>(targetVocabulary);
+  const [wordStatuses, setWordStatuses] = useState<Map<string, WordStatus>>(new Map());
+  const [selectedWord, setSelectedWord] = useState<string | null>(null);
+  
   const listRef = useRef<HTMLDivElement>(null);
   const clientRef = useRef<WebSocketClient>();
+  const vocabularyManagerRef = useRef<VocabularyManager>();
+  const lastProcessedMessageIndex = useRef<number>(-1);
+
+  // Initialize vocabulary manager
+  useEffect(() => {
+    vocabularyManagerRef.current = new VocabularyManager(
+      learnerSettings,
+      targetVocabulary,
+      Array.from(wordStatuses.values())
+    );
+    
+    // Generate initial proposals
+    const initialProposals = vocabularyManagerRef.current.generateProposals();
+    setCurrentVocabulary(initialProposals);
+    onVocabularyUpdate?.(initialProposals);
+  }, [learnerSettings, targetVocabulary]);
+
+  // Process new messages for vocabulary updates
+  useEffect(() => {
+    if (!vocabularyManagerRef.current || messages.length <= lastProcessedMessageIndex.current + 1) {
+      return;
+    }
+
+    const newMessages = messages.slice(lastProcessedMessageIndex.current + 1);
+    let userMessage = "";
+    let aiMessage = "";
+
+    // Find the latest user-ai message pair
+    for (let i = newMessages.length - 1; i >= 0; i--) {
+      if (newMessages[i].author === "ai" && !aiMessage) {
+        aiMessage = newMessages[i].text;
+      } else if (newMessages[i].author === "user" && !userMessage && aiMessage) {
+        userMessage = newMessages[i].text;
+        break;
+      }
+    }
+
+    if (userMessage && aiMessage && !newMessages[newMessages.length - 1].error) {
+      const vocabularyUpdate = vocabularyManagerRef.current.processConversationTurn(
+        userMessage,
+        aiMessage
+      );
+      
+      setCurrentVocabulary(vocabularyUpdate.newWords);
+      
+      // Update word statuses
+      const newWordStatuses = new Map<string, WordStatus>();
+      vocabularyUpdate.updatedStatuses.forEach(status => {
+        newWordStatuses.set(status.word, status);
+      });
+      setWordStatuses(newWordStatuses);
+      
+      onVocabularyUpdate?.(vocabularyUpdate.newWords);
+    }
+
+    lastProcessedMessageIndex.current = messages.length - 1;
+  }, [messages, onVocabularyUpdate]);
 
   useEffect(() => {
     const client = new WebSocketClient({ url: websocketUrl, token });
@@ -64,6 +137,13 @@ export const SessionChat: React.FC<SessionChatProps> = ({
             break;
           case "xp_gain":
             setXpEarned((prev) => prev + Number(data.amount ?? 0));
+            break;
+          case "vocabulary_update":
+            // Handle vocabulary updates from server
+            if (data.words && Array.isArray(data.words)) {
+              setCurrentVocabulary(data.words);
+              onVocabularyUpdate?.(data.words);
+            }
             break;
           default:
             break;
@@ -104,7 +184,7 @@ export const SessionChat: React.FC<SessionChatProps> = ({
       client.off("error", handleError);
       client.disconnect();
     };
-  }, [websocketUrl, token, onSummary]);
+  }, [websocketUrl, token, onSummary, onVocabularyUpdate]);
 
   useEffect(() => {
     if (listRef.current) {
@@ -139,6 +219,39 @@ export const SessionChat: React.FC<SessionChatProps> = ({
     }
   };
 
+  const handleWordClick = useCallback((word: string) => {
+    setSelectedWord(word);
+    
+    // Mark word as used if it's in current vocabulary
+    if (vocabularyManagerRef.current && currentVocabulary.includes(word)) {
+      vocabularyManagerRef.current.markWordsAsUsed([word], true);
+      
+      // Update word status
+      const status = vocabularyManagerRef.current.getWordStatus(word);
+      if (status) {
+        setWordStatuses(prev => new Map(prev).set(word, status));
+      }
+    }
+    
+    // You could also send this to the server for tracking
+    clientRef.current?.send({
+      type: "word_interaction",
+      sessionId,
+      word,
+      action: "click"
+    });
+  }, [sessionId, currentVocabulary]);
+
+  const handleVocabularyChipClick = useCallback((word: string) => {
+    // Insert word into pending message
+    setPendingMessage(prev => {
+      const trimmed = prev.trim();
+      return trimmed ? `${trimmed} ${word}` : word;
+    });
+    
+    handleWordClick(word);
+  }, [handleWordClick]);
+
   const connectionBanner = (
     <div className={`session-chat__banner session-chat__banner--${connectionState}`}>
       {connectionState === "reconnecting" && "Reconnecting…"}
@@ -152,18 +265,39 @@ export const SessionChat: React.FC<SessionChatProps> = ({
       {error && <div className="session-chat__error">{error}</div>}
 
       <aside className="session-chat__sidebar">
-        <h3>Target vocabulary</h3>
+        <h3>Wort Vorschläge</h3>
         <div className="session-chat__vocabulary">
-          {targetVocabulary.length === 0 && <p>No specific targets for this session.</p>}
-          {targetVocabulary.map((word) => (
-            <VocabularyChip key={word} word={word} />
-          ))}
+          {currentVocabulary.length === 0 && <p>Keine aktuellen Wortvorschläge.</p>}
+          {currentVocabulary.map((word) => {
+            const status = wordStatuses.get(word);
+            return (
+              <VocabularyChip 
+                key={word} 
+                word={word} 
+                mastered={status?.mastered || false}
+                onClick={handleVocabularyChipClick}
+              />
+            );
+          })}
         </div>
+
+        {selectedWord && (
+          <div className="session-chat__word-details">
+            <h4>Ausgewähltes Wort</h4>
+            <p><strong>{selectedWord}</strong></p>
+            {wordStatuses.get(selectedWord) && (
+              <div className="word-progress">
+                <p>Versuche: {wordStatuses.get(selectedWord)?.attempts || 0}</p>
+                <p>Schwierigkeit: {wordStatuses.get(selectedWord)?.difficulty || 'medium'}</p>
+              </div>
+            )}
+          </div>
+        )}
 
         <XPProgress totalXP={xpEarned} />
         {summary && (
           <div className="session-chat__summary">
-            <h4>Session summary</h4>
+            <h4>Sitzungszusammenfassung</h4>
             <p>{summary.feedback}</p>
             <ul>
               {summary.vocabularyLearned.map((word) => (
@@ -179,16 +313,24 @@ export const SessionChat: React.FC<SessionChatProps> = ({
           {messages.map((message) => (
             <div
               key={message.id}
-              className={`session-chat__message session-chat__message--${message.author} ${message.error ? "session-chat__message--error" : ""}`}
+              className={`session-chat__message session-chat__message--${message.author} ${
+                message.error ? "session-chat__message--error" : ""
+              }`}
             >
-              <p>{message.text}</p>
+              {message.author === "ai" ? (
+                <InteractiveText 
+                  text={message.text}
+                  onWordClick={handleWordClick}
+                  className="session-chat__message-text"
+                />
+              ) : (
+                <p>{message.text}</p>
+              )}
               {message.error && <span className="session-chat__message-error">We'll resend once connected.</span>}
             </div>
           ))}
 
-          {isTyping && (
-            <TypingIndicator label="Assistant is typing" />
-          )}
+          {isTyping && <TypingIndicator label="Assistant is typing" />}
         </div>
 
         <div className="session-chat__composer">
@@ -197,6 +339,12 @@ export const SessionChat: React.FC<SessionChatProps> = ({
             onChange={(event) => setPendingMessage(event.target.value)}
             placeholder="Write your reply in the target language"
             rows={3}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                handleSend();
+              }
+            }}
           />
           <button type="button" onClick={handleSend} disabled={!pendingMessage.trim()}>
             Send
