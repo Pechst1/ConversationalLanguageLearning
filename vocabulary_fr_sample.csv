@@ -1,3 +1,51 @@
 rank,word,part_of_speech,gender,translation,definition,example,example_translation,topics
-1,le,article,masculine,the,Definite article,Le chat est noir,The cat is black,grammar
-2,de,preposition,,"of, from",Preposition indicating possession or origin,La maison de Marie,Mary's house,grammar
+1,bonjour,interjection,,hello,Common greeting,Bonjour ! Comment ça va ?,Hello! How are you?,greetings
+2,merci,interjection,,thank you,Polite expression of thanks,Merci pour votre aide,Thank you for your help,greetings
+3,s'il vous plaît,phrase,,please,Polite request,"Un café, s'il vous plaît","A coffee, please",greetings
+4,baguette,noun,feminine,baguette,Type of French bread,Je prends une baguette,I'll take a baguette,food
+5,croissant,noun,masculine,croissant,Buttery crescent pastry,Un croissant frais,A fresh croissant,food
+6,café,noun,masculine,coffee; café,Drink or coffee shop,Un café noir,A black coffee,food
+7,thé,noun,masculine,tea,Infusion drink,Du thé vert,Green tea,food
+8,fromage,noun,masculine,cheese,Dairy product,Du fromage français,French cheese,food
+9,pain,noun,masculine,bread,Staple food,Du pain frais,Fresh bread,food
+10,eau,noun,feminine,water,Drink,De l'eau plate,Still water,food
+11,vin,noun,masculine,wine,Alcoholic beverage,Un verre de vin rouge,A glass of red wine,food
+12,boire,verb,,to drink,Consume liquid,Je veux boire de l'eau,I want to drink water,verbs
+13,manger,verb,,to eat,Consume food,Nous allons manger,We are going to eat,verbs
+14,parler,verb,,to speak,To converse,Parlez-vous français ?,Do you speak French?,verbs
+15,aimer,verb,,to like; to love,To enjoy or love,J'aime le chocolat,I like chocolate,verbs
+16,acheter,verb,,to buy,Purchase,Je vais acheter du pain,I'm going to buy bread,shopping
+17,payer,verb,,to pay,Pay for goods/services,Je vais payer en carte,I will pay by card,shopping
+18,commande,noun,feminine,order,Restaurant/shop order,Passer une commande,Place an order,shopping
+19,menu,noun,masculine,menu,List of dishes,Le menu du jour,The daily menu,restaurant
+20,addition,noun,feminine,bill,Restaurant bill,"L'addition, s'il vous plaît","The bill, please",restaurant
+21,maison,noun,feminine,house,Dwelling,Une grande maison,A big house,home
+22,école,noun,feminine,school,Educational institution,L'école est ouverte,The school is open,education
+23,travail,noun,masculine,work,Employment/work,Je suis au travail,I'm at work,work
+24,voiture,noun,feminine,car,Automobile,Ma voiture est neuve,My car is new,transport
+25,train,noun,masculine,train,Rail transport,Prendre le train,Take the train,transport
+26,bus,noun,masculine,bus,Public transport,Attendre le bus,Wait for the bus,transport
+27,ville,noun,feminine,city,Urban area,La ville est belle,The city is beautiful,places
+28,rue,noun,feminine,street,Road in a city,Dans la rue principale,On the main street,places
+29,ami,noun,masculine,friend,Male friend,Un bon ami,A good friend,people
+30,amie,noun,feminine,friend,Female friend,Une bonne amie,A good (female) friend,people
+31,fille,noun,feminine,girl; daughter,Female child/daughter,Sa fille a 8 ans,His daughter is 8,people
+32,garçon,noun,masculine,boy; waiter,Male child / waiter,Le garçon apporte l'eau,The waiter brings water,people
+33,homme,noun,masculine,man,Adult male,Un homme gentil,A kind man,people
+34,femme,noun,feminine,woman; wife,Adult female / wife,Sa femme est ici,His wife is here,people
+35,aller,verb,,to go,Movement from one place to another,Aller au restaurant,Go to the restaurant,verbs
+36,venir,verb,,to come,Movement to the speaker,Vous pouvez venir ?,Can you come?,verbs
+37,prendre,verb,,to take,Seize/consume,Prendre le métro,Take the metro,verbs
+38,faire,verb,,to do; to make,Perform/Create,Que faire ce soir ?,What to do tonight?,verbs
+39,voir,verb,,to see,Perceive with eyes,Je veux voir ça,I want to see that,verbs
+40,bon,adjective,,good,Of high quality,Un bon café,A good coffee,adjectives
+41,grand,adjective,,big; tall,Large/High,Un grand musée,A big museum,adjectives
+42,petit,adjective,,small; little,Of small size,Un petit pain,A small bread,adjectives
+43,chaud,adjective,,hot; warm,High temperature,Du chocolat chaud,Hot chocolate,adjectives
+44,froid,adjective,,cold,Low temperature,Un plat froid,A cold dish,adjectives
+45,heure,noun,feminine,hour; time,Unit of time,Dans une heure,In an hour,time
+46,jour,noun,masculine,day,24-hour period,Bon jour de repos,Nice day off,time
+47,matin,noun,masculine,morning,Time of day,"Le matin, je cours","In the morning, I run",time
+48,soir,noun,masculine,evening,Time of day,"Ce soir, on sort","Tonight, we go out",time
+49,semaine,noun,feminine,week,Seven days,La semaine prochaine,Next week,time
+50,mois,noun,masculine,month,Calendar month,Ce mois-ci,This month,time

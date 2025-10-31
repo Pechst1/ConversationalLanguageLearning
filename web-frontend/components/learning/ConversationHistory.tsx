@@ -113,14 +113,18 @@ export default function ConversationHistory({ messages, onWordInteract, onWordFl
     [ensureLookup, onWordFlag, onWordInteract]
   );
 
-  // Add a helper function to make plain text interactive
+  // Add a helper function to make plain text interactive (Unicode-aware)
   const renderInteractiveSegment = useCallback((text: string, keyPrefix: string): React.ReactNode[] => {
     if (!text) return [];
-    // Split text into words and non-words
-    const parts = text.split(/(\b\w+\b)/);
+    // Split text into words and non-words using Unicode letters and common connectors (apostrophes/hyphens)
+    // Example matches: "l'éducation", "très-bien", "qu'il"
+    const WORD_SPLIT_REGEX = /(\p{L}+(?:['’\-]\p{L}+)*)/gu;
+    const parts = text.split(WORD_SPLIT_REGEX);
     return parts.map((part, index) => {
       // Check if the part is a word
-      if (/\b\w+\b/.test(part)) {
+      if (part && WORD_SPLIT_REGEX.test(part)) {
+        // Reset lastIndex because test() with /g/ advances the regex state
+        WORD_SPLIT_REGEX.lastIndex = 0;
         return (
           <span
             key={`${keyPrefix}-${index}`}

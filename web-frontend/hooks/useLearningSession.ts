@@ -187,19 +187,23 @@ export function useLearningSession(sessionId: string) {
   }, [sessionId, load, ws]);
 
   const send = useCallback(
-    async (text: string, suggestedWordIds?: number[]) => {
+    async (text: string, _selectedWordIds?: number[]) => {
       if (!text.trim()) {
         return;
       }
 
+      // Always inform the backend about the full set of currently shown suggestions,
+      // so it can exclude them from the next adaptive queue (breaks the "le/de" loop).
+      const allSuggestionIds = suggested.filter((w) => isValidId(w.id)).map((w) => w.id);
+
       if (ws.isConnected()) {
-        ws.sendMessage(text, suggestedWordIds);
+        ws.sendMessage(text, allSuggestionIds);
         return;
       }
 
       const result = await api.post(`/sessions/${sessionId}/messages`, {
         content: text,
-        suggested_word_ids: suggestedWordIds,
+        suggested_word_ids: allSuggestionIds,
       });
 
       if (result?.session) {
@@ -239,7 +243,7 @@ export function useLearningSession(sessionId: string) {
         setMessages((prev) => [...prev, ...updates]);
       }
     },
-    [sessionId, ws]
+    [sessionId, ws, suggested]
   );
 
   const logExposure = useCallback(

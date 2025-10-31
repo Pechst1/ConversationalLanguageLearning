@@ -74,44 +74,7 @@ class ProgressService:
 
         now = now or datetime.now(timezone.utc)
         exclude_ids = exclude_ids or set()
-        due_stmt = (
-            select(UserVocabularyProgress)
-            .options(joinedload(UserVocabularyProgress.word))
-            .where(UserVocabularyProgress.user_id == user.id)
-            .where(
-                or_(
-                    UserVocabularyProgress.due_date.is_(None),
-                    UserVocabularyProgress.due_date <= now.date(),
-                )
-            )
-            .order_by(
-                UserVocabularyProgress.due_date.nullsfirst(),
-                UserVocabularyProgress.created_at,
-            )
-            .limit(limit)
-        )
-        if exclude_ids:
-            due_stmt = due_stmt.where(UserVocabularyProgress.word_id.notin_(exclude_ids))
-        due_progress = list(self.db.scalars(due_stmt))
-        items: list[QueueItem] = [
-            QueueItem(word=progress.word, progress=progress, is_new=False)
-            for progress in due_progress
-        ]
-
-        if len(items) >= limit:
-            return items
-
-        words_seen_subquery = select(UserVocabularyProgress.word_id).where(
-            UserVocabularyProgress.user_id == user.id
-        )
-
-        missing = limit - len(items)
-        if new_word_budget is not None:
-            missing = min(missing, new_word_budget)
-
-        if missing <= 0:
-            return items
-
+        # Basic stopword/length filter to avoid proposing ultra-common function words
         stopwords = {
             "le",
             "la",
@@ -134,6 +97,51 @@ class ProgressService:
             "cette",
             "pour",
         }
+        def _is_skippable_word(w: str | None) -> bool:
+            if not w:
+                return True
+            lw = w.strip().lower()
+            return len(lw) <= 2 or lw in stopwords
+        due_stmt = (
+            select(UserVocabularyProgress)
+            .options(joinedload(UserVocabularyProgress.word))
+            .where(UserVocabularyProgress.user_id == user.id)
+            .where(
+                or_(
+                    UserVocabularyProgress.due_date.is_(None),
+                    UserVocabularyProgress.due_date <= now.date(),
+                )
+            )
+            .order_by(
+                UserVocabularyProgress.due_date.nullsfirst(),
+                UserVocabularyProgress.created_at,
+            )
+            .limit(limit)
+        )
+        if exclude_ids:
+            due_stmt = due_stmt.where(UserVocabularyProgress.word_id.notin_(exclude_ids))
+        due_progress = list(self.db.scalars(due_stmt))
+        items: list[QueueItem] = [
+            QueueItem(word=progress.word, progress=progress, is_new=False)
+            for progress in due_progress
+            if progress.word is not None and not _is_skippable_word(progress.word.word)
+        ]
+
+        if len(items) >= limit:
+            return items
+
+        words_seen_subquery = select(UserVocabularyProgress.word_id).where(
+            UserVocabularyProgress.user_id == user.id
+        )
+
+        missing = limit - len(items)
+        if new_word_budget is not None:
+            missing = min(missing, new_word_budget)
+
+        if missing <= 0:
+            return items
+
+        # New word selection below reuses the same stopword/length filter
 
         new_conditions = [not_(VocabularyWord.id.in_(words_seen_subquery))]
         if user.target_language:

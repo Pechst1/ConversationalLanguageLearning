@@ -6,16 +6,35 @@ type Word = {
   translation?: string;
   is_new?: boolean;
   familiarity?: 'new' | 'learning' | 'familiar';
-  selected?: boolean;
 };
 
 type Props = {
   words: Word[];
-  onSelect?: (id: number) => void;
   className?: string;
+  onInsertWord?: (word: string) => void;
 };
 
-export default function VocabularyHelper({ words, onSelect, className }: Props) {
+export default function VocabularyHelper({ words, className, onInsertWord }: Props) {
+  const [selectedIds, setSelectedIds] = React.useState<Set<number>>(new Set());
+
+  const toggleSelect = React.useCallback(
+    (w: Word) => {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(w.id)) {
+          next.delete(w.id);
+        } else {
+          next.add(w.id);
+        }
+        return next;
+      });
+      if (onInsertWord) {
+        onInsertWord(w.word);
+      }
+    },
+    [onInsertWord]
+  );
+
   return (
     <div className={className}>
       <h3 className="text-sm font-semibold text-gray-700 mb-2">Vokabelvorschläge</h3>
@@ -31,13 +50,13 @@ export default function VocabularyHelper({ words, onSelect, className }: Props) 
                 : w.familiarity === 'learning'
                 ? 'bg-[#ffd60a] border-[#0b3954] text-[#0b3954]'
                 : 'bg-[#e63946] border-[#7f1d1d] text-white';
-            const selected = w.selected ? 'shadow-[0_0_0_3px_rgba(0,53,102,0.35)]' : '';
+            const selected = selectedIds.has(w.id) ? 'shadow-[0_0_0_3px_rgba(0,53,102,0.35)]' : '';
             return (
               <button
                 key={w.id}
                 type="button"
                 className={`vocabulary-word ${palette} ${selected}`}
-                onClick={() => onSelect?.(w.id)}
+                onClick={() => toggleSelect(w)}
                 title={w.translation ?? undefined}
               >
                 {w.word}

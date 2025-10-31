@@ -15,34 +15,30 @@ export default function SessionPage() {
   const { id } = router.query as { id: string };
   const { session, messages, send, suggested, logExposure, flagWord, complete } = useLearningSession(id);
   const [draft, setDraft] = React.useState('');
-  const [selectedWordIds, setSelectedWordIds] = React.useState<number[]>([]);
   const [summary, setSummary] = React.useState<any>(null);
   const [isCompleting, setIsCompleting] = React.useState(false);
 
   const handleSend = React.useCallback(
     async (text: string) => {
       if (summary) return;
-      await send(text, selectedWordIds);
-      setSelectedWordIds([]);
+      // The hook ignores selectedWordIds and sends the full suggestion list.
+      // Keep API usage clear by omitting the unused param here.
+      await send(text);
     },
-    [send, selectedWordIds, summary]
+    [send, summary]
   );
 
-  const handleSelectWord = React.useCallback(
-    (id: number) => {
-      setSelectedWordIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
-      const found = suggested.find((t) => t.id === id);
-      if (found) {
-        setDraft((existing) => {
-          const lowered = existing.toLowerCase();
-          if (lowered.includes(found.word.toLowerCase())) {
-            return existing;
-          }
-          return existing ? `${existing} ${found.word}` : found.word;
-        });
-      }
+  const handleInsertWord = React.useCallback(
+    (word: string) => {
+      setDraft((existing) => {
+        const lowered = existing.toLowerCase();
+        if (lowered.includes(word.toLowerCase())) {
+          return existing;
+        }
+        return existing ? `${existing} ${word}` : word;
+      });
     },
-    [suggested]
+    []
   );
 
   const handleWordInteract = React.useCallback(
@@ -76,11 +72,7 @@ export default function SessionPage() {
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div className="lg:col-span-2 space-y-4">
         {!summary && (
-          <VocabularyHelper
-            className="learning-card"
-            words={suggested.map((t) => ({ ...t, selected: selectedWordIds.includes(t.id) }))}
-            onSelect={handleSelectWord}
-          />
+          <VocabularyHelper className="learning-card" words={suggested} onInsertWord={handleInsertWord} />
         )}
         <div className="learning-card">
           {summary ? (
