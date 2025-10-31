@@ -1,10 +1,8 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { WebSocketClient, SessionSummaryPayload } from "../../services/realtime/WebSocketClient";
 import { VocabularyChip } from "../../components/VocabularyChip";
-import { InteractiveText } from "../../components/InteractiveText";
 import { XPProgress } from "../../components/XPProgress";
 import { TypingIndicator } from "../../components/TypingIndicator";
-import { VocabularyService, LearningPreferences, WordEntry } from "../../services/vocabulary/VocabularyService";
 
 export interface ChatMessage {
   id: string;
@@ -19,39 +17,249 @@ export interface SessionChatProps {
   websocketUrl: string;
   token?: string;
   initialMessages?: ChatMessage[];
-  targetLanguage?: string;
-  learningMode?: 'new_words' | 'mixed' | 'heavy_repetition';
+  targetVocabulary?: string[];
   onSummary?: (summary: SessionSummaryPayload) => void;
-  onVocabularyUpdate?: (words: string[]) => void;
 }
 
-// Detect language from the conversation
-const detectLanguage = (text: string): string => {
-  // Simple language detection based on common words and patterns
-  const frenchPatterns = /\b(le|la|les|un|une|des|et|avec|pour|dans|sur|à|de|du|entreprise|client|nouveau|très)\b/gi;
-  const germanPatterns = /\b(der|die|das|und|mit|für|in|auf|von|zu|ist|sind|haben|werden|Unternehmen|neu|sehr|über)\b/gi;
-  const spanishPatterns = /\b(el|la|los|las|un|una|y|con|para|en|de|del|empresa|cliente|nuevo|muy|sobre)\b/gi;
+interface WordEntry {
+  word: string;
+  difficulty: number;
+  context: string;
+  frequency: number;
+  isNew: boolean;
+}
+
+interface LearningState {
+  usedWords: Set<string>;
+  availableWords: Map<string, WordEntry>;
+  sessionWords: string[];
+  extractedWords: string[];
+  language: string;
+}
+
+// Enhanced vocabulary service with intelligent LLM integration
+class IntelligentVocabularyService {
+  private learningState: LearningState;
+  private learningMode: 'new_words' | 'mixed' | 'heavy_repetition';
   
-  const frenchMatches = (text.match(frenchPatterns) || []).length;
-  const germanMatches = (text.match(germanPatterns) || []).length;
-  const spanishMatches = (text.match(spanishPatterns) || []).length;
-  
-  if (frenchMatches > germanMatches && frenchMatches > spanishMatches) return 'french';
-  if (germanMatches > frenchMatches && germanMatches > spanishMatches) return 'german';
-  if (spanishMatches > frenchMatches && spanishMatches > germanMatches) return 'spanish';
-  
-  return 'french'; // Default fallback
-};
+  // Language-specific word patterns for better extraction
+  private languagePatterns = {
+    french: {
+      articles: /\b(le|la|les|un|une|des|du|de|d')\s+/gi,
+      commonWords: ['le', 'la', 'les', 'un', 'une', 'des', 'et', 'à', 'de', 'du', 'dans', 'sur', 'avec', 'pour', 'par', 'ne', 'pas', 'que', 'qui', 'où', 'quand', 'comment', 'pourquoi'],
+      businessWords: ['entreprise', 'client', 'produit', 'service', 'marché', 'prix', 'qualité', 'développement', 'projet', 'équipe', 'résultat', 'solution', 'objectif', 'stratégie', 'performance', 'innovation', 'croissance', 'vente', 'achat', 'budget', 'investissement'],
+      detectPatterns: /\b(entreprise|marché|très|français|nouveau|développement|système|problème|solution)\b/gi
+    },
+    german: {
+      articles: /\b(der|die|das|den|dem|des|ein|eine|einer|eines)\s+/gi,
+      commonWords: ['der', 'die', 'das', 'und', 'in', 'den', 'von', 'zu', 'mit', 'sich', 'auf', 'für', 'ist', 'im', 'dem', 'nicht', 'ein', 'eine', 'als', 'auch', 'es', 'an', 'werden', 'aus'],
+      businessWords: ['Unternehmen', 'Kunde', 'Produkt', 'Service', 'Markt', 'Preis', 'Qualität', 'Entwicklung', 'Projekt', 'Team', 'Ergebnis', 'Lösung', 'Ziel', 'Strategie', 'Leistung', 'Innovation', 'Wachstum', 'Verkauf', 'Kauf', 'Budget', 'Investition'],
+      detectPatterns: /\b(Unternehmen|Markt|sehr|deutsch|neu|Entwicklung|System|Problem|Lösung)\b/gi
+    },
+    spanish: {
+      articles: /\b(el|la|los|las|un|una|del|de|al|a)\s+/gi,
+      commonWords: ['el', 'la', 'los', 'las', 'de', 'que', 'y', 'a', 'en', 'un', 'es', 'se', 'no', 'te', 'lo', 'le', 'da', 'su', 'por', 'son', 'con', 'para', 'al', 'una'],
+      businessWords: ['empresa', 'cliente', 'producto', 'servicio', 'mercado', 'precio', 'calidad', 'desarrollo', 'proyecto', 'equipo', 'resultado', 'solución', 'objetivo', 'estrategia', 'rendimiento', 'innovación', 'crecimiento', 'venta', 'compra', 'presupuesto', 'inversión'],
+      detectPatterns: /\b(empresa|mercado|muy|español|nuevo|desarrollo|sistema|problema|solución)\b/gi
+    }
+  };
+
+  constructor(initialVocabulary: string[] = [], mode: 'new_words' | 'mixed' | 'heavy_repetition' = 'mixed') {
+    this.learningMode = mode;
+    this.learningState = {
+      usedWords: new Set(),
+      availableWords: new Map(),
+      sessionWords: [...initialVocabulary],
+      extractedWords: [],
+      language: 'french'
+    };
+    
+    // Initialize with provided vocabulary
+    initialVocabulary.forEach(word => {
+      this.addWord(word, 'provided', 2, false);
+    });
+  }
+
+  // Intelligent language detection
+  detectLanguage(text: string): string {
+    const scores = { french: 0, german: 0, spanish: 0 };
+    const lowerText = text.toLowerCase();
+    
+    Object.entries(this.languagePatterns).forEach(([lang, patterns]) => {
+      const matches = lowerText.match(patterns.detectPatterns);
+      scores[lang as keyof typeof scores] = matches ? matches.length : 0;
+    });
+    
+    const detectedLang = Object.entries(scores)
+      .sort(([,a], [,b]) => b - a)[0][0];
+    
+    return detectedLang;
+  }
+
+  // Smart word extraction from LLM responses
+  extractVocabulary(message: string, isAIMessage: boolean = true): string[] {
+    if (!isAIMessage) return [];
+    
+    console.log('🔍 Extracting vocabulary from:', message.substring(0, 100) + '...');
+    
+    // Detect language first
+    const detectedLang = this.detectLanguage(message);
+    this.learningState.language = detectedLang;
+    
+    const langPatterns = this.languagePatterns[detectedLang as keyof typeof this.languagePatterns];
+    if (!langPatterns) return [];
+    
+    // Remove articles and clean text
+    const cleanedText = message.replace(langPatterns.articles, ' ');
+    
+    // Extract words (3+ characters, alphabetic)
+    const words = cleanedText.match(/\b[a-zA-ZàâäéèêëïîôùûüÿçÀÂÄÉÈÊËÏÎÔÙÛÜŸÇäöüßÄÖÜñáéíóúÑÁÉÍÓÚ]{3,}\b/g) || [];
+    
+    // Filter and score words
+    const candidateWords = words
+      .map(word => word.toLowerCase())
+      .filter((word, index, arr) => arr.indexOf(word) === index) // Remove duplicates
+      .filter(word => !langPatterns.commonWords.includes(word)) // Remove common words
+      .filter(word => !this.learningState.availableWords.has(word)) // Skip already known words
+      .map(word => ({
+        word,
+        difficulty: this.calculateWordDifficulty(word, message, detectedLang),
+        context: this.extractContext(word, message),
+        frequency: langPatterns.businessWords.includes(word) ? 10 : 5,
+        isNew: true
+      }))
+      .sort((a, b) => b.frequency - a.frequency || a.difficulty - b.difficulty) // Sort by importance
+      .slice(0, 12); // Limit extraction
+    
+    // Add words to available pool
+    candidateWords.forEach(entry => {
+      this.addWord(entry.word, entry.context, entry.difficulty, entry.isNew);
+    });
+    
+    const extractedWordsList = candidateWords.map(w => w.word);
+    this.learningState.extractedWords.push(...extractedWordsList);
+    
+    console.log('📝 Extracted words:', extractedWordsList);
+    console.log('🌍 Detected language:', detectedLang);
+    
+    return extractedWordsList;
+  }
+
+  // Calculate word difficulty intelligently
+  private calculateWordDifficulty(word: string, context: string, language: string): number {
+    let difficulty = 3; // Base difficulty
+    
+    // Length-based difficulty
+    if (word.length > 8) difficulty += 1;
+    if (word.length < 4) difficulty -= 1;
+    
+    // Language-specific patterns
+    if (language === 'french') {
+      if (/[àâäéèêëïîôùûüÿç]/.test(word)) difficulty += 0.5;
+      if (word.endsWith('tion') || word.endsWith('ment')) difficulty += 0.5;
+    } else if (language === 'german') {
+      if (/[äöüß]/.test(word)) difficulty += 0.5;
+      if (word[0] === word[0].toUpperCase()) difficulty += 0.3; // Nouns
+    }
+    
+    // Context-based difficulty
+    if (context.toLowerCase().includes('business') || context.toLowerCase().includes('technical')) {
+      difficulty += 1;
+    }
+    
+    return Math.max(1, Math.min(5, Math.round(difficulty)));
+  }
+
+  // Extract meaningful context for a word
+  private extractContext(word: string, fullText: string): string {
+    const sentences = fullText.split(/[.!?]+/);
+    const wordSentence = sentences.find(s => s.toLowerCase().includes(word.toLowerCase()));
+    return wordSentence ? wordSentence.trim().substring(0, 100) : 'AI response';
+  }
+
+  // Add word to vocabulary pool
+  private addWord(word: string, context: string, difficulty: number, isNew: boolean): void {
+    this.learningState.availableWords.set(word, {
+      word,
+      difficulty,
+      context,
+      frequency: isNew ? 1 : 5,
+      isNew
+    });
+  }
+
+  // Generate word proposals based on learning mode and LLM context
+  generateProposals(maxWords: number = 8): string[] {
+    const available = Array.from(this.learningState.availableWords.values())
+      .filter(entry => !this.learningState.usedWords.has(entry.word))
+      .sort((a, b) => {
+        // Prioritize by learning mode
+        if (this.learningMode === 'new_words' && a.isNew !== b.isNew) {
+          return b.isNew ? 1 : -1;
+        }
+        // Then by frequency and difficulty
+        return b.frequency - a.frequency || a.difficulty - b.difficulty;
+      });
+
+    let selectedWords: string[] = [];
+    
+    switch (this.learningMode) {
+      case 'new_words':
+        selectedWords = available
+          .filter(w => w.isNew)
+          .slice(0, maxWords)
+          .map(w => w.word);
+        break;
+      case 'mixed':
+        const newWords = available.filter(w => w.isNew).slice(0, Math.ceil(maxWords * 0.6));
+        const reviewWords = available.filter(w => !w.isNew).slice(0, maxWords - newWords.length);
+        selectedWords = [...newWords, ...reviewWords].map(w => w.word);
+        break;
+      case 'heavy_repetition':
+        const reviewFirst = available.filter(w => !w.isNew).slice(0, Math.ceil(maxWords * 0.7));
+        const newSecond = available.filter(w => w.isNew).slice(0, maxWords - reviewFirst.length);
+        selectedWords = [...reviewFirst, ...newSecond].map(w => w.word);
+        break;
+    }
+    
+    // Fallback: if not enough words, add from session words
+    if (selectedWords.length < maxWords) {
+      const remainingSlots = maxWords - selectedWords.length;
+      const sessionWords = this.learningState.sessionWords
+        .filter(w => !selectedWords.includes(w) && !this.learningState.usedWords.has(w))
+        .slice(0, remainingSlots);
+      selectedWords.push(...sessionWords);
+    }
+    
+    console.log('🎯 Generated proposals:', selectedWords);
+    return selectedWords;
+  }
+
+  // Mark words as used
+  markAsUsed(words: string[]): void {
+    words.forEach(word => this.learningState.usedWords.add(word));
+    console.log('✅ Marked as used:', words);
+  }
+
+  // Get learning statistics
+  getStats() {
+    return {
+      totalWords: this.learningState.availableWords.size,
+      usedWords: this.learningState.usedWords.size,
+      extractedWords: this.learningState.extractedWords.length,
+      language: this.learningState.language,
+      sessionWords: this.learningState.sessionWords.length
+    };
+  }
+}
 
 export const SessionChat: React.FC<SessionChatProps> = ({
   sessionId,
   websocketUrl,
   token,
   initialMessages = [],
-  targetLanguage = 'french',
-  learningMode = 'mixed',
+  targetVocabulary = [],
   onSummary,
-  onVocabularyUpdate,
 }) => {
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [pendingMessage, setPendingMessage] = useState<string>("");
@@ -61,69 +269,44 @@ export const SessionChat: React.FC<SessionChatProps> = ({
   const [xpEarned, setXpEarned] = useState<number>(0);
   const [summary, setSummary] = useState<SessionSummaryPayload | null>(null);
   const [currentProposals, setCurrentProposals] = useState<string[]>([]);
-  const [detectedLanguage, setDetectedLanguage] = useState<string>(targetLanguage);
-  const [vocabularyStats, setVocabularyStats] = useState({ total: 0, practiced: 0, mastered: 0, remaining: 0 });
+  const [vocabularyStats, setVocabularyStats] = useState({ totalWords: 0, usedWords: 0, extractedWords: 0, language: 'french', sessionWords: 0 });
   
   const listRef = useRef<HTMLDivElement>(null);
   const clientRef = useRef<WebSocketClient>();
-  const vocabularyServiceRef = useRef<VocabularyService>();
+  const vocabularyServiceRef = useRef<IntelligentVocabularyService>();
 
-  // Initialize vocabulary service
+  // Initialize intelligent vocabulary service
   useEffect(() => {
-    const preferences: LearningPreferences = {
-      targetLanguage: detectedLanguage,
-      difficultyRange: [2, 4], // Medium difficulty range
-      categories: ['common', 'business', 'casual'],
-      wordsPerSession: 8,
-      repetitionMode: learningMode,
-    };
-
-    vocabularyServiceRef.current = new VocabularyService(preferences);
-    
-    // Generate initial proposals
-    const initialProposals = vocabularyServiceRef.current.generateWordProposals();
+    vocabularyServiceRef.current = new IntelligentVocabularyService(targetVocabulary, 'mixed');
+    const initialProposals = vocabularyServiceRef.current.generateProposals(8);
     setCurrentProposals(initialProposals);
-    setVocabularyStats(vocabularyServiceRef.current.getVocabularyStats());
-    
-    console.log('Initial vocabulary proposals:', initialProposals);
-    onVocabularyUpdate?.(initialProposals);
-  }, [detectedLanguage, learningMode, onVocabularyUpdate]);
+    setVocabularyStats(vocabularyServiceRef.current.getStats());
+    console.log('🚀 Initialized vocabulary service with proposals:', initialProposals);
+  }, [targetVocabulary]);
 
-  // Process messages to extract vocabulary and detect language
+  // Process AI messages for intelligent vocabulary extraction
   useEffect(() => {
-    if (messages.length === 0) return;
-
+    if (!vocabularyServiceRef.current || messages.length === 0) return;
+    
     const lastMessage = messages[messages.length - 1];
     
-    // Detect language from the conversation
-    if (lastMessage.author === 'ai' && lastMessage.text.length > 20) {
-      const detected = detectLanguage(lastMessage.text);
-      if (detected !== detectedLanguage) {
-        console.log('Language detected changed to:', detected);
-        setDetectedLanguage(detected);
+    // Process AI messages only
+    if (lastMessage.author === 'ai' && !lastMessage.error && lastMessage.text.length > 10) {
+      console.log('🤖 Processing AI message for intelligent extraction');
+      
+      // Extract vocabulary intelligently
+      const extractedWords = vocabularyServiceRef.current.extractVocabulary(lastMessage.text, true);
+      
+      if (extractedWords.length > 0) {
+        // Generate new proposals based on extraction
+        const newProposals = vocabularyServiceRef.current.generateProposals(8);
+        setCurrentProposals(newProposals);
+        setVocabularyStats(vocabularyServiceRef.current.getStats());
+        
+        console.log('📊 Updated stats:', vocabularyServiceRef.current.getStats());
       }
     }
-
-    // Extract vocabulary from AI messages
-    if (lastMessage.author === 'ai' && vocabularyServiceRef.current && !lastMessage.error) {
-      console.log('Extracting vocabulary from AI message:', lastMessage.text);
-      
-      const extractedWords = vocabularyServiceRef.current.extractVocabularyFromMessage(
-        lastMessage.text, 
-        true
-      );
-      
-      console.log('Extracted words:', extractedWords.map(w => w.word));
-      
-      // Generate new proposals after extraction
-      const newProposals = vocabularyServiceRef.current.generateWordProposals();
-      console.log('New proposals generated:', newProposals);
-      
-      setCurrentProposals(newProposals);
-      setVocabularyStats(vocabularyServiceRef.current.getVocabularyStats());
-      onVocabularyUpdate?.(newProposals);
-    }
-  }, [messages, detectedLanguage, onVocabularyUpdate]);
+  }, [messages]);
 
   useEffect(() => {
     const client = new WebSocketClient({ url: websocketUrl, token });
@@ -213,16 +396,19 @@ export const SessionChat: React.FC<SessionChatProps> = ({
     setMessages((prev) => [...prev, optimistic]);
     setPendingMessage("");
 
-    // Check if user used any proposed words
+    // Track word usage intelligently
     if (vocabularyServiceRef.current) {
       const usedWords = currentProposals.filter(word => 
         trimmed.toLowerCase().includes(word.toLowerCase())
       );
       
       if (usedWords.length > 0) {
-        console.log('User used words:', usedWords);
-        vocabularyServiceRef.current.markWordsAsUsed(usedWords, true);
-        setVocabularyStats(vocabularyServiceRef.current.getVocabularyStats());
+        vocabularyServiceRef.current.markAsUsed(usedWords);
+        setVocabularyStats(vocabularyServiceRef.current.getStats());
+        
+        // Generate fresh proposals
+        const freshProposals = vocabularyServiceRef.current.generateProposals(8);
+        setCurrentProposals(freshProposals);
       }
     }
 
@@ -239,14 +425,21 @@ export const SessionChat: React.FC<SessionChatProps> = ({
   };
 
   const handleWordClick = useCallback((word: string) => {
-    console.log('Word clicked:', word);
+    console.log('🎯 Word clicked:', word);
     
+    // Add to message
+    setPendingMessage(prev => {
+      const trimmed = prev.trim();
+      return trimmed ? `${trimmed} ${word}` : word;
+    });
+    
+    // Mark as used
     if (vocabularyServiceRef.current) {
-      vocabularyServiceRef.current.markWordsAsUsed([word], true);
-      setVocabularyStats(vocabularyServiceRef.current.getVocabularyStats());
+      vocabularyServiceRef.current.markAsUsed([word]);
+      setVocabularyStats(vocabularyServiceRef.current.getStats());
     }
     
-    // Send interaction to server
+    // Send interaction to server for analytics
     try {
       clientRef.current?.send({
         type: "word_interaction",
@@ -260,40 +453,56 @@ export const SessionChat: React.FC<SessionChatProps> = ({
     }
   }, [sessionId]);
 
-  const handleWordHover = useCallback((word: string) => {
-    console.log('Word hovered:', word);
-    
-    // Send hover interaction to server
-    try {
-      clientRef.current?.send({
-        type: "word_interaction",
-        sessionId,
-        word,
-        action: "hover",
-        timestamp: new Date().toISOString(),
-      });
-    } catch (err) {
-      console.warn('Failed to send word hover:', err);
-    }
-  }, [sessionId]);
-
-  const handleProposalClick = (word: string) => {
-    // Insert word into the text input
-    setPendingMessage(prev => {
-      const trimmed = prev.trim();
-      return trimmed ? `${trimmed} ${word}` : word;
-    });
-    
-    handleWordClick(word);
-  };
-
   const handleRefreshProposals = () => {
     if (vocabularyServiceRef.current) {
-      const newProposals = vocabularyServiceRef.current.generateWordProposals();
+      const newProposals = vocabularyServiceRef.current.generateProposals(8);
       setCurrentProposals(newProposals);
-      onVocabularyUpdate?.(newProposals);
-      console.log('Refreshed proposals:', newProposals);
+      console.log('🔄 Refreshed proposals:', newProposals);
     }
+  };
+
+  // Render AI messages with clickable words
+  const renderAIMessage = (text: string) => {
+    // Split text into words and non-word characters
+    const parts = text.split(/(\b[a-zA-ZàâäéèêëïîôùûüÿçÀÂÄÉÈÊËÏÎÔÙÛÜŸÇäöüßÄÖÜñáéíóúÑÁÉÍÓÚ]{3,}\b)/);
+    
+    return (
+      <p style={{ margin: 0, lineHeight: 1.6 }}>
+        {parts.map((part, index) => {
+          // Check if this part is a meaningful word (3+ chars, alphabetic)
+          const isWord = /^[a-zA-ZàâäéèêëïîôùûüÿçÀÂÄÉÈÊËÏÎÔÙÛÜŸÇäöüßÄÖÜñáéíóúÑÁÉÍÓÚ]{3,}$/.test(part);
+          
+          if (isWord) {
+            return (
+              <span
+                key={index}
+                onClick={() => handleWordClick(part)}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#e3f2fd';
+                  e.currentTarget.style.color = '#1976d2';
+                  e.currentTarget.style.cursor = 'pointer';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                  e.currentTarget.style.color = 'inherit';
+                }}
+                style={{
+                  padding: '1px 2px',
+                  borderRadius: '3px',
+                  transition: 'all 0.2s ease',
+                  cursor: 'pointer',
+                  display: 'inline'
+                }}
+                title={`Click to add "${part}" to your message`}
+              >
+                {part}
+              </span>
+            );
+          }
+          return <span key={index}>{part}</span>;
+        })}
+      </p>
+    );
   };
 
   const connectionBanner = (
@@ -310,43 +519,63 @@ export const SessionChat: React.FC<SessionChatProps> = ({
 
       <aside className="session-chat__sidebar">
         <div className="vocabulary-section">
-          <div className="vocabulary-header">
-            <h3>Vokabelvorschläge</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+            <h3 style={{ margin: 0, fontSize: '16px' }}>Vokabelvorschläge</h3>
             <button 
               type="button" 
               onClick={handleRefreshProposals}
-              className="refresh-btn"
+              style={{
+                background: 'none',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                padding: '4px 8px',
+                cursor: 'pointer',
+                fontSize: '12px'
+              }}
               title="Neue Vorschläge generieren"
             >
-              ↻
+              🔄
             </button>
           </div>
           
-          <p className="vocabulary-instruction">
-            Tippe auf ein Wort, um es in deine Antwort einzufügen und XP zu verdienen. 
-            Versuche mindestens drei zu verwenden.
+          <p style={{ fontSize: '12px', color: '#666', marginBottom: '12px', lineHeight: 1.4 }}>
+            Intelligente Wortvorschläge basierend auf dem Gespräch. Klicke auf Wörter in AI-Nachrichten!
           </p>
           
           <div className="session-chat__vocabulary">
             {currentProposals.length === 0 && (
-              <div className="no-proposals">
-                <p>Keine Vorschläge verfügbar.</p>
-                <button onClick={handleRefreshProposals}>Vorschläge generieren</button>
+              <div style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
+                <p style={{ marginBottom: '10px' }}>Keine Vorschläge verfügbar.</p>
+                <button 
+                  onClick={handleRefreshProposals}
+                  style={{
+                    backgroundColor: '#1976d2',
+                    color: 'white',
+                    border: 'none',
+                    padding: '8px 16px',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '12px'
+                  }}
+                >
+                  Vorschläge generieren
+                </button>
               </div>
             )}
             {currentProposals.map((word) => (
               <VocabularyChip 
                 key={word} 
                 word={word} 
-                onClick={handleProposalClick}
+                onClick={() => handleWordClick(word)}
               />
             ))}
           </div>
           
-          <div className="vocabulary-stats">
-            <p><strong>Sprache:</strong> {detectedLanguage}</p>
-            <p><strong>Wörter gelernt:</strong> {vocabularyStats.practiced}</p>
-            <p><strong>Gemeistert:</strong> {vocabularyStats.mastered}</p>
+          <div style={{ marginTop: '15px', paddingTop: '15px', borderTop: '1px solid #eee', fontSize: '12px', color: '#666' }}>
+            <p style={{ margin: '4px 0' }}><strong>Sprache:</strong> {vocabularyStats.language}</p>
+            <p style={{ margin: '4px 0' }}><strong>Gesamte Wörter:</strong> {vocabularyStats.totalWords}</p>
+            <p style={{ margin: '4px 0' }}><strong>Verwendet:</strong> {vocabularyStats.usedWords}</p>
+            <p style={{ margin: '4px 0' }}><strong>Aus KI extrahiert:</strong> {vocabularyStats.extractedWords}</p>
           </div>
         </div>
 
@@ -375,12 +604,7 @@ export const SessionChat: React.FC<SessionChatProps> = ({
               }`}
             >
               {message.author === "ai" ? (
-                <InteractiveText 
-                  text={message.text}
-                  onWordClick={handleWordClick}
-                  onWordHover={handleWordHover}
-                  className="session-chat__message-text"
-                />
+                renderAIMessage(message.text)
               ) : (
                 <p>{message.text}</p>
               )}
