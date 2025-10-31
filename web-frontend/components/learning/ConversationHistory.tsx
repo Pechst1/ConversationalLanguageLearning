@@ -38,10 +38,54 @@ export default function ConversationHistory({ messages, onWordInteract, onWordFl
     onWordFlag?.(target.id);
   };
 
+  // Add new handlers for generic (non-target) words
+  const handleGenericWordHover = useCallback((word: string) => {
+    console.log('Hovered over generic word:', word);
+    // Future enhancement: Trigger a new prop, e.g., onWordLookup(word: string)
+  }, []);
+
+  const handleGenericWordClick = useCallback((word: string) => {
+    toast(`Clicked on "${word}"`, {
+      icon: '❓',
+      duration: 2000,
+    });
+    // This could also trigger a lookup API call
+  }, []);
+
+  // Add a helper function to make plain text interactive
+  const renderInteractiveSegment = useCallback((text: string, keyPrefix: string): React.ReactNode[] => {
+    if (!text) return [];
+    // Split text into words and non-words
+    const parts = text.split(/(\b\w+\b)/);
+    return parts.map((part, index) => {
+      // Check if the part is a word
+      if (/\b\w+\b/.test(part)) {
+        return (
+          <span
+            key={`${keyPrefix}-${index}`}
+            className="rounded-md px-1 transition-colors hover:shadow-sm cursor-pointer bg-gray-100 text-gray-700 hover:bg-gray-200" // Style for generic words
+            onMouseEnter={() => handleGenericWordHover(part)}
+            onClick={() => handleGenericWordClick(part)}
+            title={`Look up "${part}"`}
+          >
+            {part}
+          </span>
+        );
+      }
+      return part; // Return non-word parts (spaces, punctuation) as is
+    });
+  }, [handleGenericWordHover, handleGenericWordClick]);
+
   const renderContent = useCallback(
     (message: ChatMessage) => {
-      if (!message.targets?.length) {
+      // User messages remain non-interactive
+      if (message.role === 'user') {
         return message.content;
+      }
+      
+      // If there are no targets, make the *entire* message generically interactive
+      if (!message.targets?.length) {
+        return renderInteractiveSegment(message.content, message.id);
       }
 
       const sortedTargets = [...message.targets].sort((a, b) => b.word.length - a.word.length);
@@ -57,10 +101,17 @@ export default function ConversationHistory({ messages, onWordInteract, onWordFl
           let lastIndex = 0;
           segment.replace(regex, (match, offset) => {
             const before = segment.slice(lastIndex, offset);
-            if (before) parts.push(before);
+            
+            // Make the 'before' segment interactive
+            if (before) {
+              parts.push(
+                ...renderInteractiveSegment(before, `${target.id}-${offset}-before`)
+              );
+            }
 
             const className = familiarityClasses[target.familiarity ?? ''] ?? defaultHighlightClass;
 
+            // Push the original target word span
             parts.push(
               <span
                 key={`${target.id}-${offset}-${segmentIndex}`}
@@ -75,13 +126,19 @@ export default function ConversationHistory({ messages, onWordInteract, onWordFl
             lastIndex = offset + match.length;
             return match;
           });
+
           const remainder = segment.slice(lastIndex);
-          if (remainder) parts.push(remainder);
+          // Make the 'remainder' segment interactive
+          if (remainder) {
+            parts.push(
+              ...renderInteractiveSegment(remainder, `${target.id}-remainder`)
+            );
+          }
           return parts;
         });
       }, message.content);
     },
-    [handleHover, handleClick]
+    [renderInteractiveSegment, onWordInteract, onWordFlag]
   );
 
   return (
