@@ -1,0 +1,245 @@
+/* Interactive Text Styling */
+.interactive-text {
+  line-height: 1.6;
+  user-select: text;
+}
+
+.interactive-word {
+  cursor: pointer;
+  padding: 1px 2px;
+  border-radius: 3px;
+  transition: all 0.2s ease;
+  display: inline;
+  position: relative;
+}
+
+.interactive-word:hover {
+  background-color: #e3f2fd;
+  color: #1976d2;
+  text-decoration: underline;
+}
+
+.interactive-word:active {
+  background-color: #bbdefb;
+  transform: scale(0.98);
+}
+
+.interactive-word--hovered {
+  background-color: #e3f2fd;
+  color: #1976d2;
+}
+
+/* Word Tooltip */
+.word-tooltip {
+  background: #2c3e50;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  max-width: 250px;
+  z-index: 1000;
+  pointer-events: none;
+  font-size: 14px;
+}
+
+.word-tooltip__content {
+  text-align: left;
+}
+
+.word-tooltip__translation {
+  color: #95c5f7;
+  font-style: italic;
+  margin: 4px 0;
+}
+
+.word-tooltip__pronunciation {
+  color: #b8e6b8;
+  font-size: 12px;
+  margin: 2px 0 0 0;
+}
+
+/* Vocabulary Section */
+.vocabulary-section {
+  margin-bottom: 20px;
+}
+
+.vocabulary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.vocabulary-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.refresh-btn {
+  background: none;
+  border: 1px solid #ddd;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.refresh-btn:hover {
+  background-color: #f5f5f5;
+  border-color: #bbb;
+}
+
+.vocabulary-instruction {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+
+.vocabulary-stats {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #eee;
+  font-size: 12px;
+}
+
+.vocabulary-stats p {
+  margin: 4px 0;
+  color: #666;
+}
+
+.no-proposals {
+  text-align: center;
+  padding: 20px;
+  color: #666;
+}
+
+.no-proposals p {
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+
+.no-proposals button {
+  background-color: #1976d2;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.no-proposals button:hover {
+  background-color: #1565c0;
+}
+
+/* Vocabulary Chips */
+.vocabulary-chip {
+  display: inline-block;
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 20px;
+  padding: 6px 12px;
+  margin: 3px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.vocabulary-chip:hover {
+  background-color: #e3f2fd;
+  border-color: #1976d2;
+  color: #1976d2;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.vocabulary-chip:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.vocabulary-chip--mastered {
+  background-color: #e8f5e8;
+  border-color: #4caf50;
+  color: #2e7d32;
+}
+
+.vocabulary-chip--mastered:hover {
+  background-color: #c8e6c9;
+}
+
+.vocabulary-chip__status {
+  margin-left: 4px;
+  font-size: 12px;
+}
+
+/* Session Chat Enhancements */
+.session-chat__vocabulary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 15px;
+}
+
+.session-chat__message-text {
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .vocabulary-instruction {
+    font-size: 11px;
+  }
+  
+  .vocabulary-chip {
+    font-size: 13px;
+    padding: 5px 10px;
+  }
+  
+  .word-tooltip {
+    max-width: 200px;
+    font-size: 13px;
+  }
+}
+
+/* Animation for new words */
+@keyframes slideInWord {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.vocabulary-chip.new-word {
+  animation: slideInWord 0.3s ease-out;
+}
+
+/* Focus states for accessibility */
+.interactive-word:focus {
+  outline: 2px solid #1976d2;
+  outline-offset: 1px;
+  background-color: #e3f2fd;
+}
+
+.vocabulary-chip:focus {
+  outline: 2px solid #1976d2;
+  outline-offset: 2px;
+}
+
+.refresh-btn:focus {
+  outline: 2px solid #1976d2;
+  outline-offset: 2px;
+}
