@@ -4,6 +4,7 @@ from fastapi import APIRouter
 from app.api.v1.endpoints import (
     achievements,
     analytics,
+    anki,
     auth,
     progress,
     sessions,
@@ -22,3 +23,4 @@ api_router.include_router(sessions_ws.router)
 api_router.include_router(vocabulary.router)
 api_router.include_router(analytics.router)
 api_router.include_router(achievements.router)
+api_router.include_router(anki.router)
