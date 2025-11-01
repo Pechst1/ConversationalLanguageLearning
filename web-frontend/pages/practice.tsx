@@ -55,7 +55,7 @@ export default function PracticePage({ queueWords }: PracticeProps) {
           <CardContent className="p-8">
             <h1 className="text-2xl font-bold mb-4">No words to practice</h1>
             <p className="text-gray-600 mb-6">
-              Great job! You're all caught up with your vocabulary practice.
+              Great job! You&apos;re all caught up with your vocabulary practice.
             </p>
             <Button onClick={() => window.location.reload()}>Check Again</Button>
           </CardContent>
@@ -134,7 +134,7 @@ export default function PracticePage({ queueWords }: PracticeProps) {
                     className="border-red-300 text-red-600 hover:bg-red-50"
                   >
                     <XCircle className="mr-2 h-4 w-4" />
-                    Didn't Know
+                    Didn&apos;t Know
                   </Button>
                   <Button 
                     variant="outline" 
@@ -181,13 +181,20 @@ export async function getServerSideProps(context: any) {
   }
 
   try {
-    const baseUrl = process.env.API_URL || 'http://localhost:8000';
+    const rawBase =
+      process.env.NEXT_PUBLIC_API_URL ||
+      process.env.API_URL ||
+      'http://localhost:8000/api/v1';
+    const normalizedBase = rawBase.replace(/\/+$/, '');
+    const baseUrl = normalizedBase.endsWith('/api/v1')
+      ? normalizedBase
+      : `${normalizedBase}/api/v1`;
     const headers = {
       'Authorization': `Bearer ${session.accessToken}`,
       'Content-Type': 'application/json',
     };
 
-    const response = await fetch(`${baseUrl}/api/v1/progress/queue`, { headers });
+    const response = await fetch(`${baseUrl}/progress/queue`, { headers });
     const raw = response.ok ? await response.json() : [];
     const queueWords = Array.isArray(raw)
       ? raw.map((item: any) => ({

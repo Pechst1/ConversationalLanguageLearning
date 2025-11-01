@@ -196,9 +196,13 @@ class SessionService:
         }
 
     def _ensure_vocabulary_seeded(self) -> None:
-        exists = self.db.query(VocabularyWord.id).limit(1).first()
-        if exists:
+        existing_count = self.db.query(VocabularyWord.id).count()
+        minimum_required = 50
+        if existing_count >= minimum_required:
             return
+        existing_ids = {
+            row[0] for row in self.db.query(VocabularyWord.id).all()
+        }
         sample_path = Path(__file__).resolve().parents[2] / "vocabulary_fr_sample.csv"
         if not sample_path.exists():
             logger.warning("Vocabulary sample file missing", path=str(sample_path))
@@ -229,8 +233,16 @@ class SessionService:
                 except Exception as exc:  # pragma: no cover - defensive
                     logger.warning("Failed to seed vocabulary word", row=row, error=str(exc))
             if records:
-                logger.info("Seeding vocabulary sample", count=len(records))
-                self.db.bulk_save_objects(records, return_defaults=False)
+                filtered: list[VocabularyWord] = []
+                for word in records:
+                    if word.id in existing_ids:
+                        continue
+                    filtered.append(word)
+                if not filtered:
+                    logger.info("No new vocabulary words to seed from sample")
+                    return
+                logger.info("Seeding vocabulary sample", count=len(filtered))
+                self.db.bulk_save_objects(filtered, return_defaults=False)
                 self.db.commit()
                 self.db.flush()
 
@@ -408,30 +420,58 @@ class SessionService:
         known_word_ids: set[int],
         user: User,
     ) -> list[tuple[VocabularyWord, str]]:
-        """Return vocabulary entries the learner used without being prompted."""
+        """Return vocabulary entries the learner used without being prompted.
+
+        Optimized to avoid N+1 queries by batching vocabulary lookups.
+        """
 
         doc = self.nlp(learner_text)
-        unknown_words: list[tuple[VocabularyWord, str]] = []
+
+        # Build a set of query terms and a surface-form map in one pass
+        token_map: dict[str, str] = {}
+        query_terms: set[str] = set()
         for token in doc:
             if token.is_stop or token.is_punct or token.is_space:
                 continue
 
             lemma = token.lemma_.lower() if token.lemma_ else token.text.lower()
-            if lemma not in learner_lemmas and token.text.lower() not in learner_lemmas:
+            text_lower = token.text.lower()
+
+            # Only try to match words that our lemmatizer deemed relevant
+            if lemma not in learner_lemmas and text_lower not in learner_lemmas:
                 continue
-            vocab_word = (
-                self.db.query(VocabularyWord)
-                .filter(
-                    VocabularyWord.language == user.target_language,
-                    or_(
-                        VocabularyWord.normalized_word == lemma,
-                        VocabularyWord.word == token.text.lower(),
-                    ),
-                )
-                .first()
+
+            query_terms.add(lemma)
+            query_terms.add(text_lower)
+            token_map.setdefault(lemma, token.text)
+            token_map.setdefault(text_lower, token.text)
+
+        if not query_terms:
+            return []
+
+        # Single DB query for all potential matches
+        target_lang = user.target_language or "fr"
+        matched_vocab = (
+            self.db.query(VocabularyWord)
+            .filter(
+                VocabularyWord.language == target_lang,
+                or_(
+                    VocabularyWord.normalized_word.in_(query_terms),
+                    VocabularyWord.word.in_(query_terms),
+                ),
             )
-            if vocab_word and vocab_word.id not in known_word_ids:
-                unknown_words.append((vocab_word, token.text))
+            .all()
+        )
+
+        unknown_words: list[tuple[VocabularyWord, str]] = []
+        seen_ids: set[int] = set()
+        for word in matched_vocab:
+            if word.id in known_word_ids or word.id in seen_ids:
+                continue
+            surface = token_map.get(word.normalized_word) or token_map.get((word.word or "").lower())
+            if surface:
+                unknown_words.append((word, surface))
+                seen_ids.add(word.id)
 
         return unknown_words
 
@@ -1131,7 +1171,7 @@ class SessionService:
         self._apply_user_xp(user, session, xp_awarded)
 
         history.append(ConversationHistoryMessage(role="user", content=content))
-        previous_target_ids = {word.id for word, _ in previous_targets}
+        used_target_ids = {item.word.id for item in feedback if item.was_used}
         exclude_ids: set[int] = set()
         if suggested_word_ids:
             for word_id in suggested_word_ids:
@@ -1139,7 +1179,7 @@ class SessionService:
                     exclude_ids.add(int(word_id))
                 except (TypeError, ValueError):
                     logger.debug("Skipping non-numeric suggested id", value=word_id)
-        exclude_ids.update(previous_target_ids)
+        exclude_ids.update(used_target_ids)
 
         assistant_turn = self._generate_and_persist_assistant_turn_with_context(
             session=session,

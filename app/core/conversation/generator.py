@@ -203,11 +203,20 @@ class ConversationGenerator:
             )
         )
         if not queue:
+            exclude_set = exclude_ids or set()
             fallback_words = self.progress_service.sample_vocabulary(
                 user=user,
                 limit=effective_limit,
-                exclude_ids=exclude_ids or set(),
+                exclude_ids=exclude_set,
             )
+            # If exclusions resulted in no fallback items, retry once without exclusions
+            if not fallback_words and exclude_set:
+                logger.debug("Retrying sample_vocabulary without exclusions.")
+                fallback_words = self.progress_service.sample_vocabulary(
+                    user=user,
+                    limit=effective_limit,
+                    exclude_ids=set(),
+                )
             return [QueueItem(word=word, progress=None, is_new=True) for word in fallback_words]
 
         due_items = [item for item in queue if not item.is_new]

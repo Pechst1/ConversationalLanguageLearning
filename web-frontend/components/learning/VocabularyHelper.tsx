@@ -12,34 +12,44 @@ type Props = {
   words: Word[];
   className?: string;
   onInsertWord?: (word: string) => void;
+  onToggleWord?: (word: Word, selected: boolean) => void;
 };
 
-export default function VocabularyHelper({ words, className, onInsertWord }: Props) {
+export default function VocabularyHelper({ words, className, onInsertWord, onToggleWord }: Props) {
   const [selectedIds, setSelectedIds] = React.useState<Set<number>>(new Set());
+
+  // Reset selection whenever the suggestion list changes
+  React.useEffect(() => {
+    setSelectedIds(new Set());
+  }, [words]);
 
   const toggleSelect = React.useCallback(
     (w: Word) => {
       setSelectedIds((prev) => {
         const next = new Set(prev);
+        let isSelected: boolean;
         if (next.has(w.id)) {
           next.delete(w.id);
+          isSelected = false;
         } else {
           next.add(w.id);
+          isSelected = true;
         }
+        onToggleWord?.(w, isSelected);
         return next;
       });
       if (onInsertWord) {
         onInsertWord(w.word);
       }
     },
-    [onInsertWord]
+    [onInsertWord, onToggleWord]
   );
 
   return (
     <div className={className}>
       <h3 className="text-sm font-semibold text-gray-700 mb-2">Vokabelvorschläge</h3>
       <p className="mb-2 text-xs text-gray-500">
-        Tippe auf ein Wort, um es in deine Antwort einzufügen und XP zu verdienen. Versuche mindestens drei zu verwenden.
+        Tippe auf ein Wort, um es in deine Antwort einzufügen. Versuche, mindestens drei Vorschläge in deiner Antwort zu verwenden, um XP zu verdienen.
       </p>
       <div className="flex flex-wrap gap-2">
         {words && words.length > 0 ? (

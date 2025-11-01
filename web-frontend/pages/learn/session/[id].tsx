@@ -15,17 +15,17 @@ export default function SessionPage() {
   const { id } = router.query as { id: string };
   const { session, messages, send, suggested, logExposure, flagWord, complete } = useLearningSession(id);
   const [draft, setDraft] = React.useState('');
+  const [selectedWordIds, setSelectedWordIds] = React.useState<number[]>([]);
   const [summary, setSummary] = React.useState<any>(null);
   const [isCompleting, setIsCompleting] = React.useState(false);
 
   const handleSend = React.useCallback(
     async (text: string) => {
       if (summary) return;
-      // The hook ignores selectedWordIds and sends the full suggestion list.
-      // Keep API usage clear by omitting the unused param here.
-      await send(text);
+      await send(text, selectedWordIds);
+      setSelectedWordIds([]);
     },
-    [send, summary]
+    [send, selectedWordIds, summary]
   );
 
   const handleInsertWord = React.useCallback(
@@ -40,6 +40,18 @@ export default function SessionPage() {
     },
     []
   );
+
+  const handleToggleSuggestion = React.useCallback((word: { id: number }, isSelected: boolean) => {
+    setSelectedWordIds((prev) => {
+      if (isSelected) {
+        if (prev.includes(word.id)) {
+          return prev;
+        }
+        return [...prev, word.id];
+      }
+      return prev.filter((id) => id !== word.id);
+    });
+  }, []);
 
   const handleWordInteract = React.useCallback(
     (wordId: number, exposureType: 'hint' | 'translation') => {
@@ -66,13 +78,22 @@ export default function SessionPage() {
     }
   }, [complete, id, summary]);
 
+  React.useEffect(() => {
+    setSelectedWordIds((prev) => prev.filter((wordId) => suggested.some((item) => item.id === wordId)));
+  }, [suggested]);
+
   if (!id) return null;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div className="lg:col-span-2 space-y-4">
         {!summary && (
-          <VocabularyHelper className="learning-card" words={suggested} onInsertWord={handleInsertWord} />
+          <VocabularyHelper
+            className="learning-card"
+            words={suggested}
+            onInsertWord={handleInsertWord}
+            onToggleWord={handleToggleSuggestion}
+          />
         )}
         <div className="learning-card">
           {summary ? (

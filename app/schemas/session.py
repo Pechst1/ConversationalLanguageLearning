@@ -31,7 +31,7 @@ class SessionMessageRequest(BaseModel):
     content: str = Field(..., min_length=1)
     suggested_word_ids: list[int] | None = Field(
         default=None,
-        description="Optional vocabulary identifiers suggested by the client",
+        description="Identifiers of suggested words the learner actually attempted to use",
     )
 
 

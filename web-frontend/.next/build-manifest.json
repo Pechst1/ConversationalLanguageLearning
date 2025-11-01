@@ -46,6 +46,16 @@
       "static/chunks/webpack.js",
       "static/chunks/main.js",
       "static/chunks/pages/learn/session/[id].js"
+    ],
+    "/practice": [
+      "static/chunks/webpack.js",
+      "static/chunks/main.js",
+      "static/chunks/pages/practice.js"
+    ],
+    "/progress": [
+      "static/chunks/webpack.js",
+      "static/chunks/main.js",
+      "static/chunks/pages/progress.js"
     ]
   },
   "ampFirstPages": []

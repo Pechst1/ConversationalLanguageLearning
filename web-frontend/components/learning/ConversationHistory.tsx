@@ -26,22 +26,33 @@ export default function ConversationHistory({ messages, onWordInteract, onWordFl
   const [wordDefinition, setWordDefinition] = useState<{ word: string; translation: string } | null>(null);
   const lookupCache = useRef<Record<string, { id?: number; translation: string }>>({});
 
-  const handleHover = (target: TargetWord) => {
-    if (hovered[target.id]) return;
-    setHovered((prev) => ({ ...prev, [target.id]: true }));
-    onWordInteract?.(target.id, 'hint');
-  };
-
-  const handleClick = (target: TargetWord) => {
-    if (target.translation) {
-      toast(`Added "${target.word}" to practice`, {
-        icon: '🧠',
-        duration: 3500,
+  const handleHover = React.useCallback(
+    (target: TargetWord) => {
+      if (hovered[target.id]) return;
+      setHovered((prev) => {
+        if (prev[target.id]) {
+          return prev;
+        }
+        return { ...prev, [target.id]: true };
       });
-    }
-    onWordInteract?.(target.id, 'translation');
-    onWordFlag?.(target.id);
-  };
+      onWordInteract?.(target.id, 'hint');
+    },
+    [hovered, onWordInteract]
+  );
+
+  const handleClick = React.useCallback(
+    (target: TargetWord) => {
+      if (target.translation) {
+        toast(`Added "${target.word}" to practice`, {
+          icon: '🧠',
+          duration: 3500,
+        });
+      }
+      onWordInteract?.(target.id, 'translation');
+      onWordFlag?.(target.id);
+    },
+    [onWordFlag, onWordInteract]
+  );
 
   const handleWordLeave = useCallback(() => {
     setHoveredWord(null);
@@ -144,18 +155,17 @@ export default function ConversationHistory({ messages, onWordInteract, onWordFl
 
   const renderContent = useCallback(
     (message: ChatMessage) => {
-      // User messages remain non-interactive
       if (message.role === 'user') {
         return message.content;
       }
-      
-      // If there are no targets, make the *entire* message generically interactive
+
       if (!message.targets?.length) {
         return renderInteractiveSegment(message.content, message.id);
       }
 
       const sortedTargets = [...message.targets].sort((a, b) => b.word.length - a.word.length);
-      return sortedTargets.reduce<React.ReactNode[] | string>((nodes, target) => {
+      let matchedAny = false;
+      const reduced = sortedTargets.reduce<React.ReactNode[] | string>((nodes, target) => {
         const segments = Array.isArray(nodes) ? nodes : [nodes];
         return segments.flatMap((segment, segmentIndex) => {
           if (typeof segment !== 'string') {
@@ -166,6 +176,7 @@ export default function ConversationHistory({ messages, onWordInteract, onWordFl
           const parts: React.ReactNode[] = [];
           let lastIndex = 0;
           segment.replace(regex, (match, offset) => {
+            matchedAny = true;
             const before = segment.slice(lastIndex, offset);
             
             // Make the 'before' segment interactive
@@ -204,8 +215,20 @@ export default function ConversationHistory({ messages, onWordInteract, onWordFl
           return parts;
         });
       }, message.content);
+
+      if (!matchedAny) {
+        const nodes = Array.isArray(reduced) ? reduced : [reduced];
+        return nodes.flatMap((node, index) => {
+          if (typeof node === 'string') {
+            return renderInteractiveSegment(node, `${message.id}-fallback-${index}`);
+          }
+          return [node];
+        });
+      }
+
+      return reduced;
     },
-    [renderInteractiveSegment, onWordInteract, onWordFlag]
+    [renderInteractiveSegment, handleHover, handleWordLeave, handleClick]
   );
 
   return (
