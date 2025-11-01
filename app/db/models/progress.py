@@ -2,7 +2,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Column, Date, DateTime, Float, ForeignKey, Integer, String
+from sqlalchemy import Column, Date, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.types import JSON
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
@@ -12,7 +12,7 @@ from app.db.base import Base
 
 
 class UserVocabularyProgress(Base):
-    """Track per-user vocabulary progress and FSRS state."""
+    """Track per-user vocabulary progress with both FSRS and Anki SM-2 support."""
 
     __tablename__ = "user_vocabulary_progress"
 
@@ -24,6 +24,7 @@ class UserVocabularyProgress(Base):
         Integer, ForeignKey("vocabulary_words.id", ondelete="CASCADE"), nullable=False, index=True
     )
 
+    # FSRS fields (existing)
     stability = Column(Float, default=0.0)
     difficulty = Column(Float, default=5.0)
     elapsed_days = Column(Integer, default=0)
@@ -31,6 +32,20 @@ class UserVocabularyProgress(Base):
     reps = Column(Integer, default=0)
     lapses = Column(Integer, default=0)
     state = Column(String(20), default="new")
+
+    # Anki SM-2 fields (new)
+    scheduler = Column(String(20), default="fsrs")  # "fsrs" or "anki"
+    ease_factor = Column(Float, default=2.5)  # Anki ease factor
+    interval_days = Column(Integer, default=0)  # Current interval in days
+    phase = Column(String(20), default="new")  # "new", "learn", "review", "relearn"
+    step_index = Column(Integer, default=0)  # For learning steps
+    due_at = Column(DateTime(timezone=True), nullable=True, index=True)  # Precise due time
+    
+    # Anki metadata
+    deck_name = Column(String(255), nullable=True)
+    note_id = Column(String(50), nullable=True)
+    card_id = Column(String(50), nullable=True)
+    raw_history = Column(Text, nullable=True)  # Original allrevs data
 
     proficiency_score = Column(Integer, default=0)
     correct_count = Column(Integer, default=0)
@@ -66,6 +81,20 @@ class UserVocabularyProgress(Base):
         self.due_date = next_review.date() if next_review else None
         self.reps += 1
         if rating <= 2:
+            self.lapses += 1
+
+    def mark_anki_review(self, review_date: datetime, due_at: datetime, rating: int, 
+                        interval_days: int, ease_factor: float, phase: str) -> None:
+        """Update Anki SM-2 scheduling metadata after a review."""
+        
+        self.last_review_date = review_date
+        self.due_at = due_at
+        self.due_date = due_at.date() if due_at else None
+        self.interval_days = interval_days
+        self.ease_factor = ease_factor
+        self.phase = phase
+        self.reps += 1
+        if rating < 3:
             self.lapses += 1
 
     def record_usage(self, correct: bool, *, used_hint: bool = False, is_new: bool = False) -> None:
@@ -110,6 +139,13 @@ class ReviewLog(Base):
     schedule_before = Column(Integer)
     schedule_after = Column(Integer)
 
+    # Anki-specific fields
+    scheduler_type = Column(String(20), default="fsrs")  # "fsrs" or "anki"
+    ease_factor_before = Column(Float, nullable=True)
+    ease_factor_after = Column(Float, nullable=True)
+    interval_before = Column(Integer, nullable=True)
+    interval_after = Column(Integer, nullable=True)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     progress = relationship("UserVocabularyProgress", back_populates="reviews")
@@ -119,3 +155,12 @@ class ReviewLog(Base):
 
         self.schedule_before = before
         self.schedule_after = after
+
+    def set_anki_transition(self, ease_before: float | None, ease_after: float | None,
+                           interval_before: int | None, interval_after: int | None) -> None:
+        """Store Anki SM-2 scheduling transition values."""
+        
+        self.ease_factor_before = ease_before
+        self.ease_factor_after = ease_after
+        self.interval_before = interval_before
+        self.interval_after = interval_after
