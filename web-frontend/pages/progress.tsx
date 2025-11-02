@@ -99,6 +99,7 @@ export default function ProgressPage({ summary: initialSummary, initialProgress 
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const directionSummary = useMemo(() => {
     if (direction === 'all') {
@@ -157,6 +158,42 @@ export default function ProgressPage({ summary: initialSummary, initialProgress 
     }
   };
 
+  // Debounced refresh function for frequent updates
+  const debouncedRefresh = React.useCallback(() => {
+    if (refreshTimeoutRef.current) {
+      clearTimeout(refreshTimeoutRef.current);
+    }
+    
+    refreshTimeoutRef.current = setTimeout(() => {
+      refreshAllData(false);
+    }, 1000); // Wait 1 second after last call
+  }, []);
+
+  // Listen for word review events from ConversationHistory
+  useEffect(() => {
+    const handleProgressDataDirty = (event: CustomEvent) => {
+      console.log('Progress data dirty event received:', event.detail);
+      debouncedRefresh();
+    };
+
+    const handleSessionComplete = () => {
+      console.log('Learning session completed, refreshing progress...');
+      setTimeout(() => refreshAllData(false), 1000);
+    };
+
+    // Listen for custom events from other components
+    window.addEventListener('progressDataDirty', handleProgressDataDirty as EventListener);
+    window.addEventListener('learningSessionComplete', handleSessionComplete);
+    
+    return () => {
+      window.removeEventListener('progressDataDirty', handleProgressDataDirty as EventListener);
+      window.removeEventListener('learningSessionComplete', handleSessionComplete);
+      if (refreshTimeoutRef.current) {
+        clearTimeout(refreshTimeoutRef.current);
+      }
+    };
+  }, [debouncedRefresh]);
+
   // Auto-refresh every 30 seconds when tab is visible
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -166,12 +203,10 @@ export default function ProgressPage({ summary: initialSummary, initialProgress 
     };
 
     const setupAutoRefresh = () => {
-      // Clear existing interval
       if (refreshIntervalRef.current) {
         clearInterval(refreshIntervalRef.current);
       }
       
-      // Set up new interval
       refreshIntervalRef.current = setInterval(() => {
         if (document.visibilityState === 'visible') {
           refreshAllData(false);
@@ -187,21 +222,6 @@ export default function ProgressPage({ summary: initialSummary, initialProgress 
       if (refreshIntervalRef.current) {
         clearInterval(refreshIntervalRef.current);
       }
-    };
-  }, []);
-
-  // Listen for session completion events (if using custom events)
-  useEffect(() => {
-    const handleSessionComplete = () => {
-      console.log('Learning session completed, refreshing progress...');
-      setTimeout(() => refreshAllData(false), 1000); // Small delay to ensure backend is updated
-    };
-
-    // Listen for custom events from other components
-    window.addEventListener('learningSessionComplete', handleSessionComplete);
-    
-    return () => {
-      window.removeEventListener('learningSessionComplete', handleSessionComplete);
     };
   }, []);
 
