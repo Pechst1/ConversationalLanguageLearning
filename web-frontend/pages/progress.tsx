@@ -1,7 +1,9 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { getSession } from 'next-auth/react';
+import { RefreshCw } from 'lucide-react';
 import api from '@/services/api';
+import toast from 'react-hot-toast';
 
 type StageCounts = Record<string, number>;
 
@@ -64,6 +66,14 @@ const stageDisplay: Record<string, string> = {
   other: 'Sonstige',
 };
 
+// Add difficulty level mappings
+const difficultyLevelDisplay: Record<number, string> = {
+  0: 'Didn\'t Know',
+  1: 'Hard',
+  2: 'Good',
+  3: 'Easy',
+};
+
 const formatNumber = (value: number | null | undefined) => {
   if (value === null || value === undefined) return '—';
   return value.toLocaleString('de-DE');
@@ -81,10 +91,14 @@ const formatDate = (value: string | null | undefined) => {
 
 const AnkiStagePie = dynamic(() => import('@/components/learning/AnkiStagePie'), { ssr: false });
 
-export default function ProgressPage({ summary, initialProgress }: ProgressPageProps) {
+export default function ProgressPage({ summary: initialSummary, initialProgress }: ProgressPageProps) {
   const [direction, setDirection] = useState<'fr_to_de' | 'de_to_fr' | 'all'>('fr_to_de');
   const [entries, setEntries] = useState<AnkiWordProgress[]>(initialProgress);
+  const [summary, setSummary] = useState<AnkiProgressSummary>(initialSummary);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const directionSummary = useMemo(() => {
     if (direction === 'all') {
@@ -114,6 +128,83 @@ export default function ProgressPage({ summary, initialProgress }: ProgressPageP
       .map((stage) => ({ stage, value: counts[stage] }));
   }, [direction, directionSummary.stage_counts, summary.chart]);
 
+  // Function to refresh all data
+  const refreshAllData = async (showToast = true) => {
+    try {
+      setRefreshing(true);
+      const [summaryRes, progressRes] = await Promise.all([
+        api.getAnkiSummary(),
+        direction !== 'all' ? api.getAnkiProgress({ direction }) : Promise.resolve([])
+      ]);
+      
+      setSummary(summaryRes);
+      if (direction !== 'all') {
+        setEntries(Array.isArray(progressRes) ? progressRes : []);
+      }
+      
+      setLastUpdated(new Date());
+      
+      if (showToast) {
+        toast.success('Progress data updated!');
+      }
+    } catch (error) {
+      console.error('Failed to refresh progress data:', error);
+      if (showToast) {
+        toast.error('Failed to update progress data');
+      }
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  // Auto-refresh every 30 seconds when tab is visible
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        refreshAllData(false);
+      }
+    };
+
+    const setupAutoRefresh = () => {
+      // Clear existing interval
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current);
+      }
+      
+      // Set up new interval
+      refreshIntervalRef.current = setInterval(() => {
+        if (document.visibilityState === 'visible') {
+          refreshAllData(false);
+        }
+      }, 30000); // 30 seconds
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    setupAutoRefresh();
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current);
+      }
+    };
+  }, []);
+
+  // Listen for session completion events (if using custom events)
+  useEffect(() => {
+    const handleSessionComplete = () => {
+      console.log('Learning session completed, refreshing progress...');
+      setTimeout(() => refreshAllData(false), 1000); // Small delay to ensure backend is updated
+    };
+
+    // Listen for custom events from other components
+    window.addEventListener('learningSessionComplete', handleSessionComplete);
+    
+    return () => {
+      window.removeEventListener('learningSessionComplete', handleSessionComplete);
+    };
+  }, []);
+
   useEffect(() => {
     const fetchData = async () => {
       if (direction === 'all') {
@@ -134,13 +225,41 @@ export default function ProgressPage({ summary, initialProgress }: ProgressPageP
     fetchData();
   }, [direction]);
 
+  // Calculate difficulty distribution for better insights
+  const difficultyDistribution = useMemo(() => {
+    const distribution: Record<number, number> = { 0: 0, 1: 0, 2: 0, 3: 0 };
+    entries.forEach(entry => {
+      const difficulty = entry.difficulty_level || entry.progress_difficulty;
+      if (difficulty !== null && difficulty !== undefined && difficulty >= 0 && difficulty <= 3) {
+        distribution[difficulty]++;
+      }
+    });
+    return distribution;
+  }, [entries]);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Dein Lernfortschritt</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold">Dein Lernfortschritt</h1>
+            <button
+              type="button"
+              onClick={() => refreshAllData(true)}
+              disabled={refreshing}
+              className={`p-2 rounded-md border border-gray-300 hover:bg-gray-50 transition-colors ${
+                refreshing ? 'animate-spin' : ''
+              }`}
+              title="Fortschritt aktualisieren"
+            >
+              <RefreshCw className="h-4 w-4" />
+            </button>
+          </div>
           <p className="text-sm text-gray-600">
             Übersicht aller importierten Anki-Karten. Wähle die gewünschte Richtung aus, um Details zu sehen.
+          </p>
+          <p className="text-xs text-gray-500 mt-1">
+            Zuletzt aktualisiert: {lastUpdated.toLocaleString('de-DE')}
           </p>
         </div>
         <div className="flex gap-2">
@@ -194,6 +313,21 @@ export default function ProgressPage({ summary, initialProgress }: ProgressPageP
               </div>
             </div>
           </div>
+
+          {/* Add difficulty distribution chart for specific directions */}
+          {direction !== 'all' && entries.length > 0 && (
+            <div className="learning-card">
+              <h2 className="text-lg font-semibold mb-3">Schwierigkeitsverteilung</h2>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {Object.entries(difficultyDistribution).map(([level, count]) => (
+                  <div key={level} className="text-center p-4 bg-gray-50 rounded-lg">
+                    <div className="text-2xl font-bold text-gray-900">{count}</div>
+                    <div className="text-sm text-gray-600">{difficultyLevelDisplay[parseInt(level)]}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {direction === 'all' ? (
             <div className="learning-card">
@@ -253,7 +387,7 @@ function ProgressTable({ direction, entries, loading }: ProgressTableProps) {
           {entries.length === 0 ? (
             <tr>
               <td colSpan={11} className="px-3 py-6 text-center text-sm text-gray-500">
-                Keine Karten für diese Richtung vorhanden.
+                {loading ? 'Lade Karten...' : 'Keine Karten für diese Richtung vorhanden.'}
               </td>
             </tr>
           ) : (
@@ -261,14 +395,38 @@ function ProgressTable({ direction, entries, loading }: ProgressTableProps) {
               <tr key={item.word_id} className="hover:bg-gray-50">
                 <td className="px-3 py-2 font-medium text-gray-900">{item.word}</td>
                 <td className="px-3 py-2 text-gray-700">{translationFor(item)}</td>
-                <td className="px-3 py-2">{stageDisplay[item.learning_stage?.toLowerCase()] || item.learning_stage}</td>
-                <td className="px-3 py-2">{formatNumber(item.progress_difficulty)}</td>
+                <td className="px-3 py-2">
+                  <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                    item.learning_stage?.toLowerCase() === 'new' ? 'bg-red-100 text-red-800' :
+                    item.learning_stage?.toLowerCase() === 'learning' ? 'bg-yellow-100 text-yellow-800' :
+                    item.learning_stage?.toLowerCase() === 'review' ? 'bg-green-100 text-green-800' :
+                    'bg-gray-100 text-gray-800'
+                  }`}>
+                    {stageDisplay[item.learning_stage?.toLowerCase()] || item.learning_stage}
+                  </span>
+                </td>
+                <td className="px-3 py-2">
+                  {item.difficulty_level !== null && item.difficulty_level !== undefined 
+                    ? difficultyLevelDisplay[item.difficulty_level] || formatNumber(item.difficulty_level)
+                    : formatNumber(item.progress_difficulty)
+                  }
+                </td>
                 <td className="px-3 py-2">{formatNumber(item.ease_factor)}</td>
                 <td className="px-3 py-2">{formatNumber(item.interval_days)}</td>
                 <td className="px-3 py-2">{formatDate(item.due_at || item.next_review)}</td>
                 <td className="px-3 py-2">{item.reps ?? 0}</td>
                 <td className="px-3 py-2">{item.lapses ?? 0}</td>
-                <td className="px-3 py-2">{item.proficiency_score ?? 0}</td>
+                <td className="px-3 py-2">
+                  <div className="flex items-center">
+                    <div className="w-12 bg-gray-200 rounded-full h-2 mr-2">
+                      <div 
+                        className="bg-blue-600 h-2 rounded-full" 
+                        style={{ width: `${Math.min(100, (item.proficiency_score || 0) * 10)}%` }}
+                      ></div>
+                    </div>
+                    <span className="text-xs">{item.proficiency_score ?? 0}</span>
+                  </div>
+                </td>
                 <td className="px-3 py-2 text-gray-500">{item.deck_name || '—'}</td>
               </tr>
             ))
@@ -300,13 +458,38 @@ export async function getServerSideProps(ctx: any) {
   const headers = { Authorization: `Bearer ${session.accessToken}` } as any;
   const base = process.env.API_URL || 'http://localhost:8000/api/v1';
 
-  const [summaryRes, progressRes] = await Promise.all([
-    fetch(`${base}/progress/anki/summary`, { headers }),
-    fetch(`${base}/progress/anki?direction=fr_to_de`, { headers }),
-  ]);
+  try {
+    const [summaryRes, progressRes] = await Promise.all([
+      fetch(`${base}/progress/anki/summary`, { headers }),
+      fetch(`${base}/progress/anki?direction=fr_to_de`, { headers }),
+    ]);
 
-  const summary = summaryRes.ok ? await summaryRes.json() : { total_cards: 0, due_today: 0, stage_totals: {}, chart: [], directions: {} };
-  const initialProgress = progressRes.ok ? await progressRes.json() : [];
+    const summary = summaryRes.ok 
+      ? await summaryRes.json() 
+      : { 
+          total_cards: 0, 
+          due_today: 0, 
+          stage_totals: { new: 0, learning: 0, review: 0, relearn: 0, other: 0 }, 
+          chart: [], 
+          directions: {} 
+        };
+    
+    const initialProgress = progressRes.ok ? await progressRes.json() : [];
 
-  return { props: { summary, initialProgress } };
+    return { props: { summary, initialProgress } };
+  } catch (error) {
+    console.error('Failed to fetch progress data:', error);
+    return {
+      props: {
+        summary: { 
+          total_cards: 0, 
+          due_today: 0, 
+          stage_totals: { new: 0, learning: 0, review: 0, relearn: 0, other: 0 }, 
+          chart: [], 
+          directions: {} 
+        },
+        initialProgress: []
+      }
+    };
+  }
 }
