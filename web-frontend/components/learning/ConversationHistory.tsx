@@ -23,16 +23,13 @@ const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\
 // Robust word ID normalization function
 const normalizeWordId = (id: any): number | null => {
   if (id === null || id === undefined) return null;
-  
   if (typeof id === 'number' && Number.isFinite(id) && id > 0) {
     return Math.floor(id);
   }
-  
   if (typeof id === 'string') {
     const parsed = parseInt(id, 10);
     if (Number.isInteger(parsed) && parsed > 0) return parsed;
   }
-  
   return null;
 };
 
@@ -112,7 +109,7 @@ export default function ConversationHistory({ messages, onWordInteract, onWordFl
       return entry;
     } catch (error) {
       debugLog('Resolve failed', { word: key, error });
-      const errorEntry = { translation: '', error: true };
+      const errorEntry = { translation: '', error: true } as any;
       lookupCache.current[key] = errorEntry;
       return { id: null, translation: '' };
     }
@@ -240,8 +237,13 @@ export default function ConversationHistory({ messages, onWordInteract, onWordFl
       });
       
       setHighlightedSuggestions(prev => new Set([...prev, target.word.toLowerCase()]));
+
+      // NEW: log hint exposure
+      if (typeof onWordInteract === 'function') {
+        onWordInteract(wordId, 'hint');
+      }
     },
-    []
+    [onWordInteract]
   );
 
   const handleTargetClick = useCallback(
@@ -282,6 +284,11 @@ export default function ConversationHistory({ messages, onWordInteract, onWordFl
           }
         }
 
+        // NEW: log translation exposure
+        if (typeof onWordInteract === 'function') {
+          onWordInteract(wordId, 'translation');
+        }
+
         toast.success(
           `[translate:${cleanWord}] als "${ratingLabel}" bewertet – früher fällig`,
           { icon: '🧠', duration: 3000 }
@@ -302,7 +309,7 @@ export default function ConversationHistory({ messages, onWordInteract, onWordFl
         });
       }
     },
-    [resolveOrCreate, activeSessionId, processingWords]
+    [resolveOrCreate, activeSessionId, processingWords, onWordInteract]
   );
 
   // Add a helper function to make plain text interactive
