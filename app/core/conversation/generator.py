@@ -181,6 +181,7 @@ class ConversationGenerator:
         dynamic_review_ratio: float | None = None,
         new_word_budget: int | None = None,
         exclude_ids: set[int] | None = None,
+        direction: str | None = None,
     ) -> list[QueueItem]:
         """Return queue entries prioritizing reviews before new vocabulary."""
 
@@ -200,6 +201,7 @@ class ConversationGenerator:
                 limit=effective_limit,
                 new_word_budget=new_word_budget,
                 exclude_ids=exclude_ids,
+                direction=direction,
             )
         )
         if not queue:
@@ -208,6 +210,7 @@ class ConversationGenerator:
                 user=user,
                 limit=effective_limit,
                 exclude_ids=exclude_set,
+                direction=direction,
             )
             # If exclusions resulted in no fallback items, retry once without exclusions
             if not fallback_words and exclude_set:
@@ -216,6 +219,7 @@ class ConversationGenerator:
                     user=user,
                     limit=effective_limit,
                     exclude_ids=set(),
+                    direction=direction,
                 )
             return [QueueItem(word=word, progress=None, is_new=True) for word in fallback_words]
 
@@ -270,10 +274,15 @@ class ConversationGenerator:
         new_targets: list[TargetWord] = []
         for item in queue_items:
             word = item.word
+            translation = word.english_translation
+            if word.direction == "fr_to_de":
+                translation = word.german_translation or translation
+            elif word.direction == "de_to_fr":
+                translation = word.french_translation or translation
             metadata = TargetWord(
                 id=word.id,
                 surface=word.word,
-                translation=word.english_translation,
+                translation=translation,
                 is_new=item.is_new,
             )
             if item.is_new:
@@ -387,6 +396,7 @@ class ConversationGenerator:
         review_focus: float | None = None,
         topic: str | None = None,
         exclude_ids: set[int] | None = None,
+        anki_direction: str | None = None,
     ) -> GeneratedTurn:
         """Generate a turn while respecting the adaptive session context."""
 
@@ -395,16 +405,21 @@ class ConversationGenerator:
         words_per_turn = max(0, int(session_capacity.get("words_per_turn", self.target_limit)))
         words_per_turn = min(words_per_turn, self.target_limit)
 
-        adaptive_ratio = self.progress_service.calculate_adaptive_review_ratio(user.id)
+        adaptive_ratio = self.progress_service.calculate_adaptive_review_ratio(
+            user.id, direction=anki_direction
+        )
         if review_focus is not None:
             adaptive_ratio = max(0.0, min(1.0, (adaptive_ratio + review_focus) / 2))
-        new_budget = self.progress_service.calculate_new_word_budget(user.id, total_capacity)
+        new_budget = self.progress_service.calculate_new_word_budget(
+            user.id, total_capacity, direction=anki_direction
+        )
         queue_items = self._select_queue_items(
             user=user,
             dynamic_limit=words_per_turn,
             dynamic_review_ratio=adaptive_ratio,
             new_word_budget=new_budget,
             exclude_ids=exclude_ids,
+            direction=anki_direction,
         )
 
         logger.info(

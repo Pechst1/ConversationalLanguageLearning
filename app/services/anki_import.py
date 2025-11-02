@@ -9,11 +9,11 @@ from __future__ import annotations
 import csv
 import logging
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from io import StringIO
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db.models.progress import UserVocabularyProgress, ReviewLog
@@ -77,21 +77,59 @@ class AnkiCardParser:
         # Convert to lowercase for normalization
         return text.lower()
     
-    def extract_word(self, text: str) -> str:
+    def extract_word(self, text: str, expected_language: str | None = None) -> str:
         """Extract the primary word from Anki card text."""
         if not text:
             return ""
-        
+
         # Remove common Anki formatting and get first significant word
         text = re.sub(r'<[^>]+>', '', text)  # Remove HTML
         text = re.sub(r'\[[^\]]+\]', '', text)  # Remove brackets
         text = re.sub(r'\([^\)]+\)', '', text)  # Remove parentheses
-        
-        # Extract first meaningful word
-        words = text.split()
-        if words:
-            return words[0].strip('.,;:!?')
-        return text.strip()
+
+        # Normalize unusual spacing (e.g., full-width spaces from Anki)
+        text = text.replace("\u3000", " ")
+        text = re.sub(r'\s+', ' ', text.strip())
+
+        if not text:
+            return ""
+
+        tokens: List[str] = []
+        for raw_token in text.split():
+            cleaned = raw_token.strip('.,;:!?«»"\'“”[]()')
+            if not cleaned:
+                continue
+            tokens.append(cleaned)
+            if len(tokens) >= 3:
+                break
+
+        if not tokens:
+            return text
+
+        deduped: List[str] = []
+        for token in tokens:
+            lowered = token.lower()
+            if not deduped or deduped[-1].lower() != lowered:
+                deduped.append(token)
+        tokens = deduped
+
+        if expected_language in {"french", "german"}:
+            filtered: List[str] = []
+            for token in tokens:
+                lang = self.detect_language(token)
+                if lang == expected_language:
+                    filtered.append(token)
+                elif expected_language == "german" and lang == "mixed":
+                    filtered.append(token)
+            if filtered:
+                tokens = filtered
+
+        # Preserve short multi-word expressions where relevant
+        articles = {"le", "la", "les", "un", "une", "des", "du", "de", "der", "die", "das", "ein", "eine"}
+        if tokens[0].lower() in articles and len(tokens) >= 2:
+            return " ".join(tokens[: min(3, len(tokens))])
+
+        return " ".join(tokens[: min(2, len(tokens))])
 
 
 class AnkiImportService:
@@ -145,14 +183,33 @@ class AnkiImportService:
     def _parse_csv_content(self, csv_content: str) -> List[Dict[str, Any]]:
         """Parse CSV content and extract card data."""
         cards = []
-        
-        # Try to detect CSV structure
+
         csv_file = StringIO(csv_content)
-        reader = csv.DictReader(csv_file)
-        
+        sample = csv_file.read(4096)
+        csv_file.seek(0)
+
+        delimiter = ","
+        try:
+            dialect = csv.Sniffer().sniff(sample, delimiters=[",", "\t", ";"])
+            delimiter = dialect.delimiter
+        except csv.Error:
+            # Fall back to tab if it appears more frequently than commas
+            if sample.count("\t") > sample.count(","):
+                delimiter = "\t"
+
+        reader = csv.DictReader(csv_file, delimiter=delimiter)
+
         for row_num, row in enumerate(reader):
+            if not row:
+                continue
+
+            normalized_row = self._normalize_row_keys(row)
+            if self._is_duplicate_header_row(normalized_row):
+                logger.debug("Skipping duplicate header row during Anki import (row %s)", row_num)
+                continue
+
             try:
-                card_data = self._extract_card_data(row, row_num)
+                card_data = self._extract_card_data(row, normalized_row, row_num)
                 if card_data:
                     cards.append(card_data)
             except Exception as e:
@@ -160,51 +217,129 @@ class AnkiImportService:
                 continue
         
         return cards
+
+    def _primary_text(self, text: str) -> str:
+        """Return the primary field value before supplemental examples/notes."""
+
+        if not text:
+            return ""
+
+        cleaned = text.strip().strip('"').replace("\r", " ").replace("\n", " ")
+        segments = [segment.strip() for segment in re.split(r"\u3000+", cleaned) if segment.strip()]
+        candidate = segments[0] if segments else cleaned
+
+        candidate = re.sub(r"\[[^\]]+\]", "", candidate)  # remove bracket tags
+        candidate = re.sub(r"\*([^*]+)\*", r"\1", candidate)  # remove emphasis markers
+        candidate = re.sub(r"\s+", " ", candidate).strip()
+        candidate = candidate.lstrip(",;: ")
+        return candidate
     
-    def _extract_card_data(self, row: Dict[str, str], row_num: int) -> Optional[Dict[str, Any]]:
+    def _normalize_row_keys(self, row: Dict[str, Any]) -> Dict[str, Any]:
+        """Return lower-cased, snake_case keys for flexible column access."""
+        normalized: Dict[str, Any] = {}
+        for key, value in row.items():
+            if key is None:
+                continue
+            key_normalized = re.sub(r"[^a-z0-9]+", "_", key.strip().lower()).strip("_")
+            normalized[key_normalized] = value.strip() if isinstance(value, str) else value
+        return normalized
+
+    def _is_duplicate_header_row(self, normalized_row: Dict[str, Any]) -> bool:
+        """Detect rows that simply repeat the header names."""
+        if not normalized_row:
+            return False
+        question = str(normalized_row.get("question", "")).strip().lower()
+        answer = str(normalized_row.get("answer", "")).strip().lower()
+        front = str(normalized_row.get("front", "")).strip().lower()
+        back = str(normalized_row.get("back", "")).strip().lower()
+        return (question == "question" and answer == "answer") or (front == "front" and back == "back")
+
+    def _extract_card_data(
+        self,
+        row: Dict[str, str],
+        normalized_row: Dict[str, Any],
+        row_num: int
+    ) -> Optional[Dict[str, Any]]:
         """Extract card data from a CSV row."""
         # Common Anki CSV column names (flexible detection)
-        front_fields = ['Front', 'Question', 'Word', 'Term']
-        back_fields = ['Back', 'Answer', 'Translation', 'Definition']
-        
+        front_fields = [
+            "front",
+            "question",
+            "word",
+            "term",
+            "card_export_column__field_a",
+        ]
+        back_fields = [
+            "back",
+            "answer",
+            "translation",
+            "definition",
+            "card_export_column__field_b",
+        ]
+
         front = None
         back = None
-        
+
         # Find front and back content
         for field in front_fields:
-            if field in row and row[field].strip():
-                front = row[field].strip()
+            value = normalized_row.get(field)
+            if isinstance(value, str) and value.strip():
+                front = value.strip()
                 break
-        
+
         for field in back_fields:
-            if field in row and row[field].strip():
-                back = row[field].strip()
+            value = normalized_row.get(field)
+            if isinstance(value, str) and value.strip():
+                back = value.strip()
                 break
-        
+
         if not front or not back:
             logger.warning(f"Row {row_num}: Missing front or back content")
             return None
-        
+
         # Extract additional data
-        tags = row.get('Tags', '').strip().split() if row.get('Tags') else []
-        deck = row.get('Deck', '').strip()
-        note_id = row.get('Note ID', '').strip()
-        card_id = row.get('Card ID', '').strip()
-        
-        # Detect languages
-        front_lang = self.parser.detect_language(front)
-        back_lang = self.parser.detect_language(back)
-        
+        tags_raw = normalized_row.get("tags") or normalized_row.get("tag") or ""
+        tags = tags_raw.strip().split() if isinstance(tags_raw, str) and tags_raw.strip() else []
+        deck = normalized_row.get("deck") or normalized_row.get("c_deck") or ""
+        note_id = normalized_row.get("note_id") or normalized_row.get("c_noteid") or ""
+        card_id = normalized_row.get("card_id") or normalized_row.get("c_cardid") or ""
+        card_type = (normalized_row.get("c_cardtype") or "").strip()
+        direction_hint = None
+        if card_type:
+            lower = card_type.lower()
+            if lower.startswith("fr"):
+                direction_hint = "fr_to_de"
+            elif lower.startswith("de"):
+                direction_hint = "de_to_fr"
+        if not direction_hint and isinstance(deck, str):
+            lower_deck = deck.lower()
+            if "fr" in lower_deck and "de" in lower_deck:
+                if lower_deck.strip().startswith("fr"):
+                    direction_hint = "fr_to_de"
+                elif lower_deck.strip().startswith("de"):
+                    direction_hint = "de_to_fr"
+
+        front_primary = self._primary_text(front)
+        back_primary = self._primary_text(back)
+
+        # Detect languages based on primary content
+        front_lang = self.parser.detect_language(front_primary or front)
+        back_lang = self.parser.detect_language(back_primary or back)
+
         return {
             'front': front,
             'back': back,
+            'front_primary': front_primary,
+            'back_primary': back_primary,
             'front_language': front_lang,
             'back_language': back_lang,
             'tags': tags,
-            'deck': deck,
-            'note_id': note_id,
-            'card_id': card_id,
+            'deck': deck.strip() if isinstance(deck, str) else deck,
+            'note_id': str(note_id).strip(),
+            'card_id': str(card_id).strip(),
             'raw_row': row,
+            'normalized_row': normalized_row,
+            'direction_hint': direction_hint,
         }
     
     def _process_cards(
@@ -249,14 +384,20 @@ class AnkiImportService:
         """Identify paired cards (French<->German) by content similarity."""
         pairs = {}
         
-        for card in cards_data:
+        for index, card in enumerate(cards_data):
             # Create a key based on the core vocabulary being tested
             front_word = self.parser.extract_word(card['front'])
             back_word = self.parser.extract_word(card['back'])
-            
+
             # Create pair key (normalize to handle slight variations)
-            pair_key = f"{self.parser.normalize_text(front_word)}_{self.parser.normalize_text(back_word)}"
-            
+            normalized_front = self.parser.normalize_text(front_word)
+            normalized_back = self.parser.normalize_text(back_word)
+
+            key_parts = sorted(
+                part for part in [normalized_front, normalized_back] if part
+            )
+            pair_key = "||".join(key_parts) if key_parts else f"card_{index}"
+
             if pair_key not in pairs:
                 pairs[pair_key] = []
             pairs[pair_key].append(card)
@@ -314,43 +455,58 @@ class AnkiImportService:
         """Create a VocabularyWord from card data."""
         front = card['front']
         back = card['back']
+        front_primary = card.get('front_primary') or front
+        back_primary = card.get('back_primary') or back
         front_lang = card['front_language']
         back_lang = card['back_language']
-        
+        direction_hint = card.get('direction_hint')
+
         # Determine direction and languages
-        if front_lang == 'french' and back_lang in ['german', 'mixed']:
+        if direction_hint == 'fr_to_de':
             direction = 'fr_to_de'
-            word = self.parser.extract_word(front)
+            word = self.parser.extract_word(front_primary, expected_language='french')
             language = 'fr'
-            french_translation = front
-            german_translation = back
+            french_translation = front_primary
+            german_translation = back_primary
+        elif direction_hint == 'de_to_fr':
+            direction = 'de_to_fr'
+            word = self.parser.extract_word(front_primary, expected_language='german')
+            language = 'de'
+            french_translation = back_primary
+            german_translation = front_primary
+        elif front_lang == 'french' and back_lang in ['german', 'mixed']:
+            direction = 'fr_to_de'
+            word = self.parser.extract_word(front_primary, expected_language='french')
+            language = 'fr'
+            french_translation = front_primary
+            german_translation = back_primary
         elif front_lang in ['german', 'mixed'] and back_lang == 'french':
             direction = 'de_to_fr'
-            word = self.parser.extract_word(front)
+            word = self.parser.extract_word(front_primary, expected_language='german')
             language = 'de'
-            french_translation = back
-            german_translation = front
+            french_translation = back_primary
+            german_translation = front_primary
         elif front_lang == 'french':
             # Default to French word even if back language unclear
             direction = 'fr_to_de'
-            word = self.parser.extract_word(front)
+            word = self.parser.extract_word(front_primary, expected_language='french')
             language = 'fr'
-            french_translation = front
-            german_translation = back
+            french_translation = front_primary
+            german_translation = back_primary
         else:
             # Default to German word
             direction = 'de_to_fr'
-            word = self.parser.extract_word(front)
+            word = self.parser.extract_word(front_primary, expected_language='german')
             language = 'de'
-            french_translation = back
-            german_translation = front
+            french_translation = back_primary
+            german_translation = front_primary
         
         # Check if word already exists
         existing = self.db.scalars(
             select(VocabularyWord).where(
                 VocabularyWord.word == word,
                 VocabularyWord.language == language,
-                VocabularyWord.direction == direction
+                VocabularyWord.direction == direction,
             )
         ).first()
         
@@ -418,46 +574,59 @@ class AnkiImportService:
             self._extract_scheduling_data(progress, card_data)
         
         self.db.add(progress)
-    
+
     def _extract_scheduling_data(self, progress: UserVocabularyProgress, card_data: Dict[str, Any]) -> None:
         """Extract and apply Anki scheduling data to progress."""
-        raw_row = card_data.get('raw_row', {})
-        
-        # Common Anki scheduling fields
-        if 'Ease' in raw_row:
-            try:
-                progress.ease_factor = float(raw_row['Ease']) / 100  # Anki stores as percentage
-            except (ValueError, TypeError):
-                pass
-        
-        if 'Interval' in raw_row:
-            try:
-                progress.interval_days = int(raw_row['Interval'])
-            except (ValueError, TypeError):
-                pass
-        
-        if 'Reps' in raw_row:
-            try:
-                progress.reps = int(raw_row['Reps'])
-            except (ValueError, TypeError):
-                pass
-        
-        if 'Lapses' in raw_row:
-            try:
-                progress.lapses = int(raw_row['Lapses'])
-            except (ValueError, TypeError):
-                pass
-        
-        if 'Due' in raw_row:
-            try:
-                # Anki due dates are often in days since epoch or collection start
-                due_days = int(raw_row['Due'])
-                if due_days > 0:
-                    # Simple conversion - this may need adjustment based on Anki's format
-                    progress.due_at = datetime.now(timezone.utc)
-            except (ValueError, TypeError):
-                pass
-        
+        raw_row = card_data.get('raw_row', {}) or {}
+        normalized_row = card_data.get('normalized_row') or self._normalize_row_keys(raw_row)  # type: ignore[arg-type]
+
+        # Ease factor (stored as percentage in Anki exports)
+        ease_value = self._parse_float_value(
+            normalized_row.get('ease') or normalized_row.get('c_ease')
+        )
+        if ease_value is not None:
+            progress.ease_factor = ease_value / 100 if ease_value > 10 else ease_value
+
+        # Interval / reviews / lapses
+        interval_value = self._parse_int_value(
+            normalized_row.get('interval') or normalized_row.get('c_interval_in_days')
+        )
+        if interval_value is not None:
+            progress.interval_days = interval_value
+
+        reps_value = self._parse_int_value(
+            normalized_row.get('reps') or normalized_row.get('c_reviews')
+        )
+        if reps_value is not None:
+            progress.reps = reps_value
+
+        lapses_value = self._parse_int_value(
+            normalized_row.get('lapses') or normalized_row.get('c_lapses')
+        )
+        if lapses_value is not None:
+            progress.lapses = lapses_value
+
+        # Due dates and review timestamps
+        due_source = (
+            normalized_row.get('due')
+            or normalized_row.get('c_due')
+            or normalized_row.get('due_at')
+        )
+        due_at = self._parse_due_value(due_source)
+        if due_at:
+            progress.due_at = due_at
+            progress.due_date = due_at.date()
+            progress.next_review_date = due_at
+
+        latest_review = (
+            normalized_row.get('latestreview')
+            or normalized_row.get('c_latestreview')
+            or normalized_row.get('last_review')
+        )
+        last_review = self._parse_due_value(latest_review)
+        if last_review:
+            progress.last_review_date = last_review
+
         # Set appropriate phase based on reps and interval
         if progress.reps == 0:
             progress.phase = "new"
@@ -465,7 +634,7 @@ class AnkiImportService:
             progress.phase = "review"
         else:
             progress.phase = "learn"
-    
+
     def get_import_statistics(self, user_id: str) -> Dict[str, Any]:
         """Get statistics about imported Anki cards for a user."""
         # Count vocabulary words
@@ -517,3 +686,49 @@ class AnkiImportService:
             'paired_cards': paired_count,
             'unique_pairs': paired_count // 2 if paired_count > 0 else 0,
         }
+
+    @staticmethod
+    def _parse_int_value(value: Any) -> Optional[int]:
+        """Safely parse an integer from various CSV representations."""
+        if value is None:
+            return None
+        try:
+            return int(float(str(value).strip()))
+        except (TypeError, ValueError):
+            return None
+
+    @staticmethod
+    def _parse_float_value(value: Any) -> Optional[float]:
+        """Safely parse a float from various CSV representations."""
+        if value is None:
+            return None
+        try:
+            return float(str(value).strip())
+        except (TypeError, ValueError):
+            return None
+
+    def _parse_due_value(self, value: Any) -> Optional[datetime]:
+        """Parse due dates which may be stored as ISO strings or day offsets."""
+        if value is None:
+            return None
+
+        text = str(value).strip()
+        if not text:
+            return None
+
+        # Attempt ISO datetime or date parsing
+        try:
+            due_dt = datetime.fromisoformat(text)
+            if due_dt.tzinfo is None:
+                due_dt = due_dt.replace(tzinfo=timezone.utc)
+            return due_dt
+        except ValueError:
+            pass
+
+        # Day offsets (Anki sometimes stores days since collection epoch)
+        int_value = self._parse_int_value(text)
+        if int_value is not None:
+            reference = datetime.now(timezone.utc)
+            return reference + timedelta(days=int_value)
+
+        return None

@@ -23,6 +23,10 @@ class SessionCreateRequest(BaseModel):
     generate_greeting: bool = Field(
         True, description="Whether to immediately create an assistant greeting"
     )
+    anki_direction: Literal["fr_to_de", "de_to_fr", "both"] | None = Field(
+        None,
+        description="Preferred Anki card direction for the session",
+    )
 
 
 class SessionMessageRequest(BaseModel):
@@ -97,6 +101,7 @@ class SessionOverview(BaseModel):
     status: str
     topic: str | None = None
     conversation_style: str | None = None
+    anki_direction: str | None = None
     planned_duration_minutes: int
     xp_earned: int
     words_practiced: int

@@ -2,12 +2,9 @@
   "/_app": "pages/_app.js",
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
-  "/learn/new": "pages/learn/new.js",
-  "/learn/session/[id]": "pages/learn/session/[id].js",
+  "/sessions": "pages/sessions.js",
   "/api/auth/[...nextauth]": "pages/api/auth/[...nextauth].js",
-  "/dashboard": "pages/dashboard.js",
-  "/auth/signin": "pages/auth/signin.js",
-  "/": "pages/index.js",
   "/practice": "pages/practice.js",
+  "/learn/session/[id]": "pages/learn/session/[id].js",
   "/progress": "pages/progress.js"
 }

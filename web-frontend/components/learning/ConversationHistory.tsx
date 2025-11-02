@@ -124,32 +124,73 @@ export default function ConversationHistory({ messages, onWordInteract, onWordFl
     [ensureLookup, onWordFlag, onWordInteract]
   );
 
+  const handleTargetHover = useCallback(
+    (target: TargetWord, event: React.MouseEvent<HTMLSpanElement>) => {
+      const numericId = Number(target.id);
+      if (!Number.isFinite(numericId)) {
+        return;
+      }
+
+      if (!hovered[numericId]) {
+        setHovered((prev) => (prev[numericId] ? prev : { ...prev, [numericId]: true }));
+        onWordInteract?.(numericId, 'hint');
+      }
+
+      const rect = event.currentTarget.getBoundingClientRect();
+      setHoveredWord(target.word);
+      setTooltipPosition({ x: rect.left + rect.width / 2, y: rect.top });
+      setWordDefinition({
+        word: target.word,
+        translation: target.translation || target.hintTranslation || 'Übersetzung nicht verfügbar',
+      });
+    },
+    [hovered, onWordInteract]
+  );
+
+  const handleTargetClick = useCallback(
+    (target: TargetWord) => {
+      const numericId = Number(target.id);
+      if (!Number.isFinite(numericId)) {
+        return;
+      }
+
+      if (target.translation) {
+        toast(`"${target.word}" zur Wiederholung vorgemerkt`, {
+          icon: '🧠',
+          duration: 3000,
+        });
+      }
+      onWordInteract?.(numericId, 'translation');
+      onWordFlag?.(numericId);
+    },
+    [onWordFlag, onWordInteract]
+  );
+
   // Add a helper function to make plain text interactive (Unicode-aware)
   const renderInteractiveSegment = useCallback((text: string, keyPrefix: string): React.ReactNode[] => {
     if (!text) return [];
-    // Split text into words and non-words using Unicode letters and common connectors (apostrophes/hyphens)
-    // Example matches: "l'éducation", "très-bien", "qu'il"
     const WORD_SPLIT_REGEX = /(\p{L}+(?:['’\-]\p{L}+)*)/gu;
     const parts = text.split(WORD_SPLIT_REGEX);
     return parts.map((part, index) => {
-      // Check if the part is a word
-      if (part && WORD_SPLIT_REGEX.test(part)) {
-        // Reset lastIndex because test() with /g/ advances the regex state
+      if (part) {
         WORD_SPLIT_REGEX.lastIndex = 0;
-        return (
-          <span
-            key={`${keyPrefix}-${index}`}
-            className="rounded-md px-1 transition-colors hover:shadow-sm cursor-pointer bg-gray-100 text-gray-700 hover:bg-gray-200" // Style for generic words
-            onMouseEnter={(e) => handleGenericWordHover(part, e)}
-            onMouseLeave={handleWordLeave}
-            onClick={() => handleGenericWordClick(part)}
-            title={`Look up "${part}"`}
-          >
-            {part}
-          </span>
-        );
+        if (WORD_SPLIT_REGEX.test(part)) {
+          WORD_SPLIT_REGEX.lastIndex = 0;
+          return (
+            <span
+              key={`${keyPrefix}-${index}`}
+              className="px-1 cursor-pointer text-gray-700 transition-colors hover:text-gray-900 hover:underline"
+              onMouseEnter={(e) => handleGenericWordHover(part, e)}
+              onMouseLeave={handleWordLeave}
+              onClick={() => handleGenericWordClick(part)}
+              title={`"${part}" übersetzen`}
+            >
+              {part}
+            </span>
+          );
+        }
       }
-      return part; // Return non-word parts (spaces, punctuation) as is
+      return part;
     });
   }, [handleGenericWordHover, handleGenericWordClick, handleWordLeave]);
 
@@ -193,9 +234,9 @@ export default function ConversationHistory({ messages, onWordInteract, onWordFl
               <span
                 key={`${target.id}-${offset}-${segmentIndex}`}
                 className={`rounded-md px-1 font-semibold transition-colors hover:shadow-sm cursor-pointer ${className}`}
-                onMouseEnter={() => handleHover(target)}
+                onMouseEnter={(e) => handleTargetHover(target, e)}
                 onMouseLeave={handleWordLeave}
-                onClick={() => handleClick(target)}
+                onClick={() => handleTargetClick(target)}
                 title={target.translation || target.hintTranslation || ''}
               >
                 {match}
@@ -228,7 +269,7 @@ export default function ConversationHistory({ messages, onWordInteract, onWordFl
 
       return reduced;
     },
-    [renderInteractiveSegment, handleHover, handleWordLeave, handleClick]
+    [renderInteractiveSegment, handleTargetHover, handleWordLeave, handleTargetClick]
   );
 
   return (

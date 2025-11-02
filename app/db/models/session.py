@@ -25,6 +25,7 @@ class LearningSession(Base):
     topic = Column(String(255))
     conversation_style = Column(String(50))
     difficulty_preference = Column(String(20))
+    anki_direction = Column(String(20))
 
     words_practiced = Column(Integer, default=0)
     new_words_introduced = Column(Integer, default=0)
@@ -115,4 +116,3 @@ class WordInteraction(Base):
 
     session = relationship("LearningSession", back_populates="interactions")
     message = relationship("ConversationMessage")
-

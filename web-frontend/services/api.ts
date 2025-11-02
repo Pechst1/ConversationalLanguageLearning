@@ -168,8 +168,16 @@ class ApiService {
   }
 
   // Progress endpoints
-  async getProgressQueue() {
-    return this.get('/progress/queue');
+  async getProgressQueue(params?: { direction?: string; limit?: number }) {
+    return this.get('/progress/queue', { params });
+  }
+
+  async getAnkiProgress(params?: { direction?: string }) {
+    return this.get('/progress/anki', { params });
+  }
+
+  async getAnkiSummary() {
+    return this.get('/progress/anki/summary');
   }
 
   async submitReview(data: { word_id: number; rating: number }) {

@@ -18,6 +18,10 @@ from app.schemas.analytics import (
 )
 from app.schemas.auth import Token, TokenPayload
 from app.schemas.progress import (
+    AnkiDirectionSummary,
+    AnkiProgressSummary,
+    AnkiStageSlice,
+    AnkiWordProgressRead,
     ProgressDetail,
     QueueWord,
     ReviewRequest,
@@ -59,6 +63,10 @@ __all__ = [
     "StreakInfo",
     "VocabularyHeatmapEntry",
     "VocabularyHeatmapResponse",
+    "AnkiDirectionSummary",
+    "AnkiProgressSummary",
+    "AnkiStageSlice",
+    "AnkiWordProgressRead",
     "ProgressDetail",
     "QueueWord",
     "ReviewRequest",

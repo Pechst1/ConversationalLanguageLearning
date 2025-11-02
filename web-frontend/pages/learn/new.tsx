@@ -25,6 +25,11 @@ const focusOptions = [
   { value: 'new', label: 'New Words', description: 'Introduce more fresh vocabulary each turn.' },
 ];
 
+const directionOptions = [
+  { value: 'fr_to_de', label: 'Französisch → Deutsch' },
+  { value: 'de_to_fr', label: 'Deutsch → Französisch' },
+];
+
 const schema = yup.object({
   topic: yup.string().optional(),
   conversationStyle: yup.string().oneOf(conversationStyles.map((item) => item.value)).required(),
@@ -33,6 +38,7 @@ const schema = yup.object({
     .number()
     .oneOf(durationOptions, 'Please select a session length.')
     .required('Session length is required'),
+  ankiDirection: yup.string().oneOf(directionOptions.map((item) => item.value)).required(),
 });
 
 type FormData = yup.InferType<typeof schema>;
@@ -51,6 +57,7 @@ export default function NewSessionPage() {
       conversationStyle: 'storytelling',
       focus: 'balanced',
       duration: 15,
+      ankiDirection: 'fr_to_de',
     },
   });
 
@@ -67,6 +74,7 @@ export default function NewSessionPage() {
         planned_duration_minutes: duration,
         conversation_style: data.conversationStyle,
         generate_greeting: true,
+        anki_direction: data.ankiDirection,
       } as const;
       const response = await apiService.createSession(payload);
       const sessionId = response?.session?.id;
@@ -154,6 +162,28 @@ export default function NewSessionPage() {
                 ))}
               </div>
               {errors.focus && <p className="mt-2 text-sm text-red-600">{errors.focus.message}</p>}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Kartenausrichtung</label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {directionOptions.map((option) => (
+                  <label key={option.value} className="relative cursor-pointer">
+                    <input
+                      {...register('ankiDirection')}
+                      type="radio"
+                      value={option.value}
+                      className="sr-only peer"
+                    />
+                    <div className="p-4 border-2 border-gray-200 rounded-lg peer-checked:border-primary-500 peer-checked:bg-primary-50 hover:border-gray-300 transition-colors">
+                      <p className="font-semibold">{option.label}</p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+              {errors.ankiDirection && (
+                <p className="mt-2 text-sm text-red-600">{errors.ankiDirection.message}</p>
+              )}
             </div>
 
             <div>

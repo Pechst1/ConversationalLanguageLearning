@@ -75,6 +75,8 @@ export function useLearningSession(sessionId: string) {
     if (!sessionId) return;
     const sessionResponse = await api.get(`/sessions/${sessionId}`);
     setSession(sessionResponse);
+    const directionPref = sessionResponse?.anki_direction;
+    const directionParam = directionPref && directionPref !== 'both' ? directionPref : undefined;
 
     const response = await api.get(`/sessions/${sessionId}/messages`);
     const items = Array.isArray(response?.items) ? response.items : [];
@@ -89,23 +91,37 @@ export function useLearningSession(sessionId: string) {
     } else {
       // fallback: fetch queue to populate suggestions when backend delivered none yet
       try {
-        const queue = await api.getProgressQueue();
+        const queue = await api.getProgressQueue({ direction: directionParam });
         let fallback = Array.isArray(queue)
           ? queue.map(mapQueueWord).filter((item) => isValidId(item.id))
           : [];
 
         if (!fallback.length) {
-          const vocab = await api.listVocabulary({ limit: 8 });
-          const items = Array.isArray(vocab?.items) ? vocab.items : [];
-          fallback = items
-            .map((item: any) => ({
-              id: normalizeId(item.id) ?? -1,
-              word: item.word,
-              translation: item.english_translation || '',
-              familiarity: 'new',
-              isNew: true,
-            }))
+          const overview = await api.getAnkiProgress(directionParam ? { direction: directionParam } : undefined);
+          const items = Array.isArray(overview) ? overview : [];
+          const filtered = directionParam
+            ? items.filter((item: any) => (item.direction ?? '').toLowerCase() === directionParam)
+            : items;
+          const processed = filtered
+            .map((item: any) => {
+              const id = normalizeId(item.word_id);
+              const direction = (item.direction ?? '').toLowerCase();
+              let translation = item.german_translation || item.french_translation || item.english_translation || '';
+              if (!translation && direction === 'de_to_fr') {
+                translation = item.french_translation || '';
+              } else if (!translation && direction === 'fr_to_de') {
+                translation = item.german_translation || '';
+              }
+              return {
+                id: id ?? -1,
+                word: item.word,
+                translation,
+                familiarity: item.learning_stage === 'new' ? 'new' : 'learning',
+                isNew: item.learning_stage === 'new',
+              };
+            })
             .filter((item) => isValidId(item.id));
+          fallback = processed.slice(0, 10);
         }
 
         if (fallback.length) {

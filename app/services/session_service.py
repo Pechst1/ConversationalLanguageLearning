@@ -266,11 +266,14 @@ class SessionService:
         conversation_style: str | None = None,
         difficulty_preference: str | None = None,
         generate_greeting: bool = True,
+        anki_direction: str | None = None,
     ) -> SessionStartResult:
         """Create a new session and optionally bootstrap the greeting turn."""
 
         self._ensure_vocabulary_seeded()
         session_capacity = self._calculate_session_capacity(planned_duration_minutes)
+
+        direction_choice = anki_direction if anki_direction in {"fr_to_de", "de_to_fr", "both"} else None
 
         session = LearningSession(
             user_id=user.id,
@@ -281,6 +284,7 @@ class SessionService:
             status="in_progress",
             level_before=user.level,
             level_after=user.level,
+            anki_direction=direction_choice,
         )
         self.db.add(session)
         self.db.flush([session])
@@ -996,6 +1000,9 @@ class SessionService:
                     exclude_set.add(int(word_id))
                 except (TypeError, ValueError):
                     logger.debug("Skipping non-numeric exclude id", value=word_id)
+        direction_pref = getattr(session, "anki_direction", None)
+        if direction_pref not in {"fr_to_de", "de_to_fr"}:
+            direction_pref = None
         generated = self.conversation_generator.generate_turn_with_context(
             user=user,
             learner_level=user.proficiency_level or "B1",
@@ -1005,6 +1012,7 @@ class SessionService:
             review_focus=review_focus,
             topic=session.topic,
             exclude_ids=exclude_set,
+            anki_direction=direction_pref,
         )
         sequence = self._next_sequence_number(session.id)
         message = ConversationMessage(

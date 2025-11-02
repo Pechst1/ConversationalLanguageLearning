@@ -28,6 +28,7 @@ def session_to_overview(session: LearningSession) -> SessionOverview:
         accuracy_rate=session.accuracy_rate,
         started_at=session.started_at,
         completed_at=session.completed_at,
+        anki_direction=session.anki_direction,
     )
 
 
@@ -100,7 +101,13 @@ def word_feedback_to_schema(items: Iterable[WordFeedback]) -> list[SessionTurnWo
             SessionTurnWordFeedback(
                 word_id=item.word.id,
                 word=item.word.word,
-                translation=item.word.english_translation,
+                translation=(
+                    item.word.german_translation
+                    if item.word.direction == "fr_to_de"
+                    else item.word.french_translation
+                    if item.word.direction == "de_to_fr"
+                    else item.word.english_translation
+                ),
                 is_new=item.is_new,
                 was_used=item.was_used,
                 rating=item.rating,

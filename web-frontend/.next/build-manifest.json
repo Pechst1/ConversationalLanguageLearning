@@ -12,11 +12,6 @@
   ],
   "rootMainFiles": [],
   "pages": {
-    "/": [
-      "static/chunks/webpack.js",
-      "static/chunks/main.js",
-      "static/chunks/pages/index.js"
-    ],
     "/_app": [
       "static/chunks/webpack.js",
       "static/chunks/main.js",
@@ -26,21 +21,6 @@
       "static/chunks/webpack.js",
       "static/chunks/main.js",
       "static/chunks/pages/_error.js"
-    ],
-    "/auth/signin": [
-      "static/chunks/webpack.js",
-      "static/chunks/main.js",
-      "static/chunks/pages/auth/signin.js"
-    ],
-    "/dashboard": [
-      "static/chunks/webpack.js",
-      "static/chunks/main.js",
-      "static/chunks/pages/dashboard.js"
-    ],
-    "/learn/new": [
-      "static/chunks/webpack.js",
-      "static/chunks/main.js",
-      "static/chunks/pages/learn/new.js"
     ],
     "/learn/session/[id]": [
       "static/chunks/webpack.js",
@@ -52,10 +32,10 @@
       "static/chunks/main.js",
       "static/chunks/pages/practice.js"
     ],
-    "/progress": [
+    "/sessions": [
       "static/chunks/webpack.js",
       "static/chunks/main.js",
-      "static/chunks/pages/progress.js"
+      "static/chunks/pages/sessions.js"
     ]
   },
   "ampFirstPages": []

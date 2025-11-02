@@ -7,7 +7,14 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user, get_db
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
-from app.schemas import ProgressDetail, QueueWord, ReviewRequest, ReviewResponse
+from app.schemas import (
+    AnkiProgressSummary,
+    AnkiWordProgressRead,
+    ProgressDetail,
+    QueueWord,
+    ReviewRequest,
+    ReviewResponse,
+)
 from app.services.progress import ProgressService
 
 
@@ -18,22 +25,30 @@ router = APIRouter(prefix="/progress", tags=["progress"])
 def get_review_queue(
     *,
     limit: int = Query(10, ge=1, le=50, description="Maximum number of queue entries to return"),
+    direction: str | None = Query(None, description="Optional card direction filter (fr_to_de or de_to_fr)"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[QueueWord]:
     """Return a mix of due and new words for the authenticated learner."""
 
     service = ProgressService(db)
-    queue_items = service.get_learning_queue(user=current_user, limit=limit)
+    if direction and direction not in {"fr_to_de", "de_to_fr"}:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid direction filter")
+    queue_items = service.get_learning_queue(user=current_user, limit=limit, direction=direction)
     response: list[QueueWord] = []
     for item in queue_items:
         progress = item.progress
+        translation = item.word.english_translation
+        if item.word.direction == "fr_to_de":
+            translation = item.word.german_translation or translation
+        elif item.word.direction == "de_to_fr":
+            translation = item.word.french_translation or translation
         response.append(
             QueueWord(
                 word_id=item.word.id,
                 word=item.word.word,
                 language=item.word.language,
-                english_translation=item.word.english_translation,
+                english_translation=translation,
                 part_of_speech=item.word.part_of_speech,
                 difficulty_level=item.word.difficulty_level,
                 state=progress.state if progress else "new",
@@ -41,8 +56,37 @@ def get_review_queue(
                 scheduled_days=progress.scheduled_days if progress else None,
                 is_new=item.is_new or progress is None,
             )
-        )
+    )
     return response
+
+
+@router.get("/anki", response_model=list[AnkiWordProgressRead])
+def list_anki_progress(
+    *,
+    direction: str | None = Query(None, description="Optional card direction filter (fr_to_de or de_to_fr)"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[AnkiWordProgressRead]:
+    """Return all imported Anki cards with their current progress for the learner."""
+
+    service = ProgressService(db)
+    if direction and direction not in {"fr_to_de", "de_to_fr"}:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid direction filter")
+    records = service.list_anki_progress(user=current_user, direction=direction)
+    return [AnkiWordProgressRead(**record) for record in records]
+
+
+@router.get("/anki/summary", response_model=AnkiProgressSummary)
+def get_anki_summary(
+    *,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> AnkiProgressSummary:
+    """Return aggregate progress metrics for imported Anki cards."""
+
+    service = ProgressService(db)
+    summary = service.anki_progress_summary(user=current_user)
+    return AnkiProgressSummary(**summary)
 
 
 @router.get("/{word_id}", response_model=ProgressDetail)

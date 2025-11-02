@@ -57,3 +57,55 @@ class QueueWord(BaseModel):
     next_review: datetime | None = None
     scheduled_days: int | None = None
     is_new: bool
+
+
+class AnkiWordProgressRead(BaseModel):
+    """Overview entry for an imported Anki card and its progress."""
+
+    word_id: int
+    word: str
+    language: str
+    direction: str | None = None
+    french_translation: str | None = None
+    german_translation: str | None = None
+    deck_name: str | None = None
+    difficulty_level: int | None = None
+    english_translation: str | None = None
+    learning_stage: str
+    state: str
+    progress_difficulty: float | None = None
+    ease_factor: float | None = None
+    interval_days: int | None = None
+    due_at: datetime | None = None
+    next_review: datetime | None = None
+    last_review: datetime | None = None
+    reps: int = 0
+    lapses: int = 0
+    proficiency_score: int = 0
+    scheduler: str | None = None
+
+
+class AnkiStageSlice(BaseModel):
+    """Slice element for chart visualisation."""
+
+    stage: str
+    value: int
+
+
+class AnkiDirectionSummary(BaseModel):
+    """Per-direction breakdown for Anki progress."""
+
+    direction: str
+    total: int
+    due_today: int
+    stage_counts: dict[str, int]
+
+
+class AnkiProgressSummary(BaseModel):
+    """Aggregate Anki progress metrics."""
+
+    total_cards: int
+    due_today: int
+    stage_totals: dict[str, int]
+    chart: list[AnkiStageSlice]
+    directions: dict[str, AnkiDirectionSummary]
