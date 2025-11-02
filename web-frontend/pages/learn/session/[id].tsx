@@ -1,3 +1,5 @@
+mkdir -p web-frontend/pages/learn/session
+cat > web-frontend/pages/learn/session/[id].tsx <<'TSX'
 import React from 'react';
 import { getSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
@@ -13,7 +15,7 @@ import SessionSummary from '@/components/learning/SessionSummary';
 export default function SessionPage() {
   const router = useRouter();
   const { id } = router.query as { id: string };
-  const { session, messages, send, suggested, logExposure, flagWord, complete } = useLearningSession(id);
+  const { session, messages, send, suggested, logExposure, flagWord, complete, activeSessionId } = useLearningSession(id);
   const [draft, setDraft] = React.useState('');
   const [selectedWordIds, setSelectedWordIds] = React.useState<number[]>([]);
   const [summary, setSummary] = React.useState<any>(null);
@@ -109,6 +111,7 @@ export default function SessionPage() {
                   messages={messages}
                   onWordInteract={handleWordInteract}
                   onWordFlag={flagWord}
+                  activeSessionId={activeSessionId}
                 />
               </div>
               <div className="mt-4 space-y-3">
@@ -142,3 +145,4 @@ export async function getServerSideProps(ctx: any) {
   }
   return { props: {} };
 }
+TSX
