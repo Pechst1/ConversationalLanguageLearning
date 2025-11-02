@@ -22,20 +22,20 @@
       "static/chunks/main.js",
       "static/chunks/pages/_error.js"
     ],
-    "/learn/session/[id]": [
+    "/dashboard": [
       "static/chunks/webpack.js",
       "static/chunks/main.js",
-      "static/chunks/pages/learn/session/[id].js"
+      "static/chunks/pages/dashboard.js"
     ],
     "/practice": [
       "static/chunks/webpack.js",
       "static/chunks/main.js",
       "static/chunks/pages/practice.js"
     ],
-    "/sessions": [
+    "/progress": [
       "static/chunks/webpack.js",
       "static/chunks/main.js",
-      "static/chunks/pages/sessions.js"
+      "static/chunks/pages/progress.js"
     ]
   },
   "ampFirstPages": []

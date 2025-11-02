@@ -15,6 +15,52 @@ export default function SessionSummary({
   onStartNewSession,
   onReturnToDashboard,
 }: SessionSummaryProps) {
+  const normalized = React.useMemo(() => {
+    const totalReviews =
+      (typeof stats.totalReviews === 'number' ? stats.totalReviews : undefined) ??
+      (typeof stats.words_reviewed === 'number' ? stats.words_reviewed : undefined) ??
+      (typeof stats.words_practiced === 'number' ? stats.words_practiced : undefined) ??
+      0;
+
+    const correctAnswers =
+      (typeof stats.correctAnswers === 'number' ? stats.correctAnswers : undefined) ??
+      (typeof stats.correct_responses === 'number' ? stats.correct_responses : undefined) ??
+      Math.max(0, totalReviews - ((typeof stats.incorrect_responses === 'number' ? stats.incorrect_responses : 0)));
+
+    const xpEarned =
+      (typeof stats.xpEarned === 'number' ? stats.xpEarned : undefined) ??
+      (typeof stats.xp_earned === 'number' ? stats.xp_earned : undefined) ??
+      0;
+
+    const newCards =
+      (typeof stats.newCards === 'number' ? stats.newCards : undefined) ??
+      (typeof stats.new_words_introduced === 'number' ? stats.new_words_introduced : undefined) ??
+      0;
+
+    const sessionDuration =
+      (typeof stats.sessionDuration === 'number' ? stats.sessionDuration : undefined) ??
+      undefined;
+
+    const accuracyExplicit =
+      (typeof stats.accuracy === 'number' ? stats.accuracy : undefined) ??
+      (typeof stats.accuracy_rate === 'number' ? Math.round(stats.accuracy_rate * 100) : undefined);
+
+    return {
+      totalReviews,
+      correctAnswers,
+      xpEarned,
+      sessionDuration,
+      newCards,
+      accuracyExplicit,
+    };
+  }, [stats]);
+
+  const effectiveTotal = normalized.totalReviews;
+  const effectiveCorrect = normalized.correctAnswers;
+  const effectiveAccuracy = normalized.accuracyExplicit ?? (effectiveTotal > 0 ? Math.round((effectiveCorrect / effectiveTotal) * 100) : 0);
+
+  const incorrectAnswers = Math.max(0, effectiveTotal - effectiveCorrect);
+
   // Emit custom event when component mounts to notify other parts of the app
   React.useEffect(() => {
     // Dispatch custom event for session completion
@@ -36,20 +82,11 @@ export default function SessionSummary({
     }
   }, [stats]);
 
-  const calculateAccuracy = () => {
-    const total = stats.totalReviews;
-    if (total === 0) return 0;
-    const correct = stats.correctAnswers;
-    return Math.round((correct / total) * 100);
-  };
-
   const getPerformanceColor = (accuracy: number) => {
     if (accuracy >= 80) return 'text-green-600';
     if (accuracy >= 60) return 'text-yellow-600';
     return 'text-red-600';
   };
-
-  const accuracy = calculateAccuracy();
 
   return (
     <Card className="w-full max-w-2xl mx-auto">
@@ -70,21 +107,21 @@ export default function SessionSummary({
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="text-center p-4 bg-blue-50 rounded-lg">
             <div className="text-2xl font-bold text-blue-600">
-              {stats.totalReviews}
+              {effectiveTotal}
             </div>
             <div className="text-sm text-gray-600">Cards Reviewed</div>
           </div>
           
           <div className="text-center p-4 bg-green-50 rounded-lg">
-            <div className={`text-2xl font-bold ${getPerformanceColor(accuracy)}`}>
-              {accuracy}%
+            <div className={`text-2xl font-bold ${getPerformanceColor(effectiveAccuracy)}`}>
+              {effectiveAccuracy}%
             </div>
             <div className="text-sm text-gray-600">Accuracy</div>
           </div>
           
           <div className="text-center p-4 bg-purple-50 rounded-lg">
             <div className="text-2xl font-bold text-purple-600">
-              {stats.xpEarned || 0}
+              {normalized.xpEarned}
             </div>
             <div className="text-sm text-gray-600">XP Earned</div>
           </div>
@@ -101,7 +138,7 @@ export default function SessionSummary({
                 <span>Correct Answers</span>
               </div>
               <span className="font-semibold text-green-600">
-                {stats.correctAnswers}
+                {effectiveCorrect}
               </span>
             </div>
             
@@ -111,7 +148,7 @@ export default function SessionSummary({
                 <span>Incorrect Answers</span>
               </div>
               <span className="font-semibold text-red-600">
-                {stats.totalReviews - stats.correctAnswers}
+                {incorrectAnswers}
               </span>
             </div>
             
@@ -121,7 +158,7 @@ export default function SessionSummary({
                 <span>Session Duration</span>
               </div>
               <span className="font-semibold text-blue-600">
-                {stats.sessionDuration ? `${Math.round(stats.sessionDuration / 60)}m` : 'N/A'}
+                {normalized.sessionDuration ? `${Math.round(normalized.sessionDuration / 60)}m` : 'N/A'}
               </span>
             </div>
             
@@ -131,7 +168,7 @@ export default function SessionSummary({
                 <span>New Cards</span>
               </div>
               <span className="font-semibold text-gray-600">
-                {stats.newCards || 0}
+                {normalized.newCards || 0}
               </span>
             </div>
           </div>
@@ -140,9 +177,9 @@ export default function SessionSummary({
         {/* Progress Encouragement */}
         <div className="text-center p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg">
           <p className="text-sm text-gray-700 mb-2">
-            {accuracy >= 80 
+            {effectiveAccuracy >= 80 
               ? 'Excellent work! You\'re mastering these words.' 
-              : accuracy >= 60 
+              : effectiveAccuracy >= 60 
               ? 'Good progress! Keep practicing to improve.' 
               : 'Don\'t worry, learning takes time. Keep going!'}
           </p>
