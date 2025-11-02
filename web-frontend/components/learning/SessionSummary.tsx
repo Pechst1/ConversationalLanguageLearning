@@ -98,7 +98,7 @@ export default function SessionSummary({
           Session Complete!
         </CardTitle>
         <p className="text-gray-600 mt-2">
-          Great work! Here's how you did in this session.
+          Great work! Here&apos;s how you did in this session.
         </p>
       </CardHeader>
       

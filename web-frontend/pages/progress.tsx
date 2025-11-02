@@ -130,7 +130,7 @@ export default function ProgressPage({ summary: initialSummary, initialProgress 
   }, [direction, directionSummary.stage_counts, summary.chart]);
 
   // Function to refresh all data
-  const refreshAllData = async (showToast = true) => {
+  const refreshAllData = React.useCallback(async (showToast = true) => {
     try {
       setRefreshing(true);
       const [summaryRes, progressRes] = await Promise.all([
@@ -156,7 +156,7 @@ export default function ProgressPage({ summary: initialSummary, initialProgress 
     } finally {
       setRefreshing(false);
     }
-  };
+  }, [direction]);
 
   // Debounced refresh function for frequent updates
   const debouncedRefresh = React.useCallback(() => {
@@ -167,7 +167,7 @@ export default function ProgressPage({ summary: initialSummary, initialProgress 
     refreshTimeoutRef.current = setTimeout(() => {
       refreshAllData(false);
     }, 1000); // Wait 1 second after last call
-  }, []);
+  }, [refreshAllData]);
 
   // Listen for word review events from ConversationHistory
   useEffect(() => {
@@ -192,7 +192,7 @@ export default function ProgressPage({ summary: initialSummary, initialProgress 
         clearTimeout(refreshTimeoutRef.current);
       }
     };
-  }, [debouncedRefresh]);
+  }, [debouncedRefresh, refreshAllData]);
 
   // Auto-refresh every 30 seconds when tab is visible
   useEffect(() => {
@@ -223,7 +223,7 @@ export default function ProgressPage({ summary: initialSummary, initialProgress 
         clearInterval(refreshIntervalRef.current);
       }
     };
-  }, []);
+  }, [refreshAllData]);
 
   useEffect(() => {
     const fetchData = async () => {

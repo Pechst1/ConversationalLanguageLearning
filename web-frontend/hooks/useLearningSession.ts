@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { useWebSocket } from './useWebSocket';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useWebSocket as useWebSocketClient } from '@/services/websocket';
 import apiService from '@/services/api';
 import toast from 'react-hot-toast';
 
@@ -58,25 +58,20 @@ export function useLearningSession(sessionId?: string) {
   const [error, setError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const messageIdCounter = useRef(0);
-  
-  const { sendMessage: sendWebSocketMessage, isConnected: wsConnected } = useWebSocket(
-    sessionId || '',
-    {
-      onMessage: handleWebSocketMessage,
-      onConnect: () => setIsConnected(true),
-      onDisconnect: () => setIsConnected(false),
-      onError: (error) => {
-        console.error('WebSocket error:', error);
-        toast.error('Connection error occurred');
-      }
-    }
-  );
+
+  const {
+    connect: connectWebSocket,
+    disconnect: disconnectWebSocket,
+    sendMessage: rawWebSocketSend,
+    onMessage: registerWebSocketHandler,
+    isConnected: isWebSocketConnected,
+  } = useWebSocketClient(sessionId || '');
 
   const generateMessageId = useCallback(() => {
     return `msg-${Date.now()}-${++messageIdCounter.current}`;
   }, []);
 
-  function handleWebSocketMessage(data: any) {
+  const handleWebSocketMessage = useCallback((data: any) => {
     try {
       const message: ChatMessage = {
         id: generateMessageId(),
@@ -99,7 +94,96 @@ export function useLearningSession(sessionId?: string) {
     } catch (error) {
       console.error('Error processing WebSocket message:', error);
     }
-  }
+  }, [generateMessageId, session]);
+
+  const latestMessageHandlerRef = useRef<(data: any) => void>(handleWebSocketMessage);
+
+  useEffect(() => {
+    latestMessageHandlerRef.current = handleWebSocketMessage;
+  }, [handleWebSocketMessage]);
+
+  const registerWebSocketListeners = useCallback(() => {
+    registerWebSocketHandler('turn_result', (payload: any) => {
+      latestMessageHandlerRef.current(payload?.data ?? payload);
+    });
+
+    registerWebSocketHandler('session_ready', () => {
+      setIsConnected(true);
+    });
+
+    registerWebSocketHandler('error', (payload: any) => {
+      const message =
+        payload?.data?.message ||
+        payload?.message ||
+        'Connection error occurred';
+      toast.error(message);
+    });
+  }, [registerWebSocketHandler]);
+
+  useEffect(() => {
+    if (!sessionId) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const establishConnection = async () => {
+      try {
+        await connectWebSocket();
+        if (cancelled) {
+          return;
+        }
+        setIsConnected(isWebSocketConnected());
+        registerWebSocketListeners();
+      } catch (connectionError) {
+        if (!cancelled) {
+          console.error('WebSocket connection failed:', connectionError);
+          toast.error('Connection error occurred');
+          setIsConnected(false);
+        }
+      }
+    };
+
+    establishConnection();
+
+    return () => {
+      cancelled = true;
+      disconnectWebSocket();
+      setIsConnected(false);
+    };
+  }, [
+    sessionId,
+    connectWebSocket,
+    disconnectWebSocket,
+    registerWebSocketListeners,
+    isWebSocketConnected,
+  ]);
+
+  // Derive vocabulary suggestions from the latest assistant message
+  const suggested = useMemo(() => {
+    const lastWithTargets = [...messages]
+      .reverse()
+      .find((m) => m.role === 'assistant' && Array.isArray(m.targets) && m.targets.length > 0);
+    if (!lastWithTargets) return [] as { id: number; word: string; translation?: string; is_new?: boolean; familiarity?: 'new' | 'learning' | 'familiar' }[];
+
+    const seen = new Set<number>();
+    const mapped = (lastWithTargets.targets || []).map((t) => {
+      const id = typeof t.id === 'string' ? parseInt(t.id, 10) : Number(t.id);
+      return {
+        id: Number.isFinite(id) ? id : 0,
+        word: String(t.word || ''),
+        translation: t.hintTranslation || t.translation || undefined,
+        is_new: t.familiarity ? t.familiarity === 'new' : undefined,
+        familiarity: (t.familiarity as 'new' | 'learning' | 'familiar' | undefined) || undefined,
+      };
+    });
+    const unique = mapped.filter((w) => {
+      if (!w.id || seen.has(w.id)) return false;
+      seen.add(w.id);
+      return true;
+    });
+    return unique;
+  }, [messages]);
 
   const createSession = useCallback(async (config: {
     topic?: string;
@@ -171,11 +255,8 @@ export function useLearningSession(sessionId?: string) {
       setMessages(prev => [...prev, userMessage]);
       
       // Send via WebSocket if connected, otherwise fallback to HTTP
-      if (wsConnected && sendWebSocketMessage) {
-        sendWebSocketMessage({
-          content,
-          suggested_word_ids: suggestedWordIds,
-        });
+      if (isWebSocketConnected()) {
+        rawWebSocketSend(content, suggestedWordIds);
       } else {
         // HTTP fallback
         const response = await apiService.sendMessage(session.id, {
@@ -196,7 +277,7 @@ export function useLearningSession(sessionId?: string) {
     } finally {
       setLoading(false);
     }
-  }, [session, wsConnected, sendWebSocketMessage, generateMessageId]);
+  }, [session, generateMessageId, isWebSocketConnected, rawWebSocketSend, handleWebSocketMessage]);
 
   const logWordExposure = useCallback(async (wordId: number, exposureType: 'hint' | 'translation') => {
     if (!session) return;
@@ -302,20 +383,30 @@ export function useLearningSession(sessionId?: string) {
     }
   }, [sessionId, session, loadSession]);
 
+  const connectionReady = isConnected && isWebSocketConnected();
+
   return {
     session,
     messages,
     loading,
     error,
-    isConnected: isConnected && wsConnected,
+    isConnected: connectionReady,
     createSession,
+    // aliases for compatibility with consumers
     sendMessage,
+    send: sendMessage,
     logWordExposure,
+    logExposure: logWordExposure,
     markWordDifficult,
+    flagWord: markWordDifficult,
     completeSession,
+    complete: completeSession,
     loadSession,
     
     // Helper to get active session ID for components
     activeSessionId: session?.id,
+
+    // Derived suggestions for helper widget
+    suggested,
   };
 }

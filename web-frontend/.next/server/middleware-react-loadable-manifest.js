@@ -1,1 +1,1 @@
-self.__REACT_LOADABLE_MANIFEST="{\"progress.tsx -> @/components/learning/AnkiStagePie\":{\"id\":\"progress.tsx -> @/components/learning/AnkiStagePie\",\"files\":[\"static/chunks/components_learning_AnkiStagePie_tsx.js\"]}}"
+self.__REACT_LOADABLE_MANIFEST="{}"

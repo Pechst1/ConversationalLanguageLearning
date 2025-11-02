@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import type { ChatMessage, TargetWord } from '@/hooks/useLearningSession';
 import apiService from '@/services/api';
@@ -132,35 +132,21 @@ export default function ConversationHistory({ messages, onWordInteract, onWordFl
 
   const handleGenericWordHover = useCallback(
     async (word: string, event: React.MouseEvent<HTMLSpanElement>) => {
-      // Clear any existing timeouts
       if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
       if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
 
-      onWordInteract?.(wordId, 'hint');
+      const cleanWord = word.trim();
+      if (!cleanWord) return;
 
       const rect = event.currentTarget.getBoundingClientRect();
-      const translation = await ensureTranslation(target.word, target.translation || target.hintTranslation);
+      setHoveredWord(cleanWord);
+      setTooltipPosition({ x: rect.left + rect.width / 2, y: rect.top });
+      setHighlightedSuggestions((prev) => new Set([...prev, cleanWord.toLowerCase()]));
 
-      setTooltip({
-        x: rect.left + rect.width / 2,
-        y: rect.top,
-        word: target.word,
-        translation,
-      });
-
-      // Add to highlighted suggestions
-      setHighlightedSuggestions(prev => new Set([...prev, cleanWord.toLowerCase()]));
-
-      // Debounce the API call
       debounceTimeoutRef.current = setTimeout(async () => {
         const { translation } = await resolveOrCreate(cleanWord, 'fr');
-        
-        // Only update if this word is still being hovered
         if (hoveredWord === cleanWord) {
-          setWordDefinition({
-            word: cleanWord,
-            translation: translation || '—',
-          });
+          setWordDefinition({ word: cleanWord, translation: translation || '—' });
         }
       }, 200);
     },
@@ -246,16 +232,16 @@ export default function ConversationHistory({ messages, onWordInteract, onWordFl
       }
 
       const rect = event.currentTarget.getBoundingClientRect();
-      setHoveredWord(target.word);
+      setHoveredWord(String(target.word || ''));
       setTooltipPosition({ x: rect.left + rect.width / 2, y: rect.top - 8 });
       setWordDefinition({
-        word: target.word,
+        word: String(target.word || ''),
         translation: target.translation || target.hintTranslation || 'Übersetzung nicht verfügbar',
       });
       
       setHighlightedSuggestions(prev => new Set([...prev, target.word.toLowerCase()]));
     },
-    [onWordFlag, onWordInteract]
+    []
   );
 
   const handleTargetClick = useCallback(
@@ -428,7 +414,7 @@ export default function ConversationHistory({ messages, onWordInteract, onWordFl
 
       return highlighted;
     },
-    [renderInteractiveSegment, handleTargetHover, handleWordLeave, handleTargetClick]
+    [handleTargetHover, handleWordLeave, handleTargetClick, processingWords]
   );
 
   return (
@@ -447,12 +433,12 @@ export default function ConversationHistory({ messages, onWordInteract, onWordFl
         </div>
       ))}
 
-      {tooltip && (
+      {tooltipPosition && wordDefinition && (
         <div
           style={{
             position: 'fixed',
-            left: tooltip.x,
-            top: tooltip.y,
+            left: tooltipPosition.x,
+            top: tooltipPosition.y,
             transform: 'translate(-50%, -110%)',
             zIndex: 1000,
             background: 'white',
