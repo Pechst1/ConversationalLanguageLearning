@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState, useEffect } from 'react';
+import React from 'react';
 import toast from 'react-hot-toast';
 import type { ChatMessage, TargetWord } from '@/hooks/useLearningSession';
 import apiService from '@/services/api';
@@ -29,10 +29,8 @@ const normalizeWordId = (id: any): number | null => {
   }
   
   if (typeof id === 'string') {
-    const parsed = parseInt(id.trim(), 10);
-    if (Number.isFinite(parsed) && parsed > 0) {
-      return parsed;
-    }
+    const parsed = parseInt(id, 10);
+    if (Number.isInteger(parsed) && parsed > 0) return parsed;
   }
   
   return null;
@@ -138,15 +136,16 @@ export default function ConversationHistory({ messages, onWordInteract, onWordFl
       if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
       if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
 
+      onWordInteract?.(wordId, 'hint');
+
       const rect = event.currentTarget.getBoundingClientRect();
-      const cleanWord = word.trim();
-      
-      if (!cleanWord) return;
-      
-      setHoveredWord(cleanWord);
-      setTooltipPosition({
+      const translation = await ensureTranslation(target.word, target.translation || target.hintTranslation);
+
+      setTooltip({
         x: rect.left + rect.width / 2,
-        y: rect.top - 8,
+        y: rect.top,
+        word: target.word,
+        translation,
       });
 
       // Add to highlighted suggestions
@@ -238,18 +237,12 @@ export default function ConversationHistory({ messages, onWordInteract, onWordFl
       
       const wordId = normalizeWordId(target.id);
       if (wordId === null) {
-        debugLog('Invalid target word ID on hover', { target });
+        toast.error('Wort konnte nicht markiert werden.');
         return;
       }
 
-      // Track hover state
-      if (!hovered[wordId]) {
-        setHovered((prev) => ({ ...prev, [wordId]: true }));
-        try {
-          onWordInteract?.(wordId, 'hint');
-        } catch (error) {
-          console.error('Error in target hover callback:', error);
-        }
+      if (target.translation) {
+        toast(`"${target.word}" zur Wiederholung vorgemerkt`, { icon: '🧠', duration: 2500 });
       }
 
       const rect = event.currentTarget.getBoundingClientRect();
@@ -262,7 +255,7 @@ export default function ConversationHistory({ messages, onWordInteract, onWordFl
       
       setHighlightedSuggestions(prev => new Set([...prev, target.word.toLowerCase()]));
     },
-    [hovered, onWordInteract]
+    [onWordFlag, onWordInteract]
   );
 
   const handleTargetClick = useCallback(
@@ -369,30 +362,31 @@ export default function ConversationHistory({ messages, onWordInteract, onWordFl
         return message.content;
       }
 
-      if (!message.targets?.length) {
-        return renderInteractiveSegment(message.content, message.id);
+      const targets = Array.isArray(message.targets) ? [...message.targets] : [];
+      if (!targets.length) {
+        return message.content;
       }
 
-      const sortedTargets = [...message.targets].sort((a, b) => b.word.length - a.word.length);
-      let matchedAny = false;
-      const reduced = sortedTargets.reduce<React.ReactNode[] | string>((nodes, target) => {
+      targets.sort((a, b) => b.word.length - a.word.length);
+
+      const highlighted = targets.reduce<React.ReactNode[] | string>((nodes, target) => {
         const segments = Array.isArray(nodes) ? nodes : [nodes];
+        const regex = new RegExp(`(?<!\\p{L})${escapeRegExp(target.word)}(?!\\p{L})`, 'gi');
+        const className = familiarityClasses[target.familiarity ?? ''] ?? defaultHighlightClass;
+
         return segments.flatMap((segment, segmentIndex) => {
           if (typeof segment !== 'string') {
             return [segment];
           }
 
-          const regex = new RegExp(`\\b${escapeRegExp(target.word)}\\b`, 'gi');
           const parts: React.ReactNode[] = [];
           let lastIndex = 0;
+
           segment.replace(regex, (match, offset) => {
-            matchedAny = true;
             const before = segment.slice(lastIndex, offset);
             
             if (before) {
-              parts.push(
-                ...renderInteractiveSegment(before, `${target.id}-${offset}-before`)
-              );
+              parts.push(before);
             }
 
             const className = familiarityClasses[target.familiarity ?? ''] ?? defaultHighlightClass;
@@ -426,25 +420,13 @@ export default function ConversationHistory({ messages, onWordInteract, onWordFl
 
           const remainder = segment.slice(lastIndex);
           if (remainder) {
-            parts.push(
-              ...renderInteractiveSegment(remainder, `${target.id}-remainder`)
-            );
+            parts.push(remainder);
           }
-          return parts;
+          return parts.length ? parts : [segment];
         });
       }, message.content);
 
-      if (!matchedAny) {
-        const nodes = Array.isArray(reduced) ? reduced : [reduced];
-        return nodes.flatMap((node, index) => {
-          if (typeof node === 'string') {
-            return renderInteractiveSegment(node, `${message.id}-fallback-${index}`);
-          }
-          return [node];
-        });
-      }
-
-      return reduced;
+      return highlighted;
     },
     [renderInteractiveSegment, handleTargetHover, handleWordLeave, handleTargetClick]
   );
@@ -454,9 +436,7 @@ export default function ConversationHistory({ messages, onWordInteract, onWordFl
       {messages.map((message) => (
         <div
           key={message.id}
-          className={`message-bubble ${
-            message.role === 'user' ? 'message-user' : 'message-ai'
-          } relative`}
+          className={`message-bubble ${message.role === 'user' ? 'message-user' : 'message-ai'} relative`}
         >
           {message.role === 'user' && Number(message.xp) > 0 && (
             <span className="absolute -top-2 -right-2 rounded-full bg-amber-400 px-2 py-0.5 text-xs font-semibold text-amber-900 shadow">
@@ -467,21 +447,20 @@ export default function ConversationHistory({ messages, onWordInteract, onWordFl
         </div>
       ))}
 
-      {hoveredWord && tooltipPosition && wordDefinition && (
+      {tooltip && (
         <div
           style={{
             position: 'fixed',
-            left: tooltipPosition.x,
-            top: tooltipPosition.y,
-            transform: 'translateX(-50%) translateY(-100%)',
+            left: tooltip.x,
+            top: tooltip.y,
+            transform: 'translate(-50%, -110%)',
             zIndex: 1000,
             background: 'white',
             border: '1px solid #d1d5db',
-            borderRadius: '8px',
-            padding: '10px 12px',
-            boxShadow: '0 10px 25px rgba(15, 23, 42, 0.15)',
-            maxWidth: '250px',
-            minWidth: '180px',
+            borderRadius: '6px',
+            padding: '8px 10px',
+            boxShadow: '0 8px 20px rgba(15, 23, 42, 0.15)',
+            maxWidth: '220px',
           }}
           onMouseEnter={() => {
             if (hoverTimeoutRef.current) {

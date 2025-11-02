@@ -97,7 +97,11 @@ export default function SessionPage() {
         )}
         <div className="learning-card">
           {summary ? (
-            <SessionSummary summary={summary} />
+            <SessionSummary
+              stats={summary}
+              onStartNewSession={() => router.push('/learn/new')}
+              onReturnToDashboard={() => router.push('/dashboard')}
+            />
           ) : (
             <>
               <div className="conversation-window">
