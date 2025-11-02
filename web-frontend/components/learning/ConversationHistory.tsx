@@ -19,13 +19,43 @@ const defaultHighlightClass = 'bg-blue-100 text-blue-900 border border-blue-200'
 
 const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+// Robust word ID normalization function
+const normalizeWordId = (id: any): number | null => {
+  if (id === null || id === undefined) return null;
+  
+  // If it's already a valid number
+  if (typeof id === 'number' && Number.isFinite(id) && id > 0) {
+    return Math.floor(id); // Ensure integer
+  }
+  
+  // Try to parse as string
+  if (typeof id === 'string') {
+    const parsed = parseInt(id.trim(), 10);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+  
+  // Log the problematic ID for debugging
+  console.warn('Invalid word ID encountered:', { id, type: typeof id });
+  return null;
+};
+
+// Enhanced logging for debugging
+const debugLog = (message: string, data?: any) => {
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`[ConversationHistory] ${message}`, data);
+  }
+};
+
 export default function ConversationHistory({ messages, onWordInteract, onWordFlag }: Props) {
   const [hovered, setHovered] = useState<Record<number, boolean>>({});
   const [hoveredWord, setHoveredWord] = useState<string | null>(null);
   const [tooltipPosition, setTooltipPosition] = useState<{ x: number; y: number } | null>(null);
   const [wordDefinition, setWordDefinition] = useState<{ word: string; translation: string } | null>(null);
   const [highlightedSuggestions, setHighlightedSuggestions] = useState<Set<string>>(new Set());
-  const lookupCache = useRef<Record<string, { id?: number; translation: string }>>({});
+  const [apiErrors, setApiErrors] = useState<Set<string>>(new Set());
+  const lookupCache = useRef<Record<string, { id?: number; translation: string; error?: boolean }>>({});
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -41,35 +71,56 @@ export default function ConversationHistory({ messages, onWordInteract, onWordFl
     };
   }, []);
 
-  const handleHover = React.useCallback(
+  const handleTargetWordHover = useCallback(
     (target: TargetWord) => {
-      const wordId = parseInt(String(target.id), 10);
-      if (!Number.isFinite(wordId) || hovered[wordId]) return;
+      const wordId = normalizeWordId(target.id);
+      if (wordId === null) {
+        debugLog('Invalid target word ID', { target });
+        return;
+      }
       
-      setHovered((prev) => {
-        if (prev[wordId]) {
-          return prev;
-        }
-        return { ...prev, [wordId]: true };
-      });
-      onWordInteract?.(wordId, 'hint');
+      if (hovered[wordId]) return;
+      
+      debugLog('Target word hover', { word: target.word, id: wordId });
+      
+      setHovered((prev) => ({ ...prev, [wordId]: true }));
+      
+      // Safe callback with error handling
+      try {
+        onWordInteract?.(wordId, 'hint');
+      } catch (error) {
+        console.error('Error in onWordInteract callback:', error);
+      }
     },
     [hovered, onWordInteract]
   );
 
-  const handleClick = React.useCallback(
+  const handleTargetWordClick = useCallback(
     (target: TargetWord) => {
-      const wordId = parseInt(String(target.id), 10);
-      if (!Number.isFinite(wordId)) return;
+      const wordId = normalizeWordId(target.id);
+      if (wordId === null) {
+        debugLog('Invalid target word ID on click', { target });
+        toast.error('Invalid word ID - cannot process');
+        return;
+      }
+      
+      debugLog('Target word click', { word: target.word, id: wordId });
       
       if (target.translation) {
-        toast(`Added "${target.word}" to practice`, {
+        toast(`"${target.word}" zur Wiederholung vorgemerkt`, {
           icon: '🧠',
-          duration: 3500,
+          duration: 3000,
         });
       }
-      onWordInteract?.(wordId, 'translation');
-      onWordFlag?.(wordId);
+      
+      // Safe callbacks with error handling
+      try {
+        onWordInteract?.(wordId, 'translation');
+        onWordFlag?.(wordId);
+      } catch (error) {
+        console.error('Error in word interaction callbacks:', error);
+        toast.error('Error processing word interaction');
+      }
     },
     [onWordFlag, onWordInteract]
   );
@@ -89,34 +140,56 @@ export default function ConversationHistory({ messages, onWordInteract, onWordFl
   }, []);
 
   const ensureLookup = useCallback(async (word: string) => {
-    const key = word.toLowerCase();
+    const key = word.toLowerCase().trim();
+    if (!key) return { translation: 'Invalid word' };
+    
+    // Return cached result if available
     if (lookupCache.current[key]) {
       return lookupCache.current[key];
     }
+    
+    // Check if we've had repeated errors for this word
+    if (apiErrors.has(key)) {
+      const fallback = { translation: 'Translation currently unavailable', error: true };
+      lookupCache.current[key] = fallback;
+      return fallback;
+    }
+    
     try {
+      debugLog('API lookup for word', { word: key });
       const result = await apiService.lookupVocabulary(word);
-      // Ensure proper integer parsing for word_id
-      const rawId = result?.id;
-      const parsedId = rawId != null ? parseInt(String(rawId), 10) : undefined;
-      const wordId = Number.isFinite(parsedId) ? parsedId : undefined;
+      
+      debugLog('API lookup result', { word: key, result });
+      
+      // Enhanced ID normalization from API result
+      const normalizedId = normalizeWordId(result?.id || result?.word_id);
       
       const entry = {
-        id: wordId,
+        id: normalizedId || undefined,
         translation:
           result?.english_translation ||
+          result?.german_translation ||
           result?.definition ||
           result?.example_translation ||
-          'Translation unavailable',
+          'Translation not available',
       };
+      
       lookupCache.current[key] = entry;
       return entry;
     } catch (error) {
       console.error('Lookup error for word:', word, error);
-      const fallback = { translation: 'Translation unavailable' };
+      
+      // Track API errors to avoid repeated failed requests
+      setApiErrors(prev => new Set([...prev, key]));
+      
+      const fallback = { 
+        translation: 'Translation service temporarily unavailable', 
+        error: true 
+      };
       lookupCache.current[key] = fallback;
       return fallback;
     }
-  }, []);
+  }, [apiErrors]);
 
   const handleGenericWordHover = useCallback(
     async (word: string, event: React.MouseEvent<HTMLSpanElement>) => {
@@ -129,37 +202,70 @@ export default function ConversationHistory({ messages, onWordInteract, onWordFl
       }
 
       const rect = event.currentTarget.getBoundingClientRect();
-      setHoveredWord(word);
+      const cleanWord = word.trim();
+      
+      if (!cleanWord) return;
+      
+      setHoveredWord(cleanWord);
       setTooltipPosition({
         x: rect.left + rect.width / 2,
         y: rect.top - 8,
       });
 
       // Add to highlighted suggestions
-      setHighlightedSuggestions(prev => new Set([...prev, word.toLowerCase()]));
+      setHighlightedSuggestions(prev => new Set([...prev, cleanWord.toLowerCase()]));
 
-      // Debounce the API call
+      // Debounce the API call to prevent too many requests
       debounceTimeoutRef.current = setTimeout(async () => {
-        const entry = await ensureLookup(word);
-        setWordDefinition({
-          word,
-          translation: entry.translation,
-        });
-      }, 100);
+        const entry = await ensureLookup(cleanWord);
+        
+        // Only update if this word is still being hovered
+        if (hoveredWord === cleanWord) {
+          setWordDefinition({
+            word: cleanWord,
+            translation: entry.translation,
+          });
+        }
+      }, 200); // Increased debounce time
     },
-    [ensureLookup]
+    [ensureLookup, hoveredWord]
   );
 
   const handleGenericWordClick = useCallback(
     async (word: string) => {
-      const entry = await ensureLookup(word);
+      const cleanWord = word.trim();
+      if (!cleanWord) return;
+      
+      debugLog('Generic word click', { word: cleanWord });
+      
+      const entry = await ensureLookup(cleanWord);
+      
+      if (entry.error) {
+        toast.warning(`Translation for "${cleanWord}" is currently unavailable`, { 
+          icon: '⚠️', 
+          duration: 3000 
+        });
+        return;
+      }
+      
       const wordId = entry.id;
       if (wordId && Number.isFinite(wordId)) {
-        toast.success(`"${word}" added to practice`, { icon: '🧠', duration: 2500 });
-        onWordFlag?.(wordId);
-        onWordInteract?.(wordId, 'translation');
+        debugLog('Generic word processed successfully', { word: cleanWord, id: wordId });
+        toast.success(`"${cleanWord}" added to practice`, { icon: '🧠', duration: 2500 });
+        
+        try {
+          onWordFlag?.(wordId);
+          onWordInteract?.(wordId, 'translation');
+        } catch (error) {
+          console.error('Error in generic word callbacks:', error);
+          toast.error('Error adding word to practice');
+        }
       } else {
-        toast(`Lookup for "${word}" not found`, { icon: '❓', duration: 2000 });
+        debugLog('No valid ID found for generic word', { word: cleanWord, entry });
+        toast(`Word "${cleanWord}" found but cannot be added to practice`, { 
+          icon: 'ℹ️', 
+          duration: 2000 
+        });
       }
     },
     [ensureLookup, onWordFlag, onWordInteract]
@@ -172,14 +278,20 @@ export default function ConversationHistory({ messages, onWordInteract, onWordFl
         clearTimeout(hoverTimeoutRef.current);
       }
       
-      const wordId = parseInt(String(target.id), 10);
-      if (!Number.isFinite(wordId)) {
+      const wordId = normalizeWordId(target.id);
+      if (wordId === null) {
+        debugLog('Invalid target word ID on hover', { target });
         return;
       }
 
+      // Track hover state
       if (!hovered[wordId]) {
-        setHovered((prev) => (prev[wordId] ? prev : { ...prev, [wordId]: true }));
-        onWordInteract?.(wordId, 'hint');
+        setHovered((prev) => ({ ...prev, [wordId]: true }));
+        try {
+          onWordInteract?.(wordId, 'hint');
+        } catch (error) {
+          console.error('Error in target hover callback:', error);
+        }
       }
 
       const rect = event.currentTarget.getBoundingClientRect();
@@ -196,25 +308,6 @@ export default function ConversationHistory({ messages, onWordInteract, onWordFl
     [hovered, onWordInteract]
   );
 
-  const handleTargetClick = useCallback(
-    (target: TargetWord) => {
-      const wordId = parseInt(String(target.id), 10);
-      if (!Number.isFinite(wordId)) {
-        return;
-      }
-
-      if (target.translation) {
-        toast(`"${target.word}" zur Wiederholung vorgemerkt`, {
-          icon: '🧠',
-          duration: 3000,
-        });
-      }
-      onWordInteract?.(wordId, 'translation');
-      onWordFlag?.(wordId);
-    },
-    [onWordFlag, onWordInteract]
-  );
-
   // Add a helper function to make plain text interactive (Unicode-aware)
   const renderInteractiveSegment = useCallback((text: string, keyPrefix: string): React.ReactNode[] => {
     if (!text) return [];
@@ -226,18 +319,22 @@ export default function ConversationHistory({ messages, onWordInteract, onWordFl
         if (WORD_SPLIT_REGEX.test(part)) {
           WORD_SPLIT_REGEX.lastIndex = 0;
           const isHighlighted = highlightedSuggestions.has(part.toLowerCase());
+          const hasApiError = apiErrors.has(part.toLowerCase());
+          
           return (
             <span
               key={`${keyPrefix}-${index}`}
               className={`px-1 py-0.5 rounded cursor-pointer transition-all duration-200 ${
-                isHighlighted 
+                hasApiError 
+                  ? 'text-gray-400 hover:text-gray-500 opacity-50' // Dimmed for API errors
+                : isHighlighted 
                   ? 'bg-blue-100 text-blue-900 border border-blue-200 shadow-sm' 
                   : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
               } hover:underline`}
-              onMouseEnter={(e) => handleGenericWordHover(part, e)}
+              onMouseEnter={(e) => !hasApiError && handleGenericWordHover(part, e)}
               onMouseLeave={handleWordLeave}
-              onClick={() => handleGenericWordClick(part)}
-              title={`"${part}" übersetzen`}
+              onClick={() => !hasApiError && handleGenericWordClick(part)}
+              title={hasApiError ? `Translation temporarily unavailable for "${part}"` : `"${part}" übersetzen`}
             >
               {part}
             </span>
@@ -246,7 +343,7 @@ export default function ConversationHistory({ messages, onWordInteract, onWordFl
       }
       return part;
     });
-  }, [handleGenericWordHover, handleGenericWordClick, handleWordLeave, highlightedSuggestions]);
+  }, [handleGenericWordHover, handleGenericWordClick, handleWordLeave, highlightedSuggestions, apiErrors]);
 
   const renderContent = useCallback(
     (message: ChatMessage) => {
@@ -282,16 +379,22 @@ export default function ConversationHistory({ messages, onWordInteract, onWordFl
             }
 
             const className = familiarityClasses[target.familiarity ?? ''] ?? defaultHighlightClass;
+            const wordId = normalizeWordId(target.id);
 
             // Push the original target word span
             parts.push(
               <span
                 key={`${target.id}-${offset}-${segmentIndex}`}
-                className={`rounded-md px-2 py-1 font-semibold transition-all duration-200 hover:shadow-md cursor-pointer ${className}`}
-                onMouseEnter={(e) => handleTargetHover(target, e)}
+                className={`rounded-md px-2 py-1 font-semibold transition-all duration-200 hover:shadow-md cursor-pointer ${
+                  wordId === null ? 'opacity-50 cursor-not-allowed' : ''
+                } ${className}`}
+                onMouseEnter={(e) => wordId !== null && handleTargetHover(target, e)}
                 onMouseLeave={handleWordLeave}
-                onClick={() => handleTargetClick(target)}
-                title={target.translation || target.hintTranslation || ''}
+                onClick={() => wordId !== null && handleTargetWordClick(target)}
+                title={wordId === null 
+                  ? 'Invalid word ID - cannot interact' 
+                  : target.translation || target.hintTranslation || ''
+                }
               >
                 {match}
               </span>
@@ -323,7 +426,7 @@ export default function ConversationHistory({ messages, onWordInteract, onWordFl
 
       return reduced;
     },
-    [renderInteractiveSegment, handleTargetHover, handleWordLeave, handleTargetClick]
+    [renderInteractiveSegment, handleTargetHover, handleWordLeave, handleTargetWordClick]
   );
 
   return (
@@ -370,6 +473,15 @@ export default function ConversationHistory({ messages, onWordInteract, onWordFl
         >
           <p className="text-sm font-semibold text-gray-900 mb-1">{wordDefinition.word}</p>
           <p className="text-xs text-gray-600 leading-relaxed">{wordDefinition.translation}</p>
+        </div>
+      )}
+      
+      {/* Debug info in development */}
+      {process.env.NODE_ENV === 'development' && apiErrors.size > 0 && (
+        <div className="fixed bottom-4 right-4 bg-yellow-100 border border-yellow-400 text-yellow-700 px-3 py-2 rounded text-xs max-w-xs">
+          <p className="font-semibold">API Lookup Errors:</p>
+          <p>{Array.from(apiErrors).slice(0, 3).join(', ')}</p>
+          {apiErrors.size > 3 && <p>...and {apiErrors.size - 3} more</p>}
         </div>
       )}
     </div>
