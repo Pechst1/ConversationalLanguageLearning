@@ -2,12 +2,14 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import type { ChatMessage, TargetWord } from '@/hooks/useLearningSession';
 import apiService from '@/services/api';
+import InteractiveText from './InteractiveText';
 
 type Props = {
   messages: ChatMessage[];
   onWordInteract?: (wordId: number, exposureType: 'hint' | 'translation') => void;
   onWordFlag?: (wordId: number) => void;
   activeSessionId?: string; // Add session context for marking difficult words
+  onWordClick?: (word: string) => void; // Add word click handler for interactive text
 };
 
 const familiarityClasses: Record<string, string> = {
@@ -23,6 +25,7 @@ const ConversationHistory: React.FC<Props> = ({
   onWordInteract,
   onWordFlag,
   activeSessionId,
+  onWordClick,
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [hoveredWord, setHoveredWord] = useState<number | null>(null);
@@ -68,7 +71,7 @@ const ConversationHistory: React.FC<Props> = ({
     onWordInteract?.(wordId, 'hint');
   }, [fetchWordTranslation, onWordInteract]);
 
-  const handleWordClick = useCallback((wordId: number) => {
+  const handleWordClickOld = useCallback((wordId: number) => {
     fetchWordTranslation(wordId);
     onWordInteract?.(wordId, 'translation');
   }, [fetchWordTranslation, onWordInteract]);
@@ -90,6 +93,34 @@ const ConversationHistory: React.FC<Props> = ({
       toast.error('Failed to mark word as difficult');
     }
   }, [activeSessionId, onWordFlag]);
+
+  // Enhanced word click handler for InteractiveText
+  const handleInteractiveWordClick = useCallback((word: string) => {
+    console.log('🎯 ConversationHistory: Word clicked:', word);
+    onWordClick?.(word);
+  }, [onWordClick]);
+
+  const handleInteractiveWordHover = useCallback((word: string, definition: any) => {
+    console.log('🔍 ConversationHistory: Word hovered:', word, definition?.translation);
+  }, []);
+
+  // Detect language from message content
+  const detectLanguage = useCallback((text: string): 'french' | 'german' | 'spanish' => {
+    const frenchPatterns = /\b(bonjour|merci|comment|pourquoi|très|français|nouveau|entreprise|marché)\b/gi;
+    const germanPatterns = /\b(hallo|danke|wie|warum|sehr|deutsch|neu|unternehmen|markt)\b/gi;
+    const spanishPatterns = /\b(hola|gracias|cómo|muy|español|nuevo|empresa|mercado)\b/gi;
+    
+    const frenchMatches = (text.match(frenchPatterns) || []).length;
+    const germanMatches = (text.match(germanPatterns) || []).length;
+    const spanishMatches = (text.match(spanishPatterns) || []).length;
+    
+    if (frenchMatches >= germanMatches && frenchMatches >= spanishMatches) {
+      return 'french';
+    } else if (germanMatches >= spanishMatches) {
+      return 'german';
+    }
+    return 'spanish';
+  }, []);
 
   const renderWordWithHighlighting = (text: string, words: TargetWord[]) => {
     if (!words || words.length === 0) {
@@ -127,7 +158,7 @@ const ConversationHistory: React.FC<Props> = ({
           className={`${className} px-1 py-0.5 rounded cursor-pointer transition-all duration-200 hover:shadow-md relative group`}
           onMouseEnter={() => handleWordHover(word.id)}
           onMouseLeave={() => setHoveredWord(null)}
-          onClick={() => handleWordClick(word.id)}
+          onClick={() => handleWordClickOld(word.id)}
           onDoubleClick={() => handleWordFlag(word.id)}
           title={`Double-click to mark as difficult${translation ? ` | Translation: ${translation}` : ''}`}
         >
@@ -173,8 +204,22 @@ const ConversationHistory: React.FC<Props> = ({
                   : 'bg-gray-200 text-gray-800'
               }`}
             >
-              {message.role === 'assistant' && message.words ? (
-                renderWordWithHighlighting(message.content, message.words)
+              {message.role === 'assistant' ? (
+                // Use InteractiveText for AI messages
+                message.words && message.words.length > 0 ? (
+                  // If we have word annotations, use the existing highlighting
+                  renderWordWithHighlighting(message.content, message.words)
+                ) : (
+                  // Otherwise, use InteractiveText for all words
+                  <InteractiveText
+                    text={message.content}
+                    language={detectLanguage(message.content)}
+                    onWordClick={handleInteractiveWordClick}
+                    onWordHover={handleInteractiveWordHover}
+                    enableTranslation={true}
+                    className="ai-message-interactive"
+                  />
+                )
               ) : (
                 <span>{message.content}</span>
               )}
