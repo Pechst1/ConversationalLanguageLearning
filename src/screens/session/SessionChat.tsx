@@ -3,6 +3,7 @@ import { WebSocketClient, SessionSummaryPayload } from "../../services/realtime/
 import { VocabularyChip } from "../../components/VocabularyChip";
 import { XPProgress } from "../../components/XPProgress";
 import { TypingIndicator } from "../../components/TypingIndicator";
+import { InteractiveText } from "../../components/InteractiveText";
 
 export interface ChatMessage {
   id: string;
@@ -48,19 +49,19 @@ class IntelligentVocabularyService {
       articles: /\b(le|la|les|un|une|des|du|de|d')\s+/gi,
       commonWords: ['le', 'la', 'les', 'un', 'une', 'des', 'et', 'à', 'de', 'du', 'dans', 'sur', 'avec', 'pour', 'par', 'ne', 'pas', 'que', 'qui', 'où', 'quand', 'comment', 'pourquoi'],
       businessWords: ['entreprise', 'client', 'produit', 'service', 'marché', 'prix', 'qualité', 'développement', 'projet', 'équipe', 'résultat', 'solution', 'objectif', 'stratégie', 'performance', 'innovation', 'croissance', 'vente', 'achat', 'budget', 'investissement'],
-      detectPatterns: /\b(entreprise|marché|très|français|nouveau|développement|système|problème|solution)\b/gi
+      detectPatterns: /\b(entreprise|marché|très|français|nouveau|développement|système|problème|solution|bonjour|merci|comment|pourquoi)\b/gi
     },
     german: {
       articles: /\b(der|die|das|den|dem|des|ein|eine|einer|eines)\s+/gi,
       commonWords: ['der', 'die', 'das', 'und', 'in', 'den', 'von', 'zu', 'mit', 'sich', 'auf', 'für', 'ist', 'im', 'dem', 'nicht', 'ein', 'eine', 'als', 'auch', 'es', 'an', 'werden', 'aus'],
       businessWords: ['Unternehmen', 'Kunde', 'Produkt', 'Service', 'Markt', 'Preis', 'Qualität', 'Entwicklung', 'Projekt', 'Team', 'Ergebnis', 'Lösung', 'Ziel', 'Strategie', 'Leistung', 'Innovation', 'Wachstum', 'Verkauf', 'Kauf', 'Budget', 'Investition'],
-      detectPatterns: /\b(Unternehmen|Markt|sehr|deutsch|neu|Entwicklung|System|Problem|Lösung)\b/gi
+      detectPatterns: /\b(Unternehmen|Markt|sehr|deutsch|neu|Entwicklung|System|Problem|Lösung|hallo|danke|wie|warum)\b/gi
     },
     spanish: {
       articles: /\b(el|la|los|las|un|una|del|de|al|a)\s+/gi,
       commonWords: ['el', 'la', 'los', 'las', 'de', 'que', 'y', 'a', 'en', 'un', 'es', 'se', 'no', 'te', 'lo', 'le', 'da', 'su', 'por', 'son', 'con', 'para', 'al', 'una'],
       businessWords: ['empresa', 'cliente', 'producto', 'servicio', 'mercado', 'precio', 'calidad', 'desarrollo', 'proyecto', 'equipo', 'resultado', 'solución', 'objetivo', 'estrategia', 'rendimiento', 'innovación', 'crecimiento', 'venta', 'compra', 'presupuesto', 'inversión'],
-      detectPatterns: /\b(empresa|mercado|muy|español|nuevo|desarrollo|sistema|problema|solución)\b/gi
+      detectPatterns: /\b(empresa|mercado|muy|español|nuevo|desarrollo|sistema|problema|solución|hola|gracias|cómo)\b/gi
     }
   };
 
@@ -78,6 +79,19 @@ class IntelligentVocabularyService {
     initialVocabulary.forEach(word => {
       this.addWord(word, 'provided', 2, false);
     });
+
+    // Add some default vocabulary if none provided
+    if (initialVocabulary.length === 0) {
+      const defaultFrenchWords = [
+        'bonjour', 'merci', 'au revoir', 'comment', 'pourquoi', 'très', 'nouveau', 
+        'important', 'travail', 'entreprise', 'projet', 'équipe', 'client', 'marché'
+      ];
+      defaultFrenchWords.forEach(word => {
+        this.addWord(word, 'default vocabulary', 2, true);
+      });
+    }
+
+    console.log('🎯 VocabularyService initialized with', this.learningState.availableWords.size, 'words');
   }
 
   // Intelligent language detection
@@ -93,7 +107,7 @@ class IntelligentVocabularyService {
     const detectedLang = Object.entries(scores)
       .sort(([,a], [,b]) => b - a)[0][0];
     
-    return detectedLang;
+    return detectedLang || 'french'; // Default to French
   }
 
   // Smart word extraction from LLM responses
@@ -190,6 +204,8 @@ class IntelligentVocabularyService {
 
   // Generate word proposals based on learning mode and LLM context
   generateProposals(maxWords: number = 8): string[] {
+    console.log('🎯 Generating proposals, available words:', this.learningState.availableWords.size);
+    
     const available = Array.from(this.learningState.availableWords.values())
       .filter(entry => !this.learningState.usedWords.has(entry.word))
       .sort((a, b) => {
@@ -251,6 +267,14 @@ class IntelligentVocabularyService {
       sessionWords: this.learningState.sessionWords.length
     };
   }
+
+  // Force refresh proposals (for debugging)
+  forceRefresh(): string[] {
+    console.log('🔄 Force refreshing proposals...');
+    const proposals = this.generateProposals(8);
+    console.log('🔄 Refreshed proposals:', proposals);
+    return proposals;
+  }
 }
 
 export const SessionChat: React.FC<SessionChatProps> = ({
@@ -277,11 +301,18 @@ export const SessionChat: React.FC<SessionChatProps> = ({
 
   // Initialize intelligent vocabulary service
   useEffect(() => {
+    console.log('🚀 Initializing vocabulary service with target vocabulary:', targetVocabulary);
     vocabularyServiceRef.current = new IntelligentVocabularyService(targetVocabulary, 'mixed');
-    const initialProposals = vocabularyServiceRef.current.generateProposals(8);
-    setCurrentProposals(initialProposals);
-    setVocabularyStats(vocabularyServiceRef.current.getStats());
-    console.log('🚀 Initialized vocabulary service with proposals:', initialProposals);
+    
+    // Force initial proposal generation with delay to ensure proper initialization
+    setTimeout(() => {
+      if (vocabularyServiceRef.current) {
+        const initialProposals = vocabularyServiceRef.current.generateProposals(8);
+        console.log('📋 Initial proposals generated:', initialProposals);
+        setCurrentProposals(initialProposals);
+        setVocabularyStats(vocabularyServiceRef.current.getStats());
+      }
+    }, 100);
   }, [targetVocabulary]);
 
   // Process AI messages for intelligent vocabulary extraction
@@ -433,10 +464,14 @@ export const SessionChat: React.FC<SessionChatProps> = ({
       return trimmed ? `${trimmed} ${word}` : word;
     });
     
-    // Mark as used
+    // Mark as used and update difficulty if it's an existing word
     if (vocabularyServiceRef.current) {
       vocabularyServiceRef.current.markAsUsed([word]);
       setVocabularyStats(vocabularyServiceRef.current.getStats());
+      
+      // Generate fresh proposals
+      const freshProposals = vocabularyServiceRef.current.generateProposals(8);
+      setCurrentProposals(freshProposals);
     }
     
     // Send interaction to server for analytics
@@ -455,53 +490,26 @@ export const SessionChat: React.FC<SessionChatProps> = ({
 
   const handleRefreshProposals = () => {
     if (vocabularyServiceRef.current) {
-      const newProposals = vocabularyServiceRef.current.generateProposals(8);
+      const newProposals = vocabularyServiceRef.current.forceRefresh();
       setCurrentProposals(newProposals);
+      setVocabularyStats(vocabularyServiceRef.current.getStats());
       console.log('🔄 Refreshed proposals:', newProposals);
     }
   };
 
-  // Render AI messages with clickable words
+  // Render AI messages with InteractiveText component
   const renderAIMessage = (text: string) => {
-    // Split text into words and non-word characters
-    const parts = text.split(/(\b[a-zA-ZàâäéèêëïîôùûüÿçÀÂÄÉÈÊËÏÎÔÙÛÜŸÇäöüßÄÖÜñáéíóúÑÁÉÍÓÚ]{3,}\b)/);
-    
     return (
-      <p style={{ margin: 0, lineHeight: 1.6 }}>
-        {parts.map((part, index) => {
-          // Check if this part is a meaningful word (3+ chars, alphabetic)
-          const isWord = /^[a-zA-ZàâäéèêëïîôùûüÿçÀÂÄÉÈÊËÏÎÔÙÛÜŸÇäöüßÄÖÜñáéíóúÑÁÉÍÓÚ]{3,}$/.test(part);
-          
-          if (isWord) {
-            return (
-              <span
-                key={index}
-                onClick={() => handleWordClick(part)}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#e3f2fd';
-                  e.currentTarget.style.color = '#1976d2';
-                  e.currentTarget.style.cursor = 'pointer';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'transparent';
-                  e.currentTarget.style.color = 'inherit';
-                }}
-                style={{
-                  padding: '1px 2px',
-                  borderRadius: '3px',
-                  transition: 'all 0.2s ease',
-                  cursor: 'pointer',
-                  display: 'inline'
-                }}
-                title={`Click to add "${part}" to your message`}
-              >
-                {part}
-              </span>
-            );
-          }
-          return <span key={index}>{part}</span>;
-        })}
-      </p>
+      <InteractiveText
+        text={text}
+        language={vocabularyStats.language as 'french' | 'german' | 'spanish'}
+        onWordClick={handleWordClick}
+        onWordHover={(word, definition) => {
+          console.log('🔍 Word hovered:', word, definition?.translation);
+        }}
+        enableTranslation={true}
+        className="ai-message-interactive"
+      />
     );
   };
 
@@ -520,7 +528,7 @@ export const SessionChat: React.FC<SessionChatProps> = ({
       <aside className="session-chat__sidebar">
         <div className="vocabulary-section">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-            <h3 style={{ margin: 0, fontSize: '16px' }}>Vokabelvorschläge</h3>
+            <h3 style={{ margin: 0, fontSize: '16px' }}>Wortvorschläge</h3>
             <button 
               type="button" 
               onClick={handleRefreshProposals}
@@ -539,13 +547,14 @@ export const SessionChat: React.FC<SessionChatProps> = ({
           </div>
           
           <p style={{ fontSize: '12px', color: '#666', marginBottom: '12px', lineHeight: 1.4 }}>
-            Intelligente Wortvorschläge basierend auf dem Gespräch. Klicke auf Wörter in AI-Nachrichten!
+            Intelligente Wortvorschläge basierend auf dem Gespräch. Klicke auf Wörter in AI-Nachrichten für Übersetzungen!
           </p>
           
           <div className="session-chat__vocabulary">
-            {currentProposals.length === 0 && (
+            {currentProposals.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
                 <p style={{ marginBottom: '10px' }}>Keine Vorschläge verfügbar.</p>
+                <p style={{ fontSize: '11px', marginBottom: '10px' }}>Debug: {vocabularyStats.totalWords} Wörter verfügbar</p>
                 <button 
                   onClick={handleRefreshProposals}
                   style={{
@@ -561,14 +570,15 @@ export const SessionChat: React.FC<SessionChatProps> = ({
                   Vorschläge generieren
                 </button>
               </div>
+            ) : (
+              currentProposals.map((word) => (
+                <VocabularyChip 
+                  key={word} 
+                  word={word} 
+                  onClick={() => handleWordClick(word)}
+                />
+              ))
             )}
-            {currentProposals.map((word) => (
-              <VocabularyChip 
-                key={word} 
-                word={word} 
-                onClick={() => handleWordClick(word)}
-              />
-            ))}
           </div>
           
           <div style={{ marginTop: '15px', paddingTop: '15px', borderTop: '1px solid #eee', fontSize: '12px', color: '#666' }}>
@@ -606,7 +616,7 @@ export const SessionChat: React.FC<SessionChatProps> = ({
               {message.author === "ai" ? (
                 renderAIMessage(message.text)
               ) : (
-                <p>{message.text}</p>
+                <p style={{ margin: 0, lineHeight: 1.6 }}>{message.text}</p>
               )}
               {message.error && <span className="session-chat__message-error">We'll resend once connected.</span>}
             </div>

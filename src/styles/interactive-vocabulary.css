@@ -2,6 +2,7 @@
 .interactive-text {
   line-height: 1.6;
   user-select: text;
+  position: relative;
 }
 
 .interactive-word {
@@ -11,12 +12,14 @@
   transition: all 0.2s ease;
   display: inline;
   position: relative;
+  border-bottom: 1px dotted transparent;
 }
 
 .interactive-word:hover {
   background-color: #e3f2fd;
   color: #1976d2;
-  text-decoration: underline;
+  border-bottom-color: #1976d2;
+  text-decoration: none;
 }
 
 .interactive-word:active {
@@ -27,35 +30,79 @@
 .interactive-word--hovered {
   background-color: #e3f2fd;
   color: #1976d2;
+  border-bottom-color: #1976d2;
 }
 
 /* Word Tooltip */
 .word-tooltip {
   background: #2c3e50;
   color: white;
-  padding: 8px 12px;
+  padding: 10px 14px;
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  max-width: 250px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  max-width: 280px;
   z-index: 1000;
   pointer-events: none;
   font-size: 14px;
+  line-height: 1.4;
+}
+
+.word-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -5px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: #2c3e50 transparent transparent transparent;
 }
 
 .word-tooltip__content {
   text-align: left;
 }
 
+.word-tooltip__content > strong {
+  color: #fff;
+  font-size: 15px;
+  display: block;
+  margin-bottom: 6px;
+}
+
 .word-tooltip__translation {
-  color: #95c5f7;
-  font-style: italic;
-  margin: 4px 0;
+  color: #81c784;
+  font-style: normal;
+  margin: 6px 0 4px 0;
+  font-size: 13px;
+}
+
+.word-tooltip__translation > strong {
+  color: #a5d6a7;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.word-tooltip__difficulty {
+  color: #ffd54f;
+  font-size: 12px;
+  margin: 4px 0 0 0;
+}
+
+.word-tooltip__difficulty > strong {
+  color: #fff3c4;
+  font-weight: 600;
 }
 
 .word-tooltip__pronunciation {
   color: #b8e6b8;
   font-size: 12px;
   margin: 2px 0 0 0;
+}
+
+/* AI Message specific styling */
+.ai-message-interactive {
+  position: relative;
+  word-wrap: break-word;
 }
 
 /* Vocabulary Section */
@@ -80,8 +127,8 @@
   background: none;
   border: 1px solid #ddd;
   border-radius: 50%;
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   cursor: pointer;
   font-size: 14px;
   display: flex;
@@ -93,6 +140,7 @@
 .refresh-btn:hover {
   background-color: #f5f5f5;
   border-color: #bbb;
+  transform: rotate(180deg);
 }
 
 .vocabulary-instruction {
@@ -118,6 +166,9 @@
   text-align: center;
   padding: 20px;
   color: #666;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  border: 1px dashed #ddd;
 }
 
 .no-proposals p {
@@ -133,6 +184,7 @@
   border-radius: 6px;
   cursor: pointer;
   font-size: 12px;
+  transition: background-color 0.2s ease;
 }
 
 .no-proposals button:hover {
@@ -151,6 +203,7 @@
   cursor: pointer;
   transition: all 0.2s ease;
   user-select: none;
+  position: relative;
 }
 
 .vocabulary-chip:hover {
@@ -158,12 +211,12 @@
   border-color: #1976d2;
   color: #1976d2;
   transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(25, 118, 210, 0.2);
 }
 
 .vocabulary-chip:active {
   transform: translateY(0);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 3px rgba(25, 118, 210, 0.2);
 }
 
 .vocabulary-chip--mastered {
@@ -187,11 +240,48 @@
   flex-wrap: wrap;
   gap: 4px;
   margin-bottom: 15px;
+  min-height: 60px;
 }
 
 .session-chat__message-text {
   margin: 0;
   line-height: 1.5;
+}
+
+/* Enhanced hover states for better UX */
+.interactive-word {
+  transition: all 0.15s ease-in-out;
+}
+
+.interactive-word:hover::before {
+  content: '\1f50d'; /* magnifying glass emoji */
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 12px;
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+/* Loading states */
+.vocabulary-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  color: #666;
+}
+
+.vocabulary-loading::before {
+  content: '⏳';
+  margin-right: 8px;
+  animation: spin 2s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 /* Responsive Design */
@@ -203,11 +293,17 @@
   .vocabulary-chip {
     font-size: 13px;
     padding: 5px 10px;
+    margin: 2px;
   }
   
   .word-tooltip {
     max-width: 200px;
     font-size: 13px;
+    padding: 8px 12px;
+  }
+  
+  .interactive-word:hover::before {
+    display: none; /* Hide magnifying glass on mobile */
   }
 }
 
@@ -227,11 +323,23 @@
   animation: slideInWord 0.3s ease-out;
 }
 
+/* Success feedback animation */
+@keyframes wordClickSuccess {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); background-color: #c8e6c9; }
+  100% { transform: scale(1); }
+}
+
+.interactive-word--clicked {
+  animation: wordClickSuccess 0.3s ease-out;
+}
+
 /* Focus states for accessibility */
 .interactive-word:focus {
   outline: 2px solid #1976d2;
   outline-offset: 1px;
   background-color: #e3f2fd;
+  border-radius: 4px;
 }
 
 .vocabulary-chip:focus {
@@ -242,4 +350,74 @@
 .refresh-btn:focus {
   outline: 2px solid #1976d2;
   outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .interactive-word:hover {
+    background-color: #000;
+    color: #fff;
+    border-bottom-color: #fff;
+  }
+  
+  .word-tooltip {
+    background: #000;
+    border: 2px solid #fff;
+  }
+  
+  .vocabulary-chip:hover {
+    background-color: #000;
+    color: #fff;
+    border-color: #fff;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .interactive-word:hover {
+    background-color: #1a237e;
+    color: #90caf9;
+  }
+  
+  .word-tooltip {
+    background: #1a1a1a;
+    border: 1px solid #333;
+  }
+  
+  .vocabulary-chip {
+    background-color: #2c2c2c;
+    border-color: #444;
+    color: #e0e0e0;
+  }
+  
+  .vocabulary-chip:hover {
+    background-color: #1a237e;
+    border-color: #3f51b5;
+    color: #90caf9;
+  }
+  
+  .no-proposals {
+    background-color: #2c2c2c;
+    border-color: #444;
+    color: #bbb;
+  }
+}
+
+/* Print styles */
+@media print {
+  .word-tooltip,
+  .vocabulary-chip,
+  .refresh-btn {
+    display: none;
+  }
+  
+  .interactive-word {
+    cursor: default;
+    border-bottom: none;
+  }
+  
+  .interactive-word:hover {
+    background-color: transparent;
+    color: inherit;
+  }
 }
