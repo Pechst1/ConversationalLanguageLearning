@@ -4,13 +4,15 @@ import apiService from '@/services/api';
 import toast from 'react-hot-toast';
 
 export interface TargetWord {
-  id: number | string;
+  id: number;
   word: string;
-  translation: string;
+  text: string;
+  translation?: string;
   hintTranslation?: string;
   familiarity?: 'new' | 'learning' | 'familiar';
   difficulty?: number;
   exposureCount?: number;
+  position?: number;
 }
 
 export interface ChatMessage {
@@ -51,6 +53,70 @@ export interface LearningSession {
   targetWords: TargetWord[];
 }
 
+const parseNumericId = (value: unknown): number | null => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    const parsed = Number.parseInt(value, 10);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  return null;
+};
+
+const normalizeTargetWord = (target: any): TargetWord | null => {
+  if (!target) {
+    return null;
+  }
+
+  const id =
+    parseNumericId(target.id) ??
+    parseNumericId(target.word_id) ??
+    parseNumericId(target.wordId) ??
+    parseNumericId(target.target_word_id);
+
+  if (id === null) {
+    return null;
+  }
+
+  const rawText = target.text ?? target.word ?? '';
+  const textValue = typeof rawText === 'string' ? rawText.trim() : '';
+
+  return {
+    id,
+    word: typeof target.word === 'string' ? target.word : textValue,
+    text: textValue || (typeof target.word === 'string' ? target.word : ''),
+    translation: target.translation ?? target.hintTranslation ?? target.hint_translation ?? undefined,
+    hintTranslation: target.hintTranslation ?? target.hint_translation ?? undefined,
+    familiarity:
+      target.familiarity ?? (typeof target.is_new === 'boolean' ? (target.is_new ? 'new' : undefined) : undefined),
+    difficulty: target.difficulty ?? target.difficulty_rating ?? undefined,
+    exposureCount: target.exposure_count ?? target.exposures ?? undefined,
+    position:
+      typeof target.position === 'number'
+        ? target.position
+        : typeof target.start === 'number'
+        ? target.start
+        : typeof target.start_index === 'number'
+        ? target.start_index
+        : undefined,
+  };
+};
+
+const normalizeTargets = (targets: any): TargetWord[] => {
+  if (!Array.isArray(targets)) {
+    return [];
+  }
+
+  return targets
+    .map((target) => normalizeTargetWord(target))
+    .filter((target): target is TargetWord => target !== null);
+};
+
 export function useLearningSession(sessionId?: string) {
   const [session, setSession] = useState<LearningSession | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -79,7 +145,9 @@ export function useLearningSession(sessionId?: string) {
         content: data.content || '',
         timestamp: new Date(data.timestamp || Date.now()),
         xp: data.xp || 0,
-        targets: data.targets || data.target_words || []
+        targets: normalizeTargets(
+          data.targets || data.target_words || data.target_details || data.targetDetails || []
+        )
       };
       
       setMessages(prev => [...prev, message]);
@@ -167,16 +235,13 @@ export function useLearningSession(sessionId?: string) {
     if (!lastWithTargets) return [] as { id: number; word: string; translation?: string; is_new?: boolean; familiarity?: 'new' | 'learning' | 'familiar' }[];
 
     const seen = new Set<number>();
-    const mapped = (lastWithTargets.targets || []).map((t) => {
-      const id = typeof t.id === 'string' ? parseInt(t.id, 10) : Number(t.id);
-      return {
-        id: Number.isFinite(id) ? id : 0,
-        word: String(t.word || ''),
-        translation: t.hintTranslation || t.translation || undefined,
-        is_new: t.familiarity ? t.familiarity === 'new' : undefined,
-        familiarity: (t.familiarity as 'new' | 'learning' | 'familiar' | undefined) || undefined,
-      };
-    });
+    const mapped = (lastWithTargets.targets || []).map((t) => ({
+      id: t.id,
+      word: t.word || t.text,
+      translation: t.hintTranslation || t.translation || undefined,
+      is_new: t.familiarity ? t.familiarity === 'new' : undefined,
+      familiarity: (t.familiarity as 'new' | 'learning' | 'familiar' | undefined) || undefined,
+    }));
     const unique = mapped.filter((w) => {
       if (!w.id || seen.has(w.id)) return false;
       seen.add(w.id);
@@ -221,7 +286,7 @@ export function useLearningSession(sessionId?: string) {
           role: 'assistant',
           content: sessionData.greeting,
           timestamp: new Date(),
-          targets: sessionData.greeting_targets || []
+          targets: normalizeTargets(sessionData.greeting_targets || sessionData.greetingTargets || []),
         };
         setMessages([greetingMessage]);
       }
@@ -280,7 +345,7 @@ export function useLearningSession(sessionId?: string) {
   }, [session, generateMessageId, isWebSocketConnected, rawWebSocketSend, handleWebSocketMessage]);
 
   const logWordExposure = useCallback(async (wordId: number, exposureType: 'hint' | 'translation') => {
-    if (!session) return;
+    if (!session || !Number.isFinite(wordId)) return;
     
     try {
       await apiService.logExposure(session.id, {
@@ -293,8 +358,11 @@ export function useLearningSession(sessionId?: string) {
   }, [session]);
 
   const markWordDifficult = useCallback(async (wordId: number) => {
-    if (!session) return;
-    
+    if (!session || !Number.isFinite(wordId)) {
+      toast.error('Unable to mark this word as difficult');
+      return;
+    }
+
     try {
       await apiService.markWordDifficult(session.id, { word_id: wordId });
       toast.success('Word marked as difficult', { duration: 2000 });
@@ -357,9 +425,13 @@ export function useLearningSession(sessionId?: string) {
           content: msg.content,
           timestamp: new Date(msg.timestamp),
           xp: msg.xp,
-          targets: msg.targets || msg.target_words || [],
+          targets: normalizeTargets(
+            msg.targets || msg.target_words || msg.target_details || msg.targetDetails || []
+          ),
         })) || [],
-        targetWords: sessionData.target_words || [],
+        targetWords: normalizeTargets(
+          sessionData.target_words || sessionData.targetWords || sessionData.target_details || []
+        ),
       };
       
       setSession(loadedSession);
