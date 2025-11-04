@@ -1,5 +1,6 @@
 import React from 'react';
 import { getSession } from 'next-auth/react';
+import { useRouter } from 'next/router';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import apiService from '@/services/api';
@@ -14,6 +15,8 @@ interface PracticeWord {
   scheduler?: 'anki' | 'fsrs' | string;
 }
 
+type PracticeDirection = 'fr_to_de' | 'de_to_fr';
+
 interface PracticeProps {
   queueWords: PracticeWord[];
   counters: {
@@ -21,6 +24,7 @@ interface PracticeProps {
     learningCount: number;
     dueCount: number;
   };
+  direction?: PracticeDirection;
 }
 
 function cleanSurface(word: string, translation?: string | null) {
@@ -35,16 +39,140 @@ function cleanSurface(word: string, translation?: string | null) {
   return result;
 }
 
-export default function PracticePage({ queueWords, counters }: PracticeProps) {
+const directionOptions: { value: PracticeDirection; label: string }[] = [
+  { value: 'fr_to_de', label: 'Französisch → Deutsch' },
+  { value: 'de_to_fr', label: 'Deutsch → Französisch' },
+];
+
+function isValidDirection(value: unknown): value is PracticeDirection {
+  return value === 'fr_to_de' || value === 'de_to_fr';
+}
+
+function mapQueueItem(item: any): PracticeWord {
+  return {
+    wordId: item.word_id,
+    word: item.word,
+    translation: item.english_translation || '',
+    difficulty: item.difficulty_level || 1,
+    scheduler: item.scheduler || undefined,
+  };
+}
+
+export default function PracticePage({
+  queueWords,
+  counters,
+  direction: initialDirection = 'fr_to_de',
+}: PracticeProps) {
+  const router = useRouter();
   const [currentWordIndex, setCurrentWordIndex] = React.useState(0);
   const [showAnswer, setShowAnswer] = React.useState(false);
   const [score, setScore] = React.useState(0);
   const [completed, setCompleted] = React.useState(false);
   const [counts] = React.useState(counters);
+  const [selectedDirection, setSelectedDirection] = React.useState<PracticeDirection>(
+    initialDirection,
+  );
+  const [words, setWords] = React.useState(queueWords);
+  const [isLoadingDirection, setIsLoadingDirection] = React.useState(false);
+  const [pendingDirection, setPendingDirection] = React.useState<PracticeDirection | null>(
+    null,
+  );
 
-  const currentWord = queueWords[currentWordIndex];
+  const fetchQueue = React.useCallback(async (direction: PracticeDirection) => {
+    const freshQueue = await apiService.getProgressQueue({ direction });
+    return Array.isArray(freshQueue) ? freshQueue.map(mapQueueItem) : [];
+  }, []);
+
+  React.useEffect(() => {
+    setSelectedDirection(initialDirection);
+  }, [initialDirection]);
+
+  React.useEffect(() => {
+    setWords(queueWords);
+  }, [queueWords]);
+
+  const currentWord = words[currentWordIndex];
+  const directionToggle = (
+    <div className="flex justify-center gap-3 mb-6">
+      {directionOptions.map((option) => (
+        <Button
+          key={option.value}
+          variant={selectedDirection === option.value ? 'default' : 'outline'}
+          onClick={() => handleDirectionChange(option.value)}
+          loading={
+            isLoadingDirection &&
+            (selectedDirection === option.value || pendingDirection === option.value)
+          }
+          disabled={isLoadingDirection}
+        >
+          {option.label}
+        </Button>
+      ))}
+    </div>
+  );
+
+  const handleDirectionChange = async (direction: PracticeDirection) => {
+    if (direction === selectedDirection) {
+      return;
+    }
+
+    setPendingDirection(direction);
+    setIsLoadingDirection(true);
+
+    try {
+      const mappedQueue = await fetchQueue(direction);
+      setWords(mappedQueue);
+      setCurrentWordIndex(0);
+      setShowAnswer(false);
+      setScore(0);
+      setCompleted(false);
+      setSelectedDirection(direction);
+      const nextQuery = { ...router.query, direction };
+      try {
+        await router.replace(
+          {
+            pathname: router.pathname,
+            query: nextQuery,
+          },
+          undefined,
+          { shallow: true },
+        );
+      } catch (err) {
+        console.error('Failed to update direction query parameter', err);
+      }
+    } catch (error) {
+      console.error('Failed to fetch practice queue for direction:', error);
+      toast.error('Failed to load practice queue for selected direction');
+    } finally {
+      setPendingDirection(null);
+      setIsLoadingDirection(false);
+    }
+  };
+
+  const handleRefreshQueue = React.useCallback(async () => {
+    setIsLoadingDirection(true);
+    try {
+      const mappedQueue = await fetchQueue(selectedDirection);
+      setWords(mappedQueue);
+      if (mappedQueue.length) {
+        setCurrentWordIndex(0);
+        setShowAnswer(false);
+        setCompleted(false);
+        setScore(0);
+      }
+    } catch (error) {
+      console.error('Failed to refresh practice queue:', error);
+      toast.error('Failed to reload practice queue');
+    } finally {
+      setIsLoadingDirection(false);
+    }
+  }, [fetchQueue, selectedDirection]);
 
   const handleRating = async (rating: number) => {
+    if (!currentWord) {
+      toast.error('No word available to review');
+      return;
+    }
     try {
       if (currentWord.scheduler && currentWord.scheduler.toLowerCase() === 'anki') {
         await apiService.submitAnkiReview({ word_id: currentWord.wordId, rating });
@@ -56,64 +184,74 @@ export default function PracticePage({ queueWords, counters }: PracticeProps) {
         setScore(score + 1);
       }
 
-      if (currentWordIndex < queueWords.length - 1) {
+      if (currentWordIndex < words.length - 1) {
         setCurrentWordIndex(currentWordIndex + 1);
         setShowAnswer(false);
       } else {
         setCompleted(true);
-        toast.success(`Practice completed! Score: ${score + (rating >= 2 ? 1 : 0)}/${queueWords.length}`);
+        toast.success(`Practice completed! Score: ${score + (rating >= 2 ? 1 : 0)}/${words.length}`);
       }
     } catch (error) {
       toast.error('Failed to submit review');
     }
   };
 
-  if (!queueWords?.length) {
+  if (!words?.length) {
     return (
-      <div className="max-w-2xl mx-auto text-center">
-        <Card>
-          <CardContent className="p-8">
-            <h1 className="text-2xl font-bold mb-4">No words to practice</h1>
-            <p className="text-gray-600 mb-6">
-              Great job! You&apos;re all caught up with your vocabulary practice.
-            </p>
-            <Button onClick={() => window.location.reload()}>Check Again</Button>
-          </CardContent>
-        </Card>
+      <div className="max-w-2xl mx-auto">
+        {directionToggle}
+        <div className="text-center">
+          <Card>
+            <CardContent className="p-8">
+              <h1 className="text-2xl font-bold mb-4">No words to practice</h1>
+              <p className="text-gray-600 mb-6">
+                Great job! You&apos;re all caught up with your vocabulary practice.
+              </p>
+              <Button onClick={handleRefreshQueue} loading={isLoadingDirection}>
+                Check Again
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   }
 
   if (completed) {
     return (
-      <div className="max-w-2xl mx-auto text-center">
-        <Card>
-          <CardContent className="p-8">
-            <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
-            <h1 className="text-2xl font-bold mb-4">Practice Complete!</h1>
-            <p className="text-gray-600 mb-6">
-              Final Score: {score}/{queueWords.length}
-            </p>
-            <Button onClick={() => window.location.href = '/dashboard'}>Back to Dashboard</Button>
-          </CardContent>
-        </Card>
+      <div className="max-w-2xl mx-auto">
+        {directionToggle}
+        <div className="text-center">
+          <Card>
+            <CardContent className="p-8">
+              <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
+              <h1 className="text-2xl font-bold mb-4">Practice Complete!</h1>
+              <p className="text-gray-600 mb-6">
+                Final Score: {score}/{words.length}
+              </p>
+              <Button onClick={() => window.location.href = '/dashboard'}>Back to Dashboard</Button>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="max-w-2xl mx-auto">
+      {directionToggle}
+
       <div className="mb-8">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-gray-900">Vocabulary Practice</h1>
           <div className="text-sm text-gray-600">
-            {currentWordIndex + 1} of {queueWords.length}
+            {currentWordIndex + 1} of {words.length}
           </div>
         </div>
         <div className="w-full bg-gray-200 rounded-full h-2 mt-4">
-          <div 
+          <div
             className="bg-primary-600 h-2 rounded-full transition-all duration-300"
-            style={{ width: `${((currentWordIndex + 1) / queueWords.length) * 100}%` }}
+            style={{ width: `${((currentWordIndex + 1) / words.length) * 100}%` }}
           />
         </div>
       </div>
@@ -148,8 +286,8 @@ export default function PracticePage({ queueWords, counters }: PracticeProps) {
                 </p>
                 
                 <div className="grid grid-cols-2 gap-3">
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     onClick={() => handleRating(0)}
                     className="border-red-300 text-red-600 hover:bg-red-50"
                   >
@@ -201,7 +339,7 @@ export default function PracticePage({ queueWords, counters }: PracticeProps) {
 
 export async function getServerSideProps(context: any) {
   const session = await getSession(context);
-  
+
   if (!session) {
     return {
       redirect: {
@@ -220,24 +358,24 @@ export async function getServerSideProps(context: any) {
     const baseUrl = normalizedBase.endsWith('/api/v1')
       ? normalizedBase
       : `${normalizedBase}/api/v1`;
+    const directionParamRaw = Array.isArray(context.query?.direction)
+      ? context.query?.direction[0]
+      : context.query?.direction;
+    const directionParam =
+      typeof directionParamRaw === 'string' ? directionParamRaw : undefined;
+    const direction = isValidDirection(directionParam) ? directionParam : 'fr_to_de';
     const headers = {
       'Authorization': `Bearer ${session.accessToken}`,
       'Content-Type': 'application/json',
     };
 
     const [queueRes, summaryRes] = await Promise.all([
-      fetch(`${baseUrl}/progress/queue`, { headers }),
+      fetch(`${baseUrl}/progress/queue?direction=${direction}`, { headers }),
       fetch(`${baseUrl}/progress/anki/summary`, { headers }),
     ]);
     const raw = queueRes.ok ? await queueRes.json() : [];
     const queueWords = Array.isArray(raw)
-      ? raw.map((item: any) => ({
-          wordId: item.word_id,
-          word: item.word,
-          translation: item.english_translation || '',
-          difficulty: item.difficulty_level || 1,
-          scheduler: item.scheduler || undefined,
-        }))
+      ? raw.map(mapQueueItem)
       : [];
 
     const summary = summaryRes.ok ? await summaryRes.json() : null;
@@ -250,6 +388,7 @@ export async function getServerSideProps(context: any) {
       props: {
         queueWords,
         counters,
+        direction,
       },
     };
   } catch (error) {
@@ -258,6 +397,7 @@ export async function getServerSideProps(context: any) {
       props: {
         queueWords: [],
         counters: { newCount: 0, learningCount: 0, dueCount: 0 },
+        direction: 'fr_to_de',
       },
     };
   }
