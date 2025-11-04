@@ -1,164 +1,211 @@
 import React from 'react';
+import { CheckCircle, XCircle, Clock } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import type { SessionStats } from '@/types/learning';
 
-type SuccessExample = {
-  word: string;
-  translation?: string;
-  sentence?: string;
-};
+interface SessionSummaryProps {
+  stats: SessionStats;
+  onStartNewSession: () => void;
+  onReturnToDashboard: () => void;
+}
 
-type ErrorExample = {
-  word: string;
-  issue?: string;
-  correction?: string;
-  category?: string;
-};
+export default function SessionSummary({
+  stats,
+  onStartNewSession,
+  onReturnToDashboard,
+}: SessionSummaryProps) {
+  const normalized = React.useMemo(() => {
+    const totalReviews =
+      (typeof stats.totalReviews === 'number' ? stats.totalReviews : undefined) ??
+      (typeof stats.words_reviewed === 'number' ? stats.words_reviewed : undefined) ??
+      (typeof stats.words_practiced === 'number' ? stats.words_practiced : undefined) ??
+      0;
 
-type Summary = {
-  xp_earned: number;
-  words_practiced: number;
-  accuracy_rate: number;
-  new_words_introduced: number;
-  words_reviewed: number;
-  correct_responses: number;
-  incorrect_responses: number;
-  status: string;
-  success_examples?: SuccessExample[];
-  error_examples?: ErrorExample[];
-  flashcard_words?: Array<any>;
-  practice_items?: Array<{
-    word: string;
-    translation?: string;
-    issue?: string;
-    correction?: string;
-    category?: string;
-    sentence?: string;
-  }>;
-};
+    const correctAnswers =
+      (typeof stats.correctAnswers === 'number' ? stats.correctAnswers : undefined) ??
+      (typeof stats.correct_responses === 'number' ? stats.correct_responses : undefined) ??
+      Math.max(0, totalReviews - ((typeof stats.incorrect_responses === 'number' ? stats.incorrect_responses : 0)));
 
-type SessionSummaryProps = {
-  summary: Summary;
-};
+    const xpEarned =
+      (typeof stats.xpEarned === 'number' ? stats.xpEarned : undefined) ??
+      (typeof stats.xp_earned === 'number' ? stats.xp_earned : undefined) ??
+      0;
 
-const StatItem = ({ label, value }: { label: string; value: React.ReactNode }) => (
-  <div className="rounded-lg border-2 border-[#0b3954] bg-[#f5f1e8] p-4 shadow-sm">
-    <p className="text-xs uppercase tracking-wide text-[#0b3954]/70">{label}</p>
-    <p className="text-2xl font-semibold text-[#0b3954]">{value}</p>
-  </div>
-);
+    const newCards =
+      (typeof stats.newCards === 'number' ? stats.newCards : undefined) ??
+      (typeof stats.new_words_introduced === 'number' ? stats.new_words_introduced : undefined) ??
+      0;
 
-export default function SessionSummary({ summary }: SessionSummaryProps) {
-  const stats = [
-    { label: 'XP earned', value: summary.xp_earned },
-    { label: 'Words practiced', value: summary.words_practiced },
-    { label: 'Accuracy rate', value: `${Math.round((summary.accuracy_rate || 0) * 100)}%` },
-    { label: 'New words introduced', value: summary.new_words_introduced },
-    { label: 'Words reviewed', value: summary.words_reviewed },
-  ];
+    const sessionDuration =
+      (typeof stats.sessionDuration === 'number' ? stats.sessionDuration : undefined) ??
+      undefined;
 
-  const flashcards = (summary.flashcard_words ?? []).map((word: any) => ({
-    id: word.id ?? word.word_id,
-    word: word.word,
-    translation: word.translation,
-    hintSentence: word.hint_sentence ?? word.hintSentence,
-  }));
+    const accuracyExplicit =
+      (typeof stats.accuracy === 'number' ? stats.accuracy : undefined) ??
+      (typeof stats.accuracy_rate === 'number' ? Math.round(stats.accuracy_rate * 100) : undefined);
+
+    return {
+      totalReviews,
+      correctAnswers,
+      xpEarned,
+      sessionDuration,
+      newCards,
+      accuracyExplicit,
+    };
+  }, [stats]);
+
+  const effectiveTotal = normalized.totalReviews;
+  const effectiveCorrect = normalized.correctAnswers;
+  const effectiveAccuracy = normalized.accuracyExplicit ?? (effectiveTotal > 0 ? Math.round((effectiveCorrect / effectiveTotal) * 100) : 0);
+
+  const incorrectAnswers = Math.max(0, effectiveTotal - effectiveCorrect);
+
+  // Emit custom event when component mounts to notify other parts of the app
+  React.useEffect(() => {
+    // Dispatch custom event for session completion
+    const event = new CustomEvent('learningSessionComplete', {
+      detail: {
+        stats,
+        timestamp: new Date().toISOString(),
+      }
+    });
+    window.dispatchEvent(event);
+    
+    // Also try to trigger page refresh for progress tab if it's open
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem('lastSessionComplete', new Date().toISOString());
+      }
+    } catch (error) {
+      console.debug('Could not update localStorage:', error);
+    }
+  }, [stats]);
+
+  const getPerformanceColor = (accuracy: number) => {
+    if (accuracy >= 80) return 'text-green-600';
+    if (accuracy >= 60) return 'text-yellow-600';
+    return 'text-red-600';
+  };
 
   return (
-    <div className="space-y-8">
-      <section className="space-y-3">
-        <h2 className="text-xl font-semibold text-gray-900">Session Highlights</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {stats.map((stat) => (
-            <StatItem key={stat.label} label={stat.label} value={stat.value} />
-          ))}
+    <Card className="w-full max-w-2xl mx-auto">
+      <CardHeader className="text-center">
+        <div className="mx-auto mb-4">
+          <CheckCircle className="h-16 w-16 text-green-500" />
         </div>
-      </section>
-
-      {summary.success_examples && summary.success_examples.length > 0 && (
-        <section className="space-y-3">
-          <h3 className="text-lg font-semibold text-[#0b3954]">What went well</h3>
-          <div className="space-y-3">
-            {summary.success_examples.map((item, index) => (
-              <div key={index} className="rounded-lg border-2 border-[#4caf50] bg-[#edf7ed] p-4">
-                <p className="text-sm font-semibold text-[#245b2a]">
-                  {item.word}
-                  {item.translation ? ` – ${item.translation}` : ''}
-                </p>
-                {item.sentence && (
-                  <p className="mt-1 text-sm text-[#1f5124]">“{item.sentence}”</p>
-                )}
-              </div>
-            ))}
+        <CardTitle className="text-2xl font-bold text-gray-900">
+          Session Complete!
+        </CardTitle>
+        <p className="text-gray-600 mt-2">
+          Great work! Here&apos;s how you did in this session.
+        </p>
+      </CardHeader>
+      
+      <CardContent className="space-y-6">
+        {/* Main Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="text-center p-4 bg-blue-50 rounded-lg">
+            <div className="text-2xl font-bold text-blue-600">
+              {effectiveTotal}
+            </div>
+            <div className="text-sm text-gray-600">Cards Reviewed</div>
           </div>
-        </section>
-      )}
-
-      {summary.error_examples && summary.error_examples.length > 0 && (
-        <section className="space-y-3">
-          <h3 className="text-lg font-semibold text-[#931621]">Next steps</h3>
-          <div className="space-y-3">
-            {summary.error_examples.map((item, index) => (
-              <div key={index} className="rounded-lg border-2 border-[#f25c54] bg-[#ffe8e5] p-4">
-                <p className="text-sm font-semibold text-[#aa2f2f]">{item.word}</p>
-                {item.issue && <p className="mt-1 text-sm text-[#8c1d1d]">{item.issue}</p>}
-                {item.correction && (
-                  <p className="mt-1 text-sm text-[#8c1d1d]">
-                    Suggested: <span className="font-medium">{item.correction}</span>
-                  </p>
-                )}
-              </div>
-            ))}
+          
+          <div className="text-center p-4 bg-green-50 rounded-lg">
+            <div className={`text-2xl font-bold ${getPerformanceColor(effectiveAccuracy)}`}>
+              {effectiveAccuracy}%
+            </div>
+            <div className="text-sm text-gray-600">Accuracy</div>
           </div>
-        </section>
-      )}
-
-      {summary.practice_items && summary.practice_items.length > 0 && (
-        <section className="space-y-3">
-          <h3 className="text-lg font-semibold text-[#0b3954]">What needs practice</h3>
-          <div className="space-y-3">
-            {summary.practice_items.map((item, index) => (
-              <div key={index} className="rounded-lg border-2 border-[#0b3954] bg-[#f0efeb] p-4">
-                <p className="text-sm font-semibold text-[#0b3954]">
-                  {item.word}
-                  {item.translation ? ` – ${item.translation}` : ''}
-                </p>
-                {item.issue && (
-                  <p className="mt-1 text-sm text-[#0b3954]">
-                    Issue: <span className="font-medium">{item.issue}</span>
-                  </p>
-                )}
-                {item.correction && (
-                  <p className="mt-1 text-sm text-[#0b3954]">
-                    Correction: <span className="font-medium">{item.correction}</span>
-                  </p>
-                )}
-                {item.sentence && (
-                  <p className="mt-1 text-sm italic text-[#0b3954]/80">“{item.sentence}”</p>
-                )}
-              </div>
-            ))}
+          
+          <div className="text-center p-4 bg-purple-50 rounded-lg">
+            <div className="text-2xl font-bold text-purple-600">
+              {normalized.xpEarned}
+            </div>
+            <div className="text-sm text-gray-600">XP Earned</div>
           </div>
-        </section>
-      )}
+        </div>
 
-      {flashcards.length > 0 && (
-        <section className="space-y-3">
-          <h3 className="text-lg font-semibold text-[#0b3954]">Words to review</h3>
-          <div className="flex flex-wrap gap-2">
-            {flashcards.map((word) => (
-              <div
-                key={word.id}
-                className="rounded-md border-2 border-[#0b3954] bg-[#ffd60a] px-3 py-2 text-sm text-[#0b3954]"
-              >
-                <p className="font-semibold">{word.word}</p>
-                {word.translation && <p>{word.translation}</p>}
-                {word.hintSentence && (
-                  <p className="text-xs text-[#0b3954]">Hint: {word.hintSentence}</p>
-                )}
+        {/* Detailed Breakdown */}
+        <div className="space-y-3">
+          <h3 className="font-semibold text-gray-900">Session Details</h3>
+          
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="h-4 w-4 text-green-500" />
+                <span>Correct Answers</span>
               </div>
-            ))}
+              <span className="font-semibold text-green-600">
+                {effectiveCorrect}
+              </span>
+            </div>
+            
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div className="flex items-center gap-2">
+                <XCircle className="h-4 w-4 text-red-500" />
+                <span>Incorrect Answers</span>
+              </div>
+              <span className="font-semibold text-red-600">
+                {incorrectAnswers}
+              </span>
+            </div>
+            
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div className="flex items-center gap-2">
+                <Clock className="h-4 w-4 text-blue-500" />
+                <span>Session Duration</span>
+              </div>
+              <span className="font-semibold text-blue-600">
+                {normalized.sessionDuration ? `${Math.round(normalized.sessionDuration / 60)}m` : 'N/A'}
+              </span>
+            </div>
+            
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div className="flex items-center gap-2">
+                <span>📚</span>
+                <span>New Cards</span>
+              </div>
+              <span className="font-semibold text-gray-600">
+                {normalized.newCards || 0}
+              </span>
+            </div>
           </div>
-        </section>
-      )}
-    </div>
+        </div>
+
+        {/* Progress Encouragement */}
+        <div className="text-center p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg">
+          <p className="text-sm text-gray-700 mb-2">
+            {effectiveAccuracy >= 80 
+              ? 'Excellent work! You\'re mastering these words.' 
+              : effectiveAccuracy >= 60 
+              ? 'Good progress! Keep practicing to improve.' 
+              : 'Don\'t worry, learning takes time. Keep going!'}
+          </p>
+          <p className="text-xs text-gray-500">
+            Your progress has been automatically saved and will be reflected in your statistics.
+          </p>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <Button 
+            onClick={onStartNewSession} 
+            className="flex-1"
+            variant="default"
+          >
+            Start New Session
+          </Button>
+          <Button 
+            onClick={onReturnToDashboard} 
+            className="flex-1"
+            variant="outline"
+          >
+            Return to Dashboard
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

@@ -1,313 +1,287 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import type { ChatMessage, TargetWord } from '@/hooks/useLearningSession';
 import apiService from '@/services/api';
+import InteractiveText from './InteractiveText';
 
 type Props = {
   messages: ChatMessage[];
   onWordInteract?: (wordId: number, exposureType: 'hint' | 'translation') => void;
   onWordFlag?: (wordId: number) => void;
+  activeSessionId?: string;
 };
 
 const familiarityClasses: Record<string, string> = {
-  new: 'bg-red-100 text-red-800',
-  learning: 'bg-yellow-100 text-yellow-900',
-  familiar: 'bg-green-100 text-green-800',
+  new: 'bg-red-100 text-red-800 border border-red-200',
+  learning: 'bg-yellow-100 text-yellow-900 border border-yellow-200',
+  familiar: 'bg-green-100 text-green-800 border border-green-200',
 };
 
-const defaultHighlightClass = 'bg-blue-100 text-blue-900';
+const defaultHighlightClass = 'bg-blue-100 text-blue-900 border border-blue-200';
 
-const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const ConversationHistory: React.FC<Props> = ({
+  messages,
+  onWordInteract,
+  onWordFlag,
+  activeSessionId,
+}) => {
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [hoveredWord, setHoveredWord] = useState<number | null>(null);
+  const [wordTranslations, setWordTranslations] = useState<Record<number, string>>({});
+  const [loadingTranslations, setLoadingTranslations] = useState<Set<number>>(new Set());
 
-export default function ConversationHistory({ messages, onWordInteract, onWordFlag }: Props) {
-  const [hovered, setHovered] = useState<Record<number, boolean>>({});
-  const [hoveredWord, setHoveredWord] = useState<string | null>(null);
-  const [tooltipPosition, setTooltipPosition] = useState<{ x: number; y: number } | null>(null);
-  const [wordDefinition, setWordDefinition] = useState<{ word: string; translation: string } | null>(null);
-  const lookupCache = useRef<Record<string, { id?: number; translation: string }>>({});
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
-  const handleHover = React.useCallback(
-    (target: TargetWord) => {
-      if (hovered[target.id]) return;
-      setHovered((prev) => {
-        if (prev[target.id]) {
-          return prev;
-        }
-        return { ...prev, [target.id]: true };
-      });
-      onWordInteract?.(target.id, 'hint');
-    },
-    [hovered, onWordInteract]
-  );
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
-  const handleClick = React.useCallback(
-    (target: TargetWord) => {
-      if (target.translation) {
-        toast(`Added "${target.word}" to practice`, {
-          icon: '🧠',
-          duration: 3500,
-        });
-      }
-      onWordInteract?.(target.id, 'translation');
-      onWordFlag?.(target.id);
-    },
-    [onWordFlag, onWordInteract]
-  );
-
-  const handleWordLeave = useCallback(() => {
-    setHoveredWord(null);
-    setTooltipPosition(null);
-    setWordDefinition(null);
-  }, []);
-
-  const ensureLookup = useCallback(async (word: string) => {
-    const key = word.toLowerCase();
-    if (lookupCache.current[key]) {
-      return lookupCache.current[key];
+  const fetchWordTranslation = useCallback(async (wordId: number) => {
+    if (!Number.isFinite(wordId)) {
+      return;
     }
+
+    if (wordTranslations[wordId] || loadingTranslations.has(wordId)) {
+      return;
+    }
+
+    setLoadingTranslations(prev => new Set(prev).add(wordId));
+    
     try {
-      const result = await apiService.lookupVocabulary(word);
-      const rawId =
-        typeof result?.id === 'number'
-          ? result.id
-          : result?.id != null
-          ? Number.parseInt(String(result.id), 10)
-          : undefined;
-      const parsedId = typeof rawId === 'number' && Number.isFinite(rawId) ? rawId : undefined;
-      const entry = {
-        id: parsedId,
-        translation:
-          result?.english_translation ||
-          result?.definition ||
-          result?.example_translation ||
-          'Translation unavailable',
-      };
-      lookupCache.current[key] = entry;
-      return entry;
+      const response = await apiService.get(`/vocabulary/words/${wordId}/translation`);
+      setWordTranslations(prev => ({
+        ...prev,
+        [wordId]: response.translation
+      }));
     } catch (error) {
-      const fallback = { translation: 'Translation unavailable' };
-      lookupCache.current[key] = fallback;
-      return fallback;
+      console.error('Failed to fetch word translation:', error);
+      toast.error('Failed to load translation');
+    } finally {
+      setLoadingTranslations(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(wordId);
+        return newSet;
+      });
     }
+  }, [wordTranslations, loadingTranslations]);
+
+  const handleWordHover = useCallback((wordId: number) => {
+    if (!Number.isFinite(wordId)) {
+      return;
+    }
+
+    setHoveredWord(wordId);
+    fetchWordTranslation(wordId);
+    onWordInteract?.(wordId, 'hint');
+  }, [fetchWordTranslation, onWordInteract]);
+
+  const handleWordClick = useCallback((wordId: number) => {
+    if (!Number.isFinite(wordId)) {
+      return;
+    }
+
+    fetchWordTranslation(wordId);
+    onWordInteract?.(wordId, 'translation');
+  }, [fetchWordTranslation, onWordInteract]);
+
+  const handleWordFlag = useCallback(async (wordId: number) => {
+    if (!Number.isFinite(wordId)) {
+      toast.error('Unable to mark this word as difficult');
+      return;
+    }
+
+    if (onWordFlag) {
+      try {
+        await Promise.resolve(onWordFlag(wordId));
+      } catch (error) {
+        console.error('Failed to mark word as difficult via handler:', error);
+        toast.error('Failed to mark word as difficult');
+      }
+      return;
+    }
+
+    if (!activeSessionId) {
+      toast.error('No active session to mark difficult words');
+      return;
+    }
+
+    try {
+      await apiService.post(`/sessions/${activeSessionId}/difficult-words`, {
+        word_id: wordId,
+      });
+      toast.success('Word marked as difficult');
+    } catch (error) {
+      console.error('Failed to mark word as difficult:', error);
+      toast.error('Failed to mark word as difficult');
+    }
+  }, [activeSessionId, onWordFlag]);
+
+  // Language detection for InteractiveText
+  const detectLanguage = useCallback((text: string): 'french' | 'german' | 'spanish' => {
+    const frenchPatterns = /\b(bonjour|merci|comment|pourquoi|très|français|nouveau|entreprise|marché)\b/gi;
+    const germanPatterns = /\b(hallo|danke|wie|warum|sehr|deutsch|neu|unternehmen|markt)\b/gi;
+    const spanishPatterns = /\b(hola|gracias|cómo|muy|español|nuevo|empresa|mercado)\b/gi;
+    
+    const frenchMatches = (text.match(frenchPatterns) || []).length;
+    const germanMatches = (text.match(germanPatterns) || []).length;
+    const spanishMatches = (text.match(spanishPatterns) || []).length;
+    
+    if (frenchMatches >= germanMatches && frenchMatches >= spanishMatches) {
+      return 'french';
+    } else if (germanMatches >= spanishMatches) {
+      return 'german';
+    }
+    return 'spanish';
   }, []);
 
-  const handleGenericWordHover = useCallback(
-    async (word: string, event: React.MouseEvent<HTMLSpanElement>) => {
-      const rect = event.currentTarget.getBoundingClientRect();
-      setHoveredWord(word);
-      setTooltipPosition({
-        x: rect.left + rect.width / 2,
-        y: rect.top,
-      });
+  const renderWordWithHighlighting = (text: string, targets: TargetWord[]) => {
+    if (!targets || targets.length === 0) {
+      return <span>{text}</span>;
+    }
 
-      const entry = await ensureLookup(word);
-      setWordDefinition({
-        word,
-        translation: entry.translation,
-      });
-    },
-    [ensureLookup]
-  );
+    const usedPositions = new Set<number>();
+    const enhancedTargets = targets.map((target) => {
+      const highlightText = target.text || target.word || '';
+      let position = typeof target.position === 'number' ? target.position : undefined;
 
-  const handleGenericWordClick = useCallback(
-    async (word: string) => {
-      const entry = await ensureLookup(word);
-      const wordId = typeof entry.id === 'number' ? entry.id : undefined;
-      if (wordId) {
-        toast.success(`"${word}" added to practice`, { icon: '🧠', duration: 2500 });
-        onWordFlag?.(wordId);
-        onWordInteract?.(wordId, 'translation');
-      } else {
-        toast(`Lookup for "${word}" not found`, { icon: '❓', duration: 2000 });
-      }
-    },
-    [ensureLookup, onWordFlag, onWordInteract]
-  );
-
-  const handleTargetHover = useCallback(
-    (target: TargetWord, event: React.MouseEvent<HTMLSpanElement>) => {
-      const numericId = Number(target.id);
-      if (!Number.isFinite(numericId)) {
-        return;
-      }
-
-      if (!hovered[numericId]) {
-        setHovered((prev) => (prev[numericId] ? prev : { ...prev, [numericId]: true }));
-        onWordInteract?.(numericId, 'hint');
-      }
-
-      const rect = event.currentTarget.getBoundingClientRect();
-      setHoveredWord(target.word);
-      setTooltipPosition({ x: rect.left + rect.width / 2, y: rect.top });
-      setWordDefinition({
-        word: target.word,
-        translation: target.translation || target.hintTranslation || 'Übersetzung nicht verfügbar',
-      });
-    },
-    [hovered, onWordInteract]
-  );
-
-  const handleTargetClick = useCallback(
-    (target: TargetWord) => {
-      const numericId = Number(target.id);
-      if (!Number.isFinite(numericId)) {
-        return;
-      }
-
-      if (target.translation) {
-        toast(`"${target.word}" zur Wiederholung vorgemerkt`, {
-          icon: '🧠',
-          duration: 3000,
-        });
-      }
-      onWordInteract?.(numericId, 'translation');
-      onWordFlag?.(numericId);
-    },
-    [onWordFlag, onWordInteract]
-  );
-
-  // Add a helper function to make plain text interactive (Unicode-aware)
-  const renderInteractiveSegment = useCallback((text: string, keyPrefix: string): React.ReactNode[] => {
-    if (!text) return [];
-    const WORD_SPLIT_REGEX = /(\p{L}+(?:['’\-]\p{L}+)*)/gu;
-    const parts = text.split(WORD_SPLIT_REGEX);
-    return parts.map((part, index) => {
-      if (part) {
-        WORD_SPLIT_REGEX.lastIndex = 0;
-        if (WORD_SPLIT_REGEX.test(part)) {
-          WORD_SPLIT_REGEX.lastIndex = 0;
-          return (
-            <span
-              key={`${keyPrefix}-${index}`}
-              className="px-1 cursor-pointer text-gray-700 transition-colors hover:text-gray-900 hover:underline"
-              onMouseEnter={(e) => handleGenericWordHover(part, e)}
-              onMouseLeave={handleWordLeave}
-              onClick={() => handleGenericWordClick(part)}
-              title={`"${part}" übersetzen`}
-            >
-              {part}
-            </span>
-          );
+      if ((position === undefined || position < 0) && highlightText) {
+        let searchStart = 0;
+        let foundIndex = -1;
+        while (searchStart < text.length) {
+          const idx = text.indexOf(highlightText, searchStart);
+          if (idx === -1) {
+            break;
+          }
+          if (!usedPositions.has(idx)) {
+            foundIndex = idx;
+            usedPositions.add(idx);
+            break;
+          }
+          searchStart = idx + highlightText.length;
         }
+        position = foundIndex >= 0 ? foundIndex : undefined;
+      } else if (typeof position === 'number') {
+        usedPositions.add(position);
       }
-      return part;
+
+      return {
+        ...target,
+        text: highlightText,
+        position,
+      };
     });
-  }, [handleGenericWordHover, handleGenericWordClick, handleWordLeave]);
 
-  const renderContent = useCallback(
-    (message: ChatMessage) => {
-      if (message.role === 'user') {
-        return message.content;
+    // Sort targets by derived position to avoid overlap issues
+    const sortedTargets = [...enhancedTargets].sort((a, b) => {
+      const positionA = typeof a.position === 'number' ? a.position : Number.POSITIVE_INFINITY;
+      const positionB = typeof b.position === 'number' ? b.position : Number.POSITIVE_INFINITY;
+      return positionA - positionB;
+    });
+    const elements: React.ReactNode[] = [];
+    let lastIndex = 0;
+
+    sortedTargets.forEach((target, index) => {
+      if (!target.text || typeof target.position !== 'number' || target.position < 0) {
+        return;
       }
 
-      if (!message.targets?.length) {
-        return renderInteractiveSegment(message.content, message.id);
+      // Add text before this target
+      if (target.position > lastIndex) {
+        elements.push(
+          <span key={`text-${index}`}>
+            {text.slice(lastIndex, target.position)}
+          </span>
+        );
       }
 
-      const sortedTargets = [...message.targets].sort((a, b) => b.word.length - a.word.length);
-      let matchedAny = false;
-      const reduced = sortedTargets.reduce<React.ReactNode[] | string>((nodes, target) => {
-        const segments = Array.isArray(nodes) ? nodes : [nodes];
-        return segments.flatMap((segment, segmentIndex) => {
-          if (typeof segment !== 'string') {
-            return [segment];
-          }
+      // Add the highlighted target word
+      const wordEnd = target.position + target.text.length;
+      const isHovered = hoveredWord === target.id;
+      const translation = wordTranslations[target.id];
+      const isLoading = loadingTranslations.has(target.id);
 
-          const regex = new RegExp(`\\b${escapeRegExp(target.word)}\\b`, 'gi');
-          const parts: React.ReactNode[] = [];
-          let lastIndex = 0;
-          segment.replace(regex, (match, offset) => {
-            matchedAny = true;
-            const before = segment.slice(lastIndex, offset);
-            
-            // Make the 'before' segment interactive
-            if (before) {
-              parts.push(
-                ...renderInteractiveSegment(before, `${target.id}-${offset}-before`)
-              );
-            }
+      const hasValidId = Number.isFinite(target.id);
 
-            const className = familiarityClasses[target.familiarity ?? ''] ?? defaultHighlightClass;
+      const className = target.familiarity
+        ? familiarityClasses[target.familiarity]
+        : defaultHighlightClass;
 
-            // Push the original target word span
-            parts.push(
-              <span
-                key={`${target.id}-${offset}-${segmentIndex}`}
-                className={`rounded-md px-1 font-semibold transition-colors hover:shadow-sm cursor-pointer ${className}`}
-                onMouseEnter={(e) => handleTargetHover(target, e)}
-                onMouseLeave={handleWordLeave}
-                onClick={() => handleTargetClick(target)}
-                title={target.translation || target.hintTranslation || ''}
-              >
-                {match}
-              </span>
-            );
-            lastIndex = offset + match.length;
-            return match;
-          });
+      elements.push(
+        <span
+          key={`word-${target.id}`}
+          className={`${className} px-1 py-0.5 rounded cursor-pointer transition-all duration-200 hover:shadow-md relative group`}
+          onMouseEnter={hasValidId ? () => handleWordHover(target.id) : undefined}
+          onMouseLeave={() => setHoveredWord(null)}
+          onClick={hasValidId ? () => handleWordClick(target.id) : undefined}
+          onDoubleClick={hasValidId ? () => handleWordFlag(target.id) : undefined}
+          title={`Double-click to mark as difficult${translation ? ` | Translation: ${translation}` : ''}`}
+        >
+          {target.text}
+          {isHovered && (
+            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-sm rounded whitespace-nowrap z-10">
+              {isLoading ? 'Loading...' : translation || (hasValidId ? 'Click for translation' : target.text)}
+              <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
+            </div>
+          )}
+        </span>
+      );
 
-          const remainder = segment.slice(lastIndex);
-          // Make the 'remainder' segment interactive
-          if (remainder) {
-            parts.push(
-              ...renderInteractiveSegment(remainder, `${target.id}-remainder`)
-            );
-          }
-          return parts;
-        });
-      }, message.content);
+      lastIndex = wordEnd;
+    });
 
-      if (!matchedAny) {
-        const nodes = Array.isArray(reduced) ? reduced : [reduced];
-        return nodes.flatMap((node, index) => {
-          if (typeof node === 'string') {
-            return renderInteractiveSegment(node, `${message.id}-fallback-${index}`);
-          }
-          return [node];
-        });
-      }
+    // Add remaining text
+    if (lastIndex < text.length) {
+      elements.push(
+        <span key="text-end">
+          {text.slice(lastIndex)}
+        </span>
+      );
+    }
 
-      return reduced;
-    },
-    [renderInteractiveSegment, handleTargetHover, handleWordLeave, handleTargetClick]
-  );
+    return <span>{elements}</span>;
+  };
 
   return (
-    <div className="space-y-4">
-      {messages.map((message) => (
-        <div
-          key={message.id}
-          className={`message-bubble ${message.role === 'user' ? 'message-user' : 'message-ai'} relative`}
-        >
-          {message.role === 'user' && Number(message.xp) > 0 && (
-            <span className="absolute -top-2 -right-2 rounded-full bg-amber-400 px-2 py-0.5 text-xs font-semibold text-amber-900 shadow">
-              +{Number(message.xp)} XP
-            </span>
-          )}
-          <div className="whitespace-pre-wrap leading-relaxed">{renderContent(message)}</div>
-        </div>
-      ))}
-
-      {hoveredWord && tooltipPosition && wordDefinition && (
-        <div
-          style={{
-            position: 'fixed',
-            left: tooltipPosition.x,
-            top: tooltipPosition.y - 12,
-            transform: 'translateX(-50%) translateY(-100%)',
-            zIndex: 1000,
-            background: 'white',
-            border: '1px solid #d1d5db',
-            borderRadius: '6px',
-            padding: '8px 10px',
-            boxShadow: '0 8px 20px rgba(15, 23, 42, 0.15)',
-            maxWidth: '220px',
-          }}
-        >
-          <p className="text-sm font-semibold text-gray-900">{wordDefinition.word}</p>
-          <p className="text-xs text-gray-600">{wordDefinition.translation}</p>
-        </div>
-      )}
+    <div className="flex flex-col h-full">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {messages.map((message, index) => (
+          <div
+            key={index}
+            className={`flex ${
+              message.role === 'user' ? 'justify-end' : 'justify-start'
+            }`}
+          >
+            <div
+              className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                message.role === 'user'
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-gray-200 text-gray-800'
+              }`}
+            >
+              {message.role === 'assistant' ? (
+                message.targets && message.targets.length > 0 ? (
+                  renderWordWithHighlighting(message.content, message.targets)
+                ) : (
+                  <InteractiveText
+                    text={message.content}
+                    language={detectLanguage(message.content)}
+                    enableTranslation={true}
+                    activeSessionId={activeSessionId}
+                    className="ai-message-interactive"
+                  />
+                )
+              ) : (
+                <span>{message.content}</span>
+              )}
+            </div>
+          </div>
+        ))}
+        <div ref={messagesEndRef} />
+      </div>
     </div>
   );
-}
+};
+
+export default ConversationHistory;

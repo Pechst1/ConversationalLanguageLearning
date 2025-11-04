@@ -29,3 +29,6 @@ yarn-error.log*
 .env.test.local
 .env.production.local
 .next/
+
+# Ignore Next.js build artifacts
+.next/
