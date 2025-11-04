@@ -139,30 +139,169 @@ export function useLearningSession(sessionId?: string) {
 
   const handleWebSocketMessage = useCallback((data: any) => {
     try {
+      const payload = data?.data ?? data;
+
+      const applySessionStats = (turnData: any, normalizedTargets?: TargetWord[]) => {
+        const sessionOverview = turnData?.session ?? {};
+        const wordFeedback: Array<{ rating?: number | null }> = Array.isArray(turnData?.word_feedback)
+          ? turnData.word_feedback
+          : [];
+        const correctAnswers = wordFeedback.filter((item) => (item?.rating ?? 0) >= 2).length;
+        const statsUpdate: Partial<SessionStats> = {
+          totalReviews: wordFeedback.length,
+          correctAnswers,
+        };
+        if (typeof sessionOverview?.xp_earned === 'number') {
+          statsUpdate.xpEarned = sessionOverview.xp_earned;
+        }
+        if (typeof sessionOverview?.words_practiced === 'number') {
+          statsUpdate.reviewedCards = sessionOverview.words_practiced;
+        }
+
+        setSession((prev) => {
+          if (!prev) {
+            if (!turnData?.session) {
+              return prev;
+            }
+            return {
+              id: String(sessionOverview?.id ?? ''),
+              status: sessionOverview?.status ?? 'active',
+              startTime: new Date(sessionOverview?.started_at ?? Date.now()),
+              endTime: sessionOverview?.completed_at
+                ? new Date(sessionOverview.completed_at)
+                : undefined,
+              stats: {
+                totalReviews: statsUpdate.totalReviews ?? 0,
+                correctAnswers: statsUpdate.correctAnswers ?? 0,
+                xpEarned: statsUpdate.xpEarned ?? 0,
+                reviewedCards: statsUpdate.reviewedCards,
+              },
+              messages: [],
+              targetWords: normalizedTargets ?? [],
+            };
+          }
+
+          return {
+            ...prev,
+            status: sessionOverview?.status ?? prev.status,
+            endTime: sessionOverview?.completed_at
+              ? new Date(sessionOverview.completed_at)
+              : prev.endTime,
+            stats: {
+              ...prev.stats,
+              ...(statsUpdate.xpEarned !== undefined
+                ? { xpEarned: statsUpdate.xpEarned }
+                : {}),
+              ...(statsUpdate.reviewedCards !== undefined
+                ? { reviewedCards: statsUpdate.reviewedCards }
+                : {}),
+              totalReviews: statsUpdate.totalReviews ?? prev.stats.totalReviews,
+              correctAnswers: statsUpdate.correctAnswers ?? prev.stats.correctAnswers,
+            },
+            targetWords: normalizedTargets ?? prev.targetWords,
+          };
+        });
+      };
+
+      const handleTurnResult = (turnData: any) => {
+        if (!turnData?.assistant_turn?.message) {
+          return false;
+        }
+
+        const assistantMessage = turnData.assistant_turn.message ?? {};
+        const assistantTargets = normalizeTargets(
+          turnData.assistant_turn.targets ??
+            assistantMessage.target_details ??
+            assistantMessage.target_words ??
+            []
+        );
+        const assistantChat: ChatMessage = {
+          id: String(assistantMessage.id ?? generateMessageId()),
+          role: 'assistant',
+          content: assistantMessage.content ?? '',
+          timestamp: new Date(assistantMessage.created_at ?? Date.now()),
+          xp: assistantMessage.xp_earned ?? turnData?.xp_awarded ?? 0,
+          targets: assistantTargets,
+        };
+
+        setMessages((prev) => {
+          const updated = [...prev];
+          const turnUserMessage = turnData.user_message ?? null;
+          if (turnUserMessage) {
+            const userTargets = normalizeTargets(
+              turnUserMessage.target_details ??
+                turnUserMessage.target_words ??
+                []
+            );
+            const normalizedUser: ChatMessage = {
+              id: String(turnUserMessage.id ?? generateMessageId()),
+              role: 'user',
+              content: turnUserMessage.content ?? '',
+              timestamp: new Date(turnUserMessage.created_at ?? Date.now()),
+              xp: turnUserMessage.xp_earned ?? 0,
+              targets: userTargets,
+            };
+
+            let replaced = false;
+            for (let index = updated.length - 1; index >= 0; index -= 1) {
+              if (updated[index].role === 'user') {
+                updated[index] = {
+                  ...updated[index],
+                  ...normalizedUser,
+                };
+                replaced = true;
+                break;
+              }
+            }
+
+            if (!replaced) {
+              updated.push(normalizedUser);
+            }
+          }
+
+          updated.push(assistantChat);
+          return updated;
+        });
+
+        applySessionStats(turnData, assistantTargets);
+        return true;
+      };
+
+      if (handleTurnResult(payload)) {
+        return;
+      }
+
       const message: ChatMessage = {
         id: generateMessageId(),
-        role: data.role || 'assistant',
-        content: data.content || '',
-        timestamp: new Date(data.timestamp || Date.now()),
-        xp: data.xp || 0,
+        role: payload.role || 'assistant',
+        content: payload.content || '',
+        timestamp: new Date(payload.timestamp || Date.now()),
+        xp: payload.xp || 0,
         targets: normalizeTargets(
-          data.targets || data.target_words || data.target_details || data.targetDetails || []
-        )
+          payload.targets ||
+            payload.target_words ||
+            payload.target_details ||
+            payload.targetDetails ||
+            []
+        ),
       };
-      
-      setMessages(prev => [...prev, message]);
-      
-      // Update session stats if provided
-      if (data.session_stats && session) {
-        setSession(prev => prev ? {
+
+      setMessages((prev) => [...prev, message]);
+
+      if (payload.session_stats) {
+        const statsData = payload.session_stats;
+        setSession((prev) => (prev ? {
           ...prev,
-          stats: { ...prev.stats, ...data.session_stats }
-        } : null);
+          stats: {
+            ...prev.stats,
+            ...statsData,
+          },
+        } : prev));
       }
     } catch (error) {
       console.error('Error processing WebSocket message:', error);
     }
-  }, [generateMessageId, session]);
+  }, [generateMessageId]);
 
   const latestMessageHandlerRef = useRef<(data: any) => void>(handleWebSocketMessage);
 

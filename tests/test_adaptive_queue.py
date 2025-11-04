@@ -88,6 +88,7 @@ def test_new_word_budget_respects_due_reviews(db_session):
             normalized_word=f"mot{index}",
             english_translation=f"word{index}",
             frequency_rank=index + 1,
+            is_anki_card=True,
         )
         db_session.add(word)
         db_session.flush()
@@ -103,6 +104,85 @@ def test_new_word_budget_respects_due_reviews(db_session):
     service = ProgressService(db_session)
     new_budget = service.calculate_new_word_budget(user.id, session_capacity=15)
     assert new_budget == 0
+
+
+def test_learning_queue_surfaces_upcoming_anki_reviews(db_session):
+    user = User(
+        email="upcoming@example.com",
+        hashed_password="pass",
+        native_language="en",
+        target_language="fr",
+    )
+    db_session.add(user)
+    db_session.flush()
+
+    now = datetime.now(timezone.utc)
+    for offset in range(3):
+        word = VocabularyWord(
+            language="fr",
+            word=f"avenir{offset}",
+            normalized_word=f"avenir{offset}",
+            english_translation=f"future{offset}",
+            is_anki_card=True,
+        )
+        db_session.add(word)
+        db_session.flush()
+        progress = UserVocabularyProgress(
+            user_id=user.id,
+            word_id=word.id,
+            scheduler="anki",
+            due_at=now + timedelta(days=5 + offset),
+            due_date=(now + timedelta(days=5 + offset)).date(),
+            next_review_date=now + timedelta(days=5 + offset),
+            state="review",
+        )
+        db_session.add(progress)
+    db_session.commit()
+
+    service = ProgressService(db_session)
+    queue = service.get_learning_queue(user=user, limit=3, now=now)
+
+    assert len(queue) == 3
+    assert all(not item.is_new for item in queue)
+    ordered = [item.word.word for item in queue]
+    assert ordered == ["avenir0", "avenir1", "avenir2"]
+
+
+def test_due_count_includes_upcoming_window(db_session):
+    user = User(
+        email="due-window@example.com",
+        hashed_password="pass",
+        native_language="en",
+        target_language="fr",
+    )
+    db_session.add(user)
+    db_session.flush()
+
+    now = datetime.now(timezone.utc)
+    word = VocabularyWord(
+        language="fr",
+        word="prévoir",
+        normalized_word="prevoir",
+        english_translation="to foresee",
+        is_anki_card=True,
+    )
+    db_session.add(word)
+    db_session.flush()
+    progress = UserVocabularyProgress(
+        user_id=user.id,
+        word_id=word.id,
+        scheduler="anki",
+        due_at=now + timedelta(days=2),
+        due_date=(now + timedelta(days=2)).date(),
+        next_review_date=now + timedelta(days=2),
+        state="review",
+    )
+    db_session.add(progress)
+    db_session.commit()
+
+    service = ProgressService(db_session)
+    assert service.count_due_reviews(user.id, now=now) == 0
+    assert service.count_due_reviews(user.id, now=now, include_upcoming_days=3) == 1
 
 
 def test_session_capacity_calculation():
