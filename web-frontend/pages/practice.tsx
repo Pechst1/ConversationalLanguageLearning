@@ -3,6 +3,7 @@ import { getSession } from 'next-auth/react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import apiService from '@/services/api';
+import { AnkiReviewResponse, ReviewResponse } from '@/types/reviews';
 import { CheckCircle, XCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -35,33 +36,143 @@ function cleanSurface(word: string, translation?: string | null) {
   return result;
 }
 
+function formatIntervalLabel(days?: number | null) {
+  if (days === null || days === undefined) {
+    return 'soon';
+  }
+  if (days === 0) {
+    return '0 days (later today)';
+  }
+  if (days === 1) {
+    return '1 day';
+  }
+  return `${days} days`;
+}
+
+function formatDueDateLabel(value?: string | null) {
+  if (!value) {
+    return '';
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+  return date.toLocaleDateString(undefined, { dateStyle: 'medium' });
+}
+
+function formatStateLabel(value?: string | null) {
+  if (!value) {
+    return '';
+  }
+  return value
+    .split(/[_\s]+/)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(' ');
+}
+
+function isAnkiReviewResponse(
+  response: ReviewResponse | AnkiReviewResponse
+): response is AnkiReviewResponse {
+  return 'scheduler' in response && typeof response.scheduler === 'string' && response.scheduler.toLowerCase() === 'anki';
+}
+
+function formatReviewFeedbackMessage(response: ReviewResponse | AnkiReviewResponse) {
+  if (isAnkiReviewResponse(response)) {
+    const intervalText = formatIntervalLabel(response.interval_days ?? null);
+    const dueDateText = formatDueDateLabel(response.due_at ?? response.next_review ?? undefined);
+    const phase = formatStateLabel(response.phase);
+    const easeFactor =
+      typeof response.ease_factor === 'number' && Number.isFinite(response.ease_factor)
+        ? response.ease_factor.toFixed(2)
+        : null;
+
+    let message = `Due again in ${intervalText}`;
+    if (dueDateText) {
+      message += ` on ${dueDateText}`;
+    }
+    message += '.';
+
+    if (phase) {
+      message += ` Phase: ${phase}.`;
+    }
+
+    if (easeFactor) {
+      message += ` Ease factor: ${easeFactor}.`;
+    }
+
+    return message;
+  }
+
+  const intervalText = formatIntervalLabel(response.scheduled_days);
+  const dueDateText = formatDueDateLabel(response.next_review);
+  const state = formatStateLabel(response.state);
+
+  let message = `Due again in ${intervalText}`;
+  if (dueDateText) {
+    message += ` on ${dueDateText}`;
+  }
+  message += '.';
+
+  if (state) {
+    message += ` Current state: ${state}.`;
+  }
+
+  return message;
+}
+
 export default function PracticePage({ queueWords, counters }: PracticeProps) {
   const [currentWordIndex, setCurrentWordIndex] = React.useState(0);
   const [showAnswer, setShowAnswer] = React.useState(false);
   const [score, setScore] = React.useState(0);
   const [completed, setCompleted] = React.useState(false);
   const [counts] = React.useState(counters);
+  const [lastReviewFeedback, setLastReviewFeedback] = React.useState<{
+    word: string;
+    message: string;
+  } | null>(null);
+
+  const cardShownAtRef = React.useRef<number>(Date.now());
 
   const currentWord = queueWords[currentWordIndex];
 
-  const handleRating = async (rating: number) => {
-    try {
-      if (currentWord.scheduler && currentWord.scheduler.toLowerCase() === 'anki') {
-        await apiService.submitAnkiReview({ word_id: currentWord.wordId, rating });
-      } else {
-        await apiService.submitReview({ word_id: currentWord.wordId, rating });
-      }
+  React.useEffect(() => {
+    cardShownAtRef.current = Date.now();
+  }, [currentWordIndex]);
 
-      if (rating >= 2) {
-        setScore(score + 1);
-      }
+  const handleShowTranslation = React.useCallback(() => {
+    setShowAnswer(true);
+  }, []);
+
+  const handleRating = async (rating: number) => {
+    const now = Date.now();
+    const elapsedMs = Math.max(0, Math.round(now - cardShownAtRef.current));
+    const responsePayload = {
+      word_id: currentWord.wordId,
+      rating,
+      response_time_ms: elapsedMs,
+    };
+
+    try {
+      const usesAnkiScheduler = currentWord.scheduler?.toLowerCase() === 'anki';
+      const reviewResponse: ReviewResponse | AnkiReviewResponse = usesAnkiScheduler
+        ? await apiService.submitAnkiReview(responsePayload)
+        : await apiService.submitReview(responsePayload);
+
+      const updatedScore = score + (rating >= 2 ? 1 : 0);
+      setScore(updatedScore);
+
+      setLastReviewFeedback({
+        word: cleanSurface(currentWord.word, currentWord.translation),
+        message: formatReviewFeedbackMessage(reviewResponse),
+      });
 
       if (currentWordIndex < queueWords.length - 1) {
         setCurrentWordIndex(currentWordIndex + 1);
         setShowAnswer(false);
+        cardShownAtRef.current = Date.now();
       } else {
         setCompleted(true);
-        toast.success(`Practice completed! Score: ${score + (rating >= 2 ? 1 : 0)}/${queueWords.length}`);
+        toast.success(`Practice completed! Score: ${updatedScore}/${queueWords.length}`);
       }
     } catch (error) {
       toast.error('Failed to submit review');
@@ -130,7 +241,7 @@ export default function PracticePage({ queueWords, counters }: PracticeProps) {
         <CardContent className="space-y-6">
           {!showAnswer ? (
             <div className="text-center">
-              <Button onClick={() => setShowAnswer(true)} className="w-full">
+              <Button onClick={handleShowTranslation} className="w-full">
                 Show Translation
               </Button>
             </div>
@@ -192,6 +303,15 @@ export default function PracticePage({ queueWords, counters }: PracticeProps) {
                 </div>
               </div>
             </>
+          )}
+          {lastReviewFeedback && (
+            <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+              <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
+                Spaced repetition feedback
+              </p>
+              <p className="mt-1 font-semibold">{lastReviewFeedback.word}</p>
+              <p className="mt-1 text-sm font-normal">{lastReviewFeedback.message}</p>
+            </div>
           )}
         </CardContent>
       </Card>
