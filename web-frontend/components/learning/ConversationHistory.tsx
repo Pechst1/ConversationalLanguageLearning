@@ -39,6 +39,10 @@ const ConversationHistory: React.FC<Props> = ({
   }, [messages]);
 
   const fetchWordTranslation = useCallback(async (wordId: number) => {
+    if (!Number.isFinite(wordId)) {
+      return;
+    }
+
     if (wordTranslations[wordId] || loadingTranslations.has(wordId)) {
       return;
     }
@@ -64,17 +68,40 @@ const ConversationHistory: React.FC<Props> = ({
   }, [wordTranslations, loadingTranslations]);
 
   const handleWordHover = useCallback((wordId: number) => {
+    if (!Number.isFinite(wordId)) {
+      return;
+    }
+
     setHoveredWord(wordId);
     fetchWordTranslation(wordId);
     onWordInteract?.(wordId, 'hint');
   }, [fetchWordTranslation, onWordInteract]);
 
   const handleWordClick = useCallback((wordId: number) => {
+    if (!Number.isFinite(wordId)) {
+      return;
+    }
+
     fetchWordTranslation(wordId);
     onWordInteract?.(wordId, 'translation');
   }, [fetchWordTranslation, onWordInteract]);
 
   const handleWordFlag = useCallback(async (wordId: number) => {
+    if (!Number.isFinite(wordId)) {
+      toast.error('Unable to mark this word as difficult');
+      return;
+    }
+
+    if (onWordFlag) {
+      try {
+        await Promise.resolve(onWordFlag(wordId));
+      } catch (error) {
+        console.error('Failed to mark word as difficult via handler:', error);
+        toast.error('Failed to mark word as difficult');
+      }
+      return;
+    }
+
     if (!activeSessionId) {
       toast.error('No active session to mark difficult words');
       return;
@@ -82,10 +109,9 @@ const ConversationHistory: React.FC<Props> = ({
 
     try {
       await apiService.post(`/sessions/${activeSessionId}/difficult-words`, {
-        word_id: wordId
+        word_id: wordId,
       });
       toast.success('Word marked as difficult');
-      onWordFlag?.(wordId);
     } catch (error) {
       console.error('Failed to mark word as difficult:', error);
       toast.error('Failed to mark word as difficult');
@@ -115,12 +141,52 @@ const ConversationHistory: React.FC<Props> = ({
       return <span>{text}</span>;
     }
 
-    // Sort targets by position to avoid overlap issues
-    const sortedTargets = [...targets].sort((a, b) => a.position - b.position);
+    const usedPositions = new Set<number>();
+    const enhancedTargets = targets.map((target) => {
+      const highlightText = target.text || target.word || '';
+      let position = typeof target.position === 'number' ? target.position : undefined;
+
+      if ((position === undefined || position < 0) && highlightText) {
+        let searchStart = 0;
+        let foundIndex = -1;
+        while (searchStart < text.length) {
+          const idx = text.indexOf(highlightText, searchStart);
+          if (idx === -1) {
+            break;
+          }
+          if (!usedPositions.has(idx)) {
+            foundIndex = idx;
+            usedPositions.add(idx);
+            break;
+          }
+          searchStart = idx + highlightText.length;
+        }
+        position = foundIndex >= 0 ? foundIndex : undefined;
+      } else if (typeof position === 'number') {
+        usedPositions.add(position);
+      }
+
+      return {
+        ...target,
+        text: highlightText,
+        position,
+      };
+    });
+
+    // Sort targets by derived position to avoid overlap issues
+    const sortedTargets = [...enhancedTargets].sort((a, b) => {
+      const positionA = typeof a.position === 'number' ? a.position : Number.POSITIVE_INFINITY;
+      const positionB = typeof b.position === 'number' ? b.position : Number.POSITIVE_INFINITY;
+      return positionA - positionB;
+    });
     const elements: React.ReactNode[] = [];
     let lastIndex = 0;
 
     sortedTargets.forEach((target, index) => {
+      if (!target.text || typeof target.position !== 'number' || target.position < 0) {
+        return;
+      }
+
       // Add text before this target
       if (target.position > lastIndex) {
         elements.push(
@@ -135,25 +201,27 @@ const ConversationHistory: React.FC<Props> = ({
       const isHovered = hoveredWord === target.id;
       const translation = wordTranslations[target.id];
       const isLoading = loadingTranslations.has(target.id);
-      
-      const className = target.familiarity 
-        ? familiarityClasses[target.familiarity] 
+
+      const hasValidId = Number.isFinite(target.id);
+
+      const className = target.familiarity
+        ? familiarityClasses[target.familiarity]
         : defaultHighlightClass;
 
       elements.push(
         <span
           key={`word-${target.id}`}
           className={`${className} px-1 py-0.5 rounded cursor-pointer transition-all duration-200 hover:shadow-md relative group`}
-          onMouseEnter={() => handleWordHover(target.id)}
+          onMouseEnter={hasValidId ? () => handleWordHover(target.id) : undefined}
           onMouseLeave={() => setHoveredWord(null)}
-          onClick={() => handleWordClick(target.id)}
-          onDoubleClick={() => handleWordFlag(target.id)}
+          onClick={hasValidId ? () => handleWordClick(target.id) : undefined}
+          onDoubleClick={hasValidId ? () => handleWordFlag(target.id) : undefined}
           title={`Double-click to mark as difficult${translation ? ` | Translation: ${translation}` : ''}`}
         >
           {target.text}
           {isHovered && (
             <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-sm rounded whitespace-nowrap z-10">
-              {isLoading ? 'Loading...' : translation || 'Click for translation'}
+              {isLoading ? 'Loading...' : translation || (hasValidId ? 'Click for translation' : target.text)}
               <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
             </div>
           )}
