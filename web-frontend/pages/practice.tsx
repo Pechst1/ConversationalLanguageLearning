@@ -1,5 +1,6 @@
 import React from 'react';
 import { getSession } from 'next-auth/react';
+import { format, formatDistanceToNow } from 'date-fns';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import apiService from '@/services/api';
@@ -13,7 +14,10 @@ interface PracticeWord {
   translation: string;
   difficulty: number;
   scheduler?: 'anki' | 'fsrs' | string;
+  stage?: 'new' | 'learning' | 'due' | string;
 }
+
+type PracticeDirection = 'fr_to_de' | 'de_to_fr';
 
 interface PracticeProps {
   queueWords: PracticeWord[];
@@ -22,6 +26,7 @@ interface PracticeProps {
     learningCount: number;
     dueCount: number;
   };
+  direction?: PracticeDirection;
 }
 
 function cleanSurface(word: string, translation?: string | null) {
@@ -133,7 +138,49 @@ export default function PracticePage({ queueWords, counters }: PracticeProps) {
 
   const cardShownAtRef = React.useRef<number>(Date.now());
 
-  const currentWord = queueWords[currentWordIndex];
+    setIsFetchingMore(true);
+    let updatedLength = queueRef.current.length;
+    try {
+      const raw = await apiService.getProgressQueue({ limit: FETCH_LIMIT });
+      if (!Array.isArray(raw) || !raw.length) {
+        return updatedLength;
+      }
+
+      setLocalQueue((prev) => {
+        const existingIds = new Set(prev.map((item) => item.wordId));
+        const mapped = raw
+          .map(mapQueueItem)
+          .filter((item) => !existingIds.has(item.wordId));
+
+        if (!mapped.length) {
+          updatedLength = prev.length;
+          queueRef.current = prev;
+          return prev;
+        }
+
+        const combined = [...prev, ...mapped];
+        updatedLength = combined.length;
+        queueRef.current = combined;
+        return combined;
+      });
+
+      return updatedLength;
+    } catch (error) {
+      console.error('Failed to load more practice items', error);
+      toast.error('Could not load additional practice items');
+      return updatedLength;
+    } finally {
+      setIsFetchingMore(false);
+    }
+  }, [isFetchingMore, mapQueueItem]);
+
+  const ensureQueueDepth = React.useCallback(async (nextIndex: number) => {
+    const remaining = queueRef.current.length - nextIndex;
+    if (remaining > FETCH_THRESHOLD) {
+      return queueRef.current.length;
+    }
+    return loadMoreItems();
+  }, [loadMoreItems]);
 
   React.useEffect(() => {
     cardShownAtRef.current = Date.now();
@@ -166,8 +213,8 @@ export default function PracticePage({ queueWords, counters }: PracticeProps) {
         message: formatReviewFeedbackMessage(reviewResponse),
       });
 
-      if (currentWordIndex < queueWords.length - 1) {
-        setCurrentWordIndex(currentWordIndex + 1);
+      if (nextIndex < queueLength) {
+        setCurrentWordIndex(nextIndex);
         setShowAnswer(false);
         cardShownAtRef.current = Date.now();
       } else {
@@ -179,18 +226,34 @@ export default function PracticePage({ queueWords, counters }: PracticeProps) {
     }
   };
 
-  if (!queueWords?.length) {
+  React.useEffect(() => {
+    if (!localQueue.length || completed) {
+      return;
+    }
+
+    const initialRemaining = localQueue.length - currentWordIndex - 1;
+    if (initialRemaining <= FETCH_THRESHOLD) {
+      ensureQueueDepth(currentWordIndex + 1);
+    }
+  }, [completed, currentWordIndex, ensureQueueDepth, localQueue.length]);
+
+  if (!localQueue?.length) {
     return (
-      <div className="max-w-2xl mx-auto text-center">
-        <Card>
-          <CardContent className="p-8">
-            <h1 className="text-2xl font-bold mb-4">No words to practice</h1>
-            <p className="text-gray-600 mb-6">
-              Great job! You&apos;re all caught up with your vocabulary practice.
-            </p>
-            <Button onClick={() => window.location.reload()}>Check Again</Button>
-          </CardContent>
-        </Card>
+      <div className="max-w-2xl mx-auto">
+        {directionToggle}
+        <div className="text-center">
+          <Card>
+            <CardContent className="p-8">
+              <h1 className="text-2xl font-bold mb-4">No words to practice</h1>
+              <p className="text-gray-600 mb-6">
+                Great job! You&apos;re all caught up with your vocabulary practice.
+              </p>
+              <Button onClick={handleRefreshQueue} loading={isLoadingDirection}>
+                Check Again
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   }
@@ -203,7 +266,7 @@ export default function PracticePage({ queueWords, counters }: PracticeProps) {
             <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
             <h1 className="text-2xl font-bold mb-4">Practice Complete!</h1>
             <p className="text-gray-600 mb-6">
-              Final Score: {score}/{queueWords.length}
+              Final Score: {score}/{finalTotal}
             </p>
             <Button onClick={() => window.location.href = '/dashboard'}>Back to Dashboard</Button>
           </CardContent>
@@ -212,19 +275,40 @@ export default function PracticePage({ queueWords, counters }: PracticeProps) {
     );
   }
 
+  if (!currentWord) {
+    return (
+      <div className="max-w-2xl mx-auto text-center">
+        <Card>
+          <CardContent className="p-8 space-y-4">
+            <h1 className="text-2xl font-bold">Loading next word...</h1>
+            <p className="text-gray-600">Fetching more practice items for you.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-2xl mx-auto">
+      {directionToggle}
+
       <div className="mb-8">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-gray-900">Vocabulary Practice</h1>
           <div className="text-sm text-gray-600">
-            {currentWordIndex + 1} of {queueWords.length}
+            {Math.min(currentWordIndex + 1, localQueue.length)} of {localQueue.length || finalTotal}
           </div>
         </div>
         <div className="w-full bg-gray-200 rounded-full h-2 mt-4">
-          <div 
+          <div
             className="bg-primary-600 h-2 rounded-full transition-all duration-300"
-            style={{ width: `${((currentWordIndex + 1) / queueWords.length) * 100}%` }}
+            style={{
+              width: `${
+                localQueue.length
+                  ? Math.min(((currentWordIndex + 1) / localQueue.length) * 100, 100)
+                  : 0
+              }%`,
+            }}
           />
         </div>
       </div>
@@ -237,6 +321,48 @@ export default function PracticePage({ queueWords, counters }: PracticeProps) {
           <CardDescription className="text-center">
             How well do you know this word?
           </CardDescription>
+          {(cleanedState || cleanedPartOfSpeech || formattedNextReview) && (
+            <div className="practice-meta" role="list" aria-label="Word scheduling metadata">
+              {cleanedState && (
+                <span
+                  role="listitem"
+                  className="practice-chip practice-chip--state"
+                  aria-label={`Scheduling state: ${cleanedState}`}
+                  title={`Scheduling state: ${cleanedState}`}
+                >
+                  <CircleDot aria-hidden="true" className="practice-chip__icon" />
+                  <span className="sr-only">Scheduling state:</span>
+                  <span aria-hidden="true">{cleanedState}</span>
+                </span>
+              )}
+              {cleanedPartOfSpeech && (
+                <span
+                  role="listitem"
+                  className="practice-chip practice-chip--pos"
+                  aria-label={`Part of speech: ${cleanedPartOfSpeech}`}
+                  title={`Part of speech: ${cleanedPartOfSpeech}`}
+                >
+                  <Type aria-hidden="true" className="practice-chip__icon" />
+                  <span className="sr-only">Part of speech:</span>
+                  <span aria-hidden="true">{cleanedPartOfSpeech}</span>
+                </span>
+              )}
+              <span
+                role="listitem"
+                className="practice-chip practice-chip--review"
+                aria-label={`Next review ${formattedNextReview}`}
+                title={
+                  exactNextReview
+                    ? `Next review ${formattedNextReview} (${exactNextReview})`
+                    : `Next review ${formattedNextReview}`
+                }
+              >
+                <Clock3 aria-hidden="true" className="practice-chip__icon" />
+                <span className="sr-only">Next review:</span>
+                <span aria-hidden="true">{formattedNextReview}</span>
+              </span>
+            </div>
+          )}
         </CardHeader>
         <CardContent className="space-y-6">
           {!showAnswer ? (
@@ -259,8 +385,8 @@ export default function PracticePage({ queueWords, counters }: PracticeProps) {
                 </p>
                 
                 <div className="grid grid-cols-2 gap-3">
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     onClick={() => handleRating(0)}
                     className="border-red-300 text-red-600 hover:bg-red-50"
                   >
@@ -321,7 +447,7 @@ export default function PracticePage({ queueWords, counters }: PracticeProps) {
 
 export async function getServerSideProps(context: any) {
   const session = await getSession(context);
-  
+
   if (!session) {
     return {
       redirect: {
@@ -340,13 +466,19 @@ export async function getServerSideProps(context: any) {
     const baseUrl = normalizedBase.endsWith('/api/v1')
       ? normalizedBase
       : `${normalizedBase}/api/v1`;
+    const directionParamRaw = Array.isArray(context.query?.direction)
+      ? context.query?.direction[0]
+      : context.query?.direction;
+    const directionParam =
+      typeof directionParamRaw === 'string' ? directionParamRaw : undefined;
+    const direction = isValidDirection(directionParam) ? directionParam : 'fr_to_de';
     const headers = {
       'Authorization': `Bearer ${session.accessToken}`,
       'Content-Type': 'application/json',
     };
 
     const [queueRes, summaryRes] = await Promise.all([
-      fetch(`${baseUrl}/progress/queue`, { headers }),
+      fetch(`${baseUrl}/progress/queue?direction=${direction}`, { headers }),
       fetch(`${baseUrl}/progress/anki/summary`, { headers }),
     ]);
     const raw = queueRes.ok ? await queueRes.json() : [];
@@ -357,6 +489,7 @@ export async function getServerSideProps(context: any) {
           translation: item.english_translation || '',
           difficulty: item.difficulty_level || 1,
           scheduler: item.scheduler || undefined,
+          stage: item.stage || item.queue_stage || item.stage_type || undefined,
         }))
       : [];
 
@@ -370,6 +503,7 @@ export async function getServerSideProps(context: any) {
       props: {
         queueWords,
         counters,
+        direction,
       },
     };
   } catch (error) {
@@ -378,6 +512,7 @@ export async function getServerSideProps(context: any) {
       props: {
         queueWords: [],
         counters: { newCount: 0, learningCount: 0, dueCount: 0 },
+        direction: 'fr_to_de',
       },
     };
   }

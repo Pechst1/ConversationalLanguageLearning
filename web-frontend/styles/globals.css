@@ -50,3 +50,51 @@ html, body, #__next { height: 100%; }
   transform: translateY(-2px);
   box-shadow: 0 10px 18px -15px rgba(0, 53, 102, 0.6);
 }
+
+.practice-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.practice-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 9999px;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border: 1px solid transparent;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.practice-chip:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 18px -15px rgba(12, 64, 105, 0.45);
+}
+
+.practice-chip__icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.practice-chip--state {
+  background: #e0f2fe;
+  color: #0c4a6e;
+  border-color: #7dd3fc;
+}
+
+.practice-chip--pos {
+  background: #f5f3ff;
+  color: #5b21b6;
+  border-color: #c4b5fd;
+}
+
+.practice-chip--review {
+  background: #ecfdf5;
+  color: #047857;
+  border-color: #6ee7b7;
+}
