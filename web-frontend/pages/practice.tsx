@@ -12,6 +12,7 @@ interface PracticeWord {
   translation: string;
   difficulty: number;
   scheduler?: 'anki' | 'fsrs' | string;
+  stage?: 'new' | 'learning' | 'due' | string;
 }
 
 interface PracticeProps {
@@ -35,40 +36,176 @@ function cleanSurface(word: string, translation?: string | null) {
   return result;
 }
 
+const FETCH_THRESHOLD = 3;
+const FETCH_LIMIT = 10;
+
 export default function PracticePage({ queueWords, counters }: PracticeProps) {
   const [currentWordIndex, setCurrentWordIndex] = React.useState(0);
   const [showAnswer, setShowAnswer] = React.useState(false);
   const [score, setScore] = React.useState(0);
   const [completed, setCompleted] = React.useState(false);
-  const [counts] = React.useState(counters);
+  const [counts, setCounts] = React.useState(counters);
+  const [localQueue, setLocalQueue] = React.useState(queueWords);
+  const [isFetchingMore, setIsFetchingMore] = React.useState(false);
+  const [finalTotal, setFinalTotal] = React.useState(queueWords.length);
 
-  const currentWord = queueWords[currentWordIndex];
+  const queueRef = React.useRef(localQueue);
+
+  React.useEffect(() => {
+    queueRef.current = localQueue;
+  }, [localQueue]);
+
+  React.useEffect(() => {
+    setCounts(counters);
+  }, [counters]);
+
+  const currentWord = localQueue[currentWordIndex];
+
+  const applySummary = React.useCallback((summary: any) => {
+    if (!summary) return;
+    setCounts({
+      newCount: Number(summary?.stage_totals?.new ?? summary?.new ?? 0),
+      learningCount: Number(summary?.stage_totals?.learning ?? summary?.learning ?? 0),
+      dueCount: Number(summary?.due_today ?? summary?.due ?? 0),
+    });
+  }, []);
+
+  const decrementStageCount = React.useCallback((stage?: string) => {
+    if (!stage) return;
+    const normalized = stage.toLowerCase();
+    const key =
+      normalized.includes('new')
+        ? 'newCount'
+        : normalized.includes('learn')
+        ? 'learningCount'
+        : normalized.includes('due')
+        ? 'dueCount'
+        : null;
+    if (!key) return;
+    setCounts((prev) => ({
+      ...prev,
+      [key]: Math.max(0, (prev?.[key as keyof typeof prev] as number) - 1),
+    }));
+  }, []);
+
+  const refreshSummary = React.useCallback(async () => {
+    try {
+      const summary = await apiService.getAnkiSummary();
+      applySummary(summary);
+    } catch (error) {
+      console.error('Failed to refresh Anki summary', error);
+    }
+  }, [applySummary]);
+
+  const mapQueueItem = React.useCallback((item: any): PracticeWord => ({
+    wordId: item.word_id,
+    word: item.word,
+    translation: item.english_translation || '',
+    difficulty: item.difficulty_level || 1,
+    scheduler: item.scheduler || undefined,
+    stage: item.stage || item.queue_stage || item.stage_type || undefined,
+  }), []);
+
+  const loadMoreItems = React.useCallback(async () => {
+    if (isFetchingMore) {
+      return queueRef.current.length;
+    }
+
+    setIsFetchingMore(true);
+    let updatedLength = queueRef.current.length;
+    try {
+      const raw = await apiService.getProgressQueue({ limit: FETCH_LIMIT });
+      if (!Array.isArray(raw) || !raw.length) {
+        return updatedLength;
+      }
+
+      setLocalQueue((prev) => {
+        const existingIds = new Set(prev.map((item) => item.wordId));
+        const mapped = raw
+          .map(mapQueueItem)
+          .filter((item) => !existingIds.has(item.wordId));
+
+        if (!mapped.length) {
+          updatedLength = prev.length;
+          queueRef.current = prev;
+          return prev;
+        }
+
+        const combined = [...prev, ...mapped];
+        updatedLength = combined.length;
+        queueRef.current = combined;
+        return combined;
+      });
+
+      return updatedLength;
+    } catch (error) {
+      console.error('Failed to load more practice items', error);
+      toast.error('Could not load additional practice items');
+      return updatedLength;
+    } finally {
+      setIsFetchingMore(false);
+    }
+  }, [isFetchingMore, mapQueueItem]);
+
+  const ensureQueueDepth = React.useCallback(async (nextIndex: number) => {
+    const remaining = queueRef.current.length - nextIndex;
+    if (remaining > FETCH_THRESHOLD) {
+      return queueRef.current.length;
+    }
+    return loadMoreItems();
+  }, [loadMoreItems]);
 
   const handleRating = async (rating: number) => {
+    if (!currentWord) {
+      return;
+    }
+
+    const updatedScore = score + (rating >= 2 ? 1 : 0);
+
     try {
-      if (currentWord.scheduler && currentWord.scheduler.toLowerCase() === 'anki') {
-        await apiService.submitAnkiReview({ word_id: currentWord.wordId, rating });
+      const isAnki = currentWord.scheduler && currentWord.scheduler.toLowerCase() === 'anki';
+      const reviewResult = isAnki
+        ? await apiService.submitAnkiReview({ word_id: currentWord.wordId, rating })
+        : await apiService.submitReview({ word_id: currentWord.wordId, rating });
+
+      setScore((prev) => prev + (rating >= 2 ? 1 : 0));
+
+      if (reviewResult?.summary || reviewResult?.stage_totals) {
+        applySummary(reviewResult.summary ?? reviewResult);
       } else {
-        await apiService.submitReview({ word_id: currentWord.wordId, rating });
+        decrementStageCount(currentWord.stage);
+        await refreshSummary();
       }
 
-      if (rating >= 2) {
-        setScore(score + 1);
-      }
+      const nextIndex = currentWordIndex + 1;
+      const queueLength = await ensureQueueDepth(nextIndex);
 
-      if (currentWordIndex < queueWords.length - 1) {
-        setCurrentWordIndex(currentWordIndex + 1);
+      if (nextIndex < queueLength) {
+        setCurrentWordIndex(nextIndex);
         setShowAnswer(false);
       } else {
         setCompleted(true);
-        toast.success(`Practice completed! Score: ${score + (rating >= 2 ? 1 : 0)}/${queueWords.length}`);
+        const totalItems = Math.max(queueLength, nextIndex);
+        setFinalTotal(totalItems);
+        toast.success(`Practice completed! Score: ${updatedScore}/${totalItems}`);
       }
     } catch (error) {
       toast.error('Failed to submit review');
     }
   };
 
-  if (!queueWords?.length) {
+  React.useEffect(() => {
+    if (!localQueue.length || completed) {
+      return;
+    }
+
+    const initialRemaining = localQueue.length - currentWordIndex - 1;
+    if (initialRemaining <= FETCH_THRESHOLD) {
+      ensureQueueDepth(currentWordIndex + 1);
+    }
+  }, [completed, currentWordIndex, ensureQueueDepth, localQueue.length]);
+
+  if (!localQueue?.length) {
     return (
       <div className="max-w-2xl mx-auto text-center">
         <Card>
@@ -92,9 +229,22 @@ export default function PracticePage({ queueWords, counters }: PracticeProps) {
             <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
             <h1 className="text-2xl font-bold mb-4">Practice Complete!</h1>
             <p className="text-gray-600 mb-6">
-              Final Score: {score}/{queueWords.length}
+              Final Score: {score}/{finalTotal}
             </p>
             <Button onClick={() => window.location.href = '/dashboard'}>Back to Dashboard</Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!currentWord) {
+    return (
+      <div className="max-w-2xl mx-auto text-center">
+        <Card>
+          <CardContent className="p-8 space-y-4">
+            <h1 className="text-2xl font-bold">Loading next word...</h1>
+            <p className="text-gray-600">Fetching more practice items for you.</p>
           </CardContent>
         </Card>
       </div>
@@ -107,13 +257,19 @@ export default function PracticePage({ queueWords, counters }: PracticeProps) {
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-gray-900">Vocabulary Practice</h1>
           <div className="text-sm text-gray-600">
-            {currentWordIndex + 1} of {queueWords.length}
+            {Math.min(currentWordIndex + 1, localQueue.length)} of {localQueue.length || finalTotal}
           </div>
         </div>
         <div className="w-full bg-gray-200 rounded-full h-2 mt-4">
           <div 
             className="bg-primary-600 h-2 rounded-full transition-all duration-300"
-            style={{ width: `${((currentWordIndex + 1) / queueWords.length) * 100}%` }}
+            style={{
+              width: `${
+                localQueue.length
+                  ? Math.min(((currentWordIndex + 1) / localQueue.length) * 100, 100)
+                  : 0
+              }%`,
+            }}
           />
         </div>
       </div>
@@ -237,6 +393,7 @@ export async function getServerSideProps(context: any) {
           translation: item.english_translation || '',
           difficulty: item.difficulty_level || 1,
           scheduler: item.scheduler || undefined,
+          stage: item.stage || item.queue_stage || item.stage_type || undefined,
         }))
       : [];
 
