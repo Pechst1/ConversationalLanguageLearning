@@ -1,47 +1,70 @@
-mkdir -p web-frontend/pages/learn/session
-cat > web-frontend/pages/learn/session/[id].tsx <<'TSX'
 import React from 'react';
+import type { GetServerSidePropsContext, GetServerSidePropsResult } from 'next';
 import { getSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import toast from 'react-hot-toast';
-import { Button } from '@/components/ui/Button';
-import { useLearningSession } from '@/hooks/useLearningSession';
+
 import ConversationHistory from '@/components/learning/ConversationHistory';
-import VocabularyHelper from '@/components/learning/VocabularyHelper';
 import MessageInput from '@/components/learning/MessageInput';
 import ProgressIndicator from '@/components/learning/ProgressIndicator';
 import SessionSummary from '@/components/learning/SessionSummary';
+import VocabularyHelper from '@/components/learning/VocabularyHelper';
+import { Button } from '@/components/ui/Button';
+import { useLearningSession } from '@/hooks/useLearningSession';
+import type { SessionStats as SummarySessionStats } from '@/types/learning';
 
-export default function SessionPage() {
+const SessionPage: React.FC = () => {
   const router = useRouter();
-  const { id } = router.query as { id: string };
-  const { session, messages, send, suggested, logExposure, flagWord, complete, activeSessionId } = useLearningSession(id);
+  const rawId = router.query.id;
+  const sessionId = Array.isArray(rawId) ? rawId[0] : rawId;
+
+  const {
+    session,
+    messages,
+    sendMessage,
+    suggested,
+    logWordExposure,
+    markWordDifficult,
+    completeSession,
+    activeSessionId,
+  } = useLearningSession(sessionId);
+
   const [draft, setDraft] = React.useState('');
   const [selectedWordIds, setSelectedWordIds] = React.useState<number[]>([]);
-  const [summary, setSummary] = React.useState<any>(null);
+  const [summary, setSummary] = React.useState<SummarySessionStats | null>(null);
   const [isCompleting, setIsCompleting] = React.useState(false);
 
   const handleSend = React.useCallback(
     async (text: string) => {
-      if (summary) return;
-      await send(text, selectedWordIds);
+      if (!text.trim() || summary) {
+        return;
+      }
+
+      await sendMessage(text, selectedWordIds);
       setSelectedWordIds([]);
     },
-    [send, selectedWordIds, summary]
+    [sendMessage, selectedWordIds, summary],
   );
 
-  const handleInsertWord = React.useCallback(
-    (word: string) => {
-      setDraft((existing) => {
-        const lowered = existing.toLowerCase();
-        if (lowered.includes(word.toLowerCase())) {
-          return existing;
-        }
-        return existing ? `${existing} ${word}` : word;
-      });
-    },
-    []
-  );
+  const handleInsertWord = React.useCallback((word: string) => {
+    setDraft((existing) => {
+      if (!word) {
+        return existing;
+      }
+
+      const alreadyIncluded = existing
+        .toLowerCase()
+        .split(/\s+/)
+        .filter(Boolean)
+        .includes(word.toLowerCase());
+
+      if (alreadyIncluded) {
+        return existing;
+      }
+
+      return existing ? `${existing} ${word}` : word;
+    });
+  }, []);
 
   const handleToggleSuggestion = React.useCallback((word: { id: number }, isSelected: boolean) => {
     setSelectedWordIds((prev) => {
@@ -51,44 +74,72 @@ export default function SessionPage() {
         }
         return [...prev, word.id];
       }
-      return prev.filter((id) => id !== word.id);
+
+      return prev.filter((value) => value !== word.id);
     });
   }, []);
 
   const handleWordInteract = React.useCallback(
     (wordId: number, exposureType: 'hint' | 'translation') => {
-      logExposure(wordId, exposureType);
+      if (!Number.isFinite(wordId)) {
+        return;
+      }
+      logWordExposure(wordId, exposureType);
     },
-    [logExposure]
+    [logWordExposure],
   );
 
   const handleCompleteSession = React.useCallback(async () => {
-    if (!id || summary) return;
+    if (!sessionId || summary) {
+      return;
+    }
+
     try {
       setIsCompleting(true);
-      const result = await complete();
+      const result = await completeSession();
       if (result) {
-        setSummary(result);
+        setSummary(result as unknown as SummarySessionStats);
         toast.success('Session completed! Review your highlights below.');
         setDraft('');
         setSelectedWordIds([]);
       }
     } catch (error) {
+      console.error('Unable to complete session:', error);
       toast.error('Unable to complete session right now.');
     } finally {
       setIsCompleting(false);
     }
-  }, [complete, id, summary]);
+  }, [completeSession, sessionId, summary]);
 
   React.useEffect(() => {
     setSelectedWordIds((prev) => prev.filter((wordId) => suggested.some((item) => item.id === wordId)));
   }, [suggested]);
 
-  if (!id) return null;
+  const handleReturnToDashboard = React.useCallback(() => {
+    router.push('/dashboard').catch((error) => {
+      console.error('Failed to navigate to dashboard:', error);
+      toast.error('Unable to navigate to dashboard.');
+    });
+  }, [router]);
+
+  const handleStartNewSession = React.useCallback(() => {
+    router.push('/learn/new').catch((error) => {
+      console.error('Failed to start a new session:', error);
+      toast.error('Unable to start a new session right now.');
+    });
+  }, [router]);
+
+  const xp = session?.stats?.xpEarned ?? 0;
+  const level = (session as unknown as { level?: number } | undefined)?.level ?? 1;
+  const streak = (session as unknown as { streak?: number } | undefined)?.streak ?? 0;
+
+  if (!sessionId) {
+    return null;
+  }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <div className="lg:col-span-2 space-y-4">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <div className="space-y-4 lg:col-span-2">
         {!summary && (
           <VocabularyHelper
             className="learning-card"
@@ -97,12 +148,13 @@ export default function SessionPage() {
             onToggleWord={handleToggleSuggestion}
           />
         )}
+
         <div className="learning-card">
           {summary ? (
             <SessionSummary
               stats={summary}
-              onStartNewSession={() => router.push('/learn/new')}
-              onReturnToDashboard={() => router.push('/dashboard')}
+              onStartNewSession={handleStartNewSession}
+              onReturnToDashboard={handleReturnToDashboard}
             />
           ) : (
             <>
@@ -110,7 +162,7 @@ export default function SessionPage() {
                 <ConversationHistory
                   messages={messages}
                   onWordInteract={handleWordInteract}
-                  onWordFlag={flagWord}
+                  onWordFlag={markWordDifficult}
                   activeSessionId={activeSessionId}
                 />
               </div>
@@ -126,8 +178,9 @@ export default function SessionPage() {
           )}
         </div>
       </div>
+
       <div className="space-y-6">
-        <ProgressIndicator xp={session?.xp_earned ?? 0} level={session?.level ?? 1} streak={session?.streak ?? 0} />
+        <ProgressIndicator xp={xp} level={level} streak={streak} />
         {summary && (
           <Button className="w-full" onClick={() => router.push('/sessions')}>
             Back to Sessions
@@ -136,13 +189,23 @@ export default function SessionPage() {
       </div>
     </div>
   );
-}
+};
 
-export async function getServerSideProps(ctx: any) {
+export default SessionPage;
+
+export async function getServerSideProps(
+  ctx: GetServerSidePropsContext,
+): Promise<GetServerSidePropsResult<Record<string, never>>> {
   const session = await getSession(ctx);
+
   if (!session) {
-    return { redirect: { destination: '/auth/signin', permanent: false } };
+    return {
+      redirect: {
+        destination: '/auth/signin',
+        permanent: false,
+      },
+    };
   }
+
   return { props: {} };
 }
-TSX
