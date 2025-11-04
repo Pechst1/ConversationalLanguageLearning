@@ -75,6 +75,7 @@ class ProgressService:
         """Return due and new words for a learner."""
 
         now = now or datetime.now(timezone.utc)
+        today = now.date()
         exclude_ids = exclude_ids or set()
         # Basic stopword/length filter to avoid proposing ultra-common function words
         stopwords = {
@@ -113,24 +114,62 @@ class ProgressService:
             .where(
                 or_(
                     UserVocabularyProgress.due_date.is_(None),
-                    UserVocabularyProgress.due_date <= now.date(),
+                    UserVocabularyProgress.due_date <= today,
                 )
             )
         )
         if direction:
             due_stmt = due_stmt.where(VocabularyWord.direction == direction)
         due_stmt = due_stmt.order_by(
-            UserVocabularyProgress.due_date.nullsfirst(),
-            UserVocabularyProgress.created_at,
+            UserVocabularyProgress.due_date.asc().nullsfirst(),
+            UserVocabularyProgress.created_at.asc(),
         ).limit(limit)
         if exclude_ids:
             due_stmt = due_stmt.where(UserVocabularyProgress.word_id.notin_(exclude_ids))
         due_progress = list(self.db.scalars(due_stmt))
-        items: list[QueueItem] = [
-            QueueItem(word=progress.word, progress=progress, is_new=False)
-            for progress in due_progress
-            if progress.word is not None and not _is_skippable_word(progress.word.word)
-        ]
+        seen_word_ids: set[int] = set()
+        items: list[QueueItem] = []
+        for progress in due_progress:
+            word = progress.word
+            if word is None or _is_skippable_word(word.word):
+                continue
+            if word.id in seen_word_ids:
+                continue
+            items.append(QueueItem(word=word, progress=progress, is_new=False))
+            seen_word_ids.add(word.id)
+
+        if len(items) < limit:
+            upcoming_stmt = (
+                select(UserVocabularyProgress)
+                .options(joinedload(UserVocabularyProgress.word))
+                .join(VocabularyWord, VocabularyWord.id == UserVocabularyProgress.word_id)
+                .where(UserVocabularyProgress.user_id == user.id)
+                .where(VocabularyWord.is_anki_card.is_(True))
+                .where(UserVocabularyProgress.due_date.isnot(None))
+                .where(UserVocabularyProgress.due_date > today)
+            )
+            if direction:
+                upcoming_stmt = upcoming_stmt.where(VocabularyWord.direction == direction)
+            if exclude_ids:
+                upcoming_stmt = upcoming_stmt.where(
+                    UserVocabularyProgress.word_id.notin_(exclude_ids)
+                )
+            if seen_word_ids:
+                upcoming_stmt = upcoming_stmt.where(
+                    UserVocabularyProgress.word_id.notin_(seen_word_ids)
+                )
+            upcoming_stmt = upcoming_stmt.order_by(
+                UserVocabularyProgress.due_date.asc().nullslast(),
+                UserVocabularyProgress.created_at.asc(),
+            ).limit(limit - len(items))
+            upcoming_progress = list(self.db.scalars(upcoming_stmt))
+            for progress in upcoming_progress:
+                if not progress.word or _is_skippable_word(progress.word.word):
+                    continue
+                items.append(QueueItem(word=progress.word, progress=progress, is_new=False))
+                seen_word_ids.add(progress.word.id)
+                if len(items) >= limit:
+                    break
 
         if len(items) >= limit:
             return items

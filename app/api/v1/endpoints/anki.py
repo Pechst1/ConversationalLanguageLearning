@@ -13,8 +13,11 @@ from app.schemas.anki import (
     AnkiImportRequest,
     AnkiImportResponse,
     AnkiStatisticsResponse,
+    AnkiReviewRequest,
+    AnkiReviewResponse,
 )
 from app.services.anki_import import AnkiImportService, AnkiImportError
+from app.db.models.anki_import_record import AnkiImportRecord
 from app.services.enhanced_srs import EnhancedSRSService
 
 
@@ -63,6 +66,20 @@ async def import_anki_cards(
             deck_name=deck_name,
             preserve_scheduling=preserve_scheduling
         )
+        # Persist raw import for future rehydration
+        try:
+            record = AnkiImportRecord(
+                user_id=current_user.id,
+                file_name=file.filename,
+                deck_name=deck_name,
+                preserve_scheduling=preserve_scheduling,
+                csv_content=csv_content,
+            )
+            db.add(record)
+            db.commit()
+        except Exception:
+            db.rollback()
+            logger.warning("Failed to persist Anki import record; continuing without it")
         
         logger.info(f"Anki import completed for user {current_user.id}: {result}")
         
@@ -115,6 +132,20 @@ async def import_anki_cards_text(
             deck_name=request.deck_name,
             preserve_scheduling=request.preserve_scheduling
         )
+        # Persist raw import for future rehydration
+        try:
+            record = AnkiImportRecord(
+                user_id=current_user.id,
+                file_name=None,
+                deck_name=request.deck_name,
+                preserve_scheduling=request.preserve_scheduling,
+                csv_content=request.csv_content,
+            )
+            db.add(record)
+            db.commit()
+        except Exception:
+            db.rollback()
+            logger.warning("Failed to persist text-based Anki import record; continuing without it")
         
         logger.info(f"Text-based Anki import completed for user {current_user.id}: {result}")
         
@@ -176,7 +207,7 @@ async def get_anki_statistics(
                 'fsrs_scheduler': fsrs_due_cards,
             }
         )
-        
+
     except Exception as e:
         logger.error(f"Error getting Anki statistics for user {current_user.id}: {e}")
         raise HTTPException(
@@ -250,4 +281,106 @@ async def get_due_cards(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred while retrieving due cards"
+        )
+
+
+@router.post("/rehydrate", response_model=AnkiImportResponse)
+async def rehydrate_from_last_import(
+    *,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    deck_name: Optional[str] = None,
+    preserve_scheduling: bool = True,
+) -> AnkiImportResponse:
+    """Re-import the most recent saved Anki CSV for the current user.
+
+    Useful if the database was reset or vocabulary rows were lost.
+    """
+
+    try:
+        from sqlalchemy import select
+        from sqlalchemy import func
+        from app.db.models.vocabulary import VocabularyWord
+
+        # Quick short-circuit: if Anki vocabulary exists already, skip
+        existing = db.scalar(
+            select(func.count()).select_from(VocabularyWord).where(VocabularyWord.is_anki_card.is_(True))
+        ) or 0
+        if existing > 0:
+            return AnkiImportResponse(success=True, message="Anki vocabulary already present; nothing to rehydrate", statistics={"total": 0, "imported": 0, "paired": 0, "skipped": 0, "errors": 0, "french_to_german": 0, "german_to_french": 0})
+
+        rec = db.query(AnkiImportRecord).filter(AnkiImportRecord.user_id == current_user.id).order_by(AnkiImportRecord.created_at.desc()).first()
+        if not rec:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No saved Anki import found for this user")
+
+        importer = AnkiImportService(db)
+        stats = importer.import_cards_from_csv(
+            csv_content=rec.csv_content,
+            user_id=str(current_user.id),
+            deck_name=deck_name or rec.deck_name,
+            preserve_scheduling=preserve_scheduling if preserve_scheduling is not None else rec.preserve_scheduling,
+        )
+        return AnkiImportResponse(success=True, message=f"Rehydrated {stats.get('imported', 0)} cards", statistics=stats)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error during Anki rehydrate for user {current_user.id}: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to rehydrate Anki import")
+
+
+@router.post("/review", response_model=AnkiReviewResponse)
+async def submit_anki_review(
+    *,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    payload: AnkiReviewRequest,
+) -> AnkiReviewResponse:
+    """Submit a review for an imported Anki card using SM-2 scheduling."""
+
+    try:
+        from sqlalchemy import select
+        from app.db.models.vocabulary import VocabularyWord
+        from app.db.models.progress import UserVocabularyProgress
+
+        word = db.get(VocabularyWord, payload.word_id)
+        if not word:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vocabulary word not found")
+
+        progress = db.scalars(
+            select(UserVocabularyProgress).where(
+                UserVocabularyProgress.user_id == current_user.id,
+                UserVocabularyProgress.word_id == word.id,
+            )
+        ).first()
+
+        if progress is None:
+            progress = UserVocabularyProgress(
+                user_id=current_user.id,
+                word_id=word.id,
+                scheduler="anki" if getattr(word, "is_anki_card", False) else "fsrs",
+            )
+            db.add(progress)
+            db.flush([progress])
+
+        srs = EnhancedSRSService(db)
+        srs.process_review(progress=progress, rating=payload.rating, response_time_ms=payload.response_time_ms)
+        db.commit()
+        db.refresh(progress)
+
+        return AnkiReviewResponse(
+            word_id=word.id,
+            scheduler=progress.scheduler or "anki",
+            phase=getattr(progress, "phase", None),
+            ease_factor=getattr(progress, "ease_factor", None),
+            interval_days=getattr(progress, "interval_days", None),
+            due_at=progress.due_at.isoformat() if getattr(progress, "due_at", None) else None,
+            next_review=progress.next_review_date.isoformat() if getattr(progress, "next_review_date", None) else None,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error submitting Anki review for user {current_user.id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred while recording the review",
         )

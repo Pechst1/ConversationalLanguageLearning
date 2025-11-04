@@ -82,8 +82,17 @@ const formatDate = (value: string | null | undefined) => {
 const AnkiStagePie = dynamic(() => import('@/components/learning/AnkiStagePie'), { ssr: false });
 
 export default function ProgressPage({ summary, initialProgress }: ProgressPageProps) {
-  const [direction, setDirection] = useState<'fr_to_de' | 'de_to_fr' | 'all'>('fr_to_de');
-  const [entries, setEntries] = useState<AnkiWordProgress[]>(initialProgress);
+  const defaultDirection: 'fr_to_de' | 'de_to_fr' | 'all' =
+    summary.directions?.fr_to_de?.total
+      ? 'fr_to_de'
+      : summary.directions?.de_to_fr?.total
+      ? 'de_to_fr'
+      : 'all';
+
+  const [direction, setDirection] = useState<'fr_to_de' | 'de_to_fr' | 'all'>(defaultDirection);
+  const [entries, setEntries] = useState<AnkiWordProgress[]>(
+    defaultDirection === 'fr_to_de' ? initialProgress : []
+  );
   const [loading, setLoading] = useState(false);
 
   const directionSummary = useMemo(() => {
@@ -298,11 +307,18 @@ export async function getServerSideProps(ctx: any) {
   if (!session) return { redirect: { destination: '/auth/signin', permanent: false } };
 
   const headers = { Authorization: `Bearer ${session.accessToken}` } as any;
-  const base = process.env.API_URL || 'http://localhost:8000/api/v1';
+  const rawBase =
+    process.env.NEXT_PUBLIC_API_URL ||
+    process.env.API_URL ||
+    'http://localhost:8000/api/v1';
+  const normalizedBase = rawBase.replace(/\/+$/, '');
+  const baseUrl = normalizedBase.endsWith('/api/v1')
+    ? normalizedBase
+    : `${normalizedBase}/api/v1`;
 
   const [summaryRes, progressRes] = await Promise.all([
-    fetch(`${base}/progress/anki/summary`, { headers }),
-    fetch(`${base}/progress/anki?direction=fr_to_de`, { headers }),
+    fetch(`${baseUrl}/progress/anki/summary`, { headers }),
+    fetch(`${baseUrl}/progress/anki?direction=fr_to_de`, { headers }),
   ]);
 
   const summary = summaryRes.ok ? await summaryRes.json() : { total_cards: 0, due_today: 0, stage_totals: {}, chart: [], directions: {} };

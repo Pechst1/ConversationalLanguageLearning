@@ -55,6 +55,12 @@ class Settings(BaseSettings):
     CELERY_BROKER_URL: Optional[AnyUrl] = None
     CELERY_RESULT_BACKEND: Optional[AnyUrl] = None
 
+    # Developer convenience: optionally auto-create users on first login attempt
+    AUTO_CREATE_USERS_ON_LOGIN: bool = Field(
+        False,
+        description="If true, /auth/login will create the user on-the-fly when not found (dev only)",
+    )
+
     model_config = SettingsConfigDict(
         env_file=Path(__file__).resolve().parent.parent / ".env",
         env_file_encoding="utf-8",

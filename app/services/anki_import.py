@@ -91,6 +91,12 @@ class AnkiCardParser:
         text = text.replace("\u3000", " ")
         text = re.sub(r'\s+', ' ', text.strip())
 
+        # If the field contains synonyms separated by commas/semicolons/slashes, prefer the first segment
+        # This prevents cases like "global, weltweit" or "Motor / moteur" from leaking both languages.
+        parts = re.split(r'[;,/|]+', text)
+        if parts:
+            text = parts[0].strip()
+
         if not text:
             return ""
 
@@ -120,6 +126,8 @@ class AnkiCardParser:
                 if lang == expected_language:
                     filtered.append(token)
                 elif expected_language == "german" and lang == "mixed":
+                    filtered.append(token)
+                elif expected_language == "french" and lang == "mixed":
                     filtered.append(token)
             if filtered:
                 tokens = filtered

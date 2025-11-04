@@ -184,6 +184,10 @@ class ApiService {
     return this.post('/progress/review', data);
   }
 
+  async submitAnkiReview(data: { word_id: number; rating: number; response_time_ms?: number }) {
+    return this.post('/anki/review', data);
+  }
+
   async getWordProgress(wordId: number) {
     return this.get(`/progress/${wordId}`);
   }

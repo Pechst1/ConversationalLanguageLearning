@@ -221,6 +221,32 @@ python scripts/seed_vocabulary.py --generate-sample
 python scripts/seed_vocabulary.py --csv vocabulary_fr_sample.csv
 ```
 
+### Anki CSV Import
+
+To use your Anki cards as the main vocabulary source and preserve scheduling:
+
+```bash
+# Import a local Anki CSV for a specific user (by email)
+python scripts/import_anki_csv.py \
+  --user-email learner@example.com \
+  --csv Anki_cards___2025-11-01T13-09-36.csv \
+  --preserve-scheduling true
+
+# Or select the user by UUID and override deck name
+python scripts/import_anki_csv.py \
+  --user-id 00000000-0000-0000-0000-000000000000 \
+  --csv /absolute/path/to/export.csv \
+  --deck-name "Französisch 5000"
+```
+
+Notes:
+
+- The importer recognizes typical Anki columns like `question`, `answer`, `c_Deck`, `c_Due`, `c_LatestReview`,
+  `c_Interval_in_Days`, `c_Ease`, `c_Reviews`, `c_Lapses`, and automatically pairs FR↔DE cards.
+- Scheduling data (`due`/`interval`/`ease`/`reps`/`lapses`) is preserved when `--preserve-scheduling true` (default).
+- After importing, the Progress page (web) pulls `/progress/anki` and `/progress/anki/summary` and the session
+  suggestions use due cards from `/progress/queue`.
+
 ### Progress & Review API
 
 The SRS module powers the learner progress endpoints exposed under `/api/v1/progress`:

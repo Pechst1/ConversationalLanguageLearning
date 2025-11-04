@@ -11,26 +11,46 @@ interface PracticeWord {
   word: string;
   translation: string;
   difficulty: number;
+  scheduler?: 'anki' | 'fsrs' | string;
 }
 
 interface PracticeProps {
   queueWords: PracticeWord[];
+  counters: {
+    newCount: number;
+    learningCount: number;
+    dueCount: number;
+  };
 }
 
-export default function PracticePage({ queueWords }: PracticeProps) {
+function cleanSurface(word: string, translation?: string | null) {
+  if (!word) return '';
+  const seg = word.split(/[;,/|]+/)[0].trim();
+  let result = seg;
+  if (translation) {
+    const tl = String(translation).trim().toLowerCase();
+    const regex = new RegExp(`\\s+${tl.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i');
+    result = result.replace(regex, '').trim();
+  }
+  return result;
+}
+
+export default function PracticePage({ queueWords, counters }: PracticeProps) {
   const [currentWordIndex, setCurrentWordIndex] = React.useState(0);
   const [showAnswer, setShowAnswer] = React.useState(false);
   const [score, setScore] = React.useState(0);
   const [completed, setCompleted] = React.useState(false);
+  const [counts] = React.useState(counters);
 
   const currentWord = queueWords[currentWordIndex];
 
   const handleRating = async (rating: number) => {
     try {
-      await apiService.submitReview({
-        word_id: currentWord.wordId,
-        rating,
-      });
+      if (currentWord.scheduler && currentWord.scheduler.toLowerCase() === 'anki') {
+        await apiService.submitAnkiReview({ word_id: currentWord.wordId, rating });
+      } else {
+        await apiService.submitReview({ word_id: currentWord.wordId, rating });
+      }
 
       if (rating >= 2) {
         setScore(score + 1);
@@ -101,7 +121,7 @@ export default function PracticePage({ queueWords }: PracticeProps) {
       <Card>
         <CardHeader>
           <CardTitle className="text-center text-3xl font-bold">
-            {currentWord.word}
+            {cleanSurface(currentWord.word, currentWord.translation)}
           </CardTitle>
           <CardDescription className="text-center">
             How well do you know this word?
@@ -159,6 +179,17 @@ export default function PracticePage({ queueWords }: PracticeProps) {
                     Easy
                   </Button>
                 </div>
+                <div className="mt-4 flex items-center justify-center gap-4 text-sm">
+                  <span className="text-blue-700">
+                    New (Blue): <span className="font-semibold">{counts.newCount}</span>
+                  </span>
+                  <span className="text-red-700">
+                    Learning (Red): <span className="font-semibold">{counts.learningCount}</span>
+                  </span>
+                  <span className="text-green-700">
+                    Due (Green): <span className="font-semibold">{counts.dueCount}</span>
+                  </span>
+                </div>
               </div>
             </>
           )}
@@ -194,20 +225,31 @@ export async function getServerSideProps(context: any) {
       'Content-Type': 'application/json',
     };
 
-    const response = await fetch(`${baseUrl}/progress/queue`, { headers });
-    const raw = response.ok ? await response.json() : [];
+    const [queueRes, summaryRes] = await Promise.all([
+      fetch(`${baseUrl}/progress/queue`, { headers }),
+      fetch(`${baseUrl}/progress/anki/summary`, { headers }),
+    ]);
+    const raw = queueRes.ok ? await queueRes.json() : [];
     const queueWords = Array.isArray(raw)
       ? raw.map((item: any) => ({
           wordId: item.word_id,
           word: item.word,
           translation: item.english_translation || '',
           difficulty: item.difficulty_level || 1,
+          scheduler: item.scheduler || undefined,
         }))
       : [];
 
+    const summary = summaryRes.ok ? await summaryRes.json() : null;
+    const counters = {
+      newCount: Number(summary?.stage_totals?.new ?? 0),
+      learningCount: Number(summary?.stage_totals?.learning ?? 0),
+      dueCount: Number(summary?.due_today ?? 0),
+    };
     return {
       props: {
         queueWords,
+        counters,
       },
     };
   } catch (error) {
@@ -215,6 +257,7 @@ export async function getServerSideProps(context: any) {
     return {
       props: {
         queueWords: [],
+        counters: { newCount: 0, learningCount: 0, dueCount: 0 },
       },
     };
   }
