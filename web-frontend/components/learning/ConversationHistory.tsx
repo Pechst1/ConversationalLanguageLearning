@@ -19,6 +19,38 @@ const familiarityClasses: Record<string, string> = {
 
 const defaultHighlightClass = 'bg-blue-100 text-blue-900 border border-blue-200';
 
+// Enhanced word ID validation function
+const validateWordId = (id: any): number | null => {
+  // Handle null/undefined
+  if (id === null || id === undefined) {
+    return null;
+  }
+  
+  // Already a valid number
+  if (typeof id === 'number' && Number.isFinite(id) && id > 0) {
+    return Math.floor(id);
+  }
+  
+  // Try string conversion
+  if (typeof id === 'string') {
+    const trimmed = id.trim();
+    if (trimmed === '' || trimmed === 'null' || trimmed === 'undefined') {
+      return null;
+    }
+    const parsed = parseInt(trimmed, 10);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+  
+  // Log invalid IDs in development
+  if (process.env.NODE_ENV === 'development') {
+    console.warn('[WordInteraction] Invalid word ID:', { id, type: typeof id });
+  }
+  
+  return null;
+};
+
 const ConversationHistory: React.FC<Props> = ({
   messages,
   onWordInteract,
@@ -29,6 +61,12 @@ const ConversationHistory: React.FC<Props> = ({
   const [hoveredWord, setHoveredWord] = useState<number | null>(null);
   const [wordTranslations, setWordTranslations] = useState<Record<number, string>>({});
   const [loadingTranslations, setLoadingTranslations] = useState<Set<number>>(new Set());
+  const [apiErrors, setApiErrors] = useState<Set<number>>(new Set());
+  const [retryAttempts, setRetryAttempts] = useState<Map<number, number>>(new Map());
+  
+  // Debouncing refs
+  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const translationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -38,65 +76,163 @@ const ConversationHistory: React.FC<Props> = ({
     scrollToBottom();
   }, [messages]);
 
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+      }
+      if (translationTimeoutRef.current) {
+        clearTimeout(translationTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const fetchWordTranslation = useCallback(async (wordId: number) => {
-    if (!Number.isFinite(wordId)) {
+    const validId = validateWordId(wordId);
+    if (!validId) {
+      console.warn('[WordTranslation] Invalid word ID provided:', wordId);
       return;
     }
 
-    if (wordTranslations[wordId] || loadingTranslations.has(wordId)) {
+    // Skip if already loading, has translation, or has persistent error
+    if (loadingTranslations.has(validId) || 
+        wordTranslations[validId] || 
+        (apiErrors.has(validId) && (retryAttempts.get(validId) || 0) >= 3)) {
       return;
     }
 
-    setLoadingTranslations(prev => new Set(prev).add(wordId));
+    setLoadingTranslations(prev => new Set([...prev, validId]));
     
     try {
-      const response = await apiService.get(`/vocabulary/words/${wordId}/translation`);
-      setWordTranslations(prev => ({
-        ...prev,
-        [wordId]: response.translation
-      }));
+      const response = await apiService.get(`/vocabulary/words/${validId}/translation`);
+      
+      if (response && response.translation) {
+        setWordTranslations(prev => ({
+          ...prev,
+          [validId]: response.translation
+        }));
+        
+        // Remove from error set if successful
+        setApiErrors(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(validId);
+          return newSet;
+        });
+        
+        // Reset retry count
+        setRetryAttempts(prev => {
+          const newMap = new Map(prev);
+          newMap.delete(validId);
+          return newMap;
+        });
+      } else {
+        throw new Error('Invalid response format');
+      }
     } catch (error) {
-      console.error('Failed to fetch word translation:', error);
-      toast.error('Failed to load translation');
+      console.error(`[WordTranslation] Failed to fetch translation for word ${validId}:`, error);
+      
+      const currentAttempts = retryAttempts.get(validId) || 0;
+      setRetryAttempts(prev => new Map(prev.set(validId, currentAttempts + 1)));
+      
+      if (currentAttempts >= 2) {
+        setApiErrors(prev => new Set([...prev, validId]));
+        setWordTranslations(prev => ({
+          ...prev,
+          [validId]: 'Translation unavailable'
+        }));
+      }
+      
+      // Only show toast for first failure
+      if (currentAttempts === 0) {
+        toast.error('Failed to load translation', { duration: 2000 });
+      }
     } finally {
       setLoadingTranslations(prev => {
         const newSet = new Set(prev);
-        newSet.delete(wordId);
+        newSet.delete(validId);
         return newSet;
       });
     }
-  }, [wordTranslations, loadingTranslations]);
+  }, [wordTranslations, loadingTranslations, apiErrors, retryAttempts]);
 
   const handleWordHover = useCallback((wordId: number) => {
-    if (!Number.isFinite(wordId)) {
+    const validId = validateWordId(wordId);
+    if (!validId) {
       return;
     }
 
-    setHoveredWord(wordId);
-    fetchWordTranslation(wordId);
-    onWordInteract?.(wordId, 'hint');
+    // Clear any existing hover timeout
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+    }
+
+    setHoveredWord(validId);
+    
+    // Debounce translation fetching to avoid too many API calls
+    if (translationTimeoutRef.current) {
+      clearTimeout(translationTimeoutRef.current);
+    }
+    
+    translationTimeoutRef.current = setTimeout(() => {
+      fetchWordTranslation(validId);
+    }, 200);
+    
+    // Safe callback execution
+    try {
+      onWordInteract?.(validId, 'hint');
+    } catch (error) {
+      console.error('[WordInteraction] Error in hover callback:', error);
+    }
   }, [fetchWordTranslation, onWordInteract]);
+
+  const handleWordLeave = useCallback(() => {
+    // Delay hiding to prevent flickering
+    hoverTimeoutRef.current = setTimeout(() => {
+      setHoveredWord(null);
+    }, 150);
+  }, []);
 
   const handleWordClick = useCallback((wordId: number) => {
-    if (!Number.isFinite(wordId)) {
+    const validId = validateWordId(wordId);
+    if (!validId) {
+      toast.error('Cannot interact with this word - invalid ID');
       return;
     }
 
-    fetchWordTranslation(wordId);
-    onWordInteract?.(wordId, 'translation');
-  }, [fetchWordTranslation, onWordInteract]);
+    // Clear any pending hide timeout
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+    }
+
+    // Immediately fetch translation if not available
+    if (!wordTranslations[validId] && !loadingTranslations.has(validId)) {
+      fetchWordTranslation(validId);
+    }
+    
+    // Safe callback execution
+    try {
+      onWordInteract?.(validId, 'translation');
+      toast.success('Word added to practice', { duration: 2000 });
+    } catch (error) {
+      console.error('[WordInteraction] Error in click callback:', error);
+      toast.error('Failed to add word to practice');
+    }
+  }, [fetchWordTranslation, onWordInteract, wordTranslations, loadingTranslations]);
 
   const handleWordFlag = useCallback(async (wordId: number) => {
-    if (!Number.isFinite(wordId)) {
-      toast.error('Unable to mark this word as difficult');
+    const validId = validateWordId(wordId);
+    if (!validId) {
+      toast.error('Cannot mark this word as difficult - invalid ID');
       return;
     }
 
     if (onWordFlag) {
       try {
-        await Promise.resolve(onWordFlag(wordId));
+        await Promise.resolve(onWordFlag(validId));
+        toast.success('Word marked as difficult');
       } catch (error) {
-        console.error('Failed to mark word as difficult via handler:', error);
+        console.error('[WordInteraction] Failed to mark word as difficult via handler:', error);
         toast.error('Failed to mark word as difficult');
       }
       return;
@@ -109,20 +245,20 @@ const ConversationHistory: React.FC<Props> = ({
 
     try {
       await apiService.post(`/sessions/${activeSessionId}/difficult-words`, {
-        word_id: wordId,
+        word_id: validId,
       });
       toast.success('Word marked as difficult');
     } catch (error) {
-      console.error('Failed to mark word as difficult:', error);
+      console.error('[WordInteraction] Failed to mark word as difficult:', error);
       toast.error('Failed to mark word as difficult');
     }
   }, [activeSessionId, onWordFlag]);
 
-  // Language detection for InteractiveText
+  // Enhanced language detection
   const detectLanguage = useCallback((text: string): 'french' | 'german' | 'spanish' => {
-    const frenchPatterns = /\b(bonjour|merci|comment|pourquoi|très|français|nouveau|entreprise|marché)\b/gi;
-    const germanPatterns = /\b(hallo|danke|wie|warum|sehr|deutsch|neu|unternehmen|markt)\b/gi;
-    const spanishPatterns = /\b(hola|gracias|cómo|muy|español|nuevo|empresa|mercado)\b/gi;
+    const frenchPatterns = /\b(bonjour|merci|comment|pourquoi|très|français|nouveau|entreprise|marché|avec|pour|dans|être|avoir)\b/gi;
+    const germanPatterns = /\b(hallo|danke|wie|warum|sehr|deutsch|neu|unternehmen|markt|mit|für|in|sein|haben)\b/gi;
+    const spanishPatterns = /\b(hola|gracias|cómo|muy|español|nuevo|empresa|mercado|con|para|en|ser|tener)\b/gi;
     
     const frenchMatches = (text.match(frenchPatterns) || []).length;
     const germanMatches = (text.match(germanPatterns) || []).length;
@@ -136,7 +272,7 @@ const ConversationHistory: React.FC<Props> = ({
     return 'spanish';
   }, []);
 
-  const renderWordWithHighlighting = (text: string, targets: TargetWord[]) => {
+  const renderWordWithHighlighting = useCallback((text: string, targets: TargetWord[]) => {
     if (!targets || targets.length === 0) {
       return <span>{text}</span>;
     }
@@ -145,6 +281,7 @@ const ConversationHistory: React.FC<Props> = ({
     const enhancedTargets = targets.map((target) => {
       const highlightText = target.text || target.word || '';
       let position = typeof target.position === 'number' ? target.position : undefined;
+      const validId = validateWordId(target.id);
 
       if ((position === undefined || position < 0) && highlightText) {
         let searchStart = 0;
@@ -170,15 +307,15 @@ const ConversationHistory: React.FC<Props> = ({
         ...target,
         text: highlightText,
         position,
+        validId,
       };
     });
 
-    // Sort targets by derived position to avoid overlap issues
-    const sortedTargets = [...enhancedTargets].sort((a, b) => {
-      const positionA = typeof a.position === 'number' ? a.position : Number.POSITIVE_INFINITY;
-      const positionB = typeof b.position === 'number' ? b.position : Number.POSITIVE_INFINITY;
-      return positionA - positionB;
-    });
+    // Sort targets by position to avoid overlap
+    const sortedTargets = [...enhancedTargets]
+      .filter(target => target.text && typeof target.position === 'number' && target.position >= 0)
+      .sort((a, b) => a.position! - b.position!);
+
     const elements: React.ReactNode[] = [];
     let lastIndex = 0;
 
@@ -198,11 +335,10 @@ const ConversationHistory: React.FC<Props> = ({
 
       // Add the highlighted target word
       const wordEnd = target.position + target.text.length;
-      const isHovered = hoveredWord === target.id;
-      const translation = wordTranslations[target.id];
-      const isLoading = loadingTranslations.has(target.id);
-
-      const hasValidId = Number.isFinite(target.id);
+      const isHovered = hoveredWord === target.validId;
+      const translation = target.validId ? wordTranslations[target.validId] : null;
+      const isLoading = target.validId ? loadingTranslations.has(target.validId) : false;
+      const hasError = target.validId ? apiErrors.has(target.validId) : false;
 
       const className = target.familiarity
         ? familiarityClasses[target.familiarity]
@@ -210,19 +346,45 @@ const ConversationHistory: React.FC<Props> = ({
 
       elements.push(
         <span
-          key={`word-${target.id}`}
-          className={`${className} px-1 py-0.5 rounded cursor-pointer transition-all duration-200 hover:shadow-md relative group`}
-          onMouseEnter={hasValidId ? () => handleWordHover(target.id) : undefined}
-          onMouseLeave={() => setHoveredWord(null)}
-          onClick={hasValidId ? () => handleWordClick(target.id) : undefined}
-          onDoubleClick={hasValidId ? () => handleWordFlag(target.id) : undefined}
-          title={`Double-click to mark as difficult${translation ? ` | Translation: ${translation}` : ''}`}
+          key={`word-${target.id}-${index}`}
+          className={`${className} ${
+            target.validId
+              ? 'cursor-pointer hover:shadow-lg transform hover:scale-105'
+              : 'cursor-not-allowed opacity-60'
+          } ${hasError ? 'border-red-300 bg-red-50' : ''} px-2 py-1 rounded-md transition-all duration-200 relative group font-medium`}
+          onMouseEnter={target.validId ? () => handleWordHover(target.validId!) : undefined}
+          onMouseLeave={handleWordLeave}
+          onClick={target.validId ? () => handleWordClick(target.validId!) : undefined}
+          onDoubleClick={target.validId ? () => handleWordFlag(target.validId!) : undefined}
+          title={
+            !target.validId
+              ? 'Invalid word - cannot interact'
+              : hasError
+              ? 'Translation service unavailable'
+              : `Click: Add to practice | Double-click: Mark as difficult${
+                  translation ? ` | Translation: ${translation}` : ''
+                }`
+          }
         >
           {target.text}
-          {isHovered && (
-            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-sm rounded whitespace-nowrap z-10">
-              {isLoading ? 'Loading...' : translation || (hasValidId ? 'Click for translation' : target.text)}
-              <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
+          {isHovered && target.validId && (
+            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg whitespace-nowrap z-20 shadow-lg">
+              {isLoading ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Loading...
+                </div>
+              ) : hasError ? (
+                'Translation unavailable'
+              ) : translation ? (
+                <div>
+                  <div className="font-semibold">{target.text}</div>
+                  <div className="text-xs opacity-80">{translation}</div>
+                </div>
+              ) : (
+                'Click for translation'
+              )}
+              <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
             </div>
           )}
         </span>
@@ -240,24 +402,24 @@ const ConversationHistory: React.FC<Props> = ({
       );
     }
 
-    return <span>{elements}</span>;
-  };
+    return <div className="leading-relaxed">{elements}</div>;
+  }, [hoveredWord, wordTranslations, loadingTranslations, apiErrors, handleWordHover, handleWordLeave, handleWordClick, handleWordFlag]);
 
   return (
     <div className="flex flex-col h-full">
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((message, index) => (
           <div
-            key={index}
+            key={`message-${index}-${message.timestamp || Date.now()}`}
             className={`flex ${
               message.role === 'user' ? 'justify-end' : 'justify-start'
             }`}
           >
             <div
-              className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+              className={`max-w-xs lg:max-w-md px-4 py-3 rounded-lg shadow-sm ${
                 message.role === 'user'
                   ? 'bg-blue-500 text-white'
-                  : 'bg-gray-200 text-gray-800'
+                  : 'bg-gray-100 text-gray-800 border border-gray-200'
               }`}
             >
               {message.role === 'assistant' ? (
@@ -273,13 +435,41 @@ const ConversationHistory: React.FC<Props> = ({
                   />
                 )
               ) : (
-                <span>{message.content}</span>
+                <span className="whitespace-pre-wrap">{message.content}</span>
               )}
             </div>
+            
+            {/* XP indicator for user messages */}
+            {message.role === 'user' && message.xp && message.xp > 0 && (
+              <div className="ml-2 flex items-center">
+                <span className="bg-amber-400 text-amber-900 text-xs px-2 py-1 rounded-full font-semibold shadow-sm">
+                  +{message.xp} XP
+                </span>
+              </div>
+            )}
           </div>
         ))}
         <div ref={messagesEndRef} />
       </div>
+      
+      {/* Debug info in development */}
+      {process.env.NODE_ENV === 'development' && apiErrors.size > 0 && (
+        <div className="p-2 bg-yellow-50 border-t border-yellow-200 text-xs text-yellow-700">
+          <details>
+            <summary className="cursor-pointer font-semibold">
+              API Errors ({apiErrors.size})
+            </summary>
+            <div className="mt-1 space-y-1">
+              {Array.from(apiErrors).map(wordId => (
+                <div key={wordId} className="flex justify-between">
+                  <span>Word ID: {wordId}</span>
+                  <span>Retries: {retryAttempts.get(wordId) || 0}</span>
+                </div>
+              ))}
+            </div>
+          </details>
+        </div>
+      )}
     </div>
   );
 };
