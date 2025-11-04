@@ -57,6 +57,7 @@ class QueueWord(BaseModel):
     next_review: datetime | None = None
     scheduled_days: int | None = None
     is_new: bool
+    scheduler: str | None = None
 
 
 class AnkiWordProgressRead(BaseModel):

@@ -157,3 +157,23 @@ class AnkiHealthCheck(BaseModel):
     last_import_date: Optional[str] = Field(None, description="Most recent import date (ISO format)")
     schedulers_supported: List[str] = Field(..., description="List of supported schedulers")
     features_available: List[str] = Field(..., description="Available Anki integration features")
+
+
+class AnkiReviewRequest(BaseModel):
+    """Payload for submitting an Anki-style review."""
+
+    word_id: int = Field(..., ge=1)
+    rating: int = Field(..., ge=0, le=3, description="Anki rating 0=Again,1=Hard,2=Good,3=Easy")
+    response_time_ms: Optional[int] = Field(None, ge=0)
+
+
+class AnkiReviewResponse(BaseModel):
+    """Response for an Anki review submission."""
+
+    word_id: int
+    scheduler: str = Field("anki")
+    phase: Optional[str] = None
+    ease_factor: Optional[float] = None
+    interval_days: Optional[int] = None
+    due_at: Optional[str] = None
+    next_review: Optional[str] = None

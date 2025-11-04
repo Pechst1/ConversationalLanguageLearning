@@ -5,6 +5,7 @@ from app.db.models.progress import UserVocabularyProgress, ReviewLog
 from app.db.models.session import LearningSession, ConversationMessage, WordInteraction
 from app.db.models.achievement import Achievement, UserAchievement
 from app.db.models.analytics import AnalyticsSnapshot
+from app.db.models.anki_import_record import AnkiImportRecord
 
 __all__ = [
     "User",
@@ -17,4 +18,5 @@ __all__ = [
     "Achievement",
     "UserAchievement",
     "AnalyticsSnapshot",
+    "AnkiImportRecord",
 ]

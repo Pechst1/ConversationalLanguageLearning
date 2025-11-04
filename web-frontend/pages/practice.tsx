@@ -3,7 +3,7 @@ import { getSession } from 'next-auth/react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import apiService from '@/services/api';
-import { CheckCircle, XCircle, RotateCcw } from 'lucide-react';
+import { CheckCircle, XCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface PracticeWord {
@@ -11,57 +11,46 @@ interface PracticeWord {
   word: string;
   translation: string;
   difficulty: number;
+  scheduler?: 'anki' | 'fsrs' | string;
 }
 
 interface PracticeProps {
   queueWords: PracticeWord[];
+  counters: {
+    newCount: number;
+    learningCount: number;
+    dueCount: number;
+  };
 }
 
-type LanguageDirection = 'french-to-german' | 'german-to-french';
+function cleanSurface(word: string, translation?: string | null) {
+  if (!word) return '';
+  const seg = word.split(/[;,/|]+/)[0].trim();
+  let result = seg;
+  if (translation) {
+    const tl = String(translation).trim().toLowerCase();
+    const regex = new RegExp(`\\s+${tl.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i');
+    result = result.replace(regex, '').trim();
+  }
+  return result;
+}
 
-export default function PracticePage({ queueWords }: PracticeProps) {
+export default function PracticePage({ queueWords, counters }: PracticeProps) {
   const [currentWordIndex, setCurrentWordIndex] = React.useState(0);
   const [showAnswer, setShowAnswer] = React.useState(false);
   const [score, setScore] = React.useState(0);
   const [completed, setCompleted] = React.useState(false);
-  const [languageDirection, setLanguageDirection] = React.useState<LanguageDirection>('french-to-german');
+  const [counts] = React.useState(counters);
 
   const currentWord = queueWords[currentWordIndex];
 
-  // Determine what to show based on language direction
-  const getCardContent = () => {
-    if (!currentWord) return { front: '', back: '' };
-    
-    if (languageDirection === 'french-to-german') {
-      return {
-        front: currentWord.word, // French word
-        back: currentWord.translation, // German translation
-        frontLanguage: 'Französisch',
-        backLanguage: 'Deutsch'
-      };
-    } else {
-      return {
-        front: currentWord.translation, // German word
-        back: currentWord.word, // French translation
-        frontLanguage: 'Deutsch',
-        backLanguage: 'Französisch'
-      };
-    }
-  };
-
   const handleRating = async (rating: number) => {
     try {
-      // Ensure wordId is properly parsed as integer
-      const wordId = parseInt(String(currentWord.wordId), 10);
-      if (!Number.isFinite(wordId)) {
-        toast.error('Invalid word ID');
-        return;
+      if (currentWord.scheduler && currentWord.scheduler.toLowerCase() === 'anki') {
+        await apiService.submitAnkiReview({ word_id: currentWord.wordId, rating });
+      } else {
+        await apiService.submitReview({ word_id: currentWord.wordId, rating });
       }
-
-      await apiService.submitReview({
-        word_id: wordId,
-        rating,
-      });
 
       if (rating >= 2) {
         setScore(score + 1);
@@ -76,12 +65,7 @@ export default function PracticePage({ queueWords }: PracticeProps) {
       }
     } catch (error) {
       toast.error('Failed to submit review');
-      console.error('Review submission error:', error);
     }
-  };
-
-  const resetCard = () => {
-    setShowAnswer(false);
   };
 
   if (!queueWords?.length) {
@@ -110,70 +94,23 @@ export default function PracticePage({ queueWords }: PracticeProps) {
             <p className="text-gray-600 mb-6">
               Final Score: {score}/{queueWords.length}
             </p>
-            <div className="space-y-3">
-              <Button onClick={() => window.location.href = '/dashboard'} className="w-full">
-                Back to Dashboard
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={() => {
-                  setCompleted(false);
-                  setCurrentWordIndex(0);
-                  setScore(0);
-                  setShowAnswer(false);
-                }} 
-                className="w-full"
-              >
-                Practice Again
-              </Button>
-            </div>
+            <Button onClick={() => window.location.href = '/dashboard'}>Back to Dashboard</Button>
           </CardContent>
         </Card>
       </div>
     );
   }
 
-  const cardContent = getCardContent();
-
   return (
     <div className="max-w-2xl mx-auto">
       <div className="mb-8">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-gray-900">Vocabulary Practice</h1>
           <div className="text-sm text-gray-600">
             {currentWordIndex + 1} of {queueWords.length}
           </div>
         </div>
-        
-        {/* Language Direction Selector */}
-        <div className="flex items-center justify-center mb-4">
-          <div className="bg-gray-100 rounded-lg p-1 flex">
-            <Button
-              variant={languageDirection === 'french-to-german' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => {
-                setLanguageDirection('french-to-german');
-                setShowAnswer(false);
-              }}
-              className="text-sm"
-            >
-              Französisch → Deutsch
-            </Button>
-            <Button
-              variant={languageDirection === 'german-to-french' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => {
-                setLanguageDirection('german-to-french');
-                setShowAnswer(false);
-              }}
-              className="text-sm"
-            >
-              Deutsch → Französisch
-            </Button>
-          </div>
-        </div>
-        
-        <div className="w-full bg-gray-200 rounded-full h-2">
+        <div className="w-full bg-gray-200 rounded-full h-2 mt-4">
           <div 
             className="bg-primary-600 h-2 rounded-full transition-all duration-300"
             style={{ width: `${((currentWordIndex + 1) / queueWords.length) * 100}%` }}
@@ -181,106 +118,80 @@ export default function PracticePage({ queueWords }: PracticeProps) {
         </div>
       </div>
 
-      <Card className="min-h-[400px]">
-        <CardHeader className="text-center">
-          <CardTitle className="text-lg text-gray-600 mb-2">
-            {cardContent.frontLanguage}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-center text-3xl font-bold">
+            {cleanSurface(currentWord.word, currentWord.translation)}
           </CardTitle>
-          <CardDescription className="text-3xl font-bold text-gray-900">
-            {showAnswer ? (
-              <div className="space-y-4">
-                <div className="text-2xl text-gray-700">
-                  {cardContent.front}
-                </div>
-                <div className="border-t pt-4">
-                  <div className="text-lg text-gray-600 mb-2">
-                    {cardContent.backLanguage}
-                  </div>
-                  <div className="text-3xl font-bold text-gray-900">
-                    {cardContent.back}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              cardContent.front
-            )}
+          <CardDescription className="text-center">
+            How well do you know this word?
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           {!showAnswer ? (
-            <div className="text-center space-y-3">
-              <p className="text-gray-600 mb-4">
-                How well do you know this word?
-              </p>
-              <div className="flex gap-3 justify-center">
-                <Button onClick={() => setShowAnswer(true)} className="flex-1 max-w-xs">
-                  Show Translation
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={resetCard}
-                  size="icon"
-                  title="Reset card"
-                >
-                  <RotateCcw className="h-4 w-4" />
-                </Button>
-              </div>
+            <div className="text-center">
+              <Button onClick={() => setShowAnswer(true)} className="w-full">
+                Show Translation
+              </Button>
             </div>
           ) : (
-            <div className="space-y-4">
-              <p className="text-center text-gray-600 mb-4">
-                How well did you remember this word?
-              </p>
-              
-              <div className="grid grid-cols-2 gap-3">
-                <Button 
-                  variant="outline" 
-                  onClick={() => handleRating(0)}
-                  className="border-red-300 text-red-600 hover:bg-red-50 p-4 h-auto flex flex-col gap-2"
-                >
-                  <XCircle className="h-5 w-5" />
-                  <span className="font-semibold">Didn&apos;t Know</span>
-                  <span className="text-xs opacity-75">Show again soon</span>
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={() => handleRating(1)}
-                  className="border-yellow-300 text-yellow-600 hover:bg-yellow-50 p-4 h-auto flex flex-col gap-2"
-                >
-                  <span className="font-semibold">Hard</span>
-                  <span className="text-xs opacity-75">Show again later</span>
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={() => handleRating(2)}
-                  className="border-green-300 text-green-600 hover:bg-green-50 p-4 h-auto flex flex-col gap-2"
-                >
-                  <span className="font-semibold">Good</span>
-                  <span className="text-xs opacity-75">Show again much later</span>
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={() => handleRating(3)}
-                  className="border-blue-300 text-blue-600 hover:bg-blue-50 p-4 h-auto flex flex-col gap-2"
-                >
-                  <CheckCircle className="h-5 w-5" />
-                  <span className="font-semibold">Easy</span>
-                  <span className="text-xs opacity-75">Wait much longer</span>
-                </Button>
+            <>
+              <div className="text-center p-4 bg-gray-50 rounded-lg">
+                <p className="text-xl font-semibold text-gray-900">
+                  {currentWord.translation}
+                </p>
               </div>
               
-              <div className="text-center pt-4">
-                <Button 
-                  variant="ghost" 
-                  onClick={resetCard}
-                  size="sm"
-                  className="text-gray-500"
-                >
-                  <RotateCcw className="h-4 w-4 mr-2" />
-                  See question again
-                </Button>
+              <div className="space-y-3">
+                <p className="text-center text-gray-600 mb-4">
+                  How well did you remember this word?
+                </p>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => handleRating(0)}
+                    className="border-red-300 text-red-600 hover:bg-red-50"
+                  >
+                    <XCircle className="mr-2 h-4 w-4" />
+                    Didn&apos;t Know
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => handleRating(1)}
+                    className="border-yellow-300 text-yellow-600 hover:bg-yellow-50"
+                  >
+                    Hard
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => handleRating(2)}
+                    className="border-green-300 text-green-600 hover:bg-green-50"
+                  >
+                    Good
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => handleRating(3)}
+                    className="border-blue-300 text-blue-600 hover:bg-blue-50"
+                  >
+                    <CheckCircle className="mr-2 h-4 w-4" />
+                    Easy
+                  </Button>
+                </div>
+                <div className="mt-4 flex items-center justify-center gap-4 text-sm">
+                  <span className="text-blue-700">
+                    New (Blue): <span className="font-semibold">{counts.newCount}</span>
+                  </span>
+                  <span className="text-red-700">
+                    Learning (Red): <span className="font-semibold">{counts.learningCount}</span>
+                  </span>
+                  <span className="text-green-700">
+                    Due (Green): <span className="font-semibold">{counts.dueCount}</span>
+                  </span>
+                </div>
               </div>
-            </div>
+            </>
           )}
         </CardContent>
       </Card>
@@ -314,24 +225,31 @@ export async function getServerSideProps(context: any) {
       'Content-Type': 'application/json',
     };
 
-    const response = await fetch(`${baseUrl}/progress/queue`, { headers });
-    const raw = response.ok ? await response.json() : [];
+    const [queueRes, summaryRes] = await Promise.all([
+      fetch(`${baseUrl}/progress/queue`, { headers }),
+      fetch(`${baseUrl}/progress/anki/summary`, { headers }),
+    ]);
+    const raw = queueRes.ok ? await queueRes.json() : [];
     const queueWords = Array.isArray(raw)
-      ? raw.map((item: any) => {
-          // Ensure proper integer parsing for wordId
-          const wordId = parseInt(String(item.word_id || item.id), 10);
-          return {
-            wordId: Number.isFinite(wordId) ? wordId : 0,
-            word: String(item.word || ''),
-            translation: String(item.english_translation || item.german_translation || item.translation || ''),
-            difficulty: parseInt(String(item.difficulty_level || item.difficulty), 10) || 1,
-          };
-        })
+      ? raw.map((item: any) => ({
+          wordId: item.word_id,
+          word: item.word,
+          translation: item.english_translation || '',
+          difficulty: item.difficulty_level || 1,
+          scheduler: item.scheduler || undefined,
+        }))
       : [];
 
+    const summary = summaryRes.ok ? await summaryRes.json() : null;
+    const counters = {
+      newCount: Number(summary?.stage_totals?.new ?? 0),
+      learningCount: Number(summary?.stage_totals?.learning ?? 0),
+      dueCount: Number(summary?.due_today ?? 0),
+    };
     return {
       props: {
         queueWords,
+        counters,
       },
     };
   } catch (error) {
@@ -339,6 +257,7 @@ export async function getServerSideProps(context: any) {
     return {
       props: {
         queueWords: [],
+        counters: { newCount: 0, learningCount: 0, dueCount: 0 },
       },
     };
   }

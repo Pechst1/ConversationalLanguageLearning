@@ -1,199 +1,238 @@
-// API augmentation for review-on-click
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { getSession } from 'next-auth/react';
 import toast from 'react-hot-toast';
 
 class ApiService {
   private api: AxiosInstance;
+
   constructor() {
     this.api = axios.create({
       baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1',
       timeout: 30000,
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+      },
     });
+
     this.setupInterceptors();
   }
+
   private setupInterceptors() {
-    this.api.interceptors.request.use(async (config) => {
-      const session = await getSession();
-      if (session?.accessToken) config.headers.Authorization = `Bearer ${session.accessToken}`;
-      return config;
-    });
-    this.api.interceptors.response.use((r: AxiosResponse) => r, (error) => {
-      const message = error.response?.data?.detail || error.message || 'An error occurred';
-      toast.error(typeof message === 'string' ? message : 'Validation error');
-      return Promise.reject(error);
-    });
+    // Request interceptor to add auth token
+    this.api.interceptors.request.use(
+      async (config) => {
+        const session = await getSession();
+        if (session?.accessToken) {
+          config.headers.Authorization = `Bearer ${session.accessToken}`;
+        }
+        return config;
+      },
+      (error) => {
+        return Promise.reject(error);
+      }
+    );
+
+    // Response interceptor for error handling
+    this.api.interceptors.response.use(
+      (response: AxiosResponse) => response,
+      (error) => {
+        const message = error.response?.data?.detail || error.message || 'An error occurred';
+        
+        switch (error.response?.status) {
+          case 401:
+            toast.error('Authentication required. Please log in.');
+            // Redirect to login or refresh token
+            break;
+          case 403:
+            toast.error('Access denied.');
+            break;
+          case 404:
+            toast.error('Resource not found.');
+            break;
+          case 422:
+            if (typeof message === 'object') {
+              // Handle validation errors
+              const validationErrors = message.detail || message;
+              if (Array.isArray(validationErrors)) {
+                validationErrors.forEach((err: any) => {
+                  toast.error(`${err.loc?.join(' -> ')}: ${err.msg}`);
+                });
+              }
+            } else {
+              toast.error(message);
+            }
+            break;
+          case 500:
+            toast.error('Server error. Please try again later.');
+            break;
+          default:
+            toast.error(message);
+        }
+        
+        return Promise.reject(error);
+      }
+    );
   }
+
+  // Generic HTTP methods
   async get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
-    return (await this.api.get<T>(url, config)).data;
+    const response = await this.api.get<T>(url, config);
+    return response.data;
   }
 
   async post<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
-    return (await this.api.post<T>(url, data, config)).data;
+    const response = await this.api.post<T>(url, data, config);
+    return response.data;
+  }
+
+  async put<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
+    const response = await this.api.put<T>(url, data, config);
+    return response.data;
   }
 
   async patch<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
-    return (await this.api.patch<T>(url, data, config)).data;
+    const response = await this.api.patch<T>(url, data, config);
+    return response.data;
   }
 
-  async register(data: { name: string; email: string; password: string }) {
-    const payload = {
-      email: data.email,
-      password: data.password,
-      full_name: data.name,
-    };
-    return this.post('/auth/register', payload);
+  async delete<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
+    const response = await this.api.delete<T>(url, config);
+    return response.data;
   }
 
+  // Authentication endpoints
+  async register(userData: { email: string; password: string; name?: string }) {
+    return this.post('/auth/register', userData);
+  }
+
+  async login(credentials: { email: string; password: string }) {
+    return this.post('/auth/login', credentials);
+  }
+
+  // User endpoints
+  async getCurrentUser() {
+    return this.get('/users/me');
+  }
+
+  async updateProfile(data: any) {
+    return this.put('/users/me', data);
+  }
+
+  // Session endpoints
   async createSession(data: {
     topic?: string;
     planned_duration_minutes: number;
     conversation_style?: string;
     difficulty_preference?: string;
     generate_greeting?: boolean;
-    anki_direction?: 'fr_to_de' | 'de_to_fr' | 'both';
   }) {
-    const response = await this.post<{
-      session: any;
-      assistant_turn?: any;
-    }>('/sessions', data);
-
-    const session = response?.session ?? {};
-    const assistantTurn = response?.assistant_turn ?? {};
-    const assistantMessage = assistantTurn?.message ?? {};
-    const targets = assistantTurn?.targets ?? assistantMessage?.target_details ?? [];
-
-    return {
-      ...response,
-      id: session.id,
-      status: session.status,
-      created_at: session.started_at,
-      ended_at: session.completed_at,
-      xp_earned: session.xp_earned ?? 0,
-      words_practiced: session.words_practiced ?? 0,
-      greeting: assistantMessage.content,
-      greeting_targets: targets,
-    };
+    return this.post('/sessions', data);
   }
 
-  async sendMessage(
-    sessionId: string,
-    data: { content: string; suggested_word_ids?: number[] }
-  ) {
-    const response = await this.post<{
-      session: any;
-      assistant_turn: any;
-      xp_awarded: number;
-      word_feedback: Array<{ rating?: number | null }>;
-    }>(`/sessions/${sessionId}/messages`, data);
-
-    const assistantTurn = response?.assistant_turn ?? {};
-    const assistantMessage = assistantTurn?.message ?? {};
-    const targets = assistantTurn?.targets ?? assistantMessage?.target_details ?? [];
-    const sessionOverview = response?.session ?? {};
-    const ratings = response?.word_feedback ?? [];
-    const correctAnswers = ratings.filter((item) => (item.rating ?? 0) >= 2).length;
-
-    return {
-      ...response,
-      role: 'assistant',
-      content: assistantMessage.content ?? '',
-      timestamp: assistantMessage.created_at ?? new Date().toISOString(),
-      xp: assistantMessage.xp_earned ?? response?.xp_awarded ?? 0,
-      targets,
-      session_stats: {
-        xpEarned: sessionOverview.xp_earned ?? 0,
-        wordsPracticed: sessionOverview.words_practiced ?? 0,
-        correctAnswers,
-        totalReviews: ratings.length,
-      },
-    };
+  async getSession(sessionId: string) {
+    return this.get(`/sessions/${sessionId}`);
   }
 
-  async logExposure(
-    sessionId: string,
-    data: { word_id: number; exposure_type: 'hint' | 'translation' | 'flag' }
-  ) {
+  async getSessions(params?: { limit?: number; offset?: number }) {
+    return this.get('/sessions', { params });
+  }
+
+  async sendMessage(sessionId: string, data: { content: string; suggested_word_ids?: number[] }) {
+    return this.post(`/sessions/${sessionId}/messages`, data);
+  }
+
+  async logExposure(sessionId: string, data: { word_id: number; exposure_type: 'hint' | 'translation' }) {
     return this.post(`/sessions/${sessionId}/exposures`, data);
   }
 
-  // New endpoint to resolve-or-create vocabulary by string
-  async resolveVocabulary(data: { word: string; language: string }) {
-    return this.post('/vocabulary/resolve', data);
+  async updateSessionStatus(sessionId: string, status: 'in_progress' | 'paused' | 'completed' | 'abandoned') {
+    return this.patch(`/sessions/${sessionId}`, { status });
   }
 
-  // Existing used by ConversationHistory
+  async getSessionSummary(sessionId: string) {
+    return this.get(`/sessions/${sessionId}/summary`);
+  }
+
+  async markWordDifficult(sessionId: string, data: { word_id: number }) {
+    return this.post(`/sessions/${sessionId}/difficult_words`, { word_id: data.word_id, exposure_type: 'flag' });
+  }
+
   async lookupVocabulary(word: string, language?: string) {
     const params = new URLSearchParams({ word });
     if (language) params.set('language', language);
     return this.get(`/vocabulary/lookup?${params.toString()}`);
   }
 
-  // Submit SRS rating: 0=Again, 1=Hard
-  async submitReview(data: { word_id: number; rating: 0 | 1 | 2 | 3 }) {
+  async listVocabulary(params?: { language?: string; limit?: number; offset?: number }) {
+    return this.get('/vocabulary/', { params });
+  }
+
+  // Progress endpoints
+  async getProgressQueue(params?: { direction?: string; limit?: number }) {
+    return this.get('/progress/queue', { params });
+  }
+
+  async getAnkiProgress(params?: { direction?: string }) {
+    return this.get('/progress/anki', { params });
+  }
+
+  async getAnkiSummary() {
+    return this.get('/progress/anki/summary');
+  }
+
+  async submitReview(data: { word_id: number; rating: number }) {
     return this.post('/progress/review', data);
   }
 
-  async updateSessionStatus(
-    sessionId: string,
-    status: 'in_progress' | 'paused' | 'completed' | 'abandoned'
-  ) {
-    return this.patch(`/sessions/${sessionId}`, { status });
+  async submitAnkiReview(data: { word_id: number; rating: number; response_time_ms?: number }) {
+    return this.post('/anki/review', data);
   }
 
-  async getSession(sessionId: string) {
-    const [overview, messagesResponse, summary] = await Promise.all([
-      this.get<any>(`/sessions/${sessionId}`),
-      this.get<{ items: any[] }>(`/sessions/${sessionId}/messages`),
-      this.get<any>(`/sessions/${sessionId}/summary`).catch(() => null),
-    ]);
-
-    const messages = messagesResponse?.items ?? [];
-    const formattedMessages = messages.map((message) => ({
-      id: message.id,
-      role: message.sender ?? message.role ?? 'assistant',
-      content: message.content ?? '',
-      timestamp: message.created_at ?? new Date().toISOString(),
-      xp: message.xp_earned ?? 0,
-      targets: message.target_details ?? message.target_words ?? [],
-    }));
-
-    const stats = summary
-      ? {
-          xpEarned: summary.xp_earned ?? 0,
-          wordsReviewed: summary.words_reviewed ?? 0,
-          newCards: summary.new_words_introduced ?? 0,
-          correctAnswers: summary.correct_responses ?? 0,
-          incorrectAnswers: summary.incorrect_responses ?? 0,
-          totalReviews: summary.words_reviewed ?? 0,
-          accuracyRate: summary.accuracy_rate ?? 0,
-          sessionDuration: summary.session_duration ?? undefined,
-          sessionStartTime: summary.session_start ?? undefined,
-          sessionEndTime: summary.session_end ?? undefined,
-        }
-      : {
-          xpEarned: overview?.xp_earned ?? 0,
-          wordsReviewed: overview?.words_practiced ?? 0,
-          totalReviews: overview?.words_practiced ?? 0,
-          correctAnswers: 0,
-          incorrectAnswers: 0,
-        };
-
-    return {
-      ...overview,
-      id: overview?.id,
-      status: overview?.status,
-      created_at: overview?.started_at,
-      ended_at: overview?.completed_at,
-      stats,
-      messages: formattedMessages,
-      target_words: summary?.flashcard_words ?? [],
-    };
+  async getWordProgress(wordId: number) {
+    return this.get(`/progress/${wordId}`);
   }
 
-  async markWordDifficult(sessionId: string, data: { word_id: number }) {
-    return this.post(`/sessions/${sessionId}/difficult_words`, { word_id: data.word_id, exposure_type: 'flag' });
+  // Analytics endpoints
+  async getAnalyticsSummary() {
+    return this.get('/analytics/summary');
+  }
+
+  async getAnalyticsStatistics(params?: { days?: number }) {
+    return this.get('/analytics/statistics', { params });
+  }
+
+  async getStreakData() {
+    return this.get('/analytics/streak');
+  }
+
+  async getVocabularyProgress() {
+    return this.get('/analytics/vocabulary');
+  }
+
+  async getErrorAnalysis() {
+    return this.get('/analytics/errors');
+  }
+
+  // Achievement endpoints
+  async getAchievements() {
+    return this.get('/achievements');
+  }
+
+  async getUserAchievements() {
+    return this.get('/achievements/my');
+  }
+
+  async checkAchievements() {
+    return this.post('/achievements/check');
+  }
+
+  // Vocabulary endpoints
+  async getVocabulary(params?: { limit?: number; offset?: number; search?: string }) {
+    return this.get('/vocabulary', { params });
+  }
+
+  async getVocabularyItem(wordId: number) {
+    return this.get(`/vocabulary/${wordId}`);
   }
 }
 

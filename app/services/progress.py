@@ -71,25 +71,12 @@ class ProgressService:
         new_word_budget: int | None = None,
         exclude_ids: set[int] | None = None,
         direction: str | None = None,
-        upcoming_window_days: int = 2,
     ) -> list[QueueItem]:
-        """Return due and new words for a learner.
-
-        Args:
-            user: Learner whose queue is being built.
-            limit: Maximum number of queue items to return.
-            now: Reference time for scheduling cut-offs.
-            new_word_budget: Optional cap on newly introduced vocabulary.
-            exclude_ids: Vocabulary identifiers that should be skipped.
-            direction: Filter vocabulary by card direction (e.g. ``"fr_to_de"``).
-            upcoming_window_days: Number of days ahead to treat reviews as "due".
-        """
+        """Return due and new words for a learner."""
 
         now = now or datetime.now(timezone.utc)
+        today = now.date()
         exclude_ids = exclude_ids or set()
-        upcoming_window_days = max(0, upcoming_window_days)
-        due_cutoff_date = now.date() + timedelta(days=upcoming_window_days)
-        due_cutoff_dt = now + timedelta(days=upcoming_window_days)
         # Basic stopword/length filter to avoid proposing ultra-common function words
         stopwords = {
             "le",
@@ -118,121 +105,71 @@ class ProgressService:
                 return True
             lw = w.strip().lower()
             return len(lw) <= 2 or lw in stopwords
-        def _build_due_stmt(*, restrict_to_anki: bool, remaining: int, skip_progress_ids: set[int] | None = None):
-            stmt = (
+        due_stmt = (
+            select(UserVocabularyProgress)
+            .options(joinedload(UserVocabularyProgress.word))
+            .join(VocabularyWord, VocabularyWord.id == UserVocabularyProgress.word_id)
+            .where(UserVocabularyProgress.user_id == user.id)
+            .where(VocabularyWord.is_anki_card.is_(True))
+            .where(
+                or_(
+                    UserVocabularyProgress.due_date.is_(None),
+                    UserVocabularyProgress.due_date <= today,
+                )
+            )
+        )
+        if direction:
+            due_stmt = due_stmt.where(VocabularyWord.direction == direction)
+        due_stmt = due_stmt.order_by(
+            UserVocabularyProgress.due_date.asc().nullsfirst(),
+            UserVocabularyProgress.created_at.asc(),
+        ).limit(limit)
+        if exclude_ids:
+            due_stmt = due_stmt.where(UserVocabularyProgress.word_id.notin_(exclude_ids))
+        due_progress = list(self.db.scalars(due_stmt))
+        seen_word_ids: set[int] = set()
+        items: list[QueueItem] = []
+        for progress in due_progress:
+            word = progress.word
+            if word is None or _is_skippable_word(word.word):
+                continue
+            if word.id in seen_word_ids:
+                continue
+            items.append(QueueItem(word=word, progress=progress, is_new=False))
+            seen_word_ids.add(word.id)
+
+        if len(items) < limit:
+            upcoming_stmt = (
                 select(UserVocabularyProgress)
                 .options(joinedload(UserVocabularyProgress.word))
                 .join(VocabularyWord, VocabularyWord.id == UserVocabularyProgress.word_id)
                 .where(UserVocabularyProgress.user_id == user.id)
-                .where(
-                    or_(
-                        UserVocabularyProgress.due_date.is_(None),
-                        UserVocabularyProgress.due_date <= due_cutoff_date,
-                        UserVocabularyProgress.next_review_date <= due_cutoff_dt,
-                        UserVocabularyProgress.due_at <= due_cutoff_dt,
-                    )
-                )
+                .where(VocabularyWord.is_anki_card.is_(True))
+                .where(UserVocabularyProgress.due_date.isnot(None))
+                .where(UserVocabularyProgress.due_date > today)
             )
-            if restrict_to_anki:
-                stmt = stmt.where(VocabularyWord.is_anki_card.is_(True))
             if direction:
-                stmt = stmt.where(VocabularyWord.direction == direction)
+                upcoming_stmt = upcoming_stmt.where(VocabularyWord.direction == direction)
             if exclude_ids:
-                stmt = stmt.where(UserVocabularyProgress.word_id.notin_(exclude_ids))
-            if skip_progress_ids:
-                stmt = stmt.where(UserVocabularyProgress.id.notin_(skip_progress_ids))
-            stmt = stmt.order_by(
-                UserVocabularyProgress.due_date.nullsfirst(),
-                UserVocabularyProgress.next_review_date.nullsfirst(),
-                UserVocabularyProgress.created_at,
-            ).limit(remaining)
-            return stmt
-
-        due_progress = list(self.db.scalars(_build_due_stmt(restrict_to_anki=True, remaining=limit)))
-        seen_progress_ids = {progress.id for progress in due_progress}
-        items: list[QueueItem] = [
-            QueueItem(word=progress.word, progress=progress, is_new=False)
-            for progress in due_progress
-            if progress.word is not None and not _is_skippable_word(progress.word.word)
-        ]
-
-        if len(items) < limit:
-            missing_due = limit - len(items)
-            fallback_due = list(
-                self.db.scalars(
-                    _build_due_stmt(
-                        restrict_to_anki=False,
-                        remaining=missing_due,
-                        skip_progress_ids=seen_progress_ids,
-                    )
+                upcoming_stmt = upcoming_stmt.where(
+                    UserVocabularyProgress.word_id.notin_(exclude_ids)
                 )
-            )
-            for progress in fallback_due:
-                if progress.id in seen_progress_ids:
-                    continue
-                if not progress.word or _is_skippable_word(progress.word.word):
-                    continue
-                items.append(QueueItem(word=progress.word, progress=progress, is_new=False))
-                seen_progress_ids.add(progress.id)
-                if len(items) >= limit:
-                    break
-
-        if len(items) < limit:
-            missing = limit - len(items)
-            def _build_upcoming_stmt(*, restrict_to_anki: bool, remaining: int):
-                stmt = (
-                    select(UserVocabularyProgress)
-                    .options(joinedload(UserVocabularyProgress.word))
-                    .join(VocabularyWord, VocabularyWord.id == UserVocabularyProgress.word_id)
-                    .where(UserVocabularyProgress.user_id == user.id)
+            if seen_word_ids:
+                upcoming_stmt = upcoming_stmt.where(
+                    UserVocabularyProgress.word_id.notin_(seen_word_ids)
                 )
-                if restrict_to_anki:
-                    stmt = stmt.where(VocabularyWord.is_anki_card.is_(True))
-                if direction:
-                    stmt = stmt.where(VocabularyWord.direction == direction)
-                if exclude_ids:
-                    stmt = stmt.where(UserVocabularyProgress.word_id.notin_(exclude_ids))
-                if seen_progress_ids:
-                    stmt = stmt.where(UserVocabularyProgress.id.notin_(seen_progress_ids))
-                stmt = stmt.order_by(
-                    UserVocabularyProgress.due_date.nullslast(),
-                    UserVocabularyProgress.next_review_date.nullslast(),
-                    UserVocabularyProgress.created_at,
-                ).limit(remaining)
-                return stmt
-
-            upcoming_progress = list(
-                self.db.scalars(
-                    _build_upcoming_stmt(restrict_to_anki=True, remaining=missing)
-                )
-            )
+            upcoming_stmt = upcoming_stmt.order_by(
+                UserVocabularyProgress.due_date.asc().nullslast(),
+                UserVocabularyProgress.created_at.asc(),
+            ).limit(limit - len(items))
+            upcoming_progress = list(self.db.scalars(upcoming_stmt))
             for progress in upcoming_progress:
                 if not progress.word or _is_skippable_word(progress.word.word):
                     continue
                 items.append(QueueItem(word=progress.word, progress=progress, is_new=False))
-                seen_progress_ids.add(progress.id)
+                seen_word_ids.add(progress.word.id)
                 if len(items) >= limit:
                     break
-
-            if len(items) < limit:
-                remaining = limit - len(items)
-                fallback_upcoming = list(
-                    self.db.scalars(
-                        _build_upcoming_stmt(
-                            restrict_to_anki=False,
-                            remaining=remaining,
-                        )
-                    )
-                )
-                for progress in fallback_upcoming:
-                    if not progress.word or _is_skippable_word(progress.word.word):
-                        continue
-                    if progress.id in seen_progress_ids:
-                        continue
-                    items.append(QueueItem(word=progress.word, progress=progress, is_new=False))
-                    seen_progress_ids.add(progress.id)
-                    if len(items) >= limit:
-                        break
 
         if len(items) >= limit:
             return items
@@ -251,28 +188,19 @@ class ProgressService:
         # New word selection below reuses the same stopword/length filter
 
         new_conditions = [not_(VocabularyWord.id.in_(words_seen_subquery))]
-        base_new_stmt = select(VocabularyWord).where(and_(*new_conditions))
+        new_word_stmt = select(VocabularyWord).where(and_(*new_conditions))
+        new_word_stmt = new_word_stmt.where(VocabularyWord.is_anki_card.is_(True))
         if direction:
-            base_new_stmt = base_new_stmt.where(VocabularyWord.direction == direction)
+            new_word_stmt = new_word_stmt.where(VocabularyWord.direction == direction)
         if exclude_ids:
-            base_new_stmt = base_new_stmt.where(VocabularyWord.id.notin_(exclude_ids))
-        base_new_stmt = base_new_stmt.where(func.length(VocabularyWord.word) > 2)
-        base_new_stmt = base_new_stmt.where(func.lower(VocabularyWord.word).notin_(stopwords))
-
-        anki_new_stmt = base_new_stmt.where(VocabularyWord.is_anki_card.is_(True)).order_by(
-            func.random()
-        ).limit(missing)
-        new_words = list(self.db.scalars(anki_new_stmt))
-
-        selected_ids = {word.id for word in new_words}
-        remaining_new = missing - len(new_words)
-        if remaining_new > 0:
-            fallback_stmt = base_new_stmt
-            if selected_ids:
-                fallback_stmt = fallback_stmt.where(VocabularyWord.id.notin_(selected_ids))
-            fallback_stmt = fallback_stmt.order_by(func.random()).limit(remaining_new)
-            fallback_words = list(self.db.scalars(fallback_stmt))
-            new_words.extend(fallback_words)
+            new_word_stmt = new_word_stmt.where(VocabularyWord.id.notin_(exclude_ids))
+        new_word_stmt = (
+            new_word_stmt.where(func.length(VocabularyWord.word) > 2)
+            .where(func.lower(VocabularyWord.word).notin_(stopwords))
+            .order_by(func.random())
+            .limit(missing)
+        )
+        new_words = list(self.db.scalars(new_word_stmt))
 
         items.extend(QueueItem(word=word, progress=None, is_new=True) for word in new_words)
         return items
@@ -307,32 +235,18 @@ class ProgressService:
             "cette",
             "pour",
         }
-        base_query = (
+        query = (
             self.db.query(VocabularyWord)
             .filter(func.length(VocabularyWord.word) > 2)
             .filter(func.lower(VocabularyWord.word).notin_(stopwords))
+            .filter(VocabularyWord.is_anki_card.is_(True))
         )
         if direction:
-            base_query = base_query.filter(VocabularyWord.direction == direction)
+            query = query.filter(VocabularyWord.direction == direction)
         if exclude_ids:
-            base_query = base_query.filter(~VocabularyWord.id.in_(exclude_ids))
-
-        anki_query = base_query.filter(VocabularyWord.is_anki_card.is_(True)).order_by(
-            func.random()
-        ).limit(limit)
-        words = list(anki_query.all())
-
-        if len(words) < limit:
-            remaining = limit - len(words)
-            fallback_query = base_query
-            if words:
-                fallback_query = fallback_query.filter(
-                    ~VocabularyWord.id.in_([word.id for word in words])
-                )
-            fallback_query = fallback_query.order_by(func.random()).limit(remaining)
-            words.extend(fallback_query.all())
-
-        return words
+            query = query.filter(~VocabularyWord.id.in_(exclude_ids))
+        query = query.order_by(func.random()).limit(limit)
+        return list(query.all())
 
     def list_anki_progress(self, *, user: User, direction: str | None = None) -> list[dict[str, Any]]:
         """Return Anki-imported vocabulary with the learner's progress metadata."""
@@ -495,16 +409,12 @@ class ProgressService:
         user_id: uuid.UUID,
         now: datetime | None = None,
         direction: str | None = None,
-        include_upcoming_days: int = 0,
     ) -> int:
         """Return how many reviews are currently due for the learner."""
 
         now = now or datetime.now(timezone.utc)
-        include_upcoming_days = max(0, include_upcoming_days)
-        date_cutoff = now.date() + timedelta(days=include_upcoming_days)
-        datetime_cutoff = now + timedelta(days=include_upcoming_days)
         today = now.date()
-        cache_key = f"{user_id}:{direction or 'all'}:{today.isoformat()}:{include_upcoming_days}"
+        cache_key = f"{user_id}:{direction or 'all'}:{today.isoformat()}"
         cached = cache_backend.get("progress:due_reviews", cache_key)
         if cached is not None:
             return int(cached)
@@ -516,9 +426,7 @@ class ProgressService:
                 UserVocabularyProgress.user_id == user_id,
                 or_(
                     UserVocabularyProgress.due_date.is_(None),
-                    UserVocabularyProgress.due_date <= date_cutoff,
-                    UserVocabularyProgress.next_review_date <= datetime_cutoff,
-                    UserVocabularyProgress.due_at <= datetime_cutoff,
+                    UserVocabularyProgress.due_date <= now.date(),
                 ),
             )
         )
@@ -538,12 +446,7 @@ class ProgressService:
     ) -> int:
         """Determine how many new words can be introduced in the current session."""
 
-        due_reviews = self.count_due_reviews(
-            user_id,
-            now=now,
-            direction=direction,
-            include_upcoming_days=2,
-        )
+        due_reviews = self.count_due_reviews(user_id, now=now, direction=direction)
         if due_reviews >= session_capacity:
             return 0
 

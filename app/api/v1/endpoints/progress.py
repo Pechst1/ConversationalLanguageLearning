@@ -55,6 +55,7 @@ def get_review_queue(
                 next_review=progress.next_review_date if progress else None,
                 scheduled_days=progress.scheduled_days if progress else None,
                 is_new=item.is_new or progress is None,
+                scheduler=(progress.scheduler if progress else ("anki" if item.word.is_anki_card else "fsrs")),
             )
     )
     return response
