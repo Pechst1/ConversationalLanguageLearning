@@ -1,10 +1,10 @@
 import React from 'react';
 import { getSession } from 'next-auth/react';
-import { useRouter } from 'next/router';
+import { format, formatDistanceToNow } from 'date-fns';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import apiService from '@/services/api';
-import { CheckCircle, XCircle } from 'lucide-react';
+import { CheckCircle, Clock3, CircleDot, Type, XCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface PracticeWord {
@@ -13,6 +13,12 @@ interface PracticeWord {
   translation: string;
   difficulty: number;
   scheduler?: 'anki' | 'fsrs' | string;
+  language?: string;
+  partOfSpeech?: string;
+  state: string;
+  nextReview?: string | null;
+  scheduledDays?: number | null;
+  isNew?: boolean;
 }
 
 type PracticeDirection = 'fr_to_de' | 'de_to_fr';
@@ -83,90 +89,21 @@ export default function PracticePage({
     return Array.isArray(freshQueue) ? freshQueue.map(mapQueueItem) : [];
   }, []);
 
-  React.useEffect(() => {
-    setSelectedDirection(initialDirection);
-  }, [initialDirection]);
-
-  React.useEffect(() => {
-    setWords(queueWords);
-  }, [queueWords]);
-
-  const currentWord = words[currentWordIndex];
-  const directionToggle = (
-    <div className="flex justify-center gap-3 mb-6">
-      {directionOptions.map((option) => (
-        <Button
-          key={option.value}
-          variant={selectedDirection === option.value ? 'default' : 'outline'}
-          onClick={() => handleDirectionChange(option.value)}
-          loading={
-            isLoadingDirection &&
-            (selectedDirection === option.value || pendingDirection === option.value)
-          }
-          disabled={isLoadingDirection}
-        >
-          {option.label}
-        </Button>
-      ))}
-    </div>
-  );
-
-  const handleDirectionChange = async (direction: PracticeDirection) => {
-    if (direction === selectedDirection) {
-      return;
-    }
-
-    setPendingDirection(direction);
-    setIsLoadingDirection(true);
-
-    try {
-      const mappedQueue = await fetchQueue(direction);
-      setWords(mappedQueue);
-      setCurrentWordIndex(0);
-      setShowAnswer(false);
-      setScore(0);
-      setCompleted(false);
-      setSelectedDirection(direction);
-      const nextQuery = { ...router.query, direction };
-      try {
-        await router.replace(
-          {
-            pathname: router.pathname,
-            query: nextQuery,
-          },
-          undefined,
-          { shallow: true },
-        );
-      } catch (err) {
-        console.error('Failed to update direction query parameter', err);
-      }
-    } catch (error) {
-      console.error('Failed to fetch practice queue for direction:', error);
-      toast.error('Failed to load practice queue for selected direction');
-    } finally {
-      setPendingDirection(null);
-      setIsLoadingDirection(false);
-    }
-  };
-
-  const handleRefreshQueue = React.useCallback(async () => {
-    setIsLoadingDirection(true);
-    try {
-      const mappedQueue = await fetchQueue(selectedDirection);
-      setWords(mappedQueue);
-      if (mappedQueue.length) {
-        setCurrentWordIndex(0);
-        setShowAnswer(false);
-        setCompleted(false);
-        setScore(0);
-      }
-    } catch (error) {
-      console.error('Failed to refresh practice queue:', error);
-      toast.error('Failed to reload practice queue');
-    } finally {
-      setIsLoadingDirection(false);
-    }
-  }, [fetchQueue, selectedDirection]);
+  const currentWord = queueWords[currentWordIndex];
+  const nextReviewDate = currentWord?.nextReview ? new Date(currentWord.nextReview) : null;
+  const formattedNextReview = nextReviewDate
+    ? formatDistanceToNow(nextReviewDate, { addSuffix: true })
+    : 'Not scheduled';
+  const exactNextReview = nextReviewDate ? format(nextReviewDate, 'PPpp') : undefined;
+  const cleanedState = currentWord?.state
+    ? currentWord.state.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())
+    : undefined;
+  const cleanedPartOfSpeech = currentWord?.partOfSpeech
+    ? currentWord.partOfSpeech
+        .replace(/_/g, ' ')
+        .toLowerCase()
+        .replace(/\b\w/g, (char) => char.toUpperCase())
+    : undefined;
 
   const handleRating = async (rating: number) => {
     if (!currentWord) {
@@ -264,6 +201,48 @@ export default function PracticePage({
           <CardDescription className="text-center">
             How well do you know this word?
           </CardDescription>
+          {(cleanedState || cleanedPartOfSpeech || formattedNextReview) && (
+            <div className="practice-meta" role="list" aria-label="Word scheduling metadata">
+              {cleanedState && (
+                <span
+                  role="listitem"
+                  className="practice-chip practice-chip--state"
+                  aria-label={`Scheduling state: ${cleanedState}`}
+                  title={`Scheduling state: ${cleanedState}`}
+                >
+                  <CircleDot aria-hidden="true" className="practice-chip__icon" />
+                  <span className="sr-only">Scheduling state:</span>
+                  <span aria-hidden="true">{cleanedState}</span>
+                </span>
+              )}
+              {cleanedPartOfSpeech && (
+                <span
+                  role="listitem"
+                  className="practice-chip practice-chip--pos"
+                  aria-label={`Part of speech: ${cleanedPartOfSpeech}`}
+                  title={`Part of speech: ${cleanedPartOfSpeech}`}
+                >
+                  <Type aria-hidden="true" className="practice-chip__icon" />
+                  <span className="sr-only">Part of speech:</span>
+                  <span aria-hidden="true">{cleanedPartOfSpeech}</span>
+                </span>
+              )}
+              <span
+                role="listitem"
+                className="practice-chip practice-chip--review"
+                aria-label={`Next review ${formattedNextReview}`}
+                title={
+                  exactNextReview
+                    ? `Next review ${formattedNextReview} (${exactNextReview})`
+                    : `Next review ${formattedNextReview}`
+                }
+              >
+                <Clock3 aria-hidden="true" className="practice-chip__icon" />
+                <span className="sr-only">Next review:</span>
+                <span aria-hidden="true">{formattedNextReview}</span>
+              </span>
+            </div>
+          )}
         </CardHeader>
         <CardContent className="space-y-6">
           {!showAnswer ? (
@@ -375,7 +354,19 @@ export async function getServerSideProps(context: any) {
     ]);
     const raw = queueRes.ok ? await queueRes.json() : [];
     const queueWords = Array.isArray(raw)
-      ? raw.map(mapQueueItem)
+      ? raw.map((item: any) => ({
+          wordId: item.word_id,
+          word: item.word,
+          translation: item.english_translation || '',
+          difficulty: item.difficulty_level || 1,
+          scheduler: item.scheduler || undefined,
+          language: item.language || undefined,
+          partOfSpeech: item.part_of_speech || undefined,
+          state: item.state || 'unknown',
+          nextReview: item.next_review || null,
+          scheduledDays: item.scheduled_days ?? null,
+          isNew: item.is_new ?? undefined,
+        }))
       : [];
 
     const summary = summaryRes.ok ? await summaryRes.json() : null;
