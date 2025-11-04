@@ -21,6 +21,7 @@ class WebSocketService {
   private reconnectDelay = 1000;
   private heartbeatInterval: NodeJS.Timeout | null = null;
   private messageHandlers: Map<string, (data: any) => void> = new Map();
+  private pendingMessages: Map<string, any[]> = new Map();
   private connectionStatusHandlers: ((connected: boolean) => void)[] = [];
 
   constructor(private sessionId: string, private accessToken: string) {}
@@ -89,11 +90,16 @@ class WebSocketService {
   private handleMessage(event: MessageEvent) {
     try {
       const message: WebSocketMessage = JSON.parse(event.data);
-      
+      const payload = message.data ?? message;
+
       // Handle specific message types
       const handler = this.messageHandlers.get(message.type);
       if (handler) {
-        handler(message.data ?? message);
+        handler(payload);
+      } else {
+        const existing = this.pendingMessages.get(message.type) ?? [];
+        existing.push(payload);
+        this.pendingMessages.set(message.type, existing);
       }
       
       // Handle global message types
@@ -155,10 +161,23 @@ class WebSocketService {
 
   onMessage(type: string, handler: (data: any) => void) {
     this.messageHandlers.set(type, handler);
+
+    const pending = this.pendingMessages.get(type);
+    if (pending?.length) {
+      pending.forEach((payload) => {
+        try {
+          handler(payload);
+        } catch (error) {
+          console.error('Failed to process pending WebSocket message:', error);
+        }
+      });
+      this.pendingMessages.delete(type);
+    }
   }
 
   offMessage(type: string) {
     this.messageHandlers.delete(type);
+    this.pendingMessages.delete(type);
   }
 
   onConnectionStatus(handler: (connected: boolean) => void) {
@@ -172,6 +191,7 @@ class WebSocketService {
       this.socket = null;
     }
     this.messageHandlers.clear();
+    this.pendingMessages.clear();
     this.connectionStatusHandlers.length = 0;
   }
 
