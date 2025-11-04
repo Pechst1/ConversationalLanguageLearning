@@ -2,12 +2,13 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import type { ChatMessage, TargetWord } from '@/hooks/useLearningSession';
 import apiService from '@/services/api';
+import InteractiveText from './InteractiveText';
 
 type Props = {
   messages: ChatMessage[];
   onWordInteract?: (wordId: number, exposureType: 'hint' | 'translation') => void;
   onWordFlag?: (wordId: number) => void;
-  activeSessionId?: string; // Add session context for marking difficult words
+  activeSessionId?: string;
 };
 
 const familiarityClasses: Record<string, string> = {
@@ -91,47 +92,65 @@ const ConversationHistory: React.FC<Props> = ({
     }
   }, [activeSessionId, onWordFlag]);
 
-  const renderWordWithHighlighting = (text: string, words: TargetWord[]) => {
-    if (!words || words.length === 0) {
+  // Language detection for InteractiveText
+  const detectLanguage = useCallback((text: string): 'french' | 'german' | 'spanish' => {
+    const frenchPatterns = /\b(bonjour|merci|comment|pourquoi|très|français|nouveau|entreprise|marché)\b/gi;
+    const germanPatterns = /\b(hallo|danke|wie|warum|sehr|deutsch|neu|unternehmen|markt)\b/gi;
+    const spanishPatterns = /\b(hola|gracias|cómo|muy|español|nuevo|empresa|mercado)\b/gi;
+    
+    const frenchMatches = (text.match(frenchPatterns) || []).length;
+    const germanMatches = (text.match(germanPatterns) || []).length;
+    const spanishMatches = (text.match(spanishPatterns) || []).length;
+    
+    if (frenchMatches >= germanMatches && frenchMatches >= spanishMatches) {
+      return 'french';
+    } else if (germanMatches >= spanishMatches) {
+      return 'german';
+    }
+    return 'spanish';
+  }, []);
+
+  const renderWordWithHighlighting = (text: string, targets: TargetWord[]) => {
+    if (!targets || targets.length === 0) {
       return <span>{text}</span>;
     }
 
-    // Sort words by position to avoid overlap issues
-    const sortedWords = [...words].sort((a, b) => a.position - b.position);
+    // Sort targets by position to avoid overlap issues
+    const sortedTargets = [...targets].sort((a, b) => a.position - b.position);
     const elements: React.ReactNode[] = [];
     let lastIndex = 0;
 
-    sortedWords.forEach((word, index) => {
-      // Add text before this word
-      if (word.position > lastIndex) {
+    sortedTargets.forEach((target, index) => {
+      // Add text before this target
+      if (target.position > lastIndex) {
         elements.push(
           <span key={`text-${index}`}>
-            {text.slice(lastIndex, word.position)}
+            {text.slice(lastIndex, target.position)}
           </span>
         );
       }
 
-      // Add the highlighted word
-      const wordEnd = word.position + word.text.length;
-      const isHovered = hoveredWord === word.id;
-      const translation = wordTranslations[word.id];
-      const isLoading = loadingTranslations.has(word.id);
+      // Add the highlighted target word
+      const wordEnd = target.position + target.text.length;
+      const isHovered = hoveredWord === target.id;
+      const translation = wordTranslations[target.id];
+      const isLoading = loadingTranslations.has(target.id);
       
-      const className = word.familiarity 
-        ? familiarityClasses[word.familiarity] 
+      const className = target.familiarity 
+        ? familiarityClasses[target.familiarity] 
         : defaultHighlightClass;
 
       elements.push(
         <span
-          key={`word-${word.id}`}
+          key={`word-${target.id}`}
           className={`${className} px-1 py-0.5 rounded cursor-pointer transition-all duration-200 hover:shadow-md relative group`}
-          onMouseEnter={() => handleWordHover(word.id)}
+          onMouseEnter={() => handleWordHover(target.id)}
           onMouseLeave={() => setHoveredWord(null)}
-          onClick={() => handleWordClick(word.id)}
-          onDoubleClick={() => handleWordFlag(word.id)}
+          onClick={() => handleWordClick(target.id)}
+          onDoubleClick={() => handleWordFlag(target.id)}
           title={`Double-click to mark as difficult${translation ? ` | Translation: ${translation}` : ''}`}
         >
-          {word.text}
+          {target.text}
           {isHovered && (
             <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-sm rounded whitespace-nowrap z-10">
               {isLoading ? 'Loading...' : translation || 'Click for translation'}
@@ -173,8 +192,18 @@ const ConversationHistory: React.FC<Props> = ({
                   : 'bg-gray-200 text-gray-800'
               }`}
             >
-              {message.role === 'assistant' && message.words ? (
-                renderWordWithHighlighting(message.content, message.words)
+              {message.role === 'assistant' ? (
+                message.targets && message.targets.length > 0 ? (
+                  renderWordWithHighlighting(message.content, message.targets)
+                ) : (
+                  <InteractiveText
+                    text={message.content}
+                    language={detectLanguage(message.content)}
+                    enableTranslation={true}
+                    activeSessionId={activeSessionId}
+                    className="ai-message-interactive"
+                  />
+                )
               ) : (
                 <span>{message.content}</span>
               )}
