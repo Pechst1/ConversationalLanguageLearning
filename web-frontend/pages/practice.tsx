@@ -1,9 +1,10 @@
 import React from 'react';
 import { getSession } from 'next-auth/react';
+import { format, formatDistanceToNow } from 'date-fns';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import apiService from '@/services/api';
-import { CheckCircle, XCircle } from 'lucide-react';
+import { CheckCircle, Clock3, CircleDot, Type, XCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface PracticeWord {
@@ -15,6 +16,8 @@ interface PracticeWord {
   stage?: 'new' | 'learning' | 'due' | string;
 }
 
+type PracticeDirection = 'fr_to_de' | 'de_to_fr';
+
 interface PracticeProps {
   queueWords: PracticeWord[];
   counters: {
@@ -22,6 +25,7 @@ interface PracticeProps {
     learningCount: number;
     dueCount: number;
   };
+  direction?: PracticeDirection;
 }
 
 function cleanSurface(word: string, translation?: string | null) {
@@ -207,16 +211,21 @@ export default function PracticePage({ queueWords, counters }: PracticeProps) {
 
   if (!localQueue?.length) {
     return (
-      <div className="max-w-2xl mx-auto text-center">
-        <Card>
-          <CardContent className="p-8">
-            <h1 className="text-2xl font-bold mb-4">No words to practice</h1>
-            <p className="text-gray-600 mb-6">
-              Great job! You&apos;re all caught up with your vocabulary practice.
-            </p>
-            <Button onClick={() => window.location.reload()}>Check Again</Button>
-          </CardContent>
-        </Card>
+      <div className="max-w-2xl mx-auto">
+        {directionToggle}
+        <div className="text-center">
+          <Card>
+            <CardContent className="p-8">
+              <h1 className="text-2xl font-bold mb-4">No words to practice</h1>
+              <p className="text-gray-600 mb-6">
+                Great job! You&apos;re all caught up with your vocabulary practice.
+              </p>
+              <Button onClick={handleRefreshQueue} loading={isLoadingDirection}>
+                Check Again
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   }
@@ -253,6 +262,8 @@ export default function PracticePage({ queueWords, counters }: PracticeProps) {
 
   return (
     <div className="max-w-2xl mx-auto">
+      {directionToggle}
+
       <div className="mb-8">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-gray-900">Vocabulary Practice</h1>
@@ -261,7 +272,7 @@ export default function PracticePage({ queueWords, counters }: PracticeProps) {
           </div>
         </div>
         <div className="w-full bg-gray-200 rounded-full h-2 mt-4">
-          <div 
+          <div
             className="bg-primary-600 h-2 rounded-full transition-all duration-300"
             style={{
               width: `${
@@ -282,6 +293,48 @@ export default function PracticePage({ queueWords, counters }: PracticeProps) {
           <CardDescription className="text-center">
             How well do you know this word?
           </CardDescription>
+          {(cleanedState || cleanedPartOfSpeech || formattedNextReview) && (
+            <div className="practice-meta" role="list" aria-label="Word scheduling metadata">
+              {cleanedState && (
+                <span
+                  role="listitem"
+                  className="practice-chip practice-chip--state"
+                  aria-label={`Scheduling state: ${cleanedState}`}
+                  title={`Scheduling state: ${cleanedState}`}
+                >
+                  <CircleDot aria-hidden="true" className="practice-chip__icon" />
+                  <span className="sr-only">Scheduling state:</span>
+                  <span aria-hidden="true">{cleanedState}</span>
+                </span>
+              )}
+              {cleanedPartOfSpeech && (
+                <span
+                  role="listitem"
+                  className="practice-chip practice-chip--pos"
+                  aria-label={`Part of speech: ${cleanedPartOfSpeech}`}
+                  title={`Part of speech: ${cleanedPartOfSpeech}`}
+                >
+                  <Type aria-hidden="true" className="practice-chip__icon" />
+                  <span className="sr-only">Part of speech:</span>
+                  <span aria-hidden="true">{cleanedPartOfSpeech}</span>
+                </span>
+              )}
+              <span
+                role="listitem"
+                className="practice-chip practice-chip--review"
+                aria-label={`Next review ${formattedNextReview}`}
+                title={
+                  exactNextReview
+                    ? `Next review ${formattedNextReview} (${exactNextReview})`
+                    : `Next review ${formattedNextReview}`
+                }
+              >
+                <Clock3 aria-hidden="true" className="practice-chip__icon" />
+                <span className="sr-only">Next review:</span>
+                <span aria-hidden="true">{formattedNextReview}</span>
+              </span>
+            </div>
+          )}
         </CardHeader>
         <CardContent className="space-y-6">
           {!showAnswer ? (
@@ -304,8 +357,8 @@ export default function PracticePage({ queueWords, counters }: PracticeProps) {
                 </p>
                 
                 <div className="grid grid-cols-2 gap-3">
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     onClick={() => handleRating(0)}
                     className="border-red-300 text-red-600 hover:bg-red-50"
                   >
@@ -357,7 +410,7 @@ export default function PracticePage({ queueWords, counters }: PracticeProps) {
 
 export async function getServerSideProps(context: any) {
   const session = await getSession(context);
-  
+
   if (!session) {
     return {
       redirect: {
@@ -376,13 +429,19 @@ export async function getServerSideProps(context: any) {
     const baseUrl = normalizedBase.endsWith('/api/v1')
       ? normalizedBase
       : `${normalizedBase}/api/v1`;
+    const directionParamRaw = Array.isArray(context.query?.direction)
+      ? context.query?.direction[0]
+      : context.query?.direction;
+    const directionParam =
+      typeof directionParamRaw === 'string' ? directionParamRaw : undefined;
+    const direction = isValidDirection(directionParam) ? directionParam : 'fr_to_de';
     const headers = {
       'Authorization': `Bearer ${session.accessToken}`,
       'Content-Type': 'application/json',
     };
 
     const [queueRes, summaryRes] = await Promise.all([
-      fetch(`${baseUrl}/progress/queue`, { headers }),
+      fetch(`${baseUrl}/progress/queue?direction=${direction}`, { headers }),
       fetch(`${baseUrl}/progress/anki/summary`, { headers }),
     ]);
     const raw = queueRes.ok ? await queueRes.json() : [];
@@ -407,6 +466,7 @@ export async function getServerSideProps(context: any) {
       props: {
         queueWords,
         counters,
+        direction,
       },
     };
   } catch (error) {
@@ -415,6 +475,7 @@ export async function getServerSideProps(context: any) {
       props: {
         queueWords: [],
         counters: { newCount: 0, learningCount: 0, dueCount: 0 },
+        direction: 'fr_to_de',
       },
     };
   }
