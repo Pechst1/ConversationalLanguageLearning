@@ -2,6 +2,8 @@ import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { getSession } from 'next-auth/react';
 import toast from 'react-hot-toast';
 
+import { AnkiReviewResponse, ReviewResponse } from '@/types/reviews';
+
 class ApiService {
   private api: AxiosInstance;
 
@@ -180,11 +182,11 @@ class ApiService {
     return this.get('/progress/anki/summary');
   }
 
-  async submitReview(data: { word_id: number; rating: number }) {
+  async submitReview(data: { word_id: number; rating: number; response_time_ms?: number }): Promise<ReviewResponse> {
     return this.post('/progress/review', data);
   }
 
-  async submitAnkiReview(data: { word_id: number; rating: number; response_time_ms?: number }) {
+  async submitAnkiReview(data: { word_id: number; rating: number; response_time_ms?: number }): Promise<AnkiReviewResponse> {
     return this.post('/anki/review', data);
   }
 
