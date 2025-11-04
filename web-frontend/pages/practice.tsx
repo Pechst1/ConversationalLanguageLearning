@@ -1,9 +1,10 @@
 import React from 'react';
 import { getSession } from 'next-auth/react';
+import { format, formatDistanceToNow } from 'date-fns';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import apiService from '@/services/api';
-import { CheckCircle, XCircle } from 'lucide-react';
+import { CheckCircle, Clock3, CircleDot, Type, XCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface PracticeWord {
@@ -12,6 +13,12 @@ interface PracticeWord {
   translation: string;
   difficulty: number;
   scheduler?: 'anki' | 'fsrs' | string;
+  language?: string;
+  partOfSpeech?: string;
+  state: string;
+  nextReview?: string | null;
+  scheduledDays?: number | null;
+  isNew?: boolean;
 }
 
 interface PracticeProps {
@@ -43,6 +50,20 @@ export default function PracticePage({ queueWords, counters }: PracticeProps) {
   const [counts] = React.useState(counters);
 
   const currentWord = queueWords[currentWordIndex];
+  const nextReviewDate = currentWord?.nextReview ? new Date(currentWord.nextReview) : null;
+  const formattedNextReview = nextReviewDate
+    ? formatDistanceToNow(nextReviewDate, { addSuffix: true })
+    : 'Not scheduled';
+  const exactNextReview = nextReviewDate ? format(nextReviewDate, 'PPpp') : undefined;
+  const cleanedState = currentWord?.state
+    ? currentWord.state.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())
+    : undefined;
+  const cleanedPartOfSpeech = currentWord?.partOfSpeech
+    ? currentWord.partOfSpeech
+        .replace(/_/g, ' ')
+        .toLowerCase()
+        .replace(/\b\w/g, (char) => char.toUpperCase())
+    : undefined;
 
   const handleRating = async (rating: number) => {
     try {
@@ -126,6 +147,48 @@ export default function PracticePage({ queueWords, counters }: PracticeProps) {
           <CardDescription className="text-center">
             How well do you know this word?
           </CardDescription>
+          {(cleanedState || cleanedPartOfSpeech || formattedNextReview) && (
+            <div className="practice-meta" role="list" aria-label="Word scheduling metadata">
+              {cleanedState && (
+                <span
+                  role="listitem"
+                  className="practice-chip practice-chip--state"
+                  aria-label={`Scheduling state: ${cleanedState}`}
+                  title={`Scheduling state: ${cleanedState}`}
+                >
+                  <CircleDot aria-hidden="true" className="practice-chip__icon" />
+                  <span className="sr-only">Scheduling state:</span>
+                  <span aria-hidden="true">{cleanedState}</span>
+                </span>
+              )}
+              {cleanedPartOfSpeech && (
+                <span
+                  role="listitem"
+                  className="practice-chip practice-chip--pos"
+                  aria-label={`Part of speech: ${cleanedPartOfSpeech}`}
+                  title={`Part of speech: ${cleanedPartOfSpeech}`}
+                >
+                  <Type aria-hidden="true" className="practice-chip__icon" />
+                  <span className="sr-only">Part of speech:</span>
+                  <span aria-hidden="true">{cleanedPartOfSpeech}</span>
+                </span>
+              )}
+              <span
+                role="listitem"
+                className="practice-chip practice-chip--review"
+                aria-label={`Next review ${formattedNextReview}`}
+                title={
+                  exactNextReview
+                    ? `Next review ${formattedNextReview} (${exactNextReview})`
+                    : `Next review ${formattedNextReview}`
+                }
+              >
+                <Clock3 aria-hidden="true" className="practice-chip__icon" />
+                <span className="sr-only">Next review:</span>
+                <span aria-hidden="true">{formattedNextReview}</span>
+              </span>
+            </div>
+          )}
         </CardHeader>
         <CardContent className="space-y-6">
           {!showAnswer ? (
@@ -237,6 +300,12 @@ export async function getServerSideProps(context: any) {
           translation: item.english_translation || '',
           difficulty: item.difficulty_level || 1,
           scheduler: item.scheduler || undefined,
+          language: item.language || undefined,
+          partOfSpeech: item.part_of_speech || undefined,
+          state: item.state || 'unknown',
+          nextReview: item.next_review || null,
+          scheduledDays: item.scheduled_days ?? null,
+          isNew: item.is_new ?? undefined,
         }))
       : [];
 
