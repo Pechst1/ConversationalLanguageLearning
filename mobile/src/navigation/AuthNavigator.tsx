@@ -129,14 +129,14 @@ const SignInScreen: React.FC<{ onSignIn: () => void }> = ({ onSignIn }) => {
 };
 
 interface AuthNavigatorProps {
-  onSignIn: () => void;
+  onAuthenticated: (tokens: AuthTokens) => void;
 }
 
-export const AuthNavigator: React.FC<AuthNavigatorProps> = ({ onSignIn }) => {
+export const AuthNavigator: React.FC<AuthNavigatorProps> = ({ onAuthenticated }) => {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="SignIn">
-        {() => <SignInScreen onSignIn={onSignIn} />}
+        {() => <SignInScreen onAuthenticated={onAuthenticated} />}
       </Stack.Screen>
     </Stack.Navigator>
   );
@@ -150,7 +150,13 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     justifyContent: 'center',
-    padding: spacing.xl
+    padding: spacing.xl,
+    backgroundColor: colors.background,
+  },
+  form: {
+    width: '100%',
+    maxWidth: 420,
+    alignSelf: 'center',
   },
   heading: {
     marginBottom: spacing.lg

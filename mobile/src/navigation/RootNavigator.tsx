@@ -2,6 +2,7 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { AppNavigator } from './AppNavigator';
 import { AuthNavigator } from './AuthNavigator';
+import type { AuthTokens } from '../types/api';
 
 export interface RootNavigatorProps {
   isAuthenticated: boolean;

@@ -69,3 +69,7 @@ const styles = {
     }
   })
 } as const;
+
+const disabledStyle = {
+  opacity: 0.6
+};
