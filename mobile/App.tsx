@@ -5,16 +5,32 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { enableScreens } from 'react-native-screens';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { colors } from './src/ui';
+import { LearnerProvider } from './src/context/LearnerContext';
+import type { AuthTokens } from './src/types/api';
 
 enableScreens();
 
 export default function App() {
-  const [isAuthenticated, setIsAuthenticated] = React.useState(false);
+  const [tokens, setTokens] = React.useState<AuthTokens | null>(null);
+
+  const handleAuthenticated = React.useCallback((next: AuthTokens) => {
+    setTokens(next);
+  }, []);
+
+  const handleSignOut = React.useCallback(() => {
+    setTokens(null);
+  }, []);
 
   return (
     <SafeAreaProvider>
-      <StatusBar style="dark" backgroundColor={colors.background} />
-      <RootNavigator isAuthenticated={isAuthenticated} onSignIn={() => setIsAuthenticated(true)} />
+      <LearnerProvider authTokens={tokens}>
+        <StatusBar style="dark" backgroundColor={colors.background} />
+        <RootNavigator
+          isAuthenticated={Boolean(tokens)}
+          onAuthenticated={handleAuthenticated}
+          onSignOut={handleSignOut}
+        />
+      </LearnerProvider>
     </SafeAreaProvider>
   );
 }

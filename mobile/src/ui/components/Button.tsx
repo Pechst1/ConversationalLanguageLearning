@@ -9,11 +9,16 @@ interface ButtonProps extends PressableProps {
   variant?: ButtonVariant;
 }
 
-export const Button: React.FC<ButtonProps> = ({ label, variant = 'primary', style, ...props }) => {
+export const Button: React.FC<ButtonProps> = ({ label, variant = 'primary', style, disabled, ...props }) => {
   const { container, label: labelStyle } = styles[variant];
 
   return (
-    <Pressable style={[container, style]} {...props}>
+    <Pressable
+      style={[container, disabled ? disabledStyle : null, style]}
+      accessibilityState={{ disabled }}
+      disabled={disabled}
+      {...props}
+    >
       <Text style={labelStyle}>{label}</Text>
     </Pressable>
   );
@@ -66,3 +71,7 @@ const styles = {
     }
   })
 } as const;
+
+const disabledStyle = {
+  opacity: 0.6
+};
