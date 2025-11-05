@@ -2,7 +2,7 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { View, StyleSheet } from 'react-native';
-import { Text, colors } from '../ui';
+import { Button, Text, colors, spacing } from '../ui';
 import { Ionicons } from '@expo/vector-icons';
 
 type HomeStackParamList = {
@@ -29,14 +29,15 @@ const HomeScreen: React.FC = () => (
   </View>
 );
 
-const ProfileScreen: React.FC = () => (
+const ProfileScreen: React.FC<{ onSignOut: () => void }> = ({ onSignOut }) => (
   <View style={styles.centered}>
     <Text variant="headline" emphasis="bold">
       Profile
     </Text>
-    <Text color="textSecondary">
+    <Text color="textSecondary" style={styles.profileCopy}>
       Track streaks, achievements, and adjust learning preferences.
     </Text>
+    <Button label="Sign out" variant="secondary" onPress={onSignOut} style={styles.signOutButton} />
   </View>
 );
 
@@ -51,7 +52,11 @@ const HomeStackNavigator: React.FC = () => (
   </HomeStack.Navigator>
 );
 
-export const AppNavigator: React.FC = () => (
+interface AppNavigatorProps {
+  onSignOut: () => void;
+}
+
+export const AppNavigator: React.FC<AppNavigatorProps> = ({ onSignOut }) => (
   <Tab.Navigator
     screenOptions={({ route }) => ({
       headerShown: false,
@@ -64,7 +69,9 @@ export const AppNavigator: React.FC = () => (
     })}
   >
     <Tab.Screen name="Learn" component={HomeStackNavigator} />
-    <Tab.Screen name="Profile" component={ProfileScreen} />
+    <Tab.Screen name="Profile">
+      {() => <ProfileScreen onSignOut={onSignOut} />}
+    </Tab.Screen>
   </Tab.Navigator>
 );
 
@@ -74,5 +81,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 24
+  },
+  profileCopy: {
+    textAlign: 'center',
+    marginBottom: spacing.lg
+  },
+  signOutButton: {
+    minWidth: 160
   }
 });

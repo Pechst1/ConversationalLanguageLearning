@@ -6,12 +6,21 @@ import { AuthNavigator } from './AuthNavigator';
 export interface RootNavigatorProps {
   isAuthenticated: boolean;
   onSignIn: () => void;
+  onSignOut: () => void;
 }
 
-export const RootNavigator: React.FC<RootNavigatorProps> = ({ isAuthenticated, onSignIn }) => {
+export const RootNavigator: React.FC<RootNavigatorProps> = ({
+  isAuthenticated,
+  onSignIn,
+  onSignOut
+}) => {
   return (
     <NavigationContainer>
-      {isAuthenticated ? <AppNavigator /> : <AuthNavigator onSignIn={onSignIn} />}
+      {isAuthenticated ? (
+        <AppNavigator onSignOut={onSignOut} />
+      ) : (
+        <AuthNavigator onSignIn={onSignIn} />
+      )}
     </NavigationContainer>
   );
 };
