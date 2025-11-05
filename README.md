@@ -89,6 +89,38 @@ Once all services are healthy you can access:
 
 Shut everything down with `Ctrl+C` or `docker compose -f docker/docker-compose.dev.yml down`.
 
+> **PostgreSQL persistence reminder**
+>
+> The development Compose file mounts a named volume called `pg_data` to `/var/lib/postgresql/data`. Keep this volume between container restarts or swap it with an equivalent managed PostgreSQL instance so that learner accounts and Anki cards persist. Removing or recreating the volume resets the database and permanently deletes all users, sessions, and card progress.
+
+#### Verify migrations & data after restarts
+
+If you restart the stack or rebuild containers, run the following checks to confirm the schema and data survived:
+
+1. **Re-run Alembic migrations** – this is idempotent and ensures the schema is current.
+
+   ```bash
+   docker compose -f docker/docker-compose.dev.yml exec api alembic upgrade head
+   ```
+
+2. **Inspect the `users` table** – confirm rows are still present after a restart. You can adjust the query for other tables such as `anki_cards`.
+
+   ```bash
+   docker compose -f docker/docker-compose.dev.yml exec db \
+     psql -U postgres -d language_learning \
+     -c "SELECT id, email, created_at FROM users ORDER BY created_at DESC LIMIT 5;"
+   ```
+
+3. **Spot-check counts** – a quick way to verify retention without dumping full rows.
+
+   ```bash
+   docker compose -f docker/docker-compose.dev.yml exec db \
+     psql -U postgres -d language_learning \
+     -c "SELECT COUNT(*) AS total_users FROM users;"
+   ```
+
+If any of these commands return empty results unexpectedly, ensure the `pg_data` volume still exists (`docker volume ls | grep pg_data`) or connect the API to a managed PostgreSQL database with persistent storage.
+
 #### Smoke test the conversational flow
 
 With the stack running you can exercise a full learner journey via `curl`. The

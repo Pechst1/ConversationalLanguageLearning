@@ -33,7 +33,7 @@ cp .env.example .env.local
 
 # Update .env.local with your settings:
 # NEXTAUTH_URL=http://localhost:3000
-# NEXTAUTH_SECRET=your-secret-here
+# NEXTAUTH_SECRET=your-secret-here (keep this fixed between restarts)
 # NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
 # NEXT_PUBLIC_WS_URL=ws://localhost:8000
 
@@ -48,7 +48,7 @@ The application will be available at http://localhost:3000
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `NEXTAUTH_URL` | Application URL | `http://localhost:3000` |
-| `NEXTAUTH_SECRET` | JWT secret key | Required |
+| `NEXTAUTH_SECRET` | JWT secret key (must be a persistent random string so sessions survive restarts) | Required |
 | `NEXT_PUBLIC_API_URL` | Backend API URL | `http://localhost:8000/api/v1` |
 | `NEXT_PUBLIC_WS_URL` | WebSocket URL | `ws://localhost:8000` |
 | `API_URL` | Server-side API URL | `http://localhost:8000` |
