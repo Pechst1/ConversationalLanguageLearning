@@ -1,9 +1,16 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { View, StyleSheet, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
-import { Button, Text, spacing, colors } from '../ui';
-import { apiClient, ApiError } from '../api/client';
-import type { AuthTokens } from '../types/api';
+import {
+  View,
+  StyleSheet,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  ActivityIndicator
+} from 'react-native';
+import { Button, Text, colors, spacing } from '../ui';
+import { ApiError, login } from '../services/api';
+import { saveTokens } from '../services/authStorage';
 
 type AuthStackParamList = {
   SignIn: undefined;
@@ -11,84 +18,111 @@ type AuthStackParamList = {
 
 const Stack = createNativeStackNavigator<AuthStackParamList>();
 
-const SignInScreen: React.FC<{ onAuthenticated: (tokens: AuthTokens) => void }> = ({ onAuthenticated }) => {
+const SignInScreen: React.FC<{ onSignIn: () => void }> = ({ onSignIn }) => {
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
+  const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
+
+  const canSubmit = email.trim().length > 0 && password.length > 0;
 
   const handleSubmit = React.useCallback(async () => {
-    if (!email || !password || isSubmitting) {
+    if (isSubmitting || !canSubmit) {
       return;
     }
-    setError(null);
+
     setIsSubmitting(true);
+    setErrorMessage(null);
+
     try {
-      const tokens = await apiClient.login({ email, password });
-      onAuthenticated(tokens);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unable to sign in';
-      setError(message);
-      if (err instanceof ApiError && err.status >= 500) {
-        console.error('Sign in failed with server error', err);
+      const tokens = await login({ email: email.trim(), password });
+      await saveTokens({
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token
+      });
+      onSignIn();
+    } catch (error) {
+      if (error instanceof ApiError) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage('Unable to sign in. Please try again.');
       }
     } finally {
       setIsSubmitting(false);
     }
-  }, [email, password, isSubmitting, onAuthenticated]);
+  }, [canSubmit, email, isSubmitting, onSignIn, password]);
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.select({ ios: 'padding', android: undefined })}
       style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <View style={styles.form}>
+      <View style={styles.content}>
         <Text variant="headline" emphasis="bold" style={styles.heading}>
           Welcome back
         </Text>
         <Text color="textSecondary" style={styles.copy}>
           Sign in to keep learning new phrases and track your progress.
         </Text>
+
         <View style={styles.fieldGroup}>
-          <Text variant="subtitle" style={styles.label}>
+          <Text variant="subtitle" emphasis="medium" style={styles.label}>
             Email
           </Text>
           <TextInput
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
-            autoCorrect={false}
             keyboardType="email-address"
-            style={styles.input}
-            placeholder="you@example.com"
+            autoComplete="email"
             textContentType="username"
+            placeholder="you@example.com"
+            style={styles.input}
+            returnKeyType="next"
+            editable={!isSubmitting}
           />
         </View>
+
         <View style={styles.fieldGroup}>
-          <Text variant="subtitle" style={styles.label}>
+          <Text variant="subtitle" emphasis="medium" style={styles.label}>
             Password
           </Text>
           <TextInput
             value={password}
             onChangeText={setPassword}
             secureTextEntry
-            style={styles.input}
-            placeholder="••••••••"
+            autoCapitalize="none"
+            autoComplete="password"
             textContentType="password"
+            placeholder="Enter your password"
+            style={styles.input}
+            returnKeyType="done"
+            onSubmitEditing={handleSubmit}
+            editable={!isSubmitting}
           />
         </View>
-        {error ? (
+
+        {errorMessage ? (
           <Text color="error" style={styles.errorText}>
-            {error}
+            {errorMessage}
           </Text>
         ) : null}
-        <Button
-          label={isSubmitting ? 'Signing in…' : 'Sign in'}
-          onPress={handleSubmit}
-          disabled={isSubmitting || !email || !password}
-          style={styles.submitButton}
-        />
-        {isSubmitting ? <ActivityIndicator color={colors.primary} style={styles.activityIndicator} /> : null}
+
+        <View style={styles.buttonWrapper}>
+          <Button
+            label={isSubmitting ? 'Signing in...' : 'Sign in'}
+            onPress={handleSubmit}
+            disabled={!canSubmit || isSubmitting}
+          />
+        </View>
+
+        {isSubmitting ? (
+          <ActivityIndicator
+            color={colors.primary}
+            accessibilityLabel="Signing in"
+            style={styles.loadingIndicator}
+          />
+        ) : null}
       </View>
     </KeyboardAvoidingView>
   );
@@ -111,6 +145,10 @@ export const AuthNavigator: React.FC<AuthNavigatorProps> = ({ onAuthenticated })
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.background
+  },
+  content: {
+    flex: 1,
     justifyContent: 'center',
     padding: spacing.xl,
     backgroundColor: colors.background,
@@ -124,7 +162,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg
   },
   copy: {
-    marginBottom: spacing.xl
+    marginBottom: spacing.lg
   },
   fieldGroup: {
     marginBottom: spacing.lg
@@ -139,17 +177,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     fontSize: 16,
-    color: colors.text,
-    backgroundColor: '#FFFFFF'
+    backgroundColor: '#FFFFFF',
+    color: colors.text
   },
   errorText: {
-    marginTop: spacing.sm,
     marginBottom: spacing.md
   },
-  submitButton: {
-    marginTop: spacing.lg
+  buttonWrapper: {
+    marginBottom: spacing.md
   },
-  activityIndicator: {
-    marginTop: spacing.md
+  loadingIndicator: {
+    marginTop: spacing.sm
   }
 });

@@ -6,21 +6,21 @@ import type { AuthTokens } from '../types/api';
 
 export interface RootNavigatorProps {
   isAuthenticated: boolean;
-  onAuthenticated: (tokens: AuthTokens) => void;
+  onSignIn: () => void;
   onSignOut: () => void;
 }
 
 export const RootNavigator: React.FC<RootNavigatorProps> = ({
   isAuthenticated,
-  onAuthenticated,
-  onSignOut,
+  onSignIn,
+  onSignOut
 }) => {
   return (
     <NavigationContainer>
       {isAuthenticated ? (
         <AppNavigator onSignOut={onSignOut} />
       ) : (
-        <AuthNavigator onAuthenticated={onAuthenticated} />
+        <AuthNavigator onSignIn={onSignIn} />
       )}
     </NavigationContainer>
   );

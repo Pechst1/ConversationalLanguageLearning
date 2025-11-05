@@ -3,34 +3,75 @@ import React from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { enableScreens } from 'react-native-screens';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { colors } from './src/ui';
-import { LearnerProvider } from './src/context/LearnerContext';
-import type { AuthTokens } from './src/types/api';
+import { clearTokens, loadTokens } from './src/services/authStorage';
 
 enableScreens();
 
 export default function App() {
-  const [tokens, setTokens] = React.useState<AuthTokens | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = React.useState(false);
+  const [isHydrating, setIsHydrating] = React.useState(true);
 
-  const handleAuthenticated = React.useCallback((next: AuthTokens) => {
-    setTokens(next);
+  React.useEffect(() => {
+    let isMounted = true;
+
+    const hydrateAuthState = async () => {
+      try {
+        const tokens = await loadTokens();
+        if (isMounted && tokens?.accessToken) {
+          setIsAuthenticated(true);
+        }
+      } finally {
+        if (isMounted) {
+          setIsHydrating(false);
+        }
+      }
+    };
+
+    hydrateAuthState();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  const handleSignOut = React.useCallback(() => {
-    setTokens(null);
+  const handleSignIn = React.useCallback(() => {
+    setIsAuthenticated(true);
+  }, []);
+
+  const handleSignOut = React.useCallback(async () => {
+    try {
+      await clearTokens();
+    } finally {
+      setIsAuthenticated(false);
+    }
   }, []);
 
   return (
     <SafeAreaProvider>
-      <LearnerProvider authTokens={tokens}>
-        <StatusBar style="dark" backgroundColor={colors.background} />
+      <StatusBar style="dark" backgroundColor={colors.background} />
+      {isHydrating ? (
+        <View style={styles.loader}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      ) : (
         <RootNavigator
-          isAuthenticated={Boolean(tokens)}
-          onAuthenticated={handleAuthenticated}
+          isAuthenticated={isAuthenticated}
+          onSignIn={handleSignIn}
           onSignOut={handleSignOut}
         />
-      </LearnerProvider>
+      )}
     </SafeAreaProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  loader: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.background
+  }
+});
