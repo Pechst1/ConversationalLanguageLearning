@@ -177,3 +177,25 @@ class AnkiReviewResponse(BaseModel):
     interval_days: Optional[int] = None
     due_at: Optional[str] = None
     next_review: Optional[str] = None
+
+
+class AnkiCardUpdate(BaseModel):
+    """Data for a single card from AnkiConnect."""
+    
+    note_id: int
+    card_id: int
+    deck_name: str
+    model_name: str
+    fields: Dict[str, str]
+    due: Optional[int] = None
+    interval: Optional[int] = None
+    ease: Optional[int] = None
+    reps: Optional[int] = None
+    lapses: Optional[int] = None
+    ord: Optional[int] = None
+
+
+class AnkiConnectSyncRequest(BaseModel):
+    """Payload for syncing data from AnkiConnect."""
+    
+    cards: List[AnkiCardUpdate]

@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.db.models.progress import ReviewLog, UserVocabularyProgress
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
+from app.schemas.anki import AnkiCardUpdate
 from app.services.srs import FSRSScheduler, ReviewOutcome, SchedulerState
 from app.utils.cache import cache_backend
 
@@ -558,6 +559,237 @@ class ProgressService:
     # ------------------------------------------------------------------
     # Aggregation helpers
     # ------------------------------------------------------------------
+    def sync_anki_progress(self, *, user: User, cards: list[AnkiCardUpdate]) -> dict[str, int]:
+        """Sync progress from AnkiConnect updates."""
+        stats = {"updated": 0, "created": 0, "skipped": 0, "errors": 0}
+        now = datetime.now(timezone.utc)
+        for card in cards:
+            # Determine direction first to guide field extraction
+            language = "fr" # Default target
+            direction = "fr_to_de" # Default direction
+            
+            if card.deck_name:
+                lower_deck = card.deck_name.lower()
+                if "fr->de" in lower_deck or "fr-de" in lower_deck:
+                    language = "fr"
+                    direction = "fr_to_de"
+                elif "de->fr" in lower_deck or "de-fr" in lower_deck:
+                    language = "de"
+                    direction = "de_to_fr"
+                elif "german" in lower_deck or "deutsch" in lower_deck:
+                    language = "de"
+                    direction = "de_to_fr" 
+                elif "french" in lower_deck or "francais" in lower_deck or "französisch" in lower_deck:
+                    language = "fr"
+                    direction = "fr_to_de"
+
+            # Refine direction using 'ord' (template index) if available
+            # For "Basic (and reversed card)", ord 0 is usually Forward, ord 1 is Reverse.
+            if card.ord is not None:
+                # If we defaulted to fr_to_de but ord is 1 (Reverse), it might be de_to_fr
+                # This assumes standard Anki templates where 0=Forward, 1=Reverse
+                if card.ord == 1:
+                    if direction == "fr_to_de":
+                        direction = "de_to_fr"
+                        language = "de"
+                elif card.ord == 0:
+                     if direction == "de_to_fr": # Unlikely but possible if deck name misled us
+                        direction = "fr_to_de"
+                        language = "fr"
+
+            # Helper to find field by keys
+            def get_field_value(keys, fields):
+                for k in keys:
+                    for field_name, field_value in fields.items():
+                        if field_name.lower() == k.lower() and field_value:
+                            return field_value
+                return None
+
+            # Define priority keys based on user's deck screenshots
+            # French = Wort, Wort mit Artikel
+            # German = Definition
+            
+            french_keys = ["Wort", "Wort mit Artikel", "Frage", "French", "Français", "Francais", "Französisch", "Question", "Front"]
+            german_keys = ["Definition", "Antwort", "German", "Deutsch", "Allemand", "Answer", "Back"]
+            
+            # Explicitly identify English fields to avoid them
+            english_keys = ["English", "Englisch", "Meaning", "Bedeutung"]
+            
+            word_text = None
+            translation_text = None
+            
+            # Extract based on direction
+            if direction == "fr_to_de":
+                # Word = French, Translation = German
+                word_text = get_field_value(french_keys, card.fields)
+                translation_text = get_field_value(german_keys, card.fields)
+            else:
+                # Word = German, Translation = French
+                word_text = get_field_value(german_keys, card.fields)
+                translation_text = get_field_value(french_keys, card.fields)
+
+            # Fallback: If we found an "English" field but wanted German, ignore it?
+            # But we don't know if "Definition" contains English or German without language detection.
+            # Given the screenshot shows "Definition: Mann", we assume Definition is German.
+            
+            # If we still don't have texts, try generic fallback but avoid known English keys
+            if not word_text:
+                for k, v in card.fields.items():
+                    if k not in english_keys and v and not v.isdigit():
+                        word_text = v
+                        break
+            
+            if not translation_text:
+                for k, v in card.fields.items():
+                    if k not in english_keys and v and not v.isdigit() and v != word_text:
+                        translation_text = v
+                        break
+
+            # Heuristic: if word_text looks like an ID (pure digits), try other fields
+            if word_text and word_text.isdigit():
+                 candidate = None
+                 for k, v in card.fields.items():
+                     if v and not v.isdigit() and len(v) < 100 and k.lower() not in ["back", "english", "meaning", "definition", "id", "noteid", "cardid", "index", "rank", "frequency"]:
+                         candidate = v
+                         break
+                 if candidate:
+                     word_text = candidate
+
+            if not word_text:
+                # Fallback: try to find any field that looks like a word
+                for k, v in card.fields.items():
+                    if v and len(v) < 50 and k.lower() not in ["back", "english", "meaning", "definition", "id", "index", "rank", "frequency"]:
+                        if not v.isdigit():
+                            word_text = v
+                            break
+            
+            if not word_text:
+                stats["skipped"] += 1
+                continue
+                
+            # Clean up word text (remove HTML, etc if needed - Anki often has HTML)
+            import re
+            clean_word = re.sub('<[^<]+?>', '', word_text).strip()
+            if not clean_word or clean_word.isdigit(): 
+                stats["skipped"] += 1
+                continue
+
+            clean_translation = ""
+            if translation_text:
+                clean_translation = re.sub('<[^<]+?>', '', translation_text).strip()
+
+            # 1. Try to find existing word by Anki Card ID first
+            vocab_word = self.db.scalars(
+                select(VocabularyWord).where(VocabularyWord.card_id == str(card.card_id))
+            ).first()
+
+            if not vocab_word:
+                # 2. If not found by ID, try to find by word text AND direction
+                existing_word = self.db.scalars(
+                    select(VocabularyWord).where(
+                        func.lower(VocabularyWord.word) == func.lower(clean_word),
+                        VocabularyWord.is_anki_card.is_(False) 
+                    )
+                ).first()
+                
+                if existing_word:
+                    vocab_word = existing_word
+                    vocab_word.is_anki_card = True
+                    vocab_word.note_id = str(card.note_id)
+                    vocab_word.card_id = str(card.card_id)
+                    vocab_word.deck_name = card.deck_name
+                    # Update content as well
+                    vocab_word.word = clean_word
+                    vocab_word.english_translation = clean_translation
+                    vocab_word.direction = direction
+                    vocab_word.language = language
+                    if direction == "fr_to_de":
+                        vocab_word.german_translation = clean_translation
+                    else:
+                        vocab_word.french_translation = clean_translation
+                    stats["updated"] += 1
+                else:
+                    # Create new
+                    german_trans = None
+                    french_trans = None
+                    english_trans = clean_translation
+                    
+                    if direction == "fr_to_de":
+                        german_trans = clean_translation
+                    else:
+                        french_trans = clean_translation
+
+                    vocab_word = VocabularyWord(
+                        word=clean_word,
+                        normalized_word=clean_word.lower(),
+                        language=language,
+                        direction=direction,
+                        english_translation=english_trans, 
+                        german_translation=german_trans,
+                        french_translation=french_trans,
+                        deck_name=card.deck_name,
+                        note_id=str(card.note_id),
+                        card_id=str(card.card_id),
+                        is_anki_card=True,
+                        created_at=now
+                    )
+                    self.db.add(vocab_word)
+                    self.db.flush() 
+                    stats["created"] += 1
+            else:
+                # Update existing word metadata AND content
+                vocab_word.deck_name = card.deck_name
+                vocab_word.word = clean_word
+                vocab_word.english_translation = clean_translation
+                vocab_word.direction = direction
+                vocab_word.language = language
+                if direction == "fr_to_de":
+                    vocab_word.german_translation = clean_translation
+                else:
+                    vocab_word.french_translation = clean_translation
+                stats["updated"] += 1
+                
+            # Update progress
+            progress = self.get_or_create_progress(user_id=user.id, word_id=vocab_word.id)
+            
+            if card.interval is not None:
+                progress.interval_days = card.interval
+                progress.scheduled_days = card.interval
+                
+            if card.ease is not None:
+                # Anki ease is permyriad (e.g. 2500 = 250%)
+                progress.ease_factor = card.ease / 1000.0
+                
+            if card.reps is not None:
+                progress.reps = card.reps
+                
+            if card.lapses is not None:
+                progress.lapses = card.lapses
+            
+            # Handle due date logic
+            if card.due:
+                if card.due > 100000000:
+                    # It's a timestamp
+                    try:
+                        due_date = datetime.fromtimestamp(card.due, tz=timezone.utc)
+                        progress.due_at = due_date.date()
+                        progress.next_review_date = due_date
+                    except (ValueError, OSError):
+                        pass
+                else:
+                    # It's days.
+                    if card.interval:
+                         progress.next_review_date = now + timedelta(days=card.interval)
+                         progress.due_at = progress.next_review_date.date()
+
+            progress.updated_at = now
+            progress.scheduler = "anki"
+            
+            self.db.add(progress)
+            
+        self.db.commit()
+        return stats
+
     def progress_summary(self, *, user_id: User.id, word_id: int) -> dict[str, int]:
         """Return aggregate counters for UI consumption."""
 

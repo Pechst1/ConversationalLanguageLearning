@@ -5,8 +5,9 @@ import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import apiService from '@/services/api';
 import { AnkiReviewResponse, ReviewResponse } from '@/types/reviews';
-import { CheckCircle, XCircle } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Type, CircleDot, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { AnkiSync } from '@/components/AnkiSync';
 
 interface PracticeWord {
   wordId: number;
@@ -125,7 +126,11 @@ function formatReviewFeedbackMessage(response: ReviewResponse | AnkiReviewRespon
   return message;
 }
 
-export default function PracticePage({ queueWords, counters }: PracticeProps) {
+const FETCH_LIMIT = 50;
+const FETCH_THRESHOLD = 3;
+
+export default function PracticePage({ queueWords, counters, direction: initialDirection }: PracticeProps) {
+  const [localQueue, setLocalQueue] = React.useState<PracticeWord[]>(queueWords);
   const [currentWordIndex, setCurrentWordIndex] = React.useState(0);
   const [showAnswer, setShowAnswer] = React.useState(false);
   const [score, setScore] = React.useState(0);
@@ -135,13 +140,60 @@ export default function PracticePage({ queueWords, counters }: PracticeProps) {
     word: string;
     message: string;
   } | null>(null);
+  const [isFetchingMore, setIsFetchingMore] = React.useState(false);
+  const [direction, setDirection] = React.useState<PracticeDirection>(initialDirection || 'fr_to_de');
+  const [isLoadingDirection, setIsLoadingDirection] = React.useState(false);
 
+  const queueRef = React.useRef(localQueue);
   const cardShownAtRef = React.useRef<number>(Date.now());
+
+  // Keep ref in sync
+  React.useEffect(() => {
+    queueRef.current = localQueue;
+  }, [localQueue]);
+
+  const currentWord = localQueue[currentWordIndex];
+  const queueLength = localQueue.length;
+  const nextIndex = currentWordIndex + 1;
+  const finalTotal = Math.max(queueLength, counters.dueCount + counters.newCount + counters.learningCount);
+
+  const mapQueueItem = React.useCallback((item: any, dir: PracticeDirection): PracticeWord => ({
+    wordId: item.word_id,
+    word: item.word,
+    translation: (dir === 'fr_to_de' ? item.german_translation : item.french_translation) || item.english_translation || '',
+    difficulty: item.difficulty_level || 1,
+    scheduler: item.scheduler || undefined,
+    stage: item.stage || item.queue_stage || item.stage_type || undefined,
+  }), []);
+
+  const handleRefreshQueue = async (overrideDirection?: PracticeDirection) => {
+    const targetDirection = overrideDirection || direction;
+    setIsLoadingDirection(true);
+    try {
+      const raw = await apiService.getProgressQueue({ limit: FETCH_LIMIT, direction: targetDirection });
+      if (Array.isArray(raw)) {
+        const mapped = raw.map(item => mapQueueItem(item, targetDirection));
+        setLocalQueue(mapped);
+        setCurrentWordIndex(0);
+        setCompleted(false);
+        setScore(0);
+        setShowAnswer(false);
+        setLastReviewFeedback(null);
+      }
+    } catch (error) {
+      toast.error('Failed to refresh queue');
+    } finally {
+      setIsLoadingDirection(false);
+    }
+  };
+
+  const loadMoreItems = React.useCallback(async () => {
+    if (isFetchingMore) return queueRef.current.length;
 
     setIsFetchingMore(true);
     let updatedLength = queueRef.current.length;
     try {
-      const raw = await apiService.getProgressQueue({ limit: FETCH_LIMIT });
+      const raw = await apiService.getProgressQueue({ limit: FETCH_LIMIT, direction });
       if (!Array.isArray(raw) || !raw.length) {
         return updatedLength;
       }
@@ -149,7 +201,7 @@ export default function PracticePage({ queueWords, counters }: PracticeProps) {
       setLocalQueue((prev) => {
         const existingIds = new Set(prev.map((item) => item.wordId));
         const mapped = raw
-          .map(mapQueueItem)
+          .map(item => mapQueueItem(item, direction))
           .filter((item) => !existingIds.has(item.wordId));
 
         if (!mapped.length) {
@@ -172,7 +224,7 @@ export default function PracticePage({ queueWords, counters }: PracticeProps) {
     } finally {
       setIsFetchingMore(false);
     }
-  }, [isFetchingMore, mapQueueItem]);
+  }, [isFetchingMore, mapQueueItem, direction]);
 
   const ensureQueueDepth = React.useCallback(async (nextIndex: number) => {
     const remaining = queueRef.current.length - nextIndex;
@@ -237,22 +289,43 @@ export default function PracticePage({ queueWords, counters }: PracticeProps) {
     }
   }, [completed, currentWordIndex, ensureQueueDepth, localQueue.length]);
 
+  const toggleDirection = () => {
+    const newDirection = direction === 'fr_to_de' ? 'de_to_fr' : 'fr_to_de';
+    setDirection(newDirection);
+    handleRefreshQueue(newDirection);
+  };
+
+  const directionToggle = (
+    <div className="flex justify-end mb-4">
+      <Button
+        variant="outline"
+        onClick={toggleDirection}
+        className="border-2 border-brutal-black shadow-brutal hover:translate-y-1 hover:shadow-none transition-all rounded-none font-bold"
+      >
+        <RefreshCw className="w-4 h-4 mr-2" />
+        Switch to {direction === 'fr_to_de' ? 'DE -> FR' : 'FR -> DE'}
+      </Button>
+    </div>
+  );
+
   if (!localQueue?.length) {
     return (
-      <div className="max-w-2xl mx-auto">
-        {directionToggle}
-        <div className="text-center">
-          <Card>
-            <CardContent className="p-8">
-              <h1 className="text-2xl font-bold mb-4">No words to practice</h1>
-              <p className="text-gray-600 mb-6">
-                Great job! You&apos;re all caught up with your vocabulary practice.
-              </p>
-              <Button onClick={handleRefreshQueue} loading={isLoadingDirection}>
-                Check Again
-              </Button>
-            </CardContent>
-          </Card>
+      <div className="max-w-2xl mx-auto p-4">
+        <AnkiSync onSyncComplete={() => handleRefreshQueue()} />
+        <div className="mt-8 text-center">
+          <div className="bg-brutal-white border-4 border-brutal-black shadow-brutal p-8">
+            <h1 className="text-4xl font-bold mb-4 font-heading">NO WORDS</h1>
+            <p className="text-xl font-mono mb-6">
+              You&apos;re all caught up.
+            </p>
+            <Button
+              onClick={() => handleRefreshQueue()}
+              loading={isLoadingDirection}
+              className="bg-bauhaus-yellow text-brutal-black border-4 border-brutal-black shadow-brutal hover:translate-y-1 hover:shadow-none transition-all rounded-none font-bold text-lg px-8 py-4"
+            >
+              CHECK AGAIN
+            </Button>
+          </div>
         </div>
       </div>
     );
@@ -260,187 +333,150 @@ export default function PracticePage({ queueWords, counters }: PracticeProps) {
 
   if (completed) {
     return (
-      <div className="max-w-2xl mx-auto text-center">
-        <Card>
-          <CardContent className="p-8">
-            <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
-            <h1 className="text-2xl font-bold mb-4">Practice Complete!</h1>
-            <p className="text-gray-600 mb-6">
-              Final Score: {score}/{finalTotal}
-            </p>
-            <Button onClick={() => window.location.href = '/dashboard'}>Back to Dashboard</Button>
-          </CardContent>
-        </Card>
+      <div className="max-w-2xl mx-auto text-center p-4">
+        <div className="bg-brutal-white border-4 border-brutal-black shadow-brutal p-8">
+          <CheckCircle className="h-24 w-24 text-bauhaus-green mx-auto mb-4" />
+          <h1 className="text-4xl font-bold mb-4 font-heading">COMPLETE</h1>
+          <p className="text-2xl font-mono mb-8">
+            Score: {score}/{finalTotal}
+          </p>
+          <Button
+            onClick={() => window.location.href = '/dashboard'}
+            className="bg-bauhaus-blue text-white border-4 border-brutal-black shadow-brutal hover:translate-y-1 hover:shadow-none transition-all rounded-none font-bold text-lg px-8 py-4"
+          >
+            BACK TO DASHBOARD
+          </Button>
+        </div>
       </div>
     );
   }
 
   if (!currentWord) {
     return (
-      <div className="max-w-2xl mx-auto text-center">
-        <Card>
-          <CardContent className="p-8 space-y-4">
-            <h1 className="text-2xl font-bold">Loading next word...</h1>
-            <p className="text-gray-600">Fetching more practice items for you.</p>
-          </CardContent>
-        </Card>
+      <div className="max-w-2xl mx-auto text-center p-4">
+        <div className="bg-brutal-white border-4 border-brutal-black shadow-brutal p-8 animate-pulse">
+          <h1 className="text-2xl font-bold font-heading">LOADING...</h1>
+        </div>
       </div>
     );
   }
 
+  const cleanedState = formatStateLabel(currentWord.stage);
+  const formattedNextReview = 'Now'; // Since it's in queue
+
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="max-w-2xl mx-auto p-4 space-y-8">
+      <div className="flex justify-between items-center">
+        <h1 className="text-4xl font-black font-heading tracking-tighter">PRACTICE</h1>
+        <AnkiSync onSyncComplete={() => handleRefreshQueue()} />
+      </div>
+
       {directionToggle}
 
       <div className="mb-8">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-900">Vocabulary Practice</h1>
-          <div className="text-sm text-gray-600">
-            {Math.min(currentWordIndex + 1, localQueue.length)} of {localQueue.length || finalTotal}
-          </div>
+        <div className="flex items-center justify-between font-mono text-sm mb-2">
+          <span>PROGRESS</span>
+          <span>{Math.min(currentWordIndex + 1, localQueue.length)} / {localQueue.length || finalTotal}</span>
         </div>
-        <div className="w-full bg-gray-200 rounded-full h-2 mt-4">
+        <div className="w-full bg-brutal-gray border-2 border-brutal-black h-4">
           <div
-            className="bg-primary-600 h-2 rounded-full transition-all duration-300"
+            className="bg-bauhaus-blue h-full transition-all duration-300 border-r-2 border-brutal-black"
             style={{
-              width: `${
-                localQueue.length
-                  ? Math.min(((currentWordIndex + 1) / localQueue.length) * 100, 100)
-                  : 0
-              }%`,
+              width: `${localQueue.length
+                ? Math.min(((currentWordIndex + 1) / localQueue.length) * 100, 100)
+                : 0
+                }%`,
             }}
           />
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-center text-3xl font-bold">
-            {cleanSurface(currentWord.word, currentWord.translation)}
-          </CardTitle>
-          <CardDescription className="text-center">
-            How well do you know this word?
-          </CardDescription>
-          {(cleanedState || cleanedPartOfSpeech || formattedNextReview) && (
-            <div className="practice-meta" role="list" aria-label="Word scheduling metadata">
+      <div className="relative group">
+        <div className="absolute -inset-1 bg-brutal-black translate-x-2 translate-y-2 group-hover:translate-x-3 group-hover:translate-y-3 transition-transform"></div>
+        <div className="relative bg-brutal-white border-4 border-brutal-black p-8 min-h-[400px] flex flex-col justify-between">
+
+          <div className="space-y-4">
+            <div className="flex justify-center gap-2">
               {cleanedState && (
-                <span
-                  role="listitem"
-                  className="practice-chip practice-chip--state"
-                  aria-label={`Scheduling state: ${cleanedState}`}
-                  title={`Scheduling state: ${cleanedState}`}
-                >
-                  <CircleDot aria-hidden="true" className="practice-chip__icon" />
-                  <span className="sr-only">Scheduling state:</span>
-                  <span aria-hidden="true">{cleanedState}</span>
+                <span className="px-3 py-1 bg-bauhaus-yellow border-2 border-brutal-black font-bold text-xs uppercase tracking-wider">
+                  {cleanedState}
                 </span>
               )}
-              {cleanedPartOfSpeech && (
-                <span
-                  role="listitem"
-                  className="practice-chip practice-chip--pos"
-                  aria-label={`Part of speech: ${cleanedPartOfSpeech}`}
-                  title={`Part of speech: ${cleanedPartOfSpeech}`}
-                >
-                  <Type aria-hidden="true" className="practice-chip__icon" />
-                  <span className="sr-only">Part of speech:</span>
-                  <span aria-hidden="true">{cleanedPartOfSpeech}</span>
+              {currentWord.scheduler === 'anki' && (
+                <span className="px-3 py-1 bg-bauhaus-blue text-white border-2 border-brutal-black font-bold text-xs uppercase tracking-wider">
+                  ANKI
                 </span>
               )}
-              <span
-                role="listitem"
-                className="practice-chip practice-chip--review"
-                aria-label={`Next review ${formattedNextReview}`}
-                title={
-                  exactNextReview
-                    ? `Next review ${formattedNextReview} (${exactNextReview})`
-                    : `Next review ${formattedNextReview}`
-                }
-              >
-                <Clock3 aria-hidden="true" className="practice-chip__icon" />
-                <span className="sr-only">Next review:</span>
-                <span aria-hidden="true">{formattedNextReview}</span>
-              </span>
             </div>
-          )}
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {!showAnswer ? (
-            <div className="text-center">
-              <Button onClick={handleShowTranslation} className="w-full">
-                Show Translation
-              </Button>
-            </div>
-          ) : (
-            <>
-              <div className="text-center p-4 bg-gray-50 rounded-lg">
-                <p className="text-xl font-semibold text-gray-900">
-                  {currentWord.translation}
-                </p>
+
+            <h2 className="text-5xl font-black text-center font-heading break-words">
+              {cleanSurface(currentWord.word, currentWord.translation)}
+            </h2>
+
+            <p className="text-center text-gray-500 font-mono text-sm">
+              How well do you know this word?
+            </p>
+          </div>
+
+          <div className="space-y-6 mt-8">
+            {!showAnswer ? (
+              <div className="text-center">
+                <Button
+                  onClick={handleShowTranslation}
+                  className="w-full bg-brutal-black text-white hover:bg-bauhaus-red border-4 border-transparent hover:border-brutal-black transition-all font-bold text-xl py-6 rounded-none"
+                >
+                  REVEAL
+                </Button>
               </div>
-              
-              <div className="space-y-3">
-                <p className="text-center text-gray-600 mb-4">
-                  How well did you remember this word?
-                </p>
-                
-                <div className="grid grid-cols-2 gap-3">
-                  <Button
-                    variant="outline"
+            ) : (
+              <>
+                <div className="text-center p-6 bg-brutal-gray border-2 border-brutal-black">
+                  <p className="text-3xl font-bold text-brutal-black font-heading">
+                    {currentWord.translation}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <button
                     onClick={() => handleRating(0)}
-                    className="border-red-300 text-red-600 hover:bg-red-50"
+                    className="p-4 bg-white border-4 border-brutal-black hover:bg-bauhaus-red hover:text-white transition-colors font-bold text-lg"
                   >
-                    <XCircle className="mr-2 h-4 w-4" />
-                    Didn&apos;t Know
-                  </Button>
-                  <Button 
-                    variant="outline" 
+                    AGAIN
+                  </button>
+                  <button
                     onClick={() => handleRating(1)}
-                    className="border-yellow-300 text-yellow-600 hover:bg-yellow-50"
+                    className="p-4 bg-white border-4 border-brutal-black hover:bg-bauhaus-yellow hover:text-black transition-colors font-bold text-lg"
                   >
-                    Hard
-                  </Button>
-                  <Button 
-                    variant="outline" 
+                    HARD
+                  </button>
+                  <button
                     onClick={() => handleRating(2)}
-                    className="border-green-300 text-green-600 hover:bg-green-50"
+                    className="p-4 bg-white border-4 border-brutal-black hover:bg-bauhaus-blue hover:text-white transition-colors font-bold text-lg"
                   >
-                    Good
-                  </Button>
-                  <Button 
-                    variant="outline" 
+                    GOOD
+                  </button>
+                  <button
                     onClick={() => handleRating(3)}
-                    className="border-blue-300 text-blue-600 hover:bg-blue-50"
+                    className="p-4 bg-white border-4 border-brutal-black hover:bg-green-500 hover:text-black transition-colors font-bold text-lg"
                   >
-                    <CheckCircle className="mr-2 h-4 w-4" />
-                    Easy
-                  </Button>
+                    EASY
+                  </button>
                 </div>
-                <div className="mt-4 flex items-center justify-center gap-4 text-sm">
-                  <span className="text-blue-700">
-                    New (Blue): <span className="font-semibold">{counts.newCount}</span>
-                  </span>
-                  <span className="text-red-700">
-                    Learning (Red): <span className="font-semibold">{counts.learningCount}</span>
-                  </span>
-                  <span className="text-green-700">
-                    Due (Green): <span className="font-semibold">{counts.dueCount}</span>
-                  </span>
-                </div>
-              </div>
-            </>
-          )}
-          {lastReviewFeedback && (
-            <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
-              <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
-                Spaced repetition feedback
-              </p>
-              <p className="mt-1 font-semibold">{lastReviewFeedback.word}</p>
-              <p className="mt-1 text-sm font-normal">{lastReviewFeedback.message}</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {lastReviewFeedback && (
+        <div className="border-4 border-brutal-black bg-bauhaus-yellow p-4 shadow-brutal">
+          <p className="font-bold uppercase tracking-wide text-xs mb-1">
+            Feedback
+          </p>
+          <p className="font-black text-lg">{lastReviewFeedback.word}</p>
+          <p className="font-mono text-sm">{lastReviewFeedback.message}</p>
+        </div>
+      )}
     </div>
   );
 }
@@ -471,6 +507,7 @@ export async function getServerSideProps(context: any) {
       : context.query?.direction;
     const directionParam =
       typeof directionParamRaw === 'string' ? directionParamRaw : undefined;
+    const isValidDirection = (d: string | undefined): d is PracticeDirection => d === 'fr_to_de' || d === 'de_to_fr';
     const direction = isValidDirection(directionParam) ? directionParam : 'fr_to_de';
     const headers = {
       'Authorization': `Bearer ${session.accessToken}`,
@@ -484,13 +521,13 @@ export async function getServerSideProps(context: any) {
     const raw = queueRes.ok ? await queueRes.json() : [];
     const queueWords = Array.isArray(raw)
       ? raw.map((item: any) => ({
-          wordId: item.word_id,
-          word: item.word,
-          translation: item.english_translation || '',
-          difficulty: item.difficulty_level || 1,
-          scheduler: item.scheduler || undefined,
-          stage: item.stage || item.queue_stage || item.stage_type || undefined,
-        }))
+        wordId: item.word_id,
+        word: item.word,
+        translation: (direction === 'fr_to_de' ? item.german_translation : item.french_translation) || item.english_translation || '',
+        difficulty: item.difficulty_level || 1,
+        scheduler: item.scheduler || undefined,
+        stage: item.stage || item.queue_stage || item.stage_type || null,
+      }))
       : [];
 
     const summary = summaryRes.ok ? await summaryRes.json() : null;

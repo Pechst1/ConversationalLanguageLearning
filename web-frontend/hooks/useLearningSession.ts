@@ -100,10 +100,10 @@ const normalizeTargetWord = (target: any): TargetWord | null => {
       typeof target.position === 'number'
         ? target.position
         : typeof target.start === 'number'
-        ? target.start
-        : typeof target.start_index === 'number'
-        ? target.start_index
-        : undefined,
+          ? target.start
+          : typeof target.start_index === 'number'
+            ? target.start_index
+            : undefined,
   };
 };
 
@@ -211,9 +211,9 @@ export function useLearningSession(sessionId?: string) {
         const assistantMessage = turnData.assistant_turn.message ?? {};
         const assistantTargets = normalizeTargets(
           turnData.assistant_turn.targets ??
-            assistantMessage.target_details ??
-            assistantMessage.target_words ??
-            []
+          assistantMessage.target_details ??
+          assistantMessage.target_words ??
+          []
         );
         const assistantChat: ChatMessage = {
           id: String(assistantMessage.id ?? generateMessageId()),
@@ -230,8 +230,8 @@ export function useLearningSession(sessionId?: string) {
           if (turnUserMessage) {
             const userTargets = normalizeTargets(
               turnUserMessage.target_details ??
-                turnUserMessage.target_words ??
-                []
+              turnUserMessage.target_words ??
+              []
             );
             const normalizedUser: ChatMessage = {
               id: String(turnUserMessage.id ?? generateMessageId()),
@@ -279,10 +279,10 @@ export function useLearningSession(sessionId?: string) {
         xp: payload.xp || 0,
         targets: normalizeTargets(
           payload.targets ||
-            payload.target_words ||
-            payload.target_details ||
-            payload.targetDetails ||
-            []
+          payload.target_words ||
+          payload.target_details ||
+          payload.targetDetails ||
+          []
         ),
       };
 
@@ -399,9 +399,9 @@ export function useLearningSession(sessionId?: string) {
     try {
       setLoading(true);
       setError(null);
-      
-      const sessionData = await apiService.createSession(config);
-      
+
+      const sessionData = await apiService.createSession(config) as any;
+
       const newSession: LearningSession = {
         id: sessionData.id,
         status: 'active',
@@ -414,10 +414,10 @@ export function useLearningSession(sessionId?: string) {
         messages: [],
         targetWords: [],
       };
-      
+
       setSession(newSession);
       setMessages([]);
-      
+
       // If there's a greeting message, add it
       if (sessionData.greeting) {
         const greetingMessage: ChatMessage = {
@@ -429,7 +429,7 @@ export function useLearningSession(sessionId?: string) {
         };
         setMessages([greetingMessage]);
       }
-      
+
       return newSession;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to create session';
@@ -448,7 +448,7 @@ export function useLearningSession(sessionId?: string) {
 
     try {
       setLoading(true);
-      
+
       // Add user message immediately
       const userMessage: ChatMessage = {
         id: generateMessageId(),
@@ -457,7 +457,7 @@ export function useLearningSession(sessionId?: string) {
         timestamp: new Date(),
       };
       setMessages(prev => [...prev, userMessage]);
-      
+
       // Send via WebSocket if connected, otherwise fallback to HTTP
       if (isWebSocketConnected()) {
         rawWebSocketSend(content, suggestedWordIds);
@@ -467,7 +467,7 @@ export function useLearningSession(sessionId?: string) {
           content,
           suggested_word_ids: suggestedWordIds,
         });
-        
+
         // Process HTTP response
         if (response) {
           handleWebSocketMessage(response);
@@ -485,7 +485,7 @@ export function useLearningSession(sessionId?: string) {
 
   const logWordExposure = useCallback(async (wordId: number, exposureType: 'hint' | 'translation') => {
     if (!session || !Number.isFinite(wordId)) return;
-    
+
     try {
       await apiService.logExposure(session.id, {
         word_id: wordId,
@@ -513,16 +513,16 @@ export function useLearningSession(sessionId?: string) {
 
   const completeSession = useCallback(async () => {
     if (!session) return;
-    
+
     try {
       await apiService.updateSessionStatus(session.id, 'completed');
-      
+
       setSession(prev => prev ? {
         ...prev,
         status: 'completed',
         endTime: new Date(),
       } : null);
-      
+
       // Emit session completion event
       window.dispatchEvent(new CustomEvent('learningSessionComplete', {
         detail: {
@@ -531,7 +531,7 @@ export function useLearningSession(sessionId?: string) {
           messages: messages.length,
         }
       }));
-      
+
       return session.stats;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to complete session';
@@ -545,37 +545,37 @@ export function useLearningSession(sessionId?: string) {
     try {
       setLoading(true);
       setError(null);
-      
-      const sessionData = await apiService.getSession(id);
-      
+
+      const sessionData = await apiService.getSession(id) as any;
+
+      // Fetch messages separately
+      const messagesResponse = await apiService.getSessionMessages(id) as any;
+      const messagesData = messagesResponse?.items || messagesResponse || [];
+
       const loadedSession: LearningSession = {
         id: sessionData.id,
         status: sessionData.status,
-        startTime: new Date(sessionData.created_at),
-        endTime: sessionData.ended_at ? new Date(sessionData.ended_at) : undefined,
-        stats: sessionData.stats || {
-          totalReviews: 0,
-          correctAnswers: 0,
-          xpEarned: 0,
+        startTime: new Date(sessionData.started_at || sessionData.created_at),
+        endTime: sessionData.completed_at ? new Date(sessionData.completed_at) : undefined,
+        stats: {
+          totalReviews: sessionData.words_practiced || 0,
+          correctAnswers: sessionData.correct_responses || 0,
+          xpEarned: sessionData.xp_earned || 0,
         },
-        messages: sessionData.messages?.map((msg: any) => ({
+        messages: messagesData.map((msg: any) => ({
           id: msg.id,
-          role: msg.role,
+          role: msg.sender === 'user' ? 'user' : 'assistant',
           content: msg.content,
-          timestamp: new Date(msg.timestamp),
-          xp: msg.xp,
-          targets: normalizeTargets(
-            msg.targets || msg.target_words || msg.target_details || msg.targetDetails || []
-          ),
-        })) || [],
-        targetWords: normalizeTargets(
-          sessionData.target_words || sessionData.targetWords || sessionData.target_details || []
-        ),
+          timestamp: new Date(msg.created_at),
+          xp: msg.xp_earned || 0,
+          targets: normalizeTargets(msg.target_details || msg.targets || msg.target_words || []),
+        })),
+        targetWords: [],
       };
-      
+
       setSession(loadedSession);
       setMessages(loadedSession.messages);
-      
+
       return loadedSession;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to load session';
@@ -613,7 +613,7 @@ export function useLearningSession(sessionId?: string) {
     completeSession,
     complete: completeSession,
     loadSession,
-    
+
     // Helper to get active session ID for components
     activeSessionId: session?.id,
 

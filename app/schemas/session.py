@@ -27,6 +27,10 @@ class SessionCreateRequest(BaseModel):
         None,
         description="Preferred Anki card direction for the session",
     )
+    scenario: str | None = Field(
+        None,
+        description="Roleplay scenario context (e.g. 'Bakery', 'Train Station')",
+    )
 
 
 class SessionMessageRequest(BaseModel):

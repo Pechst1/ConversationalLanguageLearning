@@ -40,7 +40,7 @@ export const authOptions: NextAuthOptions = {
           }
 
           const data = await response.json();
-          
+
           // Fetch user profile
           const userResponse = await fetch(`${process.env.API_URL}/api/v1/users/me`, {
             headers: {
@@ -88,7 +88,6 @@ export const authOptions: NextAuthOptions = {
   },
   pages: {
     signIn: '/auth/signin',
-    signUp: '/auth/signup',
   },
   session: {
     strategy: 'jwt',

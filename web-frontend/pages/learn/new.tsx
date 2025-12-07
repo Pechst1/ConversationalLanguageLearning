@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/Input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import apiService from '@/services/api';
 import toast from 'react-hot-toast';
+import ScenarioSelector from '@/components/learning/ScenarioSelector';
 
 const durationOptions = [10, 15, 20, 30, 45];
 
@@ -47,6 +48,8 @@ export default function NewSessionPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = React.useState(false);
 
+  const [selectedScenario, setSelectedScenario] = React.useState<string | null>(null);
+
   const {
     register,
     handleSubmit,
@@ -75,9 +78,10 @@ export default function NewSessionPage() {
         conversation_style: data.conversationStyle,
         generate_greeting: true,
         anki_direction: data.ankiDirection,
+        scenario: selectedScenario || undefined,
       } as const;
       const response = await apiService.createSession(payload);
-      const sessionId = response?.session?.id;
+      const sessionId = (response as any)?.session?.id;
       if (!sessionId) {
         throw new Error('Session creation response missing identifier');
       }
@@ -108,13 +112,25 @@ export default function NewSessionPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            <Input
-              {...register('topic')}
-              label="Topic (Optional)"
-              placeholder="e.g., Travel, Food, Business"
-              error={errors.topic?.message}
-            />
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                Roleplay Scenario (Optional)
+              </label>
+              <ScenarioSelector selectedId={selectedScenario} onSelect={setSelectedScenario} />
+              <p className="text-xs text-gray-500 mt-2">
+                Select a scenario to act out a specific situation. This overrides the conversation style.
+              </p>
+            </div>
+
+            <div className="border-t border-gray-100 pt-6">
+              <Input
+                {...register('topic')}
+                label="Custom Topic (Optional)"
+                placeholder="e.g., Travel, Food, Business"
+                error={errors.topic?.message}
+              />
+            </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -128,8 +144,12 @@ export default function NewSessionPage() {
                       type="radio"
                       value={style.value}
                       className="sr-only peer"
+                      disabled={!!selectedScenario}
                     />
-                    <div className="p-4 border-2 border-gray-200 rounded-lg peer-checked:border-primary-500 peer-checked:bg-primary-50 hover:border-gray-300 transition-colors">
+                    <div className={`p-4 border-2 rounded-lg transition-colors ${selectedScenario
+                      ? 'border-gray-100 bg-gray-50 opacity-50 cursor-not-allowed'
+                      : 'border-gray-200 peer-checked:border-primary-500 peer-checked:bg-primary-50 hover:border-gray-300'
+                      }`}>
                       <p className="font-semibold">{style.label}</p>
                       <p className="text-sm text-gray-600">{style.description}</p>
                     </div>
@@ -222,7 +242,7 @@ export default function NewSessionPage() {
 
 export async function getServerSideProps(context: any) {
   const session = await getSession(context);
-  
+
   if (!session) {
     return {
       redirect: {
@@ -231,7 +251,7 @@ export async function getServerSideProps(context: any) {
       },
     };
   }
-  
+
   return {
     props: {},
   };

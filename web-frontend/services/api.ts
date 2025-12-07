@@ -39,7 +39,7 @@ class ApiService {
       (response: AxiosResponse) => response,
       (error) => {
         const message = error.response?.data?.detail || error.message || 'An error occurred';
-        
+
         switch (error.response?.status) {
           case 401:
             toast.error('Authentication required. Please log in.');
@@ -70,7 +70,7 @@ class ApiService {
           default:
             toast.error(message);
         }
-        
+
         return Promise.reject(error);
       }
     );
@@ -141,6 +141,10 @@ class ApiService {
 
   async sendMessage(sessionId: string, data: { content: string; suggested_word_ids?: number[] }) {
     return this.post(`/sessions/${sessionId}/messages`, data);
+  }
+
+  async getSessionMessages(sessionId: string, params?: { limit?: number; offset?: number }) {
+    return this.get(`/sessions/${sessionId}/messages`, { params });
   }
 
   async logExposure(sessionId: string, data: { word_id: number; exposure_type: 'hint' | 'translation' }) {

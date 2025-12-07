@@ -2,9 +2,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterable, List, Protocol
+from typing import Iterable, List, Protocol, TYPE_CHECKING
 
-from spacy.tokens import Doc, Token
+if TYPE_CHECKING:
+    from spacy.tokens import Doc, Token
 
 
 @dataclass

@@ -28,7 +28,7 @@ async function ensureWordInPool(sessionId: string | undefined, word: string) {
   } catch (e) {
     try {
       await apiService.post(`/sessions/${sessionId}/vocabulary/difficulty`, { word, delta: 1 });
-    } catch {}
+    } catch { }
   }
 }
 
@@ -36,7 +36,7 @@ async function bumpDifficulty(sessionId: string | undefined, word: string) {
   if (!sessionId) return;
   try {
     await apiService.post(`/sessions/${sessionId}/vocabulary/difficulty`, { word, delta: 1 });
-  } catch {}
+  } catch { }
 }
 
 export const InteractiveText: React.FC<InteractiveTextProps> = ({
@@ -70,7 +70,7 @@ export const InteractiveText: React.FC<InteractiveTextProps> = ({
 
     try {
       const res = await apiService.get(`/vocabulary/translate?word=${encodeURIComponent(word)}&from=${language}&to=de`);
-      setDefinition({ word, translation: res.translation });
+      setDefinition({ word, translation: (res as any).translation });
     } catch {
       const t = LocalTranslate[language]?.[word.toLowerCase()] || undefined;
       setDefinition({ word, translation: t });

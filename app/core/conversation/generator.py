@@ -313,6 +313,7 @@ class ConversationGenerator:
         learner_level: str,
         user: User,
         topic: str | None = None,
+        scenario: str | None = None,
     ) -> str:
         """Return a context block describing vocabulary and learner profile."""
 
@@ -323,6 +324,8 @@ class ConversationGenerator:
 
         if topic:
             lines.append(f"Conversation topic: {topic}")
+        if scenario:
+            lines.append(f"CURRENT SCENARIO: {scenario}")
 
         lines.append("Target vocabulary for this turn:")
 
@@ -365,6 +368,7 @@ class ConversationGenerator:
         learner_level: str,
         user: User,
         topic: str | None = None,
+        scenario: str | None = None,
     ) -> list[dict[str, str]]:
         """Assemble the chat completion payload."""
 
@@ -373,6 +377,7 @@ class ConversationGenerator:
             learner_level=learner_level,
             user=user,
             topic=topic,
+            scenario=scenario,
         )
         context_message = {"role": "system", "content": target_context}
 
@@ -397,6 +402,7 @@ class ConversationGenerator:
         topic: str | None = None,
         exclude_ids: set[int] | None = None,
         anki_direction: str | None = None,
+        scenario: str | None = None,
     ) -> GeneratedTurn:
         """Generate a turn while respecting the adaptive session context."""
 
@@ -438,9 +444,12 @@ class ConversationGenerator:
             learner_level=learner_level,
             user=user,
             topic=topic,
+            scenario=scenario,
         )
 
         system_prompt = build_system_prompt(style, learner_level)
+        if scenario:
+            system_prompt += f"\n\nROLEPLAY SCENARIO: {scenario}\nAct exclusively as a character in this setting. Do not break character."
         applied_temperature = temperature if temperature is not None else self.default_temperature
 
         try:

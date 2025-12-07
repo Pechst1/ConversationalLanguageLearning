@@ -48,12 +48,12 @@ const ConversationHistory: React.FC<Props> = ({
     }
 
     setLoadingTranslations(prev => new Set(prev).add(wordId));
-    
+
     try {
       const response = await apiService.get(`/vocabulary/words/${wordId}/translation`);
       setWordTranslations(prev => ({
         ...prev,
-        [wordId]: response.translation
+        [wordId]: (response as any).translation
       }));
     } catch (error) {
       console.error('Failed to fetch word translation:', error);
@@ -123,11 +123,11 @@ const ConversationHistory: React.FC<Props> = ({
     const frenchPatterns = /\b(bonjour|merci|comment|pourquoi|très|français|nouveau|entreprise|marché)\b/gi;
     const germanPatterns = /\b(hallo|danke|wie|warum|sehr|deutsch|neu|unternehmen|markt)\b/gi;
     const spanishPatterns = /\b(hola|gracias|cómo|muy|español|nuevo|empresa|mercado)\b/gi;
-    
+
     const frenchMatches = (text.match(frenchPatterns) || []).length;
     const germanMatches = (text.match(germanPatterns) || []).length;
     const spanishMatches = (text.match(spanishPatterns) || []).length;
-    
+
     if (frenchMatches >= germanMatches && frenchMatches >= spanishMatches) {
       return 'french';
     } else if (germanMatches >= spanishMatches) {
@@ -249,16 +249,14 @@ const ConversationHistory: React.FC<Props> = ({
         {messages.map((message, index) => (
           <div
             key={index}
-            className={`flex ${
-              message.role === 'user' ? 'justify-end' : 'justify-start'
-            }`}
+            className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'
+              }`}
           >
             <div
-              className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                message.role === 'user'
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-200 text-gray-800'
-              }`}
+              className={`max-w-xs lg:max-w-md message-bubble ${message.role === 'user'
+                ? 'message-user'
+                : 'message-ai'
+                }`}
             >
               {message.role === 'assistant' ? (
                 message.targets && message.targets.length > 0 ? (

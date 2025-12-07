@@ -56,6 +56,20 @@ module.exports = {
           800: '#991b1b',
           900: '#7f1d1d',
         },
+        bauhaus: {
+          red: '#D02020',
+          blue: '#1D4E89',
+          yellow: '#F4B400',
+        },
+        brutal: {
+          black: '#000000',
+          white: '#FFFFFF',
+          gray: '#F0F0F0',
+        },
+      },
+      boxShadow: {
+        'brutal': '4px 4px 0px 0px #000000',
+        'brutal-lg': '8px 8px 0px 0px #000000',
       },
       fontFamily: {
         sans: ['Inter', 'sans-serif'],

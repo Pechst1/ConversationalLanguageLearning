@@ -4,23 +4,23 @@ import { cn } from '@/lib/utils';
 import { Loader2 } from 'lucide-react';
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
+  'inline-flex items-center justify-center rounded-none text-sm font-bold ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border-2 border-brutal-black shadow-brutal hover:shadow-none hover:translate-x-[4px] hover:translate-y-[4px] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[2px_2px_0px_0px_#000000]',
   {
     variants: {
       variant: {
-        default: 'bg-[#003566] text-[#fdf0d5] hover:bg-[#001845]',
-        destructive: 'bg-error-600 text-white hover:bg-error-700',
-        outline: 'border-2 border-[#0b3954] bg-transparent text-[#0b3954] hover:bg-[#0b3954] hover:text-white',
-        secondary: 'bg-[#ffb703] text-[#023047] hover:bg-[#ff9700]',
-        ghost: 'hover:bg-[#f4f1e3] text-[#0b3954]',
-        link: 'text-primary-600 underline-offset-4 hover:underline',
-        success: 'bg-success-600 text-white hover:bg-success-700',
+        default: 'bg-bauhaus-blue text-white hover:bg-bauhaus-blue/90',
+        destructive: 'bg-bauhaus-red text-white hover:bg-bauhaus-red/90',
+        outline: 'bg-white text-brutal-black hover:bg-brutal-gray',
+        secondary: 'bg-bauhaus-yellow text-brutal-black hover:bg-bauhaus-yellow/90',
+        ghost: 'border-transparent shadow-none hover:bg-brutal-gray hover:shadow-none hover:translate-none',
+        link: 'text-primary-600 underline-offset-4 hover:underline border-none shadow-none hover:translate-none',
+        success: 'bg-green-600 text-white hover:bg-green-700',
       },
       size: {
-        default: 'h-10 px-4 py-2',
-        sm: 'h-9 rounded-md px-3',
-        lg: 'h-11 rounded-md px-8',
-        icon: 'h-10 w-10',
+        default: 'h-12 px-6 py-3',
+        sm: 'h-10 rounded-none px-4',
+        lg: 'h-14 rounded-none px-10 text-lg',
+        icon: 'h-12 w-12',
       },
     },
     defaultVariants: {
@@ -32,7 +32,7 @@ const buttonVariants = cva(
 
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonVariants> {
+  VariantProps<typeof buttonVariants> {
   loading?: boolean;
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;

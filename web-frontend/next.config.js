@@ -16,6 +16,10 @@ const nextConfig = {
         source: '/api/backend/:path*',
         destination: `${process.env.API_URL || 'http://localhost:8000'}/api/v1/:path*`,
       },
+      {
+        source: '/anki-connect',
+        destination: 'http://127.0.0.1:8765',
+      },
     ];
   },
   webpack: (config) => {

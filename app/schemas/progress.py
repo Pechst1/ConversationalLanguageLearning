@@ -51,6 +51,8 @@ class QueueWord(BaseModel):
     word: str
     language: str
     english_translation: str | None = None
+    german_translation: str | None = None
+    french_translation: str | None = None
     part_of_speech: str | None = None
     difficulty_level: int | None = None
     state: str

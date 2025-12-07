@@ -10,6 +10,7 @@ from app.db.models.vocabulary import VocabularyWord
 from app.schemas import (
     AnkiProgressSummary,
     AnkiWordProgressRead,
+    AnkiConnectSyncRequest,
     ProgressDetail,
     QueueWord,
     ReviewRequest,
@@ -38,17 +39,15 @@ def get_review_queue(
     response: list[QueueWord] = []
     for item in queue_items:
         progress = item.progress
-        translation = item.word.english_translation
-        if item.word.direction == "fr_to_de":
-            translation = item.word.german_translation or translation
-        elif item.word.direction == "de_to_fr":
-            translation = item.word.french_translation or translation
+
         response.append(
             QueueWord(
                 word_id=item.word.id,
                 word=item.word.word,
                 language=item.word.language,
-                english_translation=translation,
+                english_translation=item.word.english_translation,
+                german_translation=item.word.german_translation,
+                french_translation=item.word.french_translation,
                 part_of_speech=item.word.part_of_speech,
                 difficulty_level=item.word.difficulty_level,
                 state=progress.state if progress else "new",
@@ -87,7 +86,20 @@ def get_anki_summary(
 
     service = ProgressService(db)
     summary = service.anki_progress_summary(user=current_user)
+    summary = service.anki_progress_summary(user=current_user)
     return AnkiProgressSummary(**summary)
+
+
+@router.post("/anki/sync")
+def sync_anki_progress_endpoint(
+    *,
+    payload: AnkiConnectSyncRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict[str, int]:
+    """Sync progress from AnkiConnect."""
+    service = ProgressService(db)
+    return service.sync_anki_progress(user=current_user, cards=payload.cards)
 
 
 @router.get("/{word_id}", response_model=ProgressDetail)

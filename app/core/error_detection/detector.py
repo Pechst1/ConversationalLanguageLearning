@@ -5,9 +5,7 @@ import json
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Optional, Protocol, Sequence
 
-import spacy
 from loguru import logger
-from spacy.language import Language
 
 from app.config import settings
 from app.core.conversation import build_error_detection_prompt, build_error_detection_schema
@@ -49,20 +47,31 @@ class ErrorDetector:
         *,
         llm_service: Optional[SupportsChatCompletion] = None,
         rules: Optional[Iterable[ErrorRule]] = None,
-        nlp: Optional[Language] = None,
+        nlp: Optional[Any] = None,
     ) -> None:
         self.llm_service = llm_service
         self.rules = list(rules) if rules is not None else build_default_rules()
         self._nlp = nlp or self._load_language_model()
 
-    def _load_language_model(self) -> Language:
-        model_name = settings.FRENCH_NLP_MODEL
+    def _load_language_model(self) -> Any:
         try:
-            logger.debug("Loading spaCy model", model=model_name)
-            return spacy.load(model_name)  # type: ignore[arg-type]
-        except Exception:  # pragma: no cover - fallback path
-            logger.warning("Falling back to blank French spaCy model", model=model_name)
-            return spacy.blank("fr")
+            import spacy
+            model_name = settings.FRENCH_NLP_MODEL
+            try:
+                logger.debug("Loading spaCy model", model=model_name)
+                return spacy.load(model_name)  # type: ignore[arg-type]
+            except Exception:  # pragma: no cover - fallback path
+                logger.warning("Falling back to blank French spaCy model", model=model_name)
+                return spacy.blank("fr")
+        except Exception as e:
+            logger.error(f"Failed to import/load spaCy: {e}")
+            # Return a dummy object that implements __call__ to return an empty doc-like object
+            class DummyDoc:
+                def __iter__(self): return iter([])
+                def __len__(self): return 0
+            class DummyNLP:
+                def __call__(self, text): return DummyDoc()
+            return DummyNLP()
 
     def analyze(
         self,

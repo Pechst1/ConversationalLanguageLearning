@@ -9,14 +9,13 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from uuid import UUID
-from typing import Sequence
+from typing import Sequence, TYPE_CHECKING
 
 from loguru import logger
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.config import settings
-
 from app.core.conversation import (
     ConversationGenerator,
     ConversationHistoryMessage,
@@ -36,10 +35,8 @@ from app.services.progress import ProgressService
 from app.utils.cache import cache_backend, build_cache_key
 from app.schemas import PracticeIssue, TargetWordRead
 
-try:  # pragma: no cover - imported for typing
+if TYPE_CHECKING:
     from spacy.language import Language
-except ImportError:  # pragma: no cover
-    Language = object  # type: ignore[misc,assignment]
 
 
 @dataclass(slots=True)
@@ -65,6 +62,7 @@ class WordFeedback:
     rating: int | None
     had_error: bool
     error: DetectedError | None
+    difficulty: float = 1.0
 
 
 @dataclass(slots=True)
@@ -162,12 +160,18 @@ class SessionService:
         if nlp is None:
             try:
                 import spacy
-
-                self.nlp = spacy.load(settings.FRENCH_NLP_MODEL)
-            except Exception:  # pragma: no cover - fallback if model missing
-                import spacy
-
-                self.nlp = spacy.blank("fr")
+                try:
+                    self.nlp = spacy.load(settings.FRENCH_NLP_MODEL)
+                except Exception:
+                    self.nlp = spacy.blank("fr")
+            except Exception as e:
+                # Fallback for when spacy import itself fails (e.g. pydantic conflict)
+                class DummyDoc:
+                    def __iter__(self): return iter([])
+                    def __len__(self): return 0
+                class DummyNLP:
+                    def __call__(self, text): return DummyDoc()
+                self.nlp = DummyNLP()
         else:
             self.nlp = nlp
 
@@ -267,6 +271,7 @@ class SessionService:
         difficulty_preference: str | None = None,
         generate_greeting: bool = True,
         anki_direction: str | None = None,
+        scenario: str | None = None,
     ) -> SessionStartResult:
         """Create a new session and optionally bootstrap the greeting turn."""
 
@@ -285,6 +290,7 @@ class SessionService:
             level_before=user.level,
             level_after=user.level,
             anki_direction=direction_choice,
+            scenario=scenario,
         )
         self.db.add(session)
         self.db.flush([session])
@@ -506,6 +512,7 @@ class SessionService:
     def _determine_word_feedback(
         self,
         *,
+        user: User,
         user_message: ConversationMessage,
         learner_text: str,
         error_result: ErrorDetectionResult,
@@ -515,24 +522,51 @@ class SessionService:
         learner_lemmas = learner_lemmas or self._lemmatize_with_context(learner_text)
         feedback: list[WordFeedback] = []
 
+        # Pre-fetch progress for difficulty calculation
+        word_ids = [w.id for w, _ in previous_targets]
+        progress_map = self._load_progress_map(user_id=user.id, word_ids=word_ids)
+
         for word, is_new in previous_targets:
             was_used, matched_form = self._check_word_usage(
                 word, learner_text, learner_lemmas
             )
             matching_error: DetectedError | None = None
             if was_used and matched_form:
-                for error in error_result.errors:
-                    if matched_form.lower() in error.span.lower():
-                        matching_error = error
+                # Check if the specific usage has an error associated with it
+                for err in error_result.errors:
+                    if matched_form in err.span:
+                        matching_error = err
                         break
 
-            had_error = matching_error is not None
             rating = self._calculate_word_rating(
                 was_used=was_used,
                 is_new=is_new,
-                had_error=had_error,
+                had_error=matching_error is not None,
                 error_severity=matching_error.severity if matching_error else None,
             )
+
+            # Calculate difficulty multiplier
+            difficulty_multiplier = 1.0
+            progress = progress_map.get(word.id)
+            if progress:
+                if progress.scheduler == "anki":
+                    # Anki: Lower ease factor = harder word (standard is 2.5)
+                    if (progress.ease_factor or 2.5) < 2.0:
+                        difficulty_multiplier = 1.5
+                    elif (progress.ease_factor or 2.5) < 2.4:
+                        difficulty_multiplier = 1.2
+                else:
+                    # FSRS: Higher difficulty = harder word (scale 1-10, default 5)
+                    if (progress.difficulty or 5.0) > 7.0:
+                        difficulty_multiplier = 1.5
+                    elif (progress.difficulty or 5.0) > 5.5:
+                        difficulty_multiplier = 1.2
+            
+            # Fallback to static difficulty if no progress or neutral stats
+            if difficulty_multiplier == 1.0 and word.difficulty_level:
+                difficulty_multiplier = self.xp_config.difficulty_multipliers.get(
+                    word.difficulty_level, 1.0
+                )
 
             feedback.append(
                 WordFeedback(
@@ -540,8 +574,9 @@ class SessionService:
                     is_new=is_new,
                     was_used=was_used,
                     rating=rating,
-                    had_error=had_error,
+                    had_error=matching_error is not None,
                     error=matching_error,
+                    difficulty=difficulty_multiplier,
                 )
             )
 
@@ -606,12 +641,17 @@ class SessionService:
                 gain = 15 if not item.had_error else 5
             else:
                 gain = 10 if not item.had_error else 4
+            
+            # Apply difficulty multiplier
+            gain = int(gain * item.difficulty)
+            
             xp += gain
             logger.debug(
                 "XP for suggested word",
                 word=item.word.word,
                 is_new=item.is_new,
                 had_error=item.had_error,
+                difficulty_mult=item.difficulty,
                 gained=gain,
             )
 
@@ -630,6 +670,17 @@ class SessionService:
                 xp += 5
             else:
                 xp = max(0, xp - 5)
+
+        # Combo Bonus: Award extra XP for using multiple target words in a single turn
+        combo_count = len(suggested_used)
+        if combo_count >= 2:
+            combo_bonus = (combo_count - 1) * 10  # 10 XP for 2 words, 20 XP for 3 words, etc.
+            xp += combo_bonus
+            logger.debug(
+                "XP for combo",
+                combo_count=combo_count,
+                bonus=combo_bonus,
+            )
 
         if not error_result.errors:
             xp = int(xp * 1.5)
@@ -1106,6 +1157,7 @@ class SessionService:
 
         learner_lemmas = self._lemmatize_with_context(content)
         feedback = self._determine_word_feedback(
+            user=user,
             user_message=user_message,
             learner_text=content,
             error_result=error_result,

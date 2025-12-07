@@ -5,6 +5,7 @@ from app.schemas.achievement import (
     AchievementRead,
     AchievementUnlockResponse,
 )
+from app.schemas.anki import AnkiCardUpdate, AnkiConnectSyncRequest
 from app.schemas.analytics import (
     AnalyticsStatisticsResponse,
     AnalyticsSummary,
@@ -93,5 +94,8 @@ __all__ = [
     "UserRead",
     "UserUpdate",
     "VocabularyListResponse",
+    "VocabularyListResponse",
     "VocabularyWordRead",
+    "AnkiCardUpdate",
+    "AnkiConnectSyncRequest",
 ]

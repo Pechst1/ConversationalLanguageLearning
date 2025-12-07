@@ -26,6 +26,7 @@ class LearningSession(Base):
     conversation_style = Column(String(50))
     difficulty_preference = Column(String(20))
     anki_direction = Column(String(20))
+    scenario = Column(String(50))
 
     words_practiced = Column(Integer, default=0)
     new_words_introduced = Column(Integer, default=0)
