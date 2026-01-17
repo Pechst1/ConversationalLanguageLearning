@@ -240,6 +240,30 @@ class ApiService {
   async getVocabularyItem(wordId: number) {
     return this.get(`/vocabulary/${wordId}`);
   }
+
+  // Story endpoints
+  async getStories(params?: { difficulty?: string; theme?: string }) {
+    return this.get('/stories', { params });
+  }
+
+  async getStory(storyId: number) {
+    return this.get(`/stories/${storyId}`);
+  }
+
+  async startStory(storyId: number) {
+    return this.post(`/stories/${storyId}/start`);
+  }
+
+  async completeChapter(storyId: number, chapterId: number, data: {
+    session_id: string;
+    goals_completed: string[];
+  }) {
+    return this.post(`/stories/${storyId}/chapters/${chapterId}/complete`, data);
+  }
+
+  async makeNarrativeChoice(storyId: number, data: { choice_id: string }) {
+    return this.post(`/stories/${storyId}/make-choice`, data);
+  }
 }
 
 export const apiService = new ApiService();
