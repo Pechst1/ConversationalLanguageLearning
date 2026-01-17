@@ -28,6 +28,12 @@ class LearningSession(Base):
     anki_direction = Column(String(20))
     scenario = Column(String(50))
 
+    # Story-related fields
+    story_id = Column(Integer, ForeignKey("stories.id"), nullable=True)
+    story_chapter_id = Column(Integer, ForeignKey("story_chapters.id"), nullable=True)
+    chapter_completion_status = Column(String(20))  # in_progress, completed, perfect
+    narrative_goals_completed = Column(JSONB, default=list)
+
     words_practiced = Column(Integer, default=0)
     new_words_introduced = Column(Integer, default=0)
     words_reviewed = Column(Integer, default=0)
