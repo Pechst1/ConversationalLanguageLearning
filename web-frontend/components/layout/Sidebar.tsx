@@ -10,6 +10,7 @@ import {
   MessageCircle,
   Zap,
   X,
+  Book,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
@@ -22,6 +23,7 @@ interface SidebarProps {
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: Home },
   { name: 'Learn', href: '/learn', icon: BookOpen },
+  { name: 'Stories', href: '/stories', icon: Book },
   { name: 'Practice', href: '/practice', icon: Zap },
   { name: 'Sessions', href: '/sessions', icon: MessageCircle },
   { name: 'Progress', href: '/progress', icon: BarChart3 },

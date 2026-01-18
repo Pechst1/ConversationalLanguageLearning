@@ -162,7 +162,7 @@ class StoryService:
             .where(Story.id == story_id)
             .options(joinedload(Story.chapters))
         )
-        story = self.db.execute(stmt).scalar_one_or_none()
+        story = self.db.execute(stmt).unique().scalar_one_or_none()
 
         if not story:
             raise ValueError(f"Story {story_id} not found")
@@ -574,4 +574,4 @@ class StoryService:
             )
             .options(joinedload(UserStoryProgress.current_chapter))
         )
-        return self.db.execute(stmt).scalar_one_or_none()
+        return self.db.execute(stmt).unique().scalar_one_or_none()
