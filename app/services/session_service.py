@@ -272,6 +272,8 @@ class SessionService:
         generate_greeting: bool = True,
         anki_direction: str | None = None,
         scenario: str | None = None,
+        story_id: int | None = None,
+        story_chapter_id: int | None = None,
     ) -> SessionStartResult:
         """Create a new session and optionally bootstrap the greeting turn."""
 
@@ -291,18 +293,72 @@ class SessionService:
             level_after=user.level,
             anki_direction=direction_choice,
             scenario=scenario,
+            story_id=story_id,
+            story_chapter_id=story_chapter_id,
+            chapter_completion_status="in_progress" if story_chapter_id else None,
         )
         self.db.add(session)
         self.db.flush([session])
 
         assistant_turn: AssistantTurn | None = None
         if generate_greeting:
-            assistant_turn = self._generate_and_persist_assistant_turn_with_context(
-                session=session,
-                user=user,
-                history=[],
-                session_capacity=session_capacity,
-            )
+            # For story sessions, use the chapter's opening narrative instead of generating one
+            if story_chapter_id:
+                from app.db.models.story import StoryChapter
+                from sqlalchemy import select
+
+                chapter = self.db.execute(
+                    select(StoryChapter).where(StoryChapter.id == story_chapter_id)
+                ).scalar_one_or_none()
+
+                if chapter and chapter.opening_narrative:
+                    # Create assistant message directly with the chapter's opening narrative
+                    seq_num = self._next_sequence_number(session.id)
+                    assistant_message = ConversationMessage(
+                        session_id=session.id,
+                        sender="assistant",
+                        content=chapter.opening_narrative,
+                        sequence_number=seq_num,
+                        target_words=[],
+                        llm_model="story_narrative",
+                    )
+                    self.db.add(assistant_message)
+                    self.db.flush([assistant_message])
+
+                    # Create minimal plan and llm_result for story narrative
+                    empty_plan = ConversationPlan(
+                        target_words=[],
+                        queue_items=[],
+                        context_summary="Story opening narrative",
+                    )
+                    empty_llm_result = LLMResult(
+                        text=chapter.opening_narrative,
+                        model="story_narrative",
+                        prompt_tokens=0,
+                        completion_tokens=0,
+                        total_tokens=0,
+                    )
+                    assistant_turn = AssistantTurn(
+                        message=assistant_message,
+                        plan=empty_plan,
+                        llm_result=empty_llm_result,
+                    )
+                else:
+                    # Fallback to generated greeting if no opening narrative
+                    assistant_turn = self._generate_and_persist_assistant_turn_with_context(
+                        session=session,
+                        user=user,
+                        history=[],
+                        session_capacity=session_capacity,
+                    )
+            else:
+                # Regular session - generate greeting
+                assistant_turn = self._generate_and_persist_assistant_turn_with_context(
+                    session=session,
+                    user=user,
+                    history=[],
+                    session_capacity=session_capacity,
+                )
 
         self.db.commit()
         if assistant_turn:

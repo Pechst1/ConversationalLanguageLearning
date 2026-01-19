@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import { ArrowLeft, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { useLearningSession } from '@/hooks/useLearningSession';
-import { ChapterBase, useCompleteChapter } from '@/hooks/useStories';
+import { ChapterBase, useCompleteChapter, useCheckGoals } from '@/hooks/useStories';
 import NarrativeGoalsPanel from './NarrativeGoalsPanel';
 import NarrativeCard from './NarrativeCard';
 import ChapterProgressCard from './ChapterProgressCard';
@@ -25,39 +25,29 @@ export default function StorySessionLayout({
   const router = useRouter();
   const { session, messages, sendMessage, suggested, isConnected, loading } = useLearningSession(sessionId);
   const { completeChapter, loading: completingChapter } = useCompleteChapter();
+  const { checkGoals } = useCheckGoals();
 
   const [draft, setDraft] = useState('');
   const [completedGoals, setCompletedGoals] = useState<string[]>([]);
   const [showCompletionModal, setShowCompletionModal] = useState(false);
   const [completionResult, setCompletionResult] = useState<any>(null);
 
-  // Check goal completion after each message
+  // Check goal completion after each message using backend
   useEffect(() => {
-    if (!chapter.narrative_goals || messages.length === 0) return;
+    const updateGoals = async () => {
+      if (!sessionId || messages.length === 0) return;
 
-    const userMessages = messages
-      .filter(m => m.role === 'user')
-      .map(m => m.content.toLowerCase())
-      .join(' ');
-
-    const completed: string[] = [];
-
-    chapter.narrative_goals.forEach(goal => {
-      if (!goal.required_words || goal.required_words.length === 0) {
-        return;
+      try {
+        const result = await checkGoals(storyId, chapterId, sessionId);
+        setCompletedGoals(result.goals_completed);
+      } catch (error) {
+        console.error('Failed to check goals:', error);
+        // Silently fail - goal checking is not critical
       }
+    };
 
-      const allWordsUsed = goal.required_words.every(word =>
-        userMessages.includes(word.toLowerCase())
-      );
-
-      if (allWordsUsed) {
-        completed.push(goal.goal_id);
-      }
-    });
-
-    setCompletedGoals(completed);
-  }, [messages, chapter.narrative_goals]);
+    updateGoals();
+  }, [messages, sessionId, storyId, chapterId, checkGoals]);
 
   const handleSend = async () => {
     if (!draft.trim() || loading) return;

@@ -33,8 +33,8 @@ export default function StoryChapterPage() {
           planned_duration_minutes: 15,
         });
 
-        if (sessionData?.id) {
-          setSessionId(sessionData.id);
+        if (sessionData?.session?.id) {
+          setSessionId(sessionData.session.id);
         } else {
           throw new Error('Failed to create session');
         }

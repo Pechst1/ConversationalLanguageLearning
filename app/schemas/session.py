@@ -31,6 +31,14 @@ class SessionCreateRequest(BaseModel):
         None,
         description="Roleplay scenario context (e.g. 'Bakery', 'Train Station')",
     )
+    story_id: int | None = Field(
+        None,
+        description="Story ID for story-based sessions",
+    )
+    story_chapter_id: int | None = Field(
+        None,
+        description="Story chapter ID for story-based sessions",
+    )
 
 
 class SessionMessageRequest(BaseModel):

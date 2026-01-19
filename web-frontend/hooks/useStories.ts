@@ -139,6 +139,12 @@ export interface NextChapterResponse {
   choice_recorded: string;
 }
 
+export interface GoalCheckResponse {
+  goals_completed: string[];
+  goals_remaining: string[];
+  completion_rate: number;
+}
+
 // ============================================================================
 // Hook: useStories - List all available stories
 // ============================================================================
@@ -444,6 +450,46 @@ export function useMakeChoice() {
 
   return {
     makeChoice,
+    loading,
+    error,
+  };
+}
+
+// ============================================================================
+// Hook: useCheckGoals - Check narrative goal completion
+// ============================================================================
+
+export function useCheckGoals() {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const checkGoals = useCallback(async (
+    storyId: number,
+    chapterId: number,
+    sessionId: string
+  ) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const data = await apiService.post<GoalCheckResponse>(
+        `/stories/${storyId}/chapters/${chapterId}/check-goals`,
+        { session_id: sessionId }
+      );
+
+      return data;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to check goals';
+      setError(errorMessage);
+      // Silent error - don't show toast since this is a background check
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  return {
+    checkGoals,
     loading,
     error,
   };

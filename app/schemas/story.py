@@ -190,3 +190,26 @@ class StorySessionStartResponse(BaseModel):
     opening_message: str
     suggested_vocabulary: list[dict[str, Any]]
     narrative_goals: list[dict[str, Any]]
+
+
+class GoalCheckRequest(BaseModel):
+    """Request to check narrative goal completion."""
+
+    session_id: UUID
+
+
+class GoalCheckResponse(BaseModel):
+    """Response from checking narrative goals."""
+
+    goals_completed: list[str] = Field(
+        default_factory=list,
+        description="List of goal_ids that have been completed",
+    )
+    goals_remaining: list[str] = Field(
+        default_factory=list,
+        description="List of goal_ids that remain to be completed",
+    )
+    completion_rate: float = Field(
+        ...,
+        description="Percentage of goals completed (0.0 to 1.0)",
+    )

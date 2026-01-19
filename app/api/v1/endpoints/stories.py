@@ -16,6 +16,8 @@ from app.schemas.story import (
     ChapterCompletionResponse,
     ChapterSessionRequest,
     ChapterWithStatus,
+    GoalCheckRequest,
+    GoalCheckResponse,
     NarrativeChoiceRequest,
     NextChapterResponse,
     StoryBase,
@@ -199,6 +201,57 @@ def start_story(
     return UserStoryProgressResponse(
         progress=_progress_to_base(progress),
         current_chapter=_chapter_to_base(current_chapter) if current_chapter else None,
+    )
+
+
+@router.post(
+    "/{story_id}/chapters/{chapter_id}/check-goals",
+    response_model=GoalCheckResponse,
+)
+def check_chapter_goals(
+    story_id: int,
+    chapter_id: int,
+    payload: GoalCheckRequest,
+    *,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> GoalCheckResponse:
+    """Check which narrative goals have been completed in the current session."""
+    service = StoryService(db)
+
+    # Get the session
+    session = db.get(LearningSession, payload.session_id)
+    if not session or session.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found",
+        )
+
+    # Verify session belongs to this chapter
+    if session.story_chapter_id != chapter_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Session does not belong to this chapter",
+        )
+
+    # Get the chapter
+    chapter = db.get(StoryChapter, chapter_id)
+    if not chapter or chapter.story_id != story_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Chapter not found",
+        )
+
+    # Check narrative goals
+    result = service.check_narrative_goals(
+        session_id=payload.session_id,
+        chapter=chapter,
+    )
+
+    return GoalCheckResponse(
+        goals_completed=result.goals_completed,
+        goals_remaining=result.goals_remaining,
+        completion_rate=result.completion_rate,
     )
 
 

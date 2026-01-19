@@ -49,6 +49,8 @@ def create_session(
         difficulty_preference=payload.difficulty_preference,
         generate_greeting=payload.generate_greeting,
         anki_direction=payload.anki_direction,
+        story_id=payload.story_id,
+        story_chapter_id=payload.story_chapter_id,
     )
     session_schema = session_to_overview(result.session)
     assistant_schema = assistant_turn_to_schema(

@@ -556,6 +556,58 @@ class StoryService:
             choice_recorded=choice_id,
         )
 
+    def check_narrative_goals(
+        self, session_id: uuid.UUID, chapter: StoryChapter
+    ) -> GoalCheckResult:
+        """
+        Evaluate narrative goal completion based on session messages.
+
+        Args:
+            session_id: The learning session ID
+            chapter: The story chapter with narrative goals
+
+        Returns:
+            GoalCheckResult with completed and remaining goal IDs
+        """
+        from app.db.models.session import WordInteraction
+
+        # Get all word interactions for this session
+        stmt = select(WordInteraction).where(WordInteraction.session_id == session_id)
+        word_interactions = self.db.execute(stmt).scalars().all()
+
+        # Extract words used correctly (no errors or only minor ones)
+        used_words = {
+            wi.word.word
+            for wi in word_interactions
+            if wi.word and wi.interaction_type in ("used_correctly", "practice_recall")
+        }
+
+        # Check each narrative goal
+        completed_goals = []
+        narrative_goals = chapter.narrative_goals or []
+
+        for goal in narrative_goals:
+            goal_id = goal["goal_id"]
+            required_words = goal.get("required_words", [])
+
+            # Check if all required words were used
+            if all(word in used_words for word in required_words):
+                completed_goals.append(goal_id)
+
+        remaining_goals = [
+            g["goal_id"] for g in narrative_goals if g["goal_id"] not in completed_goals
+        ]
+
+        completion_rate = (
+            len(completed_goals) / len(narrative_goals) if narrative_goals else 0.0
+        )
+
+        return GoalCheckResult(
+            goals_completed=completed_goals,
+            goals_remaining=remaining_goals,
+            completion_rate=completion_rate,
+        )
+
     # ------------------------------------------------------------------
     # Helper methods
     # ------------------------------------------------------------------
