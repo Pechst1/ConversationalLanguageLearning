@@ -10,6 +10,8 @@ import {
   MessageCircle,
   Zap,
   X,
+  Target,
+  Sparkles,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
@@ -20,11 +22,15 @@ interface SidebarProps {
 }
 
 const navigation = [
+  { name: 'Daily Practice', href: '/daily-practice', icon: Target },
+  { name: 'Audio Mode', href: '/audio-session', icon: MessageCircle },
   { name: 'Dashboard', href: '/dashboard', icon: Home },
+  { name: 'Stories', href: '/stories', icon: Sparkles },
   { name: 'Learn', href: '/learn', icon: BookOpen },
   { name: 'Practice', href: '/practice', icon: Zap },
   { name: 'Sessions', href: '/sessions', icon: MessageCircle },
   { name: 'Progress', href: '/progress', icon: BarChart3 },
+  { name: 'Grammar', href: '/grammar', icon: BookOpen },
   { name: 'Achievements', href: '/achievements', icon: Trophy },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
@@ -45,21 +51,21 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       {/* Sidebar */}
       <div
         className={cn(
-          'fixed top-16 left-0 z-50 h-[calc(100vh-4rem)] w-64 transform bg-white shadow-lg transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0',
+          'fixed top-16 left-0 z-50 h-[calc(100vh-4rem)] w-64 transform bg-white border-r-4 border-black transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0',
           isOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
         <div className="flex h-full flex-col">
           {/* Close button for mobile */}
-          <div className="flex items-center justify-between p-4 lg:hidden">
-            <h2 className="text-lg font-semibold text-gray-900">Menu</h2>
+          <div className="flex items-center justify-between p-4 lg:hidden border-b-4 border-black">
+            <h2 className="text-lg font-extrabold text-black uppercase tracking-tight">Menu</h2>
             <Button variant="ghost" size="icon" onClick={onClose}>
-              <X className="h-5 w-5" />
+              <X className="h-6 w-6 text-black" />
             </Button>
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 space-y-1 px-4 py-4">
+          <nav className="flex-1 space-y-2 px-4 py-6">
             {navigation.map((item) => {
               const isActive = router.pathname === item.href;
               return (
@@ -67,10 +73,10 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                   key={item.name}
                   href={item.href}
                   className={cn(
-                    'group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors',
+                    'group flex items-center px-3 py-3 text-sm font-bold border-2 transition-all duration-150',
                     isActive
-                      ? 'bg-primary-100 text-primary-700'
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                      ? 'bg-bauhaus-blue text-white border-black shadow-[4px_4px_0px_0px_#000]'
+                      : 'text-gray-600 border-transparent hover:border-black hover:bg-bauhaus-yellow hover:text-black hover:shadow-[4px_4px_0px_0px_#000]'
                   )}
                   onClick={() => {
                     // Close sidebar on mobile when navigating
@@ -81,8 +87,8 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 >
                   <item.icon
                     className={cn(
-                      'mr-3 h-5 w-5',
-                      isActive ? 'text-primary-500' : 'text-gray-400 group-hover:text-gray-500'
+                      'mr-3 h-5 w-5 transition-colors',
+                      isActive ? 'text-white' : 'text-gray-500 group-hover:text-black'
                     )}
                   />
                   {item.name}

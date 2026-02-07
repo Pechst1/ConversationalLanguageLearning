@@ -11,6 +11,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.db.models.analytics import AnalyticsSnapshot
+from app.db.models.error import UserError
 from app.db.models.progress import ReviewLog, UserVocabularyProgress
 from app.db.models.session import LearningSession, WordInteraction
 from app.db.models.user import User
@@ -267,7 +268,7 @@ class AnalyticsService:
         return payload
 
     def get_error_patterns(self, *, user: User, limit: int = 10) -> dict[str, Any]:
-        """Return the most common learner error types."""
+        """Return the most common learner error types from UserError table."""
 
         key = f"{user.id}:{limit}"
         cached = cache_backend.get("analytics:error_patterns", key)
@@ -276,14 +277,15 @@ class AnalyticsService:
 
         rows = (
             self.db.query(
-                WordInteraction.error_type,
-                func.count(WordInteraction.id).label("count"),
-                func.max(WordInteraction.error_description).label("example"),
+                UserError.error_category,
+                UserError.error_pattern,
+                func.count(UserError.id).label("count"),
+                func.max(UserError.context_snippet).label("example"),
+                func.max(UserError.correction).label("correction"),
             )
-            .filter(WordInteraction.user_id == user.id)
-            .filter(WordInteraction.error_type.isnot(None))
-            .group_by(WordInteraction.error_type)
-            .order_by(func.count(WordInteraction.id).desc())
+            .filter(UserError.user_id == user.id)
+            .group_by(UserError.error_category, UserError.error_pattern)
+            .order_by(func.count(UserError.id).desc())
             .limit(limit)
             .all()
         )
@@ -292,15 +294,123 @@ class AnalyticsService:
             "total": total,
             "items": [
                 {
-                    "error_type": row.error_type or "unknown",
+                    "error_type": f"{row.error_category}: {row.error_pattern}" if row.error_pattern else row.error_category or "unknown",
                     "count": int(row.count or 0),
                     "severity": None,
                     "example": row.example,
+                    "correction": row.correction,
                 }
                 for row in rows
             ],
         }
         cache_backend.set("analytics:error_patterns", key, payload, ttl_seconds=900)
+        return payload
+
+    def get_error_summary(self, *, user: User) -> dict[str, Any]:
+        """Return Anki-like summary of user errors for spaced repetition."""
+
+        key = f"{user.id}:error_summary"
+        cached = cache_backend.get("analytics:error_summary", key)
+        if cached is not None:
+            return cached
+
+        now = datetime.now(timezone.utc)
+
+        # Total errors
+        total = (
+            self.db.query(func.count(UserError.id))
+            .filter(UserError.user_id == user.id)
+            .scalar() or 0
+        )
+
+        # Stage counts
+        state_rows = (
+            self.db.query(
+                func.coalesce(UserError.state, "new"),
+                func.count(UserError.id),
+            )
+            .filter(UserError.user_id == user.id)
+            .group_by(UserError.state)
+            .all()
+        )
+        stage_counts = {state: int(count or 0) for state, count in state_rows}
+
+        # Due today
+        due_today = (
+            self.db.query(func.count(UserError.id))
+            .filter(UserError.user_id == user.id)
+            .filter(UserError.next_review_date <= now)
+            .filter(UserError.state != "mastered")
+            .scalar() or 0
+        )
+
+        # Category distribution
+        category_rows = (
+            self.db.query(
+                UserError.error_category,
+                func.count(UserError.id),
+            )
+            .filter(UserError.user_id == user.id)
+            .group_by(UserError.error_category)
+            .all()
+        )
+        categories = [
+            {"category": cat or "unknown", "count": int(count or 0)}
+            for cat, count in category_rows
+        ]
+
+        payload = {
+            "total_errors": total,
+            "due_today": due_today,
+            "stage_counts": {
+                "new": stage_counts.get("new", 0),
+                "learning": stage_counts.get("learning", 0),
+                "review": stage_counts.get("review", 0),
+                "relearning": stage_counts.get("relearning", 0),
+                "mastered": stage_counts.get("mastered", 0),
+            },
+            "categories": categories,
+        }
+        cache_backend.set("analytics:error_summary", key, payload, ttl_seconds=300)
+        return payload
+
+    def get_error_list(self, *, user: User, limit: int = 50) -> dict[str, Any]:
+        """Return detailed list of tracked errors with SRS data."""
+
+        key = f"{user.id}:error_list:{limit}"
+        cached = cache_backend.get("analytics:error_list", key)
+        if cached is not None:
+            return cached
+
+        rows = (
+            self.db.query(UserError)
+            .filter(UserError.user_id == user.id)
+            .order_by(UserError.occurrences.desc(), UserError.updated_at.desc())
+            .limit(limit)
+            .all()
+        )
+
+        items = []
+        for err in rows:
+            items.append({
+                "id": err.id if hasattr(err, 'id') else 0,
+                "original_text": err.original_text or err.error_pattern or "Unknown",  # The erroneous text
+                "subcategory": err.subcategory or err.error_pattern or "other",  # Fine-grained category
+                "category": err.error_category or "grammar",  # Main category
+                "explanation": err.context_snippet or "",  # The explanation
+                "correction": err.correction or "",  # The corrected version
+                "occurrences": err.occurrences or 1,
+                "lapses": err.lapses or 0,
+                "learning_stage": err.state or "new",
+                "next_review": err.next_review_date,
+                "last_seen": err.updated_at,
+            })
+
+        payload = {
+            "total": len(items),
+            "items": items,
+        }
+        cache_backend.set("analytics:error_list", key, payload, ttl_seconds=300)
         return payload
 
     def generate_daily_snapshot(self, *, user: User, snapshot_date: date | None = None) -> AnalyticsSnapshot:

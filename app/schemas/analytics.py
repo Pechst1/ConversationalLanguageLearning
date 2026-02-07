@@ -86,6 +86,54 @@ class ErrorPatternsResponse(BaseModel):
     items: List[ErrorPattern] = Field(default_factory=list)
 
 
+class ErrorCategoryCount(BaseModel):
+    """Error count by category."""
+
+    category: str
+    count: int
+
+
+class ErrorStageCounts(BaseModel):
+    """Error counts by SRS stage."""
+
+    new: int = 0
+    learning: int = 0
+    review: int = 0
+    relearning: int = 0
+    mastered: int = 0
+
+
+class ErrorSummary(BaseModel):
+    """Anki-like summary for error tracking."""
+
+    total_errors: int
+    due_today: int
+    stage_counts: ErrorStageCounts
+    categories: List[ErrorCategoryCount] = Field(default_factory=list)
+
+
+class ErrorDetailItem(BaseModel):
+    """Detailed information about a tracked error."""
+
+    id: int
+    pattern: str
+    explanation: Optional[str] = None
+    category: str
+    occurrences: int
+    lapses: int
+    learning_stage: str
+    next_review: Optional[datetime] = None
+    last_seen: Optional[datetime] = None
+    example_sentence: Optional[str] = None
+
+
+class ErrorListResponse(BaseModel):
+    """List of detailed error items."""
+
+    total: int
+    items: List[ErrorDetailItem] = Field(default_factory=list)
+
+
 __all__ = [
     "MetricPoint",
     "AnalyticsSummary",
@@ -96,4 +144,10 @@ __all__ = [
     "VocabularyHeatmapEntry",
     "ErrorPatternsResponse",
     "ErrorPattern",
+    "ErrorCategoryCount",
+    "ErrorStageCounts",
+    "ErrorSummary",
+    "ErrorDetailItem",
+    "ErrorListResponse",
 ]
+

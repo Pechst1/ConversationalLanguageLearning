@@ -37,7 +37,14 @@ class Settings(BaseSettings):
     SECONDARY_LLM_PROVIDER: Optional[str] = Field(
         "anthropic", description="Fallback LLM provider key"
     )
-    OPENAI_MODEL: str = Field("gpt-4o-mini", description="Default OpenAI chat model")
+    OPENAI_MODEL: str = Field("gpt-4o-mini", description="Default OpenAI chat model for conversations")
+    OPENAI_ERROR_DETECTION_MODEL: str = Field(
+        "gpt-4o", 
+        description="OpenAI model for error detection (use stronger model for better grammar checking)"
+    )
+    PERPLEXITY_API_KEY: Optional[str] = Field(None, description="API key for Perplexity search (optional)")
+    ELEVENLABS_API_KEY: Optional[str] = Field(None, description="API key for ElevenLabs TTS (optional)")
+    TTS_PROVIDER: str = Field("openai", description="Default TTS provider (openai, elevenlabs)")
     OPENAI_API_BASE: Optional[AnyUrl] = Field(
         None, description="Override base URL for OpenAI-compatible endpoints"
     )
@@ -45,12 +52,19 @@ class Settings(BaseSettings):
     ANTHROPIC_API_BASE: Optional[AnyUrl] = Field(
         None, description="Override base URL for Anthropic endpoints"
     )
-    LLM_REQUEST_TIMEOUT_SECONDS: float = Field(30.0, description="Timeout for LLM HTTP calls")
+    LLM_REQUEST_TIMEOUT_SECONDS: float = Field(90.0, description="Timeout for LLM HTTP calls")
     LLM_MAX_RETRIES: int = Field(3, description="Retry attempts for failed LLM calls")
     FRENCH_NLP_MODEL: str = Field(
         "fr_core_news_sm",
         description="spaCy model used for French linguistic analysis",
     )
+
+
+
+    # Web Push
+    VAPID_SUBJECT: str = "mailto:admin@example.com"
+    VAPID_PRIVATE_KEY: Optional[str] = None
+    VAPID_PUBLIC_KEY: Optional[str] = None
 
     CELERY_BROKER_URL: Optional[AnyUrl] = None
     CELERY_RESULT_BACKEND: Optional[AnyUrl] = None

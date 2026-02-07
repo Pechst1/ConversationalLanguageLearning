@@ -13,6 +13,7 @@ from app.schemas import (
     StreakInfo,
     VocabularyHeatmapResponse,
 )
+from app.schemas.analytics import ErrorSummary
 from app.services.analytics import AnalyticsService
 
 
@@ -75,3 +76,25 @@ def read_error_patterns(
     """Return the most common learner errors."""
 
     return service.get_error_patterns(user=current_user, limit=limit)
+
+
+@router.get("/errors/summary", response_model=ErrorSummary)
+def read_error_summary(
+    *,
+    current_user: User = Depends(deps.get_current_user),
+    service: AnalyticsService = Depends(deps.get_analytics_service),
+) -> ErrorSummary:
+    """Return Anki-like summary of user errors for progress tracking."""
+
+    return service.get_error_summary(user=current_user)
+
+
+@router.get("/errors/list")
+def read_error_list(
+    *,
+    limit: int = Query(50, ge=1, le=200),
+    current_user: User = Depends(deps.get_current_user),
+    service: AnalyticsService = Depends(deps.get_analytics_service),
+):
+    """Return detailed list of all tracked errors with SRS data."""
+    return service.get_error_list(user=current_user, limit=limit)

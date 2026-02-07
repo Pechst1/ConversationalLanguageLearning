@@ -59,6 +59,22 @@ class DetectedErrorRead(BaseModel):
     category: str
     severity: str
     confidence: float
+    # Spaced repetition stats for this error type
+    occurrence_count: int = 1
+    last_seen: datetime | None = None
+    is_recurring: bool = False
+
+
+class ErrorOccurrenceStats(BaseModel):
+    """Statistics about error occurrences for spaced repetition."""
+    
+    category: str
+    pattern: str | None = None
+    total_occurrences: int
+    occurrences_today: int = 0
+    last_seen: datetime | None = None
+    next_review: datetime | None = None
+    state: str = "new"  # new, learning, review, mastered
 
 
 class ErrorFeedback(BaseModel):
@@ -68,6 +84,8 @@ class ErrorFeedback(BaseModel):
     errors: list[DetectedErrorRead]
     review_vocabulary: list[str] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)
+    # Spaced repetition error statistics
+    error_stats: list[ErrorOccurrenceStats] = Field(default_factory=list)
 
 
 class TargetWordRead(BaseModel):
@@ -114,11 +132,26 @@ class SessionOverview(BaseModel):
     completed_at: datetime | None = None
 
 
+class TargetedErrorRead(BaseModel):
+    """Error pattern being targeted in the assistant's response."""
+
+    category: str
+    pattern: str | None = None
+    context: str | None = None
+    correction: str | None = None
+    lapses: int = 0
+    reps: int = 0
+
+
 class AssistantTurnRead(BaseModel):
     """Assistant message accompanied by vocabulary plan."""
 
     message: SessionMessageRead
     targets: list[TargetWordRead] = Field(default_factory=list)
+    targeted_errors: list[TargetedErrorRead] = Field(
+        default_factory=list,
+        description="Error patterns the assistant is subtly targeting for correction"
+    )
 
 
 class SessionTurnWordFeedback(BaseModel):
@@ -148,6 +181,7 @@ class SessionTurnResponse(BaseModel):
     user_message: SessionMessageRead
     assistant_turn: AssistantTurnRead
     xp_awarded: int
+    combo_count: int = Field(default=0, description="Number of target words used in this turn (combo bonus)")
     error_feedback: ErrorFeedback
     word_feedback: list[SessionTurnWordFeedback]
 

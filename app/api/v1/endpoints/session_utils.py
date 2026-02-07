@@ -8,12 +8,15 @@ from app.schemas import (
     AssistantTurnRead,
     DetectedErrorRead,
     ErrorFeedback,
+    ErrorOccurrenceStats,
     SessionMessageRead,
     SessionOverview,
     SessionTurnWordFeedback,
+    TargetedErrorRead,
     TargetWordRead,
 )
 from app.services.session_service import AssistantTurn, SessionTurnResult, WordFeedback
+from app.db.models.error import UserError
 
 
 def session_to_overview(session: LearningSession) -> SessionOverview:
@@ -65,6 +68,7 @@ def assistant_turn_to_schema(
     turn: AssistantTurn | None,
     *,
     target_details: list[TargetWordRead] | None = None,
+    targeted_errors: list[UserError] | None = None,
 ) -> AssistantTurnRead | None:
     if not turn:
         return None
@@ -80,7 +84,27 @@ def assistant_turn_to_schema(
             for target in turn.plan.target_words
         ]
     message_schema = message_to_schema(turn.message, target_details=details)
-    return AssistantTurnRead(message=message_schema, targets=details)
+    
+    # Build targeted error schemas
+    targeted_error_schemas = []
+    if targeted_errors:
+        for err in targeted_errors[:3]:  # Limit to top 3
+            targeted_error_schemas.append(
+                TargetedErrorRead(
+                    category=err.error_category,
+                    pattern=err.error_pattern,
+                    context=err.context_snippet,
+                    correction=err.correction,
+                    lapses=err.lapses or 0,
+                    reps=err.reps or 0,
+                )
+            )
+    
+    return AssistantTurnRead(
+        message=message_schema,
+        targets=details,
+        targeted_errors=targeted_error_schemas,
+    )
 
 
 def word_feedback_to_schema(items: Iterable[WordFeedback]) -> list[SessionTurnWordFeedback]:
@@ -119,6 +143,12 @@ def word_feedback_to_schema(items: Iterable[WordFeedback]) -> list[SessionTurnWo
 
 
 def error_feedback_from_result(result: SessionTurnResult) -> ErrorFeedback:
+    # Build a map of error stats by category+pattern for enriching individual errors
+    stats_map: dict[tuple[str, str | None], tuple[int, bool]] = {}
+    for stat in result.error_stats:
+        key = (stat.category, stat.pattern)
+        stats_map[key] = (stat.total_occurrences, stat.total_occurrences > 1)
+
     return ErrorFeedback(
         summary=result.error_result.summary,
         errors=[
@@ -130,11 +160,26 @@ def error_feedback_from_result(result: SessionTurnResult) -> ErrorFeedback:
                 category=error.category,
                 severity=error.severity,
                 confidence=error.confidence,
+                # Include occurrence info from stats
+                occurrence_count=stats_map.get((error.category, error.code), (1, False))[0],
+                is_recurring=stats_map.get((error.category, error.code), (1, False))[1],
             )
             for error in result.error_result.errors
         ],
         review_vocabulary=result.error_result.review_vocabulary,
         metadata=result.error_result.metadata,
+        error_stats=[
+            ErrorOccurrenceStats(
+                category=stat.category,
+                pattern=stat.pattern,
+                total_occurrences=stat.total_occurrences,
+                occurrences_today=stat.occurrences_today,
+                last_seen=stat.last_seen,
+                next_review=stat.next_review,
+                state=stat.state,
+            )
+            for stat in result.error_stats
+        ],
     )
 
 
@@ -145,3 +190,4 @@ __all__ = [
     "session_to_overview",
     "word_feedback_to_schema",
 ]
+

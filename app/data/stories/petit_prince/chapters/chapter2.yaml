@@ -1,0 +1,391 @@
+# Chapter 2: Les Questions (Die Fragen)
+# The prince asks deep questions about the player
+
+id: chapter2_questions
+story_id: petit_prince
+order_index: 2
+title: "Les Questions"
+target_level: "A1-A2"
+
+metadata:
+  estimated_duration_minutes: 20
+  theme: "Der Prinz stellt Fragen, die Erwachsene vergessen haben"
+
+learning_focus:
+  grammar:
+    - "Les questions (Frageformen)"
+    - "Le passé composé (Einführung)"
+  vocabulary:
+    - "Fragewörter: qui, quoi, où, pourquoi, comment"
+    - "Gefühle: triste, heureux, seul"
+    - "Beziehungen: ami, important"
+  communicative_functions:
+    - "Fragen stellen und beantworten"
+    - "Über sich selbst sprechen"
+
+scenes:
+  - id: ch2_questions_begin
+    order_index: 0
+    
+    setting:
+      location: "Asteroid B-329, neben dem Stuhl"
+      atmosphere: "calm, curious, intimate"
+    
+    narration:
+      A1: |
+        Le petit prince pose sa boîte.
+        Il te regarde.
+        "Tu habites ici?"
+      A2: |
+        Le petit prince dépose délicatement sa boîte à côté de lui.
+        Puis il lève les yeux vers toi.
+        Des yeux qui ne jugent pas. Qui veulent simplement comprendre.
+        "Tu habites ici? Sur cet astéroïde?"
+    
+    npcs_present: ["petit_prince"]
+    
+    objectives:
+      - id: answer_questions
+        description: "Beantworte die Fragen des kleinen Prinzen"
+        type: "conversation"
+    
+    dialogue_segments:
+      - id: where_from
+        npc_question:
+          speaker: petit_prince
+          text:
+            A1: "Tu viens d'où?"
+            A2: "D'où viens-tu? Tu as toujours vécu ici?"
+        
+        player_response:
+          type: "free_input"
+          prompt:
+            A1: "Réponds au petit prince. Tu viens d'où?"
+            A2: "Le petit prince veut savoir d'où tu viens."
+          
+          response_types:
+            knows_origin:
+              patterns: ["je viens de", "ma planète", "la Terre", "ich komme aus"]
+              npc_response:
+                speaker: petit_prince
+                text:
+                  A1: |
+                    La Terre?
+                    C'est loin?
+                  A2: |
+                    La Terre...
+                    C'est loin d'ici? C'est grand?
+              follow_up: "earth_conversation"
+            
+            forgotten:
+              patterns: ["je ne sais pas", "j'ai oublié", "ne me souviens pas", "ich weiß nicht"]
+              npc_response:
+                speaker: petit_prince
+                text:
+                  A1: |
+                    Tu as oublié?
+                    C'est triste, d'oublier d'où on vient.
+                  A2: |
+                    Tu as oublié d'où tu viens?
+                    Les grandes personnes oublient toujours les choses importantes.
+                    Mais peut-être que tu peux te souvenir.
+              effects:
+                - type: set_flag
+                  target: has_forgotten_origin
+                  value: true
+                - type: relationship_change
+                  target: petit_prince
+                  value: +1
+            
+            always_here:
+              patterns: ["toujours ici", "toujours vécu", "chez moi", "immer hier"]
+              npc_response:
+                speaker: petit_prince
+                text:
+                  A1: |
+                    Toujours?
+                    Mais... tu es seul ici.
+                    Tu n'es pas triste?
+                  A2: |
+                    Toujours?
+                    Tu vis seul ici depuis toujours?
+                    Ce doit être... très silencieux.
+              follow_up: "loneliness_conversation"
+      
+      - id: loneliness_question
+        condition:
+          flag: "loneliness_conversation"
+        
+        npc_dialogue:
+          speaker: petit_prince
+          text:
+            A1: "Tu n'es pas triste, d'être seul?"
+            A2: |
+              La solitude... ce n'est pas trop lourd à porter?
+              Moi aussi, je connais la solitude.
+              Mais j'ai ma rose.
+          effects:
+            - type: set_flag
+              target: rose_mentioned_first_time
+              value: true
+        
+        player_response:
+          type: "choice"
+          options:
+            - id: loneliness_painful
+              text:
+                A1: "Oui, c'est triste."
+                A2: "Oui. La solitude, c'est lourd."
+              npc_response:
+                speaker: petit_prince
+                text:
+                  A1: |
+                    Je comprends.
+                    C'est pour ça que tu as besoin d'un ami.
+                  A2: |
+                    Je comprends. Moi aussi, parfois, la solitude me pèse.
+                    C'est pour ça qu'on a besoin d'être apprivoisé.
+              effects:
+                - type: relationship_change
+                  target: petit_prince
+                  value: +2
+                - type: set_flag
+                  target: acknowledged_loneliness
+                  value: true
+            
+            - id: loneliness_peaceful
+              text:
+                A1: "Non, c'est calme."
+                A2: "Non. Le silence, c'est paisible."
+              npc_response:
+                speaker: petit_prince
+                text:
+                  A1: |
+                    Calme?
+                    Mais... tu ne veux pas parler à quelqu'un?
+                  A2: |
+                    Paisible? Tu n'as pas besoin de quelqu'un à qui parler?
+                    Les grandes personnes disent souvent ça.
+                    Mais je ne les crois pas.
+              effects:
+                - type: set_flag
+                  target: denies_loneliness
+                  value: true
+            
+            - id: loneliness_complicated
+              text:
+                A1: "Je ne sais pas."
+                A2: "C'est... compliqué."
+              npc_response:
+                speaker: petit_prince
+                text:
+                  A1: |
+                    Compliqué. Les grandes personnes disent toujours ça.
+                    Mais moi, je comprends.
+                    Parfois, on est triste et content en même temps.
+                  A2: |
+                    Compliqué. Oui.
+                    On peut être seul et pas seul en même temps.
+                    On peut être triste en regardant les étoiles,
+                    et heureux aussi.
+                    Parce que quelque part, là-haut, il y a quelqu'un.
+              effects:
+                - type: relationship_change
+                  target: petit_prince
+                  value: +1
+                - type: set_flag
+                  target: complexity_acknowledged
+                  value: true
+    
+    transition:
+      narration:
+        A1: |
+          Le petit prince se tait.
+          Il regarde les étoiles.
+          Puis il dit quelque chose d'étrange.
+        A2: |
+          Le petit prince se tait un moment.
+          Son regard se perd dans l'immensité du ciel.
+          Quand il parle à nouveau, sa voix est différente.
+          Plus douce. Plus fragile.
+      next_scene: "ch2_rose_mentioned"
+
+  - id: ch2_rose_mentioned
+    order_index: 1
+    
+    setting:
+      location: "Asteroid B-329"
+      atmosphere: "tender, vulnerable"
+    
+    unlock_condition:
+      any:
+        - flag: rose_mentioned_first_time
+        - relationship:
+            petit_prince: 3
+    
+    npcs_present: ["petit_prince"]
+    
+    objectives:
+      - id: learn_about_rose
+        description: "Erfahre mehr über die Rose des kleinen Prinzen"
+        type: "emotional"
+    
+    npc_dialogue:
+      speaker: petit_prince
+      text:
+        A1: |
+          Sur mon astéroïde...
+          Il y a une fleur.
+          Une rose.
+        A2: |
+          Sur mon astéroïde, il y a une fleur.
+          Une rose.
+          Elle est... compliquée.
+      voice:
+        tone: "tender, vulnerable, slightly sad"
+        speed: 0.7
+    
+    player_response:
+      type: "free_input"
+      prompt:
+        A1: "Il parle de sa rose. Que dis-tu?"
+        A2: "Le petit prince parle de sa rose. Comment réagis-tu?"
+      
+      response_types:
+        empathetic:
+          patterns: ["raconte", "tell", "comment est", "wie ist", "elle est belle"]
+          unlocks: "rose_description"
+          effects:
+            - type: relationship_change
+              target: petit_prince
+              value: +1
+        
+        dismissive:
+          patterns: ["seulement une fleur", "nur eine Blume", "pas important"]
+          npc_response:
+            speaker: petit_prince
+            text:
+              A1: |
+                Seulement une fleur?
+                Non. Elle est unique.
+              A2: |
+                Seulement une fleur?
+                Mais non! Tu ne comprends pas.
+                Elle est unique au monde. Parce que c'est elle que j'ai arrosée.
+                Parce que c'est elle que j'ai protégée.
+          effects:
+            - type: relationship_change
+              target: petit_prince
+              value: -1
+          infobox:
+            title: "L'Unique"
+            type: "story"
+            content: |
+              Für den kleinen Prinzen ist seine Rose einzigartig –
+              nicht weil sie anders ist als andere Rosen,
+              sondern weil er sie LIEBT.
+              
+              "On ne voit bien qu'avec le cœur."
+              (Man sieht nur mit dem Herzen gut.)
+    
+    rose_description:
+      condition:
+        unlocked: "rose_description"
+      
+      npc_dialogue:
+        speaker: petit_prince
+        text:
+          A1: |
+            Ma rose est belle.
+            Elle a quatre épines.
+            Elle dit qu'elle est forte.
+            Mais elle est fragile.
+          A2: |
+            Ma rose...
+            Elle est apparue un jour, de nulle part.
+            Elle a mis longtemps à s'habiller, à choisir ses couleurs.
+            Elle voulait être parfaite.
+            Elle a quatre épines. Elle dit que c'est pour se défendre.
+            Mais ses épines ne font peur à personne.
+            Elle est plus fragile qu'elle ne le croit.
+      
+      player_choices:
+        - id: ask_why_left
+          text:
+            A1: "Pourquoi tu es parti?"
+            A2: "Si elle est si importante... pourquoi l'as-tu quittée?"
+          npc_response:
+            speaker: petit_prince
+            text:
+              A1: |
+                Je... ne sais pas.
+                Elle m'a dit des choses méchantes.
+                Et moi, je suis parti.
+                J'aurais dû rester.
+              A2: |
+                Pourquoi?
+                Je... je ne sais pas vraiment.
+                Elle était... difficile. Exigeante.
+                Elle me faisait des reproches.
+                Mais... je l'aime. Et j'aurais dû comprendre.
+                Les fleurs, il faut les regarder et les respirer.
+                Il ne faut pas écouter ce qu'elles disent.
+          effects:
+            - type: relationship_change
+              target: petit_prince
+              value: +3
+            - type: set_flag
+              target: understands_princes_regret
+              value: true
+          infobox:
+            title: "Le regret du Petit Prince"
+            type: "grammar"
+            content: |
+              Der kleine Prinz bereut seine Entscheidung.
+            grammar_note: |
+              "J'aurais dû" = Ich hätte ... sollen
+              Das ist der Conditionnel Passé.
+              
+              Struktur: avoir/être (Conditionnel) + Partizip
+            book_quote: |
+              "J'aurais dû la juger sur les actes et non sur les mots."
+        
+        - id: offer_comfort
+          text:
+            A1: "Tu la reverras."
+            A2: "Tu retourneras vers elle. Je suis sûr."
+          npc_response:
+            speaker: petit_prince
+            text:
+              A1: |
+                Tu crois?
+                Oui. Je dois retourner.
+                Elle est toute seule.
+              A2: |
+                Tu crois vraiment?
+                Oui. Tu as raison. Je dois retourner.
+                Elle m'attend. Elle est seule sous son globe.
+                Je retournerai.
+          effects:
+            - type: relationship_change
+              target: petit_prince
+              value: +2
+            - type: set_flag
+              target: encouraged_return
+              value: true
+    
+    transition:
+      narration:
+        A1: |
+          Le petit prince se tait.
+          Il regarde les étoiles.
+          Là-haut, quelque part, une rose attend.
+        A2: |
+          Le petit prince se tait.
+          Dans le silence de l'astéroïde, tu entends presque 
+          le battement de son cœur.
+          
+          Et tu comprends quelque chose:
+          Ce petit garçon porte un poids immense.
+          Le poids de l'amour qu'on a laissé derrière soi.
+      next_chapter: "chapter3_philosophy"

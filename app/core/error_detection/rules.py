@@ -19,6 +19,7 @@ class DetectedError:
     category: str
     severity: str
     confidence: float
+    subcategory: str | None = None
 
 
 class ErrorRule(Protocol):
@@ -76,6 +77,7 @@ class ArticleNounAgreementRule:
                             category="grammar",
                             severity="medium",
                             confidence=0.7,
+                            subcategory="gender_agreement",
                         )
                     )
             elif article in self.masculine_articles:
@@ -89,6 +91,7 @@ class ArticleNounAgreementRule:
                             category="grammar",
                             severity="medium",
                             confidence=0.7,
+                            subcategory="gender_agreement",
                         )
                     )
         return errors
@@ -140,6 +143,7 @@ class VerbConjugationRule:
                         category="grammar",
                         severity="high",
                         confidence=0.6,
+                        subcategory="verb_conjugation",
                     )
                 )
                 continue
@@ -154,6 +158,7 @@ class VerbConjugationRule:
                         category="grammar",
                         severity="medium",
                         confidence=0.55,
+                        subcategory="verb_conjugation",
                     )
                 )
         return errors
@@ -195,6 +200,7 @@ class FalseFriendRule:
                     category="vocabulary",
                     severity="low",
                     confidence=0.9,
+                    subcategory="false_friends",
                 )
             )
         return errors

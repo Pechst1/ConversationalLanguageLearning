@@ -1,6 +1,7 @@
 """LLM service with provider fallback and cost tracking."""
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import Any, ClassVar, Dict, List, Optional, Protocol, Sequence
 
@@ -75,7 +76,7 @@ class OpenAIProvider:
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=1, max=8),
-        before_sleep=before_sleep_log(logger, "warning"),
+        before_sleep=before_sleep_log(logger, logging.WARNING),
         reraise=True,
     )
     def generate(self, messages: Sequence[Dict[str, str]], **kwargs: Any) -> LLMResult:
@@ -93,8 +94,17 @@ class OpenAIProvider:
             response = client.post("/chat/completions", json=payload, headers=self._build_headers())
 
         if response.status_code >= 400:
-            logger.error("OpenAI returned error", status=response.status_code, body=response.text)
-            raise LLMProviderError(f"OpenAI error {response.status_code}: {response.text}")
+            try:
+                error_data = response.json()
+                error_msg = error_data.get("error", {}).get("message", response.text)
+            except Exception:
+                error_msg = response.text
+
+            # Escape braces to prevent log format errors
+            safe_error_msg = str(error_msg).replace("{", "{{").replace("}", "}}")
+            
+            logger.error("OpenAI returned error", status=response.status_code, body=safe_error_msg)
+            raise LLMProviderError(f"OpenAI error {response.status_code}: {safe_error_msg}")
 
         data = response.json()
         choice = data.get("choices", [{}])[0]
@@ -121,6 +131,106 @@ class OpenAIProvider:
         )
         return result
 
+    def transcribe_audio(self, file: Any) -> str:
+        """Transcribe audio using OpenAI Whisper."""
+        with httpx.Client(base_url=self.base_url, timeout=self.request_timeout) as client:
+            files = {"file": ("audio.webm", file, "audio/webm")}
+            data = {"model": "whisper-1"}
+            response = client.post("/audio/transcriptions", files=files, data=data, headers={"Authorization": f"Bearer {self.api_key}"})
+
+        if response.status_code >= 400:
+            logger.error(f"OpenAI Whisper error: status={response.status_code} body={response.text}")
+            raise LLMProviderError(f"OpenAI Whisper error {response.status_code}: {response.text}")
+
+        return response.json().get("text", "")
+
+    def text_to_speech(
+        self,
+        text: str,
+        voice: str = "nova",
+        model: str = "tts-1-hd",
+    ) -> bytes:
+        """Generate speech audio from text using OpenAI TTS."""
+        payload = {
+            "model": model,
+            "input": text,
+            "voice": voice,
+            "response_format": "mp3",
+        }
+        with httpx.Client(base_url=self.base_url, timeout=60.0) as client:
+            response = client.post(
+                "/audio/speech",
+                json=payload,
+                headers=self._build_headers(),
+            )
+
+        if response.status_code >= 400:
+            logger.error("OpenAI TTS error", status=response.status_code, body=response.text)
+            raise LLMProviderError(f"OpenAI TTS error {response.status_code}: {response.text}")
+
+        logger.info("TTS generation success", chars=len(text), voice=voice, model=model)
+        return response.content
+
+@dataclass
+class ElevenLabsProvider:
+    """Generate speech audio using the ElevenLabs API."""
+
+    api_key: str
+    base_url: str = "https://api.elevenlabs.io/v1"
+    request_timeout: float = 30.0
+
+    name: str = "elevenlabs"
+
+    def text_to_speech(
+        self,
+        text: str,
+        voice: str = "Rachel",  # Default voice ID or name to be mapped
+        model: str = "eleven_turbo_v2_5",
+    ) -> bytes:
+        """Generate speech audio from text."""
+        # Map common names to ID if needed (for now assume voice is ID or name)
+        # For simplicity, we pass voice directly. User should pass valid Voice ID.
+        # Fallback to a clear default if 'nova' (OpenAI default) is passed by mistake
+        if voice == "nova":
+            voice = "JBFqnCBsd6RMkjVDRZzb" # Example ID (George) or Rachel: "21m00Tcm4TlvDq8ikWAM"
+        
+        # Determine voice ID (using a basic mapping or pass-through)
+        voice_id = voice 
+        if voice == "Rachel": voice_id = "21m00Tcm4TlvDq8ikWAM"
+        if voice == "Nicole": voice_id = "piTKgcLEGmPE4e6mEKli" # Smooth female
+
+        payload = {
+            "text": text,
+            "model_id": model,
+            "voice_settings": {
+                "stability": 0.5,
+                "similarity_boost": 0.75
+            }
+        }
+        
+        headers = {
+            "xi-api-key": self.api_key,
+            "Content-Type": "application/json",
+            "Accept": "audio/mpeg"
+        }
+
+        with httpx.Client(base_url=self.base_url, timeout=self.request_timeout) as client:
+            # Stream endpoint is /text-to-speech/{voice_id}/stream, but regular is /text-to-speech/{voice_id}
+            # We use non-streaming for simplicity unless streaming is requested.
+            # Using /stream is usually better for latency if client plays immediately.
+            # But here we return bytes.
+            response = client.post(
+                f"/text-to-speech/{voice_id}",
+                json=payload,
+                headers=headers,
+            )
+
+        if response.status_code >= 400:
+            logger.error("ElevenLabs TTS error", status=response.status_code, body=response.text)
+            raise LLMProviderError(f"ElevenLabs TTS error {response.status_code}: {response.text}")
+
+        logger.info("ElevenLabs TTS success", chars=len(text), voice=voice, model=model)
+        return response.content
 
 @dataclass
 class AnthropicProvider:
@@ -141,7 +251,7 @@ class AnthropicProvider:
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=1, max=8),
-        before_sleep=before_sleep_log(logger, "warning"),
+        before_sleep=before_sleep_log(logger, logging.WARNING),
         reraise=True,
     )
     def generate(self, messages: Sequence[Dict[str, str]], **kwargs: Any) -> LLMResult:
@@ -246,6 +356,13 @@ class LLMService:
                     request_timeout=settings.LLM_REQUEST_TIMEOUT_SECONDS,
                 )
             )
+
+        if settings.ELEVENLABS_API_KEY:
+            provider_list.append(
+                ElevenLabsProvider(
+                    api_key=settings.ELEVENLABS_API_KEY,
+                )
+            )
         return provider_list
 
     def _build_order(self, primary: Optional[str], secondary: Optional[str]) -> List[BaseLLMProvider]:
@@ -307,6 +424,96 @@ class LLMService:
                 errors.append(f"{provider.name}: {exc}")
                 continue
         raise LLMProviderError("; ".join(errors))
+
+    def generate_error_detection(
+        self,
+        messages: Sequence[Dict[str, str]],
+        *,
+        temperature: float = 0.1,
+        max_tokens: int = 800,
+        response_format: Optional[Dict[str, Any]] = None,
+        system_prompt: Optional[str] = None,
+    ) -> LLMResult:
+        """Generate error detection using the dedicated error detection model.
+        
+        Uses a stronger model (gpt-4o by default) for better grammar analysis.
+        """
+        errors: List[str] = []
+        for provider in self._provider_order:
+            payload_kwargs: Dict[str, Any] = {
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+            }
+            # Use the error detection model if available for OpenAI
+            if provider.name == "openai":
+                payload_kwargs["model"] = settings.OPENAI_ERROR_DETECTION_MODEL
+                if response_format:
+                    payload_kwargs["response_format"] = response_format
+            
+            if system_prompt and provider.name == "anthropic":
+                payload_kwargs["system"] = system_prompt
+            
+            provider_messages = messages
+            if system_prompt and provider.name == "openai":
+                provider_messages = [{"role": "system", "content": system_prompt}, *messages]
+            
+            try:
+                result = provider.generate(provider_messages, **payload_kwargs)
+                logger.debug(
+                    "Error detection LLM success",
+                    provider=provider.name,
+                    model=result.model,
+                    tokens=result.total_tokens,
+                    cost=result.cost,
+                )
+                return result
+            except Exception as exc:
+                logger.exception("Error detection LLM failure", provider=provider.name)
+                errors.append(f"{provider.name}: {exc}")
+                continue
+        raise LLMProviderError("; ".join(errors))
+
+    def transcribe_audio(self, file: Any) -> str:
+        """Transcribe audio using the primary provider (must be OpenAI)."""
+        # Find OpenAI provider
+        openai_provider = next((p for p in self._providers if isinstance(p, OpenAIProvider)), None)
+        if not openai_provider:
+            raise LLMProviderError("OpenAI provider not configured for transcription")
+        
+        return openai_provider.transcribe_audio(file)
+
+    def text_to_speech(
+        self,
+        text: str,
+        voice: str = "nova",
+        model: str | None = None,
+        provider: str | None = None,
+    ) -> bytes:
+        """Generate speech audio from text using configured provider."""
+        target_provider = provider or settings.TTS_PROVIDER
+        
+        if target_provider == "elevenlabs":
+            el_provider = next((p for p in self._providers if isinstance(p, ElevenLabsProvider)), None)
+            if not el_provider:
+                logger.warning("ElevenLabs provider requested but not configured, falling back to OpenAI")
+                target_provider = "openai"
+            else:
+                # Default ElevenLabs model
+                model = model or "eleven_turbo_v2_5"
+                # Map OpenAI voice names to ElevenLabs if necessary
+                if voice in ["alloy", "echo", "fable", "nova", "onyx", "shimmer"]:
+                    voice = "Rachel" # Fallback to default EL voice
+                return el_provider.text_to_speech(text, voice=voice, model=model)
+
+        if target_provider == "openai":
+            openai_provider = next((p for p in self._providers if isinstance(p, OpenAIProvider)), None)
+            if not openai_provider:
+                raise LLMProviderError("OpenAI provider not configured for TTS")
+            
+            model = model or "tts-1-hd"
+            return openai_provider.text_to_speech(text, voice=voice, model=model)
+
+        raise LLMProviderError(f"Unsupported TTS provider: {target_provider}")
 
 
 __all__ = ["LLMService", "LLMResult", "LLMProviderError"]

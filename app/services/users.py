@@ -42,6 +42,15 @@ class UserService:
         cache_backend.invalidate("user:profile", key=build_cache_key(user_id=str(user.id)))
         return user
 
+    def delete(self, user: User) -> None:
+        """Permanently delete a user and their associated data."""
+        
+        # Invalidate cache before deletion
+        cache_backend.invalidate("user:profile", key=build_cache_key(user_id=str(user.id)))
+        
+        self.db.delete(user)
+        self.db.commit()
+
     def list_users(self, limit: int = 50, offset: int = 0) -> list[User]:
         """Return paginated users sorted by creation date."""
 

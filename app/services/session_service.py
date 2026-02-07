@@ -6,7 +6,7 @@ import math
 import re
 import unicodedata
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from uuid import UUID
 from typing import Sequence, TYPE_CHECKING
@@ -27,11 +27,16 @@ from app.core.error_detection import ErrorDetectionResult, ErrorDetector
 from app.core.error_detection.rules import DetectedError
 from app.db.models.progress import UserVocabularyProgress
 from app.db.models.session import ConversationMessage, LearningSession, WordInteraction
+from app.db.models.error import UserError
+from app.db.models.scenario import UserScenarioState
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
+from app.core.conversation.scenarios import get_scenario, Scenario
 from app.services.achievement import AchievementService
+from app.services.grammar import GrammarService
 from app.services.llm_service import LLMResult, LLMService
 from app.services.progress import ProgressService
+from app.services.auto_context_service import SessionContext  # [NEW]
 from app.utils.cache import cache_backend, build_cache_key
 from app.schemas import PracticeIssue, TargetWordRead
 
@@ -84,6 +89,19 @@ class SessionStartResult:
 
 
 @dataclass(slots=True)
+class ErrorStats:
+    """Statistics for a specific error pattern from spaced repetition tracking."""
+
+    category: str
+    pattern: str | None
+    total_occurrences: int
+    occurrences_today: int
+    last_seen: datetime | None
+    next_review: datetime | None
+    state: str
+
+
+@dataclass(slots=True)
 class SessionTurnResult:
     """Return payload after processing a learner message."""
 
@@ -92,7 +110,10 @@ class SessionTurnResult:
     assistant_turn: AssistantTurn
     error_result: ErrorDetectionResult
     xp_awarded: int
+    combo_count: int = 0
     word_feedback: list[WordFeedback] = field(default_factory=list)
+    error_stats: list[ErrorStats] = field(default_factory=list)
+    targeted_errors: list[UserError] = field(default_factory=list)
 
 
 def _normalize_text(value: str) -> str:
@@ -272,36 +293,64 @@ class SessionService:
         generate_greeting: bool = True,
         anki_direction: str | None = None,
         scenario: str | None = None,
+        session_context: SessionContext | None = None,  # [NEW]
     ) -> SessionStartResult:
-        """Create a new session and optionally bootstrap the greeting turn."""
+        """Initialize a new learning session."""
+
+        # If auto-context is provided, use its style if not explicitly overridden
+        if session_context and not conversation_style:
+            conversation_style = session_context.style
+
+        scenario_context = None
 
         self._ensure_vocabulary_seeded()
         session_capacity = self._calculate_session_capacity(planned_duration_minutes)
 
         direction_choice = anki_direction if anki_direction in {"fr_to_de", "de_to_fr", "both"} else None
 
+        scenario_def: Scenario | None = None
+        if scenario:
+            scenario_def = get_scenario(scenario)
+            if scenario_def:
+                topic = scenario_def.title
+                # Initialize or fetch scenario state
+                state = self.db.query(UserScenarioState).filter(
+                    UserScenarioState.user_id == user.id,
+                    UserScenarioState.scenario_id == scenario
+                ).first()
+                if not state:
+                    state = UserScenarioState(user_id=user.id, scenario_id=scenario)
+                    self.db.add(state)
+                    self.db.commit()
+
         session = LearningSession(
             user_id=user.id,
             planned_duration_minutes=planned_duration_minutes,
+            conversation_style=conversation_style,
             topic=topic,
-            conversation_style=conversation_style or "tutor",
             difficulty_preference=difficulty_preference,
             status="in_progress",
             level_before=user.level,
             level_after=user.level,
             anki_direction=direction_choice,
-            scenario=scenario,
+            scenario=scenario,  # Store ID in session
         )
         self.db.add(session)
         self.db.flush([session])
 
         assistant_turn: AssistantTurn | None = None
         if generate_greeting:
+            due_errors = self._fetch_due_errors(user.id)
+            due_grammar = self._fetch_due_grammar(user)
             assistant_turn = self._generate_and_persist_assistant_turn_with_context(
                 session=session,
                 user=user,
                 history=[],
                 session_capacity=session_capacity,
+                due_errors=due_errors,
+                due_grammar=due_grammar,
+                scenario_context=scenario_context,
+                session_context=session_context,  # [NEW]
             )
 
         self.db.commit()
@@ -626,13 +675,137 @@ class SessionService:
                 interaction.correction = item.error.suggestion
             self.db.add(interaction)
 
+    def _persist_errors(
+        self,
+        *,
+        session: LearningSession,
+        user: User,
+        user_message: ConversationMessage,
+        error_result: ErrorDetectionResult,
+    ) -> None:
+        """Persist detected errors to the UserError table with deduplication.
+        
+        If an error with the same category and pattern already exists for this user,
+        we update that record (increment occurrences, increase difficulty) rather than
+        creating a duplicate.
+        
+        Also updates the parent UserErrorConcept for concept-level SRS tracking.
+        """
+        # Import concept functions
+        from app.core.error_concepts import get_concept_for_pattern, get_concept_for_category
+        from app.db.models.error import UserErrorConcept
+        
+        # Track which concepts we've already updated this turn
+        updated_concepts: set[str] = set()
+        
+        for error in error_result.errors:
+            # Skip if low confidence
+            if error.confidence < 0.6:
+                continue
+            
+            # Check for existing error with same pattern
+            existing = self.db.query(UserError).filter(
+                UserError.user_id == user.id,
+                UserError.error_category == error.category,
+                UserError.error_pattern == error.code,
+            ).first()
+            
+            if existing:
+                # Update existing error - this is a repeated mistake
+                existing.occurrences = (existing.occurrences or 1) + 1
+                existing.lapses = (existing.lapses or 0) + 1
+                existing.context_snippet = error.span  # Update to latest context
+                existing.correction = error.suggestion  # Update to latest correction
+                # Increase difficulty for repeated errors (max 10)
+                existing.difficulty = min(10.0, (existing.difficulty or 5.0) + 0.5)
+                # Schedule for immediate review (reset to learning state)
+                existing.next_review_date = datetime.now(timezone.utc)
+                if existing.state == "review" or existing.state == "mastered":
+                    existing.state = "relearning"
+                existing.updated_at = datetime.now(timezone.utc)
+                
+                logger.debug(
+                    "Updated existing error",
+                    category=error.category,
+                    pattern=error.code,
+                    occurrences=existing.occurrences,
+                    lapses=existing.lapses,
+                )
+            else:
+                # Create new error record
+                user_error = UserError(
+                    user_id=user.id,
+                    session_id=session.id,
+                    message_id=user_message.id,
+                    error_category=error.category,
+                    error_pattern=error.code,
+                    subcategory=error.subcategory,
+                    correction=error.suggestion,
+                    context_snippet=error.span,
+                    # Initialize SRS state
+                    state="new",
+                    stability=0.0,
+                    difficulty=5.0,
+                    occurrences=1,
+                    next_review_date=datetime.now(timezone.utc),
+                )
+                self.db.add(user_error)
+                
+                logger.debug(
+                    "Created new error record",
+                    category=error.category,
+                    pattern=error.code,
+                )
+            
+            # Update parent concept (concept-level SRS)
+            concept = get_concept_for_pattern(error.code)
+            if not concept:
+                concept = get_concept_for_category(error.category)
+            
+            if concept and concept.id not in updated_concepts:
+                updated_concepts.add(concept.id)
+                
+                # Find or create the user's concept record
+                user_concept = self.db.query(UserErrorConcept).filter(
+                    UserErrorConcept.user_id == user.id,
+                    UserErrorConcept.concept_id == concept.id,
+                ).first()
+                
+                if user_concept:
+                    user_concept.increment_occurrence()
+                    logger.debug(
+                        "Updated error concept",
+                        concept=concept.id,
+                        occurrences=user_concept.total_occurrences,
+                    )
+                else:
+                    # Create new concept tracking record
+                    user_concept = UserErrorConcept(
+                        user_id=user.id,
+                        concept_id=concept.id,
+                        total_occurrences=1,
+                        last_occurrence_date=datetime.now(timezone.utc),
+                        next_review_date=datetime.now(timezone.utc),
+                        state="new",
+                    )
+                    self.db.add(user_concept)
+                    logger.debug(
+                        "Created new error concept",
+                        concept=concept.id,
+                    )
+
     def _calculate_xp(
         self,
         feedback: Sequence[WordFeedback],
         *,
         creative_count: int = 0,
         error_result: ErrorDetectionResult,
-    ) -> int:
+    ) -> tuple[int, int]:
+        """Calculate XP and combo count for this turn.
+        
+        Returns:
+            tuple[int, int]: (xp_awarded, combo_count)
+        """
         xp = 5  # base engagement bonus
         suggested_used = [item for item in feedback if item.was_used]
 
@@ -685,7 +858,7 @@ class SessionService:
         if not error_result.errors:
             xp = int(xp * 1.5)
 
-        return max(0, xp)
+        return max(0, xp), combo_count
 
     def _refresh_session_stats(
         self,
@@ -901,11 +1074,21 @@ class SessionService:
         return payload
 
     def _compute_review_focus(self, *, session: LearningSession, user: User) -> float | None:
+        """Compute the review focus ratio based on session difficulty preference.
+        
+        Returns a ratio between 0.0 and 1.0 where:
+        - 1.0 = 100% review words (no new words) - for review intensive mode
+        - 0.0 = 100% new words (no reviews) - for new words only mode
+        - 0.6 = balanced mix (default)
+        """
         preference = (session.difficulty_preference or "").lower()
         mapping = {
-            "review": 0.85,
-            "balanced": 0.6,
-            "new": 0.35,
+            "review": 1.0,           # Review intensive: only review words
+            "review_intensive": 1.0, # Same as review
+            "balanced": 0.6,         # Default balanced mix
+            "mixed": 0.6,            # Alias for balanced
+            "new": 0.0,              # Only new words
+            "new_only": 0.0,         # Alias for new
         }
         return mapping.get(preference)
 
@@ -1042,6 +1225,10 @@ class SessionService:
         history: Sequence[ConversationHistoryMessage],
         session_capacity: dict[str, int],
         exclude_word_ids: Sequence[int] | None = None,
+        due_errors: Sequence[UserError] | None = None,
+        due_grammar: list | None = None,
+        scenario_context: str | None = None,
+        session_context: SessionContext | None = None,  # [NEW]
     ) -> AssistantTurn:
         review_focus = self._compute_review_focus(session=session, user=user)
         exclude_set: set[int] = set()
@@ -1054,6 +1241,83 @@ class SessionService:
         direction_pref = getattr(session, "anki_direction", None)
         if direction_pref not in {"fr_to_de", "de_to_fr"}:
             direction_pref = None
+        # Fetch scenario state if applicable
+        scenario_context = None
+        if session.scenario:
+            state = self.db.query(UserScenarioState).filter(
+                UserScenarioState.user_id == user.id,
+                UserScenarioState.scenario_id == session.scenario
+            ).first()
+            if state:
+                scenario_context = f"SCENARIO STATE: {state.state_data}\nCURRENT GOAL: {state.current_goal_index}"
+
+        # [NEW] Article Discussion Context
+        if session.scenario and session.scenario.startswith("article:"):
+            from app.db.models.story import Story
+            story_id = session.scenario.split(":", 1)[1]
+            story = self.db.query(Story).filter(Story.id == story_id).first()
+            if story:
+                text_parts = []
+                # Collect text from all chapters/scenes
+                # Import logic typically creates one chapter with sequential scenes
+                sorted_chapters = sorted(story.chapters, key=lambda c: c.order_index)
+                for ch in sorted_chapters:
+                    sorted_scenes = sorted(ch.scenes, key=lambda s: s.order_index)
+                    for scene in sorted_scenes:
+                        # Prefer B1 level text if available, otherwise description
+                        text_content = None
+                        if scene.narration_variants:
+                            # Try levels in order of likely availability
+                            for level in ["B1", "B2", "A2", "C1", "default"]:
+                                if level in scene.narration_variants:
+                                    text_content = scene.narration_variants[level]
+                                    break
+                        
+                        if not text_content:
+                            text_content = scene.description
+                        
+                        if text_content:
+                            text_parts.append(text_content)
+                
+                full_text = "\n\n".join(text_parts)
+                # Limit length to avoid context overflow (approx 3000 chars)
+                if len(full_text) > 3000:
+                    full_text = full_text[:3000] + "... (truncated)"
+                
+                article_context = f"DISCUSSION SOURCE MATERIAL:\nTITLE: {story.title}\n\nCONTENT:\n{full_text}"
+                
+                if scenario_context:
+                    scenario_context += f"\n\n{article_context}"
+                else:
+                    scenario_context = article_context
+
+        # Check time limit and inject wrap-up signal
+        # Use started_at if available, otherwise fallback to created_at
+        start_time = session.started_at or session.created_at
+        if start_time and session.planned_duration_minutes:
+            # Ensure awareness of timezone
+            now = datetime.now(timezone.utc)
+            if start_time.tzinfo is None:
+                start_time = start_time.replace(tzinfo=timezone.utc)
+            
+            elapsed = (now - start_time).total_seconds() / 60.0
+            remaining = session.planned_duration_minutes - elapsed
+            
+            # If less than 20% time remains or less than 1.5 minutes
+            is_near_end = remaining <= 1.5 or (elapsed / session.planned_duration_minutes) > 0.85
+            
+            if is_near_end and remaining > -5.0:  # Don't nag if way overtime
+                wrap_msg = (
+                    f"TIME CHECK: {int(remaining)} minutes remaining. "
+                    "Gradually wrap up the conversation. "
+                    "Do not introduce complex new topics. "
+                    "Find a natural stopping point soon."
+                )
+                if scenario_context:
+                    scenario_context += f"\n\n{wrap_msg}"
+                else:
+                    scenario_context = wrap_msg
+
         generated = self.conversation_generator.generate_turn_with_context(
             user=user,
             learner_level=user.proficiency_level or "B1",
@@ -1064,6 +1328,11 @@ class SessionService:
             topic=session.topic,
             exclude_ids=exclude_set,
             anki_direction=direction_pref,
+            scenario=session.scenario,
+            due_errors=due_errors,
+            due_grammar=due_grammar,
+            scenario_context=scenario_context,
+            session_context=session_context,  # [NEW]
         )
         sequence = self._next_sequence_number(session.id)
         message = ConversationMessage(
@@ -1154,6 +1423,27 @@ class SessionService:
             target_vocabulary=[word.word for word, _ in previous_targets],
         )
         user_message.errors_detected = self._serialize_errors(error_result)
+        self._persist_errors(
+            session=session,
+            user=user,
+            user_message=user_message,
+            error_result=error_result,
+        )
+
+        # Update SRS for existing errors
+        due_errors = self._fetch_due_errors(user.id, limit=10)
+        self._update_error_srs(
+            user=user,
+            due_errors=due_errors,
+            detected_errors=error_result,
+        )
+
+        # Update Scenario Progress
+        self._update_scenario_progress(
+            session=session,
+            user=user,
+            content=content,
+        )
 
         learner_lemmas = self._lemmatize_with_context(content)
         feedback = self._determine_word_feedback(
@@ -1225,7 +1515,7 @@ class SessionService:
                 difficulty=suggested_difficulty,
             )
 
-        xp_awarded = self._calculate_xp(feedback, creative_count=len(processed_spontaneous), error_result=error_result)
+        xp_awarded, combo_count = self._calculate_xp(feedback, creative_count=len(processed_spontaneous), error_result=error_result)
         user_message.xp_earned = xp_awarded
         self._refresh_session_stats(session=session, feedback=feedback, xp_awarded=xp_awarded)
         self._apply_user_xp(user, session, xp_awarded)
@@ -1247,6 +1537,7 @@ class SessionService:
             history=history,
             session_capacity=session_capacity,
             exclude_word_ids=exclude_ids,
+            due_errors=due_errors,
         )
 
         self.db.commit()
@@ -1264,7 +1555,11 @@ class SessionService:
             words_used=len([fb for fb in feedback if fb.was_used]),
             spontaneous_words=len(processed_spontaneous),
             xp_awarded=xp_awarded,
+            combo_count=combo_count,
         )
+
+        # Gather error statistics for spaced repetition feedback
+        error_stats = self._gather_error_stats(user, error_result)
 
         return SessionTurnResult(
             session=session,
@@ -1272,8 +1567,124 @@ class SessionService:
             assistant_turn=assistant_turn,
             error_result=error_result,
             xp_awarded=xp_awarded,
+            combo_count=combo_count,
             word_feedback=list(feedback),
+            error_stats=error_stats,
+            targeted_errors=list(due_errors),
         )
+
+    def _update_error_srs(
+        self,
+        *,
+        user: User,
+        due_errors: Sequence[UserError],
+        detected_errors: ErrorDetectionResult,
+    ) -> None:
+        """Update the spaced repetition state for errors based on recurrence."""
+        if not due_errors:
+            return
+
+        detected_map = {
+            (e.category, e.code): e for e in detected_errors.errors
+        }
+
+        now = datetime.now(timezone.utc)
+
+        for error in due_errors:
+            key = (error.error_category, error.error_pattern)
+            recurrence = detected_map.get(key)
+
+            if recurrence:
+                # User made the mistake again (Fail)
+                error.stability = max(0.0, (error.stability or 0.0) * 0.8)
+                error.difficulty = min(10.0, (error.difficulty or 5.0) + 1.0)
+                # Reset to short interval (e.g., 1 day)
+                next_interval = 1
+                error.state = "learning"
+            else:
+                # User did not make the mistake (Pass)
+                # Simple exponential backoff
+                error.stability = (error.stability or 0.0) + 1.0
+                error.difficulty = max(1.0, (error.difficulty or 5.0) - 0.2)
+                
+                # Interval calculation (simplified FSRS-like)
+                current_interval = (error.next_review_date - error.updated_at).days if error.updated_at else 1
+                next_interval = max(1, int(current_interval * 2.5))
+                error.state = "review"
+
+            error.next_review_date = now + timedelta(days=next_interval)
+            error.updated_at = now
+            logger.info(
+                "Updated error SRS",
+                error_id=str(error.id),
+                category=error.error_category,
+                recurrence=bool(recurrence),
+                next_interval=next_interval,
+            )
+
+    def _update_scenario_progress(
+        self,
+        *,
+        session: LearningSession,
+        user: User,
+        content: str,
+    ) -> None:
+        """Check if the user has advanced the scenario state."""
+        if not session.scenario:
+            return
+
+        scenario_def = get_scenario(session.scenario)
+        if not scenario_def:
+            return
+
+        state = self.db.query(UserScenarioState).filter(
+            UserScenarioState.user_id == user.id,
+            UserScenarioState.scenario_id == session.scenario
+        ).first()
+
+        if not state or state.status == "completed":
+            return
+
+        current_goal_idx = state.current_goal_index
+        if current_goal_idx >= len(scenario_def.goals):
+            state.status = "completed"
+            return
+
+        current_goal = scenario_def.goals[current_goal_idx]
+        
+        # Heuristic check: Does the user's content seem to address the goal?
+        # In a real system, we'd use an LLM classifier here.
+        # For now, we'll use a simple keyword match or just assume progress if the turn was substantial.
+        # Let's try a very lightweight LLM check if possible, otherwise fallback to length/turn count.
+        
+        # We'll use a simple heuristic: if the user message is > 5 words and no major errors, 
+        # we assume they made an attempt. To be more robust, we'd ask the LLM.
+        # Given we are already running an LLM for the response, let's assume the "Assistant" 
+        # naturally guides them. We will increment the goal index every 2 user turns 
+        # to simulate progression, unless we implement a specific checker.
+        
+        # BETTER: Let's use the LLM service to check.
+        try:
+            prompt = f"""
+            Scenario: {scenario_def.title}
+            Goal: {current_goal}
+            User said: "{content}"
+            
+            Did the user achieve this goal? Reply YES or NO.
+            """
+            result = self.llm_service.generate_chat_completion(
+                [{"role": "user", "content": prompt}],
+                temperature=0.1,
+                max_tokens=5
+            )
+            if "YES" in result.content.upper():
+                state.current_goal_index += 1
+                if state.current_goal_index >= len(scenario_def.goals):
+                    state.status = "completed"
+                logger.info("Scenario goal achieved", goal=current_goal)
+        except Exception:
+            # Fallback: don't block flow
+            pass
 
     def _trigger_achievement_check(self, user: User) -> None:
         """Trigger achievement evaluation for the learner."""
@@ -1303,6 +1714,110 @@ class SessionService:
         if not session or session.user_id != user.id:
             raise ValueError("Session not found")
         return session
+
+    def _fetch_due_errors(self, user_id: UUID, limit: int = 3) -> list[UserError]:
+        """Retrieve errors due for review, prioritizing most problematic ones.
+        
+        Sorting priority:
+        1. Lapses (descending) - errors the user keeps making
+        2. Reps (descending) - the more attempts, the more persistent the issue
+        3. Next review date (ascending) - most overdue first
+        """
+        now = datetime.now(timezone.utc)
+        return (
+            self.db.query(UserError)
+            .filter(
+                UserError.user_id == user_id,
+                UserError.next_review_date <= now,
+                UserError.state != "mastered"
+            )
+            .order_by(
+                UserError.lapses.desc(),
+                UserError.reps.desc(),
+                UserError.next_review_date.asc()
+            )
+            .limit(limit)
+            .all()
+        )
+
+    def _fetch_due_grammar(self, user: User, limit: int = 2) -> list:
+        """Retrieve grammar concepts due for review to target in conversation.
+        
+        Returns a list of (GrammarConcept, UserGrammarProgress | None) tuples.
+        These will be included in the LLM context to naturally incorporate
+        grammar practice into the conversation.
+        """
+        grammar_service = GrammarService(self.db)
+        return grammar_service.get_due_concepts(user=user, limit=limit)
+
+
+    def _gather_error_stats(
+        self,
+        user: User,
+        error_result: ErrorDetectionResult,
+    ) -> list[ErrorStats]:
+        """Gather statistics for detected errors for spaced repetition feedback."""
+        if not error_result.errors:
+            return []
+
+        stats: list[ErrorStats] = []
+        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+
+        for error in error_result.errors:
+            # Count total occurrences of this error pattern
+            total_query = (
+                self.db.query(func.count(UserError.id))
+                .filter(
+                    UserError.user_id == user.id,
+                    UserError.error_category == error.category,
+                )
+            )
+            if error.code:
+                total_query = total_query.filter(UserError.error_pattern == error.code)
+            total_occurrences = total_query.scalar() or 0
+
+            # Count occurrences today
+            today_query = (
+                self.db.query(func.count(UserError.id))
+                .filter(
+                    UserError.user_id == user.id,
+                    UserError.error_category == error.category,
+                    UserError.created_at >= today_start,
+                )
+            )
+            if error.code:
+                today_query = today_query.filter(UserError.error_pattern == error.code)
+            occurrences_today = today_query.scalar() or 0
+
+            # Get the most recent occurrence for last_seen and next_review
+            recent_error = (
+                self.db.query(UserError)
+                .filter(
+                    UserError.user_id == user.id,
+                    UserError.error_category == error.category,
+                )
+                .order_by(UserError.created_at.desc())
+                .first()
+            )
+
+            last_seen = recent_error.created_at if recent_error else None
+            next_review = recent_error.next_review_date if recent_error else None
+            state = recent_error.state if recent_error else "new"
+
+            # Add 1 and today +1 for the current error (not yet persisted)
+            stats.append(
+                ErrorStats(
+                    category=error.category,
+                    pattern=error.code,
+                    total_occurrences=total_occurrences + 1,  # +1 for current
+                    occurrences_today=occurrences_today + 1,  # +1 for current
+                    last_seen=last_seen,
+                    next_review=next_review,
+                    state=state,
+                )
+            )
+
+        return stats
 
     def list_messages(
         self,

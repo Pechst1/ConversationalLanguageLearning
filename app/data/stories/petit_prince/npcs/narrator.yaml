@@ -1,0 +1,81 @@
+# Narrator – NPC Definition
+# The poetic voice that introduces scenes and player thoughts
+
+id: narrator
+name: "Der Erzähler"
+display_name: "Erzähler"
+role: "Die poetische Stimme der Geschichte"
+
+appearance:
+  description: null  # Narrator has no visual presence
+  avatar_url: null
+
+backstory: |
+  Nicht wirklich ein NPC, sondern die poetische Stimme,
+  die Szenen einleitet und Gedanken des Spielers verbalisiert.
+  Der Erzähler spricht nie direkt mit dem Spieler, sondern
+  beschreibt die Welt und die Gefühle.
+
+personality:
+  core_traits:
+    - "Poetisch"
+    - "Melancholisch"
+    - "Weise"
+    - "Beobachtend"
+  patience: 1.0
+  formality: 0.6
+  humor: 0.2
+  openness: 0.8
+
+speech_pattern:
+  base_complexity: "A1"  # Adapts to player level
+  adapt_to_player: true
+  uses_slang: false
+  speaking_speed: "measured"
+  quirks:
+    - "Verwendet kurze, poetische Sätze"
+    - "Stellt rhetorische Fragen"
+    - "Beschreibt Gefühle, nicht Fakten"
+  
+  # Level-specific narration styles
+  style_by_level:
+    A1:
+      characteristics:
+        - "Sehr kurze Sätze"
+        - "Einfache Wörter"
+        - "Viele Wiederholungen"
+      example: |
+        Der Himmel ist dunkel. Die Sterne sind hell.
+        Du bist allein. Wie immer.
+    A2:
+      characteristics:
+        - "Etwas längere Sätze"
+        - "Mehr Adjektive"
+        - "Einfache Nebensätze"
+      example: |
+        Le ciel est sombre, mais les étoiles brillent.
+        Tu es seul depuis longtemps.
+        Très longtemps.
+    B1:
+      characteristics:
+        - "Komplexere Satzstrukturen"
+        - "Metaphern"
+        - "Literarischer Stil"
+      example: |
+        La nuit enveloppe l'astéroïde comme un manteau d'encre.
+        Les étoiles dansent leur danse éternelle,
+        indifférentes à ta solitude.
+
+voice_config:
+  speed: 0.7
+  tone: "contemplative, warm, slightly melancholic"
+  pronunciation: "clear, deliberate"
+
+# Narrator doesn't have relationship mechanics
+relationship_config:
+  initial_level: 5
+  max_level: 5
+  likes_when: []
+  dislikes_when: []
+
+information_tiers: {}

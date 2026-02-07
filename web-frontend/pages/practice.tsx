@@ -297,35 +297,32 @@ export default function PracticePage({ queueWords, counters, direction: initialD
 
   const directionToggle = (
     <div className="flex justify-end mb-4">
-      <Button
-        variant="outline"
+      <button
         onClick={toggleDirection}
-        className="border-2 border-brutal-black shadow-brutal hover:translate-y-1 hover:shadow-none transition-all rounded-none font-bold"
+        className="flex items-center gap-2 bg-white px-4 py-2 border-2 border-black font-bold text-sm uppercase shadow-[4px_4px_0px_0px_#000] hover:-translate-y-1 hover:shadow-[6px_6px_0px_0px_#000] active:translate-y-0 active:shadow-[2px_2px_0px_0px_#000] transition-all"
       >
-        <RefreshCw className="w-4 h-4 mr-2" />
-        Switch to {direction === 'fr_to_de' ? 'DE -> FR' : 'FR -> DE'}
-      </Button>
+        <RefreshCw className="w-4 h-4" />
+        Switch to {direction === 'fr_to_de' ? 'DE → FR' : 'FR → DE'}
+      </button>
     </div>
   );
 
   if (!localQueue?.length) {
     return (
-      <div className="max-w-2xl mx-auto p-4">
+      <div className="max-w-2xl mx-auto p-4 space-y-8">
         <AnkiSync onSyncComplete={() => handleRefreshQueue()} />
-        <div className="mt-8 text-center">
-          <div className="bg-brutal-white border-4 border-brutal-black shadow-brutal p-8">
-            <h1 className="text-4xl font-bold mb-4 font-heading">NO WORDS</h1>
-            <p className="text-xl font-mono mb-6">
-              You&apos;re all caught up.
-            </p>
-            <Button
-              onClick={() => handleRefreshQueue()}
-              loading={isLoadingDirection}
-              className="bg-bauhaus-yellow text-brutal-black border-4 border-brutal-black shadow-brutal hover:translate-y-1 hover:shadow-none transition-all rounded-none font-bold text-lg px-8 py-4"
-            >
-              CHECK AGAIN
-            </Button>
-          </div>
+        <div className="mt-8 text-center bg-white border-4 border-black p-12 shadow-[12px_12px_0px_0px_#000]">
+          <h1 className="text-5xl font-black mb-4 uppercase tracking-tighter">No Words</h1>
+          <p className="text-xl font-bold mb-8 text-gray-600">
+            You&apos;re all caught up for now. Great job!
+          </p>
+          <button
+            onClick={() => handleRefreshQueue()}
+            disabled={isLoadingDirection}
+            className="bg-bauhaus-yellow text-black border-4 border-black font-black text-xl px-8 py-4 uppercase tracking-widest hover:-translate-y-2 hover:shadow-[8px_8px_0px_0px_#000] transition-all disabled:opacity-50"
+          >
+            {isLoadingDirection ? 'Checking...' : 'Check Again'}
+          </button>
         </div>
       </div>
     );
@@ -334,18 +331,21 @@ export default function PracticePage({ queueWords, counters, direction: initialD
   if (completed) {
     return (
       <div className="max-w-2xl mx-auto text-center p-4">
-        <div className="bg-brutal-white border-4 border-brutal-black shadow-brutal p-8">
-          <CheckCircle className="h-24 w-24 text-bauhaus-green mx-auto mb-4" />
-          <h1 className="text-4xl font-bold mb-4 font-heading">COMPLETE</h1>
-          <p className="text-2xl font-mono mb-8">
+        <div className="bg-white border-4 border-black p-12 shadow-[12px_12px_0px_0px_#000]">
+          <div className="bg-bauhaus-green w-24 h-24 mx-auto mb-6 flex items-center justify-center border-4 border-black shadow-[4px_4px_0px_0px_#000]">
+            <CheckCircle className="h-12 w-12 text-black" />
+          </div>
+          <h1 className="text-5xl font-black mb-4 uppercase tracking-tighter">Complete</h1>
+          <p className="text-3xl font-black mb-2 bg-bauhaus-yellow inline-block px-4 py-1 border-2 border-black rotate-2 shadow-[4px_4px_0px_0px_#000]">
             Score: {score}/{finalTotal}
           </p>
-          <Button
+          <p className="text-gray-600 font-bold mt-6 mb-8">Session complete. See you next time!</p>
+          <button
             onClick={() => window.location.href = '/dashboard'}
-            className="bg-bauhaus-blue text-white border-4 border-brutal-black shadow-brutal hover:translate-y-1 hover:shadow-none transition-all rounded-none font-bold text-lg px-8 py-4"
+            className="bg-bauhaus-blue text-white border-4 border-black font-black text-xl px-8 py-4 uppercase tracking-widest hover:-translate-y-2 hover:shadow-[8px_8px_0px_0px_#000] transition-all"
           >
-            BACK TO DASHBOARD
-          </Button>
+            Back to Dashboard
+          </button>
         </div>
       </div>
     );
@@ -354,33 +354,32 @@ export default function PracticePage({ queueWords, counters, direction: initialD
   if (!currentWord) {
     return (
       <div className="max-w-2xl mx-auto text-center p-4">
-        <div className="bg-brutal-white border-4 border-brutal-black shadow-brutal p-8 animate-pulse">
-          <h1 className="text-2xl font-bold font-heading">LOADING...</h1>
+        <div className="bg-white border-4 border-black p-8 shadow-[8px_8px_0px_0px_#000] animate-pulse">
+          <h1 className="text-2xl font-black uppercase">Loading...</h1>
         </div>
       </div>
     );
   }
 
   const cleanedState = formatStateLabel(currentWord.stage);
-  const formattedNextReview = 'Now'; // Since it's in queue
 
   return (
     <div className="max-w-2xl mx-auto p-4 space-y-8">
       <div className="flex justify-between items-center">
-        <h1 className="text-4xl font-black font-heading tracking-tighter">PRACTICE</h1>
+        <h1 className="text-4xl font-black uppercase tracking-tighter">Practice</h1>
         <AnkiSync onSyncComplete={() => handleRefreshQueue()} />
       </div>
 
       {directionToggle}
 
       <div className="mb-8">
-        <div className="flex items-center justify-between font-mono text-sm mb-2">
-          <span>PROGRESS</span>
+        <div className="flex items-center justify-between font-bold text-sm mb-2 uppercase tracking-tight">
+          <span>Progress</span>
           <span>{Math.min(currentWordIndex + 1, localQueue.length)} / {localQueue.length || finalTotal}</span>
         </div>
-        <div className="w-full bg-brutal-gray border-2 border-brutal-black h-4">
+        <div className="w-full bg-gray-200 border-4 border-black h-6 p-0.5">
           <div
-            className="bg-bauhaus-blue h-full transition-all duration-300 border-r-2 border-brutal-black"
+            className="bg-bauhaus-blue h-full transition-all duration-300 border-r-2 border-black"
             style={{
               width: `${localQueue.length
                 ? Math.min(((currentWordIndex + 1) / localQueue.length) * 100, 100)
@@ -392,46 +391,47 @@ export default function PracticePage({ queueWords, counters, direction: initialD
       </div>
 
       <div className="relative group">
-        <div className="absolute -inset-1 bg-brutal-black translate-x-2 translate-y-2 group-hover:translate-x-3 group-hover:translate-y-3 transition-transform"></div>
-        <div className="relative bg-brutal-white border-4 border-brutal-black p-8 min-h-[400px] flex flex-col justify-between">
+        <div className="bg-white border-4 border-black p-8 min-h-[400px] flex flex-col justify-between shadow-[12px_12px_0px_0px_#000] transition-transform duration-300 group-hover:-translate-y-1 group-hover:shadow-[16px_16px_0px_0px_#000]">
 
-          <div className="space-y-4">
+          <div className="space-y-6">
             <div className="flex justify-center gap-2">
               {cleanedState && (
-                <span className="px-3 py-1 bg-bauhaus-yellow border-2 border-brutal-black font-bold text-xs uppercase tracking-wider">
+                <span className="px-3 py-1 bg-bauhaus-yellow border-2 border-black font-bold text-xs uppercase tracking-wider shadow-[2px_2px_0px_0px_#000]">
                   {cleanedState}
                 </span>
               )}
               {currentWord.scheduler === 'anki' && (
-                <span className="px-3 py-1 bg-bauhaus-blue text-white border-2 border-brutal-black font-bold text-xs uppercase tracking-wider">
+                <span className="px-3 py-1 bg-bauhaus-blue text-white border-2 border-black font-bold text-xs uppercase tracking-wider shadow-[2px_2px_0px_0px_#000]">
                   ANKI
                 </span>
               )}
             </div>
 
-            <h2 className="text-5xl font-black text-center font-heading break-words">
+            <h2 className="text-5xl font-black text-center uppercase tracking-tight break-words py-8">
               {cleanSurface(currentWord.word, currentWord.translation)}
             </h2>
 
-            <p className="text-center text-gray-500 font-mono text-sm">
-              How well do you know this word?
-            </p>
+            {!showAnswer && (
+              <p className="text-center text-gray-500 font-bold uppercase tracking-widest text-sm">
+                How well do you know this word?
+              </p>
+            )}
           </div>
 
           <div className="space-y-6 mt-8">
             {!showAnswer ? (
               <div className="text-center">
-                <Button
+                <button
                   onClick={handleShowTranslation}
-                  className="w-full bg-brutal-black text-white hover:bg-bauhaus-red border-4 border-transparent hover:border-brutal-black transition-all font-bold text-xl py-6 rounded-none"
+                  className="w-full bg-black text-white hover:bg-bauhaus-red border-4 border-transparent hover:border-black transition-all font-black text-2xl py-6 uppercase tracking-widest shadow-[4px_4px_0px_0px_rgba(0,0,0,0)] hover:shadow-[8px_8px_0px_0px_#000]"
                 >
-                  REVEAL
-                </Button>
+                  Reveal
+                </button>
               </div>
             ) : (
               <>
-                <div className="text-center p-6 bg-brutal-gray border-2 border-brutal-black">
-                  <p className="text-3xl font-bold text-brutal-black font-heading">
+                <div className="text-center p-6 bg-gray-100 border-4 border-black shadow-[4px_4px_0px_0px_#000]">
+                  <p className="text-3xl font-black text-black">
                     {currentWord.translation}
                   </p>
                 </div>
@@ -439,27 +439,27 @@ export default function PracticePage({ queueWords, counters, direction: initialD
                 <div className="grid grid-cols-2 gap-4">
                   <button
                     onClick={() => handleRating(0)}
-                    className="p-4 bg-white border-4 border-brutal-black hover:bg-bauhaus-red hover:text-white transition-colors font-bold text-lg"
+                    className="p-4 bg-white border-4 border-black hover:bg-bauhaus-red hover:text-white transition-all font-black text-lg uppercase shadow-[4px_4px_0px_0px_#000] hover:shadow-[6px_6px_0px_0px_#000] hover:-translate-y-1 active:translate-y-0 active:shadow-[2px_2px_0px_0px_#000]"
                   >
-                    AGAIN
+                    Again
                   </button>
                   <button
                     onClick={() => handleRating(1)}
-                    className="p-4 bg-white border-4 border-brutal-black hover:bg-bauhaus-yellow hover:text-black transition-colors font-bold text-lg"
+                    className="p-4 bg-white border-4 border-black hover:bg-bauhaus-yellow hover:text-black transition-all font-black text-lg uppercase shadow-[4px_4px_0px_0px_#000] hover:shadow-[6px_6px_0px_0px_#000] hover:-translate-y-1 active:translate-y-0 active:shadow-[2px_2px_0px_0px_#000]"
                   >
-                    HARD
+                    Hard
                   </button>
                   <button
                     onClick={() => handleRating(2)}
-                    className="p-4 bg-white border-4 border-brutal-black hover:bg-bauhaus-blue hover:text-white transition-colors font-bold text-lg"
+                    className="p-4 bg-white border-4 border-black hover:bg-bauhaus-blue hover:text-white transition-all font-black text-lg uppercase shadow-[4px_4px_0px_0px_#000] hover:shadow-[6px_6px_0px_0px_#000] hover:-translate-y-1 active:translate-y-0 active:shadow-[2px_2px_0px_0px_#000]"
                   >
-                    GOOD
+                    Good
                   </button>
                   <button
                     onClick={() => handleRating(3)}
-                    className="p-4 bg-white border-4 border-brutal-black hover:bg-green-500 hover:text-black transition-colors font-bold text-lg"
+                    className="p-4 bg-white border-4 border-black hover:bg-green-500 hover:text-black transition-all font-black text-lg uppercase shadow-[4px_4px_0px_0px_#000] hover:shadow-[6px_6px_0px_0px_#000] hover:-translate-y-1 active:translate-y-0 active:shadow-[2px_2px_0px_0px_#000]"
                   >
-                    EASY
+                    Easy
                   </button>
                 </div>
               </>
@@ -469,12 +469,16 @@ export default function PracticePage({ queueWords, counters, direction: initialD
       </div>
 
       {lastReviewFeedback && (
-        <div className="border-4 border-brutal-black bg-bauhaus-yellow p-4 shadow-brutal">
-          <p className="font-bold uppercase tracking-wide text-xs mb-1">
-            Feedback
+        <div className="border-4 border-black bg-bauhaus-yellow p-4 shadow-[8px_8px_0px_0px_#000]">
+          <p className="font-black uppercase tracking-widest text-xs mb-2 border-b-2 border-black pb-1 inline-block">
+            Last Review
           </p>
-          <p className="font-black text-lg">{lastReviewFeedback.word}</p>
-          <p className="font-mono text-sm">{lastReviewFeedback.message}</p>
+          <div className="flex flex-col gap-1">
+            <p className="font-black text-xl">{lastReviewFeedback.word}</p>
+            <p className="font-medium text-sm border-l-4 border-black pl-3 py-1 bg-white/50">
+              {lastReviewFeedback.message}
+            </p>
+          </div>
         </div>
       )}
     </div>

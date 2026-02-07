@@ -1,0 +1,165 @@
+# Prologue: L'Astéroïde
+# Establishes the setting and player's loneliness
+
+id: prologue
+story_id: petit_prince
+order_index: 0
+title: "L'Astéroïde"
+target_level: "A1"
+
+metadata:
+  estimated_duration_minutes: 5
+  theme: "Einsamkeit etablieren"
+
+learning_focus:
+  grammar:
+    - "Présent simple"
+    - "C'est... / Il y a..."
+  vocabulary:
+    - "l'espace (der Weltraum)"
+    - "le silence (die Stille)"
+    - "seul (allein)"
+    - "le coucher du soleil (der Sonnenuntergang)"
+    - "triste (traurig)"
+  communicative_functions:
+    - "Sich selbst beschreiben"
+    - "Den Ort beschreiben"
+
+scenes:
+  - id: prologue_silence
+    order_index: 0
+    type: "narrative_only"
+    
+    setting:
+      location: "Asteroid B-329"
+      time: "Zeitlos"
+      atmosphere: "lonely, quiet, contemplative"
+    
+    description: |
+      Ein winziger Asteroid im Weltraum.
+      So klein, dass man ihn in drei Schritten umrunden kann.
+      Ein einzelner Stuhl. Ein kleiner Baobab-Setzling.
+      Unendliche Sterne.
+    
+    narration:
+      A1: |
+        L'espace.
+        Le silence.
+        Ton astéroïde.
+        
+        Il est petit. Très petit.
+        Trois pas – et tu as fait le tour.
+        
+        Tu es seul.
+        Depuis longtemps.
+        Tu ne comptes plus les jours.
+        
+        Ton fauteuil. Pour regarder le coucher du soleil.
+        Sur ton astéroïde, le soleil se couche quarante-quatre fois par jour.
+        Si tu veux.
+        
+        Quarante-quatre fois par jour, tu peux être triste.
+        Ou pas.
+      
+      A2: |
+        L'espace est vaste et silencieux.
+        Ton astéroïde flotte dans ce silence.
+        
+        Il est si petit qu'on peut en faire le tour en trois pas.
+        Tu le connais par cœur.
+        
+        Tu es seul ici depuis... tu ne sais plus combien de temps.
+        Les jours n'ont pas de sens quand le soleil se couche 
+        quarante-quatre fois avant la nuit.
+        
+        Ton fauteuil attend. Pour les couchers de soleil.
+        Quarante-quatre occasions d'être mélancolique.
+        Ou d'espérer.
+      
+      B1: |
+        Dans l'immensité de l'espace, il y a un astéroïde 
+        que personne n'a jamais visité.
+        L'astéroïde B-329.
+        
+        Il est si petit qu'on peut en faire le tour en trois pas.
+        Si petit qu'un seul baobab pourrait le faire éclater.
+        
+        Et pourtant, quelqu'un y vit. Toi.
+        
+        Depuis combien de temps es-tu là?
+        Tu ne sais plus. Les jours n'ont pas de sens 
+        quand le soleil se couche quarante-quatre fois 
+        avant que tu aies fini de penser.
+        
+        Quarante-quatre couchers de soleil par jour.
+        Quarante-quatre occasions d'être mélancolique.
+        Ou d'espérer. Mais espérer quoi?
+    
+    npcs_present: ["narrator"]
+    
+    objectives:
+      - id: experience_loneliness
+        description: "Erlebe die Einsamkeit des Asteroiden"
+        type: "narrative"
+        optional: false
+    
+    player_interaction:
+      type: "contemplative_choice"
+      prompt:
+        A1: "Qu'est-ce que tu fais maintenant?"
+        A2: "Que fais-tu de tes journées?"
+        B1: "Que fais-tu de tes journées sans fin?"
+      
+      options:
+        - id: watch_sunset
+          text:
+            A1: "Je regarde le soleil."
+            A2: "Je regarde le coucher du soleil."
+            B1: "Je contemple le coucher du soleil."
+          response:
+            narration: "Encore un. Il y en aura d'autres."
+          effects:
+            - type: set_flag
+              target: player_choice_sunset
+              value: true
+            - type: set_flag
+              target: mood_melancholic
+              value: true
+        
+        - id: tend_baobab
+          text:
+            A1: "Je m'occupe du baobab."
+            A2: "Je coupe les branches du baobab."
+            B1: "Je veille sur le baobab, pour qu'il ne devienne pas trop grand."
+          response:
+            narration: "Tu coupes les petites branches. Si tu oublies un jour, il sera trop tard."
+          effects:
+            - type: set_flag
+              target: player_choice_caretaker
+              value: true
+        
+        - id: wait
+          text:
+            A1: "J'attends."
+            A2: "J'attends. Je ne sais pas quoi."
+            B1: "J'attends. Sans savoir quoi."
+          response:
+            narration: "Tu attends. Comme toujours."
+          effects:
+            - type: set_flag
+              target: player_choice_waiting
+              value: true
+            - type: set_flag
+              target: mood_hopeful
+              value: true
+    
+    transition:
+      trigger: "choice_made"
+      narration:
+        A1: "Et puis... Quelque chose."
+        A2: "Et puis, quelque chose d'extraordinaire se produit."
+        B1: |
+          Et c'est alors que quelque chose d'extraordinaire se produit.
+          Pour la première fois depuis... depuis quand?
+          Une lumière traverse le ciel.
+      next_scene: "ch1_the_light"

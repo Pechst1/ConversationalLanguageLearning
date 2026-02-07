@@ -29,7 +29,9 @@ dependencies = [
     "orjson>=3.9",
     "python-multipart>=0.0.6",
     "spacy>=3.7",
-    "numpy>=1.26"
+    "numpy>=1.26",
+    "youtube-transcript-api>=0.6.1",
+    "beautifulsoup4>=4.12"
 ]
 
 [project.optional-dependencies]

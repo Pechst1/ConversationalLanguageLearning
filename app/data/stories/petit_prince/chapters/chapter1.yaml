@@ -1,0 +1,337 @@
+# Chapter 1: L'Arrivée (Die Ankunft)
+# The little prince arrives and asks for a sheep
+
+id: chapter1_arrival
+story_id: petit_prince
+order_index: 1
+title: "L'Arrivée"
+target_level: "A1"
+
+metadata:
+  estimated_duration_minutes: 15
+  theme: "Erste Begegnung, Dessine-moi un mouton"
+
+learning_focus:
+  grammar:
+    - "L'impératif (Dessine-moi...)"
+    - "C'est... / Ce n'est pas..."
+    - "Adjektive (grand, petit, malade)"
+  vocabulary:
+    - "le mouton (das Schaf)"
+    - "la boîte (die Kiste)"
+    - "dessiner (zeichnen)"
+    - "grand/petit (groß/klein)"
+  communicative_functions:
+    - "Bitten ausdrücken"
+    - "Beschreiben"
+
+scenes:
+  - id: ch1_the_light
+    order_index: 0
+    
+    setting:
+      location: "Asteroid B-329"
+      time: "Ein Moment, der alles verändert"
+      atmosphere: "excited, confused, hopeful"
+    
+    narration:
+      A1: |
+        Une lumière.
+        Elle tombe du ciel.
+        Elle tombe... vers toi!
+        
+        [CRASH]
+        
+        Tu cours voir.
+        Ce n'est pas une étoile.
+        Ce n'est pas une pierre.
+        C'est...
+      
+      A2: |
+        La lumière grossit, descend vers ton astéroïde.
+        
+        Ton cœur bat. Depuis quand n'a-t-il pas battu ainsi?
+        
+        [Un bruit doux – une arrivée]
+        
+        Tu t'approches.
+        Ce n'est pas un météore.
+        Ce n'est pas un rêve.
+        C'est...
+    
+    reveal:
+      visual_description: |
+        Aus dem Licht tritt eine kleine Gestalt.
+        Ein Kind. Goldene Haare. Ein grüner Mantel.
+        Es klopft sich den Sternenstaub ab.
+        Es sieht dich an.
+      narration:
+        A1: "Un enfant."
+        A2: "Un enfant, apparu de nulle part, au milieu de nulle part."
+    
+    npcs_present: ["petit_prince", "narrator"]
+    
+    objectives:
+      - id: find_out_wants
+        description: "Finde heraus, was der kleine Prinz möchte"
+        type: "understanding"
+    
+    # The prince speaks first - the iconic scene
+    npc_dialogue:
+      speaker: petit_prince
+      text:
+        A1: "S'il te plaît... Dessine-moi un mouton."
+        A2: |
+          S'il te plaît...
+          [Pause]
+          Dessine-moi un mouton.
+      voice:
+        tone: "earnest, pleading"
+        speed: 0.8
+    
+    player_interaction:
+      type: "free_input"
+      prompt:
+        A1: "Que dis-tu?"
+        A2: "Comment réponds-tu à cette demande étrange?"
+      
+      expected_intents:
+        - "confused_question"
+        - "refusal"
+        - "acceptance"
+        - "counter_question"
+      
+      response_handling:
+        confused_question:
+          patterns: ["qui", "quoi", "pourquoi", "comment", "wer", "was", "warum"]
+          npc_response:
+            speaker: petit_prince
+            text:
+              A1: |
+                [Schüttelt den Kopf]
+                S'il te plaît...
+                Dessine-moi un mouton.
+              A2: |
+                [Scheint die Frage nicht zu verstehen]
+                S'il te plaît. C'est très important.
+                Dessine-moi un mouton.
+            note: "Der Prinz antwortet nie auf Fragen, bevor seine Bitte erfüllt ist."
+        
+        refusal:
+          patterns: ["non", "nein", "ne peux pas", "kann nicht", "impossible"]
+          npc_response:
+            speaker: petit_prince
+            text:
+              A1: |
+                [Sieht traurig aus]
+                Tu ne sais pas dessiner?
+                Moi non plus, les grandes personnes ne savent jamais rien.
+                Essaie. S'il te plaît.
+              A2: |
+                [Ein Schatten huscht über sein Gesicht]
+                Les grandes personnes disent toujours qu'elles ne peuvent pas.
+                Mais toi, tu n'es pas vraiment une grande personne, n'est-ce pas?
+                Essaie. S'il te plaît.
+          effects:
+            - type: relationship_change
+              target: petit_prince
+              value: -1
+            - type: set_flag
+              target: initially_refused
+              value: true
+        
+        acceptance:
+          patterns: ["oui", "ja", "d'accord", "okay", "je vais essayer"]
+          npc_response:
+            speaker: petit_prince
+            text:
+              A1: |
+                [Lächelt – zum ersten Mal]
+                Merci.
+                [Setzt sich und wartet geduldig]
+              A2: |
+                [Sein Gesicht erhellt sich]
+                Merci.
+                [Setzt sich, wartet mit der Geduld von jemandem, der die Ewigkeit kennt]
+          effects:
+            - type: relationship_change
+              target: petit_prince
+              value: +1
+            - type: set_flag
+              target: accepted_immediately
+              value: true
+    
+    transition:
+      next_scene: "ch1_drawing_sheep"
+
+  - id: ch1_drawing_sheep
+    order_index: 1
+    
+    setting:
+      location: "Asteroid B-329"
+      atmosphere: "playful, creative, slightly frustrating"
+    
+    narration:
+      A1: |
+        Tu n'as pas de papier. Pas de crayon.
+        Mais le petit prince attend.
+        Alors, tu dessines avec des mots.
+        Tu décris un mouton.
+      A2: |
+        Tu n'as ni papier ni crayon – sur un astéroïde, 
+        ces choses n'existent pas.
+        Mais le petit prince attend, et son attente a le poids d'une étoile.
+        Alors, tu fais la seule chose possible:
+        Tu dessines avec des mots.
+    
+    npcs_present: ["petit_prince"]
+    
+    objectives:
+      - id: describe_sheep
+        description: "Beschreibe ein Schaf für den kleinen Prinzen"
+        type: "creative"
+    
+    # Drawing mechanic - vocabulary exercise disguised as story
+    drawing_mechanic:
+      instruction:
+        A1: "Décris un mouton. Comment est-il?"
+        A2: "Décris ton mouton au petit prince. À quoi ressemble-t-il?"
+      
+      voice_bonus:
+        enabled: true
+        xp_multiplier: 1.5
+        note: "Le petit prince préfère écouter plutôt que lire."
+      
+      attempts:
+        attempt_1:
+          prompt: "Décris ton premier mouton."
+          
+          analysis:
+            look_for:
+              size: ["grand", "petit", "gros", "énorme", "minuscule"]
+              color: ["blanc", "noir", "gris", "marron"]
+              features: ["cornes", "laine", "pattes", "queue"]
+              state: ["malade", "vieux", "jeune", "fatigué", "content"]
+          
+          responses:
+            too_big:
+              triggers: ["grand", "gros", "énorme"]
+              npc_response:
+                speaker: petit_prince
+                text:
+                  A1: |
+                    [Schüttelt den Kopf]
+                    Non. Celui-là est trop grand.
+                    Mon astéroïde est très petit.
+                    Dessine-moi un autre mouton.
+              infobox:
+                title: "Größe beschreiben"
+                type: "vocabulary"
+                content: |
+                  Der Prinz will ein KLEINES Schaf.
+                  
+                  Nützliche Wörter:
+                  • petit (klein)
+                  • minuscule (winzig)
+                  • tout petit (ganz klein)
+                grammar_note: |
+                  Adjektive im Französischen:
+                  un GRAND mouton (ein großes Schaf)
+                  un PETIT mouton (ein kleines Schaf)
+            
+            sick:
+              triggers: ["malade", "vieux", "fatigué", "triste"]
+              npc_response:
+                speaker: petit_prince
+                text:
+                  A1: |
+                    [Sieht traurig aus]
+                    Non. Celui-là est malade.
+                    Je veux un mouton en bonne santé.
+              infobox:
+                title: "Gesundheit beschreiben"
+                type: "vocabulary"
+                content: |
+                  Nützliche Wörter:
+                  • en bonne santé (gesund)
+                  • fort (stark)
+                  • content (zufrieden)
+            
+            has_horns:
+              triggers: ["cornes"]
+              npc_response:
+                speaker: petit_prince
+                text:
+                  A1: |
+                    [Lacht]
+                    Mais non! Celui-là a des cornes!
+                    Ce n'est pas un mouton, c'est un bélier!
+              effects:
+                - type: relationship_change
+                  target: petit_prince
+                  value: +1
+              infobox:
+                title: "Mouton vs. Bélier"
+                type: "vocabulary"
+                content: |
+                  Un mouton = ein Schaf (ohne Hörner)
+                  Un bélier = ein Widder (mit Hörner)
+        
+        creative_solution:
+          description: "Der Spieler kann eine Kiste beschreiben"
+          triggers: ["boîte", "caisse", "box", "kiste", "dedans", "inside", "imagine"]
+          npc_response:
+            speaker: petit_prince
+            text:
+              A1: |
+                [Strahlt]
+                Une boîte!
+                Et le mouton est dedans?
+                C'est exactement ce que je voulais!
+                Regarde! Il dort.
+              A2: |
+                [Blinzelt – dann versteht er]
+                Oh! C'est une boîte!
+                Et le mouton que je voulais est dedans?
+                C'est tout à fait ce que je voulais!
+                Regarde comme il est paisible. Il dort.
+          effects:
+            - type: relationship_change
+              target: petit_prince
+              value: +3
+            - type: set_flag
+              target: found_box_solution
+              value: true
+            - type: trigger_achievement
+              target: thinking_like_a_child
+          infobox:
+            title: "Die Kiste – Die perfekte Lösung"
+            type: "story"
+            content: |
+              Du hast die perfekte Lösung gefunden!
+              
+              Im Original-Buch zeichnet der Erzähler auch eine Kiste.
+              Der Prinz ist begeistert – er kann sich das perfekte 
+              Schaf SELBST vorstellen.
+              
+              Manchmal ist das, was man nicht sieht, 
+              wichtiger als das, was man sieht.
+            book_quote: |
+              "Ça c'est la caisse. Le mouton que tu veux est dedans."
+              – Le Petit Prince, Chapitre II
+    
+    transition:
+      trigger: "sheep_success"
+      narration:
+        A1: |
+          Le petit prince tient la boîte.
+          Il sourit.
+          Et toi aussi.
+        A2: |
+          C'est étrange comme un simple dessin – 
+          ou l'idée d'un dessin – peut créer un lien.
+          Pour la première fois depuis des années,
+          tu n'es plus complètement seul.
+      next_scene: "ch2_questions_begin"
+
+cliffhanger: null  # No cliffhanger for chapter 1

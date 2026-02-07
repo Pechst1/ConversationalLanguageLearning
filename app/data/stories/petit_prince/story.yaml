@@ -1,0 +1,93 @@
+# Le Petit Prince – Story Metadata
+# Interactive language learning adventure based on Antoine de Saint-Exupéry
+
+id: petit_prince
+title: "L'Astéroïde Oublié"
+subtitle: "Une aventure interactive d'après Antoine de Saint-Exupéry"
+
+source:
+  book: "Le Petit Prince"
+  author: "Antoine de Saint-Exupéry"
+  year: 1943
+  gutenberg_id: null  # Not yet available on Gutenberg
+
+metadata:
+  target_levels: ["A1", "A2"]
+  themes:
+    - "Einsamkeit"
+    - "Freundschaft"
+    - "Liebe"
+    - "Was wirklich wichtig ist"
+  estimated_duration_minutes: 90
+  cover_image_url: null  # To be added
+
+learning_objectives:
+  grammar:
+    - "L'impératif (Befehlsform)"
+    - "Les questions (Frageformen)"
+    - "Le passé composé (Einführung)"
+    - "Le conditionnel (Konditional)"
+    - "Le futur simple"
+  vocabulary:
+    - "Grundwortschatz: Natur, Gefühle, Beziehungen"
+    - "Fragewörter: qui, quoi, où, pourquoi, comment"
+    - "Philosophisches Vokabular: apprivoiser, essentiel, invisible"
+  communicative_functions:
+    - "Bitten ausdrücken (s'il te plaît)"
+    - "Fragen stellen und beantworten"
+    - "Gefühle beschreiben"
+    - "Über die Vergangenheit sprechen"
+
+player:
+  default_name: null  # Player chooses or Prince gives a name
+  backstory:
+    short: "Du lebst allein auf einem kleinen Asteroiden."
+    full: |
+      Vor langer Zeit – du weißt nicht mehr, wie lange – bist du auf 
+      diesem Asteroiden gelandet. Oder wurdest du hier geboren? 
+      Du erinnerst dich nicht. 
+      
+      Dein Asteroid hat drei Dinge:
+      - Einen Baobab-Setzling, den du jeden Tag beschneidest
+      - Einen Stuhl, von dem aus du Sonnenuntergänge siehst
+      - Eine Einsamkeit, die so alt ist wie die Sterne
+      
+      Du hast aufgehört, die Tage zu zählen.
+      Bis heute.
+  starting_state:
+    loneliness: 10
+    hope: 2
+    wisdom: 5
+  hidden_trait: |
+    Der Spieler erfährt erst am Ende: Er ist ein "verlorenes Kind" –
+    jemand, der erwachsen wurde und dabei vergessen hat, wie man 
+    die wichtigen Dinge sieht.
+
+chapters:
+  - id: prologue
+    file: chapters/prologue.yaml
+  - id: chapter1_arrival
+    file: chapters/chapter1.yaml
+  - id: chapter2_questions
+    file: chapters/chapter2.yaml
+  - id: chapter3_philosophy
+    file: chapters/chapter3.yaml
+
+npcs:
+  - id: petit_prince
+    file: npcs/petit_prince.yaml
+  - id: narrator
+    file: npcs/narrator.yaml
+
+endings:
+  - id: stars_that_laugh
+    trigger:
+      flag: "specialEnding_stars_that_laugh"
+    title: "Les étoiles qui rient"
+    description: "Du hast das Geheimnis der lachenden Sterne entdeckt."
+  - id: friendship_eternal
+    trigger:
+      relationship:
+        petit_prince: 9
+    title: "Ami pour toujours"
+    description: "Du bist zu einem wahren Freund des kleinen Prinzen geworden."

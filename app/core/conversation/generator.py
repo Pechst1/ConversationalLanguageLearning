@@ -2,15 +2,20 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterable, Literal, Sequence
+from typing import Iterable, Literal, Sequence, TYPE_CHECKING
 
 from loguru import logger
 
 from app.core.conversation.prompts import build_few_shot_examples, build_system_prompt
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
+from app.db.models.error import UserError
 from app.services.llm_service import LLMResult
 from app.services.progress import ProgressService, QueueItem
+from app.services.auto_context_service import SessionContext  # [NEW]
+
+if TYPE_CHECKING:
+    from app.db.models.grammar import GrammarConcept, UserGrammarProgress
 
 ConversationRole = Literal["user", "assistant"]
 
@@ -314,6 +319,9 @@ class ConversationGenerator:
         user: User,
         topic: str | None = None,
         scenario: str | None = None,
+        due_errors: Sequence[UserError] | None = None,
+        due_grammar: Sequence[tuple["GrammarConcept", "UserGrammarProgress | None"]] | None = None,
+        scenario_context: str | None = None,
     ) -> str:
         """Return a context block describing vocabulary and learner profile."""
 
@@ -322,10 +330,38 @@ class ConversationGenerator:
             f"Learner native language: {user.native_language or 'unknown'}",
         ]
 
+        if due_errors:
+            # Limit to top 3 most problematic errors for focus
+            prioritized_errors = list(due_errors)[:3]
+            lines.append("")
+            lines.append("PRIORITY ERROR CORRECTION (These are the learner's most persistent mistakes):")
+            lines.append("Construct your response to naturally require correct usage of these patterns:")
+            for err in prioritized_errors:
+                lapses_info = f"[{err.lapses or 0} lapses, {err.reps or 0} reviews]" if err.lapses or err.reps else ""
+                lines.append(
+                    f"- {err.error_category}: {err.error_pattern} {lapses_info}"
+                )
+                lines.append(f"  Context: '{err.context_snippet}' → Correct: '{err.correction}'")
+
+        # Add grammar concepts due for practice
+        if due_grammar:
+            lines.append("")
+            lines.append("GRAMMAR FOCUS (Practice these concepts naturally in conversation):")
+            for concept, progress in due_grammar[:2]:  # Limit to 2 concepts
+                state_info = f" [{progress.state}]" if progress else " [new]"
+                lines.append(f"- {concept.name} ({concept.level}){state_info}")
+                if concept.description:
+                    lines.append(f"  Description: {concept.description[:100]}..." if len(concept.description or "") > 100 else f"  Description: {concept.description}")
+                if concept.examples:
+                    # Show first example if available
+                    lines.append(f"  Example usage: {concept.examples[:80]}..." if len(concept.examples or "") > 80 else f"  Example: {concept.examples}")
+
         if topic:
             lines.append(f"Conversation topic: {topic}")
         if scenario:
             lines.append(f"CURRENT SCENARIO: {scenario}")
+        if scenario_context:
+            lines.append(scenario_context)
 
         lines.append("Target vocabulary for this turn:")
 
@@ -369,6 +405,9 @@ class ConversationGenerator:
         user: User,
         topic: str | None = None,
         scenario: str | None = None,
+        due_errors: Sequence[UserError] | None = None,
+        due_grammar: Sequence[tuple["GrammarConcept", "UserGrammarProgress | None"]] | None = None,
+        scenario_context: str | None = None,
     ) -> list[dict[str, str]]:
         """Assemble the chat completion payload."""
 
@@ -378,6 +417,9 @@ class ConversationGenerator:
             user=user,
             topic=topic,
             scenario=scenario,
+            due_errors=due_errors,
+            due_grammar=due_grammar,
+            scenario_context=scenario_context,
         )
         context_message = {"role": "system", "content": target_context}
 
@@ -403,6 +445,10 @@ class ConversationGenerator:
         exclude_ids: set[int] | None = None,
         anki_direction: str | None = None,
         scenario: str | None = None,
+        due_errors: Sequence[UserError] | None = None,
+        due_grammar: Sequence[tuple["GrammarConcept", "UserGrammarProgress | None"]] | None = None,
+        scenario_context: str | None = None,
+        session_context: SessionContext | None = None,  # [NEW]
     ) -> GeneratedTurn:
         """Generate a turn while respecting the adaptive session context."""
 
@@ -445,18 +491,30 @@ class ConversationGenerator:
             user=user,
             topic=topic,
             scenario=scenario,
+            due_errors=due_errors,
+            due_grammar=due_grammar,
         )
 
         system_prompt = build_system_prompt(style, learner_level)
+
+        # [NEW] Inject auto-context signals (Time of day, rich style instructions, news)
+        if session_context:
+            system_prompt += "\n\n" + session_context.to_system_prompt_addition()
+
         if scenario:
             system_prompt += f"\n\nROLEPLAY SCENARIO: {scenario}\nAct exclusively as a character in this setting. Do not break character."
         applied_temperature = temperature if temperature is not None else self.default_temperature
+
+        # Reduce token limit for speaking_first mode to keep responses short
+        effective_max_tokens = self.max_tokens
+        if style == "speaking_first":
+            effective_max_tokens = 200  # Much shorter for voice responses
 
         try:
             result = self.llm_service.generate_chat_completion(
                 messages,
                 temperature=applied_temperature,
-                max_tokens=self.max_tokens,
+                max_tokens=effective_max_tokens,
                 system_prompt=system_prompt,
             )
         except Exception as exc:  # pragma: no cover - defensive fallback for offline dev
@@ -513,6 +571,357 @@ class ConversationGenerator:
             topic=topic,
             exclude_ids=exclude_ids,
         )
+
+    # ------------------------------------------------------------------
+    # NPC Story Response Generation
+    # ------------------------------------------------------------------
+    def generate_npc_response(
+        self,
+        *,
+        user: User,
+        npc_service,
+        npc_id: str,
+        player_input: str,
+        scene_description: str,
+        learner_level: str,
+        conversation_history: Sequence[ConversationHistoryMessage] | None = None,
+        scene_objectives: list[str] | None = None,
+        story_flags: dict | None = None,
+    ) -> dict:
+        """
+        Generate an NPC response for the Story RPG feature.
+        
+        Returns a dict with:
+            - response: The NPC's dialogue text
+            - emotion: Optional emotional state (happy, sad, curious, etc.)
+            - relationship_delta: Change to relationship level (-2 to +2)
+            - new_mood: Optional new mood for the NPC
+            - triggers_unlocked: List of story triggers that were activated
+            - llm_result: Raw LLM response metadata
+        """
+        # Get NPC context
+        context = npc_service.get_prompt_context(user, npc_id)
+        if not context:
+            logger.warning("NPC not found", npc_id=npc_id)
+            return {
+                "response": "...",
+                "emotion": None,
+                "relationship_delta": 0,
+                "new_mood": None,
+                "triggers_unlocked": [],
+                "llm_result": None,
+            }
+        
+        npc = context.npc
+        history = conversation_history or ()
+        
+        # Build the system prompt for NPC roleplay
+        system_prompt = npc_service.build_npc_system_prompt(
+            context=context,
+            scene_description=scene_description,
+            player_level=learner_level,
+        )
+        
+        # Add scene objectives if present
+        if scene_objectives:
+            objectives_str = "\n".join(f"- {obj}" for obj in scene_objectives)
+            system_prompt += f"\n\nAKTUELLE SZENEN-ZIELE:\n{objectives_str}"
+        
+        # Add story flags for context
+        if story_flags:
+            relevant_flags = [f"{k}={v}" for k, v in story_flags.items() if v]
+            if relevant_flags:
+                system_prompt += f"\n\nSTORY-FLAGS: {', '.join(relevant_flags[:5])}"
+        
+        # Prepare messages for LLM
+        messages = self._prepare_history(history)
+        
+        # Add player's input as the latest user message
+        messages.append({"role": "user", "content": player_input})
+        
+        # Generate response using LLM
+        try:
+            result = self.llm_service.generate_chat_completion(
+                messages,
+                temperature=0.8,  # Slightly higher for more creative roleplay
+                max_tokens=350,
+                system_prompt=system_prompt,
+            )
+            response_text = result.content.strip()
+        except Exception as exc:
+            logger.error("NPC response generation failed", error=str(exc), npc_id=npc_id)
+            # Fallback response based on NPC personality
+            speech = npc.speech_pattern or {}
+            example_quotes = speech.get("example_quotes", [])
+            if example_quotes:
+                response_text = example_quotes[0]
+            else:
+                response_text = "..."
+            result = None
+        
+        # Analyze player input for relationship effects
+        player_analysis = self._analyze_player_input(player_input, npc)
+        relationship_delta, new_mood = npc_service.evaluate_npc_reaction(
+            npc_id, player_analysis
+        )
+        
+        # Detect any story triggers from the response
+        triggers_unlocked = self._detect_story_triggers(
+            player_input=player_input,
+            npc_response=response_text,
+            npc_id=npc_id,
+            story_flags=story_flags or {},
+        )
+        
+        # Detect emotion from response
+        emotion = self._detect_emotion(response_text, context.mood)
+        
+        # Evaluate objectives using LLM
+        objectives_completed = []
+        should_transition = False
+        if scene_objectives:
+            eval_result = self._evaluate_objectives_with_llm(
+                player_input=player_input,
+                npc_response=response_text,
+                objectives=scene_objectives,
+                conversation_history=history,
+                story_flags=story_flags or {},
+            )
+            objectives_completed = eval_result.get("completed", [])
+            should_transition = eval_result.get("should_transition", False)
+        
+        logger.info(
+            "Generated NPC response",
+            npc=npc.name,
+            player_level=learner_level,
+            relationship_delta=relationship_delta,
+            triggers=len(triggers_unlocked),
+            objectives_completed=objectives_completed,
+            should_transition=should_transition,
+        )
+        
+        return {
+            "response": response_text,
+            "emotion": emotion,
+            "relationship_delta": relationship_delta,
+            "new_mood": new_mood,
+            "triggers_unlocked": triggers_unlocked,
+            "objectives_completed": objectives_completed,
+            "should_transition": should_transition,
+            "llm_result": result,
+        }
+
+    def _analyze_player_input(self, player_input: str, npc) -> dict:
+        """Analyze player input for relationship triggers."""
+        text_lower = player_input.lower()
+        triggers = []
+        
+        # Check for question patterns
+        if any(word in text_lower for word in ["?", "qui", "quoi", "pourquoi", "comment", "où"]):
+            triggers.append("player_asks_questions")
+        
+        # Check for emotional language
+        emotion_words = ["triste", "content", "heureux", "aime", "peur", "seul", "ami"]
+        if any(word in text_lower for word in emotion_words):
+            triggers.append("player_shows_emotion")
+        
+        # Check for dismissive patterns
+        dismissive = ["pas important", "seulement", "juste", "egal", "peu importe"]
+        if any(word in text_lower for word in dismissive):
+            triggers.append("player_is_dismissive")
+        
+        # Check for rushing
+        rushing = ["vite", "rapide", "dépêche", "presse"]
+        if any(word in text_lower for word in rushing):
+            triggers.append("player_rushes")
+        
+        # Check for imagination/creativity
+        imagination = ["imagine", "rêve", "si j'étais", "comme si"]
+        if any(word in text_lower for word in imagination):
+            triggers.append("player_uses_imagination")
+        
+        # Check for honesty signals
+        honesty = ["je ne sais pas", "peut-être", "je pense", "honnêtement"]
+        if any(phrase in text_lower for phrase in honesty):
+            triggers.append("player_is_honest")
+        
+        # Check for humor
+        humor_signals = ["haha", "drôle", "blague", ":)", "😄"]
+        if any(signal in text_lower for signal in humor_signals):
+            triggers.append("humor_attempt")
+        
+        return {
+            "triggers": triggers,
+            "word_count": len(player_input.split()),
+            "has_question": "?" in player_input,
+        }
+
+    def _detect_story_triggers(
+        self,
+        player_input: str,
+        npc_response: str,
+        npc_id: str,
+        story_flags: dict,
+    ) -> list[str]:
+        """Detect which story triggers should be unlocked."""
+        triggers = []
+        text = (player_input + " " + npc_response).lower()
+        
+        # Petit Prince specific triggers
+        if npc_id == "petit_prince":
+            # Box solution trigger
+            if any(word in text for word in ["boîte", "caisse", "box", "dedans"]):
+                if not story_flags.get("found_box_solution"):
+                    triggers.append("found_box_solution")
+            
+            # Rose mentioned
+            if "rose" in text and not story_flags.get("rose_mentioned"):
+                triggers.append("rose_mentioned")
+            
+            # Philosophy about what's important
+            if any(word in text for word in ["important", "essentiel", "cœur"]):
+                triggers.append("philosophical_discussion")
+            
+            # Stars that laugh ending
+            if any(word in text for word in ["étoiles", "rire", "rient"]):
+                if story_flags.get("philosophical_discussion"):
+                    triggers.append("stars_that_laugh_foreshadowed")
+        
+        return triggers
+
+    def _detect_emotion(self, response_text: str, current_mood: str) -> str | None:
+        """Detect emotion from NPC response text."""
+        text_lower = response_text.lower()
+        
+        # Happiness indicators
+        if any(word in text_lower for word in ["merci", "content", "heureux", "sourire"]):
+            return "happy"
+        
+        # Sadness indicators
+        if any(word in text_lower for word in ["triste", "seul", "manque", "parti"]):
+            return "sad"
+        
+        # Curiosity indicators
+        if any(word in text_lower for word in ["?", "pourquoi", "raconte", "dis-moi"]):
+            return "curious"
+        
+        # Tender/vulnerable indicators
+        if any(word in text_lower for word in ["rose", "aime", "apprivoisé"]):
+            return "tender"
+        
+        return current_mood or "neutral"
+
+    def _evaluate_objectives_with_llm(
+        self,
+        player_input: str,
+        npc_response: str,
+        objectives: list[str],
+        conversation_history: Sequence[ConversationHistoryMessage],
+        story_flags: dict,
+    ) -> dict:
+        """
+        Use LLM to evaluate whether scene objectives have been achieved.
+        
+        Returns:
+            dict with:
+                - completed: list of objective descriptions that are now complete
+                - should_transition: bool indicating if scene should advance
+                - reasoning: explanation of evaluation
+        """
+        if not objectives:
+            return {"completed": [], "should_transition": False, "reasoning": "No objectives"}
+        
+        # Build conversation summary
+        history_summary = ""
+        if conversation_history:
+            recent = list(conversation_history)[-6:]  # Last 6 messages
+            history_summary = "\n".join(
+                f"{'Spieler' if m.role == 'user' else 'NPC'}: {m.content[:100]}"
+                for m in recent
+            )
+        
+        # Build evaluation prompt
+        objectives_list = "\n".join(f"- {obj}" for obj in objectives)
+        
+        prompt = f"""Du evaluierst eine interaktive Geschichte für Sprachlerner.
+        
+SZENEN-ZIELE (diese müssen EXAKT so in completed_objectives kopiert werden):
+{objectives_list}
+
+BISHERIGE KONVERSATION (Anzahl Nachrichten: {len(list(conversation_history)) if conversation_history else 0}):
+{history_summary}
+
+AKTUELLE SPIELER-EINGABE:
+{player_input}
+
+NPC-ANTWORT:
+{npc_response}
+
+AUFGABE:
+Evaluiere welche Szenen-Ziele durch die bisherige Konversation erfüllt wurden.
+
+REGELN FÜR DIE BEWERTUNG:
+
+1. "Sprich mit X" gilt als ERFÜLLT wenn:
+   - Mindestens 2-3 sinnvolle Nachrichten ausgetauscht wurden
+   - Es gab echten Dialog (Fragen, Antworten, Gedankenaustausch)
+
+2. "Verstehe..." oder "Erfahre..." Ziele erfordern:
+   - Der NPC hat relevante Informationen geteilt
+   - Das Thema wurde besprochen
+
+3. Sei tolerant - es ist eine Sprachlern-App, nicht ein strenges Spiel.
+
+4. WICHTIG: Kopiere die Ziel-Beschreibungen EXAKT wie oben angegeben!
+
+should_advance_scene:
+- true wenn ALLE nicht-optionalen Ziele erfüllt sind
+- false wenn noch Ziele offen sind
+
+Antworte im JSON-Format:
+{{
+    "completed_objectives": ["Exakter Zieltext 1", "Exakter Zieltext 2"],
+    "should_advance_scene": true/false,
+    "reasoning": "Kurze Begründung"
+}}
+
+Antworte NUR mit dem JSON-Objekt."""
+
+        try:
+            result = self.llm_service.generate_chat_completion(
+                [{"role": "user", "content": prompt}],
+                temperature=0.2,  # Low temperature for consistent evaluation
+                max_tokens=200,
+                system_prompt="Du bist ein Story-Evaluator. Antworte nur mit valiem JSON.",
+                response_format={"type": "json_object"},
+            )
+            
+            import json
+            try:
+                evaluation = json.loads(result.content)
+                completed = evaluation.get("completed_objectives", [])
+                should_transition = evaluation.get("should_advance_scene", False)
+                reasoning = evaluation.get("reasoning", "")
+                
+                logger.debug(
+                    "Objective evaluation",
+                    completed=completed,
+                    should_transition=should_transition,
+                    reasoning=reasoning,
+                )
+                
+                return {
+                    "completed": completed,
+                    "should_transition": should_transition,
+                    "reasoning": reasoning,
+                }
+            except json.JSONDecodeError:
+                logger.warning("Failed to parse objective evaluation JSON", content=result.content[:100])
+                return {"completed": [], "should_transition": False, "reasoning": "Parse error"}
+                
+        except Exception as exc:
+            logger.error("Objective evaluation failed", error=str(exc))
+            return {"completed": [], "should_transition": False, "reasoning": str(exc)}
 
 
 def iter_target_vocabulary(plan: ConversationPlan) -> Iterable[VocabularyWord]:

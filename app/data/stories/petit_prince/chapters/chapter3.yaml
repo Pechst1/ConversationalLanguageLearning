@@ -1,0 +1,522 @@
+# Chapter 3: Les Grandes Questions (Die großen Fragen)
+# Philosophical conversations that shape the prince's worldview
+
+id: chapter3_philosophy
+story_id: petit_prince
+order_index: 3
+title: "Les Grandes Questions"
+target_level: "A2"
+
+metadata:
+  estimated_duration_minutes: 20
+  theme: "Was wirklich wichtig ist"
+
+learning_focus:
+  grammar:
+    - "Le conditionnel (Konditional)"
+    - "Le futur simple"
+  vocabulary:
+    - "Philosophisches Vokabular: important, essentiel, invisible"
+    - "Beziehungen: apprivoiser, responsable, lien"
+  communicative_functions:
+    - "Meinungen ausdrücken"
+    - "Über abstrakte Konzepte sprechen"
+
+scenes:
+  - id: ch3_what_is_important
+    order_index: 0
+    
+    setting:
+      location: "Asteroid B-329, beim Sonnenuntergang"
+      time: "Der zwanzigste Sonnenuntergang heute"
+      atmosphere: "contemplative, philosophical"
+    
+    narration:
+      A1: |
+        Le soleil se couche encore.
+        Le vingtième aujourd'hui.
+        
+        Le petit prince te regarde.
+        "J'ai une question."
+      A2: |
+        Un autre coucher de soleil embrase l'horizon.
+        Le vingtième, peut-être. Ou le vingt-et-unième.
+        
+        Le petit prince, assis à côté de toi, fixe le ciel 
+        qui passe de l'or au pourpre.
+        
+        "J'ai une question," dit-il.
+        "Une question importante."
+    
+    npcs_present: ["petit_prince"]
+    
+    objectives:
+      - id: answer_philosophy
+        description: "Beantworte die philosophischen Fragen des Prinzen"
+        type: "philosophical"
+    
+    npc_question:
+      speaker: petit_prince
+      text:
+        A1: |
+          Qu'est-ce qui est important?
+          Les grandes personnes disent: l'argent.
+          Elles disent: le travail.
+          Mais... c'est vrai?
+        A2: |
+          Dis-moi...
+          Qu'est-ce qui est important dans la vie?
+          J'ai rencontré beaucoup de grandes personnes.
+          Elles disent toutes des choses différentes.
+          L'argent. Le pouvoir. Les chiffres.
+          Mais toi, tu vis seul ici, avec rien.
+          Tu dois savoir ce qui est VRAIMENT important.
+    
+    player_response:
+      type: "philosophical_free_response"
+      prompt:
+        A1: "Qu'est-ce qui est important pour toi?"
+        A2: "Le petit prince attend ta réponse. Qu'est-ce qui est vraiment important?"
+      
+      response_categories:
+        material:
+          patterns: ["argent", "geld", "travail", "arbeit", "succès", "erfolg", "choses", "dinge"]
+          npc_response:
+            speaker: petit_prince
+            text:
+              A1: |
+                C'est ce que disent les grandes personnes.
+                Sur l'astéroïde 325, j'ai rencontré un homme.
+                Il comptait les étoiles.
+                Il disait qu'il les possédait.
+                Mais on ne peut pas posséder les étoiles.
+              A2: |
+                C'est ce que disent toutes les grandes personnes.
+                J'ai rencontré un businessman sur l'astéroïde 325.
+                Il comptait les étoiles. Il disait qu'il les possédait.
+                Il ne les regardait jamais. Il les comptait seulement.
+                Ce n'est pas vraiment vivre, je crois.
+          effects:
+            - type: add_learning
+              target: materialism_warning
+          infobox:
+            title: "Le Businessman"
+            type: "story"
+            content: |
+              Im Original-Buch trifft der kleine Prinz einen 
+              Geschäftsmann, der Sterne "besitzt" und zählt.
+              
+              Er ist so beschäftigt mit Zählen, dass er nie 
+              die Schönheit der Sterne sieht.
+        
+        relationships:
+          patterns: ["amis", "freunde", "famille", "familie", "amour", "liebe", "quelqu'un", "jemand"]
+          npc_response:
+            speaker: petit_prince
+            text:
+              A1: |
+                Oui! Les gens qu'on aime.
+                Ma rose... elle est importante.
+                Et toi aussi.
+                Mais comment on sait qui est important?
+              A2: |
+                Oui! C'est ça!
+                Les liens. Les gens qu'on apprivoise.
+                Ma rose est importante parce que je l'aime.
+                Et maintenant, toi aussi, tu es important pour moi.
+                Mais... comment sait-on qui apprivoiser?
+          effects:
+            - type: relationship_change
+              target: petit_prince
+              value: +2
+            - type: add_learning
+              target: importance_of_bonds
+          follow_up: "how_to_choose"
+        
+        nature:
+          patterns: ["étoiles", "sterne", "fleurs", "blumen", "soleil", "sonne", "nature", "natur"]
+          npc_response:
+            speaker: petit_prince
+            text:
+              A1: |
+                Les étoiles. Oui.
+                Elles sont belles.
+                Mais elles sont importantes seulement si...
+                ...si quelqu'un les regarde.
+              A2: |
+                Les étoiles...
+                Tu sais, quand je serai parti,
+                tu regarderas les étoiles la nuit.
+                Et comme je serai sur une d'elles,
+                comme je rirai sur une d'elles,
+                tu entendras mon rire dans toutes les étoiles.
+                Elles seront importantes parce que TU les regardes.
+          effects:
+            - type: relationship_change
+              target: petit_prince
+              value: +1
+            - type: add_learning
+              target: beauty_in_observation
+            - type: set_flag
+              target: foreshadowing_stars_laugh
+              value: true
+        
+        self:
+          patterns: ["moi", "ich", "liberté", "freiheit", "bonheur", "glück"]
+          npc_response:
+            speaker: petit_prince
+            text:
+              A1: |
+                Soi-même?
+                Mais... tu es seul ici.
+                Tu n'as pas besoin des autres?
+              A2: |
+                Soi-même. C'est important, oui.
+                Mais...
+                Si personne ne te connaît, est-ce que tu existes vraiment?
+                Ma rose... elle est difficile, mais elle me voit.
+                Sans elle, je serais invisible.
+          effects:
+            - type: add_learning
+              target: self_vs_connection
+    
+    follow_up_how_to_choose:
+      condition:
+        follow_up: "how_to_choose"
+      
+      npc_question:
+        speaker: petit_prince
+        text:
+          A1: |
+            Mais comment on choisit?
+            Comment on sait qui aimer?
+          A2: |
+            Mais comment choisit-on?
+            Il y a tellement de gens dans l'univers.
+            Comment sait-on lesquels apprivoiser?
+      
+      player_response:
+        type: "free_response"
+        prompt:
+          A1: "Comment on choisit qui est important?"
+          A2: "Comment choisit-on les gens qu'on aime?"
+        
+        response_types:
+          time:
+            patterns: ["temps", "zeit", "longtemps", "lange"]
+            npc_response:
+              speaker: petit_prince
+              text:
+                A1: |
+                  Le temps!
+                  C'est vrai. Ma rose... j'ai passé du temps avec elle.
+                  C'est pour ça qu'elle est unique.
+                A2: |
+                  Le temps qu'on passe...
+                  Oui! C'est le temps que j'ai perdu pour ma rose
+                  qui fait ma rose si importante!
+                  Le temps qu'on donne... on ne peut pas le reprendre.
+            effects:
+              - type: add_learning
+                target: time_invested_matters
+              - type: unlock_quote
+                target: c_est_le_temps_perdu
+            infobox:
+              title: "C'est le temps que tu as perdu..."
+              type: "story"
+              content: |
+                Eine der berühmtesten Zeilen des Buches:
+                
+                "C'est le temps que tu as perdu pour ta rose 
+                qui fait ta rose si importante."
+              grammar_note: |
+                "Perdre" bedeutet normalerweise "verlieren" –
+                aber hier bedeutet es "investieren", "geben".
+          
+          feeling:
+            patterns: ["sentir", "fühlen", "cœur", "herz", "feel", "heart"]
+            npc_response:
+              speaker: petit_prince
+              text:
+                A1: |
+                  Avec le cœur?
+                  Oui. On ne voit bien qu'avec le cœur.
+                  Les yeux... ils ne voient pas l'essentiel.
+                A2: |
+                  Le cœur...
+                  Oui. L'essentiel est invisible pour les yeux.
+                  C'est seulement avec le cœur qu'on voit bien.
+                  Les grandes personnes ont oublié ça.
+            effects:
+              - type: add_learning
+                target: heart_sees_clearly
+              - type: unlock_quote
+                target: on_ne_voit_bien
+            infobox:
+              title: "On ne voit bien qu'avec le cœur"
+              type: "story"
+              content: |
+                DIE zentrale Botschaft des Buches:
+                
+                "On ne voit bien qu'avec le cœur.
+                L'essentiel est invisible pour les yeux."
+                
+                Man sieht nur mit dem Herzen gut.
+                Das Wesentliche ist für die Augen unsichtbar.
+    
+    transition:
+      narration:
+        A1: |
+          Le petit prince se tait.
+          Il pense à ce que tu as dit.
+          
+          Quelque part, dans sa tête,
+          tes mots commencent à grandir.
+        A2: |
+          Le petit prince reste silencieux un long moment.
+          Tu vois presque les pensées se former derrière ses yeux.
+          
+          Ce que tu lui as dit aujourd'hui –
+          il le portera avec lui.
+          Sur tous les astéroïdes qu'il visitera.
+          Tes mots sont comme des graines.
+          Un jour, elles fleuriront.
+      next_scene: "ch3_departure_approaches"
+
+  - id: ch3_departure_approaches
+    order_index: 1
+    
+    setting:
+      location: "Asteroid B-329"
+      time: "Der 44. Sonnenuntergang"
+      atmosphere: "bittersweet, meaningful"
+    
+    narration:
+      A1: |
+        Le soleil se couche.
+        Le quarante-quatrième aujourd'hui.
+        
+        Le petit prince se lève.
+      A2: |
+        Un autre coucher de soleil.
+        Le quarante-quatrième, exactement.
+        
+        Quelque chose a changé dans l'air.
+        Le petit prince se lève, et tu sais – 
+        avant même qu'il ne parle – ce qu'il va dire.
+    
+    npcs_present: ["petit_prince"]
+    
+    objectives:
+      - id: farewell
+        description: "Bereite dich auf den Abschied vor"
+        type: "emotional"
+    
+    npc_dialogue:
+      speaker: petit_prince
+      text:
+        A1: |
+          Je dois partir.
+          Ma rose m'attend.
+        A2: |
+          Je dois partir demain.
+          Ma rose... elle est toute seule.
+          Elle pense que je l'ai abandonnée.
+          Je dois lui dire que non.
+      voice:
+        tone: "sad but determined"
+        speed: 0.8
+    
+    player_response:
+      type: "emotional_choice"
+      options:
+        - id: ask_to_stay
+          text:
+            A1: "Reste encore."
+            A2: "Reste encore un peu. S'il te plaît."
+          npc_response:
+            speaker: petit_prince
+            text:
+              A1: |
+                Je voudrais.
+                Mais ma rose...
+                Elle a besoin de moi.
+              A2: |
+                Je voudrais rester. Avec toi.
+                Mais tu comprends, n'est-ce pas?
+                Quand on a apprivoisé quelqu'un...
+                On est responsable de lui.
+                Ma rose m'attend.
+          effects:
+            - type: relationship_change
+              target: petit_prince
+              value: +1
+            - type: set_flag
+              target: asked_to_stay
+              value: true
+        
+        - id: understand
+          text:
+            A1: "Je comprends."
+            A2: "Je comprends. Tu dois retourner vers elle."
+          npc_response:
+            speaker: petit_prince
+            text:
+              A1: |
+                Merci.
+                Tu es un ami.
+              A2: |
+                Merci de comprendre.
+                Tu es devenu mon ami, tu sais.
+                Je n'oublierai pas.
+          effects:
+            - type: relationship_change
+              target: petit_prince
+              value: +2
+            - type: set_flag
+              target: understood_departure
+              value: true
+    
+    final_question:
+      npc_dialogue:
+        speaker: petit_prince
+        text:
+          A1: |
+            Avant de partir...
+            J'ai une dernière question.
+            Qu'est-ce que tu vas faire...
+            ...quand je serai parti?
+          A2: |
+            Avant que je parte...
+            Il y a quelque chose que je veux te demander.
+            Quand je serai parti...
+            Quand tu seras de nouveau seul...
+            Qu'est-ce que tu feras?
+      
+      player_response:
+        type: "philosophical_free_response"
+        prompt:
+          A1: "Que feras-tu quand le petit prince sera parti?"
+          A2: "Le petit prince te demande ce que tu feras après son départ."
+        
+        response_types:
+          stars:
+            patterns: ["étoiles", "sterne", "stars", "regarder", "schauen", "ciel", "himmel"]
+            npc_response:
+              speaker: petit_prince
+              text:
+                A1: |
+                  Les étoiles!
+                  Oui! Quand tu regarderas les étoiles...
+                  ...tu penseras à moi.
+                  Et moi, je rirai. Sur mon étoile.
+                  Et tu entendras mon rire.
+                A2: |
+                  Les étoiles!
+                  Écoute bien. C'est mon secret.
+                  Quand tu regarderas le ciel, la nuit...
+                  Comme j'habiterai sur une des étoiles,
+                  Comme je rirai sur une des étoiles,
+                  Tu entendras toutes les étoiles rire.
+                  Toi, tu auras des étoiles qui savent rire!
+            effects:
+              - type: set_flag
+                target: specialEnding_stars_that_laugh
+                value: true
+              - type: unlock_quote
+                target: etoiles_qui_rient
+            infobox:
+              title: "Les étoiles qui rient"
+              type: "story"
+              content: |
+                Eine der berührendsten Stellen des Buches.
+                
+                Der kleine Prinz "schenkt" dir lachende Sterne:
+                "Tu auras, toi, des étoiles qui savent rire!"
+                
+                Weil der Prinz irgendwo da oben ist,
+                werden alle Sterne für immer lachen.
+          
+          remember:
+            patterns: ["souvenir", "erinnern", "remember", "oublier pas", "nicht vergessen"]
+            npc_response:
+              speaker: petit_prince
+              text:
+                A1: |
+                  Tu te souviendras de moi?
+                  Et moi, je me souviendrai de toi.
+                  Pour toujours.
+                A2: |
+                  Se souvenir...
+                  C'est comme ça qu'on garde les gens avec nous.
+                  Même quand ils sont loin.
+                  Même quand ils sont sur une autre étoile.
+                  Je me souviendrai de toi. Et de notre mouton.
+            effects:
+              - type: relationship_change
+                target: petit_prince
+                value: +2
+              - type: set_flag
+                target: promise_to_remember
+                value: true
+    
+    transition:
+      narration:
+        A1: |
+          Le soleil se couche une dernière fois.
+          Demain, le petit prince partira.
+          
+          Mais pas encore.
+          Cette nuit est à vous deux.
+        A2: |
+          Le quarante-cinquième coucher de soleil 
+          peint le ciel en rose et or.
+          
+          Demain, le petit prince s'en ira.
+          Il retournera vers sa rose.
+          
+          Mais ce soir, sous les étoiles qui ne rient pas encore,
+          vous êtes deux amis sur un petit astéroïde,
+          au milieu de l'univers.
+      story_end: true
+
+story_ending:
+  type: "reflective"
+  
+  epilogue:
+    A1: |
+      Le petit prince est parti.
+      Tu es seul.
+      
+      Mais quand tu regardes les étoiles...
+      Tu entends rire.
+    A2: |
+      Le petit prince est retourné vers sa rose.
+      
+      Tu es de nouveau seul sur ton astéroïde.
+      Mais quelque chose a changé.
+      
+      Quand tu regardes les étoiles maintenant,
+      elles brillent différemment.
+      Et parfois, la nuit, tu entends un rire.
+      
+      Un rire d'enfant, quelque part dans l'univers.
+  
+  achievements_triggered:
+    - id: story_complete
+      condition: true
+      name: "Fin de l'Aventure"
+      description: "Tu as terminé l'histoire du Petit Prince"
+    
+    - id: stars_that_laugh
+      condition:
+        flag: specialEnding_stars_that_laugh
+      name: "Les Étoiles qui Rient"
+      description: "Tu as découvert le secret des étoiles rieuses"
+    
+    - id: true_friend
+      condition:
+        relationship:
+          petit_prince: 8
+      name: "Ami Véritable"
+      description: "Tu es devenu un véritable ami du petit prince"

@@ -15,6 +15,15 @@ export interface TargetWord {
   position?: number;
 }
 
+export interface TargetedError {
+  category: string;
+  pattern?: string;
+  context?: string;
+  correction?: string;
+  lapses: number;
+  reps: number;
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
@@ -22,6 +31,30 @@ export interface ChatMessage {
   timestamp: Date;
   xp?: number;
   targets?: TargetWord[];
+  targetedErrors?: TargetedError[];
+  errors?: {
+    summary: string;
+    errors: Array<{
+      code: string;
+      message: string;
+      span: string;
+      suggestion: string;
+      category: string;
+      severity: string;
+      confidence?: number;
+      occurrence_count?: number;
+      is_recurring?: boolean;
+    }>;
+    error_stats?: Array<{
+      category: string;
+      pattern?: string;
+      total_occurrences: number;
+      occurrences_today: number;
+      last_seen?: string;
+      next_review?: string;
+      state: string;
+    }>;
+  };
 }
 
 export interface SessionStats {
@@ -123,6 +156,10 @@ export function useLearningSession(sessionId?: string) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const [latestErrorFeedback, setLatestErrorFeedback] = useState<any | null>(null);
+  const [latestWordFeedback, setLatestWordFeedback] = useState<any[] | null>(null);
+  const [latestXpAwarded, setLatestXpAwarded] = useState<number | null>(null);
+  const [latestComboCount, setLatestComboCount] = useState<number | null>(null);
   const messageIdCounter = useRef(0);
 
   const {
@@ -130,6 +167,7 @@ export function useLearningSession(sessionId?: string) {
     disconnect: disconnectWebSocket,
     sendMessage: rawWebSocketSend,
     onMessage: registerWebSocketHandler,
+    setGlobalHandler,
     isConnected: isWebSocketConnected,
   } = useWebSocketClient(sessionId || '');
 
@@ -204,10 +242,14 @@ export function useLearningSession(sessionId?: string) {
       };
 
       const handleTurnResult = (turnData: any) => {
+        console.log('[useLearningSession] handleTurnResult called with:', JSON.stringify(turnData, null, 2).substring(0, 500));
+
         if (!turnData?.assistant_turn?.message) {
+          console.warn('[useLearningSession] No assistant_turn.message found in turnData');
           return false;
         }
 
+        console.log('[useLearningSession] Processing assistant turn...');
         const assistantMessage = turnData.assistant_turn.message ?? {};
         const assistantTargets = normalizeTargets(
           turnData.assistant_turn.targets ??
@@ -215,6 +257,17 @@ export function useLearningSession(sessionId?: string) {
           assistantMessage.target_words ??
           []
         );
+        // Extract targeted errors from assistant turn
+        const targetedErrors = Array.isArray(turnData.assistant_turn.targeted_errors)
+          ? turnData.assistant_turn.targeted_errors.map((err: any) => ({
+            category: err.category,
+            pattern: err.pattern,
+            context: err.context,
+            correction: err.correction,
+            lapses: err.lapses ?? 0,
+            reps: err.reps ?? 0,
+          }))
+          : [];
         const assistantChat: ChatMessage = {
           id: String(assistantMessage.id ?? generateMessageId()),
           role: 'assistant',
@@ -222,9 +275,13 @@ export function useLearningSession(sessionId?: string) {
           timestamp: new Date(assistantMessage.created_at ?? Date.now()),
           xp: assistantMessage.xp_earned ?? turnData?.xp_awarded ?? 0,
           targets: assistantTargets,
+          targetedErrors,
         };
 
+        console.log('[useLearningSession] Created assistantChat:', { id: assistantChat.id, contentLength: assistantChat.content.length });
+
         setMessages((prev) => {
+          console.log('[useLearningSession] setMessages called, prev length:', prev.length);
           const updated = [...prev];
           const turnUserMessage = turnData.user_message ?? null;
           if (turnUserMessage) {
@@ -233,6 +290,16 @@ export function useLearningSession(sessionId?: string) {
               turnUserMessage.target_words ??
               []
             );
+
+            // Merge error_feedback from user message with error_stats from turn result
+            let errorData = turnUserMessage.error_feedback;
+            if (errorData && turnData.error_feedback?.error_stats) {
+              errorData = {
+                ...errorData,
+                error_stats: turnData.error_feedback.error_stats,
+              };
+            }
+
             const normalizedUser: ChatMessage = {
               id: String(turnUserMessage.id ?? generateMessageId()),
               role: 'user',
@@ -240,6 +307,7 @@ export function useLearningSession(sessionId?: string) {
               timestamp: new Date(turnUserMessage.created_at ?? Date.now()),
               xp: turnUserMessage.xp_earned ?? 0,
               targets: userTargets,
+              errors: errorData,
             };
 
             let replaced = false;
@@ -260,10 +328,38 @@ export function useLearningSession(sessionId?: string) {
           }
 
           updated.push(assistantChat);
+          console.log('[useLearningSession] setMessages returning updated array, new length:', updated.length);
           return updated;
         });
 
         applySessionStats(turnData, assistantTargets);
+
+        // Capture error feedback and word feedback for UI notifications
+        // Only set error feedback if there are actual errors to display
+        if (turnData.error_feedback) {
+          console.log('[useLearningSession] Error feedback received:', turnData.error_feedback);
+          const hasErrors = turnData.error_feedback.errors && turnData.error_feedback.errors.length > 0;
+          if (hasErrors) {
+            setLatestErrorFeedback(turnData.error_feedback);
+          }
+        }
+
+        if (turnData.word_feedback) {
+          console.log('[useLearningSession] Word feedback received:', turnData.word_feedback);
+          setLatestWordFeedback(turnData.word_feedback);
+        }
+
+        if (typeof turnData.xp_awarded === 'number' && turnData.xp_awarded > 0) {
+          console.log('[useLearningSession] XP awarded:', turnData.xp_awarded);
+          setLatestXpAwarded(turnData.xp_awarded);
+        }
+
+        if (typeof turnData.combo_count === 'number' && turnData.combo_count >= 2) {
+          console.log('[useLearningSession] Combo count:', turnData.combo_count);
+          setLatestComboCount(turnData.combo_count);
+        }
+
+        console.log('[useLearningSession] handleTurnResult completed successfully');
         return true;
       };
 
@@ -310,22 +406,58 @@ export function useLearningSession(sessionId?: string) {
   }, [handleWebSocketMessage]);
 
   const registerWebSocketListeners = useCallback(() => {
+    console.log('[useLearningSession] Registering WebSocket listeners...');
+
     registerWebSocketHandler('turn_result', (payload: any) => {
+      console.log('[useLearningSession] turn_result received:', payload);
       latestMessageHandlerRef.current(payload?.data ?? payload);
     });
 
     registerWebSocketHandler('session_ready', () => {
+      console.log('[useLearningSession] session_ready received');
       setIsConnected(true);
     });
 
     registerWebSocketHandler('error', (payload: any) => {
+      console.log('[useLearningSession] error received:', payload);
       const message =
         payload?.data?.message ||
         payload?.message ||
         'Connection error occurred';
       toast.error(message);
     });
+
+    console.log('[useLearningSession] WebSocket listeners registered');
   }, [registerWebSocketHandler]);
+
+  // Set up global message handler - this ensures messages are processed 
+  // regardless of handler registration timing issues
+  useEffect(() => {
+    const globalHandler = (type: string, payload: any) => {
+      console.log('[useLearningSession] Global handler received:', type);
+
+      switch (type) {
+        case 'turn_result':
+          console.log('[useLearningSession] Processing turn_result via global handler');
+          latestMessageHandlerRef.current(payload?.data ?? payload);
+          break;
+        case 'session_ready':
+          console.log('[useLearningSession] session_ready via global handler');
+          setIsConnected(true);
+          break;
+        case 'error':
+          console.log('[useLearningSession] error via global handler:', payload);
+          const message = payload?.data?.message || payload?.message || 'Connection error occurred';
+          toast.error(message);
+          break;
+        default:
+          console.log('[useLearningSession] Unhandled message type:', type);
+      }
+    };
+
+    setGlobalHandler(globalHandler);
+    console.log('[useLearningSession] Global handler set');
+  }, [setGlobalHandler]);
 
   useEffect(() => {
     if (!sessionId) {
@@ -335,13 +467,39 @@ export function useLearningSession(sessionId?: string) {
     let cancelled = false;
 
     const establishConnection = async () => {
+      console.log('[useLearningSession] Establishing connection for session:', sessionId);
       try {
+        // Connect first to ensure wsRef.current is initialized
         await connectWebSocket();
         if (cancelled) {
           return;
         }
+        console.log('[useLearningSession] WebSocket connected, isConnected:', isWebSocketConnected());
         setIsConnected(isWebSocketConnected());
+
+        // Register handlers AFTER connecting so wsRef.current exists
+        console.log('[useLearningSession] Registering listeners after connect...');
         registerWebSocketListeners();
+
+        // Sync messages after connection to recover any missed during reconnection
+        try {
+          const messagesResponse = await apiService.getSessionMessages(sessionId) as any;
+          const messagesData = messagesResponse?.items || messagesResponse || [];
+          console.log('[useLearningSession] Synced', messagesData.length, 'messages from HTTP');
+          if (!cancelled && messagesData.length > 0) {
+            setMessages(messagesData.map((msg: any) => ({
+              id: msg.id,
+              role: msg.sender === 'user' ? 'user' : 'assistant',
+              content: msg.content,
+              timestamp: new Date(msg.created_at),
+              xp: msg.xp_earned || 0,
+              targets: normalizeTargets(msg.target_details || msg.targets || msg.target_words || []),
+              errors: msg.error_feedback,
+            })));
+          }
+        } catch (syncError) {
+          console.warn('Message sync failed:', syncError);
+        }
       } catch (connectionError) {
         if (!cancelled) {
           console.error('WebSocket connection failed:', connectionError);
@@ -351,20 +509,28 @@ export function useLearningSession(sessionId?: string) {
       }
     };
 
+
     establishConnection();
 
     return () => {
       cancelled = true;
-      disconnectWebSocket();
-      setIsConnected(false);
+      // Only disconnect when truly unmounting - the connect function handles session changes
     };
   }, [
     sessionId,
     connectWebSocket,
-    disconnectWebSocket,
     registerWebSocketListeners,
     isWebSocketConnected,
   ]);
+
+  // Separate cleanup effect that only runs on unmount
+  useEffect(() => {
+    return () => {
+      console.log('[useLearningSession] Component unmounting, disconnecting WebSocket');
+      disconnectWebSocket();
+      setIsConnected(false);
+    };
+  }, [disconnectWebSocket]);
 
   // Derive vocabulary suggestions from the latest assistant message
   const suggested = useMemo(() => {
@@ -517,22 +683,41 @@ export function useLearningSession(sessionId?: string) {
     try {
       await apiService.updateSessionStatus(session.id, 'completed');
 
+      // Fetch the server-calculated summary for accurate stats
+      const serverSummary = await apiService.getSessionSummary(session.id) as any;
+
+      // Merge server summary with local session state
+      // Spread serverSummary to preserve snake_case fields for SessionSummary component fallbacks
+      const completedStats: SessionStats = {
+        ...serverSummary,
+        totalReviews: serverSummary.words_practiced ?? session.stats.totalReviews,
+        correctAnswers: serverSummary.correct_responses ?? session.stats.correctAnswers,
+        xpEarned: serverSummary.xp_earned ?? session.stats.xpEarned ?? 0,
+        newCards: serverSummary.new_words_introduced ?? session.stats.newCards ?? 0,
+        reviewedCards: serverSummary.words_reviewed ?? session.stats.reviewedCards ?? 0,
+        // Calculate session duration from start time
+        sessionDuration: session.startTime
+          ? Math.round((Date.now() - new Date(session.startTime).getTime()) / 1000)
+          : undefined,
+      };
+
       setSession(prev => prev ? {
         ...prev,
         status: 'completed',
         endTime: new Date(),
+        stats: completedStats,
       } : null);
 
-      // Emit session completion event
+      // Emit session completion event with server stats
       window.dispatchEvent(new CustomEvent('learningSessionComplete', {
         detail: {
           sessionId: session.id,
-          stats: session.stats,
+          stats: completedStats,
           messages: messages.length,
         }
       }));
 
-      return session.stats;
+      return completedStats;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to complete session';
       setError(errorMessage);
@@ -569,6 +754,7 @@ export function useLearningSession(sessionId?: string) {
           timestamp: new Date(msg.created_at),
           xp: msg.xp_earned || 0,
           targets: normalizeTargets(msg.target_details || msg.targets || msg.target_words || []),
+          errors: msg.error_feedback,
         })),
         targetWords: [],
       };
@@ -619,5 +805,15 @@ export function useLearningSession(sessionId?: string) {
 
     // Derived suggestions for helper widget
     suggested,
+
+    // Gamification feedback
+    latestErrorFeedback,
+    latestWordFeedback,
+    latestXpAwarded,
+    latestComboCount,
+    clearErrorFeedback: () => setLatestErrorFeedback(null),
+    clearWordFeedback: () => setLatestWordFeedback(null),
+    clearXpAwarded: () => setLatestXpAwarded(null),
+    clearComboCount: () => setLatestComboCount(null),
   };
 }

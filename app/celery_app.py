@@ -27,6 +27,7 @@ celery_app = Celery(
         "app.tasks.analytics",
         "app.tasks.notifications",
         "app.tasks.achievements",
+        "app.tasks.anki_sync",
     ],
 )
 
@@ -34,7 +35,7 @@ celery_app.conf.update(
     task_serializer="json",
     accept_content=["json"],
     result_serializer="json",
-    timezone="UTC",
+    timezone="Europe/Berlin",  # Changed to Berlin timezone for 4 AM local time
     enable_utc=True,
     task_track_started=True,
     task_time_limit=30 * 60,
@@ -52,10 +53,19 @@ celery_app.conf.beat_schedule = {
         "task": "app.tasks.analytics.cleanup_old_snapshots",
         "schedule": crontab(hour=3, minute=0, day_of_week=0),
     },
+    "send-daily-srs-reminders": {
+        "task": "app.tasks.notifications.send_daily_srs_reminders",
+        "schedule": crontab(hour=9, minute=0),  # 9 AM daily
+    },
     "send-streak-reminders": {
         "task": "app.tasks.notifications.send_streak_reminders",
         "schedule": crontab(hour=18, minute=0),
     },
+    "sync-anki-cards-daily": {
+        "task": "app.tasks.anki_sync.sync_anki_cards_for_all_users",
+        "schedule": crontab(hour=4, minute=0),  # 4 AM daily
+    },
 }
 
 __all__ = ["celery_app"]
+

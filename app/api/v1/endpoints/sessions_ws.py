@@ -183,8 +183,12 @@ async def session_stream(
                 response = SessionTurnResponse(
                     session=session_to_overview(result.session),
                     user_message=message_to_schema(result.user_message),
-                    assistant_turn=assistant_turn_to_schema(result.assistant_turn),
+                    assistant_turn=assistant_turn_to_schema(
+                        result.assistant_turn,
+                        targeted_errors=result.targeted_errors,
+                    ),
                     xp_awarded=result.xp_awarded,
+                    combo_count=result.combo_count,
                     error_feedback=error_feedback_from_result(result),
                     word_feedback=word_feedback_to_schema(result.word_feedback),
                 )

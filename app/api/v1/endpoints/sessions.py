@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
+from starlette.concurrency import run_in_threadpool
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 
 from app.api.deps import get_current_user, get_session_service
@@ -49,7 +50,37 @@ def create_session(
         difficulty_preference=payload.difficulty_preference,
         generate_greeting=payload.generate_greeting,
         anki_direction=payload.anki_direction,
+        scenario=payload.scenario,
     )
+    session_schema = session_to_overview(result.session)
+    assistant_schema = assistant_turn_to_schema(
+        result.assistant_turn,
+        target_details=result.assistant_turn.target_details if result.assistant_turn else None,
+    )
+    return SessionStartResponse(session=session_schema, assistant_turn=assistant_schema)
+
+
+@router.post("/quick-start", response_model=SessionStartResponse, status_code=status.HTTP_201_CREATED)
+async def create_quick_session(
+    *,
+    service: SessionService = Depends(get_session_service),
+    current_user: User = Depends(get_current_user),
+) -> SessionStartResponse:
+    """Create a new 'Zero Decision' learning session with auto-detected context."""
+    from app.services.auto_context_service import AutoContextService
+
+    # Generate rich context (async)
+    auto_context = await AutoContextService(service.db).build_auto_context(current_user)
+
+    # Create session with this context (sync, run in threadpool)
+    result = await run_in_threadpool(
+        service.create_session,
+        user=current_user,
+        planned_duration_minutes=5,
+        session_context=auto_context,
+        conversation_style=auto_context.style,
+    )
+
     session_schema = session_to_overview(result.session)
     assistant_schema = assistant_turn_to_schema(
         result.assistant_turn,
@@ -136,6 +167,7 @@ def post_session_message(
     assistant_schema = assistant_turn_to_schema(
         result.assistant_turn,
         target_details=result.assistant_turn.target_details if result.assistant_turn else None,
+        targeted_errors=result.targeted_errors,
     )
     error_feedback = error_feedback_from_result(result)
     word_feedback = word_feedback_to_schema(result.word_feedback)

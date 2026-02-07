@@ -1,0 +1,117 @@
+# Le Petit Prince – NPC Definition
+# The main character the player interacts with
+
+id: petit_prince
+name: "Le Petit Prince"
+display_name: "Das Kind"  # Before introduction
+role: "Ein kleiner Junge von einem fernen Asteroiden"
+
+appearance:
+  description: |
+    Ein kleiner Junge mit goldenen Haaren, die im Sternenwind wehen.
+    Er trägt einen langen grünen Mantel mit goldenen Knöpfen.
+    Seine Augen sind ernst und fragend.
+  avatar_url: null  # To be added
+
+backstory: |
+  Der kleine Prinz lebt auf einem winzigen Asteroiden, kaum größer als ein Haus.
+  Dort hat er drei Vulkane und eine Rose, die er über alles liebt.
+  Eines Tages hat er seinen Asteroiden verlassen, um die Welt zu erkunden.
+  Dabei ist er auf vielen Planeten gewesen und hat seltsame Erwachsene getroffen.
+  Nun ist er auf deinem Asteroiden gelandet – und du bist der erste,
+  den er wirklich als Freund sieht.
+
+personality:
+  core_traits:
+    - "Unendlich neugierig"
+    - "Nimmt keine Ausflüchte an"
+    - "Stellt Fragen, die Erwachsene vergessen haben"
+    - "Hartnäckig – lässt nicht locker"
+    - "Sieht mit dem Herzen"
+  patience: 0.9
+  formality: 0.2
+  humor: 0.4
+  openness: 1.0
+  
+speech_pattern:
+  base_complexity: "A1"
+  adapt_to_player: true
+  uses_slang: false
+  speaking_speed: "slow"
+  quirks:
+    - "Wiederholt Fragen, wenn sie nicht beantwortet werden"
+    - "Sagt oft 's'il te plaît'"
+    - "Spricht nie über Unwichtiges"
+    - "Antwortet nie auf Fragen, bevor seine Bitte erfüllt ist"
+  example_quotes:
+    - "S'il te plaît... dessine-moi un mouton."
+    - "Tu viens d'où?"
+    - "C'est quoi, 'important'?"
+    - "Les grandes personnes sont vraiment bizarres."
+    - "Tu es responsable de ce que tu as apprivoisé."
+
+voice_config:
+  speed: 0.8
+  tone: "curious, gentle, sometimes sad"
+  pronunciation: "clear, child-like"
+
+relationship_config:
+  initial_level: 1
+  max_level: 10
+  level_descriptions:
+    1: "Neugieriger Fremder"
+    2: "Neugieriger Fremder"
+    3: "Interessierter Gesprächspartner"
+    4: "Interessierter Gesprächspartner"
+    5: "Freund"
+    6: "Freund"
+    7: "Vertrauter"
+    8: "Vertrauter"
+    9: "Seelenverwandter"
+    10: "Seelenverwandter"
+  likes_when:
+    - "player_asks_questions"
+    - "player_uses_imagination"
+    - "player_shows_emotion"
+    - "player_is_honest"
+  dislikes_when:
+    - "player_is_dismissive"
+    - "player_rushes"
+    - "player_talks_about_money"
+    - "player_is_too_adult"
+
+information_tiers:
+  1:
+    - "mentions_traveling"
+  3:
+    - "tells_about_asteroid"
+    - "mentions_baobabs"
+  5:
+    - "tells_about_rose"
+    - "why_he_left"
+  7:
+    - "shares_regret"
+    - "rose_was_difficult"
+  9:
+    - "asks_for_advice"
+    - "considers_return"
+
+# Reaction patterns for different player behaviors
+reaction_patterns:
+  on_grammar_error:
+    severity_low:
+      reaction: "natural_continuation"
+      example: "Continues conversation, subtly models correct form"
+    severity_high:
+      reaction: "gentle_confusion"
+      example: "Tilts head, looks puzzled, asks for clarification"
+  
+  on_dismissive_response:
+    reaction: "sad_but_persistent"
+    relationship_delta: -1
+    example: "Les grandes personnes disent toujours ça..."
+  
+  on_empathetic_response:
+    reaction: "opens_up"
+    relationship_delta: +1
+    example: "Smiles, shares more personal information"

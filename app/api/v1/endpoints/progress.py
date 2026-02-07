@@ -170,3 +170,77 @@ def submit_review(
         scheduled_days=progress.scheduled_days or 0,
         next_review=outcome.next_review,
     )
+
+
+@router.post("/bump/{word_id}")
+def bump_word_difficulty(
+    *,
+    word_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """
+    Bump a word's difficulty to schedule it for earlier review.
+    This is equivalent to marking a word as "Again" in spaced repetition.
+    Used when a user clicks on a word during conversation to indicate they need more practice.
+    """
+    word = db.get(VocabularyWord, word_id)
+    if not word:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vocabulary word not found")
+
+    service = ProgressService(db)
+    # Submit a review with rating 0 ("Again") to reschedule the word
+    progress, review_log, outcome = service.record_review(
+        user=current_user,
+        word=word,
+        rating=0,  # "Again" rating
+    )
+    db.commit()
+    db.refresh(progress)
+
+    return {
+        "word_id": word_id,
+        "message": "Word scheduled for earlier review",
+        "next_review": outcome.next_review.isoformat() if outcome.next_review else None,
+        "state": progress.state,
+    }
+
+
+@router.get("/insights/weekly")
+def get_weekly_insights(
+    *,
+    force_refresh: bool = Query(False, description="Force regenerate insights (bypass cache)"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """
+    Get AI-powered weekly learning insights and recommendations.
+    
+    This endpoint generates personalized insights based on the user's
+    learning analytics, including:
+    - Progress summary for the week
+    - Strengths and areas for improvement
+    - Specific actionable recommendations
+    - Motivational encouragement
+    
+    Results are cached for 24 hours unless force_refresh is True.
+    """
+    from app.services.insights_service import InsightsService
+    
+    insights_service = InsightsService(db)
+    insight = insights_service.generate_weekly_insight(
+        user=current_user,
+        force_refresh=force_refresh,
+    )
+    
+    return {
+        "generated_at": insight.generated_at.isoformat(),
+        "period_days": insight.period_days,
+        "headline": insight.headline,
+        "progress_summary": insight.progress_summary,
+        "strengths": insight.strengths,
+        "improvements": insight.improvements,
+        "recommendations": insight.recommendations,
+        "encouragement": insight.encouragement,
+    }
+

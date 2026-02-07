@@ -22,6 +22,13 @@ class Achievement(Base):
     xp_reward = Column(Integer, default=0)
     tier = Column(String(20), default="bronze")
 
+    # Category for grouping achievements
+    category = Column(String(50), default="general")  # "grammar", "vocabulary", "story", "streak", "general"
+
+    # Trigger configuration for automatic achievement checking
+    trigger_type = Column(String(50))  # "grammar_review", "streak", "perfect_score", "level_master", "error_crusher"
+    trigger_value = Column(Integer)  # e.g., 7 for "7-day streak", 10 for "perfect score"
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     user_achievements = relationship("UserAchievement", back_populates="achievement")

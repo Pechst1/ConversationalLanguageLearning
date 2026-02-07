@@ -64,12 +64,34 @@ module.exports = {
         brutal: {
           black: '#000000',
           white: '#FFFFFF',
-          gray: '#F0F0F0',
+          gray: '#F3F4F6',
+          bg: '#FAFAF9',
         },
       },
       boxShadow: {
+        'brutal-sm': '2px 2px 0px 0px #000000',
         'brutal': '4px 4px 0px 0px #000000',
         'brutal-lg': '8px 8px 0px 0px #000000',
+        'brutal-xl': '12px 12px 0px 0px #000000',
+      },
+      borderWidth: {
+        DEFAULT: '3px', // Default strict border
+        '0': '0',
+        '2': '2px',
+        '3': '3px',
+        '4': '4px',
+        '8': '8px',
+      },
+      borderRadius: {
+        'none': '0',
+        'sm': '0', // Force sharp corners
+        DEFAULT: '0',
+        'md': '0',
+        'lg': '0',
+        'xl': '0',
+        '2xl': '0',
+        '3xl': '0',
+        'full': '9999px', // Keep pill shapes available if needed
       },
       fontFamily: {
         sans: ['Inter', 'sans-serif'],

@@ -15,13 +15,15 @@ class VocabularyWordRead(BaseModel):
     normalized_word: str
     part_of_speech: Optional[str] = None
     gender: Optional[str] = None
-    frequency_rank: int
-    english_translation: str
+    frequency_rank: Optional[int] = None
+    english_translation: Optional[str] = None
     definition: Optional[str] = None
     example_sentence: Optional[str] = None
     example_translation: Optional[str] = None
     usage_notes: Optional[str] = None
-    difficulty_level: int
+    difficulty_level: Optional[int] = None
+    german_translation: Optional[str] = None
+    french_translation: Optional[str] = None
     topic_tags: List[str] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)

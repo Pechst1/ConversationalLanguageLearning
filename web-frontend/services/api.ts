@@ -10,7 +10,7 @@ class ApiService {
   constructor() {
     this.api = axios.create({
       baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1',
-      timeout: 30000,
+      timeout: 90000, // Increased for LLM-heavy operations like grammar exercise generation
       headers: {
         'Content-Type': 'application/json',
       },
@@ -117,7 +117,19 @@ class ApiService {
   }
 
   async updateProfile(data: any) {
-    return this.put('/users/me', data);
+    return this.patch('/users/me', data);
+  }
+
+  async deleteAccount() {
+    return this.delete('/users/me');
+  }
+
+  async getVapidPublicKey() {
+    return this.get<{ publicKey: string }>('/notifications/vapid-public-key');
+  }
+
+  async subscribeToNotifications(subscription: any) {
+    return this.post('/notifications/subscribe', subscription);
   }
 
   // Session endpoints
@@ -219,6 +231,10 @@ class ApiService {
     return this.get('/analytics/errors');
   }
 
+  async getErrorSummary() {
+    return this.get('/analytics/errors/summary');
+  }
+
   // Achievement endpoints
   async getAchievements() {
     return this.get('/achievements');
@@ -239,6 +255,248 @@ class ApiService {
 
   async getVocabularyItem(wordId: number) {
     return this.get(`/vocabulary/${wordId}`);
+  }
+
+  // Grammar endpoints
+  async getGrammarSummary() {
+    return this.get('/grammar/summary');
+  }
+
+  async getGrammarConcepts(params?: { level?: string; category?: string; limit?: number; offset?: number }) {
+    return this.get('/grammar/concepts', { params });
+  }
+
+  async getGrammarConceptsByLevel() {
+    return this.get('/grammar/by-level');
+  }
+
+  async getDueGrammarConcepts(params?: { level?: string; limit?: number }) {
+    return this.get('/grammar/due', { params });
+  }
+
+  async getGrammarProgress(params?: { level?: string }) {
+    return this.get('/grammar/progress', { params });
+  }
+
+  async recordGrammarReview(data: { concept_id: number; score: number; notes?: string }) {
+    return this.post('/grammar/review', data);
+  }
+
+  async recordGrammarReviewWithAchievements(data: { concept_id: number; score: number; notes?: string }) {
+    return this.post('/grammar/review-with-achievements', data);
+  }
+
+  async getGrammarAchievements(category?: string) {
+    return this.get('/grammar/achievements', { params: { category } });
+  }
+
+  async getGrammarStreak() {
+    return this.get('/grammar/streak');
+  }
+
+  async getGrammarGraph(level?: string) {
+    return this.get('/grammar/graph', { params: { level } });
+  }
+
+  async getGrammarForChapter(chapterId: string) {
+    return this.get(`/grammar/for-chapter/${chapterId}`);
+  }
+
+  async markGrammarPracticedInContext(conceptIds: number[]) {
+    return this.post('/grammar/mark-practiced-in-context', conceptIds);
+  }
+
+  // Grammar Exercise endpoints
+  async generateGrammarExercise(data: { concept_id: number; count?: number; focus_areas?: string[] }) {
+    return this.post<{
+      concept_id: number;
+      concept_name: string;
+      level: string;
+      exercises: any[];
+      flat_exercises: any[];
+      explanation?: any | null;
+    }>('/grammar/exercise/generate', data);
+  }
+
+  async checkGrammarAnswers(data: { concept_id: number; exercises: any[]; answers: string[] }) {
+    return this.post('/grammar/exercise/check', data);
+  }
+
+  // Daily Practice (Unified SRS) endpoints
+  async getDailyPracticeSummary() {
+    return this.get('/daily-practice/summary');
+  }
+
+  async getDailyPracticeQueue(settings?: {
+    time_budget_minutes?: number | null;
+    new_vocab_limit?: number;
+    new_grammar_limit?: number;
+    interleaving_mode?: 'random' | 'blocks' | 'priority';
+  }) {
+    return this.post('/daily-practice/queue', settings || {});
+  }
+
+  async completePracticeItem(
+    itemType: string,
+    itemId: string,
+    data: { rating: number; response_time_ms?: number }
+  ) {
+    return this.post(`/daily-practice/complete/${itemType}/${itemId}`, data);
+  }
+
+  // Brief Exercise endpoints (for interactive daily practice)
+  async generateBriefGrammarExercises(conceptId: number) {
+    return this.post<{
+      concept_id: number;
+      concept_name: string;
+      level: string;
+      exercises: Array<{
+        id: string;
+        type: string;
+        difficulty: string;
+        instruction: string;
+        prompt: string;
+        correct_answer: string;
+        hint?: string;
+      }>;
+    }>(`/daily-practice/grammar/${conceptId}/exercises`);
+  }
+
+  async generateErrorExercise(errorId: string) {
+    return this.post<{
+      error_id: string;
+      exercise_type: string;
+      instruction: string;
+      prompt: string;
+      correct_answer: string;
+      explanation: string;
+      memory_tip?: string;
+      original_text?: string;
+      stored_correction?: string;
+    }>(`/daily-practice/error/${errorId}/exercise`);
+  }
+
+  async checkBriefAnswer(data: {
+    exercise_type: string;
+    prompt: string;
+    correct_answer: string;
+    user_answer: string;
+    concept_id?: number | null;
+  }) {
+    return this.post<{
+      is_correct: boolean;
+      feedback: string;
+      explanation: string;
+      score: number;
+    }>('/daily-practice/check-answer', data);
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // Audio Session API
+  // ─────────────────────────────────────────────────────────────────
+
+  async getAudioScenarios(): Promise<Array<{
+    id: string;
+    title: string;
+    description: string;
+    difficulty: string;
+    objectives: string[];
+  }>> {
+    return this.get('/audio-session/scenarios');
+  }
+
+  async startAudioSession(scenarioId?: string): Promise<{
+    session_id: string;
+    opening_message: string;
+    opening_audio_text: string;
+    context: {
+      system_prompt?: string;
+      topic?: string;
+      style?: string;
+    };
+  }> {
+    return this.post<any>('/audio-session/start', { scenario_id: scenarioId });
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // Story Importer
+  // ─────────────────────────────────────────────────────────────────
+
+  async importContent(url: string): Promise<{ story_id: string; title: string }> {
+    return this.post('/stories/import', { url });
+  }
+
+  async startStoryDiscussion(storyId: string): Promise<{ session_id: string }> {
+    return this.post<{ session_id: string }>(`/stories/${storyId}/discuss`);
+  }
+
+  async respondToAudioSession(data: {
+    session_id: string;
+    user_text: string;
+    system_prompt?: string;
+    conversation_history?: Array<any>;
+  }): Promise<{
+    ai_response: string;
+    ai_audio_text: string;
+    detected_errors: Array<{
+      original: string;
+      correction: string;
+      explanation: string;
+      concept_id?: number | null;
+      concept_name?: string | null;
+    }>;
+    xp_awarded: number;
+    should_show_text: boolean;
+  }> {
+    const response = await this.post<any>('/audio-session/respond', data);
+
+    // Map backend response to frontend format
+    // Backend returns: detected_errors: [{ code, message, span, correction, concept_id, concept_name }]
+    const errors = response.detected_errors?.map((err: any) => ({
+      original: err.span,
+      correction: err.correction,
+      explanation: err.message,
+      concept_id: err.concept_id,
+      concept_name: err.concept_name,
+    })) || [];
+
+    return {
+      ai_response: response.ai_response,
+      ai_audio_text: response.ai_audio_text,
+      detected_errors: errors,
+      xp_awarded: response.xp_awarded,
+      should_show_text: response.should_show_text,
+    };
+  }
+
+  async endAudioSession(data: { session_id: string }): Promise<{
+    session_id: string;
+    duration_seconds: number;
+    total_xp: number;
+    errors_practiced: number;
+    message: string;
+  }> {
+    return this.post<any>('/audio-session/end', data);
+  }
+
+  async transcribeAudio(audioBlob: Blob): Promise<string> {
+    const formData = new FormData();
+    formData.append('file', audioBlob, 'audio.webm');
+
+    const response = await this.api.post<{ text: string }>('/audio/transcribe', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data.text;
+  }
+
+  async synthesizeSpeech(text: string, provider?: string): Promise<ArrayBuffer> {
+    const response = await this.api.post('/audio/speak',
+      { text, voice: 'nova', provider },
+      { responseType: 'arraybuffer' }
+    );
+    return response.data;
   }
 }
 

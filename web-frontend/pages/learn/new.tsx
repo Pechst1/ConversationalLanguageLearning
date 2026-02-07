@@ -10,6 +10,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import apiService from '@/services/api';
 import toast from 'react-hot-toast';
 import ScenarioSelector from '@/components/learning/ScenarioSelector';
+import { Globe } from 'lucide-react';
+import { ImportStoryModal } from '@/components/stories/ImportStoryModal';
 
 const durationOptions = [10, 15, 20, 30, 45];
 
@@ -49,6 +51,7 @@ export default function NewSessionPage() {
   const [isLoading, setIsLoading] = React.useState(false);
 
   const [selectedScenario, setSelectedScenario] = React.useState<string | null>(null);
+  const [isImportModalOpen, setIsImportModalOpen] = React.useState(false);
 
   const {
     register,
@@ -103,6 +106,30 @@ export default function NewSessionPage() {
           Create a personalized conversation session to practice your French skills.
         </p>
       </div>
+
+      <Card className="mb-8 border-2 border-black shadow-[4px_4px_0px_0px_#000]">
+        <CardHeader className="bg-purple-50 border-b-2 border-black">
+          <CardTitle className="flex items-center gap-2 text-purple-900">
+            <Globe className="h-6 w-6 text-purple-600" />
+            Import Content
+          </CardTitle>
+          <CardDescription className="text-purple-700">
+            Turn any French YouTube video or web article into an interactive lesson.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="pt-6">
+          <Button
+            onClick={() => setIsImportModalOpen(true)}
+            variant="outline"
+            className="w-full h-12 border-2 border-dashed border-purple-300 hover:border-purple-600 hover:bg-purple-50 text-purple-700 font-bold"
+            leftIcon={<Globe className="h-4 w-4" />}
+          >
+            Paste Link (YouTube / Web)
+          </Button>
+        </CardContent>
+      </Card>
+
+      {isImportModalOpen && <ImportStoryModal onClose={() => setIsImportModalOpen(false)} />}
 
       <Card>
         <CardHeader>

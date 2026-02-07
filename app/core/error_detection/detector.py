@@ -122,17 +122,32 @@ class ErrorDetector:
         )
         # Prefer a broad JSON object mode for maximum provider compatibility.
         system_prompt = (
-            "You are a meticulous French writing tutor. Return JSON matching the provided schema "
-            "and avoid additional commentary."
+            "You are an expert French grammar and language teacher analyzing learner text for errors. "
+            "Your primary goal is to help learners improve by identifying ALL grammatical mistakes, "
+            "especially gender agreement (le/la, un/une), verb conjugation, and article usage. "
+            "These errors are critical for French learners even if the text is understandable. "
+            "IMPORTANT: Write all explanations in GERMAN (Deutsch) since the learner's native language is German. "
+            "Return valid JSON matching the provided schema. Do not include any text outside the JSON."
         )
         try:
-            result = self.llm_service.generate_chat_completion(
-                [{"role": "user", "content": prompt}],
-                system_prompt=system_prompt,
-                response_format={"type": "json_object"},
-                temperature=0.2,
-                max_tokens=600,
-            )
+            # Use the dedicated error detection method which uses a stronger model
+            if hasattr(self.llm_service, 'generate_error_detection'):
+                result = self.llm_service.generate_error_detection(
+                    [{"role": "user", "content": prompt}],
+                    system_prompt=system_prompt,
+                    response_format={"type": "json_object"},
+                    temperature=0.1,
+                    max_tokens=800,
+                )
+            else:
+                # Fallback for testing/mocking
+                result = self.llm_service.generate_chat_completion(
+                    [{"role": "user", "content": prompt}],
+                    system_prompt=system_prompt,
+                    response_format={"type": "json_object"},
+                    temperature=0.1,
+                    max_tokens=800,
+                )
         except Exception as exc:  # pragma: no cover - defensive logging path
             logger.warning("LLM analysis failed", error=str(exc))
             return None
@@ -162,15 +177,22 @@ class ErrorDetector:
         parsed_errors: List[DetectedError] = []
         for item in errors_payload:
             try:
+                category = item.get("category", "grammar")
+                subcategory = item.get("subcategory")
+                
+                # Use subcategory for code if available, otherwise fallback to category
+                code = subcategory if subcategory else f"llm_{category}"
+                
                 parsed_errors.append(
                     DetectedError(
-                        code="llm_" + item.get("category", "unknown"),
+                        code=code,
                         message=item.get("explanation", ""),
                         span=item.get("span", ""),
                         suggestion=item.get("suggestion", ""),
-                        category=item.get("category", "grammar"),
+                        category=category,
                         severity=item.get("severity", "medium"),
                         confidence=float(item.get("confidence", 0.5)),
+                        subcategory=subcategory,
                     )
                 )
             except Exception:  # pragma: no cover - skip malformed entries
