@@ -170,7 +170,7 @@ async def complete_practice_item(
     item_type: str,
     item_id: str,
     request: CompleteItemRequest,
-    db: Session = Depends(get_db),
+    srs_service: UnifiedSRSService = Depends(get_srs_service),
     current_user: User = Depends(get_current_user),
 ) -> CompleteItemResponse:
     """Record completion of a practice item.
@@ -180,13 +180,32 @@ async def complete_practice_item(
     - grammar: Updates UserGrammarProgress  
     - error: Updates UserError
     """
-    # TODO: Implement actual SRS updates for each type
-    # For now, return success placeholder
-    
+    try:
+        parsed_type = ItemType(item_type)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid item_type: {item_type}",
+        ) from exc
+
+    try:
+        result = srs_service.complete_item(
+            user_id=current_user.id,
+            item_type=parsed_type,
+            item_id=item_id,
+            rating=request.rating,
+            response_time_ms=request.response_time_ms,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+
     return CompleteItemResponse(
         success=True,
-        next_review_days=1,
-        message=f"Completed {item_type} item {item_id} with rating {request.rating}"
+        next_review_days=result.get("next_review_days"),
+        message=result.get("message", f"Completed {item_type} item {item_id}"),
     )
 
 

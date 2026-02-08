@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models.user import User
 from app.db.models.error import UserError
-from app.db.models.vocabulary import VocabularyWord
+from app.db.models.session import LearningSession
 from app.services.news_service import NewsService  # [NEW]
 from app.services.progress import ProgressService
 
@@ -47,7 +47,10 @@ class SessionContext:
         
         if self.news_digest:
             lines.append(f"CURRENT EVENTS: Here is a digest of recent news relevant to the user:\n{self.news_digest}\nYou may reference these naturally if relevant.")
-            
+
+        if self.suggested_topic:
+            lines.append(f"SUGGESTED TOPIC: Start the conversation around '{self.suggested_topic}' unless the learner steers elsewhere.")
+
         if self.due_words or self.due_errors:
             lines.append("\nLEARNING FOCUS:")
             if self.due_words:
@@ -73,10 +76,23 @@ class AutoContextService:
         
         time_context = self._get_time_of_day_context()
         style = self._get_style_rotation(user)
-        
-        # Fetch news if API is configured
+
         interests = [tag.strip() for tag in user.interests.split(",")] if user.interests else None
-        news_digest = await self.news_service.fetch_news_digest(interests)
+        news_context = await self.news_service.fetch_news_context(
+            interests,
+            target_language=user.target_language or "fr",
+            limit=3,
+        )
+        news_digest = news_context.get("digest") if isinstance(news_context, dict) else None
+        live_items = news_context.get("items", []) if isinstance(news_context, dict) else []
+
+        if live_items:
+            top_item = live_items[0]
+            top_title = str(top_item.get("title", "")).strip()
+            top_source = str(top_item.get("source", "")).strip()
+            suggested_topic = f"Current story: {top_title} ({top_source})" if top_source else top_title
+        else:
+            suggested_topic = self._pick_topic(user, time_context)
         
         # Fetch SRS Items
         # 1. Words
@@ -100,14 +116,29 @@ class AutoContextService:
             .limit(3)
             .all()
         )
-        due_errors = [f"{e.category} ({e.pattern})" if e.pattern else e.category for e in due_error_objs]
-        
-        logger.info(f"Built auto-context for user {user.id}: {time_context}, {style}, news={bool(news_digest)}, words={len(due_words)}, errors={len(due_errors)}")
-        
+        due_errors = [
+            f"{e.error_category} ({e.error_pattern})"
+            if e.error_pattern
+            else (e.error_category or "grammar")
+            for e in due_error_objs
+        ]
+
+        logger.info(
+            "Built auto-context for user {}: {}, style={}, topic={}, news={}, words={}, errors={}",
+            user.id,
+            time_context,
+            style,
+            suggested_topic,
+            bool(news_digest),
+            len(due_words),
+            len(due_errors),
+        )
+
         return SessionContext(
             time_of_day=time_context,
             style=style,
             greeting_focused=True,
+            suggested_topic=suggested_topic,
             news_digest=news_digest,
             due_words=due_words,
             due_errors=due_errors,
@@ -127,12 +158,68 @@ class AutoContextService:
 
     def _get_style_rotation(self, user: User) -> ConversationStyle:
         """
-        Determine the conversation style based on history/rotation.
-        For now, random selection to ensure variety.
-        In future: check last session style and rotate.
+        Determine conversation style with anti-repetition rotation.
+        Avoid repeating the exact same style as the previous session.
         """
         styles: list[ConversationStyle] = ["casual", "interviewer", "debate", "storytelling"]
-        # Basic weighted choice: Casual is most common
-        weights = [0.4, 0.3, 0.15, 0.15]
-        
-        return random.choices(styles, weights=weights, k=1)[0]
+        weights = {
+            "casual": 0.40,
+            "interviewer": 0.30,
+            "debate": 0.15,
+            "storytelling": 0.15,
+        }
+
+        last_style = (
+            self.db.query(LearningSession.conversation_style)
+            .filter(
+                LearningSession.user_id == user.id,
+                LearningSession.conversation_style.isnot(None),
+            )
+            .order_by(LearningSession.started_at.desc())
+            .limit(1)
+            .scalar()
+        )
+
+        candidate_styles = styles
+        if last_style in styles:
+            candidate_styles = [style for style in styles if style != last_style]
+
+        candidate_weights = [weights[style] for style in candidate_styles]
+        return random.choices(candidate_styles, weights=candidate_weights, k=1)[0]
+
+    def _pick_topic(self, user: User, time_context: str) -> str:
+        """Pick a lightweight personalized topic so quick-start sessions feel fresh."""
+        interest_pool = [value.strip() for value in (user.interests or "").split(",") if value.strip()]
+        if interest_pool:
+            interest = random.choice(interest_pool)
+            templates = [
+                f"Something new you learned recently about {interest}",
+                f"Your personal opinion on current trends in {interest}",
+                f"A practical real-life situation involving {interest}",
+            ]
+            return random.choice(templates)
+
+        default_by_time = {
+            "morning": [
+                "your plan for today",
+                "a small morning routine conversation",
+                "setting one goal for the day",
+            ],
+            "afternoon": [
+                "a casual lunch-break conversation",
+                "what is going well so far today",
+                "a short productivity conversation",
+            ],
+            "evening": [
+                "how your day went",
+                "a plan for tonight or tomorrow",
+                "a relaxing hobby discussion",
+            ],
+            "late_night": [
+                "winding down and reflecting on the day",
+                "a light storytelling scene",
+                "planning tomorrow in simple steps",
+            ],
+        }
+        options = default_by_time.get(time_context, default_by_time["evening"])
+        return random.choice(options)

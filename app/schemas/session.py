@@ -33,6 +33,32 @@ class SessionCreateRequest(BaseModel):
     )
 
 
+class QuickStartRequest(BaseModel):
+    """Optional payload for quick-start customization."""
+
+    story_title: str | None = Field(default=None, max_length=300)
+    story_url: str | None = Field(default=None, max_length=1200)
+    story_source: str | None = Field(default=None, max_length=200)
+    story_summary: str | None = Field(default=None, max_length=1000)
+
+
+class LiveStoryRead(BaseModel):
+    """Live headline item for story-based quick start."""
+
+    id: str
+    title: str
+    url: str
+    source: str
+    summary: str | None = None
+    language: str
+
+
+class LiveStoryListResponse(BaseModel):
+    """Collection of live stories in the learner's target language."""
+
+    items: list[LiveStoryRead]
+
+
 class SessionMessageRequest(BaseModel):
     """Payload for sending a learner message within a session."""
 

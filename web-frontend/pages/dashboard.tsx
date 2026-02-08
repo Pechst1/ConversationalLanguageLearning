@@ -1,12 +1,15 @@
 import React from 'react';
 import { getSession } from 'next-auth/react';
 import Link from 'next/link';
-import { BookOpen, MessageCircle, TrendingUp, Trophy, Plus, Clock, Globe } from 'lucide-react';
+import { BookOpen, MessageCircle, TrendingUp, Trophy, Plus, Clock, Globe, Sparkles } from 'lucide-react';
 import { useState } from 'react';
+import { useRouter } from 'next/router';
+import toast from 'react-hot-toast';
 import { ImportStoryModal } from '@/components/stories/ImportStoryModal';
 import { Button } from '@/components/ui/Button';
-import apiService from '@/services/api';
+import apiService, { LiveStory } from '@/services/api';
 import InsightsCard from '@/components/learning/InsightsCard';
+import LiveStoryPickerModal from '@/components/learning/LiveStoryPickerModal';
 
 // Safe date formatting helper
 function formatDate(dateString: string | undefined | null): string {
@@ -29,7 +32,35 @@ interface DashboardProps {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 
 export default function Dashboard({ summary, recentSessions }: DashboardProps) {
+  const router = useRouter();
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isQuickStarting, setIsQuickStarting] = useState(false);
+  const [isLiveStoryPickerOpen, setIsLiveStoryPickerOpen] = useState(false);
+
+  const handleQuickStart = async (story?: LiveStory) => {
+    try {
+      setIsQuickStarting(true);
+      const payload = story
+        ? {
+          story_title: story.title,
+          story_url: story.url,
+          story_source: story.source,
+          story_summary: story.summary || undefined,
+        }
+        : undefined;
+      const response = await apiService.quickStartSession(payload) as any;
+      const sessionId = response?.session?.id;
+      if (!sessionId) {
+        throw new Error('Quick start response missing session id');
+      }
+      await router.push(`/learn/session/${sessionId}`);
+    } catch (error) {
+      console.error('Quick start failed:', error);
+      toast.error('Could not start quick session');
+    } finally {
+      setIsQuickStarting(false);
+    }
+  };
   const quickStats = [
     {
       name: 'Total XP',
@@ -72,11 +103,29 @@ export default function Dashboard({ summary, recentSessions }: DashboardProps) {
           <h1 className="text-4xl font-extrabold text-black uppercase tracking-tight">Dashboard</h1>
           <p className="text-gray-600 font-bold mt-1">Welcome back! Ready to continue learning?</p>
         </div>
-        <Link href="/learn/new">
-          <Button leftIcon={<Plus className="h-5 w-5" />} className="shadow-[4px_4px_0px_0px_#000] border-2 border-black">
-            Start New Session
+        <div className="flex items-center gap-3">
+          <Button
+            onClick={() => setIsLiveStoryPickerOpen(true)}
+            leftIcon={<Sparkles className="h-5 w-5" />}
+            className="shadow-[4px_4px_0px_0px_#000] border-2 border-black"
+          >
+            Pick Live Story
           </Button>
-        </Link>
+          <Button
+            onClick={() => void handleQuickStart()}
+            loading={isQuickStarting}
+            leftIcon={<MessageCircle className="h-5 w-5" />}
+            variant="outline"
+            className="shadow-[4px_4px_0px_0px_#000] border-2 border-black"
+          >
+            Instant Start
+          </Button>
+          <Link href="/learn/new">
+            <Button leftIcon={<Plus className="h-5 w-5" />} variant="outline" className="shadow-[4px_4px_0px_0px_#000] border-2 border-black">
+              Customize
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Quick Stats */}
@@ -106,10 +155,27 @@ export default function Dashboard({ summary, recentSessions }: DashboardProps) {
             <CardDescription className="text-black font-bold">Jump into your learning journey</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4 p-6">
+            <Button
+              onClick={() => setIsLiveStoryPickerOpen(true)}
+              variant="outline"
+              className="w-full justify-start text-lg h-14 border-2 border-black shadow-[4px_4px_0px_0px_#000] hover:bg-bauhaus-blue hover:text-white transition-all"
+            >
+              <Sparkles className="mr-3 h-5 w-5" />
+              Pick Live Story
+            </Button>
+            <Button
+              onClick={() => void handleQuickStart()}
+              loading={isQuickStarting}
+              variant="outline"
+              className="w-full justify-start text-lg h-14 border-2 border-black shadow-[4px_4px_0px_0px_#000] hover:bg-bauhaus-blue hover:text-white transition-all"
+            >
+                <MessageCircle className="mr-3 h-5 w-5" />
+                Instant Quick Start
+            </Button>
             <Link href="/learn/new" className="block group">
               <Button variant="outline" className="w-full justify-start text-lg h-14 border-2 border-black shadow-[4px_4px_0px_0px_#000] group-hover:bg-bauhaus-blue group-hover:text-white transition-all">
-                <MessageCircle className="mr-3 h-5 w-5" />
-                Start Conversation
+                <Plus className="mr-3 h-5 w-5" />
+                Customize Session
               </Button>
             </Link>
             <Link href="/practice" className="block group">
@@ -186,6 +252,19 @@ export default function Dashboard({ summary, recentSessions }: DashboardProps) {
       {isImportModalOpen && (
         <ImportStoryModal onClose={() => setIsImportModalOpen(false)} />
       )}
+      <LiveStoryPickerModal
+        isOpen={isLiveStoryPickerOpen}
+        isStarting={isQuickStarting}
+        onClose={() => setIsLiveStoryPickerOpen(false)}
+        onStartDefault={async () => {
+          setIsLiveStoryPickerOpen(false);
+          await handleQuickStart();
+        }}
+        onStartWithStory={async (story) => {
+          setIsLiveStoryPickerOpen(false);
+          await handleQuickStart(story);
+        }}
+      />
     </div>
   );
 }

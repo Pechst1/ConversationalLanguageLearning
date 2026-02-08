@@ -41,6 +41,7 @@ from app.utils.cache import cache_backend, build_cache_key
 from app.schemas import PracticeIssue, TargetWordRead
 
 if TYPE_CHECKING:
+    from app.db.models.grammar import GrammarConcept, UserGrammarProgress
     from spacy.language import Language
 
 
@@ -323,11 +324,18 @@ class SessionService:
                     self.db.add(state)
                     self.db.commit()
 
+        normalized_topic = topic.strip() if isinstance(topic, str) else None
+        if normalized_topic:
+            if len(normalized_topic) > 255:
+                normalized_topic = normalized_topic[:252].rstrip() + "..."
+        else:
+            normalized_topic = None
+
         session = LearningSession(
             user_id=user.id,
             planned_duration_minutes=planned_duration_minutes,
             conversation_style=conversation_style,
-            topic=topic,
+            topic=normalized_topic,
             difficulty_preference=difficulty_preference,
             status="in_progress",
             level_before=user.level,
@@ -1092,6 +1100,151 @@ class SessionService:
         }
         return mapping.get(preference)
 
+    def _tokenize_for_engagement(self, text: str) -> list[str]:
+        """Normalize and tokenize learner text for brevity/repetition heuristics."""
+        normalized = _normalize_text(text or "")
+        return re.findall(r"[a-z0-9']+", normalized)
+
+    def _token_overlap(self, current_tokens: Sequence[str], previous_tokens: Sequence[str]) -> float:
+        """Compute a lightweight token-overlap ratio between two turns."""
+        current_set = set(current_tokens)
+        previous_set = set(previous_tokens)
+        if not current_set or not previous_set:
+            return 0.0
+        return len(current_set.intersection(previous_set)) / len(current_set.union(previous_set))
+
+    def _resolve_cefr_level(self, learner_level: str | None) -> str:
+        """Normalize learner level labels to CEFR buckets."""
+        if not learner_level:
+            return "A1"
+        raw = learner_level.strip().upper().replace("_", "-")
+        if raw in {"A1", "A2", "B1", "B2", "C1", "C2"}:
+            return raw
+
+        mapping = {
+            "BEGINNER": "A1",
+            "ELEMENTARY": "A2",
+            "PRE-INTERMEDIATE": "A2",
+            "INTERMEDIATE": "B1",
+            "UPPER-INTERMEDIATE": "B2",
+            "ADVANCED": "C1",
+            "PROFICIENT": "C2",
+        }
+        return mapping.get(raw, "B1")
+
+    def _grammar_challenge_hint(
+        self,
+        due_grammar: Sequence[tuple["GrammarConcept", "UserGrammarProgress | None"]] | None,
+    ) -> str:
+        """Build an instruction snippet tied to the top due grammar concept."""
+        if not due_grammar:
+            return ""
+        concept, _ = due_grammar[0]
+        if not concept:
+            return ""
+        return (
+            f" Tie the task to this grammar concept from the grammar section: "
+            f"'{concept.name}' ({concept.level})."
+        )
+
+    def _build_engagement_challenge(
+        self,
+        *,
+        history: Sequence[ConversationHistoryMessage],
+        learner_level: str | None,
+        due_grammar: Sequence[tuple["GrammarConcept", "UserGrammarProgress | None"]] | None = None,
+    ) -> str | None:
+        """
+        Return a targeted challenge when the learner is getting terse or repetitive.
+        """
+        cefr_level = self._resolve_cefr_level(learner_level)
+        grammar_hint = self._grammar_challenge_hint(due_grammar)
+
+        user_messages = [
+            message.content.strip()
+            for message in history
+            if message.role == "user" and message.content and message.content.strip()
+        ]
+        if len(user_messages) < 2:
+            return None
+
+        recent_messages = user_messages[-3:]
+        tokenized = [self._tokenize_for_engagement(text) for text in recent_messages]
+        counts = [len(tokens) for tokens in tokenized]
+        avg_words = (sum(counts) / len(counts)) if counts else 0.0
+
+        last_tokens = tokenized[-1] if tokenized else []
+        prev_tokens = tokenized[-2] if len(tokenized) > 1 else []
+
+        overlap = self._token_overlap(last_tokens, prev_tokens)
+        repeated_last_turn = bool(last_tokens and prev_tokens and last_tokens == prev_tokens)
+        low_detail = len(last_tokens) <= 4 or avg_words <= 5.0
+        repetitive = overlap >= 0.7 or repeated_last_turn
+        low_variety = (
+            len(last_tokens) >= 4
+            and (len(set(last_tokens)) / max(1, len(last_tokens))) < 0.6
+        )
+
+        if not (low_detail or repetitive or low_variety):
+            return None
+
+        is_foundation_level = cefr_level in {"A1", "A2"}
+        is_mid_level = cefr_level in {"B1", "B2"}
+
+        if repetitive:
+            if is_foundation_level:
+                return (
+                    "The learner is repeating themselves. Give a simple A/B choice and ask for exactly "
+                    "2 short present-tense sentences with one connector (parce que)."
+                    f"{grammar_hint}"
+                )
+            if is_mid_level:
+                return (
+                    "The learner is repeating themselves. Give an A/B position task and ask for 2-3 "
+                    "sentences with one contrast connector (mais / cependant) and one reason."
+                    f"{grammar_hint}"
+                )
+            return (
+                "The learner is repeating themselves. Give a short argument task with a constrained stance, "
+                "requiring 3 sentences: claim, counterpoint, and conclusion."
+                f"{grammar_hint}"
+            )
+        if len(last_tokens) <= 2:
+            if is_foundation_level:
+                return (
+                    "The learner response is very short. Ask for a 2-sentence response with one concrete "
+                    "detail (time/place) and one reason using parce que."
+                    f"{grammar_hint}"
+                )
+            if is_mid_level:
+                return (
+                    "The learner response is very short. Ask for 2-3 sentences including one personal "
+                    "example, one reason, and one follow-up question."
+                    f"{grammar_hint}"
+                )
+            return (
+                "The learner response is very short. Ask for a compact 3-sentence response with a nuanced "
+                "position and one supporting example."
+                f"{grammar_hint}"
+            )
+        if is_foundation_level:
+            return (
+                "Increase specificity with a mini-task: require 2 clear sentences in present tense and "
+                "one simple detail."
+                f"{grammar_hint}"
+            )
+        if is_mid_level:
+            return (
+                "Increase specificity with a mini-task: require 2-3 complete sentences including one past "
+                "or future reference plus a connector."
+                f"{grammar_hint}"
+            )
+        return (
+            "Increase specificity with a mini-task: require a brief structured answer with one hypothesis "
+            "and one concrete example."
+            f"{grammar_hint}"
+        )
+
     def _build_target_details_from_ids(
         self,
         *,
@@ -1229,6 +1382,7 @@ class SessionService:
         due_grammar: list | None = None,
         scenario_context: str | None = None,
         session_context: SessionContext | None = None,  # [NEW]
+        engagement_challenge: str | None = None,
     ) -> AssistantTurn:
         review_focus = self._compute_review_focus(session=session, user=user)
         exclude_set: set[int] = set()
@@ -1242,14 +1396,18 @@ class SessionService:
         if direction_pref not in {"fr_to_de", "de_to_fr"}:
             direction_pref = None
         # Fetch scenario state if applicable
-        scenario_context = None
+        composed_context = scenario_context
         if session.scenario:
             state = self.db.query(UserScenarioState).filter(
                 UserScenarioState.user_id == user.id,
                 UserScenarioState.scenario_id == session.scenario
             ).first()
             if state:
-                scenario_context = f"SCENARIO STATE: {state.state_data}\nCURRENT GOAL: {state.current_goal_index}"
+                state_context = f"SCENARIO STATE: {state.state_data}\nCURRENT GOAL: {state.current_goal_index}"
+                if composed_context:
+                    composed_context += f"\n\n{state_context}"
+                else:
+                    composed_context = state_context
 
         # [NEW] Article Discussion Context
         if session.scenario and session.scenario.startswith("article:"):
@@ -1286,10 +1444,10 @@ class SessionService:
                 
                 article_context = f"DISCUSSION SOURCE MATERIAL:\nTITLE: {story.title}\n\nCONTENT:\n{full_text}"
                 
-                if scenario_context:
-                    scenario_context += f"\n\n{article_context}"
+                if composed_context:
+                    composed_context += f"\n\n{article_context}"
                 else:
-                    scenario_context = article_context
+                    composed_context = article_context
 
         # Check time limit and inject wrap-up signal
         # Use started_at if available, otherwise fallback to created_at
@@ -1313,10 +1471,21 @@ class SessionService:
                     "Do not introduce complex new topics. "
                     "Find a natural stopping point soon."
                 )
-                if scenario_context:
-                    scenario_context += f"\n\n{wrap_msg}"
+                if composed_context:
+                    composed_context += f"\n\n{wrap_msg}"
                 else:
-                    scenario_context = wrap_msg
+                    composed_context = wrap_msg
+
+        if engagement_challenge:
+            challenge_context = (
+                "ENGAGEMENT RESCUE:\n"
+                f"- {engagement_challenge}\n"
+                "- Keep tone friendly and lightweight; this should feel like a game, not a test."
+            )
+            if composed_context:
+                composed_context += f"\n\n{challenge_context}"
+            else:
+                composed_context = challenge_context
 
         generated = self.conversation_generator.generate_turn_with_context(
             user=user,
@@ -1331,7 +1500,7 @@ class SessionService:
             scenario=session.scenario,
             due_errors=due_errors,
             due_grammar=due_grammar,
-            scenario_context=scenario_context,
+            scenario_context=composed_context,
             session_context=session_context,  # [NEW]
         )
         sequence = self._next_sequence_number(session.id)
@@ -1432,6 +1601,7 @@ class SessionService:
 
         # Update SRS for existing errors
         due_errors = self._fetch_due_errors(user.id, limit=10)
+        due_grammar = self._fetch_due_grammar(user, limit=2)
         self._update_error_srs(
             user=user,
             due_errors=due_errors,
@@ -1521,6 +1691,17 @@ class SessionService:
         self._apply_user_xp(user, session, xp_awarded)
 
         history.append(ConversationHistoryMessage(role="user", content=content))
+        engagement_challenge = self._build_engagement_challenge(
+            history=history,
+            learner_level=user.proficiency_level,
+            due_grammar=due_grammar,
+        )
+        if engagement_challenge:
+            logger.info(
+                "Engagement challenge injected",
+                session_id=str(session.id),
+                user_id=str(user.id),
+            )
         used_target_ids = {item.word.id for item in feedback if item.was_used}
         exclude_ids: set[int] = set()
         if suggested_word_ids:
@@ -1538,6 +1719,8 @@ class SessionService:
             session_capacity=session_capacity,
             exclude_word_ids=exclude_ids,
             due_errors=due_errors,
+            due_grammar=due_grammar,
+            engagement_challenge=engagement_challenge,
         )
 
         self.db.commit()

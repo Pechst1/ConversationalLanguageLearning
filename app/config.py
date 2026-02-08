@@ -43,6 +43,10 @@ class Settings(BaseSettings):
         description="OpenAI model for error detection (use stronger model for better grammar checking)"
     )
     PERPLEXITY_API_KEY: Optional[str] = Field(None, description="API key for Perplexity search (optional)")
+    SUBSTACK_FEED_URLS: str = Field(
+        "",
+        description="Comma-separated Substack RSS feed URLs for live content mode (optional)",
+    )
     ELEVENLABS_API_KEY: Optional[str] = Field(None, description="API key for ElevenLabs TTS (optional)")
     TTS_PROVIDER: str = Field("openai", description="Default TTS provider (openai, elevenlabs)")
     OPENAI_API_BASE: Optional[AnyUrl] = Field(

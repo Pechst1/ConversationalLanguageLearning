@@ -4,6 +4,15 @@ import toast from 'react-hot-toast';
 
 import { AnkiReviewResponse, ReviewResponse } from '@/types/reviews';
 
+export interface LiveStory {
+  id: string;
+  title: string;
+  url: string;
+  source: string;
+  summary?: string | null;
+  language: string;
+}
+
 class ApiService {
   private api: AxiosInstance;
 
@@ -141,6 +150,19 @@ class ApiService {
     generate_greeting?: boolean;
   }) {
     return this.post('/sessions', data);
+  }
+
+  async quickStartSession(data?: {
+    story_title?: string;
+    story_url?: string;
+    story_source?: string;
+    story_summary?: string;
+  }) {
+    return this.post('/sessions/quick-start', data || {});
+  }
+
+  async getLiveStories(params?: { limit?: number }) {
+    return this.get<{ items: LiveStory[] }>('/sessions/live-stories', { params });
   }
 
   async getSession(sessionId: string) {

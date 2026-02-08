@@ -21,7 +21,10 @@ from sqlalchemy.orm import Session
 from app.db.models.error import UserError
 from app.db.models.grammar import GrammarConcept, UserGrammarProgress
 from app.db.models.progress import UserVocabularyProgress
+from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
+from app.services.enhanced_srs import EnhancedSRSService
+from app.services.grammar import GrammarService
 
 
 class ItemType(str, Enum):
@@ -206,6 +209,43 @@ class UnifiedSRSService:
             interleaving_mode=interleaving_mode,
             time_budget_minutes=time_budget_minutes
         )
+
+    def complete_item(
+        self,
+        *,
+        user_id: UUID,
+        item_type: ItemType,
+        item_id: str,
+        rating: int,
+        response_time_ms: int | None = None,
+    ) -> dict[str, Any]:
+        """Persist completion for a daily-practice item and return scheduling info."""
+        if rating < 1 or rating > 4:
+            raise ValueError("rating must be between 1 and 4")
+
+        fsrs_rating = rating - 1  # 0=Again, 1=Hard, 2=Good, 3=Easy
+
+        if item_type == ItemType.VOCAB:
+            return self._complete_vocab_item(
+                user_id=user_id,
+                progress_id=item_id,
+                fsrs_rating=fsrs_rating,
+                response_time_ms=response_time_ms,
+            )
+        if item_type == ItemType.GRAMMAR:
+            return self._complete_grammar_item(
+                user_id=user_id,
+                concept_id=item_id,
+                fsrs_rating=fsrs_rating,
+            )
+        if item_type == ItemType.ERROR:
+            return self._complete_error_item(
+                user_id=user_id,
+                error_id=item_id,
+                fsrs_rating=fsrs_rating,
+            )
+
+        raise ValueError(f"Unsupported item type: {item_type}")
     
     def _fetch_due_vocab(
         self, user_id: UUID, today, now: datetime
@@ -245,6 +285,162 @@ class UnifiedSRSService:
             ))
         
         return items
+
+    def _complete_vocab_item(
+        self,
+        *,
+        user_id: UUID,
+        progress_id: str,
+        fsrs_rating: int,
+        response_time_ms: int | None = None,
+    ) -> dict[str, Any]:
+        """Complete a vocabulary review via the configured scheduler."""
+        now = datetime.now(timezone.utc)
+        user = self.db.get(User, user_id)
+        if not user:
+            raise ValueError("User not found")
+        try:
+            progress_uuid = UUID(progress_id)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"Invalid vocabulary progress id: {progress_id}") from exc
+
+        progress = (
+            self.db.query(UserVocabularyProgress)
+            .filter(
+                UserVocabularyProgress.id == progress_uuid,
+                UserVocabularyProgress.user_id == user_id,
+            )
+            .first()
+        )
+        if not progress:
+            raise ValueError(f"Vocabulary progress {progress_id} not found")
+        if not progress.word:
+            raise ValueError(f"Vocabulary word missing for progress {progress_id}")
+
+        srs_service = EnhancedSRSService(self.db)
+        srs_service.process_review(
+            progress=progress,
+            rating=fsrs_rating,
+            response_time_ms=response_time_ms,
+            now=now,
+        )
+        progress.updated_at = now
+        self.db.commit()
+        self.db.refresh(progress)
+
+        next_review = progress.due_at or progress.next_review_date
+        next_review_days = (next_review.date() - now.date()).days if next_review else None
+        return {
+            "next_review_days": next_review_days,
+            "state": progress.state,
+            "message": f"Reviewed vocabulary: {progress.word.word}",
+        }
+
+    def _complete_grammar_item(
+        self,
+        *,
+        user_id: UUID,
+        concept_id: str,
+        fsrs_rating: int,
+    ) -> dict[str, Any]:
+        """Complete a grammar review by mapping rating to grammar score."""
+        now = datetime.now(timezone.utc)
+        user = self.db.get(User, user_id)
+        if not user:
+            raise ValueError("User not found")
+
+        try:
+            concept_id_int = int(concept_id)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"Invalid grammar concept id: {concept_id}") from exc
+
+        grammar_service = GrammarService(self.db)
+        concept = grammar_service.get_concept(concept_id_int)
+        if not concept:
+            raise ValueError(f"Grammar concept {concept_id_int} not found")
+
+        score_map = {0: 1.0, 1: 4.0, 2: 7.0, 3: 9.5}
+        progress = grammar_service.record_review(
+            user=user,
+            concept_id=concept_id_int,
+            score=score_map[fsrs_rating],
+            notes="daily_practice",
+        )
+
+        next_review = progress.next_review
+        next_review_days = (next_review.date() - now.date()).days if next_review else None
+        return {
+            "next_review_days": next_review_days,
+            "state": progress.state,
+            "message": f"Reviewed grammar: {concept.name}",
+        }
+
+    def _complete_error_item(
+        self,
+        *,
+        user_id: UUID,
+        error_id: str,
+        fsrs_rating: int,
+    ) -> dict[str, Any]:
+        """Complete an error-recall review and update the error SRS fields."""
+        now = datetime.now(timezone.utc)
+        try:
+            error_uuid = UUID(error_id)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"Invalid error id: {error_id}") from exc
+        error = (
+            self.db.query(UserError)
+            .filter(
+                UserError.id == error_uuid,
+                UserError.user_id == user_id,
+            )
+            .first()
+        )
+        if not error:
+            raise ValueError(f"Error item {error_id} not found")
+
+        current_interval = error.scheduled_days or 1
+        difficulty = error.difficulty or 5.0
+        stability = error.stability or 0.0
+
+        if fsrs_rating == 0:  # Again
+            next_interval = 1
+            error.state = "learning"
+            error.lapses = (error.lapses or 0) + 1
+            difficulty = min(10.0, difficulty + 0.8)
+            stability = max(0.0, stability * 0.8)
+        elif fsrs_rating == 1:  # Hard
+            next_interval = max(1, current_interval)
+            error.state = "learning"
+            difficulty = min(10.0, difficulty + 0.2)
+            stability = max(0.0, stability + 0.3)
+        elif fsrs_rating == 2:  # Good
+            next_interval = max(2, int(current_interval * 2.0))
+            error.state = "review"
+            difficulty = max(1.0, difficulty - 0.2)
+            stability = stability + 1.0
+        else:  # Easy
+            next_interval = max(4, int(current_interval * 3.0))
+            error.state = "review"
+            difficulty = max(1.0, difficulty - 0.4)
+            stability = stability + 1.5
+
+        error.stability = stability
+        error.difficulty = difficulty
+        error.elapsed_days = current_interval
+        error.scheduled_days = next_interval
+        error.reps = (error.reps or 0) + 1
+        error.last_review_date = now
+        error.next_review_date = now + timedelta(days=next_interval)
+        error.updated_at = now
+
+        self.db.commit()
+        self.db.refresh(error)
+        return {
+            "next_review_days": next_interval,
+            "state": error.state,
+            "message": f"Reviewed error: {error.error_category}",
+        }
     
     def _fetch_due_grammar(
         self, user_id: UUID, now: datetime
