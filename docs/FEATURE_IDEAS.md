@@ -22,14 +22,15 @@
 - Keep German tooltips on hover for support
 
 ### Daily News Chat Integration
-- Integrate LLM with internet search capabilities (or news summarization)
+- Integrate LLM with internet search capabilities (or news summarization) (maybe there is a suitable API for that?)
 - Allow users to discuss current daily news events in French
 - **Goal**: Enable learning through topics of personal interest and real-world relevance
 
 ### Audio-Only Conversation Mode
 - "Talking Only" mode where AI text is hidden
 - User must rely solely on auditory comprehension
-- **Visuals**: Text is revealed only when user speaks or for error correction
+- ElevenLabs has a feature for that, check it out, evaluate the costs and benefits.
+- **Visuals**: Text is revealed only when user speaks and for error correction
 - **Goal**: Force improvement of listening skills and auditory processing
 
 ## Medium Priority

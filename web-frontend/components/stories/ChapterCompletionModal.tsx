@@ -8,7 +8,7 @@ interface ChapterCompletionModalProps {
   isOpen: boolean;
   onClose: () => void;
   result: ChapterCompletionResponse;
-  storyId: number;
+  storyId: string;
   storyTitle: string;
 }
 
@@ -148,7 +148,7 @@ export default function ChapterCompletionModal({
                 Félicitations!
               </p>
               <p className="text-sm text-purple-700">
-                You've completed the entire story. Your progress has been saved.
+                You&apos;ve completed the entire story. Your progress has been saved.
               </p>
             </div>
           )}

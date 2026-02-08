@@ -12,20 +12,20 @@ import StoryProgressOverview from '@/components/stories/StoryProgressOverview';
 export default function StoryDetailPage() {
   const router = useRouter();
   const { storyId } = router.query;
-  const numericStoryId = typeof storyId === 'string' ? parseInt(storyId, 10) : null;
+  const resolvedStoryId = typeof storyId === 'string' ? storyId : null;
 
-  const { storyDetail, loading, error } = useStoryDetail(numericStoryId);
+  const { storyDetail, loading, error } = useStoryDetail(resolvedStoryId);
   const { startStory, loading: startingStory } = useStartStory();
 
   const handleStartStory = async () => {
-    if (!numericStoryId) return;
+    if (!resolvedStoryId) return;
 
     try {
-      const result = await startStory(numericStoryId);
+      const result = await startStory(resolvedStoryId);
 
       // Navigate to first chapter
-      if (result.current_chapter) {
-        router.push(`/stories/${numericStoryId}/chapter/${result.current_chapter.id}`);
+      if (result.chapter?.id) {
+        router.push(`/stories/${resolvedStoryId}/chapter/${result.chapter.id}`);
       }
     } catch (err) {
       console.error('Failed to start story:', err);
@@ -34,7 +34,7 @@ export default function StoryDetailPage() {
 
   const handleContinueStory = () => {
     if (!storyDetail?.user_progress?.current_chapter_id) return;
-    router.push(`/stories/${numericStoryId}/chapter/${storyDetail.user_progress.current_chapter_id}`);
+    router.push(`/stories/${resolvedStoryId}/chapter/${storyDetail.user_progress.current_chapter_id}`);
   };
 
   if (loading) {
@@ -144,7 +144,7 @@ export default function StoryDetailPage() {
 
       {/* Progress Overview (if started) */}
       {user_progress && (
-        <StoryProgressOverview progress={user_progress} totalChapters={story.total_chapters} />
+        <StoryProgressOverview progress={user_progress} totalChapters={story.total_chapters ?? chapters.length} />
       )}
 
       {/* Chapter List */}

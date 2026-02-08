@@ -113,7 +113,7 @@ export default function AudioSessionPage() {
     // Start Session
     // ─────────────────────────────────────────────────────────────────
 
-    const startSession = useCallback(async (scenarioId: string | null = null) => {
+    const startSession = async (scenarioId: string | null = null) => {
         setState(prev => ({ ...prev, status: 'starting' }));
 
         try {
@@ -137,7 +137,7 @@ export default function AudioSessionPage() {
             console.error('Failed to start audio session:', error);
             setState(prev => ({ ...prev, status: 'idle' }));
         }
-    }, []);
+    };
 
     // ─────────────────────────────────────────────────────────────────
     // TTS Playback
@@ -644,7 +644,7 @@ export default function AudioSessionPage() {
 
                 {/* Status text */}
                 <p className="text-lg text-purple-200 mb-8">
-                    {state.status === 'speaking' && 'Listening...'}
+                    {state.status === 'speaking' && 'AI is speaking...'}
                     {state.status === 'listening' && 'Your turn to speak'}
                     {state.status === 'processing' && 'Thinking...'}
                 </p>
@@ -768,7 +768,7 @@ export default function AudioSessionPage() {
                             className="bg-gradient-to-br from-red-900 to-pink-900 rounded-2xl p-6 max-w-sm w-full text-center"
                         >
                             <h2 className="text-2xl font-bold text-white mb-2">End Session?</h2>
-                            <p className="text-pink-200 mb-6">You've been talking for {formatTime(state.elapsedSeconds)}</p>
+                            <p className="text-pink-200 mb-6">You&apos;ve been talking for {formatTime(state.elapsedSeconds)}</p>
                             <div className="flex gap-4">
                                 <button
                                     onClick={() => setShowEndConfirm(false)}

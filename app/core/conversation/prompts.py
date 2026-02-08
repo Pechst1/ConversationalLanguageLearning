@@ -41,6 +41,11 @@ class ConversationTemplate:
             {self.context_instructions.strip()}
 
             {self.guidance.strip()}
+
+            Engagement rules:
+            - Do not reuse the same opening phrase in consecutive turns.
+            - Keep momentum: each turn must either introduce a fresh angle, deepen the topic, or ask for a concrete choice.
+            - Avoid generic filler praise without advancing the conversation.
             """
         ).strip()
         logger.debug("Built system prompt", template=self.style.name, level=learner_level)
@@ -583,4 +588,3 @@ def build_error_detection_prompt(
     ).strip()
     logger.debug("Built error detection prompt", target_count=len(target_vocabulary))
     return prompt
-

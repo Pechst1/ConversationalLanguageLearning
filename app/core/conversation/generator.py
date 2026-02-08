@@ -311,10 +311,54 @@ class ConversationGenerator:
     # ------------------------------------------------------------------
     # Prompt preparation helpers
     # ------------------------------------------------------------------
+    def _build_engagement_directive(
+        self,
+        *,
+        history: Sequence[ConversationHistoryMessage],
+        style: str,
+    ) -> list[str]:
+        """Build pacing instructions so the conversation stays dynamic."""
+
+        user_turns = sum(1 for message in history if message.role == "user")
+        last_assistant = next(
+            (message.content for message in reversed(history) if message.role == "assistant" and message.content),
+            "",
+        )
+        last_opening = " ".join(last_assistant.split()[:6]).strip()
+
+        if user_turns <= 1:
+            phase = "HOOK"
+            instruction = "Start with a vivid detail or curious question tied to the learner's last message."
+        elif user_turns <= 3:
+            phase = "DEEPEN"
+            instruction = "Raise specificity: ask for reasons, comparisons, or a concrete personal example."
+        elif user_turns <= 5:
+            phase = "TWIST"
+            instruction = "Introduce a new angle or mild tension so the exchange does not become repetitive."
+        else:
+            phase = "PAYOFF"
+            instruction = "Acknowledge progress briefly, then offer a clear challenge or decision to keep momentum."
+
+        lines = [
+            "ENGAGEMENT PACING:",
+            f"- Current phase: {phase}",
+            f"- {instruction}",
+            "- End with one clear next action for the learner (question, choice, or mini-task).",
+        ]
+        if last_opening:
+            lines.append(
+                f"- Avoid repeating the previous assistant opening words: \"{last_opening}\"."
+            )
+        if style in {"storytelling", "roleplay", "dialogue"}:
+            lines.append("- Keep the scene moving; do not stay in static small talk.")
+        return lines
+
     def _build_target_context(
         self,
         *,
         plan: ConversationPlan,
+        history: Sequence[ConversationHistoryMessage],
+        style: str,
         learner_level: str,
         user: User,
         topic: str | None = None,
@@ -363,6 +407,10 @@ class ConversationGenerator:
         if scenario_context:
             lines.append(scenario_context)
 
+        lines.append("")
+        lines.extend(self._build_engagement_directive(history=history, style=style))
+
+        lines.append("")
         lines.append("Target vocabulary for this turn:")
 
         if plan.target_words:
@@ -400,6 +448,7 @@ class ConversationGenerator:
         self,
         *,
         plan: ConversationPlan,
+        style: str,
         history: Sequence[ConversationHistoryMessage] = (),
         learner_level: str,
         user: User,
@@ -413,6 +462,8 @@ class ConversationGenerator:
 
         target_context = self._build_target_context(
             plan=plan,
+            history=history,
+            style=style,
             learner_level=learner_level,
             user=user,
             topic=topic,
@@ -486,6 +537,7 @@ class ConversationGenerator:
         plan = self._build_plan(queue_items)
         messages = self._build_messages(
             plan=plan,
+            style=style,
             history=history,
             learner_level=learner_level,
             user=user,

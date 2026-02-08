@@ -69,28 +69,28 @@ export interface BranchingChoice {
 }
 
 export interface UserStoryProgressBase {
-  id: string;
-  user_id: string;
+  id?: string;
+  user_id?: string;
   story_id: string;  // String ID
   current_chapter_id: string | null;  // String ID
   current_scene_id?: string | null;  // Main repo field
   status: 'in_progress' | 'completed' | 'abandoned' | 'not_started';
-  chapters_completed: ChapterCompletion[] | string[];  // Can be array of IDs or completion objects
+  chapters_completed?: ChapterCompletion[] | string[];  // Can be array of IDs or completion objects
   chapters_completed_details?: ChapterCompletion[];  // Main repo detailed tracking
   total_chapters_completed?: number;
   completion_percentage: number;
   total_xp_earned: number;
   total_time_spent_minutes?: number;
   vocabulary_mastered_count?: number;
-  perfect_chapters_count: number;
-  narrative_choices: Record<string, string>;
+  perfect_chapters_count?: number;
+  narrative_choices?: Record<string, string>;
   story_flags?: Record<string, any>;  // Main repo field
   philosophical_learnings?: string[];  // Main repo field
   book_quotes_unlocked?: string[];  // Main repo field
   started_at: string;
   last_accessed_at?: string;
   last_played_at?: string;  // Main repo field
-  completed_at: string | null;
+  completed_at?: string | null;
 }
 
 export interface ChapterCompletion {
@@ -132,6 +132,18 @@ export interface StoryDetailResponse {
 export interface UserStoryProgressResponse {
   progress: UserStoryProgressBase;
   current_chapter: ChapterBase | null;
+}
+
+export interface StoryStartResponse {
+  progress: UserStoryProgressBase;
+  scene: unknown;
+  chapter: ChapterBase;
+}
+
+interface SessionStartEnvelope {
+  session: {
+    id: string;
+  };
 }
 
 export interface ChapterCompletionRequest {
@@ -181,12 +193,30 @@ export function useStories(params?: { difficulty?: string; theme?: string }) {
       if (params?.difficulty) queryParams.set('difficulty', params.difficulty);
       if (params?.theme) queryParams.set('theme', params.theme);
 
-      const data = await apiService.get<StoryListItem[]>(
+      const rows = await apiService.get<any[]>(
         `/stories${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
       );
 
-      setStories(data);
-      return data;
+      const mapped: StoryListItem[] = rows.map((row) => ({
+        story: {
+          ...row,
+          total_chapters: row.total_chapters ?? undefined,
+        },
+        user_progress: row.progress
+          ? {
+              is_started: row.progress.status !== 'not_started',
+              is_completed: row.progress.status === 'completed',
+              completion_percentage: row.progress.completion_percentage ?? 0,
+              current_chapter_number: null,
+              current_chapter_title: row.progress.current_chapter_title ?? null,
+              chapters_completed: 0,
+              total_xp_earned: 0,
+            }
+          : null,
+      }));
+
+      setStories(mapped);
+      return mapped;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch stories';
       setError(errorMessage);
@@ -225,7 +255,61 @@ export function useStoryDetail(storyId: string | null) {
       setLoading(true);
       setError(null);
 
-      const data = await apiService.get<StoryDetailResponse>(`/stories/${storyId}`);
+      const [storyData, chapterRows, progressData] = await Promise.all([
+        apiService.get<any>(`/stories/${storyId}`),
+        apiService.get<any[]>(`/stories/${storyId}/chapters`),
+        apiService.get<any | null>(`/stories/${storyId}/progress`).catch(() => null),
+      ]);
+
+      const chapters: ChapterWithStatus[] = chapterRows.map((row) => ({
+        chapter: {
+          id: row.id,
+          story_id: row.story_id,
+          order_index: row.order_index,
+          sequence_order: row.order_index + 1,
+          title: row.title,
+          target_level: row.target_level ?? null,
+          completion_xp: row.completion_xp ?? 75,
+          perfect_completion_xp: row.perfect_completion_xp ?? 150,
+        },
+        is_locked: Boolean(row.is_locked),
+        is_completed: Boolean(row.is_completed),
+        was_perfect: Boolean(row.was_perfect),
+      }));
+
+      const normalizedProgress: UserStoryProgressBase | null = progressData
+        ? {
+            story_id: progressData.story_id,
+            current_chapter_id: progressData.current_chapter_id ?? null,
+            current_scene_id: progressData.current_scene_id ?? null,
+            status: (progressData.status ?? 'not_started') as UserStoryProgressBase['status'],
+            completion_percentage: progressData.completion_percentage ?? 0,
+            total_xp_earned: progressData.total_xp_earned ?? 0,
+            total_time_spent_minutes: progressData.total_time_spent_minutes ?? 0,
+            vocabulary_mastered_count: progressData.vocabulary_mastered_count ?? 0,
+            perfect_chapters_count: progressData.perfect_chapters_count ?? 0,
+            narrative_choices: progressData.narrative_choices ?? {},
+            story_flags: progressData.story_flags ?? {},
+            philosophical_learnings: progressData.philosophical_learnings ?? [],
+            book_quotes_unlocked: progressData.book_quotes_unlocked ?? [],
+            chapters_completed: progressData.chapters_completed ?? [],
+            chapters_completed_details: progressData.chapters_completed_details ?? [],
+            total_chapters_completed: progressData.total_chapters_completed ?? 0,
+            started_at: progressData.started_at ?? new Date().toISOString(),
+            last_accessed_at: progressData.last_accessed_at ?? progressData.last_played_at ?? undefined,
+            last_played_at: progressData.last_played_at ?? undefined,
+            completed_at: progressData.completed_at ?? null,
+          }
+        : null;
+
+      const data: StoryDetailResponse = {
+        story: {
+          ...storyData,
+          total_chapters: storyData.total_chapters ?? chapters.length,
+        },
+        chapters,
+        user_progress: normalizedProgress,
+      };
 
       setStoryDetail(data);
       return data;
@@ -266,7 +350,7 @@ export function useStartStory() {
       setLoading(true);
       setError(null);
 
-      const data = await apiService.post<UserStoryProgressResponse>(
+      const data = await apiService.post<StoryStartResponse>(
         `/stories/${storyId}/start`
       );
 
@@ -305,16 +389,26 @@ export function useChapter(storyId: string | null, chapterId: string | null) {
       setLoading(true);
       setError(null);
 
-      // Get chapter from story detail
-      const storyDetail = await apiService.get<StoryDetailResponse>(`/stories/${storyId}`);
-      const chapterWithStatus = storyDetail.chapters.find(c => c.chapter.id === chapterId);
+      const chapterRows = await apiService.get<any[]>(`/stories/${storyId}/chapters`);
+      const chapterRow = chapterRows.find((row) => row.id === chapterId);
 
-      if (!chapterWithStatus) {
+      if (!chapterRow) {
         throw new Error('Chapter not found');
       }
 
-      setChapter(chapterWithStatus.chapter);
-      return chapterWithStatus.chapter;
+      const mappedChapter: ChapterBase = {
+        id: chapterRow.id,
+        story_id: chapterRow.story_id,
+        order_index: chapterRow.order_index,
+        sequence_order: chapterRow.order_index + 1,
+        title: chapterRow.title,
+        target_level: chapterRow.target_level ?? null,
+        completion_xp: chapterRow.completion_xp ?? 75,
+        perfect_completion_xp: chapterRow.perfect_completion_xp ?? 150,
+      };
+
+      setChapter(mappedChapter);
+      return mappedChapter;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch chapter';
       setError(errorMessage);
@@ -358,7 +452,7 @@ export function useStartChapterSession() {
       setError(null);
 
       // Create session with story context
-      const sessionData = await apiService.post('/sessions', {
+      const sessionData = await apiService.post<SessionStartEnvelope>('/sessions', {
         story_id: params.storyId,
         story_chapter_id: params.chapterId,
         planned_duration_minutes: params.planned_duration_minutes || 15,

@@ -105,6 +105,11 @@ export default function StoryPage({ storyData, storyId, error }: StoryPageProps)
     const [isImmersiveMode, setIsImmersiveMode] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
+    const handleContinueTransition = async () => {
+        setPendingTransition(null);
+        await router.replace(router.asPath);
+    };
+
     // Initialize with narration
     useEffect(() => {
         if (scene && showNarration) {
@@ -452,7 +457,7 @@ export default function StoryPage({ storyData, storyId, error }: StoryPageProps)
                     <div className="p-4 bg-white border-t-4 border-black">
                         {pendingTransition ? (
                             <button
-                                onClick={() => window.location.reload()}
+                                onClick={handleContinueTransition}
                                 className="w-full p-4 bg-bauhaus-yellow border-2 border-black shadow-[4px_4px_0px_0px_#000] hover:shadow-[6px_6px_0px_0px_#000] hover:translate-x-[-1px] hover:translate-y-[-1px] transition-all font-black text-xl active:shadow-none active:translate-x-[2px] active:translate-y-[2px] flex items-center justify-center gap-3"
                             >
                                 <span>Weiter zur nächsten Szene</span>

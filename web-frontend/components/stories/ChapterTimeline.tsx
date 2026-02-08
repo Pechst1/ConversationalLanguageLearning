@@ -4,7 +4,7 @@ import { ChapterWithStatus } from '@/hooks/useStories';
 
 interface ChapterTimelineProps {
   chapters: ChapterWithStatus[];
-  currentChapterId: number | null;
+  currentChapterId: string | null;
 }
 
 export default function ChapterTimeline({ chapters, currentChapterId }: ChapterTimelineProps) {
@@ -42,7 +42,7 @@ export default function ChapterTimeline({ chapters, currentChapterId }: ChapterT
               ) : isCurrent ? (
                 <Circle className="h-8 w-8 fill-current" />
               ) : (
-                <span className="text-2xl font-bold">{chapter.sequence_order}</span>
+                <span className="text-2xl font-bold">{chapter.sequence_order ?? chapter.order_index + 1}</span>
               )}
             </div>
 

@@ -262,6 +262,8 @@ class AudioSessionService:
         # Gather context
         due_errors = self._fetch_due_errors(user.id)
         weak_grammar = self._fetch_weak_grammar(user.id)
+        time_context = self._get_time_context()
+        style = self._get_conversation_style()
         
         # Determine Session Type (Roleplay vs Casual)
         scenario = None
@@ -272,6 +274,8 @@ class AudioSessionService:
             # ROLEPLAY MODE
             topic = f"Roleplay: {scenario['title']}"
             style_name = "Roleplay"
+            session_style_id = "roleplay"
+            opening_context = scenario["title"]
             objectives = scenario.get("objectives", [])
             objectives_text = "\n".join([f"- {obj}" for obj in objectives])
             
@@ -298,10 +302,10 @@ class AudioSessionService:
 """
         else:
             # DYNAMIC CASUAL MODE
-            time_context = self._get_time_context()
-            style = self._get_conversation_style()
             topic = time_context
             style_name = style['name']
+            session_style_id = style["id"]
+            opening_context = time_context
             
             # Search for interest-based topics
             interest_context = await self._search_user_interests(user.interests or "")
@@ -335,7 +339,7 @@ La conversation doit sembler 100% naturelle."""
 
         # Generate opening message
         opening_prompt = f"""Commence la conversation de manière naturelle en français.
-Contexte: {time_context}
+Contexte: {opening_context}
 Fais une remarque ou pose une question pour lancer la discussion.
 Maximum 2 phrases."""
 
@@ -357,8 +361,8 @@ Maximum 2 phrases."""
         session = LearningSession(
             user_id=user.id,
             planned_duration_minutes=duration_minutes,
-            conversation_style=style['id'],
-            topic=time_context,
+            conversation_style=session_style_id,
+            topic=topic,
             difficulty_preference=user.proficiency_level,
             status="in_progress",
             level_before=user.level,
@@ -372,9 +376,11 @@ Maximum 2 phrases."""
             "session_id": str(session.id),
             "opening_message": opening_message,
             "context": {
-                "situation": time_context,
-                "style": style['name'],
+                "situation": opening_context,
+                "style": style_name,
                 "duration_minutes": duration_minutes,
+                "system_prompt": system_prompt,
+                "scenario_id": scenario["id"] if scenario else None,
             },
             "target_errors": [
                 {"category": e.error_category, "subcategory": e.subcategory} 

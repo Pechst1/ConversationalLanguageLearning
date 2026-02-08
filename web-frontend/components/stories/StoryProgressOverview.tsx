@@ -11,6 +11,11 @@ interface StoryProgressOverviewProps {
 
 export default function StoryProgressOverview({ progress, totalChapters }: StoryProgressOverviewProps) {
   const isCompleted = progress.status === 'completed';
+  const chaptersCompleted =
+    progress.total_chapters_completed ??
+    (Array.isArray(progress.chapters_completed) ? progress.chapters_completed.length : 0);
+  const minutesSpent = progress.total_time_spent_minutes ?? 0;
+  const lastAccessedAt = progress.last_accessed_at ?? progress.last_played_at ?? progress.started_at;
 
   const stats = [
     {
@@ -22,7 +27,7 @@ export default function StoryProgressOverview({ progress, totalChapters }: Story
     },
     {
       label: 'Chapters Complete',
-      value: `${progress.total_chapters_completed}/${totalChapters}`,
+      value: `${chaptersCompleted}/${totalChapters}`,
       icon: BookOpen,
       color: 'text-green-600',
       bgColor: 'bg-green-100',
@@ -36,7 +41,7 @@ export default function StoryProgressOverview({ progress, totalChapters }: Story
     },
     {
       label: 'Time Spent',
-      value: `${progress.total_time_spent_minutes} min`,
+      value: `${minutesSpent} min`,
       icon: Clock,
       color: 'text-purple-600',
       bgColor: 'bg-purple-100',
@@ -83,10 +88,10 @@ export default function StoryProgressOverview({ progress, totalChapters }: Story
         </div>
 
         {/* Vocabulary Progress */}
-        {progress.vocabulary_mastered_count > 0 && (
+        {(progress.vocabulary_mastered_count ?? 0) > 0 && (
           <div className="pt-4 border-t border-gray-200">
             <p className="text-sm text-gray-600">
-              <span className="font-medium text-gray-900">{progress.vocabulary_mastered_count}</span>{' '}
+              <span className="font-medium text-gray-900">{progress.vocabulary_mastered_count ?? 0}</span>{' '}
               words mastered through this story
             </p>
           </div>
@@ -98,7 +103,7 @@ export default function StoryProgressOverview({ progress, totalChapters }: Story
           {progress.completed_at && (
             <p>Completed: {new Date(progress.completed_at).toLocaleDateString()}</p>
           )}
-          <p>Last accessed: {new Date(progress.last_accessed_at).toLocaleDateString()}</p>
+          <p>Last accessed: {new Date(lastAccessedAt).toLocaleDateString()}</p>
         </div>
       </CardContent>
     </Card>

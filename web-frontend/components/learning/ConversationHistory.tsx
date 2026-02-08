@@ -278,7 +278,7 @@ const ConversationHistory: React.FC<Props> = ({
     }
 
     try {
-      await apiService.post(`/sessions/${activeSessionId}/difficult-words`, {
+      await apiService.post(`/sessions/${activeSessionId}/difficult_words`, {
         word_id: wordId,
       });
       toast.success('Word marked as difficult');

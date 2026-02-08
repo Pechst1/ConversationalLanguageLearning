@@ -145,7 +145,7 @@ export default function InsightsCard() {
                 {insight.recommendations.length > 0 && (
                     <div className="space-y-3">
                         <h4 className="text-xs font-extrabold text-indigo-700 uppercase tracking-wider">
-                            This Week's Focus
+                            This Week&apos;s Focus
                         </h4>
                         <div className="space-y-2">
                             {insight.recommendations.map((rec, idx) => (
@@ -168,7 +168,7 @@ export default function InsightsCard() {
                 {insight.encouragement && (
                     <div className="bg-white/60 border-2 border-indigo-200 rounded-lg p-4 text-center">
                         <p className="text-sm font-medium text-indigo-800 italic">
-                            "{insight.encouragement}"
+                            &quot;{insight.encouragement}&quot;
                         </p>
                     </div>
                 )}

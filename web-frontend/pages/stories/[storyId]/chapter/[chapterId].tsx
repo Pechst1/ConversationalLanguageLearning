@@ -10,10 +10,10 @@ export default function StoryChapterPage() {
   const router = useRouter();
   const { storyId, chapterId } = router.query;
 
-  const numericStoryId = typeof storyId === 'string' ? parseInt(storyId, 10) : null;
-  const numericChapterId = typeof chapterId === 'string' ? parseInt(chapterId, 10) : null;
+  const resolvedStoryId = typeof storyId === 'string' ? storyId : null;
+  const resolvedChapterId = typeof chapterId === 'string' ? chapterId : null;
 
-  const { chapter, loading: loadingChapter } = useChapter(numericStoryId, numericChapterId);
+  const { chapter, loading: loadingChapter } = useChapter(resolvedStoryId, resolvedChapterId);
   const { startChapterSession, loading: startingSession } = useStartChapterSession();
 
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -21,15 +21,15 @@ export default function StoryChapterPage() {
 
   // Auto-start session when chapter loads
   useEffect(() => {
-    if (!numericStoryId || !numericChapterId || sessionId || startingSession) {
+    if (!resolvedStoryId || !resolvedChapterId || sessionId || startingSession) {
       return;
     }
 
     const initializeSession = async () => {
       try {
         const sessionData = await startChapterSession({
-          storyId: numericStoryId,
-          chapterId: numericChapterId,
+          storyId: resolvedStoryId,
+          chapterId: resolvedChapterId,
           planned_duration_minutes: 15,
         });
 
@@ -45,7 +45,7 @@ export default function StoryChapterPage() {
     };
 
     initializeSession();
-  }, [numericStoryId, numericChapterId, sessionId, startChapterSession, startingSession]);
+  }, [resolvedStoryId, resolvedChapterId, sessionId, startChapterSession, startingSession]);
 
   // Loading state
   if (loadingChapter || startingSession || !sessionId) {
@@ -78,8 +78,8 @@ export default function StoryChapterPage() {
 
   return (
     <StorySessionLayout
-      storyId={numericStoryId!}
-      chapterId={numericChapterId!}
+      storyId={resolvedStoryId!}
+      chapterId={resolvedChapterId!}
       sessionId={sessionId}
       chapter={chapter}
     />

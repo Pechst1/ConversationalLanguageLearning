@@ -567,11 +567,16 @@ export function useLearningSession(sessionId?: string) {
       setError(null);
 
       const sessionData = await apiService.createSession(config) as any;
+      const sessionPayload = sessionData?.session ?? sessionData;
+      const greetingTurn = sessionData?.assistant_turn;
+      if (!sessionPayload?.id) {
+        throw new Error('Session creation response missing id');
+      }
 
       const newSession: LearningSession = {
-        id: sessionData.id,
+        id: String(sessionPayload.id),
         status: 'active',
-        startTime: new Date(sessionData.created_at || Date.now()),
+        startTime: new Date(sessionPayload.started_at || sessionPayload.created_at || Date.now()),
         stats: {
           totalReviews: 0,
           correctAnswers: 0,
@@ -585,13 +590,13 @@ export function useLearningSession(sessionId?: string) {
       setMessages([]);
 
       // If there's a greeting message, add it
-      if (sessionData.greeting) {
+      if (greetingTurn?.message?.content) {
         const greetingMessage: ChatMessage = {
-          id: generateMessageId(),
+          id: String(greetingTurn.message.id ?? generateMessageId()),
           role: 'assistant',
-          content: sessionData.greeting,
-          timestamp: new Date(),
-          targets: normalizeTargets(sessionData.greeting_targets || sessionData.greetingTargets || []),
+          content: greetingTurn.message.content,
+          timestamp: new Date(greetingTurn.message.created_at || Date.now()),
+          targets: normalizeTargets(greetingTurn.targets || greetingTurn.message.target_details || []),
         };
         setMessages([greetingMessage]);
       }

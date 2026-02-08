@@ -6,6 +6,7 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
+from starlette.concurrency import run_in_threadpool
 from loguru import logger
 from pydantic import TypeAdapter, ValidationError
 
@@ -159,7 +160,8 @@ async def session_stream(
 
             if isinstance(message, SessionUserMessage):
                 try:
-                    result = service.process_user_message(
+                    result = await run_in_threadpool(
+                        service.process_user_message,
                         session=session,
                         user=user,
                         content=message.content,

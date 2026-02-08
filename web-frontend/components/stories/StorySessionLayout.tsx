@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import useSWR from 'swr';
 import { ArrowLeft, BookOpen, AlertCircle, CheckCircle, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { useLearningSession, ChatMessage } from '@/hooks/useLearningSession';
+import { useLearningSession } from '@/hooks/useLearningSession';
 import { ChapterBase, useCompleteChapter, useCheckGoals } from '@/hooks/useStories';
 import NarrativeGoalsPanel from './NarrativeGoalsPanel';
 import NarrativeCard from './NarrativeCard';
@@ -14,8 +14,8 @@ import apiService from '@/services/api';
 import { ChapterGrammarConcept } from '@/types/grammar';
 
 interface StorySessionLayoutProps {
-  storyId: number;
-  chapterId: number;
+  storyId: string;
+  chapterId: string;
   sessionId: string;
   chapter: ChapterBase;
 }
@@ -36,11 +36,16 @@ export default function StorySessionLayout({
   const [showCompletionModal, setShowCompletionModal] = useState(false);
   const [completionResult, setCompletionResult] = useState<any>(null);
   const [totalXpEarned, setTotalXpEarned] = useState(0);
+  const grammarKey = chapterId ? `/grammar/for-chapter/${chapterId}` : null;
+  const fetchGrammarForChapter = async (key: string): Promise<ChapterGrammarConcept[]> => {
+    const chapterIdFromKey = key.split('/').pop() || '';
+    return apiService.getGrammarForChapter(chapterIdFromKey) as Promise<ChapterGrammarConcept[]>;
+  };
 
   // Fetch grammar concepts for this chapter
   const { data: grammarConcepts, isLoading: loadingGrammar } = useSWR<ChapterGrammarConcept[]>(
-    chapterId ? `/grammar/for-chapter/${chapterId}` : null,
-    () => apiService.getGrammarForChapter(String(chapterId))
+    grammarKey,
+    fetchGrammarForChapter,
   );
 
   // Calculate total XP from messages
@@ -102,19 +107,6 @@ export default function StorySessionLayout({
     }
   };
 
-  const handleContinueAfterCompletion = () => {
-    if (completionResult?.story_completed) {
-      // Story completed - go back to story detail
-      router.push(`/stories/${storyId}`);
-    } else if (completionResult?.next_chapter_id) {
-      // Continue to next chapter
-      router.push(`/stories/${storyId}/chapter/${completionResult.next_chapter_id}`);
-    } else {
-      // Fallback - go to story detail
-      router.push(`/stories/${storyId}`);
-    }
-  };
-
   const canCompleteChapter = () => {
     if (!chapter.completion_criteria) return true;
 
@@ -150,7 +142,7 @@ export default function StorySessionLayout({
               <BookOpen className="h-5 w-5 text-primary-600" />
               <div>
                 <h2 className="font-bold text-gray-900">{chapter.title}</h2>
-                <p className="text-xs text-gray-500">Chapter {chapter.sequence_order}</p>
+                <p className="text-xs text-gray-500">Chapter {chapter.sequence_order ?? chapter.order_index + 1}</p>
               </div>
             </div>
             <div className="w-24"></div> {/* Spacer for centering */}
@@ -195,7 +187,7 @@ export default function StorySessionLayout({
                     </div>
 
                     {/* Error Feedback for user messages */}
-                    {message.role === 'user' && message.errorFeedback && message.errorFeedback.errors.length > 0 && (
+                    {message.role === 'user' && message.errors && message.errors.errors.length > 0 && (
                       <div className="flex justify-end">
                         <div className="max-w-[85%] bg-amber-50 border border-amber-200 rounded-lg p-3">
                           <div className="flex items-center gap-2 mb-2">
@@ -203,7 +195,7 @@ export default function StorySessionLayout({
                             <span className="text-sm font-medium text-amber-800">Grammar Feedback</span>
                           </div>
                           <div className="space-y-2">
-                            {message.errorFeedback.errors.map((error, idx) => (
+                            {message.errors.errors.map((error, idx) => (
                               <div key={idx} className="text-sm">
                                 <p className="text-amber-900">{error.message}</p>
                                 {error.suggestion && (
@@ -214,9 +206,9 @@ export default function StorySessionLayout({
                               </div>
                             ))}
                           </div>
-                          {message.errorFeedback.summary && (
+                          {message.errors.summary && (
                             <p className="text-xs text-amber-600 mt-2 pt-2 border-t border-amber-200">
-                              {message.errorFeedback.summary}
+                              {message.errors.summary}
                             </p>
                           )}
                         </div>
@@ -224,7 +216,7 @@ export default function StorySessionLayout({
                     )}
 
                     {/* Positive feedback when no errors */}
-                    {message.role === 'user' && message.errorFeedback && message.errorFeedback.errors.length === 0 && message.xp && message.xp > 0 && (
+                    {message.role === 'user' && message.errors && message.errors.errors.length === 0 && message.xp && message.xp > 0 && (
                       <div className="flex justify-end">
                         <div className="max-w-[85%] bg-green-50 border border-green-200 rounded-lg p-2 flex items-center gap-2">
                           <CheckCircle className="h-4 w-4 text-green-600" />
@@ -335,9 +327,11 @@ export default function StorySessionLayout({
       {/* Completion Modal */}
       {showCompletionModal && completionResult && (
         <ChapterCompletionModal
+          isOpen={showCompletionModal}
+          onClose={() => setShowCompletionModal(false)}
           result={completionResult}
-          onContinue={handleContinueAfterCompletion}
-          onReturnToStory={() => router.push(`/stories/${storyId}`)}
+          storyId={storyId}
+          storyTitle={chapter.title}
         />
       )}
     </div>
