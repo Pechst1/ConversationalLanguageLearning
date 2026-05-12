@@ -8,11 +8,11 @@ import ConversationHistory from '@/components/learning/ConversationHistory';
 import MessageInput from '@/components/learning/MessageInput';
 import ProgressIndicator from '@/components/learning/ProgressIndicator';
 import SessionSummary from '@/components/learning/SessionSummary';
-import VocabularyHelper from '@/components/learning/VocabularyHelper';
-import XPNotification from '@/components/learning/XPNotification';
-import ErrorFeedbackModal from '@/components/learning/ErrorFeedbackModal';
+import LearningFocusPanel from '@/components/learning/LearningFocusPanel';
+import LearningMomentCard from '@/components/learning/LearningMomentCard';
+import MomentResultInline from '@/components/learning/MomentResultInline';
+import SessionTurnFeedback from '@/components/learning/SessionTurnFeedback';
 import VoiceModeToggle from '@/components/learning/VoiceModeToggle';
-import { Button } from '@/components/ui/Button';
 import { useLearningSession } from '@/hooks/useLearningSession';
 import { SpeakingModeProvider, useSpeakingMode } from '@/contexts/SpeakingModeContext';
 import type { SessionStats as SummarySessionStats } from '@/types/learning';
@@ -25,18 +25,24 @@ const SessionPageContent: React.FC = () => {
   const {
     session,
     messages,
+    loading,
     sendMessage,
+    submitMoment,
+    skipMoment,
     suggested,
+    learningFocus,
+    pendingMoment,
     logWordExposure,
     markWordDifficult,
     completeSession,
     activeSessionId,
     latestErrorFeedback,
-    clearErrorFeedback,
+    latestWordFeedback,
     latestXpAwarded,
     latestComboCount,
-    clearXpAwarded,
-    clearComboCount,
+    latestMomentResult,
+    clearTurnFeedback,
+    clearMomentResult,
   } = useLearningSession(sessionId);
 
   const [draft, setDraft] = React.useState('');
@@ -45,24 +51,43 @@ const SessionPageContent: React.FC = () => {
   const [isCompleting, setIsCompleting] = React.useState(false);
   const { isSpeakingMode, speakText } = useSpeakingMode();
 
-  // Track words sent in the last message to calculate XP breakdown correctly
-  const lastSentWordsRef = React.useRef<any[]>([]);
-
   const handleSend = React.useCallback(
     async (text: string) => {
       if (!text.trim() || summary) {
         return;
       }
 
-      // Store selected words before clearing them
-      lastSentWordsRef.current = suggested.filter(w => selectedWordIds.includes(w.id));
-      console.log('Sending message with words:', lastSentWordsRef.current);
+      if (
+        pendingMoment &&
+        pendingMoment.kind !== 'vocab_boost' &&
+        pendingMoment.kind !== 'conversation_turn'
+      ) {
+        toast.error('Complete the exercise above before sending a new reply.');
+        return;
+      }
 
       await sendMessage(text, selectedWordIds);
       setSelectedWordIds([]);
     },
-    [sendMessage, selectedWordIds, summary, suggested],
+    [pendingMoment, sendMessage, selectedWordIds, summary],
   );
+
+  const handleMomentSubmit = React.useCallback(
+    async (payload: { answerText?: string; selectedChoice?: string }) => {
+      if (!pendingMoment) {
+        return;
+      }
+      await submitMoment(pendingMoment.id, payload);
+    },
+    [pendingMoment, submitMoment],
+  );
+
+  const handleMomentSkip = React.useCallback(async () => {
+    if (!pendingMoment) {
+      return;
+    }
+    await skipMoment(pendingMoment.id);
+  }, [pendingMoment, skipMoment]);
 
   const handleInsertWord = React.useCallback((word: string) => {
     setDraft((existing) => {
@@ -149,196 +174,145 @@ const SessionPageContent: React.FC = () => {
     }
   }, [messages, isSpeakingMode, speakText]);
 
-  const handleReturnToDashboard = React.useCallback(() => {
-    router.push('/dashboard').catch((error) => {
-      console.error('Failed to navigate to dashboard:', error);
-      toast.error('Unable to navigate to dashboard.');
+  const handleReturnToLearningStream = React.useCallback(() => {
+    router.push('/learn').catch((error) => {
+      console.error('Failed to navigate to the learning stream:', error);
+      toast.error('Unable to navigate back to learning right now.');
     });
   }, [router]);
 
-  const handleStartNewSession = React.useCallback(() => {
-    router.push('/learn/new').catch((error) => {
-      console.error('Failed to start a new session:', error);
-      toast.error('Unable to start a new session right now.');
+  const handleContinueLearning = React.useCallback(() => {
+    router.push('/learn').catch((error) => {
+      console.error('Failed to continue learning:', error);
+      toast.error('Unable to continue learning right now.');
     });
   }, [router]);
 
   const xp = session?.stats?.xpEarned ?? 0;
   const level = (session as unknown as { level?: number } | undefined)?.level ?? 1;
   const streak = (session as unknown as { streak?: number } | undefined)?.streak ?? 0;
-
-  // Debug: Track error feedback changes
-  React.useEffect(() => {
-    console.log('[SessionPage] latestErrorFeedback changed:', latestErrorFeedback);
-  }, [latestErrorFeedback]);
-
-  // Track previous XP to show detailed notifications
-  const prevXpRef = React.useRef(xp);
-  const [xpNotifications, setXPNotifications] = React.useState<Array<{ id: string; xp: number; breakdown?: any; comboCount?: number }>>([]);
-
-  // Use latestXpAwarded and latestComboCount from hook for accurate notifications
-  React.useEffect(() => {
-    if (latestXpAwarded && latestXpAwarded > 0) {
-      console.log('[SessionPage] XP Awarded from WebSocket:', latestXpAwarded, 'Combo:', latestComboCount);
-
-      // Use the words that were selected when the message was sent
-      const wordsUsed = lastSentWordsRef.current;
-      console.log('XP Breakdown Calculation - Words Used:', wordsUsed);
-
-      // Identify hard words (new words or those marked as learning)
-      const hardWords = wordsUsed
-        .filter(w => w.familiarity === 'new' || w.is_new)
-        .map(w => ({
-          word: w.word,
-          bonus: 5,
-          reason: w.familiarity === 'new' ? 'Neues Vokabel gemeistert!' : 'Schwieriges Wort verwendet!',
-        }));
-
-      // Use combo count from backend if available
-      const comboCount = latestComboCount || 0;
-      const comboBonus = comboCount >= 2 ? (comboCount - 1) * 10 : 0;
-
-      const wordBonus = wordsUsed.length * 10;
-      const difficultyBonus = hardWords.length * 5;
-      const calculatedTotal = wordBonus + difficultyBonus + comboBonus;
-      const baseXP = Math.max(5, latestXpAwarded - calculatedTotal);
-
-      const breakdown = {
-        baseXP,
-        wordBonus,
-        difficultyBonus,
-        comboBonus,
-        perfectBonus: latestXpAwarded >= 50 ? 10 : 0,
-        total: latestXpAwarded,
-        words: wordsUsed.map(w => w.word),
-        difficulty: hardWords.length > 0 ? ('hard' as const) : wordsUsed.length > 0 ? ('medium' as const) : ('easy' as const),
-        hardWords,
-      };
-
-      console.log('[SessionPage] XP Breakdown Result:', breakdown);
-
-      const notification = {
-        id: `xp-${Date.now()}`,
-        xp: latestXpAwarded,
-        breakdown,
-        comboCount,
-      };
-
-      setXPNotifications(prev => [...prev, notification]);
-
-      // Reset tracked words
-      lastSentWordsRef.current = [];
-
-      // Show combo toast if combo count is significant
-      if (comboCount >= 2) {
-        toast.success(`${comboCount}x Combo! +${comboBonus} XP Bonus`, {
-          icon: '🔥',
-          duration: 3000,
-          style: {
-            borderRadius: '10px',
-            background: 'linear-gradient(135deg, #ff6b35, #f72585)',
-            color: '#fff',
-            fontWeight: 'bold',
-          },
-        });
-      } else if (latestXpAwarded >= 15) {
-        toast.success(`+${latestXpAwarded} XP`, {
-          icon: '⭐',
-          style: {
-            borderRadius: '10px',
-            background: '#333',
-            color: '#fff',
-          },
-        });
-      }
-
-      // Clear the latest values to avoid re-triggering
-      clearXpAwarded();
-      if (latestComboCount) clearComboCount();
-    }
-  }, [latestXpAwarded, latestComboCount, clearXpAwarded, clearComboCount, suggested]);
+  const isBlockingMoment =
+    pendingMoment != null &&
+    pendingMoment.kind !== 'vocab_boost' &&
+    pendingMoment.kind !== 'conversation_turn';
 
   if (!sessionId) {
     return null;
   }
 
   return (
-    <>
-      {/* XP Notifications */}
-      {xpNotifications.map((notif) => (
-        <XPNotification
-          key={notif.id}
-          xpGained={notif.xp}
-          breakdown={notif.breakdown}
-          onComplete={() => setXPNotifications(prev => prev.filter(n => n.id !== notif.id))}
-        />
-      ))}
-
-      {/* Error Feedback Modal */}
-      {latestErrorFeedback && (
-        <ErrorFeedbackModal
-          errorFeedback={latestErrorFeedback}
-          onClose={clearErrorFeedback}
-        />
-      )}
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="space-y-4 lg:col-span-2">
-          {!summary && (
-            <>
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-black uppercase tracking-wider">Mission Control</h2>
-                <VoiceModeToggle />
-              </div>
-              <VocabularyHelper
-                className="learning-card"
-                words={suggested}
-                onInsertWord={handleInsertWord}
-                onToggleWord={handleToggleSuggestion}
-              />
-            </>
-          )}
-
-          <div className="learning-card">
-            {summary ? (
-              <SessionSummary
-                stats={summary}
-                onStartNewSession={handleStartNewSession}
-                onReturnToDashboard={handleReturnToDashboard}
-              />
-            ) : (
-              <>
-                <div className="conversation-window">
-                  <ConversationHistory
-                    messages={messages}
-                    onWordInteract={handleWordInteract}
-                    onWordFlag={markWordDifficult}
-                    activeSessionId={activeSessionId}
-                  />
-                </div>
-                <div className="mt-4 space-y-3">
-                  <MessageInput value={draft} onChange={setDraft} onSubmit={handleSend} />
-                  <div className="flex justify-end">
-                    <Button variant="outline" onClick={handleCompleteSession} loading={isCompleting}>
-                      Complete Session
-                    </Button>
-                  </div>
-                </div>
-              </>
-            )}
+    <div className="min-h-screen bg-[#f6f1e7] text-stone-900">
+      <div className="mx-auto flex min-h-screen max-w-5xl flex-col px-4 py-6 sm:px-6 lg:px-8">
+        <header className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="space-y-2">
+            <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-stone-400">
+              {summary ? 'Session review' : 'Learning stream'}
+            </div>
+            <h1 className="text-2xl font-semibold tracking-tight text-stone-900 sm:text-3xl">
+              {summary ? 'Review this session' : 'Continue learning'}
+            </h1>
+            <p className="max-w-2xl text-sm leading-6 text-stone-500">
+              {summary
+                ? 'Your recap stays in one place so you can decide what to revisit next.'
+                : 'The session chooses the next prompt. Your job is just to respond.'}
+            </p>
           </div>
+          <VoiceModeToggle className="lg:justify-end" />
+        </header>
+
+        <div className="mb-4">
+          <ProgressIndicator xp={xp} level={level} streak={streak} />
         </div>
 
-        <div className="space-y-6">
-          <ProgressIndicator xp={xp} level={level} streak={streak} />
-          {summary && (
-            <Button className="w-full" onClick={() => router.push('/sessions')}>
-              Back to Sessions
-            </Button>
+        {!summary ? (
+          <div className="mb-4">
+            <LearningFocusPanel
+              items={learningFocus}
+              selectedWordIds={selectedWordIds}
+              currentMoment={pendingMoment}
+              onInsertWord={handleInsertWord}
+              onToggleWord={handleToggleSuggestion}
+            />
+          </div>
+        ) : null}
+
+        <div className="flex-1">
+          {summary ? (
+            <div className="rounded-[32px] border border-stone-200 bg-white/90 p-6 shadow-sm">
+              <SessionSummary
+                stats={summary}
+                onStartNewSession={handleContinueLearning}
+                onReturnToLearning={handleReturnToLearningStream}
+              />
+              <div className="mt-6 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => router.push('/sessions')}
+                  className="inline-flex items-center justify-center rounded-full border border-stone-200 bg-stone-900 px-5 py-2.5 text-sm font-medium text-stone-50 transition-colors hover:bg-stone-800"
+                >
+                  Back to sessions
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex h-full flex-col">
+              <ConversationHistory
+                messages={messages}
+                onWordInteract={handleWordInteract}
+                onWordFlag={markWordDifficult}
+                activeSessionId={activeSessionId}
+              />
+              <div className="sticky bottom-4 mt-4 space-y-3 rounded-[32px] border border-stone-200 bg-[#f6f1e7]/95 p-3 shadow-lg backdrop-blur">
+                <MomentResultInline
+                  result={latestMomentResult}
+                  onDismiss={clearMomentResult}
+                />
+                <SessionTurnFeedback
+                  xpAwarded={latestXpAwarded}
+                  comboCount={latestComboCount}
+                  errorFeedback={latestErrorFeedback}
+                  wordFeedback={latestWordFeedback}
+                  onDismiss={clearTurnFeedback}
+                />
+                <LearningMomentCard
+                  moment={pendingMoment}
+                  loading={loading}
+                  onSubmit={handleMomentSubmit}
+                  onSkip={handleMomentSkip}
+                />
+                <MessageInput
+                  value={draft}
+                  onChange={setDraft}
+                  onSubmit={handleSend}
+                  disabled={isBlockingMoment || loading}
+                  placeholder={
+                    isBlockingMoment
+                      ? 'Complete the prompt above first...'
+                      : undefined
+                  }
+                  helperText={
+                    isBlockingMoment
+                      ? 'This quick exercise needs one answer before the conversation continues.'
+                      : undefined
+                  }
+                />
+                <div className="flex flex-col gap-3 text-xs text-stone-500 sm:flex-row sm:items-center sm:justify-between">
+                  <span>Double-click a highlighted word in the transcript to mark it difficult.</span>
+                  <button
+                    type="button"
+                    onClick={handleCompleteSession}
+                    disabled={isCompleting}
+                    className="inline-flex items-center justify-center rounded-full border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isCompleting ? 'Ending session...' : 'End session'}
+                  </button>
+                </div>
+              </div>
+            </div>
           )}
         </div>
       </div>
-    </>
+    </div>
   );
 };
 

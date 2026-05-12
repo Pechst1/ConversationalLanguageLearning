@@ -1,8 +1,7 @@
 import React from 'react';
-import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/router';
 import { Toaster } from 'react-hot-toast';
-import Navbar from './Navbar';
-import Sidebar from './Sidebar';
+import EditorialMasthead from './EditorialMasthead';
 import { cn } from '@/lib/utils';
 
 interface LayoutProps {
@@ -12,13 +11,24 @@ interface LayoutProps {
 }
 
 export default function Layout({ children, showSidebar = true, className }: LayoutProps) {
-  const { data: session, status } = useSession();
-  const [sidebarOpen, setSidebarOpen] = React.useState(false);
+  const router = useRouter();
 
-  const isAuthenticated = status === 'authenticated';
+  const isPublicRoute = router.pathname === '/' || router.pathname.startsWith('/auth');
+  const usesOwnShell = [
+    '/atelier',
+    '/missions',
+    '/graphic-novel',
+    '/grammar',
+    '/learn',
+    '/learn/new',
+    '/learn/session/[id]',
+    '/audio-session',
+  ].includes(router.pathname);
+  const showsNavigation = showSidebar && !isPublicRoute && !usesOwnShell;
+  const activeSection = getMastheadSection(router.pathname);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[var(--app-paper)] text-[var(--app-ink)]">
       <Toaster
         position="top-right"
         toastOptions={{
@@ -39,31 +49,24 @@ export default function Layout({ children, showSidebar = true, className }: Layo
           },
         }}
       />
-      
-      {isAuthenticated && (
-        <Navbar
-          onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
-          showMenuButton={showSidebar}
-        />
-      )}
-      
-      <div className={cn('flex', isAuthenticated && 'pt-16')}>
-        {isAuthenticated && showSidebar && (
-          <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-        )}
-        
-        <main
-          className={cn(
-            'flex-1 transition-all duration-300',
-            isAuthenticated && showSidebar && 'lg:ml-64',
-            className
-          )}
-        >
-          <div className="container mx-auto px-4 py-6">
-            {children}
-          </div>
-        </main>
-      </div>
+
+      {showsNavigation && <EditorialMasthead active={activeSection} />}
+
+      <main className={cn('min-h-screen', className)}>
+        {usesOwnShell || !showsNavigation ? children : <div className="app-page-frame">{children}</div>}
+      </main>
     </div>
   );
+}
+
+function getMastheadSection(pathname: string) {
+  if (pathname === '/dashboard') return 'studio';
+  if (pathname.startsWith('/learn')) return 'conversation';
+  if (pathname === '/atelier' || pathname === '/daily-practice') return 'studio';
+  if (pathname === '/grammar') return 'notebook';
+  if (pathname === '/missions') return 'missions';
+  if (pathname === '/graphic-novel') return 'feuilleton';
+  if (pathname === '/practice' || pathname === '/sessions') return 'review';
+  if (pathname === '/progress' || pathname === '/achievements') return 'progress';
+  return undefined;
 }

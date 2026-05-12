@@ -16,13 +16,41 @@ const schema = yup.object({
   email: yup.string().email('Invalid email').required('Email is required'),
   password: yup.string().min(6, 'Password must be at least 6 characters').required('Password is required'),
   confirmPassword: yup.string().oneOf([yup.ref('password')], 'Passwords must match').required('Please confirm your password'),
+  nativeLanguage: yup.string().required('Native language is required'),
+  targetLanguage: yup.string().required('Target language is required'),
+  proficiencyLevel: yup.string().required('Current level is required'),
 });
 
 type FormData = yup.InferType<typeof schema>;
 
+const languageOptions = [
+  { value: 'en', label: 'English' },
+  { value: 'de', label: 'Deutsch' },
+  { value: 'fr', label: 'Francais' },
+  { value: 'es', label: 'Espanol' },
+  { value: 'it', label: 'Italiano' },
+  { value: 'pt', label: 'Portugues' },
+];
+
+const proficiencyOptions = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+const interestPresets = [
+  'technology',
+  'business',
+  'travel',
+  'sports',
+  'politics',
+  'science',
+  'culture',
+  'finance',
+  'health',
+  'food',
+];
+
 export default function SignUpPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = React.useState(false);
+  const [selectedTopics, setSelectedTopics] = React.useState<string[]>([]);
+  const [customTopic, setCustomTopic] = React.useState('');
 
   const {
     register,
@@ -30,15 +58,44 @@ export default function SignUpPage() {
     formState: { errors },
   } = useForm<FormData>({
     resolver: yupResolver(schema),
+    defaultValues: {
+      nativeLanguage: 'en',
+      targetLanguage: 'fr',
+      proficiencyLevel: 'A1',
+    },
   });
+
+  const toggleTopic = (topic: string) => {
+    setSelectedTopics((prev) => {
+      if (prev.includes(topic)) {
+        return prev.filter((value) => value !== topic);
+      }
+      return [...prev, topic];
+    });
+  };
+
+  const addCustomTopic = () => {
+    const normalized = customTopic.trim().toLowerCase();
+    if (!normalized) {
+      return;
+    }
+    if (!selectedTopics.includes(normalized)) {
+      setSelectedTopics((prev) => [...prev, normalized]);
+    }
+    setCustomTopic('');
+  };
 
   const onSubmit = async (data: FormData) => {
     setIsLoading(true);
     try {
       await apiService.register({
-        name: data.name,
+        full_name: data.name,
         email: data.email,
         password: data.password,
+        native_language: data.nativeLanguage,
+        target_language: data.targetLanguage,
+        proficiency_level: data.proficiencyLevel,
+        interests: selectedTopics.join(','),
       });
 
       toast.success('Account created successfully! Please sign in.');
@@ -110,6 +167,101 @@ export default function SignUpPage() {
                 autoComplete="new-password"
               />
 
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Native language</label>
+                  <select
+                    {...register('nativeLanguage')}
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                  >
+                    {languageOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.nativeLanguage?.message && (
+                    <p className="mt-1 text-sm text-red-600">{errors.nativeLanguage.message}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Target language</label>
+                  <select
+                    {...register('targetLanguage')}
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                  >
+                    {languageOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.targetLanguage?.message && (
+                    <p className="mt-1 text-sm text-red-600">{errors.targetLanguage.message}</p>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Current CEFR level</label>
+                <select
+                  {...register('proficiencyLevel')}
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                >
+                  {proficiencyOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+                {errors.proficiencyLevel?.message && (
+                  <p className="mt-1 text-sm text-red-600">{errors.proficiencyLevel.message}</p>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                    Topics for live stories (onboarding)
+                  </label>
+                  <p className="text-xs text-gray-500">
+                    Pick topics you want to discuss. You can change this later in settings.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {interestPresets.map((topic) => (
+                    <button
+                      key={topic}
+                      type="button"
+                      onClick={() => toggleTopic(topic)}
+                      className={`rounded-full border px-3 py-1 text-sm ${
+                        selectedTopics.includes(topic)
+                          ? 'border-primary-600 bg-primary-600 text-white'
+                          : 'border-gray-300 text-gray-700'
+                      }`}
+                    >
+                      {topic}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={customTopic}
+                    onChange={(event) => setCustomTopic(event.target.value)}
+                    placeholder="Add custom topic"
+                    className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm"
+                  />
+                  <Button type="button" variant="outline" onClick={addCustomTopic}>
+                    Add
+                  </Button>
+                </div>
+                {selectedTopics.length > 0 && (
+                  <p className="text-xs text-gray-600">Selected: {selectedTopics.join(', ')}</p>
+                )}
+              </div>
+
               <Button type="submit" className="w-full" loading={isLoading}>
                 Create account
               </Button>
@@ -128,7 +280,7 @@ export async function getServerSideProps(context: any) {
   if (session) {
     return {
       redirect: {
-        destination: '/dashboard',
+        destination: '/atelier',
         permanent: false,
       },
     };

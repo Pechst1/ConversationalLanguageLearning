@@ -32,6 +32,10 @@ export default function SignInPage() {
   const onSubmit = async (data: FormData) => {
     setIsLoading(true);
     try {
+      const destination =
+        typeof router.query.callbackUrl === 'string'
+          ? router.query.callbackUrl
+          : '/atelier';
       const result = await signIn('credentials', {
         email: data.email,
         password: data.password,
@@ -42,7 +46,7 @@ export default function SignInPage() {
         toast.error('Invalid credentials. Please try again.');
       } else {
         toast.success('Welcome back!');
-        router.push('/dashboard');
+        router.push(destination);
       }
     } catch (error) {
       toast.error('An error occurred. Please try again.');
@@ -117,9 +121,13 @@ export async function getServerSideProps(context: any) {
   const session = await getSession(context);
   
   if (session) {
+    const destination =
+      typeof context.query.callbackUrl === 'string'
+        ? context.query.callbackUrl
+        : '/atelier';
     return {
       redirect: {
-        destination: '/dashboard',
+        destination,
         permanent: false,
       },
     };

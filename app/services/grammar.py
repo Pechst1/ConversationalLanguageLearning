@@ -6,7 +6,7 @@ from typing import Sequence
 from uuid import UUID
 
 from loguru import logger
-from sqlalchemy import func
+from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
 from app.db.models.grammar import GrammarConcept, UserGrammarProgress
@@ -84,19 +84,37 @@ class GrammarService:
         *,
         name: str,
         level: str,
+        external_id: str | None = None,
+        language: str = "fr",
         category: str | None = None,
+        subskill: str | None = None,
         description: str | None = None,
         examples: str | None = None,
         difficulty_order: int = 0,
+        core_rule: str | None = None,
+        main_traps: str | None = None,
+        anchor_examples: str | None = None,
+        exercise_tags: list[str] | None = None,
+        is_foundation: bool = False,
+        active: bool = True,
     ) -> GrammarConcept:
         """Create a new grammar concept."""
         concept = GrammarConcept(
+            external_id=external_id,
+            language=language,
             name=name,
             level=level,
             category=category,
+            subskill=subskill,
             description=description,
             examples=examples,
             difficulty_order=difficulty_order,
+            core_rule=core_rule,
+            main_traps=main_traps,
+            anchor_examples=anchor_examples,
+            exercise_tags=exercise_tags or [],
+            is_foundation=is_foundation,
+            active=active,
         )
         self.db.add(concept)
         self.db.commit()
@@ -114,12 +132,21 @@ class GrammarService:
             ).first()
             if not existing:
                 concept = GrammarConcept(
+                    external_id=data.get("external_id"),
+                    language=data.get("language", "fr"),
                     name=data.get("name", ""),
                     level=data.get("level", "A1"),
                     category=data.get("category"),
+                    subskill=data.get("subskill"),
                     description=data.get("description"),
                     examples=data.get("examples"),
                     difficulty_order=data.get("difficulty_order", 0),
+                    core_rule=data.get("core_rule"),
+                    main_traps=data.get("main_traps"),
+                    anchor_examples=data.get("anchor_examples"),
+                    exercise_tags=data.get("exercise_tags") or [],
+                    is_foundation=data.get("is_foundation", False),
+                    active=data.get("active", True),
                 )
                 self.db.add(concept)
                 created += 1
@@ -203,11 +230,16 @@ class GrammarService:
         if level:
             due_query = due_query.filter(GrammarConcept.level == level)
 
-        # Order: new first, then by due date, then by score (struggling first)
+        # Prioritize concepts the learner has already started and that are due.
+        # Brand-new concepts should only appear after active due work, otherwise
+        # inline session moments can jump to unrelated grammar topics.
         due_query = due_query.order_by(
-            UserGrammarProgress.reps.asc().nullsfirst(),  # New first
-            UserGrammarProgress.score.asc().nullsfirst(),  # Struggling first
+            case((UserGrammarProgress.id.is_(None), 1), else_=0),
             UserGrammarProgress.next_review.asc().nullsfirst(),
+            UserGrammarProgress.score.asc().nullsfirst(),
+            UserGrammarProgress.reps.asc().nullsfirst(),
+            GrammarConcept.difficulty_order.asc(),
+            GrammarConcept.id.asc(),
         )
 
         results = due_query.limit(limit).all()
@@ -249,6 +281,30 @@ class GrammarService:
             state=progress.state,
         )
         return progress
+
+    def record_context_review(
+        self,
+        *,
+        user: User,
+        concept_id: int,
+        score: float,
+        notes: str | None = None,
+        source: str = "conversation",
+    ) -> UserGrammarProgress:
+        """Record grammar evidence gathered inside a live session."""
+
+        context_notes = notes.strip() if isinstance(notes, str) else None
+        if context_notes:
+            context_notes = f"[{source}] {context_notes}"
+        else:
+            context_notes = f"[{source}]"
+
+        return self.record_review(
+            user=user,
+            concept_id=concept_id,
+            score=score,
+            notes=context_notes,
+        )
 
     # ─────────────────────────────────────────────────────────────────
     # Statistics
@@ -636,4 +692,3 @@ class GrammarService:
 
 
 __all__ = ["GrammarService", "calculate_next_review", "determine_state"]
-

@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import json
 import re
+import unicodedata
 from typing import Any
 from uuid import UUID
 
@@ -22,6 +23,9 @@ from app.core.prompts.brief_exercise_prompts import (
 )
 from app.db.models.error import UserError
 from app.db.models.grammar import GrammarConcept
+from app.db.models.user import User
+from app.services.error_memory import ErrorMemoryService
+from app.services.grammar_feedback import infer_grammar_profile, is_concept_demonstrated
 from app.services.llm_service import LLMService
 
 
@@ -66,6 +70,47 @@ class BriefExerciseService:
         except json.JSONDecodeError as e:
             logger.warning(f"Failed to parse JSON: {e}, content: {content[:300]}")
             return {"error": "Failed to parse response", "raw": content[:500]}
+
+    def _normalize_text(self, value: str) -> str:
+        normalized = unicodedata.normalize("NFKD", value or "")
+        ascii_form = normalized.encode("ascii", "ignore").decode("ascii")
+        return " ".join(ascii_form.lower().split())
+
+    def _matches_concept_pattern(
+        self,
+        *,
+        concept: GrammarConcept | None,
+        prompt: str,
+        correct_answer: str,
+        user_answer: str,
+    ) -> bool:
+        if not concept:
+            return False
+
+        return is_concept_demonstrated(
+            concept,
+            user_answer,
+            prompt=prompt,
+            correct_answer=correct_answer,
+        )
+
+    def _build_grammar_override(
+        self,
+        *,
+        concept: GrammarConcept | None,
+        correct_answer: str,
+    ) -> dict[str, Any]:
+        sample_solution = correct_answer if correct_answer and correct_answer != "(Freie Antwort)" else concept.examples if concept else ""
+        profile = infer_grammar_profile(concept)
+        return {
+            "is_correct": True,
+            "feedback": "Das passt zur Grammatikaufgabe.",
+            "explanation": profile.principle,
+            "sample_solution": sample_solution or "",
+            "score": 8,
+            "detected_error_category": "Grammar",
+            "detected_subcategory": profile.label if concept else None,
+        }
 
     async def generate_grammar_exercises(
         self,
@@ -179,7 +224,28 @@ class BriefExerciseService:
             
             if "error" in parsed:
                 # Fallback to simple comparison
-                return self._fallback_check(correct_answer, user_answer)
+                return self._fallback_check(
+                    correct_answer,
+                    user_answer,
+                    prompt=prompt,
+                    concept_id=concept_id,
+                )
+
+            concept = self.db.get(GrammarConcept, concept_id) if concept_id else None
+            if (
+                not parsed.get("is_correct", False)
+                and exercise_type in {"short_answer", "correction", "fill_blank", "translation"}
+                and self._matches_concept_pattern(
+                    concept=concept,
+                    prompt=prompt,
+                    correct_answer=correct_answer,
+                    user_answer=user_answer,
+                )
+            ):
+                return self._build_grammar_override(
+                    concept=concept,
+                    correct_answer=correct_answer,
+                )
 
             # Persist error if wrong and user_id is provided
             if not parsed.get("is_correct", False) and user_id:
@@ -201,7 +267,12 @@ class BriefExerciseService:
             
         except Exception as e:
             logger.exception(f"Error checking answer: {e}")
-            return self._fallback_check(correct_answer, user_answer)
+            return self._fallback_check(
+                correct_answer,
+                user_answer,
+                prompt=prompt,
+                concept_id=concept_id,
+            )
 
     async def _generate_with_llm(self, prompt: str, max_tokens: int = 1000):
         """Generate response from LLM using thread pool for async."""
@@ -285,35 +356,65 @@ class BriefExerciseService:
         subcategory = detected_subcategory
 
         # Fallback to concept name if no specific subcategory detected
-        if not subcategory and concept_id:
-            concept = self.db.get(GrammarConcept, concept_id)
-            if concept:
-                subcategory = concept.name
+        concept = self.db.get(GrammarConcept, concept_id) if concept_id else None
+        if not subcategory and concept:
+            subcategory = infer_grammar_profile(concept).label
         
         # Default if still empty
         if not subcategory:
             subcategory = "Review"
 
-        error = UserError(
-            user_id=user_id,
-            error_category=category,
-            subcategory=subcategory,
-            original_text=user_answer,  # What the user wrote
-            correction=correct_answer,
-            context_snippet=f"Exercise: {prompt}\nExplanation: {explanation}",
-            state="new",
-            occurrences=1
+        user = self.db.get(User, user_id)
+        if not user:
+            return
+        ErrorMemoryService(self.db).record_erratum(
+            user=user,
+            erratum={
+                "display_label": subcategory or "Brief exercise",
+                "learner_text": user_answer,
+                "corrected_target": correct_answer,
+                "why_wrong": explanation,
+                "repair_hint": infer_grammar_profile(concept).repair if concept else "Review the requested form, then answer a fresh version of this exercise.",
+                "severity": 2,
+                "recurring": True,
+                "task_error_type": subcategory or "brief_exercise_error",
+                "concept_id": concept_id,
+            },
+            source_type="brief_exercise",
+            concept_id=concept_id,
+            source_payload={"prompt": prompt, "exercise_category": category},
         )
-        self.db.add(error)
         self.db.commit()
 
-    def _fallback_check(self, correct_answer: str, user_answer: str) -> dict[str, Any]:
+    def _fallback_check(
+        self,
+        correct_answer: str,
+        user_answer: str,
+        *,
+        prompt: str = "",
+        concept_id: int | None = None,
+    ) -> dict[str, Any]:
         """Simple fallback check without LLM."""
         # Normalize for comparison
-        correct_norm = correct_answer.strip().lower()
-        user_norm = user_answer.strip().lower()
-        
+        correct_norm = self._normalize_text(correct_answer)
+        user_norm = self._normalize_text(user_answer)
+
         is_correct = correct_norm == user_norm
+
+        concept = self.db.get(GrammarConcept, concept_id) if concept_id else None
+        if (
+            not is_correct
+            and self._matches_concept_pattern(
+                concept=concept,
+                prompt=prompt,
+                correct_answer=correct_answer,
+                user_answer=user_answer,
+            )
+        ):
+            return self._build_grammar_override(
+                concept=concept,
+                correct_answer=correct_answer,
+            )
         
         # Check for partial match
         similarity = 0
@@ -323,12 +424,19 @@ class BriefExerciseService:
             similarity = len(common) / len(total) if total else 0
         
         if is_correct:
-            return {"is_correct": True, "feedback": "Richtig! 🎉", "explanation": "", "score": 10}
+            return {
+                "is_correct": True,
+                "feedback": "Richtig! 🎉",
+                "explanation": "",
+                "sample_solution": correct_answer,
+                "score": 10,
+            }
         elif similarity > 0.5:
             return {
                 "is_correct": False,
                 "feedback": f"Fast! Die richtige Antwort ist: {correct_answer}",
                 "explanation": "",
+                "sample_solution": correct_answer,
                 "score": 5
             }
         else:
@@ -336,6 +444,7 @@ class BriefExerciseService:
                 "is_correct": False,
                 "feedback": f"Leider falsch. Richtig wäre: {correct_answer}",
                 "explanation": "",
+                "sample_solution": correct_answer,
                 "score": 2
             }
 

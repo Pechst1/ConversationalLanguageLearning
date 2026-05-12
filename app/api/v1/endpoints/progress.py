@@ -15,8 +15,12 @@ from app.schemas import (
     QueueWord,
     ReviewRequest,
     ReviewResponse,
+    UnifiedQueueItem,
+    UnifiedQueueResponse,
+    UnifiedQueueSummary,
 )
 from app.services.progress import ProgressService
+from app.services.unified_srs import InterleavingMode, UnifiedSRSService
 
 
 router = APIRouter(prefix="/progress", tags=["progress"])
@@ -58,6 +62,49 @@ def get_review_queue(
             )
     )
     return response
+
+
+@router.get("/unified-queue", response_model=UnifiedQueueResponse)
+def get_unified_review_queue(
+    *,
+    limit: int = Query(20, ge=1, le=100, description="Maximum number of unified queue entries"),
+    time_budget_minutes: int | None = Query(
+        None,
+        ge=1,
+        le=180,
+        description="Optional budget used to truncate the queue by estimated time",
+    ),
+    interleaving_mode: str = Query(
+        "random",
+        description="Queue strategy: random, blocks, or priority. Random is deterministic round-robin.",
+    ),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> UnifiedQueueResponse:
+    """Return one canonical SRS queue across vocabulary, grammar, and durable errata."""
+
+    try:
+        mode = InterleavingMode(interleaving_mode)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid interleaving mode",
+        ) from exc
+
+    service = UnifiedSRSService(db)
+    session = service.get_daily_practice_queue(
+        user_id=current_user.id,
+        time_budget_minutes=time_budget_minutes,
+        interleaving_mode=mode,
+    )
+    queue = session.queue[:limit]
+
+    return UnifiedQueueResponse(
+        summary=UnifiedQueueSummary(**session.summary.__dict__),
+        queue=[UnifiedQueueItem(**service.serialize_item(item)) for item in queue],
+        interleaving_mode=session.interleaving_mode.value,
+        time_budget_minutes=session.time_budget_minutes,
+    )
 
 
 @router.get("/anki", response_model=list[AnkiWordProgressRead])
@@ -243,4 +290,3 @@ def get_weekly_insights(
         "recommendations": insight.recommendations,
         "encouragement": insight.encouragement,
     }
-

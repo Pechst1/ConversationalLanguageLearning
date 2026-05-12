@@ -1,20 +1,24 @@
 """Helper utilities shared between session endpoints."""
 from __future__ import annotations
 
-from typing import Iterable
+from typing import Any, Iterable
 
-from app.db.models.session import ConversationMessage, LearningSession
+from app.db.models.session import ConversationMessage, LearningSession, SessionLearningMoment
 from app.schemas import (
     AssistantTurnRead,
     DetectedErrorRead,
     ErrorFeedback,
     ErrorOccurrenceStats,
+    LearningFocusRead,
+    LearningMomentRead,
+    LearningMomentResultRead,
     SessionMessageRead,
     SessionOverview,
     SessionTurnWordFeedback,
     TargetedErrorRead,
     TargetWordRead,
 )
+from app.services.session_moment_planner import MomentEvaluation
 from app.services.session_service import AssistantTurn, SessionTurnResult, WordFeedback
 from app.db.models.error import UserError
 
@@ -39,9 +43,12 @@ def message_to_schema(
     message: ConversationMessage,
     *,
     target_details: list[TargetWordRead] | None = None,
+    pending_moment: SessionLearningMoment | dict[str, Any] | None = None,
 ) -> SessionMessageRead:
     payload = message.errors_detected or {}
     error_feedback = None
+    learning_focus = []
+    pending_moment_schema = None
     if isinstance(payload, dict) and payload.get("summary"):
         error_feedback = ErrorFeedback(
             summary=payload.get("summary", ""),
@@ -49,6 +56,15 @@ def message_to_schema(
             review_vocabulary=payload.get("review_vocabulary", []) or [],
             metadata=payload.get("metadata", {}) or {},
         )
+    if isinstance(payload, dict):
+        learning_focus = [
+            LearningFocusRead(**entry)
+            for entry in payload.get("learning_focus", []) or []
+        ]
+        if pending_moment is None:
+            pending_moment_schema = learning_moment_to_schema(payload.get("pending_moment"))
+    if pending_moment is not None:
+        pending_moment_schema = learning_moment_to_schema(pending_moment)
     return SessionMessageRead(
         id=message.id,
         sender=message.sender,  # type: ignore[arg-type]
@@ -61,6 +77,8 @@ def message_to_schema(
         suggested_words_used=message.suggested_words_used or [],
         error_feedback=error_feedback,
         target_details=target_details or [],
+        learning_focus=learning_focus,
+        pending_moment=pending_moment_schema,
     )
 
 
@@ -83,12 +101,17 @@ def assistant_turn_to_schema(
             )
             for target in turn.plan.target_words
         ]
-    message_schema = message_to_schema(turn.message, target_details=details)
-    
+    message_schema = message_to_schema(
+        turn.message,
+        target_details=details,
+        pending_moment=turn.pending_moment,
+    )
+
     # Build targeted error schemas
     targeted_error_schemas = []
-    if targeted_errors:
-        for err in targeted_errors[:3]:  # Limit to top 3
+    error_items = targeted_errors if targeted_errors is not None else turn.targeted_errors
+    if error_items:
+        for err in error_items[:3]:  # Limit to top 3
             targeted_error_schemas.append(
                 TargetedErrorRead(
                     category=err.error_category,
@@ -99,12 +122,152 @@ def assistant_turn_to_schema(
                     reps=err.reps or 0,
                 )
             )
-    
+
+    learning_focus = message_schema.learning_focus or _build_learning_focus(
+        target_details=details,
+        targeted_errors=error_items or [],
+        targeted_grammar=turn.targeted_grammar,
+    )
+
     return AssistantTurnRead(
         message=message_schema,
         targets=details,
         targeted_errors=targeted_error_schemas,
+        learning_focus=learning_focus,
+        pending_moment=message_schema.pending_moment,
     )
+
+
+def learning_moment_to_schema(
+    moment: SessionLearningMoment | dict[str, Any] | None,
+) -> LearningMomentRead | None:
+    if not moment:
+        return None
+
+    if isinstance(moment, dict):
+        payload = dict(moment)
+    else:
+        payload = dict(moment.prompt_payload or {})
+        payload.update(
+            {
+                "id": moment.id,
+                "kind": moment.kind,
+                "source_type": moment.source_type,
+                "status": moment.status,
+            }
+        )
+
+    return LearningMomentRead(
+        id=payload.get("id"),
+        kind=payload.get("kind"),
+        source_type=payload.get("source_type"),
+        title=payload.get("title") or "",
+        body=payload.get("body") or "",
+        input_mode=payload.get("input_mode") or "free_text",
+        choices=payload.get("choices") or [],
+        prefill_text=payload.get("prefill_text"),
+        metadata=payload.get("metadata") or {},
+        status=payload.get("status") or "pending",
+    )
+
+
+def learning_moment_result_to_schema(
+    result: MomentEvaluation | dict[str, Any] | None,
+) -> LearningMomentResultRead | None:
+    if not result:
+        return None
+
+    if isinstance(result, dict):
+        payload = result
+    else:
+        payload = {
+            "moment_id": result.moment.id,
+            "is_correct": result.is_correct,
+            "score_0_10": result.score_0_10,
+            "feedback_summary": result.feedback_summary,
+            "next_step_hint": result.next_step_hint,
+        }
+
+    return LearningMomentResultRead(
+        moment_id=payload.get("moment_id"),
+        is_correct=payload.get("is_correct"),
+        score_0_10=payload.get("score_0_10"),
+        feedback_summary=payload.get("feedback_summary") or "",
+        next_step_hint=payload.get("next_step_hint"),
+    )
+
+
+def _build_learning_focus(
+    *,
+    target_details: list[TargetWordRead],
+    targeted_errors: list[UserError],
+    targeted_grammar: list[tuple[object, object | None]],
+) -> list[LearningFocusRead]:
+    items: list[LearningFocusRead] = []
+
+    for index, error in enumerate(targeted_errors[:3]):
+        subtitle_bits = [error.error_pattern, f"{error.lapses or 0} lapses"]
+        subtitle = " • ".join(bit for bit in subtitle_bits if bit)
+        items.append(
+            LearningFocusRead(
+                kind="error",
+                key=f"error:{error.id}",
+                title=error.error_category,
+                subtitle=subtitle or None,
+                state=error.state,
+                priority=300 - index,
+                metadata={
+                    "correction": error.correction,
+                    "context": error.context_snippet,
+                    "reps": error.reps or 0,
+                    "lapses": error.lapses or 0,
+                },
+            )
+        )
+
+    for index, entry in enumerate(targeted_grammar[:2]):
+        concept, progress = entry
+        state = getattr(progress, "state", "neu")
+        state_label = getattr(progress, "state_label", state)
+        items.append(
+            LearningFocusRead(
+                kind="grammar",
+                key=f"grammar:{getattr(concept, 'id', index)}",
+                title=getattr(concept, "name", "Grammar focus"),
+                subtitle=f"{getattr(concept, 'level', 'A1')} • {state_label}",
+                state=state,
+                priority=200 - index,
+                metadata={
+                    "concept_id": getattr(concept, "id", None),
+                    "level": getattr(concept, "level", None),
+                    "description": getattr(concept, "description", None),
+                    "examples": getattr(concept, "examples", None),
+                },
+            )
+        )
+
+    for index, target in enumerate(target_details):
+        subtitle = target.translation or ("New word" if target.is_new else "Review word")
+        items.append(
+            LearningFocusRead(
+                kind="vocabulary",
+                key=f"word:{target.word_id}",
+                title=target.word,
+                subtitle=subtitle,
+                state=target.familiarity,
+                priority=(120 if target.is_new else 100) - index,
+                metadata={
+                    "word_id": target.word_id,
+                    "is_new": target.is_new,
+                    "translation": target.translation,
+                    "hint_sentence": target.hint_sentence,
+                    "hint_translation": target.hint_translation,
+                },
+            )
+        )
+
+    items.sort(key=lambda item: (-item.priority, item.title.lower()))
+    return items
 
 
 def word_feedback_to_schema(items: Iterable[WordFeedback]) -> list[SessionTurnWordFeedback]:
@@ -186,8 +349,9 @@ def error_feedback_from_result(result: SessionTurnResult) -> ErrorFeedback:
 __all__ = [
     "assistant_turn_to_schema",
     "error_feedback_from_result",
+    "learning_moment_result_to_schema",
+    "learning_moment_to_schema",
     "message_to_schema",
     "session_to_overview",
     "word_feedback_to_schema",
 ]
-

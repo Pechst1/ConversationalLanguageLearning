@@ -418,11 +418,11 @@ export default function AudioSessionPage() {
                     </motion.button>
 
                     <button
-                        onClick={() => router.push('/dashboard')}
+                        onClick={() => router.push('/learn')}
                         className="mt-6 text-purple-300 hover:text-white transition-colors flex items-center gap-2 mx-auto"
                     >
                         <ArrowLeft className="w-4 h-4" />
-                        Back to Dashboard
+                        Back to Learning
                     </button>
                 </motion.div>
             </div>
@@ -546,10 +546,10 @@ export default function AudioSessionPage() {
                             Another Session
                         </motion.button>
                         <button
-                            onClick={() => router.push('/dashboard')}
+                            onClick={() => router.push('/learn')}
                             className="px-8 py-3 bg-white/10 text-white font-medium rounded-full hover:bg-white/20 transition-colors"
                         >
-                            Back to Dashboard
+                            Back to Learning
                         </button>
                     </div>
                 </motion.div>

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import date, timedelta
+from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
@@ -168,3 +169,42 @@ def test_generator_handles_empty_targets(db_session):
 
     assert turn.plan.target_words == []
     assert "No explicit targets" in llm.calls[0]["messages"][0]["content"]
+
+
+def test_generator_includes_scenario_context_and_grammar_execution_rule(db_session, seeded_user):
+    user, _ = seeded_user
+    llm = DummyLLMService()
+    generator = ConversationGenerator(
+        progress_service=ProgressService(db_session),
+        llm_service=llm,
+        target_limit=4,
+    )
+
+    due_grammar = [
+        (
+            SimpleNamespace(
+                name="Subjonctif present",
+                level="B1",
+                description="Use subjonctif after expressions of necessity",
+                examples="Il faut que tu viennes.",
+            ),
+            SimpleNamespace(state="in_arbeit"),
+        )
+    ]
+    scenario_context = "DISCUSSION SOURCE MATERIAL: headline context"
+
+    generator.generate_turn_with_context(
+        user=user,
+        learner_level="B1",
+        style="tutor",
+        session_capacity={"estimated_turns": 1, "words_per_turn": 4, "total_capacity": 4},
+        history=[ConversationHistoryMessage(role="user", content="Je veux parler de ce sujet.")],
+        due_grammar=due_grammar,  # type: ignore[arg-type]
+        scenario_context=scenario_context,
+    )
+
+    first_message = llm.calls[0]["messages"][0]
+    content = first_message["content"]
+    assert scenario_context in content
+    assert "GRAMMAR EXECUTION REQUIREMENT:" in content
+    assert "Subjonctif present" in content

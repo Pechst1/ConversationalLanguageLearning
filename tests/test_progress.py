@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 from app.db.models.progress import UserVocabularyProgress
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
+from app.services.progress import ProgressService
 
 
 def register_and_login(client: TestClient, email: str, password: str) -> str:
@@ -135,3 +136,144 @@ def test_queue_orders_due_before_new(client: TestClient, review_vocabulary, db_s
     assert queue_payload[0]["word_id"] == word_id
     assert queue_payload[0]["is_new"] is False
     assert queue_payload[0]["state"] != "new"
+
+
+def test_learning_queue_includes_non_anki_words_for_target_language(db_session) -> None:
+    user = User(
+        email="non-anki-queue@example.com",
+        hashed_password="pass",
+        native_language="en",
+        target_language="fr",
+    )
+    db_session.add(user)
+    db_session.flush()
+
+    due_word = VocabularyWord(
+        language="fr",
+        word="baguette",
+        normalized_word="baguette",
+        english_translation="baguette",
+    )
+    new_word = VocabularyWord(
+        language="fr",
+        word="croissant",
+        normalized_word="croissant",
+        english_translation="croissant",
+    )
+    other_language_word = VocabularyWord(
+        language="es",
+        word="queso",
+        normalized_word="queso",
+        english_translation="cheese",
+    )
+    db_session.add_all([due_word, new_word, other_language_word])
+    db_session.flush()
+
+    db_session.add(
+        UserVocabularyProgress(
+            user_id=user.id,
+            word_id=due_word.id,
+            due_date=date.today(),
+            state="learning",
+        )
+    )
+    db_session.commit()
+
+    queue = ProgressService(db_session).get_learning_queue(user=user, limit=3)
+    queued_words = {item.word.word for item in queue}
+
+    assert "baguette" in queued_words
+    assert "croissant" in queued_words
+    assert "queso" not in queued_words
+
+
+def test_direction_filter_keeps_non_directional_words_in_shared_queue(db_session) -> None:
+    user = User(
+        email="direction-shared-queue@example.com",
+        hashed_password="pass",
+        native_language="en",
+        target_language="it",
+    )
+    db_session.add(user)
+    db_session.flush()
+
+    matching_direction = VocabularyWord(
+        language="it",
+        word="formaggio",
+        normalized_word="formaggio",
+        english_translation="cheese",
+        direction="fr_to_de",
+        is_anki_card=True,
+    )
+    non_directional = VocabularyWord(
+        language="it",
+        word="insalata",
+        normalized_word="insalata",
+        english_translation="salad",
+    )
+    opposite_direction = VocabularyWord(
+        language="it",
+        word="zuppa",
+        normalized_word="zuppa",
+        english_translation="soup",
+        direction="de_to_fr",
+        is_anki_card=True,
+    )
+    db_session.add_all([matching_direction, non_directional, opposite_direction])
+    db_session.commit()
+
+    queue = ProgressService(db_session).get_learning_queue(
+        user=user,
+        limit=3,
+        direction="fr_to_de",
+    )
+    queued_words = {item.word.word for item in queue}
+
+    assert "formaggio" in queued_words
+    assert "insalata" in queued_words
+    assert "zuppa" not in queued_words
+
+
+def test_deck_filter_restricts_learning_queue_to_requested_deck(db_session) -> None:
+    user = User(
+        email="deck-filter@example.com",
+        hashed_password="pass",
+        native_language="en",
+        target_language="fr",
+    )
+    db_session.add(user)
+    db_session.flush()
+
+    matching_word = VocabularyWord(
+        language="fr",
+        word="malgre",
+        normalized_word="malgre",
+        english_translation="despite",
+        deck_name="Französisch 5000::1. FR → DE",
+    )
+    other_deck_word = VocabularyWord(
+        language="fr",
+        word="cependant",
+        normalized_word="cependant",
+        english_translation="however",
+        deck_name="Another Deck",
+    )
+    generic_word = VocabularyWord(
+        language="fr",
+        word="pourtant",
+        normalized_word="pourtant",
+        english_translation="yet",
+    )
+    db_session.add_all([matching_word, other_deck_word, generic_word])
+    db_session.commit()
+
+    queue = ProgressService(db_session).get_learning_queue(
+        user=user,
+        limit=10,
+        deck_name="Französisch 5000::1. FR → DE",
+    )
+    queued_words = {item.word.word for item in queue}
+
+    assert "malgre" in queued_words
+    assert "cependant" not in queued_words
+    assert "pourtant" not in queued_words

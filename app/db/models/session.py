@@ -52,6 +52,11 @@ class LearningSession(Base):
     interactions = relationship(
         "WordInteraction", back_populates="session", cascade="all, delete-orphan"
     )
+    learning_moments = relationship(
+        "SessionLearningMoment",
+        back_populates="session",
+        cascade="all, delete-orphan",
+    )
 
 
 class ConversationMessage(Base):
@@ -117,3 +122,46 @@ class WordInteraction(Base):
 
     session = relationship("LearningSession", back_populates="interactions")
     message = relationship("ConversationMessage")
+
+
+class SessionLearningMoment(Base):
+    """Inline learning moments that appear inside the conversational stream."""
+
+    __tablename__ = "session_learning_moments"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    session_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("learning_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    anchor_message_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("conversation_messages.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
+    kind = Column(String(32), nullable=False, index=True)
+    source_type = Column(String(32), nullable=True)
+    source_id = Column(String(64), nullable=True)
+    source_deck_name = Column(String(255), nullable=True)
+    status = Column(String(20), nullable=False, default="pending", index=True)
+
+    prompt_payload = Column(JSONB().with_variant(JSON(), "sqlite"), default=dict)
+    result_payload = Column(JSONB().with_variant(JSON(), "sqlite"))
+    score_0_10 = Column(Float, nullable=True)
+    srs_credit_applied = Column(Boolean, default=False, nullable=False)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+
+    session = relationship("LearningSession", back_populates="learning_moments")
+    anchor_message = relationship("ConversationMessage")

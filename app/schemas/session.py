@@ -57,6 +57,7 @@ class LiveStoryListResponse(BaseModel):
     """Collection of live stories in the learner's target language."""
 
     items: list[LiveStoryRead]
+    topics_used: list[str] = Field(default_factory=list)
 
 
 class SessionMessageRequest(BaseModel):
@@ -126,6 +127,45 @@ class TargetWordRead(BaseModel):
     hint_translation: str | None = None
 
 
+class LearningMomentChoiceRead(BaseModel):
+    """Selectable choice for an inline learning moment."""
+
+    key: str
+    label: str
+
+
+class LearningMomentRead(BaseModel):
+    """Serializable inline learning moment attached to a session turn."""
+
+    id: UUID
+    kind: Literal[
+        "conversation_turn",
+        "vocab_boost",
+        "vocab_check",
+        "grammar_challenge",
+        "grammar_repair",
+        "error_repair",
+    ]
+    source_type: Literal["vocabulary", "grammar", "error"]
+    title: str
+    body: str
+    input_mode: Literal["free_text", "single_choice", "chips"]
+    choices: list[LearningMomentChoiceRead] = Field(default_factory=list)
+    prefill_text: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    status: Literal["pending", "completed", "skipped", "expired"]
+
+
+class LearningMomentResultRead(BaseModel):
+    """Outcome after resolving an inline learning moment."""
+
+    moment_id: UUID
+    is_correct: bool | None = None
+    score_0_10: float | None = None
+    feedback_summary: str
+    next_step_hint: str | None = None
+
+
 class SessionMessageRead(BaseModel):
     """Response model for persisted conversation messages."""
 
@@ -140,6 +180,8 @@ class SessionMessageRead(BaseModel):
     suggested_words_used: list[int] = Field(default_factory=list)
     error_feedback: ErrorFeedback | None = None
     target_details: list[TargetWordRead] = Field(default_factory=list)
+    learning_focus: list[LearningFocusRead] = Field(default_factory=list)
+    pending_moment: LearningMomentRead | None = None
 
 
 class SessionOverview(BaseModel):
@@ -169,6 +211,18 @@ class TargetedErrorRead(BaseModel):
     reps: int = 0
 
 
+class LearningFocusRead(BaseModel):
+    """Normalized focus item for the current learning moment."""
+
+    kind: Literal["vocabulary", "grammar", "error"]
+    key: str
+    title: str
+    subtitle: str | None = None
+    state: str | None = None
+    priority: int = 0
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
 class AssistantTurnRead(BaseModel):
     """Assistant message accompanied by vocabulary plan."""
 
@@ -178,6 +232,11 @@ class AssistantTurnRead(BaseModel):
         default_factory=list,
         description="Error patterns the assistant is subtly targeting for correction"
     )
+    learning_focus: list[LearningFocusRead] = Field(
+        default_factory=list,
+        description="Normalized list of vocabulary, grammar, and error cues for the current learning moment",
+    )
+    pending_moment: LearningMomentRead | None = None
 
 
 class SessionTurnWordFeedback(BaseModel):
@@ -210,6 +269,23 @@ class SessionTurnResponse(BaseModel):
     combo_count: int = Field(default=0, description="Number of target words used in this turn (combo bonus)")
     error_feedback: ErrorFeedback
     word_feedback: list[SessionTurnWordFeedback]
+
+
+class SessionMomentSubmitRequest(BaseModel):
+    """Payload for resolving an inline learning moment."""
+
+    answer_text: str | None = None
+    selected_choice: str | None = None
+    skipped: bool = False
+
+
+class SessionMomentSubmitResponse(BaseModel):
+    """Response returned after resolving an inline learning moment."""
+
+    session: SessionOverview
+    moment_result: LearningMomentResultRead
+    assistant_turn: AssistantTurnRead | None = None
+    next_moment: LearningMomentRead | None = None
 
 
 class PracticeIssue(BaseModel):

@@ -3,7 +3,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import List, Optional
 
-from pydantic import AnyUrl, Field
+from pydantic import AnyUrl, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -26,7 +26,11 @@ class Settings(BaseSettings):
     )
 
     BACKEND_CORS_ORIGINS: List[str] = Field(
-        default_factory=lambda: ["http://localhost", "http://localhost:3000"],
+        default_factory=lambda: [
+            "http://localhost",
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+        ],
         description="Allowed CORS origins",
     )
 
@@ -37,10 +41,10 @@ class Settings(BaseSettings):
     SECONDARY_LLM_PROVIDER: Optional[str] = Field(
         "anthropic", description="Fallback LLM provider key"
     )
-    OPENAI_MODEL: str = Field("gpt-4o-mini", description="Default OpenAI chat model for conversations")
+    OPENAI_MODEL: str = Field("gpt-5-mini", description="Default OpenAI text model")
     OPENAI_ERROR_DETECTION_MODEL: str = Field(
-        "gpt-4o", 
-        description="OpenAI model for error detection (use stronger model for better grammar checking)"
+        "gpt-5-mini",
+        description="OpenAI model for exercise correction and error detection",
     )
     PERPLEXITY_API_KEY: Optional[str] = Field(None, description="API key for Perplexity search (optional)")
     SUBSTACK_FEED_URLS: str = Field(
@@ -78,12 +82,54 @@ class Settings(BaseSettings):
         False,
         description="If true, /auth/login will create the user on-the-fly when not found (dev only)",
     )
+    SESSION_INLINE_MOMENTS_ENABLED: bool = Field(
+        True,
+        description="Enable inline grammar and vocabulary learning moments inside sessions",
+    )
+    ATELIER_LLM_ENABLED: bool = Field(
+        True,
+        description="Use LLM-backed generation and correction for Atelier when a provider is configured.",
+    )
+    OPENAI_IMAGE_MODEL: str = Field("gpt-image-2", description="Default OpenAI image model")
+    OPENAI_IMAGE_QUALITY: str = Field("medium", description="Default OpenAI image generation quality")
+    OPENAI_IMAGE_SIZE: str = Field("1024x1024", description="Default OpenAI image generation size")
+    OPENAI_IMAGE_TIMEOUT_SECONDS: float = Field(240.0, description="Timeout for OpenAI image generation calls")
+    OPENAI_GRAPHIC_NOVEL_SCRIPT_MODEL: str = Field(
+        "gpt-5.4-mini",
+        description="OpenAI model for standard Feuilleton story/script generation",
+    )
+    OPENAI_GRAPHIC_NOVEL_PREMIUM_SCRIPT_MODEL: str = Field(
+        "gpt-5.5",
+        description="OpenAI model for premium Feuilleton story/script generation",
+    )
+    GRAPHIC_NOVEL_DEFAULT_PANEL_COUNT: int = Field(6, description="Default Feuilleton panel count")
+    GRAPHIC_NOVEL_IMAGE_COST_USD_PER_PANEL: float = Field(
+        0.053,
+        description="Estimated image-generation cost per 1024x1024 medium gpt-image-2 panel",
+    )
+    GRAPHIC_NOVEL_IMAGE_CONCURRENCY: int = Field(
+        3,
+        description="Maximum number of Feuilleton panel images to generate concurrently",
+    )
+    GRAPHIC_NOVEL_IMAGE_GENERATION_ENABLED: bool = Field(
+        False,
+        description="Generate Feuilleton panel images through OpenAI. When false, deterministic SVG panels are used.",
+    )
 
     model_config = SettingsConfigDict(
         env_file=Path(__file__).resolve().parent.parent / ".env",
         env_file_encoding="utf-8",
         extra="ignore",
     )
+
+    @field_validator("OPENAI_API_BASE", "ANTHROPIC_API_BASE", mode="before")
+    @classmethod
+    def blank_urls_to_none(cls, value: object) -> object:
+        """Treat blank optional URL settings as unset."""
+
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
 
 
 @lru_cache()

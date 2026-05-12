@@ -1,6 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
-import toast from 'react-hot-toast';
 
 type WebSocketMessage = {
   type: 'session_ready' | 'turn_result' | 'typing' | 'heartbeat' | 'error';
@@ -65,7 +64,6 @@ class WebSocketService {
 
         this.socket.onerror = (error) => {
           console.error('WebSocket error:', error);
-          toast.error('Connection error occurred');
           reject(error);
         };
       } catch (error) {
@@ -79,13 +77,12 @@ class WebSocketService {
     this.reconnectAttempts++;
     const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
 
-    console.log(`Attempting to reconnect in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
+      console.log(`Attempting to reconnect in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
 
     setTimeout(() => {
       this.connect().catch(() => {
-        if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-          toast.error('Failed to reconnect. Please refresh the page.');
-        }
+        // The learning flow falls back to HTTP, so a failed realtime reconnect
+        // should not interrupt the user with a generic connection error toast.
       });
     }, delay);
   }
@@ -119,7 +116,7 @@ class WebSocketService {
       // Handle global message types
       switch (message.type) {
         case 'error':
-          toast.error(message.message || 'An error occurred');
+          console.error('WebSocket payload error:', message.message || 'An error occurred');
           break;
         case 'session_ready':
           console.log('Session ready:', message);

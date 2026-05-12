@@ -9,10 +9,11 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from uuid import UUID
-from typing import Sequence, TYPE_CHECKING
+from typing import Any, Sequence, TYPE_CHECKING
 
 from loguru import logger
 from sqlalchemy import func, or_, select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, joinedload
 
 from app.config import settings
@@ -26,15 +27,27 @@ from app.core.conversation import (
 from app.core.error_detection import ErrorDetectionResult, ErrorDetector
 from app.core.error_detection.rules import DetectedError
 from app.db.models.progress import UserVocabularyProgress
-from app.db.models.session import ConversationMessage, LearningSession, WordInteraction
+from app.db.models.session import (
+    ConversationMessage,
+    LearningSession,
+    SessionLearningMoment,
+    WordInteraction,
+)
 from app.db.models.error import UserError
 from app.db.models.scenario import UserScenarioState
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
 from app.core.conversation.scenarios import get_scenario, Scenario
 from app.services.achievement import AchievementService
+from app.services.error_memory import ErrorMemoryService
 from app.services.grammar import GrammarService
 from app.services.llm_service import LLMResult, LLMService
+from app.services.session_moment_planner import (
+    BLOCKING_MOMENT_KINDS,
+    MomentEvaluation,
+    PRIMARY_VOCAB_DECK_NAME as DEFAULT_PRIMARY_VOCAB_DECK_NAME,
+    SessionMomentPlanner,
+)
 from app.services.progress import ProgressService
 from app.services.auto_context_service import SessionContext  # [NEW]
 from app.utils.cache import cache_backend, build_cache_key
@@ -79,6 +92,11 @@ class AssistantTurn:
     plan: ConversationPlan
     llm_result: LLMResult
     target_details: list[TargetWordRead] | None = None
+    targeted_errors: list[UserError] = field(default_factory=list)
+    targeted_grammar: list[tuple["GrammarConcept", "UserGrammarProgress | None"]] = field(
+        default_factory=list
+    )
+    pending_moment: SessionLearningMoment | None = None
 
 
 @dataclass(slots=True)
@@ -117,6 +135,16 @@ class SessionTurnResult:
     targeted_errors: list[UserError] = field(default_factory=list)
 
 
+@dataclass(slots=True)
+class SessionMomentSubmitResult:
+    """Return payload after resolving an inline learning moment."""
+
+    session: LearningSession
+    moment_evaluation: MomentEvaluation
+    assistant_turn: AssistantTurn | None
+    next_moment: SessionLearningMoment | None = None
+
+
 def _normalize_text(value: str) -> str:
     """Lowercase and strip accents from text for fuzzy comparisons."""
 
@@ -136,6 +164,7 @@ class SessionService:
     """Coordinate session lifecycle, message flow, and XP updates."""
 
     VALID_STATUSES = {"created", "in_progress", "paused", "completed", "abandoned"}
+    PRIMARY_VOCAB_DECK_NAME = DEFAULT_PRIMARY_VOCAB_DECK_NAME
     COMMON_STOPWORDS = {
         "le",
         "la",
@@ -172,12 +201,19 @@ class SessionService:
     ) -> None:
         self.db = db
         self.progress_service = progress_service or ProgressService(db)
+        self.grammar_service = GrammarService(db)
         self.llm_service = llm_service or LLMService()
         self.conversation_generator = conversation_generator or ConversationGenerator(
             progress_service=self.progress_service,
             llm_service=self.llm_service,
         )
         self.error_detector = error_detector or ErrorDetector(llm_service=self.llm_service)
+        self.moment_planner = SessionMomentPlanner(
+            db,
+            progress_service=self.progress_service,
+            grammar_service=self.grammar_service,
+            llm_service=self.llm_service,
+        )
         self.xp_config = xp_config or XPConfig()
         if nlp is None:
             try:
@@ -691,116 +727,24 @@ class SessionService:
         user_message: ConversationMessage,
         error_result: ErrorDetectionResult,
     ) -> None:
-        """Persist detected errors to the UserError table with deduplication.
-        
-        If an error with the same category and pattern already exists for this user,
-        we update that record (increment occurrences, increase difficulty) rather than
-        creating a duplicate.
-        
-        Also updates the parent UserErrorConcept for concept-level SRS tracking.
-        """
-        # Import concept functions
-        from app.core.error_concepts import get_concept_for_pattern, get_concept_for_category
-        from app.db.models.error import UserErrorConcept
-        
-        # Track which concepts we've already updated this turn
-        updated_concepts: set[str] = set()
-        
+        """Persist detected errors through the unified error-memory loop."""
+        error_memory = ErrorMemoryService(self.db)
         for error in error_result.errors:
-            # Skip if low confidence
-            if error.confidence < 0.6:
-                continue
-            
-            # Check for existing error with same pattern
-            existing = self.db.query(UserError).filter(
-                UserError.user_id == user.id,
-                UserError.error_category == error.category,
-                UserError.error_pattern == error.code,
-            ).first()
-            
-            if existing:
-                # Update existing error - this is a repeated mistake
-                existing.occurrences = (existing.occurrences or 1) + 1
-                existing.lapses = (existing.lapses or 0) + 1
-                existing.context_snippet = error.span  # Update to latest context
-                existing.correction = error.suggestion  # Update to latest correction
-                # Increase difficulty for repeated errors (max 10)
-                existing.difficulty = min(10.0, (existing.difficulty or 5.0) + 0.5)
-                # Schedule for immediate review (reset to learning state)
-                existing.next_review_date = datetime.now(timezone.utc)
-                if existing.state == "review" or existing.state == "mastered":
-                    existing.state = "relearning"
-                existing.updated_at = datetime.now(timezone.utc)
-                
+            update = error_memory.record_detected_error(
+                user=user,
+                detected_error=error,
+                source_type="conversation",
+                session=session,
+                message=user_message,
+                source_payload={"learner_text": learner_text},
+            )
+            if update:
                 logger.debug(
-                    "Updated existing error",
-                    category=error.category,
-                    pattern=error.code,
-                    occurrences=existing.occurrences,
-                    lapses=existing.lapses,
-                )
-            else:
-                # Create new error record
-                user_error = UserError(
-                    user_id=user.id,
-                    session_id=session.id,
-                    message_id=user_message.id,
-                    error_category=error.category,
-                    error_pattern=error.code,
-                    subcategory=error.subcategory,
-                    correction=error.suggestion,
-                    context_snippet=error.span,
-                    # Initialize SRS state
-                    state="new",
-                    stability=0.0,
-                    difficulty=5.0,
-                    occurrences=1,
-                    next_review_date=datetime.now(timezone.utc),
-                )
-                self.db.add(user_error)
-                
-                logger.debug(
-                    "Created new error record",
+                    "Recorded conversation error memory",
+                    action=update.get("action"),
                     category=error.category,
                     pattern=error.code,
                 )
-            
-            # Update parent concept (concept-level SRS)
-            concept = get_concept_for_pattern(error.code)
-            if not concept:
-                concept = get_concept_for_category(error.category)
-            
-            if concept and concept.id not in updated_concepts:
-                updated_concepts.add(concept.id)
-                
-                # Find or create the user's concept record
-                user_concept = self.db.query(UserErrorConcept).filter(
-                    UserErrorConcept.user_id == user.id,
-                    UserErrorConcept.concept_id == concept.id,
-                ).first()
-                
-                if user_concept:
-                    user_concept.increment_occurrence()
-                    logger.debug(
-                        "Updated error concept",
-                        concept=concept.id,
-                        occurrences=user_concept.total_occurrences,
-                    )
-                else:
-                    # Create new concept tracking record
-                    user_concept = UserErrorConcept(
-                        user_id=user.id,
-                        concept_id=concept.id,
-                        total_occurrences=1,
-                        last_occurrence_date=datetime.now(timezone.utc),
-                        next_review_date=datetime.now(timezone.utc),
-                        state="new",
-                    )
-                    self.db.add(user_concept)
-                    logger.debug(
-                        "Created new error concept",
-                        concept=concept.id,
-                    )
 
     def _calculate_xp(
         self,
@@ -1287,6 +1231,78 @@ class SessionService:
             )
         return details
 
+    def _serialize_learning_focus(
+        self,
+        *,
+        target_details: Sequence[TargetWordRead] | None,
+        targeted_errors: Sequence[UserError] | None = None,
+        targeted_grammar: Sequence[tuple["GrammarConcept", "UserGrammarProgress | None"]] | None = None,
+    ) -> list[dict[str, Any]]:
+        """Normalize current vocabulary, grammar, and error cues for the UI layer."""
+
+        items: list[dict[str, Any]] = []
+
+        for index, error in enumerate((targeted_errors or [])[:3]):
+            subtitle_bits = [error.error_pattern, f"{error.lapses or 0} lapses"]
+            items.append(
+                {
+                    "kind": "error",
+                    "key": f"error:{error.id}",
+                    "title": error.error_category,
+                    "subtitle": " • ".join(bit for bit in subtitle_bits if bit) or None,
+                    "state": error.state,
+                    "priority": 300 - index,
+                    "metadata": {
+                        "correction": error.correction,
+                        "context": error.context_snippet,
+                        "reps": error.reps or 0,
+                        "lapses": error.lapses or 0,
+                    },
+                }
+            )
+
+        for index, (concept, progress) in enumerate((targeted_grammar or [])[:2]):
+            state = progress.state if progress else "neu"
+            state_label = progress.state_label if progress else "Neu"
+            items.append(
+                {
+                    "kind": "grammar",
+                    "key": f"grammar:{concept.id}",
+                    "title": concept.name,
+                    "subtitle": f"{concept.level} • {state_label}",
+                    "state": state,
+                    "priority": 200 - index,
+                    "metadata": {
+                        "concept_id": concept.id,
+                        "level": concept.level,
+                        "description": concept.description,
+                        "examples": concept.examples,
+                    },
+                }
+            )
+
+        for index, target in enumerate(target_details or []):
+            items.append(
+                {
+                    "kind": "vocabulary",
+                    "key": f"word:{target.word_id}",
+                    "title": target.word,
+                    "subtitle": target.translation or ("New word" if target.is_new else "Review word"),
+                    "state": target.familiarity,
+                    "priority": (120 if target.is_new else 100) - index,
+                    "metadata": {
+                        "word_id": target.word_id,
+                        "is_new": target.is_new,
+                        "translation": target.translation,
+                        "hint_sentence": target.hint_sentence,
+                        "hint_translation": target.hint_translation,
+                    },
+                }
+            )
+
+        items.sort(key=lambda item: (-int(item["priority"]), str(item["title"]).lower()))
+        return items
+
     def record_word_exposure(
         self,
         *,
@@ -1383,6 +1399,8 @@ class SessionService:
         scenario_context: str | None = None,
         session_context: SessionContext | None = None,  # [NEW]
         engagement_challenge: str | None = None,
+        last_error_result: ErrorDetectionResult | None = None,
+        word_feedback: Sequence[WordFeedback] | None = None,
     ) -> AssistantTurn:
         review_focus = self._compute_review_focus(session=session, user=user)
         exclude_set: set[int] = set()
@@ -1502,6 +1520,11 @@ class SessionService:
             due_grammar=due_grammar,
             scenario_context=composed_context,
             session_context=session_context,  # [NEW]
+            deck_name=(
+                self.PRIMARY_VOCAB_DECK_NAME
+                if settings.SESSION_INLINE_MOMENTS_ENABLED
+                else None
+            ),
         )
         sequence = self._next_sequence_number(session.id)
         message = ConversationMessage(
@@ -1540,11 +1563,30 @@ class SessionService:
                 user=user,
                 targets=generated.plan.target_words,
             )
+        learning_focus = self._serialize_learning_focus(
+            target_details=target_details,
+            targeted_errors=due_errors,
+            targeted_grammar=due_grammar,
+        )
+        message.errors_detected = {"learning_focus": learning_focus}
+        pending_moment = self.moment_planner.plan_next_moment(
+            session=session,
+            user=user,
+            anchor_message=message,
+            conversation_plan=generated.plan,
+            due_errors=due_errors,
+            due_grammar=due_grammar,
+            last_error_result=last_error_result,
+            word_feedback=word_feedback,
+        )
         return AssistantTurn(
             message=message,
             plan=generated.plan,
             llm_result=generated.llm_result,
             target_details=target_details,
+            targeted_errors=list(due_errors or []),
+            targeted_grammar=list(due_grammar or []),
+            pending_moment=pending_moment,
         )
 
     def process_user_message(
@@ -1559,6 +1601,10 @@ class SessionService:
 
         if session.status not in {"in_progress", "created", "paused"}:
             raise ValueError("Cannot add messages to a completed or abandoned session")
+        pending_moment = self.get_pending_moment(session=session, user=user)
+        if pending_moment and pending_moment.kind in BLOCKING_MOMENT_KINDS:
+            title = (pending_moment.prompt_payload or {}).get("title") or "the current exercise"
+            raise ValueError(f"Complete or skip {title} before sending another reply")
 
         session_capacity = self._calculate_session_capacity(session.planned_duration_minutes or 15)
         history = self._collect_history(session)
@@ -1685,6 +1731,24 @@ class SessionService:
                 difficulty=suggested_difficulty,
             )
 
+        post_turn_updates = self.moment_planner.apply_post_turn_updates(
+            session=session,
+            user=user,
+            assistant_message=previous_assistant,
+            learner_reply=content,
+            pending_moment=pending_moment,
+            word_feedback=feedback,
+            error_result=error_result,
+            due_grammar=due_grammar,
+        )
+        if post_turn_updates:
+            metadata = dict(error_result.metadata or {})
+            metadata.update(post_turn_updates)
+            error_result.metadata = metadata
+            user_message.errors_detected = self._serialize_errors(error_result)
+        due_errors = self._fetch_due_errors(user.id, limit=10)
+        due_grammar = self._fetch_due_grammar(user, limit=2)
+
         xp_awarded, combo_count = self._calculate_xp(feedback, creative_count=len(processed_spontaneous), error_result=error_result)
         user_message.xp_earned = xp_awarded
         self._refresh_session_stats(session=session, feedback=feedback, xp_awarded=xp_awarded)
@@ -1721,6 +1785,8 @@ class SessionService:
             due_errors=due_errors,
             due_grammar=due_grammar,
             engagement_challenge=engagement_challenge,
+            last_error_result=error_result,
+            word_feedback=feedback,
         )
 
         self.db.commit()
@@ -1898,6 +1964,76 @@ class SessionService:
             raise ValueError("Session not found")
         return session
 
+    def get_pending_moment(
+        self,
+        *,
+        session: LearningSession,
+        user: User,
+    ) -> SessionLearningMoment | None:
+        """Return the current unresolved inline learning moment, if any."""
+
+        return self.moment_planner.get_pending_moment(
+            session_id=session.id,
+            user_id=user.id,
+        )
+
+    def build_message_moment_map(
+        self,
+        *,
+        session: LearningSession,
+        user: User,
+        message_ids: Sequence[UUID],
+    ) -> dict[UUID, SessionLearningMoment]:
+        """Resolve pending moments attached to assistant messages."""
+
+        return self.moment_planner.build_message_moment_map(
+            session_id=session.id,
+            user_id=user.id,
+            message_ids=message_ids,
+        )
+
+    def submit_learning_moment(
+        self,
+        *,
+        session: LearningSession,
+        user: User,
+        moment_id: UUID,
+        answer_text: str | None = None,
+        selected_choice: str | None = None,
+        skipped: bool = False,
+    ) -> SessionMomentSubmitResult:
+        """Resolve a pending inline learning moment."""
+
+        moment = self.moment_planner.get_pending_moment_by_id(
+            session_id=session.id,
+            user_id=user.id,
+            moment_id=moment_id,
+        )
+        if not moment:
+            raise ValueError("Learning moment not found")
+
+        evaluation = self.moment_planner.submit_moment(
+            session=session,
+            user=user,
+            moment=moment,
+            answer_text=answer_text,
+            selected_choice=selected_choice,
+            skipped=skipped,
+        )
+        self.db.commit()
+        self.db.refresh(session)
+        self._invalidate_analytics_cache(user.id)
+        next_moment = self.moment_planner.get_pending_moment(
+            session_id=session.id,
+            user_id=user.id,
+        )
+        return SessionMomentSubmitResult(
+            session=session,
+            moment_evaluation=evaluation,
+            assistant_turn=None,
+            next_moment=next_moment,
+        )
+
     def _fetch_due_errors(self, user_id: UUID, limit: int = 3) -> list[UserError]:
         """Retrieve errors due for review, prioritizing most problematic ones.
         
@@ -1906,22 +2042,12 @@ class SessionService:
         2. Reps (descending) - the more attempts, the more persistent the issue
         3. Next review date (ascending) - most overdue first
         """
-        now = datetime.now(timezone.utc)
-        return (
-            self.db.query(UserError)
-            .filter(
-                UserError.user_id == user_id,
-                UserError.next_review_date <= now,
-                UserError.state != "mastered"
-            )
-            .order_by(
-                UserError.lapses.desc(),
-                UserError.reps.desc(),
-                UserError.next_review_date.asc()
-            )
-            .limit(limit)
-            .all()
-        )
+        try:
+            user = self.db.get(User, user_id)
+            return ErrorMemoryService(self.db).due_error_records(user, limit=limit) if user else []
+        except SQLAlchemyError as exc:
+            logger.warning("Unable to fetch due errors", user_id=str(user_id), error=str(exc))
+            return []
 
     def _fetch_due_grammar(self, user: User, limit: int = 2) -> list:
         """Retrieve grammar concepts due for review to target in conversation.
@@ -1930,8 +2056,11 @@ class SessionService:
         These will be included in the LLM context to naturally incorporate
         grammar practice into the conversation.
         """
-        grammar_service = GrammarService(self.db)
-        return grammar_service.get_due_concepts(user=user, limit=limit)
+        try:
+            return self.grammar_service.get_due_concepts(user=user, limit=limit)
+        except SQLAlchemyError as exc:
+            logger.warning("Unable to fetch due grammar", user_id=str(user.id), error=str(exc))
+            return []
 
 
     def _gather_error_stats(

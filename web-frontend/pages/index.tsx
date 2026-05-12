@@ -1,133 +1,296 @@
-import { useSession } from 'next-auth/react';
+import { getSession, useSession } from 'next-auth/react';
+import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { useEffect } from 'react';
+import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { BookOpen, MessageCircle, TrendingUp, Users } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
-
-const features = [
-  {
-    name: 'Interactive Conversations',
-    description: 'Practice French through AI-powered conversations that adapt to your level.',
-    icon: MessageCircle,
-  },
-  {
-    name: 'Vocabulary Learning',
-    description: 'Master new words with our spaced repetition system.',
-    icon: BookOpen,
-  },
-  {
-    name: 'Progress Tracking',
-    description: 'Monitor your learning journey with detailed analytics.',
-    icon: TrendingUp,
-  },
-  {
-    name: 'Achievement System',
-    description: 'Stay motivated with badges and streak rewards.',
-    icon: Users,
-  },
-];
+import { ArrowRight, BookOpen, Clock3, MessageCircle, Newspaper, Target } from 'lucide-react';
+import EditorialMasthead from '@/components/layout/EditorialMasthead';
 
 export default function HomePage() {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const router = useRouter();
 
   useEffect(() => {
     if (status === 'authenticated') {
-      router.push('/dashboard');
+      router.push('/atelier');
     }
   }, [status, router]);
 
   if (status === 'loading') {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary-600"></div>
+      <div className="grid min-h-screen place-items-center bg-[var(--app-paper)]">
+        <div className="text-xs font-black uppercase tracking-[0.16em] text-[var(--app-ink-3)]">
+          Opening Atelier
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 to-secondary-50">
-      {/* Hero Section */}
-      <div className="relative isolate px-6 pt-14 lg:px-8">
-        <div className="mx-auto max-w-2xl py-32 sm:py-48 lg:py-56">
-          <div className="text-center">
-            <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-6xl">
-              Learn French Through{' '}
-              <span className="text-primary-600">Conversation</span>
-            </h1>
-            <p className="mt-6 text-lg leading-8 text-gray-600">
-              Master French naturally with AI-powered conversations, personalized vocabulary training, 
-              and intelligent progress tracking. Start your journey today!
-            </p>
-            <div className="mt-10 flex items-center justify-center gap-x-6">
-              <Link href="/auth/signup">
-                <Button size="lg">Get Started</Button>
-              </Link>
-              <Link href="/auth/signin">
-                <Button variant="outline" size="lg">Sign In</Button>
-              </Link>
-            </div>
+    <>
+      <Head>
+        <title>Atelier · Learning Hub</title>
+      </Head>
+      <EditorialMasthead
+        active="home"
+        brandHref="/"
+        trailing={(
+          <>
+            <Link href="/auth/signin">Sign in</Link>
+            <Link className="public-start" href="/auth/signup">Start</Link>
+          </>
+        )}
+      />
+      <main className="hub-page">
+        <section className="hub-top">
+          <div>
+            <div className="hub-kicker">Home</div>
+            <h1>Learning hub</h1>
           </div>
-        </div>
-      </div>
+          <div className="hub-session-status">
+            <span>No learner loaded</span>
+            <strong>Sign in to load today&apos;s queue.</strong>
+          </div>
+        </section>
 
-      {/* Features Section */}
-      <div className="py-24 sm:py-32">
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="mx-auto max-w-2xl lg:text-center">
-            <h2 className="text-base font-semibold leading-7 text-primary-600">Learn Smarter</h2>
-            <p className="mt-2 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-              Everything you need to master French
-            </p>
-            <p className="mt-6 text-lg leading-8 text-gray-600">
-              Our platform combines cutting-edge AI technology with proven language learning 
-              methodologies to create the most effective learning experience.
-            </p>
-          </div>
-          <div className="mx-auto mt-16 max-w-2xl sm:mt-20 lg:mt-24 lg:max-w-none">
-            <dl className="grid max-w-xl grid-cols-1 gap-x-8 gap-y-16 lg:max-w-none lg:grid-cols-2">
-              {features.map((feature) => (
-                <Card key={feature.name} className="hover:shadow-lg transition-shadow">
-                  <CardHeader>
-                    <div className="flex items-center space-x-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-600">
-                        <feature.icon className="h-6 w-6 text-white" aria-hidden="true" />
-                      </div>
-                      <CardTitle className="text-xl">{feature.name}</CardTitle>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <CardDescription className="text-base">{feature.description}</CardDescription>
-                  </CardContent>
-                </Card>
-              ))}
-            </dl>
-          </div>
-        </div>
-      </div>
-
-      {/* CTA Section */}
-      <div className="bg-primary-600">
-        <div className="px-6 py-24 sm:px-6 sm:py-32 lg:px-8">
-          <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
-              Ready to start learning?
-            </h2>
-            <p className="mx-auto mt-6 max-w-xl text-lg leading-8 text-primary-100">
-              Join thousands of learners who are improving their French skills every day.
-            </p>
-            <div className="mt-10 flex items-center justify-center gap-x-6">
-              <Link href="/auth/signup">
-                <Button variant="secondary" size="lg">
-                  Start Free Trial
-                </Button>
-              </Link>
+        <section className="hub-grid" aria-label="Learning hub">
+          <article className="hub-primary">
+            <div className="hub-section-head">
+              <span><Clock3 size={14} /> Next session</span>
+              <small>~15 min</small>
             </div>
-          </div>
-        </div>
-      </div>
+            <h2>Continue from the strongest signal.</h2>
+            <p>Conversation first, then repair the errors that appear.</p>
+            <div className="hub-actions">
+              <Link className="hub-button primary" href="/auth/signin">
+                Sign in <ArrowRight size={16} />
+              </Link>
+              <Link className="hub-button" href="/auth/signup">Create account</Link>
+            </div>
+          </article>
+
+          <aside className="hub-queue" aria-label="Queue snapshot">
+            <div className="hub-section-head">
+              <span>Queue</span>
+              <small>locked</small>
+            </div>
+            <QueueRow icon={<MessageCircle size={16} />} label="Conversation" value="Next prompt" />
+            <QueueRow icon={<Target size={16} />} label="Repairs" value="Needs account" />
+            <QueueRow icon={<BookOpen size={16} />} label="Notebook" value="Reference" />
+            <QueueRow icon={<Newspaper size={16} />} label="Feuilleton" value="After practice" />
+          </aside>
+        </section>
+      </main>
+      <style jsx global>{`
+        .public-start {
+          color: var(--app-ink) !important;
+        }
+        .hub-page {
+          width: min(1120px, 100%);
+          margin: 0 auto;
+          padding: clamp(26px, 5vw, 58px) clamp(22px, 4vw, 48px) 76px;
+          color: var(--app-ink);
+        }
+        .hub-top {
+          display: flex;
+          align-items: end;
+          justify-content: space-between;
+          gap: 28px;
+          border-bottom: 4px solid var(--app-ink);
+          padding-bottom: 22px;
+        }
+        .hub-kicker,
+        .hub-section-head,
+        .hub-session-status span {
+          font-size: 10px;
+          font-weight: 900;
+          letter-spacing: .14em;
+          text-transform: uppercase;
+          color: var(--app-ink-2);
+        }
+        .hub-top h1 {
+          margin: 8px 0 0;
+          font-family: var(--app-serif);
+          font-size: clamp(44px, 6.4vw, 88px);
+          font-style: italic;
+          font-weight: 600;
+          line-height: .9;
+          letter-spacing: 0;
+        }
+        .hub-session-status {
+          min-width: min(360px, 100%);
+          border: 1px solid var(--app-ink);
+          background: var(--app-paper-2);
+          padding: 16px 18px;
+        }
+        .hub-session-status strong {
+          display: block;
+          margin-top: 8px;
+          font-size: 16px;
+          line-height: 1.35;
+        }
+        .hub-grid {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) minmax(320px, 390px);
+          gap: 28px;
+          margin-top: 30px;
+        }
+        .hub-primary,
+        .hub-queue {
+          border: 1px solid var(--app-ink);
+          background: var(--app-sheet);
+        }
+        .hub-primary {
+          min-height: 370px;
+          display: flex;
+          flex-direction: column;
+          justify-content: flex-end;
+          padding: clamp(24px, 4vw, 40px);
+          background:
+            linear-gradient(90deg, rgba(20, 17, 13, .055) 1px, transparent 1px),
+            linear-gradient(180deg, rgba(20, 17, 13, .055) 1px, transparent 1px),
+            var(--app-sheet);
+          background-size: 34px 34px;
+        }
+        .hub-section-head {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 16px;
+          border-bottom: 1px solid var(--app-ink);
+          padding-bottom: 12px;
+        }
+        .hub-section-head span {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .hub-section-head small {
+          font: inherit;
+          color: var(--app-ink-3);
+        }
+        .hub-primary h2 {
+          max-width: 680px;
+          margin: auto 0 14px;
+          font-size: clamp(34px, 4.2vw, 58px);
+          line-height: .94;
+          letter-spacing: 0;
+        }
+        .hub-primary p {
+          margin: 0;
+          max-width: 500px;
+          color: var(--app-ink-2);
+          font-size: 18px;
+          line-height: 1.45;
+        }
+        .hub-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 12px;
+          margin-top: 28px;
+        }
+        .hub-button {
+          min-height: 48px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 10px;
+          border: 1px solid var(--app-ink);
+          padding: 0 18px;
+          color: var(--app-ink);
+          font-size: 10px;
+          font-weight: 900;
+          letter-spacing: .13em;
+          text-decoration: none;
+          text-transform: uppercase;
+        }
+        .hub-button.primary {
+          background: var(--app-ink);
+          color: var(--app-paper);
+        }
+        .hub-button:hover {
+          background: var(--app-blue);
+          border-color: var(--app-blue);
+          color: var(--app-paper);
+        }
+        .hub-queue {
+          display: grid;
+          align-content: start;
+          background: var(--app-paper-2);
+        }
+        .queue-row {
+          display: grid;
+          grid-template-columns: 28px minmax(0, 1fr) auto;
+          align-items: center;
+          gap: 12px;
+          min-height: 68px;
+          border-bottom: 1px solid rgba(20, 17, 13, .32);
+          padding: 0 18px;
+          font-weight: 900;
+        }
+        .hub-queue .hub-section-head {
+          padding: 17px 18px;
+          background: var(--app-sheet);
+        }
+        .queue-row:last-child {
+          border-bottom: 0;
+        }
+        .queue-row span:last-child {
+          color: var(--app-ink-3);
+          font-size: 10px;
+          letter-spacing: .12em;
+          text-transform: uppercase;
+        }
+        @media (max-width: 860px) {
+          .hub-top,
+          .hub-grid {
+            grid-template-columns: 1fr;
+            display: grid;
+          }
+          .hub-top {
+            align-items: start;
+          }
+          .hub-session-status {
+            min-width: 0;
+          }
+        }
+      `}</style>
+    </>
+  );
+}
+
+function QueueRow({
+  icon,
+  label,
+  value,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="queue-row">
+      {icon}
+      <span>{label}</span>
+      <span>{value}</span>
     </div>
   );
+}
+
+export async function getServerSideProps(context: any) {
+  const session = await getSession(context);
+
+  if (session) {
+    return {
+      redirect: {
+        destination: '/atelier',
+        permanent: false,
+      },
+    };
+  }
+
+  return {
+    props: {},
+  };
 }

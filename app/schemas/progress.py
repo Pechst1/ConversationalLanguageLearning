@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -60,6 +61,47 @@ class QueueWord(BaseModel):
     scheduled_days: int | None = None
     is_new: bool
     scheduler: str | None = None
+
+
+class UnifiedQueueItem(BaseModel):
+    """Cross-mode learning item returned by the unified SRS queue."""
+
+    id: str
+    item_type: str
+    priority_score: float
+    display_title: str
+    display_subtitle: str
+    level: str
+    due_since_days: int
+    estimated_seconds: int
+    original_id: str | int | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class UnifiedQueueTypeSummary(BaseModel):
+    """Due-count summary for one SRS item type."""
+
+    due: int
+    new: int = 0
+    minutes: int
+
+
+class UnifiedQueueSummary(BaseModel):
+    """Unified workload summary across vocabulary, grammar, and errata."""
+
+    total_due: int
+    total_new: int = 0
+    estimated_minutes: int
+    by_type: dict[str, UnifiedQueueTypeSummary]
+
+
+class UnifiedQueueResponse(BaseModel):
+    """Unified SRS queue response."""
+
+    summary: UnifiedQueueSummary
+    queue: list[UnifiedQueueItem]
+    interleaving_mode: str
+    time_budget_minutes: int | None = None
 
 
 class AnkiWordProgressRead(BaseModel):

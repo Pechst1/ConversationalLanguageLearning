@@ -6,18 +6,20 @@ This repository contains the backend implementation for the Conversational Langu
 
 ### Prerequisites
 
-- Python 3.11+
+- Python 3.11
 - PostgreSQL 15+
 - Redis 7+
 - (Optional) Docker and Docker Compose for containerized setup
 - spaCy French model (`fr_core_news_sm`) installed locally
 
+`spaCy` in this stack is not currently compatible with Python 3.14. Use Python 3.11 for local setup.
+
 ### Installation
 
 ```bash
-python -m venv .venv
+python3.11 -m venv .venv
 source .venv/bin/activate
-pip install -e .[dev]
+pip install -e '.[dev]'
 cp .env.example .env
 ```
 
@@ -41,6 +43,8 @@ You can also override the API base URLs for self-hosted compatible gateways by s
 `OPENAI_API_BASE` or `ANTHROPIC_API_BASE`. Timeout and retry behaviour is controlled via
 `LLM_REQUEST_TIMEOUT_SECONDS` and `LLM_MAX_RETRIES`.
 
+Leave `OPENAI_API_BASE` and `ANTHROPIC_API_BASE` unset unless you actually need custom endpoints.
+
 #### Language Processing
 
 The error detection pipeline relies on spaCy for part-of-speech tagging. Install the
@@ -62,11 +66,11 @@ git clone https://github.com/pechst1/ConversationalLanguageLearning.git
 cd ConversationalLanguageLearning
 
 # 2. Provision a virtual environment for local tooling (optional but recommended)
-python -m venv .venv
+python3.11 -m venv .venv
 source .venv/bin/activate
 
 # 3. Install development dependencies (needed for Alembic, linting, etc.)
-pip install -e .[dev]
+pip install -e '.[dev]'
 
 # 4. Prepare environment variables
 cp .env.example .env

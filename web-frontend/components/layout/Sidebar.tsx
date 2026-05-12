@@ -2,7 +2,6 @@ import React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import {
-  Home,
   BookOpen,
   BarChart3,
   Trophy,
@@ -10,8 +9,9 @@ import {
   MessageCircle,
   Zap,
   X,
-  Target,
   Sparkles,
+  MapPinned,
+  Compass,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
@@ -22,17 +22,78 @@ interface SidebarProps {
 }
 
 const navigation = [
-  { name: 'Daily Practice', href: '/daily-practice', icon: Target },
-  { name: 'Audio Mode', href: '/audio-session', icon: MessageCircle },
-  { name: 'Dashboard', href: '/dashboard', icon: Home },
-  { name: 'Stories', href: '/stories', icon: Sparkles },
-  { name: 'Learn', href: '/learn', icon: BookOpen },
-  { name: 'Practice', href: '/practice', icon: Zap },
-  { name: 'Sessions', href: '/sessions', icon: MessageCircle },
-  { name: 'Progress', href: '/progress', icon: BarChart3 },
-  { name: 'Grammar', href: '/grammar', icon: BookOpen },
-  { name: 'Achievements', href: '/achievements', icon: Trophy },
-  { name: 'Settings', href: '/settings', icon: Settings },
+  {
+    name: 'Atelier',
+    href: '/atelier',
+    icon: Compass,
+    activeRoutes: ['/dashboard', '/atelier', '/daily-practice'],
+  },
+  {
+    name: 'Conversation',
+    href: '/learn',
+    icon: BookOpen,
+    activeRoutes: ['/learn', '/learn/new', '/learn/session/[id]'],
+  },
+  {
+    name: 'Sessions',
+    href: '/sessions',
+    icon: MessageCircle,
+    activeRoutes: ['/sessions'],
+  },
+  {
+    name: 'Stories',
+    href: '/stories',
+    icon: Sparkles,
+    activeRoutes: ['/stories', '/stories/[storyId]', '/story/[id]'],
+  },
+  {
+    name: 'Missions',
+    href: '/missions',
+    icon: MapPinned,
+    activeRoutes: ['/missions'],
+  },
+  {
+    name: 'Feuilleton',
+    href: '/graphic-novel',
+    icon: Sparkles,
+    activeRoutes: ['/graphic-novel'],
+  },
+  {
+    name: 'Audio Mode',
+    href: '/audio-session',
+    icon: MessageCircle,
+    activeRoutes: ['/audio-session'],
+  },
+  {
+    name: '5000 Review',
+    href: '/practice',
+    icon: Zap,
+    activeRoutes: ['/practice'],
+  },
+  {
+    name: 'Progress',
+    href: '/progress',
+    icon: BarChart3,
+    activeRoutes: ['/progress'],
+  },
+  {
+    name: 'Notebook',
+    href: '/grammar',
+    icon: BookOpen,
+    activeRoutes: ['/grammar'],
+  },
+  {
+    name: 'Achievements',
+    href: '/achievements',
+    icon: Trophy,
+    activeRoutes: ['/achievements'],
+  },
+  {
+    name: 'Settings',
+    href: '/settings',
+    icon: Settings,
+    activeRoutes: ['/settings'],
+  },
 ];
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
@@ -67,7 +128,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           {/* Navigation */}
           <nav className="flex-1 space-y-2 px-4 py-6">
             {navigation.map((item) => {
-              const isActive = router.pathname === item.href;
+              const isActive = item.activeRoutes.includes(router.pathname);
               return (
                 <Link
                   key={item.name}

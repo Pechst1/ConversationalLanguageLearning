@@ -1,0 +1,96 @@
+version: french-visual-gag-pack-v2
+purpose: >
+  Ground Feuilleton in French visual satire without copying protected text.
+  The format is a visual gag study strip: one absurd image tied to a headline
+  mechanic, sharpened through six focused variations.
+
+visual_moodboard:
+  - Penguin Crime and Penguin Modern Classics cover restraint
+  - Len Deighton paperback espionage covers
+  - Sempé-like social observation and negative space
+  - New Yorker-style single-panel clarity
+  - photomechanical halftone, cream paper, black ink, red accent, occasional muted blue or green
+
+visual_rules:
+  - one decisive prop carries the gag
+  - sparse scenes beat busy rooms
+  - faces should be fictional unless editorial caricature is explicitly requested
+  - no literal Bauhaus diagrams, grammar charts, decorative geometry, calendar wallpaper, bag piles, or object clutter
+  - the image never contains readable text, speech bubbles, blanks, UI, labels, signs, subtitles, or answer choices
+
+satire_mechanics:
+  - "deadpan bureaucracy: a tiny inconvenience becomes a formal institution"
+  - "literalized public language: a headline phrase becomes a physical object"
+  - "one decisive prop: an umbrella, receipt, stamp, microphone, coffee cup, ticket, chair, poster, or folder gains authority"
+  - "visual escalation: the prop changes the social order panel by panel"
+  - "turn: the final panel changes the angle instead of merely adding more of the same"
+
+avoid:
+  - translated-from-English satire
+  - dialogue scenes where characters explain the joke
+  - captions that explain grammar or pedagogy
+  - exercises that repeat a caption sentence verbatim
+  - obviously wrong distractors such as invalid article+noun combinations
+  - leaking real names into image prompts
+
+synthetic_example_strips:
+  - source_mechanic: "a familiar public figure announces a comeback everyone has already lived through"
+    skeleton:
+      mechanic: "the comeback is older than the people asked to applaud it"
+      anchor_object: "a campaign poster"
+      domain: "press back room, street kiosk, archive corridor"
+      turn: "the newest poster is refused entry because it has no seniority"
+    captions:
+      - fr: "Le nouveau départ attendait son tour."
+        en: "The fresh start waited its turn."
+      - fr: "On avait déjà imprimé la nostalgie."
+        en: "They had already printed the nostalgia."
+    task_extension: "Si l'ancien poster parle en premier, le stagiaire répondra poliment."
+  - source_mechanic: "a public institution promises simplification by adding another procedure"
+    skeleton:
+      mechanic: "simplification needs a form before it can begin"
+      anchor_object: "a stamp pad"
+      domain: "counter, meeting table, hallway outside an office"
+      turn: "the stamp pad takes lunch before approving the lunch break"
+    captions:
+      - fr: "On simplifiait avec beaucoup de prudence."
+        en: "They simplified with great caution."
+      - fr: "Le tampon demandait une pause syndicale."
+        en: "The stamp requested a union break."
+    task_extension: "Quand le formulaire est arrivé, tout le monde attendait encore."
+  - source_mechanic: "a transport announcement turns everyday waiting into national theatre"
+    skeleton:
+      mechanic: "the announcement becomes more present than the train"
+      anchor_object: "a loudspeaker"
+      domain: "station platform, ticket hall, empty carriage"
+      turn: "the train asks the loudspeaker for permission to arrive"
+    captions:
+      - fr: "Le retard était enfin à l'heure."
+        en: "The delay was finally on time."
+      - fr: "Le quai applaudissait l'information."
+        en: "The platform applauded the information."
+    task_extension: "Pendant que les voyageurs attendaient, le haut-parleur a triomphé."
+  - source_mechanic: "a weather warning becomes more authoritative than the people discussing it"
+    skeleton:
+      mechanic: "the object meant to protect people becomes the only serious adult"
+      anchor_object: "an umbrella"
+      domain: "café terrace, office doorway, street corner"
+      turn: "the umbrella refuses to leave without a written forecast"
+    captions:
+      - fr: "Le parapluie refusait les questions personnelles."
+        en: "The umbrella refused personal questions."
+      - fr: "La pluie n'était pas encore là, mais elle avait des représentants."
+        en: "The rain was not there yet, but it had representatives."
+    task_extension: "S'il pleut, prends le parapluie et sors avant la réunion."
+  - source_mechanic: "a budget debate turns small objects into moral witnesses"
+    skeleton:
+      mechanic: "the receipt remembers what everyone else denies"
+      anchor_object: "a receipt"
+      domain: "café table, wallet, municipal office"
+      turn: "the receipt asks to be reimbursed for listening"
+    captions:
+      - fr: "La note avait plus de mémoire que le ministre."
+        en: "The bill had a better memory than the minister."
+      - fr: "Personne ne contestait le total; on contestait la réalité."
+        en: "Nobody disputed the total; they disputed reality."
+    task_extension: "Je n'ai pas de pièces, mais j'ai encore la preuve."

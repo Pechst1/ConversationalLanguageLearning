@@ -5,12 +5,13 @@ from app.api.v1.endpoints import (
     achievements,
     analytics,
     anki,
+    atelier,
     audio,
     audio_session,
     auth,
-    daily_practice,
+    graphic_novel,
     grammar,
-    grammar_exercise,
+    missions,
     progress,
     sessions,
     sessions_ws,
@@ -32,9 +33,10 @@ api_router.include_router(achievements.router)
 api_router.include_router(anki.router)
 api_router.include_router(audio.router, prefix="/audio", tags=["audio"])
 api_router.include_router(grammar.router)
-api_router.include_router(grammar_exercise.router)
+api_router.include_router(atelier.router)
+api_router.include_router(missions.router)
+api_router.include_router(graphic_novel.router)
 api_router.include_router(audio_session.router)
-api_router.include_router(daily_practice.router)
 api_router.include_router(stories.router, prefix="/stories", tags=["stories"])
 
 # Import npcs after stories since it's related

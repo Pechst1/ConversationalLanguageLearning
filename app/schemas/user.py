@@ -16,6 +16,11 @@ class UserBase(BaseModel):
     native_language: str = Field(default="en", max_length=10)
     target_language: str = Field(default="fr", max_length=10)
     proficiency_level: str = Field(default="beginner", max_length=20)
+    interests: str = Field(
+        default="",
+        max_length=500,
+        description="Comma-separated interest topics for personalized content",
+    )
     daily_goal_minutes: int = Field(default=15, ge=0)
     daily_goal_xp: int = Field(default=50, ge=0)
     new_words_per_day: int = Field(default=10, ge=1)
@@ -82,6 +87,7 @@ class UserUpdate(BaseModel):
     native_language: Optional[str] = Field(default=None, max_length=10)
     target_language: Optional[str] = Field(default=None, max_length=10)
     proficiency_level: Optional[str] = Field(default=None, max_length=20)
+    interests: Optional[str] = Field(default=None, max_length=500)
     daily_goal_minutes: Optional[int] = Field(default=None, ge=0)
     daily_goal_xp: Optional[int] = Field(default=None, ge=0)
     new_words_per_day: Optional[int] = Field(default=None, ge=1)

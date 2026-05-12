@@ -2,30 +2,67 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --app-paper: #f1ece1;
+  --app-paper-2: #e8e0cf;
+  --app-paper-3: #d8cdb6;
+  --app-sheet: #f8f3e8;
+  --app-ink: #14110d;
+  --app-ink-2: #4a4538;
+  --app-ink-3: #8a826f;
+  --app-blue: #1d3a8a;
+  --app-red: #d8321a;
+  --app-yellow: #f3c318;
+  --app-serif: "EB Garamond", Garamond, "Times New Roman", serif;
+  --app-grotesk: "Inter", "Helvetica Neue", Arial, sans-serif;
+}
+
 html,
 body,
 #__next {
   height: 100%;
 }
 
+body {
+  margin: 0;
+  background: var(--app-paper);
+  color: var(--app-ink);
+  font-family: var(--app-grotesk);
+  font-feature-settings: "kern" 1;
+  text-rendering: optimizeLegibility;
+}
+
+a {
+  color: inherit;
+}
+
+::selection {
+  background: rgba(243, 195, 24, .45);
+}
+
+.app-page-frame {
+  width: min(1320px, 100%);
+  margin: 0 auto;
+  padding: clamp(22px, 4vw, 42px) clamp(22px, 4vw, 48px) 72px;
+}
+
 /* Custom components */
 .learning-card {
-  background: #ffffff;
-  border: 3px solid #000000;
+  background: var(--app-sheet);
+  border: 1px solid var(--app-ink);
   border-radius: 0;
   padding: 1.5rem;
-  box-shadow: 6px 6px 0px 0px #000000;
-  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: none;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
 }
 
 .learning-card:hover {
-  transform: translate(-2px, -2px);
-  box-shadow: 8px 8px 0px 0px #000000;
+  background: var(--app-paper-2);
+  transform: translateY(-1px);
 }
 
 .learning-card:active {
-  transform: translate(2px, 2px);
-  box-shadow: 2px 2px 0px 0px #000000;
+  transform: translateY(0);
 }
 
 /* Chat Styles */
@@ -39,23 +76,21 @@ body,
   padding: 1rem 1.25rem;
   border-radius: 0;
   max-width: 85%;
-  border: 2px solid #000000;
-  box-shadow: 4px 4px 0px 0px #000000;
+  border: 1px solid var(--app-ink);
+  box-shadow: none;
   font-weight: 500;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--app-grotesk);
 }
 
 .message-user {
-  background: #1D4E89;
-  /* bauhaus-blue */
+  background: var(--app-blue);
   color: #ffffff;
   margin-left: auto;
 }
 
 .message-ai {
-  background: #F4B400;
-  /* bauhaus-yellow */
-  color: #000000;
+  background: var(--app-paper-2);
+  color: var(--app-ink);
 }
 
 /* Base Badge/Chip Styles */
@@ -65,18 +100,18 @@ body,
   align-items: center;
   padding: 0.25rem 0.75rem;
   border-radius: 0;
-  border: 2px solid #000000;
+  border: 1px solid var(--app-ink);
   font-weight: 700;
   font-size: 0.875rem;
-  background: #FFF;
-  box-shadow: 2px 2px 0px 0px #000000;
-  transition: transform 0.1s ease;
+  background: var(--app-sheet);
+  box-shadow: none;
+  transition: background 0.1s ease, transform 0.1s ease;
 }
 
 .vocabulary-word:hover,
 .badge-brutal:hover {
-  transform: translate(-1px, -1px);
-  box-shadow: 3px 3px 0px 0px #000000;
+  background: var(--app-paper-2);
+  transform: translateY(-1px);
 }
 
 /* Practice Chips */
@@ -96,15 +131,15 @@ body,
   padding: 0.5rem 1rem;
   font-size: 0.875rem;
   font-weight: 600;
-  border: 2px solid #000000;
-  box-shadow: 3px 3px 0px 0px #000000;
-  transition: all 0.1s ease;
-  background: #fff;
+  border: 1px solid var(--app-ink);
+  box-shadow: none;
+  transition: background 0.1s ease, transform 0.1s ease;
+  background: var(--app-sheet);
 }
 
 .practice-chip:hover {
-  transform: translate(-2px, -2px);
-  box-shadow: 5px 5px 0px 0px #000000;
+  transform: translateY(-1px);
+  background: var(--app-paper-2);
 }
 
 .practice-chip--state {
@@ -154,20 +189,21 @@ a:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
-  outline: 3px solid #000000;
+  outline: 2px solid var(--app-ink);
   outline-offset: 2px;
-  box-shadow: 0 0 0 6px #F4B400;
+  box-shadow: 0 0 0 5px rgba(243, 195, 24, .45);
 }
 
-/* Base Element Resets for Brutalism */
+/* Base Element Resets */
 h1,
 h2,
 h3,
 h4,
 h5,
 h6 {
-  font-weight: 800;
-  letter-spacing: -0.02em;
+  color: var(--app-ink);
+  font-weight: 900;
+  letter-spacing: 0;
 }
 
 button {
@@ -178,16 +214,16 @@ input,
 select,
 textarea {
   border-radius: 0 !important;
-  border: 2px solid #000000 !important;
-  box-shadow: 4px 4px 0px 0px #000000 !important;
-  transition: all 0.15s ease;
+  border: 1px solid var(--app-ink) !important;
+  box-shadow: none !important;
+  background-color: var(--app-sheet);
+  transition: border-color 0.15s ease, background 0.15s ease;
 }
 
 input:focus,
 select:focus,
 textarea:focus {
-  transform: translate(-1px, -1px);
-  box-shadow: 6px 6px 0px 0px #000000 !important;
+  box-shadow: 0 0 0 5px rgba(243, 195, 24, .35) !important;
   outline: none;
-  border-color: #000 !important;
+  border-color: var(--app-ink) !important;
 }

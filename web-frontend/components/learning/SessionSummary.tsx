@@ -7,13 +7,13 @@ import type { SessionStats } from '@/types/learning';
 interface SessionSummaryProps {
   stats: SessionStats;
   onStartNewSession: () => void;
-  onReturnToDashboard: () => void;
+  onReturnToLearning: () => void;
 }
 
 export default function SessionSummary({
   stats,
   onStartNewSession,
-  onReturnToDashboard,
+  onReturnToLearning,
 }: SessionSummaryProps) {
   const normalized = React.useMemo(() => {
     const totalReviews =
@@ -224,10 +224,10 @@ export default function SessionSummary({
           Start New Session ⚡
         </Button>
         <Button
-          onClick={onReturnToDashboard}
+          onClick={onReturnToLearning}
           className="flex-1 bg-white hover:bg-gray-100 text-black font-black py-6 text-lg border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[-2px] hover:translate-y-[-2px] transition-all"
         >
-          Dashboard
+          Continue Learning
         </Button>
       </motion.div>
     </motion.div>

@@ -1,0 +1,62 @@
+version: feuilleton-visual-gag-writer-v2
+contract: >
+  Produce a study-mode visual-gag strip in two layers. The skeleton layer finds
+  the news mechanic, one anchor object, and six visual beats. The surface layer
+  writes sparse French captions, translations, and French exercises that extend
+  the scene. Do not write a dialogue-driven sitcom, a grammar worksheet, or a
+  static tableau repeated six times.
+
+skeleton_layer:
+  required_output:
+    visual_premise_candidates:
+      count: 3
+      fields:
+        - headline_mechanic
+        - mechanic
+        - anchor_object
+        - domain
+        - why_it_matches_source
+        - beat_sequence
+        - score_0_10
+    selected_visual_premise: "the premise with the clearest image and strongest source mechanic"
+    human_characters: "humans only; props never belong here"
+    prop_bible: "recurring objects, including the anchor object"
+    twist: "non-empty description of the angle change"
+    payoff: "non-empty description of the final changed meaning"
+  rules:
+    - "A premise is a behavior plus prop, not a room description."
+    - "The anchor object is a single recurring object or symbol."
+    - "Settings can shift across panels; the prop carries continuity."
+    - "Panel 6 must be a turn: outside view, time jump, role inversion, object perspective, callback with a changed meaning, or new observer."
+    - "Do not use grammar, exercise, target, learner, lesson, worksheet, or pedagogy vocabulary in panel beats."
+
+surface_layer:
+  required_output:
+    captions: "one sparse French caption and one English translation per panel"
+    overlay_tasks: "French tasks extracted from follow-up beats that extend the captions"
+    final_prompt: "instruction and prompt_body must be different"
+  rules:
+    - "Write captions before tasks."
+    - "Tasks add a new beat after the panel; they do not copy the caption."
+    - "For French scenes, expected_answer, accepted_answers, and options are French."
+    - "Multiple-choice distractors are plausible valid French, not malformed giveaways."
+    - "Do not ask for an English sentence."
+    - "Produce 0-2 short French speech bubbles per panel when they sharpen the visual gag."
+    - "Speech bubbles are HTML overlays with x/y percentage coordinates; the image model must not draw them."
+    - "Bubbles should sound like in-world speech, not lesson narration, and must not repeat the caption."
+    - "Do not say 'the learner' or 'the user'."
+
+image_prompt_rules:
+  - "Use one focused image prompt per panel."
+  - "The prompt receives the scene preamble, human continuity, recurring props, panel action, action change, and decisive foreground instruction."
+  - "Do not include source names, story bible, grammar instructions, task wording, captions, or speech-bubble text in image prompts."
+  - "Forbid readable text and UI every time."
+  - "Prefer sparse editorial composition, halftone texture, negative space, and one decisive prop."
+
+quality_checks:
+  - "Reject empty twist/payoff."
+  - "Reject final panels that only add more of the same."
+  - "Reject English task answers in French scenes."
+  - "Reject invalid French distractors."
+  - "Reject repeated template beats."
+  - "Reject image prompts that leak source names or ask for readable text."

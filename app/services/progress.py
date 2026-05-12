@@ -33,6 +33,53 @@ class ProgressService:
         self.db = db
         self.scheduler = scheduler or FSRSScheduler()
 
+    @staticmethod
+    def _queue_stopwords() -> set[str]:
+        return {
+            "le",
+            "la",
+            "les",
+            "de",
+            "des",
+            "du",
+            "un",
+            "une",
+            "et",
+            "a",
+            "au",
+            "aux",
+            "en",
+            "dans",
+            "que",
+            "qui",
+            "ce",
+            "cet",
+            "cette",
+            "pour",
+        }
+
+    @staticmethod
+    def _is_skippable_queue_word(word: str | None, *, stopwords: set[str]) -> bool:
+        if not word:
+            return True
+        lowered = word.strip().lower()
+        return len(lowered) <= 2 or lowered in stopwords
+
+    @staticmethod
+    def _shared_direction_filter(direction: str | None):
+        if not direction:
+            return None
+        return or_(
+            VocabularyWord.direction == direction,
+            VocabularyWord.direction.is_(None),
+        )
+
+    @staticmethod
+    def _shared_deck_filter(deck_name: str | None):
+        if not deck_name:
+            return None
+        return VocabularyWord.deck_name == deck_name
+
     # ------------------------------------------------------------------
     # Query helpers
     # ------------------------------------------------------------------
@@ -72,46 +119,21 @@ class ProgressService:
         new_word_budget: int | None = None,
         exclude_ids: set[int] | None = None,
         direction: str | None = None,
+        deck_name: str | None = None,
     ) -> list[QueueItem]:
         """Return due and new words for a learner."""
 
         now = now or datetime.now(timezone.utc)
         today = now.date()
         exclude_ids = exclude_ids or set()
-        # Basic stopword/length filter to avoid proposing ultra-common function words
-        stopwords = {
-            "le",
-            "la",
-            "les",
-            "de",
-            "des",
-            "du",
-            "un",
-            "une",
-            "et",
-            "a",
-            "au",
-            "aux",
-            "en",
-            "dans",
-            "que",
-            "qui",
-            "ce",
-            "cet",
-            "cette",
-            "pour",
-        }
-        def _is_skippable_word(w: str | None) -> bool:
-            if not w:
-                return True
-            lw = w.strip().lower()
-            return len(lw) <= 2 or lw in stopwords
+        stopwords = self._queue_stopwords()
+        target_language = (user.target_language or "fr").strip() or "fr"
         due_stmt = (
             select(UserVocabularyProgress)
             .options(joinedload(UserVocabularyProgress.word))
             .join(VocabularyWord, VocabularyWord.id == UserVocabularyProgress.word_id)
             .where(UserVocabularyProgress.user_id == user.id)
-            .where(VocabularyWord.is_anki_card.is_(True))
+            .where(VocabularyWord.language == target_language)
             .where(
                 or_(
                     UserVocabularyProgress.due_date.is_(None),
@@ -119,8 +141,12 @@ class ProgressService:
                 )
             )
         )
-        if direction:
-            due_stmt = due_stmt.where(VocabularyWord.direction == direction)
+        direction_filter = self._shared_direction_filter(direction)
+        deck_filter = self._shared_deck_filter(deck_name)
+        if direction_filter is not None:
+            due_stmt = due_stmt.where(direction_filter)
+        if deck_filter is not None:
+            due_stmt = due_stmt.where(deck_filter)
         due_stmt = due_stmt.order_by(
             UserVocabularyProgress.due_date.asc().nullsfirst(),
             UserVocabularyProgress.created_at.asc(),
@@ -132,7 +158,7 @@ class ProgressService:
         items: list[QueueItem] = []
         for progress in due_progress:
             word = progress.word
-            if word is None or _is_skippable_word(word.word):
+            if word is None or self._is_skippable_queue_word(word.word, stopwords=stopwords):
                 continue
             if word.id in seen_word_ids:
                 continue
@@ -145,12 +171,14 @@ class ProgressService:
                 .options(joinedload(UserVocabularyProgress.word))
                 .join(VocabularyWord, VocabularyWord.id == UserVocabularyProgress.word_id)
                 .where(UserVocabularyProgress.user_id == user.id)
-                .where(VocabularyWord.is_anki_card.is_(True))
+                .where(VocabularyWord.language == target_language)
                 .where(UserVocabularyProgress.due_date.isnot(None))
                 .where(UserVocabularyProgress.due_date > today)
             )
-            if direction:
-                upcoming_stmt = upcoming_stmt.where(VocabularyWord.direction == direction)
+            if direction_filter is not None:
+                upcoming_stmt = upcoming_stmt.where(direction_filter)
+            if deck_filter is not None:
+                upcoming_stmt = upcoming_stmt.where(deck_filter)
             if exclude_ids:
                 upcoming_stmt = upcoming_stmt.where(
                     UserVocabularyProgress.word_id.notin_(exclude_ids)
@@ -165,7 +193,9 @@ class ProgressService:
             ).limit(limit - len(items))
             upcoming_progress = list(self.db.scalars(upcoming_stmt))
             for progress in upcoming_progress:
-                if not progress.word or _is_skippable_word(progress.word.word):
+                if not progress.word or self._is_skippable_queue_word(
+                    progress.word.word, stopwords=stopwords
+                ):
                     continue
                 items.append(QueueItem(word=progress.word, progress=progress, is_new=False))
                 seen_word_ids.add(progress.word.id)
@@ -188,11 +218,15 @@ class ProgressService:
 
         # New word selection below reuses the same stopword/length filter
 
-        new_conditions = [not_(VocabularyWord.id.in_(words_seen_subquery))]
+        new_conditions = [
+            not_(VocabularyWord.id.in_(words_seen_subquery)),
+            VocabularyWord.language == target_language,
+        ]
+        if direction_filter is not None:
+            new_conditions.append(direction_filter)
+        if deck_filter is not None:
+            new_conditions.append(deck_filter)
         new_word_stmt = select(VocabularyWord).where(and_(*new_conditions))
-        new_word_stmt = new_word_stmt.where(VocabularyWord.is_anki_card.is_(True))
-        if direction:
-            new_word_stmt = new_word_stmt.where(VocabularyWord.direction == direction)
         if exclude_ids:
             new_word_stmt = new_word_stmt.where(VocabularyWord.id.notin_(exclude_ids))
         new_word_stmt = (
@@ -213,37 +247,22 @@ class ProgressService:
         limit: int,
         exclude_ids: set[int] | None = None,
         direction: str | None = None,
+        deck_name: str | None = None,
     ) -> list[VocabularyWord]:
-        stopwords = {
-            "le",
-            "la",
-            "les",
-            "de",
-            "des",
-            "du",
-            "un",
-            "une",
-            "et",
-            "a",
-            "au",
-            "aux",
-            "en",
-            "dans",
-            "que",
-            "qui",
-            "ce",
-            "cet",
-            "cette",
-            "pour",
-        }
+        stopwords = self._queue_stopwords()
+        target_language = (user.target_language or "fr").strip() or "fr"
         query = (
             self.db.query(VocabularyWord)
             .filter(func.length(VocabularyWord.word) > 2)
             .filter(func.lower(VocabularyWord.word).notin_(stopwords))
-            .filter(VocabularyWord.is_anki_card.is_(True))
+            .filter(VocabularyWord.language == target_language)
         )
-        if direction:
-            query = query.filter(VocabularyWord.direction == direction)
+        direction_filter = self._shared_direction_filter(direction)
+        if direction_filter is not None:
+            query = query.filter(direction_filter)
+        deck_filter = self._shared_deck_filter(deck_name)
+        if deck_filter is not None:
+            query = query.filter(deck_filter)
         if exclude_ids:
             query = query.filter(~VocabularyWord.id.in_(exclude_ids))
         query = query.order_by(func.random()).limit(limit)
@@ -410,12 +429,18 @@ class ProgressService:
         user_id: uuid.UUID,
         now: datetime | None = None,
         direction: str | None = None,
+        include_upcoming_days: int = 0,
+        deck_name: str | None = None,
     ) -> int:
         """Return how many reviews are currently due for the learner."""
 
         now = now or datetime.now(timezone.utc)
         today = now.date()
-        cache_key = f"{user_id}:{direction or 'all'}:{today.isoformat()}"
+        upcoming_limit = today + timedelta(days=max(0, include_upcoming_days))
+        cache_key = (
+            f"{user_id}:{direction or 'all'}:{deck_name or 'all'}:"
+            f"{today.isoformat()}:{include_upcoming_days}"
+        )
         cached = cache_backend.get("progress:due_reviews", cache_key)
         if cached is not None:
             return int(cached)
@@ -427,12 +452,14 @@ class ProgressService:
                 UserVocabularyProgress.user_id == user_id,
                 or_(
                     UserVocabularyProgress.due_date.is_(None),
-                    UserVocabularyProgress.due_date <= now.date(),
+                    UserVocabularyProgress.due_date <= upcoming_limit,
                 ),
             )
         )
         if direction:
             query = query.filter(VocabularyWord.direction == direction)
+        if deck_name:
+            query = query.filter(VocabularyWord.deck_name == deck_name)
         count = query.scalar()
         result = int(count or 0)
         cache_backend.set("progress:due_reviews", cache_key, result, ttl_seconds=60)
@@ -444,10 +471,16 @@ class ProgressService:
         session_capacity: int,
         now: datetime | None = None,
         direction: str | None = None,
+        deck_name: str | None = None,
     ) -> int:
         """Determine how many new words can be introduced in the current session."""
 
-        due_reviews = self.count_due_reviews(user_id, now=now, direction=direction)
+        due_reviews = self.count_due_reviews(
+            user_id,
+            now=now,
+            direction=direction,
+            deck_name=deck_name,
+        )
         if due_reviews >= session_capacity:
             return 0
 
@@ -462,6 +495,7 @@ class ProgressService:
         lookback_days: int = 7,
         now: datetime | None = None,
         direction: str | None = None,
+        deck_name: str | None = None,
     ) -> float:
         """Calculate a learner's recent review performance score."""
 
@@ -478,6 +512,8 @@ class ProgressService:
         )
         if direction:
             query = query.filter(VocabularyWord.direction == direction)
+        if deck_name:
+            query = query.filter(VocabularyWord.deck_name == deck_name)
         recent_reviews = query.all()
 
         if not recent_reviews:
@@ -491,10 +527,15 @@ class ProgressService:
         self,
         user_id: uuid.UUID,
         direction: str | None = None,
+        deck_name: str | None = None,
     ) -> float:
         """Return the desired review ratio based on learner performance."""
 
-        performance = self.calculate_review_performance(user_id, direction=direction)
+        performance = self.calculate_review_performance(
+            user_id,
+            direction=direction,
+            deck_name=deck_name,
+        )
         if performance < 0.5:
             return 0.75
         if performance < 0.7:

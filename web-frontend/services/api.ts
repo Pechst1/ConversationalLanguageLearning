@@ -13,6 +13,328 @@ export interface LiveStory {
   language: string;
 }
 
+export interface LiveStoryListResponse {
+  items: LiveStory[];
+  topics_used: string[];
+}
+
+export interface AtelierConcept {
+  id: number;
+  external_id?: string | null;
+  name: string;
+  level: string;
+  category?: string | null;
+  subskill?: string | null;
+  core_rule?: string | null;
+  main_traps: string[];
+  anchor_examples: string[];
+  exercise_tags: string[];
+  is_foundation: boolean;
+  role?: string | null;
+  mastery: number;
+  next_review?: string | null;
+  due_errata?: AtelierErratum[];
+  atelier_blueprint?: Record<string, any> | null;
+}
+
+export interface AtelierErratum {
+  id?: string;
+  concept_id?: number | null;
+  source_attempt_id?: string | null;
+  display_label: string;
+  task_error_type?: string;
+  error_category?: string;
+  review_mode?: string;
+  source_type?: string;
+  source_label?: string;
+  memory_key?: string;
+  linked_word_id?: number | null;
+  reason?: string;
+  metadata?: Record<string, any>;
+  learner_text?: string | null;
+  corrected_target?: string | null;
+  why_wrong?: string | null;
+  repair_hint?: string | null;
+  next_review_date?: string | null;
+  last_review_date?: string | null;
+  occurrences?: number;
+  lapses?: number;
+  state?: string;
+  recurring?: boolean;
+  severity?: number;
+}
+
+export interface AtelierToday {
+  concepts: AtelierConcept[];
+  quote: Record<string, any>;
+  summary: Record<string, any>;
+  atlas: Array<Record<string, any>>;
+  due_errata: AtelierErratum[];
+}
+
+export interface UnifiedSRSItem {
+  id: string;
+  item_type: 'vocab' | 'grammar' | 'error' | string;
+  priority_score: number;
+  display_title: string;
+  display_subtitle: string;
+  level: string;
+  due_since_days: number;
+  estimated_seconds: number;
+  original_id?: string | number | null;
+  metadata: Record<string, any>;
+}
+
+export interface UnifiedSRSQueue {
+  summary: {
+    total_due: number;
+    total_new: number;
+    estimated_minutes: number;
+    by_type: Record<string, { due: number; new: number; minutes: number }>;
+  };
+  queue: UnifiedSRSItem[];
+  interleaving_mode: string;
+  time_budget_minutes?: number | null;
+}
+
+export interface AtelierAttemptRead {
+  attempt_id: string;
+  session_id: string;
+  concept_id?: number | null;
+  round: 'recognize' | 'transform' | 'sentence' | 'produce' | 'speak' | 'conversation';
+  mode: string;
+  exercise_id: string;
+  prompt_payload: Record<string, any>;
+  answer_payload: Record<string, any>;
+  correction: Record<string, any>;
+  verdict: string;
+  score_0_4: number;
+  submitted_key: string;
+  created_at?: string | null;
+}
+
+export interface AtelierSessionStart {
+  session_id: string;
+  status: string;
+  concepts: AtelierConcept[];
+  quote: Record<string, any>;
+  exercise_sets: Array<{
+    id: string;
+    concept_id: number;
+    generator_version: string;
+    source: string;
+    payload: Record<string, any>;
+  }>;
+  attempts: AtelierAttemptRead[];
+  submitted_map: Record<string, boolean>;
+  current_position: {
+    round?: 'recognize' | 'transform' | 'sentence' | 'produce' | 'speak' | 'conversation' | 'complete';
+    mode?: string;
+    concept_id?: number | null;
+    concept_index?: number;
+  };
+  due_errata: AtelierErratum[];
+  recap: Record<string, any>;
+}
+
+export interface AtelierAttemptResult {
+  attempt_id: string;
+  verdict: string;
+  score_0_4: number;
+  correction: Record<string, any>;
+}
+
+export interface AtelierErrataReviewTask {
+  error_id: string;
+  display_label: string;
+  review_mode: string;
+  source_type?: string;
+  source_label?: string;
+  reason?: string;
+  instruction: string;
+  prompt: string;
+  placeholder: string;
+  learner_text?: string | null;
+  why_wrong?: string | null;
+  repair_hint?: string | null;
+  target_answer: string;
+  occurrences?: number;
+  lapses?: number;
+  next_review_date?: string | null;
+}
+
+export interface AtelierErrataAttemptResult {
+  verdict: string;
+  score_0_4: number;
+  is_correct: boolean;
+  answer_text: string;
+  target_answer: string;
+  feedback: string;
+  erratum: AtelierErratum;
+  task: AtelierErrataReviewTask;
+}
+
+export interface GrammarNotebookProgress {
+  score: number;
+  reps: number;
+  state: string;
+  state_label: string;
+  notes?: string | null;
+  last_review?: string | null;
+  next_review?: string | null;
+}
+
+export interface GrammarNotebookItem {
+  id: number;
+  external_id?: string | null;
+  language: string;
+  name: string;
+  display_title: string;
+  localized_title?: string | null;
+  localized_category?: string | null;
+  localized_subskill?: string | null;
+  level: string;
+  category?: string | null;
+  subskill?: string | null;
+  catalog_version?: string | null;
+  source_refs?: Record<string, any>;
+  is_foundation: boolean;
+  active: boolean;
+  mastery: number;
+  state: string;
+  state_label: string;
+  next_review?: string | null;
+  due_errata_count: number;
+  recent_errata_count: number;
+  motif?: Record<string, any>;
+  blueprint_status?: string | null;
+  blueprint_quality?: Record<string, any>;
+}
+
+export interface GrammarNotebookDetail extends GrammarNotebookItem {
+  core_rule?: string | null;
+  main_traps: string[];
+  anchor_examples: string[];
+  exercise_tags: string[];
+  description?: string | null;
+  examples?: string | null;
+  atelier_blueprint?: Record<string, any>;
+  progress?: GrammarNotebookProgress | null;
+  due_errata: AtelierErratum[];
+  recent_errata: AtelierErratum[];
+  personal_notes?: string | null;
+}
+
+export interface RealWorldMission {
+  id: string;
+  status: 'available' | 'in_progress' | 'completed' | string;
+  cadence: 'weekly' | 'post_session' | 'ad_hoc' | string;
+  mission_type: 'message' | 'explain_plan' | 'news_summary' | 'travel_work' | 'conversation' | string;
+  atelier_session_id?: string | null;
+  iso_year?: number | null;
+  iso_week?: number | null;
+  title: string;
+  brief: string;
+  selected_concept_ids: number[];
+  target_errata_ids: string[];
+  target_vocabulary_ids: number[];
+  source_snapshot: Record<string, any>;
+  objectives: Array<Record<string, any>>;
+  prompt_payload: Record<string, any>;
+  recap: Record<string, any>;
+  attempts?: Array<Record<string, any>>;
+  turns?: Array<Record<string, any>>;
+  created_at?: string | null;
+  started_at?: string | null;
+  completed_at?: string | null;
+}
+
+export interface MissionToday {
+  weekly_mission: RealWorldMission | null;
+  post_session_recommendation: RealWorldMission | null;
+  active_mission: RealWorldMission | null;
+  recent_completed: RealWorldMission[];
+}
+
+export interface MissionAttemptResult {
+  attempt: Record<string, any>;
+  correction: Record<string, any>;
+  errata: Array<Record<string, any>>;
+  mission: RealWorldMission;
+}
+
+export interface MissionTurnResult {
+  user_turn: Record<string, any>;
+  assistant_turn: Record<string, any>;
+  correction: Record<string, any>;
+  errata: Array<Record<string, any>>;
+  mission: RealWorldMission;
+}
+
+export interface GraphicNovelPanel {
+  id: string;
+  panel_index: number;
+  title: string;
+  beat: string;
+  image_prompt: string;
+  image_url?: string | null;
+  image_payload: Record<string, any>;
+  overlay_payload: Record<string, any>;
+  generation_metadata: Record<string, any>;
+  created_at?: string | null;
+}
+
+export interface GraphicNovelScene {
+  id: string;
+  status: 'available' | 'in_progress' | 'completed' | string;
+  cadence: 'ad_hoc' | 'post_session' | 'weekly' | string;
+  atelier_session_id?: string | null;
+  mission_id?: string | null;
+  personal_input_item_id?: string | null;
+  title: string;
+  brief: string;
+  selected_concept_ids: number[];
+  target_errata_ids: string[];
+  target_vocabulary_ids: number[];
+  source_snapshot: Record<string, any>;
+  script_payload: Record<string, any>;
+  recap: Record<string, any>;
+  cache_key: string;
+  prompt_version: string;
+  image_model: string;
+  image_quality: string;
+  panels?: GraphicNovelPanel[];
+  attempts?: Array<Record<string, any>>;
+  created_at?: string | null;
+  started_at?: string | null;
+  completed_at?: string | null;
+}
+
+export interface GraphicNovelToday {
+  active_scene: GraphicNovelScene | null;
+  available_scene: GraphicNovelScene | null;
+  recent_completed: GraphicNovelScene[];
+  recommendation: Record<string, any>;
+}
+
+export interface GraphicNovelAttemptResult {
+  attempt: Record<string, any>;
+  correction: Record<string, any>;
+  errata: Array<Record<string, any>>;
+  scene: GraphicNovelScene;
+}
+
+function apiErrorMessage(error: any): string {
+  const detail = error?.response?.data?.detail;
+  if (typeof detail === 'string') return detail;
+  if (detail && typeof detail === 'object') {
+    if (typeof detail.message === 'string') return detail.message;
+    if (typeof detail.code === 'string') return detail.code.replaceAll('_', ' ');
+  }
+  if (typeof error?.message === 'string') return error.message;
+  return 'An error occurred';
+}
+
 class ApiService {
   private api: AxiosInstance;
 
@@ -47,7 +369,12 @@ class ApiService {
     this.api.interceptors.response.use(
       (response: AxiosResponse) => response,
       (error) => {
-        const message = error.response?.data?.detail || error.message || 'An error occurred';
+        const detail = error.response?.data?.detail;
+        const message = apiErrorMessage(error);
+
+        if (detail?.code === 'feuilleton_generation_failed') {
+          return Promise.reject(error);
+        }
 
         switch (error.response?.status) {
           case 401:
@@ -61,9 +388,9 @@ class ApiService {
             toast.error('Resource not found.');
             break;
           case 422:
-            if (typeof message === 'object') {
+            if (detail && typeof detail === 'object') {
               // Handle validation errors
-              const validationErrors = message.detail || message;
+              const validationErrors = detail.detail || detail;
               if (Array.isArray(validationErrors)) {
                 validationErrors.forEach((err: any) => {
                   toast.error(`${err.loc?.join(' -> ')}: ${err.msg}`);
@@ -112,8 +439,21 @@ class ApiService {
   }
 
   // Authentication endpoints
-  async register(userData: { email: string; password: string; name?: string }) {
-    return this.post('/auth/register', userData);
+  async register(userData: {
+    email: string;
+    password: string;
+    full_name?: string;
+    name?: string;
+    native_language?: string;
+    target_language?: string;
+    proficiency_level?: string;
+    interests?: string;
+  }) {
+    const { name, ...rest } = userData;
+    return this.post('/auth/register', {
+      ...rest,
+      full_name: rest.full_name || name,
+    });
   }
 
   async login(credentials: { email: string; password: string }) {
@@ -161,8 +501,8 @@ class ApiService {
     return this.post('/sessions/quick-start', data || {});
   }
 
-  async getLiveStories(params?: { limit?: number }) {
-    return this.get<{ items: LiveStory[] }>('/sessions/live-stories', { params });
+  async getLiveStories(params?: { limit?: number; topics?: string }) {
+    return this.get<LiveStoryListResponse>('/sessions/live-stories', { params });
   }
 
   async getSession(sessionId: string) {
@@ -179,6 +519,18 @@ class ApiService {
 
   async getSessionMessages(sessionId: string, params?: { limit?: number; offset?: number }) {
     return this.get(`/sessions/${sessionId}/messages`, { params });
+  }
+
+  async submitSessionMoment(
+    sessionId: string,
+    momentId: string,
+    data: { answer_text?: string; selected_choice?: string; skipped?: boolean },
+  ) {
+    return this.post(`/sessions/${sessionId}/moments/${momentId}/submit`, data);
+  }
+
+  async skipSessionMoment(sessionId: string, momentId: string) {
+    return this.post(`/sessions/${sessionId}/moments/${momentId}/skip`, {});
   }
 
   async logExposure(sessionId: string, data: { word_id: number; exposure_type: 'hint' | 'translation' }) {
@@ -210,6 +562,14 @@ class ApiService {
   // Progress endpoints
   async getProgressQueue(params?: { direction?: string; limit?: number }) {
     return this.get('/progress/queue', { params });
+  }
+
+  async getUnifiedSRSQueue(params?: {
+    limit?: number;
+    time_budget_minutes?: number;
+    interleaving_mode?: 'random' | 'blocks' | 'priority';
+  }): Promise<UnifiedSRSQueue> {
+    return this.get('/progress/unified-queue', { params });
   }
 
   async getAnkiProgress(params?: { direction?: string }) {
@@ -288,6 +648,18 @@ class ApiService {
     return this.get('/grammar/concepts', { params });
   }
 
+  async getGrammarNotebook(params?: { level?: string; category?: string; q?: string; locale?: string; limit?: number; offset?: number }) {
+    return this.get<GrammarNotebookItem[]>('/grammar/notebook', { params });
+  }
+
+  async getGrammarNotebookConcept(conceptId: number, params?: { locale?: string }) {
+    return this.get<GrammarNotebookDetail>(`/grammar/notebook/${conceptId}`, { params });
+  }
+
+  async updateGrammarNotebookNotes(conceptId: number, data: { notes: string }) {
+    return this.patch<GrammarNotebookDetail>(`/grammar/notebook/${conceptId}/notes`, data);
+  }
+
   async getGrammarConceptsByLevel() {
     return this.get('/grammar/by-level');
   }
@@ -328,89 +700,145 @@ class ApiService {
     return this.post('/grammar/mark-practiced-in-context', conceptIds);
   }
 
-  // Grammar Exercise endpoints
-  async generateGrammarExercise(data: { concept_id: number; count?: number; focus_areas?: string[] }) {
-    return this.post<{
-      concept_id: number;
-      concept_name: string;
-      level: string;
-      exercises: any[];
-      flat_exercises: any[];
-      explanation?: any | null;
-    }>('/grammar/exercise/generate', data);
+  // Atelier grammar practice endpoints
+  async getAtelierToday() {
+    return this.get<AtelierToday>('/atelier/today');
   }
 
-  async checkGrammarAnswers(data: { concept_id: number; exercises: any[]; answers: string[] }) {
-    return this.post('/grammar/exercise/check', data);
+  async startAtelierSession(data?: { concept_ids?: number[]; preferred_concept_id?: number }) {
+    return this.post<AtelierSessionStart>('/atelier/sessions', data || {});
   }
 
-  // Daily Practice (Unified SRS) endpoints
-  async getDailyPracticeSummary() {
-    return this.get('/daily-practice/summary');
+  async getActiveAtelierSession() {
+    return this.get<{ session: AtelierSessionStart | null }>('/atelier/sessions/active');
   }
 
-  async getDailyPracticeQueue(settings?: {
-    time_budget_minutes?: number | null;
-    new_vocab_limit?: number;
-    new_grammar_limit?: number;
-    interleaving_mode?: 'random' | 'blocks' | 'priority';
-  }) {
-    return this.post('/daily-practice/queue', settings || {});
+  async getAtelierSession(sessionId: string) {
+    return this.get<AtelierSessionStart>(`/atelier/sessions/${sessionId}`);
   }
 
-  async completePracticeItem(
-    itemType: string,
-    itemId: string,
-    data: { rating: number; response_time_ms?: number }
+  async submitAtelierAttempt(
+    sessionId: string,
+    data: {
+      concept_id?: number | null;
+      round: 'recognize' | 'transform' | 'sentence' | 'produce' | 'speak' | 'conversation';
+      mode: string;
+      exercise_id: string;
+      answer_payload: Record<string, any>;
+      resubmit?: boolean;
+    }
   ) {
-    return this.post(`/daily-practice/complete/${itemType}/${itemId}`, data);
+    return this.post<AtelierAttemptResult>(`/atelier/sessions/${sessionId}/attempts`, data);
   }
 
-  // Brief Exercise endpoints (for interactive daily practice)
-  async generateBriefGrammarExercises(conceptId: number) {
-    return this.post<{
-      concept_id: number;
-      concept_name: string;
-      level: string;
-      exercises: Array<{
-        id: string;
-        type: string;
-        difficulty: string;
-        instruction: string;
-        prompt: string;
-        correct_answer: string;
-        hint?: string;
-      }>;
-    }>(`/daily-practice/grammar/${conceptId}/exercises`);
+  async completeAtelierSession(sessionId: string) {
+    return this.post<{ session_id: string; recap: Record<string, any> }>(`/atelier/sessions/${sessionId}/complete`);
   }
 
-  async generateErrorExercise(errorId: string) {
-    return this.post<{
-      error_id: string;
-      exercise_type: string;
-      instruction: string;
-      prompt: string;
-      correct_answer: string;
-      explanation: string;
-      memory_tip?: string;
-      original_text?: string;
-      stored_correction?: string;
-    }>(`/daily-practice/error/${errorId}/exercise`);
+  async reviewAtelierErratum(errorId: string, data?: { rating?: number; repaired?: boolean }) {
+    return this.post<{ erratum: AtelierErratum }>(`/atelier/errata/${errorId}/review`, data || {});
   }
 
-  async checkBriefAnswer(data: {
-    exercise_type: string;
-    prompt: string;
-    correct_answer: string;
-    user_answer: string;
-    concept_id?: number | null;
+  async getAtelierErratumTask(errorId: string) {
+    return this.get<{ task: AtelierErrataReviewTask }>(`/atelier/errata/${errorId}/task`);
+  }
+
+  async submitAtelierErratumAttempt(errorId: string, data: { answer_text: string }) {
+    return this.post<AtelierErrataAttemptResult>(`/atelier/errata/${errorId}/attempt`, data);
+  }
+
+  // Real-world scenario missions
+  async getMissionsToday() {
+    return this.get<MissionToday>('/missions/today');
+  }
+
+  async createMission(data: {
+    mission_type?: string;
+    cadence?: string;
+    atelier_session_id?: string;
+    preferred_concept_ids?: number[];
+    preferred_errata_ids?: string[];
+    use_news?: boolean;
+    custom_scenario?: string;
+    desired_outcome?: string;
+    relationship?: string;
+    register?: string;
   }) {
-    return this.post<{
-      is_correct: boolean;
-      feedback: string;
-      explanation: string;
-      score: number;
-    }>('/daily-practice/check-answer', data);
+    const response = await this.post<{ mission: RealWorldMission }>('/missions', data);
+    return response.mission;
+  }
+
+  async getMission(missionId: string) {
+    const response = await this.get<{ mission: RealWorldMission }>(`/missions/${missionId}`);
+    return response.mission;
+  }
+
+  async submitMission(missionId: string, data: { text: string; mode?: 'writing' | 'chat' | 'voice' }) {
+    return this.post<MissionAttemptResult>(`/missions/${missionId}/submit`, data);
+  }
+
+  async submitMissionTurn(missionId: string, data: { text: string; mode?: 'chat' | 'voice'; transcript_metadata?: Record<string, any> }) {
+    return this.post<MissionTurnResult>(`/missions/${missionId}/turns`, data);
+  }
+
+  async completeMission(missionId: string) {
+    const response = await this.post<{ mission: RealWorldMission; recap: Record<string, any> }>(`/missions/${missionId}/complete`);
+    return response;
+  }
+
+  async transcribeMissionAudio(audioBlob: Blob): Promise<string> {
+    const formData = new FormData();
+    formData.append('file', audioBlob, 'mission-audio.webm');
+
+    const response = await this.api.post<{ text: string }>('/missions/audio/transcribe', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data.text;
+  }
+
+  // Graphic Novel / Feuilleton practice
+  async getGraphicNovelToday() {
+    return this.get<GraphicNovelToday>('/graphic-novel/today');
+  }
+
+  async createGraphicNovelScene(data?: {
+    cadence?: 'ad_hoc' | 'post_session' | 'weekly';
+    atelier_session_id?: string;
+    mission_id?: string;
+    personal_input_item_id?: string;
+    preferred_concept_ids?: number[];
+    preferred_errata_ids?: string[];
+    use_news?: boolean;
+    panel_count?: 4 | 6 | 8;
+    story_quality?: 'standard' | 'premium';
+    humor_style?: 'dry' | 'satirical' | 'absurd';
+    experience_mode?: 'study' | 'reward';
+    render_mode?: 'page' | 'panels';
+    image_quality?: 'low' | 'medium' | 'high';
+    public_figure_mode?: 'off' | 'named_context' | 'editorial_caricature';
+    force_new?: boolean;
+    refresh_news?: boolean;
+  }) {
+    const response = await this.post<{ scene: GraphicNovelScene }>('/graphic-novel/scenes', data || {}, {
+      timeout: 720000,
+    });
+    return response.scene;
+  }
+
+  async getGraphicNovelScene(sceneId: string) {
+    const response = await this.get<{ scene: GraphicNovelScene }>(`/graphic-novel/scenes/${sceneId}`);
+    return response.scene;
+  }
+
+  async submitGraphicNovelAttempt(sceneId: string, data: { task_id: string; answer_payload: Record<string, any> }) {
+    return this.post<GraphicNovelAttemptResult>(`/graphic-novel/scenes/${sceneId}/attempts`, data);
+  }
+
+  async completeGraphicNovelScene(sceneId: string) {
+    const response = await this.post<{ scene: GraphicNovelScene; recap: Record<string, any> }>(`/graphic-novel/scenes/${sceneId}/complete`);
+    return response;
   }
 
   // ─────────────────────────────────────────────────────────────────

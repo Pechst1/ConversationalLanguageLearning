@@ -1,6 +1,5 @@
 import React from 'react';
 import { Mic, Volume2, VolumeX, EarOff, Ear } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
 import { useSpeakingMode } from '@/contexts/SpeakingModeContext';
 
 interface VoiceModeToggleProps {
@@ -29,94 +28,60 @@ export default function VoiceModeToggle({ className }: VoiceModeToggleProps) {
     } = useSpeakingMode();
 
     return (
-        <div className={`flex items-center gap-2 ${className || ''}`}>
-            {/* Speaking Mode Toggle */}
-            <Button
+        <div className={`flex flex-wrap items-center gap-2 ${className || ''}`}>
+            <button
                 type="button"
-                variant={isSpeakingMode ? "default" : "outline"}
-                size="sm"
                 onClick={toggleSpeakingMode}
-                className={`
-                    relative overflow-hidden transition-all duration-300
-                    ${isSpeakingMode
-                        ? 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white border-0 shadow-lg'
-                        : 'hover:bg-gray-100'
-                    }
-                `}
-                title={isSpeakingMode ? "Disable speaking mode" : "Enable speaking mode"}
+                className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm font-medium transition-colors ${
+                    isSpeakingMode
+                        ? 'border-stone-900 bg-stone-900 text-stone-50'
+                        : 'border-stone-200 bg-white text-stone-700 hover:border-stone-300 hover:bg-stone-50'
+                }`}
+                title={isSpeakingMode ? 'Disable speaking mode' : 'Enable speaking mode'}
             >
-                <div className="flex items-center gap-2">
-                    {isSpeakingMode ? (
-                        <>
-                            <Volume2 className={`h-4 w-4 ${isSpeaking ? 'animate-pulse' : ''}`} />
-                            <span className="text-sm font-medium hidden sm:inline">Voice ON</span>
-                            {isSpeaking && (
-                                <span className="absolute top-0 right-0 flex h-2 w-2">
-                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
-                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-white" />
-                                </span>
-                            )}
-                        </>
-                    ) : (
-                        <>
-                            <VolumeX className="h-4 w-4" />
-                            <span className="text-sm font-medium hidden sm:inline">Voice</span>
-                        </>
-                    )}
-                </div>
-            </Button>
+                {isSpeakingMode ? (
+                    <Volume2 className={`h-4 w-4 ${isSpeaking ? 'animate-pulse' : ''}`} />
+                ) : (
+                    <VolumeX className="h-4 w-4" />
+                )}
+                <span>{isSpeakingMode ? 'Voice on' : 'Voice'}</span>
+            </button>
 
-            {/* Audio-Only Mode Toggle - Only visible when speaking mode is on */}
-            {isSpeakingMode && (
-                <Button
+            {isSpeakingMode ? (
+                <button
                     type="button"
-                    variant={isAudioOnlyMode ? "default" : "outline"}
-                    size="sm"
                     onClick={toggleAudioOnlyMode}
-                    className={`
-                        relative overflow-hidden transition-all duration-300
-                        ${isAudioOnlyMode
-                            ? 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white border-0 shadow-lg'
-                            : 'hover:bg-gray-100 border-dashed'
-                        }
-                    `}
-                    title={isAudioOnlyMode
-                        ? "Disable listening mode (show text)"
-                        : "Enable listening mode (hide AI text for practice)"
+                    className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm font-medium transition-colors ${
+                        isAudioOnlyMode
+                            ? 'border-amber-300 bg-amber-50 text-amber-800'
+                            : 'border-stone-200 bg-white text-stone-700 hover:border-stone-300 hover:bg-stone-50'
+                    }`}
+                    title={
+                        isAudioOnlyMode
+                            ? 'Disable listening mode (show text)'
+                            : 'Enable listening mode (hide AI text for practice)'
                     }
                 >
-                    <div className="flex items-center gap-2">
-                        {isAudioOnlyMode ? (
-                            <>
-                                <Ear className="h-4 w-4" />
-                                <span className="text-sm font-medium hidden sm:inline">Listening</span>
-                            </>
-                        ) : (
-                            <>
-                                <EarOff className="h-4 w-4" />
-                                <span className="text-sm font-medium hidden sm:inline">Listen</span>
-                            </>
-                        )}
-                    </div>
-                </Button>
-            )}
+                    {isAudioOnlyMode ? <Ear className="h-4 w-4" /> : <EarOff className="h-4 w-4" />}
+                    <span>{isAudioOnlyMode ? 'Listening' : 'Listen'}</span>
+                </button>
+            ) : null}
 
-            {/* Help text */}
-            {isSpeakingMode && (
-                <div className="text-xs text-gray-500 hidden lg:block max-w-[150px]">
+            {isSpeakingMode ? (
+                <div className="hidden items-center gap-1 text-xs text-stone-500 lg:flex">
                     {isAudioOnlyMode ? (
-                        <span className="flex items-center gap-1 text-amber-600 font-medium">
-                            <Ear className="h-3 w-3" />
-                            Text hidden - click to reveal
-                        </span>
+                        <>
+                            <Ear className="h-3 w-3 text-amber-600" />
+                            <span>Text stays hidden until reveal or reply.</span>
+                        </>
                     ) : (
-                        <span className="flex items-center gap-1">
+                        <>
                             <Mic className="h-3 w-3" />
-                            Press mic to speak
-                        </span>
+                            <span>Use the mic in the composer when you want to speak.</span>
+                        </>
                     )}
                 </div>
-            )}
+            ) : null}
         </div>
     );
 }

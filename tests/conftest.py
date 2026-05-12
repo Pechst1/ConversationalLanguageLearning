@@ -5,6 +5,8 @@ import os
 from collections.abc import AsyncGenerator, Generator
 
 os.environ.setdefault("SECRET_KEY", "test-secret-key")
+os.environ.setdefault("ATELIER_LLM_ENABLED", "false")
+os.environ.setdefault("GRAPHIC_NOVEL_IMAGE_GENERATION_ENABLED", "false")
 
 import pytest
 try:  # pragma: no cover - optional dependency
@@ -22,8 +24,34 @@ from app.db.models.achievement import Achievement, UserAchievement
 from app.db.base import Base
 from app.db.models import User, VocabularyWord
 from app.db.models.analytics import AnalyticsSnapshot
+from app.db.models.atelier import (
+    AtelierAttempt,
+    AtelierConceptBlueprint,
+    AtelierExerciseSet,
+    AtelierLanguagePack,
+    AtelierSession,
+)
+from app.db.models.error import UserError, UserErrorConcept
+from app.db.models.mission import RealWorldMission, RealWorldMissionAttempt, RealWorldMissionTurn
+from app.db.models.graphic_novel import (
+    GraphicNovelAttempt,
+    GraphicNovelPanel,
+    GraphicNovelScene,
+    PersonalInputItem,
+)
+from app.db.models.grammar import (
+    GrammarConcept,
+    GrammarConceptArchive,
+    GrammarConceptLocalization,
+    UserGrammarProgress,
+)
 from app.db.models.progress import ReviewLog, UserVocabularyProgress
-from app.db.models.session import ConversationMessage, LearningSession, WordInteraction
+from app.db.models.session import (
+    ConversationMessage,
+    LearningSession,
+    SessionLearningMoment,
+    WordInteraction,
+)
 from app.main import create_app
 from app.utils.cache import cache_backend
 
@@ -50,10 +78,29 @@ def db_engine():
             UserAchievement.__table__,
             AnalyticsSnapshot.__table__,
             VocabularyWord.__table__,
+            GrammarConcept.__table__,
+            GrammarConceptArchive.__table__,
+            GrammarConceptLocalization.__table__,
+            UserGrammarProgress.__table__,
+            AtelierLanguagePack.__table__,
+            AtelierConceptBlueprint.__table__,
+            AtelierSession.__table__,
+            AtelierExerciseSet.__table__,
+            AtelierAttempt.__table__,
+            RealWorldMission.__table__,
+            RealWorldMissionAttempt.__table__,
+            RealWorldMissionTurn.__table__,
+            PersonalInputItem.__table__,
+            GraphicNovelScene.__table__,
+            GraphicNovelPanel.__table__,
+            GraphicNovelAttempt.__table__,
+            UserError.__table__,
+            UserErrorConcept.__table__,
             UserVocabularyProgress.__table__,
             ReviewLog.__table__,
             LearningSession.__table__,
             ConversationMessage.__table__,
+            SessionLearningMoment.__table__,
             WordInteraction.__table__,
         ],
     )
@@ -64,11 +111,30 @@ def db_engine():
             bind=engine,
             tables=[
                 WordInteraction.__table__,
+                SessionLearningMoment.__table__,
                 ConversationMessage.__table__,
                 LearningSession.__table__,
                 ReviewLog.__table__,
                 UserVocabularyProgress.__table__,
                 AnalyticsSnapshot.__table__,
+                UserErrorConcept.__table__,
+                UserError.__table__,
+                GraphicNovelAttempt.__table__,
+                GraphicNovelPanel.__table__,
+                GraphicNovelScene.__table__,
+                PersonalInputItem.__table__,
+                RealWorldMissionTurn.__table__,
+                RealWorldMissionAttempt.__table__,
+                RealWorldMission.__table__,
+                AtelierAttempt.__table__,
+                AtelierExerciseSet.__table__,
+                AtelierSession.__table__,
+                AtelierConceptBlueprint.__table__,
+                AtelierLanguagePack.__table__,
+                UserGrammarProgress.__table__,
+                GrammarConceptLocalization.__table__,
+                GrammarConceptArchive.__table__,
+                GrammarConcept.__table__,
                 VocabularyWord.__table__,
                 UserAchievement.__table__,
                 Achievement.__table__,

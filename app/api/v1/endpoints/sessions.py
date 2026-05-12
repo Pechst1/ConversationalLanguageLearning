@@ -10,6 +10,8 @@ from app.api.deps import get_current_user, get_session_service
 from app.api.v1.endpoints.session_utils import (
     assistant_turn_to_schema,
     error_feedback_from_result,
+    learning_moment_result_to_schema,
+    learning_moment_to_schema,
     message_to_schema,
     session_to_overview,
     word_feedback_to_schema,
@@ -23,6 +25,8 @@ from app.schemas import (
     SessionCreateRequest,
     SessionMessageListResponse,
     SessionMessageRequest,
+    SessionMomentSubmitRequest,
+    SessionMomentSubmitResponse,
     SessionOverview,
     SessionStartResponse,
     SessionStatusUpdate,
@@ -110,13 +114,19 @@ async def create_quick_session(
 @router.get("/live-stories", response_model=LiveStoryListResponse)
 async def get_live_stories(
     limit: int = Query(6, ge=1, le=12),
+    topics: str | None = Query(
+        default=None,
+        description="Optional comma-separated topics to override profile interests",
+    ),
     *,
     current_user: User = Depends(get_current_user),
 ) -> LiveStoryListResponse:
     """Fetch live headlines in the learner's target language for quick-start selection."""
     from app.services.news_service import NewsService
 
-    interests = [tag.strip() for tag in (current_user.interests or "").split(",") if tag.strip()]
+    profile_interests = [tag.strip() for tag in (current_user.interests or "").split(",") if tag.strip()]
+    requested_topics = [tag.strip() for tag in (topics or "").split(",") if tag.strip()]
+    interests = requested_topics if requested_topics else profile_interests
     news_service = NewsService()
     try:
         context = await news_service.fetch_news_context(
@@ -148,7 +158,7 @@ async def get_live_stories(
             )
         )
 
-    return LiveStoryListResponse(items=stories)
+    return LiveStoryListResponse(items=stories, topics_used=interests)
 
 
 @router.get("", response_model=list[SessionOverview])
@@ -198,8 +208,17 @@ def list_session_messages(
         user=current_user,
         message_ids=[message.id for message in messages],
     )
+    moment_map = service.build_message_moment_map(
+        session=session,
+        user=current_user,
+        message_ids=[message.id for message in messages],
+    )
     items = [
-        message_to_schema(message, target_details=target_map.get(message.id, []))
+        message_to_schema(
+            message,
+            target_details=target_map.get(message.id, []),
+            pending_moment=moment_map.get(message.id),
+        )
         for message in messages
     ]
     return SessionMessageListResponse(items=items, total=len(items))
@@ -238,8 +257,84 @@ def post_session_message(
         user_message=user_message,
         assistant_turn=assistant_schema,
         xp_awarded=result.xp_awarded,
+        combo_count=result.combo_count,
         error_feedback=error_feedback,
         word_feedback=word_feedback,
+    )
+
+
+@router.post(
+    "/{session_id}/moments/{moment_id}/submit",
+    response_model=SessionMomentSubmitResponse,
+)
+def submit_session_moment(
+    session_id: UUID,
+    moment_id: UUID,
+    payload: SessionMomentSubmitRequest,
+    *,
+    service: SessionService = Depends(get_session_service),
+    current_user: User = Depends(get_current_user),
+) -> SessionMomentSubmitResponse:
+    session = _resolve_session(service, session_id, current_user)
+    try:
+        result = service.submit_learning_moment(
+            session=session,
+            user=current_user,
+            moment_id=moment_id,
+            answer_text=payload.answer_text,
+            selected_choice=payload.selected_choice,
+            skipped=payload.skipped,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    moment_result = learning_moment_result_to_schema(result.moment_evaluation)
+    if not moment_result:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Learning moment result could not be serialized",
+        )
+    return SessionMomentSubmitResponse(
+        session=session_to_overview(result.session),
+        moment_result=moment_result,
+        assistant_turn=assistant_turn_to_schema(result.assistant_turn),
+        next_moment=learning_moment_to_schema(result.next_moment),
+    )
+
+
+@router.post(
+    "/{session_id}/moments/{moment_id}/skip",
+    response_model=SessionMomentSubmitResponse,
+)
+def skip_session_moment(
+    session_id: UUID,
+    moment_id: UUID,
+    *,
+    service: SessionService = Depends(get_session_service),
+    current_user: User = Depends(get_current_user),
+) -> SessionMomentSubmitResponse:
+    session = _resolve_session(service, session_id, current_user)
+    try:
+        result = service.submit_learning_moment(
+            session=session,
+            user=current_user,
+            moment_id=moment_id,
+            skipped=True,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    moment_result = learning_moment_result_to_schema(result.moment_evaluation)
+    if not moment_result:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Learning moment result could not be serialized",
+        )
+    return SessionMomentSubmitResponse(
+        session=session_to_overview(result.session),
+        moment_result=moment_result,
+        assistant_turn=assistant_turn_to_schema(result.assistant_turn),
+        next_moment=learning_moment_to_schema(result.next_moment),
     )
 
 

@@ -34,7 +34,7 @@ export default function Navbar({ onToggleSidebar, showMenuButton = true }: Navba
               </Button>
             )}
 
-            <Link href="/dashboard" className="flex items-center group">
+            <Link href="/atelier" className="flex items-center group">
               <div className="flex-shrink-0 transition-transform group-hover:scale-110">
                 <div className="w-10 h-10 bg-bauhaus-blue border-2 border-black shadow-[3px_3px_0px_0px_#000] flex items-center justify-center">
                   <span className="text-white font-black text-lg">CL</span>

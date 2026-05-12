@@ -1,0 +1,53 @@
+version: french-visual-gag-pack-v1
+purpose: >
+  Ground Feuilleton in French visual satire without copying protected text.
+  The strip should feel like one absurd image played straight, not a sitcom scene.
+
+visual_moodboard:
+  - Penguin Crime and Penguin Modern Classics cover restraint
+  - Len Deighton paperback espionage covers
+  - Sempé-like social observation and negative space
+  - New Yorker-style single-panel clarity
+  - photomechanical halftone, cream paper, black ink, red accent, occasional muted blue or green
+
+mechanics:
+  - "deadpan bureaucracy: a tiny inconvenience is treated as a formal institution"
+  - "literalized public language: a political phrase becomes a physical object"
+  - "one decisive prop: an umbrella, receipt, stamp, microphone, coffee cup, ticket, or chair carries the joke"
+  - "visual escalation: the prop gains authority panel by panel"
+  - "dry caption: the French line names the absurdity as if it were normal"
+
+avoid:
+  - busy cafe crowds with repeated bags, calendars, papers, or abstract geometric wallpaper
+  - generic Franco-Belgian adventure composition
+  - hardcoded recurring characters unless requested by the scene seed
+  - caption text that explains grammar or pedagogy
+  - exercises that repeat a caption sentence verbatim
+  - image prompts that ask for readable speech bubbles or signs
+
+synthetic_examples:
+  - source_mechanic: "a familiar public figure announces a comeback everyone has already lived through"
+    visual_premise: "a campaign poster shakes hands with its own older posters, each one older and more tired"
+    caption_fr: "Le nouveau départ avait déjà une file d'attente."
+    caption_en: "The fresh start already had a queue."
+    exercise_extension: "A pollster enters and asks what will happen if the oldest poster speaks first."
+  - source_mechanic: "a public institution promises simplification by adding another procedure"
+    visual_premise: "a stamp pad sits at the head of a conference table while people wait for permission to breathe"
+    caption_fr: "On simplifiait. Il ne restait qu'à tamponner la simplification."
+    caption_en: "They were simplifying. Only the simplification still needed a stamp."
+    exercise_extension: "The clerk gives one direct instruction to the stamp pad."
+  - source_mechanic: "a transport announcement turns everyday waiting into national theatre"
+    visual_premise: "a train timetable receives applause while the train itself waits outside the station"
+    caption_fr: "Le retard était enfin à l'heure."
+    caption_en: "The delay was finally on time."
+    exercise_extension: "A passenger summarizes what was happening when the announcement arrived."
+  - source_mechanic: "a weather warning becomes more authoritative than the people discussing it"
+    visual_premise: "an umbrella is interviewed as the only responsible adult in the room"
+    caption_fr: "Le parapluie refusait les questions personnelles."
+    caption_en: "The umbrella refused personal questions."
+    exercise_extension: "A reporter asks what they will do if the rain starts."
+  - source_mechanic: "a budget debate turns small objects into moral witnesses"
+    visual_premise: "a receipt cascades from a wallet like a state archive"
+    caption_fr: "La note avait plus de mémoire que le ministre."
+    caption_en: "The bill had a better memory than the minister."
+    exercise_extension: "A customer corrects the article before denying one quantity."

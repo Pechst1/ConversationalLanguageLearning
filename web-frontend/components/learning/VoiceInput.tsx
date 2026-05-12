@@ -1,7 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Button } from '@/components/ui/Button';
 import { Mic, Square, Loader2 } from 'lucide-react';
-import apiService from '@/services/api';
 
 interface VoiceInputProps {
     onTranscript: (text: string) => void;
@@ -96,13 +94,15 @@ export default function VoiceInput({ onTranscript, disabled }: VoiceInputProps) 
     };
 
     return (
-        <Button
+        <button
             type="button"
-            variant={isRecording ? "destructive" : "secondary"}
-            size="icon"
             onClick={toggleRecording}
             disabled={disabled || isProcessing}
-            className={isRecording ? "animate-pulse" : ""}
+            className={`inline-flex h-11 w-11 items-center justify-center rounded-full border transition-colors ${
+                isRecording
+                    ? 'animate-pulse border-rose-300 bg-rose-50 text-rose-700'
+                    : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300 hover:bg-stone-50'
+            } disabled:cursor-not-allowed disabled:opacity-50`}
             title={isRecording ? "Stop recording" : "Start voice input"}
         >
             {isProcessing ? (
@@ -112,6 +112,6 @@ export default function VoiceInput({ onTranscript, disabled }: VoiceInputProps) 
             ) : (
                 <Mic className="h-5 w-5" />
             )}
-        </Button>
+        </button>
     );
 }

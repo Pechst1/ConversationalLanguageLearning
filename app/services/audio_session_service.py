@@ -21,6 +21,7 @@ from app.db.models.error import UserError
 from app.db.models.grammar import GrammarConcept, UserGrammarProgress
 from app.db.models.user import User
 from app.db.models.session import LearningSession
+from app.services.error_memory import ErrorMemoryService
 from app.services.llm_service import LLMService
 
 
@@ -175,18 +176,10 @@ class AudioSessionService:
 
     def _fetch_due_errors(self, user_id: UUID, limit: int = 3) -> list[UserError]:
         """Get errors to weave into conversation."""
-        now = datetime.now(timezone.utc)
-        return (
-            self.db.query(UserError)
-            .filter(
-                UserError.user_id == user_id,
-                UserError.next_review_date <= now,
-                UserError.state != "mastered"
-            )
-            .order_by(UserError.lapses.desc(), UserError.next_review_date.asc())
-            .limit(limit)
-            .all()
-        )
+        user = self.db.get(User, user_id)
+        if not user:
+            return []
+        return ErrorMemoryService(self.db).due_error_records(user, limit=limit)
 
     def _fetch_weak_grammar(self, user_id: UUID, limit: int = 2) -> list[GrammarConcept]:
         """Get grammar concepts the user struggles with."""
@@ -221,9 +214,10 @@ class AudioSessionService:
         instructions = "\n\n# ERREURS À PRATIQUER (subtly weave these into conversation):\n"
         for i, error in enumerate(errors, 1):
             instructions += f"""
-{i}. Concept: {error.subcategory or error.error_category}
+{i}. Concept: {error.display_label or error.subcategory or error.error_category}
    - Erreur typique: "{error.original_text}"
    - Correction: "{error.correction}"
+   - Pourquoi: {error.why_wrong or error.context_snippet or 'Use this contrast correctly.'}
    - Crée des situations où l'utilisateur doit utiliser cette structure correctement.
 """
         return instructions
@@ -408,10 +402,7 @@ Maximum 2 phrases."""
             Dict with AI response, detected errors, and XP
         """
         from app.core.error_detection.detector import ErrorDetector
-        from app.core.error_concepts import get_concept_for_pattern, get_concept_for_category
-        from app.db.models.error import UserErrorConcept
         from app.db.models.session import LearningSession
-        from datetime import datetime, timezone
         
         # Get session and user
         session = self.db.get(LearningSession, session_id)
@@ -444,82 +435,22 @@ Maximum 2 phrases."""
             use_llm=True,
         )
         
-        # Persist errors to UserError table for SRS tracking
+        # Persist errors to unified error memory for SRS tracking
         detected_errors = []
-        processed_concepts: set[str] = set()
+        error_memory = ErrorMemoryService(self.db)
         
         for error in error_result.errors:
             # Skip low confidence errors
             if error.confidence < 0.6:
                 continue
-            
-            # Extract subcategory from error
-            subcategory = getattr(error, 'subcategory', None) or error.code.replace('llm_', '') if error.code.startswith('llm_') else error.code
-            
-            # Check for existing error with same category + subcategory
-            existing = self.db.query(UserError).filter(
-                UserError.user_id == user.id,
-                UserError.error_category == error.category,
-                UserError.subcategory == subcategory,
-            ).first()
-            
-            if existing:
-                # Update existing error - repeated mistake
-                existing.occurrences = (existing.occurrences or 1) + 1
-                existing.lapses = (existing.lapses or 0) + 1
-                existing.original_text = error.span
-                existing.context_snippet = error.message
-                existing.correction = error.suggestion
-                existing.difficulty = min(10.0, (existing.difficulty or 5.0) + 0.5)
-                existing.next_review_date = datetime.now(timezone.utc)
-                if existing.state in ("review", "mastered"):
-                    existing.state = "relearning"
-                existing.updated_at = datetime.now(timezone.utc)
-            else:
-                # Create new error record
-                user_error = UserError(
-                    user_id=user.id,
-                    session_id=session_id,
-                    message_id=None,
-                    error_category=error.category,
-                    error_pattern=subcategory,
-                    subcategory=subcategory,
-                    original_text=error.span,
-                    correction=error.suggestion,
-                    context_snippet=error.message,
-                    state="new",
-                    stability=0.0,
-                    difficulty=5.0,
-                    occurrences=1,
-                    next_review_date=datetime.now(timezone.utc),
-                )
-                self.db.add(user_error)
-            
-            # Update parent concept for concept-level SRS
-            concept = get_concept_for_pattern(subcategory)
-            if not concept:
-                concept = get_concept_for_category(error.category)
-            
-            if concept and concept.id not in processed_concepts:
-                processed_concepts.add(concept.id)
-                
-                user_concept = self.db.query(UserErrorConcept).filter(
-                    UserErrorConcept.user_id == user.id,
-                    UserErrorConcept.concept_id == concept.id,
-                ).first()
-                
-                if user_concept:
-                    user_concept.increment_occurrence()
-                else:
-                    user_concept = UserErrorConcept(
-                        user_id=user.id,
-                        concept_id=concept.id,
-                        total_occurrences=1,
-                        last_occurrence_date=datetime.now(timezone.utc),
-                        next_review_date=datetime.now(timezone.utc),
-                        state="new",
-                    )
-                    self.db.add(user_concept)
+
+            memory_update = error_memory.record_detected_error(
+                user=user,
+                detected_error=error,
+                source_type="audio",
+                session=session,
+                source_payload={"mode": "audio_session"},
+            )
             
             # Format for response
             detected_errors.append({
@@ -529,8 +460,7 @@ Maximum 2 phrases."""
                 "correction": error.suggestion,
                 "category": error.category,
                 "severity": error.severity,
-                "concept_id": concept.id if concept else None,
-                "concept_name": concept.name if concept else None,
+                "memory": memory_update,
             })
         
         self.db.commit()

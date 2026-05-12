@@ -1,0 +1,37 @@
+version: feuilleton-visual-gag-writer-v1
+contract: >
+  Produce a study-mode visual-gag strip. The comic must be built around a single absurd image tied to the source mechanic.
+  Do not write a dialogue scene, sitcom arc, or pedagogical storyboard.
+
+required_output:
+  visual_premise_candidates:
+    count: 3
+    fields:
+      - headline_mechanic
+      - absurd_image
+      - why_it_matches_source
+      - visual_escalation
+      - score_0_10
+  selected_visual_premise: "the strongest image, not the safest lesson"
+  captions: "one sparse French caption plus English translation per panel"
+  panels: "six variations around the selected visual gag"
+  overlay_tasks: "fresh plot beats that extend the caption, never repeat it"
+
+writing_rules:
+  - "A premise is an image: a stamp pad in the ministerial chair, a poster shaking hands with its own past, an umbrella at a press conference."
+  - "A panel beat is atmospheric or translational, not a lesson-plan note."
+  - "French captions may be dry, aphoristic, and native-like."
+  - "English captions are study translations or concise scene captions."
+  - "A closed task must ask for a new consequence, instruction, repair, or denial that would happen after the panel."
+  - "Do not use recurring names unless the story needs them; avoid hardcoded Camille/Noé."
+  - "The same decisive prop can recur, but do not flood panels with calendars, bags, paperwork, or decorative geometry."
+
+image_prompt_rules:
+  - "One image prompt per panel."
+  - "Use only character continuity, headline mechanic, selected absurd image, panel variation, visual gag, decisive prop, moodboard."
+  - "Do not include story bible, twist, payoff, grammar framing, exercise wording, captions, or speech-bubble text."
+  - "Forbid readable text and UI every time."
+
+failure_rule: >
+  If a valid visual-gag strip cannot be produced, leave fields empty enough for validation to fail.
+  Do not invent generic fallback content.

@@ -83,6 +83,9 @@ BRIEF_ANSWER_CHECK_PROMPT = """Du bist ein Französischlehrer. Prüfe die Antwor
 
 # Bewertung:
 - Akzeptiere kleine Variationen (groß/klein, Akzente bei Tippfehlern)
+- Bei Grammatikaufgaben mit freier Satzbildung ist die Referenzlösung nur ein Beispiel.
+- Markiere eine Antwort als RICHTIG, wenn sie die geforderte Struktur korrekt verwendet, auch wenn Wortwahl oder Inhalt anders sind.
+- Markiere eine Antwort nur dann als "nicht passend", wenn sie die geforderte Struktur wirklich nicht benutzt.
 - Erkläre WARUM richtig oder falsch
 - Gib einen Verbesserungstipp bei Fehlern
 
@@ -91,6 +94,7 @@ BRIEF_ANSWER_CHECK_PROMPT = """Du bist ein Französischlehrer. Prüfe die Antwor
   "is_correct": true | false,
   "feedback": "Kurzes Feedback auf Deutsch",
   "explanation": "Falls falsch: Erklärung der Regel",
+  "sample_solution": "Kurze Beispiel- oder Referenzlösung",
   "score": 0-10,
   "detected_error_category": "Grammar | Vocabulary | Spelling | ...",
   "detected_subcategory": "Specific concept (e.g. Subjonctif, Artikel, Accord)"

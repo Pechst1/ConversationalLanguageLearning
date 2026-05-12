@@ -31,7 +31,8 @@ dependencies = [
     "spacy>=3.7",
     "numpy>=1.26",
     "youtube-transcript-api>=0.6.1",
-    "beautifulsoup4>=4.12"
+    "beautifulsoup4>=4.12",
+    "pywebpush>=2.0.3"
 ]
 
 [project.optional-dependencies]

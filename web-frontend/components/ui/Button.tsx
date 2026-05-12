@@ -4,23 +4,23 @@ import { cn } from '@/lib/utils';
 import { Loader2 } from 'lucide-react';
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center rounded-none text-sm font-bold ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border-2 border-brutal-black shadow-brutal hover:shadow-none hover:translate-x-[4px] hover:translate-y-[4px] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[2px_2px_0px_0px_#000000]',
+  'inline-flex items-center justify-center rounded-none border border-[var(--app-ink)] text-xs font-black uppercase tracking-[0.13em] ring-offset-background transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-ink)] focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
   {
     variants: {
       variant: {
-        default: 'bg-bauhaus-blue text-white hover:bg-bauhaus-blue/90',
-        destructive: 'bg-bauhaus-red text-white hover:bg-bauhaus-red/90',
-        outline: 'bg-white text-brutal-black hover:bg-brutal-gray',
-        secondary: 'bg-bauhaus-yellow text-brutal-black hover:bg-bauhaus-yellow/90',
-        ghost: 'border-transparent shadow-none hover:bg-brutal-gray hover:shadow-none hover:translate-none',
-        link: 'text-primary-600 underline-offset-4 hover:underline border-none shadow-none hover:translate-none',
-        success: 'bg-green-600 text-white hover:bg-green-700',
+        default: 'bg-[var(--app-ink)] text-[var(--app-paper)] hover:bg-[var(--app-blue)] hover:border-[var(--app-blue)]',
+        destructive: 'bg-[var(--app-red)] text-white border-[var(--app-red)] hover:bg-[var(--app-ink)] hover:border-[var(--app-ink)]',
+        outline: 'bg-[var(--app-sheet)] text-[var(--app-ink)] hover:bg-[var(--app-paper-2)]',
+        secondary: 'bg-[var(--app-yellow)] text-[var(--app-ink)] border-[var(--app-yellow)] hover:bg-[var(--app-paper-2)] hover:border-[var(--app-ink)]',
+        ghost: 'border-transparent bg-transparent text-[var(--app-ink)] hover:bg-[var(--app-paper-2)]',
+        link: 'border-transparent bg-transparent p-0 text-[var(--app-blue)] underline-offset-4 hover:underline',
+        success: 'bg-[var(--app-blue)] text-white border-[var(--app-blue)] hover:bg-[var(--app-ink)] hover:border-[var(--app-ink)]',
       },
       size: {
-        default: 'h-12 px-6 py-3',
+        default: 'h-11 px-5 py-3',
         sm: 'h-10 rounded-none px-4',
-        lg: 'h-14 rounded-none px-10 text-lg',
-        icon: 'h-12 w-12',
+        lg: 'h-[52px] rounded-none px-8',
+        icon: 'h-11 w-11',
       },
     },
     defaultVariants: {

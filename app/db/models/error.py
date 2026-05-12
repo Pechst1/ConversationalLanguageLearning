@@ -3,9 +3,10 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String, Text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+from sqlalchemy.types import JSON
 
 from app.db.base import Base
 
@@ -25,6 +26,10 @@ class UserError(Base):
     message_id = Column(
         UUID(as_uuid=True), ForeignKey("conversation_messages.id", ondelete="SET NULL"), nullable=True
     )
+    concept_id = Column(Integer, ForeignKey("grammar_concepts.id", ondelete="SET NULL"), nullable=True, index=True)
+    source_attempt_id = Column(
+        UUID(as_uuid=True), ForeignKey("atelier_attempts.id", ondelete="SET NULL"), nullable=True, index=True
+    )
 
     # Error Details
     error_category = Column(String(50), nullable=False)  # e.g., "grammar", "spelling", "vocabulary"
@@ -33,6 +38,15 @@ class UserError(Base):
     original_text = Column(Text)  # The exact erroneous text the user wrote (e.g., "une homme")
     correction = Column(Text)  # The corrected version (e.g., "un homme")
     context_snippet = Column(Text)  # Broader context / explanation
+    why_wrong = Column(Text)
+    repair_hint = Column(Text)
+    display_label = Column(String(120))
+    task_error_type = Column(String(80))
+    source_type = Column(String(40), default="unknown", index=True)
+    review_mode = Column(String(40), default="grammar", index=True)
+    memory_key = Column(String(180), index=True)
+    linked_word_id = Column(Integer, ForeignKey("vocabulary_words.id", ondelete="SET NULL"), nullable=True, index=True)
+    error_metadata = Column(JSONB().with_variant(JSON(), "sqlite"), default=dict)
 
     # SRS Fields (FSRS-compatible)
     stability = Column(Float, default=0.0)
@@ -53,6 +67,9 @@ class UserError(Base):
     user = relationship("User", backref="errors")
     session = relationship("LearningSession")
     message = relationship("ConversationMessage")
+    concept = relationship("GrammarConcept")
+    source_attempt = relationship("AtelierAttempt")
+    linked_word = relationship("VocabularyWord")
 
     def mark_review(self, review_date: datetime, next_review: datetime, rating: int) -> None:
         """Update scheduling metadata after a review."""

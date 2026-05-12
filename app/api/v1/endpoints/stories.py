@@ -1,5 +1,4 @@
 """API endpoints for Story RPG feature."""
-from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, BackgroundTasks
@@ -9,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
 from app.db.models.user import User
-from app.db.models.error import UserError
+from app.services.error_memory import ErrorMemoryService
 from app.services.story_service import StoryService
 from app.services.npc_service import NPCService
 from app.schemas.story import (
@@ -246,99 +245,17 @@ def _persist_story_errors(
     scene_id: str,
     error_result,
 ) -> None:
-    """Persist detected errors to UserError table for SRS tracking."""
-    from app.core.error_concepts import get_concept_for_pattern, get_concept_for_category
-    from app.db.models.error import UserErrorConcept
-    
-    # Track which concepts we've already processed this turn to avoid duplicates
-    processed_concepts: set[str] = set()
-    
+    """Persist detected errors through the unified error-memory loop."""
+    error_memory = ErrorMemoryService(db)
     for error in error_result.errors:
-        # Skip low confidence errors
-        if error.confidence < 0.6:
-            continue
-        
-        # Extract subcategory from error if available (new LLM schema)
-        subcategory = getattr(error, 'subcategory', None) or error.code.replace('llm_', '') if error.code.startswith('llm_') else error.code
-        
-        # Check for existing error with same category + subcategory
-        existing = db.query(UserError).filter(
-            UserError.user_id == user.id,
-            UserError.error_category == error.category,
-            UserError.subcategory == subcategory,
-        ).first()
-        
-        if existing:
-            # Update existing error - repeated mistake
-            existing.occurrences = (existing.occurrences or 1) + 1
-            existing.lapses = (existing.lapses or 0) + 1
-            existing.original_text = error.span  # Store the erroneous text
-            existing.context_snippet = error.message  # Store the explanation
-            existing.correction = error.suggestion  # Store the corrected version
-            existing.difficulty = min(10.0, (existing.difficulty or 5.0) + 0.5)
-            existing.next_review_date = datetime.now(timezone.utc)
-            if existing.state in ("review", "mastered"):
-                existing.state = "relearning"
-            existing.updated_at = datetime.now(timezone.utc)
-            
-            logger.debug(
-                "Story: Updated existing error",
-                category=error.category,
-                subcategory=subcategory,
-                occurrences=existing.occurrences,
-            )
-        else:
-            # Create new error record
-            user_error = UserError(
-                user_id=user.id,
-                session_id=None,  # No session in story mode
-                message_id=None,
-                error_category=error.category,
-                error_pattern=subcategory,  # Keep pattern for backwards compatibility
-                subcategory=subcategory,  # New fine-grained category
-                original_text=error.span,  # The exact erroneous text from user
-                correction=error.suggestion,  # The corrected version
-                context_snippet=error.message,  # The explanation
-                state="new",
-                stability=0.0,
-                difficulty=5.0,
-                occurrences=1,
-                next_review_date=datetime.now(timezone.utc),
-            )
-            db.add(user_error)
-            
-            logger.debug(
-                "Story: Created new error record",
-                category=error.category,
-                subcategory=subcategory,
-                original_text=error.span,
-            )
-        
-        # Update parent concept for concept-level SRS
-        concept = get_concept_for_pattern(subcategory)
-        if not concept:
-            concept = get_concept_for_category(error.category)
-        
-        if concept and concept.id not in processed_concepts:
-            processed_concepts.add(concept.id)
-            
-            user_concept = db.query(UserErrorConcept).filter(
-                UserErrorConcept.user_id == user.id,
-                UserErrorConcept.concept_id == concept.id,
-            ).first()
-            
-            if user_concept:
-                user_concept.increment_occurrence()
-            else:
-                user_concept = UserErrorConcept(
-                    user_id=user.id,
-                    concept_id=concept.id,
-                    total_occurrences=1,
-                    last_occurrence_date=datetime.now(timezone.utc),
-                    next_review_date=datetime.now(timezone.utc),
-                    state="new",
-                )
-                db.add(user_concept)
+        update = error_memory.record_detected_error(
+            user=user,
+            detected_error=error,
+            source_type="story",
+            source_payload={"story_id": story_id, "scene_id": scene_id},
+        )
+        if update:
+            logger.debug("Story: recorded error memory", action=update.get("action"), error_id=update.get("id"))
     
     db.commit()
 

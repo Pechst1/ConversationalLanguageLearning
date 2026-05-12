@@ -52,8 +52,10 @@ class OpenAIProvider:
     name: str = "openai"
 
     COST_PER_1K_TOKENS: ClassVar[Dict[str, Dict[str, float]]] = {
-        "gpt-4o-mini": {"prompt": 0.0006, "completion": 0.0024},
-        "gpt-4o": {"prompt": 0.01, "completion": 0.03},
+        "gpt-5-mini": {"prompt": 0.00025, "completion": 0.002},
+        "gpt-5.4-mini": {"prompt": 0.00075, "completion": 0.0045},
+        "gpt-4o-mini": {"prompt": 0.00015, "completion": 0.0006},
+        "gpt-4o": {"prompt": 0.0025, "completion": 0.01},
         "gpt-3.5-turbo": {"prompt": 0.0005, "completion": 0.0015},
     }
 
@@ -67,11 +69,17 @@ class OpenAIProvider:
             headers["OpenAI-Organization"] = settings.OPENAI_ORG_ID  # type: ignore[attr-defined]
         return headers
 
-    def _estimate_cost(self, usage: Dict[str, Any]) -> float:
-        model_rates = self.COST_PER_1K_TOKENS.get(self.model, {"prompt": 0.0, "completion": 0.0})
+    def _estimate_cost(self, usage: Dict[str, Any], model: str | None = None) -> float:
+        model_rates = self.COST_PER_1K_TOKENS.get(model or self.model, {"prompt": 0.0, "completion": 0.0})
         prompt_cost = (usage.get("prompt_tokens", 0) / 1000) * model_rates["prompt"]
         completion_cost = (usage.get("completion_tokens", 0) / 1000) * model_rates["completion"]
         return round(prompt_cost + completion_cost, 6)
+
+    @staticmethod
+    def _uses_completion_token_limit(model: str) -> bool:
+        """Newer OpenAI reasoning models reject the legacy max_tokens field."""
+
+        return model.startswith("gpt-5")
 
     @retry(
         stop=stop_after_attempt(3),
@@ -80,15 +88,20 @@ class OpenAIProvider:
         reraise=True,
     )
     def generate(self, messages: Sequence[Dict[str, str]], **kwargs: Any) -> LLMResult:
+        model = kwargs.get("model", self.model)
         payload: Dict[str, Any] = {
-            "model": kwargs.get("model", self.model),
+            "model": model,
             "messages": list(messages),
-            "temperature": kwargs.get("temperature", 0.7),
         }
+        if not self._uses_completion_token_limit(model):
+            payload["temperature"] = kwargs.get("temperature", 0.7)
         if "response_format" in kwargs:
             payload["response_format"] = kwargs["response_format"]
         if "max_tokens" in kwargs:
-            payload["max_tokens"] = kwargs["max_tokens"]
+            if self._uses_completion_token_limit(model):
+                payload["max_completion_tokens"] = kwargs["max_tokens"]
+            else:
+                payload["max_tokens"] = kwargs["max_tokens"]
 
         with httpx.Client(base_url=self.base_url, timeout=self.request_timeout) as client:
             response = client.post("/chat/completions", json=payload, headers=self._build_headers())
@@ -120,7 +133,7 @@ class OpenAIProvider:
             prompt_tokens=usage.get("prompt_tokens", 0),
             completion_tokens=usage.get("completion_tokens", 0),
             total_tokens=usage.get("total_tokens", usage.get("prompt_tokens", 0) + usage.get("completion_tokens", 0)),
-            cost=self._estimate_cost(usage),
+            cost=self._estimate_cost(usage, payload["model"]),
             raw_response=data,
         )
         logger.info(
@@ -393,11 +406,14 @@ class LLMService:
         max_tokens: int = 512,
         response_format: Optional[Dict[str, Any]] = None,
         system_prompt: Optional[str] = None,
+        model: Optional[str] = None,
     ) -> LLMResult:
         """Generate a chat completion using the configured providers."""
 
         errors: List[str] = []
         for provider in self._provider_order:
+            if not hasattr(provider, "generate"):
+                continue
             payload_kwargs: Dict[str, Any] = {
                 "temperature": temperature,
                 "max_tokens": max_tokens,
@@ -405,6 +421,8 @@ class LLMService:
             # Only OpenAI chat supports response_format in our usage
             if response_format and provider.name == "openai":
                 payload_kwargs["response_format"] = response_format
+            if model and provider.name == "openai":
+                payload_kwargs["model"] = model
             if system_prompt and provider.name == "anthropic":
                 payload_kwargs["system"] = system_prompt
             provider_messages = messages
@@ -436,10 +454,12 @@ class LLMService:
     ) -> LLMResult:
         """Generate error detection using the dedicated error detection model.
         
-        Uses a stronger model (gpt-4o by default) for better grammar analysis.
+        Uses the configured correction model for better grammar analysis.
         """
         errors: List[str] = []
         for provider in self._provider_order:
+            if not hasattr(provider, "generate"):
+                continue
             payload_kwargs: Dict[str, Any] = {
                 "temperature": temperature,
                 "max_tokens": max_tokens,

@@ -341,10 +341,10 @@ export default function PracticePage({ queueWords, counters, direction: initialD
           </p>
           <p className="text-gray-600 font-bold mt-6 mb-8">Session complete. See you next time!</p>
           <button
-            onClick={() => window.location.href = '/dashboard'}
+            onClick={() => window.location.href = '/learn'}
             className="bg-bauhaus-blue text-white border-4 border-black font-black text-xl px-8 py-4 uppercase tracking-widest hover:-translate-y-2 hover:shadow-[8px_8px_0px_0px_#000] transition-all"
           >
-            Back to Dashboard
+            Back to Learning
           </button>
         </div>
       </div>
@@ -366,7 +366,12 @@ export default function PracticePage({ queueWords, counters, direction: initialD
   return (
     <div className="max-w-2xl mx-auto p-4 space-y-8">
       <div className="flex justify-between items-center">
-        <h1 className="text-4xl font-black uppercase tracking-tighter">Practice</h1>
+        <div>
+          <h1 className="text-4xl font-black uppercase tracking-tighter">Focused 5000 Review</h1>
+          <p className="mt-2 text-sm font-bold uppercase tracking-[0.18em] text-gray-500">
+            Secondary drill for the Franzoesisch 5000 deck
+          </p>
+        </div>
         <AnkiSync onSyncComplete={() => handleRefreshQueue()} />
       </div>
 

@@ -39,6 +39,16 @@ class AuthService:
         if existing_user:
             raise EmailAlreadyExistsError("A user with this email already exists.")
 
+        normalized_parts: list[str] = []
+        seen: set[str] = set()
+        for item in (payload.interests or "").split(","):
+            normalized = item.strip().lower()
+            if not normalized or normalized in seen:
+                continue
+            seen.add(normalized)
+            normalized_parts.append(normalized)
+        normalized_interests = ",".join(normalized_parts)
+
         user = User(
             email=payload.email,
             hashed_password=get_password_hash(payload.password),
@@ -46,6 +56,7 @@ class AuthService:
             native_language=payload.native_language,
             target_language=payload.target_language,
             proficiency_level=payload.proficiency_level,
+            interests=normalized_interests[:500],
             daily_goal_minutes=payload.daily_goal_minutes,
             notifications_enabled=payload.notifications_enabled,
             preferred_session_time=payload.preferred_session_time,

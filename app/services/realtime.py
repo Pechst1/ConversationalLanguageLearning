@@ -111,7 +111,16 @@ class SessionConnectionManager:
             connection = self._connections.get(session_id, {}).get(user_id)
         if connection is None:
             return
-        await connection.send_json(message)
+        try:
+            await connection.send_json(message)
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.info(
+                "Skipping disconnected websocket",
+                session_id=str(session_id),
+                user_id=str(user_id),
+                error=str(exc),
+            )
+            await self.disconnect(session_id=session_id, user_id=user_id)
 
     async def mark_heartbeat(self, *, session_id: uuid.UUID, user_id: uuid.UUID) -> None:
         """Record a heartbeat timestamp in Redis for monitoring."""

@@ -187,6 +187,7 @@ class ConversationGenerator:
         new_word_budget: int | None = None,
         exclude_ids: set[int] | None = None,
         direction: str | None = None,
+        deck_name: str | None = None,
     ) -> list[QueueItem]:
         """Return queue entries prioritizing reviews before new vocabulary."""
 
@@ -207,6 +208,7 @@ class ConversationGenerator:
                 new_word_budget=new_word_budget,
                 exclude_ids=exclude_ids,
                 direction=direction,
+                deck_name=deck_name,
             )
         )
         if not queue:
@@ -216,6 +218,7 @@ class ConversationGenerator:
                 limit=effective_limit,
                 exclude_ids=exclude_set,
                 direction=direction,
+                deck_name=deck_name,
             )
             # If exclusions resulted in no fallback items, retry once without exclusions
             if not fallback_words and exclude_set:
@@ -225,6 +228,7 @@ class ConversationGenerator:
                     limit=effective_limit,
                     exclude_ids=set(),
                     direction=direction,
+                    deck_name=deck_name,
                 )
             return [QueueItem(word=word, progress=None, is_new=True) for word in fallback_words]
 
@@ -399,6 +403,15 @@ class ConversationGenerator:
                 if concept.examples:
                     # Show first example if available
                     lines.append(f"  Example usage: {concept.examples[:80]}..." if len(concept.examples or "") > 80 else f"  Example: {concept.examples}")
+            primary_concept, _ = due_grammar[0]
+            lines.append("")
+            lines.append("GRAMMAR EXECUTION REQUIREMENT:")
+            lines.append(
+                f"- In this turn, include one natural prompt that requires the learner to use '{primary_concept.name}'."
+            )
+            lines.append(
+                "- Keep it conversational: embed the drill inside the discussion, not as a standalone test."
+            )
 
         if topic:
             lines.append(f"Conversation topic: {topic}")
@@ -500,6 +513,7 @@ class ConversationGenerator:
         due_grammar: Sequence[tuple["GrammarConcept", "UserGrammarProgress | None"]] | None = None,
         scenario_context: str | None = None,
         session_context: SessionContext | None = None,  # [NEW]
+        deck_name: str | None = None,
     ) -> GeneratedTurn:
         """Generate a turn while respecting the adaptive session context."""
 
@@ -509,12 +523,17 @@ class ConversationGenerator:
         words_per_turn = min(words_per_turn, self.target_limit)
 
         adaptive_ratio = self.progress_service.calculate_adaptive_review_ratio(
-            user.id, direction=anki_direction
+            user.id,
+            direction=anki_direction,
+            deck_name=deck_name,
         )
         if review_focus is not None:
             adaptive_ratio = max(0.0, min(1.0, (adaptive_ratio + review_focus) / 2))
         new_budget = self.progress_service.calculate_new_word_budget(
-            user.id, total_capacity, direction=anki_direction
+            user.id,
+            total_capacity,
+            direction=anki_direction,
+            deck_name=deck_name,
         )
         queue_items = self._select_queue_items(
             user=user,
@@ -523,7 +542,23 @@ class ConversationGenerator:
             new_word_budget=new_budget,
             exclude_ids=exclude_ids,
             direction=anki_direction,
+            deck_name=deck_name,
         )
+
+        if not queue_items and deck_name:
+            logger.info(
+                "Deck-scoped vocabulary unavailable, falling back to generic target-language queue",
+                user_id=str(user.id),
+                deck_name=deck_name,
+            )
+            queue_items = self._select_queue_items(
+                user=user,
+                dynamic_limit=words_per_turn,
+                dynamic_review_ratio=adaptive_ratio,
+                new_word_budget=new_budget,
+                exclude_ids=exclude_ids,
+                direction=anki_direction,
+            )
 
         logger.info(
             "Adaptive queue calculated",
@@ -545,6 +580,7 @@ class ConversationGenerator:
             scenario=scenario,
             due_errors=due_errors,
             due_grammar=due_grammar,
+            scenario_context=scenario_context,
         )
 
         system_prompt = build_system_prompt(style, learner_level)
@@ -604,6 +640,7 @@ class ConversationGenerator:
         temperature: float | None = None,
         topic: str | None = None,
         exclude_ids: set[int] | None = None,
+        deck_name: str | None = None,
     ) -> GeneratedTurn:
         """Generate the next assistant response."""
 
@@ -622,6 +659,7 @@ class ConversationGenerator:
             temperature=temperature,
             topic=topic,
             exclude_ids=exclude_ids,
+            deck_name=deck_name,
         )
 
     # ------------------------------------------------------------------

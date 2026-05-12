@@ -94,8 +94,9 @@ module.exports = {
         'full': '9999px', // Keep pill shapes available if needed
       },
       fontFamily: {
-        sans: ['Inter', 'sans-serif'],
-        heading: ['Poppins', 'sans-serif'],
+        sans: ['Inter', 'Helvetica Neue', 'Arial', 'sans-serif'],
+        heading: ['EB Garamond', 'Garamond', 'Times New Roman', 'serif'],
+        serif: ['EB Garamond', 'Garamond', 'Times New Roman', 'serif'],
       },
       animation: {
         'fade-in': 'fadeIn 0.5s ease-in-out',

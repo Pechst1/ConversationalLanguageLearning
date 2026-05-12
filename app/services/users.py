@@ -33,6 +33,16 @@ class UserService:
         """Persist user profile changes and return the updated entity."""
 
         update_data = payload.model_dump(exclude_unset=True)
+        if "interests" in update_data and update_data["interests"] is not None:
+            parts: list[str] = []
+            seen: set[str] = set()
+            for item in str(update_data["interests"]).split(","):
+                normalized = item.strip().lower()
+                if not normalized or normalized in seen:
+                    continue
+                seen.add(normalized)
+                parts.append(normalized)
+            update_data["interests"] = ",".join(parts[:20])
         for field, value in update_data.items():
             setattr(user, field, value)
 

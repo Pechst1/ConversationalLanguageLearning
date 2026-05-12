@@ -7,15 +7,15 @@ Research-backed design:
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from dataclasses import asdict, dataclass, field
+from datetime import date, datetime, time, timedelta, timezone
 from enum import Enum
 
 from typing import Any, Literal
 from uuid import UUID
 
 from loguru import logger
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, desc, not_, or_
 from sqlalchemy.orm import Session
 
 from app.db.models.error import UserError
@@ -25,6 +25,7 @@ from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
 from app.services.enhanced_srs import EnhancedSRSService
 from app.services.grammar import GrammarService
+from app.services.progress import ProgressService
 
 
 class ItemType(str, Enum):
@@ -91,41 +92,43 @@ BASE_PRIORITY = {
     ItemType.VOCAB: 10,
 }
 
+MASTERED_STATES = {"mastered", "gemeistert"}
+TASK_COMPLIANCE = "task_compliance"
+ERROR_SOURCE_LABELS = {
+    "atelier": "Atelier",
+    "mission": "Mission",
+    "graphic_novel": "Feuilleton",
+    "conversation": "Conversation",
+    "audio": "Audio",
+    "story": "Reading",
+    "brief_exercise": "Exercise",
+}
+
 
 class UnifiedSRSService:
     """Service for unified spaced repetition across all learning types."""
     
     def __init__(self, db: Session) -> None:
         self.db = db
+
+    @staticmethod
+    def serialize_item(item: DueLearningItem) -> dict[str, Any]:
+        """Return an API-safe dict for a unified queue item."""
+        payload = asdict(item)
+        payload["item_type"] = item.item_type.value
+        if isinstance(item.original_id, UUID):
+            payload["original_id"] = str(item.original_id)
+        return payload
     
     def get_due_summary(self, user_id: UUID) -> DailyPracticeSummary:
         """Get summary of all due items for today."""
         now = datetime.now(timezone.utc)
         today = now.date()
-        
-        # Count vocab due
-        vocab_due = self.db.query(UserVocabularyProgress).filter(
-            UserVocabularyProgress.user_id == user_id,
-            UserVocabularyProgress.due_date <= today
-        ).count()
-        
-        # Count grammar due
-        grammar_due = self.db.query(UserGrammarProgress).filter(
-            UserGrammarProgress.user_id == user_id,
-            or_(
-                UserGrammarProgress.next_review <= now,
-                UserGrammarProgress.next_review.is_(None)
-            )
-        ).count()
-        
-        # Count errors due
-        errors_due = self.db.query(UserError).filter(
-            UserError.user_id == user_id,
-            or_(
-                UserError.next_review_date <= now,
-                UserError.next_review_date.is_(None)
-            )
-        ).count()
+        target_language = self._target_language(user_id)
+
+        vocab_due = self._due_vocab_query(user_id, today, now, target_language).count()
+        grammar_due = self._due_grammar_query(user_id, now, target_language).count()
+        errors_due = self._due_error_query(user_id, now).count()
         
         by_type = {
             "vocab": {
@@ -176,12 +179,13 @@ class UnifiedSRSService:
         """
         now = datetime.now(timezone.utc)
         today = now.date()
+        target_language = self._target_language(user_id)
         
         items: list[DueLearningItem] = []
         
         # Fetch all due items
-        items.extend(self._fetch_due_vocab(user_id, today, now))
-        items.extend(self._fetch_due_grammar(user_id, now))
+        items.extend(self._fetch_due_vocab(user_id, today, now, target_language))
+        items.extend(self._fetch_due_grammar(user_id, now, target_language))
         items.extend(self._fetch_due_errors(user_id, now))
         
         # Calculate priority scores
@@ -248,39 +252,54 @@ class UnifiedSRSService:
         raise ValueError(f"Unsupported item type: {item_type}")
     
     def _fetch_due_vocab(
-        self, user_id: UUID, today, now: datetime
+        self, user_id: UUID, today: date, now: datetime, target_language: str
     ) -> list[DueLearningItem]:
         """Fetch vocabulary items due for review."""
         items = []
         
-        progress_items = self.db.query(UserVocabularyProgress, VocabularyWord).join(
-            VocabularyWord, UserVocabularyProgress.word_id == VocabularyWord.id
-        ).filter(
-            UserVocabularyProgress.user_id == user_id,
-            UserVocabularyProgress.due_date <= today
-        ).limit(100).all()
+        progress_items = (
+            self._due_vocab_query(user_id, today, now, target_language)
+            .order_by(
+                UserVocabularyProgress.due_at.asc().nullsfirst(),
+                UserVocabularyProgress.next_review_date.asc().nullsfirst(),
+                UserVocabularyProgress.due_date.asc().nullsfirst(),
+                desc(UserVocabularyProgress.lapses),
+            )
+            .limit(100)
+            .all()
+        )
         
         for progress, word in progress_items:
-            due_since = (today - progress.due_date).days if progress.due_date else 0
+            due_since = self._due_since_days(self._vocab_due_at(progress, now), now)
             translation = word.german_translation or word.english_translation or ""
+            topic_tags = set(word.topic_tags or [])
+            is_mission_phrase = "mission_phrase" in topic_tags
             
             items.append(DueLearningItem(
                 id=f"vocab_{progress.id}",
                 item_type=ItemType.VOCAB,
                 priority_score=0,  # Calculated later
                 display_title=word.word,
-                display_subtitle="Was bedeutet dieses Wort?",  # Prompt instead of answer
-                level=f"Diff {word.difficulty_level}" if word.difficulty_level else "—",
+                display_subtitle="Mission phrase from Missions" if is_mission_phrase else "Vocabulary review",
+                level="Mission phrase" if is_mission_phrase else (f"Diff {word.difficulty_level}" if word.difficulty_level else "—"),
                 due_since_days=due_since,
                 estimated_seconds=TIME_ESTIMATES[ItemType.VOCAB],
                 original_id=progress.id,
                 metadata={
                     "word_id": word.id,
                     "stability": progress.stability or 0,
+                    "difficulty": progress.difficulty or 5,
+                    "lapses": progress.lapses or 0,
                     "direction": word.direction,
                     "answer": translation,  # Hidden answer for reveal
                     "part_of_speech": getattr(word, 'part_of_speech', None),
                     "example_sentence": getattr(word, 'example_sentence', None),
+                    "state": progress.state or "new",
+                    "review_mode": "mission_phrase" if is_mission_phrase else "vocabulary",
+                    "due_at": self._iso(progress.due_at),
+                    "next_review_date": self._iso(progress.next_review_date),
+                    "due_date": progress.due_date.isoformat() if progress.due_date else None,
+                    "route": "/daily-practice?focus=mission" if is_mission_phrase else f"/vocabulary?word={word.id}",
                 }
             ))
         
@@ -434,6 +453,21 @@ class UnifiedSRSService:
         error.next_review_date = now + timedelta(days=next_interval)
         error.updated_at = now
 
+        if error.concept_id:
+            self._credit_linked_grammar_from_error(
+                user_id=user_id,
+                concept_id=error.concept_id,
+                fsrs_rating=fsrs_rating,
+                error=error,
+            )
+        if error.linked_word_id:
+            self._credit_linked_vocabulary_from_error(
+                user_id=user_id,
+                word_id=error.linked_word_id,
+                fsrs_rating=fsrs_rating,
+                now=now,
+            )
+
         self.db.commit()
         self.db.refresh(error)
         return {
@@ -443,41 +477,47 @@ class UnifiedSRSService:
         }
     
     def _fetch_due_grammar(
-        self, user_id: UUID, now: datetime
+        self, user_id: UUID, now: datetime, target_language: str
     ) -> list[DueLearningItem]:
         """Fetch grammar concepts due for review."""
         items = []
         
-        progress_items = self.db.query(UserGrammarProgress, GrammarConcept).join(
-            GrammarConcept, UserGrammarProgress.concept_id == GrammarConcept.id
-        ).filter(
-            UserGrammarProgress.user_id == user_id,
-            or_(
-                UserGrammarProgress.next_review <= now,
-                UserGrammarProgress.next_review.is_(None)
+        progress_items = (
+            self._due_grammar_query(user_id, now, target_language)
+            .order_by(
+                UserGrammarProgress.next_review.asc().nullsfirst(),
+                UserGrammarProgress.score.asc(),
+                UserGrammarProgress.reps.asc(),
+                GrammarConcept.difficulty_order.asc(),
             )
-        ).limit(50).all()
+            .limit(50)
+            .all()
+        )
         
         for progress, concept in progress_items:
-            if progress.next_review:
-                due_since = (now - progress.next_review).days
-            else:
-                due_since = 0  # New item
+            due_since = self._due_since_days(progress.next_review, now)
             
             items.append(DueLearningItem(
                 id=f"grammar_{concept.id}",
                 item_type=ItemType.GRAMMAR,
                 priority_score=0,
                 display_title=concept.name,
-                display_subtitle=concept.category or "Grammatik",
-                level=concept.level,
+                display_subtitle=concept.category or "Grammar",
+                level=concept.level or "—",
                 due_since_days=due_since,
                 estimated_seconds=TIME_ESTIMATES[ItemType.GRAMMAR],
                 original_id=concept.id,
                 metadata={
+                    "concept_id": concept.id,
+                    "external_id": concept.external_id,
+                    "category": concept.category,
+                    "subskill": concept.subskill,
                     "score": progress.score,
                     "state": progress.state,
-                    "reps": progress.reps
+                    "reps": progress.reps,
+                    "review_mode": "grammar",
+                    "next_review": self._iso(progress.next_review),
+                    "route": f"/grammar?concept={concept.id}",
                 }
             ))
         
@@ -489,47 +529,26 @@ class UnifiedSRSService:
         """Fetch conversation errors due for review."""
         items = []
         
-        errors = self.db.query(UserError).filter(
-            UserError.user_id == user_id,
-            or_(
-                UserError.next_review_date <= now,
-                UserError.next_review_date.is_(None)
+        errors = (
+            self._due_error_query(user_id, now)
+            .order_by(
+                UserError.lapses.desc(),
+                UserError.occurrences.desc(),
+                UserError.next_review_date.asc().nullsfirst(),
             )
-        ).order_by(
-            UserError.lapses.desc(),  # Most lapsed first
-            UserError.next_review_date.asc()
-        ).limit(30).all()
-        
-        # Category labels for better display
-        CATEGORY_LABELS = {
-            "grammar": "Grammatikfehler",
-            "spelling": "Rechtschreibfehler",
-            "vocabulary": "Vokabelfehler",
-            "gender": "Genusfehler",
-            "conjugation": "Konjugationsfehler",
-            "agreement": "Kongruenzfehler",
-        }
+            .limit(30)
+            .all()
+        )
         
         for error in errors:
-            if error.next_review_date:
-                due_since = (now - error.next_review_date).days
-            else:
-                due_since = 0
+            due_since = self._due_since_days(error.next_review_date, now)
             
-            # Build display title from original_text or fallback to category
-            if error.original_text:
-                display_title = f"❌ {error.original_text}"
-            else:
-                category_label = CATEGORY_LABELS.get(error.error_category, error.error_category or "Fehler")
-                display_title = category_label
+            display_title = error.display_label or error.error_pattern or error.original_text or "Language repair"
             
-            # Build subtitle as hint about error type
-            if error.subcategory:
-                display_subtitle = f"Fehlertyp: {error.subcategory}"
-            elif error.error_category:
-                display_subtitle = CATEGORY_LABELS.get(error.error_category, error.error_category)
-            else:
-                display_subtitle = "Finde und korrigiere den Fehler"
+            source_label = ERROR_SOURCE_LABELS.get(error.source_type or "", error.source_type or "Practice")
+            review_mode = error.review_mode or "grammar"
+            display_subtitle = f"{source_label} · {review_mode.replace('_', ' ')}"
+            severity = self._error_severity(error)
             
             items.append(DueLearningItem(
                 id=f"error_{error.id}",
@@ -537,19 +556,36 @@ class UnifiedSRSService:
                 priority_score=0,
                 display_title=display_title,
                 display_subtitle=display_subtitle,
-                level=f"Lapses: {error.lapses}",
+                level=f"{review_mode} · {error.occurrences or 1}×",
                 due_since_days=due_since,
                 estimated_seconds=TIME_ESTIMATES[ItemType.ERROR],
                 original_id=error.id,
                 metadata={
+                    "concept_id": error.concept_id,
+                    "linked_word_id": error.linked_word_id,
                     "stability": error.stability or 0,
                     "difficulty": error.difficulty or 5,
                     "lapses": error.lapses or 0,
+                    "occurrences": error.occurrences or 1,
+                    "severity": severity,
                     "original_text": error.original_text,
                     "correction": error.correction,
                     "context": error.context_snippet,
+                    "why_wrong": error.why_wrong,
+                    "repair_hint": error.repair_hint,
+                    "display_label": error.display_label,
+                    "task_error_type": error.task_error_type,
                     "error_category": error.error_category,
                     "subcategory": error.subcategory,
+                    "review_mode": review_mode,
+                    "source_type": error.source_type,
+                    "source_label": source_label,
+                    "next_review_date": self._iso(error.next_review_date),
+                    "route": (
+                        f"/grammar?concept={error.concept_id}"
+                        if error.concept_id
+                        else "/atelier"
+                    ),
                 }
             ))
         
@@ -578,10 +614,17 @@ class UnifiedSRSService:
         else:
             fragility_bonus = 10  # New items get medium boost
         
-        # Lapse penalty for errors (more lapses = needs more attention)
+        if item.item_type == ItemType.GRAMMAR:
+            score = float(item.metadata.get("score") or 0)
+            fragility_bonus = max(fragility_bonus, (10 - score) * 2)
+
+        severity_bonus = 0
+        if item.item_type == ItemType.ERROR:
+            severity_bonus = min(int(item.metadata.get("severity") or 0) * 3, 12)
+
         lapse_bonus = min(item.metadata.get("lapses", 0) * 2, 10)
         
-        priority = base + overdue_bonus + fragility_bonus + lapse_bonus
+        priority = base + overdue_bonus + fragility_bonus + lapse_bonus + severity_bonus
         return min(priority, 100)  # Cap at 100
     
     def _interleave_random(self, items: list[DueLearningItem]) -> list[DueLearningItem]:
@@ -593,8 +636,6 @@ class UnifiedSRSService:
         - Forcing discrimination between concepts
         - Preventing blocked repetition fatigue
         """
-        import random
-        
         # Group by type
         by_type: dict[ItemType, list[DueLearningItem]] = {t: [] for t in ItemType}
         for item in items:
@@ -602,8 +643,7 @@ class UnifiedSRSService:
         
         # Build interleaved queue
         result = []
-        type_cycle = list(ItemType)
-        random.shuffle(type_cycle)
+        type_cycle = [ItemType.ERROR, ItemType.GRAMMAR, ItemType.VOCAB]
         
         while any(by_type.values()):
             for item_type in type_cycle:
@@ -628,6 +668,147 @@ class UnifiedSRSService:
         
         logger.info(f"Applied time budget: {len(result)}/{len(items)} items fit in {budget_seconds}s")
         return result
+
+    def _target_language(self, user_id: UUID) -> str:
+        user = self.db.get(User, user_id)
+        if not user:
+            return "fr"
+        return (user.target_language or "fr").strip() or "fr"
+
+    def _due_vocab_query(
+        self,
+        user_id: UUID,
+        today: date,
+        now: datetime,
+        target_language: str,
+    ):
+        return (
+            self.db.query(UserVocabularyProgress, VocabularyWord)
+            .join(VocabularyWord, UserVocabularyProgress.word_id == VocabularyWord.id)
+            .filter(
+                UserVocabularyProgress.user_id == user_id,
+                VocabularyWord.language == target_language,
+                or_(
+                    UserVocabularyProgress.due_at <= now,
+                    UserVocabularyProgress.next_review_date <= now,
+                    UserVocabularyProgress.due_date <= today,
+                    and_(
+                        UserVocabularyProgress.due_at.is_(None),
+                        UserVocabularyProgress.next_review_date.is_(None),
+                        UserVocabularyProgress.due_date.is_(None),
+                    ),
+                ),
+            )
+        )
+
+    def _due_grammar_query(self, user_id: UUID, now: datetime, target_language: str):
+        return (
+            self.db.query(UserGrammarProgress, GrammarConcept)
+            .join(GrammarConcept, UserGrammarProgress.concept_id == GrammarConcept.id)
+            .filter(
+                UserGrammarProgress.user_id == user_id,
+                GrammarConcept.active.is_(True),
+                GrammarConcept.language == target_language,
+                or_(
+                    UserGrammarProgress.state.is_(None),
+                    not_(UserGrammarProgress.state.in_(MASTERED_STATES)),
+                ),
+                or_(
+                    UserGrammarProgress.next_review <= now,
+                    UserGrammarProgress.next_review.is_(None),
+                ),
+            )
+        )
+
+    def _due_error_query(self, user_id: UUID, now: datetime):
+        return self.db.query(UserError).filter(
+            UserError.user_id == user_id,
+            or_(UserError.state.is_(None), not_(UserError.state.in_(MASTERED_STATES))),
+            or_(UserError.next_review_date <= now, UserError.next_review_date.is_(None)),
+            or_(
+                UserError.task_error_type.is_(None),
+                UserError.task_error_type != TASK_COMPLIANCE,
+                UserError.occurrences > 1,
+                UserError.lapses > 0,
+            ),
+        )
+
+    @staticmethod
+    def _vocab_due_at(progress: UserVocabularyProgress, now: datetime) -> datetime:
+        if progress.due_at:
+            return progress.due_at
+        if progress.next_review_date:
+            return progress.next_review_date
+        if progress.due_date:
+            return datetime.combine(progress.due_date, time.min, tzinfo=timezone.utc)
+        return now
+
+    @staticmethod
+    def _due_since_days(due_at: datetime | None, now: datetime) -> int:
+        if due_at is None:
+            return 0
+        if due_at.tzinfo is None:
+            due_at = due_at.replace(tzinfo=timezone.utc)
+        return max(0, (now - due_at).days)
+
+    @staticmethod
+    def _iso(value: datetime | None) -> str | None:
+        if value is None:
+            return None
+        return value.isoformat()
+
+    @staticmethod
+    def _error_severity(error: UserError) -> int:
+        metadata = error.error_metadata or {}
+        severity = metadata.get("severity") if isinstance(metadata, dict) else None
+        try:
+            return max(1, min(4, int(severity)))
+        except (TypeError, ValueError):
+            if (error.lapses or 0) >= 2 or (error.occurrences or 0) >= 3:
+                return 3
+            return 2
+
+    def _credit_linked_grammar_from_error(
+        self,
+        *,
+        user_id: UUID,
+        concept_id: int,
+        fsrs_rating: int,
+        error: UserError,
+    ) -> None:
+        user = self.db.get(User, user_id)
+        if not user:
+            return
+        concept = self.db.get(GrammarConcept, concept_id)
+        if not concept or not concept.active:
+            return
+        score_map = {0: 2.0, 1: 4.0, 2: 7.5, 3: 9.0}
+        GrammarService(self.db).record_context_review(
+            user=user,
+            concept_id=concept_id,
+            score=score_map[fsrs_rating],
+            notes=error.display_label or error.task_error_type or "errata review",
+            source="unified_srs",
+        )
+
+    def _credit_linked_vocabulary_from_error(
+        self,
+        *,
+        user_id: UUID,
+        word_id: int,
+        fsrs_rating: int,
+        now: datetime,
+    ) -> None:
+        word = self.db.get(VocabularyWord, word_id)
+        if not word:
+            return
+        progress = ProgressService(self.db).get_or_create_progress(user_id=user_id, word_id=word_id)
+        EnhancedSRSService(self.db).process_review(
+            progress=progress,
+            rating=fsrs_rating,
+            response_time_ms=None,
+            now=now,
+        )
 
 
 __all__ = [

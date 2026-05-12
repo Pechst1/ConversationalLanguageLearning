@@ -1,0 +1,2 @@
+session_id,session_date,session_type,main_concept_ids,review_concept_ids,recent_error_ids_used,overall_result,summary,next_focus
+S_2026_04_15_01,2026-04-15,mixed,"FR_A1_ART_004|FR_B1_TENSE_012|FR_B1_REL_003","FR_A1_ART_004|FR_B1_TENSE_012","E_204|E_205|E_206",solid_but_unstable,"Good rule recognition, but free production still triggered repeated tense contrast errors and article errors after negation.","Recycle negation articles and tense contrast within connected writing next session."

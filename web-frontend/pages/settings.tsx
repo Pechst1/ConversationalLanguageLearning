@@ -31,6 +31,7 @@ interface UserSettings {
     nativeLanguage: string;
     targetLanguage: string;
     proficiencyLevel: string;
+    interests: string[];
 
     // Learning Goals
     dailyGoalMinutes: number;
@@ -67,6 +68,7 @@ const defaultSettings: UserSettings = {
     nativeLanguage: 'de',
     targetLanguage: 'fr',
     proficiencyLevel: 'A1',
+    interests: [],
     dailyGoalMinutes: 15,
     dailyGoalXP: 50,
     newWordsPerDay: 10,
@@ -104,6 +106,19 @@ const languages = [
     { value: 'it', label: 'Italiano (Italian)' },
 ];
 
+const interestTopicPresets = [
+    'technology',
+    'business',
+    'travel',
+    'sports',
+    'politics',
+    'science',
+    'culture',
+    'finance',
+    'health',
+    'food',
+];
+
 interface SettingsPageProps {
     userEmail: string;
     userName: string;
@@ -127,6 +142,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
     const [saveMessage, setSaveMessage] = useState<string | null>(null);
     const [hasChanges, setHasChanges] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
+    const [customInterestTopic, setCustomInterestTopic] = useState('');
 
     // Load settings from API on mount
     useEffect(() => {
@@ -140,6 +156,10 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                     nativeLanguage: user.native_language || prev.nativeLanguage,
                     targetLanguage: user.target_language || prev.targetLanguage,
                     proficiencyLevel: user.proficiency_level || prev.proficiencyLevel,
+                    interests: (user.interests || '')
+                        .split(',')
+                        .map((value: string) => value.trim())
+                        .filter(Boolean),
 
                     dailyGoalMinutes: user.daily_goal_minutes || prev.dailyGoalMinutes,
                     dailyGoalXP: user.daily_goal_xp || prev.dailyGoalXP,
@@ -189,6 +209,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                 native_language: settings.nativeLanguage,
                 target_language: settings.targetLanguage,
                 proficiency_level: settings.proficiencyLevel,
+                interests: settings.interests.join(','),
 
                 daily_goal_minutes: settings.dailyGoalMinutes,
                 daily_goal_xp: settings.dailyGoalXP,
@@ -279,6 +300,26 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
             }
         }
         updateSetting(key, value);
+    };
+
+    const toggleInterestTopic = (topic: string) => {
+        const normalized = topic.trim().toLowerCase();
+        if (!normalized) return;
+        const next = settings.interests.includes(normalized)
+            ? settings.interests.filter((item) => item !== normalized)
+            : [...settings.interests, normalized];
+        updateSetting('interests', next);
+    };
+
+    const addCustomInterestTopic = () => {
+        const normalized = customInterestTopic.trim().toLowerCase();
+        if (!normalized) return;
+        if (settings.interests.includes(normalized)) {
+            setCustomInterestTopic('');
+            return;
+        }
+        updateSetting('interests', [...settings.interests, normalized]);
+        setCustomInterestTopic('');
     };
 
     const sections = [
@@ -437,6 +478,53 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                                 </button>
                                             ))}
                                         </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-bold uppercase mb-2">
+                                            Live Story Topics
+                                        </label>
+                                        <p className="text-xs text-gray-500 mb-3">
+                                            These topics steer which live stories appear in your pre-session picker.
+                                        </p>
+                                        <div className="flex flex-wrap gap-2 mb-3">
+                                            {interestTopicPresets.map((topic) => (
+                                                <button
+                                                    key={topic}
+                                                    type="button"
+                                                    onClick={() => toggleInterestTopic(topic)}
+                                                    className={`px-3 py-1 border-2 border-black text-sm font-bold ${
+                                                        settings.interests.includes(topic)
+                                                            ? 'bg-bauhaus-yellow shadow-[2px_2px_0px_0px_#000]'
+                                                            : 'bg-white'
+                                                    }`}
+                                                >
+                                                    {topic}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="text"
+                                                value={customInterestTopic}
+                                                onChange={(event) => setCustomInterestTopic(event.target.value)}
+                                                placeholder="Add custom topic"
+                                                className="flex-1 p-3 border-2 border-black shadow-[4px_4px_0px_0px_#000]"
+                                            />
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                onClick={addCustomInterestTopic}
+                                                className="border-2 border-black"
+                                            >
+                                                Add
+                                            </Button>
+                                        </div>
+                                        {settings.interests.length > 0 && (
+                                            <p className="text-xs text-gray-600 mt-2">
+                                                Selected: {settings.interests.join(', ')}
+                                            </p>
+                                        )}
                                     </div>
 
                                     <div>
