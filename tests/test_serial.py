@@ -21,7 +21,7 @@ from app.schemas.serial import EpisodeRead, SerialThreadRead
 from app.services.graphic_novel import GraphicNovelGenerationError, GraphicNovelScheduler
 from app.services.missions import MissionScheduler, serialize_mission
 from app.services.news_service import NewsService
-from app.services.serial_arc_planner import SerialArcPlanner, cefr_generation_profile
+from app.services.serial_arc_planner import SEASON_FINALE_ARC_ID, SerialArcPlanner, cefr_generation_profile
 from app.services.serial import SerialThreadService, WORLD_BIBLE_PATH
 
 
@@ -307,6 +307,113 @@ def test_serial_arc_planner_rotates_arcs_cast_and_spacing(db_session):
     for start in range(0, len(plans) - 3):
         window_cast = {character_id for plan in plans[start : start + 4] for character_id in plan["required_cast"]}
         assert set(main_cast).issubset(window_cast)
+
+
+def _complete_season_arcs(thread, *, episode_index: int = 99):
+    state = dict(thread.state or {})
+    arcs_state = {}
+    for arc in thread.world_bible.get("season_arcs", []):
+        stages = arc.get("stages") or []
+        final_index = len(stages) - 1
+        arcs_state[arc["id"]] = {
+            "stage": stages[final_index]["id"],
+            "stage_index": final_index,
+            "advanced_at_episode": episode_index,
+        }
+    state["arcs"] = arcs_state
+    thread.state = state
+
+
+def test_serial_arc_planner_returns_finale_when_season_complete(db_session):
+    user = _user(db_session, email="serial-finale-plan@example.com")
+    thread = _run(SerialThreadService(db_session).get_or_create_thread(user))
+    thread.current_episode_index = 48
+    _complete_season_arcs(thread, episode_index=47)
+
+    brief = SerialArcPlanner(thread).plan_next_episode("see").model_dump(mode="json")
+
+    assert brief["season_finale"] is True
+    assert brief["a_plot"]["arc_id"] == SEASON_FINALE_ARC_ID
+    assert brief["a_plot"]["advance_on_completion"] is False
+    assert brief["structure"] == "ensemble"
+    assert {"marin_leveque", "lila_bonnet", "augustin_de_roncourt", "romy_tremblay"}.issubset(brief["required_cast"])
+
+
+def test_season_finale_completion_rolls_into_season_two(db_session, monkeypatch):
+    monkeypatch.setattr(SerialThreadService, "_enqueue_next_beat", lambda self, thread_id: None)
+    user = _user(db_session, email="serial-finale-rollover@example.com")
+    service = SerialThreadService(db_session)
+    thread = _run(service.get_or_create_thread(user))
+    thread.current_episode_index = 48
+    _complete_season_arcs(thread, episode_index=47)
+    state = dict(thread.state or {})
+    relationships = dict(state["relationships"])
+    relationships["romy_tremblay"] = {**relationships["romy_tremblay"], "closeness": 2, "last_summary": "Still here."}
+    state["relationships"] = relationships
+    thread.state = state
+    finale_payload = SerialArcPlanner(thread).plan_next_episode("see").model_dump(mode="json")
+    db_session.add(thread)
+    db_session.flush()
+    scene = GraphicNovelScene(
+        user_id=user.id,
+        serial_thread_id=thread.id,
+        episode_index=48,
+        status="completed",
+        cadence="serial",
+        title="Season finale",
+        brief="The season closes at Le Mistral.",
+        selected_concept_ids=[],
+        target_errata_ids=[],
+        target_vocabulary_ids=[],
+        source_snapshot={},
+        script_payload={
+            "title": "Season finale",
+            "location_id": "le_mistral",
+            "panels": [],
+            "hook": {
+                "text": "Le matin suivant, la meme table attend une decision.",
+                "unresolved_question": "What does season two ask first?",
+                "next_beat_kind": "mission",
+                "teaser": "Demain : choisir quoi dire.",
+            },
+        },
+        recap_payload={},
+        cache_key=f"serial-finale-rollover-{uuid4().hex}",
+        prompt_version="test",
+        image_model="test",
+        image_quality="medium",
+    )
+    db_session.add(scene)
+    db_session.flush()
+    db_session.add(
+        SerialEpisode(
+            thread_id=thread.id,
+            episode_index=48,
+            kind="feuilleton",
+            scene_id=scene.id,
+            hook={},
+            hook_from_previous={},
+            state_delta={},
+            status="available",
+            brief_payload=finale_payload,
+        )
+    )
+    db_session.commit()
+
+    _run(service.apply_completion(thread, scene=scene))
+    db_session.refresh(thread)
+    season_two_arc_ids = {arc["id"] for arc in thread.world_bible["season_arcs"]}
+
+    assert thread.world_bible["world_bible_version"] == "paris-s2"
+    assert thread.world_bible["season_number"] == 2
+    assert thread.state["season_number"] == 2
+    assert thread.state["season_finale_completed"] == 1
+    assert thread.state["relationships"]["romy_tremblay"]["closeness"] == 3
+    assert set(thread.state["arcs"]) == season_two_arc_ids
+    assert all(entry["stage_index"] == -1 for entry in thread.state["arcs"].values())
+    next_brief = SerialArcPlanner(thread).plan_next_episode("act").model_dump(mode="json")
+    assert not next_brief.get("season_finale")
+    assert next_brief["a_plot"]["arc_id"] in season_two_arc_ids
 
 
 def test_cefr_generation_profile_is_monotonic():

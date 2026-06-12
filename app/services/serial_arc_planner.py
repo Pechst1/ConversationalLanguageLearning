@@ -8,6 +8,7 @@ from app.schemas.serial import EpisodeBrief
 
 
 STRUCTURE_ROTATION = ("ensemble", "two_hander", "bottle", "callback_open", "news_edition")
+SEASON_FINALE_ARC_ID = "__season_finale__"
 
 CEFR_RAMP: dict[str, dict[str, Any]] = {
     "A1": {
@@ -78,6 +79,13 @@ def _dedupe(values: list[str]) -> list[str]:
     return result
 
 
+def _int_or(value: Any, default: int) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
 class SerialArcPlanner:
     """Plan the next episode from durable state rather than from a model."""
 
@@ -88,7 +96,9 @@ class SerialArcPlanner:
 
     def plan_next_episode(self, beat: str) -> EpisodeBrief:
         normalized_beat = "see" if beat in {"see", "feuilleton"} else "act"
-        episode_index = int(self.thread.current_episode_index or 0)
+        episode_index = _int_or(self.thread.current_episode_index, 0)
+        if self.season_complete():
+            return self._season_finale_brief(beat=normalized_beat, episode_index=episode_index)
         arc, stage, stage_index, advance_on_completion = self._select_arc_stage(episode_index)
         required_cast = self._required_cast(
             arc_characters=[str(item) for item in (arc or {}).get("characters") or []],
@@ -131,6 +141,60 @@ class SerialArcPlanner:
             location=location,
             cefr_profile=profile,
             relationship_context=self._relationships_for(required_cast),
+        )
+
+    def season_complete(self) -> bool:
+        arcs = [arc for arc in self.world.get("season_arcs") or [] if isinstance(arc, dict) and arc.get("id")]
+        if not arcs:
+            return False
+        arc_state = self.state.get("arcs") if isinstance(self.state.get("arcs"), dict) else {}
+        for arc in arcs:
+            stages = [stage for stage in arc.get("stages") or [] if isinstance(stage, dict) and stage.get("id")]
+            if not stages:
+                return False
+            entry = arc_state.get(str(arc.get("id"))) if isinstance(arc_state, dict) else {}
+            try:
+                stage_index = int((entry or {}).get("stage_index"))
+            except (TypeError, ValueError):
+                return False
+            if stage_index < len(stages) - 1:
+                return False
+        return True
+
+    def _season_finale_brief(self, *, beat: str, episode_index: int) -> EpisodeBrief:
+        required_cast = self._main_cast_ids() or ["margaux_barman"]
+        setting = self.world.get("setting") if isinstance(self.world.get("setting"), dict) else {}
+        locations = [item for item in setting.get("recurring_locations") or [] if isinstance(item, dict) and item.get("id")]
+        by_id = {str(item.get("id")): item for item in locations}
+        location = by_id.get("le_mistral") or (locations[0] if locations else {"id": "le_mistral", "name": "Le Mistral"})
+        season_number = _int_or(self.state.get("season_number") or self.world.get("season_number"), 1)
+        return EpisodeBrief(
+            episode_index=episode_index,
+            beat=beat,
+            a_plot={
+                "arc_id": SEASON_FINALE_ARC_ID,
+                "stage_id": f"season_{season_number}_finale",
+                "stage_index": 0,
+                "stage_summary": "The season's open threads converge at Le Mistral before a new set of problems begins.",
+                "characters": required_cast,
+                "advance_on_completion": False,
+                "season_finale": True,
+            },
+            b_plot={"kind": "finale", "seed": "Every private secret becomes public enough to change the next season."},
+            required_cast=required_cast,
+            location_id=str(location.get("id") or "le_mistral"),
+            structure="ensemble",
+            include_news_panel=False,
+            include_choice_fork=False,
+            stakes_level=3,
+            hook_guidance="Pay off the season's promises, then leave one clean doorway into season 2.",
+            tentpole_reference="docs/serial-season-finale.md",
+            next_beat_kind="mission" if beat == "see" else "feuilleton",
+            location=location,
+            cefr_profile=cefr_generation_profile(getattr(self.thread.user, "proficiency_level", None)),
+            relationship_context=self._relationships_for(required_cast),
+            season_finale=True,
+            season_number=season_number,
         )
 
     def _select_arc_stage(self, episode_index: int) -> tuple[dict[str, Any] | None, dict[str, Any] | None, int, bool]:

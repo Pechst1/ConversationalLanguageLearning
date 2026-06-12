@@ -21,16 +21,24 @@ from app.services.graphic_novel import GraphicNovelGenerationError, GraphicNovel
 from app.services.llm_service import LLMService
 from app.services.missions import MissionScheduler
 from app.services.news_service import NewsService
-from app.services.serial_arc_planner import SerialArcPlanner
+from app.services.serial_arc_planner import SEASON_FINALE_ARC_ID, SerialArcPlanner
 
 
 WORLD_BIBLE_PATH = Path(__file__).resolve().parent.parent / "prompts" / "serial" / "world_bible_paris_v2.json"
 WORLD_BIBLE_V1_PATH = Path(__file__).resolve().parent.parent / "prompts" / "serial" / "world_bible_paris_v1.json"
+WORLD_BIBLE_S2_PATH = Path(__file__).resolve().parent.parent / "prompts" / "serial" / "world_bible_paris_s2.json"
 
 
 def _compact(value: Any, max_length: int) -> str:
     text = " ".join(str(value or "").split()).strip()
     return text if len(text) <= max_length else text[: max_length - 1].rstrip() + "…"
+
+
+def _int_or(value: Any, default: int) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
 
 
 CALLBACK_SALUTATION_PREFIXES = (
@@ -101,11 +109,16 @@ class SerialThreadService:
         if seeded_visual and next_world.get("visual_design") != seeded_visual:
             next_world["visual_design"] = seeded_visual
             changed = True
+        season_number = _int_or(next_world.get("season_number"), 1)
         seeded_arcs = seeded_world.get("season_arcs") if isinstance(seeded_world.get("season_arcs"), list) else []
-        if seeded_arcs and next_world.get("season_arcs") != seeded_arcs:
+        if season_number <= 1 and seeded_arcs and next_world.get("season_arcs") != seeded_arcs:
             next_world["season_arcs"] = seeded_arcs
             changed = True
-        if seeded_world.get("world_bible_version") and next_world.get("world_bible_version") != seeded_world.get("world_bible_version"):
+        if (
+            season_number <= 1
+            and seeded_world.get("world_bible_version")
+            and next_world.get("world_bible_version") != seeded_world.get("world_bible_version")
+        ):
             next_world["world_bible_version"] = seeded_world.get("world_bible_version")
             changed = True
         if changed:
@@ -972,6 +985,8 @@ class SerialThreadService:
         pending = state.get("pending_register_switch")
         if isinstance(pending, dict) and pending.get("character_id") in required_cast and "offers the tu" in str(brief.get("hook_guidance") or ""):
             state.pop("pending_register_switch", None)
+        if self._is_season_finale_brief(brief):
+            state = self._roll_over_completed_season(thread=thread, episode=episode, state=state, brief=brief)
         thread.state = state
 
     def _episode_brief_payload_for_completion(self, *, thread: SerialThread, episode: SerialEpisode) -> dict[str, Any]:
@@ -996,6 +1011,69 @@ class SerialThreadService:
         episode.brief_payload = payload
         self.db.add(episode)
         return payload
+
+    @staticmethod
+    def _is_season_finale_brief(brief: dict[str, Any]) -> bool:
+        a_plot = brief.get("a_plot") if isinstance(brief.get("a_plot"), dict) else {}
+        return bool(brief.get("season_finale") or a_plot.get("season_finale") or a_plot.get("arc_id") == SEASON_FINALE_ARC_ID)
+
+    def _roll_over_completed_season(
+        self,
+        *,
+        thread: SerialThread,
+        episode: SerialEpisode,
+        state: dict[str, Any],
+        brief: dict[str, Any],
+    ) -> dict[str, Any]:
+        current_world = thread.world_bible if isinstance(thread.world_bible, dict) else {}
+        current_season = _int_or(
+            brief.get("season_number") or state.get("season_number") or current_world.get("season_number"),
+            1,
+        )
+        next_season = current_season + 1
+        next_world = self._load_next_season_world_bible(current_world=current_world, next_season=next_season)
+        previous = list(state.get("previous_seasons") or [])
+        previous.append(
+            {
+                "season_number": current_season,
+                "completed_at_episode": episode.episode_index,
+                "world_bible_version": current_world.get("world_bible_version"),
+            }
+        )
+        state["previous_seasons"] = previous[-5:]
+        state["season_finale_completed"] = current_season
+        if not next_world:
+            state["season_complete"] = True
+            return state
+
+        thread.world_bible = next_world
+        state["season_number"] = next_season
+        state["season_complete"] = False
+        state["arcs"] = self._empty_arc_state(next_world)
+        thread.state = state
+        self._initialize_thread_story_state(thread)
+        return dict(thread.state or state)
+
+    def _load_next_season_world_bible(self, *, current_world: dict[str, Any], next_season: int) -> dict[str, Any]:
+        if next_season != 2:
+            return {}
+        try:
+            season_world = json.loads(WORLD_BIBLE_S2_PATH.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return {}
+        next_world = dict(current_world or {})
+        for key, value in season_world.items():
+            next_world[key] = value
+        next_world["season_number"] = next_season
+        return next_world
+
+    @staticmethod
+    def _empty_arc_state(world: dict[str, Any]) -> dict[str, dict[str, Any]]:
+        arcs: dict[str, dict[str, Any]] = {}
+        for arc in world.get("season_arcs") or []:
+            if isinstance(arc, dict) and arc.get("id"):
+                arcs[str(arc.get("id"))] = {"stage": None, "stage_index": -1, "advanced_at_episode": -1}
+        return arcs
 
     def _update_relationship_state(
         self,

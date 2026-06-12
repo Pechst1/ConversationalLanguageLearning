@@ -1,0 +1,137 @@
+{
+  "world_bible_version": "paris-s2",
+  "season_number": 2,
+  "season_two_situation": {
+    "your_arc": "The group is no longer new to you; the question becomes what kind of Paris life you are choosing on purpose.",
+    "open_threads": [
+      "Romy has a Montreal escape hatch she can no longer keep abstract.",
+      "Lila has to decide whether Berlin is a loss, a dream, or a second chance.",
+      "Gus's real family life in Creteil starts colliding with the costume.",
+      "Marin has to call his father without turning the call into an omen.",
+      "You stop practicing belonging and start deciding what you owe the people who made room for you."
+    ],
+    "first_episode_seed": "The morning after the season finale, Le Mistral has the same table and a very different silence."
+  },
+  "season_arcs": [
+    {
+      "id": "romy_montreal_deadline",
+      "title": "Le bail de Montreal",
+      "characters": ["romy_tremblay", "user"],
+      "min_episodes_between_stages": 3,
+      "stages": [
+        {
+          "id": "spark",
+          "summary": "A calendar alert about Romy's Montreal apartment flashes at exactly the wrong time.",
+          "sets": {"romy.montreal_thread": "deadline_seen"}
+        },
+        {
+          "id": "choice_pressure",
+          "summary": "Romy treats the lease decision like logistics, while everyone hears the word leaving.",
+          "sets": {"romy.montreal_thread": "choice_pressure"}
+        },
+        {
+          "id": "tentpole",
+          "summary": "Romy admits the apartment is not a backup plan; it is a fear with an address.",
+          "sets": {"romy.montreal_thread": "named", "romy.escape_hatch_named": true},
+          "tentpole": true
+        }
+      ]
+    },
+    {
+      "id": "lila_berlin_opening",
+      "title": "Berlin repond",
+      "characters": ["lila_bonnet", "marin_leveque"],
+      "min_episodes_between_stages": 3,
+      "stages": [
+        {
+          "id": "spark",
+          "summary": "Berlin writes back, politely enough to be impossible to ignore.",
+          "sets": {"lila.berlin_s2": "reply_arrived"}
+        },
+        {
+          "id": "negotiation",
+          "summary": "Lila starts bargaining with a dream as if it were a difficult parent.",
+          "sets": {"lila.berlin_s2": "negotiating"}
+        },
+        {
+          "id": "tentpole",
+          "summary": "Lila asks the group to stop fixing her choice and witness it instead.",
+          "sets": {"lila.berlin_s2": "chosen", "lila.painting_future_named": true},
+          "tentpole": true
+        }
+      ]
+    },
+    {
+      "id": "gus_creteil_truth",
+      "title": "Le dimanche de Gus",
+      "characters": ["augustin_de_roncourt"],
+      "min_episodes_between_stages": 2,
+      "stages": [
+        {
+          "id": "spark",
+          "summary": "A Sunday errand exposes that Gus's chateau has a commuter line and a mother waiting.",
+          "sets": {"gus.creteil_thread": "hint"}
+        },
+        {
+          "id": "pressure",
+          "summary": "Gus turns family tenderness into a performance until the performance stops protecting him.",
+          "sets": {"gus.creteil_thread": "pressure"}
+        },
+        {
+          "id": "tentpole",
+          "summary": "Gus invites the group to Creteil without calling it a bit.",
+          "sets": {"gus.creteil_thread": "known", "gus.family_truth_shared": true},
+          "tentpole": true
+        }
+      ]
+    },
+    {
+      "id": "marin_father_call",
+      "title": "Le pere au telephone",
+      "characters": ["marin_leveque", "lila_bonnet"],
+      "min_episodes_between_stages": 3,
+      "stages": [
+        {
+          "id": "spark",
+          "summary": "Marin's father leaves a voicemail that sounds ordinary only if nobody knows Marin.",
+          "sets": {"marin.father_thread": "voicemail"}
+        },
+        {
+          "id": "avoidance",
+          "summary": "Marin answers everyone except the person he actually needs to call.",
+          "sets": {"marin.father_thread": "avoidance"}
+        },
+        {
+          "id": "tentpole",
+          "summary": "Marin makes the call without asking the universe for permission first.",
+          "sets": {"marin.father_thread": "called", "marin.called_father": true},
+          "tentpole": true
+        }
+      ]
+    },
+    {
+      "id": "user_chosen_paris",
+      "title": "Choisir la ville",
+      "characters": ["user", "margaux_barman", "romy_tremblay"],
+      "min_episodes_between_stages": 2,
+      "stages": [
+        {
+          "id": "spark",
+          "summary": "A practical Paris problem no longer makes you feel like a visitor.",
+          "sets": {"user.paris_s2": "competent"}
+        },
+        {
+          "id": "belonging_cost",
+          "summary": "Belonging starts costing you choices, not just courage.",
+          "sets": {"user.paris_s2": "cost_named"}
+        },
+        {
+          "id": "tentpole",
+          "summary": "You choose the life in French without treating it like an exam.",
+          "sets": {"user.paris_s2": "chosen", "user.chose_paris": true},
+          "tentpole": true
+        }
+      ]
+    }
+  ]
+}
