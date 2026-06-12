@@ -431,6 +431,76 @@ def test_serial_relationship_completion_can_unlock_tu(db_session, monkeypatch):
     assert relationship["callbacks"]
 
 
+def test_legacy_feuilleton_completion_backfills_brief_payload(db_session, monkeypatch):
+    monkeypatch.setattr(SerialThreadService, "_enqueue_next_beat", lambda self, thread_id: None)
+    user = _user(db_session, email="serial-legacy-feuilleton@example.com")
+    thread = _run(SerialThreadService(db_session).get_or_create_thread(user))
+    thread.current_episode_index = 1
+    db_session.add(thread)
+    db_session.flush()
+    scene = GraphicNovelScene(
+        user_id=user.id,
+        serial_thread_id=thread.id,
+        episode_index=1,
+        status="completed",
+        cadence="serial",
+        title="Legacy Feuilleton",
+        brief="A generated scene from before serial brief payloads existed.",
+        selected_concept_ids=[],
+        target_errata_ids=[],
+        target_vocabulary_ids=[],
+        source_snapshot={},
+        script_payload={
+            "title": "Legacy Feuilleton",
+            "location_id": "le_mistral",
+            "panels": [],
+            "hook": {
+                "text": "Romy demande une réponse concrète.",
+                "unresolved_question": "What do you send Romy?",
+                "next_beat_kind": "mission",
+                "teaser": "Demain : écrire à Romy.",
+            },
+        },
+        recap_payload={},
+        cache_key=f"serial-legacy-feuilleton-{uuid4().hex}",
+        prompt_version="test",
+        image_model="test",
+        image_quality="medium",
+    )
+    db_session.add(scene)
+    db_session.flush()
+    episode = SerialEpisode(
+        thread_id=thread.id,
+        episode_index=1,
+        kind="feuilleton",
+        scene_id=scene.id,
+        hook={},
+        hook_from_previous={},
+        state_delta={},
+        status="available",
+        brief_payload={},
+    )
+    db_session.add(episode)
+    db_session.commit()
+
+    _run(SerialThreadService(db_session).apply_completion(thread, scene=scene))
+    db_session.refresh(thread)
+    db_session.refresh(episode)
+    payload = episode.brief_payload
+    required_cast = payload["required_cast"]
+
+    assert payload["episode_index"] == 1
+    assert payload["a_plot"]["advance_on_completion"] is True
+    assert required_cast
+    assert any(value.get("advanced_at_episode") == 1 for value in thread.state["arcs"].values())
+    assert any(thread.state["cast_last_seen"][character_id] == 1 for character_id in required_cast)
+    assert any(
+        thread.state["relationships"][character_id]["closeness"] == 1
+        for character_id in required_cast
+        if character_id in thread.state["relationships"]
+    )
+
+
 def test_full_loop(db_session, monkeypatch):
     monkeypatch.setattr(NewsService, "fetch_feuilleton_daily_seed", _fake_seed)
     monkeypatch.setattr(SerialThreadService, "_enqueue_next_beat", lambda self, thread_id: None)

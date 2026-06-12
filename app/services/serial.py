@@ -846,7 +846,7 @@ class SerialThreadService:
         scene: GraphicNovelScene | None,
         hook: dict[str, Any] | None,
     ) -> None:
-        brief = episode.brief_payload if isinstance(episode.brief_payload, dict) else {}
+        brief = self._episode_brief_payload_for_completion(thread=thread, episode=episode)
         state = dict(thread.state or {})
         a_plot = brief.get("a_plot") if isinstance(brief.get("a_plot"), dict) else {}
         arc_id = str(a_plot.get("arc_id") or "")
@@ -889,6 +889,29 @@ class SerialThreadService:
         if isinstance(pending, dict) and pending.get("character_id") in required_cast and "offers the tu" in str(brief.get("hook_guidance") or ""):
             state.pop("pending_register_switch", None)
         thread.state = state
+
+    def _episode_brief_payload_for_completion(self, *, thread: SerialThread, episode: SerialEpisode) -> dict[str, Any]:
+        brief = episode.brief_payload if isinstance(episode.brief_payload, dict) else {}
+        if isinstance(brief.get("a_plot"), dict) and brief.get("required_cast"):
+            return brief
+
+        beat = "see" if episode.kind == "feuilleton" else "act"
+        original_index = thread.current_episode_index
+        try:
+            thread.current_episode_index = episode.episode_index
+            generated = self._episode_brief(thread, beat).model_dump(mode="json")
+        finally:
+            thread.current_episode_index = original_index
+
+        payload = {**generated, **brief}
+        payload["episode_index"] = episode.episode_index
+        if not isinstance(payload.get("a_plot"), dict):
+            payload["a_plot"] = generated.get("a_plot") or {}
+        if not payload.get("required_cast"):
+            payload["required_cast"] = generated.get("required_cast") or []
+        episode.brief_payload = payload
+        self.db.add(episode)
+        return payload
 
     def _update_relationship_state(
         self,
