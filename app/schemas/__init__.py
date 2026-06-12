@@ -17,7 +17,7 @@ from app.schemas.analytics import (
     VocabularyHeatmapEntry,
     VocabularyHeatmapResponse,
 )
-from app.schemas.auth import Token, TokenPayload
+from app.schemas.auth import LogoutRequest, RefreshTokenRequest, Token, TokenPayload
 from app.schemas.atelier import (
     AtelierAttemptRequest,
     AtelierAttemptResponse,
@@ -58,6 +58,16 @@ from app.schemas.progress import (
     UnifiedQueueResponse,
     UnifiedQueueSummary,
     UnifiedQueueTypeSummary,
+    VocabularyRecommendationItem,
+    VocabularyRecommendationResponse,
+    VocabularyRecommendationSummary,
+    VocabularyRecommendationTranslations,
+    VocabularyMasteryMapCell,
+    VocabularyMasteryMapResponse,
+    VocabularyMasteryMapSummary,
+    WeeklyDossierResponse,
+    WeeklyDossierStats,
+    WeeklyDossierThread,
 )
 from app.schemas.session import (
     AssistantTurnRead,
@@ -88,7 +98,27 @@ from app.schemas.session import (
     TargetWordRead,
     WordExposureRequest,
 )
-from app.schemas.user import UserBase, UserCreate, UserLogin, UserRead, UserUpdate
+from app.schemas.serial import (
+    EpisodeRead,
+    HookRead,
+    SerialAdvanceRequest,
+    SerialStateRead,
+    SerialThreadCreateRequest,
+    SerialThreadRead,
+    StateDelta,
+    WorldBibleRead,
+)
+from app.schemas.user import (
+    UserBase,
+    UserCreate,
+    UserEmailChange,
+    UserLogin,
+    UserPasswordChange,
+    UserRead,
+    UserSettingsRead,
+    UserSettingsUpdate,
+    UserUpdate,
+)
 from app.schemas.vocabulary import VocabularyListResponse, VocabularyWordRead
 
 __all__ = [
@@ -99,6 +129,8 @@ __all__ = [
     "AnalyticsSummary",
     "Token",
     "TokenPayload",
+    "RefreshTokenRequest",
+    "LogoutRequest",
     "AtelierAttemptRequest",
     "AtelierAttemptResponse",
     "AtelierCompleteResponse",
@@ -139,6 +171,16 @@ __all__ = [
     "UnifiedQueueResponse",
     "UnifiedQueueSummary",
     "UnifiedQueueTypeSummary",
+    "VocabularyRecommendationItem",
+    "VocabularyRecommendationResponse",
+    "VocabularyRecommendationSummary",
+    "VocabularyRecommendationTranslations",
+    "VocabularyMasteryMapCell",
+    "VocabularyMasteryMapResponse",
+    "VocabularyMasteryMapSummary",
+    "WeeklyDossierResponse",
+    "WeeklyDossierStats",
+    "WeeklyDossierThread",
     "AssistantTurnRead",
     "DetectedErrorRead",
     "ErrorFeedback",
@@ -166,10 +208,22 @@ __all__ = [
     "TargetWordRead",
     "PracticeIssue",
     "WordExposureRequest",
+    "EpisodeRead",
+    "HookRead",
+    "SerialAdvanceRequest",
+    "SerialStateRead",
+    "SerialThreadCreateRequest",
+    "SerialThreadRead",
+    "StateDelta",
+    "WorldBibleRead",
     "UserBase",
     "UserCreate",
+    "UserEmailChange",
     "UserLogin",
+    "UserPasswordChange",
     "UserRead",
+    "UserSettingsRead",
+    "UserSettingsUpdate",
     "UserUpdate",
     "VocabularyListResponse",
     "VocabularyListResponse",

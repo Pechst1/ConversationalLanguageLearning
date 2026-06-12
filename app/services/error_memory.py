@@ -87,7 +87,13 @@ class ErrorMemoryService:
     def due_errata(self, user: User, *, limit: int = 20, review_modes: set[str] | None = None) -> list[dict[str, Any]]:
         return [serialize_error_memory(row) for row in self.due_error_records(user, limit=limit, review_modes=review_modes)]
 
-    def record_atelier_attempt(self, *, user: User, attempt: AtelierAttempt) -> list[dict[str, Any]]:
+    def record_atelier_attempt(
+        self,
+        *,
+        user: User,
+        attempt: AtelierAttempt,
+        merge_same_attempt: bool = False,
+    ) -> list[dict[str, Any]]:
         updates: list[dict[str, Any]] = []
         correction = attempt.correction_payload or {}
         for index, erratum in enumerate(correction.get("errata") or []):
@@ -103,6 +109,7 @@ class ErrorMemoryService:
                     "exercise_id": attempt.exercise_id,
                     "erratum_index": index,
                 },
+                merge_same_attempt=merge_same_attempt,
             )
             if update:
                 update["erratum_index"] = index
@@ -159,6 +166,7 @@ class ErrorMemoryService:
         learning_session_id: UUID | None = None,
         message_id: UUID | None = None,
         source_payload: dict[str, Any] | None = None,
+        merge_same_attempt: bool = False,
     ) -> dict[str, Any] | None:
         if erratum.get("task_error_type") == "task_compliance" and not erratum.get("recurring"):
             return None
@@ -189,6 +197,25 @@ class ErrorMemoryService:
                 .first()
             )
             if already_recorded:
+                if merge_same_attempt:
+                    self._merge_same_attempt_erratum(
+                        already_recorded,
+                        erratum=erratum,
+                        concept_id=concept_id,
+                        source_type=source_type,
+                        category=category,
+                        task_type=task_type,
+                        display_label=display_label,
+                        review_mode=review_mode,
+                        memory_key=memory_key,
+                        linked_word_id=linked_word.id if linked_word else None,
+                        metadata={
+                            "severity": severity,
+                            "external_id": erratum.get("external_id"),
+                            "source_payload": source_payload or {},
+                        },
+                    )
+                    return self._serialize_update(already_recorded, action="refined")
                 return self._serialize_update(already_recorded, action="already_recorded")
 
         existing = (
@@ -261,6 +288,41 @@ class ErrorMemoryService:
         self._update_error_concept(user=user, task_type=task_type, category=category)
         return self._serialize_update(record, action="created")
 
+    def _merge_same_attempt_erratum(
+        self,
+        error: UserError,
+        *,
+        erratum: dict[str, Any],
+        concept_id: int | None,
+        source_type: str,
+        category: str,
+        task_type: str,
+        display_label: str,
+        review_mode: str,
+        memory_key: str,
+        linked_word_id: int | None,
+        metadata: dict[str, Any],
+    ) -> None:
+        now = datetime.now(timezone.utc)
+        error.original_text = erratum.get("learner_text")
+        error.correction = erratum.get("corrected_target")
+        error.context_snippet = erratum.get("why_wrong")
+        error.why_wrong = erratum.get("why_wrong")
+        error.repair_hint = erratum.get("repair_hint")
+        error.concept_id = concept_id or error.concept_id
+        error.error_category = category
+        error.error_pattern = task_type
+        error.subcategory = erratum.get("external_id") or task_type
+        error.display_label = display_label
+        error.task_error_type = task_type
+        error.source_type = source_type
+        error.review_mode = review_mode
+        error.memory_key = memory_key
+        error.linked_word_id = linked_word_id or error.linked_word_id
+        error.error_metadata = metadata
+        error.updated_at = now
+        self.db.add(error)
+
     def review_error(self, *, user: User, error_id: UUID, rating: int, repaired: bool) -> UserError | None:
         error = self.db.query(UserError).filter(UserError.id == error_id, UserError.user_id == user.id).first()
         if not error:
@@ -308,9 +370,10 @@ class ErrorMemoryService:
 
         metadata = dict(reviewed.error_metadata or {})
         attempts = list(metadata.get("review_attempts") or [])
+        submitted_at = datetime.now(timezone.utc)
         attempts.append(
             {
-                "submitted_at": datetime.now(timezone.utc).isoformat(),
+                "submitted_at": submitted_at.isoformat(),
                 "answer_text": answer,
                 "target_answer": target,
                 "verdict": "repaired" if is_correct else "needs_repair",
@@ -319,6 +382,19 @@ class ErrorMemoryService:
         )
         metadata["review_attempts"] = attempts[-20:]
         metadata["last_review_task"] = self._review_task_payload(reviewed)
+        closure = None
+        if is_correct:
+            closure = {
+                "label": "Corrected. Filed.",
+                "detail": "This erratum leaves today and returns on its next review date.",
+                "filed_at": submitted_at.isoformat(),
+                "next_review_date": reviewed.next_review_date.isoformat() if reviewed.next_review_date else None,
+                "state": reviewed.state or "review",
+            }
+            closure_events = list(metadata.get("closure_events") or [])
+            closure_events.append(closure)
+            metadata["closure_events"] = closure_events[-20:]
+            metadata["last_closure"] = closure
         reviewed.error_metadata = metadata
         flag_modified(reviewed, "error_metadata")
         self.db.add(reviewed)
@@ -329,6 +405,7 @@ class ErrorMemoryService:
             "answer_text": answer,
             "target_answer": target,
             "feedback": self._review_feedback(reviewed, is_correct=is_correct),
+            "closure": closure,
             "erratum": serialize_error_memory(reviewed),
             "task": self._review_task_payload(reviewed),
         }
@@ -424,6 +501,14 @@ class ErrorMemoryService:
     def _link_vocabulary_if_needed(self, *, user: User, category: str, erratum: dict[str, Any]) -> VocabularyWord | None:
         if category != "vocabulary":
             return None
+        linked_word_id = erratum.get("linked_word_id")
+        if linked_word_id:
+            try:
+                word = self.db.get(VocabularyWord, int(linked_word_id))
+            except (TypeError, ValueError):
+                word = None
+            if word:
+                return word
         candidate = self._extract_vocabulary_candidate(erratum)
         if not candidate:
             return None

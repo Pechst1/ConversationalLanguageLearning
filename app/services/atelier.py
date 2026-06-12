@@ -11,25 +11,36 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
+from uuid import UUID
 
 from loguru import logger
 from sqlalchemy.orm.attributes import flag_modified
 from sqlalchemy.orm import Session
 
 from app.config import settings
+from app.db.session import SessionLocal
 from app.db.models.atelier import AtelierAttempt, AtelierExerciseSet, AtelierSession
 from app.db.models.error import UserError
 from app.db.models.grammar import GrammarConcept, UserGrammarProgress
 from app.db.models.user import User
+from app.db.models.vocabulary import VocabularyWord
 from app.services.atelier_assets import AtelierAssetService
 from app.services.error_memory import ErrorMemoryService, serialize_error_memory
+from app.services.exercise_generation import ExerciseGenerationService, ExerciseGenerationUnavailable
 from app.services.grammar_catalog import FrenchCoreGrammarCatalog
 from app.services.grammar import GrammarService
 from app.services.grammar_feedback import count_concept_hits, infer_grammar_profile
 from app.services.llm_service import LLMProviderError, LLMService
+from app.services.progress import ProgressService
+from app.services.vocabulary_credit import VocabularyCreditService
 
-ATELIER_GENERATOR_VERSION = "atelier-v3"
+ATELIER_GENERATOR_VERSION = "atelier-v6"
 ATELIER_CORRECTION_PROMPT_VERSION = "atelier-correction-v2"
+ATELIER_AI_AUTO_ROUNDS = {"sentence", "speak", "conversation", "produce"}
+
+
+class AtelierExerciseGenerationError(RuntimeError):
+    """Raised when Atelier cannot produce an LLM-backed exercise payload."""
 
 
 ATELIER_EXERCISE_RESPONSE_FORMAT: dict[str, Any] = {
@@ -41,40 +52,6 @@ ATELIER_EXERCISE_RESPONSE_FORMAT: dict[str, Any] = {
             "type": "object",
             "additionalProperties": False,
             "properties": {
-                "xray": {
-                    "type": "object",
-                    "additionalProperties": False,
-                    "properties": {
-                        "sentence": {"type": "string"},
-                        "marks": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "additionalProperties": False,
-                                "properties": {
-                                    "text": {"type": "string"},
-                                    "label": {"type": "string"},
-                                },
-                                "required": ["text", "label"],
-                            },
-                        },
-                    },
-                    "required": ["sentence", "marks"],
-                },
-                "rule_panel": {
-                    "type": "object",
-                    "additionalProperties": False,
-                    "properties": {
-                        "title": {"type": "string"},
-                        "rule": {"type": "string"},
-                        "when": {"type": "string"},
-                        "pattern": {"type": "string"},
-                        "check": {"type": "string"},
-                        "examples": {"type": "array", "items": {"type": "string"}},
-                        "traps": {"type": "array", "items": {"type": "string"}},
-                    },
-                    "required": ["title", "rule", "when", "pattern", "check", "examples", "traps"],
-                },
                 "recognize": {
                     "type": "object",
                     "additionalProperties": False,
@@ -91,6 +68,8 @@ ATELIER_EXERCISE_RESPONSE_FORMAT: dict[str, Any] = {
                     "properties": {
                         "items": {
                             "type": "array",
+                            "minItems": 3,
+                            "maxItems": 3,
                             "items": {"$ref": "#/$defs/transform_item"},
                         }
                     },
@@ -104,30 +83,44 @@ ATELIER_EXERCISE_RESPONSE_FORMAT: dict[str, Any] = {
                         "prompt": {"type": "string"},
                         "requirements": {
                             "type": "array",
-                            "items": {
-                                "type": "object",
-                                "additionalProperties": False,
-                                "properties": {
-                                    "label": {"type": "string"},
-                                    "target_count": {"type": "integer"},
-                                },
-                                "required": ["label", "target_count"],
-                            },
+                            "minItems": 1,
+                            "items": {"$ref": "#/$defs/requirement"},
                         },
                         "min_words": {"type": "integer"},
                         "max_words": {"type": "integer"},
                     },
                     "required": ["source_fragment", "prompt", "requirements", "min_words", "max_words"],
                 },
+                "output_ladder": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": {
+                        "sentence": {"$ref": "#/$defs/output_ladder_mode"},
+                        "speak": {"$ref": "#/$defs/output_ladder_mode"},
+                        "conversation": {"$ref": "#/$defs/output_ladder_mode"},
+                    },
+                    "required": ["sentence", "speak", "conversation"],
+                },
             },
-            "required": ["xray", "rule_panel", "recognize", "transform", "produce"],
+            "required": ["recognize", "transform", "produce", "output_ladder"],
             "$defs": {
+                "requirement": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": {
+                        "label": {"type": "string"},
+                        "target_count": {"type": "integer"},
+                    },
+                    "required": ["label", "target_count"],
+                },
                 "fill_mode": {
                     "type": "object",
                     "additionalProperties": False,
                     "properties": {
                         "items": {
                             "type": "array",
+                            "minItems": 3,
+                            "maxItems": 3,
                             "items": {"$ref": "#/$defs/fill_item"},
                         }
                     },
@@ -139,6 +132,8 @@ ATELIER_EXERCISE_RESPONSE_FORMAT: dict[str, Any] = {
                     "properties": {
                         "items": {
                             "type": "array",
+                            "minItems": 3,
+                            "maxItems": 3,
                             "items": {"$ref": "#/$defs/word_bank_item"},
                         }
                     },
@@ -150,6 +145,8 @@ ATELIER_EXERCISE_RESPONSE_FORMAT: dict[str, Any] = {
                     "properties": {
                         "items": {
                             "type": "array",
+                            "minItems": 3,
+                            "maxItems": 3,
                             "items": {"$ref": "#/$defs/classify_item"},
                         }
                     },
@@ -161,13 +158,10 @@ ATELIER_EXERCISE_RESPONSE_FORMAT: dict[str, Any] = {
                     "properties": {
                         "id": {"type": "string"},
                         "prompt": {"type": "string"},
-                        "choices": {"type": "array", "items": {"type": "string"}},
+                        "choices": {"type": "array", "minItems": 2, "items": {"type": "string"}},
                         "correct_answer": {"type": "string"},
-                        "errata_label": {"type": "string"},
-                        "why_wrong": {"type": "string"},
-                        "repair_hint": {"type": "string"},
                     },
-                    "required": ["id", "prompt", "choices", "correct_answer", "errata_label", "why_wrong", "repair_hint"],
+                    "required": ["id", "prompt", "choices", "correct_answer"],
                 },
                 "word_bank_item": {
                     "type": "object",
@@ -175,14 +169,11 @@ ATELIER_EXERCISE_RESPONSE_FORMAT: dict[str, Any] = {
                     "properties": {
                         "id": {"type": "string"},
                         "prompt": {"type": "string"},
-                        "tokens": {"type": "array", "items": {"type": "string"}},
-                        "answer_tokens": {"type": "array", "items": {"type": "string"}},
+                        "tokens": {"type": "array", "minItems": 3, "items": {"type": "string"}},
+                        "answer_tokens": {"type": "array", "minItems": 3, "items": {"type": "string"}},
                         "correct_answer": {"type": "string"},
-                        "errata_label": {"type": "string"},
-                        "why_wrong": {"type": "string"},
-                        "repair_hint": {"type": "string"},
                     },
-                    "required": ["id", "prompt", "tokens", "answer_tokens", "correct_answer", "errata_label", "why_wrong", "repair_hint"],
+                    "required": ["id", "prompt", "tokens", "answer_tokens", "correct_answer"],
                 },
                 "classify_item": {
                     "type": "object",
@@ -190,14 +181,11 @@ ATELIER_EXERCISE_RESPONSE_FORMAT: dict[str, Any] = {
                     "properties": {
                         "id": {"type": "string"},
                         "prompt": {"type": "string"},
-                        "labels": {"type": "array", "items": {"type": "string"}},
+                        "labels": {"type": "array", "minItems": 2, "items": {"type": "string"}},
                         "correct_label": {"type": "string"},
                         "correct_answer": {"type": "string"},
-                        "errata_label": {"type": "string"},
-                        "why_wrong": {"type": "string"},
-                        "repair_hint": {"type": "string"},
                     },
-                    "required": ["id", "prompt", "labels", "correct_label", "correct_answer", "errata_label", "why_wrong", "repair_hint"],
+                    "required": ["id", "prompt", "labels", "correct_label", "correct_answer"],
                 },
                 "transform_item": {
                     "type": "object",
@@ -208,11 +196,49 @@ ATELIER_EXERCISE_RESPONSE_FORMAT: dict[str, Any] = {
                         "instruction": {"type": "string"},
                         "source": {"type": "string"},
                         "expected_answer": {"type": "string"},
-                        "errata_label": {"type": "string"},
-                        "why_wrong": {"type": "string"},
-                        "repair_hint": {"type": "string"},
                     },
-                    "required": ["id", "type", "instruction", "source", "expected_answer", "errata_label", "why_wrong", "repair_hint"],
+                    "required": ["id", "type", "instruction", "source", "expected_answer"],
+                },
+                "output_ladder_mode": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": {
+                        "items": {
+                            "type": "array",
+                            "minItems": 1,
+                            "maxItems": 1,
+                            "items": {"$ref": "#/$defs/output_item"},
+                        }
+                    },
+                    "required": ["items"],
+                },
+                "output_item": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": {
+                        "id": {"type": "string"},
+                        "type": {"type": "string", "enum": ["short_sentence", "spoken_response", "conversation_turn"]},
+                        "instruction": {"type": "string"},
+                        "prompt": {"type": "string"},
+                        "example_answer": {"type": "string"},
+                        "requirements": {
+                            "type": "array",
+                            "minItems": 1,
+                            "items": {"$ref": "#/$defs/requirement"},
+                        },
+                        "min_words": {"type": "integer"},
+                        "max_words": {"type": "integer"},
+                    },
+                    "required": [
+                        "id",
+                        "type",
+                        "instruction",
+                        "prompt",
+                        "example_answer",
+                        "requirements",
+                        "min_words",
+                        "max_words",
+                    ],
                 },
             },
         },
@@ -362,6 +388,217 @@ def _split_list(value: str | None) -> list[str]:
     return [item.strip() for item in raw if item.strip()]
 
 
+def _dedupe_ints(values: list[Any]) -> list[int]:
+    seen: set[int] = set()
+    ordered: list[int] = []
+    for value in values:
+        try:
+            parsed = int(value)
+        except (TypeError, ValueError):
+            continue
+        if parsed in seen:
+            continue
+        ordered.append(parsed)
+        seen.add(parsed)
+    return ordered
+
+
+def _compact_text(value: Any, *, max_length: int = 800) -> str:
+    text = re.sub(r"\s+", " ", str(value or "")).strip()
+    if len(text) <= max_length:
+        return text
+    return text[: max_length - 1].rstrip() + "..."
+
+
+def _vocabulary_anchor(item: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "word_id": item.get("word_id"),
+        "word": item.get("word"),
+        "translation": item.get("translation") or item.get("example_translation"),
+        "sentence": item.get("example_sentence") or "",
+        "example_sentence": item.get("example_sentence") or "",
+        "example_translation": item.get("example_translation") or item.get("translation") or "",
+    }
+
+
+def _normalize_target_vocabulary(items: list[Any]) -> list[dict[str, Any]]:
+    normalized: list[dict[str, Any]] = []
+    seen: set[int] = set()
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        try:
+            word_id = int(item.get("word_id"))
+        except (TypeError, ValueError):
+            continue
+        word = _compact_text(item.get("word"), max_length=80)
+        if not word or word_id in seen:
+            continue
+        normalized.append(
+            {
+                "word_id": word_id,
+                "word": word,
+                "translation": _compact_text(item.get("translation"), max_length=90),
+                "translations": item.get("translations") if isinstance(item.get("translations"), dict) else {},
+                "bucket": _compact_text(item.get("bucket"), max_length=30) or "due",
+                "scheduler": _compact_text(item.get("scheduler"), max_length=40) or "fsrs",
+                "priority_score": item.get("priority_score") or 0,
+                "example_sentence": _compact_text(item.get("example_sentence"), max_length=180),
+                "example_translation": _compact_text(item.get("example_translation"), max_length=180),
+            }
+        )
+        seen.add(word_id)
+    return normalized
+
+
+def select_atelier_vocabulary(
+    db: Session,
+    *,
+    user: User,
+    preferred_word_ids: list[int] | None = None,
+    limit: int = 3,
+) -> list[dict[str, Any]]:
+    selected: list[dict[str, Any]] = []
+    seen_word_ids: set[int] = set()
+    seen_surfaces: set[str] = set()
+    native_language = (user.native_language or "").strip().lower()
+    translation_order = [native_language[:2] if native_language else "", "de", "en", "fr"]
+
+    def add_item(item: dict[str, Any]) -> None:
+        if len(selected) >= limit:
+            return
+        try:
+            word_id = int(item.get("word_id"))
+        except (TypeError, ValueError):
+            return
+        word = _compact_text(item.get("word"), max_length=80)
+        surface_key = _normalize(word)
+        if not word or word_id in seen_word_ids or surface_key in seen_surfaces:
+            return
+        translations = item.get("translations") if isinstance(item.get("translations"), dict) else {}
+        translation = _compact_text(item.get("translation"), max_length=90)
+        if not translation:
+            for language in translation_order:
+                if not language:
+                    continue
+                translation = _compact_text(translations.get(language), max_length=90)
+                if translation:
+                    break
+        selected.append(
+            {
+                "word_id": word_id,
+                "word": word,
+                "translation": translation,
+                "translations": {
+                    "de": _compact_text(translations.get("de"), max_length=90),
+                    "en": _compact_text(translations.get("en"), max_length=90),
+                    "fr": _compact_text(translations.get("fr"), max_length=90),
+                },
+                "bucket": item.get("bucket") or "due",
+                "scheduler": item.get("scheduler") or "fsrs",
+                "priority_score": item.get("priority_score") or 0,
+                "example_sentence": _compact_text(item.get("example_sentence"), max_length=180),
+                "example_translation": _compact_text(item.get("example_translation"), max_length=180),
+            }
+        )
+        seen_word_ids.add(word_id)
+        seen_surfaces.add(surface_key)
+
+    preferred_ids = _dedupe_ints(preferred_word_ids or [])
+    if preferred_ids:
+        rows = db.query(VocabularyWord).filter(VocabularyWord.id.in_(preferred_ids)).all()
+        by_id = {row.id: row for row in rows}
+        for word_id in preferred_ids:
+            word = by_id.get(word_id)
+            if not word:
+                continue
+            add_item(
+                {
+                    "word_id": word.id,
+                    "word": word.word,
+                    "translations": {
+                        "de": word.german_translation,
+                        "en": word.english_translation,
+                        "fr": word.french_translation,
+                    },
+                    "bucket": "preferred",
+                    "scheduler": "explicit",
+                    "priority_score": 1.0,
+                    "example_sentence": word.example_sentence,
+                    "example_translation": word.example_translation,
+                }
+            )
+
+    if len(selected) >= limit:
+        return selected[:limit]
+
+    recommendations = ProgressService(db).get_vocabulary_recommendations(
+        user=user,
+        limit=limit * 2,
+        due_limit=limit,
+        fragile_limit=limit,
+        new_limit=limit,
+        direction="fr_to_de",
+    )
+    for item in recommendations.get("items") or []:
+        add_item(item)
+        if len(selected) >= limit:
+            break
+    return selected[:limit]
+
+
+def session_vocabulary_context(session: AtelierSession) -> list[dict[str, Any]]:
+    quote = session.quote_payload or {}
+    items = quote.get("target_vocabulary") if isinstance(quote, dict) else []
+    return _normalize_target_vocabulary(items if isinstance(items, list) else [])
+
+
+def inject_vocabulary_context(
+    payload: dict[str, Any],
+    target_vocabulary: list[dict[str, Any]],
+    *,
+    concept_index: int = 0,
+) -> dict[str, Any]:
+    vocabulary = _normalize_target_vocabulary(target_vocabulary)
+    if not vocabulary:
+        return payload
+    next_payload = json.loads(json.dumps(payload))
+    next_payload["target_vocabulary"] = vocabulary
+    next_payload["target_vocabulary_ids"] = [item["word_id"] for item in vocabulary]
+    anchors = [_vocabulary_anchor(item) for item in vocabulary]
+    anchor = anchors[concept_index % len(anchors)]
+
+    def enrich_items(container: dict[str, Any]) -> None:
+        items = container.get("items") if isinstance(container, dict) else None
+        if not isinstance(items, list):
+            return
+        for index, item in enumerate(items):
+            if not isinstance(item, dict):
+                continue
+            item.setdefault("context_anchor", anchors[(concept_index + index) % len(anchors)])
+            item.setdefault("vocabulary_task", True)
+            item.setdefault("production_goal", "use_target_vocabulary_in_context")
+
+    ladder = next_payload.get("output_ladder")
+    if isinstance(ladder, dict):
+        for container in ladder.values():
+            if isinstance(container, dict):
+                enrich_items(container)
+    enrich_items(next_payload)
+
+    produce = next_payload.get("produce")
+    if isinstance(produce, dict):
+        produce["context_anchors"] = anchors
+        produce.setdefault("vocabulary_task", True)
+        produce.setdefault("production_goal", "use_target_vocabulary_in_context")
+    elif next_payload.get("round") == "produce":
+        next_payload["context_anchors"] = anchors
+        next_payload.setdefault("vocabulary_task", True)
+        next_payload.setdefault("production_goal", "use_target_vocabulary_in_context")
+    next_payload.setdefault("context_anchor", anchor)
+    return next_payload
+
+
 def _payload_hash(payload: dict[str, Any]) -> str:
     data = json.dumps(payload, sort_keys=True, ensure_ascii=False)
     return hashlib.sha256(data.encode("utf-8")).hexdigest()
@@ -462,9 +699,9 @@ FALLBACK_CONCEPTS: list[dict[str, Any]] = [
         "name": "De/d' after negation with partitive/indefinite (ne...pas de)",
         "difficulty_order": 80,
         "is_foundation": True,
-        "core_rule": "After a negative quantity, change du, de la, de l', des, un, or une to de or d'. The etre exception keeps the original article.",
-        "main_traps": "keeping du/des after pas; changing articles after etre; forgetting d' before a vowel",
-        "anchor_examples": "Je bois du cafe. -> Je ne bois pas de cafe. | C'est du cafe. -> Ce n'est pas du cafe. | Il a une pomme. -> Il n'a pas de pomme.",
+        "core_rule": "After a negative quantity, change du, de la, de l', des, un, or une to de or d'. The être exception keeps the original article.",
+        "main_traps": "keeping du/des after pas; changing articles after être; forgetting d' before a vowel",
+        "anchor_examples": "Je bois du café. -> Je ne bois pas de café. | C'est du café. -> Ce n'est pas du café. | Il a une pomme. -> Il n'a pas de pomme.",
         "exercise_tags": ["negation", "articles", "quantity"],
         "active": True,
     },
@@ -719,32 +956,28 @@ class AtelierExerciseGenerator:
         self.llm_service = llm_service
         self._llm_unavailable = False
 
-    def get_or_create(self, concept: GrammarConcept) -> AtelierExerciseSet:
+    def get_or_create(self, concept: GrammarConcept, *, user: User | None = None) -> AtelierExerciseSet:
         cached = (
             self.db.query(AtelierExerciseSet)
             .filter(
                 AtelierExerciseSet.concept_id == concept.id,
                 AtelierExerciseSet.generator_version == ATELIER_GENERATOR_VERSION,
+                AtelierExerciseSet.source == "llm",
             )
             .order_by(AtelierExerciseSet.created_at.desc())
             .first()
         )
-        if (
-            cached
-            and self.validate_payload(cached.payload)
-            and not (cached.source == "fallback" and self.llm_service is not None)
-        ):
+        if cached and self.validate_payload(cached.payload, concept=concept):
             return cached
 
-        generated = self._generate_with_llm(concept)
-        if generated:
-            payload, model, validation_notes = generated
-            source = "llm"
-        else:
-            payload = self._fallback_payload(concept)
-            model = None
-            source = "fallback"
-            validation_notes = "Generated from catalog metadata and Atelier fallback templates."
+        generated = self._generate_with_llm(concept, user=user)
+        if not generated:
+            raise AtelierExerciseGenerationError(
+                f"Atelier exercise generation requires an LLM payload for {concept.external_id or concept.id}, "
+                "but no valid LLM exercise set could be produced."
+            )
+        payload, model, validation_notes = generated
+        source = "llm"
 
         content_hash = _payload_hash(payload)
         existing_same_hash = (
@@ -781,71 +1014,134 @@ class AtelierExerciseGenerator:
         return exercise_set
 
     @staticmethod
-    def validate_payload(payload: dict[str, Any]) -> bool:
+    def validate_payload(payload: dict[str, Any], concept: GrammarConcept | None = None) -> bool:
+        return not AtelierExerciseGenerator._payload_validation_errors(payload, concept=concept)
+
+    @staticmethod
+    def _payload_validation_errors(payload: dict[str, Any], concept: GrammarConcept | None = None) -> list[str]:
+        errors: list[str] = []
+
+        def filled(value: Any) -> bool:
+            return bool(str(value or "").strip())
+
+        def item_id(item: Any) -> str:
+            return str((item or {}).get("id") or "?")
+
         recognize = payload.get("recognize") or {}
         if set(recognize.keys()) != {"fill", "word_bank", "classify"}:
-            return False
+            errors.append("recognize must include fill, word_bank, and classify")
+            return errors
         if any(len((recognize[mode] or {}).get("items") or []) != 3 for mode in recognize):
-            return False
+            errors.append("each recognize mode must have exactly 3 items")
+        for item in (recognize.get("fill") or {}).get("items") or []:
+            if not (
+                filled(item.get("id"))
+                and filled(item.get("prompt"))
+                and filled(item.get("correct_answer"))
+                and len(item.get("choices") or []) >= 2
+            ):
+                errors.append(f"fill item {item_id(item)} is incomplete")
+        for item in (recognize.get("word_bank") or {}).get("items") or []:
+            if not (
+                filled(item.get("id"))
+                and filled(item.get("prompt"))
+                and filled(item.get("correct_answer"))
+                and len(item.get("tokens") or []) >= 3
+                and len(item.get("answer_tokens") or []) >= 3
+            ):
+                errors.append(f"word_bank item {item_id(item)} is incomplete")
+        for item in (recognize.get("classify") or {}).get("items") or []:
+            if not (
+                filled(item.get("id"))
+                and filled(item.get("prompt"))
+                and filled(item.get("correct_label"))
+                and len(item.get("labels") or []) >= 2
+            ):
+                errors.append(f"classify item {item_id(item)} is incomplete")
         transform = ((payload.get("transform") or {}).get("items") or [])
+        if len(transform) != 3:
+            errors.append("transform must have exactly 3 items")
+        for item in transform:
+            if not (
+                filled(item.get("id"))
+                and filled(item.get("instruction"))
+                and filled(item.get("source"))
+                and filled(item.get("expected_answer"))
+            ):
+                errors.append(f"transform item {item_id(item)} is incomplete")
+        produce = payload.get("produce") or {}
+        if not (
+            filled(produce.get("source_fragment"))
+            and filled(produce.get("prompt"))
+            and bool(produce.get("requirements"))
+        ):
+            errors.append("produce source_fragment, prompt, or requirements missing")
         ladder = payload.get("output_ladder") or {}
-        ladder_ready = all(
-            ((ladder.get(key) or {}).get("items") or [])
-            for key in ("sentence", "speak", "conversation")
-        )
-        return len(transform) == 3 and bool((payload.get("produce") or {}).get("requirements")) and ladder_ready
+        for key in ("sentence", "speak", "conversation"):
+            items = (ladder.get(key) or {}).get("items") or []
+            if len(items) != 1:
+                errors.append(f"output_ladder.{key}.items must contain exactly 1 item")
+                continue
+            for item in items:
+                if not (
+                    filled(item.get("id"))
+                    and filled(item.get("type"))
+                    and filled(item.get("instruction"))
+                    and filled(item.get("prompt"))
+                    and filled(item.get("example_answer"))
+                    and bool(item.get("requirements"))
+                ):
+                    errors.append(f"output_ladder.{key} item {item_id(item)} is incomplete")
+                    continue
+                if concept and count_concept_hits(
+                    concept,
+                    str(item.get("example_answer") or ""),
+                    task_text=" ".join(
+                        [
+                            str(item.get("instruction") or ""),
+                            str(item.get("prompt") or ""),
+                            str(item.get("requirements") or ""),
+                        ]
+                    ),
+                ) <= 0:
+                    errors.append(
+                        f"output_ladder.{key} item {item_id(item)} example_answer does not demonstrate target concept"
+                    )
+        return errors
 
-    def _generate_with_llm(self, concept: GrammarConcept) -> tuple[dict[str, Any], str, str] | None:
-        llm = self._get_llm_service()
-        if not llm:
-            return None
-
-        blueprint = AtelierAssetService(self.db).approved_blueprint_payload(concept)
-        fallback = self._fallback_payload(concept)
-        system_prompt = (
-            "You generate compact French grammar practice payloads for Atelier. "
-            "Return only valid JSON matching the provided schema. "
-            "Every recognize mode must contain exactly 3 subitems, transform must contain exactly 3 rewrite tasks, "
-            "and all corrections must preserve the requested grammar frame. "
-            "Use clear learner-facing why/repair copy rather than internal codes."
+    def _generate_with_llm(self, concept: GrammarConcept, *, user: User | None = None) -> tuple[dict[str, Any], str, str] | None:
+        generation_service = ExerciseGenerationService(
+            self.db,
+            llm_service=self._get_llm_service(),
         )
-        user_payload = {
-            "concept": serialize_concept(concept),
-            "concept_blueprint": blueprint,
-            "required_flow": {
-                "recognize_modes": ["fill", "word_bank", "classify"],
-                "recognize_items_per_mode": 3,
-                "transform_types": ["directed_rewrite", "contrast_rewrite", "repair_rewrite"],
-                "produce_requirement_target_count": _produce_target_count(self.db, concept),
-            },
-            "fallback_shape_reference": fallback,
-            "concept_guardrails": _concept_correction_instructions([concept]),
-        }
+        validation_feedback: list[str] | None = None
         try:
-            result = llm.generate_chat_completion(
-                [{"role": "user", "content": json.dumps(user_payload, ensure_ascii=False)}],
-                system_prompt=system_prompt,
-                response_format=ATELIER_EXERCISE_RESPONSE_FORMAT,
-                temperature=0.35,
-                max_tokens=3500,
-            )
-            parsed = json.loads(result.content)
-            payload = self._normalize_llm_exercise_payload(concept, parsed)
-            if not self.validate_payload(payload):
+            for attempt_index in range(2):
+                bundle = generation_service.generate_atelier_exercise(
+                    concept=concept,
+                    user=user,
+                    validation_feedback=validation_feedback,
+                )
+                payload = self._normalize_llm_exercise_payload(concept, bundle.payload)
+                validation_errors = self._payload_validation_errors(payload, concept=concept)
+                if not validation_errors:
+                    return (
+                        payload,
+                        bundle.model,
+                        bundle.validation_notes,
+                    )
                 logger.warning(
-                    "Atelier LLM exercise payload failed validation; falling back",
+                    "Atelier LLM exercise payload failed validation: {}",
+                    validation_errors,
                     concept_id=concept.id,
                     external_id=concept.external_id,
+                    attempt=attempt_index + 1,
                 )
-                return None
-            return (
-                payload,
-                result.model,
-                f"Generated by {result.provider}:{result.model} with strict Atelier exercise schema.",
-            )
-        except (json.JSONDecodeError, LLMProviderError, ValueError, TypeError) as exc:
+                validation_feedback = validation_errors
+            return None
+        except (ExerciseGenerationUnavailable, json.JSONDecodeError, LLMProviderError, ValueError, TypeError) as exc:
             logger.warning(
-                "Atelier LLM exercise generation failed; using fallback",
+                "Atelier LLM exercise generation failed",
                 concept_id=concept.id,
                 external_id=concept.external_id,
                 error=str(exc),
@@ -853,7 +1149,20 @@ class AtelierExerciseGenerator:
             return None
 
     def _normalize_llm_exercise_payload(self, concept: GrammarConcept, payload: dict[str, Any]) -> dict[str, Any]:
-        payload = dict(payload)
+        incoming = dict(payload)
+        incoming_xray = incoming.get("xray") if isinstance(incoming.get("xray"), dict) else {}
+        examples = _split_list(concept.anchor_examples) or _split_list(concept.examples)
+        base_sentence = (
+            str(incoming_xray.get("sentence") or "").strip()
+            or (examples[0] if examples else "")
+            or concept.name
+        )
+        payload = self._base(
+            concept,
+            sentence=base_sentence,
+            marks=incoming_xray.get("marks") if isinstance(incoming_xray.get("marks"), list) else [],
+        )
+        payload.update(incoming)
         payload["concept"] = serialize_concept(concept)
         for item in (((payload.get("recognize") or {}).get("word_bank") or {}).get("items") or []):
             item_id = str(item.get("id") or "word-bank")
@@ -886,7 +1195,33 @@ class AtelierExerciseGenerator:
         produce["min_words"] = int(produce.get("min_words") or 70)
         produce["max_words"] = int(produce.get("max_words") or 140)
         payload["produce"] = produce
-        return self._ensure_output_ladder(concept, payload)
+        output_ladder = dict(payload.get("output_ladder") or {})
+        for round_name in ("sentence", "speak", "conversation"):
+            container = dict(output_ladder.get(round_name) or {})
+            items = container.get("items") or []
+            if not isinstance(items, list) or not items:
+                raise ValueError(f"Missing output_ladder.{round_name}.items")
+            normalized_items: list[dict[str, Any]] = []
+            for index, raw_item in enumerate(items):
+                item = dict(raw_item or {})
+                requirements = item.get("requirements") or []
+                raw_requirement = requirements[0] if requirements else {}
+                item["requirements"] = [
+                    {
+                        "concept_id": concept.id,
+                        "external_id": concept.external_id,
+                        "label": raw_requirement.get("label") or concept.name,
+                        "target_count": int(raw_requirement.get("target_count") or 1),
+                    }
+                ]
+                item["id"] = str(item.get("id") or f"{concept.external_id or concept.id}-{round_name}-{index + 1}")
+                item["min_words"] = int(item.get("min_words") or (5 if round_name == "sentence" else 6))
+                item["max_words"] = int(item.get("max_words") or (30 if round_name == "conversation" else 24))
+                normalized_items.append(item)
+            container["items"] = normalized_items
+            output_ladder[round_name] = container
+        payload["output_ladder"] = output_ladder
+        return payload
 
     def _get_llm_service(self) -> LLMService | None:
         if self.llm_service:
@@ -900,18 +1235,8 @@ class AtelierExerciseGenerator:
             return self.llm_service
         except Exception as exc:
             self._llm_unavailable = True
-            logger.info("Atelier LLM generation unavailable; using fallback", error=str(exc))
+            logger.info("Atelier LLM generation unavailable", error=str(exc))
             return None
-
-    def _fallback_payload(self, concept: GrammarConcept) -> dict[str, Any]:
-        profile_key = infer_grammar_profile(concept).key
-        if profile_key == "si_present_result_form":
-            return self._ensure_output_ladder(concept, self._si_type_one_payload(concept))
-        if profile_key == "tense_aspect":
-            return self._ensure_output_ladder(concept, self._tense_contrast_payload(concept))
-        if profile_key == "article_after_negation":
-            return self._ensure_output_ladder(concept, self._negation_payload(concept))
-        return self._ensure_output_ladder(concept, self._generic_payload(concept))
 
     def _base(self, concept: GrammarConcept, *, sentence: str, marks: list[dict[str, str]]) -> dict[str, Any]:
         blueprint = AtelierAssetService(self.db).approved_blueprint_payload(concept)
@@ -940,487 +1265,6 @@ class AtelierExerciseGenerator:
                 "traps": (pedagogy.get("main_traps") or traps)[:3],
             },
         }
-
-    def _si_type_one_payload(self, concept: GrammarConcept) -> dict[str, Any]:
-        payload = self._base(
-            concept,
-            sentence="Si je finis tot, je t'appellerai.",
-            marks=[
-                {"text": "Si", "label": "condition"},
-                {"text": "finis", "label": "present"},
-                {"text": "appellerai", "label": "future simple"},
-            ],
-        )
-        payload.update(
-            {
-                "recognize": {
-                    "fill": {
-                        "items": [
-                            self._fill("si-fill-1", "Si je finis tot, je t'_____.", ["appelle", "appellerai", "appellerais", "ai appele"], "appellerai"),
-                            self._fill("si-fill-2", "S'il pleut demain, _____ ton manteau.", ["prends", "prendras", "prenais", "as pris"], "prends"),
-                            self._fill("si-fill-3", "Si nous avons le temps, nous _____ au marche.", ["irons", "allons", "irions", "sommes alles"], "irons"),
-                        ]
-                    },
-                    "word_bank": {
-                        "items": [
-                            self._bank("si-bank-1", "Build: If she calls, I will answer.", ["Si", "elle", "appelle", ",", "je", "repondrai"], ["Si", "elle", "appelle", ",", "je", "repondrai"]),
-                            self._bank("si-bank-2", "Build: If you are hungry, eat.", ["Si", "tu", "as", "faim", ",", "mange"], ["Si", "tu", "as", "faim", ",", "mange"]),
-                            self._bank("si-bank-3", "Build: If we leave now, we will arrive early.", ["Si", "nous", "partons", "maintenant", ",", "nous", "arriverons", "tot"], ["Si", "nous", "partons", "maintenant", ",", "nous", "arriverons", "tot"]),
-                        ]
-                    },
-                    "classify": {
-                        "items": [
-                            self._classify("si-classify-1", "finis", ["present", "future", "conditional", "imperative"], "present"),
-                            self._classify("si-classify-2", "prends", ["present", "future", "conditional", "imperative"], "imperative"),
-                            self._classify("si-classify-3", "appellerai", ["present", "future", "conditional", "imperative"], "future"),
-                        ]
-                    },
-                },
-                "transform": {
-                    "items": [
-                        self._transform("si-transform-1", "directed_rewrite", "Rewrite in the si + present -> future frame.", "Quand il arrivera, on commencera le diner.", "S'il arrive, on commencera le diner."),
-                        self._transform("si-transform-2", "contrast_rewrite", "Change the unreal condition into a real future condition.", "Si tu avais le temps, tu viendrais.", "Si tu as le temps, tu viendras."),
-                        self._transform("si-transform-3", "repair_rewrite", "Repair only the si construction.", "Si tu viendras demain, apporte le livre.", "Si tu viens demain, apporte le livre."),
-                    ]
-                },
-                "produce": self._produce_for(concept, _produce_target_count(self.db, concept)),
-            }
-        )
-        return payload
-
-    def _tense_contrast_payload(self, concept: GrammarConcept) -> dict[str, Any]:
-        payload = self._base(
-            concept,
-            sentence="Il pleuvait quand je suis sorti.",
-            marks=[
-                {"text": "pleuvait", "label": "background"},
-                {"text": "suis sorti", "label": "bounded event"},
-            ],
-        )
-        payload.update(
-            {
-                "recognize": {
-                    "fill": {
-                        "items": [
-                            self._fill("tense-fill-1", "Il _____ quand je suis arrive.", ["pleuvait", "a plu", "pleuvra", "pleuvrait"], "pleuvait"),
-                            self._fill("tense-fill-2", "Hier, nous _____ le musee.", ["visitions", "avons visite", "visitons", "visiterions"], "avons visite"),
-                            self._fill("tense-fill-3", "Elle lisait quand le telephone _____.", ["sonnait", "a sonne", "sonnera", "sonne"], "a sonne"),
-                        ]
-                    },
-                    "word_bank": {
-                        "items": [
-                            self._bank("tense-bank-1", "Build: I was walking when a car passed.", ["Je", "marchais", "quand", "une", "voiture", "est", "passee"], ["Je", "marchais", "quand", "une", "voiture", "est", "passee"]),
-                            self._bank("tense-bank-2", "Build: It was cold, then we entered.", ["Il", "faisait", "froid", ",", "puis", "nous", "sommes", "entres"], ["Il", "faisait", "froid", ",", "puis", "nous", "sommes", "entres"]),
-                            self._bank("tense-bank-3", "Build: She was waiting when I answered.", ["Elle", "attendait", "quand", "j'", "ai", "repondu"], ["Elle", "attendait", "quand", "j'", "ai", "repondu"]),
-                        ]
-                    },
-                    "classify": {
-                        "items": [
-                            self._classify("tense-classify-1", "pleuvait", ["background", "bounded event"], "background"),
-                            self._classify("tense-classify-2", "est entre", ["background", "bounded event"], "bounded event"),
-                            self._classify("tense-classify-3", "dormaient", ["background", "bounded event"], "background"),
-                        ]
-                    },
-                },
-                "transform": {
-                    "items": [
-                        self._transform("tense-transform-1", "directed_rewrite", "Put background in imparfait and the event in passe compose.", "Il pleut et je sors.", "Il pleuvait quand je suis sorti."),
-                        self._transform("tense-transform-2", "contrast_rewrite", "Make the first verb background and the second a completed interruption.", "Je marche dans la rue. Une voiture passe.", "Je marchais dans la rue quand une voiture est passee."),
-                        self._transform("tense-transform-3", "repair_rewrite", "Repair the tense contrast.", "Hier, il a plu toute la journee et je lisais trois chapitres.", "Hier, il pleuvait toute la journee et j'ai lu trois chapitres."),
-                    ]
-                },
-                "produce": self._produce_for(concept, _produce_target_count(self.db, concept)),
-            }
-        )
-        return payload
-
-    def _negation_payload(self, concept: GrammarConcept) -> dict[str, Any]:
-        payload = self._base(
-            concept,
-            sentence="Je ne mange pas de viande.",
-            marks=[
-                {"text": "ne ... pas", "label": "negation"},
-                {"text": "de", "label": "article after negation"},
-            ],
-        )
-        payload.update(
-            {
-                "recognize": {
-                    "fill": {
-                        "items": [
-                            self._fill("neg-fill-1", "Je bois du cafe. -> Je ne bois pas _____ cafe.", ["du", "de", "des", "un"], "de"),
-                            self._fill("neg-fill-2", "Elle a une pomme. -> Elle n'a pas _____ pomme.", ["une", "de", "la", "des"], "de"),
-                            self._fill("neg-fill-3", "Nous mangeons des croissants. -> Nous ne mangeons pas _____ croissants.", ["des", "de", "les", "du"], "de"),
-                        ]
-                    },
-                    "word_bank": {
-                        "items": [
-                            self._bank("neg-bank-1", "Build: I do not drink coffee.", ["Je", "ne", "bois", "pas", "de", "cafe"], ["Je", "ne", "bois", "pas", "de", "cafe"]),
-                            self._bank("neg-bank-2", "Build: She does not have an idea.", ["Elle", "n'", "a", "pas", "d'", "idee"], ["Elle", "n'", "a", "pas", "d'", "idee"]),
-                            self._bank("neg-bank-3", "Build: We do not buy apples.", ["Nous", "n'", "achetons", "pas", "de", "pommes"], ["Nous", "n'", "achetons", "pas", "de", "pommes"]),
-                        ]
-                    },
-                    "classify": {
-                        "items": [
-                            self._classify("neg-classify-1", "Je ne bois pas de cafe.", ["article changes", "etre exception"], "article changes"),
-                            self._classify("neg-classify-2", "Ce n'est pas du cafe.", ["article changes", "etre exception"], "etre exception"),
-                            self._classify("neg-classify-3", "Il n'a pas d'argent.", ["article changes", "etre exception"], "article changes"),
-                        ]
-                    },
-                },
-                "transform": {
-                    "items": [
-                        self._transform("neg-transform-1", "directed_rewrite", "Rewrite the whole sentence in the negative.", "Je bois du cafe et je mange une pomme.", "Je ne bois pas de cafe et je ne mange pas de pomme."),
-                        self._transform("neg-transform-2", "contrast_rewrite", "Use the etre exception correctly.", "C'est du cafe.", "Ce n'est pas du cafe."),
-                        self._transform("neg-transform-3", "repair_rewrite", "Repair the article after negation.", "Elle n'a pas une idee.", "Elle n'a pas d'idee."),
-                    ]
-                },
-                "produce": self._produce_for(concept, _produce_target_count(self.db, concept)),
-            }
-        )
-        return payload
-
-    def _generic_payload(self, concept: GrammarConcept) -> dict[str, Any]:
-        payload = self._base(
-            concept,
-            sentence=(concept.anchor_examples or concept.examples or "Observe the target form in context.").split("|")[0].strip(),
-            marks=[{"text": concept.name, "label": "target concept"}],
-        )
-        payload.update(
-            {
-                "recognize": {
-                    "fill": {"items": [self._fill(f"generic-fill-{i}", f"Choose the form that fits {concept.name}.", ["correct", "incorrect"], "correct") for i in range(1, 4)]},
-                    "word_bank": {"items": [self._bank(f"generic-bank-{i}", f"Build one correct example of {concept.name}.", ["correct", "example"], ["correct", "example"]) for i in range(1, 4)]},
-                    "classify": {"items": [self._classify(f"generic-classify-{i}", concept.name, ["target", "not target"], "target") for i in range(1, 4)]},
-                },
-                "transform": {
-                    "items": [
-                        self._transform("generic-transform-1", "directed_rewrite", "Rewrite using the target rule.", concept.name, concept.anchor_examples or concept.name),
-                        self._transform("generic-transform-2", "contrast_rewrite", "Change the sentence into the contrasting target form.", concept.name, concept.anchor_examples or concept.name),
-                        self._transform("generic-transform-3", "repair_rewrite", "Repair the target rule.", concept.name, concept.anchor_examples or concept.name),
-                    ]
-                },
-                "produce": self._produce_for(concept, _produce_target_count(self.db, concept)),
-            }
-        )
-        return payload
-
-    def _fill(self, item_id: str, prompt: str, choices: list[str], answer: str) -> dict[str, Any]:
-        return {
-            "id": item_id,
-            "prompt": prompt,
-            "choices": choices,
-            "correct_answer": answer,
-            "errata_label": "Target form needed",
-            "why_wrong": "The selected form does not match the grammar frame requested by the task.",
-            "repair_hint": "Identify the trigger and choose the form required by the target rule.",
-        }
-
-    def _bank(self, item_id: str, prompt: str, tokens: list[str], answer_tokens: list[str]) -> dict[str, Any]:
-        return {
-            "id": item_id,
-            "prompt": prompt,
-            "tokens": _stable_scramble(tokens, item_id)
-            if _normalize(_join_french_tokens(tokens)) == _normalize(_join_french_tokens(answer_tokens))
-            else tokens,
-            "answer_tokens": answer_tokens,
-            "correct_answer": _join_french_tokens(answer_tokens),
-            "errata_label": "Word order",
-            "why_wrong": "The sentence pieces do not form the required target structure.",
-            "repair_hint": "Keep the trigger, verb form, and result clause in the expected order.",
-        }
-
-    def _classify(self, item_id: str, prompt: str, labels: list[str], answer: str) -> dict[str, Any]:
-        return {
-            "id": item_id,
-            "prompt": prompt,
-            "labels": labels,
-            "correct_label": answer,
-            "correct_answer": answer,
-            "errata_label": "Classification",
-            "why_wrong": "The form was assigned to the wrong grammar role.",
-            "repair_hint": "Ask what job the form is doing in the sentence before choosing a label.",
-        }
-
-    def _transform(self, item_id: str, kind: str, instruction: str, source: str, expected: str) -> dict[str, Any]:
-        return {
-            "id": item_id,
-            "type": kind,
-            "instruction": instruction,
-            "source": source,
-            "expected_answer": expected,
-            "errata_label": {
-                "directed_rewrite": "Directed rewrite",
-                "contrast_rewrite": "Contrast rewrite",
-                "repair_rewrite": "Repair rewrite",
-            }.get(kind, "Rewrite"),
-            "why_wrong": "The rewrite changes the requested grammar frame or leaves the target error unresolved.",
-            "repair_hint": "Preserve the task frame and change only the forms required by the target rule.",
-        }
-
-    def _produce_for(self, concept: GrammarConcept, count: int) -> dict[str, Any]:
-        return {
-            "source_fragment": "Le Tour de France 2026 partira de Barcelone le 4 juillet.",
-            "prompt": "Write a short paragraph about plans around the Tour de France. Use the news fragment as context, but write your own scene.",
-            "requirements": [
-                {
-                    "concept_id": concept.id,
-                    "external_id": concept.external_id,
-                    "label": concept.name,
-                    "target_count": count,
-                }
-            ],
-            "min_words": 70,
-            "max_words": 140,
-        }
-
-    def _ensure_output_ladder(self, concept: GrammarConcept, payload: dict[str, Any]) -> dict[str, Any]:
-        payload = dict(payload)
-        existing = dict(payload.get("output_ladder") or {})
-        generated = self._output_ladder_for(concept)
-        for key, value in generated.items():
-            if not ((existing.get(key) or {}).get("items") or []):
-                existing[key] = value
-        payload["output_ladder"] = existing
-        return payload
-
-    def _output_ladder_for(self, concept: GrammarConcept) -> dict[str, Any]:
-        profile_key = infer_grammar_profile(concept).key
-        if profile_key == "si_present_result_form":
-            return {
-                "sentence": {
-                    "items": [
-                        self._output_item(
-                            "si-sentence-1",
-                            "short_sentence",
-                            "Write one original sentence with a real si condition and a future or imperative result.",
-                            "One sentence about tomorrow: si + present, then future simple or imperative.",
-                            "Si le metro est en retard, je prendrai un velo.",
-                            concept,
-                            1,
-                            min_words=7,
-                            max_words=22,
-                        )
-                    ]
-                },
-                "speak": {
-                    "items": [
-                        self._output_item(
-                            "si-speak-1",
-                            "spoken_response",
-                            "Say the answer aloud, then type the exact sentence you said.",
-                            "Que feras-tu s'il pleut demain ?",
-                            "S'il pleut demain, je prendrai mon manteau.",
-                            concept,
-                            1,
-                            min_words=6,
-                            max_words=24,
-                        )
-                    ]
-                },
-                "conversation": {
-                    "items": [
-                        self._output_item(
-                            "si-conversation-1",
-                            "conversation_turn",
-                            "Reply to Claude in one natural turn while keeping the si type 1 frame.",
-                            "Claude: Si le train est en retard, qu'est-ce qu'on fait ?",
-                            "S'il est en retard, on attendra au cafe.",
-                            concept,
-                            1,
-                            min_words=7,
-                            max_words=28,
-                        )
-                    ]
-                },
-            }
-        if profile_key == "tense_aspect":
-            return {
-                "sentence": {
-                    "items": [
-                        self._output_item(
-                            "tense-sentence-1",
-                            "short_sentence",
-                            "Write one sentence with background in imparfait and a completed event in passe compose.",
-                            "One sentence about a street scene in Paris.",
-                            "Je marchais dans la rue quand une voiture est passee.",
-                            concept,
-                            1,
-                            min_words=7,
-                            max_words=24,
-                        )
-                    ]
-                },
-                "speak": {
-                    "items": [
-                        self._output_item(
-                            "tense-speak-1",
-                            "spoken_response",
-                            "Say the answer aloud, then type the exact sentence you said.",
-                            "Qu'est-ce que tu faisais quand le message est arrive ?",
-                            "Je lisais quand le message est arrive.",
-                            concept,
-                            1,
-                            min_words=6,
-                            max_words=24,
-                        )
-                    ]
-                },
-                "conversation": {
-                    "items": [
-                        self._output_item(
-                            "tense-conversation-1",
-                            "conversation_turn",
-                            "Reply to Claude with one background/event contrast.",
-                            "Claude: Raconte le moment ou l'orage a commence.",
-                            "Je rentrais chez moi quand l'orage a commence.",
-                            concept,
-                            1,
-                            min_words=7,
-                            max_words=30,
-                        )
-                    ]
-                },
-            }
-        if profile_key == "article_after_negation":
-            return {
-                "sentence": {
-                    "items": [
-                        self._output_item(
-                            "neg-sentence-1",
-                            "short_sentence",
-                            "Write one original sentence with a negated quantity using de or d'.",
-                            "One sentence about food or money.",
-                            "Je n'ai pas de monnaie.",
-                            concept,
-                            1,
-                            min_words=5,
-                            max_words=18,
-                        )
-                    ]
-                },
-                "speak": {
-                    "items": [
-                        self._output_item(
-                            "neg-speak-1",
-                            "spoken_response",
-                            "Say the answer aloud, then type the exact sentence you said.",
-                            "Qu'est-ce que tu n'achetes pas aujourd'hui ?",
-                            "Je n'achete pas de croissants aujourd'hui.",
-                            concept,
-                            1,
-                            min_words=6,
-                            max_words=22,
-                        )
-                    ]
-                },
-                "conversation": {
-                    "items": [
-                        self._output_item(
-                            "neg-conversation-1",
-                            "conversation_turn",
-                            "Reply to Claude with one negated quantity.",
-                            "Claude: Tu veux du cafe avant la session ?",
-                            "Non, je ne veux pas de cafe maintenant.",
-                            concept,
-                            1,
-                            min_words=7,
-                            max_words=26,
-                        )
-                    ]
-                },
-            }
-        return {
-            "sentence": {
-                "items": [
-                    self._output_item(
-                        "generic-sentence-1",
-                        "short_sentence",
-                        "Write one original sentence using this grammar target.",
-                        concept.name,
-                        (concept.anchor_examples or concept.examples or concept.name).split("|")[0].strip(),
-                        concept,
-                        1,
-                        min_words=5,
-                        max_words=24,
-                    )
-                ]
-            },
-            "speak": {
-                "items": [
-                    self._output_item(
-                        "generic-speak-1",
-                        "spoken_response",
-                        "Say one sentence aloud, then type the exact sentence you said.",
-                        concept.name,
-                        (concept.anchor_examples or concept.examples or concept.name).split("|")[0].strip(),
-                        concept,
-                        1,
-                        min_words=5,
-                        max_words=24,
-                    )
-                ]
-            },
-            "conversation": {
-                "items": [
-                    self._output_item(
-                        "generic-conversation-1",
-                        "conversation_turn",
-                        "Reply to Claude using this grammar target.",
-                        f"Claude: Use {concept.name} in a natural reply.",
-                        (concept.anchor_examples or concept.examples or concept.name).split("|")[0].strip(),
-                        concept,
-                        1,
-                        min_words=5,
-                        max_words=28,
-                    )
-                ]
-            },
-        }
-
-    def _output_item(
-        self,
-        item_id: str,
-        kind: str,
-        instruction: str,
-        prompt: str,
-        example_answer: str,
-        concept: GrammarConcept,
-        target_count: int,
-        *,
-        min_words: int,
-        max_words: int,
-    ) -> dict[str, Any]:
-        return {
-            "id": item_id,
-            "type": kind,
-            "instruction": instruction,
-            "prompt": prompt,
-            "example_answer": example_answer,
-            "requirements": [
-                {
-                    "concept_id": concept.id,
-                    "external_id": concept.external_id,
-                    "label": concept.name,
-                    "target_count": target_count,
-                }
-            ],
-            "min_words": min_words,
-            "max_words": max_words,
-            "errata_label": self._output_label(concept),
-            "why_wrong": self._output_why(concept),
-            "repair_hint": self._output_repair(concept),
-        }
-
-    def _output_label(self, concept: GrammarConcept) -> str:
-        profile = infer_grammar_profile(concept)
-        return f"{profile.label} output" if profile.key != "grammar_target" else "Grammar output"
-
-    def _output_why(self, concept: GrammarConcept) -> str:
-        return infer_grammar_profile(concept).principle
-
-    def _output_repair(self, concept: GrammarConcept) -> str:
-        return infer_grammar_profile(concept).repair
 
     def _when_text(self, concept: GrammarConcept) -> str:
         return infer_grammar_profile(concept).when
@@ -1452,8 +1296,11 @@ class AtelierCorrectionService:
         exercise_id: str,
         answer_payload: dict[str, Any],
     ) -> AtelierAttempt:
-        prompt_payload = self._prompt_payload(concept, round_name, mode, exercise_id)
-        correction = self.correct(
+        prompt_payload = self._prompt_payload(concept, round_name, mode, exercise_id, user=user)
+        target_vocabulary = session_vocabulary_context(session)
+        if target_vocabulary:
+            prompt_payload = inject_vocabulary_context(prompt_payload, target_vocabulary)
+        correction = self._correct_deterministic(
             concept=concept,
             round_name=round_name,
             mode=mode,
@@ -1462,6 +1309,18 @@ class AtelierCorrectionService:
             answer_payload=answer_payload,
             session=session,
         )
+        if target_vocabulary:
+            correction = self._apply_target_vocabulary_credit(
+                user=user,
+                session=session,
+                target_vocabulary=target_vocabulary,
+                answer_payload=answer_payload,
+                correction=correction,
+            )
+        correction = {
+            **correction,
+            "ai_review": self._initial_ai_review(round_name=round_name, answer_payload=answer_payload),
+        }
         attempt = AtelierAttempt(
             atelier_session_id=session.id,
             user_id=user.id,
@@ -1479,24 +1338,291 @@ class AtelierCorrectionService:
         self.db.flush([attempt])
         memory_updates = ErrorMemoryService(self.db).record_atelier_attempt(user=user, attempt=attempt)
         if memory_updates:
-            correction["memory_updates"] = memory_updates
-            for update in memory_updates:
-                index = update.get("erratum_index")
-                if isinstance(index, int) and index < len(correction.get("errata") or []):
-                    correction["errata"][index].update(
-                        {
-                            "id": update.get("id") or update.get("error_id"),
-                            "memory_key": update.get("memory_key"),
-                            "review_mode": update.get("review_mode"),
-                            "source_type": update.get("source_type"),
-                            "source_label": update.get("source_label"),
-                            "reason": update.get("reason"),
-                            "next_review_date": update.get("next_review_date"),
-                        }
-                    )
+            correction = self._attach_memory_updates(correction, memory_updates)
             attempt.correction_payload = correction
             flag_modified(attempt, "correction_payload")
             self.db.add(attempt)
+        self.db.commit()
+        self.db.refresh(attempt)
+        return attempt
+
+    @staticmethod
+    def _attach_memory_updates(correction: dict[str, Any], memory_updates: list[dict[str, Any]]) -> dict[str, Any]:
+        next_correction = {**correction, "memory_updates": memory_updates}
+        errata = list(next_correction.get("errata") or [])
+        for update in memory_updates:
+            index = update.get("erratum_index")
+            if isinstance(index, int) and index < len(errata):
+                errata[index] = {
+                    **errata[index],
+                    "id": update.get("id") or update.get("error_id"),
+                    "memory_key": update.get("memory_key"),
+                    "review_mode": update.get("review_mode"),
+                    "source_type": update.get("source_type"),
+                    "source_label": update.get("source_label"),
+                    "reason": update.get("reason"),
+                    "next_review_date": update.get("next_review_date"),
+                }
+        next_correction["errata"] = errata
+        return next_correction
+
+    def _apply_target_vocabulary_credit(
+        self,
+        *,
+        user: User,
+        session: AtelierSession,
+        target_vocabulary: list[dict[str, Any]],
+        answer_payload: dict[str, Any],
+        correction: dict[str, Any],
+    ) -> dict[str, Any]:
+        word_ids = _dedupe_ints([item.get("word_id") for item in target_vocabulary])
+        if not word_ids:
+            return correction
+        words = self.db.query(VocabularyWord).filter(VocabularyWord.id.in_(word_ids)).all()
+        by_id = {word.id: word for word in words}
+        answer_text = self._answer_text(answer_payload)
+        normalized_answer = _normalize(answer_text)
+        if not normalized_answer:
+            return {
+                **correction,
+                "vocabulary_credit": {
+                    "summary": VocabularyCreditService(self.db).summarize([]),
+                    "events": [],
+                },
+            }
+
+        credit_service = VocabularyCreditService(self.db)
+        results = []
+        for item in target_vocabulary:
+            word = by_id.get(int(item.get("word_id") or 0))
+            if not word or _normalize(word.word) not in normalized_answer:
+                continue
+            results.append(
+                credit_service.apply(
+                    user=user,
+                    word=word,
+                    event_type="produced_correct",
+                    source_type="atelier",
+                    learner_text=answer_text,
+                    context=(item.get("example_sentence") or item.get("translation") or ""),
+                    source_payload={
+                        "atelier_session_id": str(session.id),
+                        "reason": "target_vocabulary_used",
+                    },
+                )
+            )
+        return {
+            **correction,
+            "vocabulary_credit": {
+                "summary": credit_service.summarize(results),
+                "events": [result.to_dict() for result in results],
+            },
+        }
+
+    @staticmethod
+    def _answer_text(answer_payload: dict[str, Any]) -> str:
+        text = answer_payload.get("text")
+        if isinstance(text, str):
+            return text
+        answers = answer_payload.get("answers")
+        if isinstance(answers, dict):
+            parts: list[str] = []
+            for value in answers.values():
+                if isinstance(value, list):
+                    parts.append(_join_french_tokens(value))
+                else:
+                    parts.append(str(value or ""))
+            return " ".join(part for part in parts if part.strip())
+        return str(text or "")
+
+    def _correct_deterministic(
+        self,
+        *,
+        concept: GrammarConcept | None,
+        round_name: str,
+        mode: str,
+        exercise_id: str,
+        prompt_payload: dict[str, Any],
+        answer_payload: dict[str, Any],
+        session: AtelierSession | None = None,
+    ) -> dict[str, Any]:
+        if round_name == "recognize":
+            return self._correct_recognize(concept, mode, prompt_payload, answer_payload)
+        if round_name == "transform":
+            return self._correct_transform_rule_based(concept, prompt_payload, answer_payload)
+        if round_name in {"sentence", "speak", "conversation"}:
+            return self._correct_output_ladder_rule_based(concept, round_name, prompt_payload, answer_payload)
+        if round_name == "produce":
+            concepts = self._session_concepts(session) if session else ([concept] if concept else [])
+            return self._correct_produce_rule_based(concepts, prompt_payload, answer_payload)
+        return {
+            "verdict": "needs_review",
+            "score_0_4": 0,
+            "corrected_answer": "",
+            "concept_hits": [],
+            "missing_targets": [],
+            "errata": [],
+            "correction_debug": _correction_debug(model=None, fallback_used=True),
+        }
+
+    @staticmethod
+    def _now_iso() -> str:
+        return datetime.now(timezone.utc).isoformat()
+
+    def _ai_provider_configured(self) -> bool:
+        return self.llm_service is not None or bool(settings.OPENAI_API_KEY or settings.ANTHROPIC_API_KEY)
+
+    def _can_schedule_ai_review(self) -> bool:
+        return bool(settings.ATELIER_CORRECTION_LLM_ENABLED) and self._ai_provider_configured()
+
+    def _initial_ai_review(self, *, round_name: str, answer_payload: dict[str, Any]) -> dict[str, Any]:
+        answer_text = self._answer_text(answer_payload).strip()
+        model = settings.ATELIER_CORRECTION_LLM_MODEL
+        if round_name == "recognize":
+            return {"status": "not_applicable", "auto_started": False}
+        if round_name == "transform":
+            return {"status": "available", "auto_started": False, "model": model}
+        if round_name in ATELIER_AI_AUTO_ROUNDS and answer_text:
+            if self._can_schedule_ai_review():
+                return {
+                    "status": "pending",
+                    "auto_started": True,
+                    "model": model,
+                    "started_at": self._now_iso(),
+                }
+            return {
+                "status": "failed",
+                "auto_started": False,
+                "model": model,
+                "error": "AI provider unavailable.",
+            }
+        return {"status": "not_applicable", "auto_started": False}
+
+    @staticmethod
+    def ai_review_from_correction(correction: dict[str, Any] | None) -> dict[str, Any]:
+        review = (correction or {}).get("ai_review") or {}
+        return review if isinstance(review, dict) else {}
+
+    def should_auto_start_ai_review(self, attempt: AtelierAttempt) -> bool:
+        review = self.ai_review_from_correction(attempt.correction_payload)
+        return review.get("status") == "pending" and bool(review.get("auto_started"))
+
+    def mark_ai_review_pending(self, attempt: AtelierAttempt, *, auto_started: bool = False) -> tuple[AtelierAttempt, bool]:
+        correction = dict(attempt.correction_payload or {})
+        review = self.ai_review_from_correction(correction)
+        status = str(review.get("status") or "")
+        if status in {"pending", "complete"}:
+            return attempt, False
+        if status == "not_applicable":
+            return attempt, False
+        if not self._can_schedule_ai_review():
+            correction["ai_review"] = {
+                **review,
+                "status": "failed",
+                "auto_started": auto_started,
+                "model": settings.ATELIER_CORRECTION_LLM_MODEL,
+                "completed_at": self._now_iso(),
+                "error": "AI provider unavailable.",
+            }
+            attempt.correction_payload = correction
+            flag_modified(attempt, "correction_payload")
+            self.db.add(attempt)
+            self.db.commit()
+            self.db.refresh(attempt)
+            return attempt, False
+        correction["ai_review"] = {
+            **review,
+            "status": "pending",
+            "auto_started": auto_started,
+            "model": settings.ATELIER_CORRECTION_LLM_MODEL,
+            "started_at": self._now_iso(),
+            "completed_at": None,
+            "error": None,
+        }
+        attempt.correction_payload = correction
+        flag_modified(attempt, "correction_payload")
+        self.db.add(attempt)
+        self.db.commit()
+        self.db.refresh(attempt)
+        return attempt, True
+
+    def run_ai_review_for_attempt(self, attempt_id: UUID | str) -> AtelierAttempt | None:
+        attempt = self.db.get(AtelierAttempt, UUID(str(attempt_id)))
+        if not attempt:
+            return None
+        correction = dict(attempt.correction_payload or {})
+        review = self.ai_review_from_correction(correction)
+        if review.get("status") != "pending":
+            return attempt
+        user = self.db.get(User, attempt.user_id)
+        session = self.db.get(AtelierSession, attempt.atelier_session_id)
+        concept = self.db.get(GrammarConcept, attempt.concept_id) if attempt.concept_id else None
+        if not user or not session:
+            return self._mark_ai_review_failed(attempt, "Attempt context unavailable.")
+
+        try:
+            ai_correction = self.correct(
+                concept=concept,
+                round_name=attempt.round,
+                mode=attempt.mode,
+                exercise_id=attempt.exercise_id,
+                prompt_payload=attempt.prompt_payload or {},
+                answer_payload=attempt.answer_payload or {},
+                session=session,
+            )
+            if (ai_correction.get("correction_debug") or {}).get("fallback_used"):
+                return self._mark_ai_review_failed(attempt, "AI correction did not complete.")
+            ai_review = {
+                **review,
+                "status": "complete",
+                "auto_started": bool(review.get("auto_started")),
+                "model": (ai_correction.get("correction_debug") or {}).get("model") or review.get("model"),
+                "completed_at": self._now_iso(),
+                "error": None,
+            }
+            if review.get("started_at") and not ai_review.get("started_at"):
+                ai_review["started_at"] = review["started_at"]
+            if correction.get("vocabulary_credit") and not ai_correction.get("vocabulary_credit"):
+                ai_correction["vocabulary_credit"] = correction["vocabulary_credit"]
+            ai_correction["ai_review"] = ai_review
+            attempt.correction_payload = ai_correction
+            attempt.verdict = ai_correction["verdict"]
+            attempt.score_0_4 = float(ai_correction["score_0_4"])
+            flag_modified(attempt, "correction_payload")
+            self.db.add(attempt)
+            self.db.flush([attempt])
+
+            memory_updates = ErrorMemoryService(self.db).record_atelier_attempt(
+                user=user,
+                attempt=attempt,
+                merge_same_attempt=True,
+            )
+            if memory_updates:
+                ai_correction = self._attach_memory_updates(ai_correction, memory_updates)
+                attempt.correction_payload = ai_correction
+                flag_modified(attempt, "correction_payload")
+                self.db.add(attempt)
+            self.db.commit()
+            self.db.refresh(attempt)
+            return attempt
+        except Exception as exc:  # pragma: no cover - defensive guard around background work
+            logger.warning("Atelier background AI review failed", attempt_id=str(attempt_id), error=str(exc))
+            return self._mark_ai_review_failed(attempt, "AI correction failed.")
+
+    def _mark_ai_review_failed(self, attempt: AtelierAttempt, error: str) -> AtelierAttempt:
+        correction = dict(attempt.correction_payload or {})
+        review = self.ai_review_from_correction(correction)
+        correction["ai_review"] = {
+            **review,
+            "status": "failed",
+            "auto_started": bool(review.get("auto_started")),
+            "model": review.get("model") or settings.ATELIER_CORRECTION_LLM_MODEL,
+            "completed_at": self._now_iso(),
+            "error": error,
+        }
+        attempt.correction_payload = correction
+        flag_modified(attempt, "correction_payload")
+        self.db.add(attempt)
         self.db.commit()
         self.db.refresh(attempt)
         return attempt
@@ -1537,10 +1663,12 @@ class AtelierCorrectionService:
         round_name: str,
         mode: str,
         exercise_id: str,
+        *,
+        user: User | None = None,
     ) -> dict[str, Any]:
         if not concept:
             return {"id": exercise_id, "round": round_name, "mode": mode}
-        payload = self.generator.get_or_create(concept).payload
+        payload = self.generator.get_or_create(concept, user=user).payload
         if round_name == "recognize":
             return {"round": round_name, "mode": mode, **payload["recognize"][mode]}
         if round_name == "transform":
@@ -1569,7 +1697,7 @@ class AtelierCorrectionService:
             learner = answers.get(item_id)
             learner_text = _join_french_tokens(learner) if mode == "word_bank" and isinstance(learner, list) else str(learner or "")
             learner_norm = _normalize(learner_text)
-            target = item.get("correct_answer") or item.get("correct_label")
+            target = item.get("correct_label") if mode == "classify" else item.get("correct_answer")
             target_norm = _normalize(target)
             corrected[item_id] = target
             if learner_norm == target_norm:
@@ -1648,7 +1776,7 @@ class AtelierCorrectionService:
                 elif learner_norm == "appellerais":
                     why = "You used conditional `appellerais`, which belongs to a hypothetical si frame. This sentence is a real future condition, so the result needs future simple `appellerai`."
                 elif learner_norm == "ai appele":
-                    why = "You used past tense `ai appele`, but the sentence says what will happen if the condition is met. The result needs future simple `appellerai`."
+                    why = "You used past tense `ai appelé`, but the sentence says what will happen if the condition is met. The result needs future simple `appellerai`."
                 else:
                     why = "This si-clause is in the present, so the result clause needs future simple here."
                 repair = "Keep the verb after si in the present, then put the consequence in future simple."
@@ -1673,14 +1801,14 @@ class AtelierCorrectionService:
                 why = f"You kept `{learner_text}` after `pas`. For a negated quantity, du/de la/des/un/une become `de` or `d'` after `pas`, so this blank needs `{target}`."
             else:
                 why = "After `pas`, a negated quantity uses `de` or `d'` before the noun."
-            repair = "Check whether the original article expresses quantity; after ne...pas, change it to de/d' unless the verb is etre."
+            repair = "Check whether the original article expresses quantity; after ne...pas, change it to de/d' unless the verb is être."
         elif profile_key == "tense_aspect":
             label = "Background vs event"
             if target_norm in {"pleuvait", "visitions", "sonnait"}:
                 why = f"You chose `{learner_text}`, but this verb describes the ongoing background of the sentence, so it needs imparfait: `{target}`."
             else:
-                why = f"You chose `{learner_text}`, but this verb is the bounded completed event, so it needs passe compose: `{target}`."
-            repair = "Ask whether the verb is ongoing background or a completed event, then choose imparfait or passe compose."
+                why = f"You chose `{learner_text}`, but this verb is the bounded completed event, so it needs passé composé: `{target}`."
+            repair = "Ask whether the verb is ongoing background or a completed event, then choose imparfait or passé composé."
 
         return self._recognize_erratum_payload(
             concept,
@@ -1721,15 +1849,15 @@ class AtelierCorrectionService:
             if target == "background":
                 why = f"You classified `{prompt}` as `{learner_label}`, but it describes an ongoing scene or state, so it belongs to the background/imparfait side."
             else:
-                why = f"You classified `{prompt}` as `{learner_label}`, but it is a bounded completed event, so it belongs to the passe compose side."
+                why = f"You classified `{prompt}` as `{learner_label}`, but it is a bounded completed event, so it belongs to the passé composé side."
             repair = "Use background for ongoing scene-setting; use bounded event for a completed interruption or action."
         elif profile_key == "article_after_negation":
             label = "Negation pattern"
-            if target == "etre exception":
-                why = f"You classified this as `{learner_label}`, but with `etre`, the original article stays: `ce n'est pas du cafe`."
+            if _normalize(target) == "etre exception":
+                why = f"You classified this as `{learner_label}`, but with `être`, the original article stays: `ce n'est pas du café`."
             else:
                 why = f"You classified this as `{learner_label}`, but this is a normal negated quantity where the article changes to de/d'."
-            repair = "First check whether the verb is etre; if it is not, a negated quantity changes to de/d'."
+            repair = "First check whether the verb is être; if it is not, a negated quantity changes to de/d'."
 
         return self._recognize_erratum_payload(
             concept,
@@ -1790,8 +1918,8 @@ class AtelierCorrectionService:
                 issues.append("`maintenat` is a spelling slip; the target word is `maintenant`")
             if "repondrais" in learner_norm and "repondrai" in target_norm:
                 label = "Conditional vs future"
-                why = "You built the right si-frame, but the result verb is `repondrais`, which is conditional. In a real condition with si + present, the consequence uses future simple: `repondrai`."
-                repair = "Keep `Si elle appelle` in the present, then change only the result verb to future simple: `je repondrai`."
+                why = "You built the right si-frame, but the result verb is `répondrais`, which is conditional. In a real condition with si + present, the consequence uses future simple: `répondrai`."
+                repair = "Keep `Si elle appelle` in the present, then change only the result verb to future simple: `je répondrai`."
                 return self._word_bank_erratum_payload(concept, item, label, learner_text, target, why, repair, task_type)
             swapped_si_future = (
                 re.search(r"\bsi\s+nous\s+arriverons\b", learner_norm)
@@ -1801,8 +1929,8 @@ class AtelierCorrectionService:
             )
             if swapped_si_future:
                 label = "Future placed after si"
-                why = "You put future `arriverons` inside the si-clause and present `partons` in the result. In si type 1, the condition stays present: `Si nous partons maintenant`; the consequence carries the future: `nous arriverons tot`."
-                repair = "Put the present action after `si`, then put the future action after the comma: `Si nous partons maintenant, nous arriverons tot`."
+                why = "You put future `arriverons` inside the si-clause and present `partons` in the result. In si type 1, the condition stays present: `Si nous partons maintenant`; the consequence carries the future: `nous arriverons tôt`."
+                repair = "Put the present action after `si`, then put the future action after the comma: `Si nous partons maintenant, nous arriverons tôt`."
                 return self._word_bank_erratum_payload(concept, item, label, learner_text, target, why, repair, task_type)
             has_specific_result_issue = False
             if "arrivons" in learner_norm and "arriverons" in target_norm:
@@ -1821,12 +1949,12 @@ class AtelierCorrectionService:
             if re.search(r"\bpas\s+(du|de la|des|un|une)\b", learner_norm):
                 label = "Article after negation"
                 why = "After pas, a negated quantity changes du/de la/des/un/une to de or d'."
-                repair = "Keep ne...pas around the verb, then use de or d' before the noun unless the verb is etre."
+                repair = "Keep ne...pas around the verb, then use de or d' before the noun unless the verb is être."
         elif profile_key == "tense_aspect":
             if learner_norm != target_norm:
                 label = "Background vs event"
                 why = "The sentence needs the same background/event contrast as the target."
-                repair = "Use imparfait for the ongoing scene and passe compose for the bounded event."
+            repair = "Use imparfait for the ongoing scene and passé composé for the bounded event."
 
         learner_tokens = learner_norm.split()
         target_tokens = target_norm.split()
@@ -1870,7 +1998,7 @@ class AtelierCorrectionService:
         answer_payload: dict[str, Any],
     ) -> dict[str, Any]:
         fallback = self._correct_transform_rule_based(concept, prompt_payload, answer_payload)
-        if fallback["verdict"] == "correct":
+        if fallback["verdict"] == "correct" or not self._should_use_correction_llm():
             return fallback
         return self._correct_transform_with_llm(concept, prompt_payload, answer_payload, fallback) or fallback
 
@@ -1929,7 +2057,7 @@ class AtelierCorrectionService:
         answer_payload: dict[str, Any],
     ) -> dict[str, Any]:
         fallback = self._correct_output_ladder_rule_based(concept, round_name, prompt_payload, answer_payload)
-        if not str(answer_payload.get("text") or "").strip():
+        if not str(answer_payload.get("text") or "").strip() or not self._should_use_correction_llm():
             return fallback
         return self._correct_output_ladder_with_llm(concept, round_name, prompt_payload, answer_payload, fallback) or fallback
 
@@ -2029,7 +2157,7 @@ class AtelierCorrectionService:
         answer_payload: dict[str, Any],
     ) -> dict[str, Any]:
         fallback = self._correct_produce_rule_based(concepts, prompt_payload, answer_payload)
-        if not str(answer_payload.get("text") or "").strip():
+        if not str(answer_payload.get("text") or "").strip() or not self._should_use_correction_llm():
             return fallback
         return self._correct_produce_with_llm(concepts, prompt_payload, answer_payload, fallback) or fallback
 
@@ -2079,6 +2207,92 @@ class AtelierCorrectionService:
             "correction_debug": _correction_debug(model=None, fallback_used=True),
         }
 
+    def _compact_llm_concept(self, concept: GrammarConcept | None) -> dict[str, Any]:
+        if not concept:
+            return {}
+        profile = infer_grammar_profile(concept)
+        return {
+            "id": concept.id,
+            "external_id": concept.external_id,
+            "name": concept.name,
+            "core_rule": _compact_text(concept.core_rule or concept.description, max_length=360),
+            "profile": profile.key,
+        }
+
+    def _compact_llm_task(self, prompt_payload: dict[str, Any]) -> dict[str, Any]:
+        compact: dict[str, Any] = {}
+        for key in ("round", "mode", "prompt", "source_fragment", "min_words", "max_words"):
+            if prompt_payload.get(key) is not None:
+                compact[key] = prompt_payload.get(key)
+        if prompt_payload.get("requirements"):
+            compact["requirements"] = prompt_payload.get("requirements")
+
+        items = prompt_payload.get("items")
+        if isinstance(items, list):
+            compact_items: list[dict[str, Any]] = []
+            for raw_item in items[:3]:
+                if not isinstance(raw_item, dict):
+                    continue
+                item = {
+                    key: raw_item.get(key)
+                    for key in (
+                        "id",
+                        "type",
+                        "instruction",
+                        "prompt",
+                        "source",
+                        "expected_answer",
+                        "example_answer",
+                        "requirements",
+                        "min_words",
+                        "max_words",
+                    )
+                    if raw_item.get(key) is not None
+                }
+                compact_items.append(item)
+            compact["items"] = compact_items
+        return compact
+
+    @staticmethod
+    def _compact_llm_answer(answer_payload: dict[str, Any]) -> dict[str, Any]:
+        if "text" in answer_payload:
+            return {"text": _compact_text(answer_payload.get("text"), max_length=520)}
+        answers = answer_payload.get("answers")
+        if isinstance(answers, dict):
+            return {
+                "answers": {
+                    str(key): _compact_text(value, max_length=220)
+                    for key, value in list(answers.items())[:5]
+                }
+            }
+        return {"raw": _compact_text(answer_payload, max_length=520)}
+
+    @staticmethod
+    def _compact_llm_assessment(fallback: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "verdict": fallback.get("verdict"),
+            "score_0_4": fallback.get("score_0_4"),
+            "corrected_answer": fallback.get("corrected_answer"),
+            "concept_hits": (fallback.get("concept_hits") or [])[:4],
+            "missing_targets": (fallback.get("missing_targets") or [])[:4],
+            "errata": [
+                {
+                    key: erratum.get(key)
+                    for key in (
+                        "display_label",
+                        "learner_text",
+                        "corrected_target",
+                        "why_wrong",
+                        "repair_hint",
+                        "task_error_type",
+                    )
+                    if erratum.get(key) is not None
+                }
+                for erratum in (fallback.get("errata") or [])[:2]
+                if isinstance(erratum, dict)
+            ],
+        }
+
     def _correct_output_ladder_with_llm(
         self,
         concept: GrammarConcept | None,
@@ -2093,11 +2307,11 @@ class AtelierCorrectionService:
         system_prompt = self._correction_system_prompt()
         user_payload = {
             "round": round_name,
-            "concept": serialize_concept(concept),
-            "prompt_payload": prompt_payload,
-            "answer_payload": answer_payload,
+            "concept": self._compact_llm_concept(concept),
+            "task": self._compact_llm_task(prompt_payload),
+            "answer": self._compact_llm_answer(answer_payload),
             "requirements": ((prompt_payload.get("items") or [{}])[0] or {}).get("requirements") or [],
-            "deterministic_assessment": fallback,
+            "deterministic_assessment": self._compact_llm_assessment(fallback),
             "instructions": [
                 "This is part of a guided output ladder: short sentence, spoken transcript, or conversation turn.",
                 "Accept natural original French if it uses the target concept correctly; it does not need to match the example answer.",
@@ -2128,11 +2342,11 @@ class AtelierCorrectionService:
         system_prompt = self._correction_system_prompt()
         user_payload = {
             "round": "transform",
-            "concept": serialize_concept(concept),
-            "prompt_payload": prompt_payload,
-            "answer_payload": answer_payload,
+            "concept": self._compact_llm_concept(concept),
+            "task": self._compact_llm_task(prompt_payload),
+            "answer": self._compact_llm_answer(answer_payload),
             "deterministic_target": fallback.get("corrected_answer"),
-            "deterministic_assessment": fallback,
+            "deterministic_assessment": self._compact_llm_assessment(fallback),
             "instructions": [
                 "Review each rewrite against the exercise instruction and concept rule.",
                 "Address feedback directly with 'you'; never say 'the learner' or 'the user'.",
@@ -2163,11 +2377,11 @@ class AtelierCorrectionService:
         system_prompt = self._correction_system_prompt()
         user_payload = {
             "round": "produce",
-            "concepts": [serialize_concept(concept) for concept in clean_concepts],
-            "prompt_payload": prompt_payload,
-            "answer_payload": answer_payload,
+            "concepts": [self._compact_llm_concept(concept) for concept in clean_concepts],
+            "task": self._compact_llm_task(prompt_payload),
+            "answer": self._compact_llm_answer(answer_payload),
             "requirements": self._integrated_requirements(clean_concepts, prompt_payload),
-            "deterministic_assessment": fallback,
+            "deterministic_assessment": self._compact_llm_assessment(fallback),
             "instructions": [
                 "Accept the writing even when required targets are missing; missing targets are task-compliance slips.",
                 "Address feedback directly with 'you'; never say 'the learner' or 'the user'.",
@@ -2203,7 +2417,11 @@ class AtelierCorrectionService:
                 system_prompt=system_prompt,
                 response_format=ATELIER_CORRECTION_RESPONSE_FORMAT,
                 temperature=0.1,
-                max_tokens=2200,
+                max_tokens=settings.ATELIER_CORRECTION_LLM_MAX_TOKENS,
+                model=settings.ATELIER_CORRECTION_LLM_MODEL,
+                request_timeout=settings.ATELIER_CORRECTION_LLM_TIMEOUT_SECONDS,
+                disable_retries=True,
+                reasoning_effort=settings.ATELIER_CORRECTION_LLM_REASONING_EFFORT,
             )
             parsed = json.loads(result.content)
             return self._normalize_llm_correction(
@@ -2372,6 +2590,9 @@ class AtelierCorrectionService:
             logger.info("Atelier LLM correction unavailable; using deterministic fallback", error=str(exc))
             return None
 
+    def _should_use_correction_llm(self) -> bool:
+        return self.llm_service is not None or bool(settings.ATELIER_CORRECTION_LLM_ENABLED)
+
     def _session_concepts(self, session: AtelierSession | None) -> list[GrammarConcept]:
         if not session:
             return []
@@ -2479,6 +2700,17 @@ class AtelierCorrectionService:
 
     def _repair_for(self, concept: GrammarConcept | None) -> str:
         return infer_grammar_profile(concept).repair if concept else "Name the trigger, then apply the target form."
+
+
+def run_atelier_ai_review(attempt_id: UUID | str) -> None:
+    """Run optional Atelier AI enrichment outside the request session."""
+    db = SessionLocal()
+    try:
+        AtelierCorrectionService(db).run_ai_review_for_attempt(attempt_id)
+    except Exception as exc:  # pragma: no cover - background safety net
+        logger.warning("Atelier AI review worker could not run", attempt_id=str(attempt_id), error=str(exc))
+    finally:
+        db.close()
 
 
 class AtelierSRSService:
@@ -2605,9 +2837,11 @@ def serialize_erratum_record(error: UserError) -> dict[str, Any]:
 __all__ = [
     "ATELIER_GENERATOR_VERSION",
     "AtelierCorrectionService",
+    "AtelierExerciseGenerationError",
     "AtelierExerciseGenerator",
     "AtelierScheduler",
     "AtelierSRSService",
+    "run_atelier_ai_review",
     "serialize_erratum_record",
     "serialize_concept",
 ]

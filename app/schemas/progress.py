@@ -104,6 +104,148 @@ class UnifiedQueueResponse(BaseModel):
     time_budget_minutes: int | None = None
 
 
+class VocabularyRecommendationTranslations(BaseModel):
+    """Translation hints for a recommended vocabulary item."""
+
+    de: str | None = None
+    en: str | None = None
+    fr: str | None = None
+
+
+class VocabularyRecommendationItem(BaseModel):
+    """Vocabulary card selected for today's SRS work."""
+
+    bucket: str
+    word_id: int
+    progress_id: str | None = None
+    word: str
+    language: str
+    direction: str | None = None
+    scheduler: str | None = None
+    state: str
+    phase: str | None = None
+    due_at: datetime | None = None
+    next_review: datetime | None = None
+    last_review: datetime | None = None
+    scheduled_days: int | None = None
+    interval_days: int | None = None
+    stability: float | None = None
+    difficulty: float | None = None
+    retrievability: float | None = None
+    proficiency_score: int = 0
+    lapses: int = 0
+    priority_score: float
+    is_new: bool = False
+    deck_name: str | None = None
+    translations: VocabularyRecommendationTranslations
+    example_sentence: str | None = None
+    example_translation: str | None = None
+
+
+class VocabularyRecommendationSummary(BaseModel):
+    """Counts for each recommendation bucket."""
+
+    due: int
+    fragile: int
+    new: int
+    total: int
+
+
+class VocabularyRecommendationResponse(BaseModel):
+    """Ranked vocabulary recommendations for the daily learning loop."""
+
+    summary: VocabularyRecommendationSummary
+    items: list[VocabularyRecommendationItem]
+    algorithm: str = "fsrs_retrievability_v1"
+
+
+class VocabularyDueContextSummary(BaseModel):
+    """Selected counts for a contextual vocabulary review bundle."""
+
+    due: int
+    fragile: int
+    new: int
+    topic_compatible: int
+    linked: int
+    total: int
+
+
+class VocabularyDueContextResponse(BaseModel):
+    """Bucketed due-context vocabulary for mobile practice surfaces."""
+
+    summary: VocabularyDueContextSummary
+    due_words: list[VocabularyRecommendationItem]
+    fragile_words: list[VocabularyRecommendationItem]
+    new_words: list[VocabularyRecommendationItem]
+    topic_compatible_words: list[VocabularyRecommendationItem]
+    linked_words: list[VocabularyRecommendationItem]
+    algorithm: str = "fsrs_retrievability_v1"
+
+
+class VocabularyMasteryMapCell(BaseModel):
+    """One tiny cell in the French 5000 mastery map."""
+
+    word_id: int
+    word: str
+    frequency_rank: int | None = None
+    mastery_state: str
+    proficiency_score: int = 0
+    is_due: bool = False
+    lapses: int = 0
+
+
+class VocabularyMasteryMapSummary(BaseModel):
+    """Aggregate counts for the French 5000 mastery map."""
+
+    total: int
+    new: int
+    due: int
+    fragile: int
+    building: int
+    solid: int
+    mastered: int
+
+
+class VocabularyMasteryMapResponse(BaseModel):
+    """Typographic map of the imported French 5000 deck."""
+
+    summary: VocabularyMasteryMapSummary
+    cells: list[VocabularyMasteryMapCell]
+    deck_label: str = "French 5000"
+
+
+class WeeklyDossierStats(BaseModel):
+    """Deterministic weekly learning stats for the editorial progress mirror."""
+
+    repairs_filed: int = 0
+    vocabulary_reviews: int = 0
+    words_seen: int = 0
+    words_produced: int = 0
+    missions_completed: int = 0
+    feuilleton_scenes_completed: int = 0
+
+
+class WeeklyDossierThread(BaseModel):
+    """One highlighted strength, fragile item, or suggested next action."""
+
+    title: str
+    subtitle: str | None = None
+    tone: str = "neutral"
+    count: int = 0
+
+
+class WeeklyDossierResponse(BaseModel):
+    """Editorial weekly digest generated from local learning telemetry."""
+
+    period_start: datetime
+    period_end: datetime
+    headline: str
+    stats: WeeklyDossierStats
+    strengths: list[WeeklyDossierThread]
+    fragile_threads: list[WeeklyDossierThread]
+    next_actions: list[WeeklyDossierThread]
+
+
 class AnkiWordProgressRead(BaseModel):
     """Overview entry for an imported Anki card and its progress."""
 

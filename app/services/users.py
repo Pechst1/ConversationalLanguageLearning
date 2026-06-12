@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import uuid
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -29,7 +30,7 @@ class UserService:
             raise UserNotFoundError("User not found")
         return user
 
-    def update(self, user: User, payload: UserUpdate) -> User:
+    def update(self, user: User, payload: Any) -> User:
         """Persist user profile changes and return the updated entity."""
 
         update_data = payload.model_dump(exclude_unset=True)

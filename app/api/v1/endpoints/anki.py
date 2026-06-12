@@ -7,7 +7,7 @@ from typing import Any, Dict, Optional
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, get_db
+from app.api.deps import get_current_user, get_current_user_or_demo, get_db
 from app.db.models.user import User
 from app.schemas.anki import (
     AnkiImportRequest,
@@ -220,7 +220,7 @@ async def get_anki_statistics(
 async def get_due_cards(
     *,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_or_demo),
     limit: int = 20,
     scheduler_type: Optional[str] = None,
 ) -> Dict[str, Any]:
@@ -332,7 +332,7 @@ async def rehydrate_from_last_import(
 async def submit_anki_review(
     *,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_or_demo),
     payload: AnkiReviewRequest,
 ) -> AnkiReviewResponse:
     """Submit a review for an imported Anki card using SM-2 scheduling."""

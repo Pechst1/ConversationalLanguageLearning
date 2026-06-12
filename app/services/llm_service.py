@@ -54,6 +54,7 @@ class OpenAIProvider:
     COST_PER_1K_TOKENS: ClassVar[Dict[str, Dict[str, float]]] = {
         "gpt-5-mini": {"prompt": 0.00025, "completion": 0.002},
         "gpt-5.4-mini": {"prompt": 0.00075, "completion": 0.0045},
+        "gpt-5.4-nano": {"prompt": 0.0002, "completion": 0.00125},
         "gpt-4o-mini": {"prompt": 0.00015, "completion": 0.0006},
         "gpt-4o": {"prompt": 0.0025, "completion": 0.01},
         "gpt-3.5-turbo": {"prompt": 0.0005, "completion": 0.0015},
@@ -81,13 +82,22 @@ class OpenAIProvider:
 
         return model.startswith("gpt-5")
 
+    def generate(self, messages: Sequence[Dict[str, str]], **kwargs: Any) -> LLMResult:
+        disable_retries = bool(kwargs.pop("disable_retries", False))
+        if disable_retries:
+            return self._generate_once(messages, **kwargs)
+        return self._generate_with_retries(messages, **kwargs)
+
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=1, max=8),
         before_sleep=before_sleep_log(logger, logging.WARNING),
         reraise=True,
     )
-    def generate(self, messages: Sequence[Dict[str, str]], **kwargs: Any) -> LLMResult:
+    def _generate_with_retries(self, messages: Sequence[Dict[str, str]], **kwargs: Any) -> LLMResult:
+        return self._generate_once(messages, **kwargs)
+
+    def _generate_once(self, messages: Sequence[Dict[str, str]], **kwargs: Any) -> LLMResult:
         model = kwargs.get("model", self.model)
         payload: Dict[str, Any] = {
             "model": model,
@@ -102,8 +112,11 @@ class OpenAIProvider:
                 payload["max_completion_tokens"] = kwargs["max_tokens"]
             else:
                 payload["max_tokens"] = kwargs["max_tokens"]
+        if kwargs.get("reasoning_effort"):
+            payload["reasoning_effort"] = kwargs["reasoning_effort"]
 
-        with httpx.Client(base_url=self.base_url, timeout=self.request_timeout) as client:
+        request_timeout = kwargs.get("request_timeout", self.request_timeout)
+        with httpx.Client(base_url=self.base_url, timeout=request_timeout) as client:
             response = client.post("/chat/completions", json=payload, headers=self._build_headers())
 
         if response.status_code >= 400:
@@ -261,13 +274,22 @@ class AnthropicProvider:
         "claude-3-sonnet": {"prompt": 0.003, "completion": 0.015},
     }
 
+    def generate(self, messages: Sequence[Dict[str, str]], **kwargs: Any) -> LLMResult:
+        disable_retries = bool(kwargs.pop("disable_retries", False))
+        if disable_retries:
+            return self._generate_once(messages, **kwargs)
+        return self._generate_with_retries(messages, **kwargs)
+
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=1, max=8),
         before_sleep=before_sleep_log(logger, logging.WARNING),
         reraise=True,
     )
-    def generate(self, messages: Sequence[Dict[str, str]], **kwargs: Any) -> LLMResult:
+    def _generate_with_retries(self, messages: Sequence[Dict[str, str]], **kwargs: Any) -> LLMResult:
+        return self._generate_once(messages, **kwargs)
+
+    def _generate_once(self, messages: Sequence[Dict[str, str]], **kwargs: Any) -> LLMResult:
         payload: Dict[str, Any] = {
             "model": kwargs.get("model", self.model),
             "max_tokens": kwargs.get("max_tokens", 512),
@@ -288,7 +310,8 @@ class AnthropicProvider:
             "content-type": "application/json",
         }
 
-        with httpx.Client(base_url=self.base_url, timeout=self.request_timeout) as client:
+        request_timeout = kwargs.get("request_timeout", self.request_timeout)
+        with httpx.Client(base_url=self.base_url, timeout=request_timeout) as client:
             response = client.post("/messages", json=payload, headers=headers)
 
         if response.status_code >= 400:
@@ -407,6 +430,9 @@ class LLMService:
         response_format: Optional[Dict[str, Any]] = None,
         system_prompt: Optional[str] = None,
         model: Optional[str] = None,
+        request_timeout: Optional[float] = None,
+        disable_retries: bool = False,
+        reasoning_effort: Optional[str] = None,
     ) -> LLMResult:
         """Generate a chat completion using the configured providers."""
 
@@ -423,6 +449,14 @@ class LLMService:
                 payload_kwargs["response_format"] = response_format
             if model and provider.name == "openai":
                 payload_kwargs["model"] = model
+            elif model:
+                payload_kwargs["model"] = model
+            if request_timeout is not None:
+                payload_kwargs["request_timeout"] = request_timeout
+            if disable_retries:
+                payload_kwargs["disable_retries"] = True
+            if reasoning_effort:
+                payload_kwargs["reasoning_effort"] = reasoning_effort
             if system_prompt and provider.name == "anthropic":
                 payload_kwargs["system"] = system_prompt
             provider_messages = messages
@@ -438,7 +472,7 @@ class LLMService:
                 )
                 return result
             except Exception as exc:  # pragma: no cover - defensive logging path
-                logger.exception("LLM provider failure", provider=provider.name)
+                logger.warning("LLM provider failure", provider=provider.name, error=str(exc))
                 errors.append(f"{provider.name}: {exc}")
                 continue
         raise LLMProviderError("; ".join(errors))
@@ -449,8 +483,12 @@ class LLMService:
         *,
         temperature: float = 0.1,
         max_tokens: int = 800,
+        model: Optional[str] = None,
         response_format: Optional[Dict[str, Any]] = None,
         system_prompt: Optional[str] = None,
+        request_timeout: Optional[float] = None,
+        disable_retries: bool = False,
+        reasoning_effort: Optional[str] = None,
     ) -> LLMResult:
         """Generate error detection using the dedicated error detection model.
         
@@ -466,9 +504,17 @@ class LLMService:
             }
             # Use the error detection model if available for OpenAI
             if provider.name == "openai":
-                payload_kwargs["model"] = settings.OPENAI_ERROR_DETECTION_MODEL
+                payload_kwargs["model"] = model or settings.OPENAI_ERROR_DETECTION_MODEL
                 if response_format:
                     payload_kwargs["response_format"] = response_format
+            elif model:
+                payload_kwargs["model"] = model
+            if request_timeout is not None:
+                payload_kwargs["request_timeout"] = request_timeout
+            if disable_retries:
+                payload_kwargs["disable_retries"] = True
+            if reasoning_effort:
+                payload_kwargs["reasoning_effort"] = reasoning_effort
             
             if system_prompt and provider.name == "anthropic":
                 payload_kwargs["system"] = system_prompt
@@ -488,7 +534,7 @@ class LLMService:
                 )
                 return result
             except Exception as exc:
-                logger.exception("Error detection LLM failure", provider=provider.name)
+                logger.warning("Error detection LLM failure", provider=provider.name, error=str(exc))
                 errors.append(f"{provider.name}: {exc}")
                 continue
         raise LLMProviderError("; ".join(errors))

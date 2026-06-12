@@ -60,6 +60,14 @@ web-frontend/yarn-error.log*
 # OS
 .DS_Store
 *.log
+*.bak
+*.orig
+*~
+
+# Local/generated tool artifacts
+web-frontend/tsconfig.tsbuildinfo
+docs/design-handoffs/
+MASTER_CODEX.md
 
 
 # Ignore celery beat DB

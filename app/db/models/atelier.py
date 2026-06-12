@@ -56,7 +56,7 @@ class AtelierExerciseSet(Base):
     )
     generator_version: Mapped[str] = mapped_column(String(80), nullable=False)
     model: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    source: Mapped[str] = mapped_column(String(30), default="fallback", nullable=False)
+    source: Mapped[str] = mapped_column(String(30), default="llm", nullable=False)
     content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     payload = mapped_column(JSONB().with_variant(JSON(), "sqlite"), default=dict, nullable=False)
     validation_notes: Mapped[str | None] = mapped_column(Text, nullable=True)

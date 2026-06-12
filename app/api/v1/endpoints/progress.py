@@ -1,10 +1,17 @@
 """Endpoints for learner vocabulary progress."""
 from __future__ import annotations
 
+from datetime import date, datetime, timedelta, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, get_db
+from app.api.deps import get_current_user, get_current_user_or_demo, get_db
+from app.db.models.error import UserError
+from app.db.models.graphic_novel import GraphicNovelScene
+from app.db.models.mission import RealWorldMission
+from app.db.models.progress import ReviewLog, UserVocabularyProgress
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
 from app.schemas import (
@@ -18,6 +25,13 @@ from app.schemas import (
     UnifiedQueueItem,
     UnifiedQueueResponse,
     UnifiedQueueSummary,
+    VocabularyMasteryMapCell,
+    VocabularyMasteryMapResponse,
+    VocabularyMasteryMapSummary,
+    VocabularyRecommendationResponse,
+    WeeklyDossierResponse,
+    WeeklyDossierStats,
+    WeeklyDossierThread,
 )
 from app.services.progress import ProgressService
 from app.services.unified_srs import InterleavingMode, UnifiedSRSService
@@ -26,13 +40,48 @@ from app.services.unified_srs import InterleavingMode, UnifiedSRSService
 router = APIRouter(prefix="/progress", tags=["progress"])
 
 
+def _aware(value: datetime | None) -> datetime | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value
+
+
+def _progress_due(progress: UserVocabularyProgress | None, now: datetime) -> bool:
+    if progress is None:
+        return False
+    due_at = _aware(progress.due_at) or _aware(progress.next_review_date)
+    if due_at is not None:
+        return due_at <= now
+    return progress.due_date is not None and progress.due_date <= date.today()
+
+
+def _mastery_state(progress: UserVocabularyProgress | None, now: datetime) -> str:
+    if progress is None or (progress.reps or 0) == 0:
+        return "new"
+    if progress.state == "mastered" or (progress.proficiency_score or 0) >= 90:
+        return "mastered"
+    if (progress.lapses or 0) > 0 or (progress.proficiency_score or 0) < 45:
+        return "fragile"
+    if _progress_due(progress, now):
+        return "due"
+    if (progress.proficiency_score or 0) >= 70:
+        return "solid"
+    return "building"
+
+
+def _thread(title: str, subtitle: str | None = None, *, tone: str = "neutral", count: int = 0) -> WeeklyDossierThread:
+    return WeeklyDossierThread(title=title, subtitle=subtitle, tone=tone, count=count)
+
+
 @router.get("/queue", response_model=list[QueueWord])
 def get_review_queue(
     *,
     limit: int = Query(10, ge=1, le=50, description="Maximum number of queue entries to return"),
     direction: str | None = Query(None, description="Optional card direction filter (fr_to_de or de_to_fr)"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_or_demo),
 ) -> list[QueueWord]:
     """Return a mix of due and new words for the authenticated learner."""
 
@@ -79,7 +128,7 @@ def get_unified_review_queue(
         description="Queue strategy: random, blocks, or priority. Random is deterministic round-robin.",
     ),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_or_demo),
 ) -> UnifiedQueueResponse:
     """Return one canonical SRS queue across vocabulary, grammar, and durable errata."""
 
@@ -112,7 +161,7 @@ def list_anki_progress(
     *,
     direction: str | None = Query(None, description="Optional card direction filter (fr_to_de or de_to_fr)"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_or_demo),
 ) -> list[AnkiWordProgressRead]:
     """Return all imported Anki cards with their current progress for the learner."""
 
@@ -127,7 +176,7 @@ def list_anki_progress(
 def get_anki_summary(
     *,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_or_demo),
 ) -> AnkiProgressSummary:
     """Return aggregate progress metrics for imported Anki cards."""
 
@@ -149,12 +198,241 @@ def sync_anki_progress_endpoint(
     return service.sync_anki_progress(user=current_user, cards=payload.cards)
 
 
+@router.get("/vocabulary/recommendations", response_model=VocabularyRecommendationResponse)
+def get_vocabulary_recommendations(
+    *,
+    limit: int = Query(12, ge=1, le=50, description="Maximum number of recommendations"),
+    due_limit: int = Query(6, ge=0, le=50, description="Maximum due cards to include"),
+    fragile_limit: int = Query(3, ge=0, le=50, description="Maximum fragile cards to include"),
+    new_limit: int = Query(3, ge=0, le=50, description="Maximum new cards to include"),
+    direction: str | None = Query(None, description="Optional card direction filter (fr_to_de or de_to_fr)"),
+    deck_name: str | None = Query(None, description="Optional imported deck name filter"),
+    include_upcoming_days: int = Query(0, ge=0, le=14, description="Treat near-future reviews as due"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_or_demo),
+) -> VocabularyRecommendationResponse:
+    """Return SRS-ranked vocabulary cards for today's learning loop."""
+
+    if direction and direction not in {"fr_to_de", "de_to_fr"}:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid direction filter")
+    service = ProgressService(db)
+    recommendations = service.get_vocabulary_recommendations(
+        user=current_user,
+        limit=limit,
+        due_limit=due_limit,
+        fragile_limit=fragile_limit,
+        new_limit=new_limit,
+        direction=direction,
+        deck_name=deck_name,
+        include_upcoming_days=include_upcoming_days,
+    )
+    return VocabularyRecommendationResponse(**recommendations)
+
+
+@router.get("/vocabulary/map", response_model=VocabularyMasteryMapResponse)
+def get_vocabulary_mastery_map(
+    *,
+    limit: int = Query(5000, ge=1, le=5000, description="Maximum French 5000 cards to map"),
+    direction: str | None = Query("fr_to_de", description="Optional card direction filter"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_or_demo),
+) -> VocabularyMasteryMapResponse:
+    """Return a compact mastery map for the imported French 5000 deck."""
+
+    if direction and direction not in {"fr_to_de", "de_to_fr"}:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid direction filter")
+
+    query = db.query(VocabularyWord).filter(
+        VocabularyWord.language == current_user.target_language,
+        VocabularyWord.is_anki_card.is_(True),
+    )
+    if direction:
+        query = query.filter(or_(VocabularyWord.direction == direction, VocabularyWord.direction.is_(None)))
+    words = (
+        query.order_by(VocabularyWord.frequency_rank.asc().nullslast(), VocabularyWord.id.asc())
+        .limit(limit)
+        .all()
+    )
+    progress_rows = (
+        db.query(UserVocabularyProgress)
+        .filter(
+            UserVocabularyProgress.user_id == current_user.id,
+            UserVocabularyProgress.word_id.in_([word.id for word in words] or [0]),
+        )
+        .all()
+    )
+    progress_by_word = {progress.word_id: progress for progress in progress_rows}
+    now = datetime.now(timezone.utc)
+    counts = {key: 0 for key in ("new", "due", "fragile", "building", "solid", "mastered")}
+    cells: list[VocabularyMasteryMapCell] = []
+    for word in words:
+        progress = progress_by_word.get(word.id)
+        state = _mastery_state(progress, now)
+        counts[state] = counts.get(state, 0) + 1
+        cells.append(
+            VocabularyMasteryMapCell(
+                word_id=word.id,
+                word=word.word,
+                frequency_rank=word.frequency_rank,
+                mastery_state=state,
+                proficiency_score=progress.proficiency_score if progress else 0,
+                is_due=_progress_due(progress, now),
+                lapses=progress.lapses if progress else 0,
+            )
+        )
+
+    return VocabularyMasteryMapResponse(
+        summary=VocabularyMasteryMapSummary(total=len(cells), **counts),
+        cells=cells,
+    )
+
+
+@router.get("/weekly-dossier", response_model=WeeklyDossierResponse)
+def get_weekly_dossier(
+    *,
+    period_days: int = Query(7, ge=1, le=31),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_or_demo),
+) -> WeeklyDossierResponse:
+    """Return a deterministic editorial digest of this learner's recent work."""
+
+    period_end = datetime.now(timezone.utc)
+    period_start = period_end - timedelta(days=period_days)
+
+    progress_ids = (
+        select(UserVocabularyProgress.id)
+        .filter(UserVocabularyProgress.user_id == current_user.id)
+    )
+    vocabulary_reviews = (
+        db.query(func.count(ReviewLog.id))
+        .filter(ReviewLog.progress_id.in_(progress_ids))
+        .filter(ReviewLog.review_date >= period_start)
+        .scalar()
+        or 0
+    )
+    repairs_filed = (
+        db.query(func.count(UserError.id))
+        .filter(UserError.user_id == current_user.id, UserError.created_at >= period_start)
+        .scalar()
+        or 0
+    )
+    words_seen, words_produced = (
+        db.query(
+            func.coalesce(func.sum(UserVocabularyProgress.times_seen), 0),
+            func.coalesce(
+                func.sum(UserVocabularyProgress.times_used_correctly + UserVocabularyProgress.times_used_incorrectly),
+                0,
+            ),
+        )
+        .filter(UserVocabularyProgress.user_id == current_user.id)
+        .one()
+    )
+    missions_completed = (
+        db.query(func.count(RealWorldMission.id))
+        .filter(
+            RealWorldMission.user_id == current_user.id,
+            RealWorldMission.completed_at.isnot(None),
+            RealWorldMission.completed_at >= period_start,
+        )
+        .scalar()
+        or 0
+    )
+    scenes_completed = (
+        db.query(func.count(GraphicNovelScene.id))
+        .filter(
+            GraphicNovelScene.user_id == current_user.id,
+            GraphicNovelScene.completed_at.isnot(None),
+            GraphicNovelScene.completed_at >= period_start,
+        )
+        .scalar()
+        or 0
+    )
+
+    strong_rows = (
+        db.query(UserVocabularyProgress, VocabularyWord)
+        .join(VocabularyWord, VocabularyWord.id == UserVocabularyProgress.word_id)
+        .filter(UserVocabularyProgress.user_id == current_user.id)
+        .order_by(
+            UserVocabularyProgress.proficiency_score.desc(),
+            UserVocabularyProgress.times_used_correctly.desc(),
+            VocabularyWord.frequency_rank.asc().nullslast(),
+        )
+        .limit(3)
+        .all()
+    )
+    fragile_rows = (
+        db.query(UserVocabularyProgress, VocabularyWord)
+        .join(VocabularyWord, VocabularyWord.id == UserVocabularyProgress.word_id)
+        .filter(UserVocabularyProgress.user_id == current_user.id)
+        .filter(
+            or_(
+                UserVocabularyProgress.lapses > 0,
+                UserVocabularyProgress.proficiency_score < 50,
+                UserVocabularyProgress.phase.in_(["learn", "relearn", "learning", "relearning"]),
+            )
+        )
+        .order_by(
+            UserVocabularyProgress.lapses.desc(),
+            UserVocabularyProgress.proficiency_score.asc(),
+            VocabularyWord.frequency_rank.asc().nullslast(),
+        )
+        .limit(3)
+        .all()
+    )
+
+    strengths = [
+        _thread(
+            word.word,
+            f"{progress.proficiency_score or 0}/100 · {progress.times_used_correctly or 0} productive uses",
+            tone="solid",
+            count=progress.proficiency_score or 0,
+        )
+        for progress, word in strong_rows
+        if (progress.proficiency_score or 0) >= 60 or (progress.times_used_correctly or 0) > 0
+    ]
+    fragile_threads = [
+        _thread(
+            word.word,
+            f"{progress.lapses or 0} lapses · {progress.proficiency_score or 0}/100",
+            tone="fragile",
+            count=progress.lapses or 0,
+        )
+        for progress, word in fragile_rows
+    ]
+    next_actions = [
+        _thread("Repair the red notes", f"{repairs_filed} new repairs filed this week", tone="repair", count=repairs_filed),
+        _thread("Review today's words", f"{vocabulary_reviews} vocabulary reviews logged", tone="vocabulary", count=vocabulary_reviews),
+        _thread("Use one thread in context", "Send a mission or open a Feuilleton scene", tone="create", count=missions_completed + scenes_completed),
+    ]
+    headline = (
+        f"Semaine — {repairs_filed} repairs, {vocabulary_reviews} vocabulary reviews, "
+        f"{missions_completed + scenes_completed} creative completions."
+    )
+
+    return WeeklyDossierResponse(
+        period_start=period_start,
+        period_end=period_end,
+        headline=headline,
+        stats=WeeklyDossierStats(
+            repairs_filed=repairs_filed,
+            vocabulary_reviews=vocabulary_reviews,
+            words_seen=int(words_seen or 0),
+            words_produced=int(words_produced or 0),
+            missions_completed=missions_completed,
+            feuilleton_scenes_completed=scenes_completed,
+        ),
+        strengths=strengths,
+        fragile_threads=fragile_threads,
+        next_actions=next_actions,
+    )
+
+
 @router.get("/{word_id}", response_model=ProgressDetail)
 def get_progress_detail(
     *,
     word_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_or_demo),
 ) -> ProgressDetail:
     """Return the learner's scheduling stats for a vocabulary item."""
 
@@ -189,7 +467,7 @@ def submit_review(
     *,
     payload: ReviewRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_or_demo),
 ) -> ReviewResponse:
     """Register a learner review and return the next scheduled review time."""
 
@@ -224,7 +502,7 @@ def bump_word_difficulty(
     *,
     word_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_or_demo),
 ) -> dict:
     """
     Bump a word's difficulty to schedule it for earlier review.

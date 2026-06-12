@@ -32,11 +32,15 @@ class AtelierTodayResponse(BaseModel):
     summary: dict[str, Any]
     atlas: list[dict[str, Any]]
     due_errata: list[dict[str, Any]] = Field(default_factory=list)
+    progress: dict[str, Any] = Field(default_factory=dict)
+    serial_episode: dict[str, Any] | None = None
+    serial: dict[str, Any] | None = None
 
 
 class AtelierSessionStartRequest(BaseModel):
     concept_ids: list[int] | None = None
     preferred_concept_id: int | None = None
+    preferred_vocabulary_ids: list[int] | None = None
 
 
 class AtelierSessionStartResponse(BaseModel):
@@ -49,6 +53,8 @@ class AtelierSessionStartResponse(BaseModel):
     submitted_map: dict[str, bool] = Field(default_factory=dict)
     current_position: dict[str, Any] = Field(default_factory=dict)
     due_errata: list[dict[str, Any]] = Field(default_factory=list)
+    target_vocabulary_ids: list[int] = Field(default_factory=list)
+    target_vocabulary: list[dict[str, Any]] = Field(default_factory=list)
     recap: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -70,6 +76,7 @@ class AtelierAttemptResponse(BaseModel):
     verdict: str
     score_0_4: float
     correction: dict[str, Any]
+    ai_review: dict[str, Any] = Field(default_factory=dict)
 
 
 class AtelierCompleteResponse(BaseModel):
@@ -101,6 +108,7 @@ class AtelierErrataAttemptResponse(BaseModel):
     answer_text: str
     target_answer: str
     feedback: str
+    closure: dict[str, Any] | None = None
     erratum: dict[str, Any]
     task: dict[str, Any]
 

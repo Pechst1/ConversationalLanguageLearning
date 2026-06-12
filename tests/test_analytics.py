@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from app.db.models.progress import ReviewLog, UserVocabularyProgress
+from app.db.models.error import UserError
 from app.db.models.session import LearningSession, WordInteraction
 from app.db.models.user import User
 
@@ -101,6 +102,18 @@ async def test_analytics_endpoints(async_client, db_session, french_vocabulary):
         error_description="Le baguette devrait être la baguette.",
     )
     db_session.add(interaction)
+    erratum = UserError(
+        user_id=user.id,
+        session_id=session_one.id,
+        linked_word_id=baguette.id,
+        error_category="gender",
+        original_text="Le baguette",
+        correction="La baguette",
+        context_snippet="Le baguette devrait être la baguette.",
+        source_type="session",
+        review_mode="grammar",
+    )
+    db_session.add(erratum)
     db_session.commit()
 
     summary_response = await async_client.get("/api/v1/analytics/summary", headers=headers)

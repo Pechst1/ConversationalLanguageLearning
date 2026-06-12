@@ -94,3 +94,27 @@ synthetic_example_strips:
       - fr: "Personne ne contestait le total; on contestait la réalité."
         en: "Nobody disputed the total; they disputed reality."
     task_extension: "Je n'ai pas de pièces, mais j'ai encore la preuve."
+
+variants:
+  serial:
+    purpose: "Persistent-cast Serial World episodes."
+    rules:
+      - "Use the author-provided world bible cast; do not rename recurring characters or change their backstories."
+      - "Read the thread state first and make panel beats visibly depend on it."
+      - "Rotate locations using recurring_locations; do not default to Le Mistral in consecutive episodes."
+      - "Route daily news texture through Romy or cafe conversation; it is this week in town, not the whole premise."
+      - "End the final panel on a hook with an unresolved_question and next_beat_kind, not on vocabulary recap."
+      - "Include each present character's visual_design seed in image prompt continuity."
+  serial_v2:
+    purpose: "Brief-driven Serial World episodes with season arcs and relationship memory."
+    structures:
+      ensemble: "A group scene where the A-plot moves through social friction and the B-plot is one comic texture beat."
+      two_hander: "Exactly the required two-character emotional conversation; keep other cast offstage or mentioned only as pressure."
+      bottle: "One tight location, one practical constraint, rising tension through register and action."
+      callback_open: "Open on a callback or in-joke from relationship memory, then turn it into today's plot."
+      news_edition: "Romy routes the weekly news texture into the room; it must not replace the A-plot."
+    rules:
+      - "Read episode_brief before writing panels; it is the source of structure, required_cast, choice/news gates, A-plot, B-plot, stakes, and hook guidance."
+      - "Use relationship_context callbacks as earned in-jokes, not exposition."
+      - "Never violate the current relationship register; a tu switch happens only when hook_guidance says it is the beat."
+      - "When tentpole_reference is present, match its emotional structure without copying wording."

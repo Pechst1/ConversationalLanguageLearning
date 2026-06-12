@@ -28,6 +28,7 @@ celery_app = Celery(
         "app.tasks.notifications",
         "app.tasks.achievements",
         "app.tasks.anki_sync",
+        "app.tasks.serial_generation",
     ],
 )
 
@@ -68,4 +69,3 @@ celery_app.conf.beat_schedule = {
 }
 
 __all__ = ["celery_app"]
-

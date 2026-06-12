@@ -46,6 +46,14 @@ class Settings(BaseSettings):
         "gpt-5-mini",
         description="OpenAI model for exercise correction and error detection",
     )
+    OPENAI_MISSION_FAST_MODEL: str = Field(
+        "gpt-4o-mini",
+        description="Fast OpenAI model for near-real-time mission chat replies",
+    )
+    MISSION_CHAT_TIMEOUT_SECONDS: float = Field(
+        2.0,
+        description="Short timeout for mission chat replies before falling back locally",
+    )
     PERPLEXITY_API_KEY: Optional[str] = Field(None, description="API key for Perplexity search (optional)")
     SUBSTACK_FEED_URLS: str = Field(
         "",
@@ -90,6 +98,34 @@ class Settings(BaseSettings):
         True,
         description="Use LLM-backed generation and correction for Atelier when a provider is configured.",
     )
+    ATELIER_EXERCISE_LLM_MODEL: str = Field(
+        "gpt-4o-mini",
+        description="Fast model for generating Atelier exercise payloads.",
+    )
+    ATELIER_EXERCISE_LLM_TIMEOUT_SECONDS: float = Field(
+        60.0,
+        description="Single-attempt timeout for Atelier exercise generation.",
+    )
+    ATELIER_CORRECTION_LLM_ENABLED: bool = Field(
+        True,
+        description="Use LLM-backed Atelier correction for live submits, with deterministic fallback on provider failure.",
+    )
+    ATELIER_CORRECTION_LLM_MODEL: str = Field(
+        "gpt-5.4-nano",
+        description="Fast model for low-latency Atelier submit corrections.",
+    )
+    ATELIER_CORRECTION_LLM_TIMEOUT_SECONDS: float = Field(
+        5.0,
+        description="Short single-attempt timeout for optional Atelier LLM correction before deterministic fallback.",
+    )
+    ATELIER_CORRECTION_LLM_MAX_TOKENS: int = Field(
+        900,
+        description="Output token cap for live Atelier LLM correction.",
+    )
+    ATELIER_CORRECTION_LLM_REASONING_EFFORT: Optional[str] = Field(
+        None,
+        description="Optional reasoning_effort override for Atelier correction models that support it.",
+    )
     OPENAI_IMAGE_MODEL: str = Field("gpt-image-2", description="Default OpenAI image model")
     OPENAI_IMAGE_QUALITY: str = Field("medium", description="Default OpenAI image generation quality")
     OPENAI_IMAGE_SIZE: str = Field("1024x1024", description="Default OpenAI image generation size")
@@ -114,6 +150,14 @@ class Settings(BaseSettings):
     GRAPHIC_NOVEL_IMAGE_GENERATION_ENABLED: bool = Field(
         False,
         description="Generate Feuilleton panel images through OpenAI. When false, deterministic SVG panels are used.",
+    )
+    GRAPHIC_NOVEL_DEMO_SCRIPT_ENABLED: bool = Field(
+        False,
+        description="Dev/QA only: generate a deterministic Feuilleton script when the story LLM is disabled.",
+    )
+    SERIAL_WORLD_ENABLED: bool = Field(
+        False,
+        description="Enable the serial Missions x Feuilleton spine. Defaults dark for staged rollout.",
     )
 
     model_config = SettingsConfigDict(

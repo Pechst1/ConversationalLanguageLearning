@@ -3,7 +3,7 @@ from datetime import date, datetime, time
 import uuid
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, Column, Date, DateTime, Integer, String, Time
+from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Integer, String, Time
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -82,9 +82,19 @@ class User(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     is_active = Column(Boolean, default=True)
     is_verified = Column(Boolean, default=False)
+    role = Column(String(20), default="user", nullable=False)
+
+    # Account security
+    auth_version = Column(Integer, default=0, nullable=False)
+    password_updated_at = Column(DateTime(timezone=True))
+    email_updated_at = Column(DateTime(timezone=True))
+    pending_email = Column(String(255))
+    pending_email_token_hash = Column(String(255))
+    pending_email_requested_at = Column(DateTime(timezone=True))
 
     # Relationships
     grammar_progress = relationship("UserGrammarProgress", back_populates="user", lazy="dynamic")
+    refresh_tokens = relationship("RefreshToken", back_populates="user", cascade="all, delete-orphan")
 
     def mark_activity(self, activity_date: date | None = None) -> None:
         """Update last activity and streak metadata."""
@@ -102,3 +112,21 @@ class User(Base):
         """Update the user's preferred session time."""
 
         self.preferred_session_time = session_time
+
+
+class RefreshToken(Base):
+    """Persisted refresh token metadata for rotation and revocation."""
+
+    __tablename__ = "refresh_tokens"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    token_hash = Column(String(128), nullable=False, unique=True, index=True)
+    expires_at = Column(DateTime(timezone=True), nullable=False, index=True)
+    revoked_at = Column(DateTime(timezone=True))
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    last_used_at = Column(DateTime(timezone=True))
+    user_agent = Column(String(255))
+    ip_address = Column(String(64))
+
+    user = relationship("User", back_populates="refresh_tokens")

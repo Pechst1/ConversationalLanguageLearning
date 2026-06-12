@@ -52,7 +52,12 @@ def _resolve_user(token: str, service: SessionService) -> User | None:
     except (InvalidTokenError, ValidationError, ValueError, KeyError):
         return None
     user_id = uuid.UUID(str(token_data.sub))
-    return service.db.get(User, user_id)
+    user = service.db.get(User, user_id)
+    if not user or not user.is_active:
+        return None
+    if int(token_data.av or 0) != int(user.auth_version or 0):
+        return None
+    return user
 
 
 @router.websocket("/{session_id}/ws")

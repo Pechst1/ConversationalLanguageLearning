@@ -9,9 +9,13 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from loguru import logger
+
 from app.api.deps import get_db
 from app.api.v1.endpoints.atelier import get_atelier_user
+from app.config import settings
 from app.db.models.mission import RealWorldMission, RealWorldMissionAttempt, RealWorldMissionTurn
+from app.db.models.serial import SerialThread
 from app.db.models.user import User
 from app.schemas.missions import (
     MissionAttemptResponse,
@@ -24,6 +28,7 @@ from app.schemas.missions import (
     MissionTurnResponse,
 )
 from app.services.llm_service import LLMService
+from app.services.serial import SerialThreadService
 from app.services.missions import (
     MissionConversationService,
     MissionCorrectionService,
@@ -168,13 +173,17 @@ async def create_mission(
         mission_type=request.mission_type,
         cadence=request.cadence,
         atelier_session_id=request.atelier_session_id,
+        serial_thread_id=request.serial_thread_id,
+        episode_index=request.episode_index,
         preferred_concept_ids=request.preferred_concept_ids,
         preferred_errata_ids=request.preferred_errata_ids,
+        preferred_vocabulary_ids=request.preferred_vocabulary_ids,
         use_news=request.use_news,
         custom_scenario=request.custom_scenario,
         desired_outcome=request.desired_outcome,
         relationship=request.relationship,
         register=request.target_register,
+        stakes_level=request.stakes_level,
     )
     return MissionResponse(mission=serialize_mission(mission) or {})
 
@@ -307,12 +316,18 @@ def submit_mission_turn(
             db.commit()
             db.refresh(assistant_turn)
             db.refresh(mission)
+        outcome = MissionConversationService(db).turn_outcome(
+            mission=mission,
+            user_text=user_turn.text,
+            assistant_text=assistant_turn.text,
+        )
         return MissionTurnResponse(
             user_turn=_turn_read(user_turn),
             assistant_turn=_turn_read(assistant_turn),
             correction=user_turn.correction_payload or {},
             errata=[],
             mission=serialize_mission(mission) or {},
+            outcome=outcome,
         )
 
     correction_service = MissionCorrectionService(db)
@@ -321,6 +336,7 @@ def submit_mission_turn(
         mission=mission,
         text=request.text,
         mode=request.mode,
+        near_realtime=True,
     )
     first_index = _next_turn_index(db, mission)
     user_turn = RealWorldMissionTurn(
@@ -371,24 +387,49 @@ def submit_mission_turn(
     db.commit()
     db.refresh(assistant_turn)
     db.refresh(mission)
+    outcome = conversation_service.turn_outcome(
+        mission=mission,
+        user_text=request.text,
+        assistant_text=assistant_text,
+    )
     return MissionTurnResponse(
         user_turn=_turn_read(user_turn),
         assistant_turn=_turn_read(assistant_turn),
         correction=correction,
         errata=persisted,
         mission=serialize_mission(mission) or {},
+        outcome=outcome,
     )
 
 
 @router.post("/{mission_id}/complete", response_model=MissionCompleteResponse)
-def complete_mission(
+async def complete_mission(
     mission_id: UUID,
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_atelier_user)],
 ) -> MissionCompleteResponse:
     mission = _mission_or_404(db, mission_id, current_user)
     completed = MissionScheduler(db).complete(user=current_user, mission=mission)
+    await _advance_serial_thread(db, completed)
     return MissionCompleteResponse(
         mission=serialize_mission(completed) or {},
         recap=completed.recap_payload or {},
     )
+
+
+async def _advance_serial_thread(db: Session, mission: RealWorldMission) -> None:
+    """Advance the serial story when a thread-linked mission completes.
+
+    Resilient: if the next Feuilleton beat fails to generate, the thread index
+    has already advanced, so /serial/today regenerates it lazily next load.
+    """
+    if not settings.SERIAL_WORLD_ENABLED or not getattr(mission, "serial_thread_id", None):
+        return
+    thread = db.get(SerialThread, mission.serial_thread_id)
+    if not thread:
+        return
+    try:
+        await SerialThreadService(db).apply_completion(thread, mission=mission)
+    except Exception as exc:  # noqa: BLE001 — completion must never fail on serial advance
+        db.rollback()
+        logger.warning("Serial advance after mission failed: {}", str(exc))

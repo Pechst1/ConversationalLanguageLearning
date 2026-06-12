@@ -29,24 +29,49 @@ def get_password_hash(password: str) -> str:
     return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
-def _create_token(subject: str | Any, expires_delta: timedelta, token_type: str) -> str:
+def _create_token(
+    subject: str | Any,
+    expires_delta: timedelta,
+    token_type: str,
+    *,
+    extra_claims: Dict[str, Any] | None = None,
+) -> str:
     expire = datetime.now(timezone.utc) + expires_delta
     payload: Dict[str, Any] = {"exp": expire, "sub": str(subject), "type": token_type}
+    if extra_claims:
+        payload.update(extra_claims)
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=ALGORITHM)
 
 
-def create_access_token(subject: str | Any, expires_minutes: int | None = None) -> str:
+def create_access_token(
+    subject: str | Any,
+    expires_minutes: int | None = None,
+    *,
+    auth_version: int | None = None,
+) -> str:
     """Create a signed JWT access token for the supplied subject."""
 
     minutes = expires_minutes or settings.ACCESS_TOKEN_EXPIRE_MINUTES
-    return _create_token(subject, timedelta(minutes=minutes), token_type="access")
+    extra_claims = {"av": auth_version} if auth_version is not None else None
+    return _create_token(subject, timedelta(minutes=minutes), token_type="access", extra_claims=extra_claims)
 
 
-def create_refresh_token(subject: str | Any, expires_days: int | None = None) -> str:
+def create_refresh_token(
+    subject: str | Any,
+    expires_days: int | None = None,
+    *,
+    auth_version: int | None = None,
+    token_id: str | None = None,
+) -> str:
     """Create a signed JWT refresh token for the supplied subject."""
 
     days = expires_days or settings.REFRESH_TOKEN_EXPIRE_DAYS
-    return _create_token(subject, timedelta(days=days), token_type="refresh")
+    extra_claims: Dict[str, Any] = {}
+    if auth_version is not None:
+        extra_claims["av"] = auth_version
+    if token_id:
+        extra_claims["jti"] = token_id
+    return _create_token(subject, timedelta(days=days), token_type="refresh", extra_claims=extra_claims or None)
 
 
 def decode_token(token: str) -> Dict[str, Any]:

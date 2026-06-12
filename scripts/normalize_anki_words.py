@@ -36,18 +36,18 @@ def _derive_surface(parser: AnkiCardParser, row: VocabularyWord) -> str:
     # Choose the language side based on direction
     source = None
     if (row.direction or '').lower() == 'fr_to_de':
-        source = row.french_translation or row.word
+        source = row.word or row.french_translation
         return parser.extract_word(source or '', expected_language='french')
     if (row.direction or '').lower() == 'de_to_fr':
-        source = row.german_translation or row.word
+        source = row.word or row.german_translation
         return parser.extract_word(source or '', expected_language='german')
 
     # Fallback to the declared language
     if (row.language or '').lower().startswith('fr'):
-        source = row.french_translation or row.word
+        source = row.word or row.french_translation
         return parser.extract_word(source or '', expected_language='french')
     if (row.language or '').lower().startswith('de'):
-        source = row.german_translation or row.word
+        source = row.word or row.german_translation
         return parser.extract_word(source or '', expected_language='german')
 
     # Last resort: generic cleaning
@@ -114,4 +114,3 @@ def main() -> None:
 
 if __name__ == "__main__":  # pragma: no cover - CLI entry
     main()
-

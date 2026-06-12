@@ -5,8 +5,10 @@ from typing import List
 
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
+from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from loguru import logger
 
 from app.api.v1 import api_router
 from app.config import settings
@@ -45,10 +47,20 @@ def create_app() -> FastAPI:
     ) -> JSONResponse:
         return JSONResponse(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            content={"detail": exc.errors(), "message": "Validation failed"},
+            content=jsonable_encoder({"detail": exc.errors(), "message": "Validation failed"}),
         )
 
     app.include_router(api_router, prefix=settings.API_V1_STR)
+
+    @app.on_event("startup")
+    async def _warn_serial_story_llm_missing() -> None:
+        if settings.SERIAL_WORLD_ENABLED and (not settings.ATELIER_LLM_ENABLED or not settings.OPENAI_API_KEY):
+            logger.warning(
+                "Serial World is enabled but the Feuilleton story LLM is not fully configured; "
+                "serial episodes after the opener will enter delayed state until OPENAI_API_KEY and "
+                "OPENAI_GRAPHIC_NOVEL_SCRIPT_MODEL are configured."
+            )
+
     return app
 
 

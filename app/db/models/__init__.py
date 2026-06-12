@@ -1,5 +1,5 @@
 """Database models package."""
-from app.db.models.user import User
+from app.db.models.user import RefreshToken, User
 from app.db.models.vocabulary import VocabularyWord
 from app.db.models.progress import UserVocabularyProgress, ReviewLog
 from app.db.models.session import (
@@ -17,6 +17,7 @@ from app.db.models.atelier import (
     AtelierSession,
 )
 from app.db.models.mission import RealWorldMission, RealWorldMissionAttempt, RealWorldMissionTurn
+from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.graphic_novel import (
     GraphicNovelAttempt,
     GraphicNovelPanel,
@@ -33,6 +34,7 @@ from app.db.models.npc import NPC, NPCRelationship, NPCMemory
 
 __all__ = [
     "User",
+    "RefreshToken",
     "VocabularyWord",
     "UserVocabularyProgress",
     "ReviewLog",
@@ -50,6 +52,8 @@ __all__ = [
     "RealWorldMission",
     "RealWorldMissionAttempt",
     "RealWorldMissionTurn",
+    "SerialEpisode",
+    "SerialThread",
     "GraphicNovelAttempt",
     "GraphicNovelPanel",
     "GraphicNovelScene",

@@ -1,0 +1,537 @@
+{
+  "world_bible_version": "paris-v2",
+  "logline": "You just moved to Paris. You barely speak the language, you know no one — and then, on a rainy night at a corner café called Le Mistral, you fall in with four impossible people. This is the story of how you found your life in French.",
+  "premise_note": "Ensemble friend-group serial in the spirit of How I Met Your Mother, fully reimagined for Paris. The protagonist is the learner (the 'Ted' role, the searcher and narrator). The bond, banter, and will-they-won't-they tension should feel like that show; the names, textures, humor, and references are French. Characters must read as specific, contradictory people — never national stereotypes.",
+
+  "setting": {
+    "city": "Paris",
+    "neighborhood": "Canal Saint-Martin & the 10th/11th arrondissements — young, mixed, slightly bohemian, walkable",
+    "era": "present day",
+    "tone": "warm, wry, romantic, lightly satirical — comedy that hides real feeling",
+    "recurring_locations": [
+      { "id": "le_mistral", "name": "Le Mistral", "type": "café-bar", "description": "A narrow corner café-bar with a worn zinc counter near the Canal. The group's headquarters — their booth in the back is unofficially theirs. Open late, smells of coffee and rain.", "use": "home base — but NOT every episode; the anchor, not the default" },
+      { "id": "user_apartment", "name": "Your apartment", "type": "home", "description": "A sixth-floor walk-up studio with a temperamental radiator and a view of zinc rooftops. The arrival point of the whole story." },
+      { "id": "marin_lila_flat", "name": "Marin & Lila's flat", "type": "home", "description": "A cramped, art-covered two-room flat near République, always full of people and casserole." },
+      { "id": "newsroom", "name": "Romy's newsroom", "type": "workplace", "description": "A glass-walled open-plan TV/online newsroom, screens everywhere — the diegetic gateway for the daily news seed." },
+      { "id": "ngo_office", "name": "Marin's NGO office", "type": "workplace", "description": "A cluttered environmental-NGO office with protest posters and dying plants Marin keeps reviving." },
+      { "id": "marche_canal", "name": "The Canal market", "type": "outdoor", "description": "An open-air market along the Canal Saint-Martin — fishmongers, cheese stalls, haggling, Sunday crowds." },
+      { "id": "buttes_chaumont", "name": "Parc des Buttes-Chaumont", "type": "outdoor", "description": "Hilly park with a cliff-top folly; where the group goes to walk off a drama or have the real conversation." },
+      { "id": "metro_platform", "name": "Métro / platform", "type": "transit", "description": "Late-night platforms, last trains, missed connections — Paris in motion." },
+      { "id": "gus_loft", "name": "Gus's 'château'", "type": "home", "description": "An aggressively styled bachelor loft Gus passes off as ancestral. (The real address is in Créteil.)" },
+      { "id": "brocante", "name": "A flea market / brocante", "type": "outdoor", "description": "Weekend brocante stalls — antiques, junk, and exactly the wrong gift." },
+      { "id": "office_admin", "name": "An admin office", "type": "institutional", "description": "Préfecture / bank / town hall — the bureaucratic 'vous' battlegrounds where real-world Missions bite." }
+    ]
+  },
+
+  "protagonist": {
+    "id": "user",
+    "role": "the newcomer / narrator (the 'Ted')",
+    "name_in_fiction": "Toi",
+    "situation": "Just arrived in Paris for work/study. Romantic, a little earnest, looking for connection and for 'the one' — both a person and a life. Speaks beginner-to-intermediate French and is self-conscious about it.",
+    "narrative_function": "Every Mission is a moment YOU act (a text, a call, a negotiation, a first conversation). Every Feuilleton episode shows the consequences playing out among the friends. The learner's French literally moves the protagonist's life forward.",
+    "default_register_behavior": "Starts over-formal: uses 'vous' with everyone, including the friends, out of nervousness. A running arc is learning WHEN to switch to 'tu' — the friends tease you for it warmly."
+  },
+
+  "cast": [
+    {
+      "id": "marin_leveque",
+      "name": "Marin Lévêque",
+      "archetype_ref": "the Marshall — half of the couple, the loyal heart",
+      "role": "Half of the anchor couple. Works at an environmental NGO; secretly writes a fantasy novel no one is allowed to read.",
+      "origin": "Brittany (Finistère) — son of a fisherman; moved to Paris for university and never left.",
+      "register_with_user": "tu (immediately — he adopts you on night one)",
+      "personality": "A gentle giant. Sentimental, superstitious, believes in signs and fate. Conflict-avoidant to a fault. Loyal to the point of stubbornness. Cries at adverts.",
+      "contradiction": "Fights for the planet all day, but is privately terrified of disappointing his father, who thinks 'saving the sea from a desk in Paris' is a joke.",
+      "secret": "He's been carrying his grandmother's ring in his coat pocket for months, waiting for a sign to propose to Lila.",
+      "wants": "To be brave enough — to propose, to finish the novel, to call his father.",
+      "flaw": "Avoids hard conversations until they explode.",
+      "speech_pattern": "Warm and slow. Affectionate nicknames for everyone ('mon grand', 'ma puce'). Melodramatic about tiny things, calm about huge ones. Drops the occasional Breton word and then explains it proudly.",
+      "signature_phrases": ["C'est un signe, ça.", "Bon. Qui veut une autre tournée ?", "Ma grand-mère disait toujours…"],
+      "dynamic_with_user": "Your first real friend in Paris. The one who makes you feel like you belong. Will defend you to anyone.",
+      "teaches": "Everyday domestic and emotional vocabulary; the warm informal 'tu' register; regional French color."
+    },
+    {
+      "id": "lila_bonnet",
+      "name": "Lila Bonnet",
+      "archetype_ref": "the Lily — the other half of the couple, the ringleader",
+      "role": "Primary-school teacher and painter. The social engine and emotional referee of the group.",
+      "origin": "Marseille — grew up loud, warm, and broke; carries the South in her voice.",
+      "register_with_user": "tu (and she'll mock you if you 'vous' her)",
+      "personality": "Sharp-tongued, mischievous, generous, a little possessive of her people. Runs everyone's love lives like a chessboard. Fierce loyalty wrapped in teasing.",
+      "contradiction": "Tells everyone to chase their dreams; quietly gave up a painting residency in Berlin to stay with Marin and has never fully admitted she's not sure it was right.",
+      "secret": "She keeps a half-finished portrait of the whole group that she refuses to show until it's 'true enough'.",
+      "wants": "For everyone she loves to be happy on her terms — and, secretly, to paint again seriously.",
+      "flaw": "Meddles. Decides she knows what's best for you and acts on it.",
+      "speech_pattern": "Rapid-fire, teasing, southern warmth. Slides from baby-talk she uses on her pupils into devastating one-liners. Lots of 'putain' affectionately, exaggerated endearments.",
+      "signature_phrases": ["Mais arrête, c'est évident.", "Toi, tu me caches quelque chose.", "Bon, on fait quoi alors ?"],
+      "dynamic_with_user": "Decides on night one that she is going to 'fix your life'. Equal parts fairy godmother and benevolent menace.",
+      "teaches": "Fast colloquial French, slang, emotional nuance, teasing register; southern expressions."
+    },
+    {
+      "id": "augustin_de_roncourt",
+      "name": "Augustin « Gus » de Roncourt",
+      "archetype_ref": "the Barney — the womanizer, the showman",
+      "role": "Wears impeccable suits, has a lucrative job he refuses to fully explain ('du conseil'), and lives by an elaborate seduction philosophy he calls « La Méthode ».",
+      "origin": "Claims minor aristocracy and a château. The truth: raised by a single mother in a tower block in Créteil. The 'de Roncourt' is invented.",
+      "register_with_user": "tu with the group; but performs an exaggerated, theatrical 'vous' when seducing — register as a weapon.",
+      "personality": "Flamboyant, hilarious, relentlessly confident, allergic to sincerity in public. Coins words, keeps a 'Carnet' (his playbook of schemes), narrates his own life like a legend.",
+      "contradiction": "Treats romance as a sport and a numbers game — and is the most loyal, most secretly lonely person in the group. Would take a bullet for any of them and would rather die than say so plainly.",
+      "secret": "The aristocrat persona is a costume. He sends most of his salary to his mother and visits Créteil every Sunday, telling the group he's 'at the château'.",
+      "wants": "To be admired. Underneath: to be loved without the costume.",
+      "flaw": "Lies reflexively, even when the truth would be better. Deflects every real feeling with a bit.",
+      "speech_pattern": "Theatrical and high-register one second, pure slang the next. Invents superlatives. Builds suspense before a punchline. Treats French like a runway.",
+      "signature_phrases": ["Costume… (attends)… né pour ça.", "Règle numéro un de La Méthode :", "Mon cher, laisse-moi t'expliquer la vie."],
+      "dynamic_with_user": "Appoints himself your mentor in 'becoming Parisian' and in love, with catastrophic and wonderful results. Your unlikeliest, most devoted ally.",
+      "teaches": "Register-switching as a skill (tu/vous, formal flirtation, polite-but-loaded phrasing); idioms, wordplay, persuasion language."
+    },
+    {
+      "id": "romy_tremblay",
+      "name": "Romane « Romy » Tremblay",
+      "archetype_ref": "the Robin — the independent one, the romance tension",
+      "role": "Québécoise TV/online news journalist, recently posted to Paris. Fiercely independent, commitment-shy, hockey-and-whisky kind of cool.",
+      "origin": "Montréal. A French speaker who is also a foreigner in Paris — she gets the language but not the codes, which she finds absurd and says so on air.",
+      "register_with_user": "tu (Québec defaults to tu; she finds Parisian 'vous' stiff and performs it badly on purpose)",
+      "personality": "Guarded, dry, witty, allergic to neediness. Outdoorsy and a little wild under the polished journalist surface. Warm once you're in — and you have to earn 'in'.",
+      "contradiction": "Builds her whole identity on independence; came to Paris partly fleeing a broken engagement back home and is terrified the city — and you — will make her want to stay.",
+      "secret": "She kept the apartment in Montréal. She tells no one. It's her escape hatch.",
+      "wants": "The big story, the byline, the freedom. And, against her will, a reason to unpack the last box.",
+      "flaw": "Runs. The second something feels like a future, she finds a reason it can't work.",
+      "speech_pattern": "Québec idioms and rhythm in private ('c'est pas pire', 'tirer la pipe', 'je capote'); crisp neutral Parisian French when 'on air'. Deadpan, precise, journalist's habit of asking the real question.",
+      "signature_phrases": ["Voyons donc.", "C'est pas pire, ton truc.", "Bon, c'est quoi la vraie histoire ?"],
+      "dynamic_with_user": "The central will-they-won't-they. Sparks from night one, both too proud and too scared to name it. The engine of 'I have to know what happens next.'",
+      "teaches": "Québec vs. Parisian French contrasts (a recurring, funny teaching device); current-events and news vocabulary; precise, direct phrasing.",
+      "news_device": "As a journalist, Romy is the in-fiction channel for the daily news seed: the 'most prominent French news of the day' enters the story as the thing she's covering, arguing about, or breaking. This preserves the news engine diegetically."
+    },
+    {
+      "id": "margaux_barman",
+      "name": "Margaux",
+      "archetype_ref": "the Carl — the bartender oracle",
+      "role": "Owner-bartender of Le Mistral. Recurring minor character. Has seen every version of every drama unfold at her counter.",
+      "register_with_user": "tu (you're a regular now)",
+      "personality": "Unflappable, dry, all-knowing. Dispenses one perfect sentence of wisdom per crisis, then goes back to drying a glass.",
+      "speech_pattern": "Economical. Says little; what she says lands.",
+      "signature_phrases": ["La même chose ?", "J'ai rien entendu.", "Ça finira bien, ou ça finira. Bois."],
+      "dynamic_with_user": "The neutral ground. The keeper of the booth. Quietly fond of all of you.",
+      "teaches": "Café/ordering vocabulary; the social ritual of being a 'regular'; minimal, idiomatic everyday speech."
+    }
+  ],
+
+  "register_map": {
+    "within_friend_group": "tu — universal among the five and with Margaux",
+    "user_default": "starts on 'vous' with everyone (nervous newcomer); arc = learning when and how to switch to 'tu'",
+    "augustin_seduction": "performs exaggerated 'vous' as flirtation — register as theatre",
+    "romy_register": "tu in private (Québec norm); stiff, deliberately-bad 'vous' as a running joke; clean Parisian register when reporting",
+    "city_and_officials": "vous — landlords, shopkeepers, administration (the 'real-world Mission' register)"
+  },
+
+  "ensemble_dynamics": {
+    "the_couple": ["marin_leveque", "lila_bonnet"],
+    "the_anchor": "Marin & Lila are the stable center everyone orbits — the proof that it can work, and the relationship under quiet strain (the unspoken proposal, the abandoned residency).",
+    "the_tension": ["user", "romy_tremblay"],
+    "the_mentor_mischief": "Augustin mentors the user in love and 'becoming Parisian'; Lila counter-mentors. The two compete to run your life.",
+    "the_bond_rule": "Beneath all teasing, this group is a found family. Every episode should let the warmth show through the comedy at least once."
+  },
+
+  "season_one_situation": {
+    "your_arc": "Build a life in Paris from zero: the apartment, the job, the friendships, and the slow-burn with Romy.",
+    "open_threads": [
+      "Will Marin find the courage to propose? (the ring in the pocket)",
+      "Will Lila admit she misses painting — and will the group find out about Berlin?",
+      "Will Gus's invented aristocracy unravel, and will the group still love him when it does?",
+      "Will Romy unpack the last box, or run back to Montréal?",
+      "Will you and Romy ever say the thing you both already know?"
+    ],
+    "first_episode_seed": "A rainy first night. Your radiator is dead, you can't reach the landlord, and you duck into Le Mistral to get warm. You meet the four of them by accident. By closing time you have a booth, a nickname, and — improbably — a life beginning."
+  },
+
+  "season_arcs": [
+    {
+      "id": "marin_proposal",
+      "title": "La bague de Marin",
+      "characters": ["marin_leveque", "lila_bonnet"],
+      "stages": [
+        {
+          "id": "spark",
+          "summary": "Marin keeps touching the pocket with his grandmother's ring and calls it nothing.",
+          "sets": {"marin.proposal_pressure": "ring_seen"}
+        },
+        {
+          "id": "avoidance",
+          "summary": "He invents errands, omens, and weather reports to avoid asking Lila the real question.",
+          "sets": {"marin.proposal_pressure": "dodging"}
+        },
+        {
+          "id": "near_confession",
+          "summary": "A sincere proposal almost happens, then an absurd interruption saves him from courage.",
+          "sets": {"marin.proposal_pressure": "almost"}
+        },
+        {
+          "id": "tentpole",
+          "summary": "Marin finally has to choose between signs and a sentence said out loud.",
+          "sets": {"marin.proposed": true, "marin.proposal_pressure": "named"},
+          "tentpole": true
+        }
+      ],
+      "min_episodes_between_stages": 3
+    },
+    {
+      "id": "lila_berlin_secret",
+      "title": "Le portrait de Berlin",
+      "characters": ["lila_bonnet", "marin_leveque"],
+      "stages": [
+        {
+          "id": "spark",
+          "summary": "Lila hides a Berlin envelope under paint rags before anyone can read it.",
+          "sets": {"lila.berlin_thread": "hidden_letter"}
+        },
+        {
+          "id": "pressure",
+          "summary": "Her jokes get sharper whenever anyone says the word residency.",
+          "sets": {"lila.berlin_thread": "pressure"}
+        },
+        {
+          "id": "portrait",
+          "summary": "The unfinished group portrait reveals what she gave up and what she still wants.",
+          "sets": {"lila.berlin_thread": "portrait_seen"}
+        },
+        {
+          "id": "tentpole",
+          "summary": "Lila admits Berlin was real, and the group has to love her without fixing it for her.",
+          "sets": {"lila.berlin_revealed": true, "lila.berlin_thread": "named"},
+          "tentpole": true
+        }
+      ],
+      "min_episodes_between_stages": 3
+    },
+    {
+      "id": "gus_aristocracy",
+      "title": "La Méthode se fissure",
+      "characters": ["augustin_de_roncourt"],
+      "stages": [
+        {
+          "id": "spark",
+          "summary": "Gus performs his château story so hard that one detail sounds rehearsed.",
+          "sets": {"gus.aristocracy_thread": "performance"}
+        },
+        {
+          "id": "contradiction",
+          "summary": "A practical clue from Créteil slips into the legend and he buries it under glamour.",
+          "sets": {"gus.aristocracy_thread": "contradiction"}
+        },
+        {
+          "id": "public_crack",
+          "summary": "La Méthode fails in public, and the joke lands too close to the truth.",
+          "sets": {"gus.aristocracy_thread": "cracked"}
+        },
+        {
+          "id": "tentpole",
+          "summary": "The group learns the costume was a shield, not a con, and Gus has to stay in the room.",
+          "sets": {"gus.aristocracy_exposed": true, "gus.aristocracy_thread": "known"},
+          "tentpole": true
+        }
+      ],
+      "min_episodes_between_stages": 2
+    },
+    {
+      "id": "romy_romance",
+      "title": "La tension Romy",
+      "characters": ["romy_tremblay"],
+      "stages": [
+        {
+          "id": "spark",
+          "summary": "Unspoken tension; she notices you before she admits she is noticing.",
+          "sets": {"romy.user_tension": "spark_unspoken"}
+        },
+        {
+          "id": "first_real",
+          "summary": "A first real one-on-one conversation, without the group protecting either of you.",
+          "sets": {"romy.user_tension": "talking"},
+          "entry_requires": {"user.has_met_group": true}
+        },
+        {
+          "id": "almost",
+          "summary": "An almost-moment, interrupted at the exact second honesty becomes possible.",
+          "sets": {"romy.user_tension": "almost"}
+        },
+        {
+          "id": "setback",
+          "summary": "A misunderstanding makes independence look safer than wanting something.",
+          "sets": {"romy.user_tension": "setback"}
+        },
+        {
+          "id": "resolution",
+          "summary": "Honesty; whatever they are, it is named without pretending it is simple.",
+          "sets": {"romy.user_tension": "named"},
+          "tentpole": true
+        }
+      ],
+      "min_episodes_between_stages": 3
+    },
+    {
+      "id": "user_settling_in",
+      "title": "Une vie en français",
+      "characters": ["user", "landlord_marchand", "margaux_barman"],
+      "stages": [
+        {
+          "id": "arrival",
+          "summary": "The radiator problem makes Paris practical before it becomes romantic.",
+          "sets": {"user.settling_thread": "arrival"}
+        },
+        {
+          "id": "regular",
+          "summary": "You become a recognized regular somewhere, not just a person passing through.",
+          "sets": {"user.settling_thread": "regular", "user.has_met_group": true}
+        },
+        {
+          "id": "bureaucracy",
+          "summary": "A formal Paris errand forces you to use vous with precision and nerve.",
+          "sets": {"user.settling_thread": "bureaucracy"}
+        },
+        {
+          "id": "chosen",
+          "summary": "The city stops feeling like a test and starts feeling like a set of people expecting you.",
+          "sets": {"user.settling_thread": "chosen"}
+        },
+        {
+          "id": "tentpole",
+          "summary": "You choose the life you have been practicing for, in French, with witnesses.",
+          "sets": {"user.settled_in_paris": true, "user.settling_thread": "named"},
+          "tentpole": true
+        }
+      ],
+      "min_episodes_between_stages": 2
+    }
+  ],
+
+  "cold_open": {
+    "eyebrow": "A new serial",
+    "title": "Bienvenue à Paris",
+    "dateline": "Paris · tonight",
+    "location_id": "user_apartment",
+    "paragraphs": [
+      "You arrived this afternoon with two suitcases and a head full of half-remembered French. The studio is on the sixth floor, the window looks out over zinc rooftops, and the radiator is stone cold.",
+      "You know no one in this city. Tonight that fact is very loud.",
+      "Somewhere below, a café called Le Mistral is still lit. But first — the radiator. Someone has to be told."
+    ],
+    "cta": "Begin Episode 1",
+    "footer": "This is the story of how you found your life in French."
+  },
+
+  "initial_state": {
+    "user.has_met_group": false,
+    "user.default_register": "vous",
+    "user.knows_tu_switch": false,
+    "heating_fixed": false,
+    "marin.proposed": false,
+    "lila.berlin_revealed": false,
+    "gus.aristocracy_exposed": false,
+    "romy.last_box_unpacked": false,
+    "romy.user_tension": "spark_unspoken"
+  },
+
+  "visual_design": {
+    "status": "assets-locked-v2",
+    "asset_contract_version": "serial-visual-design-v1",
+    "asset_readiness": "DB-1 character model sheets are locked for user, Marin, Lila, Augustin, Romy, Margaux, and M. Marchand. DB-2 location plates are locked for Le Mistral, the user's apartment, Marin & Lila's flat, the newsroom, Marin's NGO office, the Canal market, Buttes-Chaumont, the métro platform, Gus's loft, the brocante, and the admin office under web-frontend/public/assets/serial.",
+    "art_direction_doc": "docs/serial-world-design-package.md",
+    "art_direction": {
+      "style": "Warm, ligne-claire-inflected European comic style with clean ink contours, restrained newsprint texture, and recurring editorial masthead details.",
+      "palette": "Muted Parisian paper/ink base; one character accent colour may appear as a small spot ink on bubbles, chips, panel rules, and reply cards.",
+      "panel_language": "Phone-first vertical feuilleton panels; captions read as editorial story text, not pedagogy; speech appears in bordered notes with character-coloured binding rules.",
+      "consistency_rule": "Use canonical_descriptor for every recurring character and location prompt. Add reference_images/style_ref as soon as DB-1/DB-2 assets are delivered."
+    },
+    "ui_tokens": {
+      "--char-marin": "#2c6a5d",
+      "--char-lila": "#c2890f",
+      "--char-gus": "#8a2f2a",
+      "--char-romy": "#1d3a8a",
+      "--char-margaux": "#a85d24",
+      "--char-marchand": "#5b5346",
+      "--char-toi": "#14110d"
+    },
+    "characters": {
+      "user": {
+        "canonical_descriptor": "The protagonist, shown ambiguously from behind or partially cropped so any learner can project onto Toi; slightly-too-heavy newcomer's coat, practical shoes, phone always close.",
+        "accent_colour": "#14110d",
+        "ui_token": "--char-toi",
+        "reference_images": ["assets/serial/characters/user/model-sheet.png"],
+        "style_ref": "assets/serial/characters/user/model-sheet.png",
+        "expressions": {
+          "curious": "head turned toward the group, tentative but open",
+          "nervous": "shoulders lifted slightly, phone held too tightly",
+          "brave": "standing a little straighter, one hand already reaching for the door"
+        }
+      },
+      "marin_leveque": {
+        "canonical_descriptor": "Very tall Breton man, broad and slightly rumpled, dark curls, short beard, gentle eyes, knit sweater, weathered coat, NGO tote bag; sea-green accent.",
+        "accent_colour": "#2c6a5d",
+        "ui_token": "--char-marin",
+        "reference_images": ["assets/serial/characters/marin_leveque/model-sheet.png"],
+        "style_ref": "assets/serial/characters/marin_leveque/model-sheet.png",
+        "expressions": {
+          "warm": "soft smile, protective posture",
+          "confused": "brow pinched, still kind",
+          "vulnerable": "eyes lowered, ring pocket subtly protected"
+        }
+      },
+      "lila_bonnet": {
+        "canonical_descriptor": "Small fast-moving Marseillaise woman, dark pinned-up hair often flecked with paint, bright thrifted layers, ink-stained hands, sharp amused eyes; marigold accent.",
+        "accent_colour": "#c2890f",
+        "ui_token": "--char-lila",
+        "reference_images": ["assets/serial/characters/lila_bonnet/model-sheet.png"],
+        "style_ref": "assets/serial/characters/lila_bonnet/model-sheet.png",
+        "expressions": {
+          "teasing": "one eyebrow up, already plotting",
+          "delighted": "wide grin, hands mid-gesture",
+          "guarded": "arms folded over paint-stained sleeves"
+        }
+      },
+      "augustin_de_roncourt": {
+        "canonical_descriptor": "Trim composed Frenchman in an immaculate three-piece suit, slicked hair, pocket square, theatrical posture, too-polished smile hiding nerves; burgundy accent.",
+        "accent_colour": "#8a2f2a",
+        "ui_token": "--char-gus",
+        "reference_images": ["assets/serial/characters/augustin_de_roncourt/model-sheet.png"],
+        "style_ref": "assets/serial/characters/augustin_de_roncourt/model-sheet.png",
+        "expressions": {
+          "deadpan": "perfectly still face, performative calm",
+          "delighted": "showman grin, one hand presenting the room",
+          "vulnerable": "smile cracked, shoulders less staged"
+        }
+      },
+      "romy_tremblay": {
+        "canonical_descriptor": "Québécoise woman in her early 30s, athletic easy posture, shoulder-length brown hair, leather jacket off-air or crisp blazer on-air, recorder or microphone close by; cold-blue accent.",
+        "accent_colour": "#1d3a8a",
+        "ui_token": "--char-romy",
+        "reference_images": ["assets/serial/characters/romy_tremblay/model-sheet.png"],
+        "style_ref": "assets/serial/characters/romy_tremblay/model-sheet.png",
+        "expressions": {
+          "cool": "dry half-smile, reporter's measuring gaze",
+          "guarded": "chin tipped down, eyes steady",
+          "vulnerable": "microphone lowered, direct unguarded look"
+        }
+      },
+      "margaux_barman": {
+        "canonical_descriptor": "Sturdy unhurried older bartender, cropped grey hair, rolled sleeves, apron, towel in hand, dry all-knowing calm behind the zinc counter; warm amber accent.",
+        "accent_colour": "#a85d24",
+        "ui_token": "--char-margaux",
+        "reference_images": ["assets/serial/characters/margaux_barman/model-sheet.png"],
+        "style_ref": "assets/serial/characters/margaux_barman/model-sheet.png",
+        "expressions": {
+          "deadpan": "flat look over a drying glass",
+          "warm": "barely visible smile at the corner of the mouth",
+          "oracle": "one raised finger before a perfect sentence"
+        }
+      },
+      "landlord_marchand": {
+        "canonical_descriptor": "Older Parisian landlord, compact posture, neat grey coat, precise scarf, wire-frame glasses, controlled expression, phone full of formal messages; ink-grey accent.",
+        "accent_colour": "#5b5346",
+        "ui_token": "--char-marchand",
+        "reference_images": ["assets/serial/characters/landlord_marchand/model-sheet.png"],
+        "style_ref": "assets/serial/characters/landlord_marchand/model-sheet.png",
+        "expressions": {
+          "cool": "mouth tight, bureaucratic patience",
+          "confused": "glasses lowered, suspicious squint",
+          "softened": "small reluctant nod, shoulders easing"
+        }
+      }
+    },
+    "locations": {
+      "le_mistral": {
+        "canonical_descriptor": "Narrow corner café-bar near Canal Saint-Martin, worn zinc counter, rain on the glass, warm amber light, the group's booth in the back, coffee steam and late-night reflections.",
+        "reference_images": [
+          "assets/serial/locations/le_mistral-booth.png",
+          "assets/serial/locations/le_mistral-counter.png"
+        ],
+        "palette": "paper, ink, warm amber, small red editorial accents",
+        "time_variants": ["rainy night", "morning after", "late closing"]
+      },
+      "user_apartment": {
+        "canonical_descriptor": "Sixth-floor Paris walk-up studio, narrow bed, boxes half-unpacked, temperamental radiator, zinc rooftops visible through a small window, phone light as the practical emergency.",
+        "reference_images": ["assets/serial/locations/user_apartment.png"],
+        "palette": "cold paper neutrals, radiator grey, phone glow"
+      },
+      "marin_lila_flat": {
+        "canonical_descriptor": "Cramped art-covered two-room flat near République, paint tubes, casserole dishes, stacked books, too many chairs, warm domestic clutter.",
+        "reference_images": ["assets/serial/locations/marin_lila_flat.png"],
+        "palette": "paper, marigold, sea green, soft kitchen warmth"
+      },
+      "newsroom": {
+        "canonical_descriptor": "Glass-walled TV/online newsroom with blue monitor light, screens everywhere, Romy's desk half-packed between Paris and Montréal.",
+        "reference_images": ["assets/serial/locations/newsroom.png"],
+        "palette": "cold blue, glass grey, paper captions"
+      },
+      "ngo_office": {
+        "canonical_descriptor": "Cluttered environmental NGO office with protest posters, maps of waterways, dying plants Marin keeps reviving, mismatched mugs.",
+        "reference_images": ["assets/serial/locations/ngo_office.png"],
+        "palette": "sea green, paper, poster red"
+      },
+      "marche_canal": {
+        "canonical_descriptor": "Open-air market along Canal Saint-Martin, fishmongers, cheese stalls, haggling crowds, wet pavement, striped awnings.",
+        "reference_images": ["assets/serial/locations/marche_canal.png"],
+        "palette": "paper, awning red, cheese yellow, canal grey"
+      },
+      "buttes_chaumont": {
+        "canonical_descriptor": "Hilly Parc des Buttes-Chaumont with cliff-top folly, winding paths, city glimpses, wind moving through trees during real conversations.",
+        "reference_images": ["assets/serial/locations/buttes_chaumont.png"],
+        "palette": "muted greens, stone grey, paper sky"
+      },
+      "metro_platform": {
+        "canonical_descriptor": "Late-night Paris métro platform, tile walls, tunnel darkness, fluorescent edge light, missed connections and last trains.",
+        "reference_images": ["assets/serial/locations/metro_platform.png"],
+        "palette": "ink, tile cream, cold blue, signal red"
+      },
+      "gus_loft": {
+        "canonical_descriptor": "Aggressively styled bachelor loft Gus calls a château, glass table, dramatic lighting, overcurated objects, one detail revealing Créteil underneath.",
+        "reference_images": ["assets/serial/locations/gus_loft.png"],
+        "palette": "burgundy, ink, polished paper neutrals"
+      },
+      "brocante": {
+        "canonical_descriptor": "Weekend brocante stalls with antique frames, junk boxes, wrong gifts, handwritten price tags, umbrellas and bargaining gestures.",
+        "reference_images": ["assets/serial/locations/brocante.png"],
+        "palette": "paper, warm amber, oxidized green"
+      },
+      "office_admin": {
+        "canonical_descriptor": "Préfecture, bank, or town-hall office: fluorescent institutional light, plastic chairs, numbered ticket display, formal vous battleground.",
+        "reference_images": ["assets/serial/locations/office_admin.png"],
+        "palette": "paper grey, ink, bureaucratic red"
+      }
+    },
+    "props": {
+      "landlord_phone": {
+        "canonical_descriptor": "Small glowing phone with the landlord thread visible only as light blocks, never readable real text.",
+        "reference_images": []
+      },
+      "le_mistral_booth": {
+        "canonical_descriptor": "Back booth at Le Mistral, worn wood edge, two mismatched chairs, rain-streaked window nearby.",
+        "reference_images": ["assets/serial/props/le_mistral_booth.png"]
+      },
+      "hot_drink": {
+        "canonical_descriptor": "Plain white cup with amber steam, the recurring sign that the group has made room.",
+        "reference_images": []
+      },
+      "marin_ring": {
+        "canonical_descriptor": "Small old ring wrapped in cloth in Marin's coat pocket, never flashy.",
+        "reference_images": []
+      },
+      "gus_carnet": {
+        "canonical_descriptor": "Gus's black pocket notebook labelled La Méthode, overconfident handwriting, burgundy bookmark.",
+        "reference_images": []
+      },
+      "romy_microphone": {
+        "canonical_descriptor": "Compact recorder or microphone with a small red light, the object that turns private moments into news.",
+        "reference_images": []
+      }
+    }
+  },
+
+  "generation_guardrails": {
+    "consistency": "Names, origins, jobs, secrets, and speech patterns above are FIXED. Never rename a character or change their backstory. New facts may be added but must not contradict these.",
+    "no_stereotypes": "Characters are specific individuals, not national or regional stereotypes. Marseille/Brittany/Québec/Créteil are texture and history, not punchlines.",
+    "warmth_rule": "Comedy first, but every episode lands one genuine beat of feeling. The bond is the product.",
+    "register_as_content": "Use the tu/vous tensions above as teachable moments inside the drama, not as grammar lectures.",
+    "news_integration": "When a daily news seed is supplied, route it through Romy (covering/arguing/breaking it) or through café conversation. It is this week's weather in the friends' world — never the whole premise.",
+    "protagonist_agency": "The learner's French (their Mission answers and choices) determines what the protagonist did. Episodes dramatize THAT, not a fixed script.",
+    "location_rotation": "Do NOT set every episode at Le Mistral. The café is the anchor, used sparingly as a returning home base. Each episode should pick a setting from recurring_locations that fits the beat (the user's apartment, the market, the newsroom, the park, an admin office, the métro, a brocante, Gus's loft). Aim for visual variety across consecutive episodes; never use the same location two episodes in a row unless the plot demands it.",
+    "visual_consistency": "Render recurring characters from the visual_design seeds (and, once available, the locked reference sheets from Design Backlog DB-1). A character must look like themselves in every panel and every episode."
+  }
+}

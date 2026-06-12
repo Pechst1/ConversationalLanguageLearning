@@ -240,6 +240,456 @@ class ProgressService:
         items.extend(QueueItem(word=word, progress=None, is_new=True) for word in new_words)
         return items
 
+    @staticmethod
+    def _as_aware_datetime(value: datetime | None) -> datetime | None:
+        if value is None:
+            return None
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value
+
+    def _progress_due_at(self, progress: UserVocabularyProgress) -> datetime | None:
+        due_at = self._as_aware_datetime(progress.due_at)
+        if due_at is not None:
+            return due_at
+        next_review = self._as_aware_datetime(progress.next_review_date)
+        if next_review is not None:
+            return next_review
+        if progress.due_date is not None:
+            return datetime.combine(progress.due_date, datetime.min.time(), tzinfo=timezone.utc)
+        return None
+
+    def _fsrs_retrievability(
+        self, progress: UserVocabularyProgress, *, now: datetime
+    ) -> float | None:
+        stability = progress.stability or progress.interval_days or progress.scheduled_days
+        last_review = self._as_aware_datetime(progress.last_review_date)
+        if not stability or stability <= 0 or last_review is None:
+            return None
+        elapsed_days = max(0.0, (now - last_review).total_seconds() / 86_400)
+        decay = -0.5
+        factor = 0.9 ** (1 / decay) - 1
+        return max(0.0, min(1.0, (1 + factor * elapsed_days / stability) ** decay))
+
+    def _recommendation_priority(
+        self,
+        *,
+        progress: UserVocabularyProgress | None,
+        word: VocabularyWord,
+        bucket: str,
+        now: datetime,
+    ) -> tuple[float, float | None]:
+        if progress is None:
+            frequency_rank = word.frequency_rank or 5000
+            frequency_bonus = max(0.0, 24.0 - min(frequency_rank, 5000) / 220)
+            difficulty_bonus = max(0.0, 8.0 - float(word.difficulty_level or 1))
+            return frequency_bonus + difficulty_bonus, None
+
+        due_at = self._progress_due_at(progress)
+        days_late = 0.0
+        if due_at is not None:
+            days_late = max(0.0, (now - due_at).total_seconds() / 86_400)
+        retrievability = self._fsrs_retrievability(progress, now=now)
+        retrievability_penalty = (1.0 - retrievability) * 42 if retrievability is not None else 18
+        base = 100.0 if bucket == "due" else 54.0
+        lapse_bonus = float(progress.lapses or 0) * 9
+        difficulty_bonus = float(progress.difficulty or 0) * 3.2
+        proficiency_bonus = max(0.0, 100.0 - float(progress.proficiency_score or 0)) / 4
+        phase_bonus = 12.0 if (progress.phase or "").lower() in {"learn", "learning", "relearn"} else 0.0
+        return (
+            base + days_late * 7 + retrievability_penalty + lapse_bonus + difficulty_bonus + proficiency_bonus + phase_bonus,
+            retrievability,
+        )
+
+    def _serialize_vocabulary_recommendation(
+        self,
+        *,
+        word: VocabularyWord,
+        progress: UserVocabularyProgress | None,
+        bucket: str,
+        now: datetime,
+    ) -> dict[str, Any]:
+        priority_score, retrievability = self._recommendation_priority(
+            progress=progress,
+            word=word,
+            bucket=bucket,
+            now=now,
+        )
+        due_at = self._progress_due_at(progress) if progress else None
+        return {
+            "bucket": bucket,
+            "word_id": word.id,
+            "progress_id": str(progress.id) if progress else None,
+            "word": word.word,
+            "language": word.language,
+            "direction": word.direction,
+            "scheduler": progress.scheduler if progress else ("anki" if word.is_anki_card else "fsrs"),
+            "state": progress.state if progress else "new",
+            "phase": progress.phase if progress else None,
+            "due_at": due_at,
+            "next_review": progress.next_review_date if progress else None,
+            "last_review": progress.last_review_date if progress else None,
+            "scheduled_days": progress.scheduled_days if progress else None,
+            "interval_days": progress.interval_days if progress else None,
+            "stability": progress.stability if progress else None,
+            "difficulty": progress.difficulty if progress else None,
+            "retrievability": retrievability,
+            "proficiency_score": progress.proficiency_score if progress else 0,
+            "lapses": progress.lapses if progress else 0,
+            "priority_score": round(priority_score, 3),
+            "is_new": progress is None,
+            "deck_name": word.deck_name,
+            "translations": {
+                "de": word.german_translation,
+                "en": word.english_translation,
+                "fr": word.french_translation,
+            },
+            "example_sentence": word.example_sentence,
+            "example_translation": word.example_translation,
+        }
+
+    def get_vocabulary_recommendations(
+        self,
+        *,
+        user: User,
+        limit: int = 12,
+        due_limit: int = 6,
+        fragile_limit: int = 3,
+        new_limit: int = 3,
+        direction: str | None = None,
+        deck_name: str | None = None,
+        include_upcoming_days: int = 0,
+        include_shared_phrases: bool = False,
+        now: datetime | None = None,
+    ) -> dict[str, Any]:
+        """Return due, fragile, and new words ranked by FSRS-style memory urgency."""
+
+        now = now or datetime.now(timezone.utc)
+        today = now.date()
+        upcoming_limit = today + timedelta(days=max(0, include_upcoming_days))
+        stopwords = self._queue_stopwords()
+        target_language = (user.target_language or "fr").strip() or "fr"
+        direction_filter = (
+            self._shared_direction_filter(direction)
+            if include_shared_phrases
+            else (VocabularyWord.direction == direction if direction else None)
+        )
+        deck_filter = self._shared_deck_filter(deck_name)
+
+        progress_stmt = (
+            select(UserVocabularyProgress)
+            .options(joinedload(UserVocabularyProgress.word))
+            .join(VocabularyWord, VocabularyWord.id == UserVocabularyProgress.word_id)
+            .where(UserVocabularyProgress.user_id == user.id)
+            .where(VocabularyWord.language == target_language)
+            .where(func.length(VocabularyWord.word) > 2)
+            .where(func.lower(VocabularyWord.word).notin_(stopwords))
+        )
+        if not include_shared_phrases:
+            progress_stmt = progress_stmt.where(VocabularyWord.is_anki_card.is_(True))
+        if direction_filter is not None:
+            progress_stmt = progress_stmt.where(direction_filter)
+        if deck_filter is not None:
+            progress_stmt = progress_stmt.where(deck_filter)
+        progress_stmt = progress_stmt.order_by(
+            UserVocabularyProgress.due_at.asc().nullsfirst(),
+            UserVocabularyProgress.next_review_date.asc().nullsfirst(),
+            UserVocabularyProgress.due_date.asc().nullsfirst(),
+            UserVocabularyProgress.created_at.asc(),
+        ).limit(max(80, limit * 6))
+
+        progress_rows = list(self.db.scalars(progress_stmt))
+        due_candidates: list[dict[str, Any]] = []
+        fragile_candidates: list[dict[str, Any]] = []
+        seen_keys: set[tuple[str, str | None]] = set()
+
+        for progress in progress_rows:
+            word = progress.word
+            if word is None or self._is_skippable_queue_word(word.word, stopwords=stopwords):
+                continue
+            dedupe_key = ((word.normalized_word or word.word).strip().lower(), word.direction)
+            if dedupe_key in seen_keys:
+                continue
+            seen_keys.add(dedupe_key)
+
+            due_at = self._progress_due_at(progress)
+            is_due = (
+                due_at is not None and due_at <= now
+            ) or (
+                progress.due_date is not None and progress.due_date <= upcoming_limit
+            ) or (
+                due_at is None and (progress.reps or 0) == 0
+            )
+            fragile = (
+                (progress.lapses or 0) > 0
+                or (progress.proficiency_score or 0) < 50
+                or 0 < float(progress.stability or 0) < 3
+                or float(progress.difficulty or 0) >= 7
+                or (progress.phase or "").lower() in {"learn", "learning", "relearn"}
+            )
+            if is_due:
+                due_candidates.append(
+                    self._serialize_vocabulary_recommendation(
+                        word=word,
+                        progress=progress,
+                        bucket="due",
+                        now=now,
+                    )
+                )
+            elif fragile:
+                fragile_candidates.append(
+                    self._serialize_vocabulary_recommendation(
+                        word=word,
+                        progress=progress,
+                        bucket="fragile",
+                        now=now,
+                    )
+                )
+
+        due_candidates.sort(key=lambda item: item["priority_score"], reverse=True)
+        fragile_candidates.sort(key=lambda item: item["priority_score"], reverse=True)
+
+        selected_due = due_candidates[:due_limit]
+        selected_fragile = fragile_candidates[:fragile_limit]
+        used_word_ids = {item["word_id"] for item in selected_due + selected_fragile}
+
+        words_seen_subquery = select(UserVocabularyProgress.word_id).where(
+            UserVocabularyProgress.user_id == user.id
+        )
+        new_conditions = [
+            not_(VocabularyWord.id.in_(words_seen_subquery)),
+            VocabularyWord.language == target_language,
+            func.length(VocabularyWord.word) > 2,
+            func.lower(VocabularyWord.word).notin_(stopwords),
+        ]
+        if not include_shared_phrases:
+            new_conditions.append(VocabularyWord.is_anki_card.is_(True))
+        if direction_filter is not None:
+            new_conditions.append(direction_filter)
+        if deck_filter is not None:
+            new_conditions.append(deck_filter)
+
+        new_count_stmt = select(func.count(VocabularyWord.id)).where(and_(*new_conditions))
+        new_count = int(self.db.scalar(new_count_stmt) or 0)
+        new_stmt = select(VocabularyWord).where(and_(*new_conditions))
+        if used_word_ids:
+            new_stmt = new_stmt.where(VocabularyWord.id.notin_(used_word_ids))
+        new_stmt = new_stmt.order_by(
+            VocabularyWord.frequency_rank.asc().nullslast(),
+            VocabularyWord.difficulty_level.asc().nullslast(),
+            func.lower(VocabularyWord.word).asc(),
+        ).limit(new_limit)
+
+        selected_new = [
+            self._serialize_vocabulary_recommendation(
+                word=word,
+                progress=None,
+                bucket="new",
+                now=now,
+            )
+            for word in self.db.scalars(new_stmt)
+        ]
+
+        items = (selected_due + selected_fragile + selected_new)[:limit]
+        return {
+            "summary": {
+                "due": len(due_candidates),
+                "fragile": len(fragile_candidates),
+                "new": new_count,
+                "total": len(due_candidates) + len(fragile_candidates) + new_count,
+            },
+            "items": items,
+            "algorithm": "fsrs_retrievability_v1",
+        }
+
+    def _serialize_vocabulary_word_for_context(
+        self,
+        *,
+        user: User,
+        word: VocabularyWord,
+        bucket: str,
+        now: datetime,
+    ) -> dict[str, Any]:
+        progress = self.get_progress(user_id=user.id, word_id=word.id)
+        return self._serialize_vocabulary_recommendation(
+            word=word,
+            progress=progress,
+            bucket=bucket,
+            now=now,
+        )
+
+    def _context_word_query(
+        self,
+        *,
+        user: User,
+        direction: str | None,
+    ):
+        target_language = "de" if direction == "de_to_fr" else (user.target_language or "fr").strip() or "fr"
+        query = (
+            self.db.query(VocabularyWord)
+            .filter(VocabularyWord.is_anki_card.is_(True))
+            .filter(VocabularyWord.language == target_language)
+            .filter(func.length(VocabularyWord.word) > 2)
+            .filter(func.lower(VocabularyWord.word).notin_(self._queue_stopwords()))
+        )
+        if direction:
+            query = query.filter(VocabularyWord.direction == direction)
+        return query
+
+    def _topic_compatible_vocabulary(
+        self,
+        *,
+        user: User,
+        topic_tags: list[str],
+        direction: str | None,
+        limit: int,
+        exclude_word_ids: set[int],
+        now: datetime,
+    ) -> list[dict[str, Any]]:
+        normalized_tags = {tag.strip().lower() for tag in topic_tags if tag and tag.strip()}
+        if limit <= 0 or not normalized_tags:
+            return []
+
+        candidates = (
+            self._context_word_query(user=user, direction=direction)
+            .order_by(
+                VocabularyWord.frequency_rank.asc().nullslast(),
+                VocabularyWord.difficulty_level.asc().nullslast(),
+                func.lower(VocabularyWord.word).asc(),
+            )
+            .limit(max(limit * 12, 60))
+            .all()
+        )
+        selected: list[dict[str, Any]] = []
+        for word in candidates:
+            if word.id in exclude_word_ids:
+                continue
+            word_tags = {tag.strip().lower() for tag in (word.topic_tags or []) if tag and tag.strip()}
+            if not normalized_tags.intersection(word_tags):
+                continue
+            selected.append(
+                self._serialize_vocabulary_word_for_context(
+                    user=user,
+                    word=word,
+                    bucket="topic",
+                    now=now,
+                )
+            )
+            exclude_word_ids.add(word.id)
+            if len(selected) >= limit:
+                break
+        return selected
+
+    def _linked_vocabulary(
+        self,
+        *,
+        user: User,
+        linked_word_ids: list[int],
+        limit: int,
+        exclude_word_ids: set[int],
+        now: datetime,
+    ) -> list[dict[str, Any]]:
+        ordered_ids = [int(word_id) for word_id in linked_word_ids if word_id]
+        if limit <= 0 or not ordered_ids:
+            return []
+
+        words = (
+            self.db.query(VocabularyWord)
+            .filter(VocabularyWord.id.in_(ordered_ids))
+            .all()
+        )
+        words_by_id = {word.id: word for word in words}
+        selected: list[dict[str, Any]] = []
+        for word_id in ordered_ids:
+            word = words_by_id.get(word_id)
+            if not word or word.id in exclude_word_ids:
+                continue
+            selected.append(
+                self._serialize_vocabulary_word_for_context(
+                    user=user,
+                    word=word,
+                    bucket="linked",
+                    now=now,
+                )
+            )
+            exclude_word_ids.add(word.id)
+            if len(selected) >= limit:
+                break
+        return selected
+
+    def get_vocabulary_due_context(
+        self,
+        *,
+        user: User,
+        limit: int = 12,
+        due_limit: int = 4,
+        fragile_limit: int = 4,
+        new_limit: int = 4,
+        topic_limit: int = 4,
+        linked_limit: int = 4,
+        direction: str | None = "fr_to_de",
+        topic_tags: list[str] | None = None,
+        linked_word_ids: list[int] | None = None,
+        now: datetime | None = None,
+    ) -> dict[str, Any]:
+        """Return a bucketed vocabulary bundle for contextual mobile surfaces."""
+
+        now = now or datetime.now(timezone.utc)
+        recommendations = self.get_vocabulary_recommendations(
+            user=user,
+            limit=limit,
+            due_limit=due_limit,
+            fragile_limit=fragile_limit,
+            new_limit=new_limit,
+            direction=direction,
+            now=now,
+        )
+        due_words = [item for item in recommendations["items"] if item["bucket"] == "due"][:due_limit]
+        fragile_words = [
+            item for item in recommendations["items"] if item["bucket"] == "fragile"
+        ][:fragile_limit]
+        new_words = [item for item in recommendations["items"] if item["bucket"] == "new"][:new_limit]
+        used_word_ids = {item["word_id"] for item in due_words + fragile_words + new_words}
+
+        linked_words = self._linked_vocabulary(
+            user=user,
+            linked_word_ids=linked_word_ids or [],
+            limit=linked_limit,
+            exclude_word_ids=used_word_ids,
+            now=now,
+        )
+        topic_compatible_words = self._topic_compatible_vocabulary(
+            user=user,
+            topic_tags=topic_tags or [],
+            direction=direction,
+            limit=topic_limit,
+            exclude_word_ids=used_word_ids,
+            now=now,
+        )
+        total = (
+            len(due_words)
+            + len(fragile_words)
+            + len(new_words)
+            + len(topic_compatible_words)
+            + len(linked_words)
+        )
+        return {
+            "summary": {
+                "due": len(due_words),
+                "fragile": len(fragile_words),
+                "new": len(new_words),
+                "topic_compatible": len(topic_compatible_words),
+                "linked": len(linked_words),
+                "total": total,
+            },
+            "due_words": due_words,
+            "fragile_words": fragile_words,
+            "new_words": new_words,
+            "topic_compatible_words": topic_compatible_words,
+            "linked_words": linked_words,
+            "algorithm": recommendations.get("algorithm", "fsrs_retrievability_v1"),
+        }
+
     def sample_vocabulary(
         self,
         *,
@@ -596,6 +1046,49 @@ class ProgressService:
         self.db.flush([progress, review_log])
         cache_backend.invalidate("progress:due_reviews", prefix=f"{user.id}:")
         return progress, review_log, outcome
+
+    def record_context_credit(
+        self,
+        *,
+        user: User,
+        word: VocabularyWord,
+        event_type: str,
+        now: datetime | None = None,
+    ) -> UserVocabularyProgress:
+        """Apply lightweight vocabulary credit from contextual use outside flashcards."""
+
+        now = now or datetime.now(timezone.utc)
+        progress = self.get_or_create_progress(user_id=user.id, word_id=word.id)
+        event = str(event_type or "seen_context").lower()
+
+        if event in {"produced_correct", "used_correctly", "free_production_correct"}:
+            progress, _, _ = self.record_review(user=user, word=word, rating=3, now=now)
+            progress.record_usage(correct=True, is_new=(progress.reps or 0) <= 1)
+        elif event in {"recognized", "translated", "recognition"}:
+            progress, _, _ = self.record_review(user=user, word=word, rating=2, now=now)
+            progress.times_seen = (progress.times_seen or 0) + 1
+            progress.adjust_proficiency(5)
+        elif event in {"produced_incorrect", "used_incorrectly", "incorrect"}:
+            progress.record_usage(correct=False)
+            progress.state = "relearning"
+            progress.phase = "relearn"
+            progress.next_review_date = now
+            progress.due_date = now.date()
+            progress.updated_at = now
+        else:
+            progress.times_seen = (progress.times_seen or 0) + 1
+            progress.adjust_proficiency(1)
+            if not progress.next_review_date:
+                progress.next_review_date = now + timedelta(days=3)
+                progress.due_date = progress.next_review_date.date()
+            if (progress.state or "new") == "new":
+                progress.state = "learning"
+            progress.updated_at = now
+
+        self.db.add(progress)
+        self.db.flush([progress])
+        cache_backend.invalidate("progress:due_reviews", prefix=f"{user.id}:")
+        return progress
 
     # ------------------------------------------------------------------
     # Aggregation helpers

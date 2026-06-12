@@ -71,6 +71,54 @@ def test_llm_service_falls_back_on_error(sample_result):
     assert fallback.recorded_kwargs["temperature"] == 0.2
 
 
+def test_llm_service_forwards_request_timeout(sample_result):
+    primary = StubProvider("openai", response=sample_result)
+
+    service = LLMService(providers=[primary], primary="openai")
+    service.generate_chat_completion(
+        [{"role": "user", "content": "Vite, s'il te plait."}],
+        request_timeout=4.5,
+    )
+
+    assert primary.recorded_kwargs["request_timeout"] == 4.5
+
+
+def test_chat_completion_forwards_low_latency_options(sample_result):
+    primary = StubProvider("openai", response=sample_result)
+
+    service = LLMService(providers=[primary], primary="openai")
+    service.generate_chat_completion(
+        [{"role": "user", "content": "Génère un exercice."}],
+        model="gpt-4o-mini",
+        request_timeout=8.0,
+        disable_retries=True,
+        reasoning_effort="low",
+    )
+
+    assert primary.recorded_kwargs["model"] == "gpt-4o-mini"
+    assert primary.recorded_kwargs["request_timeout"] == 8.0
+    assert primary.recorded_kwargs["disable_retries"] is True
+    assert primary.recorded_kwargs["reasoning_effort"] == "low"
+
+
+def test_error_detection_forwards_low_latency_options(sample_result):
+    primary = StubProvider("openai", response=sample_result)
+
+    service = LLMService(providers=[primary], primary="openai")
+    service.generate_error_detection(
+        [{"role": "user", "content": "Corrige cette phrase."}],
+        model="gpt-4o-mini",
+        request_timeout=3.5,
+        disable_retries=True,
+        reasoning_effort="none",
+    )
+
+    assert primary.recorded_kwargs["model"] == "gpt-4o-mini"
+    assert primary.recorded_kwargs["request_timeout"] == 3.5
+    assert primary.recorded_kwargs["disable_retries"] is True
+    assert primary.recorded_kwargs["reasoning_effort"] == "none"
+
+
 def test_llm_service_raises_when_all_providers_fail(sample_result):
     failing_primary = StubProvider("openai", should_fail=True)
     failing_secondary = StubProvider("anthropic", should_fail=True)

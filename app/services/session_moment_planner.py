@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Sequence, TYPE_CHECKING
@@ -23,6 +24,7 @@ from app.services.grammar_feedback import is_concept_demonstrated
 from app.services.llm_service import LLMService
 from app.services.progress import ProgressService
 from app.services.unified_srs import ItemType, UnifiedSRSService
+from app.services.vocabulary_credit import VocabularyCreditService
 
 if TYPE_CHECKING:
     from app.core.conversation import ConversationPlan
@@ -64,11 +66,19 @@ def _split_expected_answers(value: str | None) -> list[str]:
     if not value:
         return []
     parts: list[str] = []
-    for chunk in value.replace("/", ";").split(";"):
+    for chunk in re.split(r"[,;/]|\bor\b|\boder\b", value):
         normalized = _normalize_answer(chunk)
         if normalized:
             parts.append(normalized)
     return parts
+
+
+def _word_translation(word: VocabularyWord) -> str | None:
+    return word.german_translation or word.english_translation or word.french_translation
+
+
+def _word_example_translation(word: VocabularyWord) -> str | None:
+    return word.example_translation or word.german_translation or word.english_translation
 
 
 def _solution_hint(solution: str | None, explanation: str | None = None) -> str | None:
@@ -422,30 +432,7 @@ class SessionMomentPlanner:
         due_grammar: Sequence[tuple["GrammarConcept", "UserGrammarProgress | None"]] | None,
         last_error_result: ErrorDetectionResult | None,
     ) -> PlannedMoment | None:
-        if not due_grammar or not last_error_result or not last_error_result.errors:
-            return None
-        grammar_errors = [item for item in last_error_result.errors if item.category == "grammar"]
-        if not grammar_errors:
-            return None
-        primary = grammar_errors[0]
-        correct_answer = primary.suggestion or primary.span
-        return PlannedMoment(
-            kind="grammar_repair",
-            source_type="grammar",
-            source_id=None,
-            source_deck_name=None,
-            title="Try that sentence again",
-            body=primary.message,
-            input_mode="free_text",
-            metadata={
-                "exercise_type": "correction",
-                "prompt": primary.message,
-                "correct_answer": correct_answer,
-                "retry_span": primary.span,
-                "example_format": correct_answer,
-                "solution_brief": correct_answer,
-            },
-        )
+        return None
 
     def _plan_due_error_repair(
         self,
@@ -464,6 +451,8 @@ class SessionMomentPlanner:
             return None
 
         payload = self._generate_error_repair_payload(top_error)
+        if not payload:
+            return None
         return PlannedMoment(
             kind="error_repair",
             source_type="error",
@@ -490,6 +479,8 @@ class SessionMomentPlanner:
             return None
 
         payload = self._generate_grammar_challenge_payload(concept)
+        if not payload:
+            return None
         return PlannedMoment(
             kind="grammar_challenge",
             source_type="grammar",
@@ -529,11 +520,14 @@ class SessionMomentPlanner:
             metadata={
                 "word_id": word.id,
                 "word": word.word,
-                "translation": word.german_translation or word.english_translation,
+                "translation": _word_translation(word),
+                "example_sentence": word.example_sentence,
+                "example_translation": _word_example_translation(word),
                 "correct_answer": accepted[0],
                 "accepted_answers": accepted,
                 "deck_name": word.deck_name,
                 "solution_brief": accepted[0],
+                "exercise_type": "context_translation" if word.example_sentence else "translation",
             },
         )
 
@@ -548,19 +542,26 @@ class SessionMomentPlanner:
         word = self._select_primary_deck_word(conversation_plan=conversation_plan)
         if not word:
             return None
-        translation = word.german_translation or word.english_translation or "this word"
+        translation = _word_translation(word) or "this word"
+        example = (word.example_sentence or "").strip()
+        example_translation = _word_example_translation(word)
+        body = f"Answer in French and naturally include `{word.word}` ({translation})."
+        if example:
+            body += f" Borrow the pattern if useful: {example}"
         return PlannedMoment(
             kind="vocab_boost",
             source_type="vocabulary",
             source_id=str(word.id),
             source_deck_name=word.deck_name,
             title=f"Use {word.word}",
-            body=f"Answer in French and naturally include `{word.word}` ({translation}).",
+            body=body,
             input_mode="chips",
             metadata={
                 "word_id": word.id,
                 "word": word.word,
                 "translation": translation,
+                "example_sentence": word.example_sentence,
+                "example_translation": example_translation,
                 "deck_name": word.deck_name,
             },
         )
@@ -582,15 +583,21 @@ class SessionMomentPlanner:
         translation = word.german_translation or word.english_translation
         accepted = _split_expected_answers(translation)
         if accepted:
+            example = (word.example_sentence or "").strip()
+            if example:
+                return (
+                    f"In this sentence, what does `{word.word}` mean?\n\n{example}",
+                    accepted,
+                )
             return (f"What does `{word.word}` mean?", accepted)
         if word.example_sentence:
             return (
-                f"Use `{word.word}` in a short French sentence.",
+                f"Use `{word.word}` in a new French sentence. Pattern to borrow: {word.example_sentence}",
                 [word.word.lower()],
             )
         return ("", [])
 
-    def _generate_grammar_challenge_payload(self, concept: "GrammarConcept") -> dict[str, Any]:
+    def _generate_grammar_challenge_payload(self, concept: "GrammarConcept") -> dict[str, Any] | None:
         if self.brief_exercise_service is not None:
             try:
                 response = _run_async(
@@ -617,21 +624,9 @@ class SessionMomentPlanner:
             except Exception as exc:
                 logger.warning("Unable to generate grammar challenge", concept_id=concept.id, error=str(exc))
 
-        return {
-            "title": f"Practice {concept.name}",
-            "body": concept.description or f"Write one sentence using {concept.name}.",
-            "metadata": {
-                "concept_id": concept.id,
-                "concept_name": concept.name,
-                "exercise_type": "short_answer",
-                "prompt": concept.description or f"Write one sentence using {concept.name}.",
-                "correct_answer": concept.examples or concept.name,
-                "example_format": concept.examples or concept.name,
-                "solution_brief": concept.examples or concept.name,
-            },
-        }
+        return None
 
-    def _generate_error_repair_payload(self, error: UserError) -> dict[str, Any]:
+    def _generate_error_repair_payload(self, error: UserError) -> dict[str, Any] | None:
         if self.brief_exercise_service is not None:
             try:
                 response = _run_async(self.brief_exercise_service.generate_error_exercise(error.id))
@@ -653,19 +648,7 @@ class SessionMomentPlanner:
             except Exception as exc:
                 logger.warning("Unable to generate error repair prompt", error_id=str(error.id), error=str(exc))
 
-        return {
-            "title": "Repair this recurring mistake",
-            "body": error.original_text or "Correct this mistake.",
-            "metadata": {
-                "error_id": str(error.id),
-                "exercise_type": "correction",
-                "prompt": error.original_text or "",
-                "correct_answer": error.correction or "",
-                "explanation": error.context_snippet,
-                "example_format": error.correction or "",
-                "solution_brief": error.correction or "",
-            },
-        }
+        return None
 
     def _can_schedule_explicit(self, *, session: LearningSession) -> bool:
         explicit_count = (
@@ -786,8 +769,11 @@ class SessionMomentPlanner:
 
         if pending_moment and pending_moment.kind == "vocab_boost":
             resolved = self._resolve_vocab_boost_from_feedback(
+                session=session,
+                user=user,
                 moment=pending_moment,
                 word_feedback=word_feedback,
+                learner_reply=learner_reply,
             )
             if resolved:
                 payload["moment_result"] = self.serialize_result(resolved)
@@ -860,8 +846,11 @@ class SessionMomentPlanner:
     def _resolve_vocab_boost_from_feedback(
         self,
         *,
+        session: LearningSession,
+        user: User,
         moment: SessionLearningMoment,
         word_feedback: Sequence["WordFeedback"],
+        learner_reply: str,
     ) -> MomentEvaluation | None:
         word_id = (moment.prompt_payload or {}).get("metadata", {}).get("word_id")
         if not isinstance(word_id, int):
@@ -871,6 +860,19 @@ class SessionMomentPlanner:
             return None
 
         if feedback.was_used:
+            if feedback.had_error:
+                return self._complete_moment(
+                    moment=moment,
+                    is_correct=False,
+                    score_0_10=4.0,
+                    feedback_summary=(
+                        feedback.error.message
+                        if feedback.error
+                        else f"Use {feedback.word.word} again in a cleaner sentence."
+                    ),
+                    next_step_hint=feedback.error.suggestion if feedback.error else feedback.word.example_sentence,
+                    srs_credit_applied=True,
+                )
             return self._complete_moment(
                 moment=moment,
                 is_correct=True,
@@ -880,9 +882,31 @@ class SessionMomentPlanner:
                 srs_credit_applied=True,
             )
 
-        return self._skip_existing_moment(
+        VocabularyCreditService(self.db).apply(
+            user=user,
+            word=feedback.word,
+            event_type="missed_target",
+            source_type="session",
+            learner_text=learner_reply,
+            corrected_text=feedback.word.word,
+            context=(moment.prompt_payload or {}).get("body") or learner_reply,
+            explanation=f"The task targeted {feedback.word.word}, but the reply did not use it.",
+            repair_hint=feedback.word.example_sentence,
+            session=session,
+            message=moment.anchor_message_id,
+            source_payload={
+                "credit_source": "session_vocab_boost",
+                "moment_id": str(moment.id),
+                "moment_kind": moment.kind,
+            },
+        )
+        return self._complete_moment(
             moment=moment,
-            feedback_summary=f"Skipped {moment.prompt_payload.get('title', 'this prompt')}.",
+            is_correct=False,
+            score_0_10=3.0,
+            feedback_summary=f"Try to use {feedback.word.word} next time it is targeted.",
+            next_step_hint=feedback.word.example_sentence,
+            srs_credit_applied=True,
         )
 
     # ------------------------------------------------------------------
@@ -936,15 +960,43 @@ class SessionMomentPlanner:
             if isinstance(item, str) and item
         ]
         normalized = _normalize_answer(answer)
-        is_correct = normalized in {_normalize_answer(item) for item in accepted_answers}
+        normalized_accepted = {_normalize_answer(item) for item in accepted_answers}
+        is_correct = any(
+            normalized == accepted
+            or (normalized and accepted and normalized in accepted)
+            or (normalized and accepted and accepted in normalized)
+            for accepted in normalized_accepted
+        )
         score = 9.5 if is_correct else 3.0
 
         word_id = metadata.get("word_id")
         if isinstance(word_id, int):
             vocab_word = self.db.get(VocabularyWord, word_id)
             if vocab_word:
-                rating = 3 if is_correct else 1
-                self.progress_service.record_review(user=user, word=vocab_word, rating=rating)
+                VocabularyCreditService(self.db).apply(
+                    user=user,
+                    word=vocab_word,
+                    event_type="recognized" if is_correct else "produced_incorrect",
+                    source_type="session",
+                    learner_text=answer,
+                    corrected_text=vocab_word.word,
+                    context=str(metadata.get("example_sentence") or (moment.prompt_payload or {}).get("body") or ""),
+                    explanation=(
+                        None
+                        if is_correct
+                        else f"The meaning of {vocab_word.word} was not recognized in this check."
+                    ),
+                    repair_hint=str(metadata.get("correct_answer") or metadata.get("translation") or ""),
+                    severity=1 if is_correct else 2,
+                    session=moment.session_id,
+                    message=moment.anchor_message_id,
+                    source_payload={
+                        "credit_source": "session_vocab_check",
+                        "moment_id": str(moment.id),
+                        "moment_kind": moment.kind,
+                        "correct_answer": metadata.get("correct_answer"),
+                    },
+                )
 
         return self._complete_moment(
             moment=moment,

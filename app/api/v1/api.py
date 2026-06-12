@@ -13,6 +13,7 @@ from app.api.v1.endpoints import (
     grammar,
     missions,
     progress,
+    serial,
     sessions,
     sessions_ws,
     stories,
@@ -36,6 +37,7 @@ api_router.include_router(grammar.router)
 api_router.include_router(atelier.router)
 api_router.include_router(missions.router)
 api_router.include_router(graphic_novel.router)
+api_router.include_router(serial.router)
 api_router.include_router(audio_session.router)
 api_router.include_router(stories.router, prefix="/stories", tags=["stories"])
 

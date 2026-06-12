@@ -2,17 +2,44 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api import deps
+from app.core.security import get_password_hash, verify_password
 from app.db.models.user import User
-from app.schemas import UserRead, UserUpdate
+from app.schemas import (
+    UserEmailChange,
+    UserPasswordChange,
+    UserRead,
+    UserSettingsRead,
+    UserSettingsUpdate,
+    UserUpdate,
+)
+from app.services.auth import AuthService
 from app.services.users import UserNotFoundError, UserService
 from app.utils.cache import cache_backend, build_cache_key
 
 router = APIRouter(prefix="/users", tags=["users"])
+
+
+def _invalidate_user_cache(user_id: uuid.UUID) -> None:
+    cache_backend.invalidate("user:profile", key=build_cache_key(user_id=str(user_id)))
+
+
+def _is_admin(user: User) -> bool:
+    return str(getattr(user, "role", "user") or "user") == "admin"
+
+
+def _require_admin(user: User) -> None:
+    if not _is_admin(user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin privileges are required.",
+        )
 
 
 @router.get("/me", response_model=UserRead)
@@ -39,11 +66,77 @@ def update_current_user(
 
     service = UserService(db)
     updated = service.update(current_user, payload)
+    _invalidate_user_cache(updated.id)
     cache_key = build_cache_key(user_id=str(updated.id))
-    cache_backend.invalidate("user:profile", key=cache_key)
     response = UserRead.model_validate(updated).model_dump(mode="json")
     cache_backend.set("user:profile", cache_key, response, ttl_seconds=300)
     return response
+
+
+@router.get("/me/settings", response_model=UserSettingsRead)
+def read_current_user_settings(current_user: User = Depends(deps.get_current_user)) -> UserSettingsRead:
+    """Return the authenticated user's editable settings bundle."""
+
+    return UserSettingsRead.model_validate(current_user)
+
+
+@router.patch("/me/settings", response_model=UserSettingsRead)
+def update_current_user_settings(
+    payload: UserSettingsUpdate,
+    current_user: User = Depends(deps.get_current_user),
+    db: Session = Depends(deps.get_db),
+) -> UserSettingsRead:
+    """Update the authenticated user's account and app preferences."""
+
+    service = UserService(db)
+    updated = service.update(current_user, payload)
+    _invalidate_user_cache(updated.id)
+    return UserSettingsRead.model_validate(updated)
+
+
+@router.patch("/me/password", status_code=status.HTTP_204_NO_CONTENT)
+def change_current_user_password(
+    payload: UserPasswordChange,
+    current_user: User = Depends(deps.get_current_user),
+    db: Session = Depends(deps.get_db),
+) -> None:
+    """Change the current user's password and revoke existing sessions."""
+
+    if not verify_password(payload.current_password, current_user.hashed_password):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Current password is incorrect.")
+    current_user.hashed_password = get_password_hash(payload.new_password)
+    current_user.password_updated_at = datetime.now(timezone.utc)
+    current_user.auth_version = int(current_user.auth_version or 0) + 1
+    db.add(current_user)
+    db.commit()
+    AuthService(db).revoke_all_refresh_tokens(current_user)
+    _invalidate_user_cache(current_user.id)
+
+
+@router.patch("/me/email", response_model=UserRead)
+def change_current_user_email(
+    payload: UserEmailChange,
+    current_user: User = Depends(deps.get_current_user),
+    db: Session = Depends(deps.get_db),
+) -> UserRead:
+    """Change the current user's email after password confirmation."""
+
+    if not verify_password(payload.current_password, current_user.hashed_password):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Current password is incorrect.")
+    new_email = str(payload.new_email).lower()
+    existing = db.scalar(select(User).where(User.email == new_email, User.id != current_user.id))
+    if existing:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="A user with this email already exists.")
+    current_user.email = new_email
+    current_user.email_updated_at = datetime.now(timezone.utc)
+    current_user.is_verified = False
+    current_user.auth_version = int(current_user.auth_version or 0) + 1
+    db.add(current_user)
+    db.commit()
+    db.refresh(current_user)
+    AuthService(db).revoke_all_refresh_tokens(current_user)
+    _invalidate_user_cache(current_user.id)
+    return UserRead.model_validate(current_user).model_dump(mode="json")
 
 
 @router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
@@ -52,6 +145,7 @@ def delete_current_user(
     db: Session = Depends(deps.get_db),
 ) -> None:
     """Permanently delete the authenticated user account."""
+    AuthService(db).revoke_all_refresh_tokens(current_user)
     service = UserService(db)
     service.delete(current_user)
 
@@ -61,10 +155,11 @@ def list_users(
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
     db: Session = Depends(deps.get_db),
-    _: User = Depends(deps.get_current_user),
+    current_user: User = Depends(deps.get_current_user),
 ) -> list[User]:
     """Return a paginated list of users ordered by recency."""
 
+    _require_admin(current_user)
     service = UserService(db)
     return service.list_users(limit=limit, offset=offset)
 
@@ -73,9 +168,12 @@ def list_users(
 def read_user_by_id(
     user_id: uuid.UUID,
     db: Session = Depends(deps.get_db),
-    _: User = Depends(deps.get_current_user),
+    current_user: User = Depends(deps.get_current_user),
 ) -> UserRead:
-    """Fetch another user profile. Access control to be refined later."""
+    """Fetch a user profile when it is the current user or an admin request."""
+
+    if current_user.id != user_id:
+        _require_admin(current_user)
 
     cache_key = build_cache_key(user_id=str(user_id))
     cached = cache_backend.get("user:profile", cache_key)
@@ -135,7 +233,7 @@ def export_user_data(
     ).all()
     
     return {
-        "exported_at": "2025-01-25T12:00:00Z",  # Use current time
+        "exported_at": datetime.now(timezone.utc).isoformat(),
         "user": {
             "id": str(current_user.id),
             "email": current_user.email,
@@ -214,15 +312,8 @@ def sign_out_all_devices(
     Note: Actual implementation depends on session management strategy.
     For JWT, this would require a token blacklist or version increment.
     """
-    # Invalidate all cached user data
-    cache_key = build_cache_key(user_id=str(current_user.id))
-    cache_backend.invalidate("user:profile", key=cache_key)
-    
-    # TODO: Implement actual session invalidation
-    # For JWT-based auth, consider:
-    # 1. Increment user.auth_version field
-    # 2. Add tokens to redis blacklist
-    # 3. Clear all user sessions from database
-    
-    # For now, just clear cache
-    pass
+    current_user.auth_version = int(current_user.auth_version or 0) + 1
+    db.add(current_user)
+    db.commit()
+    AuthService(db).revoke_all_refresh_tokens(current_user)
+    _invalidate_user_cache(current_user.id)

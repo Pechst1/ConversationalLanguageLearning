@@ -7,12 +7,16 @@ from types import SimpleNamespace
 
 from app.core.error_detection import ErrorDetectionResult
 from app.core.error_detection.rules import DetectedError
+from app.core.conversation.generator import ConversationPlan
+from app.db.models.error import UserError
 from app.db.models.grammar import GrammarConcept, UserGrammarProgress
+from app.db.models.session import LearningSession, SessionLearningMoment
 from app.db.models.user import User
+from app.db.models.vocabulary import VocabularyWord
 from app.services.brief_exercise_service import BriefExerciseService
 from app.services.grammar import GrammarService
 from app.services.llm_service import LLMResult
-from app.services.progress import ProgressService
+from app.services.progress import ProgressService, QueueItem
 from app.services.session_moment_planner import SessionMomentPlanner
 
 
@@ -124,7 +128,7 @@ def test_context_evaluator_accepts_non_tense_concept_pattern(db_session) -> None
     assert result.retry_needed is False
 
 
-def test_immediate_repair_does_not_borrow_wrong_due_grammar_concept(db_session) -> None:
+def test_immediate_repair_skips_without_generated_exercise(db_session) -> None:
     planner = SessionMomentPlanner(
         db_session,
         progress_service=ProgressService(db_session),
@@ -151,10 +155,7 @@ def test_immediate_repair_does_not_borrow_wrong_due_grammar_concept(db_session) 
         last_error_result=error_result,
     )
 
-    assert planned is not None
-    assert planned.title == "Try that sentence again"
-    assert "concept_id" not in planned.metadata
-    assert planned.metadata["correct_answer"] == "le voyage"
+    assert planned is None
 
 
 def test_due_grammar_prioritizes_started_concepts_over_unseen_ones(db_session) -> None:
@@ -200,3 +201,159 @@ def test_due_grammar_prioritizes_started_concepts_over_unseen_ones(db_session) -
 
     assert due
     assert due[0][0].id == started.id
+
+
+def test_vocab_check_prompt_uses_example_sentence_context(db_session) -> None:
+    word = VocabularyWord(
+        language="fr",
+        word="abaisser",
+        normalized_word="abaisser",
+        german_translation="herabsetzen, senken",
+        example_sentence="Il faut abaisser le prix avant vendredi.",
+        example_translation="Der Preis muss vor Freitag gesenkt werden.",
+        deck_name="Französisch 5000::1. FR → DE",
+    )
+    db_session.add(word)
+    db_session.flush()
+    planner = SessionMomentPlanner(
+        db_session,
+        progress_service=ProgressService(db_session),
+        grammar_service=GrammarService(db_session),
+        llm_service=None,
+    )
+
+    prompt, accepted = planner._build_vocab_check_prompt(word)  # type: ignore[attr-defined]
+
+    assert "Il faut abaisser le prix" in prompt
+    assert "what does `abaisser` mean" in prompt
+    assert accepted == ["herabsetzen", "senken"]
+
+
+def test_vocab_boost_carries_example_sentence_metadata(db_session) -> None:
+    user = User(
+        email="vocab-boost@example.com",
+        hashed_password="hashed",
+        target_language="fr",
+        native_language="de",
+    )
+    word = VocabularyWord(
+        language="fr",
+        word="prévenir",
+        normalized_word="prevenir",
+        german_translation="benachrichtigen",
+        example_sentence="Je voulais vous prévenir que le train aura du retard.",
+        example_translation="Ich wollte Sie informieren, dass der Zug Verspätung haben wird.",
+        deck_name="Französisch 5000::1. FR → DE",
+    )
+    db_session.add_all([user, word])
+    db_session.flush()
+    session = LearningSession(
+        user_id=user.id,
+        planned_duration_minutes=10,
+        conversation_style="tutor",
+        status="in_progress",
+    )
+    db_session.add(session)
+    db_session.flush()
+    planner = SessionMomentPlanner(
+        db_session,
+        progress_service=ProgressService(db_session),
+        grammar_service=GrammarService(db_session),
+        llm_service=None,
+    )
+    plan = ConversationPlan(
+        queue_items=(QueueItem(word=word, progress=None, is_new=False),),
+        review_targets=[],
+        new_targets=[],
+    )
+
+    planned = planner._plan_vocab_boost(session=session, conversation_plan=plan)  # type: ignore[attr-defined]
+
+    assert planned is not None
+    assert "Je voulais vous prévenir" in planned.body
+    assert planned.metadata["example_sentence"] == word.example_sentence
+    assert planned.metadata["example_translation"] == word.example_translation
+
+
+def test_vocab_boost_missed_target_creates_vocabulary_erratum(db_session) -> None:
+    user = User(
+        email="vocab-boost-missed@example.com",
+        hashed_password="hashed",
+        target_language="fr",
+        native_language="de",
+    )
+    word = VocabularyWord(
+        language="fr",
+        word="prévenir",
+        normalized_word="prevenir",
+        german_translation="benachrichtigen",
+        example_sentence="Je voulais vous prévenir que le train aura du retard.",
+        example_translation="Ich wollte Sie informieren, dass der Zug Verspätung haben wird.",
+        deck_name="Französisch 5000::1. FR → DE",
+    )
+    db_session.add_all([user, word])
+    db_session.flush()
+    session = LearningSession(
+        user_id=user.id,
+        planned_duration_minutes=10,
+        conversation_style="tutor",
+        status="in_progress",
+    )
+    db_session.add(session)
+    db_session.flush()
+    moment = SessionLearningMoment(
+        session_id=session.id,
+        user_id=user.id,
+        kind="vocab_boost",
+        source_type="vocabulary",
+        source_id=str(word.id),
+        source_deck_name=word.deck_name,
+        status="pending",
+        prompt_payload={
+            "title": f"Use {word.word}",
+            "body": f"Answer in French and naturally include `{word.word}`.",
+            "input_mode": "chips",
+            "choices": [],
+            "prefill_text": None,
+            "metadata": {"word_id": word.id, "word": word.word},
+        },
+    )
+    db_session.add(moment)
+    db_session.flush()
+    planner = SessionMomentPlanner(
+        db_session,
+        progress_service=ProgressService(db_session),
+        grammar_service=GrammarService(db_session),
+        llm_service=None,
+    )
+
+    result = planner._resolve_vocab_boost_from_feedback(  # type: ignore[attr-defined]
+        session=session,
+        user=user,
+        moment=moment,
+        learner_reply="Je vais envoyer le message demain.",
+        word_feedback=[
+            SimpleNamespace(
+                word=word,
+                was_used=False,
+                had_error=False,
+                error=None,
+            )
+        ],
+    )
+
+    erratum = (
+        db_session.query(UserError)
+        .filter(
+            UserError.user_id == user.id,
+            UserError.linked_word_id == word.id,
+            UserError.task_error_type == "vocabulary_missing_target",
+        )
+        .one()
+    )
+
+    assert result is not None
+    assert result.is_correct is False
+    assert moment.status == "completed"
+    assert erratum.review_mode == "vocabulary"
+    assert erratum.source_type == "session"

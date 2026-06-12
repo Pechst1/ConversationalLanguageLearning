@@ -1,7 +1,9 @@
 """Regression tests for Graphic Novel / Feuilleton mode."""
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timedelta, timezone
+from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
 
 from fastapi.testclient import TestClient
@@ -10,9 +12,14 @@ from app.config import settings
 from app.core.security import decode_token
 from app.db.models.error import UserError
 from app.db.models.grammar import GrammarConcept
+from app.db.models.graphic_novel import GraphicNovelPanel, GraphicNovelScene
+from app.db.models.mission import RealWorldMission
+from app.db.models.progress import UserVocabularyProgress
+from app.db.models.serial import SerialThread
 from app.db.models.user import User
+from app.db.models.vocabulary import VocabularyWord
 from app.services.atelier import AtelierScheduler
-from app.services.graphic_novel import GraphicNovelCorrectionService, GraphicNovelStoryGenerator
+from app.services.graphic_novel import GraphicNovelCorrectionService, GraphicNovelScheduler, GraphicNovelStoryGenerator
 
 
 def _patch_story(monkeypatch):
@@ -26,18 +33,57 @@ def _patch_story(monkeypatch):
             "skeleton_completion_tokens": 150,
             "skeleton_generation_usd": 0.0005,
             "skeleton_system_prompt": "skeleton system",
-            "skeleton_user_payload": {"panel_count": kwargs["panel_count"]},
+            "skeleton_user_payload": {
+                "panel_count": kwargs["panel_count"],
+                "target_vocabulary": kwargs.get("target_vocabulary", []),
+            },
         }
 
     def fake_llm_surface(self, **kwargs):
-        return _valid_visual_surface(panel_count=kwargs["panel_count"]), {
+        script = _valid_visual_surface(panel_count=kwargs["panel_count"])
+        target_vocabulary = kwargs.get("target_vocabulary", [])
+        if target_vocabulary:
+            word = target_vocabulary[0]
+            for panel in script["panels"]:
+                for task in panel["overlay_payload"].get("tasks", []):
+                    if task.get("task_type") == "short_sentence":
+                        task.update(
+                            {
+                                "id": "panel_vocabulary_generated",
+                                "label": "Vocabulary in context",
+                                "instruction": f"Write one natural French sentence that continues the scene and uses {word['word']}.",
+                                "prompt": (
+                                    f"Context anchor: {word.get('example_sentence') or word['word']} "
+                                    f"Now add one new French line for this panel that uses {word['word']} naturally."
+                                ),
+                                "prompt_translation": f"Use {word['word']} in a new French line that fits the comic moment.",
+                                "expected_features": [
+                                    f"include the target vocabulary word: {word['word']}",
+                                    "continue the panel with a fresh contextual sentence",
+                                ],
+                                "vocabulary_task": True,
+                                "production_goal": "use_target_vocabulary_in_context",
+                                "target_word_id": word["word_id"],
+                                "target_word": word["word"],
+                                "target_translation": word.get("translation"),
+                                "example_sentence": word.get("example_sentence"),
+                                "example_translation": word.get("example_translation"),
+                            }
+                        )
+                        break
+                if any(task.get("vocabulary_task") for task in panel["overlay_payload"].get("tasks", [])):
+                    break
+        return script, {
             "provider": "test",
             "model": kwargs["story_model"],
             "surface_prompt_tokens": 100,
             "surface_completion_tokens": 200,
             "surface_generation_usd": 0.0005,
             "surface_system_prompt": "surface system",
-            "surface_user_payload": {"panel_count": kwargs["panel_count"]},
+            "surface_user_payload": {
+                "panel_count": kwargs["panel_count"],
+                "target_vocabulary": kwargs.get("target_vocabulary", []),
+            },
         }
 
     monkeypatch.setattr(GraphicNovelStoryGenerator, "_llm_skeleton", fake_llm_skeleton)
@@ -76,6 +122,39 @@ def _user_from_token(db_session, token: str) -> User:
     return user
 
 
+def _serial_world() -> dict:
+    return {
+        "logline": "A newcomer finds a life in French.",
+        "setting": {
+            "recurring_locations": [
+                {"id": "le_mistral", "name": "Le Mistral", "description": "A warm corner cafe."},
+                {"id": "user_apartment", "name": "Your apartment", "description": "A cold sixth-floor studio."},
+                {"id": "marin_lila_flat", "name": "Marin & Lila's flat", "description": "An art-covered two-room flat near Republique."},
+                {"id": "newsroom", "name": "Romy's newsroom", "description": "Screens everywhere and no quiet corners."},
+                {"id": "ngo_office", "name": "Marin's NGO office", "description": "Protest posters and dying plants."},
+                {"id": "marche_canal", "name": "The Canal market", "description": "Cheese stalls, haggling, Sunday crowds."},
+                {"id": "buttes_chaumont", "name": "Parc des Buttes-Chaumont", "description": "A hilly park made for real conversations."},
+                {"id": "metro_platform", "name": "Metro platform", "description": "Last trains and missed connections."},
+                {"id": "gus_loft", "name": "Gus's chateau", "description": "A theatrical bachelor loft."},
+                {"id": "brocante", "name": "A flea market", "description": "Antiques, junk, and exactly the wrong gift."},
+                {"id": "office_admin", "name": "An admin office", "description": "The bureaucratic vous battleground."},
+            ]
+        },
+        "cast": [
+            {"id": "marin_leveque", "name": "Marin Lévêque", "role": "friend", "dynamic_with_user": "warm anchor"},
+            {"id": "lila_bonnet", "name": "Lila Bonnet", "role": "friend", "dynamic_with_user": "teasing ringleader"},
+            {"id": "romy_tremblay", "name": "Romy Tremblay", "role": "journalist", "dynamic_with_user": "central tension"},
+        ],
+        "visual_design": {
+            "characters": {
+                "marin_leveque": {"build": "very tall", "accent_colour": "sea green"},
+                "lila_bonnet": {"hair": "paint-flecked", "accent_colour": "marigold"},
+                "romy_tremblay": {"wardrobe": "leather jacket", "accent_colour": "cold blue"},
+            }
+        },
+    }
+
+
 def test_create_feuilleton_prioritizes_due_errata(client: TestClient, db_session, monkeypatch):
     _patch_story(monkeypatch)
     token = _token(client)
@@ -93,7 +172,50 @@ def test_create_feuilleton_prioritizes_due_errata(client: TestClient, db_session
         source_type="atelier",
         next_review_date=datetime.now(timezone.utc) - timedelta(days=1),
     )
-    db_session.add(erratum)
+    vocab_word = VocabularyWord(
+        language="fr",
+        word="prévenir",
+        normalized_word="prevenir",
+        frequency_rank=95,
+        german_translation="warnen",
+        example_sentence="Je dois prévenir Marc avant la réunion.",
+        example_translation="I have to warn Marc before the meeting.",
+        direction="fr_to_de",
+        deck_name="French 5000",
+        is_anki_card=True,
+    )
+    target_word = VocabularyWord(
+        language="fr",
+        word="remarquer",
+        normalized_word="remarquer",
+        frequency_rank=88,
+        german_translation="bemerken",
+        example_sentence="Elle remarque le détail trop tard.",
+        example_translation="She notices the detail too late.",
+        direction="fr_to_de",
+        deck_name="French 5000",
+        is_anki_card=True,
+    )
+    db_session.add_all([erratum, vocab_word, target_word])
+    db_session.flush()
+    db_session.add(
+        UserVocabularyProgress(
+            user_id=user.id,
+            word_id=vocab_word.id,
+            scheduler="anki",
+            state="reviewing",
+            phase="review",
+            due_at=datetime.now(timezone.utc) - timedelta(days=1),
+            due_date=(datetime.now(timezone.utc) - timedelta(days=1)).date(),
+            last_review_date=datetime.now(timezone.utc) - timedelta(days=4),
+            stability=2.1,
+            difficulty=7.2,
+            interval_days=2,
+            scheduled_days=2,
+            reps=4,
+            proficiency_score=41,
+        )
+    )
     db_session.commit()
 
     response = client.post(
@@ -101,6 +223,7 @@ def test_create_feuilleton_prioritizes_due_errata(client: TestClient, db_session
         json={
             "cadence": "ad_hoc",
             "preferred_errata_ids": [str(erratum.id)],
+            "target_vocabulary_ids": [target_word.id],
             "use_news": False,
         },
         headers={"Authorization": f"Bearer {token}"},
@@ -115,6 +238,17 @@ def test_create_feuilleton_prioritizes_due_errata(client: TestClient, db_session
     assert scene["script_payload"]["render_mode"] == "panels"
     assert scene["script_payload"]["image_quality"] == "medium"
     assert "page_image" not in scene["script_payload"]
+    assert scene["target_vocabulary_ids"][0] == target_word.id
+    assert scene["target_vocabulary"][0]["word"] == "remarquer"
+    assert scene["target_vocabulary"][0]["example_sentence"] == "Elle remarque le détail trop tard."
+    assert scene["target_vocabulary"][0]["example_translation"] == "She notices the detail too late."
+    assert vocab_word.id in scene["target_vocabulary_ids"]
+    assert any(item["word"] == "prévenir" for item in scene["target_vocabulary"])
+    assert any(item["translation"] == "warnen" for item in scene["script_payload"]["target_vocabulary"])
+    assert any(
+        item["word_id"] == vocab_word.id
+        for item in scene["script_payload"]["generation_debug"]["surface_user_payload"]["target_vocabulary"]
+    )
     assert len(scene["panels"]) == 6
     assert scene["script_payload"]["selected_visual_premise"]["absurd_image"]
     assert len(scene["script_payload"]["visual_premise_candidates"]) == 3
@@ -127,12 +261,188 @@ def test_create_feuilleton_prioritizes_due_errata(client: TestClient, db_session
     ]
     assert [task["task_type"] for task in tasks[:3]] == ["cloze", "choice", "short_sentence"]
     assert len(tasks) == 5
+    vocabulary_tasks = [task for task in tasks if task.get("vocabulary_task")]
+    assert len(vocabulary_tasks) == 1
+    assert vocabulary_tasks[0]["task_type"] == "short_sentence"
+    assert vocabulary_tasks[0]["production_goal"] == "use_target_vocabulary_in_context"
+    assert vocabulary_tasks[0]["target_word_id"] == target_word.id
+    assert vocabulary_tasks[0]["target_word"] == "remarquer"
+    assert vocabulary_tasks[0]["example_sentence"] == "Elle remarque le détail trop tard."
+    assert vocabulary_tasks[0]["example_translation"] == "She notices the detail too late."
+    assert "Elle remarque le détail trop tard." in vocabulary_tasks[0]["prompt"]
     assert all("no readable text" in panel["image_prompt"].lower() for panel in scene["panels"])
     assert all("story premise" not in panel["image_prompt"].lower() for panel in scene["panels"])
     assert all("news/context inspiration" not in panel["image_prompt"].lower() for panel in scene["panels"])
     assert all("human continuity" in panel["image_prompt"].lower() for panel in scene["panels"])
     assert scene["panels"][0]["overlay_payload"]["bubbles"][0]["fr"].startswith("Encore une consigne")
     assert "The meeting" not in {panel["title"] for panel in scene["panels"]}
+
+
+def test_create_feuilleton_defaults_to_mission_target_vocabulary(client: TestClient, db_session, monkeypatch):
+    _patch_story(monkeypatch)
+    token = _token(client)
+    concept = _concept(db_session)
+    user = _user_from_token(db_session, token)
+    mission_word = VocabularyWord(
+        language="fr",
+        word="oser",
+        normalized_word="oser",
+        frequency_rank=110,
+        german_translation="wagen",
+        direction="fr_to_de",
+        deck_name="French 5000",
+        is_anki_card=True,
+    )
+    db_session.add(mission_word)
+    db_session.flush()
+    mission = RealWorldMission(
+        user_id=user.id,
+        status="available",
+        cadence="ad_hoc",
+        mission_type="message",
+        title="Mission vocab seed",
+        brief="Use a target word.",
+        selected_concept_ids=[concept.id],
+        target_errata_ids=[],
+        target_vocabulary_ids=[mission_word.id],
+        source_snapshot={},
+        objectives=[],
+        prompt_payload={},
+    )
+    db_session.add(mission)
+    db_session.commit()
+
+    response = client.post(
+        "/api/v1/graphic-novel/scenes",
+        json={"cadence": "ad_hoc", "mission_id": str(mission.id), "use_news": False},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 200
+    scene = response.json()["scene"]
+    assert scene["mission_id"] == str(mission.id)
+    assert scene["target_vocabulary_ids"][0] == mission_word.id
+    assert scene["target_vocabulary"][0]["word"] == "oser"
+
+
+def test_feuilleton_vocabulary_task_miss_creates_credit_erratum(client: TestClient, db_session, monkeypatch):
+    _patch_story(monkeypatch)
+    token = _token(client)
+    user = _user_from_token(db_session, token)
+    target_word = VocabularyWord(
+        language="fr",
+        word="remarquer",
+        normalized_word="remarquer",
+        frequency_rank=88,
+        german_translation="bemerken",
+        example_sentence="Elle remarque le détail trop tard.",
+        example_translation="She notices the detail too late.",
+        direction="fr_to_de",
+        deck_name="French 5000",
+        is_anki_card=True,
+    )
+    db_session.add(target_word)
+    db_session.commit()
+
+    create = client.post(
+        "/api/v1/graphic-novel/scenes",
+        json={
+            "cadence": "ad_hoc",
+            "target_vocabulary_ids": [target_word.id],
+            "use_news": False,
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    scene = create.json()["scene"]
+    vocabulary_task = next(
+        task
+        for panel in scene["panels"]
+        for task in panel["overlay_payload"].get("tasks", [])
+        if task.get("vocabulary_task")
+    )
+
+    miss = client.post(
+        f"/api/v1/graphic-novel/scenes/{scene['id']}/attempts",
+        json={
+            "task_id": vocabulary_task["id"],
+            "answer_payload": {"answer": "Je regarde le dossier avec attention."},
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert miss.status_code == 200
+    correction = miss.json()["correction"]
+    assert correction["verdict"] == "partial"
+    assert any(
+        event["word_id"] == target_word.id and event["event_type"] == "missed_target"
+        for event in correction["vocabulary_events"]
+    )
+    assert correction["errata"][0]["linked_word_id"] == target_word.id
+    assert any(item["linked_word_id"] == target_word.id for item in miss.json()["errata"])
+    progress = (
+        db_session.query(UserVocabularyProgress)
+        .filter(UserVocabularyProgress.user_id == user.id, UserVocabularyProgress.word_id == target_word.id)
+        .one()
+    )
+    assert progress.state == "relearning"
+    assert progress.phase == "relearn"
+
+    all_tasks = [
+        task
+        for panel in scene["panels"]
+        for task in panel["overlay_payload"].get("tasks", [])
+    ]
+    for task in all_tasks:
+        if task["id"] == vocabulary_task["id"]:
+            continue
+        answer = task.get("expected_answer") or "Je remarque le tampon dans la scène."
+        response = client.post(
+            f"/api/v1/graphic-novel/scenes/{scene['id']}/attempts",
+            json={"task_id": task["id"], "answer_payload": {"answer": answer}},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert response.status_code == 200
+    final_prompt = scene["script_payload"]["final_prompt"]
+    response = client.post(
+        f"/api/v1/graphic-novel/scenes/{scene['id']}/attempts",
+        json={
+            "task_id": final_prompt["id"],
+            "answer_payload": {"answer": "Je remarque enfin pourquoi le tampon ralentit la scène."},
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200
+
+    complete = client.post(
+        f"/api/v1/graphic-novel/scenes/{scene['id']}/complete",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert complete.status_code == 200
+    assert complete.json()["recap"]["vocabulary_credit"]["missed_target"] >= 1
+
+
+def test_feuilleton_completion_requires_required_tasks(client: TestClient, db_session, monkeypatch):
+    _patch_story(monkeypatch)
+    token = _token(client)
+    concept = _concept(db_session)
+    create = client.post(
+        "/api/v1/graphic-novel/scenes",
+        json={"cadence": "ad_hoc", "preferred_concept_ids": [concept.id]},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert create.status_code == 200
+    scene = create.json()["scene"]
+
+    complete = client.post(
+        f"/api/v1/graphic-novel/scenes/{scene['id']}/complete",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert complete.status_code == 409
+    detail = complete.json()["detail"]
+    assert detail["code"] == "feuilleton_tasks_incomplete"
+    assert scene["script_payload"]["final_prompt"]["id"] in detail["missing_task_ids"]
 
 
 def test_closed_task_correction_is_deterministic_and_persists_errata(client: TestClient, db_session, monkeypatch):
@@ -322,6 +632,501 @@ def test_feuilleton_generation_failure_is_honest(client: TestClient, db_session,
     assert "story_llm_unavailable" in detail["errors"]
 
 
+def test_feuilleton_demo_script_can_power_mobile_qa_without_llm(client: TestClient, db_session, monkeypatch):
+    monkeypatch.setattr("app.services.graphic_novel._safe_llm", lambda: None)
+    monkeypatch.setattr(settings, "GRAPHIC_NOVEL_DEMO_SCRIPT_ENABLED", True)
+    token = _token(client)
+    concept = _concept(db_session)
+
+    response = client.post(
+        "/api/v1/graphic-novel/scenes",
+        json={"cadence": "ad_hoc", "preferred_concept_ids": [concept.id], "use_news": False},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 200
+    scene = response.json()["scene"]
+    assert len(scene["panels"]) == 6
+    assert scene["script_payload"]["generation_debug"]["demo_script_used"] is True
+    assert scene["script_payload"]["visual_only_demo"] is True
+    assert scene["script_payload"]["final_prompt"]["id"] == ""
+    assert not any(
+        panel["overlay_payload"].get("tasks", [])
+        for panel in scene["panels"]
+    )
+
+
+def test_feuilleton_rejects_unknown_explicit_target_vocabulary(client: TestClient, db_session, monkeypatch):
+    _patch_story(monkeypatch)
+    token = _token(client)
+
+    response = client.post(
+        "/api/v1/graphic-novel/scenes",
+        json={"cadence": "ad_hoc", "target_vocabulary_ids": [999999], "use_news": False},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"]["code"] == "unknown_target_vocabulary"
+
+
+def test_serial_feuilleton_script_matches_episode_one_state_and_visual_contract(db_session):
+    generator = GraphicNovelStoryGenerator(db_session)
+    user = User(
+        id=uuid4(),
+        email=f"serial-feuilleton-{uuid4()}@example.com",
+        hashed_password="x",
+        target_language="fr",
+        native_language="en",
+        proficiency_level="A2",
+    )
+    db_session.add(user)
+    db_session.commit()
+    source_snapshot = {
+        "mode": "serial_news_seed",
+        "title": "Paris tests a repair hotline",
+        "source": "Atelier serial QA",
+        "items": [
+            {
+                "title": "Paris tests a repair hotline",
+                "summary": "A city service becomes cafe argument fuel.",
+                "source": "Atelier serial QA",
+            }
+        ],
+    }
+    serial_context = {
+        "thread_id": str(uuid4()),
+        "episode_index": 0,
+        "world_bible": _serial_world(),
+        "state": {"heating_fixed": True, "marchand_trust": "improving"},
+        "news_seed": {"title": "Paris tests a repair hotline"},
+        "previous_locations": ["user_apartment"],
+    }
+
+    warm_script = generator.build_script(
+        user=user,
+        concepts=[],
+        errata=[],
+        source_snapshot=source_snapshot,
+        panel_count=6,
+        story_quality="standard",
+        humor_style="satirical",
+        experience_mode="study",
+        render_mode="panels",
+        image_quality="medium",
+        public_figure_mode="named_context",
+        target_vocabulary=[{"word_id": 1, "word": "reparer", "translation": "to repair"}],
+        serial_context=serial_context,
+    )
+    cold_script = generator.build_script(
+        user=user,
+        concepts=[],
+        errata=[],
+        source_snapshot=source_snapshot,
+        panel_count=6,
+        story_quality="standard",
+        humor_style="satirical",
+        experience_mode="study",
+        render_mode="panels",
+        image_quality="medium",
+        public_figure_mode="named_context",
+        target_vocabulary=[{"word_id": 1, "word": "reparer", "translation": "to repair"}],
+        serial_context={**serial_context, "state": {"heating_fixed": False, "marchand_trust": "strained"}},
+    )
+
+    assert warm_script["generation_debug"]["prompt_variant"] == "serial"
+    assert warm_script["location_id"] == "le_mistral"
+    assert warm_script["location_id"] not in warm_script["serial_context"]["previous_locations"]
+    assert warm_script["hook"]["next_beat_kind"] == "mission"
+    assert warm_script["hook"]["unresolved_question"]
+    assert "Romy" in " ".join(panel["beat"] for panel in warm_script["panels"])
+    assert warm_script["panels"][-1]["beat"] != cold_script["panels"][-1]["beat"]
+    assert "réparation" in warm_script["panels"][0]["beat"].lower()
+    assert warm_script["panels"][0]["overlay_payload"]["caption"]["fr"].startswith("Première nuit à Paris")
+    assert "peut-être" in warm_script["panels"][1]["overlay_payload"]["caption"]["fr"]
+    prompt_text = " ".join(panel["image_prompt"] for panel in warm_script["panels"])
+    assert "sea green" in prompt_text
+    assert "cold blue" in prompt_text
+    assert "Atelier serial QA" in warm_script["source_usage"]["attribution"]
+    choice_task = warm_script["panels"][1]["overlay_payload"]["tasks"][0]
+    assert choice_task["id"] == "panel_2_choice"
+    assert set(choice_task["branch_target"]) == {"A", "B"}
+
+
+def test_serial_location_rotation_uses_full_location_library(db_session):
+    generator = GraphicNovelStoryGenerator(db_session)
+    world = _serial_world()
+    previous_locations = ["user_apartment"]
+    chosen: list[str] = []
+
+    for episode_index in range(1, 8):
+        location = generator._serial_location(
+            world=world,
+            previous_locations=previous_locations,
+            episode_index=episode_index,
+        )
+        location_id = str(location["id"])
+        assert location_id != previous_locations[-1]
+        chosen.append(location_id)
+        previous_locations.append(location_id)
+
+    assert chosen[0] == "le_mistral"
+    assert len(set(chosen)) >= 6
+    assert chosen.count("le_mistral") == 1
+    assert chosen[:2] != ["le_mistral", "user_apartment"]
+
+
+def test_serial_visual_design_contract_feeds_cast_and_location_descriptors(db_session):
+    generator = GraphicNovelStoryGenerator(db_session)
+    world = _serial_world()
+    world["visual_design"]["characters"]["romy_tremblay"] = {
+        "canonical_descriptor": "locked Romy model sheet descriptor; leather jacket; cold-blue accent",
+        "accent_colour": "#1d3a8a",
+        "ui_token": "--char-romy",
+        "reference_images": ["assets/serial/characters/romy_tremblay/model-sheet.png"],
+        "style_ref": "assets/serial/characters/romy_tremblay/model-sheet.png",
+        "expressions": {"warm": "softened", "guarded": "reporter stare"},
+    }
+    world["visual_design"]["locations"] = {
+        "le_mistral": {
+            "canonical_descriptor": "locked Le Mistral plate descriptor; zinc counter; rain on glass",
+            "reference_images": ["assets/serial/locations/le_mistral-counter.png"],
+        }
+    }
+
+    romy = next(item for item in generator._serial_cast(world) if item["id"] == "romy_tremblay")
+    assert "locked Romy model sheet descriptor" in romy["visual_description"]
+    assert "#1d3a8a" in romy["visual_description"]
+    assert "--char-romy" in romy["visual_description"]
+    assert "reference images: assets/serial/characters/romy_tremblay/model-sheet.png" in romy["visual_description"]
+    assert "style reference: assets/serial/characters/romy_tremblay/model-sheet.png" in romy["visual_description"]
+    assert "expressions: warm, guarded" in romy["visual_description"]
+
+    user = User(
+        id=uuid4(),
+        email=f"serial-visual-{uuid4()}@example.com",
+        hashed_password="x",
+        target_language="fr",
+        native_language="en",
+        proficiency_level="A2",
+    )
+    db_session.add(user)
+    db_session.commit()
+
+    script = generator.build_script(
+        user=user,
+        concepts=[],
+        errata=[],
+        source_snapshot={"mode": "serial_news_seed", "title": "Paris tests a repair hotline", "source": "QA"},
+        panel_count=6,
+        story_quality="standard",
+        humor_style="satirical",
+        experience_mode="study",
+        render_mode="panels",
+        image_quality="medium",
+        public_figure_mode="named_context",
+        target_vocabulary=[],
+        serial_context={
+                "thread_id": str(uuid4()),
+                "episode_index": 0,
+                "world_bible": world,
+                "state": {},
+                "news_seed": {"title": "Paris tests a repair hotline"},
+            "previous_locations": ["user_apartment"],
+        },
+    )
+
+    assert script["location_id"] == "le_mistral"
+    assert script["selected_visual_premise"]["domain"] == (
+        "locked Le Mistral plate descriptor; zinc counter; rain on glass; "
+        "reference images: assets/serial/locations/le_mistral-counter.png"
+    )
+
+
+def test_serial_feuilleton_uses_llm_episode_plan_when_available(db_session, monkeypatch):
+    generator = GraphicNovelStoryGenerator(db_session)
+    user = User(
+        id=uuid4(),
+        email=f"serial-llm-{uuid4()}@example.com",
+        hashed_password="x",
+        target_language="fr",
+        native_language="en",
+        proficiency_level="B1",
+    )
+    db_session.add(user)
+    db_session.commit()
+
+    plan = {
+        "episode_title": "Feuilleton: Le marché du dimanche",
+        "episode_brief": "Romy drags everyone to the Canal market to chase a story.",
+        "twist": "The newcomer accidentally becomes Romy's on-camera source.",
+        "panels": [
+            {
+                "title": "Le réveil",
+                "beat": "Lila bangs on the door: the group is already late for the market.",
+                "panel_action": "A sleepy newcomer is hauled out into a bright Sunday morning.",
+                "caption_fr": "Dimanche. Lila ne connaît pas le mot grasse matinée.",
+                "caption_en": "Sunday. Lila does not know the words sleeping in.",
+            },
+            {
+                "title": "Le stand de fromage",
+                "beat": "At the cheese stall you must choose how to ask the vendor.",
+                "panel_action": "The newcomer hesitates in front of a towering wall of cheese.",
+                "caption_fr": "Le fromager attend. Tu choisis tes mots.",
+                "caption_en": "The cheesemonger waits. You choose your words.",
+            },
+            {
+                "title": "Marin philosophe",
+                "beat": "Marin explains, near tears, why this cheese reminds him of Brittany.",
+                "panel_action": "Marin holds a wheel of cheese like a sacred relic.",
+                "caption_fr": "Marin pleure presque. C'est juste du fromage.",
+                "caption_en": "Marin is nearly crying. It is just cheese.",
+            },
+            {
+                "title": "Romy en direct",
+                "beat": "Romy films a segment about market prices and pushes a microphone at you.",
+                "panel_action": "A phone-camera light swings toward the startled newcomer.",
+                "caption_fr": "Romy appelle ça du journalisme. Toi, une embuscade.",
+                "caption_en": "Romy calls it journalism. You call it an ambush.",
+            },
+            {
+                "title": "Le café d'après",
+                "beat": "The group debriefs over coffee; you somehow passed.",
+                "panel_action": "Five friends crowd a tiny outdoor table covered in market loot.",
+                "caption_fr": "Tu as survécu au direct. Presque dignement.",
+                "caption_en": "You survived the live shot. Almost with dignity.",
+            },
+            {
+                "title": "La question de Romy",
+                "beat": "Romy replays the clip and asks if you'd ever go on camera for real.",
+                "panel_action": "Romy turns her phone toward you, eyebrow raised, waiting.",
+                "caption_fr": "Elle sourit. La vraie question arrive.",
+                "caption_en": "She smiles. The real question is coming.",
+            },
+        ],
+        "opening_cloze": {
+            "prompt": "On est en retard pour le _____.",
+            "prompt_translation": "We are late for the market.",
+            "answer": "marché",
+        },
+        "choice": {
+            "option_a_next_beat": "You ask formally; the vendor decides you are a tourist.",
+            "option_b_next_beat": "You ask warmly; the vendor slips you an extra slice.",
+        },
+        "hook": {
+            "text": "Romy te tend son téléphone : « La prochaine fois, tu parles devant la caméra. »",
+            "unresolved_question": "Will you say yes to Romy — on camera and otherwise?",
+            "teaser": "Il faut une réponse avant lundi.",
+        },
+    }
+    monkeypatch.setattr(
+        GraphicNovelStoryGenerator,
+        "_serial_episode_plan",
+        lambda self, **kwargs: plan,
+    )
+
+    serial_context = {
+        "thread_id": str(uuid4()),
+        "episode_index": 4,
+        "world_bible": _serial_world(),
+        "state": {"heating_fixed": True, "user.knows_tu_switch": "learning"},
+        "news_seed": {"title": "Market prices in the news"},
+        "previous_locations": ["le_mistral", "user_apartment"],
+        "hook_from_previous": {"text": "Romy proposed an early start.", "next_beat_kind": "feuilleton"},
+    }
+
+    script = generator.build_script(
+        user=user,
+        concepts=[],
+        errata=[],
+        source_snapshot={"mode": "serial_news_seed", "title": "Market prices in the news", "source": "QA"},
+        panel_count=6,
+        story_quality="standard",
+        humor_style="satirical",
+        experience_mode="study",
+        render_mode="panels",
+        image_quality="medium",
+        public_figure_mode="named_context",
+        target_vocabulary=[{"word_id": 7, "word": "le marché", "translation": "the market"}],
+        serial_context=serial_context,
+    )
+
+    # The episode is the LLM plan, not the hardcoded pilot.
+    assert script["generation_debug"]["status"] == "serial_llm_script"
+    assert script["generation_debug"]["fallback_used"] is False
+    assert script["generation_debug"]["serial_plan_source"] == "llm"
+    assert script["title"] == "Feuilleton: Le marché du dimanche"
+    panel_beats = " ".join(panel["beat"] for panel in script["panels"])
+    assert "cheese stall" in panel_beats
+    assert "première nuit" not in panel_beats.lower() and "radiator" not in panel_beats.lower()
+    # The cliffhanger is the plan's hook and still seeds the next mission.
+    assert script["hook"]["unresolved_question"] == "Will you say yes to Romy — on camera and otherwise?"
+    assert script["hook"]["next_beat_kind"] == "mission"
+    # Plan content flows into tasks: opening cloze answer + choice branch beats.
+    cloze_task = script["panels"][0]["overlay_payload"]["tasks"][0]
+    assert cloze_task["expected_answer"] == "marché"
+    choice_task = script["panels"][1]["overlay_payload"]["tasks"][0]
+    assert "extra slice" in choice_task["branch_target"]["B"]["next_panel_beat"]
+
+
+def test_serial_feuilleton_choice_branch_persists_state_and_next_panel(db_session):
+    user = User(
+        id=uuid4(),
+        email=f"serial-branch-{uuid4()}@example.com",
+        hashed_password="x",
+        target_language="fr",
+        native_language="en",
+        proficiency_level="A2",
+    )
+    db_session.add(user)
+    db_session.flush()
+    thread = SerialThread(user_id=user.id, world_bible=_serial_world(), state={}, news_seed={})
+    db_session.add(thread)
+    db_session.flush()
+    next_beat = "Lila grins at the warm tu and decides you may be useful entertainment."
+    task = {
+        "id": "panel_2_choice",
+        "task_type": "choice",
+        "concept_id": None,
+        "label": "How do you enter?",
+        "instruction": "Choose the line that sets your first impression.",
+        "prompt": "Tu entres et tu dis :",
+        "prompt_translation": "You go in and say:",
+        "expected_answer": "B",
+        "accepted_answers": ["B"],
+        "options": ["A", "B"],
+        "expected_features": [],
+        "placeholder": "",
+        "scene_function": "Turns the entrance into a bounded branch about tu/vous and confidence.",
+        "feedback_context": "Both options are plausible; the choice changes how the next panel treats you.",
+        "branch_target": {
+            "B": {
+                "state_delta": {
+                    "set": {"user.first_impression": "game", "user.knows_tu_switch": "learning"},
+                    "reason": "The learner entered warmly with tu.",
+                    "source": {"type": "feuilleton_choice", "task_id": "panel_2_choice"},
+                },
+                "next_panel_beat": next_beat,
+            }
+        },
+    }
+    scene = GraphicNovelScene(
+        user_id=user.id,
+        serial_thread_id=thread.id,
+        episode_index=1,
+        status="available",
+        cadence="serial",
+        title="Serial branch test",
+        brief="A deterministic branch test.",
+        selected_concept_ids=[],
+        target_errata_ids=[],
+        target_vocabulary_ids=[],
+        source_snapshot={},
+        script_payload={
+            "panels": [
+                {"panel_index": 1, "beat": "The doorway choice waits."},
+                {"panel_index": 2, "beat": "Original booth beat."},
+            ],
+            "final_prompt": {"id": ""},
+        },
+        recap_payload={},
+        cache_key=f"serial-branch-{uuid4().hex}",
+        prompt_version="test",
+        image_model="test",
+        image_quality="medium",
+    )
+    db_session.add(scene)
+    db_session.flush()
+    panel = GraphicNovelPanel(
+        scene_id=scene.id,
+        panel_index=1,
+        title="Door",
+        beat="The doorway choice waits.",
+        image_prompt="test",
+        image_payload={},
+        overlay_payload={
+            "caption": {"panel_index": 1, "fr": "Tu entres.", "en": "You enter."},
+            "bubbles": [],
+            "tasks": [task],
+        },
+        generation_metadata={},
+    )
+    following_panel = GraphicNovelPanel(
+        scene_id=scene.id,
+        panel_index=2,
+        title="Booth",
+        beat="Original booth beat.",
+        image_prompt="test",
+        image_payload={},
+        overlay_payload={
+            "caption": {"panel_index": 2, "fr": "La table attend.", "en": "The table waits."},
+            "bubbles": [],
+            "tasks": [],
+        },
+        generation_metadata={},
+    )
+    db_session.add_all([panel, following_panel])
+    db_session.commit()
+    db_session.refresh(scene)
+
+    attempt, _ = GraphicNovelCorrectionService(db_session, llm_service=None).submit_attempt(
+        user=user,
+        scene=scene,
+        task_id="panel_2_choice",
+        answer_payload={"answer": "B"},
+    )
+
+    db_session.refresh(thread)
+    db_session.refresh(following_panel)
+    db_session.refresh(scene)
+    assert attempt.correction_payload["branch_outcome"]["selected"] == "B"
+    assert thread.state["user.first_impression"] == "game"
+    assert thread.state["user.knows_tu_switch"] == "learning"
+    assert following_panel.beat == next_beat
+    assert following_panel.generation_metadata["branch_applied"]["next_panel_beat"] == next_beat
+    assert scene.script_payload["panels"][1]["beat"] == next_beat
+
+
+def test_scene_creation_queues_images_when_image_generation_enabled(db_session, monkeypatch):
+    monkeypatch.setattr(settings, "GRAPHIC_NOVEL_IMAGE_GENERATION_ENABLED", True)
+    monkeypatch.setattr(GraphicNovelScheduler, "_enqueue_scene_image_generation", lambda self, scene_id: None)
+    image_mock = AsyncMock(return_value={"url": "/assets/generated/should-not-be-called.png"})
+    monkeypatch.setattr("app.services.graphic_novel.GraphicNovelImageService.generate_panel_image", image_mock)
+
+    class FakeGenerator:
+        def build_script(self, **kwargs):
+            script = _valid_visual_script(panel_count=kwargs["panel_count"])
+            script["render_mode"] = kwargs["render_mode"]
+            return script
+
+    user = User(
+        id=uuid4(),
+        email=f"async-images-{uuid4()}@example.com",
+        hashed_password="x",
+        target_language="fr",
+        native_language="en",
+        proficiency_level="B1",
+    )
+    db_session.add(user)
+    db_session.commit()
+
+    scene = asyncio.run(
+        GraphicNovelScheduler(db_session, generator=FakeGenerator()).create(
+            user=user,
+            cadence="ad_hoc",
+            panel_count=4,
+            force_new=True,
+            sync=None,
+        )
+    )
+
+    assert scene.status == "generating"
+    assert image_mock.await_count == 0
+    assert scene.panels
+    assert all(panel.image_url is None for panel in scene.panels)
+    assert all(panel.generation_metadata["image_status"] == "queued" for panel in scene.panels)
+
+
 def test_feuilleton_validation_notes_do_not_block_scene(client: TestClient, db_session, monkeypatch):
     monkeypatch.setattr("app.services.graphic_novel._safe_llm", lambda: object())
 
@@ -450,6 +1255,47 @@ def test_feuilleton_validator_rejects_worksheet_in_comic_costume(db_session):
         experience_mode="study",
         public_figure_mode="named_context",
     )
+
+
+def test_feuilleton_normalization_does_not_backfill_missing_ai_task_text(db_session):
+    generator = GraphicNovelStoryGenerator(db_session)
+    script = _valid_visual_surface(panel_count=4)
+    script["panels"][1]["overlay_payload"]["tasks"][0].pop("instruction")
+    script["final_prompt"].pop("prompt_translation")
+
+    normalized = generator._normalize_script(
+        script=script,
+        source_snapshot={"mode": "test", "source": "Atelier test", "title": "Test source"},
+        concepts=[],
+        targets=[],
+        target_vocabulary=[],
+        panel_count=4,
+        story_quality="standard",
+        humor_style="dry visual satire",
+        story_model="test-model",
+        experience_mode="study",
+        render_mode="panels",
+        image_quality="medium",
+        public_figure_mode="named_context",
+        story_cost=0.0,
+    )
+
+    tasks = [
+        task
+        for panel in normalized["panels"]
+        for task in panel["overlay_payload"].get("tasks", [])
+    ]
+    errors = generator._validate_script(
+        script=normalized,
+        panel_count=4,
+        experience_mode="study",
+        public_figure_mode="named_context",
+    )
+
+    assert "panel_cloze_future_result" not in {task["id"] for task in tasks}
+    assert normalized["final_prompt"]["id"] == ""
+    assert "overlay_task_count_mismatch_expected_3" in errors
+    assert "final_prompt_missing_required_content" in errors
 
 
 def _valid_visual_skeleton(panel_count: int = 4) -> dict:
@@ -659,6 +1505,7 @@ def _valid_visual_surface(panel_count: int = 4) -> dict:
             "task_type": "short_sentence",
             "instruction": "Write one natural French sentence that adds one more consequence to the umbrella gag.",
             "prompt_body": "Add one final French line after everyone has left the cafe.",
+            "prompt_translation": "Add one final French line after everyone has left the cafe.",
             "placeholder": "Si...",
             "expected_features": ["si", "future_or_imperative_result"],
             "min_words": 6,

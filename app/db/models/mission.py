@@ -15,6 +15,7 @@ from app.db.base import Base
 
 if TYPE_CHECKING:
     from app.db.models.atelier import AtelierSession
+    from app.db.models.serial import SerialThread
     from app.db.models.user import User
 
 
@@ -30,9 +31,14 @@ class RealWorldMission(Base):
     atelier_session_id: Mapped[uuid.UUID | None] = mapped_column(
         PG_UUID(as_uuid=True), ForeignKey("atelier_sessions.id", ondelete="SET NULL"), nullable=True, index=True
     )
+    serial_thread_id: Mapped[uuid.UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("serial_threads.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    episode_index: Mapped[int | None] = mapped_column(Integer, nullable=True)
     status: Mapped[str] = mapped_column(String(30), default="available", nullable=False, index=True)
     cadence: Mapped[str] = mapped_column(String(30), default="weekly", nullable=False, index=True)
     mission_type: Mapped[str] = mapped_column(String(40), default="message", nullable=False, index=True)
+    stakes_level: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     iso_year: Mapped[int | None] = mapped_column(Integer, nullable=True)
     iso_week: Mapped[int | None] = mapped_column(Integer, nullable=True)
     title: Mapped[str] = mapped_column(String(180), nullable=False)
@@ -53,6 +59,7 @@ class RealWorldMission(Base):
 
     user: Mapped["User"] = relationship("User")
     atelier_session: Mapped["AtelierSession | None"] = relationship("AtelierSession")
+    serial_thread: Mapped["SerialThread | None"] = relationship("SerialThread")
     attempts: Mapped[list["RealWorldMissionAttempt"]] = relationship(
         "RealWorldMissionAttempt", back_populates="mission", cascade="all, delete-orphan"
     )
