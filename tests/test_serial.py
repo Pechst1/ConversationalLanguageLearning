@@ -5,6 +5,7 @@ import asyncio
 import json
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
 from uuid import uuid4
 from uuid import UUID
 from typing import Any
@@ -121,6 +122,10 @@ async def _fake_seed(self, interests=None, refresh=False):  # type: ignore[no-un
             }
         ],
     }
+
+
+def _callback_llm(content: str):
+    return lambda: SimpleNamespace(generate_chat_completion=lambda *args, **kwargs: SimpleNamespace(content=content))
 
 
 def test_thread_episode_roundtrip(db_session):
@@ -355,6 +360,9 @@ def test_serial_mission_contract_honors_relationship_register(db_session):
 
 def test_serial_relationship_completion_can_unlock_tu(db_session, monkeypatch):
     monkeypatch.setattr(SerialThreadService, "_enqueue_next_beat", lambda self, thread_id: None)
+    monkeypatch.setattr(settings, "ATELIER_LLM_ENABLED", True)
+    monkeypatch.setattr(settings, "OPENAI_API_KEY", "test-key")
+    monkeypatch.setattr("app.services.serial.LLMService", _callback_llm("aider avec les cartons"))
     user = _user(db_session, email="serial-tu-switch@example.com")
     thread = _run(SerialThreadService(db_session).get_or_create_thread(user))
     state = dict(thread.state or {})
@@ -429,6 +437,70 @@ def test_serial_relationship_completion_can_unlock_tu(db_session, monkeypatch):
     assert relationship["register_switch_episode"] == 4
     assert thread.state["pending_register_switch"]["character_id"] == "lila_bonnet"
     assert relationship["callbacks"]
+
+
+def test_serial_callback_extraction_skips_salutation_only_phrase(db_session, monkeypatch):
+    monkeypatch.setattr(settings, "ATELIER_LLM_ENABLED", True)
+    monkeypatch.setattr(settings, "OPENAI_API_KEY", "test-key")
+    monkeypatch.setattr("app.services.serial.LLMService", _callback_llm("Bonjour Monsieur Marchand"))
+    user = _user(db_session, email="serial-callback-salutation@example.com")
+    mission = RealWorldMission(
+        user_id=user.id,
+        title="Callback salutation",
+        brief="Send a practical message.",
+        objectives=[],
+        prompt_payload={},
+        source_snapshot={},
+    )
+    db_session.add(mission)
+    db_session.flush()
+    db_session.add(
+        RealWorldMissionAttempt(
+            mission_id=mission.id,
+            user_id=user.id,
+            mode="writing",
+            answer_payload={"text": "Bonjour Monsieur Marchand, je viens d'emménager et le radiateur ne marche pas."},
+            correction_payload={},
+            verdict="accepted",
+            score_0_4=4,
+        )
+    )
+    db_session.commit()
+    db_session.refresh(mission)
+
+    assert SerialThreadService(db_session)._harvest_callback(mission=mission) == ""
+
+
+def test_serial_callback_extraction_keeps_distinctive_phrase(db_session, monkeypatch):
+    monkeypatch.setattr(settings, "ATELIER_LLM_ENABLED", True)
+    monkeypatch.setattr(settings, "OPENAI_API_KEY", "test-key")
+    monkeypatch.setattr("app.services.serial.LLMService", _callback_llm("la clé sous la pluie"))
+    user = _user(db_session, email="serial-callback-distinctive@example.com")
+    mission = RealWorldMission(
+        user_id=user.id,
+        title="Callback distinctive",
+        brief="Send a practical message.",
+        objectives=[],
+        prompt_payload={},
+        source_snapshot={},
+    )
+    db_session.add(mission)
+    db_session.flush()
+    db_session.add(
+        RealWorldMissionAttempt(
+            mission_id=mission.id,
+            user_id=user.id,
+            mode="writing",
+            answer_payload={"text": "Si tu vois Marin, dis-lui que la clé sous la pluie n'est pas un signe normal."},
+            correction_payload={},
+            verdict="accepted",
+            score_0_4=4,
+        )
+    )
+    db_session.commit()
+    db_session.refresh(mission)
+
+    assert SerialThreadService(db_session)._harvest_callback(mission=mission) == "la clé sous la pluie"
 
 
 def test_legacy_feuilleton_completion_backfills_brief_payload(db_session, monkeypatch):

@@ -11,12 +11,14 @@ from loguru import logger
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.db.models.graphic_novel import GraphicNovelScene
 from app.db.models.mission import RealWorldMission
 from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.user import User
 from app.schemas.serial import EpisodeBrief
 from app.services.graphic_novel import GraphicNovelGenerationError, GraphicNovelScheduler
+from app.services.llm_service import LLMService
 from app.services.missions import MissionScheduler
 from app.services.news_service import NewsService
 from app.services.serial_arc_planner import SerialArcPlanner
@@ -29,6 +31,18 @@ WORLD_BIBLE_V1_PATH = Path(__file__).resolve().parent.parent / "prompts" / "seri
 def _compact(value: Any, max_length: int) -> str:
     text = " ".join(str(value or "").split()).strip()
     return text if len(text) <= max_length else text[: max_length - 1].rstrip() + "…"
+
+
+CALLBACK_SALUTATION_PREFIXES = (
+    "bonjour",
+    "bonsoir",
+    "salut",
+    "coucou",
+    "hello",
+    "merci",
+    "monsieur",
+    "madame",
+)
 
 
 class SerialThreadService:
@@ -1055,8 +1069,7 @@ class SerialThreadService:
             return _compact(f"You shared the episode '{scene.title}'.", 220)
         return _compact((hook or {}).get("text"), 220)
 
-    @staticmethod
-    def _harvest_callback(*, mission: RealWorldMission | None) -> str:
+    def _harvest_callback(self, *, mission: RealWorldMission | None) -> str:
         if not mission:
             return ""
         candidates: list[str] = []
@@ -1069,8 +1082,52 @@ class SerialThreadService:
                 candidates.append(turn.text)
         if not candidates:
             return ""
-        words = [word.strip(" ,.;:!?\"'()[]") for word in candidates[-1].split() if len(word.strip(" ,.;:!?\"'()[]")) > 2]
-        return _compact(" ".join(words[:5]), 80) if len(words) >= 3 else ""
+        return self._extract_callback_phrase(candidates[-1])
+
+    def _extract_callback_phrase(self, text: str) -> str:
+        candidate = _compact(text, 700)
+        if not candidate or not settings.ATELIER_LLM_ENABLED or not (settings.OPENAI_API_KEY or settings.ANTHROPIC_API_KEY):
+            return ""
+        try:
+            result = LLMService().generate_chat_completion(
+                [
+                    {
+                        "role": "user",
+                        "content": (
+                            "Learner message:\n"
+                            f"{candidate}\n\n"
+                            "Return exactly one memorable, funny, or reusable phrase from the learner's message "
+                            "that friends could later quote back as an in-joke. Use at most 6 words. "
+                            "Do not return greetings, names, polite openers, or generic task wording. "
+                            "Return NONE if there is no distinctive phrase."
+                        ),
+                    }
+                ],
+                system_prompt="You extract tiny callback phrases for an episodic language-learning story.",
+                temperature=0,
+                max_tokens=24,
+                model=settings.OPENAI_MISSION_FAST_MODEL if settings.OPENAI_API_KEY else None,
+                request_timeout=8,
+                disable_retries=True,
+            )
+        except Exception as exc:  # noqa: BLE001 - callback capture is optional story color
+            logger.debug("Serial callback extraction skipped", error=str(exc))
+            return ""
+        return self._clean_callback_phrase(result.content)
+
+    @staticmethod
+    def _clean_callback_phrase(value: str) -> str:
+        phrase = str(value or "").strip().strip("\"'“”‘’«»")
+        phrase = _compact(phrase, 80)
+        if not phrase or phrase.upper() == "NONE":
+            return ""
+        words = [word.strip(" ,.;:!?\"'()[]“”‘’«»") for word in phrase.split() if word.strip(" ,.;:!?\"'()[]“”‘’«»")]
+        if not words or len(words) > 6:
+            return ""
+        normalized = " ".join(words).lower()
+        if any(normalized.startswith(prefix) for prefix in CALLBACK_SALUTATION_PREFIXES):
+            return ""
+        return " ".join(words)
 
     # --- WP-G3: rolling "story so far" memory (lifetime continuity) ---
     STORY_SO_FAR_MAX = 12
