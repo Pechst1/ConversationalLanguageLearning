@@ -36,6 +36,7 @@ from app.services.grammar_feedback import infer_grammar_profile
 from app.services.llm_service import LLMProviderError, LLMService
 from app.services.news_service import NewsService
 from app.services.progress import ProgressService
+from app.services.serial_costs import serial_generation_cost_event
 from app.services.vocabulary_credit import VocabularyCreditService
 
 
@@ -608,6 +609,11 @@ class GraphicNovelScheduler:
             )
         self.db.commit()
         self.db.refresh(scene)
+        if serial_thread:
+            logger.bind(
+                event_name="serial_generation_cost_estimate",
+                **serial_generation_cost_event(scene),
+            ).info("Serial generation cost estimate recorded")
         if not sync_images:
             self._enqueue_scene_image_generation(scene.id)
         return scene
