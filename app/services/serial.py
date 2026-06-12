@@ -105,6 +105,8 @@ class SerialThreadService:
         episode = self._current_episode(thread)
         if not episode:
             episode = await self._start_next_beat(thread)
+        elif episode.kind == "feuilleton" and episode.status == "delayed":
+            episode = await self.start_feuilleton_beat(thread, retry_delayed=True)
         else:
             self._ensure_episode_contract(episode)
         return {
@@ -387,16 +389,35 @@ class SerialThreadService:
         self.db.commit()
         self.db.refresh(mission)
 
-    async def start_feuilleton_beat(self, thread: SerialThread) -> SerialEpisode:
+    async def start_feuilleton_beat(self, thread: SerialThread, *, retry_delayed: bool = False) -> SerialEpisode:
         hook_from_previous = self._previous_hook(thread)
         episode_index = thread.current_episode_index
         existing_episode = self._current_episode(thread)
-        if existing_episode and existing_episode.kind == "feuilleton" and existing_episode.scene_id:
+        if (
+            existing_episode
+            and existing_episode.kind == "feuilleton"
+            and existing_episode.scene_id
+            and not (retry_delayed and existing_episode.status == "delayed")
+        ):
             return existing_episode
-        if existing_episode and existing_episode.kind == "feuilleton" and existing_episode.status == "delayed":
+        if (
+            existing_episode
+            and existing_episode.kind == "feuilleton"
+            and existing_episode.status == "delayed"
+            and not retry_delayed
+        ):
             return existing_episode
-        brief = self._episode_brief(thread, "see")
-        brief_payload = brief.model_dump(mode="json")
+        if (
+            retry_delayed
+            and existing_episode
+            and existing_episode.kind == "feuilleton"
+            and isinstance(existing_episode.brief_payload, dict)
+            and existing_episode.brief_payload
+        ):
+            brief_payload = existing_episode.brief_payload
+        else:
+            brief = self._episode_brief(thread, "see")
+            brief_payload = brief.model_dump(mode="json")
         episode = self._upsert_planned_episode(
             thread=thread,
             episode_index=episode_index,

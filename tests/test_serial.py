@@ -17,7 +17,7 @@ from app.db.models.mission import RealWorldMission, RealWorldMissionAttempt
 from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.user import User
 from app.schemas.serial import EpisodeRead, SerialThreadRead
-from app.services.graphic_novel import GraphicNovelScheduler
+from app.services.graphic_novel import GraphicNovelGenerationError, GraphicNovelScheduler
 from app.services.missions import MissionScheduler, serialize_mission
 from app.services.news_service import NewsService
 from app.services.serial_arc_planner import SerialArcPlanner, cefr_generation_profile
@@ -498,6 +498,118 @@ def test_legacy_feuilleton_completion_backfills_brief_payload(db_session, monkey
         thread.state["relationships"][character_id]["closeness"] == 1
         for character_id in required_cast
         if character_id in thread.state["relationships"]
+    )
+
+
+def test_delayed_feuilleton_retries_without_duplicate_episode(db_session, monkeypatch):
+    monkeypatch.setattr(NewsService, "fetch_feuilleton_daily_seed", _fake_seed)
+    user = _user(db_session, email="serial-delayed-retry@example.com")
+    service = SerialThreadService(db_session)
+    thread = _run(service.get_or_create_thread(user))
+    thread.current_episode_index = 1
+    brief_payload = service._episode_brief(thread, "see").model_dump(mode="json")
+    db_session.add(
+        SerialEpisode(
+            thread_id=thread.id,
+            episode_index=1,
+            kind="feuilleton",
+            hook={
+                "text": "L'édition de demain est retardée.",
+                "unresolved_question": "Quand l'imprimerie relancera-t-elle l'épisode ?",
+                "teaser": "Demain : l'édition reprend dès que la salle de rédaction revient.",
+                "next_beat_kind": "feuilleton",
+            },
+            hook_from_previous={},
+            state_delta={},
+            status="delayed",
+            brief_payload=brief_payload,
+        )
+    )
+    db_session.add(thread)
+    db_session.commit()
+    calls = 0
+
+    async def fake_create(self, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise GraphicNovelGenerationError(
+                "serial story unavailable",
+                errors=["serial_story_llm_unavailable"],
+            )
+        scene = GraphicNovelScene(
+            user_id=kwargs["user"].id,
+            mission_id=kwargs.get("mission_id"),
+            serial_thread_id=kwargs["serial_thread_id"],
+            episode_index=kwargs["episode_index"],
+            status="available",
+            cadence="serial",
+            title="Retry success",
+            brief="A regenerated scene after a delayed Feuilleton.",
+            selected_concept_ids=[],
+            target_errata_ids=[],
+            target_vocabulary_ids=[],
+            source_snapshot={},
+            script_payload={
+                "title": "Retry success",
+                "location_id": "le_mistral",
+                "panels": [],
+                "hook": {
+                    "text": "Romy aperçoit une enveloppe sous la table.",
+                    "unresolved_question": "Qui l'a laissée là ?",
+                    "next_beat_kind": "mission",
+                    "teaser": "Demain : répondre à Romy.",
+                },
+            },
+            recap_payload={},
+            cache_key=f"serial-delayed-retry-{uuid4().hex}",
+            prompt_version="test",
+            image_model="test",
+            image_quality="medium",
+        )
+        self.db.add(scene)
+        self.db.commit()
+        self.db.refresh(scene)
+        return scene
+
+    monkeypatch.setattr(GraphicNovelScheduler, "create", fake_create)
+
+    still_delayed = _run(service.today(user))
+    db_session.expire_all()
+    delayed_episode = (
+        db_session.query(SerialEpisode)
+        .filter(SerialEpisode.thread_id == thread.id, SerialEpisode.episode_index == 1)
+        .one()
+    )
+    assert calls == 1
+    assert still_delayed["status"] == "delayed"
+    assert delayed_episode.status == "delayed"
+    assert delayed_episode.scene_id is None
+    assert (
+        db_session.query(SerialEpisode)
+        .filter(SerialEpisode.thread_id == thread.id, SerialEpisode.episode_index == 1)
+        .count()
+        == 1
+    )
+
+    retried = _run(service.today(user))
+    db_session.expire_all()
+    retry_episode = (
+        db_session.query(SerialEpisode)
+        .filter(SerialEpisode.thread_id == thread.id, SerialEpisode.episode_index == 1)
+        .one()
+    )
+
+    assert calls == 2
+    assert retried["status"] == "available"
+    assert retried["scene_id"]
+    assert retry_episode.status == "available"
+    assert retry_episode.scene_id
+    assert (
+        db_session.query(SerialEpisode)
+        .filter(SerialEpisode.thread_id == thread.id, SerialEpisode.episode_index == 1)
+        .count()
+        == 1
     )
 
 
