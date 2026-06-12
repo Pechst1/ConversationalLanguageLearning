@@ -201,23 +201,23 @@ const SessionPageContent: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#f6f1e7] text-stone-900">
+    <div className="min-h-screen bg-[var(--app-paper)] text-[var(--app-ink)]">
       <div className="mx-auto flex min-h-screen max-w-5xl flex-col px-4 py-6 sm:px-6 lg:px-8">
-        <header className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div className="space-y-2">
-            <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-stone-400">
-              {summary ? 'Session review' : 'Learning stream'}
-            </div>
-            <h1 className="text-2xl font-semibold tracking-tight text-stone-900 sm:text-3xl">
+        <header className="mb-8 border-b border-[var(--app-ink)] pb-5">
+          <div className="text-xs font-black uppercase tracking-[0.16em] text-[var(--app-ink-3)]">
+            {summary ? 'Session review' : 'Learning stream'}
+          </div>
+          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mt-1">
+            <h1 className="font-serif text-5xl italic leading-none text-[var(--app-ink)]">
               {summary ? 'Review this session' : 'Continue learning'}
             </h1>
-            <p className="max-w-2xl text-sm leading-6 text-stone-500">
-              {summary
-                ? 'Your recap stays in one place so you can decide what to revisit next.'
-                : 'The session chooses the next prompt. Your job is just to respond.'}
-            </p>
+            <VoiceModeToggle className="md:justify-end" />
           </div>
-          <VoiceModeToggle className="lg:justify-end" />
+          <p className="mt-3 max-w-2xl text-[var(--app-ink-2)] text-sm">
+            {summary
+              ? 'Your recap stays in one place so you can decide what to revisit next.'
+              : 'The session chooses the next prompt. Your job is just to respond.'}
+          </p>
         </header>
 
         <div className="mb-4">
@@ -238,7 +238,7 @@ const SessionPageContent: React.FC = () => {
 
         <div className="flex-1">
           {summary ? (
-            <div className="rounded-[32px] border border-stone-200 bg-white/90 p-6 shadow-sm">
+            <div className="rounded-none border-4 border-black bg-[var(--app-sheet)] p-6 shadow-[8px_8px_0px_0px_#000]">
               <SessionSummary
                 stats={summary}
                 onStartNewSession={handleContinueLearning}
@@ -248,7 +248,7 @@ const SessionPageContent: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => router.push('/sessions')}
-                  className="inline-flex items-center justify-center rounded-full border border-stone-200 bg-stone-900 px-5 py-2.5 text-sm font-medium text-stone-50 transition-colors hover:bg-stone-800"
+                  className="inline-flex items-center justify-center rounded-none border-2 border-black bg-black px-5 py-2.5 text-sm font-bold text-white transition-all hover:-translate-y-0.5 hover:shadow-[3px_3px_0px_0px_#000]"
                 >
                   Back to sessions
                 </button>
@@ -262,7 +262,7 @@ const SessionPageContent: React.FC = () => {
                 onWordFlag={markWordDifficult}
                 activeSessionId={activeSessionId}
               />
-              <div className="sticky bottom-4 mt-4 space-y-3 rounded-[32px] border border-stone-200 bg-[#f6f1e7]/95 p-3 shadow-lg backdrop-blur">
+              <div className="sticky bottom-4 mt-4 space-y-3 rounded-none border-4 border-black bg-[var(--app-paper)]/95 p-4 shadow-[6px_6px_0px_0px_#000] backdrop-blur">
                 <MomentResultInline
                   result={latestMomentResult}
                   onDismiss={clearMomentResult}
@@ -296,13 +296,13 @@ const SessionPageContent: React.FC = () => {
                       : undefined
                   }
                 />
-                <div className="flex flex-col gap-3 text-xs text-stone-500 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-3 text-xs text-[var(--app-ink-2)] sm:flex-row sm:items-center sm:justify-between">
                   <span>Double-click a highlighted word in the transcript to mark it difficult.</span>
                   <button
                     type="button"
                     onClick={handleCompleteSession}
                     disabled={isCompleting}
-                    className="inline-flex items-center justify-center rounded-full border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="inline-flex items-center justify-center rounded-none border-2 border-black bg-white px-4 py-2 text-sm font-bold text-black transition-all hover:-translate-y-0.5 hover:shadow-[3px_3px_0px_0px_#000] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {isCompleting ? 'Ending session...' : 'End session'}
                   </button>

@@ -1,5 +1,6 @@
 import React from 'react';
 import { getSession } from 'next-auth/react';
+import Image from 'next/image';
 import { useRouter } from 'next/router';
 import { ArrowLeft, BookOpen, Clock, User } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
@@ -79,9 +80,12 @@ export default function StoryDetailPage() {
       {/* Hero Section */}
       <div className="relative h-64 rounded-xl overflow-hidden bg-gradient-to-br from-primary-500 to-primary-700">
         {story.cover_image_url ? (
-          <img
+          <Image
             src={story.cover_image_url}
             alt={story.title}
+            fill
+            unoptimized
+            sizes="(max-width: 768px) 100vw, 896px"
             className="w-full h-full object-cover"
           />
         ) : (

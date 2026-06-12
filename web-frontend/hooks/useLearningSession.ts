@@ -576,14 +576,11 @@ export function useLearningSession(sessionId?: string) {
       };
 
       const handleTurnResult = (turnData: any) => {
-        console.log('[useLearningSession] handleTurnResult called with:', JSON.stringify(turnData, null, 2).substring(0, 500));
-
         if (!turnData?.assistant_turn?.message) {
           console.warn('[useLearningSession] No assistant_turn.message found in turnData');
           return false;
         }
 
-        console.log('[useLearningSession] Processing assistant turn...');
         const assistantMessage = turnData.assistant_turn.message ?? {};
         const assistantTargets = normalizeTargets(
           turnData.assistant_turn.targets ??
@@ -609,10 +606,7 @@ export function useLearningSession(sessionId?: string) {
           ),
         };
 
-        console.log('[useLearningSession] Created assistantChat:', { id: assistantChat.id, contentLength: assistantChat.content.length });
-
         setMessages((prev) => {
-          console.log('[useLearningSession] setMessages called, prev length:', prev.length);
           const updated = [...prev];
           for (let index = updated.length - 1; index >= 0; index -= 1) {
             if (updated[index].role === 'assistant' && updated[index].pendingMoment) {
@@ -670,7 +664,6 @@ export function useLearningSession(sessionId?: string) {
           }
 
           updated.push(assistantChat);
-          console.log('[useLearningSession] setMessages returning updated array, new length:', updated.length);
           return updated;
         });
 
@@ -678,7 +671,6 @@ export function useLearningSession(sessionId?: string) {
 
         const normalizedErrorFeedback = normalizeErrorFeedback(turnData.error_feedback);
         if (normalizedErrorFeedback) {
-          console.log('[useLearningSession] Error feedback received:', normalizedErrorFeedback);
           setLatestErrorFeedback(normalizedErrorFeedback);
           const normalizedMomentResult = extractMomentResultFromFeedback(normalizedErrorFeedback);
           if (normalizedMomentResult) {
@@ -688,21 +680,17 @@ export function useLearningSession(sessionId?: string) {
 
         const normalizedWordFeedback = normalizeWordFeedback(turnData.word_feedback);
         if (normalizedWordFeedback.length > 0) {
-          console.log('[useLearningSession] Word feedback received:', normalizedWordFeedback);
           setLatestWordFeedback(normalizedWordFeedback);
         }
 
         if (typeof turnData.xp_awarded === 'number' && turnData.xp_awarded > 0) {
-          console.log('[useLearningSession] XP awarded:', turnData.xp_awarded);
           setLatestXpAwarded(turnData.xp_awarded);
         }
 
         if (typeof turnData.combo_count === 'number' && turnData.combo_count >= 2) {
-          console.log('[useLearningSession] Combo count:', turnData.combo_count);
           setLatestComboCount(turnData.combo_count);
         }
 
-        console.log('[useLearningSession] handleTurnResult completed successfully');
         return true;
       };
 
@@ -758,57 +746,44 @@ export function useLearningSession(sessionId?: string) {
   }, [handleWebSocketMessage]);
 
   const registerWebSocketListeners = useCallback(() => {
-    console.log('[useLearningSession] Registering WebSocket listeners...');
-
     registerWebSocketHandler('turn_result', (payload: any) => {
-      console.log('[useLearningSession] turn_result received:', payload);
       latestMessageHandlerRef.current(payload?.data ?? payload);
     });
 
     registerWebSocketHandler('session_ready', () => {
-      console.log('[useLearningSession] session_ready received');
       setIsConnected(true);
     });
 
     registerWebSocketHandler('error', (payload: any) => {
-      console.log('[useLearningSession] error received:', payload);
       const message =
         payload?.data?.message ||
         payload?.message ||
         'Connection error occurred';
       toast.error(message);
     });
-
-    console.log('[useLearningSession] WebSocket listeners registered');
   }, [registerWebSocketHandler]);
 
   // Set up global message handler - this ensures messages are processed 
   // regardless of handler registration timing issues
   useEffect(() => {
     const globalHandler = (type: string, payload: any) => {
-      console.log('[useLearningSession] Global handler received:', type);
-
       switch (type) {
         case 'turn_result':
-          console.log('[useLearningSession] Processing turn_result via global handler');
           latestMessageHandlerRef.current(payload?.data ?? payload);
           break;
         case 'session_ready':
-          console.log('[useLearningSession] session_ready via global handler');
           setIsConnected(true);
           break;
         case 'error':
-          console.log('[useLearningSession] error via global handler:', payload);
           const message = payload?.data?.message || payload?.message || 'Connection error occurred';
           toast.error(message);
           break;
         default:
-          console.log('[useLearningSession] Unhandled message type:', type);
+          break;
       }
     };
 
     setGlobalHandler(globalHandler);
-    console.log('[useLearningSession] Global handler set');
   }, [setGlobalHandler]);
 
   useEffect(() => {
@@ -819,12 +794,10 @@ export function useLearningSession(sessionId?: string) {
     let cancelled = false;
 
     const establishConnection = async () => {
-      console.log('[useLearningSession] Establishing connection for session:', sessionId);
       const syncMessages = async () => {
         try {
           const messagesResponse = await apiService.getSessionMessages(sessionId) as any;
           const messagesData = messagesResponse?.items || messagesResponse || [];
-          console.log('[useLearningSession] Synced', messagesData.length, 'messages from HTTP');
           if (!cancelled && messagesData.length > 0) {
             setMessages(messagesData.map((msg: any) => ({
               id: msg.id,
@@ -849,11 +822,9 @@ export function useLearningSession(sessionId?: string) {
         if (cancelled) {
           return;
         }
-        console.log('[useLearningSession] WebSocket connected, isConnected:', isWebSocketConnected());
         setIsConnected(isWebSocketConnected());
 
         // Register handlers AFTER connecting so wsRef.current exists
-        console.log('[useLearningSession] Registering listeners after connect...');
         registerWebSocketListeners();
       } catch (connectionError) {
         if (!cancelled) {
@@ -882,7 +853,6 @@ export function useLearningSession(sessionId?: string) {
   // Separate cleanup effect that only runs on unmount
   useEffect(() => {
     return () => {
-      console.log('[useLearningSession] Component unmounting, disconnecting WebSocket');
       disconnectWebSocket();
       setIsConnected(false);
     };

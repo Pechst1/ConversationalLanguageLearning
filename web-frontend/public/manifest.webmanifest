@@ -1,0 +1,24 @@
+{
+  "name": "Atelier Language Learning",
+  "short_name": "Atelier",
+  "description": "A phone-first French learning studio with Atelier, Notebook, Missions, and Feuilleton.",
+  "start_url": "/atelier",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f1ece1",
+  "theme_color": "#f1ece1",
+  "icons": [
+    {
+      "src": "/icons/atelier-mark.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48",
+      "type": "image/x-icon"
+    }
+  ]
+}

@@ -10,6 +10,64 @@ interface User {
   refresh_token: string;
 }
 
+interface TokenResponse {
+  access_token: string;
+  refresh_token: string;
+  token_type: string;
+}
+
+function apiBaseUrl() {
+  return process.env.API_URL || 'http://localhost:8000';
+}
+
+function getJwtExpiry(token?: string): number {
+  if (!token) return 0;
+
+  try {
+    const [, payload] = token.split('.');
+    const decoded = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+    return typeof decoded.exp === 'number' ? decoded.exp * 1000 : 0;
+  } catch {
+    return 0;
+  }
+}
+
+async function refreshAccessToken(token: JWT): Promise<JWT> {
+  if (!token.refreshToken) {
+    return { ...token, error: 'RefreshAccessTokenError' };
+  }
+
+  try {
+    const response = await fetch(`${apiBaseUrl()}/api/v1/auth/refresh`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        refresh_token: token.refreshToken,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Refresh token rejected');
+    }
+
+    const data = await response.json() as TokenResponse;
+    return {
+      ...token,
+      accessToken: data.access_token,
+      refreshToken: data.refresh_token || token.refreshToken,
+      accessTokenExpires: getJwtExpiry(data.access_token),
+      error: undefined,
+    };
+  } catch {
+    return {
+      ...token,
+      error: 'RefreshAccessTokenError',
+    };
+  }
+}
+
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
@@ -24,7 +82,7 @@ export const authOptions: NextAuthOptions = {
         }
 
         try {
-          const response = await fetch(`${process.env.API_URL}/api/v1/auth/login`, {
+          const response = await fetch(`${apiBaseUrl()}/api/v1/auth/login`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -42,7 +100,7 @@ export const authOptions: NextAuthOptions = {
           const data = await response.json();
 
           // Fetch user profile
-          const userResponse = await fetch(`${process.env.API_URL}/api/v1/users/me`, {
+          const userResponse = await fetch(`${apiBaseUrl()}/api/v1/users/me`, {
             headers: {
               'Authorization': `Bearer ${data.access_token}`,
             },
@@ -57,7 +115,7 @@ export const authOptions: NextAuthOptions = {
           return {
             id: userData.id,
             email: userData.email,
-            name: userData.name || userData.email,
+            name: userData.full_name || userData.email,
             access_token: data.access_token,
             refresh_token: data.refresh_token,
           };
@@ -73,17 +131,45 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.accessToken = user.access_token;
         token.refreshToken = user.refresh_token;
+        token.accessTokenExpires = getJwtExpiry(user.access_token);
         token.id = user.id;
+        token.error = undefined;
+        return token;
       }
-      return token;
+
+      if (token.accessToken && token.accessTokenExpires && Date.now() < token.accessTokenExpires - 30_000) {
+        return token;
+      }
+
+      return refreshAccessToken(token);
     },
     async session({ session, token }) {
       if (token) {
         session.user.id = token.id as string;
         session.accessToken = token.accessToken as string;
         session.refreshToken = token.refreshToken as string;
+        session.error = token.error;
       }
       return session;
+    },
+  },
+  events: {
+    async signOut({ token }) {
+      if (!token?.refreshToken) return;
+
+      try {
+        await fetch(`${apiBaseUrl()}/api/v1/auth/logout`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            refresh_token: token.refreshToken,
+          }),
+        });
+      } catch {
+        // The local session should still be cleared even if backend revocation fails.
+      }
     },
   },
   pages: {

@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "capture:mobile": "node scripts/capture-mobile-states.mjs",
+    "test:atelier-next": "node lib/atelier-next.test.js",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {

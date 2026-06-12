@@ -75,18 +75,27 @@ export default function AchievementsPage({ achievements }: AchievementsPageProps
     return (
         <div className="space-y-8 p-4">
             {/* Header */}
-            <div className="flex items-center justify-between border-b-4 border-black pb-6 bg-white p-4 shadow-[4px_4px_0px_0px_#000]">
-                <div>
-                    <h1 className="text-4xl font-extrabold text-black uppercase tracking-tight">Achievements</h1>
-                    <p className="text-gray-600 font-bold mt-1">Track your learning milestones</p>
+            <div className="mb-8 border-b border-[var(--app-ink)] pb-5">
+                <div className="text-xs font-black uppercase tracking-[0.16em] text-[var(--app-ink-3)]">
+                    Milestones
                 </div>
-                <Button
-                    onClick={handleCheckAchievements}
-                    loading={isChecking}
-                    className="shadow-[4px_4px_0px_0px_#000] border-2 border-black"
-                >
-                    Check Progress
-                </Button>
+                <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mt-1">
+                    <h1 className="font-serif text-5xl italic leading-none text-[var(--app-ink)]">
+                        Achievements
+                    </h1>
+                    <div>
+                        <button
+                            onClick={handleCheckAchievements}
+                            disabled={isChecking}
+                            className="border border-black px-4 py-2 text-xs font-black uppercase tracking-[0.13em] transition-all bg-[var(--app-sheet)] text-[var(--app-ink)] hover:bg-[var(--app-paper-2)] disabled:opacity-50"
+                        >
+                            {isChecking ? 'Checking...' : 'Check Progress'}
+                        </button>
+                    </div>
+                </div>
+                <p className="mt-3 max-w-2xl text-[var(--app-ink-2)]">
+                    Track your learning milestones and claim your XP rewards.
+                </p>
             </div>
 
             {/* Stats Summary */}

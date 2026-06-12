@@ -11,7 +11,7 @@ export default function Document() {
           rel="stylesheet"
         />
         <meta name="description" content="Conversational Language Learning Platform" />
-        <meta name="theme-color" content="#0ea5e9" />
+        <meta name="theme-color" content="#f1ece1" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
       <body>

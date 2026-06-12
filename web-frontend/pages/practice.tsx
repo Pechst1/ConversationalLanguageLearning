@@ -365,14 +365,21 @@ export default function PracticePage({ queueWords, counters, direction: initialD
 
   return (
     <div className="max-w-2xl mx-auto p-4 space-y-8">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-4xl font-black uppercase tracking-tighter">Focused 5000 Review</h1>
-          <p className="mt-2 text-sm font-bold uppercase tracking-[0.18em] text-gray-500">
-            Secondary drill for the Franzoesisch 5000 deck
-          </p>
+      <div className="mb-6 border-b border-[var(--app-ink)] pb-5">
+        <div className="text-xs font-black uppercase tracking-[0.16em] text-[var(--app-ink-3)]">
+          Vocabulary Drill
         </div>
-        <AnkiSync onSyncComplete={() => handleRefreshQueue()} />
+        <div className="flex items-end justify-between gap-4 mt-1">
+          <h1 className="font-serif text-4xl italic leading-none text-[var(--app-ink)]">
+            Focused 5000
+          </h1>
+          <div>
+            <AnkiSync onSyncComplete={() => handleRefreshQueue()} />
+          </div>
+        </div>
+        <p className="mt-3 text-sm text-[var(--app-ink-2)]">
+          Secondary review drill for the French 5000 vocabulary deck.
+        </p>
       </div>
 
       {directionToggle}

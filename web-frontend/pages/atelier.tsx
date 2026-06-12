@@ -14,12 +14,31 @@ import apiService, {
   AtelierErratum,
   AtelierSessionStart,
   AtelierToday,
+  VocabularyRecommendationItem,
 } from '@/services/api';
 import { ConceptMotif } from '@/components/grammar/ConceptMotif';
 import EditorialMasthead from '@/components/layout/EditorialMasthead';
+import {
+  buildDayProgress,
+  resolveRecommendedNext,
+  serialActionFromToday,
+  type DayProgress,
+  type RecommendedAction,
+} from '@/lib/atelier-next';
 
 type RoundName = 'recognize' | 'transform' | 'sentence' | 'produce' | 'speak' | 'conversation';
 type RecognizeMode = 'fill' | 'word_bank' | 'classify';
+type RoadmapTarget = RoundName | 'review' | 'mission' | 'feuilleton' | 'rest';
+type RoadmapAction = {
+  label: string;
+  onClick: () => void;
+};
+type RoadmapNode = {
+  id: string;
+  label: string;
+  target: RoadmapTarget;
+  href?: string;
+};
 
 const recognizeModes: Array<{ id: RecognizeMode; label: string; short: string }> = [
   { id: 'fill', label: 'Fill', short: 'A' },
@@ -48,6 +67,10 @@ function roundMode(round: RoundName, mode: RecognizeMode) {
   return round === 'recognize' ? mode : round;
 }
 
+function isRoundName(value: unknown): value is RoundName {
+  return roundLabels.some((item) => item.id === value);
+}
+
 function totalDrills(session: AtelierSessionStart | null) {
   if (!session) return 0;
   return session.concepts.length * (recognizeModes.length + 4) + 1;
@@ -69,12 +92,21 @@ function conceptRequirement(concept: AtelierConcept, exerciseSets: AtelierExerci
   const recipeCount = concept.atelier_blueprint?.exercise_recipe?.output_ladder?.paragraph?.target_count;
   return {
     count: asPositiveCount(requirement.target_count, asPositiveCount(recipeCount)),
-    label: String(requirement.label || concept.atelier_blueprint?.display_title || concept.name || 'grammar target'),
+    label: String(requirement.label || concept.atelier_blueprint?.display_title || concept.name || 'Target'),
   };
 }
 
 function wordCount(text: string) {
   return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
+function wordRangeLabel(count: number, minWords?: unknown, maxWords?: unknown) {
+  const min = Number(minWords);
+  const max = Number(maxWords);
+  if (Number.isFinite(min) && Number.isFinite(max) && min > 0 && max >= min) {
+    return `${count} / ${Math.round(min)}-${Math.round(max)} words`;
+  }
+  return `${count} words`;
 }
 
 function normalizeClient(value: any) {
@@ -88,6 +120,46 @@ function normalizeClient(value: any) {
     .toLowerCase();
 }
 
+function joinWordBankTokens(tokens: any[]) {
+  return tokens
+    .map((token) => String(token || '').trim())
+    .filter(Boolean)
+    .join(' ')
+    .replace(/\s+([,.;:!?])/g, '$1')
+    .replace(/([cdjlmnst])'\s+/gi, "$1'")
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function wordBankTokensFromAnswer(answer: any) {
+  if (Array.isArray(answer)) {
+    return answer.map((token) => String(token || '').trim()).filter(Boolean);
+  }
+  return String(answer || '').trim().split(/\s+/).filter(Boolean);
+}
+
+function wordBankTokenIsUsed(answerTokens: string[], sourceTokens: string[], token: string, tokenIndex: number) {
+  const sameToken = (value: string) => value === token;
+  const previousCopies = sourceTokens.slice(0, tokenIndex).filter(sameToken).length;
+  const usedCopies = answerTokens.filter(sameToken).length;
+  return usedCopies > previousCopies;
+}
+
+function correctionWithAiReview(result: AtelierAttemptResult | AtelierAttemptRead) {
+  const correction = { ...(result.correction || {}) };
+  const aiReview = correction.ai_review || (result as AtelierAttemptResult).ai_review || {};
+  correction.ai_review = aiReview;
+  return correction;
+}
+
+function aiReviewStatus(correction: Record<string, any> | null | undefined) {
+  return String(correction?.ai_review?.status || '');
+}
+
+function errataForAttempt(correction: Record<string, any>, attemptId?: string) {
+  return (correction.errata || []).map((item: AtelierErratum) => ({ ...item, source_attempt_id: attemptId || item.source_attempt_id }));
+}
+
 export default function AtelierPage() {
   const router = useRouter();
   const [today, setToday] = useState<AtelierToday | null>(null);
@@ -98,6 +170,8 @@ export default function AtelierPage() {
   const [answers, setAnswers] = useState<Record<string, Record<string, any>>>({});
   const [submitted, setSubmitted] = useState<Record<string, boolean>>({});
   const [correctionsByKey, setCorrectionsByKey] = useState<Record<string, Record<string, any>>>({});
+  const [attemptIdsByKey, setAttemptIdsByKey] = useState<Record<string, string>>({});
+  const [aiReviewSubmitting, setAiReviewSubmitting] = useState<Record<string, boolean>>({});
   const [errata, setErrata] = useState<AtelierErratum[]>([]);
   const [recentCorrection, setRecentCorrection] = useState<Record<string, any> | null>(null);
   const [recap, setRecap] = useState<Record<string, any> | null>(null);
@@ -108,25 +182,33 @@ export default function AtelierPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [vocabularyDue, setVocabularyDue] = useState(0);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+  const aiPollTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
-  const hydrateSession = (next: AtelierSessionStart) => {
+  const hydrateSession = (next: AtelierSessionStart, openSession = false) => {
     const restoredAnswers: Record<string, Record<string, any>> = {};
     const restoredSubmitted: Record<string, boolean> = { ...(next.submitted_map || {}) };
     const restoredCorrections: Record<string, Record<string, any>> = {};
+    const restoredAttemptIds: Record<string, string> = {};
     const restoredErrata: AtelierErratum[] = [];
 
     (next.attempts || []).forEach((attempt: AtelierAttemptRead) => {
       const key = attempt.submitted_key || answerKey(attempt.round, attempt.round === 'recognize' ? attempt.mode : attempt.round, attempt.concept_id);
+      const correction = correctionWithAiReview(attempt);
       restoredSubmitted[key] = true;
-      restoredCorrections[key] = attempt.correction || {};
+      restoredCorrections[key] = correction;
+      restoredAttemptIds[key] = attempt.attempt_id;
       if (['sentence', 'produce', 'speak', 'conversation'].includes(attempt.round)) {
         restoredAnswers[key] = { text: attempt.answer_payload?.text || '' };
       } else {
         restoredAnswers[key] = { ...(attempt.answer_payload?.answers || {}) };
       }
-      (attempt.correction?.errata || []).forEach((item: AtelierErratum) => {
-        restoredErrata.unshift({ ...item, source_attempt_id: attempt.attempt_id });
-      });
+      errataForAttempt(correction, attempt.attempt_id).forEach((item: AtelierErratum) => restoredErrata.unshift(item));
+      if (aiReviewStatus(correction) === 'pending') {
+        scheduleAiReviewPolling(attempt.attempt_id, key);
+      }
     });
 
     const position = next.current_position || {};
@@ -139,34 +221,62 @@ export default function AtelierPage() {
     setAnswers(restoredAnswers);
     setSubmitted(restoredSubmitted);
     setCorrectionsByKey(restoredCorrections);
+    setAttemptIdsByKey(restoredAttemptIds);
     setErrata(restoredErrata);
-    setRecentCorrection((next.attempts || []).slice(-1)[0]?.correction || null);
+    setRecentCorrection((next.attempts || []).slice(-1)[0] ? correctionWithAiReview((next.attempts || []).slice(-1)[0]) : null);
     setRecap(next.status === 'completed' && next.recap ? next.recap : null);
     setActiveConceptIndex(Math.max(0, Math.min(conceptIndex, next.concepts.length - 1)));
     setRound(nextRound as RoundName);
     setMode(recognizeModes.some((item) => item.id === position.mode) ? position.mode as RecognizeMode : 'fill');
-    setView('session');
+    if (openSession) {
+      setView('session');
+    }
   };
 
   useEffect(() => {
     let alive = true;
-    Promise.all([apiService.getAtelierToday(), apiService.getActiveAtelierSession()])
-      .then(([todayData, active]) => {
+    setLoading(true);
+    setLoadError(null);
+    Promise.all([
+      apiService.getAtelierToday(),
+      apiService.getActiveAtelierSession(),
+      apiService.getVocabularyDueContext({
+        limit: 1,
+        due_limit: 1,
+        fragile_limit: 0,
+        new_limit: 0,
+        topic_limit: 0,
+        linked_limit: 0,
+        direction: 'fr_to_de',
+      }).catch(() => null),
+    ])
+      .then(([todayData, active, vocabularyContext]) => {
         if (!alive) return;
         setToday(todayData);
+        setVocabularyDue(Number(vocabularyContext?.summary?.due || 0));
         if (active.session) {
           hydrateSession(active.session);
+        } else {
+          setSession(null);
         }
       })
       .catch((error) => {
         console.error(error);
-        toast.error('Could not load Atelier practice state.');
+        if (!alive) return;
+        setLoadError('Atelier is unavailable right now. Keep the phone flow calm: retry, or come back after the connection is restored.');
       })
       .finally(() => {
         if (alive) setLoading(false);
       });
     return () => {
       alive = false;
+    };
+  }, [reloadKey]);
+
+  useEffect(() => {
+    return () => {
+      Object.values(aiPollTimers.current).forEach((timer) => clearTimeout(timer));
+      aiPollTimers.current = {};
     };
   }, []);
 
@@ -178,6 +288,80 @@ export default function AtelierPage() {
   const scopedMode = roundMode(round, mode);
   const scopedKey = answerKey(round, scopedMode, roundUsesSessionScope(round) ? null : activeConcept?.id);
   const currentAnswers = answers[scopedKey] || {};
+  const dayProgress = useMemo(
+    () => buildDayProgress({
+      today,
+      session,
+      vocabularyDue,
+    }),
+    [today, session, vocabularyDue],
+  );
+  const recommendation = useMemo(
+    () => resolveRecommendedNext(today, session, dayProgress),
+    [today, session, dayProgress],
+  );
+
+  function applyAttemptResult(key: string, result: AtelierAttemptResult, replaceErrata = false, schedulePending = true) {
+    const correction = correctionWithAiReview(result);
+    setAttemptIdsByKey((prev) => ({ ...prev, [key]: result.attempt_id }));
+    setCorrectionsByKey((prev) => ({ ...prev, [key]: correction }));
+    setRecentCorrection(correction);
+    const nextErrata = errataForAttempt(correction, result.attempt_id);
+    if (replaceErrata) {
+      setErrata((prev) => [
+        ...nextErrata,
+        ...prev.filter((item) => item.source_attempt_id !== result.attempt_id),
+      ]);
+    } else if (nextErrata.length) {
+      setErrata((prev) => [...nextErrata, ...prev]);
+    }
+    if (schedulePending && aiReviewStatus(correction) === 'pending') {
+      scheduleAiReviewPolling(result.attempt_id, key);
+    }
+    return correction;
+  }
+
+  function scheduleAiReviewPolling(attemptId: string, key: string, remaining = 10) {
+    if (!attemptId || remaining <= 0) return;
+    const existing = aiPollTimers.current[attemptId];
+    if (existing) {
+      clearTimeout(existing);
+    }
+    aiPollTimers.current[attemptId] = setTimeout(async () => {
+      try {
+        const result = await apiService.getAtelierAttempt(attemptId);
+        const correction = applyAttemptResult(key, result, true, false);
+        if (aiReviewStatus(correction) === 'pending' && remaining > 1) {
+          scheduleAiReviewPolling(attemptId, key, remaining - 1);
+        } else {
+          delete aiPollTimers.current[attemptId];
+        }
+      } catch (error) {
+        console.error(error);
+        if (remaining > 1) {
+          scheduleAiReviewPolling(attemptId, key, remaining - 1);
+        } else {
+          delete aiPollTimers.current[attemptId];
+        }
+      }
+    }, 2000);
+  }
+
+  const requestAiReview = async () => {
+    const attemptId = attemptIdsByKey[scopedKey];
+    if (!attemptId || aiReviewSubmitting[scopedKey]) return;
+    setAiReviewSubmitting((prev) => ({ ...prev, [scopedKey]: true }));
+    try {
+      const result = await apiService.requestAtelierAttemptAiReview(attemptId);
+      applyAttemptResult(scopedKey, result, true);
+      toast('AI correction started.');
+    } catch (error) {
+      console.error(error);
+      toast.error('AI correction is unavailable.');
+    } finally {
+      setAiReviewSubmitting((prev) => ({ ...prev, [scopedKey]: false }));
+    }
+  };
 
   const updateAnswer = (
     key: string,
@@ -203,10 +387,10 @@ export default function AtelierPage() {
       const next = await apiService.startAtelierSession(
         Number.isFinite(conceptId) ? { preferred_concept_id: conceptId } : undefined
       );
-      hydrateSession(next);
+      hydrateSession(next, true);
     } catch (error) {
       console.error(error);
-      toast.error('Could not start the Atelier session.');
+      setLoadError('Could not start today’s session. Check the connection and retry from this screen.');
     } finally {
       setSubmitting(false);
     }
@@ -221,6 +405,7 @@ export default function AtelierPage() {
     setSubmitting(true);
     try {
       let result: AtelierAttemptResult;
+      const attemptKey = scopedKey;
       if (round === 'recognize') {
         result = await apiService.submitAtelierAttempt(session.session_id, {
           concept_id: activeConcept?.id,
@@ -255,10 +440,8 @@ export default function AtelierPage() {
           answer_payload: { text: answers[produceKey]?.text || '' },
         });
       }
-      setSubmitted((prev) => ({ ...prev, [scopedKey]: true }));
-      setCorrectionsByKey((prev) => ({ ...prev, [scopedKey]: result.correction }));
-      setRecentCorrection(result.correction);
-      setErrata((prev) => [...(result.correction.errata || []), ...prev]);
+      applyAttemptResult(attemptKey, result);
+      setSubmitted((prev) => ({ ...prev, [attemptKey]: true }));
       toast.success(result.verdict === 'correct' ? 'Correct' : 'Submitted');
     } catch (error) {
       console.error(error);
@@ -337,6 +520,58 @@ export default function AtelierPage() {
     }
   };
 
+  const openRecommendedReview = (action?: Extract<RecommendedAction, { kind: 'review' }>) => {
+    const errataDue = action?.errataDue ?? dayProgress.errataDue;
+    const vocabDue = action?.vocabularyDue ?? dayProgress.vocabularyDue;
+    if (errataDue > 0) {
+      const dueErratum = firstDueErratum(today, session);
+      if (dueErratum?.id) {
+        void openErratumReview(dueErratum.id);
+        return;
+      }
+    }
+    if (vocabDue > 0 || errataDue === 0) {
+      void router.push('/vocabulary/review');
+      return;
+    }
+    toast('Review queue is clear.');
+  };
+
+  const handleRecommendedAction = (action: RecommendedAction = recommendation) => {
+    if (action.kind === 'resume_session') {
+      if (session) {
+        const nextRound = isRoundName(action.round) ? action.round : 'recognize';
+        const nextConceptIndex = Math.max(0, Math.min(action.conceptIndex || 0, session.concepts.length - 1));
+        setRound(nextRound);
+        setActiveConceptIndex(nextConceptIndex);
+        if (nextRound === 'recognize' && recognizeModes.some((item) => item.id === action.mode)) {
+          setMode(action.mode as RecognizeMode);
+        }
+      }
+      setView('session');
+      return;
+    }
+    if (action.kind === 'start_session') {
+      void startSession();
+      return;
+    }
+    if (action.kind === 'review') {
+      openRecommendedReview(action);
+      return;
+    }
+    if (action.kind === 'mission') {
+      void router.push(`/missions${action.query}`);
+      return;
+    }
+    if (action.kind === 'feuilleton') {
+      void router.push(`/graphic-novel${action.query}`);
+      return;
+    }
+    if (action.kind === 'serial') {
+      void router.push(`/${action.episodeKind === 'mission' ? 'missions' : 'graphic-novel'}${action.query}`);
+    }
+  };
+
   const goNext = () => {
     if (!session) return;
     if (round === 'recognize') {
@@ -400,16 +635,23 @@ export default function AtelierPage() {
       </Head>
       <AtelierStyles />
       <div className="atelier-page">
-        <Masthead
-          view={view}
-          setView={setView}
-          hasSession={!!session}
-          streak={today?.summary?.streak || 0}
-        />
+        <Masthead view={view} />
         {loading ? (
           <div className="spread loading">LOADING ATELIER</div>
         ) : view === 'today' || !session ? (
-          <TodayView today={today} onStart={startSession} loading={submitting} onReviewErratum={openErratumReview} />
+          <TodayView
+            today={today}
+            activeSession={session}
+            onContinue={() => setView('session')}
+            onStart={startSession}
+            dayProgress={dayProgress}
+            recommendation={recommendation}
+            onRecommendedAction={handleRecommendedAction}
+            onOpenReview={() => openRecommendedReview()}
+            loading={submitting}
+            loadError={loadError}
+            onRetry={() => setReloadKey((key) => key + 1)}
+          />
         ) : (
           <SessionView
             session={session}
@@ -432,12 +674,29 @@ export default function AtelierPage() {
             goNext={goNext}
             recentCorrection={recentCorrection}
             errata={errata}
+            requestAiReview={requestAiReview}
+            aiReviewSubmitting={!!aiReviewSubmitting[scopedKey]}
             completedDrills={completedDrills}
             onBack={() => setView('today')}
             produceAnswer={answers[answerKey('produce', 'produce', null)]?.text || ''}
           />
         )}
-        {recap && <RecapModal recap={recap} concepts={session?.concepts || []} onClose={() => setRecap(null)} />}
+        {recap && (
+          <RecapModal
+            recap={recap}
+            concepts={session?.concepts || []}
+            recommendation={recommendation}
+            onRecommendedAction={() => {
+              setRecap(null);
+              setView('today');
+              handleRecommendedAction(recommendation);
+            }}
+            onClose={() => {
+              setRecap(null);
+              setView('today');
+            }}
+          />
+        )}
         {reviewTask && (
           <ErrataReviewOverlay
             task={reviewTask}
@@ -458,136 +717,909 @@ export default function AtelierPage() {
   );
 }
 
-function Masthead({
-  view,
-  setView,
-  hasSession,
-  streak,
-}: {
-  view: 'today' | 'session';
-  setView: (view: 'today' | 'session') => void;
-  hasSession: boolean;
-  streak: number;
-}) {
+function Masthead({ view }: { view: 'today' | 'session' }) {
+  if (view === 'today') return null;
+
   return (
     <EditorialMasthead
       active="studio"
-      studioControl={(
-        <button className={`app-nav-button ${view === 'today' ? 'active' : ''}`} onClick={() => setView('today')}>
-          Atelier
-        </button>
-      )}
-      sessionControl={(
-        <button
-          className={`app-nav-button ${view === 'session' ? 'active' : ''}`}
-          disabled={!hasSession}
-          onClick={() => setView('session')}
-        >
-          Session
-        </button>
-      )}
-      trailing={<span>Vincent · {streak || 0}d streak</span>}
+      hideMobileHeader={view === 'session'}
+      hideMobileNav={view === 'session'}
+      hideMobileTitle={false}
     />
   );
 }
 
 function TodayView({
   today,
+  activeSession,
+  onContinue,
   onStart,
+  dayProgress,
+  recommendation,
+  onRecommendedAction,
+  onOpenReview,
   loading,
-  onReviewErratum,
+  loadError,
+  onRetry,
 }: {
   today: AtelierToday | null;
+  activeSession: AtelierSessionStart | null;
+  onContinue: () => void;
   onStart: () => void;
+  dayProgress: DayProgress;
+  recommendation: RecommendedAction;
+  onRecommendedAction: (action?: RecommendedAction) => void;
+  onOpenReview: () => void;
   loading: boolean;
-  onReviewErratum: (errorId?: string) => void;
+  loadError: string | null;
+  onRetry: () => void;
 }) {
-  const concepts = today?.concepts || [];
-  const atlas = today?.atlas || [];
-  const due = today?.summary?.due || 0;
-  const fragile = today?.summary?.fragile || 0;
-  const dueErrata = today?.summary?.due_errata || today?.due_errata?.length || 0;
-  const quote = today?.quote || {};
+  const hasActiveSession = dayProgress.sessionStatus === 'active';
+  const concepts = activeSession?.concepts?.length ? activeSession.concepts : today?.concepts || [];
+  const dueErrata = dayProgress.errataDue || roadmapErrataCount(today, activeSession);
+  const grammarTopics = concepts.slice(0, 3).map(displayConceptTitle);
+  const canStart = hasActiveSession || concepts.length > 0;
+  const recommendedTarget = recommendedRoadmapTarget(recommendation);
+  const primaryAction = roadmapPrimaryAction(recommendation, loading, canStart, () => onRecommendedAction(recommendation));
+  const reviewTotal = recommendation.kind === 'review'
+    ? recommendation.errataDue + recommendation.vocabularyDue
+    : dayProgress.errataDue + dayProgress.vocabularyDue;
+  const reviewKindCount = [dayProgress.errataDue, dayProgress.vocabularyDue].filter((count) => count > 0).length;
+  const serialAction = serialActionFromToday(today, activeSession);
+  const serialEpisode = (today as any)?.serial_episode || (today as any)?.serial || null;
+  const serialKind = serialAction?.episodeKind
+    || (recommendation.kind === 'serial' ? recommendation.episodeKind : recommendedTarget === 'feuilleton' ? 'feuilleton' : 'mission');
+  const serialHref = serialAction
+    ? `/${serialAction.episodeKind === 'mission' ? 'missions' : 'graphic-novel'}${serialAction.query}`
+    : recommendation.kind === 'serial'
+      ? `/${recommendation.episodeKind === 'mission' ? 'missions' : 'graphic-novel'}${recommendation.query}`
+    : serialKind === 'mission'
+      ? '/atelier'
+      : '/atelier';
+  const serialDone = serialKind === 'mission' ? dayProgress.missionDone : dayProgress.feuilletonDone;
+  const sessionComplete = dayProgress.sessionStatus === 'completed';
+  const positionRound = activeSession?.current_position?.round;
+  const activeRound = recommendation.kind === 'resume_session' && isRoundName(recommendation.round)
+    ? recommendation.round
+    : isRoundName(positionRound)
+      ? positionRound
+      : 'recognize';
+  const activeRoundIndex = Math.max(0, roundLabels.findIndex((item) => item.id === activeRound));
+  const editionDate = formatAtelierEditionDate();
+  const streak = atelierEditionStreak(today, activeSession);
+  const submittedCount = sessionSubmittedCount(activeSession);
+  const completedSignatureCount = sessionComplete ? roundLabels.length : Math.min(activeRoundIndex, roundLabels.length);
+  const signatureSub = hasActiveSession
+    ? `${Math.max(completedSignatureCount, Math.min(submittedCount, roundLabels.length))} of ${roundLabels.length} signatures set`
+    : `${grammarFocusCountLabel(concepts.length || grammarTopics.length)} · ${plannedAtelierDrills(concepts, activeSession)} drills`;
+  const currentPanelLabel = hasActiveSession ? 'Resume · in progress' : 'Today · grammar';
+  const currentPanelFoci = canStart
+    ? hasActiveSession
+      ? [currentRoundFocus(activeSession, activeRound, grammarTopics)]
+      : grammarTopics.length
+        ? grammarTopics
+        : ['Session not ready']
+    : ['Session not ready'];
+  const nodes: RoadmapNode[] = [
+    { id: 'grammar', label: currentPanelLabel, target: activeRound },
+    { id: 'review', label: 'Review', target: 'review' },
+    { id: 'living-thread', label: 'Living thread', target: serialKind, href: serialHref },
+  ];
+
+  if (loadError && !today && !hasActiveSession) {
+    return (
+      <main className="atelier-edition-stage">
+        <AtelierRoadmapEmpty onRetry={onRetry} />
+      </main>
+    );
+  }
 
   return (
-    <main className="spread today-spread">
-      <header className="atelier-title">
-        <div>
-          <div className="t-mono">DAILY LEARNING LOOP</div>
-          <h1>Atelier</h1>
-        </div>
-        <button className="btn red lg" onClick={onStart} disabled={loading || concepts.length === 0}>
-          {loading ? 'STARTING' : 'BEGIN SESSION'} <ArrowRight size={14} />
-        </button>
-      </header>
+    <main className="atelier-edition-stage">
+      <section className={`ph ${recommendation.kind === 'rest' ? 'is-rest' : ''}`} aria-label="Atelier roadmap">
+        <AtelierEditionHead title="Atelier" />
+        <div className={`ph-body ${recommendation.kind === 'rest' ? 'center' : ''}`}>
+          {loadError && <AtelierLoadNotice message={loadError} onRetry={onRetry} />}
 
-      <section className="paper-frame atelier-passport">
-        <CropMarks />
-        <div className="passport-grid">
-          <div className="practice-summary">
-            <div className="atelier-kicker">
-              <span>{due} due</span>
-              <span>{dueErrata} errata</span>
-              <span>{fragile} fragile</span>
-            </div>
-            <h2>Today&apos;s practice</h2>
-            <p>9 recognition drills, 9 rewrites, and one writing task. Start with the useful repair, then carry it into Missions or Feuilleton.</p>
-          </div>
-          <div className="quote-card">
-            <span className="t-mono-low">Desk note</span>
-            <p className="fr">« {quote.text || 'On ne voit bien qu’avec le coeur.'} »</p>
-            <p className="quote-author">— {quote.source || 'Antoine de Saint-Exupéry'}</p>
-            {quote.source_detail && <p className="quote-source">Source: {quote.source_detail}</p>}
-          </div>
-        </div>
-        <div className="atelier-loop" aria-label="Atelier loop">
-          <span>Recognize</span>
-          <ArrowRight size={13} />
-          <span>Transform</span>
-          <ArrowRight size={13} />
-          <span>Write</span>
-          <ArrowRight size={13} />
-          <span>Use</span>
-        </div>
-      </section>
+          {recommendation.kind === 'rest' ? (
+            <>
+              <AtelierEditionHeader
+                rubric="Edition closed"
+                rubricMuted
+                date={editionDate}
+                sub={`Day ${streak} · unbroken`}
+                streak={streak}
+              />
+              <AtelierEditionClosed
+                reviewTotal={reviewTotal}
+                datestamp={formatAtelierDatestamp()}
+              />
+            </>
+          ) : (
+            <>
+              <AtelierEditionHeader
+                rubric={hasActiveSession ? "Today's edition · in press" : "Today's edition"}
+                date={editionDate}
+                sub={signatureSub}
+                streak={streak}
+              />
+              <div className="spine" data-node-count={nodes.length}>
+                {roundLabels.map((item, index) => {
+                  const state = sessionComplete
+                    ? 'done'
+                    : index < activeRoundIndex && dayProgress.sessionStatus !== 'none'
+                      ? 'done'
+                      : index === activeRoundIndex
+                        ? 'current'
+                        : 'up';
+                  return (
+                    <AtelierEditionStep
+                      key={item.id}
+                      roman={item.roman}
+                      name={item.label}
+                      meta={roundMetaLabel(state, dayProgress.sessionStatus)}
+                      state={state}
+                      first={index === 0}
+                    >
+                      {state === 'current' && (
+                        <AtelierCurrentPanel
+                          label={currentPanelLabel}
+                          foci={currentPanelFoci}
+                          errataCount={dueErrata}
+                          cta={primaryAction}
+                          disabled={loading || (recommendation.kind === 'start_session' && !canStart)}
+                        />
+                      )}
+                    </AtelierEditionStep>
+                  );
+                })}
+                <AtelierEditionStep
+                  roman="R"
+                  name="Review"
+                  meta={reviewTotal > 0
+                    ? `${reviewTotal} to review${recommendedTarget === 'review' && reviewKindCount > 1 ? ` · ${reviewKindCount} kinds` : ''}`
+                    : 'Queue clear'}
+                  state={recommendedTarget === 'review' ? 'current' : reviewTotal > 0 ? 'up' : 'done'}
+                  review
+                  badge={recommendedTarget !== 'review' && reviewTotal > 0 ? String(reviewTotal) : undefined}
+                  metaGo={recommendedTarget === 'review'}
+                  last
+                >
+                  {recommendedTarget === 'review' && (
+                    <AtelierReviewOpen
+                      errataDue={dayProgress.errataDue}
+                      vocabularyDue={dayProgress.vocabularyDue}
+                      onOpenReview={onOpenReview}
+                    />
+                  )}
+                </AtelierEditionStep>
+              </div>
 
-      <section className="today-set-head">
-        <span className="t-mono">TODAY&apos;S SET</span>
-      </section>
-      <section className="grid-12 concept-grid">
-        {concepts.map((concept, index) => (
-          <div key={concept.id} className="grid-span-4">
-            <ConceptCover concept={concept} index={index} />
-          </div>
-        ))}
-      </section>
-
-      <section className="stat-row">
-        <Stat num={due} label="DUE" sub={due ? 'concepts ready' : 'clear today'} />
-        <Stat num={dueErrata} label="ERRATA" sub={dueErrata ? 'mistakes due' : 'no slips due'} accent="var(--red)" />
-        <Stat num={fragile} label="FRAGILE" sub={fragile ? 'low mastery' : 'no weak spots'} />
-        <Stat num={today?.summary?.streak || 0} label="STREAK" sub="grammar days" />
-      </section>
-
-      <section className="grid-12 lower-board">
-        <div className="grid-span-8">
-          <Atlas items={atlas} />
-        </div>
-        <div className="grid-span-4 side-stack">
-          {Boolean(today?.due_errata?.length) && (
-            <DueErrataList items={today?.due_errata || []} onReview={onReviewErratum} />
+              <div className="branch">
+                <div className="branch-head"><span className="t">Living thread</span></div>
+                <SerialThreadCard
+                  kind={serialKind}
+                  href={serialHref}
+                  episodeLabel={serialEpisodeLabel(serialAction || recommendation)}
+                  status={serialEpisode?.status}
+                  hookText={serialEpisode?.hook?.teaser || serialEpisode?.hook?.text || serialEpisode?.previously}
+                  invited={recommendation.kind !== 'serial' && !serialDone}
+                  recommended={recommendedTarget === serialKind}
+                  done={serialDone}
+                />
+              </div>
+            </>
           )}
-          <NotebookBridge concepts={concepts} dueErrata={dueErrata} />
-          <MissionBridge concepts={concepts} />
-          <PriorityList items={atlas} selectedIds={concepts.map((concept) => concept.id)} />
         </div>
+        <AtelierEditionNav active="atelier" />
       </section>
-
-      <footer className="atelier-footer">
-        <span>Atelier · Today&apos;s Set</span>
-        <span>local curated quote list · cached exercise sets</span>
-      </footer>
     </main>
+  );
+}
+
+function recommendedRoadmapTarget(action: RecommendedAction): RoadmapTarget {
+  if (action.kind === 'start_session') return 'recognize';
+  if (action.kind === 'resume_session') return isRoundName(action.round) ? action.round : 'recognize';
+  if (action.kind === 'serial') return action.episodeKind;
+  return action.kind;
+}
+
+function roadmapPrimaryAction(
+  action: RecommendedAction,
+  loading: boolean,
+  canStart: boolean,
+  onClick: () => void,
+): RoadmapAction | null {
+  if (action.kind === 'rest') return null;
+  if (action.kind === 'start_session') {
+    return { label: loading ? 'Starting' : canStart ? 'Begin session' : 'Retry setup', onClick };
+  }
+  if (action.kind === 'resume_session') {
+    const roundLabel = isRoundName(action.round)
+      ? roundLabels.find((item) => item.id === action.round)?.label
+      : null;
+    return { label: roundLabel ? `Continue · ${roundLabel}` : 'Continue session', onClick };
+  }
+  if (action.kind === 'review') {
+    const total = action.errataDue + action.vocabularyDue;
+    return { label: `Review ${total} item${total === 1 ? '' : 's'}`, onClick };
+  }
+  if (action.kind === 'mission') return { label: 'Use in mission', onClick };
+  if (action.kind === 'serial') return { label: action.episodeKind === 'mission' ? 'Reply in story' : 'Continue story', onClick };
+  return { label: 'Read Feuilleton', onClick };
+}
+
+function formatAtelierEditionDate(date = new Date()) {
+  const formatted = new Intl.DateTimeFormat('fr-FR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  }).format(date);
+  return formatted.charAt(0).toUpperCase() + formatted.slice(1);
+}
+
+function formatAtelierDatestamp(date = new Date()) {
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = String(date.getFullYear()).slice(-2);
+  return `Closed · ${day} · ${month} · ${year}`;
+}
+
+function atelierEditionStreak(today: AtelierToday | null, activeSession: AtelierSessionStart | null) {
+  const value = Number(
+    today?.summary?.streak_days
+      ?? today?.summary?.streak
+      ?? activeSession?.recap?.streak_after
+      ?? activeSession?.recap?.streak_before
+      ?? 12,
+  );
+  return Number.isFinite(value) && value > 0 ? Math.round(value) : 12;
+}
+
+function grammarFocusCountLabel(count: number) {
+  if (count <= 0) return 'No grammar foci';
+  if (count === 1) return 'One grammar focus';
+  const words: Record<number, string> = {
+    2: 'Two',
+    3: 'Three',
+    4: 'Four',
+    5: 'Five',
+    6: 'Six',
+  };
+  return `${words[count] || String(count)} grammar foci`;
+}
+
+function plannedAtelierDrills(concepts: AtelierConcept[], activeSession: AtelierSessionStart | null) {
+  const sessionTotal = totalDrills(activeSession);
+  if (sessionTotal > 0) return sessionTotal;
+  if (concepts.length > 0) return concepts.length * (recognizeModes.length + 4) + 1;
+  return 0;
+}
+
+function currentRoundFocus(
+  session: AtelierSessionStart | null,
+  activeRound: RoundName,
+  grammarTopics: string[],
+) {
+  const conceptIndex = Math.max(0, Math.min(session?.current_position?.concept_index || 0, Math.max(grammarTopics.length - 1, 0)));
+  const topic = grammarTopics[conceptIndex] || grammarTopics[0] || 'Today’s grammar';
+  return `${topic} — ${roundFocusInstruction(activeRound)}`;
+}
+
+function roundFocusInstruction(round: RoundName) {
+  if (round === 'recognize') return 'recognize the pattern';
+  if (round === 'transform') return 'rewrite with precision';
+  if (round === 'sentence') return 'write one full sentence';
+  if (round === 'produce') return 'shape a short paragraph';
+  if (round === 'speak') return 'say it aloud';
+  return 'use it in a reply';
+}
+
+function roundMetaLabel(state: 'done' | 'current' | 'up', sessionStatus: DayProgress['sessionStatus']) {
+  if (state === 'done') return 'done';
+  if (state === 'current') return sessionStatus === 'none' ? 'Start here' : 'Continue here';
+  return 'up next';
+}
+
+type AtelierEditionStepState = 'done' | 'current' | 'up';
+
+function AtelierEditionHead({ title }: { title: string }) {
+  return (
+    <header className="ph-head">
+      <span className="mark"><AtelierEditionMark size={26} /></span>
+      <span className="ttl">{title}</span>
+      <Link className="gear" href="/settings" aria-label="Settings"><AtelierEditionGear /></Link>
+    </header>
+  );
+}
+
+function AtelierEditionHeader({
+  rubric,
+  rubricMuted,
+  date,
+  sub,
+  streak,
+}: {
+  rubric: string;
+  rubricMuted?: boolean;
+  date: string;
+  sub?: string;
+  streak?: number;
+}) {
+  return (
+    <div className="edition">
+      <div>
+        <div className={`rubric ${rubricMuted ? 'muted' : ''}`}>{rubric}</div>
+        <h1>{date}</h1>
+        {sub && <div className="sub">{sub}</div>}
+      </div>
+      {streak != null && (
+        <div className="stamp">
+          <div className="cap">DAY</div>
+          <div className="n">{streak}</div>
+          <div className="rules">
+            {[0, 1, 2, 3, 4, 5].map((item) => <i key={item} className={item < 5 ? 'on' : ''} />)}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AtelierEditionStep({
+  roman,
+  name,
+  meta,
+  state,
+  first,
+  last,
+  review,
+  badge,
+  metaGo,
+  children,
+}: {
+  roman: string;
+  name: string;
+  meta: string;
+  state: AtelierEditionStepState;
+  first?: boolean;
+  last?: boolean;
+  review?: boolean;
+  badge?: string;
+  metaGo?: boolean;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div className={`step ${state} ${first ? 'is-first' : ''} ${last ? 'is-last' : ''}`}>
+      <span className={`plate ${state} ${review ? 'review' : ''} ${review && state !== 'up' && badge ? 'live' : ''}`}>
+        {state === 'done' ? <AtelierEditionCheck /> : roman}
+        {badge != null && <span className="badge">{badge}</span>}
+      </span>
+      <div className="node">
+        <div className="name">{name}</div>
+        <div className={`meta ${metaGo || state === 'current' ? 'go' : ''}`}>{meta}</div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function AtelierCurrentPanel({
+  label,
+  foci,
+  errataCount,
+  cta,
+  disabled,
+}: {
+  label: string;
+  foci: string[];
+  errataCount?: number;
+  cta?: RoadmapAction | null;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="current-panel">
+      <div className="label">{label}</div>
+      <div className="foci">
+        {foci.slice(0, 3).map((focus) => <div className="f" key={focus}>{focus}</div>)}
+        {errataCount && errataCount > 0 ? <div className="f errata">Errata · {errataCount} repair{errataCount === 1 ? '' : 's'}</div> : null}
+      </div>
+      {cta && (
+        <button className="cta" onClick={cta.onClick} disabled={disabled}>
+          {cta.label} <AtelierEditionArrow />
+        </button>
+      )}
+    </div>
+  );
+}
+
+function AtelierReviewOpen({
+  errataDue,
+  vocabularyDue,
+  onOpenReview,
+}: {
+  errataDue: number;
+  vocabularyDue: number;
+  onOpenReview: () => void;
+}) {
+  const total = errataDue + vocabularyDue;
+  const kindCount = [vocabularyDue, errataDue].filter((count) => count > 0).length;
+  return (
+    <div className="review-open-wrap">
+      <div className="review-open">
+        <div className="r">
+          <span className="dot vocab" />
+          <span className="lab"><b>Vocabulary cards</b><em>French 5000 · spaced</em></span>
+          <span className="ct">{vocabularyDue}</span>
+        </div>
+        <div className="r">
+          <span className="dot errata" />
+          <span className="lab"><b>Grammar errata</b><em>Repairs from past slips</em></span>
+          <span className="ct">{errataDue}</span>
+        </div>
+      </div>
+      <button className="cta" onClick={onOpenReview}>
+        Review {total} item{total === 1 ? '' : 's'} <AtelierEditionArrow />
+      </button>
+      {kindCount > 1 && <div className="review-kind-note">{kindCount} kinds</div>}
+    </div>
+  );
+}
+
+function AtelierQuest({
+  kind,
+  title,
+  href,
+  copy,
+  recommended,
+  done,
+}: {
+  kind: 'mission' | 'feuilleton';
+  title: string;
+  href: string;
+  copy: string;
+  recommended?: boolean;
+  done?: boolean;
+}) {
+  const tag = done
+    ? 'Thread beat done'
+    : recommended
+      ? '● Next beat'
+      : "Thread beat · with today's French";
+  return (
+    <Link className={`quest ${recommended ? 'recommended' : ''} ${done ? 'done' : ''}`} href={href}>
+      {kind === 'mission' ? (
+        <svg className="shape triangle" viewBox="0 0 92 82" aria-hidden="true">
+          <path d="M46 5L87 77H5L46 5Z" />
+        </svg>
+      ) : (
+        <svg className="shape circle" viewBox="0 0 86 86" aria-hidden="true">
+          <circle cx="43" cy="43" r="36" />
+        </svg>
+      )}
+      <span>
+        <span className="tag">{tag}</span>
+        <h3>{title}</h3>
+        <p>{copy}</p>
+      </span>
+    </Link>
+  );
+}
+
+function SerialThreadCard({
+  kind,
+  href,
+  episodeLabel,
+  status,
+  hookText,
+  invited,
+  recommended,
+  done,
+}: {
+  kind: 'mission' | 'feuilleton';
+  href: string;
+  episodeLabel: string;
+  status?: string;
+  hookText?: string;
+  invited: boolean;
+  recommended?: boolean;
+  done?: boolean;
+}) {
+  const variant = status === 'delayed' ? 'rest' : done ? 'rest' : invited ? 'invite' : kind === 'mission' ? 'act' : 'see';
+  const who = done ? 'romy' : invited ? 'margaux' : kind === 'mission' ? 'marchand' : 'marin';
+  const copy = serialThreadCopy({ kind, invited, done, episodeLabel, status, hookText });
+  return (
+    <Link className={`s-thread ${variant} ${recommended ? 'recommended' : ''}`} href={href} data-char={who}>
+      <div className="ttop">
+        <AtelierEditionMark size={18} />
+        <span className="ser">The serial</span>
+        <span className="ep">{copy.episode}</span>
+      </div>
+      {copy.previously && <div className="prev"><b>Previously —</b> {copy.previously}</div>}
+      <div className="tmain" data-char={who}>
+        <SerialAvatar who={who} mood={kind === 'mission' ? 'confused' : 'warm'} />
+        <div>
+          <div className="beat">{copy.beat}</div>
+          <h2>{copy.title}</h2>
+          <div className="sub">{copy.sub}</div>
+        </div>
+      </div>
+      {!done && (
+        <div className={`tcta ${kind === 'feuilleton' || invited ? 'ink' : ''}`}>
+          {copy.cta} <SerialArrowIcon />
+        </div>
+      )}
+    </Link>
+  );
+}
+
+function serialEpisodeLabel(action: RecommendedAction) {
+  if (action.kind !== 'serial') return 'Episode 1';
+  const params = new URLSearchParams(action.query.replace(/^\?/, ''));
+  const index = Number(params.get('episode_index'));
+  if (!Number.isFinite(index)) return 'Episode';
+  return `Episode ${index + 1}`;
+}
+
+function serialThreadCopy({
+  kind,
+  invited,
+  done,
+  episodeLabel,
+  status,
+  hookText,
+}: {
+  kind: 'mission' | 'feuilleton';
+  invited: boolean;
+  done?: boolean;
+  episodeLabel: string;
+  status?: string;
+  hookText?: string;
+}) {
+  if (status === 'delayed') {
+    return {
+      episode: `${episodeLabel} · delayed`,
+      previously: '',
+      beat: "L'édition de demain est retardée",
+      title: 'The presses are paused.',
+      sub: 'The story writer is unavailable, so the serial waits instead of replaying the opener.',
+      cta: 'Retry edition',
+    };
+  }
+  if (status === 'generating') {
+    return {
+      episode: `${episodeLabel} · printing`,
+      previously: '',
+      beat: "Tomorrow's edition is at the printer's",
+      title: 'The script is ready.',
+      sub: 'Panels will appear as the image desk finishes them.',
+      cta: 'Open edition',
+    };
+  }
+  if (done) {
+    return {
+      episode: `${episodeLabel} · settled`,
+      previously: 'you sent the story forward.',
+      beat: '— Fin de l’épisode —',
+      title: 'You’re caught up.',
+      sub: 'The next installment is still being typeset. Let the cliffhanger sit overnight.',
+      cta: '',
+    };
+  }
+  if (invited) {
+    return {
+      episode: `${episodeLabel} · begins`,
+      previously: '',
+      beat: 'A new serial',
+      title: '“L’arrivée”',
+      sub: 'A café in the 11th, a key that will not turn, and people who will remember you. Your French moves the story.',
+      cta: 'Begin episode 1',
+    };
+  }
+  if (kind === 'mission') {
+    return {
+      episode: `${episodeLabel} · Act`,
+      previously: 'the last panel left someone waiting for your answer.',
+      beat: 'Le monde attend ta réponse',
+      title: 'The world is waiting for your reply',
+      sub: 'Write the next message and let the town answer in fiction.',
+      cta: 'Reply in story',
+    };
+  }
+  return {
+    episode: `${episodeLabel} · See`,
+    previously: hookText || 'the reply you wrote becomes the scene.',
+    beat: 'New episode ready',
+    title: 'Continue the story',
+    sub: 'See what your last message changed, then leave on the next hook.',
+    cta: 'Read episode',
+  };
+}
+
+function SerialAvatar({ who, mood }: { who: string; mood?: 'warm' | 'confused' | 'cool' }) {
+  const initials: Record<string, string> = {
+    marin: 'M',
+    lila: 'L',
+    gus: 'G',
+    romy: 'R',
+    margaux: 'Mx',
+    marchand: 'M·',
+    toi: 'T',
+  };
+  return (
+    <span className="s-ava lg" data-char={who} style={(initials[who] || 'T').length > 1 ? { fontSize: 19 } : undefined}>
+      {initials[who] || 'T'}
+      {mood && <span className={`mood-pip ${mood}`}><i /></span>}
+    </span>
+  );
+}
+
+function SerialArrowIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="square" aria-hidden="true">
+      <path d="M4 12h15M13 6l6 6-6 6" />
+    </svg>
+  );
+}
+
+function AtelierEditionClosed({ reviewTotal, datestamp }: { reviewTotal: number; datestamp: string }) {
+  return (
+    <div className="closed">
+      <div className="rubric">— Fin —</div>
+      <div className="endmark" />
+      <h2>Edition complete.</h2>
+      <p className="lead">Session, review, mission and Feuilleton are all settled. You&apos;re done for today &mdash; let the spacing do its quiet work.</p>
+      <div className="ledger">
+        <div className="row"><span>Session · I–VI</span><b><AtelierEditionCheck />Printed</b></div>
+        <div className="row"><span>{reviewTotal > 0 ? `Review · ${reviewTotal} items` : 'Review'}</span><b><AtelierEditionCheck />Cleared</b></div>
+        <div className="row"><span>Mission</span><b><AtelierEditionCheck />Filed</b></div>
+        <div className="row"><span>Feuilleton</span><b><AtelierEditionCheck />Read</b></div>
+      </div>
+      <Link className="free" href="/practice">Free practice, if you like <AtelierEditionArrow /></Link>
+      <div className="datestamp">{datestamp}</div>
+    </div>
+  );
+}
+
+function AtelierEditionNav({
+  active = 'atelier',
+  variant = 'two',
+}: {
+  active?: 'atelier' | 'notebook';
+  variant?: 'two' | 'three';
+}) {
+  if (variant === 'three') {
+    return (
+      <nav className="ph-nav three" aria-label="Primary">
+        <Link className={active === 'atelier' ? 'active' : ''} href="/atelier">
+          <AtelierEditionMarkTab /><span>Today</span>
+        </Link>
+        <Link className="center-act" href="/practice">
+          <AtelierEditionPenNib /><span className="lbl">Practise</span>
+        </Link>
+        <Link className={active === 'notebook' ? 'active' : ''} href="/notebook">
+          <AtelierEditionBookTab /><span>Notebook</span>
+        </Link>
+      </nav>
+    );
+  }
+
+  return (
+    <nav className="ph-nav" aria-label="Primary">
+      <Link className={active === 'atelier' ? 'active' : ''} href="/atelier">
+        <AtelierEditionMarkTab /><span>Today</span>
+      </Link>
+      <Link className={active === 'notebook' ? 'active' : ''} href="/notebook">
+        <AtelierEditionBookTab /><span>Notebook</span>
+      </Link>
+    </nav>
+  );
+}
+
+function AtelierEditionPenNib() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square" aria-hidden="true">
+      <path d="M5 19l3-9 9-5-5 9-7 5z" />
+      <path d="M8 16l4-4" />
+      <circle cx="13" cy="11" r="1.4" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+function AtelierEditionMark({ size = 26 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 28 28" aria-hidden="true">
+      <rect x="0" y="0" width="11" height="11" fill="var(--ink)" />
+      <circle cx="22" cy="6" r="6" fill="var(--blue)" />
+      <rect x="0" y="17" width="11" height="11" fill="var(--yellow)" />
+      <path d="M17 28L23 16L28 28H17Z" fill="var(--red)" />
+    </svg>
+  );
+}
+
+function AtelierEditionGear() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <circle cx="12" cy="12" r="3.2" />
+      <path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.2 5.2l2.1 2.1M16.7 16.7l2.1 2.1M18.8 5.2l-2.1 2.1M7.3 16.7l-2.1 2.1" />
+    </svg>
+  );
+}
+
+function AtelierEditionArrow() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="square" aria-hidden="true">
+      <path d="M4 12h15M13 6l6 6-6 6" />
+    </svg>
+  );
+}
+
+function AtelierEditionCheck() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="square" aria-hidden="true">
+      <path d="M4 12.5l5 5 11-12" />
+    </svg>
+  );
+}
+
+function AtelierEditionMarkTab() {
+  return (
+    <svg viewBox="0 0 20 20" aria-hidden="true">
+      <rect x="0" y="0" width="8" height="8" fill="currentColor" />
+      <path d="M20 0 A 12 12 0 0 0 8 12 L 20 12 Z" fill="currentColor" />
+      <rect x="0" y="12" width="8" height="8" fill="currentColor" />
+    </svg>
+  );
+}
+
+function AtelierEditionBookTab() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <rect x="3" y="2" width="13" height="16" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M3 4h13M3 6h13" stroke="currentColor" strokeWidth="1" />
+      <path d="M11 2v8l-2-2-2 2V2" fill="currentColor" />
+    </svg>
+  );
+}
+
+function displayConceptTitle(concept: AtelierConcept) {
+  return String(concept.atelier_blueprint?.display_title || concept.name || 'Grammar focus');
+}
+
+function roadmapErrataCount(today: AtelierToday | null, activeSession: AtelierSessionStart | null) {
+  const sessionCount = activeSession?.due_errata?.length || 0;
+  const summaryCount = Number(today?.summary?.due_errata ?? today?.due_errata?.length ?? 0);
+  return Math.max(sessionCount, Number.isFinite(summaryCount) ? summaryCount : 0);
+}
+
+function firstDueErratum(today: AtelierToday | null, activeSession: AtelierSessionStart | null) {
+  return activeSession?.due_errata?.find((item) => item.id)
+    || today?.due_errata?.find((item) => item.id)
+    || today?.concepts?.flatMap((concept) => concept.due_errata || []).find((item) => item.id)
+    || null;
+}
+
+function AtelierRoadmapEmpty({ onRetry }: { onRetry: () => void }) {
+  return (
+    <section className="ph" aria-label="Atelier roadmap">
+      <AtelierEditionHead title="Atelier" />
+      <div className="ph-body">
+        <AtelierEditionHeader
+          rubric="Today's edition"
+          date={formatAtelierEditionDate()}
+          sub="Session not ready"
+          streak={atelierEditionStreak(null, null)}
+        />
+        <div className="spine">
+          <AtelierEditionStep roman="I" name="Recognize" meta="Start here" state="current" first last>
+            <AtelierCurrentPanel
+              label="Today · grammar"
+              foci={['Session not ready']}
+              cta={{ label: 'Retry setup', onClick: onRetry }}
+            />
+          </AtelierEditionStep>
+        </div>
+      </div>
+      <AtelierEditionNav active="atelier" />
+    </section>
+  );
+}
+
+function sessionSubmittedCount(session: AtelierSessionStart | null) {
+  if (!session) return 0;
+  return Object.values(session.submitted_map || {}).filter(Boolean).length;
+}
+
+function activeSessionLabel(session: AtelierSessionStart) {
+  const position = session.current_position || {};
+  const roundId = position.round && position.round !== 'complete' ? position.round : 'produce';
+  const roundLabel = roundLabels.find((item) => item.id === roundId)?.label || 'Writing';
+  const conceptIndex = typeof position.concept_index === 'number'
+    ? position.concept_index
+    : Math.max(0, session.concepts.findIndex((concept) => concept.id === position.concept_id));
+  const concept = session.concepts[Math.max(0, Math.min(conceptIndex, session.concepts.length - 1))];
+  return `${roundLabel}${concept ? ` · ${concept.atelier_blueprint?.display_title || concept.name}` : ''}`;
+}
+
+function vocabularyTranslation(item: VocabularyRecommendationItem) {
+  return item.translation || item.translations?.de || item.translations?.en || item.translations?.fr || 'target word';
+}
+
+function AtelierLoadNotice({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <section className="atelier-load-notice">
+      <div>
+        <span className="t-mono red">OFFLINE</span>
+        <p>{message}</p>
+      </div>
+      <button className="btn solid" onClick={onRetry}>Retry</button>
+    </section>
+  );
+}
+
+function AtelierContinueCard({
+  session,
+  completed,
+  total,
+  onContinue,
+}: {
+  session: AtelierSessionStart;
+  completed: number;
+  total: number;
+  onContinue: () => void;
+}) {
+  const progress = total ? Math.min(100, Math.round((completed / total) * 100)) : 0;
+  return (
+    <section className="paper-frame continue-card">
+      <CropMarks />
+      <div>
+        <div className="t-mono red">IN PROGRESS</div>
+        <h2>Continue today</h2>
+        <p>{activeSessionLabel(session)}</p>
+        <div className="session-progress-bar" aria-label={`${completed} of ${total} drills complete`}>
+          <span style={{ width: `${progress}%` }} />
+        </div>
+        <div className="continue-meta">
+          <span>{completed}/{total || '–'} submitted</span>
+          <span>{session.target_vocabulary?.length || 0} words inside session</span>
+        </div>
+      </div>
+      <button className="btn red lg" onClick={onContinue}>
+        Continue <ArrowRight size={15} />
+      </button>
+      {Boolean(session.target_vocabulary?.length) && (
+        <VocabularyFocus words={session.target_vocabulary} compact className="continue-vocab" />
+      )}
+    </section>
+  );
+}
+
+function VocabularyFocus({
+  words,
+  compact = false,
+  className = '',
+}: {
+  words?: VocabularyRecommendationItem[];
+  compact?: boolean;
+  className?: string;
+}) {
+  const items = (words || []).slice(0, compact ? 3 : 5);
+  if (!items.length) return null;
+  return (
+    <section className={`vocab-focus ${compact ? 'compact' : ''} ${className}`}>
+      <header>
+        <span className="t-mono">TODAY&apos;S WORDS</span>
+      </header>
+      <div className="vocab-focus-list">
+        {items.map((item) => (
+          <span key={`${item.word_id}-${item.bucket}`}>
+            <strong>{item.word}</strong>
+            <em>{vocabularyTranslation(item)}</em>
+          </span>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -621,9 +1653,10 @@ function NotebookBridge({ concepts, dueErrata }: { concepts: AtelierConcept[]; d
 }
 
 function MissionBridge({ concepts }: { concepts: AtelierConcept[] }) {
+  const query = conceptQueryString(concepts);
   const conceptIds = concepts.map((concept) => `concept_id=${concept.id}`).join('&');
   return (
-    <section className="paper-2 mission-bridge">
+    <section className="paper-2 mission-bridge" data-context-query={query}>
       <header>
         <div>
           <span className="t-mono">MISSION</span>
@@ -639,6 +1672,11 @@ function MissionBridge({ concepts }: { concepts: AtelierConcept[] }) {
       </Link>
     </section>
   );
+}
+
+function conceptQueryString(concepts: AtelierConcept[]) {
+  const conceptIds = concepts.map((concept) => `concept_id=${concept.id}`).join('&');
+  return conceptIds ? `?${conceptIds}` : '';
 }
 
 function DueErrataList({ items, onReview }: { items: AtelierErratum[]; onReview: (errorId?: string) => void }) {
@@ -759,6 +1797,8 @@ function SessionView({
   goNext,
   recentCorrection,
   errata,
+  requestAiReview,
+  aiReviewSubmitting,
   completedDrills,
   onBack,
   produceAnswer,
@@ -783,6 +1823,8 @@ function SessionView({
   goNext: () => void;
   recentCorrection: Record<string, any> | null;
   errata: any[];
+  requestAiReview: () => void;
+  aiReviewSubmitting: boolean;
   completedDrills: number;
   onBack: () => void;
   produceAnswer: string;
@@ -792,9 +1834,38 @@ function SessionView({
   const currentCorrection = correctionsByKey[currentKey] || null;
   const currentSubmitted = !!submitted[currentKey];
   const total = totalDrills(session);
+  const progress = total ? Math.min(100, Math.round((completedDrills / total) * 100)) : 0;
+  const activeRoundLabel = roundLabels.find((item) => item.id === round)?.label || 'Practice';
+  const activeRecognizeLabel = recognizeModes.find((item) => item.id === mode)?.label || 'Recognize';
+  const activeConceptTitle = activeConcept?.atelier_blueprint?.display_title || activeConcept?.name || 'Daily session';
 
   return (
     <main className="spread session-spread">
+      <section className="mobile-session-topbar">
+        <button className="mobile-back-button" onClick={onBack}>Back</button>
+        <div>
+          <span className="t-mono-low">ATELIER</span>
+          <strong>{completedDrills}/{total || '–'}</strong>
+        </div>
+        <button className="mobile-quiet-button" onClick={completeSession} disabled={submitting || completedDrills < total}>Finish</button>
+      </section>
+      <section className="mobile-session-brief">
+        <div className="session-progress-bar" aria-label={`${completedDrills} of ${total} drills complete`}>
+          <span style={{ width: `${progress}%` }} />
+        </div>
+        <div className="mobile-session-heading">
+          <span className="t-mono red">{activeRoundLabel}</span>
+          <h1>{activeConceptTitle}</h1>
+          {round === 'recognize' && <p>{activeRecognizeLabel}</p>}
+        </div>
+        <VocabularyFocus words={session.target_vocabulary} compact className="mobile-vocab-focus" />
+        {activeSet && activeConcept && (
+          <details className="mobile-context-details">
+            <summary>Rule card</summary>
+            <ConceptRulePanel payload={activeSet} concept={activeConcept} />
+          </details>
+        )}
+      </section>
       <section className="session-title-row">
         <div>
           <button className="btn ghost" onClick={onBack}>← BACK</button>
@@ -815,6 +1886,8 @@ function SessionView({
             <SentenceXRay xray={activeSet.xray} />
             <ConceptRulePanel payload={activeSet} concept={activeConcept} />
           </section>
+
+          <VocabularyFocus words={session.target_vocabulary} className="desktop-vocab-focus" />
 
           <section className="grid-12 work-grid">
             <div className="grid-span-8">
@@ -855,6 +1928,8 @@ function SessionView({
                     updateAnswer={updateAnswer}
                     correction={currentCorrection}
                     submitted={currentSubmitted}
+                    onRequestAiReview={requestAiReview}
+                    aiReviewSubmitting={aiReviewSubmitting}
                   />
                   <ActionRow submitting={submitting} submitted={currentSubmitted} submitAttempt={submitAttempt} goNext={goNext} />
                 </div>
@@ -869,6 +1944,8 @@ function SessionView({
                     updateAnswer={(value) => updateAnswer('text', value, round, round, activeConcept?.id)}
                     correction={currentCorrection}
                     submitted={currentSubmitted}
+                    onRequestAiReview={requestAiReview}
+                    aiReviewSubmitting={aiReviewSubmitting}
                   />
                   <ActionRow
                     submitting={submitting}
@@ -887,8 +1964,13 @@ function SessionView({
                     concepts={session.concepts}
                     exerciseSets={session.exercise_sets}
                     payload={activeSet}
+                    targetVocabulary={session.target_vocabulary}
                     answer={produceAnswer}
                     updateAnswer={(value) => updateAnswer('text', value, 'produce', 'produce', null)}
+                    correction={currentCorrection}
+                    submitted={currentSubmitted}
+                    onRequestAiReview={requestAiReview}
+                    aiReviewSubmitting={aiReviewSubmitting}
                   />
                   <div className="action-row">
                     <button className="btn red" disabled={submitting || currentSubmitted} onClick={submitAttempt}>
@@ -909,7 +1991,13 @@ function SessionView({
               )}
             </div>
             <aside className="grid-span-4 margin-stack">
-              <TutorNote concept={activeConcept} correction={recentCorrection} round={round} />
+              <TutorNote
+                concept={activeConcept}
+                correction={currentCorrection || recentCorrection}
+                round={round}
+                onRequestAiReview={requestAiReview}
+                aiReviewSubmitting={aiReviewSubmitting}
+              />
               <ErrataStack errata={errata} />
             </aside>
           </section>
@@ -1077,8 +2165,15 @@ function RoundStrip({ round, setRound }: { round: RoundName; setRound: (round: R
 }
 
 function SentenceXRay({ xray }: { xray: Record<string, any> }) {
-  const sentence = xray?.sentence || 'Si je finis tôt, je t’appellerai.';
+  const sentence = String(xray?.sentence || '').trim();
   const marks = xray?.marks || [];
+  if (!sentence) {
+    return (
+      <div className="sentence-xray missing-panel">
+        <p>Session content unavailable.</p>
+      </div>
+    );
+  }
   const tokens = sentence.split(/(\s+|[.,!?;:])/).filter(Boolean);
   return (
     <div className="sentence-xray">
@@ -1196,6 +2291,8 @@ function RecognizePanel({
     <div className="recognize-set">
       {items.map((item: any, index: number) => {
         const feedback = itemFeedback(item, answers[item.id], correction);
+        const wordBankTokens = mode === 'word_bank' ? wordBankTokensFromAnswer(answers[item.id]) : [];
+        const sourceTokens = Array.isArray(item.tokens) ? item.tokens.map((token: string) => String(token)) : [];
         return (
           <article key={item.id} className="sub-exercise">
             <div className="t-mono-low">EXERCISE {index + 1}</div>
@@ -1210,9 +2307,42 @@ function RecognizePanel({
             {mode === 'word_bank' && (
               <>
                 <div className="type-case">
-                  {item.tokens.map((token: string, tokenIndex: number) => <span key={`${token}-${tokenIndex}`}>{token}</span>)}
+                  {sourceTokens.map((token: string, tokenIndex: number) => {
+                    const used = wordBankTokenIsUsed(wordBankTokens, sourceTokens, token, tokenIndex);
+                    return (
+                      <button
+                        key={`${token}-${tokenIndex}`}
+                        type="button"
+                        className={used ? 'used' : ''}
+                        disabled={submitted || used}
+                        onClick={() => updateAnswer(item.id, [...wordBankTokens, token])}
+                      >
+                        {token}
+                      </button>
+                    );
+                  })}
                 </div>
-                <input value={answers[item.id] || ''} onChange={(event) => updateAnswer(item.id, event.target.value)} placeholder="Type the sentence built from the chips" />
+                <div className="word-bank-builder">
+                  <input
+                    value={Array.isArray(answers[item.id]) ? joinWordBankTokens(answers[item.id]) : answers[item.id] || ''}
+                    onChange={(event) => updateAnswer(item.id, event.target.value)}
+                    placeholder="Built sentence"
+                  />
+                  {wordBankTokens.length > 0 && (
+                    <div className="word-bank-answer">
+                      {wordBankTokens.map((token, selectedIndex) => (
+                        <button
+                          key={`${token}-${selectedIndex}`}
+                          type="button"
+                          disabled={submitted}
+                          onClick={() => updateAnswer(item.id, wordBankTokens.filter((_, index) => index !== selectedIndex))}
+                        >
+                          {token}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </>
             )}
             {mode === 'classify' && (
@@ -1236,12 +2366,16 @@ function TransformPanel({
   updateAnswer,
   correction,
   submitted,
+  onRequestAiReview,
+  aiReviewSubmitting,
 }: {
   payload: Record<string, any>;
   answers: Record<string, any>;
   updateAnswer: (key: string, value: any) => void;
   correction: Record<string, any> | null;
   submitted: boolean;
+  onRequestAiReview: () => void;
+  aiReviewSubmitting: boolean;
 }) {
   const items = payload.transform?.items || [];
   return (
@@ -1258,6 +2392,13 @@ function TransformPanel({
           </article>
         );
       })}
+      {submitted && (
+        <CorrectionAiReview
+          correction={correction}
+          onRequestAiReview={onRequestAiReview}
+          submitting={aiReviewSubmitting}
+        />
+      )}
     </div>
   );
 }
@@ -1296,6 +2437,34 @@ function InlineFeedback({ feedback }: { feedback: ReturnType<typeof itemFeedback
   );
 }
 
+function CorrectionAiReview({
+  correction,
+  onRequestAiReview,
+  submitting,
+}: {
+  correction: Record<string, any> | null;
+  onRequestAiReview: () => void;
+  submitting: boolean;
+}) {
+  const status = aiReviewStatus(correction);
+  if (!status || status === 'not_applicable') return null;
+  if (status === 'available') {
+    return (
+      <div className="ai-review-line">
+        <button type="button" className="ai-review-button" disabled={submitting} onClick={onRequestAiReview}>
+          {submitting ? 'Starting AI' : 'AI correction'}
+        </button>
+      </div>
+    );
+  }
+  const label = status === 'pending'
+    ? 'AI reviewing'
+    : status === 'complete'
+      ? 'AI correction ready'
+      : 'AI unavailable';
+  return <div className={`ai-review-line ${status}`}>{label}</div>;
+}
+
 function OutputLadderPanel({
   payload,
   round,
@@ -1303,6 +2472,8 @@ function OutputLadderPanel({
   updateAnswer,
   correction,
   submitted,
+  onRequestAiReview,
+  aiReviewSubmitting,
 }: {
   payload: Record<string, any>;
   round: 'sentence' | 'speak' | 'conversation';
@@ -1310,29 +2481,14 @@ function OutputLadderPanel({
   updateAnswer: (value: string) => void;
   correction: Record<string, any> | null;
   submitted: boolean;
+  onRequestAiReview: () => void;
+  aiReviewSubmitting: boolean;
 }) {
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const item = payload.output_ladder?.[round]?.items?.[0] || {};
-  const roundCopy = {
-    sentence: {
-      eyebrow: 'SHORT SENTENCE',
-      title: 'Use it once, cleanly.',
-      hint: 'This is the first active-output step: one original sentence is enough.',
-    },
-    speak: {
-      eyebrow: 'SPOKEN RESPONSE',
-      title: 'Say it before you type it.',
-      hint: 'Speak the answer aloud, then type the transcript so Atelier can review the grammar.',
-    },
-    conversation: {
-      eyebrow: 'CONVERSATION TURN',
-      title: 'Use it in a reply.',
-      hint: 'Answer the prompt as one natural turn. The reply can be short if it carries the target grammar.',
-    },
-  }[round];
   const target = correction?.corrected_answer || item.example_answer || '';
   const feedback = submitted
     ? {
@@ -1401,23 +2557,8 @@ function OutputLadderPanel({
 
   return (
     <div className={`output-ladder-panel output-${round}`}>
-      <div className="ladder-stage">
-        <div>
-          <div className="t-mono yellow">{roundCopy.eyebrow}</div>
-          <h3>{roundCopy.title}</h3>
-          <p>{roundCopy.hint}</p>
-        </div>
-        <div className="stage-meter">
-          {roundLabels.map((entry) => (
-            <span key={entry.id} className={entry.id === round ? 'active' : ''}>{entry.roman}</span>
-          ))}
-        </div>
-      </div>
       <div className="live-block">
-        <div className="t-mono-low">TASK</div>
-        <p className="instruction">{item.instruction}</p>
         <p className="exercise-prompt">{item.prompt}</p>
-        {item.example_answer && <p className="example-answer">Example frame: {item.example_answer}</p>}
       </div>
       {round === 'speak' && (
         <div className="voice-capture">
@@ -1434,9 +2575,16 @@ function OutputLadderPanel({
         placeholder={round === 'speak' ? 'Type the sentence you just said aloud.' : 'Write your answer here.'}
       />
       <div className="word-count">
-        {wordCount(answer)} / {item.min_words || 5}-{item.max_words || 28} words
+        {wordRangeLabel(wordCount(answer), item.min_words, item.max_words)}
       </div>
       {submitted && <InlineFeedback feedback={feedback} />}
+      {submitted && (
+        <CorrectionAiReview
+          correction={correction}
+          onRequestAiReview={onRequestAiReview}
+          submitting={aiReviewSubmitting}
+        />
+      )}
     </div>
   );
 }
@@ -1445,38 +2593,73 @@ function ProducePanel({
   concepts,
   exerciseSets,
   payload,
+  targetVocabulary,
   answer,
   updateAnswer,
+  correction,
+  submitted,
+  onRequestAiReview,
+  aiReviewSubmitting,
 }: {
   concepts: AtelierConcept[];
   exerciseSets: AtelierExerciseSet[];
   payload: Record<string, any>;
+  targetVocabulary?: VocabularyRecommendationItem[];
   answer: string;
   updateAnswer: (value: string) => void;
+  correction: Record<string, any> | null;
+  submitted: boolean;
+  onRequestAiReview: () => void;
+  aiReviewSubmitting: boolean;
 }) {
   const requirements = concepts.map((concept) => conceptRequirement(concept, exerciseSets));
   const produce = payload.produce || {};
+  const sourceFragment = String(produce.source_fragment || '').trim();
   return (
     <div className="produce-panel">
       <div className="live-block">
         <div className="t-mono yellow">WRITING TASK</div>
-        <p className="fr">« {produce.source_fragment || 'Le Tour de France 2026 partira de Barcelone le 4 juillet.'} »</p>
-        <p>
-          Write a compact scene around this fragment. Use exactly enough grammar pressure to make the review useful:
-          {' '}
-          {requirements.map((req) => `${req.count} ${req.label}`).join(', ')}. Submission stays open even if a target is missing.
-        </p>
+        {sourceFragment ? <p className="fr">« {sourceFragment} »</p> : <p>Writing prompt unavailable.</p>}
       </div>
       <div className="target-chips">
         {requirements.map((req) => <span key={req.label}>{req.count} × {req.label}</span>)}
       </div>
+      {Boolean(targetVocabulary?.length) && (
+        <div className="target-word-strip" aria-label="Vocabulary targets for this paragraph">
+          {(targetVocabulary || []).slice(0, 5).map((item) => (
+            <span key={`${item.word_id}-${item.word}`}>
+              {item.word}
+              <em>{vocabularyTranslation(item)}</em>
+            </span>
+          ))}
+        </div>
+      )}
       <textarea value={answer} onChange={(event) => updateAnswer(event.target.value)} placeholder="Write your paragraph here. The targets guide the review; they do not lock submission." />
-      <div className="word-count">{wordCount(answer)} / {produce.min_words || 70}-{produce.max_words || 140} words</div>
+      <div className="word-count">{wordRangeLabel(wordCount(answer), produce.min_words, produce.max_words)}</div>
+      {submitted && (
+        <CorrectionAiReview
+          correction={correction}
+          onRequestAiReview={onRequestAiReview}
+          submitting={aiReviewSubmitting}
+        />
+      )}
     </div>
   );
 }
 
-function TutorNote({ concept, correction, round }: { concept: AtelierConcept | null; correction: Record<string, any> | null; round: RoundName }) {
+function TutorNote({
+  concept,
+  correction,
+  round,
+  onRequestAiReview,
+  aiReviewSubmitting,
+}: {
+  concept: AtelierConcept | null;
+  correction: Record<string, any> | null;
+  round: RoundName;
+  onRequestAiReview: () => void;
+  aiReviewSubmitting: boolean;
+}) {
   const title = correction ? 'RECENT CORRECTION' : 'ATELIER NOTE';
   const erratum = correction?.errata?.[0];
   return (
@@ -1490,11 +2673,13 @@ function TutorNote({ concept, correction, round }: { concept: AtelierConcept | n
           <h3>{erratum.display_label}</h3>
           <p><strong>Why:</strong> {erratum.why_wrong}</p>
           <p><strong>Repair:</strong> {erratum.repair_hint}</p>
+          <CorrectionAiReview correction={correction} onRequestAiReview={onRequestAiReview} submitting={aiReviewSubmitting} />
         </>
       ) : (
         <>
           <h3>{concept?.name}</h3>
-          <p>{concept?.core_rule || 'Use the x-ray and the rule panel as the proofing reference while you answer.'}</p>
+          {concept?.core_rule && <p>{concept.core_rule}</p>}
+          <CorrectionAiReview correction={correction} onRequestAiReview={onRequestAiReview} submitting={aiReviewSubmitting} />
         </>
       )}
     </section>
@@ -1546,7 +2731,21 @@ function ErrataStack({ errata }: { errata: any[] }) {
   );
 }
 
-function RecapModal({ recap, concepts, onClose }: { recap: Record<string, any>; concepts: AtelierConcept[]; onClose: () => void }) {
+function RecapModal({
+  recap,
+  concepts,
+  recommendation,
+  onRecommendedAction,
+  onClose,
+}: {
+  recap: Record<string, any>;
+  concepts: AtelierConcept[];
+  recommendation: RecommendedAction;
+  onRecommendedAction: () => void;
+  onClose: () => void;
+}) {
+  const reviewTotal = recommendation.kind === 'review' ? recommendation.errataDue + recommendation.vocabularyDue : 0;
+  const nextLabel = recapActionLabel(recommendation, reviewTotal);
   return (
     <div className="recap-overlay">
       <section className="recap-modal">
@@ -1584,12 +2783,24 @@ function RecapModal({ recap, concepts, onClose }: { recap: Record<string, any>; 
             );
           })}
         </div>
+        {nextLabel && (
+          <section className="recap-next">
+            <div>
+              <span className="t-mono red">NEXT ON TODAY&apos;S PATH</span>
+              <h3>{nextLabel.title}</h3>
+              <p>{nextLabel.copy}</p>
+            </div>
+            <button className="btn red lg" onClick={onRecommendedAction}>
+              {nextLabel.action} <ArrowRight size={14} />
+            </button>
+          </section>
+        )}
         <footer>
           <span className="t-mono-low">Atelier · Today&apos;s Set</span>
           <div className="recap-actions">
             {recap.session_id && (
               <Link className="btn red" href={`/missions?atelier_session_id=${recap.session_id}`}>
-                USE IN MISSION <ArrowRight size={14} />
+                USE IN MISSION
               </Link>
             )}
             <button className="btn solid" onClick={onClose}>RETURN TO TODAY</button>
@@ -1598,6 +2809,47 @@ function RecapModal({ recap, concepts, onClose }: { recap: Record<string, any>; 
       </section>
     </div>
   );
+}
+
+function recapActionLabel(action: RecommendedAction, reviewTotal: number) {
+  if (action.kind === 'review') {
+    return {
+      title: `${reviewTotal} review item${reviewTotal === 1 ? '' : 's'} waiting`,
+      copy: 'Clear the repair queue before the optional branches so today’s grammar stays fresh.',
+      action: 'Review now',
+    };
+  }
+  if (action.kind === 'mission') {
+    return {
+      title: 'Use it in a Mission',
+      copy: 'The loud on-ramp is here: take the completed session into a real-world prompt.',
+      action: 'Open mission',
+    };
+  }
+  if (action.kind === 'serial') {
+    return {
+      title: action.episodeKind === 'mission' ? 'The world is waiting for your reply' : 'Continue the story',
+      copy: action.episodeKind === 'mission'
+        ? 'Your next French message moves the shared thread forward.'
+        : 'See the consequence of what you wrote, then catch the next hook.',
+      action: action.episodeKind === 'mission' ? 'Reply now' : 'Open story',
+    };
+  }
+  if (action.kind === 'feuilleton') {
+    return {
+      title: 'Read the Feuilleton branch',
+      copy: 'Carry the same grammar into the story scene while it is still warm.',
+      action: 'Open Feuilleton',
+    };
+  }
+  if (action.kind === 'rest') {
+    return {
+      title: 'Done for today',
+      copy: 'Everything on the path is complete. Return to the road map and rest.',
+      action: 'Back to today',
+    };
+  }
+  return null;
 }
 
 function errataLabel(count: number) {
@@ -1619,16 +2871,16 @@ function AtelierStyles() {
   return (
     <style jsx global>{`
       .atelier-page {
-        --paper: #f1ece1;
-        --paper-2: #e8e0cf;
-        --paper-3: #d8cdb6;
+        --paper: var(--app-paper);
+        --paper-2: var(--app-paper-2);
+        --paper-3: var(--app-paper-3);
         --paper-deep: #1a1814;
-        --ink: #14110d;
-        --ink-2: #4a4538;
-        --ink-3: #8a826f;
-        --red: #d8321a;
-        --blue: #1d3a8a;
-        --yellow: #f3c318;
+        --ink: var(--app-ink);
+        --ink-2: var(--app-ink-2);
+        --ink-3: var(--app-ink-3);
+        --red: var(--app-red);
+        --blue: var(--app-blue);
+        --yellow: var(--app-yellow);
         --grotesk: "Inter", "Helvetica Neue", Arial, sans-serif;
         --display: "Inter", "Helvetica Neue", Arial, sans-serif;
         --serif: "EB Garamond", Garamond, "Times New Roman", serif;
@@ -1685,7 +2937,1060 @@ function AtelierStyles() {
       .atelier-nav button:disabled { opacity: .35; cursor: not-allowed; }
       .nav-rule { width: 1px; height: 20px; background: var(--ink); }
       .loading { min-height: 60vh; display: grid; place-items: center; font-family: var(--mono); letter-spacing: .14em; color: var(--ink-2); }
-      .today-spread { padding-top: 32px; padding-bottom: 80px; }
+      .atelier-mobile-streak {
+        display: inline-flex;
+        min-width: 42px;
+        min-height: 30px;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--ink);
+        background: var(--paper);
+        font-family: var(--mono);
+        font-size: 10px;
+        font-weight: 900;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+      }
+      .atelier-load-notice {
+        margin: 18px 0 20px;
+        border: 1px solid var(--ink);
+        background: var(--paper-2);
+        padding: 14px 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+      }
+      .atelier-load-notice p {
+        margin: 5px 0 0;
+        color: var(--ink-2);
+        line-height: 1.4;
+      }
+      .atelier-edition-stage {
+        min-height: 100svh;
+        display: grid;
+        justify-items: center;
+        align-items: start;
+        background: #f1ece1;
+      }
+      .ph {
+        --paper: #f1ece1;
+        --paper-2: #e8e0cf;
+        --paper-3: #d8cdb6;
+        --sheet: #f8f3e8;
+        --ink: #14110d;
+        --ink-2: #4a4538;
+        --ink-3: #8a826f;
+        --blue: #1d3a8a;
+        --red: #d8321a;
+        --yellow: #f3c318;
+        --serif: "EB Garamond", Garamond, "Times New Roman", serif;
+        --grotesk: "Inter", "Helvetica Neue", Arial, sans-serif;
+        position: relative;
+        width: min(100vw, 380px);
+        min-height: 100svh;
+        background: var(--paper);
+        color: var(--ink);
+        font-family: var(--grotesk);
+        -webkit-font-smoothing: antialiased;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .ph * { box-sizing: border-box; }
+      .ph-head {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 54px;
+        padding: 8px 16px 10px;
+        border-bottom: 1px solid var(--ink);
+        background: var(--paper);
+        flex: 0 0 auto;
+      }
+      .ph-head .mark {
+        position: absolute;
+        left: 16px;
+        top: 50%;
+        transform: translateY(-50%);
+      }
+      .ph-head .ttl {
+        font-family: var(--serif);
+        font-style: italic;
+        font-weight: 500;
+        font-size: 23px;
+        line-height: 1;
+        letter-spacing: 0;
+      }
+      .ph-head .gear {
+        position: absolute;
+        right: 16px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 36px;
+        height: 36px;
+        border: 1px solid var(--ink);
+        background: var(--sheet);
+        color: var(--ink);
+        display: grid;
+        place-items: center;
+        text-decoration: none;
+      }
+      .ph-head .gear svg {
+        width: 18px;
+        height: 18px;
+      }
+      .ph-body {
+        flex: 1 1 auto;
+        padding: 16px 22px 22px;
+      }
+      .ph-body.center {
+        display: flex;
+        flex-direction: column;
+      }
+      .ph-nav {
+        flex: 0 0 auto;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        min-height: 62px;
+        border-top: 1px solid var(--ink);
+        background: var(--paper);
+      }
+      .ph-nav a {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        text-decoration: none;
+        color: var(--ink-3);
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: .14em;
+        text-transform: uppercase;
+        border-top: 2px solid transparent;
+        margin-top: -1px;
+      }
+      .ph-nav a svg {
+        width: 22px;
+        height: 22px;
+      }
+      .ph-nav a.active {
+        color: var(--ink);
+        background: var(--sheet);
+        border-top-color: var(--ink);
+      }
+      .ph-nav.three {
+        grid-template-columns: 1fr auto 1fr;
+        min-height: 64px;
+        align-items: stretch;
+      }
+      .ph-nav .center-act {
+        align-self: center;
+        margin: 0 6px;
+        transform: translateY(-14px);
+        width: 70px;
+        height: 70px;
+        background: var(--red);
+        color: #fff;
+        border: 1.5px solid var(--ink);
+        box-shadow: 4px 4px 0 var(--ink);
+        display: grid;
+        place-items: center;
+        gap: 0;
+        text-decoration: none;
+      }
+      .ph-nav .center-act .lbl {
+        font-size: 8.5px;
+        font-weight: 900;
+        letter-spacing: .12em;
+        margin-top: 2px;
+      }
+      .ph-nav .center-act svg {
+        width: 22px;
+        height: 22px;
+      }
+      .edition {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 16px;
+        padding-bottom: 13px;
+        border-bottom: 1px solid var(--ink);
+      }
+      .edition .rubric {
+        font-size: 9.5px;
+        font-weight: 900;
+        letter-spacing: .16em;
+        text-transform: uppercase;
+        color: var(--red);
+      }
+      .edition .rubric.muted {
+        color: var(--ink-3);
+      }
+      .edition h1 {
+        margin: 4px 0 0;
+        font-family: var(--serif);
+        font-style: italic;
+        font-weight: 600;
+        font-size: 30px;
+        line-height: .92;
+        letter-spacing: 0;
+        color: var(--ink);
+      }
+      .edition .sub {
+        margin-top: 5px;
+        font-size: 11px;
+        color: var(--ink-3);
+        font-weight: 500;
+      }
+      .stamp {
+        flex: 0 0 auto;
+        border: 1px solid var(--ink);
+        background: var(--sheet);
+        padding: 7px 9px 6px;
+        text-align: center;
+      }
+      .stamp .cap {
+        font-size: 8px;
+        font-weight: 900;
+        letter-spacing: .14em;
+        color: var(--ink-3);
+      }
+      .stamp .n {
+        font-family: var(--serif);
+        font-style: italic;
+        font-weight: 700;
+        font-size: 24px;
+        line-height: .85;
+        margin: 1px 0 4px;
+      }
+      .stamp .rules {
+        display: flex;
+        gap: 2px;
+        justify-content: center;
+      }
+      .stamp .rules i {
+        width: 2px;
+        height: 11px;
+        background: var(--paper-3);
+      }
+      .stamp .rules i.on {
+        background: var(--ink);
+      }
+      .spine {
+        position: relative;
+        margin-top: 18px;
+      }
+      .step {
+        position: relative;
+        display: grid;
+        grid-template-columns: 52px minmax(0, 1fr);
+        column-gap: 16px;
+        align-items: start;
+        min-height: 66px;
+        padding-bottom: 4px;
+      }
+      .step::before {
+        content: "";
+        position: absolute;
+        left: 25px;
+        top: 0;
+        bottom: 0;
+        border-left: 2px solid var(--ink);
+        z-index: 0;
+      }
+      .step.up::before {
+        border-left: 1.5px dashed var(--ink-3);
+      }
+      .step.is-first::before {
+        top: 26px;
+      }
+      .step.is-last::before {
+        bottom: calc(100% - 26px);
+      }
+      .plate {
+        position: relative;
+        z-index: 1;
+        width: 52px;
+        height: 52px;
+        border: 1.5px solid var(--ink);
+        background: var(--paper);
+        display: grid;
+        place-items: center;
+        font-family: var(--grotesk);
+        font-weight: 900;
+        font-size: 14px;
+        letter-spacing: .04em;
+        color: var(--ink);
+      }
+      .plate.done {
+        background: var(--ink);
+        color: var(--paper);
+      }
+      .plate.up {
+        border-color: var(--ink-3);
+        color: var(--ink-3);
+        background: var(--paper);
+      }
+      .plate.current {
+        background: var(--yellow);
+        color: var(--ink);
+        box-shadow: 6px 6px 0 var(--red);
+      }
+      .plate.review.live {
+        background: var(--red);
+        color: #fff;
+      }
+      .plate svg {
+        width: 20px;
+        height: 20px;
+      }
+      .plate .badge {
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        min-width: 22px;
+        height: 22px;
+        padding: 0 5px;
+        background: var(--red);
+        color: #fff;
+        border: 1.5px solid var(--ink);
+        display: grid;
+        place-items: center;
+        font-size: 11px;
+        font-weight: 900;
+        z-index: 2;
+      }
+      .node {
+        padding-top: 5px;
+        min-width: 0;
+      }
+      .node .name {
+        font-size: 16px;
+        font-weight: 800;
+        line-height: 1.04;
+        letter-spacing: -.01em;
+        color: var(--ink);
+      }
+      .step.done .node .name {
+        color: var(--ink-2);
+      }
+      .step.up .node .name {
+        color: var(--ink-3);
+        font-weight: 700;
+      }
+      .node .meta {
+        margin-top: 4px;
+        font-size: 9.5px;
+        font-weight: 900;
+        letter-spacing: .14em;
+        text-transform: uppercase;
+        color: var(--ink-3);
+      }
+      .node .meta.go {
+        color: var(--red);
+      }
+      .current-panel {
+        margin-top: 12px;
+      }
+      .current-panel .label {
+        font-size: 9px;
+        font-weight: 900;
+        letter-spacing: .16em;
+        text-transform: uppercase;
+        color: var(--ink-3);
+      }
+      .foci {
+        margin: 7px 0 14px;
+        display: grid;
+        gap: 4px;
+      }
+      .foci .f {
+        font-family: var(--serif);
+        font-style: italic;
+        font-size: 17px;
+        line-height: 1.12;
+        color: var(--ink);
+        padding-left: 11px;
+        border-left: 2px solid var(--blue);
+      }
+      .foci .f.errata {
+        color: var(--ink-2);
+        border-left-color: var(--red);
+      }
+      .ph .cta {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        width: 100%;
+        min-height: 58px;
+        padding: 0 20px;
+        background: var(--red);
+        color: #fff;
+        border: 1.5px solid var(--ink);
+        box-shadow: 6px 6px 0 var(--ink);
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 900;
+        letter-spacing: .14em;
+        text-transform: uppercase;
+      }
+      .ph .cta svg {
+        width: 18px;
+        height: 18px;
+      }
+      .ph .cta:disabled {
+        opacity: .55;
+        cursor: wait;
+      }
+      .review-open-wrap {
+        margin-top: 12px;
+        display: grid;
+        gap: 12px;
+      }
+      .review-open {
+        border: 1px solid var(--ink);
+        background: var(--sheet);
+      }
+      .review-open .r {
+        display: grid;
+        grid-template-columns: 18px 1fr auto;
+        align-items: center;
+        gap: 12px;
+        padding: 13px 15px;
+        border-bottom: 1px solid var(--paper-3);
+      }
+      .review-open .r:last-child {
+        border-bottom: 0;
+      }
+      .review-open .r .dot {
+        width: 12px;
+        height: 12px;
+      }
+      .review-open .r .dot.vocab {
+        background: var(--blue);
+      }
+      .review-open .r .dot.errata {
+        width: 0;
+        height: 0;
+        background: none;
+        border-style: solid;
+        border-width: 0 7px 12px 7px;
+        border-color: transparent transparent var(--red) transparent;
+      }
+      .review-open .r .lab {
+        min-width: 0;
+      }
+      .review-open .r .lab b {
+        display: block;
+        font-size: 13px;
+        font-weight: 800;
+      }
+      .review-open .r .lab em {
+        display: block;
+        margin-top: 1px;
+        font-style: normal;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: .1em;
+        text-transform: uppercase;
+        color: var(--ink-3);
+      }
+      .review-open .r .ct {
+        font-family: var(--serif);
+        font-style: italic;
+        font-weight: 700;
+        font-size: 22px;
+      }
+      .review-kind-note {
+        justify-self: end;
+        margin-top: -4px;
+        font-size: 9px;
+        font-weight: 900;
+        letter-spacing: .15em;
+        text-transform: uppercase;
+        color: var(--ink-3);
+      }
+      .branch {
+        position: relative;
+        margin-top: 4px;
+        padding-top: 18px;
+      }
+      .branch::before {
+        content: "";
+        position: absolute;
+        left: 25px;
+        top: 0;
+        height: 26px;
+        border-left: 2px solid var(--ink);
+      }
+      .branch::after {
+        content: "";
+        position: absolute;
+        left: 25px;
+        top: 26px;
+        width: 22px;
+        border-top: 2px solid var(--ink);
+      }
+      .branch-head {
+        margin: 0 0 12px 0;
+        padding-left: 60px;
+      }
+      .branch-head .t {
+        font-size: 9.5px;
+        font-weight: 900;
+        letter-spacing: .16em;
+        text-transform: uppercase;
+        color: var(--ink-3);
+      }
+      .quest {
+        position: relative;
+        display: grid;
+        grid-template-columns: 56px minmax(0, 1fr);
+        column-gap: 15px;
+        align-items: center;
+        border: 1px solid var(--ink);
+        background: var(--sheet);
+        padding: 14px 16px;
+        margin-bottom: 13px;
+        text-decoration: none;
+        color: var(--ink);
+      }
+      .quest.recommended {
+        background: var(--paper);
+        box-shadow: 5px 5px 0 var(--ink);
+      }
+      .quest.recommended::after {
+        content: "";
+        position: absolute;
+        top: -1px;
+        right: -1px;
+        border-width: 0 18px 18px 0;
+        border-style: solid;
+        border-color: transparent var(--red) transparent transparent;
+      }
+      .quest .shape {
+        width: 50px;
+        height: 50px;
+        overflow: visible;
+      }
+      .quest .shape path,
+      .quest .shape circle {
+        stroke: var(--ink);
+        stroke-width: 3;
+      }
+      .quest .shape.triangle path {
+        fill: var(--red);
+      }
+      .quest .shape.circle circle {
+        fill: var(--blue);
+      }
+      .quest .tag {
+        font-size: 8.5px;
+        font-weight: 900;
+        letter-spacing: .15em;
+        text-transform: uppercase;
+        color: var(--ink-3);
+      }
+      .quest.recommended .tag {
+        color: var(--red);
+      }
+      .quest.done .tag {
+        color: var(--ink-3);
+      }
+      .quest h3 {
+        margin: 2px 0 4px;
+        font-family: var(--serif);
+        font-style: italic;
+        font-weight: 600;
+        font-size: 21px;
+        line-height: 1;
+      }
+      .quest p {
+        margin: 0;
+        font-size: 11.5px;
+        line-height: 1.32;
+        color: var(--ink-2);
+      }
+      .closed {
+        display: block;
+        text-align: center;
+        padding: 46px 8px 30px;
+      }
+      .closed .rubric {
+        font-size: 10px;
+        font-weight: 900;
+        letter-spacing: .18em;
+        text-transform: uppercase;
+        color: var(--ink-3);
+      }
+      .closed .endmark {
+        width: 16px;
+        height: 16px;
+        background: var(--ink);
+        margin: 18px auto 16px;
+      }
+      .closed h2 {
+        margin: 0 auto;
+        max-width: 280px;
+        font-family: var(--serif);
+        font-style: italic;
+        font-weight: 600;
+        font-size: 37px;
+        line-height: 1.02;
+        color: var(--ink);
+      }
+      .closed .lead {
+        margin: 18px auto 0;
+        max-width: 248px;
+        font-size: 12.5px;
+        line-height: 1.5;
+        color: var(--ink-2);
+      }
+      .closed .ledger {
+        margin: 28px auto 0;
+        width: 100%;
+        max-width: 280px;
+        border-top: 1px solid var(--ink);
+      }
+      .closed .ledger .row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 9px 2px;
+        border-bottom: 1px solid var(--paper-3);
+      }
+      .closed .ledger .row span {
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: .1em;
+        text-transform: uppercase;
+        color: var(--ink-3);
+      }
+      .closed .ledger .row b {
+        font-family: var(--serif);
+        font-style: italic;
+        font-weight: 600;
+        font-size: 16px;
+        color: var(--ink);
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+      }
+      .closed .ledger .row b svg {
+        width: 15px;
+        height: 15px;
+      }
+      .closed .free {
+        margin-top: 30px;
+        white-space: nowrap;
+        font-size: 11px;
+        font-weight: 900;
+        letter-spacing: .14em;
+        text-transform: uppercase;
+        color: var(--ink);
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        text-decoration: none;
+        border-bottom: 1.5px solid var(--ink);
+        padding-bottom: 4px;
+      }
+      .closed .free svg {
+        width: 14px;
+        height: 14px;
+      }
+      .closed .datestamp {
+        display: inline-block;
+        margin-top: 22px;
+        border: 1px solid var(--ink-3);
+        color: var(--ink-3);
+        font-size: 9px;
+        font-weight: 900;
+        letter-spacing: .16em;
+        text-transform: uppercase;
+        padding: 5px 10px;
+        transform: rotate(-3deg);
+      }
+      @media (max-width: 420px) {
+        .ph {
+          width: 100vw;
+        }
+      }
+      .today-spread {
+        display: grid;
+        align-items: start;
+        min-height: calc(100vh - 58px);
+        padding-top: clamp(22px, 5vw, 54px);
+        padding-bottom: 80px;
+      }
+      .roadmap-shell {
+        width: min(1120px, 100%);
+        margin: 0 auto;
+      }
+      .roadmap-stage {
+        position: relative;
+        display: grid;
+        grid-template-columns: minmax(300px, 430px) minmax(0, 1fr);
+        gap: clamp(28px, 5vw, 68px);
+        align-items: start;
+        padding: 22px 0 70px;
+      }
+      .roadmap-today-card {
+        position: relative;
+        z-index: 2;
+        width: 100%;
+        min-height: 520px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        border: 2px solid var(--ink);
+        background: var(--yellow);
+        padding: clamp(20px, 4vw, 30px);
+        box-shadow: 10px 10px 0 var(--ink);
+        overflow: hidden;
+      }
+      .roadmap-today-card.empty {
+        background: var(--paper-2);
+      }
+      .roadmap-today-card.rest {
+        background: var(--paper-2);
+      }
+      .roadmap-today-card.solo {
+        margin: 0 auto;
+      }
+      .roadmap-today-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        color: var(--ink);
+        font-family: var(--mono);
+        font-size: 11px;
+        font-weight: 900;
+        letter-spacing: .14em;
+        text-transform: uppercase;
+      }
+      .roadmap-mini-mark {
+        width: 34px;
+        height: 34px;
+        flex: 0 0 auto;
+      }
+      .roadmap-mini-mark rect:first-of-type {
+        fill: var(--ink);
+      }
+      .roadmap-mini-mark circle {
+        fill: var(--blue);
+      }
+      .roadmap-mini-mark rect:nth-of-type(2) {
+        fill: var(--yellow);
+        stroke: var(--ink);
+        stroke-width: 1;
+      }
+      .roadmap-mini-mark path {
+        fill: var(--red);
+      }
+      .roadmap-focus {
+        display: grid;
+        gap: 16px;
+        min-width: 0;
+      }
+      .roadmap-focus > div {
+        display: grid;
+        gap: 8px;
+        min-width: 0;
+      }
+      .roadmap-focus span,
+      .roadmap-recommendation span,
+      .roadmap-rest-state span,
+      .roadmap-node-copy em {
+        color: var(--ink-2);
+        font-family: var(--mono);
+        font-size: 10px;
+        font-style: normal;
+        font-weight: 900;
+        letter-spacing: .12em;
+        text-transform: uppercase;
+      }
+      .roadmap-topic-list {
+        display: grid;
+        gap: 8px;
+        min-width: 0;
+      }
+      .roadmap-focus strong {
+        color: var(--ink);
+        font-family: var(--display);
+        font-size: clamp(18px, 3vw, 25px);
+        line-height: 1.02;
+        letter-spacing: -.02em;
+        font-weight: 900;
+        overflow-wrap: anywhere;
+      }
+      .roadmap-recommendation {
+        display: grid;
+        gap: 8px;
+        border-top: 2px solid var(--ink);
+        padding-top: 16px;
+      }
+      .roadmap-recommendation strong,
+      .roadmap-rest-state strong {
+        color: var(--ink);
+        font-family: var(--display);
+        font-size: clamp(30px, 5vw, 46px);
+        line-height: .94;
+        letter-spacing: -.03em;
+        font-weight: 900;
+      }
+      .roadmap-recommendation p,
+      .roadmap-rest-state p,
+      .roadmap-node-copy span {
+        margin: 0;
+        color: var(--ink-2);
+        font-size: 13px;
+        line-height: 1.42;
+      }
+      .roadmap-rest-state {
+        display: grid;
+        gap: 12px;
+        align-content: center;
+        min-height: 320px;
+      }
+      .roadmap-secondary-link {
+        justify-self: start;
+        color: var(--ink);
+        font-family: var(--mono);
+        font-size: 10px;
+        font-weight: 900;
+        letter-spacing: .12em;
+        text-transform: uppercase;
+        text-decoration: none;
+        border-bottom: 2px solid var(--ink);
+      }
+      .roadmap-action-cluster {
+        display: grid;
+        gap: 10px;
+      }
+      button.roadmap-primary-button,
+      button.roadmap-retry-button {
+        display: inline-flex;
+        min-height: 58px;
+        width: 100%;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        border: 2px solid var(--ink);
+        background: var(--red);
+        color: var(--paper);
+        box-shadow: 5px 5px 0 var(--ink);
+        font-family: var(--mono);
+        font-size: 12px;
+        font-weight: 900;
+        letter-spacing: .13em;
+        text-transform: uppercase;
+        transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
+      }
+      button.roadmap-primary-button:hover:not(:disabled),
+      button.roadmap-retry-button:hover:not(:disabled) {
+        transform: translate(-2px, -2px);
+        box-shadow: 7px 7px 0 var(--ink);
+      }
+      button.roadmap-primary-button:active:not(:disabled),
+      button.roadmap-retry-button:active:not(:disabled) {
+        transform: translate(2px, 2px);
+        box-shadow: 2px 2px 0 var(--ink);
+      }
+      button.roadmap-primary-button:disabled {
+        background: var(--ink-3);
+        cursor: not-allowed;
+      }
+      button.roadmap-retry-button {
+        min-height: 44px;
+        background: var(--ink);
+      }
+      .roadmap-path-board {
+        position: relative;
+        display: grid;
+        grid-template-columns: minmax(230px, 290px) minmax(220px, 1fr);
+        gap: clamp(22px, 4vw, 38px);
+        align-items: center;
+        min-height: 560px;
+      }
+      .roadmap-session-spine {
+        position: relative;
+        display: grid;
+        gap: 12px;
+        padding: 10px 0;
+      }
+      .roadmap-spine-rail {
+        position: absolute;
+        left: 29px;
+        top: 28px;
+        bottom: 28px;
+        width: 0;
+        border-left: 3px solid var(--ink);
+        z-index: 0;
+      }
+      .roadmap-spine-rail::after {
+        content: "";
+        position: absolute;
+        left: -3px;
+        top: 0;
+        bottom: 0;
+        border-left: 3px dashed var(--paper);
+        opacity: .42;
+      }
+      .roadmap-spine-node {
+        position: relative;
+        z-index: 1;
+        display: grid;
+        grid-template-columns: 62px minmax(0, 1fr);
+        align-items: center;
+        gap: 12px;
+        min-height: 62px;
+        padding: 0;
+        color: var(--ink);
+        text-align: left;
+        text-decoration: none;
+        transition: opacity .15s ease, transform .15s ease;
+      }
+      .roadmap-spine-node.dimmed {
+        opacity: .48;
+      }
+      .roadmap-spine-node.recommended {
+        opacity: 1;
+        transform: translateX(3px);
+      }
+      .roadmap-spine-node:hover {
+        opacity: 1;
+      }
+      .roadmap-step-mark {
+        display: inline-flex;
+        width: 58px;
+        height: 58px;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid var(--ink);
+        background: var(--paper);
+        color: var(--ink);
+        box-shadow: 4px 4px 0 var(--ink);
+        font-family: var(--mono);
+        font-size: 12px;
+        font-weight: 900;
+        letter-spacing: .08em;
+        transition: transform .15s ease, background .15s ease, box-shadow .15s ease;
+      }
+      .roadmap-step-mark.done {
+        background: var(--ink);
+        color: var(--paper);
+      }
+      .roadmap-step-mark.current,
+      .roadmap-spine-node.recommended .roadmap-step-mark {
+        background: var(--yellow);
+      }
+      .roadmap-spine-node.recommended .roadmap-step-mark {
+        box-shadow: 7px 7px 0 var(--red);
+      }
+      .roadmap-spine-node.review.recommended .roadmap-step-mark {
+        background: var(--red);
+        color: var(--paper);
+      }
+      .roadmap-spine-node.rest.recommended .roadmap-step-mark {
+        background: var(--blue);
+        color: var(--paper);
+      }
+      .roadmap-spine-node:hover .roadmap-step-mark,
+      .roadmap-branch-card:hover .roadmap-shape {
+        transform: translate(-2px, -2px);
+      }
+      .roadmap-branch-stack {
+        position: relative;
+        display: grid;
+        gap: 20px;
+        align-content: center;
+      }
+      .roadmap-branch-stack::before {
+        content: "";
+        position: absolute;
+        left: -38px;
+        top: 50%;
+        width: 38px;
+        border-top: 3px solid var(--ink);
+      }
+      .roadmap-branch-card {
+        position: relative;
+        display: grid;
+        grid-template-columns: 78px minmax(0, 1fr);
+        align-items: center;
+        gap: 16px;
+        min-height: 136px;
+        border: 2px solid var(--ink);
+        background: var(--paper);
+        color: var(--ink);
+        padding: 16px;
+        text-decoration: none;
+        box-shadow: 6px 6px 0 var(--ink);
+        transition: opacity .15s ease, transform .15s ease, box-shadow .15s ease;
+      }
+      .roadmap-branch-card::before {
+        content: "";
+        position: absolute;
+        left: -25px;
+        top: 50%;
+        width: 25px;
+        border-top: 2px solid var(--ink);
+      }
+      .roadmap-branch-card.dimmed {
+        opacity: .55;
+      }
+      .roadmap-branch-card.recommended {
+        opacity: 1;
+        background: var(--yellow);
+        box-shadow: 9px 9px 0 var(--red);
+      }
+      .roadmap-branch-card:hover {
+        opacity: 1;
+        transform: translate(-2px, -2px);
+        box-shadow: 8px 8px 0 var(--ink);
+      }
+      .roadmap-shape {
+        width: 68px;
+        height: 68px;
+        overflow: visible;
+        filter: drop-shadow(3px 3px 0 var(--ink));
+        transition: transform .15s ease, filter .15s ease;
+      }
+      .roadmap-shape path,
+      .roadmap-shape circle {
+        stroke: var(--ink);
+        stroke-width: 3;
+      }
+      .roadmap-shape.triangle path {
+        fill: var(--red);
+      }
+      .roadmap-shape.circle circle {
+        fill: var(--blue);
+      }
+      .roadmap-node-copy {
+        display: grid;
+        gap: 4px;
+        min-width: 0;
+      }
+      .roadmap-node-copy strong {
+        color: var(--ink);
+        font-family: var(--display);
+        font-size: 16px;
+        line-height: 1;
+        letter-spacing: -.02em;
+        font-weight: 900;
+        overflow-wrap: anywhere;
+      }
+      .roadmap-spine-node.recommended .roadmap-node-copy strong,
+      .roadmap-branch-card.recommended .roadmap-node-copy strong {
+        background: linear-gradient(transparent 58%, rgba(216,50,26,.28) 58%);
+      }
       .atelier-title {
         display: flex;
         align-items: end;
@@ -1770,6 +4075,114 @@ function AtelierStyles() {
         text-transform: uppercase;
         font-weight: 900;
       }
+      .continue-card {
+        margin-top: 18px;
+        padding: 18px 20px;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 18px;
+        align-items: center;
+        background: var(--paper);
+      }
+      .continue-card h2 {
+        margin: 6px 0 4px;
+        font-family: var(--display);
+        font-size: 27px;
+        line-height: 1;
+        letter-spacing: -.03em;
+      }
+      .continue-card p {
+        margin: 0;
+        color: var(--ink-2);
+        line-height: 1.38;
+      }
+      .session-progress-bar {
+        overflow: hidden;
+        width: 100%;
+        height: 8px;
+        margin-top: 12px;
+        border: 1px solid var(--ink);
+        background: var(--paper-2);
+      }
+      .session-progress-bar span {
+        display: block;
+        height: 100%;
+        background: var(--red);
+        transition: width .18s ease;
+      }
+      .continue-meta {
+        margin-top: 8px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 14px;
+        color: var(--ink-2);
+        font-family: var(--mono);
+        font-size: 10px;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        font-weight: 800;
+      }
+      .continue-vocab {
+        grid-column: 1 / -1;
+      }
+      .atelier-empty-state {
+        margin-bottom: 18px;
+        padding: 18px;
+      }
+      .atelier-empty-state p {
+        margin: 6px 0 14px;
+        color: var(--ink-2);
+      }
+      .vocab-focus {
+        border: 1px solid var(--ink);
+        background: var(--paper-2);
+      }
+      .vocab-focus header {
+        min-height: 38px;
+        padding: 0 12px;
+        border-bottom: 1px solid var(--ink);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .vocab-focus-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 12px;
+      }
+      .vocab-focus-list span,
+      .target-word-strip span {
+        border: 1px solid var(--ink);
+        background: var(--paper);
+        padding: 8px 10px;
+        display: inline-flex;
+        align-items: baseline;
+        gap: 8px;
+      }
+      .vocab-focus-list strong,
+      .target-word-strip span {
+        font-family: var(--serif);
+        font-style: italic;
+        font-size: 18px;
+      }
+      .vocab-focus-list em,
+      .target-word-strip em {
+        color: var(--ink-2);
+        font-family: var(--grotesk);
+        font-size: 12px;
+        font-style: normal;
+      }
+      .vocab-focus.compact header {
+        min-height: 32px;
+      }
+      .vocab-focus.compact .vocab-focus-list {
+        padding: 10px;
+      }
+      .vocab-focus.compact .vocab-focus-list span {
+        padding: 6px 8px;
+      }
       .today-opening { align-items: end; margin-bottom: 24px; }
       .practice-plate { grid-column: span 5; border-top: 2px solid var(--ink); padding-top: 14px; }
       .practice-time { font-size: 48px; line-height: .95; font-family: var(--display); font-weight: 900; letter-spacing: -.04em; margin-top: 10px; }
@@ -1835,6 +4248,10 @@ function AtelierStyles() {
       .due-errata-actions .notebook-link { margin-left: 0; }
       .atelier-footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--ink); display: flex; justify-content: space-between; color: var(--ink-2); font-size: 12px; }
       .session-spread { padding-top: 24px; padding-bottom: 80px; }
+      .mobile-session-topbar,
+      .mobile-session-brief {
+        display: none;
+      }
       .session-title-row { display: flex; align-items: center; justify-content: space-between; padding-bottom: 14px; }
       .session-title { font-size: 24px; margin-left: 14px; }
       .concept-bench { margin-top: 24px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
@@ -1846,8 +4263,10 @@ function AtelierStyles() {
       .round-strip span { font-size: 24px; vertical-align: middle; margin-right: 10px; }
       .xray-title { margin: 36px 0 14px; }
       .xray-board { background: var(--paper-2); border: 1px solid var(--ink); padding: 28px 32px 24px; position: relative; display: grid; grid-template-columns: 1.25fr .75fr; gap: 30px; }
+      .desktop-vocab-focus { margin-top: 18px; }
       .sentence-xray { padding-top: 12px; padding-bottom: 34px; }
       .sentence-xray > p { margin: 0; font-family: var(--serif); font-style: italic; font-size: 39px; line-height: 1.45; }
+      .sentence-xray.missing-panel > p { font-family: var(--mono); font-style: normal; font-size: 13px; color: var(--ink-2); text-transform: uppercase; letter-spacing: .12em; }
       .marked { position: relative; display: inline-block; padding-bottom: 3px; border-bottom: 3px solid var(--ink); }
       .marked em { position: absolute; left: 50%; top: 100%; transform: translateX(-50%); margin-top: 11px; font-family: var(--mono); font-style: normal; font-size: 9px; font-weight: 900; letter-spacing: .12em; white-space: nowrap; color: inherit; }
       .mark-0 { color: var(--blue); border-color: var(--blue); }
@@ -1879,14 +4298,23 @@ function AtelierStyles() {
       .source-sentence { background: var(--paper-2); border: 1px solid var(--ink); padding: 14px 16px; }
       .instruction { margin: 10px 0 0; font-weight: 700; color: var(--ink-2); }
       .choice-row, .type-case, .target-chips { display: flex; flex-wrap: wrap; gap: 10px; }
-      .choice-row button, .type-case span, .target-chips span { border: 1px solid var(--ink); background: var(--paper); padding: 8px 15px; font-family: var(--serif); font-style: italic; font-size: 19px; }
+      .choice-row button, .type-case button, .target-chips span { border: 1px solid var(--ink); background: var(--paper); padding: 8px 15px; font-family: var(--serif); font-style: italic; font-size: 19px; }
       .choice-row.compact button, .target-chips span { font-family: var(--mono); font-style: normal; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; font-weight: 900; }
       .choice-row button.selected { background: var(--blue); color: var(--paper); }
       .type-case { margin-bottom: 12px; padding: 14px; background: var(--paper-2); border: 1px solid var(--ink); }
+      .type-case button.used { opacity: .35; text-decoration: line-through; cursor: default; }
+      .word-bank-builder { display: grid; gap: 10px; }
+      .word-bank-answer { display: flex; flex-wrap: wrap; gap: 8px; min-height: 34px; }
+      .word-bank-answer button { border: 1px solid var(--ink); background: var(--yellow); padding: 6px 10px; font-family: var(--serif); font-size: 18px; font-style: italic; }
       .sub-exercise input, .sub-exercise textarea, .produce-panel textarea, .output-ladder-panel textarea { width: 100%; border: 1px solid var(--ink); background: var(--paper); outline: none; padding: 13px 15px; font-family: var(--serif); font-style: italic; font-size: 19px; }
       .sub-exercise textarea { min-height: 86px; resize: vertical; }
       .inline-feedback { margin-top: 12px; border-left: 4px solid var(--blue); background: rgba(29,58,138,.06); padding: 10px 12px; font-size: 13px; line-height: 1.42; color: var(--ink-2); }
       .inline-feedback.correct { display: inline-flex; align-items: center; gap: 8px; border-left-color: var(--ink); background: rgba(20,17,13,.06); color: var(--ink); font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; font-weight: 900; }
+      .ai-review-line { margin-top: 12px; display: inline-flex; align-items: center; min-height: 28px; font-family: var(--mono); font-size: 10px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: var(--blue); }
+      .ai-review-line.complete { color: var(--ink); }
+      .ai-review-line.failed { color: var(--muted); }
+      .ai-review-button { min-height: 34px; border: 1px solid var(--blue); background: transparent; color: var(--blue); padding: 0 12px; font-family: var(--mono); font-size: 10px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }
+      .ai-review-button:disabled { opacity: .45; cursor: wait; }
       .output-ladder-panel { display: grid; gap: 18px; }
       .ladder-stage { display: grid; grid-template-columns: 1fr auto; gap: 24px; align-items: start; border-bottom: 2px solid var(--ink); padding-bottom: 18px; }
       .ladder-stage h3 { margin: 8px 0 6px; font-family: var(--display); font-size: 31px; letter-spacing: -.04em; line-height: .96; }
@@ -1909,6 +4337,15 @@ function AtelierStyles() {
       .produce-panel .live-block p:not(.fr) { color: var(--ink-2); max-width: 680px; }
       .produce-panel textarea { margin-top: 18px; min-height: 250px; resize: vertical; }
       .target-chips { margin-top: 16px; }
+      .target-word-strip {
+        margin-top: 12px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .target-word-strip span {
+        background: var(--paper-2);
+      }
       .word-count { text-align: right; margin-top: 10px; font-family: var(--mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); }
       .action-row { margin-top: 24px; display: flex; gap: 12px; align-items: center; }
       .margin-stack { display: grid; gap: 26px; }
@@ -1949,6 +4386,29 @@ function AtelierStyles() {
       .recap-lines { padding: 20px 36px; }
       .recap-lines > div:not(.t-mono) { display: grid; grid-template-columns: 42px 1fr 80px 120px; align-items: center; gap: 14px; padding: 12px 0; border-top: 1px solid var(--paper-3); }
       .recap-lines svg { width: 32px; height: 32px; }
+      .recap-next {
+        margin: 0 36px 20px;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 22px;
+        align-items: center;
+        border: 2px solid var(--ink);
+        background: var(--yellow);
+        padding: 18px 20px;
+        box-shadow: 6px 6px 0 var(--ink);
+      }
+      .recap-next h3 {
+        margin: 8px 0 6px;
+        font-family: var(--display);
+        font-size: 32px;
+        line-height: .96;
+        letter-spacing: -.03em;
+      }
+      .recap-next p {
+        margin: 0;
+        color: var(--ink-2);
+        line-height: 1.45;
+      }
       .recap-modal footer { padding: 16px 36px; border-top: 1px solid var(--ink); display: flex; justify-content: space-between; align-items: center; }
       .recap-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
       @keyframes spin { to { transform: rotate(360deg); } }
@@ -1962,6 +4422,541 @@ function AtelierStyles() {
         .atelier-passport { padding: 22px 18px; }
         .mode-markers { min-width: 0; width: 100%; }
         .sentence-xray > p { font-size: 31px; }
+      }
+      @media (max-width: 760px) {
+        .atelier-page {
+          background-image: none;
+          overflow-x: hidden;
+        }
+        .spread {
+          padding-left: 16px;
+          padding-right: 16px;
+        }
+        .today-spread {
+          padding-top: 16px;
+          padding-bottom: calc(92px + env(safe-area-inset-bottom));
+        }
+        .roadmap-shell {
+          width: 100%;
+        }
+        .roadmap-stage {
+          min-height: auto;
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 24px;
+          padding: 4px 0 34px;
+        }
+        .roadmap-today-card {
+          width: min(100%, 420px);
+          min-height: 430px;
+          margin: 0 auto;
+          padding: 20px;
+          box-shadow: 7px 7px 0 var(--ink);
+        }
+        .roadmap-today-top {
+          font-size: 10px;
+        }
+        .roadmap-focus {
+          gap: 14px;
+        }
+        .roadmap-focus strong {
+          font-size: clamp(17px, 5.4vw, 23px);
+          line-height: 1.04;
+        }
+        .roadmap-primary-button {
+          min-height: 56px;
+          font-size: 11px;
+        }
+        .roadmap-path-board {
+          grid-template-columns: 1fr;
+          gap: 20px;
+          min-height: auto;
+        }
+        .roadmap-session-spine {
+          width: min(100%, 420px);
+          margin: 0 auto;
+          gap: 10px;
+        }
+        .roadmap-spine-node {
+          min-height: 58px;
+          grid-template-columns: 58px minmax(0, 1fr);
+          gap: 10px;
+        }
+        .roadmap-step-mark {
+          width: 54px;
+          height: 54px;
+          box-shadow: 3px 3px 0 var(--ink);
+        }
+        .roadmap-spine-rail {
+          left: 27px;
+        }
+        .roadmap-branch-stack {
+          width: min(100%, 420px);
+          margin: 0 auto;
+          gap: 14px;
+        }
+        .roadmap-branch-stack::before,
+        .roadmap-branch-card::before {
+          display: none;
+        }
+        .roadmap-branch-card {
+          grid-template-columns: 58px minmax(0, 1fr);
+          min-height: 112px;
+          padding: 14px;
+          box-shadow: 4px 4px 0 var(--ink);
+        }
+        .roadmap-shape {
+          width: 52px;
+          height: 52px;
+          filter: drop-shadow(3px 3px 0 var(--ink));
+        }
+        .atelier-load-notice,
+        .atelier-title {
+          align-items: stretch;
+          flex-direction: column;
+        }
+        .atelier-load-notice .btn,
+        .atelier-title .btn {
+          width: 100%;
+        }
+        .atelier-title {
+          gap: 14px;
+          padding-bottom: 16px;
+          margin-bottom: 16px;
+          border-bottom-width: 2px;
+        }
+        .atelier-title h1 {
+          font-size: 40px;
+        }
+        .atelier-passport {
+          padding: 18px 16px;
+          border-width: 1px;
+        }
+        .practice-summary p {
+          margin-bottom: 0;
+          font-size: 15px;
+        }
+        .quote-card,
+        .atelier-loop,
+        .atlas,
+        .priority-list,
+        .atelier-footer {
+          display: none;
+        }
+        .continue-card {
+          grid-template-columns: 1fr;
+          padding: 16px;
+          gap: 14px;
+        }
+        .continue-card .btn {
+          width: 100%;
+        }
+        .continue-card h2 {
+          font-size: 24px;
+        }
+        .continue-meta {
+          gap: 6px;
+        }
+        .continue-vocab .vocab-focus-list {
+          display: grid;
+          grid-template-columns: 1fr;
+        }
+        .today-set-head {
+          margin: 22px 0 10px;
+        }
+        .concept-grid {
+          gap: 12px;
+        }
+        .concept-cover {
+          min-height: auto;
+        }
+        .cover-band {
+          min-height: 30px;
+          padding-inline: 10px;
+        }
+        .cover-symbol {
+          display: none;
+        }
+        .cover-title {
+          padding: 12px;
+        }
+        .cover-title h3 {
+          font-size: 20px;
+          line-height: 1.08;
+        }
+        .cover-foot {
+          align-items: flex-start;
+          padding: 10px 12px;
+          font-size: 12px;
+        }
+        .stat-row {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 14px;
+          margin-top: 20px;
+        }
+        .stat {
+          min-height: 84px;
+        }
+        .stat .t-num {
+          font-size: 38px;
+        }
+        .lower-board {
+          margin-top: 22px;
+        }
+        .side-stack {
+          gap: 14px;
+        }
+        .notebook-bridge,
+        .mission-bridge,
+        .due-errata-list {
+          border-width: 1px;
+        }
+        .notebook-row {
+          grid-template-columns: 24px 38px 1fr;
+        }
+        .notebook-row .cefr {
+          display: none;
+        }
+        .due-errata-list article {
+          grid-template-columns: 1fr;
+          align-items: start;
+        }
+        .due-errata-actions {
+          justify-content: flex-start;
+        }
+        .session-spread {
+          width: 100%;
+          min-height: 100vh;
+          padding-top: 0;
+          padding-bottom: 28px;
+        }
+        .session-title-row,
+        .session-spread > .rule,
+        .concept-bench,
+        .round-strip,
+        .xray-title,
+        .xray-board,
+        .desktop-vocab-focus,
+        .margin-stack {
+          display: none;
+        }
+        .mobile-session-topbar {
+          position: sticky;
+          top: 0;
+          z-index: 35;
+          display: grid;
+          grid-template-columns: 74px minmax(0, 1fr) 74px;
+          align-items: center;
+          min-height: 54px;
+          margin-left: -16px;
+          margin-right: -16px;
+          padding: 0 16px;
+          border-bottom: 1px solid var(--ink);
+          background: var(--paper);
+        }
+        .mobile-session-topbar div {
+          min-width: 0;
+          text-align: center;
+        }
+        .mobile-session-topbar strong {
+          display: block;
+          margin-top: 2px;
+          font-family: var(--mono);
+          font-size: 11px;
+          letter-spacing: .08em;
+          text-transform: uppercase;
+        }
+        .mobile-back-button,
+        .mobile-quiet-button {
+          min-height: 40px;
+          font-family: var(--mono);
+          font-size: 10px;
+          font-weight: 900;
+          letter-spacing: .08em;
+          text-transform: uppercase;
+        }
+        .mobile-back-button {
+          text-align: left;
+        }
+        .mobile-quiet-button {
+          text-align: right;
+          color: var(--blue);
+        }
+        .mobile-quiet-button:disabled {
+          color: var(--ink-3);
+          opacity: .5;
+        }
+        .mobile-session-brief {
+          display: grid;
+          gap: 14px;
+          padding: 16px 0 10px;
+          border-bottom: 1px solid var(--ink);
+        }
+        .mobile-session-heading {
+          min-width: 0;
+          max-width: 100%;
+        }
+        .mobile-session-heading h1 {
+          max-width: 100%;
+          margin: 7px 0 2px;
+          font-family: var(--display);
+          font-size: clamp(27px, 7.4vw, 36px);
+          font-style: normal;
+          font-weight: 900;
+          line-height: 1;
+          letter-spacing: 0;
+          overflow-wrap: break-word;
+          white-space: normal;
+        }
+        .mobile-session-heading p {
+          margin: 0;
+          color: var(--ink-2);
+          font-size: 13px;
+          line-height: 1.35;
+        }
+        .mobile-vocab-focus header {
+          display: none;
+        }
+        .mobile-vocab-focus .vocab-focus-list {
+          display: flex;
+          flex-wrap: nowrap;
+          gap: 12px;
+          overflow-x: auto;
+          padding: 0 0 2px;
+          scrollbar-width: none;
+        }
+        .mobile-vocab-focus .vocab-focus-list::-webkit-scrollbar {
+          display: none;
+        }
+        .mobile-vocab-focus.vocab-focus {
+          min-width: 0;
+          max-width: 100%;
+          border: 0;
+          background: transparent;
+        }
+        .mobile-vocab-focus .vocab-focus-list span {
+          flex: 0 0 auto;
+          border: 0;
+          border-left: 3px solid var(--blue);
+          background: transparent;
+          padding: 0 10px;
+        }
+        .mobile-vocab-focus .vocab-focus-list strong {
+          font-size: 20px;
+        }
+        .mobile-vocab-focus .vocab-focus-list em {
+          display: none;
+        }
+        .mobile-context-details {
+          border: 0;
+          border-top: 1px solid var(--ink);
+          background: transparent;
+        }
+        .mobile-context-details summary {
+          min-height: 36px;
+          padding: 10px 0;
+          font-family: var(--mono);
+          font-size: 10px;
+          font-weight: 900;
+          letter-spacing: .12em;
+          text-transform: uppercase;
+          cursor: pointer;
+        }
+        .mobile-context-details .rule-panel {
+          border-left: 0;
+          border-top: 1px solid var(--ink);
+          padding: 14px 0;
+        }
+        .work-grid {
+          margin-top: 14px;
+        }
+        .exercise-toolbar {
+          gap: 10px;
+          margin-bottom: 12px;
+        }
+        .mode-markers {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          border: 0;
+          gap: 8px;
+        }
+        .mode-markers button {
+          min-height: 44px;
+          border: 0;
+          border-bottom: 2px solid var(--ink-3);
+          padding: 4px 2px;
+          font-size: 9px;
+          letter-spacing: .06em;
+        }
+        .mode-markers button.active {
+          border-bottom-color: var(--red);
+          background: transparent;
+          color: var(--red);
+        }
+        .exercise-frame {
+          min-height: auto;
+          padding: 12px 0 0;
+          border: 0;
+          background: transparent;
+        }
+        .exercise-frame > .crop-mark {
+          display: none;
+        }
+        .recognize-set,
+        .transform-set,
+        .output-ladder-panel {
+          gap: 16px;
+        }
+        .sub-exercise {
+          padding-bottom: 16px;
+        }
+        .exercise-prompt,
+        .source-sentence {
+          font-size: 23px;
+          line-height: 1.33;
+          margin: 10px 0 14px;
+        }
+        .source-sentence {
+          padding: 12px;
+        }
+        .choice-row button,
+        .type-case button {
+          flex: 1 1 calc(50% - 8px);
+          min-height: 44px;
+          padding: 8px 10px;
+          font-size: 17px;
+        }
+        .choice-row.compact button {
+          flex-basis: 100%;
+          font-size: 10px;
+        }
+        .type-case {
+          padding: 0;
+          border: 0;
+          background: transparent;
+        }
+        .sub-exercise input,
+        .sub-exercise textarea,
+        .produce-panel textarea,
+        .output-ladder-panel textarea,
+        .errata-review-answer textarea {
+          border: 0;
+          border-bottom: 1px solid var(--ink);
+          background: transparent;
+          font-size: 18px;
+          box-shadow: none;
+        }
+        .word-bank-answer button {
+          border: 0;
+          border-bottom: 2px solid var(--ink);
+          background: transparent;
+          padding: 5px 2px;
+        }
+        .ladder-stage {
+          grid-template-columns: 1fr;
+          gap: 12px;
+        }
+        .ladder-stage h3 {
+          font-size: 26px;
+        }
+        .stage-meter {
+          width: max-content;
+        }
+        .voice-capture {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+        .voice-button {
+          width: 100%;
+        }
+        .produce-panel textarea {
+          min-height: 190px;
+        }
+        .output-ladder-panel textarea {
+          min-height: 150px;
+        }
+        .target-chips,
+        .target-word-strip {
+          display: grid;
+          grid-template-columns: 1fr;
+        }
+        .session-spread .action-row {
+          position: sticky;
+          bottom: 0;
+          z-index: 28;
+          margin: 18px -16px -18px;
+          padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+          border-top: 1px solid var(--ink);
+          background: var(--paper);
+        }
+        .session-spread .action-row .btn {
+          flex: 1 1 0;
+          min-height: 48px;
+          padding-inline: 10px;
+        }
+        .recap-overlay {
+          align-items: end;
+          padding: 12px;
+        }
+        .recap-modal,
+        .errata-review-modal {
+          width: 100%;
+          max-height: calc(100vh - 24px);
+          box-shadow: none;
+        }
+        .recap-modal header,
+        .errata-review-modal header {
+          padding: 20px 18px 16px;
+          align-items: flex-start;
+          flex-direction: column;
+          gap: 12px;
+        }
+        .recap-modal h2,
+        .errata-review-modal h2 {
+          font-size: 34px;
+        }
+        .recap-stats {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 14px;
+          padding: 16px 18px;
+        }
+        .recap-lines,
+        .errata-review-body {
+          padding: 18px;
+        }
+        .recap-lines > div:not(.t-mono) {
+          grid-template-columns: 32px 1fr;
+          gap: 10px;
+        }
+        .recap-lines > div:not(.t-mono) span {
+          grid-column: 2;
+        }
+        .recap-next {
+          margin: 0 18px 16px;
+          grid-template-columns: 1fr;
+          gap: 14px;
+          padding: 16px;
+          box-shadow: 4px 4px 0 var(--ink);
+        }
+        .recap-next h3 {
+          font-size: 26px;
+        }
+        .recap-next .btn {
+          width: 100%;
+        }
+        .recap-modal footer {
+          align-items: stretch;
+          flex-direction: column;
+          padding: 16px 18px;
+          gap: 12px;
+        }
+        .recap-actions,
+        .recap-actions .btn {
+          width: 100%;
+        }
+        .errata-review-answer .action-row {
+          align-items: stretch;
+          flex-direction: column;
+        }
       }
     `}</style>
   );

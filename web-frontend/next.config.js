@@ -22,6 +22,19 @@ const nextConfig = {
       },
     ];
   },
+  async redirects() {
+    return [
+      { source: '/dashboard', destination: '/atelier', permanent: false },
+      { source: '/sessions', destination: '/atelier', permanent: false },
+      { source: '/practice', destination: '/atelier', permanent: false },
+      { source: '/daily-practice', destination: '/atelier', permanent: false },
+      { source: '/learn', destination: '/atelier', permanent: false },
+      { source: '/index', destination: '/atelier', permanent: false },
+      { source: '/mobile-visual-qa', destination: '/atelier', permanent: false },
+      { source: '/atelier/auth/signin', destination: '/auth/signin', permanent: false },
+      { source: '/atelier/auth/signup', destination: '/auth/signup', permanent: false },
+    ];
+  },
   webpack: (config) => {
     config.resolve.fallback = {
       ...config.resolve.fallback,
@@ -32,4 +45,3 @@ const nextConfig = {
 };
 
 module.exports = nextConfig;
-

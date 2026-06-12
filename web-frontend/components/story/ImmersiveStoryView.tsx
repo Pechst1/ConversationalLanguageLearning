@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import Image from 'next/image';
 import {
     ChevronLeft,
     ChevronRight,
@@ -128,9 +129,13 @@ export default function ImmersiveStoryView({
                         </div>
                     </div>
                 ) : imageUrl ? (
-                    <img
+                    <Image
                         src={imageUrl}
                         alt={`Scene: ${scene.location || 'Story scene'}`}
+                        fill
+                        unoptimized
+                        sizes="100vw"
+                        priority
                         className="w-full h-full object-cover"
                     />
                 ) : (

@@ -21,84 +21,92 @@ interface SessionsProps {
 export default function SessionsPage({ sessions }: SessionsProps) {
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Learning Sessions</h1>
-          <p className="text-gray-600">View your conversation history and progress</p>
+      <div className="mb-8 border-b border-[var(--app-ink)] pb-5">
+        <div className="text-xs font-black uppercase tracking-[0.16em] text-[var(--app-ink-3)]">
+          History
         </div>
-        <Link href="/learn/new">
-          <Button>
-            New Session
-          </Button>
-        </Link>
+        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mt-1">
+          <h1 className="font-serif text-5xl italic leading-none text-[var(--app-ink)]">
+            Sessions
+          </h1>
+          <div>
+            <Link href="/learn/new">
+              <button className="border border-black px-4 py-2 text-xs font-black uppercase tracking-[0.13em] transition-all bg-[var(--app-sheet)] text-[var(--app-ink)] hover:bg-[var(--app-paper-2)]">
+                New Session
+              </button>
+            </Link>
+          </div>
+        </div>
+        <p className="mt-3 max-w-2xl text-[var(--app-ink-2)]">
+          View your conversation history, progress tracking, and achievements.
+        </p>
       </div>
 
       {sessions?.length > 0 ? (
         <div className="grid gap-6">
           {sessions.map((session) => (
-            <Card key={session.id} className="hover:shadow-md transition-shadow">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center space-x-2">
-                      <MessageCircle className="h-5 w-5" />
-                      <span>{session.topic || 'General Conversation'}</span>
-                    </CardTitle>
-                    <CardDescription>
-                      Started {formatDateTime(session.created_at)}
-                      {session.completed_at && ` • Completed ${formatDateTime(session.completed_at)}`}
-                    </CardDescription>
-                  </div>
-                  <div className="flex items-center space-x-4 text-right">
-                    <div className="flex items-center text-sm text-gray-600">
-                      <Clock className="h-4 w-4 mr-1" />
-                      {session.message_count} messages
-                    </div>
-                    <div className="flex items-center text-sm font-semibold text-primary-600">
-                      <Trophy className="h-4 w-4 mr-1" />
-                      {session.xp_awarded} XP
-                    </div>
-                  </div>
+            <div
+              key={session.id}
+              className="border-4 border-black bg-white p-6 shadow-[6px_6px_0px_0px_#000] hover:-translate-y-1 hover:shadow-[8px_8px_0px_0px_#000] transition-all"
+            >
+              <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 border-b-2 border-black pb-4 mb-4">
+                <div>
+                  <h3 className="text-xl font-black uppercase tracking-tight flex items-center gap-2">
+                    <MessageCircle className="h-5 w-5" />
+                    <span>{session.topic || 'General Conversation'}</span>
+                  </h3>
+                  <p className="text-xs text-gray-500 font-bold mt-1 uppercase tracking-wider">
+                    Started {formatDateTime(session.created_at)}
+                    {session.completed_at && ` • Completed ${formatDateTime(session.completed_at)}`}
+                  </p>
                 </div>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      session.status === 'completed' 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-blue-100 text-blue-800'
-                    }`}>
-                      {session.status === 'completed' ? 'Completed' : 'Active'}
-                    </span>
-                  </div>
-                  <div className="flex space-x-2">
-                    <Link href={`/learn/session/${session.id}`}>
-                      <Button variant="outline" size="sm">
-                        {session.status === 'completed' ? 'View' : 'Continue'}
-                      </Button>
-                    </Link>
-                  </div>
+                <div className="flex items-center gap-4 text-sm font-bold uppercase">
+                  <span className="flex items-center text-gray-600">
+                    <Clock className="h-4 w-4 mr-1 text-black" />
+                    {session.message_count} messages
+                  </span>
+                  <span className="flex items-center text-purple-600">
+                    <Trophy className="h-4 w-4 mr-1 text-purple-600" />
+                    {session.xp_awarded} XP
+                  </span>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <span className={`px-2.5 py-1 border-2 border-black text-xs font-black uppercase tracking-wider shadow-[2px_2px_0px_0px_#000] ${
+                  session.status === 'completed'
+                    ? 'bg-bauhaus-yellow text-black'
+                    : 'bg-bauhaus-blue text-white'
+                }`}>
+                  {session.status === 'completed' ? 'Completed' : 'Active'}
+                </span>
+
+                <Link href={`/learn/session/${session.id}`}>
+                  <button className={`border-2 border-black px-4 py-2 text-xs font-black uppercase tracking-[0.13em] transition-all shadow-[3px_3px_0px_0px_#000] hover:-translate-y-0.5 hover:shadow-[4px_4px_0px_0px_#000] active:translate-y-0 active:shadow-[1px_1px_0px_0px_#000] ${
+                    session.status === 'completed'
+                      ? 'bg-white text-black hover:bg-gray-100'
+                      : 'bg-bauhaus-red text-white hover:bg-red-700'
+                  }`}>
+                    {session.status === 'completed' ? 'View' : 'Continue'}
+                  </button>
+                </Link>
+              </div>
+            </div>
           ))}
         </div>
       ) : (
-        <Card>
-          <CardContent className="text-center py-12">
-            <MessageCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No sessions yet</h3>
-            <p className="text-gray-600 mb-6">
-              Start your first conversation to begin learning French!
-            </p>
-            <Link href="/learn/new">
-              <Button>
-                Create First Session
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
+        <div className="border-4 border-black bg-white p-12 shadow-[8px_8px_0px_0px_#000] text-center">
+          <MessageCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-2xl font-black uppercase mb-2">No sessions yet</h3>
+          <p className="text-gray-600 font-bold mb-8">
+            Start your first conversation to begin learning French!
+          </p>
+          <Link href="/learn/new">
+            <button className="border-4 border-black bg-bauhaus-blue text-white font-black text-lg px-8 py-4 uppercase tracking-widest hover:-translate-y-1 hover:shadow-[6px_6px_0px_0px_#000] transition-all">
+              Create First Session
+            </button>
+          </Link>
+        </div>
       )}
     </div>
   );

@@ -70,6 +70,16 @@ export interface AtelierToday {
   summary: Record<string, any>;
   atlas: Array<Record<string, any>>;
   due_errata: AtelierErratum[];
+  progress?: AtelierDayProgress | null;
+  serial_episode?: Record<string, any> | null;
+  serial?: Record<string, any> | null;
+}
+
+export interface AtelierDayProgress {
+  errataDue: number;
+  vocabularyDue: number;
+  missionDone: boolean;
+  feuilletonDone: boolean;
 }
 
 export interface UnifiedSRSItem {
@@ -97,6 +107,220 @@ export interface UnifiedSRSQueue {
   time_budget_minutes?: number | null;
 }
 
+export interface VocabularyRecommendationSummary {
+  due: number;
+  fragile: number;
+  new: number;
+  total: number;
+}
+
+export interface VocabularyRecommendationItem {
+  bucket: 'due' | 'fragile' | 'new' | 'linked' | 'topic' | 'topic_compatible' | string;
+  word_id: number;
+  progress_id?: string | null;
+  word: string;
+  translation?: string | null;
+  language: string;
+  direction?: string | null;
+  scheduler?: string | null;
+  state: string;
+  phase?: string | null;
+  due_at?: string | null;
+  next_review?: string | null;
+  scheduled_days?: number | null;
+  interval_days?: number | null;
+  stability?: number | null;
+  difficulty?: number | null;
+  retrievability?: number | null;
+  proficiency_score: number;
+  lapses: number;
+  priority_score: number;
+  is_new: boolean;
+  deck_name?: string | null;
+  translations: {
+    de?: string | null;
+    en?: string | null;
+    fr?: string | null;
+  };
+  example_sentence?: string | null;
+  example_translation?: string | null;
+}
+
+export interface VocabularyRecommendations {
+  summary: VocabularyRecommendationSummary;
+  items: VocabularyRecommendationItem[];
+  algorithm: string;
+}
+
+export interface VocabularyRecommendationParams {
+  limit?: number;
+  due_limit?: number;
+  fragile_limit?: number;
+  new_limit?: number;
+  direction?: string;
+}
+
+export interface VocabularyDueContextSummary extends VocabularyRecommendationSummary {
+  topic_compatible: number;
+  linked: number;
+}
+
+export interface VocabularyDueContext {
+  summary: VocabularyDueContextSummary;
+  due_words: VocabularyRecommendationItem[];
+  fragile_words: VocabularyRecommendationItem[];
+  new_words: VocabularyRecommendationItem[];
+  topic_compatible_words: VocabularyRecommendationItem[];
+  linked_words: VocabularyRecommendationItem[];
+  algorithm: string;
+}
+
+export interface VocabularyDueContextParams extends VocabularyRecommendationParams {
+  topic_limit?: number;
+  linked_limit?: number;
+  topic_tags?: string[] | string;
+  linked_word_ids?: number[] | string;
+  mission_id?: string;
+  feuilleton_scene_id?: string;
+}
+
+export interface VocabularyWord {
+  id: number;
+  language: string;
+  word: string;
+  normalized_word: string;
+  part_of_speech?: string | null;
+  gender?: string | null;
+  frequency_rank?: number | null;
+  english_translation?: string | null;
+  definition?: string | null;
+  example_sentence?: string | null;
+  example_translation?: string | null;
+  usage_notes?: string | null;
+  difficulty_level?: number | null;
+  german_translation?: string | null;
+  french_translation?: string | null;
+  topic_tags: string[];
+}
+
+export interface VocabularyBiographyOrigin {
+  label: string;
+  source_type: string;
+  deck_name?: string | null;
+  imported: boolean;
+  frequency_rank?: number | null;
+  created_at?: string | null;
+}
+
+export interface VocabularyBiographyProgress {
+  progress_id?: string | null;
+  scheduler?: string | null;
+  state: string;
+  phase?: string | null;
+  due_at?: string | null;
+  next_review?: string | null;
+  last_review?: string | null;
+  scheduled_days?: number | null;
+  interval_days?: number | null;
+  stability?: number | null;
+  difficulty?: number | null;
+  retrievability?: number | null;
+  proficiency_score: number;
+  reps: number;
+  lapses: number;
+  times_seen: number;
+  times_used_correctly: number;
+  times_used_incorrectly: number;
+  fragility_level: string;
+  fragility_label: string;
+  fragility_reason?: string | null;
+}
+
+export interface VocabularyBiographyExample {
+  sentence: string;
+  translation?: string | null;
+  source: string;
+  occurred_at?: string | null;
+}
+
+export interface VocabularyBiographyEvent {
+  id: string;
+  event_type: string;
+  label: string;
+  description?: string | null;
+  occurred_at?: string | null;
+  source_type: string;
+  source_id?: string | null;
+  metadata: Record<string, any>;
+}
+
+export interface VocabularyBiography {
+  word: VocabularyWord;
+  origin: VocabularyBiographyOrigin;
+  progress: VocabularyBiographyProgress;
+  examples: VocabularyBiographyExample[];
+  linked_errata_count: number;
+  context_event_count: number;
+  timeline: VocabularyBiographyEvent[];
+}
+
+export interface VocabularyMasteryMapCell {
+  word_id: number;
+  word: string;
+  frequency_rank?: number | null;
+  mastery_state: 'new' | 'due' | 'fragile' | 'building' | 'solid' | 'mastered' | string;
+  proficiency_score: number;
+  is_due: boolean;
+  lapses: number;
+}
+
+export interface VocabularyMasteryMapSummary {
+  total: number;
+  new: number;
+  due: number;
+  fragile: number;
+  building: number;
+  solid: number;
+  mastered: number;
+}
+
+export interface VocabularyMasteryMap {
+  summary: VocabularyMasteryMapSummary;
+  cells: VocabularyMasteryMapCell[];
+  deck_label: string;
+}
+
+export interface WeeklyDossierStats {
+  repairs_filed: number;
+  vocabulary_reviews: number;
+  words_seen: number;
+  words_produced: number;
+  missions_completed: number;
+  feuilleton_scenes_completed: number;
+}
+
+export interface WeeklyDossierThread {
+  title: string;
+  subtitle?: string | null;
+  tone: string;
+  count: number;
+}
+
+export interface WeeklyDossier {
+  period_start: string;
+  period_end: string;
+  headline: string;
+  stats: WeeklyDossierStats;
+  strengths: WeeklyDossierThread[];
+  fragile_threads: WeeklyDossierThread[];
+  next_actions: WeeklyDossierThread[];
+}
+
+export interface VocabularyListResponse {
+  total: number;
+  items: VocabularyWord[];
+}
+
 export interface AtelierAttemptRead {
   attempt_id: string;
   session_id: string;
@@ -107,6 +331,7 @@ export interface AtelierAttemptRead {
   prompt_payload: Record<string, any>;
   answer_payload: Record<string, any>;
   correction: Record<string, any>;
+  ai_review?: Record<string, any>;
   verdict: string;
   score_0_4: number;
   submitted_key: string;
@@ -118,6 +343,8 @@ export interface AtelierSessionStart {
   status: string;
   concepts: AtelierConcept[];
   quote: Record<string, any>;
+  target_vocabulary_ids: number[];
+  target_vocabulary: VocabularyRecommendationItem[];
   exercise_sets: Array<{
     id: string;
     concept_id: number;
@@ -142,6 +369,7 @@ export interface AtelierAttemptResult {
   verdict: string;
   score_0_4: number;
   correction: Record<string, any>;
+  ai_review?: Record<string, any>;
 }
 
 export interface AtelierErrataReviewTask {
@@ -170,6 +398,13 @@ export interface AtelierErrataAttemptResult {
   answer_text: string;
   target_answer: string;
   feedback: string;
+  closure?: {
+    label: string;
+    detail?: string | null;
+    filed_at?: string | null;
+    next_review_date?: string | null;
+    state?: string | null;
+  } | null;
   erratum: AtelierErratum;
   task: AtelierErrataReviewTask;
 }
@@ -225,12 +460,179 @@ export interface GrammarNotebookDetail extends GrammarNotebookItem {
   personal_notes?: string | null;
 }
 
+export interface DueGrammarConcept {
+  id: number;
+  name: string;
+  level: string;
+  category?: string | null;
+  description?: string | null;
+  current_score?: number | null;
+  current_state: string;
+  reps: number;
+}
+
+export interface MissionTargetVocabulary {
+  word_id: number;
+  word: string;
+  translation?: string | null;
+  bucket?: string | null;
+  scheduler?: string | null;
+  priority_score?: number | null;
+  example_sentence?: string | null;
+  example_translation?: string | null;
+}
+
+export interface VocabularyCreditSummary {
+  seen_context: number;
+  recognized: number;
+  produced_correct: number;
+  produced_incorrect: number;
+  missed_target: number;
+  [key: string]: number;
+}
+
+export interface VocabularyEvent {
+  word_id: number;
+  event_type: 'seen_context' | 'recognized' | 'produced_correct' | 'produced_incorrect' | 'missed_target' | string;
+  reason?: string | null;
+  [key: string]: any;
+}
+
+export interface LinkedVocabularyErratum extends AtelierErratum {
+  linked_word_id?: number | null;
+  error_category?: string;
+  review_mode?: string;
+  task_error_type?: string;
+}
+
+export interface VocabularyCorrectionPayload extends Record<string, any> {
+  errata: LinkedVocabularyErratum[];
+  vocabulary_events: VocabularyEvent[];
+}
+
+export interface VocabularyRecapPayload extends Record<string, any> {
+  vocabulary_credit: VocabularyCreditSummary;
+}
+
+export interface SessionTargetWord {
+  word_id: number;
+  word: string;
+  translation?: string | null;
+  is_new: boolean;
+  familiarity?: 'new' | 'learning' | 'familiar' | null;
+  hint_sentence?: string | null;
+  hint_translation?: string | null;
+}
+
+export interface SessionLearningFocus {
+  kind: 'vocabulary' | 'grammar' | 'error';
+  key: string;
+  title: string;
+  subtitle?: string | null;
+  state?: string | null;
+  priority: number;
+  metadata: Record<string, any>;
+}
+
+export interface SessionDetectedError {
+  code: string;
+  message: string;
+  span: string;
+  suggestion?: string | null;
+  category: string;
+  severity: string;
+  confidence: number;
+  occurrence_count?: number;
+  last_seen?: string | null;
+  is_recurring?: boolean;
+}
+
+export interface SessionErrorFeedback {
+  summary: string;
+  errors: SessionDetectedError[];
+  review_vocabulary: string[];
+  metadata: Record<string, any>;
+  error_stats?: Array<Record<string, any>>;
+}
+
+export interface SessionMessage {
+  id: string;
+  sender: 'user' | 'assistant';
+  content: string;
+  sequence_number: number;
+  created_at: string;
+  xp_earned: number;
+  target_words: number[];
+  words_used: number[];
+  suggested_words_used: number[];
+  error_feedback?: SessionErrorFeedback | null;
+  target_details: SessionTargetWord[];
+  learning_focus: SessionLearningFocus[];
+  pending_moment?: Record<string, any> | null;
+}
+
+export interface SessionOverview {
+  id: string;
+  status: string;
+  topic?: string | null;
+  conversation_style?: string | null;
+  anki_direction?: string | null;
+  planned_duration_minutes: number;
+  xp_earned: number;
+  words_practiced: number;
+  accuracy_rate?: number | null;
+  started_at: string;
+  completed_at?: string | null;
+}
+
+export interface AssistantTurn {
+  message: SessionMessage;
+  targets: SessionTargetWord[];
+  targeted_errors: Array<Record<string, any>>;
+  learning_focus: SessionLearningFocus[];
+  pending_moment?: Record<string, any> | null;
+}
+
+export interface SessionTurnWordFeedback {
+  word_id: number;
+  word: string;
+  translation?: string | null;
+  is_new: boolean;
+  was_used: boolean;
+  rating?: number | null;
+  had_error: boolean;
+  error?: SessionDetectedError | null;
+}
+
+export interface SessionStartResult {
+  session: SessionOverview;
+  assistant_turn?: AssistantTurn | null;
+}
+
+export interface SessionTurnResult {
+  session: SessionOverview;
+  user_message: SessionMessage;
+  assistant_turn: AssistantTurn;
+  xp_awarded: number;
+  combo_count: number;
+  error_feedback: SessionErrorFeedback;
+  word_feedback: SessionTurnWordFeedback[];
+}
+
+export interface SessionMessageList {
+  items: SessionMessage[];
+  total: number;
+}
+
 export interface RealWorldMission {
   id: string;
   status: 'available' | 'in_progress' | 'completed' | string;
   cadence: 'weekly' | 'post_session' | 'ad_hoc' | string;
   mission_type: 'message' | 'explain_plan' | 'news_summary' | 'travel_work' | 'conversation' | string;
+  stakes_level?: number;
   atelier_session_id?: string | null;
+  serial_thread_id?: string | null;
+  episode_index?: number | null;
   iso_year?: number | null;
   iso_week?: number | null;
   title: string;
@@ -238,10 +640,12 @@ export interface RealWorldMission {
   selected_concept_ids: number[];
   target_errata_ids: string[];
   target_vocabulary_ids: number[];
+  target_vocabulary?: MissionTargetVocabulary[];
   source_snapshot: Record<string, any>;
   objectives: Array<Record<string, any>>;
   prompt_payload: Record<string, any>;
-  recap: Record<string, any>;
+  recap: VocabularyRecapPayload;
+  outcome?: Record<string, any> | null;
   attempts?: Array<Record<string, any>>;
   turns?: Array<Record<string, any>>;
   created_at?: string | null;
@@ -256,19 +660,60 @@ export interface MissionToday {
   recent_completed: RealWorldMission[];
 }
 
+export interface SerialToday {
+  thread_id: string;
+  episode_index: number;
+  kind: 'mission' | 'feuilleton' | string;
+  status?: string;
+  mission_id?: string | null;
+  scene_id?: string | null;
+  thread?: Record<string, any>;
+}
+
+export interface SerialArchiveEpisode {
+  id: string;
+  episode_index: number;
+  episode_label: string;
+  kind: 'mission' | 'feuilleton' | string;
+  title: string;
+  mission_id?: string | null;
+  scene_id?: string | null;
+  thumbnail_url?: string | null;
+  hook_text?: string | null;
+  completed_at?: string | null;
+  status: string;
+}
+
+export interface SerialCastMember {
+  id: string;
+  name: string;
+  role?: string | null;
+  dynamic_with_user?: string | null;
+  model_sheet_url?: string | null;
+  accent_colour?: string | null;
+  relationship: {
+    closeness: number;
+    register: string;
+    register_switch_episode?: number | null;
+    last_summary?: string;
+    callbacks?: string[];
+  };
+}
+
 export interface MissionAttemptResult {
   attempt: Record<string, any>;
-  correction: Record<string, any>;
-  errata: Array<Record<string, any>>;
+  correction: VocabularyCorrectionPayload;
+  errata: LinkedVocabularyErratum[];
   mission: RealWorldMission;
 }
 
 export interface MissionTurnResult {
   user_turn: Record<string, any>;
   assistant_turn: Record<string, any>;
-  correction: Record<string, any>;
-  errata: Array<Record<string, any>>;
+  correction: VocabularyCorrectionPayload;
+  errata: LinkedVocabularyErratum[];
   mission: RealWorldMission;
+  outcome?: Record<string, any>;
 }
 
 export interface GraphicNovelPanel {
@@ -290,15 +735,19 @@ export interface GraphicNovelScene {
   cadence: 'ad_hoc' | 'post_session' | 'weekly' | string;
   atelier_session_id?: string | null;
   mission_id?: string | null;
+  serial_thread_id?: string | null;
+  episode_index?: number | null;
   personal_input_item_id?: string | null;
   title: string;
   brief: string;
   selected_concept_ids: number[];
   target_errata_ids: string[];
   target_vocabulary_ids: number[];
+  target_vocabulary?: MissionTargetVocabulary[];
   source_snapshot: Record<string, any>;
   script_payload: Record<string, any>;
-  recap: Record<string, any>;
+  hook?: Record<string, any>;
+  recap: VocabularyRecapPayload;
   cache_key: string;
   prompt_version: string;
   image_model: string;
@@ -319,8 +768,8 @@ export interface GraphicNovelToday {
 
 export interface GraphicNovelAttemptResult {
   attempt: Record<string, any>;
-  correction: Record<string, any>;
-  errata: Array<Record<string, any>>;
+  correction: VocabularyCorrectionPayload;
+  errata: LinkedVocabularyErratum[];
   scene: GraphicNovelScene;
 }
 
@@ -335,12 +784,38 @@ function apiErrorMessage(error: any): string {
   return 'An error occurred';
 }
 
+type SilentRequestConfig = AxiosRequestConfig & {
+  suppressGlobalError?: boolean;
+  skipAuth?: boolean;
+};
+
+function isUnauthorized(error: any): boolean {
+  return error?.response?.status === 401;
+}
+
+export function resolveBrowserApiBaseUrl() {
+  const configured = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+  if (typeof window === 'undefined') return configured;
+
+  try {
+    const url = new URL(configured);
+    const localApiHost = (url.hostname === 'localhost' || url.hostname === '127.0.0.1') && url.port === '8000';
+    if (localApiHost && url.pathname.replace(/\/$/, '') === '/api/v1') {
+      return '/api/backend';
+    }
+  } catch {
+    // Relative or otherwise non-URL values should pass through unchanged.
+  }
+
+  return configured;
+}
+
 class ApiService {
   private api: AxiosInstance;
 
   constructor() {
     this.api = axios.create({
-      baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1',
+      baseURL: resolveBrowserApiBaseUrl(),
       timeout: 90000, // Increased for LLM-heavy operations like grammar exercise generation
       headers: {
         'Content-Type': 'application/json',
@@ -354,8 +829,9 @@ class ApiService {
     // Request interceptor to add auth token
     this.api.interceptors.request.use(
       async (config) => {
-        const session = await getSession();
-        if (session?.accessToken) {
+        const requestConfig = config as SilentRequestConfig;
+        const session = requestConfig.skipAuth ? null : await getSession();
+        if (!requestConfig.skipAuth && session?.accessToken) {
           config.headers.Authorization = `Bearer ${session.accessToken}`;
         }
         return config;
@@ -373,6 +849,10 @@ class ApiService {
         const message = apiErrorMessage(error);
 
         if (detail?.code === 'feuilleton_generation_failed') {
+          return Promise.reject(error);
+        }
+
+        if ((error.config as SilentRequestConfig)?.suppressGlobalError) {
           return Promise.reject(error);
         }
 
@@ -438,6 +918,32 @@ class ApiService {
     return response.data;
   }
 
+  private async atelierGet<T>(url: string, config: SilentRequestConfig = {}): Promise<T> {
+    const requestConfig: SilentRequestConfig = { suppressGlobalError: true, ...config };
+    try {
+      return await this.get<T>(url, requestConfig);
+    } catch (error) {
+      if (isUnauthorized(error) && !requestConfig.skipAuth) {
+        const retryConfig: SilentRequestConfig = { ...requestConfig, skipAuth: true };
+        return this.get<T>(url, retryConfig);
+      }
+      throw error;
+    }
+  }
+
+  private async atelierPost<T>(url: string, data?: any, config: SilentRequestConfig = {}): Promise<T> {
+    const requestConfig: SilentRequestConfig = { suppressGlobalError: true, ...config };
+    try {
+      return await this.post<T>(url, data, requestConfig);
+    } catch (error) {
+      if (isUnauthorized(error) && !requestConfig.skipAuth) {
+        const retryConfig: SilentRequestConfig = { ...requestConfig, skipAuth: true };
+        return this.post<T>(url, data, retryConfig);
+      }
+      throw error;
+    }
+  }
+
   // Authentication endpoints
   async register(userData: {
     email: string;
@@ -460,13 +966,45 @@ class ApiService {
     return this.post('/auth/login', credentials);
   }
 
+  async refreshSession(refreshToken: string) {
+    return this.post('/auth/refresh', { refresh_token: refreshToken });
+  }
+
+  async logout(refreshToken?: string | null) {
+    return this.post('/auth/logout', refreshToken ? { refresh_token: refreshToken } : {});
+  }
+
   // User endpoints
   async getCurrentUser() {
     return this.get('/users/me');
   }
 
+  async getSettings() {
+    return this.get('/users/me/settings');
+  }
+
+  async updateSettings(data: any) {
+    return this.patch('/users/me/settings', data);
+  }
+
   async updateProfile(data: any) {
     return this.patch('/users/me', data);
+  }
+
+  async changePassword(data: { current_password: string; new_password: string }) {
+    return this.patch('/users/me/password', data);
+  }
+
+  async changeEmail(data: { current_password: string; new_email: string }) {
+    return this.patch('/users/me/email', data);
+  }
+
+  async exportUserData() {
+    return this.get('/users/me/export');
+  }
+
+  async signOutAllDevices() {
+    return this.post('/users/me/sign-out-all');
   }
 
   async deleteAccount() {
@@ -488,8 +1026,8 @@ class ApiService {
     conversation_style?: string;
     difficulty_preference?: string;
     generate_greeting?: boolean;
-  }) {
-    return this.post('/sessions', data);
+  }): Promise<SessionStartResult> {
+    return this.post<SessionStartResult>('/sessions', data);
   }
 
   async quickStartSession(data?: {
@@ -497,28 +1035,28 @@ class ApiService {
     story_url?: string;
     story_source?: string;
     story_summary?: string;
-  }) {
-    return this.post('/sessions/quick-start', data || {});
+  }): Promise<SessionStartResult> {
+    return this.post<SessionStartResult>('/sessions/quick-start', data || {});
   }
 
   async getLiveStories(params?: { limit?: number; topics?: string }) {
     return this.get<LiveStoryListResponse>('/sessions/live-stories', { params });
   }
 
-  async getSession(sessionId: string) {
-    return this.get(`/sessions/${sessionId}`);
+  async getSession(sessionId: string): Promise<SessionOverview> {
+    return this.get<SessionOverview>(`/sessions/${sessionId}`);
   }
 
-  async getSessions(params?: { limit?: number; offset?: number }) {
-    return this.get('/sessions', { params });
+  async getSessions(params?: { limit?: number; offset?: number }): Promise<SessionOverview[]> {
+    return this.get<SessionOverview[]>('/sessions', { params });
   }
 
-  async sendMessage(sessionId: string, data: { content: string; suggested_word_ids?: number[] }) {
-    return this.post(`/sessions/${sessionId}/messages`, data);
+  async sendMessage(sessionId: string, data: { content: string; suggested_word_ids?: number[] }): Promise<SessionTurnResult> {
+    return this.post<SessionTurnResult>(`/sessions/${sessionId}/messages`, data);
   }
 
-  async getSessionMessages(sessionId: string, params?: { limit?: number; offset?: number }) {
-    return this.get(`/sessions/${sessionId}/messages`, { params });
+  async getSessionMessages(sessionId: string, params?: { limit?: number; offset?: number }): Promise<SessionMessageList> {
+    return this.get<SessionMessageList>(`/sessions/${sessionId}/messages`, { params });
   }
 
   async submitSessionMoment(
@@ -537,8 +1075,8 @@ class ApiService {
     return this.post(`/sessions/${sessionId}/exposures`, data);
   }
 
-  async updateSessionStatus(sessionId: string, status: 'in_progress' | 'paused' | 'completed' | 'abandoned') {
-    return this.patch(`/sessions/${sessionId}`, { status });
+  async updateSessionStatus(sessionId: string, status: 'in_progress' | 'paused' | 'completed' | 'abandoned'): Promise<SessionOverview> {
+    return this.patch<SessionOverview>(`/sessions/${sessionId}`, { status });
   }
 
   async getSessionSummary(sessionId: string) {
@@ -570,6 +1108,34 @@ class ApiService {
     interleaving_mode?: 'random' | 'blocks' | 'priority';
   }): Promise<UnifiedSRSQueue> {
     return this.get('/progress/unified-queue', { params });
+  }
+
+  async getVocabularyRecommendations(params?: VocabularyRecommendationParams): Promise<VocabularyRecommendations> {
+    return this.get('/progress/vocabulary/recommendations', {
+      params,
+      suppressGlobalError: true,
+    } as AxiosRequestConfig & { suppressGlobalError: boolean });
+  }
+
+  async getVocabularyDueContext(params?: VocabularyDueContextParams): Promise<VocabularyDueContext> {
+    return this.get('/vocabulary/due-context', {
+      params,
+      suppressGlobalError: true,
+    } as AxiosRequestConfig & { suppressGlobalError: boolean });
+  }
+
+  async getVocabularyMasteryMap(params?: { limit?: number; direction?: string }): Promise<VocabularyMasteryMap> {
+    return this.get('/progress/vocabulary/map', {
+      params,
+      suppressGlobalError: true,
+    } as AxiosRequestConfig & { suppressGlobalError: boolean });
+  }
+
+  async getWeeklyDossier(params?: { period_days?: number }): Promise<WeeklyDossier> {
+    return this.get('/progress/weekly-dossier', {
+      params,
+      suppressGlobalError: true,
+    } as AxiosRequestConfig & { suppressGlobalError: boolean });
   }
 
   async getAnkiProgress(params?: { direction?: string }) {
@@ -631,12 +1197,21 @@ class ApiService {
   }
 
   // Vocabulary endpoints
-  async getVocabulary(params?: { limit?: number; offset?: number; search?: string }) {
-    return this.get('/vocabulary', { params });
+  async getVocabulary(params?: { language?: string; limit?: number; offset?: number; search?: string }): Promise<VocabularyListResponse> {
+    return this.get('/vocabulary', {
+      params,
+      suppressGlobalError: true,
+    } as AxiosRequestConfig & { suppressGlobalError: boolean });
   }
 
-  async getVocabularyItem(wordId: number) {
+  async getVocabularyItem(wordId: number): Promise<VocabularyWord> {
     return this.get(`/vocabulary/${wordId}`);
+  }
+
+  async getVocabularyBiography(wordId: number): Promise<VocabularyBiography> {
+    return this.get(`/vocabulary/${wordId}/biography`, {
+      suppressGlobalError: true,
+    } as AxiosRequestConfig & { suppressGlobalError: boolean });
   }
 
   // Grammar endpoints
@@ -665,7 +1240,7 @@ class ApiService {
   }
 
   async getDueGrammarConcepts(params?: { level?: string; limit?: number }) {
-    return this.get('/grammar/due', { params });
+    return this.get<DueGrammarConcept[]>('/grammar/due', { params });
   }
 
   async getGrammarProgress(params?: { level?: string }) {
@@ -702,19 +1277,19 @@ class ApiService {
 
   // Atelier grammar practice endpoints
   async getAtelierToday() {
-    return this.get<AtelierToday>('/atelier/today');
+    return this.atelierGet<AtelierToday>('/atelier/today');
   }
 
-  async startAtelierSession(data?: { concept_ids?: number[]; preferred_concept_id?: number }) {
-    return this.post<AtelierSessionStart>('/atelier/sessions', data || {});
+  async startAtelierSession(data?: { concept_ids?: number[]; preferred_concept_id?: number; preferred_vocabulary_ids?: number[] }) {
+    return this.atelierPost<AtelierSessionStart>('/atelier/sessions', data || {});
   }
 
   async getActiveAtelierSession() {
-    return this.get<{ session: AtelierSessionStart | null }>('/atelier/sessions/active');
+    return this.atelierGet<{ session: AtelierSessionStart | null }>('/atelier/sessions/active');
   }
 
   async getAtelierSession(sessionId: string) {
-    return this.get<AtelierSessionStart>(`/atelier/sessions/${sessionId}`);
+    return this.atelierGet<AtelierSessionStart>(`/atelier/sessions/${sessionId}`);
   }
 
   async submitAtelierAttempt(
@@ -728,19 +1303,27 @@ class ApiService {
       resubmit?: boolean;
     }
   ) {
-    return this.post<AtelierAttemptResult>(`/atelier/sessions/${sessionId}/attempts`, data);
+    return this.atelierPost<AtelierAttemptResult>(`/atelier/sessions/${sessionId}/attempts`, data);
+  }
+
+  async getAtelierAttempt(attemptId: string) {
+    return this.atelierGet<AtelierAttemptResult>(`/atelier/attempts/${attemptId}`);
+  }
+
+  async requestAtelierAttemptAiReview(attemptId: string) {
+    return this.atelierPost<AtelierAttemptResult>(`/atelier/attempts/${attemptId}/ai-review`, {});
   }
 
   async completeAtelierSession(sessionId: string) {
-    return this.post<{ session_id: string; recap: Record<string, any> }>(`/atelier/sessions/${sessionId}/complete`);
+    return this.atelierPost<{ session_id: string; recap: Record<string, any> }>(`/atelier/sessions/${sessionId}/complete`);
   }
 
   async reviewAtelierErratum(errorId: string, data?: { rating?: number; repaired?: boolean }) {
-    return this.post<{ erratum: AtelierErratum }>(`/atelier/errata/${errorId}/review`, data || {});
+    return this.atelierPost<{ erratum: AtelierErratum }>(`/atelier/errata/${errorId}/review`, data || {});
   }
 
   async getAtelierErratumTask(errorId: string) {
-    return this.get<{ task: AtelierErrataReviewTask }>(`/atelier/errata/${errorId}/task`);
+    return this.atelierGet<{ task: AtelierErrataReviewTask }>(`/atelier/errata/${errorId}/task`);
   }
 
   async submitAtelierErratumAttempt(errorId: string, data: { answer_text: string }) {
@@ -749,67 +1332,86 @@ class ApiService {
 
   // Real-world scenario missions
   async getMissionsToday() {
-    return this.get<MissionToday>('/missions/today');
+    return this.atelierGet<MissionToday>('/missions/today');
   }
 
   async createMission(data: {
     mission_type?: string;
     cadence?: string;
     atelier_session_id?: string;
+    serial_thread_id?: string;
+    episode_index?: number;
     preferred_concept_ids?: number[];
     preferred_errata_ids?: string[];
+    preferred_vocabulary_ids?: number[];
     use_news?: boolean;
     custom_scenario?: string;
     desired_outcome?: string;
     relationship?: string;
     register?: string;
+    stakes_level?: number;
   }) {
-    const response = await this.post<{ mission: RealWorldMission }>('/missions', data);
+    const response = await this.atelierPost<{ mission: RealWorldMission }>('/missions', data);
     return response.mission;
   }
 
   async getMission(missionId: string) {
-    const response = await this.get<{ mission: RealWorldMission }>(`/missions/${missionId}`);
+    const response = await this.atelierGet<{ mission: RealWorldMission }>(`/missions/${missionId}`);
     return response.mission;
   }
 
   async submitMission(missionId: string, data: { text: string; mode?: 'writing' | 'chat' | 'voice' }) {
-    return this.post<MissionAttemptResult>(`/missions/${missionId}/submit`, data);
+    return this.atelierPost<MissionAttemptResult>(`/missions/${missionId}/submit`, data);
   }
 
   async submitMissionTurn(missionId: string, data: { text: string; mode?: 'chat' | 'voice'; transcript_metadata?: Record<string, any> }) {
-    return this.post<MissionTurnResult>(`/missions/${missionId}/turns`, data);
+    return this.atelierPost<MissionTurnResult>(`/missions/${missionId}/turns`, data);
   }
 
   async completeMission(missionId: string) {
-    const response = await this.post<{ mission: RealWorldMission; recap: Record<string, any> }>(`/missions/${missionId}/complete`);
+    const response = await this.atelierPost<{ mission: RealWorldMission; recap: VocabularyRecapPayload }>(`/missions/${missionId}/complete`);
     return response;
+  }
+
+  async getSerialToday() {
+    return this.atelierGet<SerialToday>('/serial/today');
+  }
+
+  async getSerialEpisodes() {
+    return this.atelierGet<{ thread_id: string; episodes: SerialArchiveEpisode[] }>('/serial/threads/current/episodes');
+  }
+
+  async getSerialCast() {
+    return this.atelierGet<{ thread_id: string; cast: SerialCastMember[] }>('/serial/threads/current/cast');
   }
 
   async transcribeMissionAudio(audioBlob: Blob): Promise<string> {
     const formData = new FormData();
     formData.append('file', audioBlob, 'mission-audio.webm');
 
-    const response = await this.api.post<{ text: string }>('/missions/audio/transcribe', formData, {
+    const response = await this.atelierPost<{ text: string }>('/missions/audio/transcribe', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
     });
-    return response.data.text;
+    return response.text;
   }
 
   // Graphic Novel / Feuilleton practice
   async getGraphicNovelToday() {
-    return this.get<GraphicNovelToday>('/graphic-novel/today');
+    return this.atelierGet<GraphicNovelToday>('/graphic-novel/today');
   }
 
   async createGraphicNovelScene(data?: {
     cadence?: 'ad_hoc' | 'post_session' | 'weekly';
     atelier_session_id?: string;
     mission_id?: string;
+    serial_thread_id?: string;
+    episode_index?: number;
     personal_input_item_id?: string;
     preferred_concept_ids?: number[];
     preferred_errata_ids?: string[];
+    target_vocabulary_ids?: number[];
     use_news?: boolean;
     panel_count?: 4 | 6 | 8;
     story_quality?: 'standard' | 'premium';
@@ -821,23 +1423,23 @@ class ApiService {
     force_new?: boolean;
     refresh_news?: boolean;
   }) {
-    const response = await this.post<{ scene: GraphicNovelScene }>('/graphic-novel/scenes', data || {}, {
+    const response = await this.atelierPost<{ scene: GraphicNovelScene }>('/graphic-novel/scenes', data || {}, {
       timeout: 720000,
     });
     return response.scene;
   }
 
   async getGraphicNovelScene(sceneId: string) {
-    const response = await this.get<{ scene: GraphicNovelScene }>(`/graphic-novel/scenes/${sceneId}`);
+    const response = await this.atelierGet<{ scene: GraphicNovelScene }>(`/graphic-novel/scenes/${sceneId}`);
     return response.scene;
   }
 
   async submitGraphicNovelAttempt(sceneId: string, data: { task_id: string; answer_payload: Record<string, any> }) {
-    return this.post<GraphicNovelAttemptResult>(`/graphic-novel/scenes/${sceneId}/attempts`, data);
+    return this.atelierPost<GraphicNovelAttemptResult>(`/graphic-novel/scenes/${sceneId}/attempts`, data);
   }
 
   async completeGraphicNovelScene(sceneId: string) {
-    const response = await this.post<{ scene: GraphicNovelScene; recap: Record<string, any> }>(`/graphic-novel/scenes/${sceneId}/complete`);
+    const response = await this.atelierPost<{ scene: GraphicNovelScene; recap: VocabularyRecapPayload }>(`/graphic-novel/scenes/${sceneId}/complete`);
     return response;
   }
 
