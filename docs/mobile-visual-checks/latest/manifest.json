@@ -1,0 +1,20 @@
+{
+  "capturedAt": "2026-05-30T12:24:39.239Z",
+  "frontendUrl": "http://localhost:3001",
+  "backendUrl": "http://localhost:8000",
+  "viewport": {
+    "width": 390,
+    "height": 844,
+    "deviceScaleFactor": 3,
+    "mobile": true
+  },
+  "frames": [
+    {
+      "name": "atelier-home-active",
+      "route": "/atelier",
+      "path": "/Users/vincentpechstein/Downloads/Pixel-lab/ConversationalLanguageLearning/docs/mobile-visual-checks/latest/atelier-home-active.png",
+      "ok": true,
+      "warning": null
+    }
+  ]
+}
