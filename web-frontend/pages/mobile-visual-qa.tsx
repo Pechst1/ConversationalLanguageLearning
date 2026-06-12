@@ -1,5 +1,6 @@
 import React from 'react';
 import Head from 'next/head';
+import type { GetServerSideProps } from 'next';
 import { ArrowRight, BookOpen, Check, X } from 'lucide-react';
 
 import {
@@ -29,6 +30,13 @@ const repairCorrection = {
       { word_id: 3, event_type: 'missed_target', target: 'prévoir' },
     ],
   },
+};
+
+export const getServerSideProps: GetServerSideProps = async () => {
+  if (process.env.NODE_ENV === 'production') {
+    return { notFound: true };
+  }
+  return { props: {} };
 };
 
 export default function MobileVisualQA() {

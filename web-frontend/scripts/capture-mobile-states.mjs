@@ -124,6 +124,21 @@ const allFrames = [
     action: scrollToFeuilletonFinalTask(),
     optional: true,
   },
+  {
+    name: 'serial-archive',
+    route: '/serial',
+    waitFor: "document.body.innerText.includes('Season 1') && Boolean(document.querySelector('.serial-page'))",
+  },
+  {
+    name: 'serial-cast',
+    route: '/serial/cast',
+    waitFor: "document.body.innerText.includes('Cast') && Boolean(document.querySelector('.cast-page'))",
+  },
+  {
+    name: 'serial-episode-detail',
+    route: '/serial/episode/0',
+    waitFor: "document.body.innerText.includes('Episode') && Boolean(document.querySelector('.replay-page'))",
+  },
 ];
 
 const requestedFrames = (process.env.CAPTURE_FRAMES || '')

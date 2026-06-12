@@ -31,19 +31,13 @@ def create_next_serial_beat(thread_id: str) -> dict[str, str | int]:
         thread = db.get(SerialThread, thread_uuid)
         if not thread:
             raise ValueError(f"Serial thread {thread_id} not found")
-        existing = (
-            db.query(SerialThread)
-            .filter(SerialThread.id == thread.id)
-            .first()
-        )
-        if not existing:
-            raise ValueError(f"Serial thread {thread_id} not found")
         service = SerialThreadService(db)
-        current = service._current_episode(existing)
+        service.expire_stale_generations(thread)
+        current = service.current_episode(thread)
         if current:
-            return {"thread_id": str(existing.id), "episode_index": current.episode_index, "status": current.status}
-        episode = asyncio.run(service._start_next_beat(existing))
-        return {"thread_id": str(existing.id), "episode_index": episode.episode_index, "status": episode.status}
+            return {"thread_id": str(thread.id), "episode_index": current.episode_index, "status": current.status}
+        episode = asyncio.run(service.start_next_beat(thread))
+        return {"thread_id": str(thread.id), "episode_index": episode.episode_index, "status": episode.status}
     except Exception as exc:
         logger.warning("Serial next beat task failed", thread_id=thread_id, error=str(exc))
         raise

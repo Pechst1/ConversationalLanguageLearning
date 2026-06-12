@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 from uuid import UUID
@@ -33,6 +33,8 @@ def _compact(value: Any, max_length: int) -> str:
 
 class SerialThreadService:
     """Create and advance the lightweight story spine shared by Missions and Feuilleton."""
+
+    STALE_GENERATION_TIMEOUT = timedelta(minutes=15)
 
     def __init__(self, db: Session) -> None:
         self.db = db
@@ -102,9 +104,10 @@ class SerialThreadService:
 
     async def today(self, user: User) -> dict[str, Any]:
         thread = await self.get_or_create_thread(user)
+        self.expire_stale_generations(thread)
         episode = self._current_episode(thread)
         if not episode:
-            episode = await self._start_next_beat(thread)
+            episode = await self.start_next_beat(thread)
         elif episode.kind == "feuilleton" and episode.status == "delayed":
             episode = await self.start_feuilleton_beat(thread, retry_delayed=True)
         else:
@@ -113,6 +116,49 @@ class SerialThreadService:
             **self.serialize_episode(episode),
             "thread": self.serialize_thread(thread),
         }
+
+    def expire_stale_generations(
+        self,
+        thread: SerialThread | None = None,
+        *,
+        now: datetime | None = None,
+        timeout: timedelta | None = None,
+    ) -> int:
+        cutoff = (now or datetime.now(timezone.utc)) - (timeout or self.STALE_GENERATION_TIMEOUT)
+        query = self.db.query(GraphicNovelScene).filter(
+            GraphicNovelScene.status == "generating",
+            GraphicNovelScene.updated_at < cutoff,
+            GraphicNovelScene.serial_thread_id.isnot(None),
+        )
+        if thread:
+            query = query.filter(GraphicNovelScene.serial_thread_id == thread.id)
+        scenes = query.all()
+        if not scenes:
+            return 0
+
+        for scene in scenes:
+            scene.status = "generation_failed"
+            scene.completed_at = now or datetime.now(timezone.utc)
+            episode = (
+                self.db.query(SerialEpisode)
+                .filter(SerialEpisode.thread_id == scene.serial_thread_id, SerialEpisode.scene_id == scene.id)
+                .first()
+            )
+            if episode and episode.status == "generating":
+                episode.status = "delayed"
+                episode.scene_id = None
+                episode.hook = {
+                    "text": "L'édition de demain est retardée.",
+                    "unresolved_question": "Quand l'imprimerie relancera-t-elle l'épisode ?",
+                    "teaser": "Demain : l'édition reprend dès que la salle de rédaction revient.",
+                    "next_beat_kind": "feuilleton",
+                }
+                self.db.add(episode)
+            self.db.add(scene)
+        self.db.commit()
+        if thread:
+            self.db.refresh(thread)
+        return len(scenes)
 
     async def start_mission_beat(self, thread: SerialThread) -> SerialEpisode:
         hook_from_previous = self._previous_hook(thread)
@@ -771,7 +817,10 @@ class SerialThreadService:
             .first()
         )
 
-    async def _start_next_beat(self, thread: SerialThread) -> SerialEpisode:
+    def current_episode(self, thread: SerialThread) -> SerialEpisode | None:
+        return self._current_episode(thread)
+
+    async def start_next_beat(self, thread: SerialThread) -> SerialEpisode:
         hook = self._previous_hook(thread)
         next_kind = str((hook or {}).get("next_beat_kind") or ("mission" if thread.current_episode_index % 2 == 0 else "feuilleton"))
         if next_kind == "feuilleton":

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
@@ -186,8 +186,9 @@ export default function AtelierPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const aiPollTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const scheduleAiReviewPollingRef = useRef<(attemptId: string, key: string, remaining?: number) => void>(() => {});
 
-  const hydrateSession = (next: AtelierSessionStart, openSession = false) => {
+  const hydrateSession = useCallback((next: AtelierSessionStart, openSession = false) => {
     const restoredAnswers: Record<string, Record<string, any>> = {};
     const restoredSubmitted: Record<string, boolean> = { ...(next.submitted_map || {}) };
     const restoredCorrections: Record<string, Record<string, any>> = {};
@@ -207,7 +208,7 @@ export default function AtelierPage() {
       }
       errataForAttempt(correction, attempt.attempt_id).forEach((item: AtelierErratum) => restoredErrata.unshift(item));
       if (aiReviewStatus(correction) === 'pending') {
-        scheduleAiReviewPolling(attempt.attempt_id, key);
+        scheduleAiReviewPollingRef.current(attempt.attempt_id, key);
       }
     });
 
@@ -231,7 +232,11 @@ export default function AtelierPage() {
     if (openSession) {
       setView('session');
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    scheduleAiReviewPollingRef.current = scheduleAiReviewPolling;
+  });
 
   useEffect(() => {
     let alive = true;
@@ -271,7 +276,7 @@ export default function AtelierPage() {
     return () => {
       alive = false;
     };
-  }, [reloadKey]);
+  }, [hydrateSession, reloadKey]);
 
   useEffect(() => {
     return () => {

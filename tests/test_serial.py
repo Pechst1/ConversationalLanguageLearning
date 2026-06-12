@@ -4,7 +4,7 @@ from __future__ import annotations
 import asyncio
 import json
 from pathlib import Path
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 from uuid import UUID
 from typing import Any
@@ -611,6 +611,60 @@ def test_delayed_feuilleton_retries_without_duplicate_episode(db_session, monkey
         .count()
         == 1
     )
+
+
+def test_stale_generating_scene_expires_to_retryable_delayed_episode(db_session):
+    user = _user(db_session, email="serial-stale-generating@example.com")
+    service = SerialThreadService(db_session)
+    thread = _run(service.get_or_create_thread(user))
+    thread.current_episode_index = 3
+    stale_at = datetime.now(timezone.utc) - timedelta(minutes=20)
+    scene = GraphicNovelScene(
+        user_id=user.id,
+        serial_thread_id=thread.id,
+        episode_index=3,
+        status="generating",
+        cadence="serial",
+        title="Stale scene",
+        brief="A scene stranded by a stopped worker.",
+        selected_concept_ids=[],
+        target_errata_ids=[],
+        target_vocabulary_ids=[],
+        source_snapshot={},
+        script_payload={"hook": {"text": "A stranded hook.", "next_beat_kind": "mission"}},
+        recap_payload={},
+        cache_key=f"serial-stale-generating-{uuid4().hex}",
+        prompt_version="test",
+        image_model="test",
+        image_quality="medium",
+        started_at=stale_at,
+        updated_at=stale_at,
+    )
+    db_session.add(scene)
+    db_session.flush()
+    episode = SerialEpisode(
+        thread_id=thread.id,
+        episode_index=3,
+        kind="feuilleton",
+        scene_id=scene.id,
+        hook={},
+        hook_from_previous={},
+        state_delta={},
+        status="generating",
+        brief_payload=service._episode_brief(thread, "see").model_dump(mode="json"),
+    )
+    db_session.add_all([thread, episode])
+    db_session.commit()
+
+    expired = service.expire_stale_generations(thread)
+    db_session.refresh(scene)
+    db_session.refresh(episode)
+
+    assert expired == 1
+    assert scene.status == "generation_failed"
+    assert episode.status == "delayed"
+    assert episode.scene_id is None
+    assert "retardée" in episode.hook["text"]
 
 
 def test_full_loop(db_session, monkeypatch):
