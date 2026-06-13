@@ -52,6 +52,17 @@ GRAPHIC_NOVEL_EXPERIENCE_MODES = ("study", "reward")
 GRAPHIC_NOVEL_RENDER_MODES = ("page", "panels")
 GRAPHIC_NOVEL_IMAGE_QUALITIES = ("low", "medium", "high")
 GRAPHIC_NOVEL_PUBLIC_FIGURE_MODES = ("off", "named_context", "editorial_caricature")
+SERIAL_TEMPLATE_TASK_LABELS = {
+    "radiator phrase",
+    "how do you enter?",
+    "introduce yourself",
+    "news reaction",
+    "keep the thread alive",
+}
+SERIAL_TEMPLATE_BUBBLE_LINES = {
+    "viens, tu vas geler.",
+    "c'est quoi la vraie histoire ?",
+}
 GENERIC_PANEL_BEAT_PHRASES = (
     "the practical problem gets slightly more theatrical",
     "the target grammar stays necessary",
@@ -1963,8 +1974,88 @@ class GraphicNovelStoryGenerator:
                                     "panel_action": {"type": "string"},
                                     "caption_fr": {"type": "string"},
                                     "caption_en": {"type": "string"},
+                                    "tasks": {
+                                        "type": "array",
+                                        "minItems": 0,
+                                        "maxItems": 2,
+                                        "items": {
+                                            "type": "object",
+                                            "additionalProperties": False,
+                                            "properties": {
+                                                "id": {"type": "string"},
+                                                "task_type": {"type": "string", "enum": list(GRAPHIC_NOVEL_TASKS)},
+                                                "label": {"type": "string"},
+                                                "instruction": {"type": "string"},
+                                                "prompt": {"type": "string"},
+                                                "prompt_translation": {"type": "string"},
+                                                "expected_answer": {"type": "string"},
+                                                "accepted_answers": {
+                                                    "type": "array",
+                                                    "items": {"type": "string"},
+                                                },
+                                                "options": {
+                                                    "type": "array",
+                                                    "minItems": 0,
+                                                    "maxItems": 4,
+                                                    "items": {
+                                                        "type": "object",
+                                                        "additionalProperties": False,
+                                                        "properties": {
+                                                            "value": {"type": "string"},
+                                                            "label": {"type": "string"},
+                                                            "fr": {"type": "string"},
+                                                            "en": {"type": "string"},
+                                                            "next_panel_beat": {"type": "string"},
+                                                        },
+                                                        "required": ["value", "label", "fr", "en", "next_panel_beat"],
+                                                    },
+                                                },
+                                                "expected_features": {
+                                                    "type": "array",
+                                                    "items": {"type": "string"},
+                                                },
+                                                "placeholder": {"type": "string"},
+                                                "scene_function": {"type": "string"},
+                                                "feedback_context": {"type": "string"},
+                                            },
+                                            "required": [
+                                                "id",
+                                                "task_type",
+                                                "label",
+                                                "instruction",
+                                                "prompt",
+                                                "prompt_translation",
+                                                "expected_answer",
+                                                "accepted_answers",
+                                                "options",
+                                                "expected_features",
+                                                "placeholder",
+                                                "scene_function",
+                                                "feedback_context",
+                                            ],
+                                        },
+                                    },
+                                    "bubbles": {
+                                        "type": "array",
+                                        "minItems": 0,
+                                        "maxItems": 2,
+                                        "items": {
+                                            "type": "object",
+                                            "additionalProperties": False,
+                                            "properties": {
+                                                "speaker_id": {"type": "string"},
+                                                "speaker": {"type": "string"},
+                                                "fr": {"type": "string"},
+                                                "en": {"type": "string"},
+                                                "x": {"type": "number"},
+                                                "y": {"type": "number"},
+                                                "tone": {"type": "string"},
+                                            },
+                                            "required": ["speaker_id", "speaker", "fr", "en", "x", "y", "tone"],
+                                        },
+                                    },
                                 },
-                                "required": ["title", "beat", "panel_action", "caption_fr", "caption_en"],
+                                "required": ["title", "beat", "panel_action", "caption_fr", "caption_en", "tasks", "bubbles"],
                             },
                         },
                         "opening_cloze": {
@@ -2051,8 +2142,15 @@ class GraphicNovelStoryGenerator:
             "- The FINAL panel must end on a genuine cliffhanger (an unresolved question), not a recap.\n"
             "- Captions are story, not pedagogy: never mention grammar, exercises, targets, or worksheets.\n"
             "- Comedy first, but land one beat of real feeling. French captions in natural French.\n"
+            "- Author 3 to 5 panel-attached overlay tasks total. They must be consequences of THIS episode's beats and targets, not generic onboarding.\n"
+            "- Never reuse these stale task labels: Radiator phrase, How do you enter?, Introduce yourself, News reaction, Keep the thread alive.\n"
+            "- Choice tasks must include visible French option text in each option, not just A/B. Keep values short (A/B) and put the spoken line in fr.\n"
+            "- Author up to two speech bubbles per panel. Bubble dialogue must come from the current beat and recurring cast relationship/register.\n"
+            "- If serial_state_flags.user_has_met_group is true, do not ask for an introduction or first-meeting line.\n"
+            "- When a task asks the learner to address a cast member, use that character's current register from register_state.relationships; do not force tu unless the relationship register is tu.\n"
             f"- Produce exactly {panel_count} panels."
         )
+        user_has_met_group = self._serial_user_has_met_group(state)
         payload = {
             "logline": world.get("logline"),
             "setting": {"city": setting.get("city"), "neighborhood": setting.get("neighborhood")},
@@ -2078,7 +2176,16 @@ class GraphicNovelStoryGenerator:
             ],
             "grammar_targets": [target.get("label") for target in (targets or [])[:4]],
             "episode_brief": episode_brief or {},
+            "serial_state_flags": {
+                "user_has_met_group": user_has_met_group,
+                "heating_fixed": state.get("heating_fixed"),
+                "pending_register_switch": state.get("pending_register_switch"),
+            },
             "relationships": (episode_brief or {}).get("relationship_context") or {},
+            "register_state": {
+                "default": ((state.get("user") or {}) if isinstance(state.get("user"), dict) else {}).get("default_register"),
+                "relationships": (state.get("relationships") if isinstance(state.get("relationships"), dict) else {}),
+            },
             "tentpole_reference": self._serial_tentpole_reference_text(episode_brief),
             "humor_style": humor_style,
             "guardrails": {
@@ -2093,6 +2200,8 @@ class GraphicNovelStoryGenerator:
                 "choice_fork": "Include a choice fork only if episode_brief.include_choice_fork is true.",
                 "news_panel": "Include a Romy news panel only if episode_brief.include_news_panel is true.",
                 "final": (episode_brief or {}).get("hook_guidance") or "End on a cliffhanger that demands the next beat.",
+                "task_rule": "Attach tasks to the panel where the learner action matters; each task should unlock, repair, or answer that panel's story pressure.",
+                "bubble_rule": "Speech bubbles are overlay dialogue, so keep them short and leave some panels without bubbles when silence is stronger.",
             },
         }
         try:
@@ -2110,6 +2219,356 @@ class GraphicNovelStoryGenerator:
         except (LLMProviderError, AttributeError, json.JSONDecodeError, ValueError) as exc:
             logger.info("Serial episode plan unavailable; using deterministic template", error=str(exc))
         return None
+
+    @staticmethod
+    def _serial_requires_story_true_plan(episode_index: Any) -> bool:
+        try:
+            return int(episode_index) >= 2
+        except (TypeError, ValueError):
+            return False
+
+    @staticmethod
+    def _serial_user_has_met_group(state: dict[str, Any]) -> bool:
+        if not isinstance(state, dict):
+            return False
+        user_state = state.get("user") if isinstance(state.get("user"), dict) else {}
+        values = (
+            state.get("user.has_met_group"),
+            state.get("has_met_group"),
+            state.get("user_has_met_group"),
+            user_state.get("has_met_group"),
+        )
+        return any(value is True or str(value).strip().lower() in {"true", "yes", "1"} for value in values)
+
+    @staticmethod
+    def _serial_task_asks_first_introduction(task: dict[str, Any]) -> bool:
+        text = _normalize_text(
+            " ".join(
+                [
+                    str(task.get("label") or ""),
+                    str(task.get("instruction") or ""),
+                    str(task.get("prompt") or ""),
+                    str(task.get("prompt_translation") or ""),
+                    " ".join(str(item) for item in task.get("expected_features") or []),
+                ]
+            )
+        )
+        first_meeting_markers = (
+            "introduce yourself",
+            "present yourself",
+            "self introduction",
+            "first meeting",
+            "premiere rencontre",
+            "presente toi",
+            "presentez vous",
+            "se presenter",
+            "te presenter",
+            "vous presenter",
+        )
+        return any(marker in text for marker in first_meeting_markers)
+
+    def _serial_plan_quality_errors(
+        self,
+        *,
+        episode_plan: dict[str, Any] | None,
+        panel_count: int,
+        branch_target: dict[str, Any],
+        target_vocabulary: list[dict[str, Any]],
+        state: dict[str, Any] | None = None,
+    ) -> list[str]:
+        plan_panels = episode_plan.get("panels") if isinstance(episode_plan, dict) else []
+        if not isinstance(plan_panels, list) or len(plan_panels) < panel_count:
+            return ["serial_plan_missing_panels"]
+        task_count = 0
+        bubble_count = 0
+        errors: list[str] = []
+        user_has_met_group = self._serial_user_has_met_group(state or {})
+        for idx in range(panel_count):
+            panel = plan_panels[idx] if idx < len(plan_panels) and isinstance(plan_panels[idx], dict) else {}
+            tasks = self._serial_plan_panel_tasks(
+                panel=panel,
+                panel_index=idx + 1,
+                branch_target=branch_target,
+                target_vocabulary=target_vocabulary,
+            )
+            bubbles = self._serial_plan_panel_bubbles(panel=panel, panel_index=idx + 1, cast=[])
+            task_count += len(tasks)
+            bubble_count += len(bubbles)
+            for task in tasks:
+                label = _normalize_text(task.get("label"))
+                if label in SERIAL_TEMPLATE_TASK_LABELS:
+                    errors.append("serial_plan_template_task_label")
+                if user_has_met_group and self._serial_task_asks_first_introduction(task):
+                    errors.append("serial_plan_reintroduces_known_group")
+                if task.get("task_type") == "choice":
+                    options = task.get("options") if isinstance(task.get("options"), list) else []
+                    visible_lines = [
+                        _compact_text((option or {}).get("fr") or (option or {}).get("text"), max_length=120)
+                        for option in options
+                        if isinstance(option, dict)
+                    ]
+                    if len(visible_lines) < 2 or any(_normalize_text(line) in {"a", "b", "c", "d"} for line in visible_lines):
+                        errors.append("serial_plan_choice_option_text_missing")
+            for bubble in bubbles:
+                if _normalize_text(bubble.get("fr")) in SERIAL_TEMPLATE_BUBBLE_LINES:
+                    errors.append("serial_plan_template_bubble")
+        if task_count == 0:
+            errors.append("serial_plan_missing_story_tasks")
+        if bubble_count == 0:
+            errors.append("serial_plan_missing_dialogue_bubbles")
+        return sorted(set(errors))
+
+    def _serial_plan_panel_tasks(
+        self,
+        *,
+        panel: dict[str, Any],
+        panel_index: int,
+        branch_target: dict[str, Any],
+        target_vocabulary: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        raw_tasks = panel.get("tasks") if isinstance(panel.get("tasks"), list) else []
+        normalized: list[dict[str, Any]] = []
+        for task_index, raw_task in enumerate(raw_tasks, start=1):
+            task = self._normalize_serial_task(
+                raw_task,
+                panel_index=panel_index,
+                task_index=task_index,
+                branch_target=branch_target,
+                target_vocabulary=target_vocabulary,
+            )
+            if task:
+                normalized.append(task)
+        return normalized
+
+    def _normalize_serial_task(
+        self,
+        raw_task: Any,
+        *,
+        panel_index: int,
+        task_index: int,
+        branch_target: dict[str, Any],
+        target_vocabulary: list[dict[str, Any]],
+    ) -> dict[str, Any] | None:
+        if not isinstance(raw_task, dict):
+            return None
+        task_type = str(raw_task.get("task_type") or "").strip()
+        if task_type not in GRAPHIC_NOVEL_TASKS:
+            return None
+        label = _compact_text(raw_task.get("label"), max_length=80)
+        prompt = _compact_text(raw_task.get("prompt"), max_length=240)
+        instruction = _compact_text(raw_task.get("instruction"), max_length=240)
+        if not (label or prompt or instruction):
+            return None
+        task_id = _compact_text(raw_task.get("id"), max_length=80)
+        if not task_id:
+            slug = re.sub(r"[^a-z0-9]+", "_", _normalize_text(label or task_type)).strip("_") or task_type
+            task_id = f"panel_{panel_index}_{slug}_{task_index}"
+        accepted_answers = [
+            _compact_text(item, max_length=120)
+            for item in (raw_task.get("accepted_answers") if isinstance(raw_task.get("accepted_answers"), list) else [])
+        ]
+        accepted_answers = [item for item in accepted_answers if item]
+        expected_answer = _compact_text(raw_task.get("expected_answer"), max_length=160)
+        options = self._normalize_serial_choice_options(raw_task.get("options"), branch_target=branch_target)
+        if task_type == "choice":
+            if len(options) < 2:
+                return None
+            if not expected_answer or expected_answer not in {str(option["value"]) for option in options}:
+                expected_answer = str(options[0]["value"])
+            for option in options:
+                if option["value"] not in accepted_answers:
+                    accepted_answers.append(str(option["value"]))
+                if option.get("fr") and option["fr"] not in accepted_answers:
+                    accepted_answers.append(str(option["fr"]))
+        if task_type == "cloze":
+            if not expected_answer:
+                return None
+            if expected_answer not in accepted_answers:
+                accepted_answers.insert(0, expected_answer)
+        if task_type != "choice":
+            options = []
+        expected_features = [
+            _compact_text(item, max_length=80)
+            for item in (raw_task.get("expected_features") if isinstance(raw_task.get("expected_features"), list) else [])
+        ]
+        expected_features = [item for item in expected_features if item]
+        target_word = self._serial_task_target_word(raw_task, target_vocabulary)
+        task: dict[str, Any] = {
+            "id": task_id,
+            "task_type": task_type,
+            "label": label or task_type.replace("_", " ").title(),
+            "instruction": instruction or ("Choisis la réplique." if task_type == "choice" else "Écris une réponse courte."),
+            "prompt": prompt,
+            "prompt_translation": _compact_text(raw_task.get("prompt_translation"), max_length=240),
+            "expected_answer": expected_answer,
+            "accepted_answers": accepted_answers,
+            "options": options,
+            "expected_features": expected_features,
+            "placeholder": _compact_text(raw_task.get("placeholder"), max_length=120),
+            "scene_function": _compact_text(raw_task.get("scene_function"), max_length=240),
+            "feedback_context": _compact_text(raw_task.get("feedback_context"), max_length=240),
+        }
+        if task_type == "choice":
+            task["branch_target"] = self._branch_target_from_options(options=options, task_id=task_id, fallback=branch_target)
+        if target_word:
+            task.update(target_word)
+        return task
+
+    @staticmethod
+    def _normalize_serial_choice_options(raw_options: Any, *, branch_target: dict[str, Any]) -> list[dict[str, Any]]:
+        if not isinstance(raw_options, list):
+            return []
+        normalized: list[dict[str, Any]] = []
+        letters = ["A", "B", "C", "D"]
+        for idx, raw_option in enumerate(raw_options[:4]):
+            fallback_value = letters[idx]
+            value = fallback_value
+            label = fallback_value
+            fr = ""
+            en = ""
+            next_panel_beat = ""
+            if isinstance(raw_option, dict):
+                value = _compact_text(raw_option.get("value") or raw_option.get("id") or raw_option.get("label"), max_length=12) or fallback_value
+                label = _compact_text(raw_option.get("label"), max_length=24) or value
+                fr = _compact_text(raw_option.get("fr") or raw_option.get("text") or raw_option.get("line"), max_length=160)
+                en = _compact_text(raw_option.get("en") or raw_option.get("translation"), max_length=160)
+                next_panel_beat = _compact_text(raw_option.get("next_panel_beat"), max_length=500)
+            else:
+                text = _compact_text(raw_option, max_length=180)
+                match = re.match(r"^\s*([A-Da-d])\s*[:.)-]\s*(.+)$", text)
+                if match:
+                    value = match.group(1).upper()
+                    label = value
+                    fr = _compact_text(match.group(2), max_length=160)
+                elif text and _normalize_text(text) not in {"a", "b", "c", "d"}:
+                    fr = text
+            if not next_panel_beat:
+                fallback_branch = branch_target.get(value) if isinstance(branch_target.get(value), dict) else {}
+                next_panel_beat = _compact_text(fallback_branch.get("next_panel_beat"), max_length=500)
+            normalized.append(
+                {
+                    "value": value,
+                    "label": label,
+                    "text": fr,
+                    "fr": fr,
+                    "en": en,
+                    "next_panel_beat": next_panel_beat,
+                }
+            )
+        return [option for option in normalized if option.get("value")]
+
+    @staticmethod
+    def _branch_target_from_options(
+        *,
+        options: list[dict[str, Any]],
+        task_id: str,
+        fallback: dict[str, Any],
+    ) -> dict[str, Any]:
+        branch_target: dict[str, Any] = {}
+        for index, option in enumerate(options[:4]):
+            value = str(option.get("value") or "").strip()
+            if not value:
+                continue
+            fallback_branch = fallback.get(value) if isinstance(fallback.get(value), dict) else {}
+            next_panel_beat = option.get("next_panel_beat") or fallback_branch.get("next_panel_beat") or option.get("fr")
+            branch_target[value] = {
+                "state_delta": {
+                    "set": {f"user.choice_panel_{task_id}": value},
+                    "reason": option.get("fr") or f"Choice {value} selected.",
+                    "source": {"type": "feuilleton_choice", "task_id": task_id},
+                },
+                "next_panel_beat": next_panel_beat,
+            }
+            if fallback_branch.get("state_delta") and index < 2:
+                branch_target[value]["state_delta"] = fallback_branch["state_delta"]
+        return branch_target
+
+    @staticmethod
+    def _serial_task_target_word(raw_task: dict[str, Any], target_vocabulary: list[dict[str, Any]]) -> dict[str, Any]:
+        if not (raw_task.get("vocabulary_task") or raw_task.get("target_word") or raw_task.get("target_word_id")):
+            return {}
+        target_word = None
+        requested_id = str(raw_task.get("target_word_id") or "")
+        requested_word = _normalize_text(raw_task.get("target_word"))
+        for candidate in target_vocabulary or []:
+            if requested_id and str(candidate.get("word_id") or "") == requested_id:
+                target_word = candidate
+                break
+            if requested_word and _normalize_text(candidate.get("word")) == requested_word:
+                target_word = candidate
+                break
+        target_word = target_word or ((target_vocabulary or [{}])[0] if target_vocabulary else {})
+        return {
+            "vocabulary_task": True,
+            "target_word_id": target_word.get("word_id") or raw_task.get("target_word_id"),
+            "target_word": target_word.get("word") or raw_task.get("target_word"),
+            "target_translation": target_word.get("translation") or raw_task.get("target_translation"),
+        }
+
+    def _serial_plan_panel_bubbles(
+        self,
+        *,
+        panel: dict[str, Any],
+        panel_index: int,
+        cast: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        raw_bubbles = panel.get("bubbles") if isinstance(panel.get("bubbles"), list) else []
+        normalized: list[dict[str, Any]] = []
+        for bubble_index, raw_bubble in enumerate(raw_bubbles[:2], start=1):
+            bubble = self._normalize_serial_bubble(raw_bubble, panel_index=panel_index, bubble_index=bubble_index, cast=cast)
+            if bubble:
+                normalized.append(bubble)
+        return normalized
+
+    @staticmethod
+    def _normalize_serial_bubble(
+        raw_bubble: Any,
+        *,
+        panel_index: int,
+        bubble_index: int,
+        cast: list[dict[str, Any]],
+    ) -> dict[str, Any] | None:
+        if not isinstance(raw_bubble, dict):
+            return None
+        fr = _compact_text(raw_bubble.get("fr") or raw_bubble.get("text"), max_length=120)
+        if not fr:
+            return None
+        speaker_id = _compact_text(raw_bubble.get("speaker_id"), max_length=80)
+        speaker = _compact_text(raw_bubble.get("speaker"), max_length=40)
+        cast_by_id = {str(member.get("id") or ""): member for member in cast if isinstance(member, dict)}
+        matched = cast_by_id.get(speaker_id)
+        if not matched and speaker:
+            normalized_speaker = _normalize_text(speaker)
+            matched = next(
+                (
+                    member
+                    for member in cast
+                    if isinstance(member, dict) and _normalize_text(member.get("name")) == normalized_speaker
+                ),
+                None,
+            )
+        design = matched.get("visual_design") if isinstance(matched, dict) and isinstance(matched.get("visual_design"), dict) else {}
+        accent = design.get("accent_colour") or design.get("accent_color") or design.get("ui_token")
+        fallback_x = 12 if bubble_index == 1 else 52
+        fallback_y = 9 + ((panel_index + bubble_index) % 3) * 7
+        try:
+            x = float(raw_bubble.get("x"))
+        except (TypeError, ValueError):
+            x = float(fallback_x)
+        try:
+            y = float(raw_bubble.get("y"))
+        except (TypeError, ValueError):
+            y = float(fallback_y)
+        return {
+            "speaker_id": speaker_id or (str(matched.get("id")) if isinstance(matched, dict) and matched.get("id") else ""),
+            "speaker": speaker or (str(matched.get("name")) if isinstance(matched, dict) and matched.get("name") else ""),
+            "fr": fr,
+            "en": _compact_text(raw_bubble.get("en") or raw_bubble.get("translation"), max_length=120),
+            "x": max(4, min(70, x)),
+            "y": max(4, min(42, y)),
+            "tone": _compact_text(raw_bubble.get("tone"), max_length=24) or "deadpan",
+            "accent_color": str(accent) if accent else "",
+        }
 
     def _serial_story_script(
         self,
@@ -2227,7 +2686,8 @@ class GraphicNovelStoryGenerator:
             current_episode_index = int(serial_context.get("episode_index"))
         except (TypeError, ValueError):
             current_episode_index = 0
-        if not episode_plan and current_episode_index >= 1:
+        plan_requires_story_true = self._serial_requires_story_true_plan(current_episode_index)
+        if not episode_plan and plan_requires_story_true:
             raise GraphicNovelGenerationError(
                 "Serial story LLM unavailable",
                 errors=["serial_story_llm_unavailable"],
@@ -2237,6 +2697,24 @@ class GraphicNovelStoryGenerator:
                     "episode_brief": episode_brief,
                 },
             )
+        if episode_plan and plan_requires_story_true:
+            plan_errors = self._serial_plan_quality_errors(
+                episode_plan=episode_plan,
+                panel_count=panel_count,
+                branch_target=branch_target,
+                target_vocabulary=target_vocabulary,
+                state=state,
+            )
+            if plan_errors:
+                raise GraphicNovelGenerationError(
+                    "Serial story plan did not contain episode-specific interaction material",
+                    errors=plan_errors,
+                    metadata={
+                        "episode_index": current_episode_index,
+                        "thread_id": serial_context.get("thread_id"),
+                        "episode_brief": episode_brief,
+                    },
+                )
         plan_source = "llm" if episode_plan else "template"
         title_default = "Feuilleton: Le Mistral, minuit" if location_id == "le_mistral" else f"Feuilleton: {location_name}"
         brief_default = "A serial episode that dramatizes the previous mission consequence and ends on a cliffhanger."
@@ -2327,7 +2805,22 @@ class GraphicNovelStoryGenerator:
                         "prompt_translation": "You go in and say:",
                         "expected_answer": "B",
                         "accepted_answers": ["B", "Salut, c'est encore ouvert ?"],
-                        "options": ["A", "B"],
+                        "options": [
+                            {
+                                "value": "A",
+                                "label": "A",
+                                "fr": "Bonsoir, excusez-moi, vous êtes encore ouverts ?",
+                                "en": "Good evening, excuse me, are you still open?",
+                                "next_panel_beat": branch_target["A"]["next_panel_beat"],
+                            },
+                            {
+                                "value": "B",
+                                "label": "B",
+                                "fr": "Salut, c'est encore ouvert ?",
+                                "en": "Hi, is it still open?",
+                                "next_panel_beat": branch_target["B"]["next_panel_beat"],
+                            },
+                        ],
                         "expected_features": [],
                         "placeholder": "",
                         "scene_function": "Turns the entrance into a bounded branch about tu/vous and confidence.",
@@ -2449,8 +2942,19 @@ class GraphicNovelStoryGenerator:
                 template["panel_action"] = _compact_text(plan_panel.get("panel_action"), max_length=400) or template["panel_action"]
                 template["caption_fr"] = _compact_text(plan_panel.get("caption_fr"), max_length=240) or template["caption_fr"]
                 template["caption_en"] = _compact_text(plan_panel.get("caption_en"), max_length=240) or template["caption_en"]
+                plan_tasks = self._serial_plan_panel_tasks(
+                    panel=plan_panel,
+                    panel_index=idx + 1,
+                    branch_target=branch_target,
+                    target_vocabulary=target_vocabulary,
+                )
+                plan_bubbles = self._serial_plan_panel_bubbles(panel=plan_panel, panel_index=idx + 1, cast=chosen_cast)
+                if plan_requires_story_true or plan_tasks:
+                    template["tasks"] = plan_tasks
+                if plan_requires_story_true or plan_bubbles:
+                    template["bubbles"] = plan_bubbles
             opening_cloze = episode_plan.get("opening_cloze") if isinstance(episode_plan.get("opening_cloze"), dict) else {}
-            if opening_cloze and panel_templates and panel_templates[0]["tasks"]:
+            if opening_cloze and not plan_requires_story_true and panel_templates and panel_templates[0]["tasks"]:
                 cloze_task = panel_templates[0]["tasks"][0]
                 cloze_prompt = _compact_text(opening_cloze.get("prompt"), max_length=240)
                 cloze_answer = _compact_text(opening_cloze.get("answer"), max_length=120)
@@ -2469,6 +2973,8 @@ class GraphicNovelStoryGenerator:
             if tasks:
                 tasks = tasks[: max(0, task_budget)]
                 task_budget -= len(tasks)
+            fallback_bubbles = [] if plan_requires_story_true else self._serial_bubbles(index=index, cast=chosen_cast)
+            panel_bubbles = template.get("bubbles") if isinstance(template.get("bubbles"), list) else fallback_bubbles
             panel = {
                 "panel_index": index,
                 "title": template["title"],
@@ -2482,7 +2988,7 @@ class GraphicNovelStoryGenerator:
                         "fr": template["caption_fr"],
                         "en": template["caption_en"],
                     },
-                    "bubbles": self._serial_bubbles(index=index, cast=chosen_cast),
+                    "bubbles": panel_bubbles,
                     "tasks": tasks,
                 },
             }
@@ -3608,12 +4114,14 @@ class GraphicNovelStoryGenerator:
                 y = float(12 + (bubble_index - 1) * 18)
             normalized_bubbles.append(
                 {
+                    "speaker_id": str(bubble.get("speaker_id") or "").strip()[:80],
                     "speaker": str(bubble.get("speaker") or f"Voix {bubble_index}").strip()[:32],
                     "fr": fr[:180],
                     "en": en[:180],
                     "x": max(4.0, min(78.0, x)),
                     "y": max(4.0, min(64.0, y)),
                     "tone": str(bubble.get("tone") or "deadpan").strip()[:32],
+                    "accent_color": str(bubble.get("accent_color") or bubble.get("accent_colour") or "").strip()[:32],
                 }
             )
         return {"caption": normalized_caption, "bubbles": normalized_bubbles, "tasks": normalized_tasks}
@@ -3947,11 +4455,23 @@ class GraphicNovelStoryGenerator:
                         errors.append("task_missing_feedback_context")
                         break
                     if target_language == "fr":
-                        answer_values = [task.get("expected_answer") or "", *(task.get("accepted_answers") or []), *(task.get("options") or [])]
+                        option_values: list[Any] = []
+                        for option in task.get("options") or []:
+                            if isinstance(option, dict):
+                                option_values.extend(
+                                    [
+                                        option.get("value"),
+                                        option.get("label"),
+                                        option.get("fr") or option.get("text"),
+                                    ]
+                                )
+                            else:
+                                option_values.append(option)
+                        answer_values = [task.get("expected_answer") or "", *(task.get("accepted_answers") or []), *option_values]
                         if any(_looks_like_english_sentence(value) for value in answer_values if value):
                             errors.append("task_answer_not_target_language")
                             break
-                        if any(_has_invalid_french_article_phrase(value) for value in (task.get("options") or [])):
+                        if any(_has_invalid_french_article_phrase(value) for value in option_values):
                             errors.append("choice_task_has_implausible_distractor")
                             break
             prompt = str(panel.get("image_prompt") or "").lower()

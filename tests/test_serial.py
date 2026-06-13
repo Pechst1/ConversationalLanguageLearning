@@ -941,52 +941,11 @@ def test_full_loop(db_session, monkeypatch):
 
     feuilleton_episode = _run(service.today(user))
     assert feuilleton_episode["kind"] == "feuilleton"
-    assert feuilleton_episode["status"] == "delayed"
-    assert feuilleton_episode["scene_id"] is None
-    assert "retardée" in feuilleton_episode["hook"]["text"]
-    assert "radiateur" not in json.dumps(feuilleton_episode["hook"], ensure_ascii=False).lower()
+    assert feuilleton_episode["status"] == "available"
+    assert feuilleton_episode["scene_id"]
     assert feuilleton_episode["brief_payload"]["episode_index"] == 1
 
-    scene = GraphicNovelScene(
-        user_id=user.id,
-        serial_thread_id=thread.id,
-        episode_index=1,
-        status="available",
-        cadence="serial",
-        title="Episode 2: Le Mistral",
-        brief="A test scene standing in for the delayed worker output.",
-        selected_concept_ids=[],
-        target_errata_ids=[],
-        target_vocabulary_ids=[],
-        source_snapshot={},
-        script_payload={
-            "title": "Episode 2: Le Mistral",
-            "location_id": "le_mistral",
-            "panels": [],
-            "hook": {
-                "text": "Romy demande une réponse concrète.",
-                "unresolved_question": "What do you send Romy?",
-                "next_beat_kind": "mission",
-                "teaser": "Demain : écrire à Romy.",
-            },
-        },
-        recap_payload={},
-        cache_key=f"serial-loop-{uuid4().hex}",
-        prompt_version="test",
-        image_model="test",
-        image_quality="medium",
-    )
-    db_session.add(scene)
-    db_session.flush()
-    planned_see = (
-        db_session.query(SerialEpisode)
-        .filter(SerialEpisode.thread_id == thread.id, SerialEpisode.episode_index == 1)
-        .one()
-    )
-    planned_see.scene_id = scene.id
-    planned_see.status = "available"
-    db_session.add(planned_see)
-    db_session.commit()
+    scene = db_session.get(GraphicNovelScene, UUID(feuilleton_episode["scene_id"]))
 
     assert scene is not None
     assert scene.serial_thread_id == thread.id
@@ -1060,9 +1019,8 @@ def test_mission_complete_endpoint_advances_serial_thread(client: TestClient, db
     assert today_response.status_code == 200
     today_payload = today_response.json()
     assert today_payload["kind"] == "feuilleton"
-    assert today_payload["status"] == "delayed"
-    assert today_payload["scene_id"] is None
-    assert "radiateur" not in json.dumps(today_payload["hook"], ensure_ascii=False).lower()
+    assert today_payload["status"] == "available"
+    assert today_payload["scene_id"]
 
 
 def test_serial_archive_and_cast_endpoints(client: TestClient, db_session, monkeypatch):

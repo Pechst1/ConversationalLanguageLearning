@@ -2,10 +2,13 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from datetime import datetime, timedelta, timezone
+from typing import Any
 from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.config import settings
@@ -19,7 +22,7 @@ from app.db.models.serial import SerialThread
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
 from app.services.atelier import AtelierScheduler
-from app.services.graphic_novel import GraphicNovelCorrectionService, GraphicNovelScheduler, GraphicNovelStoryGenerator
+from app.services.graphic_novel import GraphicNovelCorrectionService, GraphicNovelGenerationError, GraphicNovelScheduler, GraphicNovelStoryGenerator
 
 
 def _patch_story(monkeypatch):
@@ -323,6 +326,35 @@ def test_create_feuilleton_defaults_to_mission_target_vocabulary(client: TestCli
     assert scene["mission_id"] == str(mission.id)
     assert scene["target_vocabulary_ids"][0] == mission_word.id
     assert scene["target_vocabulary"][0]["word"] == "oser"
+
+
+def test_non_serial_feuilleton_generation_does_not_enter_serial_plan(client: TestClient, db_session, monkeypatch):
+    _patch_story(monkeypatch)
+
+    def fail_serial_plan(self, **kwargs):  # type: ignore[no-untyped-def]
+        raise AssertionError("non-serial generation must not call the serial episode planner")
+
+    monkeypatch.setattr(GraphicNovelStoryGenerator, "_serial_episode_plan", fail_serial_plan)
+    token = _token(client)
+    concept = _concept(db_session)
+
+    response = client.post(
+        "/api/v1/graphic-novel/scenes",
+        json={"cadence": "ad_hoc", "preferred_concept_ids": [concept.id], "use_news": False},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 200
+    scene = response.json()["scene"]
+    assert scene["serial_thread_id"] is None
+    assert scene["script_payload"]["generation_debug"]["status"] in {"passed", "accepted_with_notes"}
+    tasks = [
+        task
+        for panel in scene["panels"]
+        for task in panel["overlay_payload"].get("tasks", [])
+    ]
+    assert [task["task_type"] for task in tasks[:3]] == ["cloze", "choice", "short_sentence"]
+    assert tasks[1]["options"] == ["S'il pleut, prends ton manteau.", "S'il pleut, prendras ton manteau."]
 
 
 def test_feuilleton_vocabulary_task_miss_creates_credit_erratum(client: TestClient, db_session, monkeypatch):
@@ -750,6 +782,8 @@ def test_serial_feuilleton_script_matches_episode_one_state_and_visual_contract(
     assert "Atelier serial QA" in warm_script["source_usage"]["attribution"]
     choice_task = warm_script["panels"][1]["overlay_payload"]["tasks"][0]
     assert choice_task["id"] == "panel_2_choice"
+    assert choice_task["options"][0]["fr"].startswith("Bonsoir")
+    assert choice_task["options"][1]["fr"].startswith("Salut")
     assert set(choice_task["branch_target"]) == {"A", "B"}
 
 
@@ -867,6 +901,34 @@ def test_serial_feuilleton_uses_llm_episode_plan_when_available(db_session, monk
                 "panel_action": "A sleepy newcomer is hauled out into a bright Sunday morning.",
                 "caption_fr": "Dimanche. Lila ne connaît pas le mot grasse matinée.",
                 "caption_en": "Sunday. Lila does not know the words sleeping in.",
+                "tasks": [
+                    {
+                        "id": "panel_1_market_cloze",
+                        "task_type": "cloze",
+                        "label": "Market wake-up",
+                        "instruction": "Complete Lila's line from this morning.",
+                        "prompt": "On est en retard pour le _____.",
+                        "prompt_translation": "We are late for the market.",
+                        "expected_answer": "marché",
+                        "accepted_answers": ["marché", "le marché"],
+                        "options": [],
+                        "expected_features": [],
+                        "placeholder": "marché",
+                        "scene_function": "Names the actual Sunday pressure instead of replaying the pilot radiator.",
+                        "feedback_context": "Marché is the story location and the useful noun in the beat.",
+                    }
+                ],
+                "bubbles": [
+                    {
+                        "speaker_id": "lila_bonnet",
+                        "speaker": "Lila",
+                        "fr": "Debout. Romy va nous tuer.",
+                        "en": "Up. Romy is going to kill us.",
+                        "x": 11,
+                        "y": 10,
+                        "tone": "brisk",
+                    }
+                ],
             },
             {
                 "title": "Le stand de fromage",
@@ -874,6 +936,39 @@ def test_serial_feuilleton_uses_llm_episode_plan_when_available(db_session, monk
                 "panel_action": "The newcomer hesitates in front of a towering wall of cheese.",
                 "caption_fr": "Le fromager attend. Tu choisis tes mots.",
                 "caption_en": "The cheesemonger waits. You choose your words.",
+                "tasks": [
+                    {
+                        "id": "panel_2_vendor_choice",
+                        "task_type": "choice",
+                        "label": "Ask the vendor",
+                        "instruction": "Choose the line that fits the stall.",
+                        "prompt": "Tu demandes une dégustation :",
+                        "prompt_translation": "You ask for a tasting:",
+                        "expected_answer": "B",
+                        "accepted_answers": ["B"],
+                        "options": [
+                            {
+                                "value": "A",
+                                "label": "A",
+                                "fr": "Excusez-moi, je pourrais goûter ce fromage ?",
+                                "en": "Excuse me, could I taste this cheese?",
+                                "next_panel_beat": "You ask formally; the vendor decides you are a tourist.",
+                            },
+                            {
+                                "value": "B",
+                                "label": "B",
+                                "fr": "On peut goûter celui-là, s'il vous plaît ?",
+                                "en": "Could we taste that one, please?",
+                                "next_panel_beat": "You ask warmly; the vendor slips you an extra slice.",
+                            },
+                        ],
+                        "expected_features": [],
+                        "placeholder": "",
+                        "scene_function": "Makes the learner choose register at the market stall.",
+                        "feedback_context": "Both lines are useful; B joins the group more naturally.",
+                    }
+                ],
+                "bubbles": [],
             },
             {
                 "title": "Marin philosophe",
@@ -881,6 +976,18 @@ def test_serial_feuilleton_uses_llm_episode_plan_when_available(db_session, monk
                 "panel_action": "Marin holds a wheel of cheese like a sacred relic.",
                 "caption_fr": "Marin pleure presque. C'est juste du fromage.",
                 "caption_en": "Marin is nearly crying. It is just cheese.",
+                "tasks": [],
+                "bubbles": [
+                    {
+                        "speaker_id": "marin_leveque",
+                        "speaker": "Marin",
+                        "fr": "Il a une mémoire, ce fromage.",
+                        "en": "This cheese has a memory.",
+                        "x": 50,
+                        "y": 12,
+                        "tone": "sincere",
+                    }
+                ],
             },
             {
                 "title": "Romy en direct",
@@ -888,6 +995,34 @@ def test_serial_feuilleton_uses_llm_episode_plan_when_available(db_session, monk
                 "panel_action": "A phone-camera light swings toward the startled newcomer.",
                 "caption_fr": "Romy appelle ça du journalisme. Toi, une embuscade.",
                 "caption_en": "Romy calls it journalism. You call it an ambush.",
+                "tasks": [
+                    {
+                        "id": "panel_4_market_reaction",
+                        "task_type": "short_sentence",
+                        "label": "On-camera reaction",
+                        "instruction": "Answer Romy with one sentence that uses the target word.",
+                        "prompt": "Réponds à Romy sur le marché.",
+                        "prompt_translation": "Answer Romy about the market.",
+                        "expected_answer": "",
+                        "accepted_answers": [],
+                        "options": [],
+                        "expected_features": ["use le marché", "one consequence"],
+                        "placeholder": "Le marché...",
+                        "scene_function": "Connects the news texture to the market plot.",
+                        "feedback_context": "Use the target vocabulary as part of Romy's ambush.",
+                    }
+                ],
+                "bubbles": [
+                    {
+                        "speaker_id": "romy_tremblay",
+                        "speaker": "Romy",
+                        "fr": "Une phrase. Naturelle.",
+                        "en": "One sentence. Natural.",
+                        "x": 42,
+                        "y": 9,
+                        "tone": "dry",
+                    }
+                ],
             },
             {
                 "title": "Le café d'après",
@@ -895,6 +1030,8 @@ def test_serial_feuilleton_uses_llm_episode_plan_when_available(db_session, monk
                 "panel_action": "Five friends crowd a tiny outdoor table covered in market loot.",
                 "caption_fr": "Tu as survécu au direct. Presque dignement.",
                 "caption_en": "You survived the live shot. Almost with dignity.",
+                "tasks": [],
+                "bubbles": [],
             },
             {
                 "title": "La question de Romy",
@@ -902,6 +1039,34 @@ def test_serial_feuilleton_uses_llm_episode_plan_when_available(db_session, monk
                 "panel_action": "Romy turns her phone toward you, eyebrow raised, waiting.",
                 "caption_fr": "Elle sourit. La vraie question arrive.",
                 "caption_en": "She smiles. The real question is coming.",
+                "tasks": [
+                    {
+                        "id": "panel_6_camera_line",
+                        "task_type": "short_sentence",
+                        "label": "Answer Romy",
+                        "instruction": "Give Romy one concrete answer.",
+                        "prompt": "Réponds à sa proposition.",
+                        "prompt_translation": "Answer her proposal.",
+                        "expected_answer": "",
+                        "accepted_answers": [],
+                        "options": [],
+                        "expected_features": ["future or condition", "specific next step"],
+                        "placeholder": "Je pourrais...",
+                        "scene_function": "Turns the cliffhanger into the next social problem.",
+                        "feedback_context": "The line should invite the next episode, not recap this one.",
+                    }
+                ],
+                "bubbles": [
+                    {
+                        "speaker_id": "romy_tremblay",
+                        "speaker": "Romy",
+                        "fr": "Alors ? Tu recommences lundi ?",
+                        "en": "So? Are you doing it again Monday?",
+                        "x": 14,
+                        "y": 11,
+                        "tone": "challenge",
+                    }
+                ],
             },
         ],
         "opening_cloze": {
@@ -962,11 +1127,196 @@ def test_serial_feuilleton_uses_llm_episode_plan_when_available(db_session, monk
     # The cliffhanger is the plan's hook and still seeds the next mission.
     assert script["hook"]["unresolved_question"] == "Will you say yes to Romy — on camera and otherwise?"
     assert script["hook"]["next_beat_kind"] == "mission"
-    # Plan content flows into tasks: opening cloze answer + choice branch beats.
+    # Plan content flows into tasks, bubbles, and visible choice option text.
+    task_labels = [
+        task["label"]
+        for panel in script["panels"]
+        for task in panel["overlay_payload"].get("tasks", [])
+    ]
+    assert {"Radiator phrase", "How do you enter?", "Introduce yourself", "News reaction", "Keep the thread alive"}.isdisjoint(task_labels)
     cloze_task = script["panels"][0]["overlay_payload"]["tasks"][0]
     assert cloze_task["expected_answer"] == "marché"
     choice_task = script["panels"][1]["overlay_payload"]["tasks"][0]
+    assert choice_task["options"][0]["fr"].startswith("Excusez-moi")
+    assert choice_task["options"][1]["fr"].startswith("On peut goûter")
     assert "extra slice" in choice_task["branch_target"]["B"]["next_panel_beat"]
+    assert script["panels"][0]["overlay_payload"]["bubbles"][0]["fr"] == "Debout. Romy va nous tuer."
+    assert script["panels"][0]["overlay_payload"]["bubbles"][0]["accent_color"] == "marigold"
+
+
+def test_serial_episode_one_can_still_fallback_but_episode_two_needs_story_true_plan(db_session, monkeypatch):
+    generator = GraphicNovelStoryGenerator(db_session)
+    user = User(
+        id=uuid4(),
+        email=f"serial-fallback-boundary-{uuid4()}@example.com",
+        hashed_password="x",
+        target_language="fr",
+        native_language="en",
+        proficiency_level="A2",
+    )
+    db_session.add(user)
+    db_session.commit()
+    monkeypatch.setattr(GraphicNovelStoryGenerator, "_serial_episode_plan", lambda self, **kwargs: None)
+
+    serial_context = {
+        "thread_id": str(uuid4()),
+        "episode_index": 1,
+        "world_bible": _serial_world(),
+        "state": {"heating_fixed": True},
+        "news_seed": {"title": "Paris tests a repair hotline"},
+        "previous_locations": ["user_apartment"],
+    }
+    fallback_script = generator.build_script(
+        user=user,
+        concepts=[],
+        errata=[],
+        source_snapshot={"mode": "serial_news_seed", "title": "Paris tests a repair hotline", "source": "QA"},
+        panel_count=6,
+        story_quality="standard",
+        humor_style="satirical",
+        experience_mode="study",
+        render_mode="panels",
+        image_quality="medium",
+        public_figure_mode="named_context",
+        target_vocabulary=[{"word_id": 1, "word": "réparer", "translation": "to repair"}],
+        serial_context=serial_context,
+    )
+
+    assert fallback_script["generation_debug"]["serial_plan_source"] == "template"
+    assert fallback_script["generation_debug"]["fallback_used"] is True
+    with pytest.raises(GraphicNovelGenerationError) as exc:
+        generator.build_script(
+            user=user,
+            concepts=[],
+            errata=[],
+            source_snapshot={"mode": "serial_news_seed", "title": "Paris tests a repair hotline", "source": "QA"},
+            panel_count=6,
+            story_quality="standard",
+            humor_style="satirical",
+            experience_mode="study",
+            render_mode="panels",
+            image_quality="medium",
+            public_figure_mode="named_context",
+            target_vocabulary=[{"word_id": 1, "word": "réparer", "translation": "to repair"}],
+            serial_context={**serial_context, "episode_index": 2},
+        )
+    assert "serial_story_llm_unavailable" in exc.value.errors
+
+
+def test_serial_plan_rejects_first_meeting_task_after_group_is_known(db_session):
+    generator = GraphicNovelStoryGenerator(db_session)
+    plan = {
+        "panels": [
+            {
+                "tasks": [
+                    {
+                        "id": "panel_1_known_group_intro",
+                        "task_type": "short_sentence",
+                        "label": "Say who you are",
+                        "instruction": "Write one sentence to present yourself to the group again.",
+                        "prompt": "Présente-toi au groupe.",
+                        "prompt_translation": "Introduce yourself to the group.",
+                        "expected_answer": "",
+                        "accepted_answers": [],
+                        "options": [],
+                        "expected_features": ["present tense", "self-introduction"],
+                        "placeholder": "Je suis...",
+                        "scene_function": "This would wrongly replay the pilot meeting after the group knows the learner.",
+                        "feedback_context": "The learner has already met the group, so this task should be rejected.",
+                    }
+                ],
+                "bubbles": [
+                    {
+                        "speaker_id": "lila_bonnet",
+                        "speaker": "Lila",
+                        "fr": "Tu connais déjà la table.",
+                        "en": "You already know the table.",
+                        "x": 12,
+                        "y": 9,
+                        "tone": "dry",
+                    }
+                ],
+            }
+        ]
+    }
+
+    errors = generator._serial_plan_quality_errors(
+        episode_plan=plan,
+        panel_count=1,
+        branch_target={},
+        target_vocabulary=[],
+        state={"user": {"has_met_group": True}},
+    )
+
+    assert "serial_plan_reintroduces_known_group" in errors
+
+
+def test_serial_episode_plan_receives_state_flags_and_register_map(db_session):
+    generator = GraphicNovelStoryGenerator(db_session)
+    captured: dict[str, Any] = {}
+
+    class FakeLLM:
+        def generate_chat_completion(self, **kwargs):  # type: ignore[no-untyped-def]
+            captured["system_prompt"] = kwargs["system_prompt"]
+            captured["payload"] = json.loads(kwargs["messages"][0]["content"])
+            return type("Result", (), {
+                "content": json.dumps({
+                    "episode_title": "Feuilleton: test",
+                    "episode_brief": "A payload contract test.",
+                    "twist": "The state matters.",
+                    "panels": [
+                        {
+                            "title": "Test",
+                            "beat": "Lila addresses the learner as someone already known.",
+                            "panel_action": "A small register beat at the table.",
+                            "caption_fr": "Lila te reconnaît tout de suite.",
+                            "caption_en": "Lila recognizes you right away.",
+                            "tasks": [],
+                            "bubbles": [],
+                        }
+                    ],
+                    "opening_cloze": {"prompt": "", "prompt_translation": "", "answer": ""},
+                    "choice": {"option_a_next_beat": "", "option_b_next_beat": ""},
+                    "hook": {"text": "La suite appelle.", "unresolved_question": "Pourquoi ?", "teaser": "Demain."},
+                })
+            })()
+
+    generator.llm = FakeLLM()
+    user = User(
+        id=uuid4(),
+        email=f"serial-payload-{uuid4()}@example.com",
+        hashed_password="x",
+        target_language="fr",
+        native_language="en",
+        proficiency_level="A2",
+    )
+
+    plan = generator._serial_episode_plan(
+        user=user,
+        world=_serial_world(),
+        state={
+            "user": {"has_met_group": True, "default_register": "vous"},
+            "relationships": {"lila_bonnet": {"register": "tu", "closeness": 4}},
+        },
+        hook_from_previous={},
+        location={"id": "le_mistral", "name": "Le Mistral", "description": "A warm cafe."},
+        cast=[],
+        news_title="Paris tests a repair hotline",
+        targets=[],
+        target_vocabulary=[],
+        episode_brief={},
+        panel_count=1,
+        story_quality="standard",
+        humor_style="satirical",
+        story_model="test-model",
+        episode_index=4,
+    )
+
+    assert plan
+    assert captured["payload"]["serial_state_flags"]["user_has_met_group"] is True
+    assert captured["payload"]["register_state"]["default"] == "vous"
+    assert captured["payload"]["register_state"]["relationships"]["lila_bonnet"]["register"] == "tu"
+    assert "do not force tu unless the relationship register is tu" in captured["system_prompt"]
 
 
 def test_serial_feuilleton_choice_branch_persists_state_and_next_panel(db_session):
