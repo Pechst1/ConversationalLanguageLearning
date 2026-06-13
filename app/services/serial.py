@@ -1,6 +1,7 @@
 """Serial World orchestration service."""
 from __future__ import annotations
 
+import base64
 import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -21,7 +22,8 @@ from app.services.graphic_novel import GraphicNovelGenerationError, GraphicNovel
 from app.services.llm_service import LLMService
 from app.services.missions import MissionScheduler
 from app.services.news_service import NewsService
-from app.services.serial_arc_planner import SEASON_FINALE_ARC_ID, SerialArcPlanner
+from app.services.serial_arc_planner import SEASON_FINALE_ARC_ID, SerialArcPlanner, cefr_generation_profile
+from app.services.serial_notifications import enqueue_serial_edition_notification
 
 
 WORLD_BIBLE_PATH = Path(__file__).resolve().parent.parent / "prompts" / "serial" / "world_bible_paris_v2.json"
@@ -106,8 +108,15 @@ class SerialThreadService:
                 next_world[key] = seeded_world[key]
                 changed = True
         seeded_visual = seeded_world.get("visual_design") if isinstance(seeded_world.get("visual_design"), dict) else None
-        if seeded_visual and next_world.get("visual_design") != seeded_visual:
-            next_world["visual_design"] = seeded_visual
+        if seeded_visual:
+            synced_visual = self._visual_design_with_user_avatar_override(
+                seeded_visual=seeded_visual,
+                current_visual=next_world.get("visual_design") if isinstance(next_world.get("visual_design"), dict) else {},
+            )
+        else:
+            synced_visual = None
+        if synced_visual and next_world.get("visual_design") != synced_visual:
+            next_world["visual_design"] = synced_visual
             changed = True
         season_number = _int_or(next_world.get("season_number"), 1)
         seeded_arcs = seeded_world.get("season_arcs") if isinstance(seeded_world.get("season_arcs"), list) else []
@@ -128,6 +137,27 @@ class SerialThreadService:
             self.db.add(thread)
             self.db.commit()
             self.db.refresh(thread)
+
+    @staticmethod
+    def _visual_design_with_user_avatar_override(
+        *,
+        seeded_visual: dict[str, Any],
+        current_visual: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Refresh locked assets while preserving the learner-owned model sheet slot."""
+        next_visual = json.loads(json.dumps(seeded_visual))
+        current_characters = current_visual.get("characters") if isinstance(current_visual.get("characters"), dict) else {}
+        current_user = current_characters.get("user") if isinstance(current_characters, dict) else None
+        if not isinstance(current_user, dict):
+            return next_visual
+        references = current_user.get("reference_images") if isinstance(current_user.get("reference_images"), list) else []
+        has_override = any(str(item).startswith("assets/serial/characters/user/") for item in references)
+        if not has_override and not current_user.get("avatar_builder"):
+            return next_visual
+        characters = next_visual.setdefault("characters", {})
+        if isinstance(characters, dict):
+            characters["user"] = current_user
+        return next_visual
 
     async def today(self, user: User) -> dict[str, Any]:
         thread = await self.get_or_create_thread(user)
@@ -205,9 +235,10 @@ class SerialThreadService:
             hook_from_previous,
             brief_payload,
         )
+        mission_format = self._mission_format_from_brief(brief_payload)
         mission = await MissionScheduler(self.db).create(
             user=thread.user,
-            mission_type="message",
+            mission_type=self._mission_type_for_format(mission_format),
             cadence="ad_hoc",
             use_news=False,
             custom_scenario=custom_scenario,
@@ -249,6 +280,7 @@ class SerialThreadService:
         self.db.add(episode)
         self.db.commit()
         self.db.refresh(episode)
+        enqueue_serial_edition_notification(self.db, episode, user=thread.user)
         return episode
 
     def _upsert_planned_episode(
@@ -302,10 +334,22 @@ class SerialThreadService:
         episode_label = f"Episode {int(mission.episode_index or 0) + 1}"
         cefr_profile = brief_payload.get("cefr_profile") if isinstance(brief_payload.get("cefr_profile"), dict) else {}
         min_words = int(cefr_profile.get("min_words") or prompt.get("min_words") or 35)
+        mission_format = self._mission_format_from_brief(brief_payload)
+        format_payload = self._mission_format_payload(
+            mission=mission,
+            thread=thread,
+            brief_payload=brief_payload,
+            mission_format=mission_format,
+            addressed=addressed,
+        )
         prompt.update(
             {
                 "serial_episode_brief": brief_payload,
                 "serial_character_id": addressed,
+                "serial_mission_format": mission_format,
+                "mission_format": mission_format,
+                "mission_format_payload": format_payload,
+                "experience": f"serial_{mission_format}",
                 "serial_relationships": self._relationship_payload(thread=thread, character_ids=brief_payload.get("required_cast") or []),
                 "target_register": self._register_for_character(thread, addressed),
                 "min_words": min_words,
@@ -325,7 +369,17 @@ class SerialThreadService:
             "dispatch_note": brief_payload.get("hook_guidance") or messenger.get("dispatch_note"),
             "inbox_context": mission.brief,
             "success_signal": messenger.get("success_signal") or "The addressee has a concrete next step and the story can move.",
+            "quick_replies": format_payload.get("quick_replies") or messenger.get("quick_replies") or [],
+            "opening_message": format_payload.get("opening_message") or messenger.get("opening_message") or prompt.get("conversation_opening"),
         }
+        if mission_format == "email_formal":
+            prompt["writing_title"] = format_payload.get("title") or "Formal email"
+            prompt["writing_instruction"] = "Write the email with a subject, greeting, body, and closing."
+            prompt["writing_placeholder"] = "Objet : ...\n\nMadame, Monsieur,\n..."
+        elif mission_format == "admin_form":
+            prompt["writing_title"] = format_payload.get("title") or "Administrative form"
+            prompt["writing_instruction"] = "Fill the form fields in French; use complete phrases where the field asks for details."
+            prompt["writing_placeholder"] = "Nom :\nAdresse :\nDemande :"
         mission.prompt_payload = prompt
         mission.stakes_level = int(brief_payload.get("stakes_level") or mission.stakes_level or 1)
         self.db.add(mission)
@@ -423,7 +477,7 @@ class SerialThreadService:
                     "ask for a repair time, and keep the register formal."
                 ),
                 "writing_placeholder": "Bonjour Monsieur Marchand, je viens d'emménager...",
-                "min_words": 35,
+                "min_words": int(cefr_generation_profile(getattr(mission.user, "proficiency_level", None)).get("min_words") or 35),
                 "max_words": 140,
                 "target_register": "vous / polite formal",
                 "target_vocabulary_terms": episode_vocabulary,
@@ -574,6 +628,7 @@ class SerialThreadService:
             if not episode:
                 raise
         self.db.refresh(episode)
+        enqueue_serial_edition_notification(self.db, episode, user=thread.user)
         return episode
 
     async def apply_completion(
@@ -687,12 +742,15 @@ class SerialThreadService:
             "hook_text": (episode.hook or {}).get("text") or (episode.hook or {}).get("teaser") or "",
             "completed_at": episode.completed_at.isoformat() if episode.completed_at else None,
             "status": episode.status,
+            "required_cast": self._episode_required_cast(episode),
+            "brief_payload": episode.brief_payload or {},
         }
 
     def cast_payload(self, thread: SerialThread) -> list[dict[str, Any]]:
         world = thread.world_bible if isinstance(thread.world_bible, dict) else {}
         relationships = (thread.state or {}).get("relationships") if isinstance((thread.state or {}).get("relationships"), dict) else {}
         visual_characters = ((world.get("visual_design") or {}).get("characters") or {}) if isinstance(world.get("visual_design"), dict) else {}
+        episodes_by_character = self._cast_episode_index(thread)
         rows: list[dict[str, Any]] = []
         for member in world.get("cast") or []:
             if not isinstance(member, dict) or not member.get("id"):
@@ -700,6 +758,7 @@ class SerialThreadService:
             character_id = str(member.get("id"))
             relationship = relationships.get(character_id, {})
             visual = visual_characters.get(character_id, {}) if isinstance(visual_characters, dict) else {}
+            episodes = episodes_by_character.get(character_id, [])
             rows.append(
                 {
                     "id": character_id,
@@ -715,8 +774,97 @@ class SerialThreadService:
                         "last_summary": (relationship or {}).get("last_summary") or "",
                         "callbacks": (relationship or {}).get("callbacks") or [],
                     },
+                    "episodes": episodes,
                 }
             )
+        return rows
+
+    def set_user_avatar(
+        self,
+        thread: SerialThread,
+        *,
+        mode: str,
+        description: str,
+        reference_images: list[str],
+        avatar_builder: dict[str, Any],
+    ) -> dict[str, Any]:
+        world = thread.world_bible if isinstance(thread.world_bible, dict) else {}
+        next_world = json.loads(json.dumps(world or {}))
+        visual_design = next_world.setdefault("visual_design", {})
+        characters = visual_design.setdefault("characters", {})
+        state = thread.state if isinstance(thread.state, dict) else {}
+        next_state = json.loads(json.dumps(state or {}))
+        if mode == "pov":
+            if isinstance(characters, dict):
+                characters.pop("user", None)
+            next_state["protagonist_mode"] = "pov"
+            next_state.pop("user_avatar", None)
+        else:
+            safe_references = [
+                str(item).strip()
+                for item in reference_images[:3]
+                if str(item or "").strip().startswith("assets/serial/characters/user/")
+            ]
+            user_design = {
+                "canonical_descriptor": _compact(description, 500) or "learner protagonist model sheet chosen by the user",
+                "reference_images": safe_references,
+                "style_ref": safe_references[0] if safe_references else "",
+                "avatar_builder": avatar_builder or {},
+                "ui_token": "user",
+                "accent_colour": "#1d3a8a",
+            }
+            if isinstance(characters, dict):
+                characters["user"] = user_design
+            next_state["protagonist_mode"] = "avatar"
+            next_state["user_avatar"] = user_design
+        thread.world_bible = next_world
+        thread.state = next_state
+        self.db.add(thread)
+        self.db.commit()
+        self.db.refresh(thread)
+        world_after = thread.world_bible if isinstance(thread.world_bible, dict) else {}
+        visual_after = world_after.get("visual_design") if isinstance(world_after.get("visual_design"), dict) else {}
+        characters_after = visual_after.get("characters") if isinstance(visual_after.get("characters"), dict) else {}
+        return {
+            "thread_id": str(thread.id),
+            "protagonist_mode": (thread.state or {}).get("protagonist_mode") or "pov",
+            "user_character": characters_after.get("user") if isinstance(characters_after, dict) else None,
+        }
+
+    def _episode_required_cast(self, episode: SerialEpisode) -> list[str]:
+        brief = episode.brief_payload if isinstance(episode.brief_payload, dict) else {}
+        values = [str(item) for item in brief.get("required_cast") or [] if str(item).strip()]
+        prompt_character = None
+        if episode.mission_id:
+            mission = self.db.get(RealWorldMission, episode.mission_id)
+            prompt = mission.prompt_payload if mission and isinstance(mission.prompt_payload, dict) else {}
+            prompt_character = prompt.get("serial_character_id")
+        if prompt_character:
+            values.append(str(prompt_character))
+        return sorted(set(values))
+
+    def _cast_episode_index(self, thread: SerialThread) -> dict[str, list[dict[str, Any]]]:
+        rows: dict[str, list[dict[str, Any]]] = {}
+        episodes = (
+            self.db.query(SerialEpisode)
+            .filter(SerialEpisode.thread_id == thread.id, SerialEpisode.status == "completed")
+            .order_by(SerialEpisode.episode_index.asc())
+            .all()
+        )
+        for episode in episodes:
+            cast_ids = self._episode_required_cast(episode)
+            if not cast_ids:
+                continue
+            archive = self._archive_episode_payload(episode)
+            item = {
+                "episode_index": archive["episode_index"],
+                "episode_label": archive["episode_label"],
+                "kind": archive["kind"],
+                "title": archive["title"],
+                "href": f"/serial/episode/{archive['episode_index']}",
+            }
+            for character_id in cast_ids:
+                rows.setdefault(character_id, []).append(item)
         return rows
 
     @staticmethod
@@ -1281,6 +1429,134 @@ class SerialThreadService:
             addressed,
             self._register_for_character(thread, addressed),
         )
+
+    @staticmethod
+    def _mission_format_from_brief(brief_payload: dict[str, Any] | None) -> str:
+        raw = str((brief_payload or {}).get("mission_format") or "chat_message").strip()
+        allowed = {"chat_message", "voicemail_reply", "email_formal", "admin_form", "phone_call"}
+        return raw if raw in allowed else "chat_message"
+
+    @staticmethod
+    def _mission_type_for_format(mission_format: str) -> str:
+        if mission_format == "phone_call":
+            return "conversation"
+        return "message"
+
+    def _mission_format_payload(
+        self,
+        *,
+        mission: RealWorldMission,
+        thread: SerialThread,
+        brief_payload: dict[str, Any],
+        mission_format: str,
+        addressed: str,
+    ) -> dict[str, Any]:
+        contact = self._character_name(thread, addressed)
+        register = self._register_for_character(thread, addressed)
+        stage = ""
+        a_plot = brief_payload.get("a_plot") if isinstance(brief_payload.get("a_plot"), dict) else {}
+        if a_plot:
+            stage = str(a_plot.get("stage_summary") or "")
+        if mission_format == "voicemail_reply":
+            voicemail_text = (
+                f"Salut, c'est {contact}. J'ai besoin d'une reponse claire aujourd'hui. "
+                f"{stage or mission.brief} Tu peux me dire ce que tu proposes ?"
+            )
+            return {
+                "kind": "voicemail_reply",
+                "title": "Voice note",
+                "caller": contact,
+                "transcript_hidden": True,
+                "transcript": voicemail_text,
+                "opening_message": "[Voice note]",
+                "audio_payload": self._mission_voice_audio_payload(
+                    text=voicemail_text,
+                    voice=self._voice_for_character(thread, addressed),
+                ),
+                "quick_replies": [
+                    "Je viens d'ecouter votre message...",
+                    "Je peux vous repondre clairement :",
+                    "Voici ce que je propose...",
+                ],
+            }
+        if mission_format == "email_formal":
+            formal = "vous" in register.lower() or "formal" in register.lower()
+            salutation = "Madame, Monsieur," if formal else f"Bonjour {contact},"
+            return {
+                "kind": "email_formal",
+                "title": "Formal email",
+                "to": contact,
+                "subject": f"Suite a notre episode {int(mission.episode_index or 0) + 1}",
+                "salutation": salutation,
+                "closing": "Cordialement," if formal else "A bientot,",
+                "required_parts": ["subject", "salutation", "specific request", "next step", "closing"],
+                "opening_message": f"{contact} attend un email structure, pas un simple SMS.",
+                "quick_replies": [salutation, "Je vous ecris au sujet de...", "Serait-il possible de..."],
+            }
+        if mission_format == "admin_form":
+            return {
+                "kind": "admin_form",
+                "title": "French form",
+                "agency": "Bureau des petites urgences parisiennes",
+                "fields": [
+                    {"id": "nom", "label": "Nom complet", "type": "text", "required": True},
+                    {"id": "adresse", "label": "Adresse a Paris", "type": "text", "required": True},
+                    {"id": "motif", "label": "Motif de la demande", "type": "short_text", "required": True},
+                    {"id": "details", "label": "Details utiles", "type": "long_text", "required": True},
+                    {"id": "disponibilite", "label": "Disponibilites", "type": "short_text", "required": False},
+                ],
+                "free_text_field": "details",
+                "opening_message": "Le guichet veut des champs clairs et une phrase complete pour la demande.",
+                "quick_replies": ["Motif : ...", "Je souhaite...", "Mes disponibilites sont..."],
+            }
+        if mission_format == "phone_call":
+            return {
+                "kind": "phone_call",
+                "title": "Phone call",
+                "enabled": False,
+                "opening_message": f"{contact} decroche; garde la reponse courte et orale.",
+                "quick_replies": ["Bonjour, je vous appelle parce que...", "Je voulais confirmer...", "Merci, je repete :"],
+            }
+        return {
+            "kind": "chat_message",
+            "title": "Chat message",
+            "opening_message": None,
+            "quick_replies": [],
+        }
+
+    def _voice_for_character(self, thread: SerialThread, character_id: str) -> str:
+        member = self._cast_member(thread, character_id) or {}
+        voice = member.get("voice") if isinstance(member.get("voice"), dict) else {}
+        return str(voice.get("id") or voice.get("provider_voice") or "nova")
+
+    @staticmethod
+    def _mission_voice_audio_payload(*, text: str, voice: str) -> dict[str, Any]:
+        if not settings.FEUILLETON_AUDIO_ENABLED:
+            return {"status": "skipped", "reason": "mission_voice_tts_disabled", "text": text, "voice": voice}
+        try:
+            llm = LLMService()
+            audio_bytes = llm.text_to_speech(
+                text=text,
+                voice=voice,
+                model=settings.FEUILLETON_AUDIO_TTS_MODEL,
+                provider=settings.TTS_PROVIDER,
+            )
+        except Exception as exc:
+            logger.warning("Serial mission voicemail TTS failed", error=str(exc))
+            return {"status": "failed", "reason": str(exc), "text": text, "voice": voice}
+        encoded = base64.b64encode(audio_bytes).decode("ascii")
+        estimated_cost = (len(text) / 1000.0) * float(settings.FEUILLETON_AUDIO_COST_USD_PER_1K_CHARS or 0.0)
+        return {
+            "status": "available",
+            "url": f"data:audio/mpeg;base64,{encoded}",
+            "content_type": "audio/mpeg",
+            "provider": settings.TTS_PROVIDER,
+            "model": settings.FEUILLETON_AUDIO_TTS_MODEL,
+            "voice": voice,
+            "text": text,
+            "char_count": len(text),
+            "estimated_cost_usd": round(estimated_cost, 6),
+        }
 
     @staticmethod
     def _addressed_character_from_brief(brief_payload: dict[str, Any] | None) -> str:

@@ -8,13 +8,19 @@ import apiService, { SerialArchiveEpisode } from '@/services/api';
 
 export default function SerialArchivePage() {
   const [episodes, setEpisodes] = useState<SerialArchiveEpisode[]>([]);
+  const [seasonNumber, setSeasonNumber] = useState(1);
+  const [currentEpisodeIndex, setCurrentEpisodeIndex] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let alive = true;
     apiService.getSerialEpisodes()
       .then((payload) => {
-        if (alive) setEpisodes(payload.episodes || []);
+        if (alive) {
+          setEpisodes(payload.episodes || []);
+          setSeasonNumber(Number(payload.season_number || 1));
+          setCurrentEpisodeIndex(Number(payload.current_episode_index || 0));
+        }
       })
       .catch((error) => {
         console.error(error);
@@ -36,7 +42,7 @@ export default function SerialArchivePage() {
         <section className="serial-head">
           <div>
             <span>Le Feuilleton</span>
-            <h1>Season 1</h1>
+            <h1>Season {seasonNumber}</h1>
             <p>The living archive of acts, scenes, and the hooks they left behind.</p>
           </div>
           <Link className="serial-link" href="/serial/cast">
@@ -47,34 +53,74 @@ export default function SerialArchivePage() {
         {loading ? (
           <div className="serial-loading"><Loader2 className="spin" /> Loading the archive</div>
         ) : (
-          <section className="episode-list" aria-label="Season 1 episodes">
-            {episodes.length ? episodes.map((episode) => (
-              <Link className="episode-row" key={episode.id} href={`/serial/episode/${episode.episode_index}`}>
-                <div className="episode-thumb">
-                  {episode.thumbnail_url ? (
-                    <Image src={episode.thumbnail_url} alt="" fill sizes="96px" unoptimized />
-                  ) : (
-                    <span>{episode.kind === 'mission' ? 'Act' : 'See'}</span>
-                  )}
+          <>
+            <SeasonProgressStrip episodes={episodes} seasonNumber={seasonNumber} currentEpisodeIndex={currentEpisodeIndex} />
+            <section className="episode-list" aria-label={`Season ${seasonNumber} episodes`}>
+              {episodes.length ? episodes.map((episode) => (
+                <Link className="episode-row" key={episode.id} href={`/serial/episode/${episode.episode_index}`}>
+                  <div className="episode-thumb">
+                    {episode.thumbnail_url ? (
+                      <Image src={episode.thumbnail_url} alt="" fill sizes="96px" unoptimized />
+                    ) : (
+                      <span>{episode.kind === 'mission' ? 'Act' : 'See'}</span>
+                    )}
+                  </div>
+                  <div>
+                    <span>{episode.episode_label} · {episode.kind}</span>
+                    <h2>{episode.title}</h2>
+                    {episode.hook_text && <p>{episode.hook_text}</p>}
+                  </div>
+                  <ArrowRight size={18} />
+                </Link>
+              )) : (
+                <div className="serial-empty">
+                  <h2>No filed episodes yet.</h2>
+                  <p>Once you complete an act or Feuilleton scene, it will land here.</p>
+                  <Link className="serial-link" href="/atelier">Back to Atelier</Link>
                 </div>
-                <div>
-                  <span>{episode.episode_label} · {episode.kind}</span>
-                  <h2>{episode.title}</h2>
-                  {episode.hook_text && <p>{episode.hook_text}</p>}
-                </div>
-                <ArrowRight size={18} />
-              </Link>
-            )) : (
-              <div className="serial-empty">
-                <h2>No filed episodes yet.</h2>
-                <p>Once you complete an act or Feuilleton scene, it will land here.</p>
-                <Link className="serial-link" href="/atelier">Back to Atelier</Link>
-              </div>
-            )}
-          </section>
+              )}
+            </section>
+          </>
         )}
       </main>
     </>
+  );
+}
+
+function SeasonProgressStrip({
+  episodes,
+  seasonNumber,
+  currentEpisodeIndex,
+}: {
+  episodes: SerialArchiveEpisode[];
+  seasonNumber: number;
+  currentEpisodeIndex: number;
+}) {
+  const byIndex = new Map(episodes.map((episode) => [episode.episode_index, episode]));
+  const total = Math.max(currentEpisodeIndex + 1, episodes.length, 1);
+  return (
+    <section className="season-strip" aria-label={`Season ${seasonNumber} progress`}>
+      <div>
+        <span>Season {seasonNumber}</span>
+        <strong>{episodes.length}/{total} filed</strong>
+      </div>
+      <div className="season-track">
+        {Array.from({ length: total }).map((_, index) => {
+          const episode = byIndex.get(index);
+          const state = episode ? 'done' : index === currentEpisodeIndex ? 'current' : 'future';
+          const label = `Episode ${index + 1}`;
+          return episode ? (
+            <Link key={index} className={`season-dot ${state}`} href={`/serial/episode/${index}`} aria-label={`${label} filed`}>
+              {index + 1}
+            </Link>
+          ) : (
+            <span key={index} className={`season-dot ${state}`} aria-label={`${label} ${state}`}>
+              {index + 1}
+            </span>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
@@ -128,6 +174,61 @@ function SerialStyles() {
         font-weight: 900;
         text-decoration: none;
         white-space: nowrap;
+      }
+      .season-strip {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        align-items: center;
+        gap: 18px;
+        max-width: 980px;
+        margin: 0 auto 18px;
+        border: 2px solid #14110d;
+        background: #fff9ec;
+        padding: 12px;
+      }
+      .season-strip > div:first-child {
+        display: grid;
+        gap: 3px;
+        min-width: 120px;
+      }
+      .season-strip span,
+      .season-strip strong {
+        font-size: 11px;
+        font-weight: 900;
+        letter-spacing: .12em;
+        text-transform: uppercase;
+      }
+      .season-strip strong {
+        font-size: 16px;
+        letter-spacing: 0;
+        text-transform: none;
+      }
+      .season-track {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        overflow-x: auto;
+        padding-bottom: 2px;
+      }
+      .season-dot {
+        display: grid;
+        place-items: center;
+        flex: 0 0 auto;
+        width: 34px;
+        height: 34px;
+        border: 2px solid #14110d;
+        color: #14110d;
+        background: #e8ddc8;
+        text-decoration: none;
+        font-weight: 900;
+      }
+      .season-dot.done {
+        background: #f7c516;
+        box-shadow: 2px 2px 0 #14110d;
+      }
+      .season-dot.current {
+        background: #1d3a8a;
+        color: #fff9ec;
       }
       .episode-list {
         display: grid;
@@ -205,6 +306,9 @@ function SerialStyles() {
         }
         .episode-thumb {
           width: 72px;
+        }
+        .season-strip {
+          grid-template-columns: 1fr;
         }
       }
     `}</style>

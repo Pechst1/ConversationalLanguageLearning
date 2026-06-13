@@ -33,6 +33,8 @@ class AtelierTodayResponse(BaseModel):
     atlas: list[dict[str, Any]]
     due_errata: list[dict[str, Any]] = Field(default_factory=list)
     progress: dict[str, Any] = Field(default_factory=dict)
+    cefr: dict[str, Any] = Field(default_factory=dict)
+    onboarding: dict[str, Any] = Field(default_factory=dict)
     serial_episode: dict[str, Any] | None = None
     serial: dict[str, Any] | None = None
 

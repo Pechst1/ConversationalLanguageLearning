@@ -4,6 +4,7 @@ import { useRouter } from 'next/router';
 
 import EditorialMasthead from '@/components/layout/EditorialMasthead';
 import { NOTEBOOK_MODE_STORAGE_KEY, NotebookModeSwitch, type NotebookMode } from '@/components/mobile';
+import api, { type CEFRProgress } from '@/services/api';
 
 import { GrammarNotebookSurface } from './grammar';
 import VocabularyPage from './vocabulary';
@@ -66,6 +67,7 @@ function queryForMode(query: NotebookQuery, mode: NotebookMode): NotebookQuery {
 export default function NotebookEntryPage() {
   const router = useRouter();
   const [mode, setMode] = useState<NotebookMode>('grammar');
+  const [cefr, setCefr] = useState<CEFRProgress | null>(null);
   const queryConcept = router.query.concept;
   const queryMode = router.query.mode;
   const queryReview = router.query.review;
@@ -82,6 +84,20 @@ export default function NotebookEntryPage() {
     setMode(nextMode);
     rememberNotebookMode(nextMode);
   }, [queryConcept, queryMode, queryReview, queryWord, router.isReady]);
+
+  useEffect(() => {
+    let cancelled = false;
+    api.getCefrProgress()
+      .then((payload) => {
+        if (!cancelled) setCefr(payload);
+      })
+      .catch(() => {
+        if (!cancelled) setCefr(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const switchMode = useCallback(
     (nextMode: NotebookMode) => {
@@ -123,6 +139,8 @@ export default function NotebookEntryPage() {
               <h1>Notebook</h1>
             </div>
           </header>
+
+          <NotebookProgression cefr={cefr} />
 
           <NotebookModeSwitch
             active={mode}
@@ -186,6 +204,53 @@ export default function NotebookEntryPage() {
         .notebook-shell-switch {
           margin: 18px 0 24px;
         }
+        .notebook-progression {
+          margin: 18px 0 0;
+          border: 2px solid var(--ink);
+          background: var(--sheet);
+          padding: 16px;
+          display: grid;
+          grid-template-columns: minmax(190px, .8fr) repeat(3, minmax(0, 1fr));
+          gap: 14px;
+          align-items: center;
+        }
+        .notebook-progression span {
+          font: 900 10px/1 var(--app-mono, "Inter", "Helvetica Neue", Arial, sans-serif);
+          letter-spacing: .13em;
+          text-transform: uppercase;
+          color: var(--ink-3);
+        }
+        .notebook-progression strong {
+          display: block;
+          margin-top: 5px;
+          font-size: 24px;
+          line-height: 1;
+        }
+        .notebook-progression small {
+          display: block;
+          margin-top: 5px;
+          color: var(--ink-2);
+          line-height: 1.25;
+        }
+        .progression-row {
+          display: grid;
+          gap: 6px;
+        }
+        .progression-row i {
+          display: block;
+          height: 10px;
+          border: 1px solid var(--ink);
+          background: var(--paper);
+        }
+        .progression-row em {
+          display: block;
+          height: 100%;
+          background: #1d3a8a;
+        }
+        .progression-row b {
+          font-size: 12px;
+          line-height: 1;
+        }
         .notebook-shell-content {
           min-width: 0;
         }
@@ -210,6 +275,10 @@ export default function NotebookEntryPage() {
             max-width: calc(100% - 32px);
             margin: 0 16px 14px;
           }
+          .notebook-progression {
+            margin: 0 16px 14px;
+            grid-template-columns: 1fr;
+          }
           .notebook-shell-page .notebook-mode-switch.notebook-shell-switch {
             width: calc(100% - 32px);
             max-width: calc(100% - 32px);
@@ -218,5 +287,39 @@ export default function NotebookEntryPage() {
         }
       `}</style>
     </>
+  );
+}
+
+function NotebookProgression({ cefr }: { cefr: CEFRProgress | null }) {
+  if (!cefr) return null;
+  const breakdown = cefr.breakdown || {};
+  const forecast = cefr.forecast || null;
+  const forecastText = forecast?.status === 'available' && Array.isArray(forecast.range_days)
+    ? `${forecast.range_days[0]}-${forecast.range_days[1]} days`
+    : forecast?.message || 'Forecast unlocks after 7 active days';
+  return (
+    <section className="notebook-progression">
+      <div>
+        <span>Progression</span>
+        <strong>{cefr.estimate} → {cefr.target}</strong>
+        <small>{forecastText}</small>
+      </div>
+      <ProgressionRow label="Words" metric={breakdown.vocabulary} />
+      <ProgressionRow label="Concepts" metric={breakdown.grammar} />
+      <ProgressionRow label="Score" metric={breakdown.score} />
+    </section>
+  );
+}
+
+function ProgressionRow({ label, metric }: { label: string; metric: any }) {
+  const current = Number(metric?.current || 0);
+  const target = Number(metric?.target || 0);
+  const pct = target > 0 ? Math.max(0, Math.min(100, Math.round((current / target) * 100))) : 0;
+  return (
+    <div className="progression-row">
+      <span>{label}</span>
+      <i><em style={{ width: `${pct}%` }} /></i>
+      <b>{current}/{target}</b>
+    </div>
   );
 }

@@ -46,34 +46,41 @@ def test_phone_shell_keeps_the_primary_product_modes_simple_and_reachable() -> N
     for tab in [
         "id: 'atelier'",
         "id: 'notebook'",
-        "id: 'missions'",
-        "id: 'feuilleton'",
     ]:
         assert tab in shell
 
     assert "href: '/atelier'" in shell
     assert "href: '/notebook'" in shell
-    assert "href: '/missions'" in shell
-    assert "href: '/graphic-novel'" in shell
+    assert "'/missions'" in shell
+    assert "'/graphic-novel'" in shell
     assert "'/vocabulary/review'" in shell
+    assert "'/bibliotheque'" in shell
+    assert "'/bibliotheque/[storyId]/chapter/[chapterId]'" in shell
     assert "'/stories/[storyId]/chapter/[chapterId]'" in shell
+    assert "return 'Bibliothèque'" in shell
 
     assert "PHONE_PRODUCT_TABS.map" in masthead
-    assert "href: item.id === 'notebook' ? '/notebook' : item.href" in masthead
+    assert "href={item.href}" in masthead
     assert 'aria-label="Mobile primary"' in masthead
     assert "aria-current={item.active ? 'page' : undefined}" in masthead
 
     assert "storedNotebookMode" in notebook
-    assert "router.replace(mode === 'vocabulary' ? '/vocabulary' : '/grammar')" in notebook
-    assert '<Link href="/grammar">Open Grammar</Link>' in notebook
-    assert '<Link href="/vocabulary">Open Vocabulary</Link>' in notebook
+    assert "notebookModeFromQuery" in notebook
+    assert "router.push(" in notebook
+    assert "<NotebookModeSwitch" in notebook
+    assert "<GrammarNotebookSurface embedded />" in notebook
+    assert "<VocabularyPage embedded />" in notebook
+    assert "api.getCefrProgress()" in notebook
+    assert "NotebookProgression" in notebook
 
 
 def test_atelier_is_the_daily_session_and_review_handoff_center() -> None:
     atelier = read(WEB / "pages" / "atelier.tsx")
     vocabulary_review = read(WEB / "pages" / "vocabulary" / "review.tsx")
 
-    assert "Promise.all([apiService.getAtelierToday(), apiService.getActiveAtelierSession()])" in atelier
+    assert "apiService.getAtelierToday()" in atelier
+    assert "apiService.getActiveAtelierSession()" in atelier
+    assert "apiService.getVocabularyDueContext" in atelier
     assert "apiService.startAtelierSession" in atelier
     assert "apiService.submitAtelierAttempt" in atelier
     assert "apiService.completeAtelierSession" in atelier

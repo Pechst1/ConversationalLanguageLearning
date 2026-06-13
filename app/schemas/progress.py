@@ -104,6 +104,23 @@ class UnifiedQueueResponse(BaseModel):
     time_budget_minutes: int | None = None
 
 
+class CEFRProgressResponse(BaseModel):
+    """Visible CEFR estimate, threshold breakdown, and forecast."""
+
+    version: str
+    estimate: str
+    computed_estimate: str | None = None
+    target: str
+    next_level: str | None = None
+    daily_minutes: int | None = None
+    signals: dict[str, Any] = Field(default_factory=dict)
+    thresholds: dict[str, dict[str, float]] = Field(default_factory=dict)
+    breakdown: dict[str, Any] = Field(default_factory=dict)
+    forecast: dict[str, Any] | None = None
+    today_delta: dict[str, Any] = Field(default_factory=dict)
+    generated_at: str | None = None
+
+
 class VocabularyRecommendationTranslations(BaseModel):
     """Translation hints for a recommended vocabulary item."""
 

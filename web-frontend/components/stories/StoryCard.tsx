@@ -122,7 +122,7 @@ export default function StoryCard({ story, progress, onClick }: StoryCardProps) 
           ) : isStarted ? (
             <>Continue • Ch. {progress?.current_chapter_number}</>
           ) : (
-            'Start Story'
+            'Start Reading'
           )}
         </Button>
       </CardContent>

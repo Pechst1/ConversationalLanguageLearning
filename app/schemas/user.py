@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import date, datetime, time
-from typing import Literal, Optional
+from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
@@ -22,6 +22,9 @@ class UserBase(BaseModel):
     native_language: str = Field(default="en", max_length=10)
     target_language: str = Field(default="fr", max_length=10)
     proficiency_level: str = Field(default="beginner", max_length=20)
+    cefr_estimate: str = Field(default="A1.1", max_length=10)
+    cefr_target_level: str = Field(default="A1.2", max_length=10)
+    cefr_estimate_payload: dict[str, Any] | None = Field(default_factory=dict)
     interests: str = Field(
         default="",
         max_length=500,
@@ -39,6 +42,7 @@ class UserBase(BaseModel):
     streak_notifications: bool = True
     weekly_email_summary: bool = True
     achievement_notifications: bool = True
+    serial_edition_notifications: bool = True
     preferred_session_time: Optional[time] = None
 
     # Appearance
@@ -83,6 +87,7 @@ class UserRead(UserBase):
     current_streak: int
     longest_streak: int
     last_activity_date: Optional[date]
+    serial_onboarding_seen: bool = False
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -94,6 +99,7 @@ class UserUpdate(BaseModel):
     native_language: Optional[str] = Field(default=None, max_length=10)
     target_language: Optional[str] = Field(default=None, max_length=10)
     proficiency_level: Optional[str] = Field(default=None, max_length=20)
+    cefr_target_level: Optional[str] = Field(default=None, max_length=10)
     interests: Optional[str] = Field(default=None, max_length=500)
     daily_goal_minutes: Optional[int] = Field(default=None, ge=0)
     daily_goal_xp: Optional[int] = Field(default=None, ge=0)
@@ -106,6 +112,7 @@ class UserUpdate(BaseModel):
     streak_notifications: Optional[bool] = None
     weekly_email_summary: Optional[bool] = None
     achievement_notifications: Optional[bool] = None
+    serial_edition_notifications: Optional[bool] = None
     preferred_session_time: Optional[time] = None
 
     theme: Optional[str] = Field(default=None, max_length=20)
@@ -137,6 +144,9 @@ class UserSettingsRead(BaseModel):
     native_language: str
     target_language: str
     proficiency_level: str
+    cefr_estimate: str = "A1.1"
+    cefr_target_level: str = "A1.2"
+    cefr_estimate_payload: dict[str, Any] | None = Field(default_factory=dict)
     interests: str
 
     daily_goal_minutes: int
@@ -151,6 +161,7 @@ class UserSettingsRead(BaseModel):
     streak_notifications: bool
     weekly_email_summary: bool
     achievement_notifications: bool
+    serial_edition_notifications: bool
 
     theme: str
     font_size: str
@@ -178,6 +189,7 @@ class UserSettingsUpdate(BaseModel):
     native_language: Optional[str] = Field(default=None, max_length=10)
     target_language: Optional[str] = Field(default=None, max_length=10)
     proficiency_level: Optional[ProficiencyLevel] = None
+    cefr_target_level: Optional[str] = Field(default=None, pattern=r"^(A1\.1|A1\.2|A2\.1|A2\.2|B1\.1|B1\.2|B2\.1|B2\.2)$")
     interests: Optional[str] = Field(default=None, max_length=500)
 
     daily_goal_minutes: Optional[int] = Field(default=None, ge=0, le=240)
@@ -192,6 +204,7 @@ class UserSettingsUpdate(BaseModel):
     streak_notifications: Optional[bool] = None
     weekly_email_summary: Optional[bool] = None
     achievement_notifications: Optional[bool] = None
+    serial_edition_notifications: Optional[bool] = None
 
     theme: Optional[Theme] = None
     font_size: Optional[FontSize] = None

@@ -3,12 +3,13 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import toast from 'react-hot-toast';
-import { ArrowRight, Check, Loader2, Send, Sparkles, X } from 'lucide-react';
+import { ArrowRight, Check, Loader2, Pause, PlayCircle, Send, Sparkles, Volume2, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import EditorialMasthead from '@/components/layout/EditorialMasthead';
 import { ContinuationCard, MobileBottomSheet, RedInkRepairSlip, VocabularyCreditBadge } from '@/components/mobile';
 import { writeLocalDayProgressFlag } from '@/lib/atelier-next';
+import { panelImageUrl } from '@/lib/graphic-novel-images';
 import apiService, {
   GraphicNovelAttemptResult,
   GraphicNovelPanel,
@@ -529,6 +530,7 @@ export default function GraphicNovelPage() {
             ) : scene ? (
               <>
                 <SceneBrief scene={scene} threadContext={visibleThreadContext} />
+                <EpisodeAudioControls scene={scene} />
                 {scene.script_payload?.render_mode === 'page' ? (
                   <div id="reading-panels">
                     <PageScene
@@ -1289,6 +1291,7 @@ function PanelAnnotation({
       <div className="panel-head">
         <span className="t-mono">PANEL {panel.panel_index}</span>
         <strong>{panel.title}</strong>
+        <PanelAudioButton panel={panel} />
       </div>
       <PanelVocabularyMarker items={panelVocabulary} />
       <BubbleTranscript bubbles={bubbles} showMobileTranslations={showMobileTranslations} />
@@ -1392,7 +1395,8 @@ function PanelCard({
         <div className="panel-head">
           <span className="t-mono">PANEL {panel.panel_index}</span>
           <strong>{panel.title}</strong>
-          </div>
+          <PanelAudioButton panel={panel} />
+        </div>
         <PanelVocabularyMarker items={panelVocabulary} />
         {bubbles.some((bubble) => bubble?.fr) && (
           <details className="mobile-panel-dialogue">
@@ -1435,6 +1439,92 @@ function PanelCard({
         )}
       </div>
     </motion.article>
+  );
+}
+
+function panelAudioUrl(panel: GraphicNovelPanel) {
+  const url = panel.audio_payload?.url;
+  return typeof url === 'string' && url.trim() ? url : '';
+}
+
+function PanelAudioButton({ panel }: { panel: GraphicNovelPanel }) {
+  const audioUrl = panelAudioUrl(panel);
+  const [playing, setPlaying] = useState(false);
+  if (!audioUrl) return null;
+  const play = async () => {
+    setPlaying(true);
+    try {
+      const player = new Audio(audioUrl);
+      player.onended = () => setPlaying(false);
+      player.onerror = () => setPlaying(false);
+      await player.play();
+    } catch (error) {
+      console.error(error);
+      setPlaying(false);
+      toast.error('Could not play this panel.');
+    }
+  };
+  return (
+    <button className="panel-audio-button" type="button" onClick={play} disabled={playing} aria-label={`Play panel ${panel.panel_index}`}>
+      {playing ? <Pause size={14} /> : <Volume2 size={14} />}
+    </button>
+  );
+}
+
+function EpisodeAudioControls({ scene }: { scene: GraphicNovelScene }) {
+  const audioPanels = (scene.panels || []).filter((panel) => panelAudioUrl(panel));
+  const [playing, setPlaying] = useState(false);
+  const playerRef = useRef<HTMLAudioElement | null>(null);
+  useEffect(() => () => {
+    playerRef.current?.pause();
+    playerRef.current = null;
+  }, []);
+  if (!audioPanels.length) return null;
+
+  const stop = () => {
+    playerRef.current?.pause();
+    playerRef.current = null;
+    setPlaying(false);
+  };
+
+  const playFrom = async (index = 0) => {
+    const panel = audioPanels[index];
+    const url = panel ? panelAudioUrl(panel) : '';
+    if (!url) {
+      setPlaying(false);
+      return;
+    }
+    playerRef.current?.pause();
+    const player = new Audio(url);
+    playerRef.current = player;
+    player.onended = () => {
+      if (index + 1 < audioPanels.length) {
+        void playFrom(index + 1);
+      } else {
+        setPlaying(false);
+        playerRef.current = null;
+      }
+    };
+    player.onerror = () => {
+      setPlaying(false);
+      playerRef.current = null;
+      toast.error('Could not play the episode audio.');
+    };
+    setPlaying(true);
+    await player.play();
+  };
+
+  return (
+    <section className="paper episode-audio" aria-label="Episode audio">
+      <div>
+        <span className="t-mono">Audio edition</span>
+        <strong>{audioPanels.length} panel{audioPanels.length === 1 ? '' : 's'} ready</strong>
+      </div>
+      <button type="button" onClick={() => playing ? stop() : void playFrom(0)}>
+        {playing ? <Pause size={16} /> : <PlayCircle size={17} />}
+        {playing ? 'Pause' : 'Lire l’épisode'}
+      </button>
+    </section>
   );
 }
 
@@ -1639,11 +1729,6 @@ function CaptionBlock({ caption, showMobileTranslations }: { caption: any; showM
 
 function isFallbackPanel(panel: GraphicNovelPanel) {
   return Boolean(panel.generation_metadata?.fallback_used || panel.image_payload?.fallback_used || panel.image_payload?.model === 'atelier-svg-fallback');
-}
-
-function panelImageUrl(panel: GraphicNovelPanel) {
-  const url = panel.image_url || panel.image_payload?.url;
-  return typeof url === 'string' && url.trim() ? url : '';
 }
 
 function sceneImageStatus(scene: GraphicNovelScene) {
@@ -3622,6 +3707,55 @@ function FeuilletonStyles() {
       }
       .panel-body { padding: 18px; display: grid; gap: 14px; }
       .panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--paper-3); padding-bottom: 9px; }
+      .panel-audio-button {
+        display: inline-grid;
+        place-items: center;
+        flex: 0 0 auto;
+        width: 30px;
+        height: 30px;
+        border: 1.5px solid var(--ink);
+        background: var(--paper);
+        color: var(--blue);
+        box-shadow: 2px 2px 0 var(--ink);
+      }
+      .panel-audio-button:disabled {
+        color: var(--ink-3);
+        box-shadow: none;
+      }
+      .episode-audio {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        padding: 16px 18px;
+        background: var(--paper);
+      }
+      .episode-audio div {
+        display: grid;
+        gap: 4px;
+      }
+      .episode-audio strong {
+        font-family: var(--serif);
+        font-size: 24px;
+        font-style: italic;
+        line-height: 1;
+      }
+      .episode-audio button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 9px;
+        border: 2px solid var(--ink);
+        background: var(--ink);
+        color: var(--paper);
+        min-height: 42px;
+        padding: 0 14px;
+        font-size: 11px;
+        font-weight: 900;
+        letter-spacing: .12em;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
       .read-first-task-section {
         display: grid;
         gap: 18px;
@@ -4322,6 +4456,18 @@ function FeuilletonStyles() {
         .feuilleton-page .panel-head {
           display: grid;
           gap: 4px;
+        }
+        .feuilleton-page .panel-audio-button {
+          width: 34px;
+          height: 34px;
+        }
+        .feuilleton-page .episode-audio {
+          display: grid;
+          gap: 12px;
+          padding: 14px;
+        }
+        .feuilleton-page .episode-audio button {
+          width: 100%;
         }
         .feuilleton-page .read-first-task-section {
           padding: 15px;

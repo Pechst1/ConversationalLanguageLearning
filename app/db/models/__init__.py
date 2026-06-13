@@ -29,6 +29,7 @@ from app.db.models.anki_import_record import AnkiImportRecord
 from app.db.models.error import UserError, UserErrorConcept
 from app.db.models.scenario import UserScenarioState
 from app.db.models.grammar import GrammarConcept, GrammarConceptArchive, GrammarConceptLocalization, UserGrammarProgress
+from app.db.models.cefr import UserCEFRProgressHistory
 from app.db.models.story import Story, Chapter, Scene, StoryProgress
 from app.db.models.npc import NPC, NPCRelationship, NPCMemory
 
@@ -67,6 +68,7 @@ __all__ = [
     "GrammarConceptArchive",
     "GrammarConceptLocalization",
     "UserGrammarProgress",
+    "UserCEFRProgressHistory",
     # Story RPG models
     "Story",
     "Chapter",

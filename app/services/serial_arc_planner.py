@@ -3,11 +3,13 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.config import settings
 from app.db.models.serial import SerialThread
 from app.schemas.serial import EpisodeBrief
 
 
 STRUCTURE_ROTATION = ("ensemble", "two_hander", "bottle", "callback_open", "news_edition")
+MISSION_FORMAT_ROTATION = ("chat_message", "email_formal", "admin_form", "voicemail_reply", "phone_call")
 SEASON_FINALE_ARC_ID = "__season_finale__"
 
 CEFR_RAMP: dict[str, dict[str, Any]] = {
@@ -111,6 +113,7 @@ class SerialArcPlanner:
         include_choice_fork = normalized_beat == "see" and self._last_see_choice_episode() != episode_index - 2
         tentpole = bool((stage or {}).get("tentpole"))
         next_beat_kind = "mission" if normalized_beat == "see" else "feuilleton"
+        mission_format = self._mission_format_for(episode_index=episode_index, beat=normalized_beat)
         hook_guidance = self._hook_guidance(required_cast=required_cast, stage=stage, next_beat_kind=next_beat_kind)
         tentpole_reference = f"docs/serial-episode-tentpole-{(arc or {}).get('id')}.md" if tentpole and arc else None
         profile = cefr_generation_profile(getattr(self.thread.user, "proficiency_level", None))
@@ -118,6 +121,7 @@ class SerialArcPlanner:
         return EpisodeBrief(
             episode_index=episode_index,
             beat=normalized_beat,
+            mission_format=mission_format,
             a_plot={
                 "arc_id": (arc or {}).get("id"),
                 "stage_id": (stage or {}).get("id"),
@@ -171,6 +175,7 @@ class SerialArcPlanner:
         return EpisodeBrief(
             episode_index=episode_index,
             beat=beat,
+            mission_format=self._mission_format_for(episode_index=episode_index, beat=beat),
             a_plot={
                 "arc_id": SEASON_FINALE_ARC_ID,
                 "stage_id": f"season_{season_number}_finale",
@@ -306,6 +311,29 @@ class SerialArcPlanner:
             if structure != last:
                 return structure
         return "ensemble"
+
+    def _mission_format_for(self, *, episode_index: int, beat: str) -> str:
+        if beat != "act":
+            return "chat_message"
+        candidates = ["chat_message", "email_formal", "admin_form"]
+        if settings.FEUILLETON_AUDIO_ENABLED:
+            candidates.append("voicemail_reply")
+        if settings.SERIAL_PHONE_CALL_MISSIONS_ENABLED:
+            candidates.append("phone_call")
+        previous = [
+            str((episode.brief_payload or {}).get("mission_format") or "")
+            for episode in sorted(self.thread.episodes or [], key=lambda item: item.episode_index)
+            if isinstance(episode.brief_payload, dict) and episode.kind == "mission"
+        ]
+        last = previous[-1] if previous else None
+        offset = len(previous) + max(0, episode_index - len(previous))
+        preferred = candidates[offset % len(candidates)]
+        if preferred != last:
+            return preferred
+        for candidate in candidates:
+            if candidate != last:
+                return candidate
+        return "chat_message"
 
     def _last_see_choice_episode(self) -> int | None:
         for episode in sorted(self.thread.episodes or [], key=lambda item: item.episode_index, reverse=True):

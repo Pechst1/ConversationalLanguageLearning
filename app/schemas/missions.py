@@ -67,6 +67,7 @@ class MissionRead(BaseModel):
     status: str
     cadence: str
     mission_type: str
+    mission_format: str = "chat_message"
     stakes_level: int = 1
     atelier_session_id: UUID | None = None
     serial_thread_id: UUID | None = None

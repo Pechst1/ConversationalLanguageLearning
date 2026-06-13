@@ -90,6 +90,7 @@ class EpisodeBrief(BaseModel):
 
     episode_index: int
     beat: Literal["act", "see", "mission", "feuilleton"]
+    mission_format: Literal["chat_message", "voicemail_reply", "email_formal", "admin_form", "phone_call"] = "chat_message"
     a_plot: EpisodePlot = Field(default_factory=EpisodePlot)
     b_plot: EpisodeBPlot = Field(default_factory=EpisodeBPlot)
     required_cast: list[str] = Field(default_factory=list)
@@ -158,6 +159,15 @@ class SerialAdvanceRequest(BaseModel):
     hook: HookRead | dict[str, Any] | None = None
 
 
+class SerialAvatarRequest(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    mode: Literal["avatar", "pov"] = "avatar"
+    description: str = Field(default="", max_length=500)
+    reference_images: list[str] = Field(default_factory=list, max_length=3)
+    avatar_builder: dict[str, Any] = Field(default_factory=dict)
+
+
 __all__ = [
     "ArcStage",
     "ArcStateEntry",
@@ -168,6 +178,7 @@ __all__ = [
     "HookRead",
     "RelationshipEntry",
     "SerialAdvanceRequest",
+    "SerialAvatarRequest",
     "SerialStateRead",
     "SerialThreadCreateRequest",
     "SerialThreadRead",

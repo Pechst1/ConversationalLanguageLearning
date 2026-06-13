@@ -2881,6 +2881,9 @@ def serialize_mission(mission: RealWorldMission | None, *, include_children: boo
         "status": mission.status,
         "cadence": mission.cadence,
         "mission_type": mission.mission_type,
+        "mission_format": (mission.prompt_payload or {}).get("mission_format")
+        or (mission.prompt_payload or {}).get("serial_mission_format")
+        or "chat_message",
         "stakes_level": int(getattr(mission, "stakes_level", None) or 1),
         "atelier_session_id": str(mission.atelier_session_id) if mission.atelier_session_id else None,
         "serial_thread_id": str(mission.serial_thread_id) if getattr(mission, "serial_thread_id", None) else None,

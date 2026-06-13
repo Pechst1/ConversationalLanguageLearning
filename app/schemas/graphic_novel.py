@@ -30,6 +30,7 @@ class GraphicNovelPanelRead(BaseModel):
     image_prompt: str
     image_url: str | None = None
     image_payload: dict[str, Any] = Field(default_factory=dict)
+    audio_payload: dict[str, Any] = Field(default_factory=dict)
     overlay_payload: dict[str, Any] = Field(default_factory=dict)
     generation_metadata: dict[str, Any] = Field(default_factory=dict)
     created_at: str | None = None

@@ -14,7 +14,7 @@ from app.db.models.graphic_novel import GraphicNovelScene
 from app.db.models.mission import RealWorldMission
 from app.db.models.serial import SerialThread
 from app.db.models.user import User
-from app.schemas.serial import SerialAdvanceRequest, SerialThreadCreateRequest, SerialThreadRead
+from app.schemas.serial import SerialAdvanceRequest, SerialAvatarRequest, SerialThreadCreateRequest, SerialThreadRead
 from app.services.serial import SerialThreadService
 
 router = APIRouter(prefix="/serial", tags=["serial"])
@@ -69,7 +69,15 @@ async def list_current_serial_episodes(
     _ensure_enabled()
     service = SerialThreadService(db)
     thread = await service.get_or_create_thread(current_user)
-    return {"thread_id": str(thread.id), "episodes": service.episode_archive(thread)}
+    current_episode = service.current_episode(thread)
+    world = thread.world_bible if isinstance(thread.world_bible, dict) else {}
+    return {
+        "thread_id": str(thread.id),
+        "season_number": int(world.get("season_number") or 1),
+        "current_episode_index": thread.current_episode_index,
+        "current_episode": service.serialize_episode(current_episode) if current_episode else None,
+        "episodes": service.episode_archive(thread),
+    }
 
 
 @router.get("/threads/current/cast")
@@ -81,6 +89,36 @@ async def get_current_serial_cast(
     service = SerialThreadService(db)
     thread = await service.get_or_create_thread(current_user)
     return {"thread_id": str(thread.id), "cast": service.cast_payload(thread)}
+
+
+@router.post("/threads/current/avatar")
+async def set_current_serial_avatar(
+    request: SerialAvatarRequest,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_atelier_user)],
+) -> dict:
+    _ensure_enabled()
+    service = SerialThreadService(db)
+    thread = await service.get_or_create_thread(current_user)
+    return service.set_user_avatar(
+        thread,
+        mode=request.mode,
+        description=request.description,
+        reference_images=request.reference_images,
+        avatar_builder=request.avatar_builder,
+    )
+
+
+@router.post("/onboarding/seen")
+async def mark_serial_onboarding_seen(
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_atelier_user)],
+) -> dict:
+    _ensure_enabled()
+    current_user.serial_onboarding_seen = True
+    db.add(current_user)
+    db.commit()
+    return {"serial_onboarding_seen": True}
 
 
 @router.post("/threads/{thread_id}/advance")

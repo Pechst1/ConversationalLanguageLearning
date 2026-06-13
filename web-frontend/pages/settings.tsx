@@ -37,6 +37,7 @@ interface UserSettings {
     nativeLanguage: string;
     targetLanguage: string;
     proficiencyLevel: string;
+    cefrTargetLevel: string;
     interests: string[];
 
     // Learning Goals
@@ -52,6 +53,7 @@ interface UserSettings {
     streakNotifications: boolean;
     weeklyEmailSummary: boolean;
     achievementNotifications: boolean;
+    serialEditionNotifications: boolean;
 
     // Appearance
     theme: 'light' | 'dark' | 'system';
@@ -74,6 +76,7 @@ const defaultSettings: UserSettings = {
     nativeLanguage: 'de',
     targetLanguage: 'fr',
     proficiencyLevel: 'A1',
+    cefrTargetLevel: 'A1.2',
     interests: [],
     dailyGoalMinutes: 15,
     dailyGoalXP: 50,
@@ -85,6 +88,7 @@ const defaultSettings: UserSettings = {
     streakNotifications: true,
     weeklyEmailSummary: true,
     achievementNotifications: true,
+    serialEditionNotifications: true,
     theme: 'system',
     fontSize: 'medium',
     voiceInputEnabled: true,
@@ -103,6 +107,8 @@ const proficiencyLevels = [
     { value: 'C1', label: 'C1 - Advanced', description: 'Complex texts and discussions' },
     { value: 'C2', label: 'C2 - Mastery', description: 'Near-native proficiency' },
 ];
+
+const cefrSublevels = ['A1.1', 'A1.2', 'A2.1', 'A2.2', 'B1.1', 'B1.2', 'B2.1', 'B2.2'];
 
 const languages = [
     { value: 'de', label: 'Deutsch (German)' },
@@ -162,6 +168,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                     nativeLanguage: user.native_language || prev.nativeLanguage,
                     targetLanguage: user.target_language || prev.targetLanguage,
                     proficiencyLevel: user.proficiency_level || prev.proficiencyLevel,
+                    cefrTargetLevel: user.cefr_target_level || prev.cefrTargetLevel,
                     interests: (user.interests || '')
                         .split(',')
                         .map((value: string) => value.trim())
@@ -178,6 +185,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                     streakNotifications: user.streak_notifications ?? prev.streakNotifications,
                     weeklyEmailSummary: user.weekly_email_summary ?? prev.weeklyEmailSummary,
                     achievementNotifications: user.achievement_notifications ?? prev.achievementNotifications,
+                    serialEditionNotifications: user.serial_edition_notifications ?? prev.serialEditionNotifications,
 
                     theme: loadedTheme,
                     fontSize: loadedFontSize,
@@ -220,6 +228,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                 native_language: settings.nativeLanguage,
                 target_language: settings.targetLanguage,
                 proficiency_level: settings.proficiencyLevel,
+                cefr_target_level: settings.cefrTargetLevel,
                 interests: settings.interests.join(','),
 
                 daily_goal_minutes: settings.dailyGoalMinutes,
@@ -233,6 +242,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                 streak_notifications: settings.streakNotifications,
                 weekly_email_summary: settings.weeklyEmailSummary,
                 achievement_notifications: settings.achievementNotifications,
+                serial_edition_notifications: settings.serialEditionNotifications,
 
                 theme: settings.theme,
                 font_size: settings.fontSize,
@@ -360,7 +370,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
     };
 
     const handleNotificationToggle = async (key: keyof UserSettings, value: boolean) => {
-        if (key === 'practiceReminders' && value === true) {
+        if ((key === 'practiceReminders' || key === 'serialEditionNotifications') && value === true) {
             // Request permission & subscribe
             if ('serviceWorker' in navigator && 'PushManager' in window) {
                 try {
@@ -647,10 +657,10 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
 
                                     <div>
                                         <label className="block text-sm font-bold uppercase mb-2">
-                                            Live Story Topics
+                                            Live Article Topics
                                         </label>
                                         <p className="text-xs text-gray-500 mb-3">
-                                            These topics steer which live stories appear in your pre-session picker.
+                                            These topics steer which live article seeds appear in your pre-session picker.
                                         </p>
                                         <div className="flex flex-wrap gap-2 mb-3">
                                             {interestTopicPresets.map((topic) => (
@@ -772,6 +782,26 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
 
                                         <div>
                                             <label className="block text-sm font-bold uppercase mb-2">
+                                                CEFR Target
+                                            </label>
+                                            <select
+                                                value={settings.cefrTargetLevel}
+                                                onChange={(e) => updateSetting('cefrTargetLevel', e.target.value)}
+                                                className="w-full p-3 border-2 border-black shadow-[4px_4px_0px_0px_#000] bg-white"
+                                            >
+                                                {cefrSublevels.map((level) => (
+                                                    <option key={level} value={level}>{level}</option>
+                                                ))}
+                                            </select>
+                                            <p className="mt-2 text-sm text-gray-600">
+                                                The Atelier meter forecasts this target from your daily pace.
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-6">
+                                        <div>
+                                            <label className="block text-sm font-bold uppercase mb-2">
                                                 Daily XP Goal
                                             </label>
                                             <input
@@ -796,9 +826,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                                 ))}
                                             </div>
                                         </div>
-                                    </div>
 
-                                    <div className="grid grid-cols-2 gap-6">
                                         <div>
                                             <label className="block text-sm font-bold uppercase mb-2">
                                                 New Words Per Day
@@ -867,6 +895,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                         { key: 'streakNotifications' as const, label: 'Streak Alerts', desc: 'Notifications about your streak status' },
                                         { key: 'weeklyEmailSummary' as const, label: 'Weekly Email Summary', desc: 'Receive weekly progress reports' },
                                         { key: 'achievementNotifications' as const, label: 'Achievement Alerts', desc: 'Get notified when you earn achievements' },
+                                        { key: 'serialEditionNotifications' as const, label: 'Serial Edition Alerts', desc: 'Get tomorrow’s serial edition when it is ready' },
                                     ].map(item => (
                                         <div key={item.key} className="flex items-center justify-between p-4 bg-gray-50 border-2 border-black">
                                             <div>

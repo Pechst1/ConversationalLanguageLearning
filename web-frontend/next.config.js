@@ -30,6 +30,9 @@ const nextConfig = {
       { source: '/daily-practice', destination: '/atelier', permanent: false },
       { source: '/learn', destination: '/atelier', permanent: false },
       { source: '/index', destination: '/atelier', permanent: false },
+      { source: '/stories', destination: '/bibliotheque', permanent: false },
+      { source: '/stories/:path*', destination: '/bibliotheque/:path*', permanent: false },
+      { source: '/story/:id', destination: '/bibliotheque/:id', permanent: false },
       { source: '/atelier/auth/signin', destination: '/auth/signin', permanent: false },
       { source: '/atelier/auth/signup', destination: '/auth/signup', permanent: false },
     ];

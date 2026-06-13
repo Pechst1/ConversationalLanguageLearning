@@ -52,6 +52,7 @@ from app.services.atelier import (
     session_vocabulary_context,
 )
 from app.services.atelier_assets import AtelierAssetService
+from app.services.cefr_progress import CEFRProgressService
 from app.services.error_memory import ErrorMemoryService
 from app.services.serial import SerialThreadService
 
@@ -84,6 +85,13 @@ def _atelier_day_progress(db: Session, user: User, *, errata_due: int) -> dict[s
         .first()
         is not None
     )
+    session_done = (
+        db.query(AtelierSession.id)
+        .filter(AtelierSession.user_id == user.id, AtelierSession.status == "completed")
+        .filter(AtelierSession.completed_at >= start)
+        .first()
+        is not None
+    )
     feuilleton_done = (
         db.query(GraphicNovelScene.id)
         .filter(GraphicNovelScene.user_id == user.id, GraphicNovelScene.status == "completed")
@@ -91,11 +99,30 @@ def _atelier_day_progress(db: Session, user: User, *, errata_due: int) -> dict[s
         .first()
         is not None
     )
+    level = str(getattr(user, "proficiency_level", None) or "A2").upper()
+    review_minutes = 4 if errata_due else 2
+    session_minutes = 8 if level in {"BEGINNER", "A1", "A2"} else 10
+    mission_minutes = 5 if level in {"BEGINNER", "A1", "A2"} else 7
+    feuilleton_minutes = 5 if level in {"BEGINNER", "A1", "A2"} else 6
+    nodes = [
+        {"id": "review", "label": "Review", "estimatedMinutes": review_minutes, "done": errata_due == 0 and vocabulary_due == 0},
+        {"id": "session", "label": "Session", "estimatedMinutes": session_minutes, "done": session_done},
+        {"id": "mission", "label": "Act", "estimatedMinutes": mission_minutes, "done": mission_done},
+        {"id": "feuilleton", "label": "Feuilleton", "estimatedMinutes": feuilleton_minutes, "done": feuilleton_done},
+    ]
+    total_minutes = sum(int(node["estimatedMinutes"]) for node in nodes)
+    done_minutes = sum(int(node["estimatedMinutes"]) for node in nodes if node.get("done"))
     return {
         "errataDue": int(errata_due),
         "vocabularyDue": int(vocabulary_due),
         "missionDone": mission_done,
         "feuilletonDone": feuilleton_done,
+        "sessionDone": session_done,
+        "timeBudgetMinutes": int(getattr(user, "daily_goal_minutes", None) or 20),
+        "estimatedTotalMinutes": total_minutes,
+        "estimatedRemainingMinutes": max(0, total_minutes - done_minutes),
+        "nodes": nodes,
+        "filed": mission_done and feuilleton_done,
     }
 
 
@@ -356,6 +383,7 @@ async def get_today(
     summary["due_errata"] = len(due_errata)
     serial_episode = await SerialThreadService(db).today(current_user) if settings.SERIAL_WORLD_ENABLED else None
     progress = _atelier_day_progress(db, current_user, errata_due=len(due_errata))
+    cefr = CEFRProgressService(db).current(current_user)
     return AtelierTodayResponse(
         concepts=[_concept_read(selection, due_by_concept, asset_service) for selection in selections],
         quote=scheduler.quote_for_today(),
@@ -363,6 +391,11 @@ async def get_today(
         atlas=scheduler.atlas(current_user),
         due_errata=due_errata,
         progress=progress,
+        cefr=cefr,
+        onboarding={
+            "serial_seen": bool(getattr(current_user, "serial_onboarding_seen", False)),
+            "serial_edition_notifications": bool(getattr(current_user, "serial_edition_notifications", True)),
+        },
         serial_episode=serial_episode,
         serial=serial_episode,
     )
@@ -569,6 +602,7 @@ def complete_session(
     if session.status == "completed":
         return AtelierCompleteResponse(session_id=session.id, recap=session.recap_payload or {})
     recap = AtelierSRSService(db).complete_session(session=session, user=current_user)
+    CEFRProgressService(db).recompute(current_user, source="atelier_session_complete")
     return AtelierCompleteResponse(session_id=session.id, recap=recap)
 
 

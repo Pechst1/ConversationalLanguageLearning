@@ -252,7 +252,7 @@ export default function SignUpPage() {
                   </div>
 
                   <div className="topic-panel">
-                    <label>Topics for live stories</label>
+                    <label>Topics for live article seeds</label>
                     <div className="topic-grid">
                       {interestPresets.map((topic) => (
                         <button

@@ -8,7 +8,9 @@ import {
   ClipboardList,
   Clock3,
   Eye,
+  FileText,
   Loader2,
+  Mail,
   MapPinned,
   Menu,
   Mic,
@@ -17,6 +19,7 @@ import {
   Sparkles,
   Square,
   Upload,
+  Volume2,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -363,6 +366,16 @@ function missionTypeLabel(type: string) {
     travel_work: 'Desk scenario',
     conversation: 'Conversation',
   }[type] || type.replace('_', ' ');
+}
+
+function missionFormatLabel(mission: RealWorldMission) {
+  return {
+    chat_message: 'Message',
+    voicemail_reply: 'Voicemail',
+    email_formal: 'Formal email',
+    admin_form: 'Admin form',
+    phone_call: 'Phone call',
+  }[mission.mission_format || ''] || missionTypeLabel(mission.mission_type);
 }
 
 function missionStatusLabel(status?: string) {
@@ -1197,6 +1210,7 @@ export default function MissionsPage() {
                 <ColdOpen mission={mission} />
                 <EpisodeBanner mission={mission} />
                 <MissionPassport mission={mission} messenger={messenger} />
+                <MissionFormatBrief mission={mission} />
                 <RealityMessenger
                   mission={mission}
                   messenger={messenger}
@@ -1918,7 +1932,7 @@ function TurnAdvanceCTA({ mission, outcome }: { mission: RealWorldMission; outco
   if (!ready) return null;
   return (
     <div className="turn-advance" data-testid="mission-turn-advance">
-      <span className="t-mono-low">The reply landed in the story</span>
+      <span className="t-mono-low">The reply landed in the serial</span>
       <p className="turn-advance-hook">{hook?.text || 'You got what you needed. See what it changes.'}</p>
       <Link className="btn solid" href={missionFeuilletonHref(mission, null)}>
         See what happens <ArrowRight size={14} />
@@ -1939,7 +1953,7 @@ function MissionPassport({ mission, messenger }: { mission: RealWorldMission; me
       <div className="passport-grid">
         <div>
           <div className="mission-kicker">
-            <span>{missionTypeLabel(mission.mission_type)}</span>
+            <span>{missionFormatLabel(mission)}</span>
             <span>{mission.cadence === 'post_session' ? 'After Atelier' : mission.cadence}</span>
             <span>{missionStatusLabel(mission.status)}</span>
           </div>
@@ -1963,6 +1977,78 @@ function MissionPassport({ mission, messenger }: { mission: RealWorldMission; me
       </div>
     </section>
   );
+}
+
+function MissionFormatBrief({ mission }: { mission: RealWorldMission }) {
+  const prompt = mission.prompt_payload || {};
+  const payload = (prompt.mission_format_payload && typeof prompt.mission_format_payload === 'object')
+    ? prompt.mission_format_payload as Record<string, any>
+    : {};
+  const format = mission.mission_format || prompt.mission_format || payload.kind || 'chat_message';
+  const [showTranscript, setShowTranscript] = useState(false);
+  if (format === 'chat_message' || !payload.kind) return null;
+  if (format === 'voicemail_reply') {
+    const transcript = String(payload.transcript || '');
+    return (
+      <section className="paper format-brief voicemail">
+        <div className="format-icon"><Volume2 size={18} /></div>
+        <div className="format-copy">
+          <span className="t-mono">VOICE NOTE</span>
+          <h3>{payload.caller || 'The contact'} left a voicemail.</h3>
+          <p>Reply by text or voice; the same correction engine grades the transcript.</p>
+          {payload.audio_payload?.url && (
+            <audio className="format-audio" controls src={String(payload.audio_payload.url)}>
+              Voice note audio
+            </audio>
+          )}
+          {transcript && (
+            <button type="button" className="format-toggle" onClick={() => setShowTranscript((value) => !value)}>
+              {showTranscript ? 'Hide transcript' : 'Show transcript'}
+            </button>
+          )}
+          {showTranscript && <blockquote>{transcript}</blockquote>}
+        </div>
+      </section>
+    );
+  }
+  if (format === 'email_formal') {
+    const required = asStringList(payload.required_parts);
+    return (
+      <section className="paper format-brief email">
+        <div className="format-icon"><Mail size={18} /></div>
+        <div className="format-copy">
+          <span className="t-mono">FORMAL EMAIL</span>
+          <h3>{payload.subject || 'Subject required'}</h3>
+          <p>{payload.salutation || 'Bonjour,'} · {payload.closing || 'Cordialement,'}</p>
+          {!!required.length && (
+            <div className="format-chips">
+              {required.map((item) => <span key={item}>{item}</span>)}
+            </div>
+          )}
+        </div>
+      </section>
+    );
+  }
+  if (format === 'admin_form') {
+    const fields = Array.isArray(payload.fields) ? payload.fields : [];
+    return (
+      <section className="paper format-brief admin-form">
+        <div className="format-icon"><FileText size={18} /></div>
+        <div className="format-copy">
+          <span className="t-mono">ADMIN FORM</span>
+          <h3>{payload.agency || 'French office form'}</h3>
+          <div className="format-fields">
+            {fields.map((field: any) => (
+              <span key={String(field.id || field.label)}>
+                {String(field.label || field.id)}{field.required ? ' *' : ''}
+              </span>
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  }
+  return null;
 }
 
 function CustomMissionComposer({
@@ -2140,7 +2226,7 @@ function RealityMessenger({
       </div>
 
       <div className="mobile-thread-summary" aria-label="Mission snapshot">
-        <span>{missionTypeLabel(mission.mission_type)}</span>
+        <span>{missionFormatLabel(mission)}</span>
         <span>{missionStatusLabel(mission.status)}</span>
         <span>{messenger.success_signal}</span>
       </div>
@@ -2490,7 +2576,7 @@ function MissionDebrief({ mission }: { mission: RealWorldMission }) {
       <div className="workspace-head">
         <div>
           <div className="t-mono">{outcome?.reply_text ? 'WORLD REPLY' : 'MISSION DEBRIEF'}</div>
-          <h3>{outcome?.reply_text ? 'The reply landed in the story' : branch?.label || 'Real-world readiness'}</h3>
+          <h3>{outcome?.reply_text ? 'The reply landed in the serial' : branch?.label || 'Real-world readiness'}</h3>
         </div>
         <div className="readiness-score">
           <span>{readiness.overall}</span>
@@ -3140,6 +3226,15 @@ function MissionStyles() {
       .signal-card small { color: var(--ink-2); line-height: 1.35; font-weight: 700; }
       .mission-loop { margin-top: 20px; border-top: 2px solid var(--ink); padding-top: 14px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
       .mission-loop span { background: var(--ink); color: var(--paper); padding: 7px 10px; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; font-weight: 900; }
+      .format-brief { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 14px; align-items: start; padding: 16px 18px; background: var(--paper); }
+      .format-icon { width: 44px; height: 44px; border: 2px solid var(--ink); background: var(--yellow); display: grid; place-items: center; box-shadow: 4px 4px 0 var(--ink); }
+      .format-copy h3 { margin: 4px 0 6px; font-size: 22px; line-height: 1.02; }
+      .format-copy p { margin: 0; color: var(--ink-2); line-height: 1.35; }
+      .format-toggle { margin-top: 10px; border: 1px solid var(--ink); background: var(--paper-2); padding: 7px 10px; font-family: var(--mono); font-size: 10px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+      .format-audio { display: block; width: min(100%, 420px); margin-top: 12px; }
+      .format-brief blockquote { margin: 12px 0 0; border-left: 4px solid var(--blue); padding: 9px 12px; background: var(--paper-2); font-family: var(--serif); font-style: italic; font-size: 20px; line-height: 1.32; }
+      .format-chips, .format-fields { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px; }
+      .format-chips span, .format-fields span { border: 1px solid var(--ink); background: var(--paper-2); padding: 6px 8px; font-family: var(--mono); font-size: 10px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
       .workspace-head { display: flex; justify-content: space-between; gap: 20px; align-items: start; border-bottom: 2px solid var(--ink); padding-bottom: 14px; }
       .workspace-head h3 { margin: 6px 0 0; font-size: clamp(23px, 3vw, 32px); line-height: 1; letter-spacing: 0; font-weight: 900; }
       .messenger-workspace, .dispatch-draft { padding: 24px 28px; background: var(--paper); display: grid; gap: 18px; }
@@ -3454,7 +3549,7 @@ function MissionStyles() {
         .mission-side { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       }
       @media (max-width: 860px) {
-        .mission-title, .workspace-head, .masthead-inner, .passport-grid, .messenger-grid, .thread-context-banner, .custom-composer { grid-template-columns: 1fr; align-items: flex-start; flex-direction: column; }
+        .mission-title, .workspace-head, .masthead-inner, .passport-grid, .messenger-grid, .thread-context-banner, .custom-composer, .format-brief { grid-template-columns: 1fr; align-items: flex-start; flex-direction: column; }
         .thread-context-side { justify-items: start; }
         .thread-context-chips { justify-content: flex-start; }
         .composer-copy { border-right: 0; border-bottom: 2px solid var(--ink); padding-right: 0; padding-bottom: 16px; }

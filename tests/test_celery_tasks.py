@@ -8,8 +8,10 @@ from uuid import uuid4
 import pytest
 from sqlalchemy.orm import sessionmaker
 
+from app.config import settings
 from app.db.models.analytics import AnalyticsSnapshot
 from app.db.models.graphic_novel import GraphicNovelPanel, GraphicNovelScene
+from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.session import LearningSession
 from app.db.models.user import User
 from app.tasks.analytics import (
@@ -120,9 +122,35 @@ def test_cleanup_old_snapshots(db_session, task_session_factory, active_user):
     assert all(item.snapshot_date >= date.today() - timedelta(days=365) for item in remaining)
 
 
-def test_generate_scene_images_task_renders_queued_panels(db_session, task_session_factory, active_user):
+def test_generate_scene_images_task_renders_queued_panels(db_session, task_session_factory, active_user, monkeypatch):
+    monkeypatch.setattr(settings, "FEUILLETON_AUDIO_ENABLED", True)
+    monkeypatch.setattr(settings, "ATELIER_LLM_ENABLED", True)
+
+    class FakeTTS:
+        def text_to_speech(self, **kwargs):  # type: ignore[no-untyped-def]
+            assert "Ça arrive" in kwargs["text"]
+            return b"fake-mp3"
+
+    monkeypatch.setattr("app.services.graphic_novel._safe_llm", lambda: FakeTTS())
+    notification_calls: list[tuple] = []
+    monkeypatch.setattr(
+        "app.tasks.notifications.send_serial_edition_notification.delay",
+        lambda *args: notification_calls.append(args),
+    )
+    thread = SerialThread(
+        user_id=active_user.id,
+        status="active",
+        world_bible={},
+        state={},
+        news_seed={},
+        current_episode_index=1,
+    )
+    db_session.add(thread)
+    db_session.flush()
     scene = GraphicNovelScene(
         user_id=active_user.id,
+        serial_thread_id=thread.id,
+        episode_index=1,
         status="generating",
         cadence="ad_hoc",
         title="Queued art",
@@ -151,6 +179,19 @@ def test_generate_scene_images_task_renders_queued_panels(db_session, task_sessi
     )
     db_session.add(scene)
     db_session.flush()
+    db_session.add(
+        SerialEpisode(
+            thread_id=thread.id,
+            episode_index=1,
+            kind="feuilleton",
+            scene_id=scene.id,
+            hook={"teaser": "Demain : la suite arrive."},
+            hook_from_previous={},
+            state_delta={},
+            brief_payload={},
+            status="generating",
+        )
+    )
     db_session.add(
         GraphicNovelPanel(
             scene_id=scene.id,
@@ -188,5 +229,8 @@ def test_generate_scene_images_task_renders_queued_panels(db_session, task_sessi
     panel = rendered.panels[0]
     assert rendered.status == "available"
     assert panel.image_url == "/assets/generated/panel-1.png"
+    assert panel.audio_payload["status"] == "available"
+    assert panel.audio_payload["url"].startswith("data:audio/mpeg;base64,")
+    assert notification_calls and notification_calls[0][2] == "Episode 2 is ready"
     assert panel.generation_metadata["image_status"] == "available"
     assert image_mock.await_count == 1

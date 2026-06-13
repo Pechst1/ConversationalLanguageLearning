@@ -159,7 +159,7 @@ export default function StoryDetailPage() {
             {isCompleted
               ? 'You have completed all chapters!'
               : isStarted
-              ? 'Continue your journey through the story'
+              ? 'Continue this library text'
               : 'Unlock chapters as you progress'}
           </CardDescription>
         </CardHeader>

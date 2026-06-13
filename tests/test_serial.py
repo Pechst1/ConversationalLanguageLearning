@@ -23,6 +23,7 @@ from app.services.missions import MissionScheduler, serialize_mission
 from app.services.news_service import NewsService
 from app.services.serial_arc_planner import SEASON_FINALE_ARC_ID, SerialArcPlanner, cefr_generation_profile
 from app.services.serial import SerialThreadService, WORLD_BIBLE_PATH
+from app.services.serial_notifications import enqueue_serial_edition_notification
 
 
 def _run(coro):
@@ -226,6 +227,12 @@ def test_existing_thread_syncs_locked_character_assets(db_session):
                     "romy_tremblay": {
                         "reference_images": [],
                         "style_ref": "",
+                    },
+                    "user": {
+                        "canonical_descriptor": "custom learner avatar descriptor",
+                        "reference_images": ["assets/serial/characters/user/model-sheet.png"],
+                        "style_ref": "assets/serial/characters/user/model-sheet.png",
+                        "avatar_builder": {"hair": "short", "jacket": "blue"},
                     }
                 },
             },
@@ -252,6 +259,10 @@ def test_existing_thread_syncs_locked_character_assets(db_session):
     assert existing.world_bible["visual_design"]["characters"]["romy_tremblay"]["reference_images"] == [
         "assets/serial/characters/romy_tremblay/model-sheet.png"
     ]
+    assert existing.world_bible["visual_design"]["characters"]["user"]["reference_images"] == [
+        "assets/serial/characters/user/model-sheet.png"
+    ]
+    assert existing.world_bible["visual_design"]["characters"]["user"]["avatar_builder"]["jacket"] == "blue"
     assert existing.world_bible["visual_design"]["locations"]["le_mistral"]["reference_images"] == [
         "assets/serial/locations/le_mistral-booth.png",
         "assets/serial/locations/le_mistral-counter.png",
@@ -444,6 +455,40 @@ def test_cefr_generation_profile_is_monotonic():
 
     assert min_words == sorted(min_words)
     assert objective_counts == sorted(objective_counts)
+
+
+def test_serial_arc_planner_rotates_mission_formats(db_session, monkeypatch):
+    monkeypatch.setattr(settings, "FEUILLETON_AUDIO_ENABLED", True)
+    monkeypatch.setattr(settings, "SERIAL_PHONE_CALL_MISSIONS_ENABLED", False)
+    user = _user(db_session, email="serial-mission-formats@example.com")
+    thread = _run(SerialThreadService(db_session).get_or_create_thread(user))
+    formats: list[str] = []
+
+    for episode_index in range(1, 7):
+        thread.current_episode_index = episode_index
+        brief = SerialArcPlanner(thread).plan_next_episode("act").model_dump(mode="json")
+        formats.append(brief["mission_format"])
+        db_session.add(
+            SerialEpisode(
+                thread_id=thread.id,
+                episode_index=episode_index,
+                kind="mission",
+                hook={},
+                hook_from_previous={},
+                state_delta={},
+                status="completed",
+                brief_payload=brief,
+                location_id=brief.get("location_id"),
+            )
+        )
+        db_session.add(thread)
+        db_session.commit()
+        db_session.refresh(thread)
+
+    assert "phone_call" not in formats
+    assert "voicemail_reply" in formats
+    assert {"email_formal", "admin_form"}.issubset(set(formats))
+    assert all(current != previous for previous, current in zip(formats, formats[1:]))
 
 
 def test_serial_mission_contract_honors_relationship_register(db_session):
@@ -870,6 +915,7 @@ def test_stale_generating_scene_expires_to_retryable_delayed_episode(db_session)
 def test_full_loop(db_session, monkeypatch):
     monkeypatch.setattr(NewsService, "fetch_feuilleton_daily_seed", _fake_seed)
     monkeypatch.setattr(SerialThreadService, "_enqueue_next_beat", lambda self, thread_id: None)
+    monkeypatch.setattr("app.services.graphic_novel.enqueue_serial_edition_notification", lambda *args, **kwargs: False)
     user = _user(db_session, email="serial-loop@example.com")
     service = SerialThreadService(db_session)
 
@@ -967,6 +1013,7 @@ def test_mission_complete_endpoint_advances_serial_thread(client: TestClient, db
     monkeypatch.setattr(settings, "OPENAI_API_KEY", "")
     monkeypatch.setattr(NewsService, "fetch_feuilleton_daily_seed", _fake_seed)
     monkeypatch.setattr(SerialThreadService, "_enqueue_next_beat", lambda self, thread_id: None)
+    monkeypatch.setattr("app.services.graphic_novel.enqueue_serial_edition_notification", lambda *args, **kwargs: False)
     email = f"{uuid4()}@example.com"
     client.post(
         "/api/v1/auth/register",
@@ -1033,6 +1080,19 @@ def test_serial_archive_and_cast_endpoints(client: TestClient, db_session, monke
     token = client.post("/api/v1/auth/login", json={"email": email, "password": "serial-secure"}).json()["access_token"]
     user = db_session.query(User).filter(User.email == email).one()
     thread = _run(SerialThreadService(db_session).get_or_create_thread(user))
+    thread.current_episode_index = 1
+    thread.state = {
+        **(thread.state or {}),
+        "relationships": {
+            "marin_leveque": {
+                "closeness": 3,
+                "register": "tu",
+                "register_switch_episode": 0,
+                "last_summary": "Marin remembers the radiator night.",
+                "callbacks": ["la clé sous la pluie"],
+            }
+        },
+    }
     mission = RealWorldMission(
         user_id=user.id,
         serial_thread_id=thread.id,
@@ -1066,21 +1126,59 @@ def test_serial_archive_and_cast_endpoints(client: TestClient, db_session, monke
     episode.state_delta = {}
     episode.status = "completed"
     episode.completed_at = datetime.now(timezone.utc)
-    episode.brief_payload = {"required_cast": ["landlord_marchand"]}
+    episode.brief_payload = {"required_cast": ["marin_leveque"]}
     db_session.add(episode)
+    db_session.add(thread)
     db_session.commit()
 
     archive = client.get("/api/v1/serial/threads/current/episodes", headers={"Authorization": f"Bearer {token}"})
     cast = client.get("/api/v1/serial/threads/current/cast", headers={"Authorization": f"Bearer {token}"})
 
     assert archive.status_code == 200
+    assert archive.json()["current_episode_index"] == 1
     assert archive.json()["episodes"][0]["episode_label"] == "Season 1 · Episode 1"
     assert archive.json()["episodes"][0]["title"] == "Reach the landlord"
+    assert archive.json()["episodes"][0]["required_cast"] == ["marin_leveque"]
     assert cast.status_code == 200
     cast_rows = {row["id"]: row for row in cast.json()["cast"]}
     assert "marin_leveque" in cast_rows
     assert cast_rows["marin_leveque"]["model_sheet_url"].endswith("/assets/serial/characters/marin_leveque/model-sheet.png")
-    assert "register" in cast_rows["marin_leveque"]["relationship"]
+    assert cast_rows["marin_leveque"]["relationship"]["register"] == "tu"
+    assert cast_rows["marin_leveque"]["relationship"]["callbacks"] == ["la clé sous la pluie"]
+    assert cast_rows["marin_leveque"]["episodes"][0]["href"] == "/serial/episode/0"
+
+
+def test_serial_edition_notification_is_idempotent(db_session, monkeypatch):
+    user = _user(db_session, email="serial-notify@example.com")
+    thread = _run(SerialThreadService(db_session).get_or_create_thread(user))
+    thread.current_episode_index = 1
+    episode = SerialEpisode(
+        thread_id=thread.id,
+        episode_index=1,
+        kind="feuilleton",
+        hook={"teaser": "Demain : Romy trouve une enveloppe."},
+        hook_from_previous={},
+        state_delta={},
+        brief_payload={},
+        status="available",
+    )
+    db_session.add_all([thread, episode])
+    db_session.commit()
+    calls: list[tuple[Any, ...]] = []
+
+    monkeypatch.setattr(
+        "app.tasks.notifications.send_serial_edition_notification.delay",
+        lambda *args: calls.append(args),
+    )
+
+    assert enqueue_serial_edition_notification(db_session, episode, user=user) is True
+    db_session.refresh(episode)
+    assert episode.hook["notification_queued_key"].startswith("serial-edition:")
+    assert calls and calls[0][2] == "Episode 2 is ready"
+    assert "Romy trouve" in calls[0][3]
+
+    assert enqueue_serial_edition_notification(db_session, episode, user=user) is False
+    assert len(calls) == 1
 
 
 def test_direct_serial_mission_creation_uses_story_seed(db_session):

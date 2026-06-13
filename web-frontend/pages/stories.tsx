@@ -49,15 +49,15 @@ export default function StoriesPage({ stories }: StoriesPageProps) {
                 {/* Header */}
                 <header className="border-b border-black pb-6">
                     <div className="text-xs font-mono font-black uppercase tracking-widest text-[var(--app-ink-3)]">
-                        LITERARY EXPERIENCE
+                        LA BIBLIOTHEQUE
                     </div>
                     <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mt-2">
                         <div>
                             <h1 className="font-serif text-5xl italic text-black leading-none">
-                                Story Adventures
+                                La Bibliothèque
                             </h1>
                             <p className="text-[var(--app-ink-2)] font-medium mt-3">
-                                Learn French through immersive interactive stories.
+                                Imported books and side readings live here. The daily serial stays in Le Feuilleton.
                             </p>
                         </div>
                         <div className="flex items-center gap-3">
@@ -71,20 +71,20 @@ export default function StoriesPage({ stories }: StoriesPageProps) {
                             </Button>
                             <div className="flex items-center gap-2 px-4 py-2 bg-bauhaus-yellow border-2 border-black rounded-none shadow-[4px_4px_0px_0px_#000] text-black">
                                 <BookOpen className="h-5 w-5" />
-                                <span className="font-bold">{stories.length} Stories</span>
+                                <span className="font-bold">{stories.length} Texts</span>
                             </div>
                         </div>
                     </div>
                 </header>
 
-                {/* Featured Story */}
+                {/* Featured library text */}
                 {stories.length > 0 && (
                     <div className="relative">
                         <FeaturedStoryCard story={stories[0]} />
                     </div>
                 )}
 
-                {/* All Stories Grid */}
+                {/* All library texts */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {stories.map((story) => (
                         <StoryCard key={story.id} story={story} />
@@ -96,9 +96,9 @@ export default function StoriesPage({ stories }: StoriesPageProps) {
                     <Card className="border-4 border-black rounded-none shadow-[8px_8px_0px_0px_#000] bg-[var(--app-sheet)]">
                         <CardContent className="p-12 text-center">
                             <BookOpen className="h-16 w-16 mx-auto mb-4 text-stone-450" />
-                            <h3 className="text-2xl font-bold mb-2">No Stories Available</h3>
+                            <h3 className="text-2xl font-bold mb-2">No Library Texts Available</h3>
                             <p className="text-[var(--app-ink-2)]">
-                                Story content will be available soon.
+                                Imported books and side readings will appear here.
                             </p>
                             <Button
                                 onClick={() => setIsUploadModalOpen(true)}
@@ -142,7 +142,7 @@ function FeaturedStoryCard({ story }: { story: Story }) {
                         </div>
                     ) : (
                         <div className="text-center text-white">
-                            <div className="text-8xl mb-4">🌹</div>
+                            <BookOpen className="h-20 w-20 mx-auto mb-4" />
                             <p className="text-lg font-bold opacity-80">{story.source_book}</p>
                         </div>
                     )}
@@ -218,7 +218,7 @@ function FeaturedStoryCard({ story }: { story: Story }) {
                             className="w-full h-14 text-lg font-bold shadow-[4px_4px_0px_0px_#000] border-2 border-black rounded-none bg-black text-white hover:bg-stone-900 transition-all"
                             leftIcon={<Play className="h-5 w-5" />}
                         >
-                            {hasProgress ? 'Continue' : 'Start Story'}
+                            {hasProgress ? 'Continue' : 'Start Reading'}
                         </Button>
                     </Link>
                 </div>
@@ -245,7 +245,7 @@ function StoryCard({ story }: { story: Story }) {
                         className="h-full w-full object-cover border-b-2 border-black"
                     />
                 ) : (
-                    <div className="text-6xl">🌹</div>
+                    <BookOpen className="h-14 w-14 text-white" />
                 )}
 
                 {isLocked && (
@@ -301,7 +301,7 @@ function StoryCard({ story }: { story: Story }) {
                         disabled={isLocked}
                         rightIcon={<ChevronRight className="h-4 w-4" />}
                     >
-                        {isLocked ? 'Locked' : hasProgress ? 'Continue' : 'Play'}
+                        {isLocked ? 'Locked' : hasProgress ? 'Continue' : 'Read'}
                     </Button>
                 </Link>
             </CardContent>
@@ -337,14 +337,9 @@ export async function getServerSideProps(context: any) {
 
         const stories = await res.json();
 
-        // Filter out imported stories as they belong to the Learn/Conversational framework
-        const filteredStories = stories.filter((story: any) =>
-            !story.themes?.includes('imported')
-        );
-
         return {
             props: {
-                stories: filteredStories,
+                stories,
             },
         };
     } catch (error) {

@@ -60,6 +60,27 @@ The application will be available at http://localhost:3000
 - `npm run start` - Start production server
 - `npm run lint` - Run ESLint
 - `npm run type-check` - Run TypeScript type checking
+- `npm run cap:sync:ios` - Sync the Capacitor iOS shell for the current `CAPACITOR_SERVER_URL`
+- `npm run cap:open:ios` - Open the generated iOS project in Xcode
+
+## Capacitor iOS Spike
+
+The current iOS shell is a Phase-1 spike that loads the running Next app through Capacitor
+`server.url`. It is not the Phase-2 static export or native JWT auth bridge.
+
+```bash
+# Terminal 1: run the web app
+npm run dev
+
+# Terminal 2: sync native config and open/build the iOS shell
+CAPACITOR_SERVER_URL=http://127.0.0.1:3000 npm run cap:sync:ios
+npm run cap:open:ios
+```
+
+For an iOS Simulator, `http://127.0.0.1:3000` works when the Next dev server is healthy. If you
+use a different port or host, keep `NEXTAUTH_URL` aligned with `CAPACITOR_SERVER_URL` for the
+server-url spike. For a physical iPhone, use a LAN-reachable or hosted HTTPS URL in
+`CAPACITOR_SERVER_URL`; device `localhost` will not point at the Mac.
 
 ## Project Structure
 

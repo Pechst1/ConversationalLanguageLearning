@@ -240,11 +240,15 @@ a {
 .s-thread {
   position: relative;
   display: block;
-  text-decoration: none;
   color: var(--ink);
   border: 1.5px solid var(--ink);
   background: var(--paper);
   box-shadow: 6px 6px 0 var(--ink);
+}
+
+.s-thread a {
+  color: inherit;
+  text-decoration: none;
 }
 
 .s-thread .ttop {
@@ -270,6 +274,14 @@ a {
   letter-spacing: .13em;
   text-transform: uppercase;
   color: var(--ink-3);
+}
+
+.s-thread .ttop .ep:hover {
+  color: var(--blue);
+}
+
+.s-thread-link {
+  display: block;
 }
 
 .s-thread .prev {
@@ -331,6 +343,32 @@ a {
   font-weight: 900;
   letter-spacing: .13em;
   text-transform: uppercase;
+}
+
+.s-thread .t-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-top: 1.5px solid var(--ink);
+}
+
+.s-thread .t-actions a {
+  display: grid;
+  place-items: center;
+  min-height: 46px;
+  padding: 12px;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .1em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.s-thread .t-actions a + a {
+  border-left: 1.5px solid var(--ink);
+}
+
+.s-thread .t-actions a:hover {
+  background: var(--yellow);
 }
 
 .s-thread .tcta.ink {

@@ -29,6 +29,9 @@ export const PHONE_PRODUCT_TABS: ProductTab[] = [
       '/serial',
       '/serial/cast',
       '/serial/episode/[index]',
+      '/bibliotheque',
+      '/bibliotheque/[storyId]',
+      '/bibliotheque/[storyId]/chapter/[chapterId]',
       '/stories',
       '/stories/[storyId]',
       '/stories/[storyId]/chapter/[chapterId]',
@@ -58,6 +61,9 @@ const OWN_SHELL_ROUTES = new Set([
   '/serial',
   '/serial/cast',
   '/serial/episode/[index]',
+  '/bibliotheque',
+  '/bibliotheque/[storyId]',
+  '/bibliotheque/[storyId]/chapter/[chapterId]',
   '/grammar',
   '/notebook',
   '/vocabulary',
@@ -83,6 +89,17 @@ export function resolveProductSection(pathname: string): ProductSection | undefi
 export function resolveProductTitle(section: ProductSection | undefined, pathname: string) {
   if (pathname === '/learn/session/[id]' || pathname === '/sessions' || pathname === '/practice') {
     return 'Session';
+  }
+  if (
+    pathname === '/bibliotheque'
+    || pathname === '/bibliotheque/[storyId]'
+    || pathname === '/bibliotheque/[storyId]/chapter/[chapterId]'
+    || pathname === '/stories'
+    || pathname === '/stories/[storyId]'
+    || pathname === '/stories/[storyId]/chapter/[chapterId]'
+    || pathname === '/story/[id]'
+  ) {
+    return 'Bibliothèque';
   }
   if (pathname === '/settings') return 'Settings';
   return PHONE_PRODUCT_TABS.find((item) => item.id === section)?.label || 'Atelier';

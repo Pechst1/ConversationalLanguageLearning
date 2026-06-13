@@ -28,6 +28,7 @@ from app.schemas.missions import (
     MissionTurnResponse,
 )
 from app.services.llm_service import LLMService
+from app.services.cefr_progress import CEFRProgressService
 from app.services.serial import SerialThreadService
 from app.services.missions import (
     MissionConversationService,
@@ -411,6 +412,7 @@ async def complete_mission(
     mission = _mission_or_404(db, mission_id, current_user)
     completed = MissionScheduler(db).complete(user=current_user, mission=mission)
     await _advance_serial_thread(db, completed)
+    CEFRProgressService(db).recompute(current_user, source="mission_complete")
     return MissionCompleteResponse(
         mission=serialize_mission(completed) or {},
         recap=completed.recap_payload or {},

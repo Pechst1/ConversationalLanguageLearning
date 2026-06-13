@@ -14,6 +14,7 @@ from app.config import settings
 from app.db.models.graphic_novel import GraphicNovelScene
 from app.db.models.serial import SerialThread
 from app.db.models.user import User
+from app.services.cefr_progress import CEFRProgressService
 from app.services.serial import SerialThreadService
 from app.schemas.graphic_novel import (
     GraphicNovelAttemptRequest,
@@ -169,6 +170,7 @@ async def complete_graphic_novel_scene(
         )
     completed = scheduler.complete(user=current_user, scene=scene)
     await _advance_serial_thread(db, completed)
+    CEFRProgressService(db).recompute(current_user, source="feuilleton_complete")
     return GraphicNovelCompleteResponse(
         scene=serialize_scene(completed) or {},
         recap=completed.recap_payload or {},

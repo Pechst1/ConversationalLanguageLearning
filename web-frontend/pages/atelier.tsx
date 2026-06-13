@@ -185,6 +185,7 @@ export default function AtelierPage() {
   const [vocabularyDue, setVocabularyDue] = useState(0);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const [serialWelcomeDismissed, setSerialWelcomeDismissed] = useState(false);
   const aiPollTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const scheduleAiReviewPollingRef = useRef<(attemptId: string, key: string, remaining?: number) => void>(() => {});
 
@@ -632,6 +633,22 @@ export default function AtelierPage() {
   };
 
   const completedDrills = Object.values(submitted).filter(Boolean).length;
+  const showSerialWelcome = !loading && !serialWelcomeDismissed && today?.onboarding?.serial_seen === false;
+  const dismissSerialWelcome = async () => {
+    setSerialWelcomeDismissed(true);
+    try {
+      await apiService.markSerialOnboardingSeen();
+      setToday((current) => current ? {
+        ...current,
+        onboarding: {
+          ...(current.onboarding || {}),
+          serial_seen: true,
+        },
+      } : current);
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   return (
     <>
@@ -717,6 +734,7 @@ export default function AtelierPage() {
             }}
           />
         )}
+        {showSerialWelcome && <SerialWelcomeModal onClose={dismissSerialWelcome} />}
       </div>
     </>
   );
@@ -732,6 +750,26 @@ function Masthead({ view }: { view: 'today' | 'session' }) {
       hideMobileNav={view === 'session'}
       hideMobileTitle={false}
     />
+  );
+}
+
+function SerialWelcomeModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="serial-welcome-backdrop" role="dialog" aria-modal="true" aria-label="Serial welcome">
+      <section className="serial-welcome">
+        <div className="t-mono red">Le Feuilleton</div>
+        <h2>Your daily French serial starts here.</h2>
+        <p>Each day has one episode beat: sometimes you write the message that changes the scene, sometimes you read the comic result.</p>
+        <div className="serial-welcome-steps">
+          <span><b>1</b> Act in French</span>
+          <span><b>2</b> Read the edition</span>
+          <span><b>3</b> Return tomorrow</span>
+        </div>
+        <button type="button" onClick={onClose}>
+          Start today <ArrowRight size={16} />
+        </button>
+      </section>
+    </div>
   );
 }
 
@@ -799,6 +837,10 @@ function TodayView({
     ? `${Math.max(completedSignatureCount, Math.min(submittedCount, roundLabels.length))} of ${roundLabels.length} signatures set`
     : `${grammarFocusCountLabel(concepts.length || grammarTopics.length)} · ${plannedAtelierDrills(concepts, activeSession)} drills`;
   const currentPanelLabel = hasActiveSession ? 'Resume · in progress' : 'Today · grammar';
+  const cefr = today?.cefr || null;
+  const remainingMinutes = Math.max(0, Number(dayProgress.estimatedRemainingMinutes ?? dayProgress.estimatedTotalMinutes ?? 20));
+  const totalMinutes = Math.max(1, Number(dayProgress.estimatedTotalMinutes ?? 20));
+  const timeLine = `~${remainingMinutes} min left · ${totalMinutes} min edition`;
   const currentPanelFoci = canStart
     ? hasActiveSession
       ? [currentRoundFocus(activeSession, activeRound, grammarTopics)]
@@ -846,9 +888,10 @@ function TodayView({
               <AtelierEditionHeader
                 rubric={hasActiveSession ? "Today's edition · in press" : "Today's edition"}
                 date={editionDate}
-                sub={signatureSub}
+                sub={`${signatureSub} · ${timeLine}`}
                 streak={streak}
               />
+              <CEFRPromiseStrip cefr={cefr} />
               <div className="spine" data-node-count={nodes.length}>
                 {roundLabels.map((item, index) => {
                   const state = sessionComplete
@@ -863,7 +906,7 @@ function TodayView({
                       key={item.id}
                       roman={item.roman}
                       name={item.label}
-                      meta={roundMetaLabel(state, dayProgress.sessionStatus)}
+                      meta={withNodeMinutes(roundMetaLabel(state, dayProgress.sessionStatus), dayProgress, 'session')}
                       state={state}
                       first={index === 0}
                     >
@@ -882,9 +925,9 @@ function TodayView({
                 <AtelierEditionStep
                   roman="R"
                   name="Review"
-                  meta={reviewTotal > 0
+                  meta={withNodeMinutes(reviewTotal > 0
                     ? `${reviewTotal} to review${recommendedTarget === 'review' && reviewKindCount > 1 ? ` · ${reviewKindCount} kinds` : ''}`
-                    : 'Queue clear'}
+                    : 'Queue clear', dayProgress, 'review')}
                   state={recommendedTarget === 'review' ? 'current' : reviewTotal > 0 ? 'up' : 'done'}
                   review
                   badge={recommendedTarget !== 'review' && reviewTotal > 0 ? String(reviewTotal) : undefined}
@@ -951,7 +994,7 @@ function roadmapPrimaryAction(
     return { label: `Review ${total} item${total === 1 ? '' : 's'}`, onClick };
   }
   if (action.kind === 'mission') return { label: 'Use in mission', onClick };
-  if (action.kind === 'serial') return { label: action.episodeKind === 'mission' ? 'Reply in story' : 'Continue story', onClick };
+  if (action.kind === 'serial') return { label: action.episodeKind === 'mission' ? 'Reply in serial' : 'Continue serial', onClick };
   return { label: 'Read Feuilleton', onClick };
 }
 
@@ -1025,6 +1068,57 @@ function roundMetaLabel(state: 'done' | 'current' | 'up', sessionStatus: DayProg
   if (state === 'done') return 'done';
   if (state === 'current') return sessionStatus === 'none' ? 'Start here' : 'Continue here';
   return 'up next';
+}
+
+function withNodeMinutes(label: string, progress: DayProgress, nodeId: string) {
+  const node = (progress.nodes || []).find((item) => item.id === nodeId);
+  if (!node?.estimatedMinutes) return label;
+  return `${label} · ~${node.estimatedMinutes} min`;
+}
+
+function CEFRPromiseStrip({ cefr }: { cefr?: AtelierToday['cefr'] | null }) {
+  if (!cefr) return null;
+  const estimate = cefr.estimate || 'A1.1';
+  const target = cefr.target || cefr.next_level || estimate;
+  const forecast = cefr.forecast || null;
+  const range = Array.isArray(forecast?.range_days) ? forecast.range_days : null;
+  const forecastText = forecast?.status === 'available' && range
+    ? `~${range[0]}-${range[1]} days at this pace`
+    : forecast?.message || 'Forecast unlocks after 7 active days';
+  const breakdown = cefr.breakdown || {};
+  const vocab = breakdown.vocabulary || {};
+  const grammar = breakdown.grammar || {};
+  const vocabPct = percentToward(vocab.current, vocab.target);
+  const grammarPct = percentToward(grammar.current, grammar.target);
+  return (
+    <section className="cefr-strip" aria-label="CEFR progress">
+      <div>
+        <span className="t-mono-low">CEFR PROMISE</span>
+        <strong>{estimate} → {target}</strong>
+        <small>{forecastText}</small>
+      </div>
+      <div className="cefr-bars">
+        <ProgressMini label="Words" value={Number(vocab.current || 0)} target={Number(vocab.target || 0)} pct={vocabPct} />
+        <ProgressMini label="Grammar" value={Number(grammar.current || 0)} target={Number(grammar.target || 0)} pct={grammarPct} />
+      </div>
+    </section>
+  );
+}
+
+function ProgressMini({ label, value, target, pct }: { label: string; value: number; target: number; pct: number }) {
+  return (
+    <div className="cefr-mini">
+      <div><span>{label}</span><b>{value}/{target || 0}</b></div>
+      <i><em style={{ width: `${pct}%` }} /></i>
+    </div>
+  );
+}
+
+function percentToward(current: unknown, target: unknown) {
+  const total = Number(target || 0);
+  if (!Number.isFinite(total) || total <= 0) return 0;
+  const value = Number(current || 0);
+  return Math.max(0, Math.min(100, Math.round((value / total) * 100)));
 }
 
 type AtelierEditionStepState = 'done' | 'current' | 'up';
@@ -1235,27 +1329,35 @@ function SerialThreadCard({
   const who = done ? 'romy' : invited ? 'margaux' : kind === 'mission' ? 'marchand' : 'marin';
   const copy = serialThreadCopy({ kind, invited, done, episodeLabel, status, hookText });
   return (
-    <Link className={`s-thread ${variant} ${recommended ? 'recommended' : ''}`} href={href} data-char={who}>
+    <article className={`s-thread ${variant} ${recommended ? 'recommended' : ''}`} data-char={who}>
       <div className="ttop">
         <AtelierEditionMark size={18} />
         <span className="ser">The serial</span>
-        <span className="ep">{copy.episode}</span>
+        <Link className="ep" href="/serial">{copy.episode}</Link>
       </div>
       {copy.previously && <div className="prev"><b>Previously —</b> {copy.previously}</div>}
-      <div className="tmain" data-char={who}>
+      <Link className="s-thread-link" href={href}>
+        <div className="tmain" data-char={who}>
         <SerialAvatar who={who} mood={kind === 'mission' ? 'confused' : 'warm'} />
         <div>
           <div className="beat">{copy.beat}</div>
           <h2>{copy.title}</h2>
           <div className="sub">{copy.sub}</div>
         </div>
-      </div>
+        </div>
+      </Link>
       {!done && (
-        <div className={`tcta ${kind === 'feuilleton' || invited ? 'ink' : ''}`}>
+        <Link className={`tcta ${kind === 'feuilleton' || invited ? 'ink' : ''}`} href={href}>
           {copy.cta} <SerialArrowIcon />
+        </Link>
+      )}
+      {done && (
+        <div className="t-actions">
+          <Link href="/serial">Re-read the season</Link>
+          <Link href="/serial/cast">The cast</Link>
         </div>
       )}
-    </Link>
+    </article>
   );
 }
 
@@ -1288,7 +1390,7 @@ function serialThreadCopy({
       previously: '',
       beat: "L'édition de demain est retardée",
       title: 'The presses are paused.',
-      sub: 'The story writer is unavailable, so the serial waits instead of replaying the opener.',
+      sub: 'The serial writer is unavailable, so the edition waits instead of replaying the opener.',
       cta: 'Retry edition',
     };
   }
@@ -1298,17 +1400,17 @@ function serialThreadCopy({
       previously: '',
       beat: "Tomorrow's edition is at the printer's",
       title: 'The script is ready.',
-      sub: 'Panels will appear as the image desk finishes them.',
+      sub: hookText ? `Next: ${hookText}` : 'Panels will appear as the image desk finishes them.',
       cta: 'Open edition',
     };
   }
   if (done) {
     return {
       episode: `${episodeLabel} · settled`,
-      previously: 'you sent the story forward.',
+      previously: 'you sent the serial forward.',
       beat: '— Fin de l’épisode —',
       title: 'You’re caught up.',
-      sub: 'The next installment is still being typeset. Let the cliffhanger sit overnight.',
+      sub: hookText ? `Tomorrow: ${hookText}` : 'The next installment is still being typeset. Let the cliffhanger sit overnight.',
       cta: '',
     };
   }
@@ -1318,7 +1420,7 @@ function serialThreadCopy({
       previously: '',
       beat: 'A new serial',
       title: '“L’arrivée”',
-      sub: 'A café in the 11th, a key that will not turn, and people who will remember you. Your French moves the story.',
+      sub: 'A café in the 11th, a key that will not turn, and people who will remember you. Your French moves the serial.',
       cta: 'Begin episode 1',
     };
   }
@@ -1328,15 +1430,15 @@ function serialThreadCopy({
       previously: 'the last panel left someone waiting for your answer.',
       beat: 'Le monde attend ta réponse',
       title: 'The world is waiting for your reply',
-      sub: 'Write the next message and let the town answer in fiction.',
-      cta: 'Reply in story',
+      sub: 'Write the next message and let the serial answer back.',
+      cta: 'Reply in serial',
     };
   }
   return {
     episode: `${episodeLabel} · See`,
     previously: hookText || 'the reply you wrote becomes the scene.',
     beat: 'New episode ready',
-    title: 'Continue the story',
+    title: 'Continue the serial',
     sub: 'See what your last message changed, then leave on the next hook.',
     cta: 'Read episode',
   };
@@ -2833,17 +2935,17 @@ function recapActionLabel(action: RecommendedAction, reviewTotal: number) {
   }
   if (action.kind === 'serial') {
     return {
-      title: action.episodeKind === 'mission' ? 'The world is waiting for your reply' : 'Continue the story',
+      title: action.episodeKind === 'mission' ? 'The world is waiting for your reply' : 'Continue the serial',
       copy: action.episodeKind === 'mission'
         ? 'Your next French message moves the shared thread forward.'
         : 'See the consequence of what you wrote, then catch the next hook.',
-      action: action.episodeKind === 'mission' ? 'Reply now' : 'Open story',
+      action: action.episodeKind === 'mission' ? 'Reply now' : 'Open serial',
     };
   }
   if (action.kind === 'feuilleton') {
     return {
       title: 'Read the Feuilleton branch',
-      copy: 'Carry the same grammar into the story scene while it is still warm.',
+      copy: 'Carry the same grammar into the Feuilleton scene while it is still warm.',
       action: 'Open Feuilleton',
     };
   }
@@ -2898,6 +3000,72 @@ function AtelierStyles() {
           radial-gradient(circle at 18% 22%, rgba(20,17,13,0.025) 0, transparent 0.7px),
           radial-gradient(circle at 71% 56%, rgba(20,17,13,0.025) 0, transparent 0.7px);
         background-size: 7px 7px, 11px 11px;
+      }
+      .serial-welcome-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 80;
+        display: grid;
+        place-items: center;
+        padding: 18px;
+        background: rgba(20, 17, 13, 0.68);
+      }
+      .serial-welcome {
+        width: min(520px, 100%);
+        border: 2px solid var(--ink);
+        background: var(--paper);
+        box-shadow: 8px 8px 0 var(--ink);
+        padding: 24px;
+      }
+      .serial-welcome h2 {
+        margin: 8px 0 10px;
+        font-family: var(--serif);
+        font-size: 38px;
+        font-style: italic;
+        line-height: .98;
+        letter-spacing: 0;
+      }
+      .serial-welcome p {
+        margin: 0;
+        color: var(--ink-2);
+        line-height: 1.45;
+      }
+      .serial-welcome-steps {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+        margin: 18px 0;
+      }
+      .serial-welcome-steps span {
+        display: grid;
+        gap: 6px;
+        border: 1.5px solid var(--ink);
+        background: var(--paper-2);
+        padding: 10px;
+        font-size: 12px;
+        font-weight: 900;
+      }
+      .serial-welcome-steps b {
+        display: grid;
+        place-items: center;
+        width: 24px;
+        height: 24px;
+        background: var(--yellow);
+        border: 1.5px solid var(--ink);
+      }
+      .serial-welcome button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        width: 100%;
+        border: 2px solid var(--ink);
+        background: var(--red);
+        color: #fff;
+        min-height: 52px;
+        font-weight: 900;
+        letter-spacing: .13em;
+        text-transform: uppercase;
       }
       .atelier-page * { box-sizing: border-box; }
       .atelier-page button, .atelier-page input, .atelier-page textarea { font: inherit; color: inherit; }
@@ -3183,6 +3351,57 @@ function AtelierStyles() {
       }
       .stamp .rules i.on {
         background: var(--ink);
+      }
+      .cefr-strip {
+        margin-top: 12px;
+        border: 1px solid var(--ink);
+        background: var(--sheet);
+        padding: 10px 12px;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(180px, 44%);
+        gap: 14px;
+        align-items: center;
+      }
+      .cefr-strip strong {
+        display: block;
+        margin-top: 2px;
+        font-size: 16px;
+        line-height: 1.1;
+      }
+      .cefr-strip small {
+        display: block;
+        margin-top: 3px;
+        color: var(--ink-3);
+        font-size: 11px;
+        line-height: 1.25;
+      }
+      .cefr-bars {
+        display: grid;
+        gap: 7px;
+      }
+      .cefr-mini div {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        font-family: var(--mono);
+        font-size: 9px;
+        font-weight: 900;
+        letter-spacing: .1em;
+        text-transform: uppercase;
+        color: var(--ink-2);
+      }
+      .cefr-mini i {
+        display: block;
+        height: 8px;
+        margin-top: 4px;
+        border: 1px solid var(--ink);
+        background: var(--paper);
+      }
+      .cefr-mini em {
+        display: block;
+        height: 100%;
+        background: var(--blue);
       }
       .spine {
         position: relative;
@@ -4432,6 +4651,9 @@ function AtelierStyles() {
         .atelier-page {
           background-image: none;
           overflow-x: hidden;
+        }
+        .cefr-strip {
+          grid-template-columns: 1fr;
         }
         .spread {
           padding-left: 16px;

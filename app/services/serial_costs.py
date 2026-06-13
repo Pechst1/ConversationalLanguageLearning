@@ -40,7 +40,8 @@ def serial_generation_cost_event(scene: GraphicNovelScene) -> dict[str, Any]:
     image_count = _int_or(cost.get("image_units"), panel_count)
     story_usd = _float_or(cost.get("story_generation_usd"))
     image_usd = _float_or(cost.get("image_generation_usd"))
-    total_usd = _float_or(cost.get("total_estimated_usd"), story_usd + image_usd)
+    audio_usd = round(sum(_float_or((panel.audio_payload or {}).get("estimated_cost_usd")) for panel in scene.panels or []), 6)
+    total_usd = _float_or(cost.get("total_estimated_usd"), story_usd + image_usd) + audio_usd
     return {
         "scene_id": str(scene.id),
         "serial_thread_id": str(scene.serial_thread_id) if scene.serial_thread_id else None,
@@ -48,6 +49,7 @@ def serial_generation_cost_event(scene: GraphicNovelScene) -> dict[str, Any]:
         "episode_index": scene.episode_index,
         "story_usd": round(story_usd, 6),
         "image_usd": round(image_usd, 6),
+        "audio_usd": round(audio_usd, 6),
         "total_usd": round(total_usd, 6),
         "image_count": image_count,
         "panel_count": panel_count,
@@ -103,6 +105,7 @@ class SerialGenerationCostService:
                     "episodes": set(),
                     "story_usd": 0.0,
                     "image_usd": 0.0,
+                    "audio_usd": 0.0,
                     "total_usd": 0.0,
                     "image_count": 0,
                     "image_quality_breakdown": {},
@@ -113,6 +116,7 @@ class SerialGenerationCostService:
                 row["episodes"].add(int(event["episode_index"]))
             row["story_usd"] += event["story_usd"]
             row["image_usd"] += event["image_usd"]
+            row["audio_usd"] += event.get("audio_usd", 0.0)
             row["total_usd"] += event["total_usd"]
             row["image_count"] += event["image_count"]
             quality = str(event.get("image_quality") or "unknown")
@@ -125,6 +129,7 @@ class SerialGenerationCostService:
             row["episode_count"] = len(episodes)
             row["story_usd"] = round(row["story_usd"], 6)
             row["image_usd"] = round(row["image_usd"], 6)
+            row["audio_usd"] = round(row["audio_usd"], 6)
             row["total_usd"] = round(row["total_usd"], 6)
             rows.append(row)
         return sorted(rows, key=lambda item: (item["week_start"], item["user_email"] or item["user_id"]))
@@ -133,7 +138,7 @@ class SerialGenerationCostService:
 def format_rollup_table(rows: list[dict[str, Any]]) -> str:
     if not rows:
         return "No serial generation cost rows found."
-    headers = ["week", "learner", "scenes", "episodes", "story_usd", "image_usd", "total_usd", "images", "quality"]
+    headers = ["week", "learner", "scenes", "episodes", "story_usd", "image_usd", "audio_usd", "total_usd", "images", "quality"]
     table_rows: list[list[str]] = []
     for row in rows:
         quality = ", ".join(f"{key}:{value}" for key, value in sorted((row.get("image_quality_breakdown") or {}).items()))
@@ -145,6 +150,7 @@ def format_rollup_table(rows: list[dict[str, Any]]) -> str:
                 str(row.get("episode_count") or 0),
                 f"{float(row.get('story_usd') or 0.0):.6f}",
                 f"{float(row.get('image_usd') or 0.0):.6f}",
+                f"{float(row.get('audio_usd') or 0.0):.6f}",
                 f"{float(row.get('total_usd') or 0.0):.6f}",
                 str(row.get("image_count") or 0),
                 quality,

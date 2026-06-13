@@ -32,6 +32,7 @@ from app.db.models.atelier import (
     AtelierSession,
 )
 from app.db.models.error import UserError, UserErrorConcept
+from app.db.models.cefr import UserCEFRProgressHistory
 from app.db.models.mission import RealWorldMission, RealWorldMissionAttempt, RealWorldMissionTurn
 from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.graphic_novel import (
@@ -84,6 +85,7 @@ def db_engine():
             GrammarConceptArchive.__table__,
             GrammarConceptLocalization.__table__,
             UserGrammarProgress.__table__,
+            UserCEFRProgressHistory.__table__,
             AtelierLanguagePack.__table__,
             AtelierConceptBlueprint.__table__,
             AtelierSession.__table__,
@@ -138,6 +140,7 @@ def db_engine():
                 AtelierConceptBlueprint.__table__,
                 AtelierLanguagePack.__table__,
                 UserGrammarProgress.__table__,
+                UserCEFRProgressHistory.__table__,
                 GrammarConceptLocalization.__table__,
                 GrammarConceptArchive.__table__,
                 GrammarConcept.__table__,

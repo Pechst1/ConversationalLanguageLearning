@@ -21,7 +21,7 @@ def test_atelier_recovers_from_offline_empty_and_unfinished_states() -> None:
     assert "onRetry" in atelier
     assert "Session not ready" in atelier
     assert "const canStart = hasActiveSession || concepts.length > 0" in atelier
-    assert "disabled={loading || !canStart}" in atelier
+    assert "disabled={loading || (recommendation.kind === 'start_session' && !canStart)}" in atelier
     assert "toast('This drill is already submitted.')" in atelier
     assert "disabled={submitting || completedDrills < total}" in atelier
     assert "Could not complete the session." in atelier
@@ -73,7 +73,7 @@ def test_feuilleton_locks_task_sheet_until_scene_and_requires_real_answers() -> 
     assert "setScene(contextSceneKey ? null : next.active_scene || next.available_scene || null)" in feuilleton
     assert "autoCreateContextRef.current === contextSceneKey" in feuilleton
     assert "Task sheet locked" in feuilleton
-    assert "Panel tasks unlock below their story panels after the edition is generated." in feuilleton
+    assert "Panel tasks unlock below the episode panels after the edition is generated." in feuilleton
     assert "No scene on the stand." in feuilleton
     assert "disabled={creating}" in feuilleton
 
@@ -99,8 +99,8 @@ def test_story_flow_handles_auth_fetch_locked_and_incomplete_chapter_edges() -> 
     assert "destination: '/auth/signin'" in story_detail
     assert "destination: '/auth/signin'" in chapter_page
     assert "return { props: { stories: [] } }" in stories
-    assert "!story.themes?.includes('imported')" in stories
-    assert "No Stories Available" in stories
+    assert "stories," in stories
+    assert "No Library Texts Available" in stories
     assert "Upload First Book" in stories
     assert "href={isLocked ? '#' : `/story/${story.id}`}" in stories
     assert "disabled={isLocked}" in stories

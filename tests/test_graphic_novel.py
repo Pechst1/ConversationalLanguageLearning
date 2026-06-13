@@ -1522,6 +1522,50 @@ def test_scene_creation_queues_images_when_image_generation_enabled(db_session, 
     assert all(panel.generation_metadata["image_status"] == "queued" for panel in scene.panels)
 
 
+def test_local_image_storage_persists_panel_url(db_session, monkeypatch, tmp_path):
+    monkeypatch.setattr(settings, "GRAPHIC_NOVEL_IMAGE_STORAGE", "local")
+    monkeypatch.setattr(settings, "GRAPHIC_NOVEL_LOCAL_IMAGE_DIR", tmp_path)
+    monkeypatch.setattr(settings, "GRAPHIC_NOVEL_LOCAL_IMAGE_URL_PREFIX", "/media/test-graphic-novel")
+    monkeypatch.setattr(settings, "GRAPHIC_NOVEL_IMAGE_GENERATION_ENABLED", False)
+
+    class FakeGenerator:
+        def build_script(self, **kwargs):
+            script = _valid_visual_script(panel_count=kwargs["panel_count"])
+            script["render_mode"] = kwargs["render_mode"]
+            return script
+
+    user = User(
+        id=uuid4(),
+        email=f"local-image-storage-{uuid4()}@example.com",
+        hashed_password="x",
+        target_language="fr",
+        native_language="en",
+        proficiency_level="B1",
+    )
+    db_session.add(user)
+    db_session.commit()
+
+    scene = asyncio.run(
+        GraphicNovelScheduler(db_session, generator=FakeGenerator()).create(
+            user=user,
+            cadence="ad_hoc",
+            panel_count=4,
+            force_new=True,
+            sync=True,
+        )
+    )
+
+    panel = sorted(scene.panels, key=lambda item: item.panel_index)[0]
+    assert panel.image_url
+    assert panel.image_url.startswith("/media/test-graphic-novel/scenes/")
+    assert not panel.image_url.startswith("data:")
+    assert panel.image_payload["url"] == panel.image_url
+    assert panel.image_payload["storage"]["backend"] == "local"
+    stored_path = tmp_path / panel.image_payload["storage"]["key"]
+    assert stored_path.exists()
+    assert stored_path.read_text(encoding="utf-8").lstrip().startswith("<svg")
+
+
 def test_feuilleton_validation_notes_do_not_block_scene(client: TestClient, db_session, monkeypatch):
     monkeypatch.setattr("app.services.graphic_novel._safe_llm", lambda: object())
 

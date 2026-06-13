@@ -46,6 +46,7 @@
       "wants": "To be brave enough — to propose, to finish the novel, to call his father.",
       "flaw": "Avoids hard conversations until they explode.",
       "speech_pattern": "Warm and slow. Affectionate nicknames for everyone ('mon grand', 'ma puce'). Melodramatic about tiny things, calm about huge ones. Drops the occasional Breton word and then explains it proudly.",
+      "voice": { "provider": "openai", "voice": "onyx", "style": "warm, unhurried, gentle" },
       "signature_phrases": ["C'est un signe, ça.", "Bon. Qui veut une autre tournée ?", "Ma grand-mère disait toujours…"],
       "dynamic_with_user": "Your first real friend in Paris. The one who makes you feel like you belong. Will defend you to anyone.",
       "teaches": "Everyday domestic and emotional vocabulary; the warm informal 'tu' register; regional French color."
@@ -63,6 +64,7 @@
       "wants": "For everyone she loves to be happy on her terms — and, secretly, to paint again seriously.",
       "flaw": "Meddles. Decides she knows what's best for you and acts on it.",
       "speech_pattern": "Rapid-fire, teasing, southern warmth. Slides from baby-talk she uses on her pupils into devastating one-liners. Lots of 'putain' affectionately, exaggerated endearments.",
+      "voice": { "provider": "openai", "voice": "shimmer", "style": "quick, bright, teasing" },
       "signature_phrases": ["Mais arrête, c'est évident.", "Toi, tu me caches quelque chose.", "Bon, on fait quoi alors ?"],
       "dynamic_with_user": "Decides on night one that she is going to 'fix your life'. Equal parts fairy godmother and benevolent menace.",
       "teaches": "Fast colloquial French, slang, emotional nuance, teasing register; southern expressions."
@@ -80,6 +82,7 @@
       "wants": "To be admired. Underneath: to be loved without the costume.",
       "flaw": "Lies reflexively, even when the truth would be better. Deflects every real feeling with a bit.",
       "speech_pattern": "Theatrical and high-register one second, pure slang the next. Invents superlatives. Builds suspense before a punchline. Treats French like a runway.",
+      "voice": { "provider": "openai", "voice": "fable", "style": "theatrical, polished, comic" },
       "signature_phrases": ["Costume… (attends)… né pour ça.", "Règle numéro un de La Méthode :", "Mon cher, laisse-moi t'expliquer la vie."],
       "dynamic_with_user": "Appoints himself your mentor in 'becoming Parisian' and in love, with catastrophic and wonderful results. Your unlikeliest, most devoted ally.",
       "teaches": "Register-switching as a skill (tu/vous, formal flirtation, polite-but-loaded phrasing); idioms, wordplay, persuasion language."
@@ -97,6 +100,7 @@
       "wants": "The big story, the byline, the freedom. And, against her will, a reason to unpack the last box.",
       "flaw": "Runs. The second something feels like a future, she finds a reason it can't work.",
       "speech_pattern": "Québec idioms and rhythm in private ('c'est pas pire', 'tirer la pipe', 'je capote'); crisp neutral Parisian French when 'on air'. Deadpan, precise, journalist's habit of asking the real question.",
+      "voice": { "provider": "openai", "voice": "nova", "style": "dry, precise, alert" },
       "signature_phrases": ["Voyons donc.", "C'est pas pire, ton truc.", "Bon, c'est quoi la vraie histoire ?"],
       "dynamic_with_user": "The central will-they-won't-they. Sparks from night one, both too proud and too scared to name it. The engine of 'I have to know what happens next.'",
       "teaches": "Québec vs. Parisian French contrasts (a recurring, funny teaching device); current-events and news vocabulary; precise, direct phrasing.",
@@ -110,6 +114,7 @@
       "register_with_user": "tu (you're a regular now)",
       "personality": "Unflappable, dry, all-knowing. Dispenses one perfect sentence of wisdom per crisis, then goes back to drying a glass.",
       "speech_pattern": "Economical. Says little; what she says lands.",
+      "voice": { "provider": "openai", "voice": "alloy", "style": "low-key, dry, economical" },
       "signature_phrases": ["La même chose ?", "J'ai rien entendu.", "Ça finira bien, ou ça finira. Bois."],
       "dynamic_with_user": "The neutral ground. The keeper of the booth. Quietly fond of all of you.",
       "teaches": "Café/ordering vocabulary; the social ritual of being a 'regular'; minimal, idiomatic everyday speech."

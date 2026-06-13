@@ -71,6 +71,11 @@ export interface AtelierToday {
   atlas: Array<Record<string, any>>;
   due_errata: AtelierErratum[];
   progress?: AtelierDayProgress | null;
+  cefr?: CEFRProgress | null;
+  onboarding?: {
+    serial_seen?: boolean;
+    serial_edition_notifications?: boolean;
+  } | null;
   serial_episode?: Record<string, any> | null;
   serial?: Record<string, any> | null;
 }
@@ -80,6 +85,32 @@ export interface AtelierDayProgress {
   vocabularyDue: number;
   missionDone: boolean;
   feuilletonDone: boolean;
+  sessionDone?: boolean;
+  timeBudgetMinutes?: number;
+  estimatedTotalMinutes?: number;
+  estimatedRemainingMinutes?: number;
+  filed?: boolean;
+  nodes?: Array<{
+    id: string;
+    label: string;
+    estimatedMinutes: number;
+    done?: boolean;
+  }>;
+}
+
+export interface CEFRProgress {
+  version: string;
+  estimate: string;
+  computed_estimate?: string | null;
+  target: string;
+  next_level?: string | null;
+  daily_minutes?: number | null;
+  signals: Record<string, any>;
+  thresholds: Record<string, Record<string, number>>;
+  breakdown: Record<string, any>;
+  forecast?: Record<string, any> | null;
+  today_delta?: Record<string, any>;
+  generated_at?: string | null;
 }
 
 export interface UnifiedSRSItem {
@@ -629,6 +660,7 @@ export interface RealWorldMission {
   status: 'available' | 'in_progress' | 'completed' | string;
   cadence: 'weekly' | 'post_session' | 'ad_hoc' | string;
   mission_type: 'message' | 'explain_plan' | 'news_summary' | 'travel_work' | 'conversation' | string;
+  mission_format?: 'chat_message' | 'voicemail_reply' | 'email_formal' | 'admin_form' | 'phone_call' | string;
   stakes_level?: number;
   atelier_session_id?: string | null;
   serial_thread_id?: string | null;
@@ -682,6 +714,8 @@ export interface SerialArchiveEpisode {
   hook_text?: string | null;
   completed_at?: string | null;
   status: string;
+  required_cast?: string[];
+  brief_payload?: Record<string, any>;
 }
 
 export interface SerialCastMember {
@@ -698,6 +732,20 @@ export interface SerialCastMember {
     last_summary?: string;
     callbacks?: string[];
   };
+  episodes?: Array<{
+    episode_index: number;
+    episode_label: string;
+    kind: string;
+    title: string;
+    href: string;
+  }>;
+}
+
+export interface SerialAvatarPayload {
+  mode: 'avatar' | 'pov';
+  description?: string;
+  reference_images?: string[];
+  avatar_builder?: Record<string, any>;
 }
 
 export interface MissionAttemptResult {
@@ -724,6 +772,7 @@ export interface GraphicNovelPanel {
   image_prompt: string;
   image_url?: string | null;
   image_payload: Record<string, any>;
+  audio_payload?: Record<string, any>;
   overlay_payload: Record<string, any>;
   generation_metadata: Record<string, any>;
   created_at?: string | null;
@@ -1280,6 +1329,10 @@ class ApiService {
     return this.atelierGet<AtelierToday>('/atelier/today');
   }
 
+  async getCefrProgress() {
+    return this.get<CEFRProgress>('/progress/cefr');
+  }
+
   async startAtelierSession(data?: { concept_ids?: number[]; preferred_concept_id?: number; preferred_vocabulary_ids?: number[] }) {
     return this.atelierPost<AtelierSessionStart>('/atelier/sessions', data || {});
   }
@@ -1378,11 +1431,29 @@ class ApiService {
   }
 
   async getSerialEpisodes() {
-    return this.atelierGet<{ thread_id: string; episodes: SerialArchiveEpisode[] }>('/serial/threads/current/episodes');
+    return this.atelierGet<{
+      thread_id: string;
+      season_number?: number;
+      current_episode_index?: number;
+      current_episode?: SerialToday | null;
+      episodes: SerialArchiveEpisode[];
+    }>('/serial/threads/current/episodes');
   }
 
   async getSerialCast() {
     return this.atelierGet<{ thread_id: string; cast: SerialCastMember[] }>('/serial/threads/current/cast');
+  }
+
+  async setSerialAvatar(payload: SerialAvatarPayload) {
+    return this.atelierPost<{
+      thread_id: string;
+      protagonist_mode: 'avatar' | 'pov' | string;
+      user_character?: Record<string, any> | null;
+    }>('/serial/threads/current/avatar', payload);
+  }
+
+  async markSerialOnboardingSeen() {
+    return this.atelierPost<{ serial_onboarding_seen: boolean }>('/serial/onboarding/seen');
   }
 
   async transcribeMissionAudio(audioBlob: Blob): Promise<string> {

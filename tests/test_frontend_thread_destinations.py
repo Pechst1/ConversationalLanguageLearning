@@ -69,7 +69,8 @@ def test_feuilleton_uses_query_context_for_scene_creation_and_banner() -> None:
 
     assert "function queryFromAsPath" in source
     assert "function mergedRouteQuery" in source
-    assert "const routeQuery = useMemo(() => mergedRouteQuery(router.query, router.asPath)" in source
+    assert "const routeQuery = useMemo(" in source
+    assert "() => (router.isReady ? mergedRouteQuery(router.query, router.asPath) : {})" in source
     assert "function feuilletonThreadContextFromQuery" in source
     assert "const grammarCount = queryList(query.concept_id).length" in source
     assert "const errataCount = queryList(query.erratum_id).length" in source

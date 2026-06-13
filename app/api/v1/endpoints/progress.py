@@ -18,6 +18,7 @@ from app.schemas import (
     AnkiProgressSummary,
     AnkiWordProgressRead,
     AnkiConnectSyncRequest,
+    CEFRProgressResponse,
     ProgressDetail,
     QueueWord,
     ReviewRequest,
@@ -34,10 +35,33 @@ from app.schemas import (
     WeeklyDossierThread,
 )
 from app.services.progress import ProgressService
+from app.services.cefr_progress import CEFRProgressService
 from app.services.unified_srs import InterleavingMode, UnifiedSRSService
 
 
 router = APIRouter(prefix="/progress", tags=["progress"])
+
+
+@router.get("/cefr", response_model=CEFRProgressResponse)
+def get_cefr_progress(
+    *,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_or_demo),
+) -> CEFRProgressResponse:
+    """Return the visible CEFR estimate and next-level forecast."""
+
+    return CEFRProgressResponse(**CEFRProgressService(db).current(current_user))
+
+
+@router.post("/cefr/recompute", response_model=CEFRProgressResponse)
+def recompute_cefr_progress(
+    *,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_or_demo),
+) -> CEFRProgressResponse:
+    """Recompute and persist a CEFR estimate snapshot."""
+
+    return CEFRProgressResponse(**CEFRProgressService(db).recompute(current_user, source="api"))
 
 
 def _aware(value: datetime | None) -> datetime | None:

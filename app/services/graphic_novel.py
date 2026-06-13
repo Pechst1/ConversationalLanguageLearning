@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import hashlib
 import json
 import re
@@ -33,10 +34,12 @@ from app.db.models.vocabulary import VocabularyWord
 from app.services.atelier_assets import AtelierAssetService
 from app.services.error_memory import ErrorMemoryService, serialize_error_memory
 from app.services.grammar_feedback import infer_grammar_profile
+from app.services.graphic_novel_image_storage import GraphicNovelImageStorage
 from app.services.llm_service import LLMProviderError, LLMService
 from app.services.news_service import NewsService
 from app.services.progress import ProgressService
 from app.services.serial_costs import serial_generation_cost_event
+from app.services.serial_notifications import enqueue_serial_edition_notification
 from app.services.vocabulary_credit import VocabularyCreditService
 
 
@@ -561,6 +564,7 @@ class GraphicNovelScheduler:
         self.db.flush([scene])
         rendered_panels = (
             await self._render_panel_payloads(
+                scene=scene,
                 script=script,
                 panel_payloads=script["panels"],
                 image_quality=resolved_image_quality,
@@ -593,6 +597,7 @@ class GraphicNovelScheduler:
                     image_prompt=panel_payload["image_prompt"],
                     image_url=image["url"],
                     image_payload=image,
+                    audio_payload=self._panel_audio_payload(scene=scene, panel_payload=panel_payload) if serial_thread else {},
                     overlay_payload=panel_payload["overlay_payload"],
                     generation_metadata={
                         "prompt_version": GRAPHIC_NOVEL_PROMPT_VERSION,
@@ -632,16 +637,24 @@ class GraphicNovelScheduler:
     async def _render_panel_payloads(
         self,
         *,
+        scene: GraphicNovelScene,
         script: dict[str, Any],
         panel_payloads: list[dict[str, Any]],
         image_quality: str,
         render_mode: str,
     ) -> list[tuple[dict[str, Any], dict[str, Any]]]:
         image_service = GraphicNovelImageService()
+        image_storage = GraphicNovelImageStorage()
         if render_mode == "page":
-            script["page_image"] = await image_service.generate_page_image(
+            page_image = await image_service.generate_page_image(
                 script=script,
                 image_quality=image_quality,
+            )
+            script["page_image"] = await image_storage.persist_payload(
+                page_image,
+                scene_id=scene.id,
+                panel_index=0,
+                image_role="page",
             )
             return [
                 (
@@ -667,6 +680,12 @@ class GraphicNovelScheduler:
                     panel_payload["panel_index"],
                     image_quality=image_quality,
                 )
+                image = await image_storage.persist_payload(
+                    image,
+                    scene_id=scene.id,
+                    panel_index=int(panel_payload["panel_index"]),
+                    image_role="panel",
+                )
                 return panel_payload, image
 
         return await asyncio.gather(*(render_panel(panel_payload) for panel_payload in panel_payloads))
@@ -678,6 +697,95 @@ class GraphicNovelScheduler:
             generate_scene_images.delay(str(scene_id))
         except Exception as exc:  # pragma: no cover - broker-less dev/test fallback
             logger.info("Feuilleton image generation queued for worker/lazy retry", scene_id=str(scene_id), error=str(exc))
+
+    def _panel_audio_payload(
+        self,
+        *,
+        scene: GraphicNovelScene,
+        panel: GraphicNovelPanel | None = None,
+        panel_payload: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        if not settings.FEUILLETON_AUDIO_ENABLED or not getattr(scene, "serial_thread_id", None):
+            return panel.audio_payload if panel and isinstance(panel.audio_payload, dict) else {}
+        source = panel_payload if isinstance(panel_payload, dict) else {}
+        overlay = source.get("overlay_payload") if isinstance(source.get("overlay_payload"), dict) else None
+        if overlay is None and panel:
+            overlay = panel.overlay_payload if isinstance(panel.overlay_payload, dict) else {}
+        text = self._panel_audio_text(overlay or {}, source.get("beat") if source else panel.beat if panel else "")
+        if not text:
+            return {}
+        max_chars = max(0, int(settings.FEUILLETON_AUDIO_MAX_CHARS_PER_SCENE or 0))
+        if max_chars and len(text) > max_chars:
+            text = text[:max_chars].rsplit(" ", 1)[0].strip() or text[:max_chars].strip()
+        llm = _safe_llm()
+        if not llm:
+            return {"status": "skipped", "reason": "tts_unavailable", "text": text}
+        voice = self._panel_audio_voice(scene=scene, overlay=overlay or {})
+        model = settings.FEUILLETON_AUDIO_TTS_MODEL
+        try:
+            audio_bytes = llm.text_to_speech(
+                text=text,
+                voice=voice,
+                model=model,
+                provider=settings.TTS_PROVIDER,
+            )
+        except Exception as exc:
+            logger.warning("Serial Feuilleton audio generation failed", scene_id=str(scene.id), error=str(exc))
+            return {"status": "failed", "reason": str(exc), "text": text, "voice": voice, "model": model}
+        encoded = base64.b64encode(audio_bytes).decode("ascii")
+        char_count = len(text)
+        estimated_cost = (char_count / 1000.0) * float(settings.FEUILLETON_AUDIO_COST_USD_PER_1K_CHARS or 0.0)
+        return {
+            "status": "available",
+            "url": f"data:audio/mpeg;base64,{encoded}",
+            "content_type": "audio/mpeg",
+            "provider": settings.TTS_PROVIDER,
+            "model": model,
+            "voice": voice,
+            "text": text,
+            "char_count": char_count,
+            "estimated_cost_usd": round(estimated_cost, 6),
+        }
+
+    @staticmethod
+    def _panel_audio_text(overlay: dict[str, Any], fallback: Any = "") -> str:
+        chunks: list[str] = []
+        caption = overlay.get("caption") if isinstance(overlay.get("caption"), dict) else {}
+        caption_fr = str(caption.get("fr") or "").strip()
+        if caption_fr:
+            chunks.append(caption_fr)
+        for bubble in overlay.get("bubbles") or []:
+            if not isinstance(bubble, dict):
+                continue
+            line = str(bubble.get("fr") or "").strip()
+            if not line:
+                continue
+            speaker = str(bubble.get("speaker") or "").strip()
+            chunks.append(f"{speaker}: {line}" if speaker else line)
+        if not chunks and fallback:
+            chunks.append(str(fallback).strip())
+        return " ".join(" ".join(chunks).split())
+
+    @staticmethod
+    def _panel_audio_voice(*, scene: GraphicNovelScene, overlay: dict[str, Any]) -> str:
+        bubbles = [item for item in (overlay.get("bubbles") or []) if isinstance(item, dict)]
+        speaker = str((bubbles[0] or {}).get("speaker") or "").strip().lower() if bubbles else ""
+        script = scene.script_payload if isinstance(scene.script_payload, dict) else {}
+        voice_map = script.get("voice_map") if isinstance(script.get("voice_map"), dict) else {}
+        if speaker:
+            for key, value in voice_map.items():
+                if speaker in str(key).lower() and value:
+                    return str(value)
+            world = scene.serial_thread.world_bible if scene.serial_thread and isinstance(scene.serial_thread.world_bible, dict) else {}
+            for member in world.get("cast") or []:
+                if not isinstance(member, dict):
+                    continue
+                voice = member.get("voice") if isinstance(member.get("voice"), dict) else {}
+                member_name = str(member.get("name") or member.get("id") or "").lower()
+                first_name = member_name.split(" ")[0] if member_name else ""
+                if voice.get("voice") and (speaker in member_name or (first_name and first_name in speaker)):
+                    return str(voice.get("voice"))
+        return str(script.get("narrator_voice") or "nova")
 
     async def render_scene_images(self, scene_id: UUID | str) -> GraphicNovelScene:
         scene_uuid = UUID(str(scene_id)) if not isinstance(scene_id, UUID) else scene_id
@@ -696,6 +804,7 @@ class GraphicNovelScheduler:
             panel_payloads = script.get("panels") if isinstance(script.get("panels"), list) else []
             payload_by_index = {int(item.get("panel_index") or 0): item for item in panel_payloads if isinstance(item, dict)}
             rendered = await self._render_panel_payloads(
+                scene=scene,
                 script=script,
                 panel_payloads=[payload_by_index.get(panel.panel_index, {
                     "panel_index": panel.panel_index,
@@ -709,6 +818,13 @@ class GraphicNovelScheduler:
                 image = image_by_index.get(panel.panel_index) or {}
                 panel.image_url = image.get("url")
                 panel.image_payload = image
+                panel_payload = payload_by_index.get(panel.panel_index) or {}
+                if not (panel.audio_payload or {}).get("url"):
+                    panel.audio_payload = self._panel_audio_payload(
+                        scene=scene,
+                        panel=panel,
+                        panel_payload=panel_payload,
+                    )
                 metadata = dict(panel.generation_metadata or {})
                 metadata["image_status"] = "available"
                 metadata["model"] = image.get("model")
@@ -732,6 +848,7 @@ class GraphicNovelScheduler:
                     episode.hook = (scene.script_payload or {}).get("hook") or episode.hook or {}
                     episode.location_id = (scene.script_payload or {}).get("location_id") or episode.location_id
                     self.db.add(episode)
+                    enqueue_serial_edition_notification(self.db, episode, user=scene.user)
             self.db.add(scene)
             self.db.commit()
             self.db.refresh(scene)
@@ -2632,6 +2749,8 @@ class GraphicNovelStoryGenerator:
                 if item.get("id") in {"marin_leveque", "lila_bonnet", "romy_tremblay", "margaux_barman", "augustin_de_roncourt"}
             ]
         chosen_cast = chosen_cast or cast[:4]
+        user_character = self._serial_user_character(world=world, state=state)
+        visual_characters = ([user_character] if user_character else []) + chosen_cast
         hook = self._serial_hook(state=state, location_name=location_name, heating_fixed=heating_fixed)
         warmth_line = (
             "Le message du propriétaire promet enfin une réparation; la pièce reste froide, mais la panique baisse."
@@ -2671,7 +2790,7 @@ class GraphicNovelStoryGenerator:
             state=state,
             hook_from_previous=serial_context.get("hook_from_previous") or {},
             location=location,
-            cast=chosen_cast,
+            cast=visual_characters,
             news_title=news_title,
             targets=targets,
             target_vocabulary=target_vocabulary,
@@ -2948,7 +3067,7 @@ class GraphicNovelStoryGenerator:
                     branch_target=branch_target,
                     target_vocabulary=target_vocabulary,
                 )
-                plan_bubbles = self._serial_plan_panel_bubbles(panel=plan_panel, panel_index=idx + 1, cast=chosen_cast)
+                plan_bubbles = self._serial_plan_panel_bubbles(panel=plan_panel, panel_index=idx + 1, cast=visual_characters)
                 if plan_requires_story_true or plan_tasks:
                     template["tasks"] = plan_tasks
                 if plan_requires_story_true or plan_bubbles:
@@ -2988,6 +3107,7 @@ class GraphicNovelStoryGenerator:
                     plan_requires_story_true=plan_requires_story_true,
                 ),
                 "serial_shot_hint": self._serial_shot_hint(panel_index=index, panel_count=panel_count),
+                "protagonist_mode": "avatar" if user_character else "pov",
                 "overlay_payload": {
                     "caption": {
                         "panel_index": index,
@@ -3033,7 +3153,7 @@ class GraphicNovelStoryGenerator:
             "headline_mechanic": selected_visual_premise["headline_mechanic"],
             "visual_premise_candidates": visual_candidates,
             "selected_visual_premise": selected_visual_premise,
-            "human_characters": chosen_cast,
+            "human_characters": visual_characters,
             "prop_bible": [
                 {
                     "name": "phone with landlord thread",
@@ -3196,6 +3316,28 @@ class GraphicNovelStoryGenerator:
                 "comic_function": "quiet oracle of the cafe",
             }
         ]
+
+    def _serial_user_character(self, *, world: dict[str, Any], state: dict[str, Any]) -> dict[str, Any] | None:
+        visual_design = world.get("visual_design") if isinstance(world.get("visual_design"), dict) else {}
+        visual_characters = visual_design.get("characters") if isinstance(visual_design.get("characters"), dict) else {}
+        user_design = visual_characters.get("user") if isinstance(visual_characters, dict) else None
+        if not isinstance(user_design, dict):
+            return None
+        references = user_design.get("reference_images") if isinstance(user_design.get("reference_images"), list) else []
+        has_avatar = bool(user_design.get("avatar_builder")) or any(
+            str(item).startswith("assets/serial/characters/user/") for item in references
+        )
+        if not has_avatar and state.get("protagonist_mode") != "avatar":
+            return None
+        design_text = self._serial_visual_description(user_design)
+        return {
+            "id": "user",
+            "name": "You",
+            "role": "learner protagonist",
+            "visual_description": design_text or "learner protagonist, shown only when the user has created an avatar",
+            "comic_function": "the user's visible avatar in this serial; otherwise the story uses POV framing",
+            "visual_design": user_design,
+        }
 
     @staticmethod
     def _serial_visual_description(design: Any) -> str:
@@ -4597,6 +4739,7 @@ class GraphicNovelStoryGenerator:
         shot_hint = str(panel.get("serial_shot_hint") or "").strip()
         overlay = panel.get("overlay_payload") if isinstance(panel.get("overlay_payload"), dict) else {}
         has_bubbles = bool((overlay.get("bubbles") if isinstance(overlay, dict) else []) or [])
+        protagonist_mode = str(panel.get("protagonist_mode") or "").strip()
         if public_figure_mode == "editorial_caricature":
             public_figure_policy = (
                 "Public figures may be portrayed only as clearly editorial, non-defamatory caricature if relevant; "
@@ -4616,6 +4759,7 @@ class GraphicNovelStoryGenerator:
             f"Scene visual preamble: satirize this mechanic without naming the real source in the image: {headline_mechanic}. "
             f"Visual domain: {domain}. Anchor object: {anchor}. "
             f"Human continuity: {character_line or 'fictional French people with simple readable silhouettes'}. "
+            f"{'User protagonist mode: POV framing; do not invent a visible learner avatar unless a user avatar model sheet appears in Human continuity. ' if protagonist_mode == 'pov' else 'User protagonist mode: visible avatar model sheet is allowed; keep the learner human and secondary to the relationship beat. '}"
             f"Recurring props: {prop_line or anchor}. "
             f"Panel action: {panel_action}. "
             f"Action change from previous panel: {panel_note}. "
@@ -5642,6 +5786,7 @@ def serialize_panel(panel: GraphicNovelPanel) -> dict[str, Any]:
         "image_prompt": panel.image_prompt,
         "image_url": panel.image_url,
         "image_payload": panel.image_payload or {},
+        "audio_payload": panel.audio_payload or {},
         "overlay_payload": panel.overlay_payload or {},
         "generation_metadata": panel.generation_metadata or {},
         "created_at": panel.created_at.isoformat() if panel.created_at else None,

@@ -4,6 +4,8 @@ import uuid
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Integer, String, Time
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.types import JSON
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -28,6 +30,9 @@ class User(Base):
     native_language = Column(String(10), default="en")
     target_language = Column(String(10), nullable=False, default="fr")
     proficiency_level = Column(String(20), default="beginner")
+    cefr_estimate = Column(String(10), default="A1.1")
+    cefr_target_level = Column(String(10), default="A1.2")
+    cefr_estimate_payload = Column(JSONB().with_variant(JSON(), "sqlite"), default=dict)
 
     # Gamification
     total_xp = Column(Integer, default=0)
@@ -55,6 +60,8 @@ class User(Base):
     streak_notifications = Column(Boolean, default=True)
     weekly_email_summary = Column(Boolean, default=True)
     achievement_notifications = Column(Boolean, default=True)
+    serial_edition_notifications = Column(Boolean, default=True)
+    serial_onboarding_seen = Column(Boolean, default=False)
 
     # Settings - Appearance
     theme = Column(String(20), default="system")

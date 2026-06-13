@@ -9,6 +9,17 @@ export interface DayProgress {
   vocabularyDue: number;
   missionDone: boolean;
   feuilletonDone: boolean;
+  sessionDone?: boolean;
+  timeBudgetMinutes?: number;
+  estimatedTotalMinutes?: number;
+  estimatedRemainingMinutes?: number;
+  filed?: boolean;
+  nodes?: Array<{
+    id: string;
+    label: string;
+    estimatedMinutes: number;
+    done?: boolean;
+  }>;
 }
 
 export type RecommendedAction =
@@ -27,6 +38,12 @@ interface ServerDayProgress {
   vocabularyDue?: number;
   missionDone?: boolean;
   feuilletonDone?: boolean;
+  sessionDone?: boolean;
+  timeBudgetMinutes?: number;
+  estimatedTotalMinutes?: number;
+  estimatedRemainingMinutes?: number;
+  filed?: boolean;
+  nodes?: DayProgress['nodes'];
 }
 
 interface SerialEpisodeEnvelope {
@@ -187,5 +204,11 @@ export function buildDayProgress(input: {
     vocabularyDue: Number(serverProgress?.vocabularyDue ?? vocabularyDue ?? 0),
     missionDone: Boolean(serverProgress?.missionDone ?? false),
     feuilletonDone: Boolean(serverProgress?.feuilletonDone ?? false),
+    sessionDone: Boolean(serverProgress?.sessionDone ?? sessionStatus === 'completed'),
+    timeBudgetMinutes: Number(serverProgress?.timeBudgetMinutes ?? 20),
+    estimatedTotalMinutes: Number(serverProgress?.estimatedTotalMinutes ?? 20),
+    estimatedRemainingMinutes: Number(serverProgress?.estimatedRemainingMinutes ?? 20),
+    filed: Boolean(serverProgress?.filed ?? false),
+    nodes: serverProgress?.nodes || [],
   };
 }

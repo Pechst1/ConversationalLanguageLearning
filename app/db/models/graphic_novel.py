@@ -125,6 +125,7 @@ class GraphicNovelPanel(Base):
     image_prompt: Mapped[str] = mapped_column(Text, nullable=False)
     image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     image_payload = mapped_column(JSONB().with_variant(JSON(), "sqlite"), default=dict, nullable=False)
+    audio_payload = mapped_column(JSONB().with_variant(JSON(), "sqlite"), default=dict, nullable=False)
     overlay_payload = mapped_column(JSONB().with_variant(JSON(), "sqlite"), default=dict, nullable=False)
     generation_metadata = mapped_column(JSONB().with_variant(JSON(), "sqlite"), default=dict, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
