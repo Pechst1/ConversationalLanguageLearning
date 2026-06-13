@@ -1,6 +1,5 @@
 import React from 'react';
 import Head from 'next/head';
-import type { GetServerSideProps } from 'next';
 import { ArrowRight, BookOpen, Check, X } from 'lucide-react';
 
 import {
@@ -32,14 +31,11 @@ const repairCorrection = {
   },
 };
 
-export const getServerSideProps: GetServerSideProps = async () => {
-  if (process.env.NODE_ENV === 'production') {
-    return { notFound: true };
-  }
-  return { props: {} };
-};
-
 export default function MobileVisualQA() {
+  if (process.env.NODE_ENV === 'production') {
+    return null;
+  }
+
   return (
     <>
       <Head>

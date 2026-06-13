@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import apiService from '@/services/api';
 import toast from 'react-hot-toast';
-import { getSession } from 'next-auth/react';
 
 const schema = yup.object({
   name: yup.string().required('Name is required'),
@@ -649,22 +648,4 @@ function AtelierMark() {
       <path d="M17 28L23 16L28 28H17Z" fill="var(--app-red)" />
     </svg>
   );
-}
-
-// Prevent access if already authenticated
-export async function getServerSideProps(context: any) {
-  const session = await getSession(context);
-  
-  if (session) {
-    return {
-      redirect: {
-        destination: '/atelier',
-        permanent: false,
-      },
-    };
-  }
-  
-  return {
-    props: {},
-  };
 }

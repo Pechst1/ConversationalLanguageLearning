@@ -1,6 +1,4 @@
 import React from 'react';
-import type { GetServerSidePropsContext, GetServerSidePropsResult } from 'next';
-import { getSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import toast from 'react-hot-toast';
 
@@ -325,20 +323,3 @@ const SessionPage: React.FC = () => {
 };
 
 export default SessionPage;
-
-export async function getServerSideProps(
-  ctx: GetServerSidePropsContext,
-): Promise<GetServerSidePropsResult<Record<string, never>>> {
-  const session = await getSession(ctx);
-
-  if (!session) {
-    return {
-      redirect: {
-        destination: '/auth/signin',
-        permanent: false,
-      },
-    };
-  }
-
-  return { props: {} };
-}

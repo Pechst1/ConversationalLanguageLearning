@@ -1,5 +1,4 @@
 import React from 'react';
-import { getSession } from 'next-auth/react';
 import { Trophy, Star, Lock, CheckCircle, Zap, BookOpen, Target, Flame } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -46,7 +45,20 @@ function getIconForKey(key: string): React.ElementType {
 
 export default function AchievementsPage({ achievements }: AchievementsPageProps) {
     const [isChecking, setIsChecking] = React.useState(false);
-    const [achievementList, setAchievementList] = React.useState(achievements);
+    const [achievementList, setAchievementList] = React.useState(achievements || []);
+
+    const loadAchievements = React.useCallback(async () => {
+        try {
+            const updated = await apiService.get('/achievements/my?include_locked=true') as Achievement[];
+            setAchievementList(Array.isArray(updated) ? updated : []);
+        } catch (error) {
+            console.error('Failed to fetch achievements:', error);
+        }
+    }, []);
+
+    React.useEffect(() => {
+        void loadAchievements();
+    }, [loadAchievements]);
 
     const completedCount = achievementList.filter(a => a.completed).length;
     const totalXP = achievementList
@@ -59,9 +71,7 @@ export default function AchievementsPage({ achievements }: AchievementsPageProps
             const response = await apiService.post('/achievements/check', {}) as any;
             if (response.newly_unlocked?.length > 0) {
                 toast.success(`🎉 Unlocked ${response.newly_unlocked.length} new achievement(s)!`);
-                // Refresh achievements list
-                const updated = await apiService.get('/achievements/my?include_locked=true') as Achievement[];
-                setAchievementList(updated);
+                await loadAchievements();
             } else {
                 toast.success('No new achievements to unlock. Keep learning!');
             }
@@ -198,41 +208,4 @@ export default function AchievementsPage({ achievements }: AchievementsPageProps
             )}
         </div>
     );
-}
-
-export async function getServerSideProps(context: any) {
-    const session = await getSession(context);
-
-    if (!session) {
-        return {
-            redirect: {
-                destination: '/auth/signin',
-                permanent: false,
-            },
-        };
-    }
-
-    try {
-        const baseUrl = process.env.API_URL || 'http://localhost:8000';
-        const headers = {
-            'Authorization': `Bearer ${session.accessToken}`,
-            'Content-Type': 'application/json',
-        };
-
-        const response = await fetch(`${baseUrl}/api/v1/achievements/my?include_locked=true`, { headers });
-        const achievements = response.ok ? await response.json() : [];
-
-        return {
-            props: {
-                achievements,
-            },
-        };
-    } catch (error) {
-        console.error('Failed to fetch achievements:', error);
-        return {
-            props: {
-                achievements: [],
-            },
-        };
-    }
 }

@@ -1,10 +1,10 @@
 import React from 'react';
-import { getSession } from 'next-auth/react';
 import Link from 'next/link';
 import { MessageCircle, Clock, Trophy } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { formatDateTime } from '@/lib/utils';
+import apiService from '@/services/api';
 
 interface SessionsProps {
   sessions: {
@@ -18,7 +18,38 @@ interface SessionsProps {
   }[];
 }
 
-export default function SessionsPage({ sessions }: SessionsProps) {
+function mapSessionItem(item: any): SessionsProps['sessions'][number] {
+  return {
+    id: item.id,
+    topic: item.topic || 'General Conversation',
+    created_at: item.started_at || item.created_at || new Date().toISOString(),
+    completed_at: item.completed_at || null,
+    xp_awarded: item.xp_earned || item.xp_awarded || 0,
+    message_count: item.words_practiced || item.message_count || 0,
+    status: item.status === 'completed' ? 'completed' : 'active',
+  };
+}
+
+export default function SessionsPage({ sessions = [] }: SessionsProps) {
+  const [sessionList, setSessionList] = React.useState(sessions);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    apiService.getSessions({ limit: 20 })
+      .then((rows) => {
+        if (!cancelled) {
+          setSessionList(Array.isArray(rows) ? rows.map(mapSessionItem) : []);
+        }
+      })
+      .catch((error) => {
+        console.error('Failed to fetch sessions:', error);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <div className="space-y-6">
       <div className="mb-8 border-b border-[var(--app-ink)] pb-5">
@@ -42,9 +73,9 @@ export default function SessionsPage({ sessions }: SessionsProps) {
         </p>
       </div>
 
-      {sessions?.length > 0 ? (
+      {sessionList?.length > 0 ? (
         <div className="grid gap-6">
-          {sessions.map((session) => (
+          {sessionList.map((session) => (
             <div
               key={session.id}
               className="border-4 border-black bg-white p-6 shadow-[6px_6px_0px_0px_#000] hover:-translate-y-1 hover:shadow-[8px_8px_0px_0px_#000] transition-all"
@@ -110,52 +141,4 @@ export default function SessionsPage({ sessions }: SessionsProps) {
       )}
     </div>
   );
-}
-
-export async function getServerSideProps(context: any) {
-  const session = await getSession(context);
-  
-  if (!session) {
-    return {
-      redirect: {
-        destination: '/auth/signin',
-        permanent: false,
-      },
-    };
-  }
-
-  try {
-    const baseUrl = process.env.API_URL || 'http://localhost:8000';
-    const headers = {
-      'Authorization': `Bearer ${session.accessToken}`,
-      'Content-Type': 'application/json',
-    };
-
-    const response = await fetch(`${baseUrl}/api/v1/sessions?limit=20`, { headers });
-    const raw = response.ok ? await response.json() : [];
-    const sessions = Array.isArray(raw)
-      ? raw.map((item: any) => ({
-          id: item.id,
-          topic: item.topic || 'General Conversation',
-          created_at: item.started_at || new Date().toISOString(),
-          completed_at: item.completed_at || null,
-          xp_awarded: item.xp_earned || 0,
-          message_count: item.words_practiced || 0,
-          status: item.status === 'completed' ? 'completed' : 'active',
-        }))
-      : [];
-
-    return {
-      props: {
-        sessions,
-      },
-    };
-  } catch (error) {
-    console.error('Failed to fetch sessions:', error);
-    return {
-      props: {
-        sessions: [],
-      },
-    };
-  }
 }

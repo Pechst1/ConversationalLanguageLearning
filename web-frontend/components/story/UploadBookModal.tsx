@@ -3,6 +3,8 @@ import React, { useState } from 'react';
 import { Upload, X, FileText, Check, AlertCircle, Loader2, Clock, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { getAppAccessToken } from '@/lib/app-auth';
+import { resolveBrowserApiBaseUrl } from '@/services/api';
 
 interface UploadBookModalProps {
     isOpen: boolean;
@@ -77,9 +79,13 @@ export default function UploadBookModal({ isOpen, onClose, onSuccess }: UploadBo
             formData.append('target_levels', levels);
             formData.append('max_chapters', String(maxChapters));
 
+            const token = await getAppAccessToken();
+            const authHeaders = token ? { Authorization: `Bearer ${token}` } : undefined;
+
             // Start upload
-            const response = await fetch('/api/proxy/stories/upload-book', {
+            const response = await fetch(`${resolveBrowserApiBaseUrl()}/stories/upload-book`, {
                 method: 'POST',
+                headers: authHeaders,
                 body: formData,
             });
 
@@ -97,7 +103,9 @@ export default function UploadBookModal({ isOpen, onClose, onSuccess }: UploadBo
             const interval = setInterval(async () => {
                 try {
                     attempts++;
-                    const statusRes = await fetch(`/api/proxy/stories/upload-status/${task_id}`);
+                    const statusRes = await fetch(`${resolveBrowserApiBaseUrl()}/stories/upload-status/${task_id}`, {
+                        headers: authHeaders,
+                    });
 
                     if (!statusRes.ok) throw new Error('Failed to check status');
 

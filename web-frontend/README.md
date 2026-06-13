@@ -49,6 +49,7 @@ The application will be available at http://localhost:3000
 |----------|-------------|---------|
 | `NEXTAUTH_URL` | Application URL | `http://localhost:3000` |
 | `NEXTAUTH_SECRET` | JWT secret key (must be a persistent random string so sessions survive restarts) | Required |
+| `NEXT_PUBLIC_API_BASE_URL` | Native/browser direct FastAPI API URL | `http://localhost:8000/api/v1` |
 | `NEXT_PUBLIC_API_URL` | Backend API URL | `http://localhost:8000/api/v1` |
 | `NEXT_PUBLIC_WS_URL` | WebSocket URL | `ws://localhost:8000` |
 | `API_URL` | Server-side API URL | `http://localhost:8000` |
@@ -57,30 +58,33 @@ The application will be available at http://localhost:3000
 
 - `npm run dev` - Start development server
 - `npm run build` - Build for production
+- `npm run build:native` - Build the static native export into `out/`
 - `npm run start` - Start production server
 - `npm run lint` - Run ESLint
 - `npm run type-check` - Run TypeScript type checking
-- `npm run cap:sync:ios` - Sync the Capacitor iOS shell for the current `CAPACITOR_SERVER_URL`
+- `npm run cap:sync:ios` - Build the static native export and sync the Capacitor iOS shell
 - `npm run cap:open:ios` - Open the generated iOS project in Xcode
 
-## Capacitor iOS Spike
+## Capacitor iOS
 
-The current iOS shell is a Phase-1 spike that loads the running Next app through Capacitor
-`server.url`. It is not the Phase-2 static export or native JWT auth bridge.
+The iOS shell defaults to the bundled static export in `out/`. Native auth uses direct FastAPI
+JWT endpoints plus secure storage; web auth keeps NextAuth.
 
 ```bash
-# Terminal 1: run the web app
-npm run dev
-
-# Terminal 2: sync native config and open/build the iOS shell
-CAPACITOR_SERVER_URL=http://127.0.0.1:3000 npm run cap:sync:ios
+# Build static assets and sync them into ios/App/App/public
+npm run cap:sync:ios
 npm run cap:open:ios
 ```
 
-For an iOS Simulator, `http://127.0.0.1:3000` works when the Next dev server is healthy. If you
-use a different port or host, keep `NEXTAUTH_URL` aligned with `CAPACITOR_SERVER_URL` for the
-server-url spike. For a physical iPhone, use a LAN-reachable or hosted HTTPS URL in
-`CAPACITOR_SERVER_URL`; device `localhost` will not point at the Mac.
+For a temporary live-server debug run, set `CAPACITOR_SERVER_URL` before syncing:
+
+```bash
+CAPACITOR_SERVER_URL=http://127.0.0.1:3000 npm run cap:sync:ios -- --skip-build
+```
+
+For the native static bundle, set `NEXT_PUBLIC_API_BASE_URL` (or `NEXT_PUBLIC_API_URL`) to a
+simulator/device-reachable FastAPI `/api/v1` URL. A physical iPhone cannot use Mac-local
+`localhost`; use a LAN-reachable or hosted HTTPS API URL.
 
 ## Project Structure
 

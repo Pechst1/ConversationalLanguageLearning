@@ -1,1 +1,1 @@
-export { default, getServerSideProps } from './stories';
+export { default } from './stories';

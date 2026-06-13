@@ -1,3 +1,5 @@
+import apiService from '@/services/api';
+
 type AuthenticatedSession = {
   accessToken?: string | null;
 };
@@ -26,6 +28,34 @@ export async function resolveLearningEntryDestination(
   const accessToken = session?.accessToken;
   if (!accessToken) {
     return '/auth/signin';
+  }
+
+  if (typeof window !== 'undefined') {
+    try {
+      const sessions = await apiService.getSessions({ limit: 10 });
+      const activeSession = Array.isArray(sessions)
+        ? sessions.find(
+            (item) => item?.id && ACTIVE_SESSION_STATUSES.has(item.status || ''),
+          )
+        : null;
+
+      if (activeSession?.id) {
+        return `/learn/session/${activeSession.id}`;
+      }
+    } catch (error) {
+      console.error('Failed to resolve existing learning session:', error);
+    }
+
+    try {
+      const payload = await apiService.quickStartSession();
+      if (payload?.session?.id) {
+        return `/learn/session/${payload.session.id}`;
+      }
+    } catch (error) {
+      console.error('Failed to create quick-start learning session:', error);
+    }
+
+    return '/learn/new';
   }
 
   const baseUrl = getApiBaseUrl();

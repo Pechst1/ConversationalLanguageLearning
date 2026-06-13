@@ -1,5 +1,4 @@
 import React from 'react';
-import { getSession } from 'next-auth/react';
 import Image from 'next/image';
 import { useRouter } from 'next/router';
 import { ArrowLeft, BookOpen, Clock, User } from 'lucide-react';
@@ -201,21 +200,4 @@ export default function StoryDetailPage() {
       </div>
     </div>
   );
-}
-
-export async function getServerSideProps(context: any) {
-  const session = await getSession(context);
-
-  if (!session) {
-    return {
-      redirect: {
-        destination: '/auth/signin',
-        permanent: false,
-      },
-    };
-  }
-
-  return {
-    props: {},
-  };
 }

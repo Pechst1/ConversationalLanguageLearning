@@ -1,12 +1,12 @@
-import type { GetServerSideProps } from 'next';
+import React from 'react';
+import { useRouter } from 'next/router';
 
 export default function DashboardRedirect() {
+  const router = useRouter();
+
+  React.useEffect(() => {
+    router.replace('/atelier');
+  }, [router]);
+
   return null;
 }
-
-export const getServerSideProps: GetServerSideProps = async () => ({
-  redirect: {
-    destination: '/atelier',
-    permanent: false,
-  },
-});

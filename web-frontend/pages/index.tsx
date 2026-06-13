@@ -1,4 +1,3 @@
-import { getSession } from 'next-auth/react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { useEffect } from 'react';
@@ -277,21 +276,4 @@ function QueueRow({
       <span>{value}</span>
     </div>
   );
-}
-
-export async function getServerSideProps(context: any) {
-  const session = await getSession(context);
-
-  if (session) {
-    return {
-      redirect: {
-        destination: '/atelier',
-        permanent: false,
-      },
-    };
-  }
-
-  return {
-    props: {},
-  };
 }

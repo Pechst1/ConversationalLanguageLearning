@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { getSession } from 'next-auth/react';
 import toast from 'react-hot-toast';
 import {
     User,
@@ -29,7 +28,7 @@ import {
     type AppTheme,
 } from '@/lib/app-preferences';
 import { apiService as api } from '@/services/api';
-import { appSignOut } from '@/lib/app-auth';
+import { appSignOut, useAppSession } from '@/lib/app-auth';
 
 interface UserSettings {
     // Profile
@@ -133,17 +132,18 @@ const interestTopicPresets = [
 ];
 
 interface SettingsPageProps {
-    userEmail: string;
-    userName: string;
+    userEmail?: string;
+    userName?: string;
 }
 
 type SettingsSection = 'profile' | 'learning' | 'practice' | 'notifications' | 'appearance' | 'audio' | 'privacy';
 
 export default function SettingsPage({ userEmail, userName }: SettingsPageProps) {
+    const { data: session } = useAppSession();
     const [settings, setSettings] = useState<UserSettings>({
         ...defaultSettings,
-        displayName: userName || '',
-        email: userEmail || '',
+        displayName: userName || session?.user?.name || '',
+        email: userEmail || session?.user?.email || '',
     });
     const [activeSection, setActiveSection] = useState<SettingsSection>('profile');
     const [isSaving, setIsSaving] = useState(false);
@@ -154,6 +154,14 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
     const [privacyAction, setPrivacyAction] = useState<'export' | 'signout' | 'delete' | null>(null);
     const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '' });
     const [emailForm, setEmailForm] = useState({ currentPassword: '', newEmail: '' });
+
+    useEffect(() => {
+        setSettings((prev) => ({
+            ...prev,
+            displayName: prev.displayName || session?.user?.name || '',
+            email: prev.email || session?.user?.email || '',
+        }));
+    }, [session?.user?.email, session?.user?.name]);
 
     // Load settings from API on mount
     useEffect(() => {
@@ -1155,26 +1163,6 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
             `}</style>
         </div>
     );
-}
-
-export async function getServerSideProps(context: any) {
-    const session = await getSession(context);
-
-    if (!session) {
-        return {
-            redirect: {
-                destination: '/auth/signin',
-                permanent: false,
-            },
-        };
-    }
-
-    return {
-        props: {
-            userEmail: session.user?.email || '',
-            userName: session.user?.name || '',
-        },
-    };
 }
 
 function urlBase64ToUint8Array(base64String: string) {

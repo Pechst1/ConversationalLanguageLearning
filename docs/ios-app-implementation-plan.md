@@ -134,12 +134,36 @@ Do not choose B (`server.url` to hosted Next) for v1 unless the owner explicitly
 
 **Owner decision gate:** approve A knowing it requires the migration above, or explicitly choose B as an interim v1 compromise. No WP-M2 migration should start until that decision is made.
 
+## WP-M2 Implementation — 2026-06-13
+
+**Decision:** Owner approved path A: full static export for the native bundle.
+
+**Implemented:** The native build now uses a conditional static export path (`NATIVE_STATIC_EXPORT=true`) while the normal web build keeps its Next.js API routes, rewrites, redirects, and NextAuth server route. `next.config.js` omits rewrites/redirects entirely in native mode, sets `output: 'export'`, enables `trailingSlash`, and disables image optimization for export. `capacitor.config.ts` now defaults to the static `out/` bundle and only uses `server.url` when `CAPACITOR_SERVER_URL` is explicitly provided for a dev/debug run.
+
+**SSR migration:** Removed all `getServerSideProps` usage from the web frontend. Protected and guest-only redirects now run through a shared client route auth gate that sits behind the web/native auth abstraction. Initial server prefetches moved to client-side FastAPI hydration for achievements, sessions, practice queue, progress dashboard, library stories, learning entry, settings profile seed data, and the legacy immersive story route.
+
+**API/proxy migration:** Native data calls no longer depend on `pages/api/proxy/stories`. Story upload/status, scene visualization, and legacy story input/start now call FastAPI directly through the shared API base/token path. Desktop Anki sync remains web-only and is guarded off on native; its backend sync leg now uses the shared API client. `pages/api/auth`, `pages/api/proxy/stories`, and `pages/api/anki` remain available to the web deployment only; Next's static export warning that API routes are disabled is expected and acceptable for native because native no longer calls them.
+
+**Capacitor sync:** Added `npm run build:native` and updated `npm run cap:sync:ios` to build the static bundle before `npx cap sync ios` unless `--skip-build` is passed. `npx cap sync ios` now copies `out/` into the iOS app and writes the secure storage plugin into the Swift package manifest.
+
+**Verification:** `npm run type-check`, `npm run lint`, `npm run test:atelier-next`, `npm run build`, `npm run build:native`, `npm run cap:sync:ios`, and `.venv/bin/python -m pytest tests/test_auth.py -q -p no:warnings` passed. Browser smoke loaded `http://127.0.0.1:3000/` and verified a protected `/settings` URL settles on `/auth/signin?callbackUrl=%2Fsettings`; the local backend was not running, so a stale browser session produced expected `ECONNREFUSED` dev-server noise during the transition.
+
 ## WP-M3 — Auth bridge: NextAuth → direct JWT in the native shell (blocking)
 NextAuth (cookies, server session) is awkward at the `capacitor://localhost` origin. The backend already exposes `/auth/login`, `/auth/refresh`, `/auth/logout` with access+refresh JWTs.
 1. In the native build, replace NextAuth session usage with a direct JWT client: login posts to `/auth/login`, stores tokens in **`@capacitor/preferences` + Keychain via a secure-storage plugin** (not `localStorage`), attaches `Authorization: Bearer` to API + WS calls, and auto-refreshes on 401 using the rotating refresh-token endpoint.
 2. Abstract the auth layer so web keeps NextAuth and native uses the JWT client behind one interface (`lib/auth.ts` already exists as the seam; `services/websocket.ts` currently pulls the token from `useSession` — give it a token provider).
 3. Handle token expiry, logout, and the "session restored on cold start" path (the `mobile/` scaffold's `loadTokens` hydration pattern is the right idea — reuse the concept).
 **Acceptance:** sign in on device, kill+reopen the app stays signed in, a 401 transparently refreshes, logout clears Keychain.
+
+## WP-M3 Implementation — 2026-06-13
+
+**Implemented:** Added a web/native auth abstraction. Web continues to use NextAuth through `SessionProvider`; native uses direct FastAPI JWT login/refresh/logout and stores access token, refresh token, and user profile in `capacitor-secure-storage-plugin`. The shared API client now obtains tokens from the abstraction, preserves web behavior, skips local `/api/backend` proxying on native, and refreshes native tokens once on 401 before clearing secure storage and returning to sign-in.
+
+**Client migration:** Replaced direct `useSession`, `signOut`, and ad hoc `getSession` reads in the affected client components with the shared app auth layer. WebSocket and voice upload token lookup now use the shared token provider.
+
+**Backend config:** Added `capacitor://localhost` and `ionic://localhost` to default/documented CORS origins.
+
+**Verification:** `npm run type-check`, `npm run lint`, `npm run test:atelier-next`, `npm run build`, and `.venv/bin/python -m pytest tests/test_auth.py -q -p no:warnings` passed before the M2 migration continued.
 
 ## WP-M4 — Safe areas, status bar, gestures, offline (foundation polish)
 1. `@capacitor/status-bar`, `@capacitor/splash-screen`, `@capacitor/keyboard`; respect notch/home-indicator safe areas across the editorial layouts (the masthead + sticky CTAs + bottom nav need `env(safe-area-inset-*)` audits).

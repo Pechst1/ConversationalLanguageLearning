@@ -1,6 +1,5 @@
 import React from 'react';
 import Head from 'next/head';
-import { getSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
@@ -330,26 +329,4 @@ function AtelierMark() {
       <path d="M17 28L23 16L28 28H17Z" fill="var(--app-red)" />
     </svg>
   );
-}
-
-// Prevent access if already authenticated
-export async function getServerSideProps(context: any) {
-  const session = await getSession(context);
-  
-  if (session) {
-    const destination =
-      typeof context.query.callbackUrl === 'string'
-        ? context.query.callbackUrl
-        : '/atelier';
-    return {
-      redirect: {
-        destination,
-        permanent: false,
-      },
-    };
-  }
-  
-  return {
-    props: {},
-  };
 }

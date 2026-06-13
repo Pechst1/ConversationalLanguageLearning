@@ -1,7 +1,6 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { getSession } from 'next-auth/react';
 import api from '@/services/api';
 import { Card, CardContent } from '@/components/ui/Card';
 import { AnkiSync } from '@/components/AnkiSync';
@@ -129,11 +128,11 @@ type ErrorListResponse = {
 };
 
 type ProgressPageProps = {
-  summary: AnkiProgressSummary;
-  initialProgress: AnkiWordProgress[];
-  errorSummary: ErrorSummary;
-  errorList: ErrorListResponse;
-  grammarSummary: GrammarSummary;
+  summary?: AnkiProgressSummary;
+  initialProgress?: AnkiWordProgress[];
+  errorSummary?: ErrorSummary;
+  errorList?: ErrorListResponse;
+  grammarSummary?: GrammarSummary;
 };
 
 const directionLabels: Record<string, string> = {
@@ -150,6 +149,56 @@ const stageDisplay: Record<string, string> = {
   relearn: 'Re-learning',
   other: 'Other',
 };
+
+const EMPTY_STAGE_COUNTS: StageCounts = {
+  new: 0,
+  learning: 0,
+  review: 0,
+  relearn: 0,
+  relearning: 0,
+  mastered: 0,
+  other: 0,
+};
+
+const EMPTY_ANKI_SUMMARY: AnkiProgressSummary = {
+  total_cards: 0,
+  due_today: 0,
+  stage_totals: EMPTY_STAGE_COUNTS,
+  chart: [],
+  directions: {},
+};
+
+const EMPTY_ERROR_SUMMARY: ErrorSummary = {
+  total_errors: 0,
+  due_today: 0,
+  stage_counts: {
+    new: 0,
+    learning: 0,
+    review: 0,
+    relearning: 0,
+    mastered: 0,
+  },
+  categories: [],
+};
+
+const EMPTY_ERROR_LIST: ErrorListResponse = {
+  total: 0,
+  items: [],
+};
+
+const EMPTY_GRAMMAR_SUMMARY: GrammarSummary = {
+  total: 0,
+  mastered: 0,
+  in_progress: 0,
+  not_started: 0,
+  due_count: 0,
+};
+
+function preferredDirectionFor(summary: AnkiProgressSummary): 'fr_to_de' | 'de_to_fr' | 'all' {
+  if (summary.directions?.fr_to_de?.total) return 'fr_to_de';
+  if (summary.directions?.de_to_fr?.total) return 'de_to_fr';
+  return 'all';
+}
 
 const formatNumber = (value: number | null | undefined) => {
   if (value === null || value === undefined) return '—';
@@ -169,19 +218,69 @@ const formatDate = (value: string | null | undefined) => {
 const AnkiStagePie = dynamic(() => import('@/components/learning/AnkiStagePie'), { ssr: false });
 const ErrorCategoryPie = dynamic(() => import('@/components/learning/ErrorCategoryPie'), { ssr: false });
 
-export default function ProgressPage({ summary, initialProgress, errorSummary, errorList, grammarSummary }: ProgressPageProps) {
-  const defaultDirection: 'fr_to_de' | 'de_to_fr' | 'all' =
-    summary.directions?.fr_to_de?.total
-      ? 'fr_to_de'
-      : summary.directions?.de_to_fr?.total
-        ? 'de_to_fr'
-        : 'all';
+export default function ProgressPage({
+  summary: initialSummary = EMPTY_ANKI_SUMMARY,
+  initialProgress = [],
+  errorSummary: initialErrorSummary = EMPTY_ERROR_SUMMARY,
+  errorList: initialErrorList = EMPTY_ERROR_LIST,
+  grammarSummary: initialGrammarSummary = EMPTY_GRAMMAR_SUMMARY,
+}: ProgressPageProps) {
+  const [summary, setSummary] = useState<AnkiProgressSummary>(initialSummary);
+  const [errorSummary, setErrorSummary] = useState<ErrorSummary>(initialErrorSummary);
+  const [errorList, setErrorList] = useState<ErrorListResponse>(initialErrorList);
+  const [grammarSummary, setGrammarSummary] = useState<GrammarSummary>(initialGrammarSummary);
+  const defaultDirection = preferredDirectionFor(initialSummary);
 
   const [direction, setDirection] = useState<'fr_to_de' | 'de_to_fr' | 'all'>(defaultDirection);
   const [entries, setEntries] = useState<AnkiWordProgress[]>(
     defaultDirection === 'fr_to_de' ? initialProgress : []
   );
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadOverview = async () => {
+      setLoading(true);
+      try {
+        const [
+          nextSummary,
+          nextProgress,
+          nextErrorSummary,
+          nextErrorList,
+          nextGrammarSummary,
+        ] = await Promise.all([
+          api.getAnkiSummary().catch(() => EMPTY_ANKI_SUMMARY),
+          api.getAnkiProgress({ direction: 'fr_to_de' }).catch(() => []),
+          api.getErrorSummary().catch(() => EMPTY_ERROR_SUMMARY),
+          api.get<ErrorListResponse>('/analytics/errors/list').catch(() => EMPTY_ERROR_LIST),
+          api.getGrammarSummary().catch(() => EMPTY_GRAMMAR_SUMMARY),
+        ]);
+
+        if (cancelled) return;
+
+        const normalizedSummary = nextSummary as AnkiProgressSummary;
+        setSummary(normalizedSummary);
+        setEntries(Array.isArray(nextProgress) ? nextProgress as AnkiWordProgress[] : []);
+        setErrorSummary(nextErrorSummary as ErrorSummary);
+        setErrorList(nextErrorList as ErrorListResponse);
+        setGrammarSummary(nextGrammarSummary as GrammarSummary);
+        setDirection((prev) => (prev === 'all' ? preferredDirectionFor(normalizedSummary) : prev));
+      } catch (error) {
+        console.debug('Failed to load progress overview', error);
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    void loadOverview();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const directionSummary = useMemo(() => {
     if (direction === 'all') {
@@ -746,36 +845,3 @@ function StatCard({ label, value, color = 'bg-white', textColor = 'text-black' }
     </div>
   );
 }
-
-export async function getServerSideProps(ctx: any) {
-  const session = await getSession(ctx);
-  if (!session) return { redirect: { destination: '/auth/signin', permanent: false } };
-
-  const headers = { Authorization: `Bearer ${session.accessToken}` } as any;
-  const rawBase =
-    process.env.NEXT_PUBLIC_API_URL ||
-    process.env.API_URL ||
-    'http://localhost:8000/api/v1';
-  const normalizedBase = rawBase.replace(/\/+$/, '');
-  const baseUrl = normalizedBase.endsWith('/api/v1')
-    ? normalizedBase
-    : `${normalizedBase}/api/v1`;
-
-  const [summaryRes, progressRes, errorSummaryRes, errorListRes, grammarSummaryRes] = await Promise.all([
-    fetch(`${baseUrl}/progress/anki/summary`, { headers }),
-    fetch(`${baseUrl}/progress/anki?direction=fr_to_de`, { headers }),
-    fetch(`${baseUrl}/analytics/errors/summary`, { headers }),
-    fetch(`${baseUrl}/analytics/errors/list`, { headers }),
-    fetch(`${baseUrl}/grammar/summary`, { headers }),
-  ]);
-
-  const summary = summaryRes.ok ? await summaryRes.json() : { total_cards: 0, due_today: 0, stage_totals: {}, chart: [], directions: {} };
-  const initialProgress = progressRes.ok ? await progressRes.json() : [];
-  const errorSummary = errorSummaryRes.ok ? await errorSummaryRes.json() : { total_errors: 0, due_today: 0, stage_counts: { new: 0, learning: 0, review: 0, relearning: 0, mastered: 0 }, categories: [] };
-  const errorList = errorListRes.ok ? await errorListRes.json() : { total: 0, items: [] };
-  const grammarSummary = grammarSummaryRes.ok ? await grammarSummaryRes.json() : { total: 0, mastered: 0, in_progress: 0, not_started: 0, due_count: 0 };
-
-  return { props: { summary, initialProgress, errorSummary, errorList, grammarSummary } };
-}
-
-

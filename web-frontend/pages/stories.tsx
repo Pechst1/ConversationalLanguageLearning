@@ -1,11 +1,11 @@
-import React from 'react';
-import { getSession } from 'next-auth/react';
+import React, { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { BookOpen, Clock, Lock, Play, ChevronRight, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import EditorialMasthead from '@/components/layout/EditorialMasthead';
+import apiService from '@/services/api';
 
 interface Story {
     id: string;
@@ -27,19 +27,31 @@ interface Story {
 }
 
 interface StoriesPageProps {
-    stories: Story[];
+    stories?: Story[];
 }
 
-import { useState } from 'react';
-import { useRouter } from 'next/router';
 import UploadBookModal from '@/components/story/UploadBookModal';
 
-export default function StoriesPage({ stories }: StoriesPageProps) {
-    const router = useRouter();
+export default function StoriesPage({ stories = [] }: StoriesPageProps) {
+    const [storyList, setStoryList] = useState(stories);
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
 
+    const loadStories = React.useCallback(async () => {
+        try {
+            const rows = await apiService.get<Story[]>('/stories');
+            setStoryList(Array.isArray(rows) ? rows : []);
+        } catch (error) {
+            console.error('Failed to fetch stories:', error);
+            setStoryList([]);
+        }
+    }, []);
+
+    React.useEffect(() => {
+        void loadStories();
+    }, [loadStories]);
+
     const handleUploadSuccess = () => {
-        router.replace(router.asPath); // Refresh props
+        void loadStories();
     };
 
     return (
@@ -71,28 +83,28 @@ export default function StoriesPage({ stories }: StoriesPageProps) {
                             </Button>
                             <div className="flex items-center gap-2 px-4 py-2 bg-bauhaus-yellow border-2 border-black rounded-none shadow-[4px_4px_0px_0px_#000] text-black">
                                 <BookOpen className="h-5 w-5" />
-                                <span className="font-bold">{stories.length} Texts</span>
+                                <span className="font-bold">{storyList.length} Texts</span>
                             </div>
                         </div>
                     </div>
                 </header>
 
                 {/* Featured library text */}
-                {stories.length > 0 && (
+                {storyList.length > 0 && (
                     <div className="relative">
-                        <FeaturedStoryCard story={stories[0]} />
+                        <FeaturedStoryCard story={storyList[0]} />
                     </div>
                 )}
 
                 {/* All library texts */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {stories.map((story) => (
+                    {storyList.map((story) => (
                         <StoryCard key={story.id} story={story} />
                     ))}
                 </div>
 
                 {/* Empty State */}
-                {stories.length === 0 && (
+                {storyList.length === 0 && (
                     <Card className="border-4 border-black rounded-none shadow-[8px_8px_0px_0px_#000] bg-[var(--app-sheet)]">
                         <CardContent className="p-12 text-center">
                             <BookOpen className="h-16 w-16 mx-auto mb-4 text-stone-450" />
@@ -307,47 +319,4 @@ function StoryCard({ story }: { story: Story }) {
             </CardContent>
         </Card>
     );
-}
-
-export async function getServerSideProps(context: any) {
-    const session = await getSession(context);
-
-    if (!session) {
-        return {
-            redirect: {
-                destination: '/auth/signin',
-                permanent: false,
-            },
-        };
-    }
-
-    try {
-        const baseUrl = process.env.API_URL || 'http://localhost:8000';
-        const headers = {
-            'Authorization': `Bearer ${session.accessToken}`,
-            'Content-Type': 'application/json',
-        };
-
-        const res = await fetch(`${baseUrl}/api/v1/stories`, { headers });
-
-        if (!res.ok) {
-            console.error('Failed to fetch stories:', res.status);
-            return { props: { stories: [] } };
-        }
-
-        const stories = await res.json();
-
-        return {
-            props: {
-                stories,
-            },
-        };
-    } catch (error) {
-        console.error('Failed to fetch stories:', error);
-        return {
-            props: {
-                stories: [],
-            },
-        };
-    }
 }

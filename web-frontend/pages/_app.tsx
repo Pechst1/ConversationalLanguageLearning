@@ -1,6 +1,7 @@
 import Head from 'next/head';
 import type { AppProps } from 'next/app';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import RouteAuthGate from '@/components/auth/RouteAuthGate';
 import Layout from '@/components/layout/Layout';
 import { AppAuthProvider } from '@/lib/app-auth';
 import '@/styles/globals.css';
@@ -33,7 +34,9 @@ export default function App({
           <link rel="apple-touch-icon" href="/icons/atelier-mark.svg" />
         </Head>
         <Layout>
-          <Component {...pageProps} />
+          <RouteAuthGate>
+            <Component {...pageProps} />
+          </RouteAuthGate>
         </Layout>
       </QueryClientProvider>
     </AppAuthProvider>
