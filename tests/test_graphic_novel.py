@@ -877,6 +877,51 @@ def test_serial_visual_design_contract_feeds_cast_and_location_descriptors(db_se
     )
 
 
+def test_serial_image_prompts_include_f6_craft_guardrails(db_session):
+    generator = GraphicNovelStoryGenerator(db_session)
+    user = User(
+        id=uuid4(),
+        email=f"serial-image-guardrails-{uuid4()}@example.com",
+        hashed_password="x",
+        target_language="fr",
+        native_language="en",
+        proficiency_level="A2",
+    )
+    db_session.add(user)
+    db_session.commit()
+
+    script = generator.build_script(
+        user=user,
+        concepts=[],
+        errata=[],
+        source_snapshot={"mode": "serial_news_seed", "title": "Paris tests a repair hotline", "source": "QA"},
+        panel_count=6,
+        story_quality="standard",
+        humor_style="satirical",
+        experience_mode="study",
+        render_mode="panels",
+        image_quality="medium",
+        public_figure_mode="named_context",
+        target_vocabulary=[],
+        serial_context={
+            "thread_id": str(uuid4()),
+            "episode_index": 1,
+            "world_bible": _serial_world(),
+            "state": {"heating_fixed": True},
+            "news_seed": {"title": "Paris tests a repair hotline"},
+            "previous_locations": ["user_apartment"],
+        },
+    )
+
+    prompts = [panel["image_prompt"] for panel in script["panels"]]
+    assert all("Shot variety:" in prompt for prompt in prompts)
+    assert all("Foreground prop guardrail:" in prompt for prompt in prompts)
+    assert all("no visible screen contents" in prompt.lower() for prompt in prompts)
+    assert not any("showing on the screen" in prompt.lower() for prompt in prompts)
+    assert not any("displaying on the screen" in prompt.lower() for prompt in prompts)
+    assert len({panel["serial_shot_hint"] for panel in script["panels"]}) >= 4
+
+
 def test_serial_feuilleton_uses_llm_episode_plan_when_available(db_session, monkeypatch):
     generator = GraphicNovelStoryGenerator(db_session)
     user = User(

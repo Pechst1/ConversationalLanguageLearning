@@ -2981,7 +2981,13 @@ class GraphicNovelStoryGenerator:
                 "beat": template["beat"],
                 "panel_action": template["panel_action"],
                 "image_prompt_note": "Serial state-conditioned consequence beat.",
-                "prop_focus": "radiator" if index == 1 else ("phone" if index == panel_count else "coffee cup"),
+                "prop_focus": self._serial_prop_focus(
+                    panel_index=index,
+                    panel_count=panel_count,
+                    panel_action=template["panel_action"],
+                    plan_requires_story_true=plan_requires_story_true,
+                ),
+                "serial_shot_hint": self._serial_shot_hint(panel_index=index, panel_count=panel_count),
                 "overlay_payload": {
                     "caption": {
                         "panel_index": index,
@@ -3259,6 +3265,41 @@ class GraphicNovelStoryGenerator:
                 }
             ]
         return []
+
+    @staticmethod
+    def _serial_prop_focus(
+        *,
+        panel_index: int,
+        panel_count: int,
+        panel_action: str,
+        plan_requires_story_true: bool,
+    ) -> str:
+        action = _normalize_text(panel_action)
+        if not plan_requires_story_true and panel_index == 1:
+            return "radiator as a modest background problem, not a character"
+        if "phone" in action or "message" in action or "notification" in action:
+            return "phone held screen-down or seen from behind, no screen contents"
+        if panel_index == panel_count:
+            return "the character gesture that lands the cliffhanger"
+        if "letter" in action or "envelope" in action:
+            return "one small envelope or letter, supporting the actors"
+        if "key" in action:
+            return "one key as a small story clue, not an oversized prop"
+        return "character relationship gesture and location detail"
+
+    @staticmethod
+    def _serial_shot_hint(*, panel_index: int, panel_count: int) -> str:
+        sequence = [
+            "wide establishing shot with readable body language",
+            "medium two-shot with the story object kept secondary",
+            "over-the-shoulder reaction shot",
+            "low or high angle that changes the social power in the scene",
+            "tight ensemble composition with clear negative space above faces",
+            "quiet cliffhanger close-up with one visible exit or threshold",
+        ]
+        if panel_index == panel_count:
+            return sequence[-1]
+        return sequence[(panel_index - 1) % (len(sequence) - 1)]
 
     def _llm_skeleton(
         self,
@@ -4553,6 +4594,9 @@ class GraphicNovelStoryGenerator:
         panel_note = str(panel.get("image_prompt_note") or "").strip()
         anchor = str(selected_visual_premise.get("anchor_object") or "one decisive recurring prop").strip()
         domain = str(selected_visual_premise.get("domain") or "a fictional French public space").strip()
+        shot_hint = str(panel.get("serial_shot_hint") or "").strip()
+        overlay = panel.get("overlay_payload") if isinstance(panel.get("overlay_payload"), dict) else {}
+        has_bubbles = bool((overlay.get("bubbles") if isinstance(overlay, dict) else []) or [])
         if public_figure_mode == "editorial_caricature":
             public_figure_policy = (
                 "Public figures may be portrayed only as clearly editorial, non-defamatory caricature if relevant; "
@@ -4575,11 +4619,13 @@ class GraphicNovelStoryGenerator:
             f"Recurring props: {prop_line or anchor}. "
             f"Panel action: {panel_action}. "
             f"Action change from previous panel: {panel_note}. "
-            f"Decisive foreground instruction: use {panel.get('prop_focus') or anchor} as the one visually dominant prop; avoid repeated calendars, bags, paperwork piles, and decorative geometry unless that exact prop is the joke. "
+            f"Shot variety: {shot_hint or 'choose a distinct camera distance from the surrounding panels'}. "
+            f"Foreground prop guardrail: {panel.get('prop_focus') or anchor}. Props may support the joke but must not occupy more than one third of the panel unless the prop itself is the exact story turn; humans and relationships remain visually primary. "
+            "If phones, laptops, televisions, or screens appear, show them angled, screen-down, silhouetted, or from behind; no visible screen contents, notifications, UI, messages, websites, or readable video frames. "
             f"Humour mode: {humor_style}; render mode: {render_mode}; funny through situation and composition, never cruelty. "
             f"{public_figure_policy} "
             "The image is context only; no readable text should appear. Do not draw readable text, letters, captions, speech bubbles, UI, blanks, subtitles, signs, labels, or answer choices. "
-            "Leave calm negative space where HTML speech bubbles and annotations can sit later. "
+            f"{'Reserve a calm upper-third area for at most two HTML speech bubbles; keep faces and important hands out of that bubble zone. ' if has_bubbles else 'Leave calm negative space where HTML annotations can sit later. '}"
             "Keep the composition legible at small size, with one strong foreground action, generous negative space, no prop repetition, no date-grid wallpaper, no shopping-bag piles, no abstract grammar diagrams, and no decorative geometric motif clutter."
         )
 
@@ -4606,7 +4652,8 @@ class GraphicNovelStoryGenerator:
             f"Panel plan: {panel_lines}. "
             "Use fictionalized people unless editorial caricature is explicitly requested in metadata; never portray victims or private people. "
             "Do not draw readable text, letters, captions, speech bubbles, UI, blanks, subtitles, signs, labels, or answer choices. "
-            "Leave natural calm areas where HTML speech bubbles, captions, and grammar annotations can be overlaid later. Avoid repeated props and crowded object piles."
+            "If screens or phones appear, keep them angled, screen-down, silhouetted, or from behind with no readable contents or UI. "
+            "Leave natural calm upper-third areas where HTML speech bubbles, captions, and grammar annotations can be overlaid later. Avoid foreground prop dominance, repeated props, and crowded object piles."
         )
 
     def _estimated_cost(self, *, panel_count: int, story_cost: float, render_mode: str, image_quality: str) -> dict[str, Any]:
