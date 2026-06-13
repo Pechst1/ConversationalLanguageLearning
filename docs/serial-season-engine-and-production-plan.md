@@ -264,3 +264,150 @@ When every arc reaches its final stage, `_select_arc_stage` falls into its fallb
 
 ## WP-N7 — Cost observability (small)
 Per-scene cost lives in `generation_metadata`/script metadata but is invisible in aggregate. Log a per-generation structured event (user, episode_index, story_usd, image_count, image_quality) and add a simple rollup query/script so weekly spend per learner is known before any wider launch.
+
+---
+
+# UX review & experience work packages (2026-06-12, after WP-N1..N7 shipped)
+
+**Status:** WP-N1..N7 are implemented and committed (`c0e6184`..`58424f0`), working tree clean, 59 serial-related tests green. The live thread has exercised the engine: 3 episodes completed, `marin_proposal` arc at `spark`, two relationships at closeness 1, briefs attached from episode 2 on.
+
+**UX verdict on the core loop:** the day-loop is coherent and the craft is high — "Today's edition" spine → review → "Living thread" serial card with real states (invite/act/see/printing/delayed/settled), cold-open prologue, WORLD REPLY + hook after a mission, progressive panel reveal, cliffhanger hero with "Answer in the next episode". The remaining problems are not in the beats; they are *around* them: the story surfaces are nearly undiscoverable, the loop has no pull from outside the app, the French is never heard, and a parallel legacy narrative system (Stories) muddies the IA.
+
+## WP-X1 — Serial discoverability + season presence (small; do first)
+The Season-1 archive (`/serial`) is reachable only from one link inside the Feuilleton header; the cast page only from the archive. Atelier's serial card and the done-state never link to them.
+1. `SerialThreadCard` (`web-frontend/pages/atelier.tsx:1215`): make the `episodeLabel` row a "Season 1 · Episode N" link to `/serial`; in the `done` state add two quiet links — "Re-read the season" (`/serial`) and "The cast" (`/serial/cast`).
+2. Add a season-progress strip at the top of `/serial`: a simple act/see timeline of completed episodes (no arc spoilers), current episode highlighted.
+3. Mission page header: add the same `Season 1 / Épisode N` breadcrumb pair the Feuilleton already has (`graphic-novel.tsx:1012`).
+**Acceptance:** from `/atelier` a user can reach archive and cast in one tap; contract test extends `tests/test_frontend_serial_surfaces.py`.
+
+## WP-X2 — The return loop: "tomorrow's edition" notifications (medium; highest retention leverage)
+Pre-generation exists, but nothing tells the learner the next episode is out — the cliffhanger pull dies when the tab closes. `app/db/models/push_subscription.py` + `app/services/notification_service.py` + `app/tasks/notifications.py` already exist with zero serial hooks.
+1. When a background-generated scene flips to `available` (in `render_scene_images`) or a mission beat is created, enqueue a notification: in-fiction copy, e.g. "Épisode 4 est paru — Marin n'a pas fini sa phrase." Route through the existing notification service; respect existing quiet-hour/preference plumbing; add a settings toggle (`serial_edition_notifications`, default on).
+2. Replace the static done-state copy on `SerialThreadCard` ("let the cliffhanger sit overnight") with the *real* next-episode teaser when it exists (`hook.teaser`) + "arrives with tomorrow's edition".
+**Acceptance:** completing a beat with push enabled produces exactly one queued notification per generated episode (idempotent — re-renders don't re-notify); test in `tests/test_celery_tasks.py`.
+
+## WP-X3 — Hear the episode: TTS for the Feuilleton (large; highest pedagogical value)
+The serial's French is never heard. For a language product this is the single biggest missing modality, and the cast gives it voices.
+1. Backend: per-panel audio for the French captions + speech bubbles. Generate in the existing image Celery task (after images), store URL/payload on `GraphicNovelPanel` (`audio_payload` JSON column + migration). Voice per character via a `voice_map` block in the world bible (`cast[].voice` hint → provider voice id); narrator voice for captions. Cache by text hash; config flag `FEUILLETON_AUDIO_ENABLED` + cost cap. Fold cost into WP-N7's rollup.
+2. Frontend: a play button per panel and a "Lire l'épisode" continuous mode that steps panels as audio plays. Progressive: panels without audio yet just skip.
+3. Missions: read M. Marchand's/NPC's reply aloud with the character voice (one call per reply, cached on the mission).
+**Acceptance:** generated serial scene has audio for ≥ the French captions; audio task failure never blocks scene availability; cost appears in the rollup script.
+
+## WP-X4 — First-run framing (medium)
+There is no onboarding of any kind (no welcome state, no app-model explanation). The cold open is great fiction but doesn't explain the *product*: that this is a daily edition, that the serial is a persistent life your French moves, that the Notebook remembers everything.
+1. One-time, skippable, 3-beat welcome interstitial on first `/atelier` visit (server-persisted flag on the user, not localStorage — must survive devices): ① "Your daily edition" (session+review), ② "Your serial life in Paris" (cast strip, "your French moves the story"), ③ "The Notebook remembers" (errata/vocab). Editorial-print styling consistent with the masthead.
+2. Episode-1 steepness check for beginners: the episode-one mission contract hardcodes `min_words: 35`; respect the planner's CEFR profile (A1: 25) instead, and make sure quick replies render prominently for A1/A2.
+**Acceptance:** flag round-trips through the API; second visit shows no interstitial; A1 fixture gets the lower word floor.
+
+## WP-X5 — Cast page becomes the memory (small)
+`/serial/cast` shows role/register/closeness but not the *history* — and the history is the bond.
+1. Render `callbacks` as "private jokes" chips, `last_summary` as the latest-beat line, and the tu-switch as a dated event ("On se tutoie depuis l'épisode 5", from `register_switch_episode`).
+2. Link each character card to their episodes (filter archive rows by `required_cast` from `brief_payload`).
+**Acceptance:** cast endpoint already returns the fields; page renders them; a character with no history renders cleanly.
+
+## WP-X6 — Read-first Feuilleton flow (medium; validate before building big)
+In study mode, 5 tasks interleave with 6 panels — the learner is quizzed mid-scene, which fights the emotional read that powers the serial.
+1. Add a "read-through" presentation: panels first, uninterrupted (tasks visible but collapsed), then a "Maintenant, à toi" task section before filing the edition. Keep the completion gate (all required tasks) unchanged; this reorders, not removes.
+2. Make it the default for serial scenes; keep current inline order for standalone scenes (or behind a preference).
+**Acceptance:** serial scene renders all panels before the first required task; filing still blocked until tasks complete; existing task tests unaffected.
+
+## WP-X7 — Narrative IA cleanup: Stories vs. the Serial (decision + medium)
+Two parallel narrative systems live under Atelier: the legacy book-chapter Stories/RPG (`/stories`, `/story/[id]`, NPC models, relationship meters) and the Serial. Both say "story"; only one is the product's spine now.
+1. Decide (product call, options in order of recommendation): (a) reframe Stories as **"La Bibliothèque"** — imported-book reading practice, clearly distinct naming, reachable as an Atelier side quest; or (b) feature-flag it dark until it earns its place.
+2. Whichever is chosen: rename surfaces/copy so "the story" unambiguously means the serial; sweep Atelier side-quest copy for the distinction.
+**Acceptance:** no Atelier surface uses "story" for both systems; navigation contract tests updated.
+
+## Sequencing
+X1 (days, do immediately) → X2 (the retention loop) → X3 (the big modality bet; start the backend while X2 ships) → X4/X5 (polish, parallel) → X6 (validate with use first) → X7 (needs the product decision).
+
+---
+
+# Product direction packages (2026-06-12) — the promise, mission formats, la Bibliothèque
+
+**Product framing (owner decision, recorded):** the app competes with Duolingo on engagement but wins on a different claim — *a credible, visible path to a CEFR level in one app* ("20 min/day for 50 days → A1.2"). The serial is the retention engine; the CEFR meter is the promise; missions are the bite-size problem-solving format inside the season; la Bibliothèque turns free French books into more serialized content.
+
+**Where missions went (review finding):** missions were deliberately absorbed as the serial's "act" beats (the WP-6 "mechanic names recede" decision) — they still exist standalone at `/missions` and five template types exist in `MISSION_TEMPLATES` (`message`, `explain_plan`, `news_summary`, `travel_work`, `conversation`; `app/services/missions.py:33`). But the serial hard-passes `mission_type="message"`, so in practice every act beat is a text chat. The "voice-note version" exists only as a debrief teaser string (`missions.py:1889`). Format variety is the loss to repair — not the absorption itself.
+
+**CEFR reality check:** `user.proficiency_level` is a static string (default `"beginner"`, `app/db/models/user.py:30`). The planner's CEFR ramp *consumes* it; nothing *measures or advances* it. The "A1.2 in 50 days" promise currently has no backing model.
+
+## WP-Y1 — Mission formats inside the season (medium-large)
+Restore the "solve a small problem" variety as planner-driven formats, all sharing the existing objectives/grading engine — only the surface changes.
+1. **Contract.** `EpisodeBrief` gains `mission_format` ∈ `{"chat_message", "voicemail_reply", "email_formal", "admin_form", "phone_call"}`. Planner rotates formats (never the same twice in a row; `voicemail_reply` only once WP-X3's TTS lands; `phone_call` is v2, behind a flag).
+2. **Voicemail beat** (the flagship): the NPC leaves a voicemail (TTS with the character's voice from WP-X3's voice map; transcript hidden by default, "afficher la transcription" affordance); the learner replies by text or voice (reuse `VoiceInput` + the existing audio-session transcription path). Grading unchanged (transcribed voice goes through the same correction service).
+3. **Email/formal letter**: register-critical surface with subject line + salutation/closing conventions — maps to existing register objectives.
+4. **Admin form** (très français): a small French form (préfecture/CAF/bank flavored, generated fields) the learner fills from the episode context; graded per field. Bounded: 4–6 fields, deterministic validation + one LLM-checked free-text field.
+5. **Frontend:** `missions.tsx` renders per `mission_format` (the messenger shell already exists; voicemail/email/form are new presentation components, same submission plumbing).
+**Acceptance:** planner emits rotating formats; a voicemail mission round-trips voice→transcription→correction; standalone missions unaffected; `tests/test_missions.py` + `tests/test_serial.py` extended.
+
+## WP-Y2 — CEFR progress engine + the visible promise (large; the core product claim)
+1. **Model** (`app/services/cefr_progress.py`): define sub-levels `A1.1 … B2.2` with thresholds over signals that already exist — FSRS-mastered vocabulary count, grammar concepts mastered (grammar catalog state), rolling error-rate trend (error_memory), mission/feuilleton scores. One calibratable threshold table, versioned. Nightly (or on-completion) recompute → persist `user.cefr_estimate` + history rows (new small table + migration).
+2. **Forecast:** rolling 14-day pace (words/day, concepts/day) → projected date for the next sub-level at current pace, shown as a range, recalibrated weekly. Honest rules: no projection with < 7 active days of data ("come back in a week for your forecast"); cap optimism.
+3. **Surface:** (a) level meter chip in the Atelier edition header ("A1.1 → A1.2 · ~31 jours à ce rythme"); (b) a Notebook "Progression" block with the threshold breakdown (words X/300, concepts Y/20…); (c) the post-edition "filed" moment shows the day's delta ("+9 mots actifs · +1 point de grammaire · l'histoire avance").
+4. **Onboarding tie-in (with WP-X4):** ask target + minutes/day at first run; the welcome states the promise with their numbers.
+**Acceptance:** deterministic unit tests on the threshold table and forecaster (fixed fixtures → fixed estimate/forecast); estimate never regresses from a single bad day (smoothing); API exposes estimate + forecast + deltas; meter renders on Atelier and Notebook.
+
+## WP-Y3 — The 20-minute edition (medium)
+The daily contract must be time-credible: session spine + review + serial beat ≈ 20 min, visibly.
+1. Instrument actual durations (session rounds, review, mission, feuilleton) into analytics; derive p50 per activity per level.
+2. Tune content volume to the budget (review cap, session round length, feuilleton task count) via config; show "≈ N min" on each spine node and a quiet "~12 min left in today's edition" line.
+3. Make the finish line a moment: "Édition bouclée" stamp + WP-Y2's day-delta + tomorrow's teaser (ties into WP-X2's done-state copy).
+**Acceptance:** every spine node shows a time estimate; an A2 fixture's full day at p50 durations sums to 18–22 min; the filed moment renders the delta.
+
+## WP-Y4 — La Bibliothèque v1: free books become serialized episodes (large)
+Reframe the legacy Stories system (per WP-X7 option a) into the book pipeline the product always wanted (prior art: `content-pipeline-gutenberg.md`, `petit-prince-prototype.md`, `upload_moby_dick_task.py`, the stories models + `ImportStoryModal`).
+**v1 scope (shippable):** pick/upload a public-domain French text → pipeline: segment into scenes → level-adapt the French (A1/A2/B1 paraphrase, original displayed alongside, "texte original" toggle) → serialize into Bibliothèque episodes with hooks ("À suivre") → glosses + 3 overlay tasks per episode reusing the graphic-novel task engine → one generated cover per book. A "shelf" page (`/bibliotheque`) replaces `/stories`; reading progress per book; vocabulary encountered feeds the same FSRS/credit pipeline (counts toward the WP-Y2 meter).
+**Explicitly v2 (do not build now):** the side-door interactive role from the pipeline doc (playing a character inside the book), branching, illustrated panels per scene, cast crossover with the serial.
+**Acceptance:** import a Gutenberg text end-to-end → N level-adapted episodes with glosses/tasks; vocabulary credit flows to FSRS; legacy story routes redirect to `/bibliotheque`; naming sweep complete (WP-X7 acceptance folded in).
+
+## Revised global sequencing (X + Y)
+1. **X1** serial discoverability (days) → 2. **Y2** CEFR engine + meter (the claim everything hangs on) → 3. **X2** notifications + **Y3** 20-min edition (the daily contract) → 4. **X3** TTS + **Y1** mission formats (one voice investment, two payoffs) → 5. **X4** first-run (now states the promise) + **X5** cast memory → 6. **Y4** Bibliothèque v1 (absorbs X7) → 7. **X6** read-first flow.
+
+---
+
+# Feuilleton craft fixes (2026-06-12, from owner screenshot review of Episode 4)
+
+**Diagnosis from the screenshots (verified in code):**
+1. **The task layer is still episode-1 furniture.** The LLM episode plan authors only the *narrative* (titles, captions, hook); the 5 overlay tasks are hardcoded in the serial template — "Radiator phrase", "How do you enter?", "Introduce yourself", "News reaction", "Keep the thread alive" (`app/services/graphic_novel.py:2400–2509`). At episode 4 the learner is asked to introduce themselves to a group they've known for three episodes and to complete a radiator sentence from a plot that's over. Same for dialogue: the two speech lines are the hardcoded template bubbles (`_serial_bubbles`, `graphic_novel.py:2832` — "Viens, tu vas geler." / "C'est quoi la vraie histoire ?"), not lines from this episode's plan.
+2. **Speech bubbles exist but are hidden on mobile.** Full overlay plumbing (`BubbleOverlay`, x/y, tones) is implemented; mobile CSS turns it off (`.feuilleton-page .bubble-layer { display:none }`, `graphic-novel.tsx:4172`) and dialogue drops to transcript blocks under each panel.
+3. **The protagonist-as-coffee-mug is the image model resolving the authored convention** ("shown ambiguously from behind or partially cropped", `world_bible_paris_v2.json` → `visual_design.characters.user`) into a foreground prop in every panel.
+4. **Page is overloaded:** header stacks title + chips + Previously + 4 vocabulary cards (with translations always visible) + a raw ACTUALITÉ news block with garbled summarizer text ("exprime sacolère", stray "I", "Personnes citées: …" artifacts) before the first panel.
+5. **Choice tasks render without their option texts** in the end-of-read section (empty "A"/"B" inputs in the screenshots).
+6. **Read-first (WP-X6) overshot:** collecting all tasks at the end disconnects them from their panels and re-prints panel context (owner feedback; revises X6's default).
+
+## WP-F1 — Story-true tasks and dialogue (the root fix; large; do first)
+1. Extend `_serial_episode_plan`'s response format: the plan also authors the overlay **tasks** (per panel: type from the existing task vocabulary — cloze/choice/short_sentence — prompt, expected/accepted answers, the day's grammar/vocab targets woven in) and **dialogue bubbles** (≤2 per panel: `speaker_id`, `fr`, `en`, `tone`, normalized `x`/`y`). Reuse the non-serial path's task generation + validation machinery rather than inventing new (the standalone Feuilleton already LLM-generates tasks).
+2. Tasks must be **story-state aware**: pass `state` flags + relationship register into task generation with explicit rules (never "introduce yourself" once `user.has_met_group`; register tasks follow the current tu/vous per character).
+3. Template tasks/bubbles (`graphic_novel.py:2400–2509`, `:2832`) become fallback-only for episode ≤ 1; for episodes ≥ 2 a plan without valid tasks is a validation error → existing retry path.
+4. Fix the lost choice-option texts in the read-first aggregation (empty A/B inputs).
+**Acceptance:** episode-≥2 fixture yields tasks referencing the episode's own beats/targets, none of the five template labels; choice tasks render real option lines; bubbles in `overlay_payload` come from the plan; task grading regression green.
+
+## WP-F2 — Speech bubbles on the art (medium; rides on F1)
+1. Re-enable the bubble layer on mobile with mobile-safe rules: max 2 bubbles/panel, top-band placement bias, smaller type, character-accent border (cast `ui_token` colors exist), tap toggles FR↔translation. Keep the transcript block as a11y fallback and for >2 lines.
+2. Image-prompt side: add "leave clear headroom in the upper third; characters' heads in the lower two-thirds" composition guidance for panels with bubbles, and keep the no-text-in-image guardrail.
+**Acceptance:** mobile 390px screenshots show legible bubbles not covering faces (manual QA pass per the mobile checklist); transcript still renders under `prefers-reduced-motion`/screen readers.
+
+## WP-F3 — Create your own character (large; owner wish; parallel track)
+1. First-run (or first serial visit) avatar builder: 3–4 guided choices (hair, build/style, vibe) + optional one-line free description → generate a model sheet in the established ink style (reuse the recipe in `docs/serial-image-prompts.md`) → learner approves or re-rolls (one re-roll) → stored per-user (`/assets/serial/characters/user-<id>/model-sheet.png` or object storage), written into `thread.world_bible.visual_design.characters.user.reference_images` (per-thread override; the sync hook must not clobber it).
+2. Panels then render Toi as a real on-stage character; the current behind-the-shoulder "POV mode" stays as an explicit choice ("rester hors-champ"). Settings entry to regenerate later, with a continuity warning.
+3. Safety: image-generation moderation on the free-text description; deterministic fallback to POV mode on generation failure.
+**Acceptance:** avatar fixture appears in `human_characters`/image prompts with the user's reference image; `_sync_world_bible_assets` preserves the override; POV mode unchanged when no avatar.
+
+## WP-F4 — Declutter the episode page (medium; quick win)
+Target: at most **two** text blocks between any two panels; header fits one viewport above Panel 1.
+1. Vocabulary cards → one collapsed chip row ("4 mots en jeu"), translations only on tap.
+2. ACTUALITÉ block → one-line attribution beneath the news panel ("via RFI · ouvrir la source"), full text behind a tap; **fix the news summarizer garble** in `news_service` (broken token "sacolère", stray "I", "Personnes citées:" entity-dump artifacts).
+3. Per panel: merge "PANEL N" + title into one small line; CONTEXT chip only when the word actually occurs in that panel's text; dialogue moves onto the art (F2) leaving the caption as the single text block.
+**Acceptance:** 390px screenshot review against the budget; vocabulary/news content still reachable in ≤1 tap.
+
+## WP-F5 — Tasks anchored to their panels (medium; revises WP-X6 default)
+Replace the end-of-read aggregation: tasks render **inline, attached to their panel, collapsed** to a single "À toi —" line; submitting auto-expands the next unanswered task; reading straight through stays frictionless because collapsed tasks don't interrupt. Keep the completion gate and footer progress chip; drop the "Maintenant, à toi" section (or reduce it to a list of *unfinished* tasks at the end). Standalone scenes keep their current behavior.
+**Acceptance:** every task is visually adjacent to its panel; a no-interaction scroll shows panels + captions only; gate/regression tests green.
+
+## WP-F6 — Image-craft guardrails (small)
+1. **Never depict phone/screen contents** (the key-icon problem): prompt rule — screens at an angle/from behind, reactions carry the information; validator flags image prompts matching "showing/displaying … on the screen".
+2. **Foreground-prop dominance cap:** stop the giant mug/kettle in every frame — vary the POV signifier and limit foreground props to supporting scale (style-pack guidance).
+3. **Shot variety:** structure templates carry a per-panel shot hint (wide establishing / medium / close-up / over-shoulder) so six panels stop being six medium shots of the same room.
+**Acceptance:** prompts for a generated episode contain shot hints and no screen-content phrases; visual spot-check on the next live episode.
+
+## Sequencing (F-series)
+**F1** (root: story-true tasks + dialogue) → **F2** (bubbles, needs F1's bubble data) and **F4 + F6** (independent quick wins, parallel) → **F5** (task placement, after F1 so the inline tasks are worth anchoring) → **F3** (avatar, parallel long-lead image-pipeline track). F-series outranks the X/Y backlog except X1 (discoverability) and Y2 (CEFR engine), which stay queued as before — F1/F4/F6 fix what every learner sees every single day.
