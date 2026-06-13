@@ -369,6 +369,8 @@ class NewsService:
             )
             return payload
 
+        selected = self._clean_feuilleton_seed_item(selected)
+        supporting_items = [self._clean_feuilleton_seed_item(item) for item in supporting_items]
         named_people = selected.get("named_people") or []
         title = str(selected.get("title") or "L'actualité française du jour")
         summary = str(selected.get("summary") or "")
@@ -521,6 +523,23 @@ class NewsService:
                 break
         return people
 
+    def _clean_feuilleton_seed_item(self, item: dict[str, object]) -> dict[str, object]:
+        cleaned = dict(item)
+        cleaned["title"] = self._clean_feuilleton_news_text(cleaned.get("title"))
+        cleaned["summary"] = self._clean_feuilleton_news_text(cleaned.get("summary"))
+        return cleaned
+
+    def _clean_feuilleton_news_text(self, value: object) -> str:
+        text = self._clean_text(str(value or ""))
+        if not text:
+            return ""
+        text = re.sub(r"\b([mts]a)(col[eè]re|colere)\b", r"\1 colère", text, flags=re.IGNORECASE)
+        text = re.sub(r"(?:^|[\s.;:!?])I(?=$|[\s.;:!?])", " ", text)
+        text = re.sub(r"(?:^|\s)Personnes cit[ée]es?\s*:\s*[^.]+\.?", " ", text, flags=re.IGNORECASE)
+        text = re.sub(r"\s+([,.;:!?])", r"\1", text)
+        text = re.sub(r"\s+", " ", text)
+        return text.strip(" .;:")
+
     def _score_feuilleton_item(self, item: dict[str, object], interests: list[str]) -> int:
         text = f"{item.get('title', '')} {item.get('summary', '')}".lower()
         score = 5
@@ -567,10 +586,8 @@ class NewsService:
         selected: dict[str, object],
         supporting_items: list[dict[str, object]],
     ) -> str:
-        title = str(selected.get("title") or "").strip()
-        summary = str(selected.get("summary") or "").strip()
-        people = selected.get("named_people") or []
-        people_sentence = f" Personnes citées: {', '.join(str(person) for person in people[:3])}." if people else ""
+        title = self._clean_feuilleton_news_text(selected.get("title"))
+        summary = self._clean_feuilleton_news_text(selected.get("summary"))
         support = ""
         if supporting_items:
             outlets = ", ".join(
@@ -579,8 +596,8 @@ class NewsService:
             )
             support = f" Le sujet apparaît aussi dans {outlets}."
         if summary and summary.lower() != title.lower():
-            return f"{title}. {summary}{people_sentence}{support}".strip()
-        return f"{title}.{people_sentence}{support}".strip()
+            return f"{title}. {summary}{support}".strip()
+        return f"{title}.{support}".strip()
 
     def _format_feuilleton_seed_digest(
         self,
@@ -592,16 +609,13 @@ class NewsService:
             "Sujet du jour:",
             f"- {selected.get('title', 'Actualité française')} ({selected.get('source', 'source française')})",
         ]
-        summary = selected.get("summary")
+        summary = self._clean_feuilleton_news_text(selected.get("summary"))
         if summary:
             lines.append(f"Résumé: {summary}")
-        named_people = selected.get("named_people") or []
-        if named_people:
-            lines.append(f"Personnes citées: {', '.join(str(person) for person in named_people[:5])}")
         if supporting_items:
             lines.append("Échos:")
             for item in supporting_items[:3]:
-                lines.append(f"- {item.get('title')} ({item.get('source')})")
+                lines.append(f"- {self._clean_feuilleton_news_text(item.get('title'))} ({item.get('source')})")
         if satire_refs:
             lines.append("Références satiriques récentes (ton seulement, pas faits):")
             for item in satire_refs[:3]:

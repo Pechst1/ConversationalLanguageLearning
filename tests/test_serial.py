@@ -128,6 +128,27 @@ def _callback_llm(content: str):
     return lambda: SimpleNamespace(generate_chat_completion=lambda *args, **kwargs: SimpleNamespace(content=content))
 
 
+def test_feuilleton_news_summary_strips_feed_artifacts():
+    service = NewsService.__new__(NewsService)
+    selected = {
+        "title": "Un conseil municipal sous tension",
+        "summary": "La maire exprime sacolère après le vote. I Personnes citées: Anne Exemple, Marc Exemple.",
+        "source": "RFI",
+        "named_people": ["Anne Exemple", "Marc Exemple"],
+    }
+    support = [{"title": "Personnes citées: autre liste. Les voisins réagissent.", "source": "Franceinfo"}]
+
+    summary = service._feuilleton_summary_fr(selected, support)
+    digest = service._format_feuilleton_seed_digest(selected, support, [])
+
+    assert "sa colère" in summary
+    assert "sacolère" not in summary
+    assert "Personnes citées" not in summary
+    assert " I " not in summary
+    assert "Personnes citées" not in digest
+    assert "sacolère" not in digest
+
+
 def test_thread_episode_roundtrip(db_session):
     user = _user(db_session, email="serial-roundtrip@example.com")
     thread = SerialThread(
