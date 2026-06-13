@@ -20,11 +20,14 @@ import apiService, {
 type OverlayTask = Record<string, any> & { panel?: GraphicNovelPanel | null };
 type PanelBubble = {
   speaker?: string;
+  speaker_id?: string;
   fr?: string;
   en?: string;
   x?: number;
   y?: number;
   tone?: string;
+  accent_color?: string;
+  accent_colour?: string;
 };
 type PanelCount = 4 | 6 | 8;
 type StoryQuality = 'standard' | 'premium';
@@ -50,6 +53,12 @@ type MobileTaskStop = {
 type DayProgressFlag = Parameters<typeof writeLocalDayProgressFlag>[0];
 type ServerDayProgressCandidate = {
   progress?: Partial<Record<DayProgressFlag, boolean>> | null;
+};
+type ChoiceOptionView = {
+  value: string;
+  label: string;
+  text: string;
+  en: string;
 };
 
 function hasServerDayProgressFlag(candidate: unknown, flag: DayProgressFlag) {
@@ -107,6 +116,7 @@ export default function GraphicNovelPage() {
   const incomingThreadContext = useMemo(() => feuilletonThreadContextFromQuery(routeQuery), [routeQuery]);
   const [threadContext, setThreadContext] = useState<FeuilletonThreadContext>(null);
   const visibleThreadContext = threadContext || incomingThreadContext;
+  const serialReadFirst = Boolean(scene?.serial_thread_id);
 
   const tasks = useMemo(() => extractTasks(scene), [scene]);
   const targetVocabulary = useMemo(() => sceneTargetVocabulary(scene), [scene]);
@@ -532,6 +542,7 @@ export default function GraphicNovelPage() {
                       revealedMobileStopIds={revealedMobileStopIds}
                       showMobileTranslations={showMobileTranslations}
                       targetVocabulary={targetVocabulary}
+                      readFirst={serialReadFirst}
                     />
                   </div>
                 ) : (
@@ -549,9 +560,21 @@ export default function GraphicNovelPage() {
                         revealed={revealedMobileStopIds.includes(panelTaskStop(panel, []).id)}
                         showMobileTranslations={showMobileTranslations}
                         targetVocabulary={targetVocabulary}
+                        readFirst={serialReadFirst}
                       />
                     ))}
                   </section>
+                )}
+                {serialReadFirst && (
+                  <ReadFirstTaskSection
+                    scene={scene}
+                    answers={answers}
+                    setAnswer={(taskId, value) => setAnswers((current) => ({ ...current, [taskId]: value }))}
+                    onSubmit={submitTask}
+                    submittingTask={submittingTask}
+                    attemptsByTask={attemptsByTask}
+                    targetVocabulary={targetVocabulary}
+                  />
                 )}
                 <FinalTask
                   scene={scene}
@@ -825,7 +848,7 @@ function FeuilletonEmptyState({
       </div>
       <div className="mobile-empty-task-note" role="note">
         <strong>Task sheet locked</strong>
-        <span>Panel tasks unlock below their story panels after the edition is generated.</span>
+        <span>Panel tasks unlock below the episode panels after the edition is generated.</span>
       </div>
       <button className="btn red" disabled={creating} onClick={onCreate}>
         {creating ? <Loader2 className="spin" size={14} /> : null}
@@ -949,22 +972,33 @@ function SceneBrief({ scene, threadContext }: { scene: GraphicNovelScene; thread
       {!isSerial && publicBrief && <p>{publicBrief}</p>}
       <FeuilletonVocabularyStrip vocabulary={targetVocabulary} />
       {showSource && (
-        <div className="source-card">
-          <div className="t-mono">ACTUALITÉ</div>
-          <strong>{sourceCopy.titleFr}</strong>
-          <p>{sourceCopy.summaryFr}</p>
-          {(sourceCopy.titleEn || sourceCopy.summaryEn) && (
-            <details className="source-translation">
-              <summary>English</summary>
-              {sourceCopy.titleEn && <strong>{sourceCopy.titleEn}</strong>}
-              {sourceCopy.summaryEn && <p>{sourceCopy.summaryEn}</p>}
-            </details>
-          )}
-          <div className="source-meta">
-            <span>{source.source || sourceItem.source || 'Source'}</span>
-            {(source.url || sourceItem.url) && <a href={source.url || sourceItem.url} target="_blank" rel="noreferrer">Ouvrir la source ↗</a>}
+        isSerial ? (
+          <div className="source-card compact-source">
+            <span className="t-mono">ACTUALITÉ</span>
+            <strong>{sourceCopy.titleFr}</strong>
+            <div className="source-meta">
+              <span>{source.source || sourceItem.source || 'Source'}</span>
+              {(source.url || sourceItem.url) && <a href={source.url || sourceItem.url} target="_blank" rel="noreferrer">Source</a>}
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="source-card">
+            <div className="t-mono">ACTUALITÉ</div>
+            <strong>{sourceCopy.titleFr}</strong>
+            <p>{sourceCopy.summaryFr}</p>
+            {(sourceCopy.titleEn || sourceCopy.summaryEn) && (
+              <details className="source-translation">
+                <summary>English</summary>
+                {sourceCopy.titleEn && <strong>{sourceCopy.titleEn}</strong>}
+                {sourceCopy.summaryEn && <p>{sourceCopy.summaryEn}</p>}
+              </details>
+            )}
+            <div className="source-meta">
+              <span>{source.source || sourceItem.source || 'Source'}</span>
+              {(source.url || sourceItem.url) && <a href={source.url || sourceItem.url} target="_blank" rel="noreferrer">Ouvrir la source ↗</a>}
+            </div>
+          </div>
+        )
       )}
     </section>
   );
@@ -1051,8 +1085,11 @@ function FeuilletonVocabularyStrip({ vocabulary }: { vocabulary: FeuilletonVocab
   const items = vocabulary.filter((item) => item.word).slice(0, 4);
   if (!items.length) return null;
   return (
-    <div className="feuilleton-vocabulary-strip" aria-label="Target vocabulary">
-      <span className="t-mono">Vocabulary in play</span>
+    <details className="feuilleton-vocabulary-strip" aria-label="Target vocabulary">
+      <summary>
+        <span className="t-mono">{items.length} mots en jeu</span>
+        <strong>{items.map((item) => item.word).join(' · ')}</strong>
+      </summary>
       <div>
         {items.map((item) => (
           <Link
@@ -1066,7 +1103,7 @@ function FeuilletonVocabularyStrip({ vocabulary }: { vocabulary: FeuilletonVocab
           </Link>
         ))}
       </div>
-    </div>
+    </details>
   );
 }
 
@@ -1140,6 +1177,7 @@ function PageScene({
   revealedMobileStopIds,
   showMobileTranslations,
   targetVocabulary,
+  readFirst = false,
 }: {
   scene: GraphicNovelScene;
   answers: Record<string, string>;
@@ -1151,6 +1189,7 @@ function PageScene({
   revealedMobileStopIds: string[];
   showMobileTranslations: boolean;
   targetVocabulary: FeuilletonVocabularyItem[];
+  readFirst?: boolean;
 }) {
   const pageImage = scene.script_payload?.page_image;
   const pageFallback = Boolean(pageImage?.fallback_used);
@@ -1198,6 +1237,7 @@ function PageScene({
             revealed={revealedMobileStopIds.includes(panelTaskStop(panel, []).id)}
             showMobileTranslations={showMobileTranslations}
             targetVocabulary={targetVocabulary}
+            readFirst={readFirst}
           />
         ))}
       </section>
@@ -1216,6 +1256,7 @@ function PanelAnnotation({
   revealed,
   showMobileTranslations,
   targetVocabulary,
+  readFirst = false,
 }: {
   panel: GraphicNovelPanel;
   answers: Record<string, string>;
@@ -1227,6 +1268,7 @@ function PanelAnnotation({
   revealed: boolean;
   showMobileTranslations: boolean;
   targetVocabulary: FeuilletonVocabularyItem[];
+  readFirst?: boolean;
 }) {
   const overlay = panel.overlay_payload || {};
   const tasks = (overlay.tasks || []) as OverlayTask[];
@@ -1241,8 +1283,8 @@ function PanelAnnotation({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: (panel.panel_index || 1) * 0.08 }}
       className="paper panel-annotation"
-      id={stop.elementId}
-      data-mobile-task-stop={stop.id}
+      id={readFirst ? `reading-${stop.elementId}` : stop.elementId}
+      data-mobile-task-stop={readFirst ? undefined : stop.id}
     >
       <div className="panel-head">
         <span className="t-mono">PANEL {panel.panel_index}</span>
@@ -1255,19 +1297,34 @@ function PanelAnnotation({
       ) : (
         <p>{panel.beat}</p>
       )}
-      <MobileStoryTaskLauncher stop={stop} attemptsByTask={attemptsByTask} onOpenMobileTask={onOpenMobileTask} revealed={revealed} />
-      {mobileTasks.map((task) => (
-        <TaskControls
-          key={task.id}
-          task={task}
-          value={answers[task.id] || ''}
-          setValue={(value) => setAnswer(task.id, value)}
-          onSubmit={() => onSubmit(task)}
-          submitting={submittingTask === task.id}
-          attempt={attemptsByTask[task.id]}
+      {readFirst ? (
+        <PanelInlineTaskDisclosure
+          stop={stop}
+          tasks={mobileTasks}
+          answers={answers}
+          setAnswer={setAnswer}
+          onSubmit={onSubmit}
+          submittingTask={submittingTask}
+          attemptsByTask={attemptsByTask}
           targetVocabulary={targetVocabulary}
         />
-      ))}
+      ) : (
+        <>
+          <MobileStoryTaskLauncher stop={stop} attemptsByTask={attemptsByTask} onOpenMobileTask={onOpenMobileTask} revealed={revealed} />
+          {mobileTasks.map((task) => (
+            <TaskControls
+              key={task.id}
+              task={task}
+              value={answers[task.id] || ''}
+              setValue={(value) => setAnswer(task.id, value)}
+              onSubmit={() => onSubmit(task)}
+              submitting={submittingTask === task.id}
+              attempt={attemptsByTask[task.id]}
+              targetVocabulary={targetVocabulary}
+            />
+          ))}
+        </>
+      )}
     </motion.article>
   );
 }
@@ -1283,6 +1340,7 @@ function PanelCard({
   revealed,
   showMobileTranslations,
   targetVocabulary,
+  readFirst = false,
 }: {
   panel: GraphicNovelPanel;
   answers: Record<string, string>;
@@ -1294,6 +1352,7 @@ function PanelCard({
   revealed: boolean;
   showMobileTranslations: boolean;
   targetVocabulary: FeuilletonVocabularyItem[];
+  readFirst?: boolean;
 }) {
   const overlay = panel.overlay_payload || {};
   const tasks = (overlay.tasks || []) as OverlayTask[];
@@ -1312,8 +1371,8 @@ function PanelCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: (panel.panel_index || 1) * 0.08 }}
       className="panel-card"
-      id={stop.elementId}
-      data-mobile-task-stop={stop.id}
+      id={readFirst ? `reading-${stop.elementId}` : stop.elementId}
+      data-mobile-task-stop={readFirst ? undefined : stop.id}
     >
       <div className={`panel-image ${shouldUseFallback ? 'fallback-panel' : 'generated-panel'}`}>
         {shouldUseFallback ? (
@@ -1333,57 +1392,211 @@ function PanelCard({
         <div className="panel-head">
           <span className="t-mono">PANEL {panel.panel_index}</span>
           <strong>{panel.title}</strong>
-        </div>
+          </div>
         <PanelVocabularyMarker items={panelVocabulary} />
-        <div className="mobile-panel-dialogue">
-          <BubbleTranscript bubbles={bubbles} showMobileTranslations={showMobileTranslations} />
-        </div>
-        {caption.fr ? (
-          <CaptionBlock caption={caption} showMobileTranslations={showMobileTranslations} />
-        ) : (
-          <p>{panel.beat}</p>
+        {bubbles.some((bubble) => bubble?.fr) && (
+          <details className="mobile-panel-dialogue">
+            <summary>Dialogue transcript</summary>
+            <BubbleTranscript bubbles={bubbles} showMobileTranslations={showMobileTranslations} />
+          </details>
         )}
-        <MobileStoryTaskLauncher stop={stop} attemptsByTask={attemptsByTask} onOpenMobileTask={onOpenMobileTask} revealed={revealed} />
-        {mobileTasks.map((task) => (
+      {caption.fr ? (
+        <CaptionBlock caption={caption} showMobileTranslations={showMobileTranslations} />
+      ) : (
+        <p>{panel.beat}</p>
+      )}
+        {readFirst ? (
+          <PanelInlineTaskDisclosure
+            stop={stop}
+            tasks={mobileTasks}
+            answers={answers}
+            setAnswer={setAnswer}
+            onSubmit={onSubmit}
+            submittingTask={submittingTask}
+            attemptsByTask={attemptsByTask}
+            targetVocabulary={targetVocabulary}
+          />
+        ) : (
+          <>
+            <MobileStoryTaskLauncher stop={stop} attemptsByTask={attemptsByTask} onOpenMobileTask={onOpenMobileTask} revealed={revealed} />
+            {mobileTasks.map((task) => (
+              <TaskControls
+                key={task.id}
+                task={task}
+                value={answers[task.id] || ''}
+                setValue={(value) => setAnswer(task.id, value)}
+                onSubmit={() => onSubmit(task)}
+                submitting={submittingTask === task.id}
+                attempt={attemptsByTask[task.id]}
+                targetVocabulary={targetVocabulary}
+              />
+            ))}
+          </>
+        )}
+      </div>
+    </motion.article>
+  );
+}
+
+function ReadFirstTaskSection({
+  scene,
+  answers,
+  setAnswer,
+  onSubmit,
+  submittingTask,
+  attemptsByTask,
+  targetVocabulary,
+}: {
+  scene: GraphicNovelScene;
+  answers: Record<string, string>;
+  setAnswer: (taskId: string, value: string) => void;
+  onSubmit: (task: OverlayTask) => void;
+  submittingTask: string | null;
+  attemptsByTask: Record<string, Record<string, any>>;
+  targetVocabulary: FeuilletonVocabularyItem[];
+}) {
+  if (scene.script_payload?.experience_mode === 'reward') return null;
+  const groups = (scene.panels || [])
+    .map((panel) => {
+      const tasks: OverlayTask[] = ((panel.overlay_payload?.tasks || []) as OverlayTask[])
+        .map((task): OverlayTask => ({ ...task, panel }))
+        .filter((task) => task.id && !attemptsByTask[task.id]);
+      return { panel, tasks, stop: panelTaskStop(panel, tasks) };
+    })
+    .filter((group) => group.tasks.some((task) => task.id));
+  if (!groups.length) return null;
+  return (
+    <section className="paper read-first-task-section" aria-label="Unfinished episode tasks">
+      <div className="read-first-head">
+        <span className="t-mono red">Encore à toi</span>
+        <h3>Unfinished panel tasks.</h3>
+        <p>Everything here is still anchored to its panel above; this is only the end-of-read catch-up list.</p>
+      </div>
+      <div className="read-first-groups">
+        {groups.map(({ panel, tasks, stop }) => (
+          <article key={stop.id} id={stop.elementId} data-mobile-task-stop={stop.id} className="read-first-group">
+            <div className="panel-head">
+              <span className="t-mono">PANEL {panel.panel_index}</span>
+              <strong>{panel.title}</strong>
+            </div>
+            {tasks.map((task) => (
+              <TaskControls
+                key={task.id}
+                task={task}
+                value={answers[task.id] || ''}
+                setValue={(value) => setAnswer(task.id, value)}
+                onSubmit={() => onSubmit(task)}
+                submitting={submittingTask === task.id}
+                attempt={attemptsByTask[task.id]}
+                targetVocabulary={targetVocabulary}
+              />
+            ))}
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function PanelInlineTaskDisclosure({
+  stop,
+  tasks,
+  answers,
+  setAnswer,
+  onSubmit,
+  submittingTask,
+  attemptsByTask,
+  targetVocabulary,
+}: {
+  stop: MobileTaskStop;
+  tasks: OverlayTask[];
+  answers: Record<string, string>;
+  setAnswer: (taskId: string, value: string) => void;
+  onSubmit: (task: OverlayTask) => void;
+  submittingTask: string | null;
+  attemptsByTask: Record<string, Record<string, any>>;
+  targetVocabulary: FeuilletonVocabularyItem[];
+}) {
+  const validTasks = tasks.filter((task) => task.id);
+  const [open, setOpen] = useState(false);
+  const drawerId = `drawer-${stop.id}`;
+  const pending = validTasks.filter((task) => !attemptsByTask[task.id]).length;
+  const reviewed = validTasks.length - pending;
+  useEffect(() => {
+    const element = document.getElementById(drawerId);
+    const listener = () => setOpen(true);
+    element?.addEventListener('feuilleton-open-task-drawer', listener);
+    return () => element?.removeEventListener('feuilleton-open-task-drawer', listener);
+  }, [drawerId]);
+  if (!validTasks.length) return null;
+  const submit = (task: OverlayTask) => {
+    setOpen(true);
+    onSubmit(task);
+    window.setTimeout(() => openNextPanelTaskDrawer(drawerId), 200);
+  };
+  return (
+    <details
+      id={drawerId}
+      className="panel-task-drawer"
+      data-panel-task-drawer="true"
+      data-has-pending={pending > 0 ? 'true' : 'false'}
+      open={open}
+      onToggle={(event) => setOpen((event.currentTarget as HTMLDetailsElement).open)}
+    >
+      <summary>
+        <span>À toi — {pending > 0 ? `${pending} à faire` : 'fait'}</span>
+        <small>{reviewed}/{validTasks.length}</small>
+      </summary>
+      <div className="panel-task-drawer-body">
+        {validTasks.map((task) => (
           <TaskControls
             key={task.id}
             task={task}
             value={answers[task.id] || ''}
             setValue={(value) => setAnswer(task.id, value)}
-            onSubmit={() => onSubmit(task)}
+            onSubmit={() => submit(task)}
             submitting={submittingTask === task.id}
             attempt={attemptsByTask[task.id]}
             targetVocabulary={targetVocabulary}
           />
         ))}
       </div>
-    </motion.article>
+    </details>
   );
+}
+
+function openNextPanelTaskDrawer(currentDrawerId: string) {
+  if (typeof document === 'undefined') return;
+  const drawers = Array.from(document.querySelectorAll<HTMLElement>('[data-panel-task-drawer="true"][data-has-pending="true"]'));
+  const index = drawers.findIndex((drawer) => drawer.id === currentDrawerId);
+  const next = drawers[index + 1];
+  if (!next) return;
+  next.dispatchEvent(new CustomEvent('feuilleton-open-task-drawer'));
 }
 
 function BubbleOverlay({ bubbles, showMobileTranslations }: { bubbles: PanelBubble[]; showMobileTranslations: boolean }) {
   const visible = bubbles.filter((bubble) => bubble?.fr);
+  const [translated, setTranslated] = useState<Record<number, boolean>>({});
   if (!visible.length) return null;
   return (
     <div className="bubble-layer" aria-label="Panel dialogue">
       {visible.slice(0, 2).map((bubble, index) => (
-        <div
+        <button
+          type="button"
           className={`speech-bubble bubble-${index + 1} tone-${bubble.tone || 'deadpan'}`}
           key={`${bubble.speaker || 'bubble'}-${index}`}
+          aria-label={bubble.en ? `Toggle ${bubble.speaker || 'dialogue'} translation` : `${bubble.speaker || 'Dialogue'} bubble`}
+          onClick={() => bubble.en && setTranslated((current) => ({ ...current, [index]: !current[index] }))}
           style={{
             left: `${clampPercent(bubble.x, index === 0 ? 12 : 54)}%`,
             top: `${clampPercent(bubble.y, index === 0 ? 12 : 28)}%`,
+            borderColor: bubble.accent_color || bubble.accent_colour || undefined,
           }}
         >
           {bubble.speaker && <span>{bubble.speaker}</span>}
-          <p>{bubble.fr}</p>
-          {bubble.en && (
-            <details className={`bubble-translation ${showMobileTranslations ? 'mobile-en-visible' : ''}`} open={showMobileTranslations || undefined}>
-              <summary>EN</summary>
-              <p>{bubble.en}</p>
-            </details>
-          )}
-        </div>
+          <p>{(showMobileTranslations || translated[index]) && bubble.en ? bubble.en : bubble.fr}</p>
+          {bubble.en && <small>{(showMobileTranslations || translated[index]) ? 'FR' : 'EN'}</small>}
+        </button>
       ))}
     </div>
   );
@@ -1451,9 +1664,13 @@ function sceneImageStatus(scene: GraphicNovelScene) {
 function stripInternalSourceLanguage(text: unknown) {
   return String(text || '')
     .replace(/^Safe political news seed for\s+\d{4}-\d{2}-\d{2}:\s*/i, '')
+    .replace(/^(résumé|resume|summary|titre|title)\s*[:：]\s*/i, '')
+    .replace(/\b(source_policy|safe political|fictionalize|fictionalise)\b[:\s][^.;]*/gi, '')
     .replace(/\s*The scene should fictionalize[^.]*\./gi, '')
     .replace(/\s*avoid depicting real politicians[^.]*\./gi, '')
     .replace(/\s*keep the humour dry rather than cruel\.?/gi, '')
+    .replace(/[{}[\]"]/g, '')
+    .replace(/\s+([,.;:!?])/g, '$1')
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -1501,6 +1718,30 @@ function displayTaskInstruction(task: Record<string, any>) {
   return instruction || 'Complétez la tâche.';
 }
 
+function choiceOptionView(option: unknown): ChoiceOptionView | null {
+  if (typeof option === 'string') {
+    const text = option.trim();
+    if (!text) return null;
+    const match = text.match(/^([A-Da-d])\s*[:.)-]\s*(.+)$/);
+    if (match) {
+      return { value: match[1].toUpperCase(), label: match[1].toUpperCase(), text: match[2].trim(), en: '' };
+    }
+    return { value: text, label: text.length <= 3 ? text : '', text, en: '' };
+  }
+  if (!option || typeof option !== 'object') return null;
+  const record = option as Record<string, any>;
+  const value = String(record.value || record.id || record.label || '').trim();
+  const label = String(record.label || value).trim();
+  const text = String(record.fr || record.text || record.line || label || value).trim();
+  if (!value || !text) return null;
+  return {
+    value,
+    label,
+    text,
+    en: String(record.en || record.translation || '').trim(),
+  };
+}
+
 function correctionIsPositive(correction: Record<string, any> | null | undefined) {
   return correction?.verdict === 'correct' || correction?.verdict === 'accepted';
 }
@@ -1531,7 +1772,7 @@ function mobileTaskLauncherCopy(tasks: OverlayTask[], attemptsByTask: Record<str
 
 function completionTakeaway(scene: GraphicNovelScene) {
   const grammarTarget = (scene.script_payload?.targets || []).find((target: any) => target.kind === 'grammar' && target.label);
-  if (grammarTarget?.label) return `Watch for ${grammarTarget.label} when the story pressure changes.`;
+  if (grammarTarget?.label) return `Watch for ${grammarTarget.label} when the scene pressure changes.`;
   const firstPanelTask = extractTasks(scene).find((task) => task.label || task.instruction);
   if (firstPanelTask?.label) return `Today's repair centered on ${firstPanelTask.label}.`;
   return 'Keep the French sentence anchored to the panel before adding the joke.';
@@ -1685,7 +1926,8 @@ function TaskControls({
   const correction = attempt?.correction;
   const isChoice = task.task_type === 'choice';
   const isClosed = task.task_type === 'cloze' || isChoice;
-  const hasOptions = Array.isArray(task.options) && task.options.length > 0;
+  const choiceOptions = Array.isArray(task.options) ? task.options.map(choiceOptionView).filter(Boolean) as ChoiceOptionView[] : [];
+  const hasOptions = choiceOptions.length > 0;
   const isCorrect = correctionIsPositive(correction);
   const errataCount = Array.isArray(correction?.errata) ? correction.errata.length : 0;
   const verdictLabel = correction?.verdict
@@ -1715,9 +1957,11 @@ function TaskControls({
       )}
       {hasOptions && (
         <div className="option-row">
-          {task.options.map((option: string) => (
-            <button key={option} className={value === option ? 'selected' : ''} onClick={() => setValue(option)} type="button">
-              {option}
+          {choiceOptions.map((option) => (
+            <button key={option.value} className={value === option.value ? 'selected' : ''} onClick={() => setValue(option.value)} type="button">
+              <span>{option.label}</span>
+              <strong>{option.text}</strong>
+              {option.en && <small>{option.en}</small>}
             </button>
           ))}
         </div>
@@ -2718,10 +2962,29 @@ function FeuilletonStyles() {
         border-bottom: 1px solid var(--ink);
         padding: 11px 0;
       }
+      .feuilleton-vocabulary-strip summary {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 14px;
+        cursor: pointer;
+        list-style: none;
+      }
+      .feuilleton-vocabulary-strip summary::-webkit-details-marker {
+        display: none;
+      }
+      .feuilleton-vocabulary-strip summary strong {
+        color: var(--ink-2);
+        font-size: 13px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
       .feuilleton-vocabulary-strip > div {
         display: flex;
         flex-wrap: wrap;
         gap: 8px;
+        padding-top: 9px;
       }
       .feuilleton-vocabulary-strip > div > a {
         display: inline-flex;
@@ -2926,6 +3189,24 @@ function FeuilletonStyles() {
       .source-card { margin-top: 18px; border-left: 4px solid var(--yellow); background: var(--paper-2); padding: 14px 18px; max-width: 780px; }
       .source-card strong { display: block; margin: 8px 0; font-size: 18px; line-height: 1.15; }
       .source-card p { margin: 0; color: var(--ink-2); line-height: 1.45; }
+      .compact-source {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 12px;
+        border-left-width: 3px;
+      }
+      .compact-source strong {
+        margin: 0;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .compact-source .source-meta {
+        margin-left: auto;
+        white-space: nowrap;
+      }
       .source-translation {
         margin-top: 10px;
         border-top: 1px solid rgba(20,17,13,.18);
@@ -3252,6 +3533,9 @@ function FeuilletonStyles() {
         padding: 10px 12px;
         box-shadow: 5px 5px 0 var(--ink);
         transform: rotate(-.5deg);
+        color: var(--ink);
+        font: inherit;
+        text-align: left;
         pointer-events: auto;
         transition: transform 0.2s ease-out, box-shadow 0.2s ease-out, border-color 0.2s ease-out;
       }
@@ -3298,26 +3582,14 @@ function FeuilletonStyles() {
         color: var(--blue);
       }
       .speech-bubble p { margin: 0; font-family: var(--serif); font-size: clamp(15px, 1.8vw, 21px); font-style: italic; line-height: 1.12; }
-      .bubble-translation {
+      .speech-bubble small {
+        display: inline-block;
         margin-top: 6px;
-        border-top: 1px solid var(--paper-3);
-        padding-top: 4px;
-        font-size: 11px;
-        color: var(--ink-2);
-      }
-      .bubble-translation summary {
-        cursor: pointer;
-        font-family: var(--mono);
-        letter-spacing: .12em;
-        font-size: 9px;
         color: var(--blue);
-      }
-      .bubble-translation p {
-        margin-top: 3px;
-        font-family: var(--sans);
-        font-size: 12px;
-        font-style: normal;
-        line-height: 1.25;
+        font-family: var(--mono);
+        font-size: 9px;
+        font-weight: 900;
+        letter-spacing: .12em;
       }
       .bubble-transcript {
         display: grid;
@@ -3350,6 +3622,72 @@ function FeuilletonStyles() {
       }
       .panel-body { padding: 18px; display: grid; gap: 14px; }
       .panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--paper-3); padding-bottom: 9px; }
+      .read-first-task-section {
+        display: grid;
+        gap: 18px;
+        padding: 20px;
+        background: var(--paper);
+      }
+      .read-first-head h3 {
+        margin: 6px 0 7px;
+        font-family: var(--serif);
+        font-size: 31px;
+        font-style: italic;
+        line-height: 1;
+      }
+      .read-first-head p {
+        margin: 0;
+        color: var(--ink-2);
+        line-height: 1.4;
+      }
+      .read-first-groups {
+        display: grid;
+        gap: 14px;
+      }
+      .read-first-group {
+        display: grid;
+        gap: 12px;
+        border: 1.5px solid var(--ink);
+        background: var(--paper-2);
+        padding: 14px;
+      }
+      .panel-task-drawer {
+        border: 1.5px solid var(--ink);
+        background: var(--paper);
+        box-shadow: 4px 4px 0 var(--ink);
+      }
+      .panel-task-drawer summary {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 12px;
+        min-height: 46px;
+        padding: 0 13px;
+        cursor: pointer;
+        list-style: none;
+      }
+      .panel-task-drawer summary::-webkit-details-marker {
+        display: none;
+      }
+      .panel-task-drawer summary span {
+        color: var(--red);
+        font-size: 12px;
+        font-weight: 900;
+        letter-spacing: .12em;
+        text-transform: uppercase;
+      }
+      .panel-task-drawer summary small {
+        color: var(--ink-2);
+        font-family: var(--mono);
+        font-size: 10px;
+        font-weight: 900;
+      }
+      .panel-task-drawer-body {
+        display: grid;
+        gap: 12px;
+        border-top: 1.5px solid var(--ink);
+        padding: 12px;
+      }
       .panel-body > p { margin: 0; color: var(--ink-2); line-height: 1.4; }
       .panel-caption {
         display: grid;
@@ -3416,8 +3754,11 @@ function FeuilletonStyles() {
         font-style: normal;
         line-height: 1.35;
       }
-      .option-row { display: flex; flex-wrap: wrap; gap: 8px; }
-      .option-row button { border: 1px solid var(--ink); background: var(--paper); padding: 8px 10px; font-family: var(--serif); font-size: 18px; font-style: italic; }
+      .option-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; }
+      .option-row button { display: grid; gap: 3px; min-height: 64px; border: 1px solid var(--ink); background: var(--paper); padding: 8px 10px; text-align: left; }
+      .option-row button span { color: var(--blue); font-family: var(--mono); font-size: 10px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }
+      .option-row button strong { font-family: var(--serif); font-size: 18px; font-style: italic; line-height: 1.12; }
+      .option-row button small { color: var(--ink-2); font-size: 12px; line-height: 1.2; }
       .option-row button.selected { background: var(--ink); color: var(--paper); }
       .task-box input, .task-box textarea { width: 100%; border: 1px solid var(--ink); background: var(--paper); padding: 11px 12px; outline: none; box-shadow: 4px 4px 0 var(--ink); font-family: var(--serif); font-size: 20px; font-style: italic; }
       .task-box textarea { min-height: 100px; resize: vertical; }
@@ -3823,6 +4164,12 @@ function FeuilletonStyles() {
         .feuilleton-page .feuilleton-vocabulary-strip {
           margin-top: 12px;
         }
+        .feuilleton-page .feuilleton-vocabulary-strip summary {
+          align-items: center;
+        }
+        .feuilleton-page .feuilleton-vocabulary-strip summary strong {
+          max-width: 58%;
+        }
         .feuilleton-page .feuilleton-vocabulary-strip > div {
           display: grid;
           grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3874,6 +4221,15 @@ function FeuilletonStyles() {
           gap: 7px;
           overflow-wrap: anywhere;
         }
+        .feuilleton-page .compact-source {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr);
+          gap: 5px;
+        }
+        .feuilleton-page .compact-source .source-meta {
+          margin-left: 0;
+          display: flex;
+        }
         .feuilleton-page .panel-grid {
           gap: 16px;
         }
@@ -3905,7 +4261,7 @@ function FeuilletonStyles() {
           border-bottom-width: 1px;
         }
         .feuilleton-page .speech-bubble {
-          max-width: 58%;
+          max-width: 54%;
           min-width: 112px;
           padding: 8px 9px;
           box-shadow: 3px 3px 0 var(--ink);
@@ -3923,13 +4279,22 @@ function FeuilletonStyles() {
           overflow-wrap: anywhere;
         }
         .feuilleton-page .bubble-layer {
-          display: none;
-        }
-        .feuilleton-page .mobile-panel-dialogue {
           display: block;
         }
-        .feuilleton-page .mobile-panel-dialogue:empty {
-          display: none;
+        .feuilleton-page .mobile-panel-dialogue {
+          display: grid;
+          gap: 7px;
+          border: 1px solid var(--ink);
+          background: var(--paper);
+          padding: 9px 10px;
+        }
+        .feuilleton-page .mobile-panel-dialogue summary {
+          cursor: pointer;
+          color: var(--blue);
+          font-size: 10px;
+          font-weight: 900;
+          letter-spacing: .12em;
+          text-transform: uppercase;
         }
         .feuilleton-page .mobile-panel-dialogue .bubble-transcript {
           gap: 6px;
@@ -3942,12 +4307,10 @@ function FeuilletonStyles() {
           font-size: 19px;
           line-height: 1.18;
         }
-        .feuilleton-page .bubble-translation,
         .feuilleton-page .bubble-transcript small,
         .feuilleton-page .caption-translation {
           display: none;
         }
-        .feuilleton-page .bubble-translation.mobile-en-visible,
         .feuilleton-page .bubble-transcript small.mobile-en-visible,
         .feuilleton-page .caption-translation.mobile-en-visible {
           display: block;
@@ -3959,6 +4322,20 @@ function FeuilletonStyles() {
         .feuilleton-page .panel-head {
           display: grid;
           gap: 4px;
+        }
+        .feuilleton-page .read-first-task-section {
+          padding: 15px;
+          gap: 14px;
+        }
+        .feuilleton-page .read-first-head h3 {
+          font-size: 27px;
+        }
+        .feuilleton-page .read-first-group {
+          padding: 12px;
+          gap: 11px;
+        }
+        .feuilleton-page .panel-task-drawer summary {
+          min-height: 44px;
         }
         .feuilleton-page .caption-fr {
           font-size: 21px;

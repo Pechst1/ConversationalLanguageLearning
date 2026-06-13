@@ -29,3 +29,15 @@ def test_serial_archive_cast_and_replay_pages_are_wired() -> None:
     assert "mission-replay" in replay
     assert "getSerialEpisodes()" in api
     assert "getSerialCast()" in api
+
+def test_graphic_novel_serial_page_keeps_bubbles_and_panel_tasks_inline() -> None:
+    source = read_web("pages/graphic-novel.tsx")
+
+    assert "function PanelInlineTaskDisclosure" in source
+    assert "À toi —" in source
+    assert "data-panel-task-drawer" in source
+    assert 'className="panel-task-drawer"' in source
+    assert 'className="source-card compact-source"' in source
+    assert '<details className="feuilleton-vocabulary-strip"' in source
+    assert "display: block;" in source[source.index(".feuilleton-page .bubble-layer") : source.index(".feuilleton-page .mobile-panel-dialogue")]
+    assert "choiceOptionView" in source
