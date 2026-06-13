@@ -1,6 +1,5 @@
 import React, { useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { useSession } from 'next-auth/react';
 import { Toaster } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import EditorialMasthead from './EditorialMasthead';
@@ -13,6 +12,7 @@ import {
 } from '@/lib/app-preferences';
 import { resolveBrowserApiBaseUrl } from '@/services/api';
 import { cn } from '@/lib/utils';
+import { useAppSession } from '@/lib/app-auth';
 import { resolveProductSection, routeUsesOwnProductShell } from '@/lib/product-shell';
 
 interface LayoutProps {
@@ -23,7 +23,7 @@ interface LayoutProps {
 
 export default function Layout({ children, showSidebar = true, className }: LayoutProps) {
   const router = useRouter();
-  const { data: session, status } = useSession();
+  const { data: session, status } = useAppSession();
 
   const isPublicRoute = router.pathname === '/' || router.pathname.startsWith('/auth');
   const usesOwnShell = routeUsesOwnProductShell(router.pathname);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getSession, signOut } from 'next-auth/react';
+import { getSession } from 'next-auth/react';
 import toast from 'react-hot-toast';
 import {
     User,
@@ -29,6 +29,7 @@ import {
     type AppTheme,
 } from '@/lib/app-preferences';
 import { apiService as api } from '@/services/api';
+import { appSignOut } from '@/lib/app-auth';
 
 interface UserSettings {
     // Profile
@@ -279,7 +280,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
         setIsSaving(true);
         try {
             await api.deleteAccount();
-            await signOut({ callbackUrl: '/' });
+            await appSignOut({ callbackUrl: '/' });
         } catch (error) {
             console.error('Failed to delete account:', error);
             setSaveMessage('Failed to delete account. Please try again.');
@@ -301,7 +302,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
             });
             setPasswordForm({ currentPassword: '', newPassword: '' });
             toast.success('Password changed. Please sign in again.');
-            await signOut({ callbackUrl: '/auth/signin' });
+            await appSignOut({ callbackUrl: '/auth/signin' });
         } catch (error) {
             console.error('Failed to change password:', error);
             toast.error('Could not change password.');
@@ -324,7 +325,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
             setSettings((prev) => ({ ...prev, email: updated.email || emailForm.newEmail }));
             setEmailForm({ currentPassword: '', newEmail: '' });
             toast.success('Email changed. Please sign in again.');
-            await signOut({ callbackUrl: '/auth/signin' });
+            await appSignOut({ callbackUrl: '/auth/signin' });
         } catch (error) {
             console.error('Failed to change email:', error);
             toast.error('Could not change email.');
@@ -361,7 +362,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
         try {
             await api.signOutAllDevices();
             toast.success('Signed out everywhere.');
-            await signOut({ callbackUrl: '/auth/signin' });
+            await appSignOut({ callbackUrl: '/auth/signin' });
         } catch (error) {
             console.error('Failed to sign out all devices:', error);
             toast.error('Could not sign out all devices.');

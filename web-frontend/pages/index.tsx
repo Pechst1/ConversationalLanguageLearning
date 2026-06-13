@@ -1,4 +1,4 @@
-import { getSession, useSession } from 'next-auth/react';
+import { getSession } from 'next-auth/react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { useEffect } from 'react';
@@ -6,9 +6,10 @@ import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { ArrowRight, BookOpen, Clock3, MessageCircle, Newspaper, Target } from 'lucide-react';
 import EditorialMasthead from '@/components/layout/EditorialMasthead';
+import { useAppSession } from '@/lib/app-auth';
 
 export default function HomePage() {
-  const { status } = useSession();
+  const { status } = useAppSession();
   const router = useRouter();
 
   useEffect(() => {

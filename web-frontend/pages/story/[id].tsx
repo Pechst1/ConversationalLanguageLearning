@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getSession, useSession } from 'next-auth/react';
+import { getSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import {
@@ -20,6 +20,7 @@ import {
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import ImmersiveStoryView from '@/components/story/ImmersiveStoryView';
+import { useAppSession } from '@/lib/app-auth';
 
 // Types
 interface Scene {
@@ -92,7 +93,7 @@ interface StoryPageProps {
 
 export default function StoryPage({ storyData, storyId, error }: StoryPageProps) {
     const router = useRouter();
-    const { data: session } = useSession();
+    const { data: session } = useAppSession();
     const [scene, setScene] = useState<Scene | null>(storyData?.scene || null);
     const [chapter, setChapter] = useState<Chapter | null>(storyData?.chapter || null);
     const [progress, setProgress] = useState<StoryProgress | null>(storyData?.progress || null);

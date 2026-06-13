@@ -1,4 +1,6 @@
 import React, { useState, useRef } from 'react';
+import { getAppAccessToken } from '@/lib/app-auth';
+import { resolveBrowserApiBaseUrl } from '@/services/api';
 import { Mic, Square, Loader2 } from 'lucide-react';
 
 interface VoiceInputProps {
@@ -53,13 +55,9 @@ export default function VoiceInput({ onTranscript, disabled }: VoiceInputProps) 
             const formData = new FormData();
             formData.append('file', blob, 'recording.webm');
 
-            // Get session from NextAuth for authentication
-            const { getSession } = await import('next-auth/react');
-            const session = await getSession();
-            const token = (session as any)?.accessToken;
+            const token = await getAppAccessToken();
 
-            const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
-            const response = await fetch(`${baseUrl}/audio/transcribe`, {
+            const response = await fetch(`${resolveBrowserApiBaseUrl()}/audio/transcribe`, {
                 method: 'POST',
                 headers: token ? {
                     'Authorization': `Bearer ${token}`,

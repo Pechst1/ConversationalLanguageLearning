@@ -1,6 +1,6 @@
 import React from 'react';
 import Head from 'next/head';
-import { signIn, getSession } from 'next-auth/react';
+import { getSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
@@ -9,6 +9,7 @@ import * as yup from 'yup';
 import { ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { useAppAuth } from '@/lib/app-auth';
 import toast from 'react-hot-toast';
 
 const schema = yup.object({
@@ -23,6 +24,7 @@ const authInputClass =
 
 export default function SignInPage() {
   const router = useRouter();
+  const auth = useAppAuth();
   const [isLoading, setIsLoading] = React.useState(false);
 
   const {
@@ -40,11 +42,7 @@ export default function SignInPage() {
         typeof router.query.callbackUrl === 'string'
           ? router.query.callbackUrl
           : '/atelier';
-      const result = await signIn('credentials', {
-        email: data.email,
-        password: data.password,
-        redirect: false,
-      });
+      const result = await auth.signInWithCredentials(data.email, data.password);
 
       if (result?.error) {
         toast.error('Invalid credentials. Please try again.');

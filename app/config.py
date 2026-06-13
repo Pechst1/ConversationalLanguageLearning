@@ -30,6 +30,8 @@ class Settings(BaseSettings):
             "http://localhost",
             "http://localhost:3000",
             "http://127.0.0.1:3000",
+            "capacitor://localhost",
+            "ionic://localhost",
         ],
         description="Allowed CORS origins",
     )

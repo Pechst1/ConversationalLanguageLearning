@@ -1,7 +1,9 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
-import { getSession } from 'next-auth/react';
 import toast from 'react-hot-toast';
 
+import { getAppAccessToken } from '@/lib/app-auth';
+import { clearNativeAuthSession, refreshNativeAccessToken } from '@/lib/native-auth';
+import { isNativePlatform } from '@/lib/native-platform';
 import { AnkiReviewResponse, ReviewResponse } from '@/types/reviews';
 
 export interface LiveStory {
@@ -836,6 +838,7 @@ function apiErrorMessage(error: any): string {
 type SilentRequestConfig = AxiosRequestConfig & {
   suppressGlobalError?: boolean;
   skipAuth?: boolean;
+  _retryAuth?: boolean;
 };
 
 function isUnauthorized(error: any): boolean {
@@ -843,8 +846,9 @@ function isUnauthorized(error: any): boolean {
 }
 
 export function resolveBrowserApiBaseUrl() {
-  const configured = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+  const configured = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
   if (typeof window === 'undefined') return configured;
+  if (isNativePlatform()) return configured;
 
   try {
     const url = new URL(configured);
@@ -879,9 +883,9 @@ class ApiService {
     this.api.interceptors.request.use(
       async (config) => {
         const requestConfig = config as SilentRequestConfig;
-        const session = requestConfig.skipAuth ? null : await getSession();
-        if (!requestConfig.skipAuth && session?.accessToken) {
-          config.headers.Authorization = `Bearer ${session.accessToken}`;
+        const token = requestConfig.skipAuth ? null : await getAppAccessToken();
+        if (!requestConfig.skipAuth && token) {
+          config.headers.Authorization = `Bearer ${token}`;
         }
         return config;
       },
@@ -893,9 +897,27 @@ class ApiService {
     // Response interceptor for error handling
     this.api.interceptors.response.use(
       (response: AxiosResponse) => response,
-      (error) => {
+      async (error) => {
         const detail = error.response?.data?.detail;
         const message = apiErrorMessage(error);
+        const requestConfig = error.config as SilentRequestConfig | undefined;
+
+        if (isUnauthorized(error) && isNativePlatform() && requestConfig && !requestConfig.skipAuth && !requestConfig._retryAuth) {
+          requestConfig._retryAuth = true;
+          const token = await refreshNativeAccessToken();
+          if (token) {
+            requestConfig.headers = {
+              ...(requestConfig.headers || {}),
+              Authorization: `Bearer ${token}`,
+            };
+            return this.api.request(requestConfig);
+          }
+          await clearNativeAuthSession();
+          if (typeof window !== 'undefined' && window.location.pathname !== '/auth/signin') {
+            window.location.assign('/auth/signin');
+          }
+          return Promise.reject(error);
+        }
 
         if (detail?.code === 'feuilleton_generation_failed') {
           return Promise.reject(error);

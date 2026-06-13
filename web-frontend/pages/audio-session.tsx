@@ -10,7 +10,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/router';
-import { useSession } from 'next-auth/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Mic,
@@ -31,6 +30,7 @@ import {
 import { Button } from '@/components/ui/Button';
 import apiService from '@/services/api';
 import { RoleplaySelection } from '@/components/audio/RoleplaySelection';
+import { useAppSession } from '@/lib/app-auth';
 import Link from 'next/link';
 
 // ─────────────────────────────────────────────────────────────────
@@ -68,7 +68,7 @@ interface HelpTip {
 
 export default function AudioSessionPage() {
     const router = useRouter();
-    const { data: session, status: authStatus } = useSession();
+    const { data: session, status: authStatus } = useAppSession();
 
     // State
     const [state, setState] = useState<AudioSessionState>({

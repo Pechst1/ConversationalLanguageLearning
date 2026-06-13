@@ -1,8 +1,8 @@
-import { SessionProvider } from 'next-auth/react';
 import Head from 'next/head';
 import type { AppProps } from 'next/app';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Layout from '@/components/layout/Layout';
+import { AppAuthProvider } from '@/lib/app-auth';
 import '@/styles/globals.css';
 
 // Create a client
@@ -21,7 +21,7 @@ export default function App({
   pageProps: { session, ...pageProps },
 }: AppProps) {
   return (
-    <SessionProvider session={session}>
+    <AppAuthProvider session={session}>
       <QueryClientProvider client={queryClient}>
         <Head>
           <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -36,6 +36,6 @@ export default function App({
           <Component {...pageProps} />
         </Layout>
       </QueryClientProvider>
-    </SessionProvider>
+    </AppAuthProvider>
   );
 }

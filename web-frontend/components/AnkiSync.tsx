@@ -1,15 +1,14 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { RefreshCw, Check, AlertCircle } from 'lucide-react';
+import { useAppSession } from '@/lib/app-auth';
 
 interface AnkiSyncProps {
     onSyncComplete?: () => void;
 }
 
-import { useSession } from 'next-auth/react';
-
 export const AnkiSync: React.FC<AnkiSyncProps> = ({ onSyncComplete }) => {
-    const { data: session } = useSession();
+    const { data: session } = useAppSession();
     const [syncing, setSyncing] = useState(false);
     const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
     const [message, setMessage] = useState('');

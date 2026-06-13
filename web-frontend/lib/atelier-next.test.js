@@ -166,6 +166,12 @@ assert.deepEqual(
     vocabularyDue: 5,
     missionDone: false,
     feuilletonDone: true,
+    sessionDone: true,
+    timeBudgetMinutes: 20,
+    estimatedTotalMinutes: 20,
+    estimatedRemainingMinutes: 20,
+    filed: false,
+    nodes: [],
   },
 );
 
@@ -181,6 +187,12 @@ assert.deepEqual(
     vocabularyDue: 0,
     missionDone: false,
     feuilletonDone: false,
+    sessionDone: false,
+    timeBudgetMinutes: 20,
+    estimatedTotalMinutes: 20,
+    estimatedRemainingMinutes: 20,
+    filed: false,
+    nodes: [],
   },
 );
 

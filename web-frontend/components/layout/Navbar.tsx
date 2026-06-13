@@ -1,8 +1,8 @@
 import React from 'react';
-import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
 import { Menu, Bell, User, LogOut, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { useAppSession, appSignOut } from '@/lib/app-auth';
 import { getInitials } from '@/lib/utils';
 
 interface NavbarProps {
@@ -11,11 +11,11 @@ interface NavbarProps {
 }
 
 export default function Navbar({ onToggleSidebar, showMenuButton = true }: NavbarProps) {
-  const { data: session } = useSession();
+  const { data: session } = useAppSession();
   const [dropdownOpen, setDropdownOpen] = React.useState(false);
 
   const handleSignOut = () => {
-    signOut({ callbackUrl: '/' });
+    appSignOut({ callbackUrl: '/' });
   };
 
   return (

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { useSession } from 'next-auth/react';
+import { useAppSession } from '@/lib/app-auth';
 
 type WebSocketMessage = {
   type: 'session_ready' | 'turn_result' | 'typing' | 'heartbeat' | 'error';
@@ -201,7 +201,7 @@ class WebSocketService {
 
 // React hook for using WebSocket
 export function useWebSocket(sessionId: string) {
-  const { data: session } = useSession();
+  const { data: session } = useAppSession();
   const wsRef = useRef<WebSocketService | null>(null);
   const connectionStatusRef = useRef<boolean>(false);
   const connectedSessionIdRef = useRef<string | null>(null);
