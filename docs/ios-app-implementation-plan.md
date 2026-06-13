@@ -56,6 +56,84 @@ The app has SSR-ish coupling that WebView packaging must resolve: `pages/api/*` 
 3. Point all data calls at the hosted FastAPI base URL via a single config (`NEXT_PUBLIC_API_BASE_URL`); kill the `pages/api/proxy/*` indirection in the native path.
 **Acceptance:** native build loads with zero calls to a Next.js Node server; all data flows go straight to FastAPI.
 
+## WP-M2 Audit Gate — 2026-06-13
+
+**Scope audited:** `web-frontend/pages/api/*`, all `getServerSideProps`/`getStaticProps`/`getStaticPaths`/`getInitialProps` usage under `web-frontend/pages`, and `web-frontend/next.config.js` rewrites/redirects. Result: full static export is feasible, but it is a real migration, not a config toggle.
+
+### `pages/api/*` routes
+
+| Route | Current role | Classification for native/static export |
+|---|---|---|
+| `pages/api/auth/[...nextauth].ts` | NextAuth route backed by `lib/auth.ts`; wraps FastAPI `/api/v1/auth/login`, `/refresh`, `/logout` for web sessions. | **Web-only keep.** Native must not depend on this route; WP-M3 replaces it with direct JWT + Keychain. Full static export disables this route, so web and native builds need an explicit auth split. |
+| `pages/api/proxy/stories/[...params].ts` | Authenticated Node proxy to FastAPI `/api/v1/stories/*`, including streaming upload/status/visualization flows; used by `UploadBookModal`, `ImmersiveStoryView`, and legacy story input. | **Move native client-side to FastAPI.** This is a hard native blocker because it depends on NextAuth server session and a Node stream proxy. Web can keep it temporarily; native must call FastAPI directly with the JWT bearer token. |
+| `pages/api/anki.ts` | Local desktop proxy to AnkiConnect at `127.0.0.1:8765`, adding a permissive Origin header. | **Web-only keep / droppable native.** Native cannot rely on a Mac-local AnkiConnect server. Hide/disable native Anki sync or move to a backend-supported sync later. |
+
+### Server data hooks
+
+No `getStaticProps`, `getStaticPaths`, or `getInitialProps` usage was found. The blockers are all `getServerSideProps`:
+
+| Page | Current server behavior | Classification |
+|---|---|---|
+| `pages/achievements.tsx` | `getSession` guard + server fetch `/api/v1/achievements/my?include_locked=true`. | **Move client-side to FastAPI. Hard blocker while SSR remains.** |
+| `pages/auth/signin.tsx` | Redirects already-authenticated web sessions away from sign-in. | **Move to client auth guard. Hard blocker while SSR remains.** |
+| `pages/auth/signup.tsx` | Redirects already-authenticated web sessions away from signup. | **Move to client auth guard. Hard blocker while SSR remains.** |
+| `pages/index.tsx` | Redirects signed-in web users to `/atelier`. | **Move to client auth guard/static landing behavior. Hard blocker while SSR remains.** |
+| `pages/dashboard.tsx` | Server redirect to `/atelier`. | **Replace with static/client redirect or remove from native path. Hard blocker while SSR remains.** |
+| `pages/sessions.tsx` | `getSession` guard + server fetch `/api/v1/sessions?limit=20`. | **Move client-side to FastAPI. Hard blocker while SSR remains.** |
+| `pages/learn/index.tsx` | `getSession` guard + `resolveLearningEntryDestination`, which fetches sessions and may POST quick-start. | **Move client-side. Hard blocker while SSR remains.** |
+| `pages/learn/new.tsx` | `getSession` guard only. | **Move to client auth guard. Hard blocker while SSR remains.** |
+| `pages/learn/session/[id].tsx` | `getSession` guard only. | **Move to client auth guard. Hard blocker while SSR remains.** |
+| `pages/mobile-visual-qa.tsx` | Production `notFound` guard. | **Dev-only route; remove from native export or replace with client/dev guard. Hard blocker while SSR remains.** |
+| `pages/settings.tsx` | `getSession` guard + passes `userEmail`/`userName` props. | **Move to client auth/user profile source. Hard blocker while SSR remains.** |
+| `pages/progress.tsx` | `getSession` guard + server prefetches progress, analytics, grammar summary. | **Move client-side to FastAPI. Hard blocker while SSR remains.** |
+| `pages/practice.tsx` | `getSession` guard + server prefetches progress queue and Anki summary. | **Move client-side to FastAPI. Hard blocker while SSR remains.** |
+| `pages/stories.tsx` | `getSession` guard + server fetch `/api/v1/stories`. | **Move client-side or native-drop legacy Stories in favor of Bibliothèque. Hard blocker while SSR remains.** |
+| `pages/stories/[storyId].tsx` | `getSession` guard only. | **Move to client auth guard. Hard blocker while SSR remains.** |
+| `pages/stories/[storyId]/chapter/[chapterId].tsx` | `getSession` guard only. | **Move to client auth guard. Hard blocker while SSR remains.** |
+| `pages/story/[id].tsx` | `getSession` guard + server POST `/api/v1/stories/{id}/start`; also uses `/api/proxy/stories/*` client-side. | **Move start/resume to client FastAPI. Hard blocker while SSR remains.** |
+| `pages/bibliotheque.tsx` | Re-exports `stories.tsx` and its `getServerSideProps`. | **Inherits Stories blocker.** |
+| `pages/bibliotheque/[storyId].tsx` | Re-exports `stories/[storyId].tsx` and its `getServerSideProps`. | **Inherits story-detail blocker.** |
+
+### `next.config.js` rewrites and redirects
+
+| Config item | Current role | Static/native impact |
+|---|---|---|
+| Rewrite `/api/backend/:path*` -> `${API_URL}/api/v1/:path*` | Browser-local FastAPI proxy. `services/api.ts` currently maps local `NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1` to `/api/backend`. | **Move native to direct FastAPI. Hard blocker if native keeps this local proxy behavior.** The native data client should use `NEXT_PUBLIC_API_BASE_URL`/direct URL and never call `/api/backend`. |
+| Rewrite `/anki-connect` -> `http://127.0.0.1:8765` | Desktop AnkiConnect helper. | **Web-only keep / native drop.** Static export will not provide the rewrite. |
+| Redirect `/dashboard` -> `/atelier` | Legacy route. | **Web-only keep; static export disables it.** Native needs static client redirects or route links updated away from the legacy path. |
+| Redirect `/sessions` -> `/atelier` | Legacy route, but a `pages/sessions.tsx` file still exists and has SSR. | **Resolve conflict during migration.** Static export cannot rely on next-config redirect or page SSR. |
+| Redirect `/practice` -> `/atelier` | Legacy route, but `pages/practice.tsx` still has SSR. | **Resolve conflict during migration.** |
+| Redirect `/daily-practice` -> `/atelier` | Legacy route. | **Client/static redirect if native can reach it.** |
+| Redirect `/learn` -> `/atelier` | Legacy route, but `pages/learn/index.tsx` still resolves/creates sessions server-side. | **Owner/product decision needed:** either preserve learning-entry behavior client-side or accept redirect-only legacy behavior. |
+| Redirect `/index` -> `/atelier` | Legacy route. | **Client/static redirect if native can reach it.** |
+| Redirect `/stories` -> `/bibliotheque` | Product rename. | **Static export disables it.** Native should link directly to `/bibliotheque`; web can keep redirect. |
+| Redirect `/stories/:path*` -> `/bibliotheque/:path*` | Product rename. | **Static export disables it.** Native should avoid `/stories/*`. |
+| Redirect `/story/:id` -> `/bibliotheque/:id` | Legacy story route. | **Static export disables it.** Native should avoid `/story/*` or provide a client redirect. |
+| Redirect `/atelier/auth/signin` -> `/auth/signin` | Legacy auth route. | **Client/static redirect if native can reach it.** |
+| Redirect `/atelier/auth/signup` -> `/auth/signup` | Legacy auth route. | **Client/static redirect if native can reach it.** |
+
+### Real cost of full static export
+
+Full static export disables or removes the exact server affordances this app currently uses: `pages/api/*`, `getServerSideProps`, NextAuth server session cookies, `next.config.js` rewrites, and `next.config.js` redirects. The current tree has **3 API routes**, **19 page files/re-exports with `getServerSideProps`**, **2 rewrites**, and **11 redirects** to unwind or split for native.
+
+The migration is medium-large but bounded:
+
+- Auth-dependent pages need a shared client auth gate that works with web NextAuth and native JWT.
+- Protected initial data prefetches (`achievements`, `sessions`, `progress`, `practice`, `stories`, `story/[id]`) need to move to client-side FastAPI calls through the native-capable API client.
+- The Stories/Bibliothèque upload/visualization path must stop using the Node stream proxy in native.
+- Local desktop conveniences (`AnkiConnect`, `mobile-visual-qa`, legacy redirects) should be web-only or client-static fallbacks in native.
+- Dynamic routes need native cold-open testing after export, especially `/graphic-novel?scene=...`, `/serial/episode/...`, `/bibliotheque/[storyId]`, and `/learn/session/[id]`.
+
+This is **not** a one-line `output: 'export'` change. It is still preferable to a hosted `server.url` v1 if iOS v1 is expected to satisfy the roadmap definition of done: no Node server dependency, direct FastAPI data calls, cold-start auth from Keychain, and stronger App Review §4.2 posture.
+
+### Recommendation
+
+**Recommend A: full static export bundle for the native build, with a web/native build split and WP-M3 JWT bridge as the first enabling seam.**
+
+Do not choose B (`server.url` to hosted Next) for v1 unless the owner explicitly prioritizes fastest TestFlight smoke over the stated no-Node dependency. B remains useful for internal demos and simulator debugging, but it is online-only, keeps the Next.js Node server in the critical path, requires strict `NEXTAUTH_URL` alignment, leaves the native app looking more like a wrapped website, and does not meet the current iOS v1 definition of done.
+
+**Owner decision gate:** approve A knowing it requires the migration above, or explicitly choose B as an interim v1 compromise. No WP-M2 migration should start until that decision is made.
+
 ## WP-M3 — Auth bridge: NextAuth → direct JWT in the native shell (blocking)
 NextAuth (cookies, server session) is awkward at the `capacitor://localhost` origin. The backend already exposes `/auth/login`, `/auth/refresh`, `/auth/logout` with access+refresh JWTs.
 1. In the native build, replace NextAuth session usage with a direct JWT client: login posts to `/auth/login`, stores tokens in **`@capacitor/preferences` + Keychain via a secure-storage plugin** (not `localStorage`), attaches `Authorization: Bearer` to API + WS calls, and auto-refreshes on 401 using the rotating refresh-token endpoint.
