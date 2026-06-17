@@ -2,10 +2,12 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { ArrowRight, Check, Loader2, MapPinned, Mic, RotateCcw, Send, Square } from 'lucide-react';
+import { ArrowRight, BookOpen, Check, HelpCircle, Loader2, MapPinned, Mic, RotateCcw, Send, Square } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
 
 import apiService, {
+  AtelierCollectible,
   AtelierAttemptRead,
   AtelierAttemptResult,
   AtelierConcept,
@@ -18,17 +20,22 @@ import apiService, {
 } from '@/services/api';
 import { ConceptMotif } from '@/components/grammar/ConceptMotif';
 import EditorialMasthead from '@/components/layout/EditorialMasthead';
+import { ExerciseShell } from '@/components/ui/ExerciseShell';
+import { ProgressBar } from '@/components/ui/ProgressBar';
+import { Confetti, LogoToken, ReactForm, Seal, sealForEdition, type SealVariant } from '@/components/ui/Seal';
 import {
   buildDayProgress,
+  dayQueryString,
   resolveRecommendedNext,
   serialActionFromToday,
   type DayProgress,
   type RecommendedAction,
 } from '@/lib/atelier-next';
+import { isNativePlatform } from '@/lib/native-platform';
 
 type RoundName = 'recognize' | 'transform' | 'sentence' | 'produce' | 'speak' | 'conversation';
 type RecognizeMode = 'fill' | 'word_bank' | 'classify';
-type RoadmapTarget = RoundName | 'review' | 'mission' | 'feuilleton' | 'rest';
+type RoadmapTarget = RoundName | 'review' | 'mission' | 'library' | 'feuilleton' | 'rest';
 type RoadmapAction = {
   label: string;
   onClick: () => void;
@@ -39,11 +46,16 @@ type RoadmapNode = {
   target: RoadmapTarget;
   href?: string;
 };
+type RewardMoment = {
+  id: string;
+  kind: 'logo_token' | 'gilt_seal';
+  collectible?: AtelierCollectible;
+};
 
 const recognizeModes: Array<{ id: RecognizeMode; label: string; short: string }> = [
   { id: 'fill', label: 'Fill', short: 'A' },
-  { id: 'word_bank', label: 'Word-bank', short: 'B' },
-  { id: 'classify', label: 'Classify', short: 'C' },
+  { id: 'classify', label: 'Classify', short: 'B' },
+  { id: 'word_bank', label: 'Word-bank', short: 'C' },
 ];
 
 const roundLabels: Array<{ id: RoundName; label: string; roman: string }> = [
@@ -120,6 +132,40 @@ function normalizeClient(value: any) {
     .toLowerCase();
 }
 
+function pulseAtelierHaptic(kind: 'correct' | 'repair' | 'complete' | 'token') {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') return;
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+  if (isNativePlatform()) {
+    void (async () => {
+      try {
+        if (kind === 'token' || kind === 'complete') {
+          await Haptics.notification({ type: NotificationType.Success });
+        } else if (kind === 'repair') {
+          await Haptics.notification({ type: NotificationType.Warning });
+        } else {
+          await Haptics.impact({ style: ImpactStyle.Light });
+        }
+      } catch {
+        // Native haptics are best-effort; web vibration below covers supported browsers.
+      }
+    })();
+  }
+  const vibrate = (navigator as Navigator & { vibrate?: (pattern: number[]) => boolean }).vibrate;
+  if (!vibrate) return;
+  const pattern = kind === 'correct'
+    ? [12]
+    : kind === 'token'
+      ? [12, 26, 12]
+    : kind === 'complete'
+      ? [18, 28, 18]
+      : [10, 24, 10];
+  try {
+    navigator.vibrate(pattern);
+  } catch {
+    // Browser vibration is also best-effort and should never fail the drill.
+  }
+}
+
 function joinWordBankTokens(tokens: any[]) {
   return tokens
     .map((token) => String(token || '').trim())
@@ -160,6 +206,10 @@ function errataForAttempt(correction: Record<string, any>, attemptId?: string) {
   return (correction.errata || []).map((item: AtelierErratum) => ({ ...item, source_attempt_id: attemptId || item.source_attempt_id }));
 }
 
+function firstMintedCollectible(collectibles: AtelierCollectible[] | undefined, kind: string) {
+  return (collectibles || []).find((item) => item.kind === kind);
+}
+
 export default function AtelierPage() {
   const router = useRouter();
   const [today, setToday] = useState<AtelierToday | null>(null);
@@ -169,6 +219,7 @@ export default function AtelierPage() {
   const [mode, setMode] = useState<RecognizeMode>('fill');
   const [answers, setAnswers] = useState<Record<string, Record<string, any>>>({});
   const [submitted, setSubmitted] = useState<Record<string, boolean>>({});
+  const [resubmitKeys, setResubmitKeys] = useState<Record<string, boolean>>({});
   const [correctionsByKey, setCorrectionsByKey] = useState<Record<string, Record<string, any>>>({});
   const [attemptIdsByKey, setAttemptIdsByKey] = useState<Record<string, string>>({});
   const [aiReviewSubmitting, setAiReviewSubmitting] = useState<Record<string, boolean>>({});
@@ -186,6 +237,7 @@ export default function AtelierPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [serialWelcomeDismissed, setSerialWelcomeDismissed] = useState(false);
+  const [rewardMoment, setRewardMoment] = useState<RewardMoment | null>(null);
   const aiPollTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const scheduleAiReviewPollingRef = useRef<(attemptId: string, key: string, remaining?: number) => void>(() => {});
 
@@ -286,6 +338,12 @@ export default function AtelierPage() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!rewardMoment) return;
+    const timer = window.setTimeout(() => setRewardMoment(null), 2600);
+    return () => window.clearTimeout(timer);
+  }, [rewardMoment]);
+
   const activeConcept = session?.concepts[activeConceptIndex] || today?.concepts[activeConceptIndex] || null;
   const activeSet = useMemo(() => {
     if (!session || !activeConcept) return null;
@@ -369,6 +427,32 @@ export default function AtelierPage() {
     }
   };
 
+  const reportCurrentExercise = async () => {
+    if (!session) return;
+    const reportMode = round === 'recognize' ? mode : round === 'transform' ? 'transform' : round;
+    const exerciseId = round === 'produce'
+      ? 'integrated-writing'
+      : `${activeConcept?.external_id || activeConcept?.id || 'session'}:${reportMode}`;
+    const exerciseSet = activeConcept
+      ? session.exercise_sets.find((set) => set.concept_id === activeConcept.id)
+      : null;
+    try {
+      await apiService.reportAtelierExercise({
+        session_id: session.session_id,
+        concept_id: round === 'produce' ? null : activeConcept?.id,
+        exercise_set_id: exerciseSet?.id || null,
+        round,
+        mode: reportMode,
+        exercise_id: exerciseId,
+        reason: 'Learner flagged this drill from the feedback sheet.',
+      });
+      toast.success('Exercise reported.');
+    } catch (error) {
+      console.error(error);
+      toast.error('Could not report this exercise.');
+    }
+  };
+
   const updateAnswer = (
     key: string,
     value: any,
@@ -412,6 +496,7 @@ export default function AtelierPage() {
     try {
       let result: AtelierAttemptResult;
       const attemptKey = scopedKey;
+      const resubmit = !!resubmitKeys[attemptKey];
       if (round === 'recognize') {
         result = await apiService.submitAtelierAttempt(session.session_id, {
           concept_id: activeConcept?.id,
@@ -419,6 +504,7 @@ export default function AtelierPage() {
           mode,
           exercise_id: `${activeConcept?.external_id || activeConcept?.id}:${mode}`,
           answer_payload: { answers: currentAnswers },
+          resubmit,
         });
       } else if (round === 'transform') {
         result = await apiService.submitAtelierAttempt(session.session_id, {
@@ -427,6 +513,7 @@ export default function AtelierPage() {
           mode: 'rewrite',
           exercise_id: `${activeConcept?.external_id || activeConcept?.id}:transform`,
           answer_payload: { answers: currentAnswers },
+          resubmit,
         });
       } else if (round === 'sentence' || round === 'speak' || round === 'conversation') {
         result = await apiService.submitAtelierAttempt(session.session_id, {
@@ -435,6 +522,7 @@ export default function AtelierPage() {
           mode: round,
           exercise_id: `${activeConcept?.external_id || activeConcept?.id}:${round}`,
           answer_payload: { text: currentAnswers.text || '' },
+          resubmit,
         });
       } else {
         const produceKey = answerKey('produce', 'produce', null);
@@ -444,11 +532,21 @@ export default function AtelierPage() {
           mode: 'integrated_writing',
           exercise_id: 'integrated-writing',
           answer_payload: { text: answers[produceKey]?.text || '' },
+          resubmit,
         });
       }
       applyAttemptResult(attemptKey, result);
       setSubmitted((prev) => ({ ...prev, [attemptKey]: true }));
-      toast.success(result.verdict === 'correct' ? 'Correct' : 'Submitted');
+      setResubmitKeys((prev) => ({ ...prev, [attemptKey]: false }));
+      const mintedLogoToken = firstMintedCollectible(result.minted_collectibles, 'logo_token');
+      if (mintedLogoToken) {
+        setRewardMoment({ id: `${mintedLogoToken.id}:${Date.now()}`, kind: 'logo_token', collectible: mintedLogoToken });
+        pulseAtelierHaptic('token');
+        toast.success('Logo token earned.');
+      } else {
+        pulseAtelierHaptic(result.verdict === 'correct' ? 'correct' : 'repair');
+        toast.success(result.verdict === 'correct' ? 'Correct' : 'Submitted');
+      }
     } catch (error) {
       console.error(error);
       toast.error('The correction could not be submitted.');
@@ -457,14 +555,25 @@ export default function AtelierPage() {
     }
   };
 
+  const retryCurrentAttempt = () => {
+    setSubmitted((prev) => ({ ...prev, [scopedKey]: false }));
+    setResubmitKeys((prev) => ({ ...prev, [scopedKey]: true }));
+    setRecentCorrection(null);
+  };
+
   const completeSession = async () => {
     if (!session) return;
     setSubmitting(true);
     try {
       const result = await apiService.completeAtelierSession(session.session_id);
-      const recapPayload = { ...result.recap, session_id: result.session_id };
+      const recapPayload = { ...result.recap, session_id: result.session_id, minted_collectibles: result.minted_collectibles || [] };
       setRecap(recapPayload);
       setSession((prev) => prev ? { ...prev, status: 'completed', recap: recapPayload } : prev);
+      const mintedGiltSeal = firstMintedCollectible(result.minted_collectibles, 'gilt_seal');
+      if (mintedGiltSeal) {
+        setRewardMoment({ id: `${mintedGiltSeal.id}:${Date.now()}`, kind: 'gilt_seal', collectible: mintedGiltSeal });
+      }
+      pulseAtelierHaptic('complete');
     } catch (error) {
       console.error(error);
       toast.error('Could not complete the session.');
@@ -567,6 +676,10 @@ export default function AtelierPage() {
     }
     if (action.kind === 'mission') {
       void router.push(`/missions${action.query}`);
+      return;
+    }
+    if (action.kind === 'library') {
+      void router.push(action.href);
       return;
     }
     if (action.kind === 'feuilleton') {
@@ -678,15 +791,11 @@ export default function AtelierPage() {
           <SessionView
             session={session}
             activeConceptIndex={activeConceptIndex}
-            setActiveConceptIndex={setActiveConceptIndex}
             round={round}
-            setRound={setRound}
             mode={mode}
-            setMode={setMode}
             activeSet={activeSet}
             activeConcept={activeConcept}
             currentAnswers={currentAnswers}
-            allAnswers={answers}
             updateAnswer={updateAnswer}
             submitAttempt={submitAttempt}
             completeSession={completeSession}
@@ -694,9 +803,9 @@ export default function AtelierPage() {
             submitted={submitted}
             correctionsByKey={correctionsByKey}
             goNext={goNext}
-            recentCorrection={recentCorrection}
-            errata={errata}
+            retryAttempt={retryCurrentAttempt}
             requestAiReview={requestAiReview}
+            reportExercise={reportCurrentExercise}
             aiReviewSubmitting={!!aiReviewSubmitting[scopedKey]}
             completedDrills={completedDrills}
             onBack={() => setView('today')}
@@ -734,9 +843,54 @@ export default function AtelierPage() {
             }}
           />
         )}
+        {rewardMoment && (
+          <RewardMomentOverlay
+            moment={rewardMoment}
+            onClose={() => setRewardMoment(null)}
+          />
+        )}
         {showSerialWelcome && <SerialWelcomeModal onClose={dismissSerialWelcome} />}
       </div>
     </>
+  );
+}
+
+function RewardMomentOverlay({
+  moment,
+  onClose,
+}: {
+  moment: RewardMoment;
+  onClose: () => void;
+}) {
+  const isLogoToken = moment.kind === 'logo_token';
+  return (
+    <div className="reward-moment-layer" role="status" aria-live="polite">
+      <Confetti count={isLogoToken ? 24 : 30} />
+      <section className="reward-moment-card" aria-label={isLogoToken ? 'Logo token earned' : 'Gilt seal earned'}>
+        {isLogoToken ? (
+          <LogoToken pop />
+        ) : (
+          <Seal
+            stamp
+            tone="gilt"
+            variant={(moment.collectible?.metadata?.seal_variant as SealVariant) || 'row'}
+            date={String(moment.collectible?.metadata?.date || '')}
+          />
+        )}
+        <div>
+          <span>{isLogoToken ? 'Perfect screen' : 'Flawless edition'}</span>
+          <h2>{isLogoToken ? 'Logo token earned' : 'Gilt seal earned'}</h2>
+          <p>
+            {isLogoToken
+              ? 'The three forms locked into the house mark. Filed to your Almanac.'
+              : 'No slips in the full press run. The day seal was struck in gilt.'}
+          </p>
+        </div>
+        <button type="button" onClick={onClose}>
+          Continue <ArrowRight size={14} />
+        </button>
+      </section>
+    </div>
   );
 }
 
@@ -811,16 +965,35 @@ function TodayView({
   const reviewKindCount = [dayProgress.errataDue, dayProgress.vocabularyDue].filter((count) => count > 0).length;
   const serialAction = serialActionFromToday(today, activeSession);
   const serialEpisode = (today as any)?.serial_episode || (today as any)?.serial || null;
+  const libraryEpisode = (today as any)?.library_episode || null;
+  const libraryHref = recommendation.kind === 'library'
+    ? recommendation.href
+    : libraryEpisode?.href || (libraryEpisode?.book_id ? `/notebook?mode=library&book=${libraryEpisode.book_id}&episode=${libraryEpisode.episode_index ?? libraryEpisode.order_index ?? 0}` : '/notebook?mode=library');
   const serialKind = serialAction?.episodeKind
-    || (recommendation.kind === 'serial' ? recommendation.episodeKind : recommendedTarget === 'feuilleton' ? 'feuilleton' : 'mission');
+    || (recommendation.kind === 'serial' ? recommendation.episodeKind : 'feuilleton');
   const serialHref = serialAction
     ? `/${serialAction.episodeKind === 'mission' ? 'missions' : 'graphic-novel'}${serialAction.query}`
     : recommendation.kind === 'serial'
       ? `/${recommendation.episodeKind === 'mission' ? 'missions' : 'graphic-novel'}${recommendation.query}`
-    : serialKind === 'mission'
-      ? '/atelier'
-      : '/atelier';
+      : recommendation.kind === 'feuilleton'
+        ? `/graphic-novel${recommendation.query}`
+        : `/graphic-novel${dayQueryString(activeSession, today)}`;
   const serialDone = serialKind === 'mission' ? dayProgress.missionDone : dayProgress.feuilletonDone;
+  const serialInvited = !serialAction && recommendation.kind !== 'serial' && !serialDone;
+  const serialCopy = serialThreadCopy({
+    kind: serialKind,
+    invited: serialInvited,
+    done: serialDone,
+    episodeLabel: serialEpisodeLabel(serialAction || recommendation),
+    status: serialEpisode?.status,
+    hookText: serialEpisode?.hook?.teaser || serialEpisode?.hook?.text || serialEpisode?.previously,
+  });
+  const serialHeader = serialOnRampHeader(serialOnRampVariant({
+    kind: serialKind,
+    invited: serialInvited,
+    done: serialDone,
+    status: serialEpisode?.status,
+  }), serialCopy);
   const sessionComplete = dayProgress.sessionStatus === 'completed';
   const positionRound = activeSession?.current_position?.round;
   const activeRound = recommendation.kind === 'resume_session' && isRoundName(recommendation.round)
@@ -853,6 +1026,9 @@ function TodayView({
     { id: 'review', label: 'Review', target: 'review' },
     { id: 'living-thread', label: 'Living thread', target: serialKind, href: serialHref },
   ];
+  if (libraryEpisode) {
+    nodes.push({ id: 'library', label: 'Library', target: 'library', href: libraryHref });
+  }
 
   if (loadError && !today && !hasActiveSession) {
     return (
@@ -886,77 +1062,123 @@ function TodayView({
           ) : (
             <>
               <AtelierEditionHeader
-                rubric={hasActiveSession ? "Today's edition · in press" : "Today's edition"}
+                rubric={serialHeader.rubric}
                 date={editionDate}
-                sub={`${signatureSub} · ${timeLine}`}
+                sub={serialHeader.sub}
                 streak={streak}
               />
-              <CEFRPromiseStrip cefr={cefr} />
-              <div className="spine" data-node-count={nodes.length}>
-                {roundLabels.map((item, index) => {
-                  const state = sessionComplete
-                    ? 'done'
-                    : index < activeRoundIndex && dayProgress.sessionStatus !== 'none'
-                      ? 'done'
-                      : index === activeRoundIndex
-                        ? 'current'
-                        : 'up';
-                  return (
-                    <AtelierEditionStep
-                      key={item.id}
-                      roman={item.roman}
-                      name={item.label}
-                      meta={withNodeMinutes(roundMetaLabel(state, dayProgress.sessionStatus), dayProgress, 'session')}
-                      state={state}
-                      first={index === 0}
-                    >
-                      {state === 'current' && (
-                        <AtelierCurrentPanel
-                          label={currentPanelLabel}
-                          foci={currentPanelFoci}
-                          errataCount={dueErrata}
-                          cta={primaryAction}
-                          disabled={loading || (recommendation.kind === 'start_session' && !canStart)}
-                        />
-                      )}
-                    </AtelierEditionStep>
-                  );
-                })}
-                <AtelierEditionStep
-                  roman="R"
-                  name="Review"
-                  meta={withNodeMinutes(reviewTotal > 0
-                    ? `${reviewTotal} to review${recommendedTarget === 'review' && reviewKindCount > 1 ? ` · ${reviewKindCount} kinds` : ''}`
-                    : 'Queue clear', dayProgress, 'review')}
-                  state={recommendedTarget === 'review' ? 'current' : reviewTotal > 0 ? 'up' : 'done'}
-                  review
-                  badge={recommendedTarget !== 'review' && reviewTotal > 0 ? String(reviewTotal) : undefined}
-                  metaGo={recommendedTarget === 'review'}
-                  last
-                >
-                  {recommendedTarget === 'review' && (
-                    <AtelierReviewOpen
-                      errataDue={dayProgress.errataDue}
-                      vocabularyDue={dayProgress.vocabularyDue}
-                      onOpenReview={onOpenReview}
-                    />
-                  )}
-                </AtelierEditionStep>
-              </div>
-
-              <div className="branch">
-                <div className="branch-head"><span className="t">Living thread</span></div>
+              <div className="edition-serial">
                 <SerialThreadCard
                   kind={serialKind}
                   href={serialHref}
                   episodeLabel={serialEpisodeLabel(serialAction || recommendation)}
                   status={serialEpisode?.status}
                   hookText={serialEpisode?.hook?.teaser || serialEpisode?.hook?.text || serialEpisode?.previously}
-                  invited={recommendation.kind !== 'serial' && !serialDone}
+                  invited={serialInvited}
                   recommended={recommendedTarget === serialKind}
                   done={serialDone}
                 />
               </div>
+
+              <section className="also-today" aria-label="Also in today's edition">
+                <div className="also-label">Also in today&apos;s edition</div>
+                <button
+                  className="also-card"
+                  type="button"
+                  disabled={loading || !canStart}
+                  onClick={hasActiveSession ? onContinue : onStart}
+                >
+                  <span className="s-ava sm also-mark" data-char="toi">VI</span>
+                  <span className="also-copy">
+                    <span className="also-title">Grammar session</span>
+                    <span className="also-meta">{signatureSub}</span>
+                  </span>
+                  <span className="also-arrow"><SerialArrowIcon /></span>
+                </button>
+                {reviewTotal > 0 && (
+                  <button className="also-card review" type="button" onClick={onOpenReview}>
+                    <span className="review-dot" aria-hidden="true" />
+                    <span className="also-copy">
+                      <span className="also-title">Repair queue</span>
+                      <span className="also-meta">{reviewTotal} item{reviewTotal === 1 ? '' : 's'} to revisit</span>
+                    </span>
+                    <span className="also-arrow"><SerialArrowIcon /></span>
+                  </button>
+                )}
+                {libraryEpisode && (
+                  <LibraryThreadCard
+                    href={libraryHref}
+                    bookTitle={libraryEpisode.book_title || 'Your book'}
+                    episodeTitle={libraryEpisode.title || `Episode ${(libraryEpisode.episode_index ?? libraryEpisode.order_index ?? 0) + 1}`}
+                    episodeIndex={Number(libraryEpisode.episode_index ?? libraryEpisode.order_index ?? 0)}
+                    totalEpisodes={Number(libraryEpisode.total_episodes ?? 0)}
+                    readingMinutes={Number(libraryEpisode.est_reading_minutes ?? 4)}
+                    recommended={recommendedTarget === 'library'}
+                  />
+                )}
+              </section>
+
+              <details className="today-plan">
+                <summary>Today&apos;s plan</summary>
+                <div className="today-plan-body">
+                  <div className="plan-note">
+                    <span>{signatureSub}</span>
+                    <span>{timeLine}</span>
+                  </div>
+                  <CEFRPromiseStrip cefr={cefr} />
+                  <div className="spine" data-node-count={nodes.length}>
+                    {roundLabels.map((item, index) => {
+                      const state = sessionComplete
+                        ? 'done'
+                        : index < activeRoundIndex && dayProgress.sessionStatus !== 'none'
+                          ? 'done'
+                          : index === activeRoundIndex
+                            ? 'current'
+                            : 'up';
+                      return (
+                        <AtelierEditionStep
+                          key={item.id}
+                          roman={item.roman}
+                          name={item.label}
+                          meta={withNodeMinutes(roundMetaLabel(state, dayProgress.sessionStatus), dayProgress, 'session')}
+                          state={state}
+                          first={index === 0}
+                        >
+                          {state === 'current' && (
+                            <AtelierCurrentPanel
+                              label={currentPanelLabel}
+                              foci={currentPanelFoci}
+                              errataCount={dueErrata}
+                              cta={primaryAction}
+                              disabled={loading || (recommendation.kind === 'start_session' && !canStart)}
+                            />
+                          )}
+                        </AtelierEditionStep>
+                      );
+                    })}
+                    <AtelierEditionStep
+                      roman="R"
+                      name="Review"
+                      meta={withNodeMinutes(reviewTotal > 0
+                        ? `${reviewTotal} to review${recommendedTarget === 'review' && reviewKindCount > 1 ? ` · ${reviewKindCount} kinds` : ''}`
+                        : 'Queue clear', dayProgress, 'review')}
+                      state={recommendedTarget === 'review' ? 'current' : reviewTotal > 0 ? 'up' : 'done'}
+                      review
+                      badge={recommendedTarget !== 'review' && reviewTotal > 0 ? String(reviewTotal) : undefined}
+                      metaGo={recommendedTarget === 'review'}
+                      last
+                    >
+                      {recommendedTarget === 'review' && (
+                        <AtelierReviewOpen
+                          errataDue={dayProgress.errataDue}
+                          vocabularyDue={dayProgress.vocabularyDue}
+                          onOpenReview={onOpenReview}
+                        />
+                      )}
+                    </AtelierEditionStep>
+                  </div>
+                </div>
+              </details>
             </>
           )}
         </div>
@@ -981,21 +1203,19 @@ function roadmapPrimaryAction(
 ): RoadmapAction | null {
   if (action.kind === 'rest') return null;
   if (action.kind === 'start_session') {
-    return { label: loading ? 'Starting' : canStart ? 'Begin session' : 'Retry setup', onClick };
+    return { label: loading ? 'Starting' : canStart ? 'Start today' : 'Retry', onClick };
   }
   if (action.kind === 'resume_session') {
-    const roundLabel = isRoundName(action.round)
-      ? roundLabels.find((item) => item.id === action.round)?.label
-      : null;
-    return { label: roundLabel ? `Continue · ${roundLabel}` : 'Continue session', onClick };
+    return { label: 'Continue', onClick };
   }
   if (action.kind === 'review') {
     const total = action.errataDue + action.vocabularyDue;
-    return { label: `Review ${total} item${total === 1 ? '' : 's'}`, onClick };
+    return { label: total > 0 ? 'Review' : 'Continue', onClick };
   }
-  if (action.kind === 'mission') return { label: 'Use in mission', onClick };
-  if (action.kind === 'serial') return { label: action.episodeKind === 'mission' ? 'Reply in serial' : 'Continue serial', onClick };
-  return { label: 'Read Feuilleton', onClick };
+  if (action.kind === 'mission') return { label: 'Act in French', onClick };
+  if (action.kind === 'library') return { label: 'Continue book', onClick };
+  if (action.kind === 'serial') return { label: action.episodeKind === 'mission' ? 'Reply' : 'Read scene', onClick };
+  return { label: 'Read scene', onClick };
 }
 
 function formatAtelierEditionDate(date = new Date()) {
@@ -1306,6 +1526,52 @@ function AtelierQuest({
   );
 }
 
+type SerialOnRampVariant = 'act' | 'see' | 'invite' | 'rest';
+
+function serialOnRampVariant({
+  kind,
+  invited,
+  done,
+  status,
+}: {
+  kind: 'mission' | 'feuilleton';
+  invited: boolean;
+  done?: boolean;
+  status?: string;
+}): SerialOnRampVariant {
+  if (status === 'delayed' || done) return 'rest';
+  if (invited) return 'invite';
+  return kind === 'mission' ? 'act' : 'see';
+}
+
+function serialOnRampHeader(
+  variant: SerialOnRampVariant,
+  copy: ReturnType<typeof serialThreadCopy>,
+) {
+  if (variant === 'act') {
+    return {
+      rubric: 'The serial · your turn',
+      sub: `${copy.episode} · reply, not grade`,
+    };
+  }
+  if (variant === 'see') {
+    return {
+      rubric: 'The serial · new episode',
+      sub: `${copy.episode} · ready to read`,
+    };
+  }
+  if (variant === 'invite') {
+    return {
+      rubric: 'The serial · begins today',
+      sub: `${copy.episode} · an invitation`,
+    };
+  }
+  return {
+    rubric: 'The serial · all caught up',
+    sub: `${copy.episode} · you are even with the story`,
+  };
+}
+
 function SerialThreadCard({
   kind,
   href,
@@ -1357,6 +1623,50 @@ function SerialThreadCard({
           <Link href="/serial/cast">The cast</Link>
         </div>
       )}
+    </article>
+  );
+}
+
+function LibraryThreadCard({
+  href,
+  bookTitle,
+  episodeTitle,
+  episodeIndex,
+  totalEpisodes,
+  readingMinutes,
+  recommended,
+}: {
+  href: string;
+  bookTitle: string;
+  episodeTitle: string;
+  episodeIndex: number;
+  totalEpisodes: number;
+  readingMinutes: number;
+  recommended?: boolean;
+}) {
+  const label = totalEpisodes > 0
+    ? `Episode ${episodeIndex + 1} of ${totalEpisodes}`
+    : `Episode ${episodeIndex + 1}`;
+  return (
+    <article className={`s-thread library ${recommended ? 'recommended' : ''}`}>
+      <div className="ttop">
+        <BookOpen size={18} aria-hidden="true" />
+        <span className="ser">Library</span>
+        <Link className="ep" href="/notebook?mode=library">{label}</Link>
+      </div>
+      <Link className="s-thread-link" href={href}>
+        <div className="tmain">
+          <div className="library-mark" aria-hidden="true"><BookOpen size={22} /></div>
+          <div>
+            <div className="beat">{bookTitle}</div>
+            <h2>{episodeTitle}</h2>
+            <div className="sub">Read the next passage, then answer comprehension, vocab, grammar, and production prompts drawn from it.</div>
+          </div>
+        </div>
+      </Link>
+      <Link className="tcta ink" href={href}>
+        Continue book · {Math.max(1, Math.round(readingMinutes))} min <SerialArrowIcon />
+      </Link>
     </article>
   );
 }
@@ -1883,18 +2193,19 @@ function ErrataReviewOverlay({
   );
 }
 
+function hasConceptRecognizeSubmission(submitted: Record<string, boolean>, conceptId?: number | null) {
+  if (!conceptId) return false;
+  return recognizeModes.some((item) => submitted[answerKey('recognize', item.id, conceptId)]);
+}
+
 function SessionView({
   session,
   activeConceptIndex,
-  setActiveConceptIndex,
   round,
-  setRound,
   mode,
-  setMode,
   activeSet,
   activeConcept,
   currentAnswers,
-  allAnswers,
   updateAnswer,
   submitAttempt,
   completeSession,
@@ -1902,9 +2213,9 @@ function SessionView({
   submitted,
   correctionsByKey,
   goNext,
-  recentCorrection,
-  errata,
+  retryAttempt,
   requestAiReview,
+  reportExercise,
   aiReviewSubmitting,
   completedDrills,
   onBack,
@@ -1912,15 +2223,11 @@ function SessionView({
 }: {
   session: AtelierSessionStart;
   activeConceptIndex: number;
-  setActiveConceptIndex: (index: number) => void;
   round: RoundName;
-  setRound: (round: RoundName) => void;
   mode: RecognizeMode;
-  setMode: (mode: RecognizeMode) => void;
   activeSet: Record<string, any> | null;
   activeConcept: AtelierConcept | null;
   currentAnswers: Record<string, any>;
-  allAnswers: Record<string, Record<string, any>>;
   updateAnswer: (key: string, value: any, scopedRound?: RoundName, scopedMode?: string, conceptId?: number | null) => void;
   submitAttempt: () => void;
   completeSession: () => void;
@@ -1928,9 +2235,9 @@ function SessionView({
   submitted: Record<string, boolean>;
   correctionsByKey: Record<string, Record<string, any>>;
   goNext: () => void;
-  recentCorrection: Record<string, any> | null;
-  errata: any[];
+  retryAttempt: () => void;
   requestAiReview: () => void;
+  reportExercise: () => void;
   aiReviewSubmitting: boolean;
   completedDrills: number;
   onBack: () => void;
@@ -1940,80 +2247,63 @@ function SessionView({
   const currentKey = answerKey(round, currentMode, roundUsesSessionScope(round) ? null : activeConcept?.id);
   const currentCorrection = correctionsByKey[currentKey] || null;
   const currentSubmitted = !!submitted[currentKey];
+  const currentHasCorrections = currentSubmitted && Array.isArray(currentCorrection?.errata) && currentCorrection.errata.length > 0;
   const total = totalDrills(session);
-  const progress = total ? Math.min(100, Math.round((completedDrills / total) * 100)) : 0;
   const activeRoundLabel = roundLabels.find((item) => item.id === round)?.label || 'Practice';
   const activeRecognizeLabel = recognizeModes.find((item) => item.id === mode)?.label || 'Recognize';
   const activeConceptTitle = activeConcept?.atelier_blueprint?.display_title || activeConcept?.name || 'Daily session';
+  const [ruleOpenByConcept, setRuleOpenByConcept] = useState<Record<string, boolean>>({});
+  const conceptRuleKey = `${session.session_id}:${activeConcept?.id || 'session'}`;
+  const firstConceptDrill = Boolean(
+    activeConcept
+      && round === 'recognize'
+      && mode === 'fill'
+      && !hasConceptRecognizeSubmission(submitted, activeConcept.id),
+  );
+  const rulePreference = ruleOpenByConcept[conceptRuleKey];
+  const ruleExpanded = firstConceptDrill ? rulePreference !== false : rulePreference === true;
+  const isFinalConversation = round === 'conversation' && activeConceptIndex >= session.concepts.length - 1;
+  const toggleRule = () => {
+    setRuleOpenByConcept((prev) => ({ ...prev, [conceptRuleKey]: !ruleExpanded }));
+  };
 
   return (
-    <main className="spread session-spread">
-      <section className="mobile-session-topbar">
-        <button className="mobile-back-button" onClick={onBack}>Back</button>
-        <div>
-          <span className="t-mono-low">ATELIER</span>
-          <strong>{completedDrills}/{total || '–'}</strong>
+    <main className="session-spread atelier-do-mode">
+      <section className="do-topbar" aria-label="Session progress">
+        <button className="do-close" onClick={onBack} aria-label="Close session">×</button>
+        <div className="do-progress">
+          <ProgressBar value={completedDrills} max={total || 1} label={`${completedDrills} of ${total} drills complete`} />
+          <span>{completedDrills}/{total || '–'} · press run</span>
         </div>
-        <button className="mobile-quiet-button" onClick={completeSession} disabled={submitting || completedDrills < total}>Finish</button>
+        <button className="do-finish" onClick={completeSession} disabled={submitting || completedDrills < total}>Finish</button>
       </section>
-      <section className="mobile-session-brief">
-        <div className="session-progress-bar" aria-label={`${completedDrills} of ${total} drills complete`}>
-          <span style={{ width: `${progress}%` }} />
-        </div>
-        <div className="mobile-session-heading">
-          <span className="t-mono red">{activeRoundLabel}</span>
-          <h1>{activeConceptTitle}</h1>
-          {round === 'recognize' && <p>{activeRecognizeLabel}</p>}
-        </div>
-        <VocabularyFocus words={session.target_vocabulary} compact className="mobile-vocab-focus" />
-        {activeSet && activeConcept && (
-          <details className="mobile-context-details">
-            <summary>Rule card</summary>
-            <ConceptRulePanel payload={activeSet} concept={activeConcept} />
-          </details>
-        )}
-      </section>
-      <section className="session-title-row">
-        <div>
-          <button className="btn ghost" onClick={onBack}>← BACK</button>
-          <span className="session-title">Session</span>
-        </div>
-        <span className="t-mono-low">{errata.length} corrections · {completedDrills}/{total} submitted</span>
-      </section>
-      <div className="rule thick" />
-
-      <ConceptBench concepts={session.concepts} activeIndex={activeConceptIndex} setActiveIndex={setActiveConceptIndex} />
-      <RoundStrip round={round} setRound={setRound} />
 
       {activeSet && activeConcept && (
-        <>
-          <section className="xray-title"><span className="t-mono">SENTENCE X-RAY</span></section>
-          <section className="xray-board">
-            <CropMarks />
-            <SentenceXRay xray={activeSet.xray} />
-            <ConceptRulePanel payload={activeSet} concept={activeConcept} />
-          </section>
-
-          <VocabularyFocus words={session.target_vocabulary} className="desktop-vocab-focus" />
-
-          <section className="grid-12 work-grid">
-            <div className="grid-span-8">
+        <section className="do-stage">
+          <ExerciseShell
+            eyebrow={`${activeRoundLabel}${round === 'recognize' ? ` · ${activeRecognizeLabel}` : ''}`}
+            title={activeConceptTitle}
+            action={
+              <button
+                className="rule-toggle"
+                type="button"
+                onClick={toggleRule}
+                aria-label={ruleExpanded ? 'Hide rule' : 'Show rule'}
+                aria-expanded={ruleExpanded}
+                title={ruleExpanded ? 'Hide rule' : 'Show rule'}
+              >
+                <HelpCircle size={18} />
+              </button>
+            }
+          >
+            {ruleExpanded && (
+              <div className="do-rule-sheet">
+                <ConceptRulePanel payload={activeSet} concept={activeConcept} />
+                {firstConceptDrill && <div className="rule-bridge">Now try it on the easiest item.</div>}
+              </div>
+            )}
               {round === 'recognize' && (
-                <>
-                  <div className="exercise-toolbar">
-                    <ModeMarkers
-                      mode={mode}
-                      setMode={setMode}
-                      activeConcept={activeConcept}
-                      submitted={submitted}
-                      answers={currentAnswers}
-                      allAnswers={allAnswers}
-                      activeSet={activeSet}
-                    />
-                    <p>{recognizeModeSummary(activeSet, mode, currentAnswers, currentSubmitted)}</p>
-                  </div>
-                  <div className="paper-frame exercise-frame">
-                    <CropMarks />
+                <div className="exercise-frame">
                     <RecognizePanel
                       payload={activeSet}
                       mode={mode}
@@ -2022,13 +2312,19 @@ function SessionView({
                       correction={currentCorrection}
                       submitted={currentSubmitted}
                     />
-                    <ActionRow submitting={submitting} submitted={currentSubmitted} submitAttempt={submitAttempt} goNext={goNext} />
-                  </div>
-                </>
+                    <ActionRow
+                      submitting={submitting}
+                      submitted={currentSubmitted}
+                      submitAttempt={submitAttempt}
+                      goNext={goNext}
+                      canRetry={currentHasCorrections}
+                      retryAttempt={retryAttempt}
+                      onReport={currentHasCorrections ? reportExercise : undefined}
+                    />
+                </div>
               )}
               {round === 'transform' && (
-                <div className="paper-frame exercise-frame">
-                  <CropMarks />
+                <div className="exercise-frame">
                   <TransformPanel
                     payload={activeSet}
                     answers={currentAnswers}
@@ -2038,12 +2334,19 @@ function SessionView({
                     onRequestAiReview={requestAiReview}
                     aiReviewSubmitting={aiReviewSubmitting}
                   />
-                  <ActionRow submitting={submitting} submitted={currentSubmitted} submitAttempt={submitAttempt} goNext={goNext} />
+                  <ActionRow
+                    submitting={submitting}
+                    submitted={currentSubmitted}
+                    submitAttempt={submitAttempt}
+                    goNext={goNext}
+                    canRetry={currentHasCorrections}
+                    retryAttempt={retryAttempt}
+                    onReport={currentHasCorrections ? reportExercise : undefined}
+                  />
                 </div>
               )}
               {(round === 'sentence' || round === 'speak' || round === 'conversation') && (
-                <div className="paper-frame exercise-frame">
-                  <CropMarks />
+                <div className="exercise-frame">
                   <OutputLadderPanel
                     payload={activeSet}
                     round={round}
@@ -2060,13 +2363,15 @@ function SessionView({
                     submitAttempt={submitAttempt}
                     goNext={goNext}
                     nextLabel="NEXT STEP"
-                    nextDisabled={round === 'conversation' && activeConceptIndex >= session.concepts.length - 1}
+                    nextDisabled={isFinalConversation}
+                    canRetry={currentHasCorrections}
+                    retryAttempt={retryAttempt}
+                    onReport={currentHasCorrections ? reportExercise : undefined}
                   />
                 </div>
               )}
               {round === 'produce' && (
-                <div className="paper-frame exercise-frame">
-                  <CropMarks />
+                <div className="exercise-frame">
                   <ProducePanel
                     concepts={session.concepts}
                     exerciseSets={session.exercise_sets}
@@ -2079,36 +2384,26 @@ function SessionView({
                     onRequestAiReview={requestAiReview}
                     aiReviewSubmitting={aiReviewSubmitting}
                   />
-                  <div className="action-row">
-                    <button className="btn red" disabled={submitting || currentSubmitted} onClick={submitAttempt}>
-                      {currentSubmitted ? 'REVIEW SUBMITTED' : 'SUBMIT FOR REVIEW'} <Send size={14} />
-                    </button>
-                    <button className="btn solid" disabled={submitting || !currentSubmitted} onClick={goNext}>
-                      NEXT STEP <ArrowRight size={14} />
-                    </button>
-                  </div>
+                  <ActionRow
+                    submitting={submitting}
+                    submitted={currentSubmitted}
+                    submitAttempt={submitAttempt}
+                    goNext={goNext}
+                    canRetry={currentHasCorrections}
+                    retryAttempt={retryAttempt}
+                    onReport={currentHasCorrections ? reportExercise : undefined}
+                  />
                 </div>
               )}
-              {round === 'conversation' && currentSubmitted && activeConceptIndex >= session.concepts.length - 1 && (
+              {isFinalConversation && currentSubmitted && (
                 <div className="action-row final-action">
                   <button className="btn solid lg" disabled={submitting} onClick={completeSession}>
                     COMPLETE SESSION <Check size={14} />
                   </button>
                 </div>
               )}
-            </div>
-            <aside className="grid-span-4 margin-stack">
-              <TutorNote
-                concept={activeConcept}
-                correction={currentCorrection || recentCorrection}
-                round={round}
-                onRequestAiReview={requestAiReview}
-                aiReviewSubmitting={aiReviewSubmitting}
-              />
-              <ErrataStack errata={errata} />
-            </aside>
-          </section>
-        </>
+          </ExerciseShell>
+        </section>
       )}
     </main>
   );
@@ -2121,6 +2416,9 @@ function ActionRow({
   goNext,
   nextLabel = 'NEXT DRILL',
   nextDisabled = false,
+  canRetry = false,
+  retryAttempt,
+  onReport,
 }: {
   submitting: boolean;
   submitted: boolean;
@@ -2128,13 +2426,33 @@ function ActionRow({
   goNext: () => void;
   nextLabel?: string;
   nextDisabled?: boolean;
+  canRetry?: boolean;
+  retryAttempt?: () => void;
+  onReport?: () => void;
 }) {
   return (
     <div className="action-row">
-      <button className="btn solid" disabled={submitting || submitted} onClick={submitAttempt}>
-        {submitted ? 'SUBMITTED' : 'SUBMIT'} <Send size={14} />
-      </button>
-      <button className="btn ghost" disabled={submitting || !submitted || nextDisabled} onClick={goNext}>{nextLabel} →</button>
+      {!submitted ? (
+        <button className="btn red" disabled={submitting} onClick={submitAttempt}>
+          Check <Send size={14} />
+        </button>
+      ) : (
+        <>
+          {onReport && (
+            <button className="btn ghost" disabled={submitting} onClick={onReport}>
+              Report
+            </button>
+          )}
+          {canRetry && retryAttempt && (
+            <button className="btn ghost" disabled={submitting} onClick={retryAttempt}>
+              Try again <RotateCcw size={14} />
+            </button>
+          )}
+          <button className="btn solid" disabled={submitting || nextDisabled} onClick={goNext}>
+            {nextLabel === 'NEXT DRILL' ? 'Next' : nextLabel} <ArrowRight size={14} />
+          </button>
+        </>
+      )}
     </div>
   );
 }
@@ -2394,72 +2712,83 @@ function RecognizePanel({
   submitted: boolean;
 }) {
   const items = payload.recognize?.[mode]?.items || [];
+  const formShapes: Array<'circle' | 'square' | 'triangle'> = ['circle', 'square', 'triangle'];
   return (
     <div className="recognize-set">
       {items.map((item: any, index: number) => {
         const feedback = itemFeedback(item, answers[item.id], correction);
+        const formState: 'neutral' | 'grin' | 'sad' = submitted ? (feedback?.correct ? 'grin' : 'sad') : 'neutral';
         const wordBankTokens = mode === 'word_bank' ? wordBankTokensFromAnswer(answers[item.id]) : [];
         const sourceTokens = Array.isArray(item.tokens) ? item.tokens.map((token: string) => String(token)) : [];
         return (
-          <article key={item.id} className="sub-exercise">
-            <div className="t-mono-low">EXERCISE {index + 1}</div>
-            <p className="exercise-prompt">{item.prompt}</p>
-            {mode === 'fill' && (
-              <div className="choice-row">
-                {item.choices.map((choice: string) => (
-                  <button key={choice} className={answers[item.id] === choice ? 'selected' : ''} onClick={() => updateAnswer(item.id, choice)}>{choice}</button>
-                ))}
-              </div>
-            )}
-            {mode === 'word_bank' && (
-              <>
-                <div className="type-case">
-                  {sourceTokens.map((token: string, tokenIndex: number) => {
-                    const used = wordBankTokenIsUsed(wordBankTokens, sourceTokens, token, tokenIndex);
-                    return (
-                      <button
-                        key={`${token}-${tokenIndex}`}
-                        type="button"
-                        className={used ? 'used' : ''}
-                        disabled={submitted || used}
-                        onClick={() => updateAnswer(item.id, [...wordBankTokens, token])}
-                      >
-                        {token}
-                      </button>
-                    );
-                  })}
+          <article key={item.id} className="sub-exercise recognize-card">
+            <div className="recognize-form-slot" aria-hidden="true">
+              <ReactForm shape={formShapes[index % formShapes.length]} state={formState} />
+            </div>
+            <div className="recognize-card-body">
+              <div className="t-mono-low">EXERCISE {index + 1}</div>
+              <p className="exercise-prompt">{item.prompt}</p>
+              {mode === 'word_bank' && item.meaning_cue && (
+                <p className="meaning-cue">{item.meaning_cue}</p>
+              )}
+              {mode === 'fill' && (
+                <div className="choice-row">
+                  {item.choices.map((choice: string) => (
+                    <button key={choice} className={answers[item.id] === choice ? 'selected' : ''} disabled={submitted} onClick={() => updateAnswer(item.id, choice)}>{choice}</button>
+                  ))}
                 </div>
-                <div className="word-bank-builder">
-                  <input
-                    value={Array.isArray(answers[item.id]) ? joinWordBankTokens(answers[item.id]) : answers[item.id] || ''}
-                    onChange={(event) => updateAnswer(item.id, event.target.value)}
-                    placeholder="Built sentence"
-                  />
-                  {wordBankTokens.length > 0 && (
-                    <div className="word-bank-answer">
-                      {wordBankTokens.map((token, selectedIndex) => (
+              )}
+              {mode === 'word_bank' && (
+                <>
+                  <div className="type-case">
+                    {sourceTokens.map((token: string, tokenIndex: number) => {
+                      const used = wordBankTokenIsUsed(wordBankTokens, sourceTokens, token, tokenIndex);
+                      return (
                         <button
-                          key={`${token}-${selectedIndex}`}
+                          key={`${token}-${tokenIndex}`}
                           type="button"
-                          disabled={submitted}
-                          onClick={() => updateAnswer(item.id, wordBankTokens.filter((_, index) => index !== selectedIndex))}
+                          className={used ? 'used' : ''}
+                          disabled={submitted || used}
+                          onClick={() => updateAnswer(item.id, [...wordBankTokens, token])}
                         >
                           {token}
                         </button>
-                      ))}
-                    </div>
-                  )}
+                      );
+                    })}
+                  </div>
+                  <div className="word-bank-builder">
+                    <input
+                      value={Array.isArray(answers[item.id]) ? joinWordBankTokens(answers[item.id]) : answers[item.id] || ''}
+                      onChange={(event) => updateAnswer(item.id, event.target.value)}
+                      disabled={submitted}
+                      placeholder="Built sentence"
+                    />
+                    {wordBankTokens.length > 0 && (
+                      <div className="word-bank-answer">
+                        {wordBankTokens.map((token, selectedIndex) => (
+                          <button
+                            key={`${token}-${selectedIndex}`}
+                            type="button"
+                            disabled={submitted}
+                            onClick={() => updateAnswer(item.id, wordBankTokens.filter((_, tokenIndex) => tokenIndex !== selectedIndex))}
+                          >
+                            {token}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+              {mode === 'classify' && (
+                <div className="choice-row compact">
+                  {item.labels.map((label: string) => (
+                    <button key={label} className={answers[item.id] === label ? 'selected' : ''} disabled={submitted} onClick={() => updateAnswer(item.id, label)}>{label}</button>
+                  ))}
                 </div>
-              </>
-            )}
-            {mode === 'classify' && (
-              <div className="choice-row compact">
-                {item.labels.map((label: string) => (
-                  <button key={label} className={answers[item.id] === label ? 'selected' : ''} onClick={() => updateAnswer(item.id, label)}>{label}</button>
-                ))}
-              </div>
-            )}
-            {submitted && <InlineFeedback feedback={feedback} />}
+              )}
+              {submitted && <InlineFeedback feedback={feedback} />}
+            </div>
           </article>
         );
       })}
@@ -2516,7 +2845,8 @@ function itemFeedback(item: any, learner: any, correction: Record<string, any> |
   const target = typeof corrected === 'object' ? corrected[item.id] : item.correct_answer || item.expected_answer;
   const learnerText = Array.isArray(learner) ? learner.join(' ') : String(learner || '');
   const targetText = String(target || item.correct_answer || item.expected_answer || item.correct_label || '');
-  const matchingErratum = (correction.errata || []).find((erratum: AtelierErratum) => {
+  const matchingErrata = (correction.errata || []).filter((erratum: AtelierErratum) => {
+    if (erratum.item_id && erratum.item_id === item.id) return true;
     const errTarget = normalizeClient(erratum.corrected_target);
     const errLearner = normalizeClient(erratum.learner_text);
     return errTarget === normalizeClient(targetText) || (!!learnerText && errLearner === normalizeClient(learnerText));
@@ -2525,21 +2855,69 @@ function itemFeedback(item: any, learner: any, correction: Record<string, any> |
   return {
     correct,
     target: targetText,
-    why: matchingErratum?.why_wrong,
-    repair: matchingErratum?.repair_hint,
+    why: matchingErrata[0]?.why_wrong,
+    repair: matchingErrata[0]?.repair_hint,
+    issues: matchingErrata,
   };
 }
 
-function InlineFeedback({ feedback }: { feedback: ReturnType<typeof itemFeedback> }) {
+type InlineFeedbackModel = {
+  correct: boolean;
+  target?: string;
+  why?: string;
+  repair?: string;
+  issues?: AtelierErratum[];
+} | null;
+
+function correctionTargetText(value: unknown): string {
+  if (!value) return '';
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value)) return value.map(correctionTargetText).filter(Boolean).join(' ');
+  if (typeof value === 'object') {
+    return Object.values(value as Record<string, unknown>).map(correctionTargetText).filter(Boolean).join(' ');
+  }
+  return String(value);
+}
+
+function feedbackFromFreeformCorrection(correction: Record<string, any> | null, fallbackTarget = ''): InlineFeedbackModel {
+  if (!correction) return null;
+  const errata: AtelierErratum[] = Array.isArray(correction?.errata) ? correction.errata : [];
+  const erratum = errata[0];
+  return {
+    correct: errata.length === 0,
+    target: correctionTargetText(correction?.corrected_answer || erratum?.corrected_target || fallbackTarget),
+    why: erratum?.why_wrong || undefined,
+    repair: erratum?.repair_hint || undefined,
+    issues: errata,
+  };
+}
+
+function InlineFeedback({ feedback }: { feedback: InlineFeedbackModel }) {
   if (!feedback) return null;
   if (feedback.correct) {
     return <div className="inline-feedback correct"><Check size={14} /> Correct</div>;
   }
+  const issues = feedback.issues || [];
+  if (issues.length > 1) {
+    return (
+      <div className="inline-feedback wrong">
+        <strong>{issues.length} fixes in this exercise</strong>
+        {issues.map((issue: AtelierErratum, index: number) => (
+          <section key={`${issue.item_id || issue.display_label}-${index}`} className="feedback-issue">
+            <b>{issue.display_label || `Fix ${index + 1}`}</b>
+            {issue.corrected_target && <p><strong>Target:</strong> {issue.corrected_target}</p>}
+            {issue.why_wrong && <p><strong>Why:</strong> {issue.why_wrong}</p>}
+            {issue.repair_hint && <p><strong>Repair:</strong> {issue.repair_hint}</p>}
+          </section>
+        ))}
+      </div>
+    );
+  }
   return (
-    <div className="inline-feedback">
-      <div><strong>Target:</strong> {feedback.target}</div>
-      {feedback.why && <div><strong>Why:</strong> {feedback.why}</div>}
-      {feedback.repair && <div><strong>Repair:</strong> {feedback.repair}</div>}
+    <div className="inline-feedback wrong">
+      {feedback.target && <p><strong>Target:</strong> {feedback.target}</p>}
+      {feedback.why && <p><strong>Why:</strong> {feedback.why}</p>}
+      {feedback.repair && <p><strong>Repair:</strong> {feedback.repair}</p>}
     </div>
   );
 }
@@ -2596,15 +2974,7 @@ function OutputLadderPanel({
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const item = payload.output_ladder?.[round]?.items?.[0] || {};
-  const target = correction?.corrected_answer || item.example_answer || '';
-  const feedback = submitted
-    ? {
-        correct: !correction?.errata?.length,
-        target: String(target || ''),
-        why: correction?.errata?.[0]?.why_wrong,
-        repair: correction?.errata?.[0]?.repair_hint,
-      }
-    : null;
+  const feedback = submitted ? feedbackFromFreeformCorrection(correction, item.example_answer || '') : null;
 
   const transcribeAudio = async (blob: Blob) => {
     setIsTranscribing(true);
@@ -2722,6 +3092,7 @@ function ProducePanel({
   const requirements = concepts.map((concept) => conceptRequirement(concept, exerciseSets));
   const produce = payload.produce || {};
   const sourceFragment = String(produce.source_fragment || '').trim();
+  const feedback = submitted ? feedbackFromFreeformCorrection(correction) : null;
   return (
     <div className="produce-panel">
       <div className="live-block">
@@ -2743,6 +3114,7 @@ function ProducePanel({
       )}
       <textarea value={answer} onChange={(event) => updateAnswer(event.target.value)} placeholder="Write your paragraph here. The targets guide the review; they do not lock submission." />
       <div className="word-count">{wordRangeLabel(wordCount(answer), produce.min_words, produce.max_words)}</div>
+      {submitted && <InlineFeedback feedback={feedback} />}
       {submitted && (
         <CorrectionAiReview
           correction={correction}
@@ -2853,65 +3225,77 @@ function RecapModal({
 }) {
   const reviewTotal = recommendation.kind === 'review' ? recommendation.errataDue + recommendation.vocabularyDue : 0;
   const nextLabel = recapActionLabel(recommendation, reviewTotal);
+  const practiced = concepts.slice(0, 3).map((concept) => concept.atelier_blueprint?.display_title || concept.name);
+  const minted = Array.isArray(recap.minted_collectibles) ? recap.minted_collectibles as AtelierCollectible[] : [];
+  const logoTokens = minted.filter((item) => item.kind === 'logo_token');
+  const giltSeal = minted.find((item) => item.kind === 'gilt_seal');
+  const editionNo = Number(recap.streak_after || recap.streak_before || 1);
+  const seal = sealForEdition(editionNo);
+  const sealVariant = (giltSeal?.metadata?.seal_variant as SealVariant) || seal.variant;
+  const attempts = Math.max(0, Number(recap.attempts || 0));
+  const strengthened = Math.max(0, Number(recap.strengthened || concepts.length || 0));
+  const errataLogged = Math.max(0, Number(recap.errata_logged || 0));
+  const mintedLine = giltSeal
+    ? 'Gilt seal struck'
+    : logoTokens.length
+      ? `${logoTokens.length} logo token${logoTokens.length === 1 ? '' : 's'} minted`
+      : 'No new tokens this run';
+  const hookCopy = nextLabel?.copy || 'The serial waits for the next line.';
   return (
     <div className="recap-overlay">
-      <section className="recap-modal">
-        <CropMarks />
+      <section className="recap-modal printed">
         <header>
           <div>
-            <div className="t-mono-low">Session recap</div>
-            <h2>Session Recap</h2>
+            <div className="edition-seal">Edition printed</div>
+            <h2>Today&apos;s edition is set.</h2>
           </div>
-          <button className="btn ghost" onClick={onClose}>CLOSE ×</button>
+          <button className="btn ghost" onClick={onClose}>×</button>
         </header>
-        <div className="recap-stats">
-          <Stat num={recap.concepts_repaired || 0} label="REPAIRED" sub="concepts" />
-          <Stat num={errataLabel(recap.errata_logged || 0)} label="ERRATA" sub="logged" accent="var(--red)" />
-          <Stat num={recap.strengthened || 0} label="STRENGTHENED" sub="concepts" />
-          <Stat num={`${recap.streak_before || 0}→${recap.streak_after || 0}`} label="STREAK" sub="days" />
-        </div>
-        <div className="recap-lines">
-          <div className="t-mono">CONCEPTS · NEW STATE</div>
-          {(recap.concepts || []).map((item: any, index: number) => {
-            const concept = concepts.find((entry) => entry.id === item.concept_id);
-            return (
-              <div key={item.concept_id}>
-                {concept && <ConceptMotif concept={concept} />}
-                <strong>
-                  {concept ? (
-                    <Link href={`/grammar?concept=${concept.id}`}>{concept.atelier_blueprint?.display_title || concept.name}</Link>
-                  ) : (
-                    `Concept ${item.concept_id}`
-                  )}
-                </strong>
-                <span>{item.score}/10</span>
-                <span>{item.state}</span>
-              </div>
-            );
-          })}
-        </div>
-        {nextLabel && (
-          <section className="recap-next">
+        <div className="printed-body">
+          <section className="printed-seal-stage" aria-label="Today's seal">
+            <Seal
+              variant={sealVariant}
+              no={editionNo}
+              date={formatAtelierDatestamp().replace('Closed · ', '')}
+              stamp
+              size="lg"
+              tone={giltSeal ? 'gilt' : 'ink'}
+            />
             <div>
-              <span className="t-mono red">NEXT ON TODAY&apos;S PATH</span>
-              <h3>{nextLabel.title}</h3>
-              <p>{nextLabel.copy}</p>
+              <span className="t-mono-low">{giltSeal ? 'Gilt seal earned' : 'Day seal'}</span>
+              <p>{giltSeal ? 'A flawless edition, struck in gilt.' : `${seal.name} · struck to the almanac.`}</p>
             </div>
+          </section>
+          <section>
+            <span className="t-mono-low">Practiced</span>
+            {(practiced.length ? practiced : ["Today's set"]).map((item) => <p key={item}>{item}</p>)}
+          </section>
+          <section className="printed-stats" aria-label="Session stats">
+            <div><b>{attempts}</b><span>screens set</span></div>
+            <div><b>{strengthened}</b><span>concepts strengthened</span></div>
+            <div><b>{errataLogged}</b><span>repairs logged</span></div>
+          </section>
+          <section className="printed-minted" aria-label="Minted today">
+            <span className="t-mono-low">Minted today</span>
+            <div className="minted-row">
+              {logoTokens.slice(0, 5).map((token) => <LogoToken key={token.id} size="sm" />)}
+              {giltSeal && <Seal variant={sealVariant} no={editionNo} size="md" tone="gilt" />}
+              <p>{mintedLine}</p>
+            </div>
+          </section>
+          <section className="printed-hook">
+            <span className="t-mono-low">Tomorrow&apos;s hook</span>
+            <p>{hookCopy}</p>
+          </section>
+        </div>
+        <footer>
+          {nextLabel ? (
             <button className="btn red lg" onClick={onRecommendedAction}>
               {nextLabel.action} <ArrowRight size={14} />
             </button>
-          </section>
-        )}
-        <footer>
-          <span className="t-mono-low">Atelier · Today&apos;s Set</span>
-          <div className="recap-actions">
-            {recap.session_id && (
-              <Link className="btn red" href={`/missions?atelier_session_id=${recap.session_id}`}>
-                USE IN MISSION
-              </Link>
-            )}
-            <button className="btn solid" onClick={onClose}>RETURN TO TODAY</button>
-          </div>
+          ) : (
+            <button className="btn solid" onClick={onClose}>Done</button>
+          )}
         </footer>
       </section>
     </div>
@@ -2931,6 +3315,15 @@ function recapActionLabel(action: RecommendedAction, reviewTotal: number) {
       title: 'Use it in a Mission',
       copy: 'The loud on-ramp is here: take the completed session into a real-world prompt.',
       action: 'Open mission',
+    };
+  }
+  if (action.kind === 'library') {
+    return {
+      title: action.bookTitle ? `Continue ${action.bookTitle}` : 'Continue your library book',
+      copy: action.title
+        ? `Episode ${action.episodeIndex + 1}: ${action.title}`
+        : 'Read the next passage and work through passage-grounded prompts.',
+      action: 'Continue book',
     };
   }
   if (action.kind === 'serial') {
@@ -3160,8 +3553,8 @@ function AtelierStyles() {
         --serif: "EB Garamond", Garamond, "Times New Roman", serif;
         --grotesk: "Inter", "Helvetica Neue", Arial, sans-serif;
         position: relative;
-        width: min(100vw, 380px);
-        min-height: 100svh;
+        width: min(var(--app-viewport-width), var(--phone-shell-max));
+        min-height: var(--app-viewport-height);
         background: var(--paper);
         color: var(--ink);
         font-family: var(--grotesk);
@@ -3169,6 +3562,10 @@ function AtelierStyles() {
         display: flex;
         flex-direction: column;
         overflow: hidden;
+        /* Clear the status bar / Dynamic Island: pushes the whole header bar
+           (incl. its absolutely-positioned mark/gear) down uniformly, like the
+           EditorialMasthead used on the Notebook page. */
+        padding-top: var(--phone-safe-top);
       }
       .ph * { box-sizing: border-box; }
       .ph-head {
@@ -3216,7 +3613,7 @@ function AtelierStyles() {
       }
       .ph-body {
         flex: 1 1 auto;
-        padding: 16px 22px 22px;
+        padding: var(--phone-section-gap) var(--phone-gutter) 22px;
       }
       .ph-body.center {
         display: flex;
@@ -3226,7 +3623,8 @@ function AtelierStyles() {
         flex: 0 0 auto;
         display: grid;
         grid-template-columns: 1fr 1fr;
-        min-height: 62px;
+        min-height: var(--phone-bottom-nav-space);
+        padding-bottom: var(--phone-safe-bottom-space);
         border-top: 1px solid var(--ink);
         background: var(--paper);
       }
@@ -3256,7 +3654,7 @@ function AtelierStyles() {
       }
       .ph-nav.three {
         grid-template-columns: 1fr auto 1fr;
-        min-height: 64px;
+        min-height: var(--phone-bottom-nav-space);
         align-items: stretch;
       }
       .ph-nav .center-act {
@@ -3841,7 +4239,8 @@ function AtelierStyles() {
       }
       @media (max-width: 420px) {
         .ph {
-          width: 100vw;
+          width: 100%;
+          max-width: var(--app-viewport-width);
         }
       }
       .today-spread {
@@ -4357,6 +4756,184 @@ function AtelierStyles() {
         margin: 6px 0 14px;
         color: var(--ink-2);
       }
+      .edition-cover {
+        display: grid;
+        gap: 16px;
+        margin: 20px 0 18px;
+        padding: clamp(18px, 4vw, 28px);
+        border: 1px solid var(--ink);
+        background: var(--paper);
+        box-shadow: var(--ink-block-shadow);
+      }
+      .edition-cover p {
+        max-width: 12ch;
+        margin: 0;
+        font-family: var(--serif);
+        font-size: clamp(32px, 6vw, 54px);
+        font-style: italic;
+        font-weight: 400;
+        line-height: .96;
+        letter-spacing: 0;
+      }
+      .edition-cover .cta {
+        width: min(100%, 340px);
+        min-height: 58px;
+        justify-self: start;
+        border: 1px solid var(--ink);
+        background: var(--red);
+        color: #fff;
+        padding: 0 18px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        font-family: var(--mono);
+        font-size: 11px;
+        font-weight: 500;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        transition: transform var(--dur-fast) var(--ease-standard), box-shadow var(--dur-fast) var(--ease-standard);
+      }
+      .edition-cover .cta:hover:not(:disabled) {
+        transform: translate(-2px, -2px);
+        box-shadow: 4px 4px 0 var(--ink);
+      }
+      .edition-cover .cta:disabled {
+        opacity: .5;
+        cursor: wait;
+      }
+      .edition-serial {
+        margin-top: var(--phone-section-gap);
+      }
+      .also-today {
+        display: grid;
+        gap: 9px;
+        margin-top: 18px;
+      }
+      .also-label {
+        color: var(--ink-3);
+        font-family: var(--mono);
+        font-size: 9px;
+        font-weight: 900;
+        letter-spacing: .16em;
+        text-transform: uppercase;
+      }
+      .also-card {
+        width: 100%;
+        min-height: 68px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        border: 1px solid var(--ink);
+        background: var(--sheet);
+        padding: 12px 14px;
+        color: var(--ink);
+        text-align: left;
+        text-decoration: none;
+      }
+      .also-card:hover:not(:disabled) {
+        background: var(--paper);
+        box-shadow: 3px 3px 0 var(--ink);
+        transform: translate(-1px, -1px);
+      }
+      .also-card:disabled {
+        cursor: wait;
+        opacity: .55;
+      }
+      .also-card.review {
+        background: var(--paper);
+      }
+      .also-mark {
+        background: var(--paper);
+        color: var(--ink);
+      }
+      .also-copy {
+        min-width: 0;
+        display: grid;
+        gap: 4px;
+      }
+      .also-title {
+        display: block;
+        min-width: 0;
+        font-family: var(--serif);
+        font-size: 19px;
+        font-style: italic;
+        font-weight: 600;
+        line-height: 1;
+      }
+      .also-meta {
+        display: block;
+        min-width: 0;
+        color: var(--ink-3);
+        font-family: var(--mono);
+        font-size: 9px;
+        font-weight: 900;
+        letter-spacing: .12em;
+        line-height: 1.25;
+        text-transform: uppercase;
+      }
+      .also-arrow {
+        width: 18px;
+        height: 18px;
+        display: grid;
+        place-items: center;
+        flex: 0 0 auto;
+        margin-left: auto;
+      }
+      .also-arrow svg {
+        width: 18px;
+        height: 18px;
+      }
+      .review-dot {
+        width: 0;
+        height: 0;
+        border-style: solid;
+        border-width: 0 13px 23px 13px;
+        border-color: transparent transparent var(--red) transparent;
+        flex: 0 0 auto;
+      }
+      .today-plan {
+        margin-top: 22px;
+        border-top: 1px solid var(--ink);
+        border-bottom: 1px solid var(--ink);
+      }
+      .today-plan summary {
+        min-height: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        cursor: pointer;
+        font-family: var(--mono);
+        font-size: 10px;
+        font-weight: 500;
+        letter-spacing: .12em;
+        text-transform: uppercase;
+        list-style: none;
+      }
+      .today-plan summary::-webkit-details-marker {
+        display: none;
+      }
+      .today-plan summary::after {
+        content: "+";
+        font-size: 18px;
+        line-height: 1;
+      }
+      .today-plan[open] summary::after {
+        content: "−";
+      }
+      .today-plan-body {
+        display: grid;
+        gap: 18px;
+        padding: 4px 0 22px;
+      }
+      .plan-note {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 14px;
+        color: var(--ink-2);
+        font-size: 13px;
+      }
       .vocab-focus {
         border: 1px solid var(--ink);
         background: var(--paper-2);
@@ -4472,6 +5049,176 @@ function AtelierStyles() {
       .due-errata-actions .notebook-link { margin-left: 0; }
       .atelier-footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--ink); display: flex; justify-content: space-between; color: var(--ink-2); font-size: 12px; }
       .session-spread { padding-top: 24px; padding-bottom: 80px; }
+      .atelier-do-mode {
+        width: min(100%, 980px);
+        min-height: var(--app-viewport-height);
+        padding: 0 var(--phone-gutter) calc(var(--phone-bottom-nav-space) + 28px);
+      }
+      .do-topbar {
+        position: sticky;
+        top: 0;
+        z-index: 35;
+        display: grid;
+        grid-template-columns: 44px minmax(0, 1fr) 78px;
+        align-items: center;
+        gap: 14px;
+        min-height: 62px;
+        margin: 0 calc(0px - var(--phone-gutter));
+        padding: var(--phone-safe-top) var(--phone-gutter) 0;
+        border-bottom: 1px solid var(--ink);
+        background: color-mix(in srgb, var(--paper) 94%, transparent);
+        backdrop-filter: blur(10px);
+      }
+      .do-close,
+      .do-finish,
+      .rule-toggle {
+        border: 1px solid var(--ink);
+        background: var(--paper);
+        color: var(--ink);
+        display: inline-grid;
+        place-items: center;
+        font-family: var(--mono);
+        font-weight: 500;
+        transition: background var(--dur-fast) var(--ease-standard), color var(--dur-fast) var(--ease-standard);
+      }
+      .do-close {
+        width: 38px;
+        height: 38px;
+        font-size: 26px;
+        line-height: 1;
+      }
+      .do-progress {
+        min-width: 0;
+        display: grid;
+        gap: 6px;
+      }
+      .do-progress .atelier-progress-bar {
+        height: 6px;
+      }
+      .do-progress span {
+        color: var(--ink-3);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-family: var(--mono);
+        font-size: 10px;
+        font-weight: 500;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+      }
+      .do-finish {
+        min-height: 38px;
+        padding: 0 12px;
+        font-size: 10px;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+      }
+      .do-finish:disabled {
+        opacity: .45;
+      }
+      .do-close:hover,
+      .do-finish:hover:not(:disabled),
+      .rule-toggle:hover {
+        background: var(--ink);
+        color: var(--paper);
+      }
+      .do-stage {
+        min-height: calc(var(--app-viewport-height) - var(--phone-topbar-height));
+        display: grid;
+        align-content: center;
+        padding: var(--phone-section-gap) 0 calc(var(--phone-bottom-nav-space) + 36px);
+      }
+      .rule-toggle {
+        width: 40px;
+        height: 40px;
+        font-size: 16px;
+      }
+      .rule-toggle svg {
+        width: 18px;
+        height: 18px;
+      }
+      .do-rule-sheet {
+        margin-bottom: 18px;
+        border-top: 1px solid var(--ink);
+        border-bottom: 1px solid var(--ink);
+        background: var(--paper-2);
+        padding: 14px 0;
+      }
+      .do-rule-sheet .rule-panel {
+        border-left: 0;
+        background: transparent;
+        padding: 0 16px;
+      }
+      .rule-bridge {
+        margin: 12px 16px 0;
+        padding: 10px 0 0;
+        border-top: 1px solid var(--paper-3);
+        color: var(--ink-2);
+        font-size: 13px;
+        font-weight: 500;
+      }
+      .atelier-do-mode .exercise-frame {
+        min-height: 0;
+        padding: 0;
+        border: 0;
+        background: transparent;
+      }
+      .atelier-do-mode .recognize-set,
+      .atelier-do-mode .transform-set,
+      .atelier-do-mode .output-ladder-panel {
+        gap: 22px;
+      }
+      .atelier-do-mode .sub-exercise {
+        border-bottom-color: var(--paper-3);
+        padding-bottom: 22px;
+      }
+      .atelier-do-mode .sub-exercise:last-child {
+        padding-bottom: 0;
+      }
+      .atelier-do-mode .exercise-prompt,
+      .atelier-do-mode .source-sentence {
+        margin: 10px 0 22px;
+        font-size: var(--phone-type-serif-lg);
+        line-height: 1.14;
+      }
+      .atelier-do-mode .source-sentence {
+        background: transparent;
+        border: 0;
+        border-left: 3px solid var(--ink);
+        padding: 4px 0 4px 16px;
+      }
+      .atelier-do-mode .instruction {
+        max-width: 54ch;
+        font-weight: 500;
+      }
+      .atelier-do-mode .choice-row button,
+      .atelier-do-mode .type-case button {
+        min-height: 48px;
+        font-size: var(--phone-type-serif-md);
+      }
+      .atelier-do-mode .choice-row button.selected {
+        background: var(--ink);
+        color: var(--paper);
+      }
+      .atelier-do-mode .type-case {
+        border: 0;
+        background: transparent;
+        padding: 0;
+      }
+      .atelier-do-mode .inline-feedback {
+        margin-top: 14px;
+      }
+      .atelier-do-mode .action-row {
+        justify-content: center;
+        margin-top: 28px;
+      }
+      .atelier-do-mode .action-row .btn {
+        width: min(100%, 320px);
+        min-height: 56px;
+      }
+      .atelier-do-mode .final-action {
+        margin-top: 18px;
+      }
       .mobile-session-topbar,
       .mobile-session-brief {
         display: none;
@@ -4517,9 +5264,31 @@ function AtelierStyles() {
       .recognize-set, .transform-set { display: grid; gap: 18px; }
       .sub-exercise { border-bottom: 1px solid var(--paper-3); padding-bottom: 18px; }
       .sub-exercise:last-child { border-bottom: 0; }
+      .recognize-card {
+        display: grid;
+        grid-template-columns: 46px minmax(0, 1fr);
+        gap: 16px;
+        align-items: start;
+      }
+      .recognize-form-slot {
+        position: sticky;
+        top: calc(var(--phone-safe-top) + 84px);
+        min-height: 48px;
+        display: grid;
+        place-items: start center;
+        padding-top: 8px;
+      }
+      .recognize-form-slot .rf {
+        width: 42px;
+        height: 42px;
+      }
+      .recognize-card-body {
+        min-width: 0;
+      }
       .sub-exercise .t-mono-low { display: inline-flex; align-items: center; gap: 6px; }
       .exercise-prompt, .source-sentence { font-family: var(--serif); font-style: italic; font-size: 29px; line-height: 1.45; margin: 12px 0 20px; }
       .source-sentence { background: var(--paper-2); border: 1px solid var(--ink); padding: 14px 16px; }
+      .meaning-cue { margin: -8px 0 16px; border-left: 3px solid var(--yellow); padding: 8px 0 8px 12px; color: var(--ink-2); font-size: 13px; line-height: 1.4; }
       .instruction { margin: 10px 0 0; font-weight: 700; color: var(--ink-2); }
       .choice-row, .type-case, .target-chips { display: flex; flex-wrap: wrap; gap: 10px; }
       .choice-row button, .type-case button, .target-chips span { border: 1px solid var(--ink); background: var(--paper); padding: 8px 15px; font-family: var(--serif); font-style: italic; font-size: 19px; }
@@ -4533,6 +5302,12 @@ function AtelierStyles() {
       .sub-exercise input, .sub-exercise textarea, .produce-panel textarea, .output-ladder-panel textarea { width: 100%; border: 1px solid var(--ink); background: var(--paper); outline: none; padding: 13px 15px; font-family: var(--serif); font-style: italic; font-size: 19px; }
       .sub-exercise textarea { min-height: 86px; resize: vertical; }
       .inline-feedback { margin-top: 12px; border-left: 4px solid var(--blue); background: rgba(29,58,138,.06); padding: 10px 12px; font-size: 13px; line-height: 1.42; color: var(--ink-2); }
+      .inline-feedback.wrong { border-left-color: var(--red); background: rgba(216,50,26,.06); }
+      .inline-feedback p { margin: 6px 0 0; }
+      .inline-feedback p:first-child { margin-top: 0; }
+      .feedback-issue { padding-top: 10px; margin-top: 10px; border-top: 1px solid rgba(20,17,13,.14); }
+      .feedback-issue:first-of-type { border-top: 0; }
+      .feedback-issue > b { display: block; color: var(--ink); font-family: var(--mono); font-size: 10px; letter-spacing: .11em; text-transform: uppercase; }
       .inline-feedback.correct { display: inline-flex; align-items: center; gap: 8px; border-left-color: var(--ink); background: rgba(20,17,13,.06); color: var(--ink); font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; font-weight: 900; }
       .ai-review-line { margin-top: 12px; display: inline-flex; align-items: center; min-height: 28px; font-family: var(--mono); font-size: 10px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: var(--blue); }
       .ai-review-line.complete { color: var(--ink); }
@@ -4635,6 +5410,170 @@ function AtelierStyles() {
       }
       .recap-modal footer { padding: 16px 36px; border-top: 1px solid var(--ink); display: flex; justify-content: space-between; align-items: center; }
       .recap-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+      .recap-modal.printed {
+        width: min(680px, 96vw);
+        box-shadow: var(--ink-block-shadow);
+      }
+      .recap-modal.printed header {
+        align-items: flex-start;
+        gap: 24px;
+      }
+      .recap-modal.printed header .btn {
+        width: 42px;
+        height: 42px;
+        padding: 0;
+        font-size: 20px;
+      }
+      .edition-seal {
+        width: 104px;
+        height: 104px;
+        display: grid;
+        place-items: center;
+        border: 2px solid var(--red);
+        color: var(--red);
+        border-radius: 50%;
+        transform: rotate(-9deg);
+        font-family: var(--mono);
+        font-size: 12px;
+        font-weight: 500;
+        letter-spacing: .12em;
+        text-transform: uppercase;
+      }
+      .printed-body {
+        display: grid;
+        gap: 0;
+        padding: 0 36px;
+      }
+      .printed-body section {
+        display: grid;
+        gap: 8px;
+        padding: 20px 0;
+        border-top: 1px solid var(--paper-3);
+      }
+      .printed-body section:first-child {
+        border-top: 0;
+      }
+      .printed-body p {
+        margin: 0;
+        font-family: var(--serif);
+        font-size: 26px;
+        font-style: italic;
+        line-height: 1.1;
+      }
+      .printed-seal-stage {
+        grid-template-columns: auto minmax(0, 1fr);
+        align-items: center;
+        gap: 20px;
+      }
+      .printed-seal-stage .seal {
+        transform: rotate(-4deg);
+      }
+      .printed-stats {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+      }
+      .printed-stats div {
+        border: 1px solid var(--ink);
+        background: var(--paper-2);
+        padding: 12px 10px;
+      }
+      .printed-stats b {
+        display: block;
+        font-family: var(--serif);
+        font-size: 30px;
+        font-style: italic;
+        line-height: 1;
+      }
+      .printed-stats span {
+        display: block;
+        margin-top: 5px;
+        color: var(--ink-2);
+        font-family: var(--mono);
+        font-size: 9px;
+        font-weight: 900;
+        letter-spacing: .1em;
+        text-transform: uppercase;
+      }
+      .printed-minted .minted-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .printed-minted .seal {
+        margin-right: 6px;
+      }
+      .printed-minted p {
+        font-size: 22px;
+      }
+      .printed-hook p {
+        color: var(--ink);
+      }
+      .recap-modal.printed footer {
+        justify-content: flex-end;
+      }
+      .reward-moment-layer {
+        position: fixed;
+        inset: 0;
+        z-index: 1100;
+        display: grid;
+        place-items: center;
+        padding: 22px;
+        background: rgba(20, 17, 13, .58);
+      }
+      .reward-moment-card {
+        position: relative;
+        z-index: 2;
+        width: min(420px, 100%);
+        display: grid;
+        justify-items: center;
+        gap: 16px;
+        border: 2px solid var(--ink);
+        background: var(--paper);
+        box-shadow: var(--ink-block-shadow);
+        padding: 26px 24px 22px;
+        text-align: center;
+      }
+      .reward-moment-card span {
+        color: var(--red);
+        font-family: var(--mono);
+        font-size: 9px;
+        font-weight: 900;
+        letter-spacing: .16em;
+        text-transform: uppercase;
+      }
+      .reward-moment-card h2 {
+        margin: 6px 0 0;
+        font-family: var(--serif);
+        font-size: 38px;
+        font-style: italic;
+        font-weight: 600;
+        line-height: .96;
+        letter-spacing: 0;
+      }
+      .reward-moment-card p {
+        margin: 8px auto 0;
+        max-width: 28ch;
+        color: var(--ink-2);
+        font-size: 13px;
+        line-height: 1.45;
+      }
+      .reward-moment-card button {
+        min-height: 48px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 9px;
+        border: 1.5px solid var(--ink);
+        background: var(--red);
+        color: #fff;
+        padding: 0 18px;
+        font-family: var(--mono);
+        font-size: 10px;
+        font-weight: 900;
+        letter-spacing: .13em;
+        text-transform: uppercase;
+      }
       @keyframes spin { to { transform: rotate(360deg); } }
       @keyframes slip-in { from { opacity: 0; transform: translate(18px, -8px) rotate(2deg); } to { opacity: 1; transform: translate(0, 0) rotate(-1deg); } }
       @media (max-width: 960px) {
@@ -4658,6 +5597,19 @@ function AtelierStyles() {
         .spread {
           padding-left: 16px;
           padding-right: 16px;
+        }
+        .ph-body {
+          padding-left: 18px;
+          padding-right: 18px;
+        }
+        .edition-cover {
+          width: calc(100% - 5px);
+          max-width: calc(100% - 5px);
+          box-shadow: 4px 4px 0 var(--ink);
+        }
+        .edition-cover .cta {
+          width: 100%;
+          max-width: 100%;
         }
         .today-spread {
           padding-top: 16px;
@@ -4853,9 +5805,46 @@ function AtelierStyles() {
         }
         .session-spread {
           width: 100%;
-          min-height: 100vh;
+          min-height: var(--app-viewport-height);
           padding-top: 0;
           padding-bottom: 28px;
+        }
+        .atelier-do-mode {
+          min-height: var(--app-viewport-height);
+          padding: 0 var(--phone-gutter) calc(var(--phone-bottom-nav-space) + 20px);
+        }
+        .atelier-do-mode .do-topbar {
+          grid-template-columns: 42px minmax(0, 1fr) 68px;
+          gap: 10px;
+          margin-left: calc(0px - var(--phone-gutter));
+          margin-right: calc(0px - var(--phone-gutter));
+          padding-left: var(--phone-gutter);
+          padding-right: var(--phone-gutter);
+        }
+        .atelier-do-mode .do-finish {
+          padding: 0 8px;
+          font-size: 9px;
+        }
+        .atelier-do-mode .do-stage {
+          min-height: calc(var(--app-viewport-height) - var(--phone-topbar-height));
+          align-content: start;
+          padding-top: var(--phone-section-gap);
+          padding-bottom: calc(var(--phone-bottom-nav-space) + 44px);
+        }
+        .atelier-do-mode .atelier-exercise-shell > header {
+          align-items: flex-start;
+          gap: 12px;
+        }
+        .atelier-do-mode .atelier-exercise-shell > header h2 {
+          font-size: var(--phone-type-title);
+        }
+        .atelier-do-mode .atelier-exercise-shell-body {
+          padding: var(--phone-gutter);
+        }
+        .atelier-do-mode .exercise-prompt,
+        .atelier-do-mode .source-sentence {
+          font-size: var(--phone-type-serif-lg);
+          line-height: 1.16;
         }
         .session-title-row,
         .session-spread > .rule,
@@ -4874,10 +5863,11 @@ function AtelierStyles() {
           display: grid;
           grid-template-columns: 74px minmax(0, 1fr) 74px;
           align-items: center;
-          min-height: 54px;
-          margin-left: -16px;
-          margin-right: -16px;
-          padding: 0 16px;
+          min-height: var(--phone-topbar-height);
+          margin-left: calc(0px - var(--phone-gutter));
+          margin-right: calc(0px - var(--phone-gutter));
+          /* Clear the status bar / Dynamic Island so BACK/FINISH stay tappable. */
+          padding: var(--phone-safe-top) var(--phone-gutter) 0;
           border-bottom: 1px solid var(--ink);
           background: var(--paper);
         }
@@ -4915,8 +5905,8 @@ function AtelierStyles() {
         }
         .mobile-session-brief {
           display: grid;
-          gap: 14px;
-          padding: 16px 0 10px;
+          gap: var(--phone-card-gap);
+          padding: var(--phone-section-gap) 0 10px;
           border-bottom: 1px solid var(--ink);
         }
         .mobile-session-heading {
@@ -4927,7 +5917,7 @@ function AtelierStyles() {
           max-width: 100%;
           margin: 7px 0 2px;
           font-family: var(--display);
-          font-size: clamp(27px, 7.4vw, 36px);
+          font-size: var(--phone-type-display);
           font-style: normal;
           font-weight: 900;
           line-height: 1;
@@ -4995,7 +5985,7 @@ function AtelierStyles() {
           padding: 14px 0;
         }
         .work-grid {
-          margin-top: 14px;
+          margin-top: var(--phone-section-gap);
         }
         .exercise-toolbar {
           gap: 10px;
@@ -5031,16 +6021,29 @@ function AtelierStyles() {
         .recognize-set,
         .transform-set,
         .output-ladder-panel {
-          gap: 16px;
+          gap: var(--phone-card-gap);
         }
         .sub-exercise {
-          padding-bottom: 16px;
+          padding-bottom: var(--phone-card-gap);
+        }
+        .recognize-card {
+          grid-template-columns: 40px minmax(0, 1fr);
+          gap: 12px;
+        }
+        .recognize-form-slot {
+          position: static;
+          min-height: 40px;
+          padding-top: 4px;
+        }
+        .recognize-form-slot .rf {
+          width: 36px;
+          height: 36px;
         }
         .exercise-prompt,
         .source-sentence {
-          font-size: 23px;
+          font-size: var(--phone-type-serif-lg);
           line-height: 1.33;
-          margin: 10px 0 14px;
+          margin: 10px 0 var(--phone-card-gap);
         }
         .source-sentence {
           padding: 12px;
@@ -5110,15 +6113,22 @@ function AtelierStyles() {
           position: sticky;
           bottom: 0;
           z-index: 28;
-          margin: 18px -16px -18px;
-          padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+          margin: 18px calc(0px - var(--phone-gutter)) calc(0px - var(--phone-safe-bottom-space));
+          padding: 12px var(--phone-gutter) calc(12px + var(--phone-safe-bottom-space));
           border-top: 1px solid var(--ink);
           background: var(--paper);
         }
         .session-spread .action-row .btn {
           flex: 1 1 0;
-          min-height: 48px;
+          min-height: var(--phone-action-height);
           padding-inline: 10px;
+        }
+        .atelier-do-mode .action-row .btn {
+          width: 100%;
+          min-height: var(--phone-action-height);
+        }
+        .atelier-do-mode .final-action {
+          margin-bottom: 18px;
         }
         .recap-overlay {
           align-items: end;
@@ -5127,7 +6137,7 @@ function AtelierStyles() {
         .recap-modal,
         .errata-review-modal {
           width: 100%;
-          max-height: calc(100vh - 24px);
+          max-height: calc(var(--app-viewport-height) - 24px);
           box-shadow: none;
         }
         .recap-modal header,
@@ -5169,6 +6179,23 @@ function AtelierStyles() {
         }
         .recap-next .btn {
           width: 100%;
+        }
+        .recap-modal.printed {
+          box-shadow: none;
+        }
+        .printed-body {
+          padding: 0 18px;
+        }
+        .printed-seal-stage {
+          grid-template-columns: 1fr;
+          justify-items: center;
+          text-align: center;
+        }
+        .printed-stats {
+          grid-template-columns: 1fr;
+        }
+        .printed-body p {
+          font-size: 22px;
         }
         .recap-modal footer {
           align-items: stretch;

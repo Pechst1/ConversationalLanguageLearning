@@ -4,9 +4,8 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
-from uuid import UUID
 
 from loguru import logger
 from sqlalchemy import not_
@@ -18,12 +17,11 @@ from app.db.models.grammar import GrammarConcept, UserGrammarProgress
 from app.db.models.user import User
 from app.services.atelier_assets import AtelierAssetService
 from app.services.error_memory import ErrorMemoryService, serialize_error_memory
-from app.services.grammar_feedback import infer_grammar_profile
 from app.services.grammar import GrammarService
+from app.services.grammar_feedback import infer_grammar_profile
 from app.services.llm_service import LLMProviderError, LLMService
 from app.services.progress import ProgressService
 from app.services.unified_srs import InterleavingMode, ItemType, UnifiedSRSService
-
 
 EXERCISE_ENGINE_VERSION = "ai-exercise-engine-v1"
 
@@ -146,6 +144,83 @@ ERROR_EXERCISE_RESPONSE_FORMAT: dict[str, Any] = {
 }
 
 
+PASSAGE_READING_RESPONSE_FORMAT: dict[str, Any] = {
+    "type": "json_schema",
+    "json_schema": {
+        "name": "guided_reading_episode_exercises",
+        "strict": True,
+        "schema": {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "comprehension": {
+                    "type": "array",
+                    "minItems": 2,
+                    "maxItems": 3,
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "properties": {
+                            "question": {"type": "string"},
+                            "answer": {"type": "string"},
+                            "evidence": {"type": "string"},
+                        },
+                        "required": ["question", "answer", "evidence"],
+                    },
+                },
+                "vocabulary": {
+                    "type": "array",
+                    "minItems": 3,
+                    "maxItems": 5,
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "properties": {
+                            "word": {"type": "string"},
+                            "context_sentence": {"type": "string"},
+                            "gloss_hint": {"type": "string"},
+                        },
+                        "required": ["word", "context_sentence", "gloss_hint"],
+                    },
+                },
+                "grammar": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 3,
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "properties": {
+                            "pattern": {"type": "string"},
+                            "prompt": {"type": "string"},
+                            "answer": {"type": "string"},
+                            "explanation": {"type": "string"},
+                        },
+                        "required": ["pattern", "prompt", "answer", "explanation"],
+                    },
+                },
+                "production": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": {
+                        "prompt": {"type": "string"},
+                        "example_answer": {"type": "string"},
+                        "success_criteria": {
+                            "type": "array",
+                            "minItems": 2,
+                            "maxItems": 4,
+                            "items": {"type": "string"},
+                        },
+                    },
+                    "required": ["prompt", "example_answer", "success_criteria"],
+                },
+            },
+            "required": ["comprehension", "vocabulary", "grammar", "production"],
+        },
+    },
+}
+
+
 def _compact_text(value: Any, *, max_length: int = 800) -> str:
     text = re.sub(r"\s+", " ", str(value or "")).strip()
     if len(text) <= max_length:
@@ -232,11 +307,40 @@ def _filled(value: Any) -> bool:
     return bool(str(value or "").strip())
 
 
+def _quoted_fragments(value: Any) -> list[str]:
+    text = str(value or "")
+    fragments: list[str] = []
+    for match in re.finditer(r"'([^']+)'|\"([^\"]+)\"|«([^»]+)»", text):
+        fragment = next((group for group in match.groups() if group), "")
+        if fragment.strip():
+            fragments.append(fragment.strip())
+    return fragments
+
+
+def _directed_rewrite_instruction_errors(item: dict[str, Any]) -> list[str]:
+    if item.get("type") != "directed_rewrite":
+        return []
+    instruction = str(item.get("instruction") or "")
+    source = str(item.get("source") or "")
+    expected = str(item.get("expected_answer") or "")
+    quoted = _quoted_fragments(instruction)
+    normalized_source = _compact_text(source, max_length=500).lower()
+    normalized_expected = _compact_text(expected, max_length=500).lower()
+    has_source_fragment = any(fragment.lower() in normalized_source for fragment in quoted)
+    has_target_form = any(fragment.lower() in normalized_expected for fragment in quoted if not fragment.lower() in normalized_source)
+    has_target_marker = bool(re.search(r"\b(?:to|into|use|target|form|present|future|imparfait|passe|passé|conditional|conditionnel|subjunctive|subjonctif)\b", instruction, re.I))
+    if not has_source_fragment:
+        return ["directed_rewrite instructions must quote the source word or phrase to change"]
+    if not (has_target_form or has_target_marker):
+        return ["directed_rewrite instructions must name the target form to use"]
+    return []
+
+
 def _as_aware(value: datetime | None) -> datetime | None:
     if value is None:
         return None
     if value.tzinfo is None:
-        return value.replace(tzinfo=timezone.utc)
+        return value.replace(tzinfo=UTC)
     return value
 
 
@@ -278,7 +382,7 @@ class ExerciseGenerationService:
         return DailyExerciseContext(
             user_id=str(user.id) if user else None,
             target_language=target_language,
-            generated_at=datetime.now(timezone.utc).isoformat(),
+            generated_at=datetime.now(UTC).isoformat(),
             concepts=[
                 _serialize_concept(concept, role=role, progress=progress)
                 for concept, role, progress in selected
@@ -336,7 +440,7 @@ class ExerciseGenerationService:
                     continue
                 fragile = progress is None or float(progress.score or 0) < 7.0
                 next_review = _as_aware(progress.next_review) if progress else None
-                due = progress is None or next_review is None or next_review <= datetime.now(timezone.utc)
+                due = progress is None or next_review is None or next_review <= datetime.now(UTC)
                 if fragile or due:
                     add(concept, "fragile", progress)
                 if len(selected) >= 3:
@@ -381,19 +485,59 @@ class ExerciseGenerationService:
         *,
         concept: GrammarConcept,
         user: User | None = None,
+        target_vocabulary: list[dict[str, Any]] | None = None,
         validation_feedback: list[str] | None = None,
     ) -> GeneratedExerciseBundle:
         llm = self._get_llm_service()
         context = self.build_daily_context(user=user, target_concept=concept)
+        context_payload = context.prompt_payload()
+        if target_vocabulary:
+            context_payload["target_vocabulary"] = [
+                {
+                    "word_id": item.get("word_id"),
+                    "word": item.get("word"),
+                    "translation": item.get("translation"),
+                    "bucket": item.get("bucket"),
+                    "example_sentence": item.get("example_sentence"),
+                    "example_translation": item.get("example_translation"),
+                }
+                for item in target_vocabulary[:4]
+                if isinstance(item, dict) and item.get("word")
+            ]
+        profile = infer_grammar_profile(concept)
+        context_payload["learner_cefr_level"] = (
+            getattr(user, "cefr_estimate", None)
+            or getattr(user, "proficiency_level", None)
+            or concept.level
+            or "A2"
+        )
+        context_payload["target_concept"] = {
+            **_serialize_concept(concept, role="target"),
+            "profile": profile.as_dict(),
+        }
         target_contract = _atelier_target_contract(concept)
         system_prompt = (
             "You generate compact French grammar exercise payloads for Atelier. "
             "Return only valid JSON matching the provided schema. "
             "Every recognize mode must contain exactly 3 subitems, transform must contain exactly 3 rewrite tasks, "
             "and output_ladder must include exactly 1 concise item for each of sentence, speak, and conversation. "
-            "Each word_bank item must be a complete click-to-build French sentence with at least 3 ordered answer_tokens. "
+            "Each word_bank item must be a full French sentence-building task: prompt must not contain a blank, "
+            "meaning_cue must be a learner-facing L1 translation/gloss or an explicit 'Express: ...' target meaning, "
+            "answer_tokens must be the complete ordered French sentence, and tokens must contain those exact answer_tokens "
+            "scrambled plus at least one plausible distractor chip. The meaning_cue must match the correct_answer without exposing the French target sentence. "
+            "For verb patterns, make one distractor an adjacent wrong form "
+            "of the target verb, such as present vs future or future vs conditional. Use fill only for blanks; never pad answer_tokens just to reach a length. "
+            "Fill items must have at least three distinct choices: the answer plus two plausible wrong forms. "
+            "Classify labels must name contrastive grammatical forms, never generic affirmative/negative or true/false labels. "
+            "Transform instructions must name the exact word or phrase to change and the target form to use. "
             "Each output_ladder example_answer must be a standalone full French answer that visibly uses the target grammar; "
             "do not split required grammar between prompt and answer. "
+            "When context.target_vocabulary is provided, naturally weave those French words into prompts or examples where they fit. "
+            "When context.due_errata includes task_error_type or error_pattern, aim at those sub-patterns directly. "
+            "Worked examples: fill = prompt 'Je ne bois pas ____ café.' choices ['de','du'] correct_answer 'de'; "
+            "word_bank = prompt 'Build the full French sentence.' meaning_cue 'Express: I do not drink coffee.' "
+            "answer_tokens ['Je','ne','bois','pas','de','café']; "
+            "classify = labels ['article changes','être exception']; transform = name the source word and target form. "
             f"{target_contract} "
             "Generate the exercise prompts, answer keys, and short target examples; the backend supplies rule-card and correction copy. "
             "Use accurate French accents and learner-facing wording rather than internal codes. "
@@ -406,14 +550,19 @@ class ExerciseGenerationService:
             "target_concept_id": concept.id,
             "target_concept_external_id": concept.external_id,
             "strict_contract": {
-                "recognize_modes": ["fill", "word_bank", "classify"],
+                "recognize_modes": ["fill", "classify", "word_bank"],
                 "recognize_items_per_mode": 3,
+                "word_bank_format": "full_sentence_build_no_blanks_no_padding_with_distractor_chip",
+                "word_bank_requires_meaning_cue": True,
+                "minimum_fill_choices": 3,
+                "minimum_word_bank_distractors": 1,
                 "transform_types": ["directed_rewrite", "contrast_rewrite", "repair_rewrite"],
+                "directed_rewrite_requires_explicit_source_and_target": True,
                 "output_ladder_rounds": ["sentence", "speak", "conversation"],
                 "learner_fallback_allowed": False,
                 "output_ladder_example_contract": target_contract,
             },
-            "context": context.prompt_payload(),
+            "context": context_payload,
         }
         if validation_feedback:
             user_payload["validation_feedback"] = {
@@ -435,6 +584,7 @@ class ExerciseGenerationService:
                 model=settings.ATELIER_EXERCISE_LLM_MODEL,
                 request_timeout=settings.ATELIER_EXERCISE_LLM_TIMEOUT_SECONDS,
                 disable_retries=True,
+                reasoning_effort=settings.ATELIER_EXERCISE_LLM_REASONING_EFFORT,
             )
             parsed = self._parse_json(result.content)
             validation_errors = validate_atelier_generation_payload(parsed)
@@ -578,6 +728,89 @@ class ExerciseGenerationService:
             logger.warning("Error repair exercise generation unavailable", error_id=str(error.id), error=str(exc))
             raise ExerciseGenerationUnavailable(str(exc)) from exc
 
+    def generate_passage_exercises(
+        self,
+        *,
+        passage_text: str,
+        episode_title: str,
+        cefr_level: str,
+        user: User | None = None,
+        vocab_seed: list[dict[str, Any]] | None = None,
+        grammar_seed: list[dict[str, Any]] | None = None,
+    ) -> GeneratedExerciseBundle:
+        """Generate guided-reading exercises grounded in one uploaded-book passage."""
+
+        llm = self._get_llm_service()
+        target_language = (getattr(user, "target_language", None) or "fr").strip() or "fr"
+        context = DailyExerciseContext(
+            user_id=str(user.id) if user else None,
+            target_language=target_language,
+            generated_at=datetime.now(UTC).isoformat(),
+            concepts=[],
+            due_errata=self._due_errata_context(user=user, target_error=None),
+            due_vocabulary=self._due_vocabulary_context(user=user),
+            unified_queue=self._unified_queue_context(user=user),
+            concept_blueprints={},
+        )
+        prompt_payload = {
+            "engine_version": EXERCISE_ENGINE_VERSION,
+            "exercise_kind": "guided_reading_episode",
+            "episode_title": _compact_text(episode_title, max_length=180),
+            "learner_cefr_level": _compact_text(cefr_level, max_length=20),
+            "target_language": target_language,
+            "passage": _compact_text(passage_text, max_length=5000),
+            "vocab_seed": vocab_seed or [],
+            "grammar_seed": grammar_seed or [],
+            "strict_contract": {
+                "ground_every_item_in_passage": True,
+                "comprehension_count": "2-3",
+                "vocabulary_count": "3-5",
+                "grammar_count": "1-3",
+                "production_count": 1,
+                "learner_fallback_allowed": False,
+            },
+            "context": context.prompt_payload(),
+        }
+        try:
+            result = llm.generate_chat_completion(
+                [{"role": "user", "content": json.dumps(prompt_payload, ensure_ascii=False, default=str)}],
+                system_prompt=(
+                    "Generate compact French guided-reading exercises for one uploaded-book episode. "
+                    "Return only JSON matching the schema. Every question, vocabulary item, grammar prompt, "
+                    "and production task must be visibly grounded in the provided passage. Keep the level "
+                    "appropriate for the learner CEFR level, and prefer French prompts with concise support."
+                ),
+                response_format=PASSAGE_READING_RESPONSE_FORMAT,
+                temperature=0.3,
+                max_tokens=1600,
+                model=settings.ATELIER_EXERCISE_LLM_MODEL,
+                request_timeout=settings.ATELIER_EXERCISE_LLM_TIMEOUT_SECONDS,
+                disable_retries=True,
+            )
+            parsed = self._parse_json(result.content)
+            errors = validate_passage_reading_payload(parsed)
+            if errors:
+                raise ExerciseGenerationUnavailable("; ".join(errors))
+            parsed["source"] = "llm"
+            parsed["engine_version"] = EXERCISE_ENGINE_VERSION
+            parsed["model"] = result.model
+            parsed["episode_title"] = episode_title
+            parsed["cefr_level"] = cefr_level
+            return GeneratedExerciseBundle(
+                exercise_kind="guided_reading_episode",
+                payload=parsed,
+                context=context,
+                provider=result.provider,
+                model=result.model,
+                prompt_version=EXERCISE_ENGINE_VERSION,
+                validation_notes=f"Generated by {result.provider}:{result.model} with strict passage-reading schema.",
+            )
+        except ExerciseGenerationUnavailable:
+            raise
+        except (json.JSONDecodeError, LLMProviderError, ValueError, TypeError) as exc:
+            logger.warning("Passage exercise generation unavailable", episode_title=episode_title, error=str(exc))
+            raise ExerciseGenerationUnavailable(str(exc)) from exc
+
     def _get_llm_service(self) -> LLMService:
         if self.llm_service:
             return self.llm_service
@@ -622,6 +855,8 @@ class ExerciseGenerationService:
                     "correction": _compact_text(serialized.get("correction"), max_length=180),
                     "why_wrong": _compact_text(serialized.get("why_wrong") or serialized.get("context"), max_length=240),
                     "repair_hint": _compact_text(serialized.get("repair_hint"), max_length=220),
+                    "task_error_type": _compact_text(serialized.get("task_error_type"), max_length=90),
+                    "error_pattern": _compact_text(serialized.get("error_pattern"), max_length=120),
                     "review_mode": serialized.get("review_mode"),
                     "lapses": serialized.get("lapses") or 0,
                     "occurrences": serialized.get("occurrences") or 0,
@@ -722,7 +957,7 @@ def validate_atelier_generation_payload(payload: dict[str, Any]) -> list[str]:
     if set(recognize.keys()) != {"fill", "word_bank", "classify"}:
         errors.append("recognize must include fill, word_bank, and classify")
         return errors
-    for mode in ("fill", "word_bank", "classify"):
+    for mode in ("fill", "classify", "word_bank"):
         items = (recognize.get(mode) or {}).get("items") if isinstance(recognize.get(mode), dict) else None
         if not isinstance(items, list) or len(items) != 3:
             errors.append(f"recognize.{mode}.items must contain exactly 3 items")
@@ -732,10 +967,15 @@ def validate_atelier_generation_payload(payload: dict[str, Any]) -> list[str]:
         if len(item.get("choices") or []) < 2:
             errors.append("fill items require at least 2 choices")
     for item in ((recognize.get("word_bank") or {}).get("items") or []):
-        if not (_filled(item.get("id")) and _filled(item.get("prompt")) and _filled(item.get("correct_answer"))):
-            errors.append("word_bank items require id, prompt, and correct_answer")
-        if len(item.get("tokens") or []) < 3 or len(item.get("answer_tokens") or []) < 3:
-            errors.append("word_bank items require at least 3 tokens and answer_tokens")
+        if not (
+            _filled(item.get("id"))
+            and _filled(item.get("prompt"))
+            and _filled(item.get("meaning_cue"))
+            and _filled(item.get("correct_answer"))
+        ):
+            errors.append("word_bank items require id, prompt, meaning_cue, and correct_answer")
+        if len(item.get("tokens") or []) < 1 or len(item.get("answer_tokens") or []) < 1:
+            errors.append("word_bank items require at least 1 token and answer_token")
     for item in ((recognize.get("classify") or {}).get("items") or []):
         if not (_filled(item.get("id")) and _filled(item.get("prompt")) and _filled(item.get("correct_label"))):
             errors.append("classify items require id, prompt, and correct_label")
@@ -753,6 +993,8 @@ def validate_atelier_generation_payload(payload: dict[str, Any]) -> list[str]:
                 and _filled(item.get("expected_answer"))
             ):
                 errors.append("transform items require id, instruction, source, and expected_answer")
+                continue
+            errors.extend(_directed_rewrite_instruction_errors(item))
     produce = payload.get("produce") if isinstance(payload.get("produce"), dict) else {}
     if not (_filled(produce.get("source_fragment")) and _filled(produce.get("prompt")) and produce.get("requirements")):
         errors.append("produce requires source_fragment, prompt, and requirements")
@@ -799,6 +1041,38 @@ def validate_error_exercise_payload(payload: dict[str, Any]) -> list[str]:
     return errors
 
 
+def validate_passage_reading_payload(payload: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    for key, minimum in (("comprehension", 2), ("vocabulary", 3), ("grammar", 1)):
+        items = payload.get(key)
+        if not isinstance(items, list) or len(items) < minimum:
+            errors.append(f"passage reading payload requires at least {minimum} {key} items")
+            continue
+        for item in items:
+            if not isinstance(item, dict):
+                errors.append(f"{key} item must be an object")
+                continue
+            required = {
+                "comprehension": ("question", "answer", "evidence"),
+                "vocabulary": ("word", "context_sentence", "gloss_hint"),
+                "grammar": ("pattern", "prompt", "answer", "explanation"),
+            }[key]
+            for field in required:
+                if not _filled(item.get(field)):
+                    errors.append(f"{key} item missing {field}")
+    production = payload.get("production")
+    if not isinstance(production, dict):
+        errors.append("passage reading payload requires production")
+    else:
+        for key in ("prompt", "example_answer"):
+            if not _filled(production.get(key)):
+                errors.append(f"production missing {key}")
+        criteria = production.get("success_criteria")
+        if not isinstance(criteria, list) or len(criteria) < 2:
+            errors.append("production requires at least 2 success criteria")
+    return errors
+
+
 __all__ = [
     "BRIEF_GRAMMAR_RESPONSE_FORMAT",
     "DailyExerciseContext",
@@ -807,7 +1081,9 @@ __all__ = [
     "ExerciseGenerationService",
     "ExerciseGenerationUnavailable",
     "GeneratedExerciseBundle",
+    "PASSAGE_READING_RESPONSE_FORMAT",
     "validate_atelier_generation_payload",
     "validate_brief_grammar_payload",
     "validate_error_exercise_payload",
+    "validate_passage_reading_payload",
 ]
