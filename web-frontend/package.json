@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "build:native": "NATIVE_STATIC_EXPORT=true next build",
+    "build:native": "node scripts/ensure-native-api-env.mjs && NATIVE_STATIC_EXPORT=true next build",
     "start": "next start",
     "lint": "next lint",
     "cap:sync:ios": "node scripts/sync-capacitor-ios.mjs",

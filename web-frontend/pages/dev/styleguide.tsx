@@ -9,6 +9,13 @@ import { ProgressBar } from '@/components/ui/ProgressBar';
 import { AtelierForms } from '@/components/ui/AtelierForms';
 import { ReactForm, Seal, SealMini, LogoToken } from '@/components/ui/Seal';
 
+export async function getStaticProps() {
+  if (process.env.NODE_ENV === 'production') {
+    return { notFound: true };
+  }
+  return { props: {} };
+}
+
 export default function AtelierStyleguidePage() {
   return (
     <>

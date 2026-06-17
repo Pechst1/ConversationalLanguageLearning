@@ -18,10 +18,14 @@ depends_on = None
 
 
 def _has_table(table_name: str) -> bool:
+    if getattr(op.get_context(), "as_sql", False):
+        return True
     return sa.inspect(op.get_bind()).has_table(table_name)
 
 
 def _has_column(table_name: str, column_name: str) -> bool:
+    if getattr(op.get_context(), "as_sql", False):
+        return False
     if not _has_table(table_name):
         return False
     return column_name in {column["name"] for column in sa.inspect(op.get_bind()).get_columns(table_name)}

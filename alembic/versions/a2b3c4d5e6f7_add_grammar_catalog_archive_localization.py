@@ -17,17 +17,27 @@ branch_labels = None
 depends_on = None
 
 
+def _offline_mode() -> bool:
+    return bool(getattr(op.get_context(), "as_sql", False))
+
+
 def _has_table(table_name: str) -> bool:
+    if _offline_mode():
+        return False
     return sa.inspect(op.get_bind()).has_table(table_name)
 
 
 def _has_column(table_name: str, column_name: str) -> bool:
+    if _offline_mode():
+        return False
     if not _has_table(table_name):
         return False
     return column_name in {column["name"] for column in sa.inspect(op.get_bind()).get_columns(table_name)}
 
 
 def _has_index(table_name: str, index_name: str) -> bool:
+    if _offline_mode():
+        return False
     if not _has_table(table_name):
         return False
     return index_name in {index["name"] for index in sa.inspect(op.get_bind()).get_indexes(table_name)}
@@ -39,7 +49,7 @@ def _add_column_once(table_name: str, column: sa.Column) -> None:
 
 
 def _create_index_once(index_name: str, table_name: str, columns: list[str], unique: bool = False) -> None:
-    if _has_table(table_name) and not _has_index(table_name, index_name):
+    if _offline_mode() or (_has_table(table_name) and not _has_index(table_name, index_name)):
         op.create_index(index_name, table_name, columns, unique=unique)
 
 

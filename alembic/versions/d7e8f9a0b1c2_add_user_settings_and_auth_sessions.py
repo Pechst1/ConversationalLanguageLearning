@@ -13,7 +13,13 @@ branch_labels = None
 depends_on = None
 
 
+def _offline_mode() -> bool:
+    return bool(getattr(op.get_context(), "as_sql", False))
+
+
 def _table_columns(table_name: str) -> set[str]:
+    if _offline_mode():
+        return set()
     inspector = sa.inspect(op.get_bind())
     return {column["name"] for column in inspector.get_columns(table_name)}
 
@@ -26,6 +32,9 @@ def _add_column_if_missing(table_name: str, existing_columns: set[str], column: 
 
 
 def _create_index_if_missing(index_name: str, table_name: str, columns: list[str], *, unique: bool = False) -> None:
+    if _offline_mode():
+        op.create_index(index_name, table_name, columns, unique=unique)
+        return
     inspector = sa.inspect(op.get_bind())
     existing_indexes = {index["name"] for index in inspector.get_indexes(table_name)}
     if index_name not in existing_indexes:
@@ -65,8 +74,8 @@ def upgrade() -> None:
     ]:
         _add_column_if_missing("users", user_columns, column)
 
-    inspector = sa.inspect(op.get_bind())
-    if not inspector.has_table("refresh_tokens"):
+    inspector = None if _offline_mode() else sa.inspect(op.get_bind())
+    if _offline_mode() or not inspector.has_table("refresh_tokens"):
         op.create_table(
             "refresh_tokens",
             sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True, nullable=False),

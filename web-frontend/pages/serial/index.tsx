@@ -102,7 +102,7 @@ export default function SerialArchivePage() {
 
                 return (
                   <li className={classes.join(' ')} key={episode.id} data-char={who}>
-                    <Link className="s-ep-link" href={`/serial/episode/${episode.episode_index}`} aria-label={`${episode.title}`}>
+                    <Link className="s-ep-link" href={`/serial/episode?index=${episode.episode_index}`} aria-label={`${episode.title}`}>
                       <span className="dot2">{roman(episode.episode_index)}</span>
                       <div className="ebody">
                         <div className="edate">

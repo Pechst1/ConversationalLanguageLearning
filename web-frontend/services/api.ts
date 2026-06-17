@@ -931,7 +931,9 @@ function isUnauthorized(error: any): boolean {
 }
 
 export function resolveBrowserApiBaseUrl() {
-  const configured = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+  const configured = normalizeApiBaseUrl(
+    process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1',
+  );
   if (typeof window === 'undefined') return configured;
   if (isNativePlatform()) return configured;
 
@@ -946,6 +948,12 @@ export function resolveBrowserApiBaseUrl() {
   }
 
   return configured;
+}
+
+function normalizeApiBaseUrl(value: string) {
+  const trimmed = value.replace(/\/+$/, '');
+  if (!trimmed || trimmed.startsWith('/') || trimmed.endsWith('/api/v1')) return trimmed;
+  return `${trimmed}/api/v1`;
 }
 
 class ApiService {

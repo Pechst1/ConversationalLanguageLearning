@@ -121,7 +121,7 @@ def _enqueue_library_processing(
         "target_level": target_level,
         "user_id": str(user.id),
     }
-    if settings.CELERY_BROKER_URL or settings.CELERY_RESULT_BACKEND:
+    if settings.CELERY_BROKER_URL or settings.CELERY_RESULT_BACKEND or settings.REDIS_URL:
         try:
             process_user_book_upload.delay(**task_kwargs)
             return

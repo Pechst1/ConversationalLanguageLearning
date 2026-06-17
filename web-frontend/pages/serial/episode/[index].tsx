@@ -7,6 +7,21 @@ import { ArrowLeft, Loader2 } from 'lucide-react';
 import EditorialMasthead from '@/components/layout/EditorialMasthead';
 import apiService, { GraphicNovelScene, RealWorldMission, SerialArchiveEpisode } from '@/services/api';
 
+const STATIC_REPLAY_EPISODES = 24;
+
+export async function getStaticPaths() {
+  return {
+    paths: Array.from({ length: STATIC_REPLAY_EPISODES }, (_, index) => ({
+      params: { index: String(index) },
+    })),
+    fallback: false,
+  };
+}
+
+export async function getStaticProps() {
+  return { props: {} };
+}
+
 export default function SerialEpisodeReplayPage() {
   const router = useRouter();
   const episodeIndex = Number(router.query.index);

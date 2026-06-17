@@ -17,12 +17,34 @@ const previewEmail = process.env.PREVIEW_EMAIL || `mobile-capture-${Date.now()}@
 const previewPassword = process.env.PREVIEW_PASSWORD || 'previewsecurepassword';
 const previewTheme = process.env.PREVIEW_THEME || 'light';
 
-const viewport = {
-  width: Number(process.env.CAPTURE_WIDTH || 390),
-  height: Number(process.env.CAPTURE_HEIGHT || 844),
-  deviceScaleFactor: Number(process.env.CAPTURE_SCALE || 3),
-  mobile: true,
-};
+function parseViewportSpec(spec) {
+  const [size, label = 'mobile'] = spec.split(':');
+  const [width, height] = size.split('x').map((value) => Number(value));
+  if (!Number.isFinite(width) || !Number.isFinite(height)) {
+    throw new Error(`Invalid CAPTURE_VIEWPORTS entry: ${spec}`);
+  }
+  return {
+    label: label.replace(/[^a-z0-9_-]/gi, '-').toLowerCase(),
+    width,
+    height,
+    deviceScaleFactor: Number(process.env.CAPTURE_SCALE || 3),
+    mobile: true,
+  };
+}
+
+const captureViewports = (process.env.CAPTURE_VIEWPORTS || '')
+  .split(',')
+  .map((item) => item.trim())
+  .filter(Boolean)
+  .map(parseViewportSpec);
+
+const viewports = captureViewports.length
+  ? captureViewports
+  : [
+      parseViewportSpec(`${process.env.CAPTURE_WIDTH || 390}x${process.env.CAPTURE_HEIGHT || 844}:compact`),
+      parseViewportSpec('440x956:wide'),
+      parseViewportSpec('852x393:landscape'),
+    ];
 const shouldCreateFeuilletonScene = process.env.CAPTURE_CREATE_FEUILLETON === 'true';
 let previewFeuilletonSceneId = process.env.CAPTURE_FEUILLETON_SCENE_ID || '';
 let previewAccessToken = '';
@@ -136,7 +158,7 @@ const allFrames = [
   },
   {
     name: 'serial-episode-detail',
-    route: '/serial/episode/0',
+    route: '/serial/episode?index=0',
     waitFor: "document.body.innerText.includes('Episode') && Boolean(document.querySelector('.replay-page'))",
   },
 ];
@@ -621,6 +643,8 @@ async function captureFrame(client, frame) {
     record.warning = error instanceof Error ? error.message : String(error);
   }
 
+  await assertViewportHealth(client, frame.name);
+
   const screenshot = await client.send('Page.captureScreenshot', {
     format: 'png',
     captureBeyondViewport: process.env.FULL_PAGE === 'true',
@@ -628,6 +652,44 @@ async function captureFrame(client, frame) {
   });
   await writeFile(record.path, Buffer.from(screenshot.data, 'base64'));
   return record;
+}
+
+async function assertViewportHealth(client, frameName) {
+  if (process.env.CAPTURE_SKIP_VIEWPORT_ASSERTIONS === 'true') return;
+  const result = await client.send('Runtime.evaluate', {
+    expression: `
+      (() => {
+        const root = document.documentElement;
+        const body = document.body;
+        const viewportWidth = window.innerWidth;
+        const scrollWidth = Math.max(root.scrollWidth, body ? body.scrollWidth : 0);
+        const offenders = Array.from(document.querySelectorAll('body *'))
+          .map((node) => {
+            const rect = node.getBoundingClientRect();
+            return {
+              tag: node.tagName.toLowerCase(),
+              cls: typeof node.className === 'string' ? node.className : '',
+              left: Math.round(rect.left),
+              right: Math.round(rect.right),
+              width: Math.round(rect.width),
+            };
+          })
+          .filter((item) => item.width > 0 && (item.left < -2 || item.right > viewportWidth + 2))
+          .slice(0, 8);
+        return {
+          overflowX: Math.round(scrollWidth - viewportWidth),
+          viewportWidth,
+          scrollWidth,
+          offenders,
+        };
+      })()
+    `,
+    returnByValue: true,
+  });
+  const value = result?.result?.value;
+  if (value && value.overflowX > 2) {
+    throw new Error(`${frameName} has horizontal overflow ${value.overflowX}px: ${JSON.stringify(value.offenders)}`);
+  }
 }
 
 await mkdir(captureDir, { recursive: true });
@@ -648,7 +710,7 @@ const manifest = {
   capturedAt: new Date().toISOString(),
   frontendUrl,
   backendUrl,
-  viewport,
+  viewports,
   frames: [],
 };
 
@@ -658,7 +720,6 @@ try {
   const client = await connect(tab.webSocketDebuggerUrl);
   await client.send('Network.enable');
   await client.send('Page.enable');
-  await client.send('Emulation.setDeviceMetricsOverride', viewport);
   if (sessionToken) {
     await client.send('Network.setCookie', {
       name: 'next-auth.session-token',
@@ -671,18 +732,29 @@ try {
     });
   }
 
-  for (const frame of frames) {
-    try {
-      manifest.frames.push(await captureFrame(client, frame));
-      console.log(`captured ${frame.name}`);
-    } catch (error) {
-      manifest.frames.push({
-        name: frame.name,
-        route: frame.route,
-        ok: false,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      console.warn(`failed ${frame.name}: ${error instanceof Error ? error.message : String(error)}`);
+  for (const viewport of viewports) {
+    await client.send('Emulation.setDeviceMetricsOverride', viewport);
+    for (const frame of frames) {
+      const frameWithViewport = {
+        ...frame,
+        name: viewports.length > 1 ? `${frame.name}-${viewport.label}` : frame.name,
+      };
+      try {
+        manifest.frames.push({
+          viewport: viewport.label,
+          ...(await captureFrame(client, frameWithViewport)),
+        });
+        console.log(`captured ${frame.name} ${viewport.label}`);
+      } catch (error) {
+        manifest.frames.push({
+          name: frameWithViewport.name,
+          route: typeof frame.route === 'function' ? frame.route() : frame.route,
+          viewport: viewport.label,
+          ok: false,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        console.warn(`failed ${frame.name} ${viewport.label}: ${error instanceof Error ? error.message : String(error)}`);
+      }
     }
   }
 

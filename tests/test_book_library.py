@@ -2,8 +2,11 @@
 from __future__ import annotations
 
 import pytest
+from fastapi import BackgroundTasks
 from fastapi.testclient import TestClient
 
+from app.api.v1.endpoints import stories as stories_endpoint
+from app.config import settings
 from app.db.models.library import BookEpisode, UserBook
 from app.db.models.user import User
 from app.services.book_library import BookLibraryService
@@ -230,3 +233,42 @@ def test_atelier_today_surfaces_next_library_episode(client: TestClient, db_sess
     assert payload["progress"]["librarySuggested"] is True
     assert payload["progress"]["libraryDone"] is False
     assert any(node["id"] == "library" and node["suggested"] for node in payload["progress"]["nodes"])
+
+
+def test_library_upload_uses_celery_when_only_redis_url_is_configured(db_session, monkeypatch) -> None:
+    user = _user(db_session, "library-celery@example.com")
+    service = BookLibraryService(db_session)
+    book, _ = service.create_upload_record(
+        user=user,
+        file_content=b"CHAPTER 1\nUne petite histoire.",
+        filename="celery.txt",
+        title="Celery Book",
+        target_level="A2",
+        task_id="celery-task",
+    )
+    background_tasks = BackgroundTasks()
+    delayed: dict[str, object] = {}
+
+    monkeypatch.setattr(settings, "CELERY_BROKER_URL", None)
+    monkeypatch.setattr(settings, "CELERY_RESULT_BACKEND", None)
+    monkeypatch.setattr(settings, "REDIS_URL", "redis://localhost:6379/0")
+
+    def fake_delay(**kwargs):
+        delayed.update(kwargs)
+
+    monkeypatch.setattr(stories_endpoint.process_user_book_upload, "delay", fake_delay)
+
+    stories_endpoint._enqueue_library_processing(
+        background_tasks=background_tasks,
+        book=book,
+        content=b"CHAPTER 1\nUne petite histoire.",
+        filename="celery.txt",
+        title="Celery Book",
+        author=None,
+        target_level="A2",
+        user=user,
+    )
+
+    assert delayed["book_id"] == str(book.id)
+    assert delayed["user_id"] == str(user.id)
+    assert background_tasks.tasks == []

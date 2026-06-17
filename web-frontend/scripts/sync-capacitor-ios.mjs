@@ -1,5 +1,7 @@
 import { spawnSync } from 'node:child_process';
 
+await import('./ensure-native-api-env.mjs');
+
 const skipBuild = process.argv.includes('--skip-build');
 const nativeEnv = {
   ...process.env,

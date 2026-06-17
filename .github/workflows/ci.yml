@@ -42,6 +42,13 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
 
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: web-frontend/package-lock.json
+
       - name: Install system dependencies
         run: |
           sudo apt-get update
@@ -61,6 +68,22 @@ jobs:
 
       - name: Audit Atelier word banks
         run: python scripts/audit_atelier_word_banks.py --output /tmp/atelier-word-bank-audit.json
+
+      - name: Install frontend dependencies
+        working-directory: web-frontend
+        run: npm ci
+
+      - name: Check frontend
+        working-directory: web-frontend
+        env:
+          NEXT_PUBLIC_API_BASE_URL: https://api.example.com/api/v1
+        run: |
+          npm run type-check
+          npm run lint
+          npm run test:atelier-next
+          npm run test:graphic-novel-images
+          npm run build
+          npm run build:native
 
       - name: Verify Alembic migrations
         run: |
