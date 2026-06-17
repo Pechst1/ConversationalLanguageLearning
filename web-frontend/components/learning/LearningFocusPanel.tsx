@@ -51,6 +51,34 @@ export default function LearningFocusPanel({
     const wordId = typeof item.metadata?.word_id === 'number' ? item.metadata.word_id : null;
     return wordId !== null && selectedSet.has(wordId);
   }).length;
+  const vocabularyExamples = vocabularyItems
+    .map((item) => {
+      const sentence =
+        typeof item.metadata?.hint_sentence === 'string'
+          ? item.metadata.hint_sentence
+          : typeof item.metadata?.example_sentence === 'string'
+            ? item.metadata.example_sentence
+            : '';
+      const translation =
+        typeof item.metadata?.hint_translation === 'string'
+          ? item.metadata.hint_translation
+          : typeof item.metadata?.example_translation === 'string'
+            ? item.metadata.example_translation
+            : '';
+
+      if (!sentence.trim()) {
+        return null;
+      }
+
+      return {
+        key: `${item.key}-context`,
+        word: item.title,
+        sentence,
+        translation,
+      };
+    })
+    .filter((item): item is { key: string; word: string; sentence: string; translation: string } => item !== null)
+    .slice(0, 3);
 
   return (
     <div className={`${className ?? ''} overflow-hidden rounded-[28px] border border-stone-200 bg-white/85 px-5 py-4 shadow-sm`}>
@@ -126,6 +154,28 @@ export default function LearningFocusPanel({
                 );
               })}
             </div>
+            {vocabularyExamples.length > 0 ? (
+              <div className="mt-3 rounded-2xl border border-stone-200 bg-white px-4 py-3">
+                <div className="mb-2 text-[11px] font-medium uppercase tracking-[0.16em] text-stone-400">
+                  Context anchors
+                </div>
+                <div className="space-y-3">
+                  {vocabularyExamples.map((example) => (
+                    <div key={example.key} className="border-t border-stone-100 pt-3 first:border-t-0 first:pt-0">
+                      <div className="mb-1 text-xs font-medium text-stone-500">{example.word}</div>
+                      <p className="font-serif text-base italic leading-6 text-stone-800">
+                        {example.sentence}
+                      </p>
+                      {example.translation ? (
+                        <p className="mt-1 text-xs leading-5 text-stone-500">
+                          {example.translation}
+                        </p>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </div>
         ) : null}
 

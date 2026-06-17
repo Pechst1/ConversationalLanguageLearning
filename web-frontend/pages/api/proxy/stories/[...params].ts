@@ -17,9 +17,6 @@ export default async function handler(
     // Use getServerSession for API routes
     const session = await getServerSession(req, res, authOptions);
 
-    console.log('[Proxy] Session exists:', !!session);
-    console.log('[Proxy] AccessToken exists:', !!(session as any)?.accessToken);
-
     if (!session || !(session as any).accessToken) {
         console.error('[Proxy] No valid session or accessToken');
         return res.status(401).json({ message: 'Unauthorized - no valid session' });
@@ -45,8 +42,6 @@ export default async function handler(
 
     const endpoint = `${baseUrl}/api/v1/stories/${pathSegments}${queryString ? `?${queryString}` : ''}`;
 
-    console.log('[Proxy] Calling:', req.method, endpoint);
-
     try {
         const response = await axios({
             method: req.method as string,
@@ -59,8 +54,6 @@ export default async function handler(
             timeout: 90000,
             responseType: 'stream', // Important to handle response streams similarly if needed
         });
-
-        console.log('[Proxy] Success:', response.status);
 
         // Forward response headers
         Object.entries(response.headers).forEach(([key, value]) => {

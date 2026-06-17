@@ -1,4 +1,5 @@
 import React from 'react';
+import Image from 'next/image';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Clock, BookOpen } from 'lucide-react';
@@ -22,9 +23,12 @@ export default function StoryCard({ story, progress, onClick }: StoryCardProps) 
       {/* Cover Image */}
       <div className="relative h-48 bg-gradient-to-br from-primary-500 to-primary-700 overflow-hidden">
         {story.cover_image_url ? (
-          <img
+          <Image
             src={story.cover_image_url}
             alt={story.title}
+            fill
+            unoptimized
+            sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
             className="w-full h-full object-cover"
           />
         ) : (
@@ -118,7 +122,7 @@ export default function StoryCard({ story, progress, onClick }: StoryCardProps) 
           ) : isStarted ? (
             <>Continue • Ch. {progress?.current_chapter_number}</>
           ) : (
-            'Start Story'
+            'Start Reading'
           )}
         </Button>
       </CardContent>

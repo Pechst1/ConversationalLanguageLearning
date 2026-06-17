@@ -16,6 +16,7 @@ from app.db.models.atelier import AtelierSession
 from app.db.models.error import UserError
 from app.db.models.grammar import GrammarConcept
 from app.db.models.mission import RealWorldMission, RealWorldMissionAttempt, RealWorldMissionTurn
+from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.vocabulary import VocabularyWord
 from app.db.models.user import User
 from app.services.atelier_assets import AtelierAssetService
@@ -23,9 +24,12 @@ from app.services.error_memory import ErrorMemoryService, serialize_error_memory
 from app.services.llm_service import LLMProviderError, LLMService
 from app.services.news_service import NewsService
 from app.services.progress import ProgressService
+from app.services.serial_arc_planner import cefr_generation_profile
+from app.services.vocabulary_credit import VocabularyCreditService
 
 
 MISSION_CORRECTION_PROMPT_VERSION = "mission-correction-v1"
+MISSION_FAST_CORRECTION_PROMPT_VERSION = "mission-correction-fast-v1"
 MISSION_TEMPLATES = ("message", "explain_plan", "news_summary", "travel_work", "conversation")
 
 
@@ -174,6 +178,23 @@ def _source_ids(rows: list[Any]) -> list[str]:
     return [str(row.id) for row in rows if getattr(row, "id", None)]
 
 
+def _dedupe_ints(values: list[Any]) -> list[int]:
+    result: list[int] = []
+    seen: set[int] = set()
+    for value in values:
+        if value is None:
+            continue
+        try:
+            number = int(value)
+        except (TypeError, ValueError):
+            continue
+        if number in seen:
+            continue
+        seen.add(number)
+        result.append(number)
+    return result
+
+
 def _compact_text(value: Any, *, max_length: int = 800) -> str:
     return re.sub(r"\s+", " ", str(value or "")).strip()[:max_length]
 
@@ -200,11 +221,14 @@ class MissionGenerator:
         atelier_session: AtelierSession | None = None,
         preferred_concept_ids: list[int] | None = None,
         preferred_errata_ids: list[UUID] | None = None,
+        preferred_vocabulary_ids: list[int] | None = None,
         use_news: bool = True,
         custom_context: dict[str, Any] | None = None,
+        stakes_level: int | None = None,
     ) -> dict[str, Any]:
         mission_type = mission_type if mission_type in MISSION_TEMPLATES else "message"
         custom_context = self._custom_context(custom_context)
+        stakes_level = self._stakes_level(stakes_level, cadence=cadence)
         concepts = self._select_concepts(
             user=user,
             atelier_session=atelier_session,
@@ -212,14 +236,24 @@ class MissionGenerator:
             limit=3,
         )
         errata = self._select_errata(user=user, preferred_errata_ids=preferred_errata_ids, limit=3)
+        vocabulary = self._select_vocabulary(user=user, preferred_vocabulary_ids=preferred_vocabulary_ids, limit=4)
         source_snapshot = await self._source_snapshot(
             user=user,
             mission_type=mission_type,
             use_news=use_news,
         )
-        objectives = self._objectives(mission_type=mission_type, concepts=concepts, errata=errata, source_snapshot=source_snapshot)
+        objectives = self._objectives(
+            mission_type=mission_type,
+            concepts=concepts,
+            errata=errata,
+            vocabulary=vocabulary,
+            source_snapshot=source_snapshot,
+            stakes_level=stakes_level,
+        )
         title, brief = self._brief(mission_type=mission_type, cadence=cadence, source_snapshot=source_snapshot, concepts=concepts)
         messenger = self._messenger_payload(mission_type=mission_type, source_snapshot=source_snapshot, concepts=concepts)
+        if vocabulary:
+            messenger = self._with_vocabulary_focus(messenger, vocabulary)
         if custom_context:
             title, brief, messenger, custom_objectives = self._customize_mission(
                 mission_type=mission_type,
@@ -238,6 +272,7 @@ class MissionGenerator:
             "version": "real-world-mission-v2",
             "mission_type": mission_type,
             "cadence": cadence,
+            "stakes_level": stakes_level,
             "experience": "reality_messenger",
             "custom_context": custom_context,
             "messenger": messenger,
@@ -247,26 +282,55 @@ class MissionGenerator:
             "writing_title": self._writing_title(mission_type),
             "writing_instruction": self._writing_instruction(mission_type),
             "writing_placeholder": self._placeholder(mission_type),
-            "min_words": 50 if mission_type != "message" else 35,
-            "max_words": 150,
+            "min_words": max(
+                self._min_words(mission_type=mission_type, stakes_level=stakes_level),
+                int(cefr_generation_profile(user.proficiency_level).get("min_words") or 0),
+            ),
+            "max_words": self._max_words(stakes_level=stakes_level),
             "target_register": "natural French; formal only when the scenario requires it",
             "show_source_context": mission_type == "news_summary",
             "source_context_card": self._source_context_card(source_snapshot) if mission_type == "news_summary" else None,
             "branching": {
                 "enabled": True,
                 "signals": ["understood", "needs_detail", "too_vague", "tone_mismatch"],
+                "stakes_level": stakes_level,
+                "tone_failures_matter": stakes_level >= 3,
             },
+            "target_vocabulary": vocabulary,
         }
+        target_vocabulary_ids = [item["word_id"] for item in vocabulary]
+        target_vocabulary_ids.extend(error.linked_word_id for error in errata if error.linked_word_id)
         return {
             "title": title,
             "brief": brief,
             "selected_concept_ids": [concept.id for concept in concepts],
             "target_errata_ids": _source_ids(errata),
-            "target_vocabulary_ids": [error.linked_word_id for error in errata if error.linked_word_id],
+            "target_vocabulary_ids": _dedupe_ints(target_vocabulary_ids),
             "source_snapshot": source_snapshot,
             "objectives": objectives,
             "prompt_payload": prompt_payload,
+            "stakes_level": stakes_level,
         }
+
+    @staticmethod
+    def _stakes_level(value: int | None, *, cadence: str) -> int:
+        if value is not None:
+            try:
+                return max(1, min(3, int(value)))
+            except (TypeError, ValueError):
+                return 1
+        if cadence == "post_session":
+            return 2
+        return 1
+
+    @staticmethod
+    def _min_words(*, mission_type: str, stakes_level: int) -> int:
+        base = 35 if mission_type == "message" else 50
+        return base + {1: 0, 2: 20, 3: 40}.get(stakes_level, 0)
+
+    @staticmethod
+    def _max_words(*, stakes_level: int) -> int:
+        return {1: 150, 2: 190, 3: 230}.get(stakes_level, 150)
 
     def _select_concepts(
         self,
@@ -353,6 +417,100 @@ class MissionGenerator:
             if len(ordered) >= limit:
                 break
         return ordered[:limit]
+
+    def _select_vocabulary(
+        self,
+        *,
+        user: User,
+        preferred_vocabulary_ids: list[int] | None = None,
+        limit: int,
+    ) -> list[dict[str, Any]]:
+        selected: list[dict[str, Any]] = []
+        seen_word_ids: set[int] = set()
+
+        def add_item(item: dict[str, Any]) -> None:
+            if len(selected) >= limit:
+                return
+            try:
+                word_id = int(item.get("word_id"))
+            except (TypeError, ValueError):
+                return
+            word = _compact_text(item.get("word"), max_length=80)
+            if not word or word_id in seen_word_ids:
+                return
+            translations = item.get("translations") if isinstance(item.get("translations"), dict) else {}
+            translation = (
+                _compact_text(item.get("translation"), max_length=90)
+                or _compact_text(translations.get("de"), max_length=90)
+                or _compact_text(translations.get("en"), max_length=90)
+                or _compact_text(translations.get("fr"), max_length=90)
+            )
+            selected.append(
+                {
+                    "word_id": word_id,
+                    "word": word,
+                    "translation": translation,
+                    "bucket": item.get("bucket") or "due",
+                    "scheduler": item.get("scheduler") or "fsrs",
+                    "priority_score": item.get("priority_score") or 0,
+                }
+            )
+            seen_word_ids.add(word_id)
+
+        preferred_ids = _dedupe_ints(preferred_vocabulary_ids or [])
+        if preferred_ids:
+            rows = self.db.query(VocabularyWord).filter(VocabularyWord.id.in_(preferred_ids)).all()
+            by_id = {row.id: row for row in rows}
+            for word_id in preferred_ids:
+                word = by_id.get(word_id)
+                if not word:
+                    continue
+                add_item(
+                    {
+                        "word_id": word.id,
+                        "word": word.word,
+                        "translation": word.german_translation or word.english_translation or word.french_translation,
+                        "translations": {
+                            "de": word.german_translation,
+                            "en": word.english_translation,
+                            "fr": word.french_translation,
+                        },
+                        "bucket": "preferred",
+                        "scheduler": "explicit",
+                        "priority_score": 1.0,
+                    }
+                )
+
+        recommendations = ProgressService(self.db).get_vocabulary_recommendations(
+            user=user,
+            limit=limit * 2,
+            due_limit=max(1, min(limit, 2)),
+            fragile_limit=max(0, min(limit, 1)),
+            new_limit=max(0, limit - 3),
+            direction="fr_to_de",
+        )
+        for item in recommendations.get("items") or []:
+            add_item(item)
+            if len(selected) >= limit:
+                break
+        return selected[:limit]
+
+    @staticmethod
+    def _with_vocabulary_focus(messenger: dict[str, Any], vocabulary: list[dict[str, Any]]) -> dict[str, Any]:
+        words = [str(item.get("word") or "").strip() for item in vocabulary[:3] if item.get("word")]
+        if not words:
+            return messenger
+        focus_label = ", ".join(words)
+        quick_replies = list(messenger.get("quick_replies") or [])
+        quick_replies.append(f"Je peux utiliser: {focus_label}...")
+        realism_rules = list(messenger.get("realism_rules") or [])
+        realism_rules.append(f"Reuse one of today's vocabulary words naturally: {focus_label}.")
+        return {
+            **messenger,
+            "quick_replies": quick_replies[:4],
+            "realism_rules": realism_rules,
+            "vocabulary_focus": vocabulary,
+        }
 
     def _custom_context(self, value: dict[str, Any] | None) -> dict[str, Any]:
         scenario = _compact_text((value or {}).get("scenario"), max_length=1200)
@@ -568,9 +726,14 @@ class MissionGenerator:
         mission_type: str,
         concepts: list[GrammarConcept],
         errata: list[UserError],
+        vocabulary: list[dict[str, Any]],
         source_snapshot: dict[str, Any],
+        stakes_level: int = 1,
     ) -> list[dict[str, Any]]:
         asset_service = AtelierAssetService(self.db)
+        concept_limit = 3
+        errata_limit = 2
+        vocabulary_limit = 3
         objectives = [
             {
                 "id": "real_world_task",
@@ -578,9 +741,32 @@ class MissionGenerator:
                 "target_count": 1,
                 "kind": "communication",
                 "required": True,
+                "stakes_level": stakes_level,
             }
         ]
-        for index, concept in enumerate(concepts[:3], start=1):
+        if stakes_level >= 2:
+            objectives.append(
+                {
+                    "id": "follow_up_move",
+                    "label": "Make the next step explicit enough that the other person can act",
+                    "target_count": 1,
+                    "kind": "pragmatics",
+                    "required": stakes_level >= 3,
+                    "stakes_level": stakes_level,
+                }
+            )
+        if stakes_level >= 3:
+            objectives.append(
+                {
+                    "id": "register_pressure",
+                    "label": "Keep the register precise under pressure",
+                    "target_count": 1,
+                    "kind": "register",
+                    "required": True,
+                    "stakes_level": stakes_level,
+                }
+            )
+        for index, concept in enumerate(concepts[:concept_limit], start=1):
             objectives.append(
                 {
                     "id": f"concept_{concept.id}",
@@ -592,7 +778,7 @@ class MissionGenerator:
                     "required": False,
                 }
             )
-        for error in errata[:2]:
+        for error in errata[:errata_limit]:
             objectives.append(
                 {
                     "id": f"erratum_{error.id}",
@@ -601,6 +787,19 @@ class MissionGenerator:
                     "kind": error.review_mode or "grammar",
                     "error_id": str(error.id),
                     "concept_id": error.concept_id,
+                    "required": False,
+                }
+            )
+        for item in vocabulary[:vocabulary_limit]:
+            objectives.append(
+                {
+                    "id": f"vocabulary_{item['word_id']}",
+                    "label": f"Use {item['word']} naturally",
+                    "target_count": 1,
+                    "kind": "vocabulary",
+                    "word_id": item["word_id"],
+                    "translation": item.get("translation"),
+                    "bucket": item.get("bucket"),
                     "required": False,
                 }
             )
@@ -866,19 +1065,49 @@ class MissionCorrectionService:
         self.db = db
         self.llm = llm_service or _safe_llm()
 
-    def correct_submission(self, *, user: User, mission: RealWorldMission, text: str, mode: str) -> dict[str, Any]:
-        correction = self._llm_correction(user=user, mission=mission, text=text, mode=mode) or self._fallback_correction(
-            mission=mission,
-            text=text,
-        )
+    def correct_submission(
+        self,
+        *,
+        user: User,
+        mission: RealWorldMission,
+        text: str,
+        mode: str,
+        near_realtime: bool = False,
+    ) -> dict[str, Any]:
+        deterministic_errata, deterministic_answer = self._deterministic_errata(text)
+        if near_realtime:
+            correction = self._fallback_correction(
+                mission=mission,
+                text=text,
+                corrected_answer=deterministic_answer,
+                deterministic_errata=deterministic_errata,
+            )
+            correction["_prompt_version"] = MISSION_FAST_CORRECTION_PROMPT_VERSION
+        else:
+            correction = self._llm_correction(user=user, mission=mission, text=text, mode=mode) or self._fallback_correction(
+                mission=mission,
+                text=text,
+                corrected_answer=deterministic_answer,
+                deterministic_errata=deterministic_errata,
+            )
+            if deterministic_errata:
+                correction = self._merge_deterministic_errata(
+                    correction=correction,
+                    deterministic_errata=deterministic_errata,
+                    corrected_answer=deterministic_answer,
+                )
         correction["errata"] = [self._normalize_erratum(item, mission) for item in correction.get("errata") or []]
         correction["correction_debug"] = {
-            "prompt_version": MISSION_CORRECTION_PROMPT_VERSION,
+            "prompt_version": correction.get("_prompt_version") or MISSION_CORRECTION_PROMPT_VERSION,
             "fallback_used": correction.get("_fallback_used", False),
             "model": correction.get("_model"),
+            "deterministic_rule_count": len(deterministic_errata),
+            "near_realtime": near_realtime,
         }
+        correction = self._apply_vocabulary_feedback(mission=mission, text=text, correction=correction)
         correction.pop("_fallback_used", None)
         correction.pop("_model", None)
+        correction.pop("_prompt_version", None)
         return correction
 
     def persist_errata(
@@ -893,6 +1122,8 @@ class MissionCorrectionService:
         memory = ErrorMemoryService(self.db)
         persisted: list[dict[str, Any]] = []
         for index, erratum in enumerate(correction.get("errata") or []):
+            if self._is_vocabulary_erratum(erratum):
+                continue
             update = memory.record_erratum(
                 user=user,
                 erratum=erratum,
@@ -908,6 +1139,15 @@ class MissionCorrectionService:
             )
             if update:
                 persisted.append(update)
+        persisted.extend(
+            self._apply_vocabulary_events(
+                user=user,
+                mission=mission,
+                correction=correction,
+                mode=mode,
+                source_id=source_id,
+            )
+        )
         return persisted
 
     def _llm_correction(self, *, user: User, mission: RealWorldMission, text: str, mode: str) -> dict[str, Any] | None:
@@ -940,7 +1180,14 @@ class MissionCorrectionService:
             logger.debug("Mission correction LLM fallback", error=str(exc))
             return None
 
-    def _fallback_correction(self, *, mission: RealWorldMission, text: str) -> dict[str, Any]:
+    def _fallback_correction(
+        self,
+        *,
+        mission: RealWorldMission,
+        text: str,
+        corrected_answer: str | None = None,
+        deterministic_errata: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
         stripped = text.strip()
         objectives = mission.objectives or []
         words = re.findall(r"\S+", stripped)
@@ -964,7 +1211,7 @@ class MissionCorrectionService:
             for obj in objectives
             if obj.get("kind") in {"grammar", "source"} and stripped
         ]
-        errata: list[dict[str, Any]] = []
+        errata: list[dict[str, Any]] = list(deterministic_errata or [])
         if not stripped:
             errata.append(
                 {
@@ -993,10 +1240,16 @@ class MissionCorrectionService:
                     "external_id": "MISSION_TASK",
                 }
             )
+        score = 3 if len(words) >= 8 else (2 if stripped else 1)
+        verdict = "accepted" if stripped else "needs_revision"
+        if deterministic_errata:
+            max_severity = max(int(item.get("severity") or 1) for item in deterministic_errata)
+            verdict = "needs_revision" if max_severity >= 2 else "partial"
+            score = min(score, 2 if max_severity >= 2 else 3)
         return {
-            "verdict": "accepted" if stripped else "needs_revision",
-            "score_0_4": 3 if len(words) >= 8 else (2 if stripped else 1),
-            "corrected_answer": stripped,
+            "verdict": verdict,
+            "score_0_4": score,
+            "corrected_answer": corrected_answer if corrected_answer is not None else stripped,
             "objective_progress": objective_progress,
             "concept_hits": [],
             "missing_targets": missing_targets[:4],
@@ -1006,13 +1259,124 @@ class MissionCorrectionService:
             "_model": None,
         }
 
+    def _deterministic_errata(self, text: str) -> tuple[list[dict[str, Any]], str]:
+        corrected = text
+        errata: list[dict[str, Any]] = []
+
+        def preserve_case(original: str, replacement: str) -> str:
+            if original.isupper():
+                return replacement.upper()
+            if original[:1].isupper():
+                return replacement[:1].upper() + replacement[1:]
+            return replacement
+
+        avet_pattern = re.compile(r"\b(?:(vous)\s+)?(avet)\b", re.IGNORECASE)
+        avet_match = avet_pattern.search(text)
+        if avet_match:
+            learner_text = avet_match.group(0)
+            corrected_target = re.sub(
+                r"\bavet\b",
+                lambda match: preserve_case(match.group(0), "avez"),
+                learner_text,
+                flags=re.IGNORECASE,
+            )
+            errata.append(
+                {
+                    "display_label": "Conjugation: vous avez",
+                    "learner_text": learner_text,
+                    "corrected_target": corrected_target,
+                    "why_wrong": "With vous, avoir is avez, not avet.",
+                    "repair_hint": "Use vous avez before a noun or past participle.",
+                    "severity": 2,
+                    "recurring": False,
+                    "task_error_type": "verb_conjugation",
+                    "external_id": "FR_ORTHO_AVOIR_VOUS",
+                }
+            )
+            corrected = re.sub(
+                r"\bavet\b",
+                lambda match: preserve_case(match.group(0), "avez"),
+                corrected,
+                flags=re.IGNORECASE,
+            )
+
+        probleme_pattern = re.compile(r"\b(probleme)(s?)\b", re.IGNORECASE)
+        probleme_match = probleme_pattern.search(text)
+        if probleme_match:
+            learner_text = probleme_match.group(0)
+            base = preserve_case(probleme_match.group(1), "problème")
+            corrected_target = f"{base}{probleme_match.group(2)}"
+            errata.append(
+                {
+                    "display_label": "Spelling: problème",
+                    "learner_text": learner_text,
+                    "corrected_target": corrected_target,
+                    "why_wrong": "The French word is problème with an accent grave.",
+                    "repair_hint": "Write problème, or problèmes in the plural.",
+                    "severity": 1,
+                    "recurring": False,
+                    "task_error_type": "orthography",
+                    "external_id": "FR_ORTHO_PROBLEME_ACCENT",
+                }
+            )
+            corrected = re.sub(
+                r"\b(probleme)(s?)\b",
+                lambda match: f"{preserve_case(match.group(1), 'problème')}{match.group(2)}",
+                corrected,
+                flags=re.IGNORECASE,
+            )
+
+        return errata, corrected.strip()
+
+    def _merge_deterministic_errata(
+        self,
+        *,
+        correction: dict[str, Any],
+        deterministic_errata: list[dict[str, Any]],
+        corrected_answer: str,
+    ) -> dict[str, Any]:
+        if not deterministic_errata:
+            return correction
+        merged = {**correction}
+        existing = list(merged.get("errata") or [])
+        existing_keys = {
+            (
+                str(item.get("learner_text") or "").casefold(),
+                str(item.get("corrected_target") or "").casefold(),
+                str(item.get("task_error_type") or ""),
+            )
+            for item in existing
+        }
+        for item in deterministic_errata:
+            key = (
+                str(item.get("learner_text") or "").casefold(),
+                str(item.get("corrected_target") or "").casefold(),
+                str(item.get("task_error_type") or ""),
+            )
+            if key not in existing_keys:
+                existing.append(item)
+                existing_keys.add(key)
+        merged["errata"] = existing
+        merged["corrected_answer"] = corrected_answer or merged.get("corrected_answer") or ""
+        max_severity = max(int(item.get("severity") or 1) for item in deterministic_errata)
+        if max_severity >= 2 and merged.get("verdict") == "accepted":
+            merged["verdict"] = "needs_revision"
+        elif merged.get("verdict") == "accepted":
+            merged["verdict"] = "partial"
+        current_score = float(merged.get("score_0_4") or 0)
+        score_cap = 2.0 if max_severity >= 2 else 3.0
+        merged["score_0_4"] = min(current_score or score_cap, score_cap)
+        return merged
+
     def _normalize_erratum(self, erratum: dict[str, Any], mission: RealWorldMission) -> dict[str, Any]:
         external_id = erratum.get("external_id")
         concept_id = None
         if external_id:
             concept = self.db.query(GrammarConcept).filter(GrammarConcept.external_id == external_id).first()
             concept_id = concept.id if concept else None
-        if not concept_id and (mission.selected_concept_ids or []):
+        if not concept_id and external_id and str(external_id).startswith("FR_ORTHO_"):
+            concept_id = None
+        elif not concept_id and (mission.selected_concept_ids or []):
             concept_id = int((mission.selected_concept_ids or [0])[0] or 0) or None
         return {
             **erratum,
@@ -1020,7 +1384,293 @@ class MissionCorrectionService:
             "repair_hint": _clean_feedback(erratum.get("repair_hint")),
             "concept_id": concept_id,
             "error_category": erratum.get("error_category") or "grammar",
+            "linked_word_id": erratum.get("linked_word_id"),
         }
+
+    def _apply_vocabulary_feedback(
+        self,
+        *,
+        mission: RealWorldMission,
+        text: str,
+        correction: dict[str, Any],
+    ) -> dict[str, Any]:
+        vocabulary = self._mission_vocabulary_items(mission)
+        if not vocabulary:
+            correction.setdefault("vocabulary_events", [])
+            return correction
+
+        merged = {**correction}
+        objective_progress = list(merged.get("objective_progress") or [])
+        objectives_by_id = {
+            str(item.get("id")): item
+            for item in objective_progress
+            if isinstance(item, dict) and item.get("id")
+        }
+        missing_targets = list(merged.get("missing_targets") or [])
+        errata = list(merged.get("errata") or [])
+        vocabulary_links = list(merged.get("vocabulary_links") or [])
+        vocabulary_events = list(merged.get("vocabulary_events") or [])
+        existing_vocab_error_ids = {
+            int(item.get("linked_word_id"))
+            for item in errata
+            if item.get("linked_word_id") and str(item.get("error_category") or "").lower() == "vocabulary"
+        }
+        normalized_text = _normalize_phrase(text)
+        added_vocab_erratum = False
+
+        for item in vocabulary[:3]:
+            word_id = item.get("word_id")
+            if not word_id:
+                continue
+            objective_id = f"vocabulary_{word_id}"
+            word = str(item.get("word") or "target word").strip()
+            translation = str(item.get("translation") or "").strip()
+            used_target = self._contains_vocabulary_form(normalized_text, item)
+            translation_hit = self._translation_hit(normalized_text, item)
+            if used_target:
+                objectives_by_id[objective_id] = {
+                    "id": objective_id,
+                    "label": f"Use {word} naturally",
+                    "met": True,
+                    "note": f"You used {word} in your response.",
+                }
+                vocabulary_links.append(
+                    {
+                        "learner_text": word,
+                        "target": word,
+                        "translation": translation,
+                        "word_id": word_id,
+                        "event_type": "produced_correct",
+                    }
+                )
+                vocabulary_events.append(
+                    {
+                        "word_id": word_id,
+                        "event_type": "produced_correct",
+                        "reason": "target_vocabulary_used",
+                        "learner_text": word,
+                    }
+                )
+                continue
+
+            objectives_by_id[objective_id] = {
+                "id": objective_id,
+                "label": f"Use {word} naturally",
+                "met": False,
+                "note": f"Try to work {word} into the mission naturally.",
+            }
+            missing_targets.append(
+                {
+                    "external_id": f"VOCAB_{word_id}",
+                    "label": f"Use {word} naturally",
+                    "detected_count": 0,
+                    "target_count": 1,
+                    "missing_count": 1,
+                }
+            )
+            if added_vocab_erratum or int(word_id) in existing_vocab_error_ids or not normalized_text:
+                continue
+            errata.append(
+                self._target_vocabulary_erratum(
+                    item=item,
+                    learner_text=translation_hit or "",
+                    reason="translation_instead_of_target" if translation_hit else "missing_target",
+                )
+            )
+            vocabulary_events.append(
+                {
+                    "word_id": word_id,
+                    "event_type": "produced_incorrect" if translation_hit else "missed_target",
+                    "reason": "translation_instead_of_target" if translation_hit else "missing_target",
+                    "learner_text": translation_hit or _compact_text(text, max_length=160),
+                    "explanation": "The mission target vocabulary was not produced in French.",
+                    "repair_hint": f"Add {word} naturally in one short French sentence.",
+                }
+            )
+            added_vocab_erratum = True
+
+        if objectives_by_id:
+            seen_ids: set[str] = set()
+            merged_progress: list[dict[str, Any]] = []
+            for item in objective_progress:
+                item_id = str(item.get("id") or "")
+                if item_id in objectives_by_id:
+                    merged_progress.append(objectives_by_id[item_id])
+                    seen_ids.add(item_id)
+                else:
+                    merged_progress.append(item)
+            for item_id, item in objectives_by_id.items():
+                if item_id not in seen_ids:
+                    merged_progress.append(item)
+            merged["objective_progress"] = merged_progress
+        if added_vocab_erratum and merged.get("verdict") == "accepted":
+            merged["verdict"] = "partial"
+            merged["score_0_4"] = min(float(merged.get("score_0_4") or 3), 3)
+        merged["missing_targets"] = missing_targets[:8]
+        merged["errata"] = errata
+        merged["vocabulary_links"] = vocabulary_links
+        merged["vocabulary_events"] = vocabulary_events
+        return merged
+
+    def _mission_vocabulary_items(self, mission: RealWorldMission) -> list[dict[str, Any]]:
+        payload_items = [
+            item
+            for item in ((mission.prompt_payload or {}).get("target_vocabulary") or [])
+            if isinstance(item, dict) and item.get("word_id")
+        ]
+        by_id: dict[int, dict[str, Any]] = {}
+        for item in payload_items:
+            try:
+                word_id = int(item.get("word_id"))
+            except (TypeError, ValueError):
+                continue
+            by_id[word_id] = {
+                **item,
+                "word_id": word_id,
+                "word": item.get("word") or item.get("target") or "",
+                "translation": item.get("translation") or item.get("english_translation") or "",
+            }
+
+        missing_ids = [word_id for word_id in _dedupe_ints(mission.target_vocabulary_ids or []) if word_id not in by_id]
+        if missing_ids:
+            words = self.db.query(VocabularyWord).filter(VocabularyWord.id.in_(missing_ids)).all()
+            for word in words:
+                by_id[word.id] = {
+                    "word_id": word.id,
+                    "word": word.word,
+                    "normalized_word": word.normalized_word,
+                    "translation": word.german_translation or word.english_translation or word.definition or "",
+                    "example_sentence": word.example_sentence,
+                    "example_translation": word.example_translation,
+                }
+
+        ordered_ids = _dedupe_ints(
+            [
+                *[item.get("word_id") for item in payload_items],
+                *(mission.target_vocabulary_ids or []),
+            ]
+        )
+        return [by_id[word_id] for word_id in ordered_ids if word_id in by_id]
+
+    def _contains_vocabulary_form(self, normalized_text: str, item: dict[str, Any]) -> bool:
+        forms = [
+            item.get("word"),
+            item.get("normalized_word"),
+            item.get("french_translation"),
+        ]
+        return any(self._contains_normalized_phrase(normalized_text, form) for form in forms)
+
+    def _translation_hit(self, normalized_text: str, item: dict[str, Any]) -> str:
+        translation = str(item.get("translation") or "")
+        candidates = [
+            part.strip()
+            for part in re.split(r"[,;/|()]+", translation)
+            if len(_normalize_phrase(part.strip())) >= 4
+        ]
+        for candidate in candidates[:4]:
+            if self._contains_normalized_phrase(normalized_text, candidate):
+                return candidate
+        return ""
+
+    @staticmethod
+    def _contains_normalized_phrase(normalized_text: str, phrase: Any) -> bool:
+        normalized_phrase = _normalize_phrase(phrase)
+        if not normalized_text or not normalized_phrase:
+            return False
+        if " " in normalized_phrase:
+            return f" {normalized_phrase} " in f" {normalized_text} "
+        return normalized_phrase in set(normalized_text.split())
+
+    def _target_vocabulary_erratum(
+        self,
+        *,
+        item: dict[str, Any],
+        learner_text: str,
+        reason: str,
+    ) -> dict[str, Any]:
+        word = str(item.get("word") or "target word").strip()
+        translation = str(item.get("translation") or "").strip()
+        example = str(item.get("example_sentence") or "").strip()
+        if reason == "translation_instead_of_target":
+            why = f"You reached for the meaning of {word}, but the mission target is the French word itself."
+            repair = f"Use {word} in a natural French sentence instead of writing the translation."
+        else:
+            why = f"This mission asked you to try the target word {word}, but it did not appear in your response."
+            repair = f"Add one short sentence that uses {word} naturally."
+        if example:
+            repair = f"{repair} Pattern to borrow: {example}"
+        return {
+            "display_label": f"Use target word: {word}",
+            "learner_text": learner_text,
+            "corrected_target": word,
+            "why_wrong": why,
+            "repair_hint": repair,
+            "severity": 2,
+            "recurring": True,
+            "task_error_type": "vocabulary_missing_target" if reason == "missing_target" else "vocabulary_incorrect_use",
+            "external_id": f"VOCAB_{item.get('word_id')}",
+            "error_category": "vocabulary",
+            "linked_word_id": item.get("word_id"),
+            "translation": translation,
+        }
+
+    @staticmethod
+    def _is_vocabulary_erratum(erratum: dict[str, Any]) -> bool:
+        marker = f"{erratum.get('error_category') or ''} {erratum.get('task_error_type') or ''} {erratum.get('display_label') or ''}".lower()
+        return bool(erratum.get("linked_word_id")) or "vocab" in marker
+
+    def _apply_vocabulary_events(
+        self,
+        *,
+        user: User,
+        mission: RealWorldMission,
+        correction: dict[str, Any],
+        mode: str,
+        source_id: str,
+    ) -> list[dict[str, Any]]:
+        events = [event for event in correction.get("vocabulary_events") or [] if isinstance(event, dict)]
+        if not events:
+            return []
+        word_ids = _dedupe_ints([event.get("word_id") for event in events])
+        words = self.db.query(VocabularyWord).filter(VocabularyWord.id.in_(word_ids)).all()
+        by_id = {word.id: word for word in words}
+        target_items = {item.get("word_id"): item for item in self._mission_vocabulary_items(mission)}
+        credit_service = VocabularyCreditService(self.db)
+        persisted: list[dict[str, Any]] = []
+        for event in events:
+            word_id = _dedupe_ints([event.get("word_id")])
+            if not word_id:
+                continue
+            word = by_id.get(word_id[0])
+            if not word:
+                continue
+            item = target_items.get(word.id) or {}
+            result = credit_service.apply(
+                user=user,
+                word=word,
+                event_type=str(event.get("event_type") or "seen_context"),
+                source_type="mission",
+                learner_text=str(event.get("learner_text") or ""),
+                corrected_text=word.word,
+                context=str(item.get("example_sentence") or mission.title or ""),
+                explanation=str(event.get("explanation") or ""),
+                repair_hint=str(event.get("repair_hint") or ""),
+                source_payload={
+                    "mission_id": str(mission.id),
+                    "mission_type": mission.mission_type,
+                    "mode": mode,
+                    "source_id": source_id,
+                    "reason": event.get("reason"),
+                },
+            )
+            if result.erratum_id:
+                try:
+                    error = self.db.get(UserError, UUID(result.erratum_id))
+                except (TypeError, ValueError):
+                    error = None
+                if error:
+                    persisted.append(serialize_error_memory(error))
+        return persisted
 
 
 class MissionSRSService:
@@ -1259,6 +1909,17 @@ class MissionScheduler:
             .order_by(RealWorldMission.updated_at.desc())
             .first()
         )
+        if not active:
+            active = (
+                self.db.query(RealWorldMission)
+                .filter(
+                    RealWorldMission.user_id == user.id,
+                    RealWorldMission.cadence == "ad_hoc",
+                    RealWorldMission.status == "available",
+                )
+                .order_by(RealWorldMission.created_at.desc())
+                .first()
+            )
         post_session = (
             self.db.query(RealWorldMission)
             .filter(
@@ -1314,11 +1975,15 @@ class MissionScheduler:
         atelier_session_id: UUID | None = None,
         preferred_concept_ids: list[int] | None = None,
         preferred_errata_ids: list[UUID] | None = None,
+        preferred_vocabulary_ids: list[int] | None = None,
         use_news: bool = True,
         custom_scenario: str | None = None,
         desired_outcome: str | None = None,
         relationship: str | None = None,
         register: str | None = None,
+        serial_thread_id: UUID | None = None,
+        episode_index: int | None = None,
+        stakes_level: int | None = None,
     ) -> RealWorldMission:
         custom_context = {
             "scenario": custom_scenario,
@@ -1327,6 +1992,19 @@ class MissionScheduler:
             "register": register,
         }
         has_custom_context = bool(_compact_text(custom_scenario))
+        serial_thread = self.db.get(SerialThread, serial_thread_id) if serial_thread_id else None
+        if serial_thread and serial_thread.user_id != user.id:
+            serial_thread = None
+            serial_thread_id = None
+        if serial_thread and episode_index is None:
+            episode_index = serial_thread.current_episode_index
+        if serial_thread:
+            existing_mission = self._existing_serial_mission(thread=serial_thread, episode_index=episode_index)
+            if existing_mission:
+                return existing_mission
+            if not has_custom_context:
+                custom_context = self._serial_custom_context(thread=serial_thread, episode_index=episode_index)
+                has_custom_context = True
         if cadence == "weekly" and not has_custom_context:
             iso = date.today().isocalendar()
             existing = (
@@ -1351,13 +2029,17 @@ class MissionScheduler:
             atelier_session=atelier_session,
             preferred_concept_ids=preferred_concept_ids,
             preferred_errata_ids=preferred_errata_ids,
+            preferred_vocabulary_ids=preferred_vocabulary_ids,
             use_news=use_news,
             custom_context=custom_context if has_custom_context else None,
+            stakes_level=stakes_level,
         )
         iso = date.today().isocalendar() if cadence == "weekly" and not has_custom_context else None
         mission = RealWorldMission(
             user_id=user.id,
             atelier_session_id=atelier_session.id if atelier_session else None,
+            serial_thread_id=serial_thread_id,
+            episode_index=episode_index,
             status="available",
             cadence=cadence,
             mission_type=mission_type if mission_type in MISSION_TEMPLATES else "message",
@@ -1368,6 +2050,17 @@ class MissionScheduler:
         self.db.add(mission)
         self.db.commit()
         self.db.refresh(mission)
+        if serial_thread:
+            self._apply_serial_mission_contract(
+                mission=mission,
+                thread=serial_thread,
+                episode_index=episode_index if episode_index is not None else serial_thread.current_episode_index,
+            )
+            self._link_serial_episode(
+                mission=mission,
+                thread=serial_thread,
+                episode_index=episode_index if episode_index is not None else serial_thread.current_episode_index,
+            )
         if mission.mission_type == "conversation":
             opening = (mission.prompt_payload or {}).get("conversation_opening")
             if opening:
@@ -1387,6 +2080,299 @@ class MissionScheduler:
                 self.db.refresh(mission)
         return mission
 
+    def _existing_serial_mission(
+        self,
+        *,
+        thread: SerialThread,
+        episode_index: int | None,
+    ) -> RealWorldMission | None:
+        if episode_index is None:
+            return None
+        episode = (
+            self.db.query(SerialEpisode)
+            .filter(
+                SerialEpisode.thread_id == thread.id,
+                SerialEpisode.episode_index == episode_index,
+                SerialEpisode.kind == "mission",
+                SerialEpisode.mission_id.isnot(None),
+            )
+            .first()
+        )
+        if not episode or not episode.mission_id:
+            return None
+        mission = self.db.get(RealWorldMission, episode.mission_id)
+        if not mission or mission.user_id != thread.user_id:
+            return None
+        return mission
+
+    def _serial_custom_context(
+        self,
+        *,
+        thread: SerialThread,
+        episode_index: int | None,
+    ) -> dict[str, Any]:
+        index = episode_index if episode_index is not None else thread.current_episode_index
+        if index == 0:
+            return {
+                "scenario": (
+                    "Your first night in Paris. The radiator in your new studio is dead. "
+                    "Write a short formal message to the landlord to report the heating problem "
+                    "and ask for a repair time."
+                ),
+                "desired_outcome": "The landlord understands the problem and confirms a repair appointment.",
+                "relationship": "landlord_marchand",
+                "register": "vous / polite formal",
+                "source": "serial_thread",
+            }
+
+        brief = self._serial_episode_brief(thread=thread, episode_index=index)
+        if brief:
+            hook = self._serial_previous_hook(thread=thread, episode_index=index)
+            teaser = (
+                _compact_text(hook.get("teaser"), max_length=240)
+                or _compact_text(hook.get("text"), max_length=240)
+                or _compact_text(hook.get("unresolved_question"), max_length=240)
+                or "The previous episode left a practical question unanswered."
+            )
+            a_plot = brief.get("a_plot") if isinstance(brief.get("a_plot"), dict) else {}
+            b_plot = brief.get("b_plot") if isinstance(brief.get("b_plot"), dict) else {}
+            addressed = self._serial_brief_character(brief)
+            register = self._serial_register_for_character(thread=thread, character_id=addressed)
+            recap = self._serial_story_so_far(thread)
+            scenario = (
+                f"Story so far: {recap} " if recap else ""
+            ) + (
+                f"The last episode ended here: {teaser} Write the next French message to "
+                f"{self._serial_character_name(thread, addressed)}. Advance this beat: "
+                f"{a_plot.get('stage_summary') or 'move the story forward'}. "
+                f"Keep this as texture: {b_plot.get('seed') or 'one everyday Paris complication'}."
+            )
+            return {
+                "scenario": scenario,
+                "desired_outcome": f"{self._serial_character_name(thread, addressed)} understands the next concrete step.",
+                "relationship": addressed,
+                "register": register,
+                "source": "serial_thread",
+                "episode_brief": brief,
+            }
+
+        hook = self._serial_previous_hook(thread=thread, episode_index=index)
+        teaser = (
+            _compact_text(hook.get("teaser"), max_length=240)
+            or _compact_text(hook.get("text"), max_length=240)
+            or _compact_text(hook.get("unresolved_question"), max_length=240)
+            or "The previous episode left a practical question unanswered."
+        )
+        recap = self._serial_story_so_far(thread)
+        scenario = (
+            f"Story so far: {recap} " if recap else ""
+        ) + f"The last episode ended here: {teaser} Write the next French message that moves the Paris story forward."
+        return {
+            "scenario": scenario,
+            "desired_outcome": "The other person understands what you propose and knows the next concrete step.",
+            "relationship": self._serial_relationship(hook),
+            "register": self._serial_register(hook),
+            "source": "serial_thread",
+        }
+
+    def _apply_serial_mission_contract(
+        self,
+        *,
+        mission: RealWorldMission,
+        thread: SerialThread,
+        episode_index: int,
+    ) -> None:
+        if (mission.prompt_payload or {}).get("serial_reference") == "episode-01-beat-a":
+            return
+        hook = self._serial_previous_hook(thread=thread, episode_index=episode_index)
+        brief = self._serial_episode_brief(thread=thread, episode_index=episode_index)
+        title = self._serial_mission_title(hook=hook, episode_index=episode_index)
+        episode_label = f"Episode {episode_index + 1}"
+        prompt = dict(mission.prompt_payload or {})
+        messenger = dict(prompt.get("messenger") or {})
+        addressed = self._serial_brief_character(brief) if brief else self._serial_relationship(hook)
+        profile = cefr_generation_profile(thread.user.proficiency_level)
+        prompt.update(
+            {
+                "serial_reference": f"episode-{episode_index + 1:02d}-mission",
+                "display_title": title,
+                "episode_title": f"{episode_label} — {title}",
+                "serial_beat": "act",
+                "serial_character_id": addressed,
+                "serial_episode_brief": brief or {},
+                "serial_relationships": self._serial_relationship_payload(thread=thread, brief=brief or {}),
+                "target_register": self._serial_register_for_character(thread=thread, character_id=addressed),
+                "min_words": max(int(prompt.get("min_words") or 0), int(profile.get("min_words") or 0)),
+                "serial_context": {
+                    "thread_id": str(thread.id),
+                    "episode_index": episode_index,
+                    "hook_from_previous": hook,
+                    "story_so_far": self._serial_story_so_far(thread),
+                    "episode_brief": brief or {},
+                },
+            }
+        )
+        prompt["messenger"] = {
+            **messenger,
+            "channel_label": f"{episode_label} · Act",
+            "thread_title": messenger.get("thread_title") or title,
+            "dispatch_note": (
+                hook.get("unresolved_question")
+                or hook.get("text")
+                or "Answer the story beat with one concrete next step."
+            ),
+            "inbox_context": mission.brief,
+            "opening_message": messenger.get("opening_message")
+            or hook.get("text")
+            or "Le fil continue. Répondez avec un message clair et utile.",
+            "success_signal": messenger.get("success_signal")
+            or "The next person in the story knows exactly what to do.",
+        }
+        mission.title = title
+        mission.prompt_payload = prompt
+        self.db.add(mission)
+        self.db.commit()
+        self.db.refresh(mission)
+
+    def _serial_episode_brief(self, *, thread: SerialThread, episode_index: int) -> dict[str, Any]:
+        episode = (
+            self.db.query(SerialEpisode)
+            .filter(SerialEpisode.thread_id == thread.id, SerialEpisode.episode_index == episode_index)
+            .first()
+        )
+        if episode and isinstance(episode.brief_payload, dict):
+            return episode.brief_payload
+        return {}
+
+    @staticmethod
+    def _serial_brief_character(brief: dict[str, Any]) -> str:
+        required_cast = [str(item) for item in brief.get("required_cast") or [] if str(item or "").strip()]
+        for preferred in ("landlord_marchand", "romy_tremblay", "lila_bonnet", "marin_leveque", "augustin_de_roncourt", "margaux_barman"):
+            if preferred in required_cast:
+                return preferred
+        return required_cast[0] if required_cast else "margaux_barman"
+
+    @staticmethod
+    def _serial_character_name(thread: SerialThread, character_id: str) -> str:
+        world = thread.world_bible if isinstance(thread.world_bible, dict) else {}
+        for member in world.get("cast") or []:
+            if isinstance(member, dict) and member.get("id") == character_id:
+                return str(member.get("name") or character_id)
+        return {
+            "landlord_marchand": "M. Marchand",
+            "margaux_barman": "Margaux",
+            "augustin_de_roncourt": "Gus",
+            "romy_tremblay": "Romy",
+            "marin_leveque": "Marin",
+            "lila_bonnet": "Lila",
+        }.get(character_id, character_id.replace("_", " ").title())
+
+    @staticmethod
+    def _serial_register_for_character(*, thread: SerialThread, character_id: str) -> str:
+        if character_id == "landlord_marchand":
+            return "vous / polite formal"
+        relationships = (thread.state or {}).get("relationships") if isinstance((thread.state or {}).get("relationships"), dict) else {}
+        entry = relationships.get(character_id) if isinstance(relationships, dict) else {}
+        if isinstance(entry, dict) and str(entry.get("register") or "").lower() == "tu":
+            return "tu / warm informal"
+        return "vous / cautious newcomer"
+
+    @staticmethod
+    def _serial_relationship_payload(*, thread: SerialThread, brief: dict[str, Any]) -> dict[str, Any]:
+        relationships = (thread.state or {}).get("relationships") if isinstance((thread.state or {}).get("relationships"), dict) else {}
+        return {
+            str(character_id): relationships.get(str(character_id), {"closeness": 0, "register": "vous", "callbacks": []})
+            for character_id in brief.get("required_cast") or []
+        }
+
+    def _link_serial_episode(
+        self,
+        *,
+        mission: RealWorldMission,
+        thread: SerialThread,
+        episode_index: int,
+    ) -> None:
+        existing = (
+            self.db.query(SerialEpisode)
+            .filter(SerialEpisode.thread_id == thread.id, SerialEpisode.episode_index == episode_index)
+            .first()
+        )
+        if existing and existing.kind != "mission":
+            return
+        hook = self._serial_previous_hook(thread=thread, episode_index=episode_index)
+        if existing:
+            existing.mission_id = mission.id
+            existing.scene_id = None
+            existing.hook_from_previous = existing.hook_from_previous or hook or {}
+            self.db.add(existing)
+        else:
+            self.db.add(
+                SerialEpisode(
+                    thread_id=thread.id,
+                    episode_index=episode_index,
+                    kind="mission",
+                    mission_id=mission.id,
+                    scene_id=None,
+                    hook={},
+                    hook_from_previous=hook or {},
+                    state_delta={},
+                    status="available",
+                )
+            )
+        self.db.commit()
+
+    def _serial_previous_hook(self, *, thread: SerialThread, episode_index: int) -> dict[str, Any]:
+        previous = (
+            self.db.query(SerialEpisode)
+            .filter(SerialEpisode.thread_id == thread.id, SerialEpisode.episode_index < episode_index)
+            .order_by(SerialEpisode.episode_index.desc())
+            .first()
+        )
+        return previous.hook or {} if previous else {}
+
+    @staticmethod
+    def _serial_story_so_far(thread: SerialThread) -> str:
+        history = (thread.state or {}).get("story_so_far") or []
+        if not isinstance(history, list):
+            return ""
+        return _compact_text(" ".join(str(item) for item in history[-6:]), max_length=700)
+
+    @staticmethod
+    def _serial_relationship(hook: dict[str, Any]) -> str:
+        text = " ".join(str(hook.get(key) or "") for key in ("speaker", "text", "teaser", "unresolved_question")).lower()
+        if "marchand" in text or "propriétaire" in text or "radiateur" in text:
+            return "landlord_marchand"
+        if "romy" in text:
+            return "Romy"
+        if "lila" in text:
+            return "Lila"
+        if "marin" in text:
+            return "Marin"
+        if "gus" in text or "augustin" in text:
+            return "Gus"
+        return "friend group"
+
+    @staticmethod
+    def _serial_register(hook: dict[str, Any]) -> str:
+        relationship = MissionScheduler._serial_relationship(hook).lower()
+        if "landlord" in relationship or "marchand" in relationship:
+            return "vous / polite formal"
+        return "warm informal"
+
+    @staticmethod
+    def _serial_mission_title(*, hook: dict[str, Any], episode_index: int) -> str:
+        if episode_index == 0:
+            return "Reach the landlord"
+        raw = (
+            _compact_text(hook.get("teaser"), max_length=80)
+            or _compact_text(hook.get("unresolved_question"), max_length=80)
+            or _compact_text(hook.get("text"), max_length=80)
+        )
+        if not raw:
+            return "Answer the Thread"
+        cleaned = re.sub(r"^(demain|next)\s*[:·-]\s*", "", raw, flags=re.IGNORECASE).strip()
+        return cleaned[:1].upper() + cleaned[1:] if cleaned else "Answer the Thread"
+
     def get(self, *, user: User, mission_id: UUID) -> RealWorldMission | None:
         return (
             self.db.query(RealWorldMission)
@@ -1394,12 +2380,100 @@ class MissionScheduler:
             .first()
         )
 
+    def _apply_target_vocabulary_credit(
+        self,
+        *,
+        user: User,
+        mission: RealWorldMission,
+        attempts: list[RealWorldMissionAttempt],
+        turns: list[RealWorldMissionTurn],
+    ) -> dict[str, int]:
+        target_ids = _dedupe_ints(mission.target_vocabulary_ids or [])
+        if not target_ids:
+            return {
+                "seen_context": 0,
+                "recognized": 0,
+                "produced_correct": 0,
+                "produced_incorrect": 0,
+                "missed_target": 0,
+                "errata_created": 0,
+            }
+
+        words = self.db.query(VocabularyWord).filter(VocabularyWord.id.in_(target_ids)).all()
+        by_id = {word.id: word for word in words}
+        correction_payloads = [
+            *[(attempt.correction_payload or {}) for attempt in attempts],
+            *[(turn.correction_payload or {}) for turn in turns],
+        ]
+        summary = {
+            "seen_context": 0,
+            "recognized": 0,
+            "produced_correct": 0,
+            "produced_incorrect": 0,
+            "missed_target": 0,
+            "errata_created": 0,
+        }
+        explicit_event_ids: set[int] = set()
+        for correction in correction_payloads:
+            for event in correction.get("vocabulary_events") or []:
+                if not isinstance(event, dict):
+                    continue
+                event_ids = _dedupe_ints([event.get("word_id")])
+                if not event_ids or event_ids[0] not in by_id:
+                    continue
+                credit_kind = self._vocabulary_credit_kind(str(event.get("event_type") or "seen_context"))
+                explicit_event_ids.add(event_ids[0])
+                summary[credit_kind] = summary.get(credit_kind, 0) + 1
+
+        credit_service = VocabularyCreditService(self.db)
+        seen_results = []
+        for word_id in target_ids:
+            word = by_id.get(word_id)
+            if not word or word_id in explicit_event_ids:
+                continue
+            seen_results.append(
+                credit_service.apply(
+                    user=user,
+                    word=word,
+                    event_type="seen_context",
+                    source_type="mission",
+                    context=mission.title,
+                    source_payload={
+                        "mission_id": str(mission.id),
+                        "mission_type": mission.mission_type,
+                        "reason": "mission_target_context",
+                    },
+                )
+            )
+        for key, value in credit_service.summarize(seen_results).items():
+            summary[key] = summary.get(key, 0) + value
+        return summary
+
+    @staticmethod
+    def _vocabulary_credit_kind(event_type: str) -> str:
+        normalized = str(event_type or "seen_context").lower()
+        if normalized in {"produced_correct", "used_correctly", "free_production_correct"}:
+            return "produced_correct"
+        if normalized in {"produced_incorrect", "used_incorrectly", "incorrect", "incorrect_production"}:
+            return "produced_incorrect"
+        if normalized in {"missed_target", "missing_target", "avoided_target"}:
+            return "missed_target"
+        if normalized in {"recognized", "translated", "recognition", "context_translation"}:
+            return "recognized"
+        return "seen_context"
+
     def complete(self, *, user: User, mission: RealWorldMission) -> RealWorldMission:
         attempts = mission.attempts or []
         turns = [turn for turn in (mission.turns or []) if turn.role == "user"]
         errata_count = sum(len((attempt.correction_payload or {}).get("errata") or []) for attempt in attempts)
         errata_count += sum(len((turn.correction_payload or {}).get("errata") or []) for turn in turns)
         srs_result = MissionSRSService(self.db).seed_phrase_bank(user=user, mission=mission)
+        vocabulary_credit = self._apply_target_vocabulary_credit(
+            user=user,
+            mission=mission,
+            attempts=attempts,
+            turns=turns,
+        )
         debrief = MissionDebriefService().build(
             mission=mission,
             attempts=attempts,
@@ -1407,20 +2481,54 @@ class MissionScheduler:
             errata_count=errata_count,
             srs_result=srs_result,
         )
+        outcome: dict[str, Any] | None = None
+        if getattr(mission, "serial_thread_id", None):
+            conversation_service = MissionConversationService(self.db)
+            state_delta = conversation_service.resolve_outcome(mission=mission, attempts=attempts, turns=mission.turns or [])
+            hook = conversation_service.resolve_hook(mission=mission, state_delta=state_delta)
+            reply_text = self._serial_reply_text(mission=mission, state_delta=state_delta, turns=mission.turns or [])
+            if state_delta or hook or reply_text:
+                outcome = {
+                    "reply_text": reply_text,
+                    "state_delta": state_delta,
+                    "hook": hook,
+                }
         mission.status = "completed"
         mission.completed_at = datetime.now(timezone.utc)
         mission.recap_payload = {
             "attempts": len(attempts),
             "turns": len(turns),
             "errata_logged": errata_count,
+            "vocabulary_credit": vocabulary_credit,
             "objectives": mission.objectives or [],
             "completed_at": mission.completed_at.isoformat(),
             **debrief,
         }
+        if outcome:
+            mission.recap_payload["outcome"] = outcome
         self.db.add(mission)
         self.db.commit()
         self.db.refresh(mission)
         return mission
+
+    @staticmethod
+    def _serial_reply_text(
+        *,
+        mission: RealWorldMission,
+        state_delta: dict[str, Any],
+        turns: list[RealWorldMissionTurn],
+    ) -> str:
+        latest_assistant = [
+            turn.text for turn in sorted(turns or [], key=lambda item: item.turn_index) if turn.role == "assistant" and turn.text
+        ]
+        if latest_assistant:
+            return latest_assistant[-1]
+        updates = state_delta.get("set") if isinstance(state_delta, dict) else {}
+        if isinstance(updates, dict) and updates.get("heating_fixed") in {True, "pending_tomorrow"}:
+            return "Bien reçu. J'envoie un plombier demain matin entre 8 h et 10 h. Bonne installation."
+        if isinstance(updates, dict) and updates.get("marchand_trust") == "cold":
+            return "On ne se connaît pas. Reformulez correctement, s'il vous plaît."
+        return "Je peux vous aider, mais il me manque un détail concret. Reformulez et dites-moi exactement ce qu'il faut faire."
 
 
 class MissionConversationService:
@@ -1431,16 +2539,22 @@ class MissionConversationService:
         self.llm = llm_service or _safe_llm()
 
     def respond(self, *, user: User, mission: RealWorldMission, user_text: str) -> str:
+        latest_progress = self._latest_objective_progress(mission)
+        preliminary_branch = self.branch_state(mission=mission, user_text=user_text, assistant_text="")
         if not self.llm:
-            return self._fallback_response(mission)
+            return self._fallback_response(mission, branch=preliminary_branch, objective_progress=latest_progress)
         context = json.dumps(
             {
                 "title": mission.title,
                 "brief": mission.brief,
                 "objectives": mission.objectives,
+                "stakes_level": int(getattr(mission, "stakes_level", None) or 1),
                 "source_snapshot": mission.source_snapshot,
+                "target_vocabulary": (mission.prompt_payload or {}).get("target_vocabulary") or [],
                 "learner_level": user.proficiency_level,
                 "conversation_instruction": (mission.prompt_payload or {}).get("conversation_instruction"),
+                "objective_progress": latest_progress,
+                "branch_state": preliminary_branch,
             },
             ensure_ascii=False,
         )
@@ -1458,7 +2572,10 @@ class MissionConversationService:
             "You are a French conversation partner inside a realistic mission. "
             "Stay in scenario, answer in French, keep replies to 1-3 short sentences, and end with a natural prompt. "
             "Treat this as a real back-and-forth. React to the learner's last answer, add one new concrete detail, "
-            "then ask the next natural question. Do not explain grammar unless the learner asks."
+            "then ask the next natural question. If branch_state is needs_detail, missing_next_step, or tone_mismatch, "
+            "be confused, blocked, or socially cool in-fiction and ask for the missing detail or register repair. "
+            "If objective_progress is all met and branch_state is understood, resolve the request in-fiction instead of surfacing a score. "
+            "Do not explain grammar unless the learner asks."
         )
         try:
             result = self.llm.generate_chat_completion(
@@ -1466,15 +2583,37 @@ class MissionConversationService:
                 system_prompt=system,
                 temperature=0.7,
                 max_tokens=220,
+                model=settings.OPENAI_MISSION_FAST_MODEL,
+                request_timeout=settings.MISSION_CHAT_TIMEOUT_SECONDS,
             )
             return result.content
         except LLMProviderError as exc:
             logger.debug("Mission conversation fallback", error=str(exc))
-            return self._fallback_response(mission)
+            return self._fallback_response(mission, branch=preliminary_branch, objective_progress=latest_progress)
 
-    def _fallback_response(self, mission: RealWorldMission) -> str:
+    def _fallback_response(
+        self,
+        mission: RealWorldMission,
+        *,
+        branch: dict[str, Any] | None = None,
+        objective_progress: list[dict[str, Any]] | None = None,
+    ) -> str:
         user_turns = [turn for turn in (mission.turns or []) if turn.role == "user"]
+        branch_state = (branch or {}).get("state")
+        all_met = bool(objective_progress) and all(bool(item.get("met")) for item in objective_progress)
         if user_turns:
+            if branch_state == "tone_mismatch":
+                return "On ne se connaît pas encore. Reformulez plus poliment, s'il vous plaît, et je pourrai vous aider."
+            if objective_progress and not all_met:
+                missing = next((item for item in objective_progress if not item.get("met")), {})
+                label = _compact_text(missing.get("label"), max_length=120) or "un détail important"
+                return f"Je comprends l'idée, mais il me manque encore ceci : {label}. Ajoutez ce point et je pourrai avancer."
+            if branch_state in {"needs_detail", "missing_next_step"}:
+                return "Je peux vous aider, mais il me manque un détail concret. Quel est le problème exact et que souhaitez-vous que je fasse ?"
+            if all_met or branch_state == "understood":
+                if "heating" in f"{mission.title} {mission.brief} {(mission.prompt_payload or {}).get('messenger', {})}".lower():
+                    return "Bien reçu. J'envoie quelqu'un demain matin entre 8 h et 10 h. Bonne installation."
+                return "C'est clair, merci. Je m'en occupe et je vous confirme la suite dès que possible."
             if mission.mission_type == "travel_work":
                 return "Très bien. Pour vous aider, j'ai besoin d'un détail: à quelle heure devez-vous repartir ?"
             if mission.mission_type == "news_summary":
@@ -1489,6 +2628,207 @@ class MissionConversationService:
             return str(opening)
         return "D'accord. Donne-moi un détail de plus, et on continue la situation."
 
+    def _latest_objective_progress(self, mission: RealWorldMission) -> list[dict[str, Any]]:
+        candidates: list[tuple[datetime | None, dict[str, Any]]] = []
+        for attempt in mission.attempts or []:
+            payload = attempt.correction_payload or {}
+            if payload.get("objective_progress"):
+                candidates.append((attempt.created_at, payload))
+        for turn in mission.turns or []:
+            if turn.role != "user":
+                continue
+            payload = turn.correction_payload or {}
+            if payload.get("objective_progress"):
+                candidates.append((turn.created_at, payload))
+        if not candidates:
+            return []
+        payload = sorted(candidates, key=lambda item: item[0] or datetime.min.replace(tzinfo=timezone.utc))[-1][1]
+        return [item for item in payload.get("objective_progress") or [] if isinstance(item, dict)]
+
+    def _latest_score(self, *, attempts: list[RealWorldMissionAttempt], turns: list[RealWorldMissionTurn]) -> float:
+        candidates: list[tuple[datetime | None, float]] = []
+        for attempt in attempts:
+            candidates.append((attempt.created_at, float(attempt.score_0_4 or 0)))
+        for turn in turns:
+            if turn.role == "user":
+                payload = turn.correction_payload or {}
+                candidates.append((turn.created_at, float(payload.get("score_0_4") or 0)))
+        if not candidates:
+            return 0.0
+        return sorted(candidates, key=lambda item: item[0] or datetime.min.replace(tzinfo=timezone.utc))[-1][1]
+
+    def resolve_outcome(
+        self,
+        *,
+        mission: RealWorldMission,
+        attempts: list[RealWorldMissionAttempt],
+        turns: list[RealWorldMissionTurn],
+    ) -> dict[str, Any]:
+        if not getattr(mission, "serial_thread_id", None):
+            return {}
+        thread = self.db.get(SerialThread, mission.serial_thread_id)
+        if not thread:
+            return {}
+        progress = self._latest_objective_progress(mission)
+        required_ids = {
+            str(item.get("id"))
+            for item in (mission.objectives or [])
+            if item.get("required") is True and item.get("id")
+        }
+        if progress:
+            met_ids = {str(item.get("id")) for item in progress if item.get("met")}
+            required_met = required_ids.issubset(met_ids) if required_ids else all(bool(item.get("met")) for item in progress)
+            all_met = all(bool(item.get("met")) for item in progress)
+        else:
+            required_met = False
+            all_met = False
+        score = self._latest_score(attempts=attempts, turns=turns)
+        latest_user_text = self._latest_user_text(attempts=attempts, turns=turns)
+        latest_assistant_text = self._latest_assistant_text(turns=turns)
+        branch = self.branch_state(mission=mission, user_text=latest_user_text, assistant_text=latest_assistant_text)
+        success = score >= 3 and required_met and (all_met or branch.get("state") == "understood")
+        tone_failed = branch.get("state") == "tone_mismatch"
+        known_state = thread.state or {}
+        topic_text = f"{mission.title} {mission.brief} {mission.prompt_payload}".lower()
+        is_episode_one = (mission.prompt_payload or {}).get("serial_reference") == "episode-01-beat-a"
+        updates: dict[str, Any] = {}
+        if is_episode_one:
+            updates["heating_fixed"] = "pending_tomorrow" if success else False
+            if success:
+                updates["marchand_trust"] = "ok"
+            elif tone_failed:
+                updates["marchand_trust"] = "cold"
+        elif "heating_fixed" in known_state or any(token in topic_text for token in ("heating", "radiateur", "chauffage")):
+            updates["heating_fixed"] = "pending_tomorrow" if success else False
+            if "marchand_trust" in known_state or "landlord" in topic_text or "propriétaire" in topic_text:
+                updates["marchand_trust"] = "ok" if success else ("cold" if tone_failed else "neutral")
+        else:
+            updates["mission.last_outcome"] = "success" if success else ("tone_mismatch" if tone_failed else "needs_detail")
+            updates["user.last_mission_success"] = success
+        reason = (
+            "Learner's message was clear and hit the required objectives."
+            if success
+            else "The world still needs a clearer detail, next step, or better register."
+        )
+        return {
+            "set": updates,
+            "reason": reason,
+            "source": {"type": "mission", "id": str(mission.id), "score_0_4": score},
+        }
+
+    def resolve_hook(self, *, mission: RealWorldMission, state_delta: dict[str, Any]) -> dict[str, Any]:
+        if not getattr(mission, "serial_thread_id", None) or not state_delta:
+            return {}
+        if self.llm:
+            payload = {
+                "mission": serialize_mission(mission, include_children=False),
+                "state_delta": state_delta,
+                "instructions": "Write a 1-2 sentence unresolved hook for the next Feuilleton beat.",
+            }
+            try:
+                result = self.llm.generate_chat_completion(
+                    messages=[{"role": "user", "content": json.dumps(payload, ensure_ascii=False)}],
+                    system_prompt=(
+                        "Return JSON with text, unresolved_question, next_beat_kind='feuilleton', and teaser. "
+                        "The hook must be in-fiction, concrete, and unresolved."
+                    ),
+                    temperature=0.65,
+                    max_tokens=260,
+                    model=settings.OPENAI_MISSION_FAST_MODEL,
+                    request_timeout=settings.MISSION_CHAT_TIMEOUT_SECONDS,
+                )
+                parsed = json.loads(result.content)
+                if isinstance(parsed, dict) and parsed.get("text") and parsed.get("unresolved_question"):
+                    return {
+                        "text": str(parsed.get("text") or ""),
+                        "unresolved_question": str(parsed.get("unresolved_question") or ""),
+                        "next_beat_kind": "feuilleton",
+                        "teaser": str(parsed.get("teaser") or ""),
+                    }
+            except (LLMProviderError, json.JSONDecodeError, ValueError, AttributeError) as exc:
+                logger.debug("Mission hook fallback", error=str(exc))
+        updates = state_delta.get("set") if isinstance(state_delta, dict) else {}
+        if isinstance(updates, dict) and updates.get("heating_fixed") in {True, "pending_tomorrow"}:
+            return {
+                "text": "Tu raccroches. L'appartement est glacé, le silence total. Six étages plus bas, il y a de la lumière, du bruit, des rires — un café, encore ouvert.",
+                "unresolved_question": "Who's down there, and what happens if you go in?",
+                "next_beat_kind": "feuilleton",
+                "teaser": "Tu n'as pas envie de rester seul ce soir.",
+            }
+        return {
+            "text": "Tu relis le message. Rien n'est réglé encore, et dehors Paris continue comme si ta première nuit n'avait pas besoin d'aide.",
+            "unresolved_question": "Who will help now, and what does this mistake change?",
+            "next_beat_kind": "feuilleton",
+            "teaser": "Il faut sortir de l'appartement.",
+        }
+
+    def turn_outcome(
+        self,
+        *,
+        mission: RealWorldMission,
+        user_text: str,
+        assistant_text: str,
+    ) -> dict[str, Any]:
+        """Per-turn, in-fiction outcome the act screen can show before completion.
+
+        Always returns the character reply + branch state. For serial missions it
+        also reports whether the learner can advance, and (only when ready) the
+        forward hook — so the costly hook generation is not paid on every turn.
+        """
+        reply_text = _compact_text(assistant_text, max_length=600)
+        branch = self.branch_state(mission=mission, user_text=user_text, assistant_text=assistant_text)
+        outcome: dict[str, Any] = {"reply_text": reply_text, "branch": branch}
+        if not getattr(mission, "serial_thread_id", None):
+            return outcome
+        progress = self._latest_objective_progress(mission)
+        required_ids = {
+            str(item.get("id"))
+            for item in (mission.objectives or [])
+            if item.get("required") is True and item.get("id")
+        }
+        if progress:
+            met_ids = {str(item.get("id")) for item in progress if item.get("met")}
+            required_met = required_ids.issubset(met_ids) if required_ids else all(bool(item.get("met")) for item in progress)
+        else:
+            required_met = False
+        ready = bool(progress) and required_met and branch.get("state") == "understood"
+        outcome["ready_to_advance"] = ready
+        if ready:
+            state_delta = self.resolve_outcome(
+                mission=mission,
+                attempts=mission.attempts or [],
+                turns=mission.turns or [],
+            )
+            hook = self.resolve_hook(mission=mission, state_delta=state_delta)
+            if state_delta:
+                outcome["state_delta"] = state_delta
+            if hook:
+                outcome["hook"] = hook
+        return outcome
+
+    @staticmethod
+    def _latest_user_text(
+        *,
+        attempts: list[RealWorldMissionAttempt],
+        turns: list[RealWorldMissionTurn],
+    ) -> str:
+        candidates: list[tuple[datetime | None, str]] = []
+        for attempt in attempts:
+            candidates.append((attempt.created_at, str((attempt.answer_payload or {}).get("text") or "")))
+        for turn in turns:
+            if turn.role == "user":
+                candidates.append((turn.created_at, turn.text))
+        if not candidates:
+            return ""
+        return sorted(candidates, key=lambda item: item[0] or datetime.min.replace(tzinfo=timezone.utc))[-1][1]
+
+    @staticmethod
+    def _latest_assistant_text(*, turns: list[RealWorldMissionTurn]) -> str:
+        assistant_turns = [turn for turn in turns if turn.role == "assistant"]
+        if not assistant_turns:
+            return ""
+        return sorted(assistant_turns, key=lambda item: item.created_at or datetime.min.replace(tzinfo=timezone.utc))[-1].text
+
     def branch_state(self, *, mission: RealWorldMission, user_text: str, assistant_text: str) -> dict[str, Any]:
         text = _compact_text(user_text, max_length=500)
         words = re.findall(r"\S+", text)
@@ -1496,6 +2836,7 @@ class MissionConversationService:
         has_detail = len(words) >= 10 or any(char.isdigit() for char in text)
         messenger = (mission.prompt_payload or {}).get("messenger") or {}
         expected_register = " ".join(messenger.get("realism_rules") or []).lower()
+        stakes_level = int(getattr(mission, "stakes_level", None) or (mission.prompt_payload or {}).get("stakes_level") or 1)
         formal_markers = any(token in text.lower() for token in ("vous", "pourriez", "serait-il", "merci par avance"))
         informal_markers = any(token in text.lower() for token in ("tu", "coucou", "bisous"))
         tone_ok = True
@@ -1526,6 +2867,8 @@ class MissionConversationService:
             "has_detail": has_detail,
             "has_question": has_question,
             "tone_ok": tone_ok,
+            "stakes_level": stakes_level,
+            "tone_critical": stakes_level >= 3,
             "assistant_continuation": _compact_text(assistant_text, max_length=240),
         }
 
@@ -1538,7 +2881,13 @@ def serialize_mission(mission: RealWorldMission | None, *, include_children: boo
         "status": mission.status,
         "cadence": mission.cadence,
         "mission_type": mission.mission_type,
+        "mission_format": (mission.prompt_payload or {}).get("mission_format")
+        or (mission.prompt_payload or {}).get("serial_mission_format")
+        or "chat_message",
+        "stakes_level": int(getattr(mission, "stakes_level", None) or 1),
         "atelier_session_id": str(mission.atelier_session_id) if mission.atelier_session_id else None,
+        "serial_thread_id": str(mission.serial_thread_id) if getattr(mission, "serial_thread_id", None) else None,
+        "episode_index": mission.episode_index,
         "iso_year": mission.iso_year,
         "iso_week": mission.iso_week,
         "title": mission.title,
@@ -1546,6 +2895,7 @@ def serialize_mission(mission: RealWorldMission | None, *, include_children: boo
         "selected_concept_ids": mission.selected_concept_ids or [],
         "target_errata_ids": mission.target_errata_ids or [],
         "target_vocabulary_ids": mission.target_vocabulary_ids or [],
+        "target_vocabulary": (mission.prompt_payload or {}).get("target_vocabulary") or [],
         "source_snapshot": mission.source_snapshot or {},
         "objectives": mission.objectives or [],
         "prompt_payload": mission.prompt_payload or {},
@@ -1554,6 +2904,9 @@ def serialize_mission(mission: RealWorldMission | None, *, include_children: boo
         "started_at": mission.started_at.isoformat() if mission.started_at else None,
         "completed_at": mission.completed_at.isoformat() if mission.completed_at else None,
     }
+    outcome = (mission.recap_payload or {}).get("outcome") if mission.recap_payload else None
+    if getattr(mission, "serial_thread_id", None) and isinstance(outcome, dict):
+        payload["outcome"] = outcome
     if include_children:
         payload["attempts"] = [
             {

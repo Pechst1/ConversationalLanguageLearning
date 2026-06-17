@@ -21,7 +21,7 @@ from app.db.models.user import User
 from app.schemas import TokenPayload
 from app.services.atelier_assets import AtelierAssetService
 from app.services.error_memory import serialize_error_memory
-from app.services.grammar_catalog import FrenchCoreGrammarCatalog
+from app.services.grammar_catalog import FRENCH_CORE_CATALOG_VERSION, FrenchCoreGrammarCatalog
 from app.services.grammar import GrammarService
 from app.services.achievement_service import AchievementService
 
@@ -273,10 +273,15 @@ def get_grammar_notebook_user(
                 raise InvalidTokenError("Token must be an access token")
             token_data = TokenPayload.model_validate(payload)
             user = db.get(User, UUID(str(token_data.sub)))
-            if user:
+            if user and user.is_active and int(token_data.av or 0) == int(user.auth_version or 0):
                 return user
         except (InvalidTokenError, ValidationError, ValueError, KeyError):
             pass
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Grammar notebook token is no longer valid",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
     if not settings.AUTO_CREATE_USERS_ON_LOGIN:
         raise HTTPException(
@@ -479,7 +484,10 @@ def get_grammar_notebook(
 ) -> list[GrammarNotebookItemRead]:
     """List concepts for the personal grammar notebook."""
     FrenchCoreGrammarCatalog(db).ensure_catalog(archive_legacy=True)
-    query = db.query(GrammarConcept).filter(GrammarConcept.active.is_(True))
+    query = db.query(GrammarConcept).filter(
+        GrammarConcept.active.is_(True),
+        GrammarConcept.catalog_version == FRENCH_CORE_CATALOG_VERSION,
+    )
     if level:
         query = query.filter(GrammarConcept.level == level)
     if category:

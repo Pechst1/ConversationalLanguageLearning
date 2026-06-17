@@ -60,3 +60,34 @@ quality_checks:
   - "Reject invalid French distractors."
   - "Reject repeated template beats."
   - "Reject image prompts that leak source names or ask for readable text."
+
+variants:
+  serial:
+    contract: >
+      Build an installment inside a persistent Serial World. The mission state
+      is canon. The episode dramatizes the consequence, rotates the setting,
+      keeps recurring characters visually consistent, and ends on a cliffhanger
+      that seeds the next mission.
+    rules:
+      - "Use world_bible.cast and register_map as fixed continuity."
+      - "Use thread.state to branch concrete visual beats."
+      - "Use news_seed as town texture through Romy, never as the entire plot."
+      - "Choose a recurring_locations entry that was not used last episode unless the plot demands it."
+      - "Write hook: text, unresolved_question, next_beat_kind, teaser."
+      - "Choice tasks may include branch_target with state_delta and next_panel_beat for bounded forks."
+  serial_v2:
+    contract: >
+      Build from EpisodeBrief, not a fixed panel skeleton. The brief decides
+      structure, required cast, A/B plot balance, news panel inclusion, choice
+      fork inclusion, stakes, and the final next_beat_kind.
+    structure_templates:
+      ensemble: "Panel 1 consequence; panels 2-4 group friction around the A-plot; panel 5 warmth or reversal; final unresolved hook."
+      two_hander: "Panel 1 encounter; panels 2-4 subtext and register pressure between exactly the required cast; panel 5 almost-truth; final interruption or question."
+      bottle: "Panel 1 constraint; panels 2-5 attempts inside one location; final escape/question."
+      callback_open: "Panel 1 earned callback; panels 2-4 callback complicates today's A-plot; panel 5 reframe; final hook."
+      news_edition: "Panel 1 Romy/news texture; panels 2-5 A-plot remains primary; final hook connects public event to private next action."
+    rules:
+      - "If include_choice_fork is false, do not create a choice task."
+      - "If include_news_panel is false, Romy may appear only as a character, not as a news device."
+      - "Required cast names must appear in panel beats."
+      - "The final hook must contain an unresolved question and must use episode_brief.next_beat_kind."

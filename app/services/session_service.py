@@ -49,6 +49,7 @@ from app.services.session_moment_planner import (
     SessionMomentPlanner,
 )
 from app.services.progress import ProgressService
+from app.services.vocabulary_credit import VocabularyCreditService
 from app.services.auto_context_service import SessionContext  # [NEW]
 from app.utils.cache import cache_backend, build_cache_key
 from app.schemas import PracticeIssue, TargetWordRead
@@ -503,18 +504,28 @@ class SessionService:
         """Map usage and error severity to an FSRS rating value."""
 
         if not was_used:
-            if is_new:
-                return None
-            return 1
+            return None
 
         if not had_error:
             return 3
 
         if error_severity == "low":
-            return 2
-        if error_severity == "medium":
             return 1
         return 0
+
+    @staticmethod
+    def _matching_error_for_form(
+        *,
+        error_result: ErrorDetectionResult,
+        matched_form: str | None,
+    ) -> DetectedError | None:
+        if not matched_form:
+            return None
+        matched = matched_form.lower()
+        for error in error_result.errors:
+            if matched in (error.span or "").lower():
+                return error
+        return None
 
     def _detect_unknown_words_used(
         self,
@@ -623,13 +634,10 @@ class SessionService:
             was_used, matched_form = self._check_word_usage(
                 word, learner_text, learner_lemmas
             )
-            matching_error: DetectedError | None = None
-            if was_used and matched_form:
-                # Check if the specific usage has an error associated with it
-                for err in error_result.errors:
-                    if matched_form in err.span:
-                        matching_error = err
-                        break
+            matching_error = self._matching_error_for_form(
+                error_result=error_result,
+                matched_form=matched_form if was_used else None,
+            )
 
             rating = self._calculate_word_rating(
                 was_used=was_used,
@@ -681,18 +689,68 @@ class SessionService:
         self,
         *,
         user: User,
+        session: LearningSession,
+        user_message: ConversationMessage,
         feedback: Sequence[WordFeedback],
+        learner_text: str,
+        assistant_context: str | None = None,
+        pending_moment: SessionLearningMoment | None = None,
     ) -> None:
+        credit_service = VocabularyCreditService(self.db)
         for item in feedback:
-            if item.rating is None:
+            pending_payload = (pending_moment.prompt_payload or {}) if pending_moment else {}
+            pending_word_id = (pending_payload.get("metadata") or {}).get("word_id")
+            if (
+                pending_moment
+                and pending_moment.kind == "vocab_boost"
+                and pending_word_id == item.word.id
+                and not item.was_used
+            ):
                 continue
-            progress, _, _ = self.progress_service.record_review(
+
+            if item.was_used and item.had_error:
+                event_type = "produced_incorrect"
+            elif item.was_used:
+                event_type = "produced_correct"
+            else:
+                event_type = "seen_context"
+
+            credit_service.apply(
                 user=user,
                 word=item.word,
-                rating=item.rating,
+                event_type=event_type,
+                source_type="session",
+                learner_text=learner_text,
+                corrected_text=item.word.word,
+                context=assistant_context or learner_text,
+                explanation=item.error.message if item.error else None,
+                repair_hint=(
+                    item.error.suggestion
+                    if item.error and item.error.suggestion
+                    else item.word.example_sentence
+                ),
+                severity=self._error_severity_score(item.error),
+                session=session,
+                message=user_message,
+                source_payload={
+                    "credit_source": "session_free_text",
+                    "is_new": item.is_new,
+                    "was_used": item.was_used,
+                    "had_error": item.had_error,
+                    "rating": item.rating,
+                    "error_code": item.error.code if item.error else None,
+                },
             )
-            is_correct = item.rating >= 2
-            progress.record_usage(correct=is_correct, is_new=item.is_new)
+
+    @staticmethod
+    def _error_severity_score(error: DetectedError | None) -> int:
+        if not error:
+            return 2
+        if error.severity == "high":
+            return 3
+        if error.severity == "low":
+            return 1
+        return 2
 
     def _update_word_interactions(
         self,
@@ -726,10 +784,15 @@ class SessionService:
         user: User,
         user_message: ConversationMessage,
         error_result: ErrorDetectionResult,
+        learner_text: str,
     ) -> None:
         """Persist detected errors through the unified error-memory loop."""
         error_memory = ErrorMemoryService(self.db)
         for error in error_result.errors:
+            if (error.category or "").lower() == "vocabulary":
+                # Vocabulary-specific scheduling now runs through VocabularyCreditService
+                # so target words get linked errata and do not receive duplicate lapses.
+                continue
             update = error_memory.record_detected_error(
                 user=user,
                 detected_error=error,
@@ -1643,6 +1706,7 @@ class SessionService:
             user=user,
             user_message=user_message,
             error_result=error_result,
+            learner_text=content,
         )
 
         # Update SRS for existing errors
@@ -1671,7 +1735,15 @@ class SessionService:
             learner_lemmas=learner_lemmas,
         )
 
-        self._apply_progress_updates(user=user, feedback=feedback)
+        self._apply_progress_updates(
+            user=user,
+            session=session,
+            user_message=user_message,
+            feedback=feedback,
+            learner_text=content,
+            assistant_context=previous_assistant.content if previous_assistant else None,
+            pending_moment=pending_moment,
+        )
         self._update_word_interactions(
             session=session,
             user=user,
@@ -1689,6 +1761,7 @@ class SessionService:
         )
 
         processed_spontaneous: set[int] = set()
+        vocabulary_credit = VocabularyCreditService(self.db)
         for vocab_word, matched_form in unknown_words:
             if vocab_word.id in processed_spontaneous:
                 continue
@@ -1696,6 +1769,10 @@ class SessionService:
                 vocab_word,
                 matched_form,
                 error_result,
+            )
+            matching_error = self._matching_error_for_form(
+                error_result=error_result,
+                matched_form=matched_form,
             )
 
             progress = self.progress_service.get_or_create_progress(
@@ -1705,12 +1782,30 @@ class SessionService:
             if progress.reps == 0:
                 progress.difficulty = float(suggested_difficulty)
 
-            self.progress_service.record_review(
+            vocabulary_credit.apply(
                 user=user,
                 word=vocab_word,
-                rating=rating,
+                event_type="produced_incorrect" if matching_error else "produced_correct",
+                source_type="session",
+                learner_text=content,
+                corrected_text=vocab_word.word,
+                context=previous_assistant.content if previous_assistant else content,
+                explanation=matching_error.message if matching_error else None,
+                repair_hint=(
+                    matching_error.suggestion
+                    if matching_error and matching_error.suggestion
+                    else vocab_word.example_sentence
+                ),
+                severity=self._error_severity_score(matching_error),
+                session=session,
+                message=user_message,
+                source_payload={
+                    "credit_source": "session_spontaneous_use",
+                    "matched_form": matched_form,
+                    "rating": rating,
+                    "error_code": matching_error.code if matching_error else None,
+                },
             )
-            progress.record_usage(correct=rating >= 2, is_new=False)
 
             interaction = WordInteraction(
                 session_id=session.id,
@@ -1721,6 +1816,10 @@ class SessionService:
                 user_response=content,
                 was_suggested=False,
             )
+            if matching_error:
+                interaction.error_type = matching_error.category
+                interaction.error_description = matching_error.message
+                interaction.correction = matching_error.suggestion
             self.db.add(interaction)
             processed_spontaneous.add(vocab_word.id)
 

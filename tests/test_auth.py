@@ -5,6 +5,8 @@ import uuid
 
 from fastapi.testclient import TestClient
 
+from app.config import settings
+
 
 def test_user_registration_success(client: TestClient) -> None:
     payload = {
@@ -64,7 +66,54 @@ def test_user_login_success(client: TestClient) -> None:
     assert data["token_type"] == "bearer"
 
 
-def test_user_login_invalid_credentials(client: TestClient) -> None:
+def test_refresh_rotates_refresh_token(client: TestClient) -> None:
+    registration_payload = {
+        "email": "refresh@example.com",
+        "password": "supersecure",
+        "target_language": "fr",
+        "native_language": "en",
+    }
+    client.post("/api/v1/auth/register", json=registration_payload)
+    login_response = client.post(
+        "/api/v1/auth/login",
+        json={"email": "refresh@example.com", "password": "supersecure"},
+    )
+    refresh_token = login_response.json()["refresh_token"]
+
+    refresh_response = client.post("/api/v1/auth/refresh", json={"refresh_token": refresh_token})
+
+    assert refresh_response.status_code == 200
+    data = refresh_response.json()
+    assert data["access_token"]
+    assert data["refresh_token"] != refresh_token
+
+    replay_response = client.post("/api/v1/auth/refresh", json={"refresh_token": refresh_token})
+    assert replay_response.status_code == 401
+
+
+def test_logout_revokes_refresh_token(client: TestClient) -> None:
+    registration_payload = {
+        "email": "logout@example.com",
+        "password": "supersecure",
+        "target_language": "fr",
+        "native_language": "en",
+    }
+    client.post("/api/v1/auth/register", json=registration_payload)
+    login_response = client.post(
+        "/api/v1/auth/login",
+        json={"email": "logout@example.com", "password": "supersecure"},
+    )
+    refresh_token = login_response.json()["refresh_token"]
+
+    logout_response = client.post("/api/v1/auth/logout", json={"refresh_token": refresh_token})
+
+    assert logout_response.status_code == 204
+    refresh_response = client.post("/api/v1/auth/refresh", json={"refresh_token": refresh_token})
+    assert refresh_response.status_code == 401
+
+
+def test_user_login_invalid_credentials(client: TestClient, monkeypatch) -> None:
+    monkeypatch.setattr(settings, "AUTO_CREATE_USERS_ON_LOGIN", False)
     payload = {
         "email": "unknown@example.com",
         "password": "wrongpassword",

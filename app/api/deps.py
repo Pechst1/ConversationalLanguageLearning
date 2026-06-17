@@ -22,6 +22,11 @@ from app.core.conversation import ConversationGenerator
 from app.core.error_detection import ErrorDetector
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login")
+optional_oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl=f"{settings.API_V1_STR}/auth/login",
+    auto_error=False,
+)
+LOCAL_DEMO_USER_EMAIL = "atelier-demo@local.test"
 
 _llm_service_singleton: LLMService | None = None
 _error_detector_singleton: ErrorDetector | None = None
@@ -38,11 +43,15 @@ def get_db() -> Session:
         db.close()
 
 
-def get_current_user(
-    token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)
-) -> User:
-    """Resolve the authenticated user from the Authorization header."""
+def _credentials_exception(detail: str = "Could not validate credentials") -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail=detail,
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
+
+def _resolve_authenticated_user(token: str | None, db: Session) -> User:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -62,9 +71,58 @@ def get_current_user(
 
     user_id = uuid.UUID(str(token_data.sub))
     user = db.get(User, user_id)
-    if not user:
+    if not user or not user.is_active:
+        raise credentials_exception
+    token_auth_version = int(token_data.av or 0)
+    if token_auth_version != int(user.auth_version or 0):
         raise credentials_exception
     return user
+
+
+def get_current_user(
+    token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)
+) -> User:
+    """Resolve the authenticated user from the Authorization header."""
+
+    return _resolve_authenticated_user(token, db)
+
+
+def get_or_create_local_demo_user(db: Session) -> User:
+    """Return the shared local demo user used by unauthenticated mobile design flows."""
+
+    user = db.query(User).filter(User.email == LOCAL_DEMO_USER_EMAIL).first()
+    if user:
+        return user
+
+    user = User(
+        email=LOCAL_DEMO_USER_EMAIL,
+        hashed_password="atelier-demo",
+        full_name="Atelier Demo",
+        native_language="en",
+        target_language="fr",
+        proficiency_level="intermediate",
+        is_active=True,
+        is_verified=True,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def get_current_user_or_demo(
+    token: str | None = Depends(optional_oauth2_scheme),
+    db: Session = Depends(get_db),
+) -> User:
+    """Resolve a signed-in user, or fall back to the local demo user in dev mode."""
+
+    if token:
+        return _resolve_authenticated_user(token, db)
+
+    if not settings.AUTO_CREATE_USERS_ON_LOGIN:
+        raise _credentials_exception("Authentication required")
+
+    return get_or_create_local_demo_user(db)
 
 
 def get_llm_service() -> LLMService:

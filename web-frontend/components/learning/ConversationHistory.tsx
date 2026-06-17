@@ -15,12 +15,12 @@ type Props = {
 };
 
 const familiarityClasses: Record<string, string> = {
-  new: 'border-rose-200 bg-rose-50 text-rose-700',
-  learning: 'border-amber-200 bg-amber-50 text-amber-700',
-  familiar: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+  new: 'border-black bg-bauhaus-red/10 text-bauhaus-red',
+  learning: 'border-black bg-bauhaus-yellow/20 text-black',
+  familiar: 'border-black bg-bauhaus-blue/15 text-bauhaus-blue',
 };
 
-const defaultHighlightClass = 'border-slate-200 bg-slate-100 text-slate-800';
+const defaultHighlightClass = 'border-black bg-white text-black';
 
 // Hidden Message component for audio-only mode
 const HiddenMessage: React.FC<{
@@ -32,17 +32,17 @@ const HiddenMessage: React.FC<{
   return (
     <div className="relative">
       {/* Blurred placeholder */}
-      <div className="relative min-h-[96px] overflow-hidden rounded-2xl border border-dashed border-amber-300 bg-amber-50/70 p-6">
+      <div className="relative min-h-[96px] overflow-hidden rounded-none border-4 border-dashed border-black bg-[var(--app-sheet)] p-6 shadow-[4px_4px_0px_0px_#000]">
         {/* Decorative blur bars to simulate hidden text */}
         <div className="space-y-2">
-          <div className="h-4 bg-amber-200/60 rounded blur-[2px] w-full" />
-          <div className="h-4 bg-amber-200/60 rounded blur-[2px] w-4/5" />
-          <div className="h-4 bg-amber-200/60 rounded blur-[2px] w-3/5" />
+          <div className="h-4 bg-black/10 rounded blur-[2px] w-full" />
+          <div className="h-4 bg-black/10 rounded blur-[2px] w-4/5" />
+          <div className="h-4 bg-black/10 rounded blur-[2px] w-3/5" />
         </div>
 
         {/* Overlay with actions */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white/85 backdrop-blur-sm">
-          <div className="flex items-center gap-2 text-amber-700">
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white/80 backdrop-blur-sm">
+          <div className="flex items-center gap-2 text-black">
             <Ear className={`w-5 h-5 ${isSpeaking ? 'animate-pulse' : ''}`} />
             <span className="font-bold text-sm uppercase tracking-wider">
               {isSpeaking ? 'Listening...' : 'Listen carefully!'}
@@ -53,7 +53,7 @@ const HiddenMessage: React.FC<{
             {onReplay && (
               <button
                 onClick={onReplay}
-                className="flex items-center gap-1 rounded-full border border-amber-300 bg-amber-100 px-3 py-1.5 text-xs font-medium text-amber-700 transition-colors hover:bg-amber-200"
+                className="flex items-center gap-1 rounded-none border-2 border-black bg-bauhaus-yellow px-3 py-1.5 text-xs font-bold text-black transition-all hover:-translate-y-0.5 hover:shadow-[2px_2px_0px_0px_#000]"
               >
                 <Volume2 className="w-3 h-3" />
                 Replay
@@ -61,14 +61,14 @@ const HiddenMessage: React.FC<{
             )}
             <button
               onClick={onReveal}
-              className="flex items-center gap-1 rounded-full border border-stone-200 bg-white px-3 py-1.5 text-xs font-medium text-stone-600 transition-colors hover:bg-stone-50"
+              className="flex items-center gap-1 rounded-none border-2 border-black bg-white px-3 py-1.5 text-xs font-bold text-black transition-all hover:-translate-y-0.5 hover:shadow-[2px_2px_0px_0px_#000]"
             >
               <Eye className="w-3 h-3" />
               Reveal
             </button>
           </div>
 
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-[10px] font-bold text-[var(--app-ink-3)] uppercase tracking-wider mt-1">
             Click reveal after listening or respond to show text
           </p>
         </div>
@@ -285,7 +285,7 @@ const ConversationHistory: React.FC<Props> = ({
       elements.push(
         <span
           key={`word-${target.id}`}
-          className={`${className} relative mx-0.5 inline-block cursor-pointer rounded-md border px-1.5 py-0.5 text-[0.95em] font-medium transition-colors hover:border-stone-300 hover:bg-white`}
+          className={`${className} relative mx-0.5 inline-block cursor-pointer rounded-none border border-black px-1.5 py-0.5 text-[0.95em] font-bold shadow-[2px_2px_0px_0px_#000] hover:-translate-y-0.5 hover:shadow-[3px_3px_0px_0px_#000] transition-all`}
           onMouseEnter={hasValidId ? () => handleWordHover(target.id) : undefined}
           onMouseLeave={() => setHoveredWord(null)}
           onClick={hasValidId ? () => handleWordClick(target.id) : undefined}
@@ -294,7 +294,7 @@ const ConversationHistory: React.FC<Props> = ({
         >
           {target.text}
           {isHovered && (
-            <div className="absolute bottom-full left-1/2 z-50 mb-3 min-w-[120px] -translate-x-1/2 whitespace-nowrap rounded-xl border border-stone-200 bg-white px-3 py-2 text-center text-sm font-medium text-stone-700 shadow-lg">
+            <div className="absolute bottom-full left-1/2 z-50 mb-3 min-w-[120px] -translate-x-1/2 whitespace-nowrap rounded-none border-2 border-black bg-white px-3 py-2 text-center text-sm font-bold text-[var(--app-ink)] shadow-[3px_3px_0px_0px_#000]">
               {isLoading ? 'Loading...' : translation || (hasValidId ? 'Click for translation' : target.text)}
             </div>
           )}
@@ -317,7 +317,7 @@ const ConversationHistory: React.FC<Props> = ({
   };
 
   return (
-    <div className="flex h-[min(68vh,720px)] flex-col overflow-hidden rounded-[32px] border border-stone-200 bg-white/90 shadow-sm">
+    <div className="flex h-[min(68vh,720px)] flex-col overflow-hidden rounded-none border-4 border-black bg-white shadow-[8px_8px_0px_0px_#000]">
       <div className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">
         {messages.map((message, index) => (
           <div
@@ -327,16 +327,16 @@ const ConversationHistory: React.FC<Props> = ({
             <div
               className={`w-full max-w-2xl ${message.role === 'user' ? 'max-w-xl' : ''}`}
             >
-              <div className={`mb-2 text-[11px] font-medium uppercase tracking-[0.18em] ${
-                message.role === 'user' ? 'text-stone-400 text-right' : 'text-stone-500'
+              <div className={`mb-2 text-[11px] font-black uppercase tracking-[0.18em] ${
+                message.role === 'user' ? 'text-[var(--app-ink-3)] text-right' : 'text-[var(--app-ink-2)]'
               }`}>
                 {message.role === 'user' ? 'You' : 'Tutor'}
               </div>
               <div
-                className={`rounded-[28px] px-5 py-4 ${
+                className={`rounded-none border-4 border-black px-5 py-4 shadow-[4px_4px_0px_0px_#000] ${
                   message.role === 'user'
-                    ? 'bg-[#ebe2d0] text-stone-900 ring-1 ring-[#d9ccb3]'
-                    : 'bg-stone-50 text-stone-900 ring-1 ring-stone-200'
+                    ? 'bg-[var(--app-paper-2)] text-[var(--app-ink)]'
+                    : 'bg-white text-[var(--app-ink)]'
                 }`}
               >
               {message.role === 'assistant' ? (() => {
@@ -426,39 +426,39 @@ const ConversationHistory: React.FC<Props> = ({
                     // Only show if the sentence actually changed
                     if (correctedSentence !== message.content) {
                       return (
-                        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-3 text-sm text-emerald-800">
-                          <span className="font-medium">Try:</span>{' '}
-                          <span className="italic">{correctedSentence}</span>
+                        <div className="rounded-none border-2 border-black bg-emerald-50 px-3 py-3 text-sm text-emerald-900 shadow-[3px_3px_0px_0px_#000]">
+                          <span className="font-bold uppercase tracking-wider text-[10px] bg-emerald-600 text-white px-1.5 py-0.5 mr-2">Try</span>{' '}
+                          <span className="italic font-medium">{correctedSentence}</span>
                         </div>
                       );
                     }
                     return null;
                   })()}
                   {message.errors && message.errors.errors && message.errors.errors.length > 0 && (
-                    <div className="mt-1 border-t border-stone-200 pt-4 text-sm">
-                      <p className="mb-3 flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.18em] text-stone-500">
-                        <AlertTriangle className="w-4 h-4" />
+                    <div className="mt-1 border-t-2 border-black pt-4 text-sm">
+                      <p className="mb-3 flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.18em] text-[var(--app-ink-2)]">
+                        <AlertTriangle className="w-4 h-4 text-bauhaus-red" />
                         Corrections
                       </p>
-                      <ul className="space-y-3">
+                      <ul className="space-y-4">
                         {message.errors.errors.map((err, i) => (
-                          <li key={i} className="rounded-2xl border border-rose-100 bg-white px-3 py-3">
+                          <li key={i} className="rounded-none border-2 border-black bg-white px-3 py-3 shadow-[3px_3px_0px_0px_#000]">
                             <div className="flex items-center gap-2 mb-1">
-                              <span className="text-sm text-stone-400 line-through">{err.span}</span>
+                              <span className="text-sm text-stone-400 line-through font-medium">{err.span}</span>
                               <span className="text-stone-400">→</span>
-                              <span className="font-medium text-rose-700">{err.suggestion}</span>
+                              <span className="font-bold text-rose-700">{err.suggestion}</span>
                             </div>
                             {err.message && (
-                              <p className="mt-1 border-l border-stone-200 pl-2 text-xs italic text-stone-500">
+                              <p className="mt-1 border-l-2 border-black pl-2 text-xs italic text-stone-600">
                                 {err.message}
                               </p>
                             )}
                             <div className="flex items-center gap-2 mt-2">
-                              <span className={`rounded-full px-2 py-1 text-[10px] font-medium uppercase tracking-wide ${
-                                err.category === 'grammar' ? 'bg-rose-50 text-rose-700' :
-                                err.category === 'spelling' ? 'bg-amber-50 text-amber-700' :
-                                err.category === 'vocabulary' ? 'bg-sky-50 text-sky-700' :
-                                'bg-stone-100 text-stone-600'
+                              <span className={`rounded-none border border-black px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                                err.category === 'grammar' ? 'bg-bauhaus-red text-white' :
+                                err.category === 'spelling' ? 'bg-bauhaus-yellow text-black' :
+                                err.category === 'vocabulary' ? 'bg-bauhaus-blue text-white' :
+                                'bg-white text-black'
                                 }`}>
                                 {err.category}
                               </span>

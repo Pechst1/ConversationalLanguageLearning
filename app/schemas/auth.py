@@ -21,3 +21,17 @@ class TokenPayload(BaseModel):
     sub: uuid.UUID
     exp: datetime
     type: str
+    av: int | None = None
+    jti: str | None = None
+
+
+class RefreshTokenRequest(BaseModel):
+    """Request body for rotating an access/refresh token pair."""
+
+    refresh_token: str
+
+
+class LogoutRequest(BaseModel):
+    """Optional refresh token payload for explicit session logout."""
+
+    refresh_token: str | None = None

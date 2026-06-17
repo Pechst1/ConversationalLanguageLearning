@@ -4,16 +4,80 @@ from __future__ import annotations
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from app.schemas.missions import (
+    LinkedVocabularyErratumRead,
+    MissionCorrectionRead,
+    TargetVocabularyRead,
+    VocabularyCreditSummary,
+)
+
+
+class GraphicNovelRecapRead(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    vocabulary_credit: VocabularyCreditSummary = Field(default_factory=VocabularyCreditSummary)
+
+
+class GraphicNovelPanelRead(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    id: UUID
+    panel_index: int
+    title: str
+    beat: str
+    image_prompt: str
+    image_url: str | None = None
+    image_payload: dict[str, Any] = Field(default_factory=dict)
+    audio_payload: dict[str, Any] = Field(default_factory=dict)
+    overlay_payload: dict[str, Any] = Field(default_factory=dict)
+    generation_metadata: dict[str, Any] = Field(default_factory=dict)
+    created_at: str | None = None
+
+
+class GraphicNovelSceneRead(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    id: UUID
+    status: str
+    cadence: str
+    atelier_session_id: UUID | None = None
+    mission_id: UUID | None = None
+    serial_thread_id: UUID | None = None
+    episode_index: int | None = None
+    personal_input_item_id: UUID | None = None
+    title: str
+    brief: str
+    selected_concept_ids: list[int] = Field(default_factory=list)
+    target_errata_ids: list[UUID] = Field(default_factory=list)
+    target_vocabulary_ids: list[int] = Field(default_factory=list)
+    target_vocabulary: list[TargetVocabularyRead] = Field(default_factory=list)
+    source_snapshot: dict[str, Any] = Field(default_factory=dict)
+    script_payload: dict[str, Any] = Field(default_factory=dict)
+    hook: dict[str, Any] = Field(default_factory=dict)
+    recap: GraphicNovelRecapRead = Field(default_factory=GraphicNovelRecapRead)
+    cache_key: str
+    prompt_version: str
+    image_model: str
+    image_quality: str
+    panels: list[GraphicNovelPanelRead] = Field(default_factory=list)
+    attempts: list[dict[str, Any]] = Field(default_factory=list)
+    created_at: str | None = None
+    started_at: str | None = None
+    completed_at: str | None = None
 
 
 class GraphicNovelCreateRequest(BaseModel):
     cadence: str = Field("ad_hoc", pattern="^(ad_hoc|post_session|weekly)$")
     atelier_session_id: UUID | None = None
     mission_id: UUID | None = None
+    serial_thread_id: UUID | None = None
+    episode_index: int | None = None
     personal_input_item_id: UUID | None = None
     preferred_concept_ids: list[int] | None = None
     preferred_errata_ids: list[UUID] | None = None
+    target_vocabulary_ids: list[int] | None = None
     use_news: bool = False
     panel_count: int | None = Field(None, description="Requested Feuilleton length: 4, 6, or 8 panels")
     story_quality: str = Field("standard", pattern="^(standard|premium)$")
@@ -41,26 +105,26 @@ class GraphicNovelAttemptRequest(BaseModel):
 
 
 class GraphicNovelTodayResponse(BaseModel):
-    active_scene: dict[str, Any] | None = None
-    available_scene: dict[str, Any] | None = None
-    recent_completed: list[dict[str, Any]] = Field(default_factory=list)
+    active_scene: GraphicNovelSceneRead | None = None
+    available_scene: GraphicNovelSceneRead | None = None
+    recent_completed: list[GraphicNovelSceneRead] = Field(default_factory=list)
     recommendation: dict[str, Any] = Field(default_factory=dict)
 
 
 class GraphicNovelSceneResponse(BaseModel):
-    scene: dict[str, Any]
+    scene: GraphicNovelSceneRead
 
 
 class GraphicNovelAttemptResponse(BaseModel):
     attempt: dict[str, Any]
-    correction: dict[str, Any]
-    errata: list[dict[str, Any]] = Field(default_factory=list)
-    scene: dict[str, Any]
+    correction: MissionCorrectionRead
+    errata: list[LinkedVocabularyErratumRead] = Field(default_factory=list)
+    scene: GraphicNovelSceneRead
 
 
 class GraphicNovelCompleteResponse(BaseModel):
-    scene: dict[str, Any]
-    recap: dict[str, Any]
+    scene: GraphicNovelSceneRead
+    recap: GraphicNovelRecapRead
 
 
 __all__ = [
@@ -68,6 +132,9 @@ __all__ = [
     "GraphicNovelAttemptResponse",
     "GraphicNovelCompleteResponse",
     "GraphicNovelCreateRequest",
+    "GraphicNovelPanelRead",
+    "GraphicNovelRecapRead",
+    "GraphicNovelSceneRead",
     "GraphicNovelSceneResponse",
     "GraphicNovelTodayResponse",
 ]

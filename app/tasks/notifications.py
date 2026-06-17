@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta, timezone
+from uuid import UUID
 
 from loguru import logger
 from sqlalchemy import select
@@ -126,5 +127,39 @@ def send_daily_srs_reminders() -> dict[str, int]:
             "notifications_sent": sent_count,
         }
         
+    finally:
+        db.close()
+
+
+@celery_app.task(name="app.tasks.notifications.send_serial_edition_notification")
+def send_serial_edition_notification(
+    user_id: str,
+    episode_index: int,
+    title: str,
+    message: str,
+    dedupe_key: str,
+) -> dict[str, str | int]:
+    """Send the queued push for a newly available serial edition."""
+    from app.services.notification_service import NotificationService
+
+    db = SessionLocal()
+    try:
+        user = db.get(User, UUID(str(user_id)))
+        if not user or not user.is_active:
+            return {"status": "skipped", "reason": "inactive_user", "episode_index": int(episode_index)}
+        if not user.notifications_enabled or not getattr(user, "serial_edition_notifications", True):
+            return {"status": "skipped", "reason": "notifications_disabled", "episode_index": int(episode_index)}
+        NotificationService(db).send_notification(
+            user_id=user.id,
+            title=title,
+            message=message,
+        )
+        logger.info(
+            "Serial edition notification sent",
+            user_id=str(user.id),
+            episode_index=episode_index,
+            dedupe_key=dedupe_key,
+        )
+        return {"status": "sent", "episode_index": int(episode_index)}
     finally:
         db.close()

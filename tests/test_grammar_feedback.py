@@ -57,3 +57,14 @@ def test_conditional_and_subjunctive_profiles_are_detectable() -> None:
     assert is_concept_demonstrated(conditional, "Je voudrais vous poser une question.")
     assert infer_grammar_profile(subjunctive).key == "mood"
     assert is_concept_demonstrated(subjunctive, "Il faut que tu viennes demain.")
+
+
+def test_si_type_one_detector_accepts_elided_si_clause() -> None:
+    concept = _concept(
+        external_id="FR_B1_COND_001",
+        name="Si type 1: present condition, future result",
+        core_rule="Use si plus present, then future simple or imperative.",
+        examples="S'il pleut, je prendrai le métro.",
+    )
+
+    assert count_concept_hits(concept, "S'il pleut, je prendrai le métro.") == 1

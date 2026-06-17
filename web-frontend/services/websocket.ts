@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { useSession } from 'next-auth/react';
+import { useAppSession } from '@/lib/app-auth';
 
 type WebSocketMessage = {
   type: 'session_ready' | 'turn_result' | 'typing' | 'heartbeat' | 'error';
@@ -41,7 +41,6 @@ class WebSocketService {
         this.socket = new WebSocket(wsUrl);
 
         this.socket.onopen = () => {
-          console.log('WebSocket connected');
           this.reconnectAttempts = 0;
           this.startHeartbeat();
           this.notifyConnectionStatus(true);
@@ -53,7 +52,6 @@ class WebSocketService {
         };
 
         this.socket.onclose = (event) => {
-          console.log('WebSocket closed:', event.code, event.reason);
           this.stopHeartbeat();
           this.notifyConnectionStatus(false);
 
@@ -77,8 +75,6 @@ class WebSocketService {
     this.reconnectAttempts++;
     const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
 
-      console.log(`Attempting to reconnect in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
-
     setTimeout(() => {
       this.connect().catch(() => {
         // The learning flow falls back to HTTP, so a failed realtime reconnect
@@ -90,23 +86,18 @@ class WebSocketService {
   private handleMessage(event: MessageEvent) {
     try {
       const message: WebSocketMessage = JSON.parse(event.data);
-      console.log('[WebSocket] Received message:', message.type, message);
       const payload = message.data ?? message;
 
       // First try the global handler (most reliable)
       if (this.globalMessageHandler) {
-        console.log('[WebSocket] Using global handler for:', message.type);
         this.globalMessageHandler(message.type, payload);
       } else {
         // Fallback to specific handlers
         const handler = this.messageHandlers.get(message.type);
-        console.log('[WebSocket] Handler for type', message.type, ':', handler ? 'found' : 'not found');
 
         if (handler) {
-          console.log('[WebSocket] Invoking handler for:', message.type);
           handler(payload);
         } else {
-          console.log('[WebSocket] Storing in pending messages for:', message.type);
           const existing = this.pendingMessages.get(message.type) ?? [];
           existing.push(payload);
           this.pendingMessages.set(message.type, existing);
@@ -117,9 +108,6 @@ class WebSocketService {
       switch (message.type) {
         case 'error':
           console.error('WebSocket payload error:', message.message || 'An error occurred');
-          break;
-        case 'session_ready':
-          console.log('Session ready:', message);
           break;
         default:
           // Let specific handlers deal with the message
@@ -171,12 +159,10 @@ class WebSocketService {
   }
 
   onMessage(type: string, handler: (data: any) => void) {
-    console.log('[WebSocket] Registering handler for:', type);
     this.messageHandlers.set(type, handler);
 
     const pending = this.pendingMessages.get(type);
     if (pending?.length) {
-      console.log('[WebSocket] Processing', pending.length, 'pending messages for:', type);
       pending.forEach((payload) => {
         try {
           handler(payload);
@@ -215,7 +201,7 @@ class WebSocketService {
 
 // React hook for using WebSocket
 export function useWebSocket(sessionId: string) {
-  const { data: session } = useSession();
+  const { data: session } = useAppSession();
   const wsRef = useRef<WebSocketService | null>(null);
   const connectionStatusRef = useRef<boolean>(false);
   const connectedSessionIdRef = useRef<string | null>(null);
@@ -227,35 +213,29 @@ export function useWebSocket(sessionId: string) {
 
     // If already connected to the same session, don't reconnect
     if (wsRef.current && wsRef.current.isConnected() && connectedSessionIdRef.current === sessionId) {
-      console.log('[useWebSocket] Already connected to session:', sessionId);
       return;
     }
 
     // Only disconnect if we have an existing connection to a different session
     if (wsRef.current && connectedSessionIdRef.current !== sessionId) {
-      console.log('[useWebSocket] Disconnecting from previous session:', connectedSessionIdRef.current);
       wsRef.current.disconnect();
       wsRef.current = null;
     }
 
     // Create new connection if needed
     if (!wsRef.current) {
-      console.log('[useWebSocket] Creating new WebSocket for session:', sessionId);
       wsRef.current = new WebSocketService(sessionId, session.accessToken);
     }
 
     // Always apply pending handlers BEFORE connecting
     if (pendingHandlersRef.current.size > 0) {
-      console.log('[useWebSocket] Applying', pendingHandlersRef.current.size, 'pending handlers');
       pendingHandlersRef.current.forEach((handler, type) => {
-        console.log('[useWebSocket] Pre-registering handler for:', type);
         wsRef.current?.onMessage(type, handler);
       });
     }
 
     // Apply global handler if one was set
     if (globalHandlerRef.current && wsRef.current) {
-      console.log('[useWebSocket] Applying global handler');
       wsRef.current.globalMessageHandler = globalHandlerRef.current;
     }
 
@@ -263,7 +243,6 @@ export function useWebSocket(sessionId: string) {
       await wsRef.current.connect();
       connectedSessionIdRef.current = sessionId;
       connectionStatusRef.current = true;
-      console.log('[useWebSocket] Connected successfully to session:', sessionId);
     } catch (error) {
       console.error('Failed to connect WebSocket:', error);
       connectionStatusRef.current = false;
@@ -292,7 +271,6 @@ export function useWebSocket(sessionId: string) {
   }, []);
 
   const setGlobalHandler = useCallback((handler: (type: string, payload: any) => void) => {
-    console.log('[useWebSocket] Setting global message handler');
     globalHandlerRef.current = handler;
     if (wsRef.current) {
       wsRef.current.globalMessageHandler = handler;
@@ -300,15 +278,11 @@ export function useWebSocket(sessionId: string) {
   }, []);
 
   const onMessage = useCallback((type: string, handler: (data: any) => void) => {
-    console.log('[useWebSocket] onMessage called for type:', type, 'wsRef.current:', wsRef.current ? 'exists' : 'null');
-
     // Always store the handler for later (in case of reconnection)
     pendingHandlersRef.current.set(type, handler);
 
     if (wsRef.current) {
       wsRef.current.onMessage(type, handler);
-    } else {
-      console.log('[useWebSocket] Handler stored for later registration:', type);
     }
   }, []);
 

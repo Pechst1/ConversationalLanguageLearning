@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getSession, useSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import {
@@ -20,6 +19,8 @@ import {
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import ImmersiveStoryView from '@/components/story/ImmersiveStoryView';
+import { useAppSession } from '@/lib/app-auth';
+import apiService from '@/services/api';
 
 // Types
 interface Scene {
@@ -85,20 +86,24 @@ interface StoryStartResponse {
 }
 
 interface StoryPageProps {
-    storyData: StoryStartResponse | null;
-    storyId: string;
-    error: string | null;
+    storyData?: StoryStartResponse | null;
+    storyId?: string;
+    error?: string | null;
 }
 
-export default function StoryPage({ storyData, storyId, error }: StoryPageProps) {
+export default function StoryPage({ storyData = null, storyId: initialStoryId, error: initialError = null }: StoryPageProps) {
     const router = useRouter();
-    const { data: session } = useSession();
+    const { data: session } = useAppSession();
+    const routeStoryId = Array.isArray(router.query.id) ? router.query.id[0] : router.query.id;
+    const storyId = initialStoryId || routeStoryId || '';
     const [scene, setScene] = useState<Scene | null>(storyData?.scene || null);
     const [chapter, setChapter] = useState<Chapter | null>(storyData?.chapter || null);
     const [progress, setProgress] = useState<StoryProgress | null>(storyData?.progress || null);
+    const [loadError, setLoadError] = useState<string | null>(initialError);
     const [messages, setMessages] = useState<Message[]>([]);
     const [inputValue, setInputValue] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [isBooting, setIsBooting] = useState(false);
     const [showNarration, setShowNarration] = useState(true);
     const [activeNPC, setActiveNPC] = useState<NPCInScene | null>(null);
     const [pendingTransition, setPendingTransition] = useState<any>(null);
@@ -107,8 +112,45 @@ export default function StoryPage({ storyData, storyId, error }: StoryPageProps)
 
     const handleContinueTransition = async () => {
         setPendingTransition(null);
-        await router.replace(router.asPath);
+        setScene(null);
+        setChapter(null);
+        setProgress(null);
+        setMessages([]);
+        setShowNarration(true);
     };
+
+    useEffect(() => {
+        if (!storyId || scene) return;
+
+        let cancelled = false;
+        const startStory = async () => {
+            setIsBooting(true);
+            setLoadError(null);
+            try {
+                const data = await apiService.post<StoryStartResponse>(`/stories/${storyId}/start`);
+                if (cancelled) return;
+                setScene(data.scene);
+                setChapter(data.chapter);
+                setProgress(data.progress);
+                setMessages([]);
+                setShowNarration(true);
+            } catch (error: any) {
+                if (!cancelled) {
+                    setLoadError(error?.response?.data?.detail || error?.message || 'Story konnte nicht geladen werden.');
+                }
+            } finally {
+                if (!cancelled) {
+                    setIsBooting(false);
+                }
+            }
+        };
+
+        void startStory();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [scene, storyId]);
 
     // Initialize with narration
     useEffect(() => {
@@ -159,26 +201,12 @@ export default function StoryPage({ storyData, storyId, error }: StoryPageProps)
                     content: m.content,
                 }));
 
-            // Call the story input endpoint
-            const response = await fetch(`/api/proxy/stories/${storyId}/input`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    content: contentToSend,
-                    choice_id: choiceId,
-                    target_npc_id: activeNPC?.id !== 'narrator' ? activeNPC?.id : null,
-                    conversation_history: conversationHistory,
-                }),
+            const data = await apiService.post<any>(`/stories/${storyId}/input`, {
+                content: contentToSend,
+                choice_id: choiceId,
+                target_npc_id: activeNPC?.id !== 'narrator' ? activeNPC?.id : null,
+                conversation_history: conversationHistory,
             });
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.detail || 'Failed to get response');
-            }
-
-            const data = await response.json();
 
             // Create NPC response message if available
             if (data.npc_response) {
@@ -331,14 +359,14 @@ export default function StoryPage({ storyData, storyId, error }: StoryPageProps)
         }
     };
 
-    if (error) {
+    if (loadError) {
         return (
             <div className="min-h-screen flex items-center justify-center p-4">
                 <Card className="border-4 border-black shadow-[8px_8px_0px_0px_#000] max-w-md">
                     <CardContent className="p-8 text-center">
                         <div className="text-6xl mb-4">😔</div>
                         <h2 className="text-2xl font-bold mb-2">Fehler</h2>
-                        <p className="text-gray-600 mb-6">{error}</p>
+                        <p className="text-gray-600 mb-6">{loadError}</p>
                         <Link href="/stories">
                             <Button leftIcon={<ArrowLeft className="h-4 w-4" />}>
                                 Zurück zu Stories
@@ -350,7 +378,7 @@ export default function StoryPage({ storyData, storyId, error }: StoryPageProps)
         );
     }
 
-    if (!scene || !chapter) {
+    if (isBooting || !scene || !chapter) {
         return (
             <div className="min-h-screen flex items-center justify-center">
                 <div className="animate-pulse text-xl font-bold">Lade Story...</div>
@@ -661,62 +689,4 @@ function ObjectiveItem({ objective }: { objective: Objective }) {
             </div>
         </div>
     );
-}
-
-export async function getServerSideProps(context: any) {
-    const session = await getSession(context);
-    const { id } = context.params;
-
-    if (!session) {
-        return {
-            redirect: {
-                destination: '/auth/signin',
-                permanent: false,
-            },
-        };
-    }
-
-    try {
-        const baseUrl = process.env.API_URL || 'http://localhost:8000';
-        const headers = {
-            'Authorization': `Bearer ${session.accessToken}`,
-            'Content-Type': 'application/json',
-        };
-
-        // Start or resume the story
-        const res = await fetch(`${baseUrl}/api/v1/stories/${id}/start`, {
-            method: 'POST',
-            headers,
-        });
-
-        if (!res.ok) {
-            const errorData = await res.json().catch(() => ({}));
-            return {
-                props: {
-                    storyData: null,
-                    storyId: id,
-                    error: errorData.detail || 'Story konnte nicht geladen werden.',
-                }
-            };
-        }
-
-        const storyData = await res.json();
-
-        return {
-            props: {
-                storyData,
-                storyId: id,
-                error: null,
-            },
-        };
-    } catch (error) {
-        console.error('Failed to start story:', error);
-        return {
-            props: {
-                storyData: null,
-                storyId: id,
-                error: 'Verbindungsfehler. Bitte versuche es später erneut.',
-            },
-        };
-    }
 }

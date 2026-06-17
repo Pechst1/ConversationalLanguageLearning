@@ -1,5 +1,4 @@
 import React from 'react';
-import { getSession } from 'next-auth/react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
@@ -21,8 +20,8 @@ interface PracticeWord {
 type PracticeDirection = 'fr_to_de' | 'de_to_fr';
 
 interface PracticeProps {
-  queueWords: PracticeWord[];
-  counters: {
+  queueWords?: PracticeWord[];
+  counters?: {
     newCount: number;
     learningCount: number;
     dueCount: number;
@@ -128,14 +127,15 @@ function formatReviewFeedbackMessage(response: ReviewResponse | AnkiReviewRespon
 
 const FETCH_LIMIT = 50;
 const FETCH_THRESHOLD = 3;
+const EMPTY_COUNTERS = { newCount: 0, learningCount: 0, dueCount: 0 };
 
-export default function PracticePage({ queueWords, counters, direction: initialDirection }: PracticeProps) {
+export default function PracticePage({ queueWords = [], counters = EMPTY_COUNTERS, direction: initialDirection }: PracticeProps) {
   const [localQueue, setLocalQueue] = React.useState<PracticeWord[]>(queueWords);
   const [currentWordIndex, setCurrentWordIndex] = React.useState(0);
   const [showAnswer, setShowAnswer] = React.useState(false);
   const [score, setScore] = React.useState(0);
   const [completed, setCompleted] = React.useState(false);
-  const [counts] = React.useState(counters);
+  const [counts, setCounts] = React.useState(counters);
   const [lastReviewFeedback, setLastReviewFeedback] = React.useState<{
     word: string;
     message: string;
@@ -146,6 +146,7 @@ export default function PracticePage({ queueWords, counters, direction: initialD
 
   const queueRef = React.useRef(localQueue);
   const cardShownAtRef = React.useRef<number>(Date.now());
+  const hydratedRef = React.useRef(false);
 
   // Keep ref in sync
   React.useEffect(() => {
@@ -155,7 +156,7 @@ export default function PracticePage({ queueWords, counters, direction: initialD
   const currentWord = localQueue[currentWordIndex];
   const queueLength = localQueue.length;
   const nextIndex = currentWordIndex + 1;
-  const finalTotal = Math.max(queueLength, counters.dueCount + counters.newCount + counters.learningCount);
+  const finalTotal = Math.max(queueLength, counts.dueCount + counts.newCount + counts.learningCount);
 
   const mapQueueItem = React.useCallback((item: any, dir: PracticeDirection): PracticeWord => ({
     wordId: item.word_id,
@@ -166,11 +167,14 @@ export default function PracticePage({ queueWords, counters, direction: initialD
     stage: item.stage || item.queue_stage || item.stage_type || undefined,
   }), []);
 
-  const handleRefreshQueue = async (overrideDirection?: PracticeDirection) => {
+  const handleRefreshQueue = React.useCallback(async (overrideDirection?: PracticeDirection) => {
     const targetDirection = overrideDirection || direction;
     setIsLoadingDirection(true);
     try {
-      const raw = await apiService.getProgressQueue({ limit: FETCH_LIMIT, direction: targetDirection });
+      const [raw, summary] = await Promise.all([
+        apiService.getProgressQueue({ limit: FETCH_LIMIT, direction: targetDirection }),
+        apiService.getAnkiSummary().catch(() => null),
+      ]);
       if (Array.isArray(raw)) {
         const mapped = raw.map(item => mapQueueItem(item, targetDirection));
         setLocalQueue(mapped);
@@ -180,12 +184,23 @@ export default function PracticePage({ queueWords, counters, direction: initialD
         setShowAnswer(false);
         setLastReviewFeedback(null);
       }
+      setCounts({
+        newCount: Number((summary as any)?.stage_totals?.new ?? 0),
+        learningCount: Number((summary as any)?.stage_totals?.learning ?? 0),
+        dueCount: Number((summary as any)?.due_today ?? 0),
+      });
     } catch (error) {
       toast.error('Failed to refresh queue');
     } finally {
       setIsLoadingDirection(false);
     }
-  };
+  }, [direction, mapQueueItem]);
+
+  React.useEffect(() => {
+    if (hydratedRef.current) return;
+    hydratedRef.current = true;
+    void handleRefreshQueue(initialDirection || direction);
+  }, [direction, handleRefreshQueue, initialDirection]);
 
   const loadMoreItems = React.useCallback(async () => {
     if (isFetchingMore) return queueRef.current.length;
@@ -271,7 +286,7 @@ export default function PracticePage({ queueWords, counters, direction: initialD
         cardShownAtRef.current = Date.now();
       } else {
         setCompleted(true);
-        toast.success(`Practice completed! Score: ${updatedScore}/${queueWords.length}`);
+        toast.success(`Practice completed! Score: ${updatedScore}/${localQueue.length}`);
       }
     } catch (error) {
       toast.error('Failed to submit review');
@@ -292,7 +307,7 @@ export default function PracticePage({ queueWords, counters, direction: initialD
   const toggleDirection = () => {
     const newDirection = direction === 'fr_to_de' ? 'de_to_fr' : 'fr_to_de';
     setDirection(newDirection);
-    handleRefreshQueue(newDirection);
+    void handleRefreshQueue(newDirection);
   };
 
   const directionToggle = (
@@ -310,14 +325,14 @@ export default function PracticePage({ queueWords, counters, direction: initialD
   if (!localQueue?.length) {
     return (
       <div className="max-w-2xl mx-auto p-4 space-y-8">
-        <AnkiSync onSyncComplete={() => handleRefreshQueue()} />
+        <AnkiSync onSyncComplete={() => void handleRefreshQueue()} />
         <div className="mt-8 text-center bg-white border-4 border-black p-12 shadow-[12px_12px_0px_0px_#000]">
           <h1 className="text-5xl font-black mb-4 uppercase tracking-tighter">No Words</h1>
           <p className="text-xl font-bold mb-8 text-gray-600">
             You&apos;re all caught up for now. Great job!
           </p>
           <button
-            onClick={() => handleRefreshQueue()}
+            onClick={() => void handleRefreshQueue()}
             disabled={isLoadingDirection}
             className="bg-bauhaus-yellow text-black border-4 border-black font-black text-xl px-8 py-4 uppercase tracking-widest hover:-translate-y-2 hover:shadow-[8px_8px_0px_0px_#000] transition-all disabled:opacity-50"
           >
@@ -365,14 +380,21 @@ export default function PracticePage({ queueWords, counters, direction: initialD
 
   return (
     <div className="max-w-2xl mx-auto p-4 space-y-8">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-4xl font-black uppercase tracking-tighter">Focused 5000 Review</h1>
-          <p className="mt-2 text-sm font-bold uppercase tracking-[0.18em] text-gray-500">
-            Secondary drill for the Franzoesisch 5000 deck
-          </p>
+      <div className="mb-6 border-b border-[var(--app-ink)] pb-5">
+        <div className="text-xs font-black uppercase tracking-[0.16em] text-[var(--app-ink-3)]">
+          Vocabulary Drill
         </div>
-        <AnkiSync onSyncComplete={() => handleRefreshQueue()} />
+        <div className="flex items-end justify-between gap-4 mt-1">
+          <h1 className="font-serif text-4xl italic leading-none text-[var(--app-ink)]">
+            Focused 5000
+          </h1>
+          <div>
+              <AnkiSync onSyncComplete={() => void handleRefreshQueue()} />
+          </div>
+        </div>
+        <p className="mt-3 text-sm text-[var(--app-ink-2)]">
+          Secondary review drill for the French 5000 vocabulary deck.
+        </p>
       </div>
 
       {directionToggle}
@@ -488,78 +510,4 @@ export default function PracticePage({ queueWords, counters, direction: initialD
       )}
     </div>
   );
-}
-
-export async function getServerSideProps(context: any) {
-  const session = await getSession(context);
-
-  if (!session) {
-    return {
-      redirect: {
-        destination: '/auth/signin',
-        permanent: false,
-      },
-    };
-  }
-
-  try {
-    const rawBase =
-      process.env.NEXT_PUBLIC_API_URL ||
-      process.env.API_URL ||
-      'http://localhost:8000/api/v1';
-    const normalizedBase = rawBase.replace(/\/+$/, '');
-    const baseUrl = normalizedBase.endsWith('/api/v1')
-      ? normalizedBase
-      : `${normalizedBase}/api/v1`;
-    const directionParamRaw = Array.isArray(context.query?.direction)
-      ? context.query?.direction[0]
-      : context.query?.direction;
-    const directionParam =
-      typeof directionParamRaw === 'string' ? directionParamRaw : undefined;
-    const isValidDirection = (d: string | undefined): d is PracticeDirection => d === 'fr_to_de' || d === 'de_to_fr';
-    const direction = isValidDirection(directionParam) ? directionParam : 'fr_to_de';
-    const headers = {
-      'Authorization': `Bearer ${session.accessToken}`,
-      'Content-Type': 'application/json',
-    };
-
-    const [queueRes, summaryRes] = await Promise.all([
-      fetch(`${baseUrl}/progress/queue?direction=${direction}`, { headers }),
-      fetch(`${baseUrl}/progress/anki/summary`, { headers }),
-    ]);
-    const raw = queueRes.ok ? await queueRes.json() : [];
-    const queueWords = Array.isArray(raw)
-      ? raw.map((item: any) => ({
-        wordId: item.word_id,
-        word: item.word,
-        translation: (direction === 'fr_to_de' ? item.german_translation : item.french_translation) || item.english_translation || '',
-        difficulty: item.difficulty_level || 1,
-        scheduler: item.scheduler || undefined,
-        stage: item.stage || item.queue_stage || item.stage_type || null,
-      }))
-      : [];
-
-    const summary = summaryRes.ok ? await summaryRes.json() : null;
-    const counters = {
-      newCount: Number(summary?.stage_totals?.new ?? 0),
-      learningCount: Number(summary?.stage_totals?.learning ?? 0),
-      dueCount: Number(summary?.due_today ?? 0),
-    };
-    return {
-      props: {
-        queueWords,
-        counters,
-        direction,
-      },
-    };
-  } catch (error) {
-    console.error('Failed to fetch practice queue:', error);
-    return {
-      props: {
-        queueWords: [],
-        counters: { newCount: 0, learningCount: 0, dueCount: 0 },
-        direction: 'fr_to_de',
-      },
-    };
-  }
 }

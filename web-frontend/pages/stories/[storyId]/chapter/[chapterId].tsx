@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { getSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
@@ -84,21 +83,4 @@ export default function StoryChapterPage() {
       chapter={chapter}
     />
   );
-}
-
-export async function getServerSideProps(context: any) {
-  const session = await getSession(context);
-
-  if (!session) {
-    return {
-      redirect: {
-        destination: '/auth/signin',
-        permanent: false,
-      },
-    };
-  }
-
-  return {
-    props: {},
-  };
 }

@@ -367,7 +367,7 @@ def count_concept_hits(concept: GrammarConcept | None, text: str, *, task_text: 
         return 0
     profile = infer_grammar_profile(concept, task_text=task_text)
     if profile.key == "si_present_result_form":
-        clauses = re.findall(r"\bsi\s+[^.!?;,]+[, ]+[^.!?;]+", normalized)
+        clauses = re.findall(r"\b(?:si\s+|s')[^.!?;,]+[, ]+[^.!?;]+", normalized)
         return sum(1 for clause in clauses if _contains_future_simple(clause) or re.search(r"\b(prends|prenez|mange|mangez|allez|viens|venez|fais|faites)\b", clause))
     if profile.key == "tense_aspect":
         imparfait = re.findall(r"\b\w+(ais|ait|ions|iez|aient)\b", normalized)
@@ -376,7 +376,8 @@ def count_concept_hits(concept: GrammarConcept | None, text: str, *, task_text: 
     if profile.key == "conditional_mood":
         return int(_contains_conditionnel_present(normalized) or bool(tokens & {"voudrais", "pourrais", "devrais", "aimerais"}))
     if profile.key == "article_after_negation":
-        return len(re.findall(r"\b(n'|ne)\s+[^.!?;]+pas\s+d[ e']", normalized))
+        negation_frame = r"\b(?:ne\s+\w+|n'\w+)\s+[^.!?;]*\bpas\s+d(?:e\b|')"
+        return len(re.findall(negation_frame, normalized))
     if profile.key == "mood":
         return int(_contains_subjunctive_form(normalized))
     if profile.key == "relative_pronoun":

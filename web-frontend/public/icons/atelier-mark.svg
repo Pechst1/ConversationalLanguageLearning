@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" role="img" aria-label="Atelier">
+  <rect width="192" height="192" fill="#f1ece1"/>
+  <rect x="36" y="36" width="58" height="58" fill="#14110d"/>
+  <circle cx="136" cy="64" r="34" fill="#1d3a8a"/>
+  <rect x="36" y="112" width="58" height="58" fill="#f3c318"/>
+  <path d="M116 170 150 102l30 68h-64Z" fill="#d8321a"/>
+</svg>

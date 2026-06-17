@@ -16,6 +16,7 @@ from app.db.base import Base
 if TYPE_CHECKING:
     from app.db.models.atelier import AtelierSession
     from app.db.models.mission import RealWorldMission
+    from app.db.models.serial import SerialThread
     from app.db.models.user import User
 
 
@@ -63,6 +64,10 @@ class GraphicNovelScene(Base):
     mission_id: Mapped[uuid.UUID | None] = mapped_column(
         PG_UUID(as_uuid=True), ForeignKey("real_world_missions.id", ondelete="SET NULL"), nullable=True, index=True
     )
+    serial_thread_id: Mapped[uuid.UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("serial_threads.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    episode_index: Mapped[int | None] = mapped_column(Integer, nullable=True)
     personal_input_item_id: Mapped[uuid.UUID | None] = mapped_column(
         PG_UUID(as_uuid=True), ForeignKey("personal_input_items.id", ondelete="SET NULL"), nullable=True, index=True
     )
@@ -90,6 +95,7 @@ class GraphicNovelScene(Base):
     user: Mapped["User"] = relationship("User")
     atelier_session: Mapped["AtelierSession | None"] = relationship("AtelierSession")
     mission: Mapped["RealWorldMission | None"] = relationship("RealWorldMission")
+    serial_thread: Mapped["SerialThread | None"] = relationship("SerialThread")
     personal_input_item: Mapped["PersonalInputItem | None"] = relationship("PersonalInputItem")
     panels: Mapped[list["GraphicNovelPanel"]] = relationship(
         "GraphicNovelPanel", back_populates="scene", cascade="all, delete-orphan"
@@ -119,6 +125,7 @@ class GraphicNovelPanel(Base):
     image_prompt: Mapped[str] = mapped_column(Text, nullable=False)
     image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     image_payload = mapped_column(JSONB().with_variant(JSON(), "sqlite"), default=dict, nullable=False)
+    audio_payload = mapped_column(JSONB().with_variant(JSON(), "sqlite"), default=dict, nullable=False)
     overlay_payload = mapped_column(JSONB().with_variant(JSON(), "sqlite"), default=dict, nullable=False)
     generation_metadata = mapped_column(JSONB().with_variant(JSON(), "sqlite"), default=dict, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)

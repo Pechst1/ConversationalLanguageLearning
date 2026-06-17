@@ -10,7 +10,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/router';
-import { useSession } from 'next-auth/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Mic,
@@ -26,10 +25,12 @@ import {
     Sparkles,
     ArrowLeft,
     MessageCircle,
+    AlertTriangle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import apiService from '@/services/api';
 import { RoleplaySelection } from '@/components/audio/RoleplaySelection';
+import { useAppSession } from '@/lib/app-auth';
 import Link from 'next/link';
 
 // ─────────────────────────────────────────────────────────────────
@@ -67,7 +68,7 @@ interface HelpTip {
 
 export default function AudioSessionPage() {
     const router = useRouter();
-    const { data: session, status: authStatus } = useSession();
+    const { data: session, status: authStatus } = useAppSession();
 
     // State
     const [state, setState] = useState<AudioSessionState>({
@@ -362,8 +363,8 @@ export default function AudioSessionPage() {
 
     if (authStatus === 'loading') {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-black flex items-center justify-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-4 border-white border-t-transparent" />
+            <div className="min-h-screen bg-[var(--app-paper)] flex items-center justify-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-4 border-black border-t-transparent" />
             </div>
         );
     }
@@ -379,47 +380,43 @@ export default function AudioSessionPage() {
 
     if (state.status === 'idle') {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-black flex flex-col items-center justify-center p-6">
+            <div className="min-h-screen bg-[var(--app-paper)] text-[var(--app-ink)] flex flex-col items-center justify-center p-6">
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     className="text-center"
                 >
-                    <div className="mb-8">
+                    <div className="mb-8 font-black">
                         <motion.div
                             animate={{
-                                scale: [1, 1.1, 1],
-                                rotate: [0, 5, -5, 0],
+                                scale: [1, 1.05, 1],
+                                rotate: [0, 2, -2, 0],
                             }}
                             transition={{ duration: 3, repeat: Infinity }}
-                            className="inline-block p-6 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full shadow-2xl"
+                            className="inline-block p-6 bg-white border-4 border-black rounded-none shadow-[6px_6px_0px_0px_#000]"
                         >
-                            <MessageCircle className="w-16 h-16 text-white" />
+                            <MessageCircle className="w-16 h-16 text-black" />
                         </motion.div>
                     </div>
 
-                    <h1 className="text-4xl font-black text-white mb-4">
+                    <h1 className="font-serif text-5xl italic text-[var(--app-ink)] mb-4">
                         Audio Mode
                     </h1>
-                    <p className="text-xl text-purple-200 mb-8 max-w-md mx-auto">
+                    <p className="text-lg text-[var(--app-ink-2)] mb-8 max-w-md mx-auto font-medium">
                         5 minutes of pure conversation. No reading, just listening and speaking.
                     </p>
 
-                    <motion.button
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
+                    <button
                         onClick={() => setState(prev => ({ ...prev, status: 'selecting' }))}
-                        className="px-12 py-5 bg-gradient-to-r from-green-400 to-emerald-500 text-white text-2xl font-bold rounded-full shadow-2xl hover:shadow-green-500/50 transition-all"
+                        className="px-12 py-5 bg-black hover:bg-black/90 text-white text-2xl font-bold rounded-none border-4 border-black shadow-[6px_6px_0px_0px_#000] hover:-translate-y-0.5 hover:shadow-[8px_8px_0px_0px_#000] transition-all flex items-center gap-3 mx-auto"
                     >
-                        <span className="flex items-center gap-3">
-                            <Sparkles className="w-7 h-7" />
-                            Start Talking
-                        </span>
-                    </motion.button>
+                        <Sparkles className="w-7 h-7 text-bauhaus-yellow" />
+                        Start Talking
+                    </button>
 
                     <button
                         onClick={() => router.push('/learn')}
-                        className="mt-6 text-purple-300 hover:text-white transition-colors flex items-center gap-2 mx-auto"
+                        className="mt-8 text-[var(--app-ink-2)] hover:text-black transition-colors font-bold uppercase text-xs tracking-wider flex items-center gap-2 mx-auto"
                     >
                         <ArrowLeft className="w-4 h-4" />
                         Back to Learning
@@ -435,7 +432,7 @@ export default function AudioSessionPage() {
 
     if (state.status === 'selecting') {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-black flex flex-col items-center justify-center p-6 bg-fixed">
+            <div className="min-h-screen bg-[var(--app-paper)] text-[var(--app-ink)] flex flex-col items-center justify-center p-6 bg-fixed">
                 <RoleplaySelection
                     onSelect={startSession}
                     onCancel={() => setState(prev => ({ ...prev, status: 'idle' }))}
@@ -450,13 +447,9 @@ export default function AudioSessionPage() {
 
     if (state.status === 'starting') {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-black flex flex-col items-center justify-center">
-                <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
-                    className="w-20 h-20 border-4 border-t-purple-400 border-r-pink-400 border-b-blue-400 border-l-transparent rounded-full"
-                />
-                <p className="mt-6 text-xl text-purple-200">Preparing your conversation...</p>
+            <div className="min-h-screen bg-[var(--app-paper)] text-[var(--app-ink)] flex flex-col items-center justify-center">
+                <div className="w-20 h-20 border-4 border-black border-t-transparent rounded-full animate-spin" />
+                <p className="mt-6 text-lg font-bold uppercase tracking-wider text-[var(--app-ink-2)]">Preparing your conversation...</p>
             </div>
         );
     }
@@ -467,7 +460,7 @@ export default function AudioSessionPage() {
 
     if (state.status === 'ended') {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-black flex flex-col items-center justify-center p-6">
+            <div className="min-h-screen bg-[var(--app-paper)] text-[var(--app-ink)] flex flex-col items-center justify-center p-6">
                 <motion.div
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -478,40 +471,43 @@ export default function AudioSessionPage() {
                             initial={{ scale: 0 }}
                             animate={{ scale: 1 }}
                             transition={{ type: 'spring', delay: 0.2 }}
-                            className="inline-block p-6 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full"
+                            className="inline-block p-6 bg-white border-4 border-black rounded-none shadow-[4px_4px_0px_0px_#000]"
                         >
-                            <Sparkles className="w-16 h-16 text-white" />
+                            <Sparkles className="w-16 h-16 text-black" />
                         </motion.div>
                     </div>
 
-                    <h1 className="text-4xl font-black text-white mb-4">
+                    <h1 className="font-serif text-5xl italic text-[var(--app-ink)] mb-4">
                         Great Session! 🎉
                     </h1>
 
                     <div className="grid grid-cols-2 gap-6 max-w-sm mx-auto mb-8">
-                        <div className="bg-white/10 backdrop-blur rounded-xl p-4">
-                            <p className="text-3xl font-black text-white">{formatTime(state.elapsedSeconds)}</p>
-                            <p className="text-purple-300 text-sm">Duration</p>
+                        <div className="bg-white border-2 border-black rounded-none p-4 shadow-[4px_4px_0px_0px_#000]">
+                            <p className="text-3xl font-black text-black">{formatTime(state.elapsedSeconds)}</p>
+                            <p className="text-[var(--app-ink-3)] text-xs uppercase font-bold tracking-wider mt-1">Duration</p>
                         </div>
-                        <div className="bg-white/10 backdrop-blur rounded-xl p-4">
-                            <p className="text-3xl font-black text-yellow-400">{state.totalXP} XP</p>
-                            <p className="text-purple-300 text-sm">Earned</p>
+                        <div className="bg-white border-2 border-black rounded-none p-4 shadow-[4px_4px_0px_0px_#000]">
+                            <p className="text-3xl font-black text-black">{state.totalXP} XP</p>
+                            <p className="text-[var(--app-ink-3)] text-xs uppercase font-bold tracking-wider mt-1">Earned</p>
                         </div>
                     </div>
 
                     {state.errors.length > 0 && (
                         <div className="mb-8 max-w-md mx-auto">
-                            <h3 className="text-lg font-bold text-white mb-3">Corrections</h3>
-                            <div className="space-y-3">
+                            <h3 className="text-lg font-black uppercase tracking-wider text-[var(--app-ink)] mb-3 flex items-center justify-center gap-2">
+                                <AlertTriangle className="w-5 h-5 text-bauhaus-red" />
+                                Corrections
+                            </h3>
+                            <div className="space-y-4">
                                 {state.errors.map((error, i) => (
-                                    <div key={i} className="bg-white/10 rounded-lg p-3 text-left">
-                                        <p className="text-red-300 line-through text-sm">{error.original}</p>
-                                        <p className="text-green-300 font-medium">{error.correction}</p>
-                                        <p className="text-purple-200 text-xs mt-1">{error.explanation}</p>
+                                    <div key={i} className="bg-white border-2 border-black rounded-none p-4 text-left shadow-[3px_3px_0px_0px_#000]">
+                                        <p className="text-stone-400 line-through text-sm font-medium">{error.original}</p>
+                                        <p className="text-rose-700 font-bold text-base">{error.correction}</p>
+                                        <p className="text-stone-600 text-xs mt-1 italic">{error.explanation}</p>
                                         {error.concept_id && (
                                             <Link
                                                 href={`/grammar`}
-                                                className="inline-flex items-center gap-1 mt-2 text-xs font-bold text-yellow-400 hover:text-yellow-300 transition-colors uppercase tracking-wide"
+                                                className="inline-flex items-center gap-1 mt-3 px-2 py-1 border border-black bg-bauhaus-yellow text-black text-[10px] font-bold transition-all hover:-translate-y-0.5 hover:shadow-[1px_1px_0px_0px_#000] uppercase tracking-wider"
                                             >
                                                 <Sparkles className="w-3 h-3" />
                                                 Review: {error.concept_name || 'Grammar Rule'}
@@ -524,9 +520,7 @@ export default function AudioSessionPage() {
                     )}
 
                     <div className="flex gap-4 justify-center">
-                        <motion.button
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
+                        <button
                             onClick={() => {
                                 setState({
                                     sessionId: null,
@@ -541,13 +535,13 @@ export default function AudioSessionPage() {
                                     errors: [],
                                 });
                             }}
-                            className="px-8 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold rounded-full"
+                            className="px-8 py-3 border-2 border-black bg-black text-white hover:bg-black/90 font-bold rounded-none shadow-[3px_3px_0px_0px_#000] hover:-translate-y-0.5 hover:shadow-[4px_4px_0px_0px_#000] transition-all"
                         >
                             Another Session
-                        </motion.button>
+                        </button>
                         <button
                             onClick={() => router.push('/learn')}
-                            className="px-8 py-3 bg-white/10 text-white font-medium rounded-full hover:bg-white/20 transition-colors"
+                            className="px-8 py-3 border-2 border-black bg-white text-black hover:bg-stone-50 font-bold rounded-none shadow-[3px_3px_0px_0px_#000] hover:-translate-y-0.5 hover:shadow-[4px_4px_0px_0px_#000] transition-all"
                         >
                             Back to Learning
                         </button>
@@ -562,88 +556,124 @@ export default function AudioSessionPage() {
     // ─────────────────────────────────────────────────────────────────
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-black flex flex-col">
+        <div className="min-h-screen bg-[var(--app-paper)] text-[var(--app-ink)] flex flex-col">
             {/* Header */}
-            <div className="flex items-center justify-between p-4">
+            <div className="flex items-center justify-between p-6">
                 <button
                     onClick={() => setShowEndConfirm(true)}
-                    className="p-2 text-white/60 hover:text-white transition-colors"
+                    className="p-2 border-2 border-black bg-white hover:bg-stone-50 text-black rounded-none shadow-[2px_2px_0px_0px_#000] transition-all"
                 >
-                    <X className="w-6 h-6" />
+                    <X className="w-5 h-5" />
                 </button>
 
-                <div className="flex items-center gap-2 bg-white/10 backdrop-blur px-4 py-2 rounded-full">
-                    <Clock className="w-4 h-4 text-purple-300" />
-                    <span className="text-white font-mono font-bold">{formatTime(state.elapsedSeconds)}</span>
+                <div className="flex items-center gap-2 bg-white border-2 border-black px-4 py-2 rounded-none shadow-[3px_3px_0px_0px_#000]">
+                    <Clock className="w-4 h-4 text-black" />
+                    <span className="text-black font-mono font-bold">{formatTime(state.elapsedSeconds)}</span>
                 </div>
 
                 <button
                     onClick={() => setShowHelp(true)}
-                    className="p-2 text-white/60 hover:text-white transition-colors"
+                    className="p-2 border-2 border-black bg-white hover:bg-stone-50 text-black rounded-none shadow-[2px_2px_0px_0px_#000] transition-all"
                 >
-                    <HelpCircle className="w-6 h-6" />
+                    <HelpCircle className="w-5 h-5" />
                 </button>
             </div>
 
             {/* Main Content */}
             <div className="flex-1 flex flex-col items-center justify-center px-6">
-                {/* Waveform Animation */}
-                <motion.div
-                    className="w-48 h-48 relative mb-8"
-                    animate={{
-                        scale: state.status === 'speaking' ? [1, 1.1, 1] : 1,
-                    }}
-                    transition={{ duration: 0.5, repeat: state.status === 'speaking' ? Infinity : 0 }}
-                >
-                    {/* Animated rings */}
-                    {[...Array(3)].map((_, i) => (
-                        <motion.div
-                            key={i}
-                            className="absolute inset-0 rounded-full border-2 border-purple-400/30"
-                            animate={{
-                                scale: state.status === 'listening' || state.status === 'speaking'
-                                    ? [1, 1.5 + i * 0.3]
-                                    : 1,
-                                opacity: state.status === 'listening' || state.status === 'speaking'
-                                    ? [0.6, 0]
-                                    : 0.3,
-                            }}
-                            transition={{
-                                duration: 1.5,
-                                repeat: Infinity,
-                                delay: i * 0.3,
-                            }}
-                        />
-                    ))}
+                {/* Neobrutalist Audio Visualizer Panel */}
+                <div className="w-72 h-72 bg-white border-4 border-black relative mb-8 flex flex-col items-center justify-center shadow-[6px_6px_0px_0px_#000]">
+                    {/* Retro Grid Background */}
+                    <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(0,0,0,0.05)_1px,transparent_1px)] bg-[size:20px_20px] pointer-events-none" />
 
-                    {/* Center orb */}
+                    {/* Waveform/Equalizer Bars behind the orb */}
+                    <div className="absolute inset-x-0 h-44 flex items-center justify-center gap-1.5 pointer-events-none">
+                        {state.status === 'listening' || state.status === 'speaking' ? (
+                            [...Array(11)].map((_, i) => {
+                                const delay = i * 0.08;
+                                const heightFactor = [0.2, 0.4, 0.7, 0.9, 1.0, 0.8, 1.0, 0.9, 0.7, 0.4, 0.2][i];
+                                return (
+                                    <motion.div
+                                        key={i}
+                                        className={`w-3 border-2 border-black ${
+                                            state.status === 'speaking' ? 'bg-bauhaus-blue' : 'bg-bauhaus-yellow'
+                                        }`}
+                                        animate={{
+                                            height: [
+                                                `${heightFactor * 20}px`,
+                                                `${heightFactor * 140}px`,
+                                                `${heightFactor * 20}px`
+                                            ]
+                                        }}
+                                        transition={{
+                                            duration: state.status === 'speaking' ? 0.7 : 0.9,
+                                            repeat: Infinity,
+                                            ease: 'easeInOut',
+                                            delay: delay,
+                                        }}
+                                    />
+                                );
+                            })
+                        ) : state.status === 'processing' ? (
+                            <svg className="w-full h-full p-6" viewBox="0 0 288 176">
+                                <motion.path
+                                    d="M 10 88 Q 44 20, 78 88 T 146 88 T 214 88 T 278 88"
+                                    fill="none"
+                                    stroke="black"
+                                    strokeWidth="4"
+                                    animate={{
+                                        d: [
+                                            "M 10 88 Q 44 20, 78 88 T 146 88 T 214 88 T 278 88",
+                                            "M 10 88 Q 44 156, 78 88 T 146 88 T 214 88 T 278 88",
+                                            "M 10 88 Q 44 20, 78 88 T 146 88 T 214 88 T 278 88",
+                                        ]
+                                    }}
+                                    transition={{
+                                        duration: 1.2,
+                                        repeat: Infinity,
+                                        ease: 'easeInOut'
+                                    }}
+                                />
+                            </svg>
+                        ) : (
+                            <div className="w-48 h-1 bg-stone-300 border-b-2 border-dashed border-black/40" />
+                        )}
+                    </div>
+
+                    {/* Central Interactive Orb */}
                     <motion.div
-                        className={`absolute inset-4 rounded-full flex items-center justify-center ${state.status === 'speaking'
-                            ? 'bg-gradient-to-br from-pink-500 to-purple-600'
-                            : state.status === 'listening'
-                                ? 'bg-gradient-to-br from-green-400 to-emerald-500'
-                                : 'bg-gradient-to-br from-blue-500 to-indigo-600'
-                            }`}
+                        className={`w-28 h-28 rounded-full border-4 border-black flex items-center justify-center z-10 shadow-[4px_4px_0px_0px_#000] relative ${
+                            state.status === 'speaking'
+                                ? 'bg-bauhaus-blue text-white'
+                                : state.status === 'listening'
+                                    ? 'bg-bauhaus-yellow text-black'
+                                    : 'bg-white text-black'
+                        }`}
                         animate={{
-                            scale: state.status === 'processing' ? [1, 0.95, 1] : 1,
+                            scale: state.status === 'processing' ? [1, 0.93, 1] : 1,
                         }}
                         transition={{ duration: 0.5, repeat: state.status === 'processing' ? Infinity : 0 }}
                     >
-                        {state.status === 'speaking' && <Volume2 className="w-12 h-12 text-white" />}
-                        {state.status === 'listening' && <Mic className="w-12 h-12 text-white" />}
+                        {state.status === 'speaking' && <Volume2 className="w-10 h-10 text-white" />}
+                        {state.status === 'listening' && <Mic className="w-10 h-10 text-black" />}
                         {state.status === 'processing' && (
                             <motion.div
                                 animate={{ rotate: 360 }}
-                                transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                                transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
                             >
-                                <RefreshCw className="w-12 h-12 text-white" />
+                                <RefreshCw className="w-10 h-10 text-black" />
                             </motion.div>
                         )}
                     </motion.div>
-                </motion.div>
+
+                    {/* Miniature state indicator badge */}
+                    <div className="absolute bottom-3 right-3 bg-white border-2 border-black px-2 py-0.5 text-[10px] font-mono font-bold uppercase tracking-wider">
+                        {state.status}
+                    </div>
+                </div>
 
                 {/* Status text */}
-                <p className="text-lg text-purple-200 mb-8">
+                <p className="text-lg text-black font-bold uppercase tracking-wider mb-8">
                     {state.status === 'speaking' && 'AI is speaking...'}
                     {state.status === 'listening' && 'Your turn to speak'}
                     {state.status === 'processing' && 'Thinking...'}
@@ -656,9 +686,9 @@ export default function AudioSessionPage() {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -20 }}
-                            className="max-w-md mx-auto mb-8 p-4 bg-white/10 backdrop-blur rounded-xl"
+                            className="max-w-md mx-auto mb-8 p-4 bg-white border-4 border-black rounded-none shadow-[6px_6px_0px_0px_#000]"
                         >
-                            <p className="text-white text-center">{state.aiResponse}</p>
+                            <p className="text-black font-medium text-center">{state.aiResponse}</p>
                         </motion.div>
                     )}
                 </AnimatePresence>
@@ -670,8 +700,10 @@ export default function AudioSessionPage() {
                     {/* Mute button */}
                     <button
                         onClick={() => setIsMuted(!isMuted)}
-                        className={`p-4 rounded-full transition-colors ${isMuted ? 'bg-red-500/20 text-red-400' : 'bg-white/10 text-white/60 hover:text-white'
-                            }`}
+                        className={`p-4 rounded-none border-2 border-black transition-all ${isMuted
+                            ? 'bg-bauhaus-red text-white shadow-[2px_2px_0px_0px_#000]'
+                            : 'bg-white text-black hover:bg-stone-50 shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#000]'
+                        }`}
                     >
                         {isMuted ? <VolumeX className="w-6 h-6" /> : <Volume2 className="w-6 h-6" />}
                     </button>
@@ -684,19 +716,21 @@ export default function AudioSessionPage() {
                         onTouchStart={startRecording}
                         onTouchEnd={stopRecording}
                         disabled={state.status !== 'listening'}
-                        className={`p-8 rounded-full transition-all ${state.status === 'listening'
-                            ? 'bg-gradient-to-br from-green-400 to-emerald-500 shadow-lg shadow-green-500/30'
-                            : 'bg-white/20 cursor-not-allowed'
-                            }`}
+                        className={`p-8 rounded-none border-4 border-black transition-all ${state.status === 'listening'
+                            ? 'bg-bauhaus-yellow hover:bg-bauhaus-yellow/95 shadow-[4px_4px_0px_0px_#000] hover:-translate-y-0.5 hover:shadow-[6px_6px_0px_0px_#000] cursor-pointer'
+                            : 'bg-stone-200 text-stone-400 cursor-not-allowed border-stone-300 shadow-none'
+                        }`}
                     >
-                        <Mic className="w-10 h-10 text-white" />
+                        <Mic className="w-10 h-10 text-black" />
                     </motion.button>
 
                     {/* Show text button */}
                     <button
                         onClick={() => setState(prev => ({ ...prev, showText: !prev.showText }))}
-                        className={`p-4 rounded-full transition-colors ${state.showText ? 'bg-purple-500/20 text-purple-400' : 'bg-white/10 text-white/60 hover:text-white'
-                            }`}
+                        className={`p-4 rounded-none border-2 border-black transition-all ${state.showText
+                            ? 'bg-bauhaus-blue text-white shadow-[2px_2px_0px_0px_#000]'
+                            : 'bg-white text-black hover:bg-stone-50 shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#000]'
+                        }`}
                     >
                         {state.showText ? <EyeOff className="w-6 h-6" /> : <Eye className="w-6 h-6" />}
                     </button>
@@ -704,7 +738,7 @@ export default function AudioSessionPage() {
 
                 {/* XP indicator */}
                 <div className="text-center mt-4">
-                    <span className="text-yellow-400 font-bold">{state.totalXP} XP</span>
+                    <span className="text-black font-black text-sm uppercase tracking-wider">{state.totalXP} XP</span>
                 </div>
             </div>
 
@@ -715,7 +749,7 @@ export default function AudioSessionPage() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-6"
+                        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-6"
                         onClick={() => setShowHelp(false)}
                     >
                         <motion.div
@@ -723,25 +757,25 @@ export default function AudioSessionPage() {
                             animate={{ scale: 1, y: 0 }}
                             exit={{ scale: 0.9, y: 20 }}
                             onClick={e => e.stopPropagation()}
-                            className="bg-gradient-to-br from-purple-900 to-indigo-900 rounded-2xl p-6 max-w-sm w-full"
+                            className="bg-white border-4 border-black rounded-none p-6 max-w-sm w-full shadow-[8px_8px_0px_0px_#000] text-black"
                         >
-                            <h2 className="text-2xl font-bold text-white mb-4">How it works</h2>
+                            <h2 className="font-serif text-3xl italic text-black mb-4">How it works</h2>
                             <div className="space-y-4">
                                 {helpTips.map((tip, i) => (
                                     <div key={i} className="flex gap-4">
-                                        <div className="p-2 bg-white/10 rounded-lg text-purple-300">
+                                        <div className="p-2 border border-black bg-white text-black h-10 w-10 flex items-center justify-center">
                                             {tip.icon}
                                         </div>
                                         <div>
-                                            <h3 className="font-bold text-white">{tip.title}</h3>
-                                            <p className="text-purple-200 text-sm">{tip.description}</p>
+                                            <h3 className="font-bold text-black">{tip.title}</h3>
+                                            <p className="text-stone-600 text-xs mt-0.5">{tip.description}</p>
                                         </div>
                                     </div>
                                 ))}
                             </div>
                             <button
                                 onClick={() => setShowHelp(false)}
-                                className="mt-6 w-full py-3 bg-white/10 text-white rounded-full font-medium hover:bg-white/20 transition-colors"
+                                className="mt-6 w-full py-3 border-2 border-black bg-black hover:bg-black/90 text-white font-bold rounded-none shadow-[3px_3px_0px_0px_#000] transition-all"
                             >
                                 Got it!
                             </button>
@@ -757,7 +791,7 @@ export default function AudioSessionPage() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-6"
+                        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-6"
                         onClick={() => setShowEndConfirm(false)}
                     >
                         <motion.div
@@ -765,20 +799,20 @@ export default function AudioSessionPage() {
                             animate={{ scale: 1, y: 0 }}
                             exit={{ scale: 0.9, y: 20 }}
                             onClick={e => e.stopPropagation()}
-                            className="bg-gradient-to-br from-red-900 to-pink-900 rounded-2xl p-6 max-w-sm w-full text-center"
+                            className="bg-white border-4 border-black rounded-none p-6 max-w-sm w-full text-center shadow-[8px_8px_0px_0px_#000] text-black"
                         >
-                            <h2 className="text-2xl font-bold text-white mb-2">End Session?</h2>
-                            <p className="text-pink-200 mb-6">You&apos;ve been talking for {formatTime(state.elapsedSeconds)}</p>
+                            <h2 className="font-serif text-3xl italic text-black mb-2">End Session?</h2>
+                            <p className="text-stone-600 text-sm mb-6 font-medium">You&apos;ve been talking for {formatTime(state.elapsedSeconds)}</p>
                             <div className="flex gap-4">
                                 <button
                                     onClick={() => setShowEndConfirm(false)}
-                                    className="flex-1 py-3 bg-white/10 text-white rounded-full font-medium hover:bg-white/20 transition-colors"
+                                    className="flex-1 py-3 border-2 border-black bg-white text-black hover:bg-stone-50 font-bold rounded-none shadow-[3px_3px_0px_0px_#000] transition-all"
                                 >
                                     Keep Going
                                 </button>
                                 <button
                                     onClick={endSession}
-                                    className="flex-1 py-3 bg-white text-red-900 rounded-full font-bold hover:bg-white/90 transition-colors"
+                                    className="flex-1 py-3 border-2 border-black bg-bauhaus-red text-white hover:bg-red-700 font-bold rounded-none shadow-[3px_3px_0px_0px_#000] transition-all"
                                 >
                                     End
                                 </button>

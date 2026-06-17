@@ -338,7 +338,10 @@ The application uses Celery with Redis for background task processing and schedu
 
 **Development:**
 ```bash
-# Start worker
+# Start worker (required for Serial/Feuilleton pre-generation and image rendering)
+./start-celery.sh
+
+# Or start worker directly
 celery -A app.celery_app worker --loglevel=info
 
 # Start beat scheduler
@@ -347,6 +350,11 @@ celery -A app.celery_app beat --loglevel=info
 # Start Flower monitoring UI
 celery -A app.celery_app flower --port=5555
 ```
+
+Serial Feuilleton generation queues its next beat through Celery. If a worker is
+stopped while a scene is rendering, `/serial/today` marks scenes left in
+`generating` for more than about 15 minutes as `generation_failed` and moves the
+episode back to a retryable `delayed` state.
 
 Access Flower dashboard at http://localhost:5555
 

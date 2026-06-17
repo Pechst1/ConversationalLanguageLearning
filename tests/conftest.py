@@ -22,7 +22,7 @@ from app.api.deps import get_db
 from app.db import models  # noqa: F401  # Imported for side effects
 from app.db.models.achievement import Achievement, UserAchievement
 from app.db.base import Base
-from app.db.models import User, VocabularyWord
+from app.db.models import RefreshToken, User, VocabularyWord
 from app.db.models.analytics import AnalyticsSnapshot
 from app.db.models.atelier import (
     AtelierAttempt,
@@ -32,7 +32,9 @@ from app.db.models.atelier import (
     AtelierSession,
 )
 from app.db.models.error import UserError, UserErrorConcept
+from app.db.models.cefr import UserCEFRProgressHistory
 from app.db.models.mission import RealWorldMission, RealWorldMissionAttempt, RealWorldMissionTurn
+from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.graphic_novel import (
     GraphicNovelAttempt,
     GraphicNovelPanel,
@@ -74,6 +76,7 @@ def db_engine():
         bind=engine,
         tables=[
             User.__table__,
+            RefreshToken.__table__,
             Achievement.__table__,
             UserAchievement.__table__,
             AnalyticsSnapshot.__table__,
@@ -82,11 +85,13 @@ def db_engine():
             GrammarConceptArchive.__table__,
             GrammarConceptLocalization.__table__,
             UserGrammarProgress.__table__,
+            UserCEFRProgressHistory.__table__,
             AtelierLanguagePack.__table__,
             AtelierConceptBlueprint.__table__,
             AtelierSession.__table__,
             AtelierExerciseSet.__table__,
             AtelierAttempt.__table__,
+            SerialThread.__table__,
             RealWorldMission.__table__,
             RealWorldMissionAttempt.__table__,
             RealWorldMissionTurn.__table__,
@@ -94,6 +99,7 @@ def db_engine():
             GraphicNovelScene.__table__,
             GraphicNovelPanel.__table__,
             GraphicNovelAttempt.__table__,
+            SerialEpisode.__table__,
             UserError.__table__,
             UserErrorConcept.__table__,
             UserVocabularyProgress.__table__,
@@ -119,6 +125,7 @@ def db_engine():
                 AnalyticsSnapshot.__table__,
                 UserErrorConcept.__table__,
                 UserError.__table__,
+                SerialEpisode.__table__,
                 GraphicNovelAttempt.__table__,
                 GraphicNovelPanel.__table__,
                 GraphicNovelScene.__table__,
@@ -126,18 +133,21 @@ def db_engine():
                 RealWorldMissionTurn.__table__,
                 RealWorldMissionAttempt.__table__,
                 RealWorldMission.__table__,
+                SerialThread.__table__,
                 AtelierAttempt.__table__,
                 AtelierExerciseSet.__table__,
                 AtelierSession.__table__,
                 AtelierConceptBlueprint.__table__,
                 AtelierLanguagePack.__table__,
                 UserGrammarProgress.__table__,
+                UserCEFRProgressHistory.__table__,
                 GrammarConceptLocalization.__table__,
                 GrammarConceptArchive.__table__,
                 GrammarConcept.__table__,
                 VocabularyWord.__table__,
                 UserAchievement.__table__,
                 Achievement.__table__,
+                RefreshToken.__table__,
                 User.__table__,
             ],
         )

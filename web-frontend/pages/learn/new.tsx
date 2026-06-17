@@ -1,5 +1,4 @@
 import React from 'react';
-import { getSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
@@ -29,8 +28,8 @@ const focusOptions = [
 ];
 
 const directionOptions = [
-  { value: 'fr_to_de', label: 'Französisch → Deutsch' },
-  { value: 'de_to_fr', label: 'Deutsch → Französisch' },
+  { value: 'fr_to_de', label: 'French → German' },
+  { value: 'de_to_fr', label: 'German → French' },
 ];
 
 const schema = yup.object({
@@ -99,187 +98,208 @@ export default function NewSessionPage() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Start New Learning Session</h1>
-        <p className="text-gray-600 mt-2">
-          Create a personalized conversation session to practice your French skills.
-        </p>
+    <div className="min-h-screen bg-[var(--app-paper)] text-[var(--app-ink)] p-4 sm:p-6 lg:p-8">
+      <div className="max-w-2xl mx-auto">
+        <header className="mb-8 border-b border-[var(--app-ink)] pb-5">
+          <div className="text-xs font-black uppercase tracking-[0.16em] text-[var(--app-ink-3)]">
+            New Session
+          </div>
+          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mt-1">
+            <h1 className="font-serif text-5xl italic leading-none text-[var(--app-ink)]">
+              Start Learning
+            </h1>
+          </div>
+          <p className="mt-3 max-w-2xl text-[var(--app-ink-2)] text-sm">
+            Create a personalized conversation session to practice your French skills.
+          </p>
+        </header>
+
+        <Card className="mb-8 border-4 border-black bg-[var(--app-sheet)] shadow-[6px_6px_0px_0px_#000] rounded-none">
+          <CardHeader className="bg-purple-100/50 border-b-4 border-black py-4 px-6">
+            <CardTitle className="flex items-center gap-2 text-purple-900 font-bold uppercase text-lg">
+              <Globe className="h-5 w-5 text-purple-700" />
+              Import Content
+            </CardTitle>
+            <CardDescription className="text-purple-800 text-xs font-medium">
+              Turn any French YouTube video or web article into an interactive lesson.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-6">
+            <Button
+              onClick={() => setIsImportModalOpen(true)}
+              variant="outline"
+              className="w-full h-12 border-2 border-black bg-white hover:bg-purple-50 text-purple-700 font-bold rounded-none shadow-[4px_4px_0px_0px_#000] hover:-translate-y-0.5 hover:shadow-[5px_5px_0px_0px_#000] transition-all"
+              leftIcon={<Globe className="h-4 w-4" />}
+            >
+              Paste Link (YouTube / Web)
+            </Button>
+          </CardContent>
+        </Card>
+
+        {isImportModalOpen && <ImportStoryModal onClose={() => setIsImportModalOpen(false)} />}
+
+        <Card className="border-4 border-black bg-[var(--app-sheet)] shadow-[8px_8px_0px_0px_#000] rounded-none">
+          <CardHeader className="border-b-4 border-black py-4 px-6 bg-[var(--app-paper-2)]">
+            <CardTitle className="font-serif italic text-3xl text-[var(--app-ink)]">Session Settings</CardTitle>
+            <CardDescription className="text-[var(--app-ink-2)] text-sm">
+              Pick a topic, session style, and focus so the tutor can weave vocabulary into a natural conversation.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-6">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+              <div>
+                <label className="block text-sm font-bold uppercase text-[var(--app-ink)] mb-3">
+                  Roleplay Scenario (Optional)
+                </label>
+                <ScenarioSelector selectedId={selectedScenario} onSelect={setSelectedScenario} />
+                <p className="text-xs text-[var(--app-ink-3)] mt-2">
+                  Select a scenario to act out a specific situation. This overrides the conversation style.
+                </p>
+              </div>
+
+              <div className="border-t border-stone-200 pt-6">
+                <Input
+                  {...register('topic')}
+                  label="Custom Topic (Optional)"
+                  placeholder="e.g., Travel, Food, Business"
+                  error={errors.topic?.message}
+                  className="rounded-none border-2 border-black bg-white focus:ring-0 focus:border-black"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold uppercase text-[var(--app-ink)] mb-2">
+                  Conversation Style
+                </label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {conversationStyles.map((style) => (
+                    <label key={style.value} className="relative cursor-pointer block">
+                      <input
+                        {...register('conversationStyle')}
+                        type="radio"
+                        value={style.value}
+                        className="sr-only custom-radio"
+                        disabled={!!selectedScenario}
+                      />
+                      <div className={`p-4 border border-stone-300 bg-white transition-all rounded-none flex items-start gap-3 radio-card ${
+                        selectedScenario ? 'opacity-50 cursor-not-allowed' : 'hover:border-stone-400'
+                      }`}>
+                        <div className="w-4 h-4 rounded-full border border-stone-400 flex items-center justify-center bg-white shrink-0 mt-0.5">
+                          <div className="w-2.5 h-2.5 rounded-full bg-transparent radio-dot transition-colors" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-[var(--app-ink)]">{style.label}</p>
+                          <p className="text-xs text-[var(--app-ink-2)] mt-0.5">{style.description}</p>
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+                {errors.conversationStyle && (
+                  <p className="mt-2 text-sm text-red-600">{errors.conversationStyle.message}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold uppercase text-[var(--app-ink)] mb-2">
+                  Vocabulary Focus
+                </label>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {focusOptions.map((option) => (
+                    <label key={option.value} className="relative cursor-pointer block">
+                      <input
+                        {...register('focus')}
+                        type="radio"
+                        value={option.value}
+                        className="sr-only custom-radio"
+                      />
+                      <div className="p-4 border border-stone-300 bg-white transition-all rounded-none flex items-start gap-3 radio-card hover:border-stone-400">
+                        <div className="w-4 h-4 rounded-full border border-stone-400 flex items-center justify-center bg-white shrink-0 mt-0.5">
+                          <div className="w-2.5 h-2.5 rounded-full bg-transparent radio-dot transition-colors" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-[var(--app-ink)]">{option.label}</p>
+                          <p className="text-xs text-[var(--app-ink-2)] mt-0.5">{option.description}</p>
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+                {errors.focus && <p className="mt-2 text-sm text-red-600">{errors.focus.message}</p>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold uppercase text-[var(--app-ink)] mb-2">Card Orientation</label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {directionOptions.map((option) => (
+                    <label key={option.value} className="relative cursor-pointer block">
+                      <input
+                        {...register('ankiDirection')}
+                        type="radio"
+                        value={option.value}
+                        className="sr-only custom-radio"
+                      />
+                      <div className="p-4 border border-stone-300 bg-white transition-all rounded-none flex items-start gap-3 radio-card hover:border-stone-400">
+                        <div className="w-4 h-4 rounded-full border border-stone-400 flex items-center justify-center bg-white shrink-0 mt-0.5">
+                          <div className="w-2.5 h-2.5 rounded-full bg-transparent radio-dot transition-colors" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-[var(--app-ink)]">{option.label}</p>
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+                {errors.ankiDirection && (
+                  <p className="mt-2 text-sm text-red-600">{errors.ankiDirection.message}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold uppercase text-[var(--app-ink)] mb-2">
+                  Session Length
+                </label>
+                <div className="grid grid-cols-5 gap-3">
+                  {durationOptions.map((minutes) => (
+                    <label key={minutes} className="relative cursor-pointer block">
+                      <input
+                        {...register('duration', { valueAsNumber: true })}
+                        type="radio"
+                        value={minutes}
+                        className="sr-only custom-radio"
+                      />
+                      <div className="p-3 border border-stone-300 bg-white transition-all rounded-none flex flex-col items-center justify-center gap-1 radio-card hover:border-stone-400 text-center">
+                        <p className="font-bold text-[var(--app-ink)]">{minutes} min</p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+                {errors.duration && (
+                  <p className="mt-2 text-sm text-red-600">{errors.duration.message}</p>
+                )}
+              </div>
+
+              <Button
+                type="submit"
+                className="w-full h-14 text-lg font-bold border-2 border-black bg-black text-white hover:bg-black/90 rounded-none shadow-[4px_4px_0px_0px_#000] hover:-translate-y-0.5 hover:shadow-[5px_5px_0px_0px_#000] transition-all"
+                loading={isLoading}
+              >
+                Start Session
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
       </div>
 
-      <Card className="mb-8 border-2 border-black shadow-[4px_4px_0px_0px_#000]">
-        <CardHeader className="bg-purple-50 border-b-2 border-black">
-          <CardTitle className="flex items-center gap-2 text-purple-900">
-            <Globe className="h-6 w-6 text-purple-600" />
-            Import Content
-          </CardTitle>
-          <CardDescription className="text-purple-700">
-            Turn any French YouTube video or web article into an interactive lesson.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="pt-6">
-          <Button
-            onClick={() => setIsImportModalOpen(true)}
-            variant="outline"
-            className="w-full h-12 border-2 border-dashed border-purple-300 hover:border-purple-600 hover:bg-purple-50 text-purple-700 font-bold"
-            leftIcon={<Globe className="h-4 w-4" />}
-          >
-            Paste Link (YouTube / Web)
-          </Button>
-        </CardContent>
-      </Card>
-
-      {isImportModalOpen && <ImportStoryModal onClose={() => setIsImportModalOpen(false)} />}
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Session Settings</CardTitle>
-          <CardDescription>
-            Pick a topic, session style, and focus so the tutor can weave vocabulary into a natural conversation.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-3">
-                Roleplay Scenario (Optional)
-              </label>
-              <ScenarioSelector selectedId={selectedScenario} onSelect={setSelectedScenario} />
-              <p className="text-xs text-gray-500 mt-2">
-                Select a scenario to act out a specific situation. This overrides the conversation style.
-              </p>
-            </div>
-
-            <div className="border-t border-gray-100 pt-6">
-              <Input
-                {...register('topic')}
-                label="Custom Topic (Optional)"
-                placeholder="e.g., Travel, Food, Business"
-                error={errors.topic?.message}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Conversation Style
-              </label>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {conversationStyles.map((style) => (
-                  <label key={style.value} className="relative cursor-pointer">
-                    <input
-                      {...register('conversationStyle')}
-                      type="radio"
-                      value={style.value}
-                      className="sr-only peer"
-                      disabled={!!selectedScenario}
-                    />
-                    <div className={`p-4 border-2 rounded-lg transition-colors ${selectedScenario
-                      ? 'border-gray-100 bg-gray-50 opacity-50 cursor-not-allowed'
-                      : 'border-gray-200 peer-checked:border-primary-500 peer-checked:bg-primary-50 hover:border-gray-300'
-                      }`}>
-                      <p className="font-semibold">{style.label}</p>
-                      <p className="text-sm text-gray-600">{style.description}</p>
-                    </div>
-                  </label>
-                ))}
-              </div>
-              {errors.conversationStyle && (
-                <p className="mt-2 text-sm text-red-600">{errors.conversationStyle.message}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Vocabulary Focus
-              </label>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                {focusOptions.map((option) => (
-                  <label key={option.value} className="relative cursor-pointer">
-                    <input
-                      {...register('focus')}
-                      type="radio"
-                      value={option.value}
-                      className="sr-only peer"
-                    />
-                    <div className="p-4 border-2 border-gray-200 rounded-lg peer-checked:border-primary-500 peer-checked:bg-primary-50 hover:border-gray-300 transition-colors">
-                      <p className="font-semibold">{option.label}</p>
-                      <p className="text-sm text-gray-600">{option.description}</p>
-                    </div>
-                  </label>
-                ))}
-              </div>
-              {errors.focus && <p className="mt-2 text-sm text-red-600">{errors.focus.message}</p>}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Kartenausrichtung</label>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {directionOptions.map((option) => (
-                  <label key={option.value} className="relative cursor-pointer">
-                    <input
-                      {...register('ankiDirection')}
-                      type="radio"
-                      value={option.value}
-                      className="sr-only peer"
-                    />
-                    <div className="p-4 border-2 border-gray-200 rounded-lg peer-checked:border-primary-500 peer-checked:bg-primary-50 hover:border-gray-300 transition-colors">
-                      <p className="font-semibold">{option.label}</p>
-                    </div>
-                  </label>
-                ))}
-              </div>
-              {errors.ankiDirection && (
-                <p className="mt-2 text-sm text-red-600">{errors.ankiDirection.message}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Session Length
-              </label>
-              <div className="grid grid-cols-3 gap-3">
-                {durationOptions.map((minutes) => (
-                  <label key={minutes} className="relative">
-                    <input
-                      {...register('duration', { valueAsNumber: true })}
-                      type="radio"
-                      value={minutes}
-                      className="sr-only peer"
-                    />
-                    <div className="p-4 border-2 border-gray-200 rounded-lg cursor-pointer peer-checked:border-primary-500 peer-checked:bg-primary-50 hover:border-gray-300 transition-colors text-center">
-                      <p className="font-medium">{minutes} min</p>
-                    </div>
-                  </label>
-                ))}
-              </div>
-              {errors.duration && (
-                <p className="mt-2 text-sm text-red-600">{errors.duration.message}</p>
-              )}
-            </div>
-
-            <Button type="submit" className="w-full" loading={isLoading}>
-              Start Session
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+      <style jsx global>{`
+        .custom-radio:checked + .radio-card {
+          border-color: #000 !important;
+          background-color: var(--app-paper-2) !important;
+        }
+        .custom-radio:checked + .radio-card .radio-dot {
+          background-color: #000 !important;
+        }
+      `}</style>
     </div>
   );
-}
-
-export async function getServerSideProps(context: any) {
-  const session = await getSession(context);
-
-  if (!session) {
-    return {
-      redirect: {
-        destination: '/auth/signin',
-        permanent: false,
-      },
-    };
-  }
-
-  return {
-    props: {},
-  };
 }

@@ -1,6 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { getSession, signOut } from 'next-auth/react';
-import { useRouter } from 'next/router';
 import toast from 'react-hot-toast';
 import {
     User,
@@ -11,8 +9,6 @@ import {
     Volume2,
     Shield,
     Save,
-    Check,
-    ChevronRight,
     LogOut,
     Trash2,
     Download,
@@ -20,9 +16,19 @@ import {
     Sun,
     Mic,
     Languages,
+    Lock,
+    Mail,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card';
+import {
+    applyVisualSettings,
+    persistVisualSettings,
+    type AppFontSize,
+    type AppTheme,
+} from '@/lib/app-preferences';
+import { apiService as api } from '@/services/api';
+import { appSignOut, useAppSession } from '@/lib/app-auth';
 
 interface UserSettings {
     // Profile
@@ -31,6 +37,7 @@ interface UserSettings {
     nativeLanguage: string;
     targetLanguage: string;
     proficiencyLevel: string;
+    cefrTargetLevel: string;
     interests: string[];
 
     // Learning Goals
@@ -46,6 +53,7 @@ interface UserSettings {
     streakNotifications: boolean;
     weeklyEmailSummary: boolean;
     achievementNotifications: boolean;
+    serialEditionNotifications: boolean;
 
     // Appearance
     theme: 'light' | 'dark' | 'system';
@@ -68,6 +76,7 @@ const defaultSettings: UserSettings = {
     nativeLanguage: 'de',
     targetLanguage: 'fr',
     proficiencyLevel: 'A1',
+    cefrTargetLevel: 'A1.2',
     interests: [],
     dailyGoalMinutes: 15,
     dailyGoalXP: 50,
@@ -79,6 +88,7 @@ const defaultSettings: UserSettings = {
     streakNotifications: true,
     weeklyEmailSummary: true,
     achievementNotifications: true,
+    serialEditionNotifications: true,
     theme: 'system',
     fontSize: 'medium',
     voiceInputEnabled: true,
@@ -97,6 +107,8 @@ const proficiencyLevels = [
     { value: 'C1', label: 'C1 - Advanced', description: 'Complex texts and discussions' },
     { value: 'C2', label: 'C2 - Mastery', description: 'Near-native proficiency' },
 ];
+
+const cefrSublevels = ['A1.1', 'A1.2', 'A2.1', 'A2.2', 'B1.1', 'B1.2', 'B2.1', 'B2.2'];
 
 const languages = [
     { value: 'de', label: 'Deutsch (German)' },
@@ -120,35 +132,44 @@ const interestTopicPresets = [
 ];
 
 interface SettingsPageProps {
-    userEmail: string;
-    userName: string;
+    userEmail?: string;
+    userName?: string;
 }
 
 type SettingsSection = 'profile' | 'learning' | 'practice' | 'notifications' | 'appearance' | 'audio' | 'privacy';
 
-import { apiService as api } from '@/services/api';
-
-// ... (previous imports)
-
 export default function SettingsPage({ userEmail, userName }: SettingsPageProps) {
+    const { data: session } = useAppSession();
     const [settings, setSettings] = useState<UserSettings>({
         ...defaultSettings,
-        displayName: userName || '',
-        email: userEmail || '',
+        displayName: userName || session?.user?.name || '',
+        email: userEmail || session?.user?.email || '',
     });
-    const router = useRouter();
     const [activeSection, setActiveSection] = useState<SettingsSection>('profile');
     const [isSaving, setIsSaving] = useState(false);
     const [saveMessage, setSaveMessage] = useState<string | null>(null);
     const [hasChanges, setHasChanges] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [customInterestTopic, setCustomInterestTopic] = useState('');
+    const [privacyAction, setPrivacyAction] = useState<'export' | 'signout' | 'delete' | null>(null);
+    const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '' });
+    const [emailForm, setEmailForm] = useState({ currentPassword: '', newEmail: '' });
+
+    useEffect(() => {
+        setSettings((prev) => ({
+            ...prev,
+            displayName: prev.displayName || session?.user?.name || '',
+            email: prev.email || session?.user?.email || '',
+        }));
+    }, [session?.user?.email, session?.user?.name]);
 
     // Load settings from API on mount
     useEffect(() => {
         const fetchSettings = async () => {
             try {
-                const user: any = await api.getCurrentUser();
+                const user: any = await api.getSettings();
+                const loadedTheme = (user.theme || 'system') as AppTheme;
+                const loadedFontSize = (user.font_size || 'medium') as AppFontSize;
                 setSettings(prev => ({
                     ...prev,
                     displayName: user.full_name || prev.displayName,
@@ -156,6 +177,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                     nativeLanguage: user.native_language || prev.nativeLanguage,
                     targetLanguage: user.target_language || prev.targetLanguage,
                     proficiencyLevel: user.proficiency_level || prev.proficiencyLevel,
+                    cefrTargetLevel: user.cefr_target_level || prev.cefrTargetLevel,
                     interests: (user.interests || '')
                         .split(',')
                         .map((value: string) => value.trim())
@@ -172,9 +194,10 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                     streakNotifications: user.streak_notifications ?? prev.streakNotifications,
                     weeklyEmailSummary: user.weekly_email_summary ?? prev.weeklyEmailSummary,
                     achievementNotifications: user.achievement_notifications ?? prev.achievementNotifications,
+                    serialEditionNotifications: user.serial_edition_notifications ?? prev.serialEditionNotifications,
 
-                    theme: (user.theme as any) || prev.theme,
-                    fontSize: (user.font_size as any) || prev.fontSize,
+                    theme: loadedTheme,
+                    fontSize: loadedFontSize,
 
                     voiceInputEnabled: user.voice_input_enabled ?? prev.voiceInputEnabled,
                     textToSpeechEnabled: user.text_to_speech_enabled ?? prev.textToSpeechEnabled,
@@ -184,6 +207,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                     grammarCorrectionLevel: (user.grammar_correction_level as any) || prev.grammarCorrectionLevel,
                     showGrammarExplanations: user.show_grammar_explanations ?? prev.showGrammarExplanations,
                 }));
+                persistVisualSettings(loadedTheme, loadedFontSize);
             } catch (error) {
                 console.error('Failed to load user settings:', error);
                 // Fallback to defaults or show error
@@ -194,6 +218,10 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
 
         fetchSettings();
     }, []);
+
+    useEffect(() => {
+        applyVisualSettings(settings.theme, settings.fontSize);
+    }, [settings.fontSize, settings.theme]);
 
     const updateSetting = <K extends keyof UserSettings>(key: K, value: UserSettings[K]) => {
         setSettings(prev => ({ ...prev, [key]: value }));
@@ -209,6 +237,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                 native_language: settings.nativeLanguage,
                 target_language: settings.targetLanguage,
                 proficiency_level: settings.proficiencyLevel,
+                cefr_target_level: settings.cefrTargetLevel,
                 interests: settings.interests.join(','),
 
                 daily_goal_minutes: settings.dailyGoalMinutes,
@@ -222,6 +251,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                 streak_notifications: settings.streakNotifications,
                 weekly_email_summary: settings.weeklyEmailSummary,
                 achievement_notifications: settings.achievementNotifications,
+                serial_edition_notifications: settings.serialEditionNotifications,
 
                 theme: settings.theme,
                 font_size: settings.fontSize,
@@ -235,7 +265,8 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                 show_grammar_explanations: settings.showGrammarExplanations,
             };
 
-            await api.updateProfile(payload);
+            await api.updateSettings(payload);
+            persistVisualSettings(settings.theme, settings.fontSize);
 
             setSaveMessage('Settings saved successfully!');
             setHasChanges(false);
@@ -253,19 +284,102 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
             return;
         }
 
+        setPrivacyAction('delete');
         setIsSaving(true);
         try {
             await api.deleteAccount();
-            await signOut({ callbackUrl: '/' });
+            await appSignOut({ callbackUrl: '/' });
         } catch (error) {
             console.error('Failed to delete account:', error);
             setSaveMessage('Failed to delete account. Please try again.');
             setIsSaving(false);
+            setPrivacyAction(null);
+        }
+    };
+
+    const handlePasswordChange = async () => {
+        if (!passwordForm.currentPassword || passwordForm.newPassword.length < 8) {
+            toast.error('Enter your current password and a new password with at least 8 characters.');
+            return;
+        }
+        setIsSaving(true);
+        try {
+            await api.changePassword({
+                current_password: passwordForm.currentPassword,
+                new_password: passwordForm.newPassword,
+            });
+            setPasswordForm({ currentPassword: '', newPassword: '' });
+            toast.success('Password changed. Please sign in again.');
+            await appSignOut({ callbackUrl: '/auth/signin' });
+        } catch (error) {
+            console.error('Failed to change password:', error);
+            toast.error('Could not change password.');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleEmailChange = async () => {
+        if (!emailForm.currentPassword || !emailForm.newEmail) {
+            toast.error('Enter a new email and your current password.');
+            return;
+        }
+        setIsSaving(true);
+        try {
+            const updated: any = await api.changeEmail({
+                current_password: emailForm.currentPassword,
+                new_email: emailForm.newEmail,
+            });
+            setSettings((prev) => ({ ...prev, email: updated.email || emailForm.newEmail }));
+            setEmailForm({ currentPassword: '', newEmail: '' });
+            toast.success('Email changed. Please sign in again.');
+            await appSignOut({ callbackUrl: '/auth/signin' });
+        } catch (error) {
+            console.error('Failed to change email:', error);
+            toast.error('Could not change email.');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleExportData = async () => {
+        setPrivacyAction('export');
+        try {
+            const data = await api.exportUserData();
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `atelier-export-${new Date().toISOString().slice(0, 10)}.json`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            toast.success('Export ready.');
+        } catch (error) {
+            console.error('Failed to export user data:', error);
+            toast.error('Could not export your data.');
+        } finally {
+            setPrivacyAction(null);
+        }
+    };
+
+    const handleSignOutAllDevices = async () => {
+        if (!confirm('Sign out from every device, including this one?')) return;
+        setPrivacyAction('signout');
+        try {
+            await api.signOutAllDevices();
+            toast.success('Signed out everywhere.');
+            await appSignOut({ callbackUrl: '/auth/signin' });
+        } catch (error) {
+            console.error('Failed to sign out all devices:', error);
+            toast.error('Could not sign out all devices.');
+            setPrivacyAction(null);
         }
     };
 
     const handleNotificationToggle = async (key: keyof UserSettings, value: boolean) => {
-        if (key === 'practiceReminders' && value === true) {
+        if ((key === 'practiceReminders' || key === 'serialEditionNotifications') && value === true) {
             // Request permission & subscribe
             if ('serviceWorker' in navigator && 'PushManager' in window) {
                 try {
@@ -332,27 +446,39 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
         { id: 'privacy' as const, label: 'Privacy & Data', icon: Shield },
     ];
 
+    if (isLoading) {
+        return (
+            <div className="settings-page min-h-screen bg-[var(--app-paper)] px-5 py-6 pb-24 sm:p-6">
+                <div className="mx-auto max-w-6xl border border-[var(--app-ink)] bg-[var(--app-sheet)] p-6">
+                    <div className="text-xs font-black uppercase tracking-[0.16em] text-[var(--app-ink-3)]">Settings</div>
+                    <h1 className="mt-2 font-serif text-3xl italic">Loading your account controls...</h1>
+                </div>
+            </div>
+        );
+    }
+
     return (
-        <div className="min-h-screen bg-gray-50 p-6">
+        <div className="settings-page min-h-screen bg-[var(--app-paper)] px-5 py-6 pb-24 sm:p-6">
             <div className="max-w-6xl mx-auto">
                 {/* Header */}
-                <div className="mb-8">
-                    <h1 className="text-4xl font-black uppercase tracking-tight">Settings</h1>
-                    <p className="text-gray-600 mt-2">Customize your learning experience</p>
+                <div className="mb-8 border-b border-[var(--app-ink)] pb-5">
+                    <div className="text-xs font-black uppercase tracking-[0.16em] text-[var(--app-ink-3)]">Administration Layer</div>
+                    <h1 className="mt-1 font-serif text-5xl italic leading-none">Settings</h1>
+                    <p className="mt-3 max-w-2xl text-[var(--app-ink-2)]">Customize your learning account, appearance, language preferences, notifications, and privacy controls.</p>
                 </div>
 
-                <div className="flex gap-8">
+                <div className="flex flex-col gap-6 lg:flex-row lg:gap-8">
                     {/* Sidebar Navigation */}
-                    <div className="w-64 flex-shrink-0">
-                        <Card className="border-4 border-black shadow-[6px_6px_0px_0px_#000] sticky top-6">
-                            <CardContent className="p-2">
+                    <div className="w-full flex-shrink-0 lg:w-64">
+                        <Card className="sticky top-20">
+                            <CardContent className="flex gap-2 overflow-x-auto p-2 lg:block lg:space-y-1 lg:overflow-visible">
                                 {sections.map((section) => (
                                     <button
                                         key={section.id}
                                         onClick={() => setActiveSection(section.id)}
-                                        className={`w-full flex items-center gap-3 px-4 py-3 text-left font-bold transition-all ${activeSection === section.id
-                                            ? 'bg-bauhaus-blue text-white'
-                                            : 'hover:bg-gray-100'
+                                        className={`flex min-w-[156px] items-center gap-3 border border-transparent px-4 py-3 text-left text-xs font-black uppercase tracking-[0.08em] transition-colors lg:w-full ${activeSection === section.id
+                                            ? 'border-[var(--app-ink)] bg-[var(--app-ink)] text-[var(--app-paper)]'
+                                            : 'text-[var(--app-ink-2)] hover:border-[var(--app-ink)] hover:bg-[var(--app-paper-2)]'
                                             }`}
                                     >
                                         <section.icon className="w-5 h-5" />
@@ -364,12 +490,12 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                     </div>
 
                     {/* Main Content */}
-                    <div className="flex-1">
+                    <div className="min-w-0 flex-1">
                         {/* Save Banner */}
                         {(hasChanges || saveMessage) && (
-                            <div className={`mb-6 p-4 border-4 border-black shadow-[4px_4px_0px_0px_#000] ${saveMessage ? 'bg-green-100' : 'bg-bauhaus-yellow'
+                            <div className={`mb-6 border border-[var(--app-ink)] p-4 ${saveMessage ? 'bg-[var(--app-sheet)]' : 'bg-[var(--app-yellow)]'
                                 }`}>
-                                <div className="flex items-center justify-between">
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                     <span className="font-bold">
                                         {saveMessage || 'You have unsaved changes'}
                                     </span>
@@ -415,7 +541,65 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                             disabled
                                             className="w-full p-3 border-2 border-gray-300 bg-gray-100 text-gray-500"
                                         />
-                                        <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
+                                        <p className="text-xs text-gray-500 mt-1">Use the secure form below to change your sign-in email.</p>
+                                    </div>
+
+                                    <div className="grid gap-4 border-2 border-black bg-white p-4">
+                                        <h3 className="flex items-center gap-2 font-black uppercase">
+                                            <Mail className="w-5 h-5" /> Change Email
+                                        </h3>
+                                        <input
+                                            type="email"
+                                            value={emailForm.newEmail}
+                                            onChange={(event) => setEmailForm((prev) => ({ ...prev, newEmail: event.target.value }))}
+                                            className="w-full p-3 border-2 border-black shadow-[4px_4px_0px_0px_#000]"
+                                            placeholder="new@email.com"
+                                        />
+                                        <input
+                                            type="password"
+                                            value={emailForm.currentPassword}
+                                            onChange={(event) => setEmailForm((prev) => ({ ...prev, currentPassword: event.target.value }))}
+                                            className="w-full p-3 border-2 border-black shadow-[4px_4px_0px_0px_#000]"
+                                            placeholder="Current password"
+                                        />
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            leftIcon={<Mail className="w-4 h-4" />}
+                                            onClick={handleEmailChange}
+                                            disabled={isSaving || !emailForm.newEmail || !emailForm.currentPassword}
+                                        >
+                                            Change Email
+                                        </Button>
+                                    </div>
+
+                                    <div className="grid gap-4 border-2 border-black bg-white p-4">
+                                        <h3 className="flex items-center gap-2 font-black uppercase">
+                                            <Lock className="w-5 h-5" /> Change Password
+                                        </h3>
+                                        <input
+                                            type="password"
+                                            value={passwordForm.currentPassword}
+                                            onChange={(event) => setPasswordForm((prev) => ({ ...prev, currentPassword: event.target.value }))}
+                                            className="w-full p-3 border-2 border-black shadow-[4px_4px_0px_0px_#000]"
+                                            placeholder="Current password"
+                                        />
+                                        <input
+                                            type="password"
+                                            value={passwordForm.newPassword}
+                                            onChange={(event) => setPasswordForm((prev) => ({ ...prev, newPassword: event.target.value }))}
+                                            className="w-full p-3 border-2 border-black shadow-[4px_4px_0px_0px_#000]"
+                                            placeholder="New password"
+                                        />
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            leftIcon={<Lock className="w-4 h-4" />}
+                                            onClick={handlePasswordChange}
+                                            disabled={isSaving || !passwordForm.currentPassword || passwordForm.newPassword.length < 8}
+                                        >
+                                            Change Password
+                                        </Button>
                                     </div>
                                 </CardContent>
                             </Card>
@@ -482,10 +666,10 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
 
                                     <div>
                                         <label className="block text-sm font-bold uppercase mb-2">
-                                            Live Story Topics
+                                            Live Article Topics
                                         </label>
                                         <p className="text-xs text-gray-500 mb-3">
-                                            These topics steer which live stories appear in your pre-session picker.
+                                            These topics steer which live article seeds appear in your pre-session picker.
                                         </p>
                                         <div className="flex flex-wrap gap-2 mb-3">
                                             {interestTopicPresets.map((topic) => (
@@ -607,6 +791,26 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
 
                                         <div>
                                             <label className="block text-sm font-bold uppercase mb-2">
+                                                CEFR Target
+                                            </label>
+                                            <select
+                                                value={settings.cefrTargetLevel}
+                                                onChange={(e) => updateSetting('cefrTargetLevel', e.target.value)}
+                                                className="w-full p-3 border-2 border-black shadow-[4px_4px_0px_0px_#000] bg-white"
+                                            >
+                                                {cefrSublevels.map((level) => (
+                                                    <option key={level} value={level}>{level}</option>
+                                                ))}
+                                            </select>
+                                            <p className="mt-2 text-sm text-gray-600">
+                                                The Atelier meter forecasts this target from your daily pace.
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-6">
+                                        <div>
+                                            <label className="block text-sm font-bold uppercase mb-2">
                                                 Daily XP Goal
                                             </label>
                                             <input
@@ -631,9 +835,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                                 ))}
                                             </div>
                                         </div>
-                                    </div>
 
-                                    <div className="grid grid-cols-2 gap-6">
                                         <div>
                                             <label className="block text-sm font-bold uppercase mb-2">
                                                 New Words Per Day
@@ -702,6 +904,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                         { key: 'streakNotifications' as const, label: 'Streak Alerts', desc: 'Notifications about your streak status' },
                                         { key: 'weeklyEmailSummary' as const, label: 'Weekly Email Summary', desc: 'Receive weekly progress reports' },
                                         { key: 'achievementNotifications' as const, label: 'Achievement Alerts', desc: 'Get notified when you earn achievements' },
+                                        { key: 'serialEditionNotifications' as const, label: 'Serial Edition Alerts', desc: 'Get tomorrow’s serial edition when it is ready' },
                                     ].map(item => (
                                         <div key={item.key} className="flex items-center justify-between p-4 bg-gray-50 border-2 border-black">
                                             <div>
@@ -868,6 +1071,8 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                             variant="outline"
                                             leftIcon={<Download className="w-4 h-4" />}
                                             className="border-2 border-black"
+                                            onClick={handleExportData}
+                                            loading={privacyAction === 'export'}
                                         >
                                             Export Data (JSON)
                                         </Button>
@@ -883,6 +1088,8 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                         <Button
                                             variant="outline"
                                             className="border-2 border-black"
+                                            onClick={handleSignOutAllDevices}
+                                            loading={privacyAction === 'signout'}
                                         >
                                             Sign Out All Devices
                                         </Button>
@@ -899,9 +1106,10 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                             variant="outline"
                                             className="border-2 border-red-500 text-red-600 hover:bg-red-100"
                                             onClick={handleDeleteAccount}
-                                            disabled={isSaving}
+                                            loading={privacyAction === 'delete'}
+                                            disabled={isSaving && privacyAction !== 'delete'}
                                         >
-                                            {isSaving && activeSection === 'privacy' ? 'Deleting...' : 'Delete Account'}
+                                            Delete Account
                                         </Button>
                                     </div>
                                 </CardContent>
@@ -910,28 +1118,51 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                     </div>
                 </div>
             </div>
+            <style jsx global>{`
+                .settings-page .learning-card {
+                    border-width: 1px !important;
+                    box-shadow: none !important;
+                    background: var(--app-sheet);
+                }
+                .settings-page .border-4,
+                .settings-page .border-2 {
+                    border-width: 1px !important;
+                }
+                .settings-page [class*="shadow-"] {
+                    box-shadow: none !important;
+                }
+                .settings-page input,
+                .settings-page select,
+                .settings-page textarea {
+                    background: var(--app-sheet) !important;
+                    color: var(--app-ink);
+                }
+                .settings-page .bg-white,
+                .settings-page .bg-gray-50,
+                .settings-page .bg-gray-100 {
+                    background: var(--app-sheet) !important;
+                }
+                .settings-page .text-black,
+                .settings-page h1,
+                .settings-page h2,
+                .settings-page h3 {
+                    color: var(--app-ink) !important;
+                }
+                .settings-page .text-gray-500,
+                .settings-page .text-gray-600 {
+                    color: var(--app-ink-3) !important;
+                }
+                @media (max-width: 760px) {
+                    .settings-page {
+                        padding-top: 22px;
+                    }
+                    .settings-page .learning-card {
+                        padding: 0;
+                    }
+                }
+            `}</style>
         </div>
     );
-}
-
-export async function getServerSideProps(context: any) {
-    const session = await getSession(context);
-
-    if (!session) {
-        return {
-            redirect: {
-                destination: '/auth/signin',
-                permanent: false,
-            },
-        };
-    }
-
-    return {
-        props: {
-            userEmail: session.user?.email || '',
-            userName: session.user?.name || '',
-        },
-    };
 }
 
 function urlBase64ToUint8Array(base64String: string) {

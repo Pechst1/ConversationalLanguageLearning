@@ -7,8 +7,10 @@ with the existing spaced repetition system.
 from __future__ import annotations
 
 import csv
+import html
 import logging
 import re
+import unicodedata
 from datetime import datetime, timedelta, timezone
 from io import StringIO
 from typing import Any, Dict, List, Optional
@@ -138,6 +140,109 @@ class AnkiCardParser:
             return " ".join(tokens[: min(3, len(tokens))])
 
         return " ".join(tokens[: min(2, len(tokens))])
+
+    def extract_example_pair(
+        self,
+        text: str,
+        target_word: str,
+        direction: str | None = None,
+    ) -> tuple[str | None, str | None]:
+        """Extract a French example sentence and nearby German translation from an Anki card."""
+
+        if not text or not target_word:
+            return None, None
+
+        candidates = self._sentence_candidates(text)
+        if not candidates:
+            return None, None
+
+        target = self.extract_word(target_word, expected_language="french") or target_word
+        best_index: int | None = None
+        for index, sentence in enumerate(candidates):
+            language = self.detect_language(sentence)
+            if language not in {"french", "mixed"}:
+                continue
+            if not self._sentence_matches_target(sentence, target):
+                continue
+            best_index = index
+            break
+
+        if best_index is None:
+            for index, sentence in enumerate(candidates):
+                if self.detect_language(sentence) == "french":
+                    best_index = index
+                    break
+
+        if best_index is None:
+            return None, None
+
+        example = self._trim_leading_target(candidates[best_index], target)
+        translation = self._nearby_translation(candidates, best_index)
+        return example or None, translation
+
+    def _clean_card_text(self, text: str) -> str:
+        cleaned = html.unescape(text or "")
+        cleaned = re.sub(r"<[^>]+>", " ", cleaned)
+        cleaned = re.sub(r"\[anki:[^\]]+\]", " ", cleaned)
+        cleaned = re.sub(r"\\[^\\]{1,40}\\", " ", cleaned)
+        cleaned = cleaned.replace("\u3000", " ")
+        cleaned = re.sub(r"\*([^*]+)\*", r"\1", cleaned)
+        cleaned = re.sub(r"\s+", " ", cleaned)
+        return cleaned.strip()
+
+    def _sentence_candidates(self, text: str) -> list[str]:
+        cleaned = self._clean_card_text(text)
+        if not cleaned:
+            return []
+
+        raw_sentences = re.findall(r"[^.!?]+[.!?]", cleaned)
+        if not raw_sentences:
+            raw_sentences = [cleaned]
+
+        sentences: list[str] = []
+        for raw in raw_sentences:
+            sentence = raw.strip(" \t\r\n\"'“”")
+            if len(sentence) < 12:
+                continue
+            if re.fullmatch(r"[\d\s,.;:!?-]+", sentence):
+                continue
+            sentences.append(sentence)
+        return sentences
+
+    def _ascii_fold(self, text: str) -> str:
+        folded = unicodedata.normalize("NFD", text or "")
+        return "".join(char for char in folded if unicodedata.category(char) != "Mn").lower()
+
+    def _sentence_matches_target(self, sentence: str, target_word: str) -> bool:
+        sentence_norm = self._ascii_fold(sentence)
+        target_norm = self._ascii_fold(target_word).strip()
+        if not target_norm:
+            return False
+        if re.search(rf"\b{re.escape(target_norm)}\b", sentence_norm):
+            return True
+
+        stem = re.sub(r"(er|ir|re|oir|e|es|s)$", "", target_norm)
+        return len(stem) >= 4 and stem in sentence_norm
+
+    def _trim_leading_target(self, sentence: str, target_word: str) -> str:
+        target_norm = self._ascii_fold(target_word).strip()
+        tokens = sentence.split()
+        while tokens:
+            token_norm = self._ascii_fold(tokens[0].strip(".,;:!?«»\"'“”[]()"))
+            if token_norm != target_norm:
+                break
+            tokens.pop(0)
+        return " ".join(tokens).strip()
+
+    def _nearby_translation(self, candidates: list[str], example_index: int) -> str | None:
+        for offset in (1, -1, 2):
+            index = example_index + offset
+            if index < 0 or index >= len(candidates):
+                continue
+            sentence = candidates[index]
+            if self.detect_language(sentence) == "german":
+                return sentence
+        return None
 
 
 class AnkiImportService:
@@ -508,6 +613,16 @@ class AnkiImportService:
             language = 'de'
             french_translation = back_primary
             german_translation = front_primary
+
+        example_target = word if direction == "fr_to_de" else self.parser.extract_word(
+            french_translation,
+            expected_language="french",
+        )
+        example_sentence, example_translation = self.parser.extract_example_pair(
+            f"{front} {back}",
+            example_target,
+            direction,
+        )
         
         # Check if word already exists
         existing = self.db.scalars(
@@ -527,6 +642,10 @@ class AnkiImportService:
             existing.deck_name = deck_name or card.get('deck', '')
             existing.note_id = card.get('note_id', '')
             existing.card_id = card.get('card_id', '')
+            if example_sentence:
+                existing.example_sentence = example_sentence
+            if example_translation:
+                existing.example_translation = example_translation
             return existing
         
         # Create new vocabulary word
@@ -542,6 +661,8 @@ class AnkiImportService:
             card_id=card.get('card_id', ''),
             is_anki_card=True,
             topic_tags=card.get('tags', []),
+            example_sentence=example_sentence,
+            example_translation=example_translation,
         )
         
         return vocab_word

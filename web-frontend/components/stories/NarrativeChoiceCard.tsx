@@ -144,7 +144,7 @@ export default function NarrativeChoiceCard({
       {/* Helper text */}
       <div className="mt-4 text-center">
         <p className="text-xs text-amber-800 italic">
-          Choose wisely - your decision will affect how the story unfolds
+          Choose wisely - your decision will affect how the text unfolds
         </p>
       </div>
     </div>

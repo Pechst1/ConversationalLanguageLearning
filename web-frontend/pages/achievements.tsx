@@ -1,5 +1,4 @@
 import React from 'react';
-import { getSession } from 'next-auth/react';
 import { Trophy, Star, Lock, CheckCircle, Zap, BookOpen, Target, Flame } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -46,7 +45,20 @@ function getIconForKey(key: string): React.ElementType {
 
 export default function AchievementsPage({ achievements }: AchievementsPageProps) {
     const [isChecking, setIsChecking] = React.useState(false);
-    const [achievementList, setAchievementList] = React.useState(achievements);
+    const [achievementList, setAchievementList] = React.useState(achievements || []);
+
+    const loadAchievements = React.useCallback(async () => {
+        try {
+            const updated = await apiService.get('/achievements/my?include_locked=true') as Achievement[];
+            setAchievementList(Array.isArray(updated) ? updated : []);
+        } catch (error) {
+            console.error('Failed to fetch achievements:', error);
+        }
+    }, []);
+
+    React.useEffect(() => {
+        void loadAchievements();
+    }, [loadAchievements]);
 
     const completedCount = achievementList.filter(a => a.completed).length;
     const totalXP = achievementList
@@ -59,9 +71,7 @@ export default function AchievementsPage({ achievements }: AchievementsPageProps
             const response = await apiService.post('/achievements/check', {}) as any;
             if (response.newly_unlocked?.length > 0) {
                 toast.success(`🎉 Unlocked ${response.newly_unlocked.length} new achievement(s)!`);
-                // Refresh achievements list
-                const updated = await apiService.get('/achievements/my?include_locked=true') as Achievement[];
-                setAchievementList(updated);
+                await loadAchievements();
             } else {
                 toast.success('No new achievements to unlock. Keep learning!');
             }
@@ -75,18 +85,27 @@ export default function AchievementsPage({ achievements }: AchievementsPageProps
     return (
         <div className="space-y-8 p-4">
             {/* Header */}
-            <div className="flex items-center justify-between border-b-4 border-black pb-6 bg-white p-4 shadow-[4px_4px_0px_0px_#000]">
-                <div>
-                    <h1 className="text-4xl font-extrabold text-black uppercase tracking-tight">Achievements</h1>
-                    <p className="text-gray-600 font-bold mt-1">Track your learning milestones</p>
+            <div className="mb-8 border-b border-[var(--app-ink)] pb-5">
+                <div className="text-xs font-black uppercase tracking-[0.16em] text-[var(--app-ink-3)]">
+                    Milestones
                 </div>
-                <Button
-                    onClick={handleCheckAchievements}
-                    loading={isChecking}
-                    className="shadow-[4px_4px_0px_0px_#000] border-2 border-black"
-                >
-                    Check Progress
-                </Button>
+                <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mt-1">
+                    <h1 className="font-serif text-5xl italic leading-none text-[var(--app-ink)]">
+                        Achievements
+                    </h1>
+                    <div>
+                        <button
+                            onClick={handleCheckAchievements}
+                            disabled={isChecking}
+                            className="border border-black px-4 py-2 text-xs font-black uppercase tracking-[0.13em] transition-all bg-[var(--app-sheet)] text-[var(--app-ink)] hover:bg-[var(--app-paper-2)] disabled:opacity-50"
+                        >
+                            {isChecking ? 'Checking...' : 'Check Progress'}
+                        </button>
+                    </div>
+                </div>
+                <p className="mt-3 max-w-2xl text-[var(--app-ink-2)]">
+                    Track your learning milestones and claim your XP rewards.
+                </p>
             </div>
 
             {/* Stats Summary */}
@@ -189,41 +208,4 @@ export default function AchievementsPage({ achievements }: AchievementsPageProps
             )}
         </div>
     );
-}
-
-export async function getServerSideProps(context: any) {
-    const session = await getSession(context);
-
-    if (!session) {
-        return {
-            redirect: {
-                destination: '/auth/signin',
-                permanent: false,
-            },
-        };
-    }
-
-    try {
-        const baseUrl = process.env.API_URL || 'http://localhost:8000';
-        const headers = {
-            'Authorization': `Bearer ${session.accessToken}`,
-            'Content-Type': 'application/json',
-        };
-
-        const response = await fetch(`${baseUrl}/api/v1/achievements/my?include_locked=true`, { headers });
-        const achievements = response.ok ? await response.json() : [];
-
-        return {
-            props: {
-                achievements,
-            },
-        };
-    } catch (error) {
-        console.error('Failed to fetch achievements:', error);
-        return {
-            props: {
-                achievements: [],
-            },
-        };
-    }
 }

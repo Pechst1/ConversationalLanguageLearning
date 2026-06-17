@@ -15,23 +15,32 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
+import { PHONE_PRODUCT_TABS } from '@/lib/product-shell';
 
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-const navigation = [
+const productIcon = {
+  atelier: Compass,
+  notebook: BookOpen,
+  missions: MapPinned,
+  feuilleton: Sparkles,
+};
+
+const primaryNavigation = PHONE_PRODUCT_TABS.map((item) => ({
+  name: item.label,
+  href: item.href,
+  icon: productIcon[item.id],
+  activeRoutes: item.activeRoutes,
+}));
+
+const secondaryNavigation = [
   {
-    name: 'Atelier',
-    href: '/atelier',
-    icon: Compass,
-    activeRoutes: ['/dashboard', '/atelier', '/daily-practice'],
-  },
-  {
-    name: 'Conversation',
+    name: 'Conversation practice',
     href: '/learn',
-    icon: BookOpen,
+    icon: MessageCircle,
     activeRoutes: ['/learn', '/learn/new', '/learn/session/[id]'],
   },
   {
@@ -39,24 +48,6 @@ const navigation = [
     href: '/sessions',
     icon: MessageCircle,
     activeRoutes: ['/sessions'],
-  },
-  {
-    name: 'Stories',
-    href: '/stories',
-    icon: Sparkles,
-    activeRoutes: ['/stories', '/stories/[storyId]', '/story/[id]'],
-  },
-  {
-    name: 'Missions',
-    href: '/missions',
-    icon: MapPinned,
-    activeRoutes: ['/missions'],
-  },
-  {
-    name: 'Feuilleton',
-    href: '/graphic-novel',
-    icon: Sparkles,
-    activeRoutes: ['/graphic-novel'],
   },
   {
     name: 'Audio Mode',
@@ -77,12 +68,6 @@ const navigation = [
     activeRoutes: ['/progress'],
   },
   {
-    name: 'Notebook',
-    href: '/grammar',
-    icon: BookOpen,
-    activeRoutes: ['/grammar'],
-  },
-  {
     name: 'Achievements',
     href: '/achievements',
     icon: Trophy,
@@ -98,6 +83,35 @@ const navigation = [
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const router = useRouter();
+  const renderItem = (item: (typeof primaryNavigation)[number] | (typeof secondaryNavigation)[number]) => {
+    const isActive = item.activeRoutes.includes(router.pathname);
+    return (
+      <Link
+        key={item.name}
+        href={item.href}
+        className={cn(
+          'group flex items-center px-3 py-3 text-sm font-bold border-2 transition-all duration-150',
+          isActive
+            ? 'bg-bauhaus-blue text-white border-black shadow-[4px_4px_0px_0px_#000]'
+            : 'text-gray-600 border-transparent hover:border-black hover:bg-bauhaus-yellow hover:text-black hover:shadow-[4px_4px_0px_0px_#000]'
+        )}
+        onClick={() => {
+          // Close sidebar on mobile when navigating.
+          if (window.innerWidth < 1024) {
+            onClose();
+          }
+        }}
+      >
+        <item.icon
+          className={cn(
+            'mr-3 h-5 w-5 transition-colors',
+            isActive ? 'text-white' : 'text-gray-500 group-hover:text-black'
+          )}
+        />
+        {item.name}
+      </Link>
+    );
+  };
 
   return (
     <>
@@ -127,35 +141,15 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
           {/* Navigation */}
           <nav className="flex-1 space-y-2 px-4 py-6">
-            {navigation.map((item) => {
-              const isActive = item.activeRoutes.includes(router.pathname);
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={cn(
-                    'group flex items-center px-3 py-3 text-sm font-bold border-2 transition-all duration-150',
-                    isActive
-                      ? 'bg-bauhaus-blue text-white border-black shadow-[4px_4px_0px_0px_#000]'
-                      : 'text-gray-600 border-transparent hover:border-black hover:bg-bauhaus-yellow hover:text-black hover:shadow-[4px_4px_0px_0px_#000]'
-                  )}
-                  onClick={() => {
-                    // Close sidebar on mobile when navigating
-                    if (window.innerWidth < 1024) {
-                      onClose();
-                    }
-                  }}
-                >
-                  <item.icon
-                    className={cn(
-                      'mr-3 h-5 w-5 transition-colors',
-                      isActive ? 'text-white' : 'text-gray-500 group-hover:text-black'
-                    )}
-                  />
-                  {item.name}
-                </Link>
-              );
-            })}
+            {primaryNavigation.map(renderItem)}
+            <div className="my-4 border-t-2 border-black pt-4">
+              <p className="mb-2 px-3 text-[10px] font-black uppercase tracking-[0.16em] text-gray-500">
+                Desktop tools
+              </p>
+              <div className="space-y-2">
+                {secondaryNavigation.map(renderItem)}
+              </div>
+            </div>
           </nav>
         </div>
       </div>

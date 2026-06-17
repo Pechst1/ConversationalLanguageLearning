@@ -33,7 +33,7 @@ def test_build_error_detection_prompt_lists_targets():
 
     assert "Je suis aller" in prompt
     assert "- aller" in prompt
-    assert "learner level is B1" in prompt
+    assert "learner's CEFR level is B1" in prompt
 
 
 def test_error_detection_schema_structure():

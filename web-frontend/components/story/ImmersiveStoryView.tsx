@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import Image from 'next/image';
 import {
     ChevronLeft,
     ChevronRight,
@@ -11,6 +12,8 @@ import {
     Sparkles,
     Loader2
 } from 'lucide-react';
+import { getAppAccessToken } from '@/lib/app-auth';
+import { resolveBrowserApiBaseUrl } from '@/services/api';
 
 interface Scene {
     id: string;
@@ -66,11 +69,16 @@ export default function ImmersiveStoryView({
         const fetchVisualization = async () => {
             setImageLoading(true);
             try {
-                const styleParam = artStyle !== 'auto' ? `&style=${artStyle}` : '';
-                // Use proxy route to reach backend
+                const params = new URLSearchParams();
+                if (artStyle !== 'auto') {
+                    params.set('style', artStyle);
+                }
+                const token = await getAppAccessToken();
                 const response = await fetch(
-                    `/api/proxy/stories/${storyId}/scene/${scene.id}/visualization?${styleParam}`,
-                    { credentials: 'include' }
+                    `${resolveBrowserApiBaseUrl()}/stories/${storyId}/scene/${scene.id}/visualization${params.toString() ? `?${params.toString()}` : ''}`,
+                    {
+                        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+                    }
                 );
 
                 if (response.ok) {
@@ -128,9 +136,13 @@ export default function ImmersiveStoryView({
                         </div>
                     </div>
                 ) : imageUrl ? (
-                    <img
+                    <Image
                         src={imageUrl}
                         alt={`Scene: ${scene.location || 'Story scene'}`}
+                        fill
+                        unoptimized
+                        sizes="100vw"
+                        priority
                         className="w-full h-full object-cover"
                     />
                 ) : (

@@ -17,14 +17,13 @@ from loguru import logger
 from sqlalchemy.orm import Session
 
 from app.core.prompts.brief_exercise_prompts import (
-    get_brief_grammar_prompt,
-    get_error_exercise_prompt,
     get_answer_check_prompt,
 )
 from app.db.models.error import UserError
 from app.db.models.grammar import GrammarConcept
 from app.db.models.user import User
 from app.services.error_memory import ErrorMemoryService
+from app.services.exercise_generation import ExerciseGenerationService, ExerciseGenerationUnavailable
 from app.services.grammar_feedback import infer_grammar_profile, is_concept_demonstrated
 from app.services.llm_service import LLMService
 
@@ -124,28 +123,19 @@ class BriefExerciseService:
         concept = self.db.get(GrammarConcept, concept_id)
         if not concept:
             return {"error": f"Concept {concept_id} not found", "exercises": []}
-        
-        prompt = get_brief_grammar_prompt(concept.name, concept.level)
-        
+
         try:
             logger.info(f"Generating brief exercises for concept: {concept.name}")
-            result = await self._generate_with_llm(prompt, max_tokens=1500)
-            parsed = self._parse_json_response(result.content)
-            
-            if "error" in parsed:
-                logger.error(f"Brief exercise generation failed: {parsed}")
-                return self._fallback_grammar_exercises(concept)
-            
-            # Add metadata
-            parsed["concept_id"] = concept.id
-            parsed["concept_name"] = concept.name
-            parsed["level"] = concept.level
-            
-            return parsed
-            
+            bundle = await asyncio.to_thread(
+                ExerciseGenerationService(self.db, self.llm).generate_brief_grammar_exercises,
+                concept=concept,
+            )
+            return bundle.payload
+        except ExerciseGenerationUnavailable:
+            raise
         except Exception as e:
             logger.exception(f"Error generating brief exercises for {concept.name}: {e}")
-            return self._fallback_grammar_exercises(concept)
+            raise ExerciseGenerationUnavailable(str(e)) from e
 
     async def generate_error_exercise(
         self,
@@ -159,33 +149,21 @@ class BriefExerciseService:
         error = self.db.get(UserError, error_id)
         if not error:
             return {"error": f"Error {error_id} not found"}
-        
-        prompt = get_error_exercise_prompt(
-            original_text=error.original_text,
-            correction=error.correction,
-            error_category=error.error_category,
-            context=error.context_snippet
-        )
-        
+
         try:
             logger.info(f"Generating error exercise for: {error.original_text}")
-            result = await self._generate_with_llm(prompt, max_tokens=800)
-            parsed = self._parse_json_response(result.content)
-            
-            if "error" in parsed:
-                logger.error(f"Error exercise generation failed: {parsed}")
-                return self._fallback_error_exercise(error)
-            
-            # Add metadata
-            parsed["error_id"] = str(error.id)
-            parsed["original_text"] = error.original_text
-            parsed["stored_correction"] = error.correction
-            
-            return parsed
-            
+            user = self.db.get(User, error.user_id)
+            bundle = await asyncio.to_thread(
+                ExerciseGenerationService(self.db, self.llm).generate_error_exercise,
+                error=error,
+                user=user,
+            )
+            return bundle.payload
+        except ExerciseGenerationUnavailable:
+            raise
         except Exception as e:
             logger.exception(f"Error generating error exercise: {e}")
-            return self._fallback_error_exercise(error)
+            raise ExerciseGenerationUnavailable(str(e)) from e
 
     async def check_answer(
         self,
@@ -287,57 +265,6 @@ class BriefExerciseService:
             )
 
         return await asyncio.to_thread(_blocking_call)
-
-    def _fallback_grammar_exercises(self, concept: GrammarConcept) -> dict[str, Any]:
-        """Fallback exercises if LLM fails."""
-        return {
-            "concept_id": concept.id,
-            "concept_name": concept.name,
-            "level": concept.level,
-            "exercises": [
-                {
-                    "id": "1",
-                    "type": "short_answer",
-                    "difficulty": "a",
-                    "instruction": "Erkläre das Konzept",
-                    "prompt": f"Erkläre '{concept.name}' kurz in deinen eigenen Worten.",
-                    "correct_answer": "(Freie Antwort)",
-                    "hint": "Denke an Beispiele"
-                },
-                {
-                    "id": "2", 
-                    "type": "short_answer",
-                    "difficulty": "b",
-                    "instruction": "Bilde einen Beispielsatz",
-                    "prompt": f"Bilde einen Satz, der '{concept.name}' verwendet.",
-                    "correct_answer": "(Freie Antwort)",
-                    "hint": "Verwende Alltagssituationen"
-                },
-                {
-                    "id": "3",
-                    "type": "short_answer",
-                    "difficulty": "c",
-                    "instruction": "Vergleiche Konzepte",
-                    "prompt": f"Was ist der Unterschied zu ähnlichen Konzepten?",
-                    "correct_answer": "(Freie Antwort)",
-                    "hint": "Denke an Ausnahmen"
-                }
-            ]
-        }
-
-    def _fallback_error_exercise(self, error: UserError) -> dict[str, Any]:
-        """Fallback error exercise if LLM fails."""
-        return {
-            "error_id": str(error.id),
-            "exercise_type": "correction",
-            "instruction": "Korrigiere den Fehler",
-            "prompt": error.original_text or "Korrigiere diesen Satz.",
-            "correct_answer": error.correction or "(Korrektur nicht verfügbar)",
-            "explanation": error.context_snippet or "Achte auf die Grammatikregel.",
-            "memory_tip": "Übung macht den Meister!",
-            "original_text": error.original_text,
-            "stored_correction": error.correction
-        }
 
     def _persist_grammar_error(
         self,

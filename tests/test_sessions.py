@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
@@ -11,12 +12,13 @@ from app.db.models.error import UserError
 from app.db.models.grammar import GrammarConcept, UserGrammarProgress
 from app.db.models.session import ConversationMessage, LearningSession, SessionLearningMoment
 from app.db.models.user import User
-from app.db.models.progress import UserVocabularyProgress
+from app.db.models.progress import ReviewLog, UserVocabularyProgress
 from app.services.llm_service import LLMResult
 from app.services.progress import ProgressService
 from app.services.session_service import SessionService
 from app.core.conversation import ConversationGenerator
 from app.core.error_detection import ErrorDetectionResult
+from app.core.error_detection.rules import DetectedError
 
 
 class DummyToken:
@@ -39,8 +41,70 @@ class StubLLMService:
     def __init__(self) -> None:
         self.counter = 0
 
-    def generate_chat_completion(self, messages, *, temperature=0.0, max_tokens=0, response_format=None, system_prompt=None):  # type: ignore[override]
+    def generate_chat_completion(self, messages, *, temperature=0.0, max_tokens=0, response_format=None, system_prompt=None, **kwargs):  # type: ignore[override]
         self.counter += 1
+        schema_name = ((response_format or {}).get("json_schema") or {}).get("name")
+        if schema_name == "brief_grammar_exercises":
+            content = {
+                "exercises": [
+                    {
+                        "id": "generated-grammar-1",
+                        "type": "short_answer",
+                        "difficulty": "a",
+                        "instruction": "Write one polite request in French.",
+                        "prompt": "Write one French sentence with the target grammar.",
+                        "correct_answer": "Je voudrais un cafe.",
+                        "hint": "Use a complete French sentence.",
+                    },
+                    {
+                        "id": "generated-grammar-2",
+                        "type": "correction",
+                        "difficulty": "b",
+                        "instruction": "Repair the sentence.",
+                        "prompt": "Je veux un cafe, s'il vous plait.",
+                        "correct_answer": "Je voudrais un cafe, s'il vous plait.",
+                        "hint": "Make the request more polite.",
+                    },
+                    {
+                        "id": "generated-grammar-3",
+                        "type": "translation",
+                        "difficulty": "c",
+                        "instruction": "Translate with the target grammar.",
+                        "prompt": "I would like a coffee.",
+                        "correct_answer": "Je voudrais un cafe.",
+                        "hint": "Use conditionnel present.",
+                    },
+                ]
+            }
+            return LLMResult(
+                provider="stub",
+                model="stub-model",
+                content=json.dumps(content),
+                prompt_tokens=10,
+                completion_tokens=20,
+                total_tokens=30,
+                cost=0.0,
+                raw_response={"messages": messages},
+            )
+        if schema_name == "error_repair_exercise":
+            content = {
+                "exercise_type": "correction",
+                "instruction": "Repair the stored mistake.",
+                "prompt": "Je veux un cafe, s'il vous plait.",
+                "correct_answer": "Je voudrais un cafe, s'il vous plait.",
+                "explanation": "Use a polite conditional form.",
+                "memory_tip": "Conditionnel can soften requests.",
+            }
+            return LLMResult(
+                provider="stub",
+                model="stub-model",
+                content=json.dumps(content),
+                prompt_tokens=10,
+                completion_tokens=20,
+                total_tokens=30,
+                cost=0.0,
+                raw_response={"messages": messages},
+            )
         content = "Bonjour ! Parlons de baguettes et de fromages."
         if self.counter > 1:
             content = "Très bien ! Continuons notre conversation."
@@ -59,7 +123,12 @@ class StubLLMService:
 class StubErrorDetector:
     """Return empty error detections for tests."""
 
+    def __init__(self) -> None:
+        self.result: ErrorDetectionResult | None = None
+
     def analyze(self, learner_message: str, *, learner_level: str = "B1", target_vocabulary=None, use_llm: bool = True) -> ErrorDetectionResult:  # type: ignore[override]
+        if self.result is not None:
+            return self.result
         return ErrorDetectionResult(errors=[], summary="Looks great!", metadata={"stub": True})
 
 
@@ -246,6 +315,113 @@ def test_post_message_updates_progress_and_returns_feedback(
     assert summary_payload["xp_earned"] >= turn_payload["xp_awarded"]
 
 
+def test_post_message_applies_tiny_seen_context_credit_for_unused_targets(
+    client: TestClient, french_vocabulary, stubbed_session_service, db_session
+) -> None:
+    email = "session-seen-credit@example.com"
+    token = register_and_login(client, email, "strongpass")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    start = client.post(
+        "/api/v1/sessions",
+        json={"planned_duration_minutes": 15},
+        headers=headers,
+    )
+    session_payload = start.json()
+    session_id = UUID(session_payload["session"]["id"])
+    target_word = session_payload["assistant_turn"]["targets"][0]
+
+    turn = client.post(
+        f"/api/v1/sessions/{session_id}/messages",
+        json={"content": "Je parle francais aujourd'hui."},
+        headers=headers,
+    )
+
+    assert turn.status_code == 200
+    first_feedback = turn.json()["word_feedback"][0]
+    assert first_feedback["was_used"] is False
+    assert first_feedback["rating"] is None
+
+    user = db_session.query(User).filter(User.email == email).one()
+    progress = (
+        db_session.query(UserVocabularyProgress)
+        .filter(
+            UserVocabularyProgress.user_id == user.id,
+            UserVocabularyProgress.word_id == target_word["word_id"],
+        )
+        .one()
+    )
+
+    assert progress.times_seen == 1
+    assert progress.reps == 0
+    assert db_session.query(ReviewLog).filter(ReviewLog.progress_id == progress.id).count() == 0
+
+
+def test_post_message_creates_vocab_erratum_for_incorrect_target_use(
+    client: TestClient, french_vocabulary, stubbed_session_service, db_session
+) -> None:
+    email = "session-vocab-error@example.com"
+    token = register_and_login(client, email, "strongpass")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    start = client.post(
+        "/api/v1/sessions",
+        json={"planned_duration_minutes": 15},
+        headers=headers,
+    )
+    session_payload = start.json()
+    session_id = UUID(session_payload["session"]["id"])
+    target_word = session_payload["assistant_turn"]["targets"][0]
+    stubbed_session_service["detector"].result = ErrorDetectionResult(
+        errors=[
+            DetectedError(
+                code="lexical_choice",
+                message="This target word is not natural in this sentence.",
+                span=target_word["word"],
+                suggestion=target_word["word"],
+                category="vocabulary",
+                severity="medium",
+                confidence=0.95,
+            )
+        ],
+        summary="Vocabulary needs repair.",
+        metadata={"stub": True},
+    )
+
+    turn = client.post(
+        f"/api/v1/sessions/{session_id}/messages",
+        json={"content": f"Je utilise {target_word['word']} ici."},
+        headers=headers,
+    )
+
+    assert turn.status_code == 200
+    assert turn.json()["word_feedback"][0]["had_error"] is True
+
+    user = db_session.query(User).filter(User.email == email).one()
+    progress = (
+        db_session.query(UserVocabularyProgress)
+        .filter(
+            UserVocabularyProgress.user_id == user.id,
+            UserVocabularyProgress.word_id == target_word["word_id"],
+        )
+        .one()
+    )
+    erratum = (
+        db_session.query(UserError)
+        .filter(
+            UserError.user_id == user.id,
+            UserError.linked_word_id == target_word["word_id"],
+            UserError.task_error_type == "vocabulary_incorrect_use",
+        )
+        .one()
+    )
+
+    assert progress.times_used_incorrectly == 1
+    assert progress.state == "relearning"
+    assert erratum.review_mode == "vocabulary"
+    assert erratum.source_type == "session"
+
+
 def test_post_message_returns_pending_grammar_moment_for_due_concept(
     client: TestClient,
     french_vocabulary,
@@ -375,6 +551,22 @@ def test_session_moment_endpoints_submit_skip_and_history_reconstruction(
     assert submit_payload["moment_result"]["moment_id"] == str(pending_submit.id)
     assert submit_payload["moment_result"]["is_correct"] is True
     assert submit_payload["next_moment"] is None
+    recognized_progress = (
+        db_session.query(UserVocabularyProgress)
+        .filter(
+            UserVocabularyProgress.user_id == user.id,
+            UserVocabularyProgress.word_id == vocab_word.id,
+        )
+        .one()
+    )
+    assert recognized_progress.reps == 1
+    assert (
+        db_session.query(ReviewLog)
+        .filter(ReviewLog.progress_id == recognized_progress.id)
+        .one()
+        .rating
+        == 2
+    )
 
     pending_skip = SessionLearningMoment(
         session_id=session_id,
@@ -412,3 +604,88 @@ def test_session_moment_endpoints_submit_skip_and_history_reconstruction(
     skip_payload = skip_response.json()
     assert skip_payload["moment_result"]["moment_id"] == str(pending_skip.id)
     assert skip_payload["moment_result"]["is_correct"] is None
+
+
+def test_vocab_check_wrong_answer_creates_vocab_linked_erratum(
+    client: TestClient,
+    french_vocabulary,
+    stubbed_session_service,
+    db_session,
+) -> None:
+    token = register_and_login(client, "session-vocab-check-error@example.com", "strongpass")
+    headers = {"Authorization": f"Bearer {token}"}
+    user = db_session.query(User).filter(User.email == "session-vocab-check-error@example.com").one()
+
+    start = client.post(
+        "/api/v1/sessions",
+        json={"planned_duration_minutes": 15},
+        headers=headers,
+    )
+    session_id = UUID(start.json()["session"]["id"])
+    assistant_message = (
+        db_session.query(ConversationMessage)
+        .filter(
+            ConversationMessage.session_id == session_id,
+            ConversationMessage.sender == "assistant",
+        )
+        .order_by(ConversationMessage.sequence_number.desc())
+        .one()
+    )
+    vocab_word = french_vocabulary[0]
+    pending_submit = SessionLearningMoment(
+        session_id=session_id,
+        user_id=user.id,
+        anchor_message_id=assistant_message.id,
+        kind="vocab_check",
+        source_type="vocabulary",
+        source_id=str(vocab_word.id),
+        source_deck_name="Französisch 5000::1. FR → DE",
+        status="pending",
+        prompt_payload={
+            "title": f"Quick check: {vocab_word.word}",
+            "body": f"What does `{vocab_word.word}` mean?",
+            "input_mode": "free_text",
+            "choices": [],
+            "prefill_text": None,
+            "metadata": {
+                "word_id": vocab_word.id,
+                "word": vocab_word.word,
+                "translation": vocab_word.english_translation,
+                "correct_answer": vocab_word.english_translation,
+                "accepted_answers": [vocab_word.english_translation],
+                "deck_name": "Französisch 5000::1. FR → DE",
+            },
+        },
+    )
+    db_session.add(pending_submit)
+    db_session.flush()
+    SessionService(db_session).moment_planner.sync_anchor_message_snapshot(pending_submit)
+    db_session.commit()
+
+    submit_response = client.post(
+        f"/api/v1/sessions/{session_id}/moments/{pending_submit.id}/submit",
+        json={"answer_text": "totally different"},
+        headers=headers,
+    )
+
+    assert submit_response.status_code == 200
+    assert submit_response.json()["moment_result"]["is_correct"] is False
+
+    erratum = (
+        db_session.query(UserError)
+        .filter(
+            UserError.user_id == user.id,
+            UserError.linked_word_id == vocab_word.id,
+            UserError.task_error_type == "vocabulary_incorrect_use",
+        )
+        .one()
+    )
+    progress = (
+        db_session.query(UserVocabularyProgress)
+        .filter(UserVocabularyProgress.user_id == user.id, UserVocabularyProgress.word_id == vocab_word.id)
+        .one()
+    )
+
+    assert erratum.review_mode == "vocabulary"
+    assert erratum.source_type == "session"
+    assert progress.times_used_incorrectly == 1

@@ -48,8 +48,8 @@ export default function LiveStoryPickerModal({
       setSelectedId(items[0]?.id ?? null);
       setLastRefreshAt(new Date());
     } catch (error) {
-      console.error('Failed to fetch live stories', error);
-      toast.error('Could not load live stories');
+      console.error('Failed to fetch live articles', error);
+      toast.error('Could not load live articles');
       setStories([]);
       setTopicsUsed([]);
       setSelectedId(null);
@@ -85,13 +85,13 @@ export default function LiveStoryPickerModal({
         <div className="flex items-center justify-between border-b-4 border-black bg-bauhaus-blue px-4 py-3 text-white">
           <div className="flex items-center gap-2">
             <Sparkles className="h-5 w-5" />
-            <h2 className="text-xl font-black uppercase">Pick A Live Story</h2>
+            <h2 className="text-xl font-black uppercase">Pick A Live Article</h2>
           </div>
           <button
             type="button"
             onClick={onClose}
             className="rounded border-2 border-white p-1 hover:bg-white hover:text-black"
-            aria-label="Close live story picker"
+            aria-label="Close live article picker"
           >
             <X className="h-4 w-4" />
           </button>
@@ -100,7 +100,7 @@ export default function LiveStoryPickerModal({
         <div className="space-y-4 overflow-auto p-4">
           <div className="flex items-center justify-between">
             <p className="text-sm font-bold text-gray-700">
-              Stories are fetched in your target language and matched to your topics.
+              Articles are fetched in your target language and matched to your topics.
             </p>
             <Button
               variant="outline"
@@ -143,11 +143,11 @@ export default function LiveStoryPickerModal({
 
           {isLoading ? (
             <div className="border-2 border-dashed border-black p-8 text-center font-bold">
-              Loading live stories...
+              Loading live articles...
             </div>
           ) : stories.length === 0 ? (
             <div className="border-2 border-dashed border-black p-8 text-center">
-              <p className="font-bold">No live stories available right now.</p>
+              <p className="font-bold">No live articles available right now.</p>
               <p className="mt-2 text-sm text-gray-600">You can still start a default quick session.</p>
             </div>
           ) : (
@@ -205,7 +205,7 @@ export default function LiveStoryPickerModal({
                           loading={isStarting}
                           className="border-2 border-black"
                         >
-                          Learn This Story
+                          Learn This Article
                         </Button>
                         {onStartWithStoryQuick && (
                           <Button
@@ -250,7 +250,7 @@ export default function LiveStoryPickerModal({
             loading={isStarting}
             className="border-2 border-black"
           >
-            Start Without Story
+            Start Without Article
           </Button>
           <div className="flex items-center gap-2">
             {onStartWithStoryQuick && (

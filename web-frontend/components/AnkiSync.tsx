@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { RefreshCw, Check, AlertCircle } from 'lucide-react';
+import { useAppSession } from '@/lib/app-auth';
+import { isNativePlatform } from '@/lib/native-platform';
+import apiService from '@/services/api';
 
 interface AnkiSyncProps {
     onSyncComplete?: () => void;
 }
 
-import { useSession } from 'next-auth/react';
-
 export const AnkiSync: React.FC<AnkiSyncProps> = ({ onSyncComplete }) => {
-    const { data: session } = useSession();
+    const { data: session } = useAppSession();
     const [syncing, setSyncing] = useState(false);
     const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
     const [message, setMessage] = useState('');
@@ -36,6 +37,12 @@ export const AnkiSync: React.FC<AnkiSyncProps> = ({ onSyncComplete }) => {
     };
 
     const fetchDecks = async () => {
+        if (isNativePlatform()) {
+            setStatus('error');
+            setMessage('Anki desktop sync is available in the web app.');
+            return;
+        }
+
         setSyncing(true);
         setMessage('Fetching decks...');
         try {
@@ -60,6 +67,11 @@ export const AnkiSync: React.FC<AnkiSyncProps> = ({ onSyncComplete }) => {
 
     const handleSync = async () => {
         if (!selectedDeck) return;
+        if (isNativePlatform()) {
+            setStatus('error');
+            setMessage('Anki desktop sync is available in the web app.');
+            return;
+        }
 
         setSyncing(true);
         setStatus('idle');
@@ -113,14 +125,7 @@ export const AnkiSync: React.FC<AnkiSyncProps> = ({ onSyncComplete }) => {
                     throw new Error("Not authenticated");
                 }
 
-                await axios.post('http://localhost:8000/api/v1/progress/anki/sync',
-                    { cards: flattenedUpdates },
-                    {
-                        headers: {
-                            Authorization: `Bearer ${session.accessToken}`
-                        }
-                    }
-                );
+                await apiService.post('/progress/anki/sync', { cards: flattenedUpdates });
                 processed += batch.length;
             }
 

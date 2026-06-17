@@ -30,6 +30,8 @@ class Settings(BaseSettings):
             "http://localhost",
             "http://localhost:3000",
             "http://127.0.0.1:3000",
+            "capacitor://localhost",
+            "ionic://localhost",
         ],
         description="Allowed CORS origins",
     )
@@ -45,6 +47,14 @@ class Settings(BaseSettings):
     OPENAI_ERROR_DETECTION_MODEL: str = Field(
         "gpt-5-mini",
         description="OpenAI model for exercise correction and error detection",
+    )
+    OPENAI_MISSION_FAST_MODEL: str = Field(
+        "gpt-4o-mini",
+        description="Fast OpenAI model for near-real-time mission chat replies",
+    )
+    MISSION_CHAT_TIMEOUT_SECONDS: float = Field(
+        2.0,
+        description="Short timeout for mission chat replies before falling back locally",
     )
     PERPLEXITY_API_KEY: Optional[str] = Field(None, description="API key for Perplexity search (optional)")
     SUBSTACK_FEED_URLS: str = Field(
@@ -90,6 +100,34 @@ class Settings(BaseSettings):
         True,
         description="Use LLM-backed generation and correction for Atelier when a provider is configured.",
     )
+    ATELIER_EXERCISE_LLM_MODEL: str = Field(
+        "gpt-4o-mini",
+        description="Fast model for generating Atelier exercise payloads.",
+    )
+    ATELIER_EXERCISE_LLM_TIMEOUT_SECONDS: float = Field(
+        60.0,
+        description="Single-attempt timeout for Atelier exercise generation.",
+    )
+    ATELIER_CORRECTION_LLM_ENABLED: bool = Field(
+        True,
+        description="Use LLM-backed Atelier correction for live submits, with deterministic fallback on provider failure.",
+    )
+    ATELIER_CORRECTION_LLM_MODEL: str = Field(
+        "gpt-5.4-nano",
+        description="Fast model for low-latency Atelier submit corrections.",
+    )
+    ATELIER_CORRECTION_LLM_TIMEOUT_SECONDS: float = Field(
+        5.0,
+        description="Short single-attempt timeout for optional Atelier LLM correction before deterministic fallback.",
+    )
+    ATELIER_CORRECTION_LLM_MAX_TOKENS: int = Field(
+        900,
+        description="Output token cap for live Atelier LLM correction.",
+    )
+    ATELIER_CORRECTION_LLM_REASONING_EFFORT: Optional[str] = Field(
+        None,
+        description="Optional reasoning_effort override for Atelier correction models that support it.",
+    )
     OPENAI_IMAGE_MODEL: str = Field("gpt-image-2", description="Default OpenAI image model")
     OPENAI_IMAGE_QUALITY: str = Field("medium", description="Default OpenAI image generation quality")
     OPENAI_IMAGE_SIZE: str = Field("1024x1024", description="Default OpenAI image generation size")
@@ -115,6 +153,78 @@ class Settings(BaseSettings):
         False,
         description="Generate Feuilleton panel images through OpenAI. When false, deterministic SVG panels are used.",
     )
+    GRAPHIC_NOVEL_IMAGE_STORAGE: str = Field(
+        "data_uri",
+        description="Feuilleton image persistence mode: data_uri, local, or s3.",
+    )
+    GRAPHIC_NOVEL_LOCAL_IMAGE_DIR: Path = Field(
+        Path(__file__).resolve().parent.parent / "var" / "graphic-novel-images",
+        description="Directory for locally persisted Feuilleton panel images.",
+    )
+    GRAPHIC_NOVEL_LOCAL_IMAGE_URL_PREFIX: str = Field(
+        "/media/graphic-novel",
+        description="Public URL prefix mounted for locally persisted Feuilleton panel images.",
+    )
+    GRAPHIC_NOVEL_IMAGE_S3_BUCKET: Optional[str] = Field(
+        None,
+        description="S3-compatible bucket for persisted Feuilleton panel images.",
+    )
+    GRAPHIC_NOVEL_IMAGE_S3_KEY_PREFIX: str = Field(
+        "graphic-novel",
+        description="Object key prefix for persisted Feuilleton panel images.",
+    )
+    GRAPHIC_NOVEL_IMAGE_S3_REGION: Optional[str] = Field(
+        None,
+        description="S3 region for Feuilleton panel image storage.",
+    )
+    GRAPHIC_NOVEL_IMAGE_S3_ENDPOINT_URL: Optional[str] = Field(
+        None,
+        description="Optional S3-compatible endpoint URL for Feuilleton panel image storage.",
+    )
+    GRAPHIC_NOVEL_IMAGE_S3_ACCESS_KEY_ID: Optional[str] = Field(
+        None,
+        description="Optional S3 access key for Feuilleton panel image storage.",
+    )
+    GRAPHIC_NOVEL_IMAGE_S3_SECRET_ACCESS_KEY: Optional[str] = Field(
+        None,
+        description="Optional S3 secret key for Feuilleton panel image storage.",
+    )
+    GRAPHIC_NOVEL_IMAGE_S3_PUBLIC_BASE_URL: Optional[str] = Field(
+        None,
+        description="Optional public base URL for S3-compatible Feuilleton panel images.",
+    )
+    GRAPHIC_NOVEL_IMAGE_S3_ACL: Optional[str] = Field(
+        None,
+        description="Optional object ACL for S3-compatible Feuilleton panel images.",
+    )
+    GRAPHIC_NOVEL_DEMO_SCRIPT_ENABLED: bool = Field(
+        False,
+        description="Dev/QA only: generate a deterministic Feuilleton script when the story LLM is disabled.",
+    )
+    FEUILLETON_AUDIO_ENABLED: bool = Field(
+        False,
+        description="Generate pre-rendered serial Feuilleton narration/audio for panel captions and dialogue.",
+    )
+    FEUILLETON_AUDIO_TTS_MODEL: str = Field(
+        "tts-1-hd",
+        description="TTS model used when serial Feuilleton audio generation is enabled.",
+    )
+    FEUILLETON_AUDIO_COST_USD_PER_1K_CHARS: float = Field(
+        0.015,
+        description="Estimated TTS cost per 1,000 characters for serial Feuilleton audio rollups.",
+    )
+    FEUILLETON_AUDIO_MAX_CHARS_PER_SCENE: int = Field(
+        2400,
+        description="Maximum serial Feuilleton text-to-speech characters generated per scene.",
+    )
+    SERIAL_WORLD_ENABLED: bool = Field(
+        False,
+        description="Enable the serial Missions x Feuilleton spine. Defaults dark for staged rollout.",
+    )
+    SERIAL_PHONE_CALL_MISSIONS_ENABLED: bool = Field(
+        False,
+        description="Enable experimental phone-call mission formats inside the serial planner.",
+    )
 
     model_config = SettingsConfigDict(
         env_file=Path(__file__).resolve().parent.parent / ".env",
@@ -130,6 +240,16 @@ class Settings(BaseSettings):
         if isinstance(value, str) and not value.strip():
             return None
         return value
+
+    @field_validator("GRAPHIC_NOVEL_IMAGE_STORAGE")
+    @classmethod
+    def validate_graphic_novel_image_storage(cls, value: str) -> str:
+        """Restrict Feuilleton image storage to the supported backends."""
+
+        normalized = value.strip().lower()
+        if normalized not in {"data_uri", "local", "s3"}:
+            raise ValueError("GRAPHIC_NOVEL_IMAGE_STORAGE must be one of: data_uri, local, s3")
+        return normalized
 
 
 @lru_cache()
