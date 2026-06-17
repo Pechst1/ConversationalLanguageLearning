@@ -10,11 +10,30 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     """Global application settings loaded from environment variables."""
 
+    APP_ENV: str = Field("development", description="Runtime environment name, e.g. development/staging/production.")
     PROJECT_NAME: str = "Conversational Language Learning"
     API_V1_STR: str = "/api/v1"
     SECRET_KEY: str = Field(..., description="JWT secret key")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
+    PASSWORD_RESET_TOKEN_TTL_MINUTES: int = Field(
+        60,
+        description="How long one-time password reset links remain valid.",
+    )
+    PASSWORD_RESET_BASE_URL: str = Field(
+        "http://localhost:3000/auth/forgot-password",
+        description="Frontend URL used as the base for password reset links.",
+    )
+    PASSWORD_RESET_RETURN_TOKEN_IN_RESPONSE: bool = Field(
+        False,
+        description="Dev/test only: include the raw reset token in the API response.",
+    )
+    SMTP_HOST: Optional[str] = None
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: Optional[str] = None
+    SMTP_PASSWORD: Optional[str] = None
+    SMTP_FROM_EMAIL: Optional[str] = None
+    SMTP_USE_TLS: bool = True
 
     DATABASE_URL: AnyUrl = Field(
         "postgresql+psycopg2://postgres:postgres@localhost:5432/language_learning",

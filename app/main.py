@@ -4,8 +4,8 @@ from __future__ import annotations
 from typing import List
 
 from fastapi import FastAPI, Request, status
-from fastapi.exceptions import RequestValidationError
 from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -13,7 +13,6 @@ from loguru import logger
 
 from app.api.v1 import api_router
 from app.config import settings
-
 
 tags_metadata: List[dict[str, str]] = [
     {"name": "auth", "description": "Register users and issue authentication tokens."},
@@ -60,6 +59,17 @@ def create_app() -> FastAPI:
         )
 
     app.include_router(api_router, prefix=settings.API_V1_STR)
+
+    @app.on_event("startup")
+    async def _validate_auth_production_settings() -> None:
+        if settings.APP_ENV.strip().lower() != "production":
+            return
+        if settings.AUTO_CREATE_USERS_ON_LOGIN:
+            raise RuntimeError("AUTO_CREATE_USERS_ON_LOGIN must be false in production.")
+        if settings.PASSWORD_RESET_RETURN_TOKEN_IN_RESPONSE:
+            raise RuntimeError("PASSWORD_RESET_RETURN_TOKEN_IN_RESPONSE must be false in production.")
+        if not settings.SMTP_HOST or not settings.SMTP_FROM_EMAIL:
+            raise RuntimeError("SMTP_HOST and SMTP_FROM_EMAIL are required for password reset in production.")
 
     @app.on_event("startup")
     async def _warn_serial_story_llm_missing() -> None:

@@ -909,6 +909,12 @@ export interface GraphicNovelAttemptResult {
   scene: GraphicNovelScene;
 }
 
+export interface PasswordResetRequestResponse {
+  message: string;
+  reset_token?: string | null;
+  reset_url?: string | null;
+}
+
 function apiErrorMessage(error: any): string {
   const detail = error?.response?.data?.detail;
   if (typeof detail === 'string') return detail;
@@ -1136,6 +1142,20 @@ class ApiService {
 
   async logout(refreshToken?: string | null) {
     return this.post('/auth/logout', refreshToken ? { refresh_token: refreshToken } : {});
+  }
+
+  async requestPasswordReset(data: { email: string }) {
+    return this.post<PasswordResetRequestResponse>('/auth/password-reset/request', data, {
+      skipAuth: true,
+      suppressGlobalError: true,
+    } as SilentRequestConfig);
+  }
+
+  async confirmPasswordReset(data: { token: string; new_password: string }) {
+    return this.post<void>('/auth/password-reset/confirm', data, {
+      skipAuth: true,
+      suppressGlobalError: true,
+    } as SilentRequestConfig);
   }
 
   // User endpoints

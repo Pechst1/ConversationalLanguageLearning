@@ -85,6 +85,28 @@ jobs:
           npm run build
           npm run build:native
 
+      - name: Mobile viewport smoke
+        working-directory: web-frontend
+        env:
+          CAPTURE_FRAMES: mobile-primitives-static
+          CAPTURE_SKIP_AUTH: 'true'
+          CAPTURE_VIEWPORTS: 390x844:compact,440x956:wide
+          CAPTURE_DIR: /tmp/mobile-visual-checks
+          CHROME_PATH: google-chrome
+          FRONTEND_URL: http://127.0.0.1:3000
+        run: |
+          npm run dev -- --hostname 127.0.0.1 --port 3000 > /tmp/atelier-next.log 2>&1 &
+          SERVER_PID=$!
+          trap "kill $SERVER_PID" EXIT
+          for attempt in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:3000/mobile-visual-qa >/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:3000/mobile-visual-qa >/dev/null
+          npm run capture:mobile
+
       - name: Verify Alembic migrations
         run: |
           alembic upgrade head

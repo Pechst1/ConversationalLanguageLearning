@@ -16,6 +16,7 @@ const remotePort = Number(process.env.CHROME_DEBUG_PORT || 9333 + Math.floor(Mat
 const previewEmail = process.env.PREVIEW_EMAIL || `mobile-capture-${Date.now()}@example.com`;
 const previewPassword = process.env.PREVIEW_PASSWORD || 'previewsecurepassword';
 const previewTheme = process.env.PREVIEW_THEME || 'light';
+const failOnCaptureError = process.env.CAPTURE_ALLOW_FAILURES !== 'true';
 
 function parseViewportSpec(spec) {
   const [size, label = 'mobile'] = spec.split(':');
@@ -763,4 +764,9 @@ try {
   chrome.kill('SIGTERM');
   await writeFile(path.join(captureDir, 'manifest.json'), JSON.stringify(manifest, null, 2));
   console.log(`manifest ${path.join(captureDir, 'manifest.json')}`);
+  const failedRequiredFrames = manifest.frames.filter((frame) => frame.ok === false);
+  if (failOnCaptureError && failedRequiredFrames.length > 0) {
+    console.error(`capture failed for ${failedRequiredFrames.length} required frame(s)`);
+    process.exitCode = 1;
+  }
 }

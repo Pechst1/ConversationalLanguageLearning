@@ -73,6 +73,27 @@ class UserLogin(BaseModel):
     password: str
 
 
+class PasswordResetRequest(BaseModel):
+    """Request a password reset link for an account email."""
+
+    email: EmailStr
+
+
+class PasswordResetRequestResponse(BaseModel):
+    """Enumeration-safe password reset request response."""
+
+    message: str
+    reset_token: Optional[str] = None
+    reset_url: Optional[str] = None
+
+
+class PasswordResetConfirm(BaseModel):
+    """Confirm a password reset with a one-time token."""
+
+    token: str = Field(min_length=16, max_length=256)
+    new_password: str = Field(min_length=8, max_length=128)
+
+
 class UserRead(UserBase):
     """Schema returned after user registration or retrieval."""
 
