@@ -3,6 +3,10 @@
 import asyncio
 import os
 from collections.abc import AsyncGenerator, Generator
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:  # pragma: no cover - import only for static analysis
+    import httpx
 
 os.environ.setdefault("SECRET_KEY", "test-secret-key")
 os.environ.setdefault("ATELIER_LLM_ENABLED", "false")
@@ -26,14 +30,17 @@ from app.db.models import RefreshToken, User, VocabularyWord
 from app.db.models.analytics import AnalyticsSnapshot
 from app.db.models.atelier import (
     AtelierAttempt,
+    AtelierCollectible,
     AtelierConceptBlueprint,
     AtelierExerciseSet,
+    AtelierGenerationEvent,
     AtelierLanguagePack,
     AtelierSession,
 )
 from app.db.models.error import UserError, UserErrorConcept
 from app.db.models.cefr import UserCEFRProgressHistory
 from app.db.models.mission import RealWorldMission, RealWorldMissionAttempt, RealWorldMissionTurn
+from app.db.models.library import BookEpisode, UserBook
 from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.graphic_novel import (
     GraphicNovelAttempt,
@@ -89,12 +96,16 @@ def db_engine():
             AtelierLanguagePack.__table__,
             AtelierConceptBlueprint.__table__,
             AtelierSession.__table__,
+            AtelierCollectible.__table__,
             AtelierExerciseSet.__table__,
+            AtelierGenerationEvent.__table__,
             AtelierAttempt.__table__,
             SerialThread.__table__,
             RealWorldMission.__table__,
             RealWorldMissionAttempt.__table__,
             RealWorldMissionTurn.__table__,
+            UserBook.__table__,
+            BookEpisode.__table__,
             PersonalInputItem.__table__,
             GraphicNovelScene.__table__,
             GraphicNovelPanel.__table__,
@@ -130,12 +141,16 @@ def db_engine():
                 GraphicNovelPanel.__table__,
                 GraphicNovelScene.__table__,
                 PersonalInputItem.__table__,
+                BookEpisode.__table__,
+                UserBook.__table__,
                 RealWorldMissionTurn.__table__,
                 RealWorldMissionAttempt.__table__,
                 RealWorldMission.__table__,
                 SerialThread.__table__,
                 AtelierAttempt.__table__,
+                AtelierGenerationEvent.__table__,
                 AtelierExerciseSet.__table__,
+                AtelierCollectible.__table__,
                 AtelierSession.__table__,
                 AtelierConceptBlueprint.__table__,
                 AtelierLanguagePack.__table__,

@@ -29,6 +29,8 @@ celery_app = Celery(
         "app.tasks.achievements",
         "app.tasks.anki_sync",
         "app.tasks.serial_generation",
+        "app.tasks.atelier",
+        "app.tasks.book_library",
     ],
 )
 
@@ -65,6 +67,10 @@ celery_app.conf.beat_schedule = {
     "sync-anki-cards-daily": {
         "task": "app.tasks.anki_sync.sync_anki_cards_for_all_users",
         "schedule": crontab(hour=4, minute=0),  # 4 AM daily
+    },
+    "audit-atelier-word-banks-weekly": {
+        "task": "app.tasks.atelier.audit_atelier_word_banks",
+        "schedule": crontab(hour=4, minute=30, day_of_week=1),
     },
 }
 

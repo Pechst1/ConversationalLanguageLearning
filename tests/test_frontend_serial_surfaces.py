@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 WEB = ROOT / "web-frontend"
 
@@ -19,8 +18,10 @@ def test_serial_archive_cast_and_replay_pages_are_wired() -> None:
     api = read_web("services/api.ts")
 
     assert "apiService.getSerialEpisodes()" in archive
-    assert "Season {seasonNumber}" in archive
-    assert "SeasonProgressStrip" in archive
+    assert "'Season ' + seasonNumber" in archive
+    assert 'className="s-map"' in archive
+    assert "aria-label={`Season ${seasonNumber} thread`}" in archive
+    assert 'className="s-ep-link"' in archive
     assert "href=\"/serial/cast\"" in archive
     assert "apiService.getSerialCast()" in cast
     assert "apiService.setSerialAvatar" in cast
@@ -46,6 +47,16 @@ def test_graphic_novel_serial_page_keeps_bubbles_and_panel_tasks_inline() -> Non
     assert "<details className=\"feuilleton-vocabulary-strip\"" in source
     assert "display: block;" in source[source.index(".feuilleton-page .bubble-layer") : source.index(".feuilleton-page .mobile-panel-dialogue")]
     assert "choiceOptionView" in source
+
+
+def test_graphic_novel_scene_leads_with_panels_before_brief() -> None:
+    source = read_web("pages/graphic-novel.tsx")
+
+    assert source.index("<SerialSceneReader") < source.index("<SceneBrief scene={scene}")
+    assert "className=\"serial-reader s-feuil\"" in source
+    assert "function SerialFinalAct" in source
+    assert source.index(") : scene.script_payload?.render_mode === 'page' ?") < source.index("<SceneBrief scene={scene}")
+    assert source.index('className="panel-grid" id="reading-panels"') < source.index("<SceneBrief scene={scene}")
 
 
 def test_product_direction_surfaces_are_wired() -> None:

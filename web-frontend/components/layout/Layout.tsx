@@ -13,7 +13,9 @@ import {
 import { resolveBrowserApiBaseUrl } from '@/services/api';
 import { cn } from '@/lib/utils';
 import { useAppSession } from '@/lib/app-auth';
+import { isNativePlatform } from '@/lib/native-platform';
 import { resolveProductSection, routeUsesOwnProductShell } from '@/lib/product-shell';
+import { installViewportMetrics } from '@/lib/viewport-metrics';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -33,6 +35,20 @@ export default function Layout({ children, showSidebar = true, className }: Layo
   useEffect(() => {
     const stored = readStoredVisualSettings();
     applyVisualSettings(stored.theme, stored.fontSize);
+  }, []);
+
+  useEffect(() => installViewportMetrics(), []);
+
+  useEffect(() => {
+    if (!isNativePlatform()) return;
+    // Mark the document so native-only polish (no zoom, hidden scrollbars,
+    // no overscroll bounce/tap-highlight) applies without degrading the web build.
+    document.documentElement.classList.add('is-native');
+    const viewport = document.querySelector('meta[name="viewport"]');
+    viewport?.setAttribute(
+      'content',
+      'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover',
+    );
   }, []);
 
   useEffect(() => {
@@ -63,7 +79,7 @@ export default function Layout({ children, showSidebar = true, className }: Layo
   }, [session?.accessToken, status]);
 
   return (
-    <div className="min-h-screen bg-[var(--app-paper)] text-[var(--app-ink)]">
+    <div className="app-root min-h-screen bg-[var(--app-paper)] text-[var(--app-ink)]">
       <Toaster
         position="top-right"
         toastOptions={{
@@ -87,7 +103,7 @@ export default function Layout({ children, showSidebar = true, className }: Layo
 
       {showsNavigation && <EditorialMasthead active={activeSection} />}
 
-      <main className={cn('min-h-screen flex flex-col', className)}>
+      <main className={cn('app-main-shell min-h-screen flex flex-col', className)}>
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={router.asPath}
@@ -95,7 +111,7 @@ export default function Layout({ children, showSidebar = true, className }: Layo
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -12 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
-            className="w-full flex-1 flex flex-col"
+            className="app-route-shell w-full flex-1 flex flex-col"
           >
             {usesOwnShell || !showsNavigation ? children : <div className="app-page-frame w-full flex-1 flex flex-col">{children}</div>}
           </motion.div>

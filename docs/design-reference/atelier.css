@@ -1,0 +1,330 @@
+/* ============================================================
+   ATELIER — "Today's Edition" roadmap system
+   Editorial / fine-print register. Two type voices only:
+   · EB Garamond, italic  → display
+   · Inter, caps, .13em    → labels & meta
+   Spot color is set like a press: ink structure, one yellow
+   plate for "current", red as imprimatur/CTA, blue for reference.
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..800;1,400..700&family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+:root {
+  --paper: #f1ece1;
+  --paper-2: #e8e0cf;
+  --paper-3: #d8cdb6;
+  --sheet: #f8f3e8;
+  --ink: #14110d;
+  --ink-2: #4a4538;
+  --ink-3: #8a826f;
+  --blue: #1d3a8a;
+  --red: #d8321a;
+  --yellow: #f3c318;
+  --serif: "EB Garamond", Garamond, "Times New Roman", serif;
+  --grotesk: "Inter", "Helvetica Neue", Arial, sans-serif;
+}
+
+/* ---- phone shell --------------------------------------------------- */
+.ph {
+  position: relative;
+  width: 380px;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--grotesk);
+  -webkit-font-smoothing: antialiased;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.ph * { box-sizing: border-box; }
+
+.ph-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 54px;
+  padding: 8px 16px 10px;
+  border-bottom: 1px solid var(--ink);
+  background: var(--paper);
+  flex: 0 0 auto;
+}
+.ph-head .mark { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); }
+.ph-head .ttl {
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 23px;
+  line-height: 1;
+  letter-spacing: 0;
+}
+.ph-head .gear {
+  position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
+  width: 36px; height: 36px;
+  border: 1px solid var(--ink);
+  background: var(--sheet);
+  display: grid; place-items: center;
+}
+.ph-head .gear svg { width: 18px; height: 18px; }
+
+.ph-body {
+  flex: 1 1 auto;
+  padding: 16px 22px 22px;
+}
+.ph-body.center { display: flex; flex-direction: column; }
+
+/* ---- bottom nav ---------------------------------------------------- */
+.ph-nav {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  min-height: 62px;
+  border-top: 1px solid var(--ink);
+  background: var(--paper);
+}
+.ph-nav a {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 5px;
+  text-decoration: none;
+  color: var(--ink-3);
+  font-size: 10px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase;
+  border-top: 2px solid transparent; margin-top: -1px;
+}
+.ph-nav a svg { width: 22px; height: 22px; }
+.ph-nav a.active { color: var(--ink); background: var(--sheet); border-top-color: var(--ink); }
+
+/* center-action nav variant */
+.ph-nav.three { grid-template-columns: 1fr auto 1fr; min-height: 64px; align-items: stretch; }
+.ph-nav .center-act {
+  align-self: center;
+  margin: 0 6px;
+  transform: translateY(-14px);
+  width: 70px; height: 70px;
+  background: var(--red);
+  color: #fff;
+  border: 1.5px solid var(--ink);
+  box-shadow: 4px 4px 0 var(--ink);
+  display: grid; place-items: center; gap: 0;
+  text-decoration: none;
+}
+.ph-nav .center-act .lbl { font-size: 8.5px; font-weight: 900; letter-spacing: .12em; margin-top: 2px; }
+.ph-nav .center-act svg { width: 22px; height: 22px; }
+
+/* ---- edition line (masthead of the page) --------------------------- */
+.edition {
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 16px;
+  padding-bottom: 13px;
+  border-bottom: 1px solid var(--ink);
+}
+.edition .rubric { font-size: 9.5px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; color: var(--red); }
+.edition .rubric.muted { color: var(--ink-3); }
+.edition h1 {
+  margin: 4px 0 0;
+  font-family: var(--serif); font-style: italic; font-weight: 600;
+  font-size: 30px; line-height: .92; letter-spacing: 0; color: var(--ink);
+}
+.edition .sub { margin-top: 5px; font-size: 11px; color: var(--ink-3); font-weight: 500; }
+
+/* streak stamp — a small bordered "register" */
+.stamp { flex: 0 0 auto; border: 1px solid var(--ink); background: var(--sheet); padding: 7px 9px 6px; text-align: center; }
+.stamp .cap { font-size: 8px; font-weight: 900; letter-spacing: .14em; color: var(--ink-3); }
+.stamp .n { font-family: var(--serif); font-style: italic; font-weight: 700; font-size: 24px; line-height: .85; margin: 1px 0 4px; }
+.stamp .rules { display: flex; gap: 2px; justify-content: center; }
+.stamp .rules i { width: 2px; height: 11px; background: var(--paper-3); }
+.stamp .rules i.on { background: var(--ink); }
+
+/* ---- the spine ----------------------------------------------------- */
+.spine { position: relative; margin-top: 18px; }
+
+.step {
+  position: relative;
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  column-gap: 16px;
+  align-items: start;
+  min-height: 66px;
+  padding-bottom: 4px;
+}
+/* the binding rule — full-height vertical line through plate centre.
+   colour by the node's own state: inked once reached, dashed ahead. */
+.step::before {
+  content: "";
+  position: absolute;
+  left: 25px; top: 0; bottom: 0;
+  border-left: 2px solid var(--ink);
+  z-index: 0;
+}
+.step.up::before { border-left: 1.5px dashed var(--ink-3); }
+.step.is-first::before { top: 26px; }
+.step.is-last::before { bottom: calc(100% - 26px); }
+
+/* plate (type-sort) */
+.plate {
+  position: relative; z-index: 1;
+  width: 52px; height: 52px;
+  border: 1.5px solid var(--ink);
+  background: var(--paper);
+  display: grid; place-items: center;
+  font-family: var(--grotesk); font-weight: 900; font-size: 14px; letter-spacing: .04em;
+  color: var(--ink);
+}
+.plate.done { background: var(--ink); color: var(--paper); }
+.plate.up { border-color: var(--ink-3); color: var(--ink-3); background: var(--paper); }
+.plate.current { background: var(--yellow); color: var(--ink); box-shadow: 6px 6px 0 var(--red); }
+.plate.review.live { background: var(--red); color: #fff; }
+.plate svg { width: 20px; height: 20px; }
+
+/* count badge on review plate */
+.plate .badge {
+  position: absolute; top: -8px; right: -8px;
+  min-width: 22px; height: 22px; padding: 0 5px;
+  background: var(--red); color: #fff;
+  border: 1.5px solid var(--ink);
+  display: grid; place-items: center;
+  font-size: 11px; font-weight: 900; z-index: 2;
+}
+
+/* node copy */
+.node { padding-top: 5px; min-width: 0; }
+.node .name { font-size: 16px; font-weight: 800; line-height: 1.04; letter-spacing: -.01em; color: var(--ink); }
+.step.done .node .name { color: var(--ink-2); }
+.step.up .node .name { color: var(--ink-3); font-weight: 700; }
+.node .meta { margin-top: 4px; font-size: 9.5px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); }
+.node .meta.go { color: var(--red); }
+
+/* current node expands into a working panel: foci + dominant CTA */
+.current-panel { margin-top: 12px; }
+.current-panel .label { font-size: 9px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-3); }
+.foci { margin: 7px 0 14px; display: grid; gap: 4px; }
+.foci .f { font-family: var(--serif); font-style: italic; font-size: 17px; line-height: 1.12; color: var(--ink); padding-left: 11px; border-left: 2px solid var(--blue); }
+
+/* dominant primary CTA — outranks every node on the page */
+.cta {
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  width: 100%;
+  min-height: 58px;
+  padding: 0 20px;
+  background: var(--red); color: #fff;
+  border: 1.5px solid var(--ink);
+  box-shadow: 6px 6px 0 var(--ink);
+  text-decoration: none;
+  font-size: 14px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase;
+}
+.cta.ink { background: var(--ink); }
+.cta svg { width: 18px; height: 18px; }
+
+/* ---- branch off the spine: side quests (extra credit) -------------- */
+.branch { position: relative; margin-top: 4px; padding-top: 18px; }
+/* the spine concludes with a short elbow that hands off to the margin notes */
+.branch::before {
+  content: ""; position: absolute; left: 25px; top: 0; height: 26px;
+  border-left: 2px solid var(--ink);
+}
+.branch::after {
+  content: ""; position: absolute; left: 25px; top: 26px; width: 22px;
+  border-top: 2px solid var(--ink);
+}
+.branch-head { margin: 0 0 12px 0; padding-left: 60px; }
+.branch-head .t { font-size: 9.5px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-3); }
+
+.quest {
+  position: relative;
+  display: grid; grid-template-columns: 56px minmax(0,1fr); column-gap: 15px; align-items: center;
+  border: 1px solid var(--ink);
+  background: var(--sheet);
+  padding: 14px 16px;
+  margin-bottom: 13px;
+  text-decoration: none; color: var(--ink);
+}
+.quest.recommended { background: var(--paper); box-shadow: 5px 5px 0 var(--ink); }
+.quest.recommended::after {
+  content: ""; position: absolute; top: -1px; right: -1px;
+  border-width: 0 18px 18px 0; border-style: solid; border-color: transparent var(--red) transparent transparent;
+}
+.quest .shape { width: 50px; height: 50px; overflow: visible; }
+.quest .shape path, .quest .shape circle { stroke: var(--ink); stroke-width: 3; }
+.quest .shape.triangle path { fill: var(--red); }
+.quest .shape.circle circle { fill: var(--blue); }
+.quest .tag { font-size: 8.5px; font-weight: 900; letter-spacing: .15em; text-transform: uppercase; color: var(--ink-3); }
+.quest .tag b { color: var(--red); }
+.quest h3 { margin: 2px 0 4px; font-family: var(--serif); font-style: italic; font-weight: 600; font-size: 21px; line-height: 1; }
+.quest p { margin: 0; font-size: 11.5px; line-height: 1.32; color: var(--ink-2); }
+
+/* ---- rest state ("edition closed") -------------------------------- */
+.closed { display: block; text-align: center; padding: 46px 8px 30px; }
+.closed .rubric { font-size: 10px; font-weight: 900; letter-spacing: .18em; text-transform: uppercase; color: var(--ink-3); }
+.closed .endmark { width: 16px; height: 16px; background: var(--ink); margin: 18px auto 16px; }
+.closed h2 { margin: 0 auto; max-width: 280px; font-family: var(--serif); font-style: italic; font-weight: 600; font-size: 37px; line-height: 1.02; color: var(--ink); }
+.closed .lead { margin: 18px auto 0; max-width: 248px; font-size: 12.5px; line-height: 1.5; color: var(--ink-2); }
+.closed .ledger { margin: 28px auto 0; width: 100%; max-width: 280px; border-top: 1px solid var(--ink); }
+.closed .ledger .row { display: flex; align-items: center; justify-content: space-between; padding: 9px 2px; border-bottom: 1px solid var(--paper-3); }
+.closed .ledger .row span { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
+.closed .ledger .row b { font-family: var(--serif); font-style: italic; font-weight: 600; font-size: 16px; color: var(--ink); display: inline-flex; align-items: center; gap: 7px; }
+.closed .ledger .row b svg { width: 15px; height: 15px; }
+.closed .free { margin-top: 30px; white-space: nowrap; font-size: 11px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; color: var(--ink); display: inline-flex; align-items: center; gap: 9px; text-decoration: none; border-bottom: 1.5px solid var(--ink); padding-bottom: 4px; }
+.closed .free svg { width: 14px; height: 14px; }
+.closed .datestamp { display: inline-block; margin-top: 22px; border: 1px solid var(--ink-3); color: var(--ink-3); font-size: 9px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; padding: 5px 10px; transform: rotate(-3deg); }
+
+/* ---- review expanded inner rows ----------------------------------- */
+.review-open { margin-top: 12px; border: 1px solid var(--ink); background: var(--sheet); }
+.review-open .r {
+  display: grid; grid-template-columns: 18px 1fr auto; align-items: center; gap: 12px;
+  padding: 13px 15px; border-bottom: 1px solid var(--paper-3);
+}
+.review-open .r:last-child { border-bottom: 0; }
+.review-open .r .dot { width: 12px; height: 12px; }
+.review-open .r .dot.vocab { background: var(--blue); }
+.review-open .r .dot.errata { width: 0; height: 0; background: none; border-style: solid; border-width: 0 7px 12px 7px; border-color: transparent transparent var(--red) transparent; }
+.review-open .r .lab { min-width: 0; }
+.review-open .r .lab b { display: block; font-size: 13px; font-weight: 800; }
+.review-open .r .lab em { font-style: normal; font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
+.review-open .r .ct { font-family: var(--serif); font-style: italic; font-weight: 700; font-size: 22px; }
+
+/* ---- spec / kit board (paper sheet, not a phone) ------------------- */
+.board {
+  box-sizing: border-box;
+  width: 480px;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--grotesk);
+  padding: 30px 32px 36px;
+  -webkit-font-smoothing: antialiased;
+}
+.board * { box-sizing: border-box; }
+.board .crop { position: relative; }
+.board-head { border-bottom: 2px solid var(--ink); padding-bottom: 16px; margin-bottom: 22px; }
+.board-head .k { font-size: 10px; font-weight: 900; letter-spacing: .18em; text-transform: uppercase; color: var(--red); }
+.board-head h2 { margin: 6px 0 0; font-family: var(--serif); font-style: italic; font-weight: 600; font-size: 34px; line-height: .95; }
+.board-head p { margin: 8px 0 0; font-size: 12.5px; line-height: 1.45; color: var(--ink-2); max-width: 360px; }
+
+.kit-row { display: grid; grid-template-columns: 150px 1fr; gap: 22px; padding: 22px 0; border-bottom: 1px solid var(--paper-3); align-items: start; }
+.kit-row:last-child { border-bottom: 0; }
+.kit-row .ksample { display: flex; }
+.kit-row .kdesc .kt { font-size: 10px; font-weight: 900; letter-spacing: .15em; text-transform: uppercase; color: var(--ink); }
+.kit-row .kdesc p { margin: 7px 0 0; font-size: 12px; line-height: 1.45; color: var(--ink-2); }
+.kit-row .kdesc .tokens { margin-top: 9px; display: flex; flex-wrap: wrap; gap: 6px; }
+.kit-row .kdesc .tokens span { font-size: 9.5px; font-weight: 800; letter-spacing: .04em; border: 1px solid var(--ink); padding: 3px 7px; background: var(--sheet); }
+
+/* swatch grid for color spec */
+.swatches { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+.sw { border: 1px solid var(--ink); }
+.sw .chip { height: 64px; display: flex; align-items: flex-end; padding: 8px; }
+.sw .chip b { font-size: 10px; font-weight: 900; letter-spacing: .1em; }
+.sw .meta { padding: 8px 9px 9px; border-top: 1px solid var(--ink); background: var(--paper); }
+.sw .meta .nm { font-size: 11px; font-weight: 900; letter-spacing: .04em; }
+.sw .meta .role { font-size: 10px; line-height: 1.35; color: var(--ink-2); margin-top: 3px; }
+.sw .meta .hex { font-family: var(--grotesk); font-size: 9.5px; font-weight: 700; color: var(--ink-3); letter-spacing: .05em; margin-top: 4px; }
+
+/* type spec rows */
+.type-row { padding: 16px 0; border-bottom: 1px solid var(--paper-3); }
+.type-row:last-child { border-bottom: 0; }
+.type-row .demo-serif { font-family: var(--serif); font-style: italic; font-weight: 600; font-size: 34px; line-height: 1; }
+.type-row .demo-mono { font-family: var(--grotesk); font-weight: 900; font-size: 13px; letter-spacing: .14em; text-transform: uppercase; }
+.type-row .spec { margin-top: 8px; font-size: 11px; color: var(--ink-3); font-weight: 700; letter-spacing: .04em; }
+
+/* annotation tag used on kit boards */
+.note { font-size: 10px; font-weight: 800; letter-spacing: .04em; line-height: 1.4; color: var(--ink-2); }
+.note .pin { color: var(--red); font-weight: 900; }
+
+/* small standalone spine fragment used in the kit */
+.frag { position: relative; padding-left: 0; }

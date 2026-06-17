@@ -13,7 +13,8 @@ from typing import Any
 from fastapi.testclient import TestClient
 
 from app.config import settings
-from app.db.models.graphic_novel import GraphicNovelScene
+from app.db.models.atelier import AtelierCollectible
+from app.db.models.graphic_novel import GraphicNovelPanel, GraphicNovelScene
 from app.db.models.mission import RealWorldMission, RealWorldMissionAttempt
 from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.user import User
@@ -744,6 +745,93 @@ def test_legacy_feuilleton_completion_backfills_brief_payload(db_session, monkey
         for character_id in required_cast
         if character_id in thread.state["relationships"]
     )
+
+
+def test_feuilleton_completion_mints_story_seal_with_crop(db_session, monkeypatch):
+    monkeypatch.setattr(SerialThreadService, "_enqueue_next_beat", lambda self, thread_id: None)
+    user = _user(db_session, email="serial-story-seal@example.com")
+    thread = _run(SerialThreadService(db_session).get_or_create_thread(user))
+    thread.current_episode_index = 1
+    db_session.add(thread)
+    db_session.flush()
+    scene = GraphicNovelScene(
+        user_id=user.id,
+        serial_thread_id=thread.id,
+        episode_index=1,
+        status="available",
+        cadence="serial",
+        title="Le papier cachete",
+        brief="A test scene with a seal-worthy panel.",
+        selected_concept_ids=[],
+        target_errata_ids=[],
+        target_vocabulary_ids=[],
+        source_snapshot={},
+        script_payload={
+            "title": "Le papier cachete",
+            "location_id": "le_mistral",
+            "panels": [],
+            "hook": {
+                "text": "Romy voit une signature impossible.",
+                "unresolved_question": "Who signed it?",
+                "next_beat_kind": "mission",
+                "teaser": "Demain : répondre.",
+            },
+        },
+        recap_payload={},
+        cache_key=f"serial-story-seal-{uuid4().hex}",
+        prompt_version="test",
+        image_model="test",
+        image_quality="medium",
+    )
+    db_session.add(scene)
+    db_session.flush()
+    db_session.add(
+        GraphicNovelPanel(
+            scene_id=scene.id,
+            panel_index=1,
+            title="The reveal",
+            beat="Romy lifts the paper.",
+            image_prompt="A square panel.",
+            image_url="https://example.test/panel.png",
+            image_payload={"url": "https://example.test/panel.png"},
+            overlay_payload={},
+            generation_metadata={
+                "seal_crop": {
+                    "kind": "panel_crop",
+                    "panel_index": 1,
+                    "focal_point": {"x": 0.42, "y": 0.35},
+                    "region": {"x": 0.2, "y": 0.1, "width": 0.6, "height": 0.6},
+                    "image_url": "https://example.test/panel.png",
+                }
+            },
+        )
+    )
+    db_session.add(
+        SerialEpisode(
+            thread_id=thread.id,
+            episode_index=1,
+            kind="feuilleton",
+            scene_id=scene.id,
+            hook={},
+            hook_from_previous={},
+            state_delta={},
+            status="available",
+            brief_payload={},
+        )
+    )
+    db_session.commit()
+    db_session.refresh(thread)
+
+    result = _run(SerialThreadService(db_session).apply_completion(thread, scene=scene))
+
+    minted = result["minted_collectibles"]
+    assert minted[0]["kind"] == "story_seal"
+    assert minted[0]["metadata"]["seal_crop"]["focal_point"] == {"x": 0.42, "y": 0.35}
+    assert minted[0]["metadata"]["seal_crop"]["image_url"] == "https://example.test/panel.png"
+    assert db_session.query(AtelierCollectible).filter(
+        AtelierCollectible.user_id == user.id,
+        AtelierCollectible.kind == "story_seal",
+    ).count() == 1
 
 
 def test_delayed_feuilleton_retries_without_duplicate_episode(db_session, monkeypatch):

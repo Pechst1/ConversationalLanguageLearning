@@ -1,0 +1,370 @@
+/* ============================================================
+   ATELIER — SERIAL WORLD
+   Extends "Today's Edition" into the act → see loop.
+   No new visual language: same paper/ink, same two type voices,
+   same press-ink discipline. The ONE addition is the character
+   accent palette — each recurring character owns a single spot
+   ink that follows them into every bubble, chip and panel rule.
+   ============================================================ */
+
+:root {
+  /* character accent palette — muted press inks, one per cast member */
+  --char-marin:    #2c6a5d; /* Marin Lévêque · sea green   */
+  --char-lila:     #c2890f; /* Lila Bonnet · marigold      */
+  --char-gus:      #8a2f2a; /* Augustin "Gus" · burgundy   */
+  --char-romy:     #1d3a8a; /* Romy Tremblay · cold blue   */
+  --char-margaux:  #a85d24; /* Margaux · warm amber        */
+  --char-marchand: #5b5346; /* M. Marchand · ink-grey      */
+  --char-toi:      #14110d; /* you / Toi · plain ink        */
+  --mono: "iAWriter Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+/* Tweak: collapse every accent back to ink to PROVE what the
+   palette buys — toggled by the host. */
+.mono-accents {
+  --char-marin: #14110d; --char-lila: #14110d; --char-gus: #14110d;
+  --char-romy: #14110d; --char-margaux: #14110d; --char-marchand: #14110d;
+}
+
+/* a scope sets --accent for everything inside it */
+[data-char="marin"]    { --accent: var(--char-marin); }
+[data-char="lila"]     { --accent: var(--char-lila); }
+[data-char="gus"]      { --accent: var(--char-gus); }
+[data-char="romy"]     { --accent: var(--char-romy); }
+[data-char="margaux"]  { --accent: var(--char-margaux); }
+[data-char="marchand"] { --accent: var(--char-marchand); }
+[data-char="toi"]      { --accent: var(--char-toi); }
+
+/* ============================================================
+   CHARACTER MARKS — avatar "type-sort" + name chip
+   The avatar is a struck plate, exactly like the round plates
+   on the spine, but inked in the character's accent. No drawn
+   faces; the press sets people as initials.
+   ============================================================ */
+.s-ava {
+  position: relative; flex: 0 0 auto;
+  width: 44px; height: 44px;
+  border: 1.5px solid var(--ink);
+  background: var(--accent);
+  color: var(--paper);
+  display: grid; place-items: center;
+  font-family: var(--serif); font-style: italic; font-weight: 700;
+  font-size: 22px; line-height: 1;
+}
+.s-ava.lg { width: 56px; height: 56px; font-size: 28px; }
+.s-ava.sm { width: 30px; height: 30px; font-size: 15px; border-width: 1px; }
+/* mood pip — a small struck dot at the corner, captioned in the row */
+.s-ava .mood-pip {
+  position: absolute; right: -7px; bottom: -7px;
+  width: 16px; height: 16px; border: 1.5px solid var(--ink);
+  background: var(--paper); display: grid; place-items: center;
+}
+.s-ava .mood-pip i { width: 6px; height: 6px; background: var(--ink); }
+.s-ava .mood-pip.warm i { border-radius: 50%; background: var(--red); }
+.s-ava .mood-pip.confused i { width: 0; height: 0; background: none; border-style: solid; border-width: 0 4px 7px 4px; border-color: transparent transparent var(--ink) transparent; }
+.s-ava .mood-pip.cool i { background: var(--blue); }
+
+.s-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 9.5px; font-weight: 900; letter-spacing: .13em; text-transform: uppercase;
+  color: var(--ink);
+}
+.s-chip .sw { width: 9px; height: 9px; background: var(--accent); border: 1px solid var(--ink); flex: 0 0 auto; }
+.s-chip .role { color: var(--ink-3); font-weight: 800; }
+
+/* ============================================================
+   SPEECH — editorial bubbles
+   Not glossy chat blobs: bordered notes with an accent binding
+   rule down the speaker's side and a small name tag. Spoken
+   French sits in the display voice; it reads like a feuilleton.
+   ============================================================ */
+.s-said { display: flex; gap: 11px; align-items: flex-start; margin: 0; }
+.s-said.you { flex-direction: row-reverse; }
+.s-bubble {
+  position: relative; min-width: 0; max-width: 268px;
+  border: 1px solid var(--ink); background: var(--sheet);
+  border-left: 3px solid var(--accent);
+  padding: 9px 13px 11px;
+}
+.s-said.you .s-bubble { border-left: 1px solid var(--ink); border-right: 3px solid var(--accent); text-align: right; }
+.s-bubble .who {
+  font-size: 8.5px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--accent); margin-bottom: 4px;
+}
+.s-bubble .line { font-family: var(--serif); font-style: italic; font-weight: 500; font-size: 16.5px; line-height: 1.24; color: var(--ink); }
+.s-bubble .gloss { margin-top: 5px; font-size: 10.5px; line-height: 1.3; color: var(--ink-3); font-style: normal; }
+
+/* ============================================================
+   THE REPLY CARD (A2) — the in-fiction payoff
+   The NPC's answer is the hero of the Act screen. Score recedes.
+   ============================================================ */
+.s-reply {
+  border: 1.5px solid var(--ink); background: var(--paper);
+  box-shadow: 6px 6px 0 var(--ink);
+  padding: 0; margin-top: 4px;
+}
+.s-reply .rhead {
+  display: flex; align-items: center; gap: 12px;
+  padding: 13px 15px; border-bottom: 1px solid var(--ink);
+  background: var(--sheet);
+}
+.s-reply .rhead .nm { font-size: 14px; font-weight: 800; letter-spacing: -.01em; }
+.s-reply .rhead .mood { font-size: 8.5px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); margin-top: 2px; }
+.s-reply .rhead .loc { margin-left: auto; text-align: right; font-size: 8.5px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); }
+.s-reply .rbody { padding: 16px 16px 14px; }
+.s-reply .rbody .speech { font-family: var(--serif); font-style: italic; font-weight: 500; font-size: 21px; line-height: 1.22; color: var(--accent); }
+.s-reply .rbody .speech.ink { color: var(--ink); }
+.s-reply .rbody .gloss { margin-top: 9px; font-size: 11.5px; line-height: 1.4; color: var(--ink-2); }
+
+/* the quiet "what the world still needs" ledger — objectives, ungraded */
+.s-needs { border-top: 1px solid var(--paper-3); margin: 14px -16px 0; padding: 13px 16px 2px; }
+.s-needs .cap { font-size: 8.5px; font-weight: 900; letter-spacing: .15em; text-transform: uppercase; color: var(--ink-3); }
+.s-needs .n { display: grid; grid-template-columns: 16px 1fr; gap: 10px; align-items: start; padding: 8px 0; border-bottom: 1px solid var(--paper-3); }
+.s-needs .n:last-child { border-bottom: 0; }
+.s-needs .n .box { width: 13px; height: 13px; border: 1.5px solid var(--ink); margin-top: 2px; display: grid; place-items: center; }
+.s-needs .n.met .box { background: var(--ink); }
+.s-needs .n.met .box svg { width: 9px; height: 9px; }
+.s-needs .n .t { font-size: 12.5px; line-height: 1.32; color: var(--ink); font-weight: 600; }
+.s-needs .n.miss .t { color: var(--ink-2); }
+.s-needs .n .t em { font-style: italic; font-family: var(--serif); font-weight: 600; }
+
+/* the tiny optional score — demoted to a footnote */
+.s-score { display: flex; align-items: center; gap: 8px; padding: 11px 16px; border-top: 1px solid var(--paper-3); }
+.s-score .cap { font-size: 8.5px; font-weight: 900; letter-spacing: .13em; text-transform: uppercase; color: var(--ink-3); }
+.s-score .pips { display: flex; gap: 3px; margin-left: auto; }
+.s-score .pips i { width: 7px; height: 12px; background: var(--paper-3); }
+.s-score .pips i.on { background: var(--ink); }
+
+/* ============================================================
+   RED-INK REPAIR SLIP — reframed as the character not following
+   ============================================================ */
+.s-repair { border: 1.5px solid var(--red); background: var(--sheet); margin-top: 13px; }
+.s-repair .rh { display: flex; align-items: center; gap: 8px; padding: 9px 13px; border-bottom: 1px solid var(--red); background: rgba(216,50,26,.06); }
+.s-repair .rh .tri { width: 0; height: 0; border-style: solid; border-width: 0 6px 11px 6px; border-color: transparent transparent var(--red) transparent; }
+.s-repair .rh .t { font-size: 9px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; color: var(--red); }
+.s-repair .rb { padding: 12px 14px 13px; }
+.s-repair .rb .why { font-family: var(--serif); font-style: italic; font-size: 15px; line-height: 1.28; color: var(--ink); }
+.s-repair .rb .fix { margin-top: 9px; font-size: 12px; line-height: 1.4; color: var(--ink-2); }
+.s-repair .rb .fix b { color: var(--ink); }
+.s-repair .rb del { color: var(--red); text-decoration-thickness: 1.5px; }
+.s-repair .rb ins { color: var(--ink); text-decoration: none; border-bottom: 2px solid var(--red); }
+
+/* ============================================================
+   OUTCOME + HOOK — the seam into the See beat
+   ============================================================ */
+.s-outcome { border: 1.5px solid var(--ink); background: var(--ink); color: var(--paper); margin-top: 16px; padding: 17px 17px 16px; }
+.s-outcome .cap { font-size: 8.5px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; color: var(--yellow); }
+.s-outcome .what { margin-top: 8px; font-family: var(--serif); font-style: italic; font-weight: 500; font-size: 19px; line-height: 1.2; color: var(--paper); }
+.s-outcome .hook { margin-top: 11px; padding-top: 12px; border-top: 1px solid rgba(241,236,225,.22); font-size: 11.5px; line-height: 1.45; color: #d9d2c2; }
+.s-cta-see {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin-top: 14px; width: 100%; min-height: 54px; padding: 0 18px;
+  background: var(--red); color: #fff; border: 1.5px solid var(--paper);
+  text-decoration: none; font-size: 13px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase;
+}
+.s-cta-see svg { width: 18px; height: 18px; }
+
+/* ============================================================
+   THE SERIAL ON-RAMP CARD (A1) — one living thread in Atelier
+   Replaces the two mechanic cards. Reads like the next episode
+   of a show you love.
+   ============================================================ */
+.s-thread {
+  position: relative; display: block; text-decoration: none; color: var(--ink);
+  border: 1.5px solid var(--ink); background: var(--paper);
+  box-shadow: 6px 6px 0 var(--ink);
+}
+.s-thread .ttop {
+  display: flex; align-items: center; gap: 9px;
+  padding: 10px 15px; border-bottom: 1px solid var(--ink);
+}
+.s-thread .ttop .ser { font-size: 9px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; color: var(--red); }
+.s-thread .ttop .ep { margin-left: auto; font-size: 9px; font-weight: 900; letter-spacing: .13em; text-transform: uppercase; color: var(--ink-3); }
+/* "previously" demoted, quiet */
+.s-thread .prev { padding: 11px 15px 0; font-size: 10.5px; line-height: 1.4; color: var(--ink-3); }
+.s-thread .prev b { color: var(--ink-2); font-weight: 800; }
+.s-thread .tmain { display: grid; grid-template-columns: 56px 1fr; gap: 14px; align-items: center; padding: 13px 15px 15px; }
+.s-thread .tmain .beat { font-size: 9px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); }
+.s-thread .tmain h2 { margin: 4px 0 0; font-family: var(--serif); font-style: italic; font-weight: 600; font-size: 25px; line-height: 1.02; color: var(--ink); }
+.s-thread .tmain .sub { margin-top: 5px; font-size: 11px; line-height: 1.35; color: var(--ink-2); }
+.s-thread .tcta {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  border-top: 1.5px solid var(--ink); padding: 14px 16px; background: var(--red); color: #fff;
+  font-size: 13px; font-weight: 900; letter-spacing: .13em; text-transform: uppercase;
+}
+.s-thread .tcta.ink { background: var(--ink); }
+.s-thread .tcta svg { width: 18px; height: 18px; }
+/* brand-new invitation variant — quieter, invites */
+.s-thread.invite { box-shadow: 6px 6px 0 var(--blue); }
+/* caught-up rest variant — flat, no shadow, no CTA */
+.s-thread.rest { box-shadow: none; background: var(--sheet); }
+
+/* ============================================================
+   THE SERIAL READER (A3) — vertical scroll
+   A newspaper feuilleton: masthead, dateline, "Previously on…",
+   stacked illustrated panels, captions as editorial text,
+   speech in character bubbles, the choice fork in-panel.
+   ============================================================ */
+.s-feuil { background: var(--paper); }
+.s-mast {
+  border-bottom: 2px solid var(--ink); padding: 14px 18px 13px; text-align: center;
+}
+.s-mast .kicker { font-size: 9px; font-weight: 900; letter-spacing: .26em; text-transform: uppercase; color: var(--ink-3); }
+.s-mast .title { margin: 5px 0 0; font-family: var(--serif); font-style: italic; font-weight: 700; font-size: 30px; line-height: .96; }
+.s-mast .dateline { margin-top: 8px; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 8.5px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-2); }
+.s-mast .dateline i { width: 3px; height: 3px; background: var(--ink-3); display: inline-block; }
+/* "this week in town" — Romy's news line */
+.s-news { display: flex; gap: 9px; align-items: baseline; padding: 9px 18px; border-bottom: 1px solid var(--ink); background: var(--sheet); }
+.s-news .lbl { flex: 0 0 auto; font-size: 8px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: var(--char-romy); border: 1px solid var(--char-romy); padding: 2px 5px; }
+.s-news .txt { font-family: var(--serif); font-style: italic; font-size: 13px; line-height: 1.25; color: var(--ink-2); }
+
+/* Previously on stamp */
+.s-prev { margin: 16px 18px 4px; border: 1px solid var(--ink); background: var(--paper); }
+.s-prev .ph { display: flex; align-items: center; gap: 8px; padding: 7px 12px; border-bottom: 1px dashed var(--ink-3); }
+.s-prev .ph .tag { font-size: 8.5px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; color: var(--red); }
+.s-prev .ph .tag.stamp2 { margin-left: auto; color: var(--ink-3); transform: rotate(-2deg); border: 1px solid var(--ink-3); padding: 2px 6px; }
+.s-prev .pb { padding: 10px 13px 12px; font-family: var(--serif); font-style: italic; font-size: 14.5px; line-height: 1.32; color: var(--ink-2); }
+
+/* a panel */
+.s-panel { margin: 16px 18px; }
+.s-panel.full { margin: 16px 0; }
+.s-art {
+  position: relative; border: 1.5px solid var(--ink); background: var(--paper-2);
+  background-image: repeating-linear-gradient(135deg, rgba(20,17,13,.06) 0 2px, transparent 2px 12px);
+  overflow: hidden;
+}
+.s-art .frame-note {
+  position: absolute; top: 9px; left: 9px;
+  font-family: var(--mono); font-size: 9px; font-weight: 600; letter-spacing: .02em;
+  color: var(--ink-3); background: var(--paper); border: 1px solid var(--ink-3);
+  padding: 3px 6px; max-width: 70%;
+}
+.s-art .stage-dir {
+  position: absolute; bottom: 9px; left: 9px; right: 9px;
+  font-family: var(--mono); font-size: 9px; line-height: 1.4; color: var(--ink-3);
+}
+/* a bubble floated over the art */
+.s-art .float { position: absolute; max-width: 72%; }
+.s-art .float .s-bubble { background: var(--paper); box-shadow: 3px 3px 0 rgba(20,17,13,.18); }
+/* the caption strip below the art — editorial voice */
+.s-cap { display: grid; grid-template-columns: auto 1fr; gap: 11px; align-items: baseline; padding: 9px 2px 2px; }
+.s-cap .n { font-family: var(--grotesk); font-weight: 900; font-size: 10px; letter-spacing: .04em; color: var(--ink-3); padding-top: 3px; }
+.s-cap .c { font-family: var(--serif); font-style: italic; font-size: 15px; line-height: 1.3; color: var(--ink); text-wrap: pretty; }
+
+/* the choice fork — authoring the line "you" say */
+.s-fork { margin: 16px 18px; border: 1.5px solid var(--ink); background: var(--sheet); }
+.s-fork .fh { display: flex; align-items: center; gap: 8px; padding: 9px 13px; border-bottom: 1px solid var(--ink); }
+.s-fork .fh .q { font-size: 8.5px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); }
+.s-fork .fh .q b { color: var(--ink); }
+.s-fork .opts { padding: 11px; display: grid; gap: 9px; }
+.s-fork .opt {
+  position: relative; display: block; text-decoration: none; color: var(--ink);
+  border: 1px solid var(--ink); background: var(--paper); padding: 11px 13px 12px;
+  border-left: 3px solid var(--char-toi);
+}
+.s-fork .opt .pick { font-size: 8px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); }
+.s-fork .opt .line { margin-top: 3px; font-family: var(--serif); font-style: italic; font-size: 16.5px; line-height: 1.2; }
+.s-fork .opt.chosen { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.s-fork .opt.chosen .pick { color: var(--yellow); }
+.s-fork .opt.chosen::after { content: ""; position: absolute; top: -1px; right: -1px; border-width: 0 16px 16px 0; border-style: solid; border-color: transparent var(--red) transparent transparent; }
+
+/* embedded cloze, rendered as part of the art's caption */
+.s-cloze { display: inline-block; min-width: 64px; border-bottom: 2px solid var(--red); text-align: center; font-style: normal; color: var(--ink-3); }
+.s-cloze.done { border-bottom-color: var(--ink); color: var(--ink); font-style: italic; }
+
+/* ============================================================
+   THE COMIC-PAGE READER (A3 alt) — fixed grid
+   ============================================================ */
+.s-page { background: var(--paper); padding: 14px; }
+.s-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+.s-grid .s-art { aspect-ratio: 3 / 4; }
+.s-grid .s-art.wide { grid-column: 1 / -1; aspect-ratio: 2 / 1; }
+.s-grid .gcap { position: absolute; left: 0; right: 0; bottom: 0; padding: 6px 8px; background: var(--paper); border-top: 1px solid var(--ink); font-family: var(--serif); font-style: italic; font-size: 11px; line-height: 1.2; }
+.s-grid .s-bubble { max-width: 90%; }
+
+/* ============================================================
+   THE CLIFFHANGER CARD (A4) — the hero surface
+   ============================================================ */
+.s-cliff { background: var(--ink); color: var(--paper); }
+.s-cliff .ctop { display: flex; align-items: center; gap: 9px; padding: 12px 18px; border-bottom: 1px solid rgba(241,236,225,.2); }
+.s-cliff .ctop .ser { font-size: 9px; font-weight: 900; letter-spacing: .18em; text-transform: uppercase; color: var(--yellow); }
+.s-cliff .ctop .end { margin-left: auto; font-size: 9px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; color: #b9b1a0; }
+.s-cliff .cart {
+  position: relative; height: 232px; border-bottom: 1px solid rgba(241,236,225,.2);
+  background: #221d17; background-image: repeating-linear-gradient(135deg, rgba(241,236,225,.06) 0 2px, transparent 2px 13px);
+  overflow: hidden;
+}
+.s-cliff .cart .frame-note { color: #9b9382; background: #2c261f; border-color: #4a4337; }
+.s-cliff .cart .float { position: absolute; max-width: 74%; }
+.s-cliff .cbody { padding: 22px 20px 20px; text-align: center; }
+.s-cliff .cbody .who { font-size: 9px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; color: var(--accent); }
+.s-cliff .cbody .q { margin: 11px auto 0; max-width: 300px; font-family: var(--serif); font-style: italic; font-weight: 600; font-size: 30px; line-height: 1.08; color: var(--paper); text-wrap: balance; }
+.s-cliff .cbody .beat { margin: 13px auto 0; max-width: 250px; font-size: 12px; line-height: 1.5; color: #c8c1b1; }
+.s-cliff .ccta {
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  margin: 20px 0 0; min-height: 56px; padding: 0 22px;
+  background: var(--red); color: #fff; border: 1.5px solid var(--paper);
+  text-decoration: none; font-size: 14px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase;
+}
+.s-cliff .ccta svg { width: 18px; height: 18px; }
+.s-cliff .next { margin-top: 13px; font-size: 9px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; color: #9b9382; }
+
+/* the vocab recap, demoted BELOW the cliffhanger, quiet */
+.s-recap { background: var(--paper); border-top: 3px solid var(--ink); padding: 15px 18px 18px; }
+.s-recap .rh { display: flex; align-items: baseline; gap: 8px; }
+.s-recap .rh .t { font-size: 9px; font-weight: 900; letter-spacing: .15em; text-transform: uppercase; color: var(--ink-3); }
+.s-recap .rh .meta { margin-left: auto; font-size: 9px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
+.s-recap .words { margin-top: 11px; display: grid; gap: 0; }
+.s-recap .w { display: grid; grid-template-columns: auto 1fr auto; gap: 11px; align-items: baseline; padding: 8px 0; border-bottom: 1px solid var(--paper-3); }
+.s-recap .w:last-child { border-bottom: 0; }
+.s-recap .w .fr { font-family: var(--serif); font-style: italic; font-weight: 600; font-size: 16px; color: var(--ink); }
+.s-recap .w .en { font-size: 11px; color: var(--ink-2); }
+.s-recap .w .dot { width: 8px; height: 8px; background: var(--blue); }
+
+/* ============================================================
+   THREAD MAP (A5) — the story so far
+   ============================================================ */
+.s-map { padding: 4px 4px 8px; }
+.s-ep { position: relative; display: grid; grid-template-columns: 30px 1fr; gap: 14px; padding-bottom: 6px; }
+.s-ep::before { content: ""; position: absolute; left: 14px; top: 0; bottom: 0; border-left: 2px solid var(--ink); z-index: 0; }
+.s-ep.up::before { border-left: 1.5px dashed var(--ink-3); }
+.s-ep.first::before { top: 15px; }
+.s-ep.last::before { bottom: calc(100% - 15px); }
+.s-ep .dot2 { position: relative; z-index: 1; width: 30px; height: 30px; border: 1.5px solid var(--ink); background: var(--accent); display: grid; place-items: center; color: var(--paper); font-family: var(--serif); font-style: italic; font-weight: 700; font-size: 14px; }
+.s-ep.up .dot2 { background: var(--paper); color: var(--ink-3); border-color: var(--ink-3); }
+.s-ep .ebody { padding-bottom: 20px; min-width: 0; }
+.s-ep .edate { font-size: 8.5px; font-weight: 900; letter-spacing: .13em; text-transform: uppercase; color: var(--ink-3); }
+.s-ep .ehook { margin: 4px 0 0; font-family: var(--serif); font-style: italic; font-weight: 600; font-size: 18px; line-height: 1.12; color: var(--ink); }
+.s-ep.up .ehook { color: var(--ink-3); }
+.s-ep .eplate { margin-top: 9px; display: flex; gap: 10px; align-items: stretch; }
+.s-ep .eplate .thumb {
+  flex: 0 0 64px; height: 46px; border: 1px solid var(--ink); background: var(--paper-2);
+  background-image: repeating-linear-gradient(135deg, rgba(20,17,13,.07) 0 2px, transparent 2px 9px);
+  display: grid; place-items: end start; padding: 4px;
+}
+.s-ep .eplate .thumb span { font-family: var(--mono); font-size: 7.5px; color: var(--ink-3); }
+.s-ep .eplate .choice { min-width: 0; font-size: 10.5px; line-height: 1.35; color: var(--ink-2); }
+.s-ep .eplate .choice b { display: block; font-size: 8px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 2px; }
+.s-ep .eplate .choice em { font-style: italic; font-family: var(--serif); font-size: 13px; color: var(--ink); }
+
+/* ============================================================
+   SPEC BOARD — the accent palette, applied
+   ============================================================ */
+.s-accents { display: grid; gap: 0; }
+.s-accent-row { display: grid; grid-template-columns: 150px 1fr; gap: 22px; padding: 16px 0; border-bottom: 1px solid var(--paper-3); align-items: center; }
+.s-accent-row:last-child { border-bottom: 0; }
+.s-accent-row .swatch { height: 52px; border: 1.5px solid var(--ink); background: var(--accent); display: flex; align-items: flex-end; justify-content: space-between; padding: 7px 9px; }
+.s-accent-row .swatch .nm { font-family: var(--serif); font-style: italic; font-weight: 700; font-size: 17px; color: var(--paper); }
+.s-accent-row .swatch .hex { font-family: var(--mono); font-size: 9px; color: rgba(241,236,225,.8); }
+.s-accent-row .who2 .name { font-size: 13px; font-weight: 800; }
+.s-accent-row .who2 .tok { font-family: var(--mono); font-size: 10px; color: var(--ink-3); margin-top: 3px; }
+.s-accent-row .who2 .role { font-size: 11px; line-height: 1.35; color: var(--ink-2); margin-top: 6px; }
+
+/* a motion-spec annotation block on the spec boards */
+.s-motion { display: grid; gap: 12px; }
+.s-motion .m { display: grid; grid-template-columns: 18px 1fr; gap: 12px; padding: 13px 0; border-bottom: 1px solid var(--paper-3); }
+.s-motion .m:last-child { border-bottom: 0; }
+.s-motion .m .num { font-family: var(--mono); font-size: 11px; font-weight: 700; color: var(--red); }
+.s-motion .m .t { font-size: 13px; font-weight: 800; }
+.s-motion .m .d { margin-top: 4px; font-size: 11.5px; line-height: 1.45; color: var(--ink-2); }
+.s-motion .m .spec { margin-top: 6px; font-family: var(--mono); font-size: 9.5px; color: var(--ink-3); letter-spacing: .01em; }

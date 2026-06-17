@@ -1069,6 +1069,7 @@ class ProgressService:
             progress.times_seen = (progress.times_seen or 0) + 1
             progress.adjust_proficiency(5)
         elif event in {"produced_incorrect", "used_incorrectly", "incorrect"}:
+            progress, _, _ = self.record_review(user=user, word=word, rating=0, now=now)
             progress.record_usage(correct=False)
             progress.state = "relearning"
             progress.phase = "relearn"

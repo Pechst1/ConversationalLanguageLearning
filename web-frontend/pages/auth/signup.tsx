@@ -314,8 +314,9 @@ export default function SignUpPage() {
           .auth-page {
             min-height: 100dvh;
             display: grid;
-            place-items: center;
-            padding: max(18px, env(safe-area-inset-top)) 16px max(22px, env(safe-area-inset-bottom));
+            align-items: start;
+            justify-items: center;
+            padding: calc(max(18px, env(safe-area-inset-top)) + 12px) 16px calc(max(22px, env(safe-area-inset-bottom)) + 10px);
             background:
               linear-gradient(rgba(20, 17, 13, .035) 1px, transparent 1px),
               linear-gradient(90deg, rgba(20, 17, 13, .025) 1px, transparent 1px),
@@ -383,7 +384,7 @@ export default function SignUpPage() {
 
           .auth-copy h1 {
             max-width: 12ch;
-            font-size: clamp(40px, 15vw, 62px);
+            font-size: clamp(36px, 12vw, 54px);
           }
 
           .auth-copy p,
@@ -441,7 +442,7 @@ export default function SignUpPage() {
           }
 
           .auth-form-heading h2 {
-            font-size: clamp(34px, 12vw, 48px);
+            font-size: clamp(32px, 10vw, 44px);
           }
 
           .auth-form {
@@ -609,6 +610,7 @@ export default function SignUpPage() {
           @media (min-width: 860px) {
             .auth-page {
               padding: 40px;
+              place-items: center;
             }
 
             .auth-shell {

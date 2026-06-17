@@ -101,12 +101,44 @@ class Settings(BaseSettings):
         description="Use LLM-backed generation and correction for Atelier when a provider is configured.",
     )
     ATELIER_EXERCISE_LLM_MODEL: str = Field(
-        "gpt-4o-mini",
-        description="Fast model for generating Atelier exercise payloads.",
+        "gpt-5-mini",
+        description="Fast capable model for generating Atelier exercise payloads.",
     )
     ATELIER_EXERCISE_LLM_TIMEOUT_SECONDS: float = Field(
-        60.0,
-        description="Single-attempt timeout for Atelier exercise generation.",
+        8.0,
+        description="Single-attempt timeout for Atelier exercise generation before deterministic fallback.",
+    )
+    ATELIER_EXERCISE_LLM_REASONING_EFFORT: Optional[str] = Field(
+        "minimal",
+        description="Optional reasoning_effort override for Atelier exercise models that support it.",
+    )
+    ATELIER_EXERCISE_CRITIQUE_ENABLED: bool = Field(
+        True,
+        description="Use an AI critic to validate generated Atelier exercise payloads before serving them.",
+    )
+    ATELIER_CRITIQUE_LLM_MODEL: str = Field(
+        "gpt-5-mini",
+        description="Fast model for AI critique of generated Atelier exercises.",
+    )
+    ATELIER_CRITIQUE_LLM_TIMEOUT_SECONDS: float = Field(
+        5.0,
+        description="Single-attempt timeout for Atelier exercise critique.",
+    )
+    ATELIER_CRITIQUE_LLM_MAX_TOKENS: int = Field(
+        1200,
+        description="Output token cap for Atelier exercise critique.",
+    )
+    ATELIER_CRITIQUE_LLM_REASONING_EFFORT: Optional[str] = Field(
+        "minimal",
+        description="Optional reasoning_effort override for Atelier critique models that support it.",
+    )
+    ATELIER_BACKGROUND_PREGENERATION_ENABLED: bool = Field(
+        True,
+        description="Pre-generate the learner's next Atelier session in the background.",
+    )
+    ATELIER_LLM_FAILURE_BACKOFF_SECONDS: float = Field(
+        120.0,
+        description="How long Atelier skips live exercise generation after a provider outage.",
     )
     ATELIER_CORRECTION_LLM_ENABLED: bool = Field(
         True,
@@ -125,7 +157,7 @@ class Settings(BaseSettings):
         description="Output token cap for live Atelier LLM correction.",
     )
     ATELIER_CORRECTION_LLM_REASONING_EFFORT: Optional[str] = Field(
-        None,
+        "minimal",
         description="Optional reasoning_effort override for Atelier correction models that support it.",
     )
     OPENAI_IMAGE_MODEL: str = Field("gpt-image-2", description="Default OpenAI image model")

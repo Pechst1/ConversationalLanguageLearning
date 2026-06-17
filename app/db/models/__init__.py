@@ -11,12 +11,15 @@ from app.db.models.session import (
 from app.db.models.achievement import Achievement, UserAchievement
 from app.db.models.atelier import (
     AtelierAttempt,
+    AtelierCollectible,
     AtelierConceptBlueprint,
     AtelierExerciseSet,
+    AtelierGenerationEvent,
     AtelierLanguagePack,
     AtelierSession,
 )
 from app.db.models.mission import RealWorldMission, RealWorldMissionAttempt, RealWorldMissionTurn
+from app.db.models.library import BookEpisode, UserBook
 from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.graphic_novel import (
     GraphicNovelAttempt,
@@ -46,13 +49,17 @@ __all__ = [
     "Achievement",
     "UserAchievement",
     "AtelierAttempt",
+    "AtelierCollectible",
     "AtelierConceptBlueprint",
     "AtelierExerciseSet",
+    "AtelierGenerationEvent",
     "AtelierLanguagePack",
     "AtelierSession",
     "RealWorldMission",
     "RealWorldMissionAttempt",
     "RealWorldMissionTurn",
+    "BookEpisode",
+    "UserBook",
     "SerialEpisode",
     "SerialThread",
     "GraphicNovelAttempt",

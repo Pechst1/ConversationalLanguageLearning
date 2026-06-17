@@ -1,0 +1,574 @@
+/* ============================================================
+   ATELIER — "Le Feuilleton" · the press run
+   The drill loop + the printed-seal reward. No new visual
+   language: same paper/ink ground, same two type voices, same
+   press-ink discipline. The companions and the seal are built
+   from the house logo motif — circle · square · triangle ·
+   ink block — set, never drawn. Delight is concentrated at the
+   END: every tap is quiet; the seal is the peak.
+   ============================================================ */
+
+/* ============================================================
+   ATELIERFORMS — the three forms as quiet margin companions
+   They sit in the margin beside an exercise as a column of
+   type-sorts. Motion carries the reaction; a minimal mark
+   (dot-pair "eyes" + a 1px mouth) appears ONLY while reacting,
+   on the circle alone. No persistent face, no name, no cartoon.
+   ============================================================ */
+.af-rail {
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+  padding-top: 6px;
+}
+.af-rail .cap {
+  writing-mode: vertical-rl;
+  font-size: 8px; font-weight: 900; letter-spacing: .2em; text-transform: uppercase;
+  color: var(--ink-3); margin-top: 4px;
+}
+.af {
+  position: relative; flex: 0 0 auto;
+  width: 38px; height: 38px;
+  display: grid; place-items: center;
+  transform-origin: 50% 90%;
+  transition: transform .3s ease, opacity .3s ease;
+}
+.af svg.shape { display: block; width: 100%; height: 100%; overflow: visible; }
+.af .shape path, .af .shape rect, .af .shape circle, .af .shape polygon { stroke: var(--ink); stroke-width: 2; }
+.af.circle   .shape circle  { fill: var(--blue); }
+.af.square   .shape rect    { fill: var(--yellow); }
+.af.triangle .shape polygon { fill: var(--red); }
+.af.block    .shape rect    { fill: var(--ink); }
+.af.block { width: 22px; height: 22px; }
+
+/* the minimal mark — lives on the circle only, hidden by default.
+   Appearance is transition-driven (not a keyframe) so it can never be
+   stranded invisible if the animation clock can't advance. */
+.af .mark { position: absolute; inset: 0; opacity: 0; transition: opacity .25s ease; }
+.af .mark .eye { position: absolute; top: 14px; width: 2.5px; height: 2.5px; border-radius: 50%; background: var(--paper); }
+.af .mark .eye.l { left: 12px; }
+.af .mark .eye.r { right: 12px; }
+.af .mark svg { position: absolute; left: 50%; top: 20px; transform: translateX(-50%); width: 16px; height: 8px; overflow: visible; }
+.af .mark svg path { fill: none; stroke: var(--paper); stroke-width: 1.4; stroke-linecap: round; }
+
+/* state: REACT — the rail carries the reaction state on the wrapper */
+.af-rail[data-react="correct"] .af .mark { opacity: 1; }
+.af-rail[data-react="correct"] .af .mark .smile { display: block; }
+.af-rail[data-react="correct"] .af .mark .flat  { display: none; }
+
+.af-rail[data-react="wrong"] .af .mark { opacity: 1; }
+.af-rail[data-react="wrong"] .af .mark .smile { display: none; }
+.af-rail[data-react="wrong"] .af .mark .flat  { display: block; }
+/* wince — a small tilt + slight fade, mark goes flat. Held by the base
+   rule (transition-eased), so the winced state is always visible. */
+.af-rail[data-react="wrong"] .af { transform: rotate(-7deg); opacity: .58; }
+
+/* neutral resting */
+.af-rail[data-react="neutral"] .af .mark .smile,
+.af-rail[data-react="neutral"] .af .mark .flat { display: none; }
+
+/* MOTION — only the correct hop is a keyframe; if its clock can't advance
+   it harmlessly rests at the neutral position (mark still shows). */
+@media (prefers-reduced-motion: no-preference) {
+  .af-rail.motion[data-react="correct"] .af { animation: af-hop .52s cubic-bezier(.3,1.3,.4,1) both; }
+  .af-rail.motion[data-react="correct"] .af:nth-child(2) { animation-delay: .04s; }
+  .af-rail.motion[data-react="correct"] .af:nth-child(3) { animation-delay: .08s; }
+  .af-rail.motion[data-react="correct"] .af:nth-child(4) { animation-delay: .12s; }
+}
+@keyframes af-hop {
+  0% { transform: translateY(0) scale(1); }
+  38% { transform: translateY(-9px) scale(1.04, .97); }
+  68% { transform: translateY(0) scale(.98, 1.03); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+/* a static states board uses small fixed rails side by side */
+.af-states { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; }
+.af-states .col { padding: 18px 10px 6px; border-right: 1px solid var(--paper-3); text-align: center; }
+.af-states .col:last-child { border-right: 0; }
+.af-states .col .rail-wrap { display: flex; justify-content: center; min-height: 168px; }
+.af-states .col .st { font-size: 9px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; color: var(--ink); }
+.af-states .col .st.go { color: var(--success, #2c6a5d); }
+.af-states .col .st.no { color: var(--red); }
+.af-states .col .d { margin-top: 6px; font-size: 10.5px; line-height: 1.4; color: var(--ink-2); }
+
+/* the small "tap to react" demo */
+.af-demo { display: grid; grid-template-columns: 90px 1fr; gap: 22px; align-items: center; padding: 6px 0 2px; }
+.af-demo .controls { display: grid; gap: 8px; }
+.af-demo .controls button {
+  font-family: var(--grotesk); font-size: 10px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase;
+  border: 1.5px solid var(--ink); background: var(--paper); color: var(--ink);
+  padding: 9px 10px; cursor: pointer; transition: background .12s, color .12s;
+}
+.af-demo .controls button:hover { background: var(--sheet); }
+.af-demo .controls button.on { background: var(--ink); color: var(--paper); }
+
+/* ============================================================
+   THE DRILL — the "do" screen. One focused exercise, lots of
+   whitespace, one obvious action.
+   ============================================================ */
+.drill {
+  position: relative;
+  width: 380px;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--grotesk);
+  -webkit-font-smoothing: antialiased;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.drill * { box-sizing: border-box; }
+
+/* slim top bar: × close · PRESS RUN progress · ? rule */
+.drill-bar {
+  flex: 0 0 auto;
+  display: grid; grid-template-columns: 36px 1fr 36px; gap: 14px; align-items: center;
+  padding: 12px 16px 13px;
+  border-bottom: 1px solid var(--ink);
+}
+.drill-bar .icbtn {
+  width: 34px; height: 34px; border: 1px solid var(--ink); background: var(--sheet);
+  display: grid; place-items: center; cursor: pointer; color: var(--ink);
+}
+.drill-bar .icbtn svg { width: 15px; height: 15px; }
+.drill-bar .prog { min-width: 0; }
+.drill-bar .prog .lab { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px; }
+.drill-bar .prog .lab .l { font-size: 8.5px; font-weight: 900; letter-spacing: .2em; text-transform: uppercase; color: var(--red); }
+.drill-bar .prog .lab .r { font-size: 9px; font-weight: 800; letter-spacing: .08em; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+/* the thin red bar — segmented like printed sheets, warms near the finish */
+.prog-track {
+  position: relative; height: 6px; background: var(--paper-3);
+  display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 2px;
+}
+.prog-track .seg { background: transparent; }
+.prog-track .seg.done { background: var(--ink); }
+.prog-track .seg.cur { background: var(--red); }
+/* goal-gradient: the home stretch warms + a quiet forward creep */
+.prog-track.near .seg.cur { background: var(--red); box-shadow: 0 0 0 1px var(--red); }
+@media (prefers-reduced-motion: no-preference) {
+  .prog-track.near .seg.cur { animation: prog-creep 1.6s ease-in-out infinite; }
+}
+@keyframes prog-creep { 0%,100% { opacity: .82; } 50% { opacity: 1; } }
+
+/* body: a slim companion margin + the exercise */
+.drill-body {
+  flex: 1 1 auto;
+  display: grid; grid-template-columns: 44px 1fr; gap: 16px;
+  padding: 22px 22px 0;
+}
+.drill-margin { display: flex; align-items: flex-start; justify-content: center; padding-top: 30px; }
+.drill-main { min-width: 0; display: flex; flex-direction: column; }
+
+.drill-q .kicker { font-size: 9px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-3); }
+.drill-q .cue {
+  margin: 9px 0 0; font-family: var(--serif); font-style: italic; font-weight: 500;
+  font-size: 23px; line-height: 1.16; color: var(--ink); text-wrap: pretty;
+}
+.drill-q .cue .src { color: var(--ink-3); }
+
+/* the composing stick — where chips are set into a line of type */
+.tray {
+  margin-top: 22px; min-height: 96px;
+  border-top: 1px solid var(--ink); border-bottom: 1px solid var(--ink);
+  background: linear-gradient(var(--sheet), var(--sheet)) padding-box;
+  padding: 16px 4px 18px;
+  display: flex; flex-wrap: wrap; gap: 9px 8px; align-content: flex-start;
+  transition: box-shadow .18s;
+}
+.tray.empty::before {
+  content: "Tap the words below to set the line"; align-self: center;
+  font-size: 11px; color: var(--ink-3); font-style: normal; letter-spacing: .02em;
+  padding: 0 8px;
+}
+.tray.nudge { animation: tray-nudge .4s ease; }
+@media (prefers-reduced-motion: reduce) { .tray.nudge { animation: none; } }
+@keyframes tray-nudge { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
+
+/* the bank of scrambled chips */
+.bank { margin-top: 26px; display: flex; flex-wrap: wrap; gap: 9px 8px; }
+.bank .bank-cap { width: 100%; font-size: 8.5px; font-weight: 900; letter-spacing: .15em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 2px; }
+
+/* a word chip — a movable type sort */
+.chip {
+  font-family: var(--serif); font-style: italic; font-weight: 600; font-size: 18px; line-height: 1;
+  border: 1.5px solid var(--ink); background: var(--paper); color: var(--ink);
+  padding: 9px 13px 10px; cursor: pointer;
+  transition: background .26s ease, color .26s ease, transform .12s, box-shadow .12s;
+}
+.chip:hover { background: var(--sheet); }
+.chip.placed { box-shadow: 2px 2px 0 rgba(20,17,13,.16); }
+.bank .chip.spent { opacity: 0; pointer-events: none; }
+/* the micro-reward: chips "ink in" — paper sort becomes inked type.
+   Driven by the .chip transition (not a keyframe) so it can never
+   strand a chip un-inked if the animation clock can't advance. */
+.chip.inked { background: var(--ink); color: var(--paper); box-shadow: none; cursor: default; }
+
+/* foot: one dominant action */
+.drill-foot { flex: 0 0 auto; padding: 20px 22px 22px; }
+.btn-check {
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  width: 100%; min-height: 56px; padding: 0 20px;
+  background: var(--red); color: #fff; border: 1.5px solid var(--ink);
+  font-family: var(--grotesk); font-size: 13px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase;
+  cursor: pointer; transition: opacity .15s, background .15s;
+}
+.btn-check:disabled { background: var(--paper-3); color: var(--ink-3); border-color: var(--ink-3); cursor: not-allowed; }
+.btn-check svg { width: 17px; height: 17px; }
+.btn-check.again { background: var(--paper); color: var(--ink); }
+/* the correct affordance — quiet, the big reward is saved for the end */
+.btn-continue {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  width: 100%; min-height: 56px; padding: 0 20px;
+  background: var(--ink); color: var(--paper); border: 1.5px solid var(--ink);
+  font-family: var(--grotesk); font-size: 13px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase;
+  cursor: pointer;
+}
+.btn-continue svg { width: 17px; height: 17px; }
+.drill-verdict {
+  display: flex; align-items: center; gap: 9px; margin-bottom: 13px;
+  font-size: 9.5px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase;
+}
+.drill-verdict.go { color: var(--success, #2c6a5d); }
+.drill-verdict.no { color: var(--red); }
+.drill-verdict .ln { flex: 1 1 auto; height: 1px; background: currentColor; opacity: .4; }
+
+/* ============================================================
+   THE SEAL — the printer's-colophon. The three forms lock into
+   a circular pressmark stamped onto the page. THIS is where the
+   ink-block shadow belongs. Collectible + variable.
+   ============================================================ */
+.seal { position: relative; display: inline-grid; place-items: center; }
+.seal-medallion {
+  position: relative;
+  width: 200px; height: 200px; border-radius: 50%;
+  background: var(--sheet); border: 2px solid var(--ink);
+  box-shadow: 6px 6px 0 var(--ink);
+  display: grid; place-items: center;
+}
+.seal.lg .seal-medallion { width: 232px; height: 232px; }
+.seal-medallion svg.ring { position: absolute; inset: 0; width: 100%; height: 100%; }
+.seal-medallion svg.ring text { font-family: var(--grotesk); font-weight: 900; letter-spacing: .26em; fill: var(--ink); }
+.seal-medallion svg.ring text.fine { font-size: 8.5px; letter-spacing: .18em; fill: var(--ink-2); }
+.seal-medallion .core { position: relative; width: 116px; height: 116px; }
+.seal-medallion .core svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.seal-medallion .core .shp { stroke: var(--ink); stroke-width: 3; }
+.seal-medallion .core .c-circle { fill: var(--blue); }
+.seal-medallion .core .c-square { fill: var(--yellow); }
+.seal-medallion .core .c-tri { fill: var(--red); }
+.seal-medallion .core .c-block { fill: var(--ink); }
+/* the press impression — settle on stamp; reduced-motion lands settled */
+@media (prefers-reduced-motion: no-preference) {
+  .seal.stamp .seal-medallion { animation: seal-press .5s cubic-bezier(.2,1.2,.3,1) both; }
+}
+@keyframes seal-press {
+  0% { transform: scale(1.18) rotate(-3.5deg); }
+  58% { transform: scale(.965) rotate(.6deg); }
+  100% { transform: scale(1) rotate(0); }
+}
+
+/* a compact seal for archives — forms in a ring, Nº beneath */
+.seal-mini { display: grid; justify-items: center; gap: 7px; }
+.seal-mini .disc {
+  position: relative; width: 64px; height: 64px; border-radius: 50%;
+  background: var(--sheet); border: 1.5px solid var(--ink); display: grid; place-items: center;
+}
+.seal-mini .disc .core { position: relative; width: 42px; height: 42px; }
+.seal-mini .disc .core svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.seal-mini .disc .core .shp { stroke: var(--ink); stroke-width: 3.4; }
+.seal-mini .disc .core .c-circle { fill: var(--blue); }
+.seal-mini .disc .core .c-square { fill: var(--yellow); }
+.seal-mini .disc .core .c-tri { fill: var(--red); }
+.seal-mini .disc .core .c-block { fill: var(--ink); }
+.seal-mini .no { font-size: 8.5px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); }
+.seal-mini.future .disc { background: var(--paper); border-style: dashed; border-color: var(--ink-3); }
+.seal-mini.future .disc .core { opacity: 0; }
+.seal-mini.future .disc::after { content: ""; width: 8px; height: 8px; background: var(--paper-3); }
+.seal-mini.future .no { color: var(--ink-3); }
+.seal-mini.empty .disc { background: transparent; border-style: dotted; border-color: var(--paper-3); }
+.seal-mini.empty .disc .core { display: none; }
+.seal-mini.empty .no { color: var(--paper-3); }
+
+/* ============================================================
+   EDITION PRINTED — the session-complete peak screen
+   ============================================================ */
+.printed {
+  position: relative; width: 380px;
+  background: var(--paper); color: var(--ink);
+  font-family: var(--grotesk); -webkit-font-smoothing: antialiased;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.printed * { box-sizing: border-box; }
+.printed-body { flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; padding: 30px 24px 26px; text-align: center; }
+.printed .rubric { font-size: 10px; font-weight: 900; letter-spacing: .2em; text-transform: uppercase; color: var(--red); }
+.printed .endmark { width: 14px; height: 14px; background: var(--ink); margin: 16px 0 0; }
+.printed h2 { margin: 14px 0 0; font-family: var(--serif); font-style: italic; font-weight: 600; font-size: 33px; line-height: 1.02; }
+.printed .seal-stage { margin: 30px 0 4px; }
+/* the editorial caption line under the seal */
+.printed-meta { margin-top: 30px; width: 100%; max-width: 300px; border-top: 1px solid var(--ink); }
+.printed-meta .row { display: flex; align-items: center; justify-content: space-between; padding: 9px 2px; border-bottom: 1px solid var(--paper-3); }
+.printed-meta .row span { font-size: 10px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
+.printed-meta .row b { font-family: var(--serif); font-style: italic; font-weight: 600; font-size: 16px; color: var(--ink); }
+.printed-meta .row b.red { color: var(--red); }
+/* endowed-progress: the week strip — N to a complete week */
+.week-strip { margin-top: 22px; width: 100%; max-width: 300px; }
+.week-strip .wh { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 9px; }
+.week-strip .wh .t { font-size: 9px; font-weight: 900; letter-spacing: .15em; text-transform: uppercase; color: var(--ink-3); }
+.week-strip .wh .n { font-size: 10px; font-weight: 800; color: var(--ink-2); font-family: var(--serif); font-style: italic; }
+.week-strip .cells { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.week-strip .cell { aspect-ratio: 1; border: 1.5px solid var(--ink); background: var(--sheet); display: grid; place-items: center; }
+.week-strip .cell i { width: 11px; height: 11px; background: var(--ink); }
+.week-strip .cell i.circle { border-radius: 50%; background: var(--blue); }
+.week-strip .cell.today { background: var(--yellow); }
+.week-strip .cell.empty { background: var(--paper); border-style: dashed; border-color: var(--ink-3); }
+.week-strip .cell.empty i { display: none; }
+
+/* tomorrow's scene teaser — quiet, blue reference accent, demoted */
+.teaser {
+  margin-top: 24px; width: 100%; display: flex; align-items: center; gap: 14px;
+  border: 1.5px solid var(--ink); background: var(--sheet); padding: 13px 15px;
+  text-decoration: none; color: var(--ink); text-align: left;
+}
+.teaser .thumb {
+  flex: 0 0 52px; height: 52px; border: 1px solid var(--ink); background: var(--paper-2);
+  background-image: repeating-linear-gradient(135deg, rgba(20,17,13,.07) 0 2px, transparent 2px 10px);
+  display: grid; place-items: end start; padding: 4px;
+}
+.teaser .thumb b { font-family: var(--mono, monospace); font-size: 7px; color: var(--ink-3); font-weight: 600; }
+.teaser .tx { min-width: 0; flex: 1 1 auto; }
+.teaser .tx .k { font-size: 8.5px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; color: var(--blue); }
+.teaser .tx h4 { margin: 3px 0 0; font-family: var(--serif); font-style: italic; font-weight: 600; font-size: 18px; line-height: 1.05; }
+.teaser .tx p { margin: 3px 0 0; font-size: 10.5px; line-height: 1.3; color: var(--ink-2); }
+.teaser .go { flex: 0 0 auto; color: var(--ink); }
+.teaser .go svg { width: 16px; height: 16px; }
+
+/* ============================================================
+   THE SEAL COLLECTION — an editorial archive / almanac
+   ============================================================ */
+.coll {
+  position: relative; width: 380px;
+  background: var(--paper); color: var(--ink);
+  font-family: var(--grotesk); -webkit-font-smoothing: antialiased;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.coll * { box-sizing: border-box; }
+.coll-head { padding: 16px 22px 15px; border-bottom: 1px solid var(--ink); }
+.coll-head .k { font-size: 9px; font-weight: 900; letter-spacing: .18em; text-transform: uppercase; color: var(--ink-3); }
+.coll-head h1 { margin: 4px 0 0; font-family: var(--serif); font-style: italic; font-weight: 600; font-size: 28px; line-height: 1; }
+.coll-head .meta { margin-top: 8px; display: flex; gap: 8px; align-items: baseline; font-size: 10px; font-weight: 800; letter-spacing: .04em; color: var(--ink-2); }
+.coll-head .meta b { color: var(--ink); font-family: var(--serif); font-style: italic; font-size: 14px; }
+.coll-head .meta .dot { width: 3px; height: 3px; background: var(--ink-3); display: inline-block; }
+.coll-body { flex: 1 1 auto; padding: 18px 22px 24px; }
+
+/* current week — endowed progress, dignified (no panic) */
+.coll-week { border: 1.5px solid var(--ink); background: var(--sheet); padding: 14px 15px 16px; box-shadow: 5px 5px 0 var(--ink); }
+.coll-week .wh { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 13px; }
+.coll-week .wh .t { font-size: 9px; font-weight: 900; letter-spacing: .15em; text-transform: uppercase; color: var(--ink); }
+.coll-week .wh .n { font-size: 10px; font-weight: 800; color: var(--red); letter-spacing: .04em; text-transform: uppercase; }
+.coll-week .row7 { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; justify-items: center; }
+/* the week strip packs 7 across a phone — use compact discs here */
+.coll-week .row7 .seal-mini { gap: 5px; }
+.coll-week .row7 .seal-mini .disc { width: 36px; height: 36px; }
+.coll-week .row7 .seal-mini .disc .core { width: 25px; height: 25px; }
+.coll-week .row7 .seal-mini .no { font-size: 7px; letter-spacing: .04em; }
+.coll-week .row7 .seal-mini.future .disc::after { width: 6px; height: 6px; }
+
+.coll-section { margin-top: 26px; }
+.coll-section .sh { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
+.coll-section .sh .t { font-size: 9.5px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-3); }
+.coll-section .sh .ln { flex: 1 1 auto; height: 1px; background: var(--paper-3); }
+.coll-section .sh .ct { font-size: 9.5px; font-weight: 800; color: var(--ink-3); }
+.coll-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px 10px; }
+
+/* ============================================================
+   SPEC BOARDS for this set (paper sheets, reuse .board base)
+   ============================================================ */
+.board .lede { margin: 16px 0 4px; font-size: 11px; font-weight: 900; letter-spacing: .15em; text-transform: uppercase; color: var(--ink-3); }
+.kit-foot { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--paper-3); font-size: 11px; line-height: 1.5; color: var(--ink-2); }
+.kit-foot b { color: var(--ink); }
+.kit-foot .pin { color: var(--red); font-weight: 900; }
+
+/* ============================================================
+   THE SCREEN OF THREE — per-exercise forms
+   Each of the three exercises on a screen is bound to one house
+   form. As the exercise resolves, its form grins (flawless) or
+   saddens (a slip). Three flawless → the forms fuse into the
+   Atelier logo: a collectible TOKEN, with confetti + a haptic tick.
+   ============================================================ */
+.rf {
+  position: relative; flex: 0 0 auto;
+  width: 40px; height: 40px; display: grid; place-items: center;
+  transform-origin: 50% 90%;
+  transition: transform .35s ease, opacity .35s ease;
+}
+.rf .shape { display: block; width: 100%; height: 100%; overflow: visible; }
+.rf .shape path, .rf .shape rect, .rf .shape circle, .rf .shape polygon { stroke: var(--ink); stroke-width: 2; }
+.rf.circle   .shape circle  { fill: var(--blue); }
+.rf.square   .shape rect    { fill: var(--yellow); }
+.rf.triangle .shape polygon { fill: var(--red); }
+/* per-form mark — appears only on a verdict, transition-driven (snap-safe) */
+.rf .mk { position: absolute; inset: 0; opacity: 0; transition: opacity .25s ease; }
+.rf[data-state="grin"] .mk, .rf[data-state="sad"] .mk { opacity: 1; }
+.rf .mk .eye { position: absolute; width: 2.6px; height: 2.6px; border-radius: 50%; background: var(--paper); }
+.rf .mk svg { position: absolute; left: 50%; transform: translateX(-50%); width: 16px; height: 8px; overflow: visible; }
+.rf .mk svg path { fill: none; stroke: var(--paper); stroke-width: 1.5; stroke-linecap: round; }
+.rf .mk .grin, .rf .mk .sad { display: none; }
+.rf[data-state="grin"] .mk .grin { display: block; }
+.rf[data-state="sad"]  .mk .sad  { display: block; }
+/* placement per shape */
+.rf.circle .mk .eye { top: 16px; } .rf.circle .mk .eye.l { left: 13px; } .rf.circle .mk .eye.r { right: 13px; } .rf.circle .mk svg { top: 22px; }
+.rf.square .mk .eye { top: 17px; background: var(--ink); } .rf.square .mk .eye.l { left: 14px; } .rf.square .mk .eye.r { right: 14px; } .rf.square .mk svg { top: 24px; } .rf.square .mk svg path { stroke: var(--ink); }
+.rf.triangle .mk .eye { top: 23px; } .rf.triangle .mk .eye.l { left: 15px; } .rf.triangle .mk .eye.r { right: 15px; } .rf.triangle .mk svg { top: 28px; width: 13px; }
+/* a slip leans the form a little, faded */
+.rf[data-state="sad"] { transform: rotate(-6deg); opacity: .6; }
+@media (prefers-reduced-motion: no-preference) {
+  .rf[data-state="grin"] { animation: af-hop .5s cubic-bezier(.3,1.3,.4,1); }
+}
+
+/* trio screen — reuses the .drill shell + bar */
+.trio-body { flex: 1 1 auto; position: relative; padding: 16px 20px 0; display: flex; flex-direction: column; gap: 13px; }
+.trio-intro { display: flex; align-items: baseline; justify-content: space-between; }
+.trio-intro .k { font-size: 9px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-3); }
+.trio-intro .n { font-size: 9px; font-weight: 800; letter-spacing: .06em; color: var(--ink-3); }
+.trio-ex { display: grid; grid-template-columns: 40px 1fr; gap: 14px; align-items: center; }
+.trio-ex .ex-card { border: 1.5px solid var(--ink); background: var(--sheet); padding: 11px 13px 12px; min-width: 0; }
+.trio-ex .ex-card.current { background: var(--paper); box-shadow: 3px 3px 0 var(--ink); }
+.trio-ex .ex-card.wrong { border-color: var(--red); }
+.ex-card .q { font-family: var(--serif); font-style: italic; font-weight: 500; font-size: 15.5px; line-height: 1.24; color: var(--ink); }
+.ex-card .q .blank { display: inline-block; min-width: 52px; border-bottom: 2px solid var(--ink-3); text-align: center; color: var(--ink-3); font-style: normal; }
+.ex-card .q .blank.ok { border-bottom-color: var(--ink); color: var(--ink); font-style: italic; }
+.ex-card .q .blank.no { border-bottom-color: var(--red); color: var(--red); font-style: italic; }
+.ex-card .opts { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 7px; }
+.ex-card .opt { font-family: var(--grotesk); font-size: 12px; font-weight: 700; border: 1px solid var(--ink); background: var(--paper); color: var(--ink); padding: 7px 11px; cursor: pointer; transition: background .12s, color .12s; }
+.ex-card .opt:hover { background: var(--sheet); }
+.ex-card .opt.pick-ok { background: var(--ink); color: var(--paper); }
+.ex-card .opt.pick-no { background: var(--red); color: #fff; border-color: var(--red); }
+.ex-card .opt.show-ok { box-shadow: inset 0 -3px 0 var(--success, #2c6a5d); }
+.ex-card .meta { margin-top: 9px; font-size: 8px; font-weight: 900; letter-spacing: .13em; text-transform: uppercase; color: var(--ink-3); display: flex; align-items: center; gap: 7px; }
+.ex-card .meta.go { color: var(--success, #2c6a5d); }
+.ex-card .meta.no { color: var(--red); }
+
+/* the quiet percentile banner — encouraging, never a threat */
+.pct { display: flex; align-items: center; gap: 9px; font-size: 8.5px; font-weight: 900; letter-spacing: .13em; text-transform: uppercase; color: var(--success, #2c6a5d); }
+.pct .ln { flex: 1 1 auto; height: 1px; background: currentColor; opacity: .35; }
+
+/* ============================================================
+   THE LOGO TOKEN — three forms + the ink block, fused into the
+   house mark. A collectible minted by a perfect screen.
+   ============================================================ */
+.logo-token { position: relative; width: 104px; height: 104px; border: 2px solid var(--ink); background: var(--sheet); box-shadow: 6px 6px 0 var(--ink); display: grid; place-items: center; }
+.logo-token.sm { width: 30px; height: 30px; border-width: 1.5px; box-shadow: 2px 2px 0 var(--ink); }
+.logo-token .lt { position: relative; width: 62px; height: 62px; }
+.logo-token.sm .lt { width: 19px; height: 19px; }
+.logo-token .lt svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.logo-token .shp { stroke: var(--ink); stroke-width: 3; }
+.logo-token.sm .shp { stroke-width: 4; }
+.logo-token .c-block { fill: var(--ink); } .logo-token .c-circle { fill: var(--blue); }
+.logo-token .c-square { fill: var(--yellow); } .logo-token .c-tri { fill: var(--red); }
+@media (prefers-reduced-motion: no-preference) {
+  .logo-token.pop { animation: token-pop .5s cubic-bezier(.2,1.25,.3,1); }
+}
+@keyframes token-pop { 0% { transform: scale(.7) rotate(-4deg); } 60% { transform: scale(1.06) rotate(1deg); } 100% { transform: scale(1) rotate(0); } }
+
+/* ============================================================
+   CONFETTI — restrained: small press-marks in the house inks,
+   a quick scatter, never a rainbow storm. Off under reduced motion.
+   ============================================================ */
+.confetti { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 6; }
+.confetti i { position: absolute; top: -14px; width: 9px; height: 9px; opacity: 0; }
+.confetti i.ci { border-radius: 50%; }
+.confetti i.tri { width: 0; height: 0; background: none !important; border-style: solid; border-width: 0 5px 9px 5px; border-color: transparent transparent currentColor transparent; }
+@media (prefers-reduced-motion: no-preference) {
+  .confetti i { animation: confetti-fall var(--dur, 1.1s) ease-in var(--del, 0s) forwards; }
+}
+@keyframes confetti-fall {
+  0% { transform: translateY(0) rotate(0); opacity: 1; }
+  100% { transform: translateY(440px) rotate(var(--r, 220deg)); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .confetti { display: none; } }
+
+/* the perfect-screen overlay */
+.perfect-ov { position: absolute; inset: 0; z-index: 7; background: rgba(241,236,225,.95); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 24px; }
+.perfect-ov .rubric { font-size: 10px; font-weight: 900; letter-spacing: .2em; text-transform: uppercase; color: var(--red); }
+.perfect-ov h3 { margin: 13px 0 0; font-family: var(--serif); font-style: italic; font-weight: 600; font-size: 28px; line-height: 1.02; }
+.perfect-ov .tok-stage { margin: 26px 0 0; }
+.perfect-ov .earned { margin-top: 20px; font-size: 9px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); }
+.perfect-ov .earned b { color: var(--ink); }
+.perfect-ov .ov-cta { margin-top: 24px; display: inline-flex; align-items: center; gap: 11px; min-height: 50px; padding: 0 22px; background: var(--ink); color: var(--paper); border: 1.5px solid var(--ink); font-size: 12px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; cursor: pointer; }
+.perfect-ov .ov-cta svg { width: 16px; height: 16px; }
+.perfect-ov .haptic { margin-top: 14px; font-size: 8px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); display: inline-flex; align-items: center; gap: 6px; }
+.perfect-ov .haptic i { width: 6px; height: 6px; border-radius: 50%; background: var(--red); }
+
+/* ============================================================
+   SESSION SUMMARY — encouraging stats + the token tally.
+   Projections are forward-looking and dignified: no panic,
+   no comparison shaming, just momentum.
+   ============================================================ */
+.summary { position: relative; width: 380px; background: var(--paper); color: var(--ink); font-family: var(--grotesk); -webkit-font-smoothing: antialiased; display: flex; flex-direction: column; overflow: hidden; }
+.summary * { box-sizing: border-box; }
+.summary-body { flex: 1 1 auto; padding: 26px 24px 24px; }
+.summary .rubric { font-size: 10px; font-weight: 900; letter-spacing: .2em; text-transform: uppercase; color: var(--red); }
+.summary h2 { margin: 10px 0 0; font-family: var(--serif); font-style: italic; font-weight: 600; font-size: 32px; line-height: 1; }
+.summary .sub { margin-top: 7px; font-size: 11.5px; line-height: 1.4; color: var(--ink-2); }
+
+/* the day's tally */
+.tally { margin-top: 22px; display: grid; grid-template-columns: repeat(3, 1fr); border: 1.5px solid var(--ink); }
+.tally .t { padding: 13px 12px 12px; border-right: 1px solid var(--ink); }
+.tally .t:last-child { border-right: 0; }
+.tally .t .n { font-family: var(--serif); font-style: italic; font-weight: 700; font-size: 30px; line-height: .9; }
+.tally .t .l { margin-top: 6px; font-size: 8px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); line-height: 1.3; }
+
+/* the tokens earned, en route to the workshop */
+.tok-earned { margin-top: 16px; display: flex; align-items: center; gap: 11px; border: 1px solid var(--ink); background: var(--sheet); padding: 11px 13px; }
+.tok-earned .chips { display: flex; gap: 6px; }
+.tok-earned .tx { min-width: 0; }
+.tok-earned .tx b { font-size: 11px; font-weight: 800; letter-spacing: .02em; }
+.tok-earned .tx span { display: block; font-size: 9.5px; color: var(--ink-2); margin-top: 1px; }
+.tok-earned .to { margin-left: auto; font-size: 8.5px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: var(--blue); white-space: nowrap; }
+
+/* forward-looking projections — momentum, framed kindly */
+.proj { margin-top: 22px; }
+.proj .ph { font-size: 9px; font-weight: 900; letter-spacing: .15em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 11px; }
+.proj .p { padding: 12px 0; border-top: 1px solid var(--paper-3); }
+.proj .p:first-of-type { border-top: 0; }
+.proj .p .pt { font-family: var(--serif); font-style: italic; font-weight: 500; font-size: 16.5px; line-height: 1.22; color: var(--ink); }
+.proj .p .pt b { font-style: normal; font-weight: 700; }
+.proj .p .pt .hi { color: var(--success, #2c6a5d); font-style: normal; font-weight: 700; }
+.proj .p .bar { margin-top: 8px; height: 5px; background: var(--paper-3); position: relative; }
+.proj .p .bar i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--success, #2c6a5d); }
+.proj .p .bar .you { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--ink); }
+.proj .p .pm { margin-top: 6px; font-size: 9px; font-weight: 800; letter-spacing: .04em; color: var(--ink-3); }
+.summary .seal-cta { margin-top: 24px; display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%; min-height: 56px; background: var(--red); color: #fff; border: 1.5px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); font-size: 13px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; text-decoration: none; cursor: pointer; }
+.summary .seal-cta svg { width: 17px; height: 17px; }
+.summary .foot-note { margin-top: 16px; font-size: 9px; line-height: 1.4; color: var(--ink-3); text-align: center; }
+
+/* ============================================================
+   COLLECTIBLES + WORKSHOP boards
+   ============================================================ */
+.bind-row { display: grid; grid-template-columns: 108px 1fr; gap: 20px; padding: 18px 0; border-bottom: 1px solid var(--paper-3); align-items: center; }
+.bind-row:last-child { border-bottom: 0; }
+.bind-row .art { display: grid; place-items: center; }
+.bind-row .bt { font-size: 10px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; color: var(--ink); }
+.bind-row .bt .req { color: var(--red); }
+.bind-row p { margin: 6px 0 0; font-size: 11.5px; line-height: 1.42; color: var(--ink-2); }
+.bind-row .eng { margin-top: 7px; font-family: var(--mono, monospace); font-size: 9px; line-height: 1.4; color: var(--ink-3); border-left: 2px solid var(--blue); padding-left: 9px; }
+/* the feuilleton story-collectible art placeholder */
+.scene-thumb { width: 96px; height: 72px; border: 1.5px solid var(--ink); background: var(--paper-2); background-image: repeating-linear-gradient(135deg, rgba(20,17,13,.08) 0 2px, transparent 2px 11px); display: grid; place-items: end start; padding: 5px; }
+.scene-thumb b { font-family: var(--mono, monospace); font-size: 8px; font-weight: 600; color: var(--ink-3); }
+.gilt { filter: none; }
+.gilt .seal-medallion, .gilt-disc { background: #f0e3b8; }
+.gilt .seal-mini .disc { background: #f0e3b8; }
+.gilt .seal-mini .no { color: #8a6d1a; }
+
+/* workshop recipes */
+.recipe { display: grid; grid-template-columns: 1fr auto 1fr; gap: 14px; align-items: center; padding: 16px 0; border-bottom: 1px solid var(--paper-3); }
+.recipe:last-child { border-bottom: 0; }
+.recipe .in, .recipe .out { display: flex; align-items: center; gap: 8px; }
+.recipe .out { justify-content: flex-end; }
+.recipe .cost { display: flex; align-items: center; gap: 7px; }
+.recipe .cost .x { font-family: var(--serif); font-style: italic; font-weight: 700; font-size: 17px; }
+.recipe .lbl { font-size: 9px; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-2); }
+.recipe .arrow-mid { color: var(--ink-3); }
+.recipe .arrow-mid svg { width: 18px; height: 18px; }
+.recipe .reward-name { font-family: var(--serif); font-style: italic; font-weight: 600; font-size: 15px; color: var(--ink); }
+.workshop-inv { display: flex; align-items: center; gap: 10px; border: 1.5px solid var(--ink); background: var(--sheet); padding: 11px 14px; margin-bottom: 4px; }
+.workshop-inv .n { font-family: var(--serif); font-style: italic; font-weight: 700; font-size: 22px; }
+.workshop-inv .l { font-size: 9px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); }
+.workshop-inv .l b { color: var(--ink); }

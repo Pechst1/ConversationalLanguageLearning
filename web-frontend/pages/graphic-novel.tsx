@@ -106,6 +106,7 @@ export default function GraphicNovelPage() {
   const [humorStyle, setHumorStyle] = useState<HumorStyle>('satirical');
   const experienceMode: ExperienceMode = 'study';
   const [renderMode, setRenderMode] = useState<RenderMode>('panels');
+  const [serialReaderMode, setSerialReaderMode] = useState<'vertical' | 'page'>('vertical');
   const [imageQuality, setImageQuality] = useState<ImageQuality>('medium');
   const autoCreateContextRef = useRef<string | null>(null);
   const routeQuery = useMemo(
@@ -423,7 +424,7 @@ export default function GraphicNovelPage() {
   return (
     <>
       <FeuilletonStyles />
-      <main className={`feuilleton-page ${scene ? 'has-scene' : ''}`}>
+      <main className={`feuilleton-page ${scene ? 'has-scene' : ''} ${serialReadFirst ? 'is-serial' : ''}`}>
         <EditorialMasthead
           active="studio"
           hideMobileNav={!!scene}
@@ -461,46 +462,48 @@ export default function GraphicNovelPage() {
 
         <div className="fn-spread fn-grid">
           <section className="fn-main">
-            <div className="fn-title">
-              <div>
-                <div className="t-mono">ATELIER DETOUR</div>
-                <h1>Feuilleton</h1>
-              </div>
-              <div className="create-console">
-                <Link className="btn atelier-return" href="/atelier">
-                  BACK TO TODAY <ArrowRight size={14} />
-                </Link>
-                {!scene?.serial_thread_id && (
-                  <>
-                    <div className="preset-row" aria-label="Feuilleton mode">
-                      <button
-                        className={storyQuality === 'standard' && renderMode === 'panels' && imageQuality === 'medium' ? 'active' : ''}
-                        type="button"
-                        onClick={() => {
-                          setPanelCount(6);
-                          setStoryQuality('standard');
-                          setRenderMode('panels');
-                          setImageQuality('medium');
-                        }}
-                      >
-                        Daily <span>panels · medium · study</span>
-                      </button>
-                    </div>
-                    <div className="seg-row" aria-label="Panel count">
-                      {([4, 6, 8] as PanelCount[]).map((count) => (
-                        <button key={count} className={panelCount === count ? 'active' : ''} onClick={() => setPanelCount(count)} type="button">
-                          {count} <span>{count === 4 ? 'quick' : count === 6 ? 'standard' : 'long'}</span>
+            {(!scene || !serialReadFirst) && (
+              <div className="fn-title">
+                <div>
+                  <div className="t-mono">ATELIER DETOUR</div>
+                  <h1>Feuilleton</h1>
+                </div>
+                <div className="create-console">
+                  <Link className="btn atelier-return" href="/atelier">
+                    BACK TO TODAY <ArrowRight size={14} />
+                  </Link>
+                  {!scene?.serial_thread_id && (
+                    <>
+                      <div className="preset-row" aria-label="Feuilleton mode">
+                        <button
+                          className={storyQuality === 'standard' && renderMode === 'panels' && imageQuality === 'medium' ? 'active' : ''}
+                          type="button"
+                          onClick={() => {
+                            setPanelCount(6);
+                            setStoryQuality('standard');
+                            setRenderMode('panels');
+                            setImageQuality('medium');
+                          }}
+                        >
+                          Daily <span>panels · medium · study</span>
                         </button>
-                      ))}
-                    </div>
-                    <button className="btn red" disabled={creating} onClick={() => createScene()}>
-                      {creating ? <Loader2 className="spin" size={14} /> : <Sparkles size={14} />}
-                      {creating ? 'GENERATING PANELS' : 'NEW SCENE'} <ArrowRight size={14} />
-                    </button>
-                  </>
-                )}
+                      </div>
+                      <div className="seg-row" aria-label="Panel count">
+                        {([4, 6, 8] as PanelCount[]).map((count) => (
+                          <button key={count} className={panelCount === count ? 'active' : ''} onClick={() => setPanelCount(count)} type="button">
+                            {count} <span>{count === 4 ? 'quick' : count === 6 ? 'standard' : 'long'}</span>
+                          </button>
+                        ))}
+                      </div>
+                      <button className="btn red" disabled={creating} onClick={() => createScene()}>
+                        {creating ? <Loader2 className="spin" size={14} /> : <Sparkles size={14} />}
+                        {creating ? 'GENERATING PANELS' : 'NEW SCENE'} <ArrowRight size={14} />
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
 
             {creating && (
               <GenerationProgress
@@ -529,9 +532,22 @@ export default function GraphicNovelPage() {
               <EditionPreparing failure={generationFailure} onRetry={() => createScene()} creating={creating} />
             ) : scene ? (
               <>
-                <SceneBrief scene={scene} threadContext={visibleThreadContext} />
-                <EpisodeAudioControls scene={scene} />
-                {scene.script_payload?.render_mode === 'page' ? (
+                {serialReadFirst ? (
+                  <SerialSceneReader
+                    scene={scene}
+                    readerMode={serialReaderMode}
+                    setReaderMode={setSerialReaderMode}
+                    answers={answers}
+                    setAnswer={(taskId, value) => setAnswers((current) => ({ ...current, [taskId]: value }))}
+                    onSubmit={submitTask}
+                    submittingTask={submittingTask}
+                    attemptsByTask={attemptsByTask}
+                    onOpenMobileTask={openMobileTask}
+                    revealedMobileStopIds={revealedMobileStopIds}
+                    showMobileTranslations={showMobileTranslations}
+                    targetVocabulary={targetVocabulary}
+                  />
+                ) : scene.script_payload?.render_mode === 'page' ? (
                   <div id="reading-panels">
                     <PageScene
                       scene={scene}
@@ -544,7 +560,7 @@ export default function GraphicNovelPage() {
                       revealedMobileStopIds={revealedMobileStopIds}
                       showMobileTranslations={showMobileTranslations}
                       targetVocabulary={targetVocabulary}
-                      readFirst={serialReadFirst}
+                      readFirst={false}
                     />
                   </div>
                 ) : (
@@ -562,36 +578,42 @@ export default function GraphicNovelPage() {
                         revealed={revealedMobileStopIds.includes(panelTaskStop(panel, []).id)}
                         showMobileTranslations={showMobileTranslations}
                         targetVocabulary={targetVocabulary}
-                        readFirst={serialReadFirst}
+                        readFirst={false}
                       />
                     ))}
                   </section>
                 )}
-                {serialReadFirst && (
-                  <ReadFirstTaskSection
+                {!serialReadFirst && <SceneBrief scene={scene} threadContext={visibleThreadContext} />}
+                <EpisodeAudioControls scene={scene} />
+                {serialReadFirst ? (
+                  <SerialFinalAct
                     scene={scene}
                     answers={answers}
                     setAnswer={(taskId, value) => setAnswers((current) => ({ ...current, [taskId]: value }))}
                     onSubmit={submitTask}
                     submittingTask={submittingTask}
                     attemptsByTask={attemptsByTask}
+                    onOpenMobileTask={openMobileTask}
                     targetVocabulary={targetVocabulary}
                   />
+                ) : (
+                  <>
+                    <FinalTask
+                      scene={scene}
+                      answers={answers}
+                      setAnswer={(taskId, value) => setAnswers((current) => ({ ...current, [taskId]: value }))}
+                      onSubmit={submitTask}
+                      submittingTask={submittingTask}
+                      attemptsByTask={attemptsByTask}
+                      targetVocabulary={targetVocabulary}
+                    />
+                    <MobileFinalTaskCard
+                      scene={scene}
+                      attemptsByTask={attemptsByTask}
+                      onOpenMobileTask={openMobileTask}
+                    />
+                  </>
                 )}
-                <FinalTask
-                  scene={scene}
-                  answers={answers}
-                  setAnswer={(taskId, value) => setAnswers((current) => ({ ...current, [taskId]: value }))}
-                  onSubmit={submitTask}
-                  submittingTask={submittingTask}
-                  attemptsByTask={attemptsByTask}
-                  targetVocabulary={targetVocabulary}
-                />
-                <MobileFinalTaskCard
-                  scene={scene}
-                  attemptsByTask={attemptsByTask}
-                  onOpenMobileTask={openMobileTask}
-                />
                 <FeuilletonCliffhangerHero scene={scene} />
                 <PostSceneVocabularySummary scene={scene} vocabulary={targetVocabulary} />
                 {!scene.serial_thread_id && (
@@ -889,6 +911,323 @@ function MobileReadingBar({
         {hasPendingTask ? 'Task' : 'Done'} <ArrowRight size={12} />
       </button>
     </nav>
+  );
+}
+
+function SerialSceneReader({
+  scene,
+  readerMode,
+  setReaderMode,
+  answers,
+  setAnswer,
+  onSubmit,
+  submittingTask,
+  attemptsByTask,
+  onOpenMobileTask,
+  revealedMobileStopIds,
+  showMobileTranslations,
+  targetVocabulary,
+}: {
+  scene: GraphicNovelScene;
+  readerMode: 'vertical' | 'page';
+  setReaderMode: (mode: 'vertical' | 'page') => void;
+  answers: Record<string, string>;
+  setAnswer: (taskId: string, value: string) => void;
+  onSubmit: (task: OverlayTask) => void;
+  submittingTask: string | null;
+  attemptsByTask: Record<string, Record<string, any>>;
+  onOpenMobileTask: (taskId?: string | null, options?: { scroll?: boolean }) => void;
+  revealedMobileStopIds: string[];
+  showMobileTranslations: boolean;
+  targetVocabulary: FeuilletonVocabularyItem[];
+}) {
+  const hasComicPage = Boolean(scene.script_payload?.page_image?.url || scene.script_payload?.render_mode === 'page');
+  const activeMode = hasComicPage ? readerMode : 'vertical';
+  return (
+    <section className="serial-reader s-feuil" id="reading-panels" aria-label="Serial episode reader">
+      <SerialReaderMast scene={scene} />
+      {hasComicPage && (
+        <div className="serial-reader-toggle" role="tablist" aria-label="Reader mode">
+          <button
+            aria-selected={activeMode === 'vertical'}
+            className={activeMode === 'vertical' ? 'active' : ''}
+            onClick={() => setReaderMode('vertical')}
+            role="tab"
+            type="button"
+          >
+            Vertical
+          </button>
+          <button
+            aria-selected={activeMode === 'page'}
+            className={activeMode === 'page' ? 'active' : ''}
+            onClick={() => setReaderMode('page')}
+            role="tab"
+            type="button"
+          >
+            Comic page
+          </button>
+        </div>
+      )}
+      {activeMode === 'page' ? (
+        <PageScene
+          scene={scene}
+          answers={answers}
+          setAnswer={setAnswer}
+          onSubmit={onSubmit}
+          submittingTask={submittingTask}
+          attemptsByTask={attemptsByTask}
+          onOpenMobileTask={onOpenMobileTask}
+          revealedMobileStopIds={revealedMobileStopIds}
+          showMobileTranslations={showMobileTranslations}
+          targetVocabulary={targetVocabulary}
+          readFirst
+        />
+      ) : (
+        <div className="serial-panel-stack">
+          {(scene.panels || []).map((panel) => (
+            <SerialPanel
+              key={panel.id}
+              panel={panel}
+              answers={answers}
+              setAnswer={setAnswer}
+              onSubmit={onSubmit}
+              submittingTask={submittingTask}
+              attemptsByTask={attemptsByTask}
+              onOpenMobileTask={onOpenMobileTask}
+              revealed={revealedMobileStopIds.includes(panelTaskStop(panel, []).id)}
+              showMobileTranslations={showMobileTranslations}
+              targetVocabulary={targetVocabulary}
+            />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function SerialReaderMast({ scene }: { scene: GraphicNovelScene }) {
+  const episodeNo = typeof scene.episode_index === 'number' ? scene.episode_index + 1 : 1;
+  const loc = serialLocation(scene);
+  const dateLabel = feuilletonEditionDate(scene) || 'Today';
+  const news = serialNewsLine(scene);
+  const previously = serialPreviouslyText(scene);
+  return (
+    <>
+      <header className="s-mast serial-reader-mast">
+        <div className="kicker">Le Feuilleton</div>
+        <div className="title">{scene.title || 'The serial'}</div>
+        <div className="dateline">
+          <span>Épisode {episodeNo}</span>
+          {loc && <><i /><span>{loc}</span></>}
+          <i />
+          <span>{dateLabel}</span>
+        </div>
+      </header>
+      {news && (
+        <aside className="s-news" data-char="romy">
+          <span className="lbl">Cette semaine</span>
+          <span className="txt">{news}</span>
+        </aside>
+      )}
+      {previously && (
+        <aside className="s-prev" aria-label="Previously on the serial">
+          <div className="ph">
+            <span className="tag">Previously on</span>
+            <span className="tag stamp2">Ép. {Math.max(1, episodeNo - 1)}</span>
+          </div>
+          <div className="pb">{previously}</div>
+        </aside>
+      )}
+    </>
+  );
+}
+
+function SerialPanel({
+  panel,
+  answers,
+  setAnswer,
+  onSubmit,
+  submittingTask,
+  attemptsByTask,
+  onOpenMobileTask,
+  revealed,
+  showMobileTranslations,
+  targetVocabulary,
+}: {
+  panel: GraphicNovelPanel;
+  answers: Record<string, string>;
+  setAnswer: (taskId: string, value: string) => void;
+  onSubmit: (task: OverlayTask) => void;
+  submittingTask: string | null;
+  attemptsByTask: Record<string, Record<string, any>>;
+  onOpenMobileTask: (taskId?: string | null, options?: { scroll?: boolean }) => void;
+  revealed: boolean;
+  showMobileTranslations: boolean;
+  targetVocabulary: FeuilletonVocabularyItem[];
+}) {
+  const overlay = panel.overlay_payload || {};
+  const tasks = ((overlay.tasks || []) as OverlayTask[]).map((task) => ({ ...task, panel }));
+  const stop = panelTaskStop(panel, tasks);
+  const caption = overlay.caption || {};
+  const bubbles = (overlay.bubbles || []) as PanelBubble[];
+  const panelVocabulary = panelVocabularyMatches(panel, tasks, targetVocabulary);
+  const imageUrl = panelImageUrl(panel);
+  const isQueuedArt = !imageUrl && panel.generation_metadata?.image_status === 'queued';
+  const shouldUseFallback = isFallbackPanel(panel) || !imageUrl;
+  const who = serialPanelCharacter(panel);
+  const captionText = String(caption.fr || panel.beat || '').trim();
+  return (
+    <motion.article
+      initial={{ opacity: 0, y: 18 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.34, delay: (panel.panel_index || 1) * 0.05 }}
+      className="s-panel serial-panel"
+      data-char={who}
+      data-mobile-task-stop={stop.id}
+      id={stop.elementId}
+    >
+      <div className={`s-art ${shouldUseFallback ? 'fallback-panel' : 'generated-panel'}`}>
+        {shouldUseFallback ? (
+          <ComicFallbackPanel panel={panel} queued={isQueuedArt} />
+        ) : (
+          <Image
+            src={imageUrl}
+            alt=""
+            fill
+            sizes="(max-width: 760px) calc(100vw - 36px), 720px"
+            unoptimized
+          />
+        )}
+        <span className="frame-note">{serialPanelFrame(panel)}</span>
+        <BubbleOverlay bubbles={bubbles} showMobileTranslations={showMobileTranslations} />
+      </div>
+      {captionText && (
+        <div className="s-cap">
+          <span className="n">{String(panel.panel_index || 1).padStart(2, '0')}</span>
+          <span className="c">{captionText}</span>
+        </div>
+      )}
+      <PanelVocabularyMarker items={panelVocabulary} />
+      {bubbles.some((bubble) => bubble?.fr) && (
+        <details className="mobile-panel-dialogue serial-dialogue">
+          <summary>Dialogue transcript</summary>
+          <BubbleTranscript bubbles={bubbles} showMobileTranslations={showMobileTranslations} />
+        </details>
+      )}
+      {caption.en && (
+        <details className={`caption-translation serial-caption-translation ${showMobileTranslations ? 'mobile-en-visible' : ''}`} open={showMobileTranslations || undefined}>
+          <summary>Translation</summary>
+          <p className="caption-en">{caption.en}</p>
+        </details>
+      )}
+      <SerialTaskEmbed
+        stop={stop}
+        tasks={tasks}
+        answers={answers}
+        setAnswer={setAnswer}
+        onSubmit={onSubmit}
+        submittingTask={submittingTask}
+        attemptsByTask={attemptsByTask}
+        onOpenMobileTask={onOpenMobileTask}
+        revealed={revealed}
+        targetVocabulary={targetVocabulary}
+      />
+    </motion.article>
+  );
+}
+
+function SerialTaskEmbed({
+  stop,
+  tasks,
+  answers,
+  setAnswer,
+  onSubmit,
+  submittingTask,
+  attemptsByTask,
+  onOpenMobileTask,
+  revealed,
+  targetVocabulary,
+}: {
+  stop: MobileTaskStop;
+  tasks: OverlayTask[];
+  answers: Record<string, string>;
+  setAnswer: (taskId: string, value: string) => void;
+  onSubmit: (task: OverlayTask) => void;
+  submittingTask: string | null;
+  attemptsByTask: Record<string, Record<string, any>>;
+  onOpenMobileTask: (taskId?: string | null, options?: { scroll?: boolean }) => void;
+  revealed: boolean;
+  targetVocabulary: FeuilletonVocabularyItem[];
+}) {
+  const validTasks = tasks.filter((task) => task.id);
+  if (!validTasks.length) return null;
+  const firstTask = validTasks[0];
+  return (
+    <div className="s-fork serial-act">
+      <div className="fh">
+        <span className="s-ava sm" data-char="toi">T</span>
+        <span className="q"><b>You write the next line.</b> {serialTaskPrompt(firstTask)}</span>
+      </div>
+      <MobileStoryTaskLauncher stop={stop} attemptsByTask={attemptsByTask} onOpenMobileTask={onOpenMobileTask} revealed={revealed} />
+      <div className="serial-act-body">
+        {validTasks.map((task) => (
+          <TaskControls
+            key={task.id}
+            task={task}
+            value={answers[task.id] || ''}
+            setValue={(value) => setAnswer(task.id, value)}
+            onSubmit={() => onSubmit(task)}
+            submitting={submittingTask === task.id}
+            attempt={attemptsByTask[task.id]}
+            targetVocabulary={targetVocabulary}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SerialFinalAct({
+  scene,
+  answers,
+  setAnswer,
+  onSubmit,
+  submittingTask,
+  attemptsByTask,
+  onOpenMobileTask,
+  targetVocabulary,
+}: {
+  scene: GraphicNovelScene;
+  answers: Record<string, string>;
+  setAnswer: (taskId: string, value: string) => void;
+  onSubmit: (task: OverlayTask) => void;
+  submittingTask: string | null;
+  attemptsByTask: Record<string, Record<string, any>>;
+  onOpenMobileTask: (taskId?: string | null, options?: { scroll?: boolean }) => void;
+  targetVocabulary: FeuilletonVocabularyItem[];
+}) {
+  const task = finalSceneTask(scene);
+  if (!task?.id) return null;
+  const stop = finalTaskStop(scene, task);
+  return (
+    <section className="s-fork serial-final-act" id={stop.elementId} data-mobile-task-stop={stop.id} aria-label="Final serial act">
+      <div className="fh">
+        <span className="s-ava sm" data-char="toi">T</span>
+        <span className="q"><b>You write the next line.</b> {serialTaskPrompt(task)}</span>
+      </div>
+      <MobileStoryTaskLauncher stop={stop} attemptsByTask={attemptsByTask} onOpenMobileTask={onOpenMobileTask} revealed />
+      <div className="serial-act-body">
+        <TaskControls
+          task={task}
+          value={answers[task.id] || ''}
+          setValue={(value) => setAnswer(task.id, value)}
+          onSubmit={() => onSubmit(task)}
+          submitting={submittingTask === task.id}
+          attempt={attemptsByTask[task.id]}
+          targetVocabulary={targetVocabulary}
+        />
+      </div>
+    </section>
   );
 }
 
@@ -1670,10 +2009,13 @@ function BubbleOverlay({ bubbles, showMobileTranslations }: { bubbles: PanelBubb
   if (!visible.length) return null;
   return (
     <div className="bubble-layer" aria-label="Panel dialogue">
-      {visible.slice(0, 2).map((bubble, index) => (
+      {visible.slice(0, 2).map((bubble, index) => {
+        const who = panelBubbleCharacter(bubble);
+        return (
         <button
           type="button"
           className={`speech-bubble bubble-${index + 1} tone-${bubble.tone || 'deadpan'}`}
+          data-char={who}
           key={`${bubble.speaker || 'bubble'}-${index}`}
           aria-label={bubble.en ? `Toggle ${bubble.speaker || 'dialogue'} translation` : `${bubble.speaker || 'Dialogue'} bubble`}
           onClick={() => bubble.en && setTranslated((current) => ({ ...current, [index]: !current[index] }))}
@@ -1687,7 +2029,8 @@ function BubbleOverlay({ bubbles, showMobileTranslations }: { bubbles: PanelBubb
           <p>{(showMobileTranslations || translated[index]) && bubble.en ? bubble.en : bubble.fr}</p>
           {bubble.en && <small>{(showMobileTranslations || translated[index]) ? 'FR' : 'EN'}</small>}
         </button>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -1698,7 +2041,7 @@ function BubbleTranscript({ bubbles, showMobileTranslations }: { bubbles: PanelB
   return (
     <div className="bubble-transcript">
       {visible.map((bubble, index) => (
-        <blockquote key={`${bubble.speaker || 'bubble'}-${index}`}>
+        <blockquote key={`${bubble.speaker || 'bubble'}-${index}`} data-char={panelBubbleCharacter(bubble)}>
           {bubble.speaker && <span>{bubble.speaker}</span>}
           <p>{bubble.fr}</p>
           {bubble.en && <small className={showMobileTranslations ? 'mobile-en-visible' : ''}>{bubble.en}</small>}
@@ -1861,6 +2204,94 @@ function completionTakeaway(scene: GraphicNovelScene) {
   const firstPanelTask = extractTasks(scene).find((task) => task.label || task.instruction);
   if (firstPanelTask?.label) return `Today's repair centered on ${firstPanelTask.label}.`;
   return 'Keep the French sentence anchored to the panel before adding the joke.';
+}
+
+function firstString(...values: unknown[]) {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  return '';
+}
+
+function serialLocation(scene: GraphicNovelScene) {
+  const source = scene.source_snapshot || {};
+  const serialContext = scene.script_payload?.serial_context || {};
+  const brief = scene.script_payload?.episode_brief || scene.script_payload?.brief_payload || {};
+  return firstString(
+    source.location_name,
+    source.location,
+    serialContext.location,
+    brief.location,
+    brief.setting,
+    scene.script_payload?.location,
+    'Paris',
+  );
+}
+
+function serialNewsLine(scene: GraphicNovelScene) {
+  const source = scene.source_snapshot || {};
+  const serialContext = scene.script_payload?.serial_context || {};
+  const sourceUsage = scene.script_payload?.source_usage || {};
+  const sourceCopy = feuilletonSourceCopy(source, scene.script_payload || {});
+  return trimFeuilletonText(firstString(
+    sourceUsage.romy_line,
+    serialContext.news_line,
+    source.news_line,
+    sourceCopy.titleFr,
+  ), 150);
+}
+
+function serialPreviouslyText(scene: GraphicNovelScene) {
+  const serialContext = scene.script_payload?.serial_context || {};
+  const hookFromPrevious = serialContext.hook_from_previous || scene.script_payload?.hook_from_previous || {};
+  const source = scene.source_snapshot || {};
+  return firstString(
+    hookFromPrevious.text,
+    hookFromPrevious.teaser,
+    source.previously,
+    source.previous_hook,
+  );
+}
+
+function serialCharacterKey(value: unknown) {
+  const text = String(value || '').toLowerCase();
+  if (text.includes('marchand') || text.includes('landlord') || text.includes('propriétaire')) return 'marchand';
+  if (text.includes('marin')) return 'marin';
+  if (text.includes('lila')) return 'lila';
+  if (text.includes('gus') || text.includes('augustin')) return 'gus';
+  if (text.includes('margaux')) return 'margaux';
+  if (text.includes('romy') || text.includes('romane')) return 'romy';
+  if (text.includes('toi') || text.includes('you') || text.includes('user')) return 'toi';
+  return '';
+}
+
+function panelBubbleCharacter(bubble: PanelBubble) {
+  return serialCharacterKey(bubble.speaker_id) || serialCharacterKey(bubble.speaker) || 'toi';
+}
+
+function serialPanelCharacter(panel: GraphicNovelPanel) {
+  const bubbles = (panel.overlay_payload?.bubbles || []) as PanelBubble[];
+  const bubbleCharacter = bubbles.map(panelBubbleCharacter).find(Boolean);
+  return bubbleCharacter || serialCharacterKey(`${panel.title} ${panel.beat}`) || 'romy';
+}
+
+function serialPanelFrame(panel: GraphicNovelPanel) {
+  const overlay = panel.overlay_payload || {};
+  const frame = firstString(overlay.frame, overlay.shot, panel.image_payload?.frame, panel.generation_metadata?.frame);
+  if (frame) return frame;
+  const prefix = `PANEL ${String(panel.panel_index || 1).padStart(2, '0')}`;
+  return panel.title ? `${prefix} · ${panel.title}` : prefix;
+}
+
+function serialTaskPrompt(task: Record<string, any>) {
+  return trimFeuilletonText(firstString(
+    task.serial_prompt,
+    task.scene_prompt,
+    task.prompt_body,
+    task.prompt,
+    task.instruction,
+    'Choose the line Toi says next.',
+  ), 120);
 }
 
 function feuilletonSourceCopy(source: Record<string, any>, script: Record<string, any>) {
@@ -3292,6 +3723,277 @@ function FeuilletonStyles() {
         margin-left: auto;
         white-space: nowrap;
       }
+      .feuilleton-page.is-serial .fn-grid {
+        width: min(760px, 100%);
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0;
+        padding-top: 22px;
+      }
+      .feuilleton-page.is-serial .fn-side {
+        display: none;
+      }
+      .feuilleton-page.is-serial .fn-main {
+        gap: 18px;
+      }
+      .serial-reader {
+        border: 1.5px solid var(--ink);
+        background: var(--paper);
+        overflow: hidden;
+      }
+      .s-mast {
+        border-bottom: 2px solid var(--ink);
+        padding: 18px 20px 16px;
+        text-align: center;
+      }
+      .s-mast .kicker {
+        display: block;
+        margin: 0;
+        color: var(--ink-3);
+        font-size: 9px;
+        font-weight: 900;
+        letter-spacing: .26em;
+        text-transform: uppercase;
+      }
+      .s-mast .title {
+        margin: 6px 0 0;
+        font-family: var(--serif);
+        font-size: clamp(32px, 7vw, 50px);
+        font-style: italic;
+        font-weight: 700;
+        line-height: .96;
+        letter-spacing: 0;
+      }
+      .s-mast .dateline {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 10px;
+        color: var(--ink-2);
+        font-size: 8.5px;
+        font-weight: 900;
+        letter-spacing: .12em;
+        text-transform: uppercase;
+      }
+      .s-mast .dateline i {
+        display: inline-block;
+        width: 3px;
+        height: 3px;
+        background: var(--ink-3);
+      }
+      .s-news {
+        display: flex;
+        gap: 9px;
+        align-items: baseline;
+        padding: 10px 18px;
+        border-bottom: 1px solid var(--ink);
+        background: var(--sheet);
+      }
+      .s-news .lbl {
+        flex: 0 0 auto;
+        border: 1px solid var(--accent, var(--blue));
+        color: var(--accent, var(--blue));
+        padding: 2px 5px;
+        font-size: 8px;
+        font-weight: 900;
+        letter-spacing: .12em;
+        text-transform: uppercase;
+      }
+      .s-news .txt {
+        color: var(--ink-2);
+        font-family: var(--serif);
+        font-size: 13px;
+        font-style: italic;
+        line-height: 1.25;
+      }
+      .s-prev {
+        margin: 16px 18px 4px;
+        border: 1px solid var(--ink);
+        background: var(--paper);
+      }
+      .s-prev .ph {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 12px;
+        border-bottom: 1px dashed var(--ink-3);
+      }
+      .s-prev .tag {
+        color: var(--red);
+        font-size: 8.5px;
+        font-weight: 900;
+        letter-spacing: .16em;
+        text-transform: uppercase;
+      }
+      .s-prev .tag.stamp2 {
+        margin-left: auto;
+        border: 1px solid var(--ink-3);
+        color: var(--ink-3);
+        padding: 2px 6px;
+        transform: rotate(-2deg);
+      }
+      .s-prev .pb {
+        padding: 10px 13px 12px;
+        color: var(--ink-2);
+        font-family: var(--serif);
+        font-size: 14.5px;
+        font-style: italic;
+        line-height: 1.32;
+      }
+      .serial-reader-toggle {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        margin: 16px 18px 2px;
+        border: 1px solid var(--ink);
+        background: var(--paper);
+      }
+      .serial-reader-toggle button {
+        min-height: 40px;
+        border-right: 1px solid var(--ink);
+        color: var(--ink);
+        font-size: 10px;
+        font-weight: 900;
+        letter-spacing: .12em;
+        text-transform: uppercase;
+      }
+      .serial-reader-toggle button:last-child {
+        border-right: 0;
+      }
+      .serial-reader-toggle button.active {
+        background: var(--ink);
+        color: var(--paper);
+      }
+      .serial-panel-stack {
+        display: grid;
+        gap: 0;
+        padding: 0 0 10px;
+      }
+      .s-panel {
+        margin: 18px;
+      }
+      .serial-panel {
+        --accent: var(--char-romy);
+      }
+      .s-art {
+        position: relative;
+        min-height: 260px;
+        aspect-ratio: 4 / 3;
+        border: 1.5px solid var(--ink);
+        background: var(--paper-2);
+        background-image: repeating-linear-gradient(135deg, rgba(20,17,13,.06) 0 2px, transparent 2px 12px);
+        overflow: hidden;
+      }
+      .s-art img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+      .s-art .frame-note {
+        position: absolute;
+        top: 9px;
+        left: 9px;
+        z-index: 4;
+        max-width: 72%;
+        border: 1px solid var(--ink-3);
+        background: color-mix(in srgb, var(--paper) 92%, transparent);
+        color: var(--ink-3);
+        padding: 3px 6px;
+        font-family: var(--mono);
+        font-size: 9px;
+        font-weight: 600;
+        letter-spacing: .02em;
+      }
+      .s-cap {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 11px;
+        align-items: baseline;
+        padding: 10px 2px 2px;
+      }
+      .s-cap .n {
+        color: var(--ink-3);
+        font-size: 10px;
+        font-weight: 900;
+        letter-spacing: .04em;
+      }
+      .s-cap .c {
+        color: var(--ink);
+        font-family: var(--serif);
+        font-size: 17px;
+        font-style: italic;
+        line-height: 1.3;
+        text-wrap: pretty;
+      }
+      .serial-panel .context-vocabulary-marker {
+        margin: 9px 0 0;
+      }
+      .serial-dialogue {
+        margin-top: 10px;
+      }
+      .serial-caption-translation {
+        margin-top: 8px;
+      }
+      .s-fork {
+        margin: 16px 18px;
+        border: 1.5px solid var(--ink);
+        background: var(--sheet);
+      }
+      .serial-panel .s-fork {
+        margin: 14px 0 0;
+      }
+      .s-fork .fh {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 9px 13px;
+        border-bottom: 1px solid var(--ink);
+      }
+      .s-fork .fh .q {
+        color: var(--ink-3);
+        font-size: 8.5px;
+        font-weight: 900;
+        letter-spacing: .14em;
+        line-height: 1.35;
+        text-transform: uppercase;
+      }
+      .s-fork .fh .q b {
+        color: var(--ink);
+      }
+      .serial-act-body {
+        display: grid;
+        gap: 12px;
+        padding: 12px;
+      }
+      .serial-act .task-box,
+      .serial-final-act .task-box {
+        border-left-color: var(--char-toi);
+        background: var(--paper);
+      }
+      .serial-final-act {
+        margin: 0;
+      }
+      .serial-reader .page-scene {
+        padding: 18px;
+      }
+      .speech-bubble[data-char] {
+        border-color: var(--accent);
+      }
+      .speech-bubble[data-char] span,
+      .bubble-transcript blockquote[data-char] span {
+        color: var(--accent);
+      }
+      .bubble-transcript blockquote[data-char] {
+        border-left-color: var(--accent);
+      }
+      .feuilleton-cliffhanger {
+        margin: 0;
+        border: 0;
+      }
+      .feuilleton-cliffhanger .s-ava {
+        --accent: inherit;
+      }
       .source-translation {
         margin-top: 10px;
         border-top: 1px solid rgba(20,17,13,.18);
@@ -3950,7 +4652,7 @@ function FeuilletonStyles() {
       }
       @media (max-width: 760px) {
         .feuilleton-page {
-          padding-bottom: calc(94px + env(safe-area-inset-bottom));
+          padding-bottom: calc(var(--phone-bottom-nav-space) + 18px);
         }
         .feuilleton-page .feuilleton-mobile-actions {
           display: inline-grid;
@@ -4014,14 +4716,14 @@ function FeuilletonStyles() {
           cursor: not-allowed;
         }
         .fn-spread {
-          padding-inline: 14px;
-          max-width: 100vw;
+          padding-inline: var(--phone-gutter);
+          max-width: var(--app-viewport-width);
           overflow-x: hidden;
         }
         .fn-grid {
           gap: 18px;
           padding-top: 16px;
-          padding-bottom: 88px;
+          padding-bottom: var(--phone-bottom-nav-space);
           width: 100%;
           max-width: 100%;
           overflow-x: hidden;
@@ -4363,6 +5065,65 @@ function FeuilletonStyles() {
         .feuilleton-page .compact-source .source-meta {
           margin-left: 0;
           display: flex;
+        }
+        .feuilleton-page.is-serial {
+          padding-bottom: calc(var(--phone-bottom-nav-space) + 10px);
+        }
+        .feuilleton-page.is-serial .fn-grid {
+          width: 100%;
+          padding-top: 0;
+        }
+        .feuilleton-page .serial-reader {
+          margin-inline: calc(0px - var(--phone-gutter));
+          border-left: 0;
+          border-right: 0;
+        }
+        .feuilleton-page .s-mast {
+          padding: 16px 16px 14px;
+        }
+        .feuilleton-page .s-mast .kicker {
+          display: block;
+        }
+        .feuilleton-page .s-mast .title {
+          font-size: 34px;
+        }
+        .feuilleton-page .s-mast .dateline {
+          gap: 7px;
+        }
+        .feuilleton-page .s-news {
+          display: grid;
+          gap: 7px;
+          padding: 9px 14px;
+        }
+        .feuilleton-page .s-news .lbl {
+          width: fit-content;
+        }
+        .feuilleton-page .s-prev,
+        .feuilleton-page .serial-reader-toggle,
+        .feuilleton-page .s-panel,
+        .feuilleton-page .s-fork {
+          margin-left: var(--phone-gutter);
+          margin-right: var(--phone-gutter);
+        }
+        .feuilleton-page .serial-panel .s-fork {
+          margin-left: 0;
+          margin-right: 0;
+        }
+        .feuilleton-page .s-art {
+          min-height: var(--phone-art-min-height);
+          aspect-ratio: 3 / 4;
+        }
+        .feuilleton-page .s-cap {
+          gap: 9px;
+        }
+        .feuilleton-page .s-cap .c {
+          font-size: 16px;
+        }
+        .feuilleton-page .serial-act-body {
+          padding: 11px;
+        }
+        .feuilleton-page .serial-reader .page-scene {
+          padding: 14px;
         }
         .feuilleton-page .panel-grid {
           gap: 16px;
@@ -4869,8 +5630,8 @@ function FeuilletonStyles() {
           grid-template-columns: auto minmax(0, 1fr) auto;
           align-items: center;
           gap: 12px;
-          min-height: calc(62px + env(safe-area-inset-bottom));
-          padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+          min-height: var(--phone-bottom-nav-space);
+          padding: 8px 10px calc(8px + var(--phone-safe-bottom-space));
           background: var(--paper);
           border: 0;
           border-top: 1px solid var(--ink);

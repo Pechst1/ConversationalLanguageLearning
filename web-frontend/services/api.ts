@@ -20,6 +20,47 @@ export interface LiveStoryListResponse {
   topics_used: string[];
 }
 
+export interface LibraryBook {
+  id: string;
+  title: string;
+  author?: string | null;
+  source_filename?: string | null;
+  source_type: string;
+  source_hash: string;
+  target_level: string;
+  status: string;
+  status_message?: string | null;
+  error_message?: string | null;
+  progress_percent: number;
+  total_episodes: number;
+  current_episode_index: number;
+  completed_episode_indices: number[];
+  completion_percentage: number;
+  estimated_total_words: number;
+  task_id?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  ready_at?: string | null;
+  episodes?: LibraryEpisode[];
+}
+
+export interface LibraryEpisode {
+  id: string;
+  book_id: string;
+  order_index: number;
+  title: string;
+  est_reading_minutes: number;
+  cefr_level: string;
+  word_count: number;
+  vocab_seed: Array<Record<string, any>>;
+  grammar_seed: Array<Record<string, any>>;
+  exercise_payload: Record<string, any>;
+  status: string;
+  is_completed: boolean;
+  passage_text?: string;
+  passage_preview?: string;
+}
+
 export interface AtelierConcept {
   id: number;
   external_id?: string | null;
@@ -41,6 +82,7 @@ export interface AtelierConcept {
 
 export interface AtelierErratum {
   id?: string;
+  item_id?: string | null;
   concept_id?: number | null;
   source_attempt_id?: string | null;
   display_label: string;
@@ -80,12 +122,16 @@ export interface AtelierToday {
   } | null;
   serial_episode?: Record<string, any> | null;
   serial?: Record<string, any> | null;
+  library_episode?: Record<string, any> | null;
 }
 
 export interface AtelierDayProgress {
   errataDue: number;
   vocabularyDue: number;
   missionDone: boolean;
+  missionSuggested?: boolean;
+  libraryDone?: boolean;
+  librarySuggested?: boolean;
   feuilletonDone: boolean;
   sessionDone?: boolean;
   timeBudgetMinutes?: number;
@@ -97,6 +143,7 @@ export interface AtelierDayProgress {
     label: string;
     estimatedMinutes: number;
     done?: boolean;
+    suggested?: boolean;
   }>;
 }
 
@@ -403,6 +450,7 @@ export interface AtelierAttemptResult {
   score_0_4: number;
   correction: Record<string, any>;
   ai_review?: Record<string, any>;
+  minted_collectibles?: AtelierCollectible[];
 }
 
 export interface AtelierErrataReviewTask {
@@ -748,6 +796,43 @@ export interface SerialAvatarPayload {
   description?: string;
   reference_images?: string[];
   avatar_builder?: Record<string, any>;
+}
+
+export interface AtelierCollectible {
+  id: string;
+  kind: string;
+  minted_at?: string | null;
+  source_kind: string;
+  source_ref: string;
+  metadata?: Record<string, any>;
+  composed?: boolean;
+  composed_into_id?: string | null;
+  members?: AtelierCollectible[];
+}
+
+export interface AtelierWorkshopProgress {
+  target: string;
+  member_kind: string;
+  required: number;
+  available: number;
+  progress: number;
+  shortfall: number;
+}
+
+export interface AtelierAlmanac {
+  collectibles: Record<string, AtelierCollectible[]>;
+  progress: Record<string, AtelierWorkshopProgress>;
+  plates: AtelierCollectible[];
+  totals: Record<string, number>;
+}
+
+export type AtelierWorkshopTarget = 'plate_semaine' | 'plate_chapter' | 'colophon';
+
+export interface AtelierWorkshopComposeResult {
+  plate: AtelierCollectible;
+  members: AtelierCollectible[];
+  progress: Record<string, AtelierWorkshopProgress>;
+  minted_collectibles: AtelierCollectible[];
 }
 
 export interface MissionAttemptResult {
@@ -1389,8 +1474,29 @@ class ApiService {
     return this.atelierPost<AtelierAttemptResult>(`/atelier/attempts/${attemptId}/ai-review`, {});
   }
 
+  async reportAtelierExercise(data: {
+    session_id?: string | null;
+    concept_id?: number | null;
+    exercise_set_id?: string | null;
+    round?: string | null;
+    mode?: string | null;
+    exercise_id?: string | null;
+    item_id?: string | null;
+    reason: string;
+  }) {
+    return this.atelierPost<{ ok: boolean; event_id: string }>('/atelier/exercises/report', data);
+  }
+
+  async getAtelierAlmanac() {
+    return this.atelierGet<AtelierAlmanac>('/atelier/almanac');
+  }
+
+  async composeAtelierWorkshop(target: AtelierWorkshopTarget) {
+    return this.atelierPost<AtelierWorkshopComposeResult>('/atelier/workshop/compose', { target });
+  }
+
   async completeAtelierSession(sessionId: string) {
-    return this.atelierPost<{ session_id: string; recap: Record<string, any> }>(`/atelier/sessions/${sessionId}/complete`);
+    return this.atelierPost<{ session_id: string; recap: Record<string, any>; minted_collectibles?: AtelierCollectible[] }>(`/atelier/sessions/${sessionId}/complete`);
   }
 
   async reviewAtelierErratum(errorId: string, data?: { rating?: number; repaired?: boolean }) {
@@ -1566,6 +1672,22 @@ class ApiService {
   // ─────────────────────────────────────────────────────────────────
   // Story Importer
   // ─────────────────────────────────────────────────────────────────
+
+  async getLibraryBooks(): Promise<LibraryBook[]> {
+    return this.get<LibraryBook[]>('/stories/library');
+  }
+
+  async getLibraryBook(bookId: string): Promise<LibraryBook> {
+    return this.get<LibraryBook>(`/stories/library/${bookId}`);
+  }
+
+  async getLibraryEpisode(bookId: string, orderIndex: number): Promise<LibraryEpisode> {
+    return this.get<LibraryEpisode>(`/stories/library/${bookId}/episodes/${orderIndex}`);
+  }
+
+  async completeLibraryEpisode(bookId: string, orderIndex: number): Promise<LibraryBook> {
+    return this.post<LibraryBook>(`/stories/library/${bookId}/episodes/${orderIndex}/complete`);
+  }
 
   async importContent(url: string): Promise<{ story_id: string; title: string }> {
     return this.post('/stories/import', { url });

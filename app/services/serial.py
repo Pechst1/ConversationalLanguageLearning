@@ -18,6 +18,7 @@ from app.db.models.mission import RealWorldMission
 from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.user import User
 from app.schemas.serial import EpisodeBrief
+from app.services.atelier_rewards import AtelierRewardService
 from app.services.graphic_novel import GraphicNovelGenerationError, GraphicNovelScheduler
 from app.services.llm_service import LLMService
 from app.services.missions import MissionScheduler
@@ -658,10 +659,19 @@ class SerialThreadService:
         self.db.add_all([thread, episode])
         self.db.commit()
         self.db.refresh(thread)
+        self.db.refresh(episode)
+        minted_collectibles = AtelierRewardService(self.db).mint_story_seal_for_serial_episode(
+            user_id=thread.user_id,
+            thread=thread,
+            episode=episode,
+            scene=scene,
+        )
         self._enqueue_next_beat(thread.id)
         existing_next = self._current_episode(thread)
         if existing_next:
-            return self.serialize_episode(existing_next)
+            payload = self.serialize_episode(existing_next)
+            payload["minted_collectibles"] = minted_collectibles
+            return payload
         next_kind = str((emitted_hook or {}).get("next_beat_kind") or ("mission" if thread.current_episode_index % 2 == 0 else "feuilleton"))
         return {
             "thread_id": str(thread.id),
@@ -670,6 +680,7 @@ class SerialThreadService:
             "kind": "feuilleton" if next_kind == "feuilleton" else "mission",
             "beat": "see" if next_kind == "feuilleton" else "act",
             "status": "generation_queued",
+            "minted_collectibles": minted_collectibles,
         }
 
     def serialize_episode(self, episode: SerialEpisode) -> dict[str, Any]:

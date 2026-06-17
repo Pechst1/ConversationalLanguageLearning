@@ -112,6 +112,8 @@ export default function EditorialMasthead({
           border-bottom: 1px solid var(--app-ink);
           background: rgba(241, 236, 225, .94);
           backdrop-filter: blur(10px);
+          /* Clear the status bar / Dynamic Island on native devices. */
+          padding-top: env(safe-area-inset-top);
         }
         .app-spread {
           box-sizing: border-box;
@@ -280,7 +282,7 @@ export default function EditorialMasthead({
           }
           .app-masthead.app-has-mobile-action .app-mobile-action {
             width: auto;
-            max-width: calc(100vw - 96px);
+            max-width: calc(var(--app-viewport-width) - 96px);
           }
           .app-masthead.app-mobile-title-hidden .app-mobile-title {
             display: none;
@@ -306,8 +308,10 @@ export default function EditorialMasthead({
             z-index: 90;
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
-            min-height: calc(60px + env(safe-area-inset-bottom));
-            padding: 0 0 env(safe-area-inset-bottom);
+            grid-template-rows: var(--phone-bottom-nav-height);
+            align-content: start;
+            min-height: var(--phone-bottom-nav-space);
+            padding: 0 0 var(--phone-safe-bottom-space);
             border-top: 1px solid var(--app-ink);
             background: var(--app-paper);
             box-shadow: none;
@@ -320,8 +324,9 @@ export default function EditorialMasthead({
             align-items: center;
             justify-content: center;
             gap: 4px;
-            min-height: 60px;
+            min-height: var(--phone-bottom-nav-height);
             margin-top: -1px;
+            padding-bottom: 0;
             border-top: 2px solid transparent;
             color: var(--app-ink-3);
             text-decoration: none;

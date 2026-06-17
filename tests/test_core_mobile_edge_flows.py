@@ -95,11 +95,11 @@ def test_story_flow_handles_auth_fetch_locked_and_incomplete_chapter_edges() -> 
     chapter_progress = read(WEB / "components" / "stories" / "ChapterProgressCard.tsx")
     chapter_timeline = read(WEB / "components" / "stories" / "ChapterTimeline.tsx")
 
-    assert "destination: '/auth/signin'" in stories
-    assert "destination: '/auth/signin'" in story_detail
-    assert "destination: '/auth/signin'" in chapter_page
-    assert "return { props: { stories: [] } }" in stories
-    assert "stories," in stories
+    assert "apiService.get<Story[]>('/stories')" in stories
+    assert "useStoryDetail(resolvedStoryId)" in story_detail
+    assert "useChapter(resolvedStoryId, resolvedChapterId)" in chapter_page
+    assert "const [storyList, setStoryList] = useState(stories)" in stories
+    assert "setStoryList([])" in stories
     assert "No Library Texts Available" in stories
     assert "Upload First Book" in stories
     assert "href={isLocked ? '#' : `/story/${story.id}`}" in stories
@@ -134,11 +134,11 @@ def test_settings_safety_edges_for_account_and_device_actions() -> None:
 
     assert "confirm('Are you ABSOLUTELY sure?" in settings
     assert "await api.deleteAccount()" in settings
-    assert "await signOut({ callbackUrl: '/' })" in settings
+    assert "await appSignOut({ callbackUrl: '/' })" in settings
     assert "setSaveMessage('Failed to delete account. Please try again.')" in settings
     assert "passwordForm.newPassword.length < 8" in settings
     assert "Enter your current password and a new password with at least 8 characters." in settings
-    assert "await signOut({ callbackUrl: '/auth/signin' })" in settings
+    assert "await appSignOut({ callbackUrl: '/auth/signin' })" in settings
     assert "confirm('Sign out from every device, including this one?')" in settings
     assert "await api.signOutAllDevices()" in settings
     assert "await api.exportUserData()" in settings

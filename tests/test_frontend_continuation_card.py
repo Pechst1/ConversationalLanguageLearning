@@ -67,11 +67,12 @@ def test_atelier_recap_continues_session_into_context() -> None:
     source = read(ATELIER_PAGE)
 
     assert "function RecapModal" in source
-    assert "Session recap" in source
-    assert "recap.session_id" in source
-    assert "href={`/missions?atelier_session_id=${recap.session_id}`}" in source
-    assert "USE IN MISSION" in source
-    assert "RETURN TO TODAY" in source
+    assert "Edition printed" in source
+    assert "session_id: result.session_id" in source
+    assert "Tomorrow" in source
+    assert "printed-stats" in source
+    assert "printed-minted" in source
+    assert "Done" in source
 
 
 def test_serial_world_design_surfaces_are_integrated() -> None:

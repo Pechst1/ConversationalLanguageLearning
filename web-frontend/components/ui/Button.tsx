@@ -4,11 +4,11 @@ import { cn } from '@/lib/utils';
 import { Loader2 } from 'lucide-react';
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center rounded-none border border-[var(--app-ink)] text-xs font-black uppercase tracking-[0.13em] ring-offset-background transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-ink)] focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
+  'inline-flex items-center justify-center rounded-none border border-[var(--app-ink)] text-xs font-medium uppercase tracking-[0.08em] ring-offset-background transition-[background,color,border-color,transform,box-shadow] duration-[var(--dur-fast)] ease-[var(--ease-standard)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-ink)] focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
   {
     variants: {
       variant: {
-        default: 'bg-[var(--app-ink)] text-[var(--app-paper)] hover:bg-[var(--app-blue)] hover:border-[var(--app-blue)]',
+        default: 'bg-[var(--accent-action)] text-white shadow-[var(--ink-block-shadow)] hover:-translate-x-0.5 hover:-translate-y-0.5',
         destructive: 'bg-[var(--app-red)] text-white border-[var(--app-red)] hover:bg-[var(--app-ink)] hover:border-[var(--app-ink)]',
         outline: 'bg-[var(--app-sheet)] text-[var(--app-ink)] hover:bg-[var(--app-paper-2)]',
         secondary: 'bg-[var(--app-yellow)] text-[var(--app-ink)] border-[var(--app-yellow)] hover:bg-[var(--app-paper-2)] hover:border-[var(--app-ink)]',

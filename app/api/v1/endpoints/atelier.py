@@ -14,16 +14,22 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_db
 from app.config import settings
 from app.core.security import InvalidTokenError, decode_token
-from app.db.models.atelier import AtelierAttempt, AtelierSession
+from app.db.models.atelier import (
+    AtelierAttempt,
+    AtelierExerciseSet,
+    AtelierGenerationEvent,
+    AtelierSession,
+)
 from app.db.models.error import UserError
-from app.db.models.graphic_novel import GraphicNovelScene
 from app.db.models.grammar import GrammarConcept
+from app.db.models.graphic_novel import GraphicNovelScene
 from app.db.models.mission import RealWorldMission
 from app.db.models.progress import UserVocabularyProgress
 from app.db.models.user import User
 from app.schemas import TokenPayload
 from app.schemas.atelier import (
     AtelierActiveSessionResponse,
+    AtelierAlmanacResponse,
     AtelierAttemptRequest,
     AtelierAttemptResponse,
     AtelierCompleteResponse,
@@ -33,25 +39,33 @@ from app.schemas.atelier import (
     AtelierErrataReviewRequest,
     AtelierErrataReviewResponse,
     AtelierErrataTaskResponse,
+    AtelierExerciseReportRequest,
+    AtelierExerciseReportResponse,
     AtelierSessionStartRequest,
     AtelierSessionStartResponse,
     AtelierTodayResponse,
+    AtelierWorkshopComposeRequest,
+    AtelierWorkshopComposeResponse,
 )
 from app.services.atelier import (
+    ATELIER_GENERATOR_VERSION,
     AtelierCorrectionService,
     AtelierExerciseGenerationError,
-    AtelierExerciseGenerator,
     AtelierScheduler,
     AtelierSRSService,
     ConceptSelection,
     inject_vocabulary_context,
+    pregenerate_next_atelier_session,
     run_atelier_ai_review,
     select_atelier_vocabulary,
     serialize_concept,
     serialize_erratum_record,
+    session_exercise_set,
     session_vocabulary_context,
 )
 from app.services.atelier_assets import AtelierAssetService
+from app.services.atelier_rewards import AtelierRewardService, AtelierWorkshopShortfall
+from app.services.book_library import BookLibraryService
 from app.services.cefr_progress import CEFRProgressService
 from app.services.error_memory import ErrorMemoryService
 from app.services.serial import SerialThreadService
@@ -61,7 +75,40 @@ atelier_oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/au
 ATELIER_DEMO_EMAIL = "atelier-demo@local.test"
 
 
-def _atelier_day_progress(db: Session, user: User, *, errata_due: int) -> dict[str, Any]:
+def _atelier_library_episode(db: Session, user: User) -> dict[str, Any] | None:
+    next_episode = BookLibraryService(db).next_ready_episode(user=user)
+    if not next_episode:
+        return None
+    book, episode = next_episode
+    completed = {int(value) for value in (book.completed_episode_indices or [])}
+    return {
+        "book_id": str(book.id),
+        "episode_id": str(episode.id),
+        "book_title": book.title,
+        "author": book.author,
+        "title": episode.title,
+        "order_index": int(episode.order_index),
+        "episode_index": int(episode.order_index),
+        "episode_label": f"Episode {int(episode.order_index) + 1}",
+        "total_episodes": int(book.total_episodes or 0),
+        "est_reading_minutes": int(episode.est_reading_minutes or 1),
+        "word_count": int(episode.word_count or 0),
+        "cefr_level": episode.cefr_level,
+        "progress": {
+            "completed_episodes": len(completed),
+            "completion_percentage": round((len(completed) / max(1, int(book.total_episodes or 0))) * 100),
+        },
+        "href": f"/notebook?mode=library&book={book.id}&episode={episode.order_index}",
+    }
+
+
+def _atelier_day_progress(
+    db: Session,
+    user: User,
+    *,
+    errata_due: int,
+    library_episode: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     today = datetime.now(timezone.utc).date()
     start = datetime.combine(today, time.min, tzinfo=timezone.utc)
     vocabulary_due = (
@@ -104,25 +151,46 @@ def _atelier_day_progress(db: Session, user: User, *, errata_due: int) -> dict[s
     session_minutes = 8 if level in {"BEGINNER", "A1", "A2"} else 10
     mission_minutes = 5 if level in {"BEGINNER", "A1", "A2"} else 7
     feuilleton_minutes = 5 if level in {"BEGINNER", "A1", "A2"} else 6
+    library_minutes = int((library_episode or {}).get("est_reading_minutes") or 4)
+    mission_suggested = today.weekday() in {0, 2, 4}
     nodes = [
         {"id": "review", "label": "Review", "estimatedMinutes": review_minutes, "done": errata_due == 0 and vocabulary_due == 0},
         {"id": "session", "label": "Session", "estimatedMinutes": session_minutes, "done": session_done},
-        {"id": "mission", "label": "Act", "estimatedMinutes": mission_minutes, "done": mission_done},
-        {"id": "feuilleton", "label": "Feuilleton", "estimatedMinutes": feuilleton_minutes, "done": feuilleton_done},
+        {
+            "id": "mission",
+            "label": "Act",
+            "estimatedMinutes": mission_minutes,
+            "done": mission_done,
+            "suggested": mission_suggested,
+        },
     ]
+    if library_episode is not None:
+        nodes.append(
+            {
+                "id": "library",
+                "label": "Library",
+                "estimatedMinutes": library_minutes,
+                "done": False,
+                "suggested": True,
+            }
+        )
+    nodes.append({"id": "feuilleton", "label": "Feuilleton", "estimatedMinutes": feuilleton_minutes, "done": feuilleton_done})
     total_minutes = sum(int(node["estimatedMinutes"]) for node in nodes)
     done_minutes = sum(int(node["estimatedMinutes"]) for node in nodes if node.get("done"))
     return {
         "errataDue": int(errata_due),
         "vocabularyDue": int(vocabulary_due),
         "missionDone": mission_done,
+        "missionSuggested": mission_suggested,
+        "libraryDone": library_episode is None,
+        "librarySuggested": library_episode is not None,
         "feuilletonDone": feuilleton_done,
         "sessionDone": session_done,
         "timeBudgetMinutes": int(getattr(user, "daily_goal_minutes", None) or 20),
         "estimatedTotalMinutes": total_minutes,
         "estimatedRemainingMinutes": max(0, total_minutes - done_minutes),
         "nodes": nodes,
-        "filed": mission_done and feuilleton_done,
+        "filed": mission_done and feuilleton_done and library_episode is None,
     }
 
 
@@ -212,7 +280,11 @@ def _attempt_or_404(db: Session, attempt_id: UUID, user: User) -> AtelierAttempt
     return attempt
 
 
-def _attempt_response(attempt: AtelierAttempt) -> AtelierAttemptResponse:
+def _attempt_response(
+    attempt: AtelierAttempt,
+    *,
+    minted_collectibles: list[dict[str, Any]] | None = None,
+) -> AtelierAttemptResponse:
     correction = attempt.correction_payload or {}
     ai_review = correction.get("ai_review") if isinstance(correction, dict) else {}
     return AtelierAttemptResponse(
@@ -221,6 +293,7 @@ def _attempt_response(attempt: AtelierAttempt) -> AtelierAttemptResponse:
         score_0_4=attempt.score_0_4,
         correction=correction,
         ai_review=ai_review if isinstance(ai_review, dict) else {},
+        minted_collectibles=minted_collectibles or [],
     )
 
 
@@ -301,7 +374,7 @@ def _current_position(session: AtelierSession, attempts: list[AtelierAttempt]) -
     submitted = {_submitted_key(attempt): True for attempt in attempts}
     concept_ids = [int(item) for item in (session.selected_concept_ids or [])]
     for concept_index, concept_id in enumerate(concept_ids):
-        for mode in ("fill", "word_bank", "classify"):
+        for mode in ("fill", "classify", "word_bank"):
             if not submitted.get(f"recognize:{mode}:{concept_id}"):
                 return {"round": "recognize", "mode": mode, "concept_id": concept_id, "concept_index": concept_index}
     for concept_index, concept_id in enumerate(concept_ids):
@@ -323,7 +396,6 @@ def _current_position(session: AtelierSession, attempts: list[AtelierAttempt]) -
 
 def _session_response(db: Session, user: User, session: AtelierSession) -> AtelierSessionStartResponse:
     scheduler = AtelierScheduler(db)
-    generator = AtelierExerciseGenerator(db)
     asset_service = AtelierAssetService(db)
     selections = _session_selections(db, user, session)
     due_errata = scheduler.due_errata(user)
@@ -332,7 +404,13 @@ def _session_response(db: Session, user: User, session: AtelierSession) -> Ateli
     target_vocabulary = session_vocabulary_context(session)
     for concept_index, selection in enumerate(selections):
         try:
-            exercise_set = generator.get_or_create(selection.concept, user=user)
+            exercise_set = session_exercise_set(
+                db,
+                user=user,
+                session=session,
+                concept=selection.concept,
+                target_vocabulary=target_vocabulary,
+            )
         except AtelierExerciseGenerationError as exc:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -382,7 +460,8 @@ async def get_today(
     summary = scheduler.summary(current_user)
     summary["due_errata"] = len(due_errata)
     serial_episode = await SerialThreadService(db).today(current_user) if settings.SERIAL_WORLD_ENABLED else None
-    progress = _atelier_day_progress(db, current_user, errata_due=len(due_errata))
+    library_episode = _atelier_library_episode(db, current_user)
+    progress = _atelier_day_progress(db, current_user, errata_due=len(due_errata), library_episode=library_episode)
     cefr = CEFRProgressService(db).current(current_user)
     return AtelierTodayResponse(
         concepts=[_concept_read(selection, due_by_concept, asset_service) for selection in selections],
@@ -396,19 +475,58 @@ async def get_today(
             "serial_seen": bool(getattr(current_user, "serial_onboarding_seen", False)),
             "serial_edition_notifications": bool(getattr(current_user, "serial_edition_notifications", True)),
         },
+        library_episode=library_episode,
         serial_episode=serial_episode,
         serial=serial_episode,
     )
 
 
+@router.get("/almanac", response_model=AtelierAlmanacResponse)
+def get_almanac(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_atelier_user),
+) -> AtelierAlmanacResponse:
+    return AtelierAlmanacResponse(**AtelierRewardService(db).almanac(user_id=current_user.id))
+
+
+@router.post("/workshop/compose", response_model=AtelierWorkshopComposeResponse, status_code=status.HTTP_201_CREATED)
+def compose_workshop_plate(
+    payload: AtelierWorkshopComposeRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_atelier_user),
+) -> AtelierWorkshopComposeResponse:
+    try:
+        result = AtelierRewardService(db).compose(user_id=current_user.id, target=payload.target)
+    except AtelierWorkshopShortfall as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=exc.payload) from exc
+    return AtelierWorkshopComposeResponse(**result)
+
+
 @router.post("/sessions", response_model=AtelierSessionStartResponse, status_code=status.HTTP_201_CREATED)
 def start_session(
+    background_tasks: BackgroundTasks,
     payload: AtelierSessionStartRequest | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_atelier_user),
 ) -> AtelierSessionStartResponse:
     scheduler = AtelierScheduler(db)
     scheduler.ensure_catalog()
+
+    if not payload or not (payload.concept_ids or payload.preferred_concept_id or payload.preferred_vocabulary_ids):
+        prepared = (
+            db.query(AtelierSession)
+            .filter(AtelierSession.user_id == current_user.id, AtelierSession.status == "prepared")
+            .order_by(AtelierSession.created_at.desc())
+            .first()
+        )
+        if prepared:
+            prepared.status = "in_progress"
+            db.add(prepared)
+            db.commit()
+            db.refresh(prepared)
+            if settings.ATELIER_BACKGROUND_PREGENERATION_ENABLED:
+                background_tasks.add_task(pregenerate_next_atelier_session, current_user.id)
+            return _session_response(db, current_user, prepared)
 
     if payload and payload.concept_ids:
         concepts = (
@@ -482,7 +600,10 @@ def start_session(
     db.add(session)
     db.commit()
     db.refresh(session)
-    return _session_response(db, current_user, session)
+    response = _session_response(db, current_user, session)
+    if settings.ATELIER_BACKGROUND_PREGENERATION_ENABLED:
+        background_tasks.add_task(pregenerate_next_atelier_session, current_user.id)
+    return response
 
 
 @router.get("/sessions/active", response_model=AtelierActiveSessionResponse)
@@ -551,6 +672,7 @@ def submit_attempt(
         )
 
     correction_service = AtelierCorrectionService(db)
+    first_submission = existing is None
     attempt = correction_service.submit_attempt(
         session=session,
         user=current_user,
@@ -562,7 +684,70 @@ def submit_attempt(
     )
     if correction_service.should_auto_start_ai_review(attempt):
         background_tasks.add_task(run_atelier_ai_review, attempt.id)
-    return _attempt_response(attempt)
+    if settings.ATELIER_BACKGROUND_PREGENERATION_ENABLED:
+        background_tasks.add_task(pregenerate_next_atelier_session, current_user.id)
+    minted = AtelierRewardService(db).mint_logo_token_for_attempt(attempt, first_submission=first_submission)
+    return _attempt_response(attempt, minted_collectibles=minted)
+
+
+@router.post("/exercises/report", response_model=AtelierExerciseReportResponse, status_code=status.HTTP_201_CREATED)
+def report_exercise(
+    payload: AtelierExerciseReportRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_atelier_user),
+) -> AtelierExerciseReportResponse:
+    if not (payload.session_id or payload.concept_id or payload.exercise_set_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="A session, concept, or exercise set is required to report an Atelier exercise",
+        )
+
+    session = _session_or_404(db, payload.session_id, current_user) if payload.session_id else None
+    concept = db.get(GrammarConcept, payload.concept_id) if payload.concept_id is not None else None
+    if payload.concept_id is not None and not concept:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Grammar concept not found")
+    if session and concept and concept.id not in (session.selected_concept_ids or []):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Concept is not part of this session")
+
+    exercise_set = db.get(AtelierExerciseSet, payload.exercise_set_id) if payload.exercise_set_id else None
+    if payload.exercise_set_id and not exercise_set:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Atelier exercise set not found")
+    if exercise_set:
+        if concept and exercise_set.concept_id != concept.id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Exercise set does not belong to the reported concept",
+            )
+        if not concept:
+            concept = db.get(GrammarConcept, exercise_set.concept_id)
+        if session and exercise_set.concept_id not in (session.selected_concept_ids or []):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Exercise set does not belong to this session",
+            )
+
+    event = AtelierGenerationEvent(
+        user_id=current_user.id,
+        concept_id=concept.id if concept else None,
+        atelier_session_id=session.id if session else None,
+        exercise_set_id=exercise_set.id if exercise_set else None,
+        generator_version=exercise_set.generator_version if exercise_set else ATELIER_GENERATOR_VERSION,
+        event_type="user_report",
+        source=exercise_set.source if exercise_set else "human",
+        model=exercise_set.model if exercise_set else None,
+        passed=False,
+        payload={
+            "round": payload.round,
+            "mode": payload.mode,
+            "exercise_id": payload.exercise_id,
+            "item_id": payload.item_id,
+            "reason": payload.reason.strip(),
+        },
+    )
+    db.add(event)
+    db.commit()
+    db.refresh(event)
+    return AtelierExerciseReportResponse(ok=True, event_id=event.id)
 
 
 @router.get("/attempts/{attempt_id}", response_model=AtelierAttemptResponse)
@@ -602,8 +787,9 @@ def complete_session(
     if session.status == "completed":
         return AtelierCompleteResponse(session_id=session.id, recap=session.recap_payload or {})
     recap = AtelierSRSService(db).complete_session(session=session, user=current_user)
+    minted = AtelierRewardService(db).mint_gilt_seal_for_session(session)
     CEFRProgressService(db).recompute(current_user, source="atelier_session_complete")
-    return AtelierCompleteResponse(session_id=session.id, recap=recap)
+    return AtelierCompleteResponse(session_id=session.id, recap=recap, minted_collectibles=minted)
 
 
 @router.post("/errata/{error_id}/review", response_model=AtelierErrataReviewResponse)

@@ -24,7 +24,7 @@ def test_public_onboarding_moves_from_minimal_account_creation_to_daily_atelier(
 
     assert "typeof router.query.callbackUrl === 'string'" in signin
     assert ": '/atelier'" in signin
-    assert "signIn('credentials'" in signin
+    assert "auth.signInWithCredentials" in signin
     assert "router.push(destination)" in signin
 
     assert "defaultValues" in signup
@@ -90,7 +90,8 @@ def test_atelier_is_the_daily_session_and_review_handoff_center() -> None:
     assert "const query = conceptQueryString(concepts)" in atelier
     assert "href={`/missions${conceptIds ? `?${conceptIds}` : ''}`}" in atelier
     assert "href={`/graphic-novel${conceptIds ? `?${conceptIds}` : ''}`}" in atelier
-    assert "href={`/missions?atelier_session_id=${recap.session_id}`}" in atelier
+    assert "session_id: result.session_id" in atelier
+    assert "printed-hook" in atelier
 
     assert "Vocabulary review" in vocabulary_review
     assert "VocabularyReviewContinuation" in vocabulary_review
@@ -160,7 +161,7 @@ def test_story_reading_flow_fetches_library_detail_chapter_and_completion_contra
 
     assert "<EditorialMasthead />" in stories_page
     assert "UploadBookModal" in stories_page
-    assert "<FeaturedStoryCard story={stories[0]} />" in stories_page
+    assert "<FeaturedStoryCard story={storyList[0]} />" in stories_page
     assert "StoryCard key={story.id} story={story}" in stories_page
 
     assert "useStoryDetail(resolvedStoryId)" in story_detail

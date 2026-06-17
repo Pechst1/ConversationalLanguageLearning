@@ -50,6 +50,7 @@ export const PHONE_PRODUCT_TABS: ProductTab[] = [
       '/vocabulary',
       '/progress',
       '/achievements',
+      '/almanac',
     ],
   },
 ];
@@ -66,6 +67,7 @@ const OWN_SHELL_ROUTES = new Set([
   '/bibliotheque/[storyId]/chapter/[chapterId]',
   '/grammar',
   '/notebook',
+  '/almanac',
   '/vocabulary',
   '/vocabulary/review',
   '/learn',

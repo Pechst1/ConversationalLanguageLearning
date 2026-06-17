@@ -5,14 +5,20 @@ import json
 from datetime import datetime, timedelta, timezone
 from uuid import UUID, uuid4
 
-import pytest
 from fastapi.testclient import TestClient
 
 from app.config import settings
 from app.core.error_detection.rules import DetectedError
 from app.core.security import decode_token
-from app.db.models.atelier import AtelierAttempt, AtelierConceptBlueprint, AtelierLanguagePack, AtelierSession
-from app.db.models.atelier import AtelierExerciseSet
+from app.db.models.atelier import (
+    AtelierAttempt,
+    AtelierCollectible,
+    AtelierConceptBlueprint,
+    AtelierExerciseSet,
+    AtelierGenerationEvent,
+    AtelierLanguagePack,
+    AtelierSession,
+)
 from app.db.models.error import UserError, UserErrorConcept
 from app.db.models.grammar import GrammarConcept, UserGrammarProgress
 from app.db.models.progress import UserVocabularyProgress
@@ -23,12 +29,13 @@ from app.services.atelier import (
     ATELIER_EXERCISE_RESPONSE_FORMAT,
     ATELIER_GENERATOR_VERSION,
     AtelierCorrectionService,
-    AtelierExerciseGenerationError,
     AtelierExerciseGenerator,
     AtelierSRSService,
     AtelierScheduler,
+    select_atelier_vocabulary,
 )
 from app.services.atelier_assets import AtelierAssetService
+from app.services.atelier_rewards import AtelierRewardService
 from app.services.grammar_feedback import count_concept_hits
 from app.services.llm_service import LLMProviderError, LLMResult
 
@@ -59,11 +66,24 @@ def _prime_exercise_set(db_session, concept: GrammarConcept) -> None:
     _test_generated_payload(db_session, concept)
 
 
-def _prime_llm_exercise_set(db_session, concept: GrammarConcept) -> None:
-    AtelierExerciseGenerator(
+def _prime_llm_exercise_set(db_session, concept: GrammarConcept) -> AtelierExerciseSet:
+    return AtelierExerciseGenerator(
         db_session,
         llm_service=_FakeLLMService(_raw_llm_payload(concept)),
     ).get_or_create(concept)
+
+
+def _attach_primed_exercise_set(db_session, session: AtelierSession, concept: GrammarConcept) -> AtelierExerciseSet:
+    exercise_set = _prime_llm_exercise_set(db_session, concept)
+    quote_payload = dict(session.quote_payload or {})
+    exercise_set_ids = dict(quote_payload.get("exercise_set_ids") or {})
+    exercise_set_ids[str(concept.id)] = str(exercise_set.id)
+    quote_payload["exercise_set_ids"] = exercise_set_ids
+    session.quote_payload = quote_payload
+    db_session.add(session)
+    db_session.commit()
+    db_session.refresh(session)
+    return exercise_set
 
 
 def _prime_core_exercise_sets(db_session) -> None:
@@ -86,12 +106,38 @@ def _fill(item_id: str, prompt: str, choices: list[str], answer: str) -> dict:
 
 
 def _bank(item_id: str, prompt: str, answer_tokens: list[str]) -> dict:
+    joined = " ".join(answer_tokens).replace(" ,", ",")
+    meaning_cue = prompt.replace("Build:", "Express:").strip()
+    if not meaning_cue or meaning_cue == prompt or "sentence" in meaning_cue.lower():
+        meaning_cue = "Express the target meaning as a complete French sentence."
+    distractor = "autrement"
+    if "répondrai" in joined:
+        distractor = "répondrais"
+    elif "arriverons" in joined:
+        distractor = "arrivons"
+    elif "partirons" in joined:
+        distractor = "partons"
+    elif "mange" in answer_tokens:
+        distractor = "mangeras"
+    elif "prends" in answer_tokens:
+        distractor = "prendras"
+    elif "de" in answer_tokens:
+        distractor = "du"
+    elif "du" in answer_tokens:
+        distractor = "de"
+    elif any(str(token).startswith("d'") for token in answer_tokens):
+        distractor = "une"
+    elif "marchais" in answer_tokens:
+        distractor = "marcherai"
+    elif "a" in answer_tokens and "ouvert" in answer_tokens:
+        distractor = "ouvrait"
     return {
         "id": item_id,
         "prompt": prompt,
-        "tokens": list(reversed(answer_tokens)),
+        "meaning_cue": meaning_cue,
+        "tokens": [*reversed(answer_tokens), distractor],
         "answer_tokens": answer_tokens,
-        "correct_answer": " ".join(answer_tokens).replace(" ,", ","),
+        "correct_answer": joined,
     }
 
 
@@ -157,7 +203,7 @@ def _raw_llm_payload(concept: GrammarConcept) -> dict:
             },
             "transform": {
                 "items": [
-                    _transform("tense-transform-1", "directed_rewrite", "Use imparfait for background and passé composé for the event.", "Il pleut quand je sors.", "Il pleuvait quand je suis sorti."),
+                    _transform("tense-transform-1", "directed_rewrite", "Change 'pleut' to imparfait and 'sors' to passé composé.", "Il pleut quand je sors.", "Il pleuvait quand je suis sorti."),
                     _transform("tense-transform-2", "contrast_rewrite", "Turn the habit into one completed event.", "Je lisais souvent ce livre.", "J'ai lu ce livre hier."),
                     _transform("tense-transform-3", "repair_rewrite", "Repair the tense contrast.", "Je suis fatigué quand le téléphone sonnait.", "J'étais fatigué quand le téléphone a sonné."),
                 ]
@@ -202,7 +248,7 @@ def _raw_llm_payload(concept: GrammarConcept) -> dict:
             },
             "transform": {
                 "items": [
-                    _transform("neg-transform-1", "directed_rewrite", "Negate the quantity.", "Je bois du café et je mange une pomme.", "Je ne bois pas de café et je ne mange pas de pomme."),
+                    _transform("neg-transform-1", "directed_rewrite", "Change 'du café' to 'de café' and 'une pomme' to 'de pomme' after pas.", "Je bois du café et je mange une pomme.", "Je ne bois pas de café et je ne mange pas de pomme."),
                     _transform("neg-transform-2", "contrast_rewrite", "Keep the être exception.", "C'est du café.", "Ce n'est pas du café."),
                     _transform("neg-transform-3", "repair_rewrite", "Repair the article after negation.", "Elle n'a pas une idée.", "Elle n'a pas d'idée."),
                 ]
@@ -246,7 +292,7 @@ def _raw_llm_payload(concept: GrammarConcept) -> dict:
         },
         "transform": {
             "items": [
-                _transform("si-transform-1", "directed_rewrite", "Rewrite in the si + present -> future frame.", "Quand il arrivera, on commencera le dîner.", "S'il arrive, on commencera le dîner."),
+                _transform("si-transform-1", "directed_rewrite", "Change 'Quand il arrivera' to si + present 'S'il arrive' while keeping the future consequence.", "Quand il arrivera, on commencera le dîner.", "S'il arrive, on commencera le dîner."),
                 _transform("si-transform-2", "contrast_rewrite", "Change the unreal condition into a real future condition.", "Si tu avais le temps, tu viendrais.", "Si tu as le temps, tu viendras."),
                 _transform("si-transform-3", "repair_rewrite", "Repair only the si construction.", "Si tu viendras demain, apporte le livre.", "Si tu viens demain, apporte le livre."),
             ]
@@ -296,7 +342,7 @@ class _FakeLLMService:
 
     def generate_chat_completion(self, messages, **kwargs):
         self.calls.append({"method": "generate_chat_completion", "messages": messages, **kwargs})
-        return self._result()
+        return self._result(model=kwargs.get("model", "gpt-4o-mini"))
 
     def generate_error_detection(self, messages, **kwargs):
         self.calls.append({"method": "generate_error_detection", "messages": messages, **kwargs})
@@ -326,6 +372,40 @@ class _SequencedFakeLLMService(_FakeLLMService):
             provider="openai",
             model=model,
             content=json.dumps(self.contents[index]),
+            prompt_tokens=10,
+            completion_tokens=10,
+            total_tokens=20,
+            cost=0.0,
+            raw_response={},
+        )
+
+
+class _GenerationCritiqueFakeLLMService(_FakeLLMService):
+    def __init__(self, generation_contents: list[dict], critique_contents: list[dict] | None = None):
+        super().__init__(generation_contents[0])
+        self.generation_contents = generation_contents
+        self.critique_contents = critique_contents or [{"verdicts": []}]
+        self.generation_calls = 0
+        self.critique_calls = 0
+
+    def generate_chat_completion(self, messages, **kwargs):
+        response_name = (((kwargs.get("response_format") or {}).get("json_schema") or {}).get("name") or "")
+        kind = "critique" if response_name == "atelier_exercise_critique" else "generation"
+        self.calls.append({"method": "generate_chat_completion", "kind": kind, "messages": messages, **kwargs})
+        if kind == "critique":
+            index = min(self.critique_calls, len(self.critique_contents) - 1)
+            self.critique_calls += 1
+            return self._json_result(self.critique_contents[index], model=kwargs.get("model", "gpt-4o-mini"))
+        index = min(self.generation_calls, len(self.generation_contents) - 1)
+        self.generation_calls += 1
+        return self._json_result(self.generation_contents[index], model=kwargs.get("model", "gpt-4o-mini"))
+
+    @staticmethod
+    def _json_result(content: dict, model: str = "gpt-4o-mini") -> LLMResult:
+        return LLMResult(
+            provider="openai",
+            model=model,
+            content=json.dumps(content),
             prompt_tokens=10,
             completion_tokens=10,
             total_tokens=20,
@@ -399,12 +479,15 @@ def test_generator_does_not_reuse_cached_fallback_when_llm_required(db_session):
     assert fake_llm.calls[0]["disable_retries"] is True
 
 
-def test_generator_raises_instead_of_serving_fallback_when_llm_generation_fails(db_session):
+def test_generator_serves_valid_fallback_when_llm_generation_fails(db_session):
     concept = _concept(db_session, "FR_B1_COND_001")
     _clear_exercise_sets(db_session, concept)
 
-    with pytest.raises(AtelierExerciseGenerationError):
-        AtelierExerciseGenerator(db_session, llm_service=_FailingLLMService()).get_or_create(concept)
+    exercise_set = AtelierExerciseGenerator(db_session, llm_service=_FailingLLMService()).get_or_create(concept)
+
+    assert exercise_set.source == "fallback"
+    assert exercise_set.model is None
+    assert AtelierExerciseGenerator.validate_payload(exercise_set.payload, concept=concept)
 
 
 def test_llm_generated_exercise_can_omit_rule_card_and_xray_fields(db_session):
@@ -422,30 +505,39 @@ def test_llm_generated_exercise_can_omit_rule_card_and_xray_fields(db_session):
     assert "fallback_shape_reference" not in fake_llm.calls[0]["messages"][0]["content"]
 
 
-def test_generator_rejects_llm_word_bank_without_clickable_sentence_tokens(db_session):
+def test_generator_falls_back_after_ai_critic_rejects_word_bank(db_session):
     concept = _concept(db_session, "FR_B1_COND_001")
     _clear_exercise_sets(db_session, concept)
     llm_payload = json.loads(json.dumps(_raw_llm_payload(concept)))
     llm_payload["recognize"]["word_bank"]["items"][1].update(
         {
-            "tokens": ["Bonjour"],
-            "answer_tokens": ["Bonjour"],
-            "correct_answer": "Bonjour",
+            "tokens": ["Je", "ne", "bois", "pas", "de", "café", "du"],
+            "answer_tokens": ["Je", "ne", "bois", "pas", "de", "café"],
+            "correct_answer": "Je ne bois pas de café",
         }
     )
-
-    with pytest.raises(AtelierExerciseGenerationError):
-        AtelierExerciseGenerator(db_session, llm_service=_FakeLLMService(llm_payload)).get_or_create(concept)
-
-    assert (
-        db_session.query(AtelierExerciseSet)
-        .filter(
-            AtelierExerciseSet.concept_id == concept.id,
-            AtelierExerciseSet.generator_version == ATELIER_GENERATOR_VERSION,
-        )
-        .count()
-        == 0
+    fake_llm = _GenerationCritiqueFakeLLMService(
+        [llm_payload],
+        critique_contents=[
+            {
+                "verdicts": [
+                    {
+                        "item_id": "si-bank-2",
+                        "round": "recognize",
+                        "mode": "word_bank",
+                        "passes": False,
+                        "reason": "This does not practice the target si-clause concept.",
+                    }
+                ]
+            }
+        ],
     )
+
+    exercise_set = AtelierExerciseGenerator(db_session, llm_service=fake_llm).get_or_create(concept)
+
+    assert exercise_set.source == "fallback"
+    assert fake_llm.critique_calls == 2
+    assert AtelierExerciseGenerator.validate_payload(exercise_set.payload, concept=concept)
 
 
 def test_generator_rejects_cached_llm_payload_without_required_item_ids(db_session):
@@ -474,7 +566,7 @@ def test_generator_rejects_cached_llm_payload_without_required_item_ids(db_sessi
     assert fake_llm.calls
 
 
-def test_generator_rejects_output_ladder_example_that_does_not_show_concept(db_session):
+def test_generator_falls_back_after_output_ladder_example_that_does_not_show_concept(db_session):
     concept = _concept(db_session, "FR_B1_COND_001")
     _clear_exercise_sets(db_session, concept)
     llm_payload = json.loads(json.dumps(_raw_llm_payload(concept)))
@@ -484,9 +576,37 @@ def test_generator_rejects_output_ladder_example_that_does_not_show_concept(db_s
             "example_answer": "tu réussiras.",
         }
     )
+    fake_llm = _GenerationCritiqueFakeLLMService(
+        [llm_payload],
+        critique_contents=[
+            {
+                "verdicts": [
+                    {
+                        "item_id": "si-sentence",
+                        "round": "sentence",
+                        "mode": "sentence",
+                        "passes": False,
+                        "reason": "The example answer omits the target condition.",
+                    }
+                ]
+            }
+        ],
+    )
 
-    with pytest.raises(AtelierExerciseGenerationError):
-        AtelierExerciseGenerator(db_session, llm_service=_FakeLLMService(llm_payload)).get_or_create(concept)
+    exercise_set = AtelierExerciseGenerator(db_session, llm_service=fake_llm).get_or_create(concept)
+
+    assert exercise_set.source == "fallback"
+    assert (
+        db_session.query(AtelierGenerationEvent)
+        .filter(
+            AtelierGenerationEvent.concept_id == concept.id,
+            AtelierGenerationEvent.event_type == "ai_critique",
+            AtelierGenerationEvent.passed.is_(False),
+        )
+        .count()
+        >= 2
+    )
+    assert AtelierExerciseGenerator.validate_payload(exercise_set.payload, concept=concept)
 
 
 def test_generator_retries_with_validation_feedback_after_bad_output_example(db_session):
@@ -500,13 +620,41 @@ def test_generator_retries_with_validation_feedback_after_bad_output_example(db_
         }
     )
     valid_payload = _raw_llm_payload(concept)
-    fake_llm = _SequencedFakeLLMService([invalid_payload, valid_payload])
+    fake_llm = _GenerationCritiqueFakeLLMService(
+        [invalid_payload, valid_payload],
+        critique_contents=[
+            {
+                "verdicts": [
+                    {
+                        "item_id": "si-sentence",
+                        "round": "sentence",
+                        "mode": "sentence",
+                        "passes": False,
+                        "reason": "The example answer is a fragment and does not show the si-clause.",
+                    }
+                ]
+            },
+            {
+                "verdicts": [
+                    {
+                        "item_id": "si-sentence",
+                        "round": "sentence",
+                        "mode": "sentence",
+                        "passes": True,
+                        "reason": "The target concept is visible and the item is solvable.",
+                    }
+                ]
+            },
+        ],
+    )
 
     exercise_set = AtelierExerciseGenerator(db_session, llm_service=fake_llm).get_or_create(concept)
 
     assert exercise_set.payload["output_ladder"]["sentence"]["items"][0]["example_answer"].startswith("Si")
-    assert len(fake_llm.calls) == 2
-    retry_payload = json.loads(fake_llm.calls[1]["messages"][0]["content"])
+    assert fake_llm.generation_calls == 2
+    assert fake_llm.critique_calls == 2
+    generation_calls = [call for call in fake_llm.calls if call["kind"] == "generation"]
+    retry_payload = json.loads(generation_calls[1]["messages"][0]["content"])
     assert retry_payload["validation_feedback"]["previous_attempt_rejected_for"]
 
 
@@ -523,8 +671,8 @@ def test_atelier_exercise_schema_requires_real_word_bank_and_one_ladder_item():
     word_bank_items = defs["word_bank_mode"]["properties"]["items"]
     assert word_bank_items["minItems"] == 3
     assert word_bank_items["maxItems"] == 3
-    assert defs["word_bank_item"]["properties"]["tokens"]["minItems"] == 3
-    assert defs["word_bank_item"]["properties"]["answer_tokens"]["minItems"] == 3
+    assert defs["word_bank_item"]["properties"]["tokens"]["minItems"] == 1
+    assert defs["word_bank_item"]["properties"]["answer_tokens"]["minItems"] == 1
 
     ladder_items = defs["output_ladder_mode"]["properties"]["items"]
     assert ladder_items["minItems"] == 1
@@ -627,6 +775,75 @@ def test_start_session_threads_vocabulary_examples_into_output_ladder(client: Te
     assert sentence_item["context_anchor"]["word"] == "dossier"
     assert sentence_item["context_anchor"]["sentence"] == "Le dossier reste sur la table."
     assert exercise_payload["produce"]["context_anchors"][0]["word"] == "dossier"
+
+
+def test_report_exercise_records_generation_event(client: TestClient, db_session):
+    token = _token(client)
+    AtelierScheduler(db_session).ensure_catalog()
+    concept = db_session.query(GrammarConcept).filter(GrammarConcept.external_id == "FR_A2_NEG_001").one()
+    start = client.post(
+        "/api/v1/atelier/sessions",
+        json={"preferred_concept_id": concept.id},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert start.status_code == 201
+    session_payload = start.json()
+    exercise_set = session_payload["exercise_sets"][0]
+
+    response = client.post(
+        "/api/v1/atelier/exercises/report",
+        json={
+            "session_id": session_payload["session_id"],
+            "concept_id": concept.id,
+            "exercise_set_id": exercise_set["id"],
+            "round": "recognize",
+            "mode": "word_bank",
+            "item_id": "neg-bank-1",
+            "reason": "The chips look impossible to solve.",
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 201
+    event = db_session.get(AtelierGenerationEvent, UUID(response.json()["event_id"]))
+    assert event is not None
+    assert event.event_type == "user_report"
+    assert event.concept_id == concept.id
+    assert event.exercise_set_id == UUID(exercise_set["id"])
+    assert event.payload["item_id"] == "neg-bank-1"
+    assert event.passed is False
+
+
+def test_select_atelier_vocabulary_uses_curated_starter_for_new_user(db_session):
+    user = _user(db_session)
+    db_session.add_all(
+        [
+            VocabularyWord(
+                language="fr",
+                word="abaisser",
+                normalized_word="abaisser",
+                frequency_rank=1,
+                german_translation="senken",
+                direction="fr_to_de",
+                is_anki_card=True,
+            ),
+            VocabularyWord(
+                language="fr",
+                word="venir",
+                normalized_word="venir",
+                frequency_rank=80,
+                german_translation="kommen",
+                direction="fr_to_de",
+                is_anki_card=True,
+            ),
+        ]
+    )
+    db_session.commit()
+
+    vocabulary = select_atelier_vocabulary(db_session, user=user, limit=1)
+
+    assert vocabulary[0]["word"] == "venir"
+    assert vocabulary[0]["bucket"] == "starter"
 
 
 def test_atelier_sentence_context_anchor_credits_used_vocabulary(client: TestClient, db_session):
@@ -814,11 +1031,11 @@ def test_word_bank_reports_specific_si_type_errors(db_session):
     )
 
     assert correction["verdict"] == "partial"
-    assert len(correction["errata"]) == 1
-    erratum = correction["errata"][0]
-    assert erratum["display_label"] == "Future result + spelling"
-    assert "arrivons" in erratum["why_wrong"]
-    assert "maintenat" in erratum["why_wrong"]
+    assert len(correction["errata"]) == 2
+    assert {erratum["display_label"] for erratum in correction["errata"]} == {"Future result", "Spelling slip"}
+    assert {erratum["item_id"] for erratum in correction["errata"]} == {"si-bank-3"}
+    assert any("arrivons" in erratum["why_wrong"] for erratum in correction["errata"])
+    assert any("maintenat" in erratum["why_wrong"] for erratum in correction["errata"])
 
 
 def test_word_bank_explains_conditional_instead_of_future(db_session):
@@ -839,6 +1056,27 @@ def test_word_bank_explains_conditional_instead_of_future(db_session):
     assert erratum["display_label"] == "Conditional vs future"
     assert "conditional" in erratum["why_wrong"]
     assert "répondrai" in erratum["repair_hint"]
+
+
+def test_word_bank_splits_same_row_future_and_spelling_for_generic_si_sentence(db_session):
+    concept = _concept(db_session, "FR_B1_COND_001")
+    item = _bank("si-bank-generic", "Build the sentence.", ["Si", "tu", "viens", "demain", ",", "nous", "partirons", "tôt"])
+
+    correction = AtelierCorrectionService(db_session).correct(
+        concept=concept,
+        round_name="recognize",
+        mode="word_bank",
+        exercise_id="FR_B1_COND_001:word_bank",
+        prompt_payload={"items": [item]},
+        answer_payload={"answers": {"si-bank-generic": "Si tu viens demaim, nous partons tot"}},
+    )
+
+    assert correction["verdict"] == "incorrect"
+    assert len(correction["errata"]) == 2
+    assert {erratum["display_label"] for erratum in correction["errata"]} == {"Future result", "Spelling slip"}
+    assert {erratum["item_id"] for erratum in correction["errata"]} == {"si-bank-generic"}
+    assert any("partons" in erratum["why_wrong"] and "partirons" in erratum["why_wrong"] for erratum in correction["errata"])
+    assert any("demaim" in erratum["why_wrong"] and "demain" in erratum["why_wrong"] for erratum in correction["errata"])
 
 
 def test_word_bank_explains_future_inside_si_clause(db_session):
@@ -949,7 +1187,7 @@ def test_generator_uses_strict_structured_output_when_llm_available(db_session):
     exercise_set = AtelierExerciseGenerator(db_session, llm_service=fake_llm).get_or_create(concept)
 
     assert exercise_set.source == "llm"
-    assert exercise_set.model == "gpt-4o-mini"
+    assert exercise_set.model == settings.ATELIER_EXERCISE_LLM_MODEL
     assert fake_llm.calls[0]["response_format"]["type"] == "json_schema"
     assert fake_llm.calls[0]["response_format"]["json_schema"]["strict"] is True
     assert len(exercise_set.payload["recognize"]["word_bank"]["items"]) == 3
@@ -1120,13 +1358,13 @@ def test_output_ladder_missing_target_is_not_recurring_erratum(db_session):
     assert result["errata"][0]["recurring"] is False
 
 
-def test_sentence_submit_returns_deterministic_correction_and_pending_ai_review(db_session):
+def test_sentence_submit_uses_llm_correction_and_marks_review_complete(db_session):
     user = _user(db_session)
     concept = _concept(db_session, "FR_B1_COND_001")
     session = AtelierSession(user_id=user.id, selected_concept_ids=[concept.id])
     db_session.add(session)
     db_session.commit()
-    _prime_llm_exercise_set(db_session, concept)
+    _attach_primed_exercise_set(db_session, session, concept)
     fake_llm = _FakeLLMService({"verdict": "accepted", "score_0_4": 4, "errata": []})
 
     attempt = AtelierCorrectionService(db_session, llm_service=fake_llm).submit_attempt(
@@ -1139,14 +1377,14 @@ def test_sentence_submit_returns_deterministic_correction_and_pending_ai_review(
         answer_payload={"text": "Si je finis tôt, je t'appellerai."},
     )
 
-    assert fake_llm.calls == []
-    assert attempt.correction_payload["correction_debug"]["fallback_used"] is True
-    assert attempt.correction_payload["ai_review"]["status"] == "pending"
-    assert attempt.correction_payload["ai_review"]["auto_started"] is True
-    assert AtelierCorrectionService(db_session, llm_service=fake_llm).should_auto_start_ai_review(attempt) is True
+    assert fake_llm.calls[0]["method"] == "generate_error_detection"
+    assert attempt.correction_payload["correction_debug"]["fallback_used"] is False
+    assert attempt.correction_payload["ai_review"]["status"] == "complete"
+    assert attempt.correction_payload["ai_review"]["auto_started"] is False
+    assert AtelierCorrectionService(db_session, llm_service=fake_llm).should_auto_start_ai_review(attempt) is False
 
 
-def test_transform_submit_exposes_manual_ai_review_without_calling_llm(db_session):
+def test_transform_submit_uses_llm_correction_without_background_review(db_session):
     user = _user(db_session)
     concept = _concept(db_session, "FR_B1_COND_001")
     session = AtelierSession(user_id=user.id, selected_concept_ids=[concept.id])
@@ -1165,12 +1403,13 @@ def test_transform_submit_exposes_manual_ai_review_without_calling_llm(db_sessio
         answer_payload={"answers": {"si-transform-1": "Quand il arrivera, on commencera le dîner."}},
     )
 
-    assert fake_llm.calls == []
-    assert attempt.correction_payload["ai_review"]["status"] == "available"
+    assert fake_llm.calls[0]["method"] == "generate_error_detection"
+    assert attempt.correction_payload["correction_debug"]["fallback_used"] is False
+    assert attempt.correction_payload["ai_review"]["status"] == "complete"
     assert AtelierCorrectionService(db_session, llm_service=fake_llm).should_auto_start_ai_review(attempt) is False
 
 
-def test_recognize_submit_never_queues_ai_review(db_session):
+def test_recognize_submit_uses_llm_correction_but_never_queues_ai_review(db_session):
     user = _user(db_session)
     concept = _concept(db_session, "FR_B1_COND_001")
     session = AtelierSession(user_id=user.id, selected_concept_ids=[concept.id])
@@ -1189,9 +1428,34 @@ def test_recognize_submit_never_queues_ai_review(db_session):
         answer_payload={"answers": {"si-fill-1": "appelle"}},
     )
 
-    assert fake_llm.calls == []
-    assert attempt.correction_payload["ai_review"]["status"] == "not_applicable"
+    assert fake_llm.calls[0]["method"] == "generate_error_detection"
+    assert attempt.correction_payload["ai_review"]["status"] == "complete"
     assert AtelierCorrectionService(db_session, llm_service=fake_llm).should_auto_start_ai_review(attempt) is False
+
+
+def test_recognize_submit_offers_ai_review_when_immediate_llm_correction_falls_back(db_session):
+    user = _user(db_session)
+    concept = _concept(db_session, "FR_B1_COND_001")
+    session = AtelierSession(user_id=user.id, selected_concept_ids=[concept.id])
+    db_session.add(session)
+    db_session.commit()
+    _prime_llm_exercise_set(db_session, concept)
+    failing_llm = _FailingCorrectionLLMService()
+
+    attempt = AtelierCorrectionService(db_session, llm_service=failing_llm).submit_attempt(
+        session=session,
+        user=user,
+        concept=concept,
+        round_name="recognize",
+        mode="fill",
+        exercise_id="FR_B1_COND_001:fill",
+        answer_payload={"answers": {"si-fill-1": "appelle"}},
+    )
+
+    assert failing_llm.calls[0]["method"] == "generate_error_detection"
+    assert attempt.correction_payload["correction_debug"]["fallback_used"] is True
+    assert attempt.correction_payload["ai_review"]["status"] == "available"
+    assert AtelierCorrectionService(db_session, llm_service=failing_llm).should_auto_start_ai_review(attempt) is False
 
 
 def test_manual_ai_review_is_idempotent_for_pending_and_complete(db_session):
@@ -1200,9 +1464,9 @@ def test_manual_ai_review_is_idempotent_for_pending_and_complete(db_session):
     session = AtelierSession(user_id=user.id, selected_concept_ids=[concept.id])
     db_session.add(session)
     db_session.commit()
-    _prime_llm_exercise_set(db_session, concept)
-    service = AtelierCorrectionService(db_session, llm_service=_FakeLLMService({"verdict": "correct", "score_0_4": 4, "errata": []}))
-    attempt = service.submit_attempt(
+    _attach_primed_exercise_set(db_session, session, concept)
+    seed_service = AtelierCorrectionService(db_session)
+    attempt = seed_service.submit_attempt(
         session=session,
         user=user,
         concept=concept,
@@ -1211,6 +1475,8 @@ def test_manual_ai_review_is_idempotent_for_pending_and_complete(db_session):
         exercise_id="FR_B1_COND_001:transform",
         answer_payload={"answers": {"si-transform-1": "Quand il arrivera, on commencera le dîner."}},
     )
+    assert attempt.correction_payload["ai_review"]["status"] == "available"
+    service = AtelierCorrectionService(db_session, llm_service=_FakeLLMService({"verdict": "correct", "score_0_4": 4, "errata": []}))
 
     attempt, should_enqueue = service.mark_ai_review_pending(attempt, auto_started=False)
     assert should_enqueue is True
@@ -1290,8 +1556,8 @@ def test_ai_memory_merge_refines_same_attempt_without_incrementing_lapses(db_ses
     session = AtelierSession(user_id=user.id, selected_concept_ids=[concept.id])
     db_session.add(session)
     db_session.commit()
-    _prime_llm_exercise_set(db_session, concept)
-    seed_service = AtelierCorrectionService(db_session, llm_service=_FakeLLMService({"verdict": "incorrect", "score_0_4": 1, "errata": []}))
+    _attach_primed_exercise_set(db_session, session, concept)
+    seed_service = AtelierCorrectionService(db_session)
     attempt = seed_service.submit_attempt(
         session=session,
         user=user,
@@ -1352,6 +1618,7 @@ def test_complete_session_schedules_recurring_errata_and_updates_progress(db_ses
     session = AtelierSession(user_id=user.id, selected_concept_ids=[concept.id])
     db_session.add(session)
     db_session.commit()
+    _attach_primed_exercise_set(db_session, session, concept)
 
     AtelierCorrectionService(db_session).submit_attempt(
         session=session,
@@ -1376,6 +1643,7 @@ def test_atelier_attempt_persists_error_memory_before_completion(db_session):
     session = AtelierSession(user_id=user.id, selected_concept_ids=[concept.id])
     db_session.add(session)
     db_session.commit()
+    _attach_primed_exercise_set(db_session, session, concept)
 
     attempt = AtelierCorrectionService(db_session).submit_attempt(
         session=session,
@@ -1402,6 +1670,7 @@ def test_multiple_errata_can_share_one_error_concept_memory(db_session):
     session = AtelierSession(user_id=user.id, selected_concept_ids=[concept.id])
     db_session.add(session)
     db_session.commit()
+    _attach_primed_exercise_set(db_session, session, concept)
 
     attempt = AtelierCorrectionService(db_session).submit_attempt(
         session=session,
@@ -1420,6 +1689,8 @@ def test_multiple_errata_can_share_one_error_concept_memory(db_session):
     )
 
     assert len(attempt.correction_payload["memory_updates"]) == 2
+    assert len(attempt.correction_payload["errata"]) == 2
+    assert {erratum["item_id"] for erratum in attempt.correction_payload["errata"]} == {"si-fill-1", "si-fill-2"}
     assert db_session.query(UserError).filter(UserError.user_id == user.id).count() == 2
     concept_memories = db_session.query(UserErrorConcept).filter(UserErrorConcept.user_id == user.id).all()
     assert len(concept_memories) == 1
@@ -1595,11 +1866,14 @@ def test_atelier_api_today_session_attempt_and_complete(client: TestClient, db_s
     assert attempt.status_code == 200
     assert attempt.json()["verdict"] == "correct"
     assert attempt.json()["ai_review"]["status"] == "not_applicable"
+    assert attempt.json()["correction"]["rule_reference"]
+    assert attempt.json()["minted_collectibles"][0]["kind"] == "logo_token"
 
     read_attempt = client.get(f"/api/v1/atelier/attempts/{attempt.json()['attempt_id']}", headers=headers)
     assert read_attempt.status_code == 200
     assert read_attempt.json()["attempt_id"] == attempt.json()["attempt_id"]
     assert read_attempt.json()["correction"]["ai_review"]["status"] == "not_applicable"
+    assert read_attempt.json()["minted_collectibles"] == []
 
     unavailable_review = client.post(f"/api/v1/atelier/attempts/{attempt.json()['attempt_id']}/ai-review", headers=headers)
     assert unavailable_review.status_code == 400
@@ -1629,6 +1903,7 @@ def test_atelier_api_today_session_attempt_and_complete(client: TestClient, db_s
     read_session = client.get(f"/api/v1/atelier/sessions/{session_id}", headers=headers)
     assert read_session.status_code == 200
     assert read_session.json()["current_position"]["round"] == "recognize"
+    assert read_session.json()["current_position"]["mode"] == "classify"
 
     writing = client.post(
         f"/api/v1/atelier/sessions/{session_id}/attempts",
@@ -1647,6 +1922,46 @@ def test_atelier_api_today_session_attempt_and_complete(client: TestClient, db_s
     completed = client.post(f"/api/v1/atelier/sessions/{session_id}/complete", headers=headers)
     assert completed.status_code == 200
     assert "streak_after" in completed.json()["recap"]
+    assert completed.json()["minted_collectibles"] == []
+
+    almanac = client.get("/api/v1/atelier/almanac", headers=headers)
+    assert almanac.status_code == 200
+    assert almanac.json()["totals"]["logo_token"] == 1
+    assert almanac.json()["progress"]["plate_semaine"]["available"] == 1
+
+    compose = client.post("/api/v1/atelier/workshop/compose", headers=headers, json={"target": "plate_semaine"})
+    assert compose.status_code == 409
+    assert compose.json()["detail"]["shortfall"] == 6
+
+
+def test_workshop_compose_preserves_nested_members(db_session):
+    user = _user(db_session)
+    for index in range(7):
+        db_session.add(
+            AtelierCollectible(
+                user_id=user.id,
+                kind="logo_token",
+                source_kind="screen",
+                source_ref=f"test-screen-{index}",
+                metadata_payload={"index": index},
+            )
+        )
+    db_session.commit()
+
+    result = AtelierRewardService(db_session).compose(user_id=user.id, target="plate_semaine")
+
+    assert result["plate"]["kind"] == "plate_semaine"
+    assert len(result["members"]) == 7
+    assert result["progress"]["plate_semaine"]["available"] == 0
+    assert db_session.query(AtelierCollectible).filter(
+        AtelierCollectible.user_id == user.id,
+        AtelierCollectible.kind == "logo_token",
+        AtelierCollectible.composed.is_(True),
+    ).count() == 7
+
+    almanac = AtelierRewardService(db_session).almanac(user_id=user.id)
+    assert almanac["plates"][0]["kind"] == "plate_semaine"
+    assert len(almanac["plates"][0]["members"]) == 7
 
 
 def test_atelier_today_includes_due_errata_and_review_endpoint(client: TestClient, db_session):

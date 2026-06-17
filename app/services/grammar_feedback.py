@@ -377,7 +377,8 @@ def count_concept_hits(concept: GrammarConcept | None, text: str, *, task_text: 
         return int(_contains_conditionnel_present(normalized) or bool(tokens & {"voudrais", "pourrais", "devrais", "aimerais"}))
     if profile.key == "article_after_negation":
         negation_frame = r"\b(?:ne\s+\w+|n'\w+)\s+[^.!?;]*\bpas\s+d(?:e\b|')"
-        return len(re.findall(negation_frame, normalized))
+        etre_exception = r"\bn'(?:est|etait|sont|sommes|etes|suis|es)\s+pas\s+(?:du|de la|de l'|des|un|une)\b"
+        return len(re.findall(negation_frame, normalized)) + len(re.findall(etre_exception, normalized))
     if profile.key == "mood":
         return int(_contains_subjunctive_form(normalized))
     if profile.key == "relative_pronoun":

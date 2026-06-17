@@ -8,6 +8,9 @@ export interface DayProgress {
   errataDue: number;
   vocabularyDue: number;
   missionDone: boolean;
+  missionSuggested: boolean;
+  libraryDone: boolean;
+  librarySuggested: boolean;
   feuilletonDone: boolean;
   sessionDone?: boolean;
   timeBudgetMinutes?: number;
@@ -19,6 +22,7 @@ export interface DayProgress {
     label: string;
     estimatedMinutes: number;
     done?: boolean;
+    suggested?: boolean;
   }>;
 }
 
@@ -27,6 +31,7 @@ export type RecommendedAction =
   | { kind: 'start_session' }
   | { kind: 'review'; errataDue: number; vocabularyDue: number }
   | { kind: 'mission'; query: string }
+  | { kind: 'library'; bookId: string; episodeIndex: number; href: string; title?: string; bookTitle?: string }
   | { kind: 'feuilleton'; query: string }
   | { kind: 'serial'; threadId: string; episodeKind: 'mission' | 'feuilleton'; query: string }
   | { kind: 'rest' };
@@ -37,6 +42,9 @@ interface ServerDayProgress {
   errataDue?: number;
   vocabularyDue?: number;
   missionDone?: boolean;
+  missionSuggested?: boolean;
+  libraryDone?: boolean;
+  librarySuggested?: boolean;
   feuilletonDone?: boolean;
   sessionDone?: boolean;
   timeBudgetMinutes?: number;
@@ -54,10 +62,20 @@ interface SerialEpisodeEnvelope {
   episode_index?: number | null;
 }
 
+interface LibraryEpisodeEnvelope {
+  book_id?: string;
+  order_index?: number | null;
+  episode_index?: number | null;
+  href?: string | null;
+  title?: string | null;
+  book_title?: string | null;
+}
+
 type AtelierTodayWithProgress = AtelierToday & {
   progress?: ServerDayProgress | null;
   serial_episode?: SerialEpisodeEnvelope | null;
   serial?: SerialEpisodeEnvelope | null;
+  library_episode?: LibraryEpisodeEnvelope | null;
 };
 
 export function serialActionFromToday(
@@ -105,8 +123,23 @@ export function resolveRecommendedNext(
     return { kind: 'review', errataDue: progress.errataDue, vocabularyDue: progress.vocabularyDue };
   }
 
-  if (!progress.missionDone) {
+  if (!progress.missionDone && progress.missionSuggested) {
     return { kind: 'mission', query: dayQueryString(session, today) };
+  }
+
+  const libraryEpisode = (today as AtelierTodayWithProgress | null)?.library_episode || null;
+  if (!progress.libraryDone && progress.librarySuggested && libraryEpisode?.book_id) {
+    const episodeIndex = Number(libraryEpisode.episode_index ?? libraryEpisode.order_index ?? 0);
+    const href = libraryEpisode.href
+      || `/notebook?mode=library&book=${libraryEpisode.book_id}&episode=${Number.isFinite(episodeIndex) ? episodeIndex : 0}`;
+    return {
+      kind: 'library',
+      bookId: libraryEpisode.book_id,
+      episodeIndex: Number.isFinite(episodeIndex) ? episodeIndex : 0,
+      href,
+      title: libraryEpisode.title || undefined,
+      bookTitle: libraryEpisode.book_title || undefined,
+    };
   }
 
   if (!progress.feuilletonDone) {
@@ -203,6 +236,9 @@ export function buildDayProgress(input: {
     errataDue: Number(serverProgress?.errataDue ?? today?.summary?.due_errata ?? today?.due_errata?.length ?? 0),
     vocabularyDue: Number(serverProgress?.vocabularyDue ?? vocabularyDue ?? 0),
     missionDone: Boolean(serverProgress?.missionDone ?? false),
+    missionSuggested: Boolean(serverProgress?.missionSuggested ?? false),
+    libraryDone: Boolean(serverProgress?.libraryDone ?? !(today as AtelierTodayWithProgress | null)?.library_episode),
+    librarySuggested: Boolean(serverProgress?.librarySuggested ?? Boolean((today as AtelierTodayWithProgress | null)?.library_episode)),
     feuilletonDone: Boolean(serverProgress?.feuilletonDone ?? false),
     sessionDone: Boolean(serverProgress?.sessionDone ?? sessionStatus === 'completed'),
     timeBudgetMinutes: Number(serverProgress?.timeBudgetMinutes ?? 20),

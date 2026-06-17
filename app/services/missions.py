@@ -32,6 +32,37 @@ MISSION_CORRECTION_PROMPT_VERSION = "mission-correction-v1"
 MISSION_FAST_CORRECTION_PROMPT_VERSION = "mission-correction-fast-v1"
 MISSION_TEMPLATES = ("message", "explain_plan", "news_summary", "travel_work", "conversation")
 
+MISSION_SCENARIO_RESPONSE_FORMAT: dict[str, Any] = {
+    "type": "json_schema",
+    "json_schema": {
+        "name": "mission_scenario",
+        "strict": True,
+        "schema": {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "title": {"type": "string"},
+                "brief": {"type": "string"},
+                "contact_name": {"type": "string"},
+                "contact_role": {"type": "string"},
+                "contact_initials": {"type": "string"},
+                "scene_anchor": {"type": "string"},
+                "thread_title": {"type": "string"},
+                "opening_message": {"type": "string"},
+                "ambient_cues": {"type": "array", "items": {"type": "string"}},
+                "quick_replies": {"type": "array", "items": {"type": "string"}},
+                "success_signal": {"type": "string"},
+                "inbox_context": {"type": "string"},
+            },
+            "required": [
+                "title", "brief", "contact_name", "contact_role", "contact_initials",
+                "scene_anchor", "thread_title", "opening_message", "ambient_cues",
+                "quick_replies", "success_signal", "inbox_context",
+            ],
+        },
+    },
+}
+
 
 MISSION_CORRECTION_RESPONSE_FORMAT: dict[str, Any] = {
     "type": "json_schema",
@@ -252,6 +283,17 @@ class MissionGenerator:
         )
         title, brief = self._brief(mission_type=mission_type, cadence=cadence, source_snapshot=source_snapshot, concepts=concepts)
         messenger = self._messenger_payload(mission_type=mission_type, source_snapshot=source_snapshot, concepts=concepts)
+        if mission_type != "news_summary":
+            scenario = self._llm_scenario(
+                user=user,
+                mission_type=mission_type,
+                concepts=concepts,
+                vocabulary=vocabulary,
+            )
+            if scenario:
+                title = scenario.get("title") or title
+                brief = scenario.get("brief") or brief
+                messenger = {**messenger, **scenario["messenger"]}
         if vocabulary:
             messenger = self._with_vocabulary_focus(messenger, vocabulary)
         if custom_context:
@@ -814,6 +856,87 @@ class MissionGenerator:
                 }
             )
         return objectives
+
+    def _llm_scenario(
+        self,
+        *,
+        user: User,
+        mission_type: str,
+        concepts: list[GrammarConcept],
+        vocabulary: list[dict[str, Any]],
+    ) -> dict[str, Any] | None:
+        """A vivid, personalized texting scenario. Returns None if the LLM is unavailable,
+        so the canned templates remain the deterministic fallback."""
+        llm = _safe_llm()
+        if llm is None:
+            return None
+        grammar = [concept.name for concept in concepts if getattr(concept, "name", None)]
+        vocab = [str(item.get("word")) for item in vocabulary if item.get("word")]
+        cefr = getattr(user, "cefr_estimate", None) or getattr(user, "proficiency_level", None) or "A1"
+        flavor = {
+            "message": "a short text-message exchange with someone before or instead of meeting",
+            "explain_plan": "explaining a plan, change, or decision to someone by message",
+            "travel_work": "sorting out a practical problem at a desk, station, hotel, shop, or office",
+            "conversation": "a back-and-forth real-life conversation that keeps moving",
+        }.get(mission_type, "a short, realistic text-message exchange")
+        system_prompt = (
+            "You design realistic, everyday French texting scenarios for a language learner. "
+            "Invent ONE believable, specific real-life situation the learner would actually face — for "
+            "example texting a landlord about a leak, replying to a friend who changed the plan, sorting "
+            "out a wrong delivery, telling a colleague you'll be late, asking a neighbour for a favour. "
+            "opening_message is the OTHER person's first French text: short, natural, phone-style, in "
+            "character. Weave the target grammar so a good reply must use it. Keep every French string at "
+            "the learner's CEFR level. Vary the contact, channel and situation each time — never reuse a "
+            "train-station arrival. Return JSON only."
+        )
+        user_payload = {
+            "cefr_level": cefr,
+            "scenario_flavor": flavor,
+            "mission_type": mission_type,
+            "target_grammar": grammar,
+            "due_vocabulary": vocab,
+            "fields": {
+                "title": "English, the mission-card heading (max 6 words)",
+                "brief": "English, one or two sentences: what the learner must accomplish",
+                "contact_name": "the other person's name",
+                "contact_role": "who they are to the learner (landlord, colleague, friend...)",
+                "contact_initials": "two uppercase letters from contact_name",
+                "scene_anchor": "English, one line of where/when this is happening",
+                "thread_title": "short label for the message thread",
+                "opening_message": "French, the other person's first text",
+                "ambient_cues": "2-3 short real-world details",
+                "quick_replies": "2-3 French reply starters at the CEFR level",
+                "success_signal": "English, what a good outcome looks like",
+                "inbox_context": "English, one line on what the other person actually needs",
+            },
+        }
+        try:
+            result = llm.generate_chat_completion(
+                [{"role": "user", "content": json.dumps(user_payload, ensure_ascii=False)}],
+                system_prompt=system_prompt,
+                response_format=MISSION_SCENARIO_RESPONSE_FORMAT,
+                temperature=0.9,
+                max_tokens=700,
+                model=settings.ATELIER_EXERCISE_LLM_MODEL,
+                disable_retries=True,
+            )
+            data = json.loads(result.content)
+        except (LLMProviderError, json.JSONDecodeError, ValueError, TypeError, KeyError) as exc:
+            logger.info("Mission scenario generation unavailable", error=str(exc))
+            return None
+        if not isinstance(data, dict) or not data.get("opening_message"):
+            return None
+        messenger_keys = (
+            "contact_name", "contact_role", "contact_initials", "scene_anchor",
+            "thread_title", "opening_message", "ambient_cues", "quick_replies",
+            "success_signal", "inbox_context",
+        )
+        messenger = {key: data[key] for key in messenger_keys if data.get(key)}
+        return {
+            "title": data.get("title"),
+            "brief": data.get("brief"),
+            "messenger": messenger,
+        }
 
     def _brief(
         self,

@@ -22,14 +22,35 @@ def test_notebook_entry_remembers_last_mode() -> None:
     assert "<NotebookModeSwitch" in entry
 
 
-def test_notebook_switch_links_grammar_and_vocabulary() -> None:
+def test_notebook_switch_links_grammar_vocabulary_and_library() -> None:
     switch = read_web("components/mobile/NotebookModeSwitch.tsx")
 
     assert "atelier:notebook-mode" in switch
     assert 'href="/grammar"' in switch
     assert 'href="/vocabulary"' in switch
+    assert 'href="/notebook?mode=library"' in switch
     assert "rememberNotebookMode('grammar')" in switch
     assert "rememberNotebookMode('vocabulary')" in switch
+    assert "rememberNotebookMode('library')" in switch
+
+
+def test_notebook_library_mode_fetches_books_and_episode() -> None:
+    notebook = read_web("pages/notebook.tsx")
+    api = read_web("services/api.ts")
+
+    assert "mode === 'library'" in notebook
+    assert "function LibraryNotebookSurface" in notebook
+    assert "api.getLibraryBooks()" in notebook
+    assert "api.getLibraryBook(targetId)" in notebook
+    assert "api.getLibraryEpisode(book.id" in notebook
+    assert "api.completeLibraryEpisode(selectedBook.id" in notebook
+    assert "function LibraryEpisodeExerciseRunner" in notebook
+    assert "<ExerciseShell" in notebook
+    assert "<FeedbackSheet" in notebook
+    assert 'href="/serial">Serial archive</Link>' in notebook
+    assert 'href="/missions">Past missions</Link>' in notebook
+    assert "async getLibraryBooks()" in api
+    assert "async getLibraryEpisode" in api
 
 
 def test_grammar_and_vocabulary_pages_share_notebook_switch() -> None:
