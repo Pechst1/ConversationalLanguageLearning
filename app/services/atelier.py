@@ -937,6 +937,36 @@ def _store_session_exercise_set_id(session: AtelierSession, concept: GrammarConc
     flag_modified(session, "quote_payload")
 
 
+def _session_has_concept_attempt(db: Session, *, session: AtelierSession, concept: GrammarConcept) -> bool:
+    return (
+        db.query(AtelierAttempt.id)
+        .filter(
+            AtelierAttempt.atelier_session_id == session.id,
+            AtelierAttempt.concept_id == concept.id,
+        )
+        .first()
+        is not None
+    )
+
+
+def _latest_valid_shared_llm_exercise_set(db: Session, concept: GrammarConcept) -> AtelierExerciseSet | None:
+    candidates = (
+        db.query(AtelierExerciseSet)
+        .filter(
+            AtelierExerciseSet.concept_id == concept.id,
+            AtelierExerciseSet.generator_version == ATELIER_GENERATOR_VERSION,
+            AtelierExerciseSet.source == "llm",
+        )
+        .order_by(AtelierExerciseSet.created_at.desc())
+        .limit(5)
+        .all()
+    )
+    for candidate in candidates:
+        if AtelierExerciseGenerator.validate_payload(candidate.payload, concept=concept):
+            return candidate
+    return None
+
+
 def session_exercise_set(
     db: Session,
     *,
@@ -955,6 +985,14 @@ def session_exercise_set(
             and exercise_set.generator_version == ATELIER_GENERATOR_VERSION
             and AtelierExerciseGenerator.validate_payload(exercise_set.payload, concept=concept)
         ):
+            if exercise_set.source == "fallback" and not _session_has_concept_attempt(db, session=session, concept=concept):
+                cached_llm = _latest_valid_shared_llm_exercise_set(db, concept)
+                if cached_llm:
+                    _store_session_exercise_set_id(session, concept, cached_llm)
+                    db.add(session)
+                    db.commit()
+                    db.refresh(session)
+                    return cached_llm
             return exercise_set
 
     exercise_set = AtelierExerciseGenerator(db).get_or_create(

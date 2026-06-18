@@ -32,6 +32,7 @@ from app.services.atelier import (
     AtelierExerciseGenerator,
     AtelierSRSService,
     AtelierScheduler,
+    session_exercise_set,
     select_atelier_vocabulary,
 )
 from app.services.atelier_assets import AtelierAssetService
@@ -800,6 +801,106 @@ def test_start_session_with_preferred_concept_keeps_full_atelier_set(client: Tes
     payload = response.json()
     assert payload["concepts"][0]["id"] == concept.id
     assert len(payload["concepts"]) == 3
+
+
+def test_session_exercise_set_upgrades_unattempted_fallback_to_shared_llm_cache(db_session):
+    concept = _concept(db_session, "FR_B1_COND_001")
+    _clear_exercise_sets(db_session, concept)
+    user = _user(db_session)
+    fallback_set = AtelierExerciseSet(
+        concept_id=concept.id,
+        generator_version=ATELIER_GENERATOR_VERSION,
+        model=None,
+        source="fallback",
+        content_hash="session-fallback",
+        payload=json.loads(json.dumps(_raw_llm_payload(concept))),
+        validation_notes="current fallback",
+    )
+    llm_payload = json.loads(json.dumps(_raw_llm_payload(concept)))
+    llm_payload["xray"] = {"sentence": "Si la réunion commence, nous écouterons.", "marks": []}
+    llm_set = AtelierExerciseSet(
+        concept_id=concept.id,
+        generator_version=ATELIER_GENERATOR_VERSION,
+        model="gpt-5-mini",
+        source="llm",
+        content_hash="session-shared-llm",
+        payload=llm_payload,
+        validation_notes="shared llm cache",
+    )
+    db_session.add_all([fallback_set, llm_set])
+    db_session.commit()
+    session = AtelierSession(
+        user_id=user.id,
+        selected_concept_ids=[concept.id],
+        quote_payload={"exercise_set_ids": {str(concept.id): str(fallback_set.id)}},
+        status="in_progress",
+        recap_payload={},
+    )
+    db_session.add(session)
+    db_session.commit()
+
+    exercise_set = session_exercise_set(db_session, user=user, session=session, concept=concept)
+
+    assert exercise_set.id == llm_set.id
+    db_session.refresh(session)
+    assert session.quote_payload["exercise_set_ids"][str(concept.id)] == str(llm_set.id)
+
+
+def test_session_exercise_set_keeps_fallback_after_concept_attempt_exists(db_session):
+    concept = _concept(db_session, "FR_B1_COND_001")
+    _clear_exercise_sets(db_session, concept)
+    user = _user(db_session)
+    fallback_set = AtelierExerciseSet(
+        concept_id=concept.id,
+        generator_version=ATELIER_GENERATOR_VERSION,
+        model=None,
+        source="fallback",
+        content_hash="attempted-session-fallback",
+        payload=json.loads(json.dumps(_raw_llm_payload(concept))),
+        validation_notes="current fallback",
+    )
+    llm_set = AtelierExerciseSet(
+        concept_id=concept.id,
+        generator_version=ATELIER_GENERATOR_VERSION,
+        model="gpt-5-mini",
+        source="llm",
+        content_hash="attempted-session-llm",
+        payload=json.loads(json.dumps(_raw_llm_payload(concept))),
+        validation_notes="shared llm cache",
+    )
+    db_session.add_all([fallback_set, llm_set])
+    db_session.commit()
+    session = AtelierSession(
+        user_id=user.id,
+        selected_concept_ids=[concept.id],
+        quote_payload={"exercise_set_ids": {str(concept.id): str(fallback_set.id)}},
+        status="in_progress",
+        recap_payload={},
+    )
+    db_session.add(session)
+    db_session.commit()
+    db_session.add(
+        AtelierAttempt(
+            atelier_session_id=session.id,
+            user_id=user.id,
+            concept_id=concept.id,
+            round="recognize",
+            mode="classify",
+            exercise_id="FR_B1_COND_001:classify",
+            prompt_payload={},
+            answer_payload={},
+            correction_payload={},
+            verdict="partial",
+            score_0_4=1.0,
+        )
+    )
+    db_session.commit()
+
+    exercise_set = session_exercise_set(db_session, user=user, session=session, concept=concept)
+
+    assert exercise_set.id == fallback_set.id
+    db_session.refresh(session)
+    assert session.quote_payload["exercise_set_ids"][str(concept.id)] == str(fallback_set.id)
 
 
 def test_start_session_threads_vocabulary_examples_into_output_ladder(client: TestClient, db_session):
@@ -1572,7 +1673,7 @@ def test_recognize_submit_uses_llm_correction_but_never_queues_ai_review(db_sess
     assert AtelierCorrectionService(db_session, llm_service=fake_llm).should_auto_start_ai_review(attempt) is False
 
 
-def test_recognize_submit_offers_ai_review_when_immediate_llm_correction_falls_back(db_session):
+def test_recognize_submit_hides_ai_review_when_immediate_llm_correction_falls_back(db_session):
     user = _user(db_session)
     concept = _concept(db_session, "FR_B1_COND_001")
     session = AtelierSession(user_id=user.id, selected_concept_ids=[concept.id])
@@ -1593,11 +1694,11 @@ def test_recognize_submit_offers_ai_review_when_immediate_llm_correction_falls_b
 
     assert failing_llm.calls[0]["method"] == "generate_error_detection"
     assert attempt.correction_payload["correction_debug"]["fallback_used"] is True
-    assert attempt.correction_payload["ai_review"]["status"] == "available"
+    assert attempt.correction_payload["ai_review"]["status"] == "not_applicable"
     assert AtelierCorrectionService(db_session, llm_service=failing_llm).should_auto_start_ai_review(attempt) is False
 
 
-def test_manual_ai_review_is_idempotent_for_pending_and_complete(db_session):
+def test_manual_ai_review_is_idempotent_for_not_applicable_pending_and_complete(db_session):
     user = _user(db_session)
     concept = _concept(db_session, "FR_B1_COND_001")
     session = AtelierSession(user_id=user.id, selected_concept_ids=[concept.id])
@@ -1614,8 +1715,19 @@ def test_manual_ai_review_is_idempotent_for_pending_and_complete(db_session):
         exercise_id="FR_B1_COND_001:transform",
         answer_payload={"answers": {"si-transform-1": "Quand il arrivera, on commencera le dîner."}},
     )
-    assert attempt.correction_payload["ai_review"]["status"] == "available"
+    assert attempt.correction_payload["ai_review"]["status"] == "not_applicable"
     service = AtelierCorrectionService(db_session, llm_service=_FakeLLMService({"verdict": "correct", "score_0_4": 4, "errata": []}))
+
+    attempt, should_enqueue = service.mark_ai_review_pending(attempt, auto_started=False)
+    assert should_enqueue is False
+    assert attempt.correction_payload["ai_review"]["status"] == "not_applicable"
+
+    legacy_payload = dict(attempt.correction_payload)
+    legacy_payload["ai_review"] = {"status": "available", "auto_started": False}
+    attempt.correction_payload = legacy_payload
+    db_session.add(attempt)
+    db_session.commit()
+    db_session.refresh(attempt)
 
     attempt, should_enqueue = service.mark_ai_review_pending(attempt, auto_started=False)
     assert should_enqueue is True
@@ -1684,7 +1796,7 @@ def test_background_ai_review_failure_preserves_deterministic_correction(db_sess
     updated = service.run_ai_review_for_attempt(attempt.id)
 
     assert updated is not None
-    assert updated.correction_payload["ai_review"]["status"] == "failed"
+    assert updated.correction_payload["ai_review"]["status"] == "not_applicable"
     assert updated.correction_payload["corrected_answer"] == deterministic_answer
     assert updated.correction_payload["correction_debug"]["fallback_used"] is True
 
@@ -1737,6 +1849,13 @@ def test_ai_memory_merge_refines_same_attempt_without_incrementing_lapses(db_ses
         }
     )
     review_service = AtelierCorrectionService(db_session, llm_service=fake_llm)
+    legacy_payload = dict(attempt.correction_payload)
+    legacy_payload["ai_review"] = {"status": "available", "auto_started": False}
+    attempt.correction_payload = legacy_payload
+    db_session.add(attempt)
+    db_session.commit()
+    db_session.refresh(attempt)
+
     attempt, should_enqueue = review_service.mark_ai_review_pending(attempt, auto_started=False)
     assert should_enqueue is True
 
