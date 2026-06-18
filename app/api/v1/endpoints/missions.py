@@ -34,6 +34,7 @@ from app.services.missions import (
     MissionConversationService,
     MissionCorrectionService,
     MissionScheduler,
+    SerialEpisodeNotReadyError,
     serialize_mission,
 )
 
@@ -169,23 +170,26 @@ async def create_mission(
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_atelier_user)],
 ) -> MissionResponse:
-    mission = await MissionScheduler(db).create(
-        user=current_user,
-        mission_type=request.mission_type,
-        cadence=request.cadence,
-        atelier_session_id=request.atelier_session_id,
-        serial_thread_id=request.serial_thread_id,
-        episode_index=request.episode_index,
-        preferred_concept_ids=request.preferred_concept_ids,
-        preferred_errata_ids=request.preferred_errata_ids,
-        preferred_vocabulary_ids=request.preferred_vocabulary_ids,
-        use_news=request.use_news,
-        custom_scenario=request.custom_scenario,
-        desired_outcome=request.desired_outcome,
-        relationship=request.relationship,
-        register=request.target_register,
-        stakes_level=request.stakes_level,
-    )
+    try:
+        mission = await MissionScheduler(db).create(
+            user=current_user,
+            mission_type=request.mission_type,
+            cadence=request.cadence,
+            atelier_session_id=request.atelier_session_id,
+            serial_thread_id=request.serial_thread_id,
+            episode_index=request.episode_index,
+            preferred_concept_ids=request.preferred_concept_ids,
+            preferred_errata_ids=request.preferred_errata_ids,
+            preferred_vocabulary_ids=request.preferred_vocabulary_ids,
+            use_news=request.use_news,
+            custom_scenario=request.custom_scenario,
+            desired_outcome=request.desired_outcome,
+            relationship=request.relationship,
+            register=request.target_register,
+            stakes_level=request.stakes_level,
+        )
+    except SerialEpisodeNotReadyError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=exc.detail) from exc
     return MissionResponse(mission=serialize_mission(mission) or {})
 
 

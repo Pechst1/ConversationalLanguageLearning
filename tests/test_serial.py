@@ -1396,6 +1396,85 @@ def test_direct_serial_mission_creation_uses_story_seed(db_session):
     assert linked.mission_id == mission.id
 
 
+def test_direct_serial_mission_creation_rejects_unfinished_previous_episode(client: TestClient, db_session, monkeypatch):
+    monkeypatch.setattr(settings, "SERIAL_WORLD_ENABLED", True)
+    email = f"serial-direct-blocked-{uuid4()}@example.com"
+    client.post(
+        "/api/v1/auth/register",
+        json={"email": email, "password": "serial-secure", "target_language": "fr", "native_language": "en"},
+    )
+    token = client.post("/api/v1/auth/login", json={"email": email, "password": "serial-secure"}).json()["access_token"]
+    user = db_session.query(User).filter(User.email == email).one()
+    thread = SerialThread(
+        user_id=user.id,
+        world_bible={"logline": "Paris serial test"},
+        state={},
+        news_seed={},
+        current_episode_index=1,
+    )
+    db_session.add(thread)
+    db_session.flush()
+    scene = GraphicNovelScene(
+        user_id=user.id,
+        serial_thread_id=thread.id,
+        episode_index=1,
+        status="available",
+        cadence="serial",
+        title="Le papier cachete",
+        brief="The scene has not been filed yet.",
+        selected_concept_ids=[],
+        target_errata_ids=[],
+        target_vocabulary_ids=[],
+        source_snapshot={},
+        script_payload={"hook": {"next_beat_kind": "mission", "teaser": "Romy asks for a reply."}},
+        recap_payload={},
+        cache_key=f"serial-direct-blocked-{uuid4().hex}",
+        prompt_version="test",
+        image_model="test",
+        image_quality="medium",
+    )
+    db_session.add(scene)
+    db_session.flush()
+    db_session.add(
+        SerialEpisode(
+            thread_id=thread.id,
+            episode_index=1,
+            kind="feuilleton",
+            scene_id=scene.id,
+            hook={},
+            hook_from_previous={},
+            state_delta={},
+            status="available",
+            brief_payload={},
+        )
+    )
+    db_session.commit()
+
+    response = client.post(
+        "/api/v1/missions/",
+        json={
+            "mission_type": "message",
+            "cadence": "ad_hoc",
+            "serial_thread_id": str(thread.id),
+            "episode_index": 2,
+            "use_news": False,
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 409
+    detail = response.json()["detail"]
+    assert detail["code"] == "serial_episode_not_ready"
+    assert detail["blocking_episode_index"] == 1
+    assert detail["blocking_status"] == "available"
+    assert (
+        db_session.query(SerialEpisode)
+        .filter(SerialEpisode.thread_id == thread.id, SerialEpisode.episode_index == 2)
+        .first()
+        is None
+    )
+
+
 def test_serial_endpoints_return_disabled_when_flag_off(client: TestClient, monkeypatch):
     monkeypatch.setattr(settings, "SERIAL_WORLD_ENABLED", False)
     token = _token(client)

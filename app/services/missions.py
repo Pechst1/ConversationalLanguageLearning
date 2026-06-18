@@ -32,6 +32,32 @@ MISSION_CORRECTION_PROMPT_VERSION = "mission-correction-v1"
 MISSION_FAST_CORRECTION_PROMPT_VERSION = "mission-correction-fast-v1"
 MISSION_TEMPLATES = ("message", "explain_plan", "news_summary", "travel_work", "conversation")
 
+
+class SerialEpisodeNotReadyError(ValueError):
+    """Raised when a serial mission is requested ahead of the story's filed beat."""
+
+    def __init__(
+        self,
+        *,
+        thread_id: UUID,
+        episode_index: int | None,
+        current_episode_index: int,
+        blocking_episode: SerialEpisode | None = None,
+    ) -> None:
+        message = "Complete the current serial episode before starting the next mission."
+        super().__init__(message)
+        self.detail = {
+            "code": "serial_episode_not_ready",
+            "message": message,
+            "thread_id": str(thread_id),
+            "episode_index": episode_index,
+            "current_episode_index": current_episode_index,
+            "blocking_episode_index": blocking_episode.episode_index if blocking_episode else None,
+            "blocking_kind": blocking_episode.kind if blocking_episode else None,
+            "blocking_status": blocking_episode.status if blocking_episode else None,
+        }
+
+
 MISSION_SCENARIO_RESPONSE_FORMAT: dict[str, Any] = {
     "type": "json_schema",
     "json_schema": {
@@ -2122,6 +2148,7 @@ class MissionScheduler:
         if serial_thread and episode_index is None:
             episode_index = serial_thread.current_episode_index
         if serial_thread:
+            self._ensure_serial_mission_slot_ready(thread=serial_thread, episode_index=episode_index)
             existing_mission = self._existing_serial_mission(thread=serial_thread, episode_index=episode_index)
             if existing_mission:
                 return existing_mission
@@ -2227,6 +2254,50 @@ class MissionScheduler:
         if not mission or mission.user_id != thread.user_id:
             return None
         return mission
+
+    def _ensure_serial_mission_slot_ready(self, *, thread: SerialThread, episode_index: int | None) -> None:
+        if episode_index is None:
+            return
+        current_episode_index = int(thread.current_episode_index or 0)
+        current_episode = self._serial_episode_at(thread=thread, episode_index=current_episode_index)
+        existing_episode = self._serial_episode_at(thread=thread, episode_index=episode_index)
+        if episode_index > current_episode_index:
+            raise SerialEpisodeNotReadyError(
+                thread_id=thread.id,
+                episode_index=episode_index,
+                current_episode_index=current_episode_index,
+                blocking_episode=current_episode,
+            )
+        if existing_episode and existing_episode.kind != "mission":
+            raise SerialEpisodeNotReadyError(
+                thread_id=thread.id,
+                episode_index=episode_index,
+                current_episode_index=current_episode_index,
+                blocking_episode=existing_episode,
+            )
+        previous_episode = self._previous_serial_episode(thread=thread, episode_index=episode_index)
+        if previous_episode and previous_episode.status != "completed":
+            raise SerialEpisodeNotReadyError(
+                thread_id=thread.id,
+                episode_index=episode_index,
+                current_episode_index=current_episode_index,
+                blocking_episode=previous_episode,
+            )
+
+    def _serial_episode_at(self, *, thread: SerialThread, episode_index: int) -> SerialEpisode | None:
+        return (
+            self.db.query(SerialEpisode)
+            .filter(SerialEpisode.thread_id == thread.id, SerialEpisode.episode_index == episode_index)
+            .first()
+        )
+
+    def _previous_serial_episode(self, *, thread: SerialThread, episode_index: int) -> SerialEpisode | None:
+        return (
+            self.db.query(SerialEpisode)
+            .filter(SerialEpisode.thread_id == thread.id, SerialEpisode.episode_index < episode_index)
+            .order_by(SerialEpisode.episode_index.desc())
+            .first()
+        )
 
     def _serial_custom_context(
         self,
@@ -3066,5 +3137,6 @@ __all__ = [
     "MissionGenerator",
     "MissionSRSService",
     "MissionScheduler",
+    "SerialEpisodeNotReadyError",
     "serialize_mission",
 ]
