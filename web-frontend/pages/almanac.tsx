@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type CSSProperties } from 'react';
 import { Loader2 } from 'lucide-react';
 
 import EditorialMasthead from '@/components/layout/EditorialMasthead';
@@ -28,6 +28,73 @@ function variantOf(item: AtelierCollectible): SealVariant {
 
 function dateOf(item: AtelierCollectible): string {
   return String(item.metadata?.date || '');
+}
+
+type StorySealCrop = {
+  image_url?: string;
+  focal_point?: { x?: number; y?: number };
+  region?: { x?: number; y?: number; width?: number; height?: number };
+  fallback?: boolean;
+};
+
+function numberUnit(value: unknown, fallback: number): number {
+  if (typeof value !== 'number' || Number.isNaN(value)) return fallback;
+  return Math.max(0, Math.min(1, value));
+}
+
+function storySealCrop(item: AtelierCollectible): StorySealCrop | null {
+  const crop = item.metadata?.seal_crop;
+  return crop && typeof crop === 'object' ? (crop as StorySealCrop) : null;
+}
+
+function storySealImageUrl(item: AtelierCollectible): string | null {
+  const crop = storySealCrop(item);
+  const url = crop?.image_url;
+  return !crop?.fallback && typeof url === 'string' && url.trim() ? url : null;
+}
+
+function storySealImageStyle(item: AtelierCollectible): CSSProperties {
+  const crop = storySealCrop(item);
+  const region = crop?.region;
+  const focal = crop?.focal_point;
+  const x = focal?.x ?? (
+    region && typeof region.x === 'number' && typeof region.width === 'number'
+      ? region.x + region.width / 2
+      : undefined
+  );
+  const y = focal?.y ?? (
+    region && typeof region.y === 'number' && typeof region.height === 'number'
+      ? region.y + region.height / 2
+      : undefined
+  );
+  return {
+    objectPosition: `${Math.round(numberUnit(x, 0.5) * 100)}% ${Math.round(numberUnit(y, 0.5) * 100)}%`,
+  };
+}
+
+function StorySealCard({ seal, no }: { seal: AtelierCollectible; no: number }) {
+  const imageUrl = storySealImageUrl(seal);
+  const title = String(seal.metadata?.scene_title || seal.metadata?.name || 'Story seal');
+  const episode = String(seal.metadata?.episode_label || '');
+  return (
+    <article className={`story-seal-card ${imageUrl ? 'has-crop' : 'fallback'}`}>
+      <div className="story-seal-art" aria-hidden="true">
+        {imageUrl ? (
+          <>
+            <img src={imageUrl} alt="" loading="lazy" style={storySealImageStyle(seal)} />
+            <span className="story-seal-ring" />
+          </>
+        ) : (
+          <SealMini no={no} variant={variantOf(seal)} state="earned" />
+        )}
+      </div>
+      <div className="story-seal-meta">
+        <span>{episode || `Nº ${no}`}</span>
+        <strong>{title}</strong>
+        {dateOf(seal) && <em>{dateOf(seal)}</em>}
+      </div>
+    </article>
+  );
 }
 
 export default function AlmanacPage() {
@@ -146,14 +213,20 @@ export default function AlmanacPage() {
               {(giltSeals.length > 0 || storySeals.length > 0) && (
                 <section className="almanac-section" aria-label="Seals">
                   <span className="section-k">Seals</span>
-                  <div className="seal-grid">
-                    {giltSeals.map((seal, i) => (
-                      <SealMini key={seal.id} no={giltSeals.length - i} variant={variantOf(seal)} state="earned" tone="gilt" />
-                    ))}
-                    {storySeals.map((seal, i) => (
-                      <SealMini key={seal.id} no={storySeals.length - i} variant={variantOf(seal)} state="earned" />
-                    ))}
-                  </div>
+                  {giltSeals.length > 0 && (
+                    <div className="seal-grid">
+                      {giltSeals.map((seal, i) => (
+                        <SealMini key={seal.id} no={giltSeals.length - i} variant={variantOf(seal)} state="earned" tone="gilt" />
+                      ))}
+                    </div>
+                  )}
+                  {storySeals.length > 0 && (
+                    <div className="story-seal-grid" aria-label="Story seals">
+                      {storySeals.map((seal, i) => (
+                        <StorySealCard key={seal.id} seal={seal} no={storySeals.length - i} />
+                      ))}
+                    </div>
+                  )}
                 </section>
               )}
 
@@ -320,6 +393,75 @@ function AlmanacStyles() {
         display: flex;
         flex-wrap: wrap;
         gap: var(--space-5);
+      }
+      .story-seal-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: var(--space-4);
+        margin-top: var(--space-4);
+      }
+      .story-seal-card {
+        display: grid;
+        grid-template-columns: 76px minmax(0, 1fr);
+        align-items: center;
+        gap: var(--space-3);
+        min-height: 96px;
+        border: 1px solid var(--app-ink);
+        background: var(--app-sheet);
+        padding: var(--space-2);
+      }
+      .story-seal-art {
+        position: relative;
+        width: 76px;
+        aspect-ratio: 1;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        border: 1px solid var(--app-ink);
+        background: var(--app-paper-2);
+      }
+      .story-seal-art img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+      .story-seal-ring {
+        position: absolute;
+        inset: 7px;
+        border: 1.5px solid var(--app-paper);
+        border-radius: 999px;
+        box-shadow: 0 0 0 1px color-mix(in srgb, var(--app-ink) 38%, transparent);
+        pointer-events: none;
+      }
+      .story-seal-card.fallback .story-seal-art {
+        border: 0;
+        background: transparent;
+        overflow: visible;
+      }
+      .story-seal-meta {
+        min-width: 0;
+        display: grid;
+        gap: 4px;
+      }
+      .story-seal-meta span,
+      .story-seal-meta em {
+        color: var(--app-ink-3);
+        font-family: var(--mono);
+        font-size: var(--type-mono);
+        font-style: normal;
+        font-weight: var(--weight-medium);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .story-seal-meta strong {
+        min-width: 0;
+        overflow-wrap: anywhere;
+        font-family: var(--app-serif);
+        font-style: italic;
+        font-weight: var(--weight-medium);
+        font-size: 1.05rem;
+        line-height: 1.12;
       }
       .token-grid {
         display: flex;

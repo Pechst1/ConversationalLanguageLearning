@@ -59,6 +59,17 @@ def test_graphic_novel_scene_leads_with_panels_before_brief() -> None:
     assert source.index('className="panel-grid" id="reading-panels"') < source.index("<SceneBrief scene={scene}")
 
 
+def test_almanac_story_seals_render_panel_crop_art() -> None:
+    source = read_web("pages/almanac.tsx")
+
+    assert "function StorySealCard" in source
+    assert "metadata?.seal_crop" in source
+    assert "storySealImageUrl(seal)" in source
+    assert "objectPosition" in source
+    assert "className=\"story-seal-grid\"" in source
+    assert "className=\"story-seal-ring\"" in source
+
+
 def test_product_direction_surfaces_are_wired() -> None:
     atelier = read_web("pages/atelier.tsx")
     missions = read_web("pages/missions.tsx")
