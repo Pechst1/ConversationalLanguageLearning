@@ -909,6 +909,12 @@ export interface GraphicNovelAttemptResult {
   scene: GraphicNovelScene;
 }
 
+export interface GraphicNovelCompleteResult {
+  scene: GraphicNovelScene;
+  recap: VocabularyRecapPayload;
+  next_serial?: SerialToday | null;
+}
+
 export interface PasswordResetRequestResponse {
   message: string;
   reset_token?: string | null;
@@ -1666,7 +1672,7 @@ class ApiService {
   }
 
   async completeGraphicNovelScene(sceneId: string) {
-    const response = await this.atelierPost<{ scene: GraphicNovelScene; recap: VocabularyRecapPayload }>(`/graphic-novel/scenes/${sceneId}/complete`);
+    const response = await this.atelierPost<GraphicNovelCompleteResult>(`/graphic-novel/scenes/${sceneId}/complete`);
     return response;
   }
 

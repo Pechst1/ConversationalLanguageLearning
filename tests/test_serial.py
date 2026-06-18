@@ -834,6 +834,78 @@ def test_feuilleton_completion_mints_story_seal_with_crop(db_session, monkeypatc
     ).count() == 1
 
 
+def test_feuilleton_complete_endpoint_returns_next_serial_beat(client: TestClient, db_session, monkeypatch):
+    monkeypatch.setattr(settings, "SERIAL_WORLD_ENABLED", True)
+    monkeypatch.setattr(SerialThreadService, "_enqueue_next_beat", lambda self, thread_id: None)
+    email = f"serial-feuilleton-next-{uuid4()}@example.com"
+    client.post(
+        "/api/v1/auth/register",
+        json={"email": email, "password": "serial-secure", "target_language": "fr", "native_language": "en"},
+    )
+    token = client.post("/api/v1/auth/login", json={"email": email, "password": "serial-secure"}).json()["access_token"]
+    user = db_session.query(User).filter(User.email == email).one()
+    thread = _run(SerialThreadService(db_session).get_or_create_thread(user))
+    thread.current_episode_index = 1
+    db_session.add(thread)
+    db_session.flush()
+    scene = GraphicNovelScene(
+        user_id=user.id,
+        serial_thread_id=thread.id,
+        episode_index=1,
+        status="available",
+        cadence="serial",
+        title="La signature impossible",
+        brief="A test serial scene ready to file.",
+        selected_concept_ids=[],
+        target_errata_ids=[],
+        target_vocabulary_ids=[],
+        source_snapshot={},
+        script_payload={
+            "title": "La signature impossible",
+            "location_id": "le_mistral",
+            "hook": {
+                "text": "Romy voit une signature impossible.",
+                "unresolved_question": "Who signed it?",
+                "next_beat_kind": "mission",
+                "teaser": "Demain : répondre à Romy.",
+            },
+        },
+        recap_payload={},
+        cache_key=f"serial-feuilleton-next-{uuid4().hex}",
+        prompt_version="test",
+        image_model="test",
+        image_quality="medium",
+    )
+    db_session.add(scene)
+    db_session.flush()
+    db_session.add(
+        SerialEpisode(
+            thread_id=thread.id,
+            episode_index=1,
+            kind="feuilleton",
+            scene_id=scene.id,
+            hook={},
+            hook_from_previous={},
+            state_delta={},
+            status="available",
+            brief_payload={},
+        )
+    )
+    db_session.commit()
+
+    response = client.post(
+        f"/api/v1/graphic-novel/scenes/{scene.id}/complete",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["scene"]["status"] == "completed"
+    assert payload["next_serial"]["kind"] == "mission"
+    assert payload["next_serial"]["episode_index"] == 2
+    assert payload["next_serial"]["status"] == "generation_queued"
+
+
 def test_delayed_feuilleton_retries_without_duplicate_episode(db_session, monkeypatch):
     monkeypatch.setattr(NewsService, "fetch_feuilleton_daily_seed", _fake_seed)
     user = _user(db_session, email="serial-delayed-retry@example.com")

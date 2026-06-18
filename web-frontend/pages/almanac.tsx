@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type CSSProperties } from 'react';
+import Image from 'next/image';
 import { Loader2 } from 'lucide-react';
 
 import EditorialMasthead from '@/components/layout/EditorialMasthead';
@@ -81,7 +82,7 @@ function StorySealCard({ seal, no }: { seal: AtelierCollectible; no: number }) {
       <div className="story-seal-art" aria-hidden="true">
         {imageUrl ? (
           <>
-            <img src={imageUrl} alt="" loading="lazy" style={storySealImageStyle(seal)} />
+            <Image src={imageUrl} alt="" fill sizes="76px" unoptimized style={storySealImageStyle(seal)} />
             <span className="story-seal-ring" />
           </>
         ) : (
@@ -420,11 +421,8 @@ function AlmanacStyles() {
         border: 1px solid var(--app-ink);
         background: var(--app-paper-2);
       }
-      .story-seal-art img {
-        width: 100%;
-        height: 100%;
+      .story-seal-art :global(img) {
         object-fit: cover;
-        display: block;
       }
       .story-seal-ring {
         position: absolute;

@@ -59,6 +59,19 @@ def test_graphic_novel_scene_leads_with_panels_before_brief() -> None:
     assert source.index('className="panel-grid" id="reading-panels"') < source.index("<SceneBrief scene={scene}")
 
 
+def test_graphic_novel_completion_routes_to_returned_serial_beat() -> None:
+    source = read_web("pages/graphic-novel.tsx")
+    api = read_web("services/api.ts")
+
+    assert "next_serial?: SerialToday | null" in api
+    assert "function routeForSerialBeat" in source
+    assert "routeForSerialBeat(result.next_serial)" in source
+    assert "File this edition first" in source
+    assert "const primaryAction = scene.status === 'completed'" in source
+    assert "label: 'Finish edition', href: '#reading-panels'" in source
+    assert "href={scene.status === 'completed' ? feuilletonNextMissionHref(scene) : '#reading-panels'}" in source
+
+
 def test_almanac_story_seals_render_panel_crop_art() -> None:
     source = read_web("pages/almanac.tsx")
 

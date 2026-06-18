@@ -12,10 +12,12 @@ import { writeLocalDayProgressFlag } from '@/lib/atelier-next';
 import { panelImageUrl } from '@/lib/graphic-novel-images';
 import apiService, {
   GraphicNovelAttemptResult,
+  GraphicNovelCompleteResult,
   GraphicNovelPanel,
   GraphicNovelScene,
   GraphicNovelToday,
   MissionTargetVocabulary,
+  SerialToday,
 } from '@/services/api';
 
 type OverlayTask = Record<string, any> & { panel?: GraphicNovelPanel | null };
@@ -83,6 +85,25 @@ function sceneRouteQuery(scene: GraphicNovelScene): Record<string, string | numb
   if (typeof scene.episode_index === 'number') query.episode_index = scene.episode_index;
   if (scene.mission_id) query.mission_id = scene.mission_id;
   return query;
+}
+
+function routeForSerialBeat(serial: SerialToday | null | undefined): string | null {
+  if (!serial?.thread_id || typeof serial.episode_index !== 'number') return null;
+  if (serial.kind === 'mission') {
+    return routeWithQuery('/missions', [
+      ['serial_thread_id', serial.thread_id],
+      ['episode_index', serial.episode_index],
+      ['mission', serial.mission_id || undefined],
+    ]);
+  }
+  if (serial.kind === 'feuilleton') {
+    return routeWithQuery('/graphic-novel', [
+      ['serial_thread_id', serial.thread_id],
+      ['episode_index', serial.episode_index],
+      ['scene', serial.scene_id || undefined],
+    ]);
+  }
+  return null;
 }
 
 export default function GraphicNovelPage() {
@@ -407,11 +428,12 @@ export default function GraphicNovelPage() {
     if (!scene) return false;
     setCompleting(true);
     try {
-      const result = await apiService.completeGraphicNovelScene(scene.id);
+      const result: GraphicNovelCompleteResult = await apiService.completeGraphicNovelScene(scene.id);
       setScene(result.scene);
       await writeSideQuestProgressFlag('feuilletonDone');
       toast.success('Feuilleton complete.');
-      void router.push('/atelier');
+      const nextRoute = routeForSerialBeat(result.next_serial);
+      void router.push(nextRoute || '/atelier');
       return true;
     } catch {
       toast.error('Could not complete Feuilleton.');
@@ -2527,8 +2549,8 @@ function FeuilletonCliffhangerHero({ scene }: { scene: GraphicNovelScene }) {
         <div className="who">{feuilletonCharacterName(who)}</div>
         <div className="q">{question || beat}</div>
         {beat && question !== beat && <div className="beat">{beat}</div>}
-        <Link className="ccta" href={feuilletonNextMissionHref(scene)}>
-          Answer in the next episode <ArrowRight size={18} aria-hidden="true" />
+        <Link className="ccta" href={scene.status === 'completed' ? feuilletonNextMissionHref(scene) : '#reading-panels'}>
+          {scene.status === 'completed' ? 'Answer in the next episode' : 'File this edition first'} <ArrowRight size={18} aria-hidden="true" />
         </Link>
         <div className="next">Next · Act · Episode {typeof scene.episode_index === 'number' ? scene.episode_index + 2 : ''}</div>
       </div>
@@ -2664,6 +2686,9 @@ function FeuilletonContinuationCard({
     ...items.map((item) => ({ label: `Word · ${item.word}`, tone: 'vocabulary' as const })),
     ...conceptIds.slice(0, 2).map((id) => ({ label: `Rule · ${id}`, tone: 'grammar' as const })),
   ].slice(0, 4);
+  const primaryAction = scene.status === 'completed'
+    ? { label: hook?.next_beat_kind === 'mission' ? 'Next episode' : 'Use in mission', href: routeWithQuery('/missions', missionPairs), tone: 'primary' as const }
+    : { label: 'Finish edition', href: '#reading-panels', tone: 'primary' as const };
 
   return (
     <ContinuationCard
@@ -2676,7 +2701,7 @@ function FeuilletonContinuationCard({
         : 'The story is carrying today’s vocabulary; completing it saves contextual credit.'}
       focus={hook?.unresolved_question ? [{ label: hook.unresolved_question, tone: 'mission' as const }, ...focus].slice(0, 4) : focus}
       actions={[
-        { label: hook?.next_beat_kind === 'mission' ? 'Next episode' : 'Use in mission', href: routeWithQuery('/missions', missionPairs), tone: 'primary' },
+        primaryAction,
         { label: 'Review words', href: '/vocabulary/review' },
         { label: 'Back to Atelier', href: routeWithQuery('/atelier', atelierPairs), tone: 'quiet' },
       ]}

@@ -125,6 +125,7 @@ class GraphicNovelAttemptResponse(BaseModel):
 class GraphicNovelCompleteResponse(BaseModel):
     scene: GraphicNovelSceneRead
     recap: GraphicNovelRecapRead
+    next_serial: dict[str, Any] | None = None
 
 
 __all__ = [
