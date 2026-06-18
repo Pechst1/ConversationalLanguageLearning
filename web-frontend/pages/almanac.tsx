@@ -31,6 +31,17 @@ function dateOf(item: AtelierCollectible): string {
   return String(item.metadata?.date || '');
 }
 
+function almanacErrorMessage(error: unknown): string {
+  const detail = (error as any)?.response?.data?.detail;
+  if (typeof detail === 'string') return detail;
+  if (detail && typeof detail === 'object') {
+    if (typeof detail.message === 'string') return detail.message;
+    if (typeof detail.shortfall === 'number') return `${detail.shortfall} more needed before this plate can be composed.`;
+    if (typeof detail.code === 'string') return detail.code.replaceAll('_', ' ');
+  }
+  return error instanceof Error ? error.message : 'The almanac could not be updated.';
+}
+
 type StorySealCrop = {
   image_url?: string;
   focal_point?: { x?: number; y?: number };
@@ -98,18 +109,46 @@ function StorySealCard({ seal, no }: { seal: AtelierCollectible; no: number }) {
   );
 }
 
+function PlateCard({ plate }: { plate: AtelierCollectible }) {
+  const members = plate.members || [];
+  const label = TARGET_LABEL[plate.kind as AtelierWorkshopTarget] || plate.kind;
+  return (
+    <article className="plate-card">
+      <SealMini no={members.length || 0} variant={variantOf(plate)} state="earned" tone={plate.kind === 'colophon' ? 'gilt' : 'ink'} />
+      <div className="plate-copy">
+        <span>{label}</span>
+        <strong>{String(plate.metadata?.name || 'Composed plate')}</strong>
+        <em>{members.length} originals nested here</em>
+      </div>
+      {members.length > 0 && (
+        <div className="plate-members" aria-label="Nested originals">
+          {members.map((member, i) => (
+            member.kind === 'logo_token'
+              ? <LogoToken key={member.id} size="sm" />
+              : <SealMini key={member.id} no={members.length - i} variant={variantOf(member)} state="earned" tone={member.kind === 'gilt_seal' ? 'gilt' : 'ink'} />
+          ))}
+        </div>
+      )}
+    </article>
+  );
+}
+
 export default function AlmanacPage() {
   const [almanac, setAlmanac] = useState<AtelierAlmanac | null>(null);
   const [loading, setLoading] = useState(true);
   const [composing, setComposing] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [composeError, setComposeError] = useState<string | null>(null);
+  const [composeNotice, setComposeNotice] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
       const data = await apiService.getAtelierAlmanac();
       setAlmanac(data);
+      setLoadError(null);
     } catch (error) {
       console.error(error);
-      setAlmanac(null);
+      setLoadError(almanacErrorMessage(error));
     } finally {
       setLoading(false);
     }
@@ -121,17 +160,22 @@ export default function AlmanacPage() {
 
   const compose = useCallback(
     async (target: AtelierWorkshopTarget) => {
+      if (composing) return;
       setComposing(target);
+      setComposeError(null);
+      setComposeNotice(null);
       try {
         await apiService.composeAtelierWorkshop(target);
+        setComposeNotice(`${TARGET_LABEL[target] || 'Plate'} composed. The originals stay nested in your almanac.`);
         await load();
       } catch (error) {
         console.error(error);
+        setComposeError(almanacErrorMessage(error));
       } finally {
         setComposing(null);
       }
     },
-    [load],
+    [composing, load],
   );
 
   const collectibles = almanac?.collectibles || {};
@@ -156,6 +200,12 @@ export default function AlmanacPage() {
 
           {loading ? (
             <div className="almanac-loading"><Loader2 className="spin" aria-hidden="true" /> Opening the almanac</div>
+          ) : !almanac && loadError ? (
+            <div className="almanac-error" role="alert">
+              <h2>The case did not open.</h2>
+              <p>{loadError}</p>
+              <button type="button" className="compose-btn" onClick={load}>Retry</button>
+            </div>
           ) : !almanac || earnedCount === 0 ? (
             <div className="almanac-empty">
               <h2>The case is empty — for now.</h2>
@@ -163,6 +213,12 @@ export default function AlmanacPage() {
             </div>
           ) : (
             <>
+              {loadError && (
+                <div className="almanac-error inline" role="status">
+                  <p>{loadError}</p>
+                  <button type="button" className="compose-btn" onClick={load}>Retry</button>
+                </div>
+              )}
               {featured && (
                 <section className="almanac-featured" aria-label="Latest gilt seal">
                   <Seal variant={variantOf(featured)} no={giltSeals.length} date={dateOf(featured)} size="lg" tone="gilt" />
@@ -176,6 +232,8 @@ export default function AlmanacPage() {
 
               <section className="almanac-workshop" aria-label="The workshop">
                 <span className="section-k">The workshop · compose your tokens</span>
+                {composeError && <div className="compose-message error" role="alert">{composeError}</div>}
+                {composeNotice && <div className="compose-message" role="status">{composeNotice}</div>}
                 {TARGET_ORDER.map((target) => {
                   const p = almanac.progress?.[target];
                   if (!p) return null;
@@ -189,6 +247,7 @@ export default function AlmanacPage() {
                         <div className="workshop-bar"><span style={{ width: `${pct}%` }} /></div>
                       </div>
                       <button
+                        type="button"
                         className="compose-btn"
                         disabled={!ready || composing === target}
                         onClick={() => compose(target)}
@@ -203,9 +262,9 @@ export default function AlmanacPage() {
               {plates.length > 0 && (
                 <section className="almanac-section" aria-label="Composed plates">
                   <span className="section-k">Composed plates</span>
-                  <div className="seal-grid">
+                  <div className="plate-grid">
                     {plates.map((plate) => (
-                      <SealMini key={plate.id} no={plate.members?.length || 0} variant={variantOf(plate)} state="earned" />
+                      <PlateCard key={plate.id} plate={plate} />
                     ))}
                   </div>
                 </section>
@@ -390,10 +449,94 @@ function AlmanacStyles() {
         background: var(--app-ink);
         color: var(--app-paper);
       }
+      .compose-message,
+      .almanac-error {
+        border: 1px solid var(--app-ink);
+        border-left: 4px solid var(--accent-reward);
+        background: var(--app-sheet);
+        padding: var(--space-3);
+        color: var(--app-ink-2);
+        line-height: 1.45;
+      }
+      .compose-message {
+        margin: 0 0 var(--space-3);
+      }
+      .compose-message.error,
+      .almanac-error {
+        border-left-color: var(--app-red);
+      }
+      .almanac-error {
+        margin-top: var(--space-5);
+        display: grid;
+        gap: var(--space-3);
+      }
+      .almanac-error.inline {
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+      }
+      .almanac-error h2,
+      .almanac-error p {
+        margin: 0;
+      }
+      .almanac-error h2 {
+        color: var(--app-ink);
+        font-family: var(--app-serif);
+        font-style: italic;
+        font-weight: var(--weight-medium);
+        font-size: 1.35rem;
+      }
       .seal-grid {
         display: flex;
         flex-wrap: wrap;
         gap: var(--space-5);
+      }
+      .plate-grid {
+        display: grid;
+        gap: var(--space-3);
+      }
+      .plate-card {
+        display: grid;
+        grid-template-columns: 72px minmax(0, 1fr);
+        align-items: center;
+        gap: var(--space-3);
+        border: 1px solid var(--app-ink);
+        background: var(--app-sheet);
+        padding: var(--space-3);
+      }
+      .plate-copy {
+        min-width: 0;
+        display: grid;
+        gap: 4px;
+      }
+      .plate-copy span,
+      .plate-copy em {
+        color: var(--app-ink-3);
+        font-family: var(--mono);
+        font-size: var(--type-mono);
+        font-style: normal;
+        font-weight: var(--weight-medium);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .plate-copy strong {
+        overflow-wrap: anywhere;
+        font-family: var(--app-serif);
+        font-style: italic;
+        font-weight: var(--weight-medium);
+        font-size: 1.1rem;
+      }
+      .plate-members {
+        grid-column: 1 / -1;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--space-2);
+        padding-top: var(--space-2);
+        border-top: 1px solid var(--app-paper-3);
+      }
+      .plate-members :global(.logo-token.sm) {
+        transform: scale(0.82);
+        transform-origin: left center;
       }
       .story-seal-grid {
         display: grid;
@@ -494,6 +637,14 @@ function AlmanacStyles() {
       .spin { animation: spin 1s linear infinite; }
       @keyframes spin { to { transform: rotate(360deg); } }
       @media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
+      @media (max-width: 520px) {
+        .almanac-error.inline {
+          grid-template-columns: 1fr;
+        }
+        .plate-card {
+          grid-template-columns: 64px minmax(0, 1fr);
+        }
+      }
     `}</style>
   );
 }

@@ -76,11 +76,17 @@ def test_almanac_story_seals_render_panel_crop_art() -> None:
     source = read_web("pages/almanac.tsx")
 
     assert "function StorySealCard" in source
+    assert "function PlateCard" in source
     assert "metadata?.seal_crop" in source
     assert "storySealImageUrl(seal)" in source
     assert "objectPosition" in source
     assert "className=\"story-seal-grid\"" in source
     assert "className=\"story-seal-ring\"" in source
+    assert "loadError" in source
+    assert "composeError" in source
+    assert "The originals stay nested in your almanac" in source
+    assert "className=\"plate-members\"" in source
+    assert "setAlmanac(null)" not in source
 
 
 def test_product_direction_surfaces_are_wired() -> None:
