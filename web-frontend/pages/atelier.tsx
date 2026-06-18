@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { ArrowRight, BookOpen, Check, HelpCircle, Loader2, MapPinned, Mic, RotateCcw, Send, Square } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
 
 import apiService, {
   AtelierCollectible,
@@ -31,7 +30,8 @@ import {
   type DayProgress,
   type RecommendedAction,
 } from '@/lib/atelier-next';
-import { isNativePlatform } from '@/lib/native-platform';
+import { pulseAppHaptic } from '@/lib/haptics';
+import { cn } from '@/lib/utils';
 
 type RoundName = 'recognize' | 'transform' | 'sentence' | 'produce' | 'speak' | 'conversation';
 type RecognizeMode = 'fill' | 'word_bank' | 'classify';
@@ -66,6 +66,21 @@ const roundLabels: Array<{ id: RoundName; label: string; roman: string }> = [
   { id: 'speak', label: 'Spoken', roman: 'V' },
   { id: 'conversation', label: 'Conversation', roman: 'VI' },
 ];
+
+const OUTPUT_LADDER_META: Record<'sentence' | 'speak' | 'conversation', { eyebrow: string; instruction: string }> = {
+  sentence: {
+    eyebrow: 'Write one line',
+    instruction: 'React to the situation below in a full French sentence.',
+  },
+  speak: {
+    eyebrow: 'Say it aloud',
+    instruction: 'Record your spoken reply — we transcribe it and check the grammar.',
+  },
+  conversation: {
+    eyebrow: 'Your turn to reply',
+    instruction: 'Answer the message naturally, using the grammar you just practised.',
+  },
+};
 
 function answerKey(round: RoundName, mode: string, conceptId?: number | null) {
   return `${round}:${mode}:${conceptId || 'session'}`;
@@ -133,37 +148,7 @@ function normalizeClient(value: any) {
 }
 
 function pulseAtelierHaptic(kind: 'correct' | 'repair' | 'complete' | 'token') {
-  if (typeof window === 'undefined' || typeof navigator === 'undefined') return;
-  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
-  if (isNativePlatform()) {
-    void (async () => {
-      try {
-        if (kind === 'token' || kind === 'complete') {
-          await Haptics.notification({ type: NotificationType.Success });
-        } else if (kind === 'repair') {
-          await Haptics.notification({ type: NotificationType.Warning });
-        } else {
-          await Haptics.impact({ style: ImpactStyle.Light });
-        }
-      } catch {
-        // Native haptics are best-effort; web vibration below covers supported browsers.
-      }
-    })();
-  }
-  const vibrate = (navigator as Navigator & { vibrate?: (pattern: number[]) => boolean }).vibrate;
-  if (!vibrate) return;
-  const pattern = kind === 'correct'
-    ? [12]
-    : kind === 'token'
-      ? [12, 26, 12]
-    : kind === 'complete'
-      ? [18, 28, 18]
-      : [10, 24, 10];
-  try {
-    navigator.vibrate(pattern);
-  } catch {
-    // Browser vibration is also best-effort and should never fail the drill.
-  }
+  pulseAppHaptic(kind);
 }
 
 function joinWordBankTokens(tokens: any[]) {
@@ -863,10 +848,23 @@ function RewardMomentOverlay({
   onClose: () => void;
 }) {
   const isLogoToken = moment.kind === 'logo_token';
+  const isDrafting = isLogoToken && moment.collectible?.metadata?.effort === 'drafting';
+  const credit = Number(moment.collectible?.metadata?.credit || 0);
+  const eyebrow = isLogoToken
+    ? (isDrafting ? 'Drafted from scratch' : 'Perfect screen')
+    : 'Flawless edition';
+  const title = isLogoToken
+    ? (isDrafting ? 'Bonus token earned' : 'Logo token earned')
+    : 'Gilt seal earned';
+  const body = isLogoToken
+    ? (isDrafting
+        ? 'You produced the target form in your own words — the harder work earns extra credit.'
+        : 'The three forms locked into the house mark. Filed to your Almanac.')
+    : 'No slips in the full press run. The day seal was struck in gilt.';
   return (
     <div className="reward-moment-layer" role="status" aria-live="polite">
-      <Confetti count={isLogoToken ? 24 : 30} />
-      <section className="reward-moment-card" aria-label={isLogoToken ? 'Logo token earned' : 'Gilt seal earned'}>
+      <Confetti count={isLogoToken ? (isDrafting ? 30 : 24) : 30} />
+      <section className={cn('reward-moment-card', isDrafting && 'drafting')} aria-label={title}>
         {isLogoToken ? (
           <LogoToken pop />
         ) : (
@@ -878,18 +876,54 @@ function RewardMomentOverlay({
           />
         )}
         <div>
-          <span>{isLogoToken ? 'Perfect screen' : 'Flawless edition'}</span>
-          <h2>{isLogoToken ? 'Logo token earned' : 'Gilt seal earned'}</h2>
-          <p>
-            {isLogoToken
-              ? 'The three forms locked into the house mark. Filed to your Almanac.'
-              : 'No slips in the full press run. The day seal was struck in gilt.'}
-          </p>
+          <span>{eyebrow}</span>
+          <h2>{title}</h2>
+          {isDrafting && credit > 0 && <p className="reward-credit-line">+{credit} credit</p>}
+          <p>{body}</p>
         </div>
         <button type="button" onClick={onClose}>
           Continue <ArrowRight size={14} />
         </button>
       </section>
+    </div>
+  );
+}
+
+// One geometric mascot (or the full three-form crest for harder drafting rounds)
+// reacting to the verdict, so every exercise — not just Recognize — closes with
+// the reward forms the brand is built on.
+function RoundRewardForm({
+  round,
+  correction,
+  submitted,
+}: {
+  round: RoundName | 'transform';
+  correction: Record<string, any> | null;
+  submitted: boolean;
+}) {
+  if (!submitted || !correction) return null;
+  const verdict = String(correction.verdict || '');
+  const positive = verdict === 'correct' || verdict === 'accepted';
+  const partial = verdict === 'partial';
+  const state: 'grin' | 'sad' | 'neutral' = positive ? 'grin' : partial ? 'neutral' : 'sad';
+  const enhanced = round === 'sentence' || round === 'speak' || round === 'conversation' || round === 'produce';
+  const label = positive
+    ? (enhanced ? 'Drafted in your own words' : 'Clean')
+    : partial ? 'Almost — tighten it up' : 'Repaired below';
+  return (
+    <div className={cn('round-reward', enhanced && 'enhanced', state)} aria-hidden="true">
+      <div className="round-reward-forms">
+        {enhanced ? (
+          <>
+            <ReactForm shape="circle" state={state} />
+            <ReactForm shape="square" state={state} />
+            <ReactForm shape="triangle" state={state} />
+          </>
+        ) : (
+          <ReactForm shape="circle" state={state} />
+        )}
+      </div>
+      <span className="round-reward-label">{label}</span>
     </div>
   );
 }
@@ -2835,6 +2869,7 @@ function TransformPanel({
           submitting={aiReviewSubmitting}
         />
       )}
+      <RoundRewardForm round="transform" correction={correction} submitted={submitted} />
     </div>
   );
 }
@@ -2845,18 +2880,25 @@ function itemFeedback(item: any, learner: any, correction: Record<string, any> |
   const target = typeof corrected === 'object' ? corrected[item.id] : item.correct_answer || item.expected_answer;
   const learnerText = Array.isArray(learner) ? learner.join(' ') : String(learner || '');
   const targetText = String(target || item.correct_answer || item.expected_answer || item.correct_label || '');
-  const matchingErrata = (correction.errata || []).filter((erratum: AtelierErratum) => {
-    if (erratum.item_id && erratum.item_id === item.id) return true;
+  const errata: AtelierErratum[] = Array.isArray(correction.errata) ? correction.errata : [];
+  const hasItemScopedErrata = errata.some((erratum) => Boolean(String(erratum.item_id || '').trim()));
+  const targetNorm = normalizeClient(targetText);
+  const learnerNorm = normalizeClient(learnerText);
+  const matchingErrata = errata.filter((erratum: AtelierErratum) => {
+    const erratumItemId = String(erratum.item_id || '').trim();
+    if (erratumItemId) return erratumItemId === item.id;
+    if (hasItemScopedErrata) return false;
     const errTarget = normalizeClient(erratum.corrected_target);
     const errLearner = normalizeClient(erratum.learner_text);
-    return errTarget === normalizeClient(targetText) || (!!learnerText && errLearner === normalizeClient(learnerText));
+    if (errTarget && errTarget === targetNorm) return true;
+    return Boolean(errLearner && learnerNorm && errLearner === learnerNorm && errTarget === targetNorm);
   });
-  const correct = normalizeClient(learnerText) === normalizeClient(targetText);
+  const correct = learnerNorm === targetNorm;
   return {
     correct,
     target: targetText,
-    why: matchingErrata[0]?.why_wrong,
-    repair: matchingErrata[0]?.repair_hint,
+    why: matchingErrata[0]?.why_wrong ?? undefined,
+    repair: matchingErrata[0]?.repair_hint ?? undefined,
     issues: matchingErrata,
   };
 }
@@ -2924,30 +2966,21 @@ function InlineFeedback({ feedback }: { feedback: InlineFeedbackModel }) {
 
 function CorrectionAiReview({
   correction,
-  onRequestAiReview,
-  submitting,
 }: {
   correction: Record<string, any> | null;
-  onRequestAiReview: () => void;
-  submitting: boolean;
+  onRequestAiReview?: () => void;
+  submitting?: boolean;
 }) {
+  // Corrections are now graded AI-first the moment you submit, so there is no
+  // manual "AI correction" trigger and no "AI unavailable" nag. We only show a
+  // quiet confirmation that Claude reviewed the answer.
   const status = aiReviewStatus(correction);
-  if (!status || status === 'not_applicable') return null;
-  if (status === 'available') {
-    return (
-      <div className="ai-review-line">
-        <button type="button" className="ai-review-button" disabled={submitting} onClick={onRequestAiReview}>
-          {submitting ? 'Starting AI' : 'AI correction'}
-        </button>
-      </div>
-    );
-  }
-  const label = status === 'pending'
-    ? 'AI reviewing'
-    : status === 'complete'
-      ? 'AI correction ready'
-      : 'AI unavailable';
-  return <div className={`ai-review-line ${status}`}>{label}</div>;
+  if (status !== 'complete') return null;
+  return (
+    <div className="ai-review-line complete">
+      <Check size={13} /> Checked by AI
+    </div>
+  );
 }
 
 function OutputLadderPanel({
@@ -3032,24 +3065,45 @@ function OutputLadderPanel({
     }
   };
 
+  const meta = OUTPUT_LADDER_META[round];
   return (
     <div className={`output-ladder-panel output-${round}`}>
-      <div className="live-block">
-        <p className="exercise-prompt">{item.prompt}</p>
+      <div className="ladder-head">
+        <span className="ladder-eyebrow">{meta.eyebrow}</span>
+        <p className="ladder-instruction">{meta.instruction}</p>
       </div>
+      {round === 'conversation' ? (
+        <div className="chat-thread">
+          <div className="chat-bubble incoming">
+            <span className="chat-who">Message reçu</span>
+            <p>{item.prompt}</p>
+          </div>
+        </div>
+      ) : (
+        <div className="live-block">
+          <p className="exercise-prompt">{item.prompt}</p>
+        </div>
+      )}
       {round === 'speak' && (
         <div className="voice-capture">
           <button type="button" className={`voice-button ${isRecording ? 'recording' : ''}`} disabled={submitted || isTranscribing} onClick={toggleRecording}>
             {isTranscribing ? <Loader2 size={18} className="spin" /> : isRecording ? <Square size={18} /> : <Mic size={18} />}
             {isTranscribing ? 'TRANSCRIBING' : isRecording ? 'STOP' : 'RECORD'}
           </button>
-          <span>{isRecording ? 'Speak your answer now.' : 'Record to fill the transcript, or type manually.'}</span>
+          <span>{isRecording ? 'Speak now — tap STOP when done.' : 'Tap RECORD to speak, or just type below if you have no mic.'}</span>
         </div>
       )}
       <textarea
         value={answer}
         onChange={(event) => updateAnswer(event.target.value)}
-        placeholder={round === 'speak' ? 'Type the sentence you just said aloud.' : 'Write your answer here.'}
+        className={round === 'conversation' ? 'chat-reply' : undefined}
+        placeholder={
+          round === 'speak'
+            ? 'Your spoken words appear here — or type them.'
+            : round === 'conversation'
+              ? 'Write your reply…'
+              : 'Write your sentence here.'
+        }
       />
       <div className="word-count">
         {wordRangeLabel(wordCount(answer), item.min_words, item.max_words)}
@@ -3062,6 +3116,7 @@ function OutputLadderPanel({
           submitting={aiReviewSubmitting}
         />
       )}
+      <RoundRewardForm round={round} correction={correction} submitted={submitted} />
     </div>
   );
 }
@@ -3092,13 +3147,22 @@ function ProducePanel({
   const requirements = concepts.map((concept) => conceptRequirement(concept, exerciseSets));
   const produce = payload.produce || {};
   const sourceFragment = String(produce.source_fragment || '').trim();
+  const promptText = String(produce.prompt || '').trim();
   const feedback = submitted ? feedbackFromFreeformCorrection(correction) : null;
   return (
     <div className="produce-panel">
-      <div className="live-block">
-        <div className="t-mono yellow">WRITING TASK</div>
-        {sourceFragment ? <p className="fr">« {sourceFragment} »</p> : <p>Writing prompt unavailable.</p>}
+      <div className="ladder-head">
+        <span className="ladder-eyebrow">Write a short paragraph</span>
+        <p className="ladder-instruction">
+          {promptText || 'Write a few connected sentences that use the target grammar.'}
+        </p>
       </div>
+      {sourceFragment && (
+        <div className="live-block">
+          <div className="t-mono yellow">SET-UP</div>
+          <p className="fr">« {sourceFragment} »</p>
+        </div>
+      )}
       <div className="target-chips">
         {requirements.map((req) => <span key={req.label}>{req.count} × {req.label}</span>)}
       </div>
@@ -3122,6 +3186,7 @@ function ProducePanel({
           submitting={aiReviewSubmitting}
         />
       )}
+      <RoundRewardForm round="produce" correction={correction} submitted={submitted} />
     </div>
   );
 }
@@ -5051,8 +5116,11 @@ function AtelierStyles() {
       .session-spread { padding-top: 24px; padding-bottom: 80px; }
       .atelier-do-mode {
         width: min(100%, 980px);
+        max-width: 100%;
         min-height: var(--app-viewport-height);
         padding: 0 var(--phone-gutter) calc(var(--phone-bottom-nav-space) + 28px);
+        /* clip stray horizontal overflow without breaking the sticky top bar */
+        overflow-x: clip;
       }
       .do-topbar {
         position: sticky;
@@ -5255,7 +5323,7 @@ function AtelierStyles() {
       .examples { border-top: 1px solid var(--paper-3); margin-top: 13px; padding-top: 10px; font-family: var(--serif); font-style: italic; font-size: 17px; }
       .work-grid { margin-top: 40px; align-items: start; }
       .exercise-toolbar { display: flex; justify-content: space-between; gap: 24px; align-items: flex-end; margin-bottom: 14px; }
-      .mode-markers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--ink); min-width: 520px; }
+      .mode-markers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--ink); min-width: 0; }
       .mode-markers button { min-height: 44px; border-right: 1px solid var(--ink); font-family: var(--mono); font-size: 10px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; }
       .mode-markers button small { display: block; margin-top: 3px; letter-spacing: .08em; opacity: .72; }
       .mode-markers button:last-child { border-right: 0; }
@@ -5314,7 +5382,25 @@ function AtelierStyles() {
       .ai-review-line.failed { color: var(--muted); }
       .ai-review-button { min-height: 34px; border: 1px solid var(--blue); background: transparent; color: var(--blue); padding: 0 12px; font-family: var(--mono); font-size: 10px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }
       .ai-review-button:disabled { opacity: .45; cursor: wait; }
+      .round-reward { margin-top: 16px; display: flex; align-items: center; gap: 12px; }
+      .round-reward-forms { display: inline-flex; gap: 8px; }
+      .round-reward-forms .rf { width: 30px; height: 30px; }
+      .round-reward.enhanced .round-reward-forms .rf { width: 34px; height: 34px; }
+      .round-reward-label { font-family: var(--mono); font-size: 10px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+      .round-reward.grin .round-reward-label { color: var(--ink); }
+      .round-reward.sad .round-reward-label { color: var(--red); }
+      .reward-credit-line { margin: 2px 0 0; font-family: var(--mono); font-size: 11px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; color: var(--blue); }
+      .reward-moment-card.drafting { border-color: var(--blue); }
       .output-ladder-panel { display: grid; gap: 18px; }
+      .ladder-head { display: grid; gap: 4px; }
+      .ladder-eyebrow { font-family: var(--mono); font-size: 10px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; color: var(--blue); }
+      .ladder-instruction { margin: 0; color: var(--ink-2); font-size: 14px; line-height: 1.45; }
+      .chat-thread { display: grid; gap: 12px; }
+      .chat-bubble { border: 1px solid var(--ink); padding: 12px 15px; max-width: 86%; }
+      .chat-bubble.incoming { justify-self: start; background: var(--paper-2); border-left: 4px solid var(--blue); }
+      .chat-bubble .chat-who { display: block; font-family: var(--mono); font-size: 9px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin-bottom: 5px; }
+      .chat-bubble p { margin: 0; font-family: var(--serif); font-style: italic; font-size: 22px; line-height: 1.4; }
+      .output-ladder-panel textarea.chat-reply { min-height: 100px; box-shadow: 5px 5px 0 var(--blue); }
       .ladder-stage { display: grid; grid-template-columns: 1fr auto; gap: 24px; align-items: start; border-bottom: 2px solid var(--ink); padding-bottom: 18px; }
       .ladder-stage h3 { margin: 8px 0 6px; font-family: var(--display); font-size: 31px; letter-spacing: -.04em; line-height: .96; }
       .ladder-stage p, .example-answer { margin: 0; color: var(--ink-2); line-height: 1.45; }

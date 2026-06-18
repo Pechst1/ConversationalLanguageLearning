@@ -9,7 +9,8 @@ import { Button } from '@/components/ui/Button';
 import { ExerciseShell } from '@/components/ui/ExerciseShell';
 import { FeedbackSheet } from '@/components/ui/FeedbackSheet';
 import { ProgressBar } from '@/components/ui/ProgressBar';
-import api, { type CEFRProgress, type LibraryBook, type LibraryEpisode } from '@/services/api';
+import { pulseAppHaptic } from '@/lib/haptics';
+import api, { type CEFRProgress, type GraphicNovelToday, type LibraryBook, type LibraryEpisode } from '@/services/api';
 
 import { GrammarNotebookSurface } from './grammar';
 import VocabularyPage from './vocabulary';
@@ -103,6 +104,7 @@ export default function NotebookEntryPage() {
   const router = useRouter();
   const [mode, setMode] = useState<NotebookMode>('grammar');
   const [cefr, setCefr] = useState<CEFRProgress | null>(null);
+  const [feuilletonToday, setFeuilletonToday] = useState<GraphicNovelToday | null>(null);
   const queryConcept = router.query.concept;
   const queryMode = router.query.mode;
   const queryReview = router.query.review;
@@ -138,8 +140,23 @@ export default function NotebookEntryPage() {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    api.getGraphicNovelToday()
+      .then((payload) => {
+        if (!cancelled) setFeuilletonToday(payload);
+      })
+      .catch(() => {
+        if (!cancelled) setFeuilletonToday(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const switchMode = useCallback(
     (nextMode: NotebookMode) => {
+      if (nextMode !== mode) pulseAppHaptic('selection');
       setMode(nextMode);
       rememberNotebookMode(nextMode);
       if (!router.isReady) return;
@@ -149,7 +166,7 @@ export default function NotebookEntryPage() {
         { shallow: true, scroll: false }
       );
     },
-    [router]
+    [mode, router]
   );
 
   const handleModeSwitchClick = useCallback(
@@ -180,6 +197,7 @@ export default function NotebookEntryPage() {
           </header>
 
           <NotebookProgression cefr={cefr} />
+          <NotebookArchiveLead feuilleton={feuilletonToday} />
 
           <NotebookModeSwitch
             active={mode}
@@ -190,7 +208,7 @@ export default function NotebookEntryPage() {
             onClickCapture={handleModeSwitchClick}
           />
 
-          <section className="notebook-shell-content" data-mode={mode}>
+          <section key={mode} className="notebook-shell-content" data-mode={mode}>
             {mode === 'grammar' ? (
               <GrammarNotebookSurface embedded />
             ) : mode === 'vocabulary' ? (
@@ -296,8 +314,135 @@ export default function NotebookEntryPage() {
           font-size: 12px;
           line-height: 1;
         }
+        .notebook-archive-lead {
+          margin: 16px 0 18px;
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) minmax(260px, 380px);
+          gap: 12px;
+          align-items: stretch;
+        }
+        .feuilleton-lead-card {
+          min-width: 0;
+          display: grid;
+          grid-template-columns: 86px minmax(0, 1fr) auto;
+          gap: 14px;
+          align-items: center;
+          border: 2px solid var(--ink);
+          background: var(--sheet);
+          color: var(--ink);
+          padding: 12px;
+          text-decoration: none;
+        }
+        .lead-panel-image,
+        .lead-imprint {
+          width: 86px;
+          aspect-ratio: 1;
+          border: 1px solid var(--ink);
+          background: var(--paper);
+        }
+        .lead-panel-image {
+          display: block;
+          background-position: center;
+          background-size: cover;
+        }
+        .lead-imprint {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 7px;
+          padding: 12px;
+          align-items: end;
+        }
+        .lead-imprint i {
+          display: block;
+          border: 1.5px solid var(--ink);
+          background: #1d3a8a;
+        }
+        .lead-imprint i:nth-child(1) {
+          height: 48px;
+        }
+        .lead-imprint i:nth-child(2) {
+          height: 64px;
+          background: #e3341c;
+        }
+        .lead-imprint i:nth-child(3) {
+          height: 36px;
+          background: #f3c318;
+        }
+        .lead-copy {
+          min-width: 0;
+          display: grid;
+          gap: 5px;
+        }
+        .lead-copy em,
+        .archive-quick-links a {
+          font: 900 10px/1 var(--app-mono, "Inter", "Helvetica Neue", Arial, sans-serif);
+          letter-spacing: .12em;
+          text-transform: uppercase;
+        }
+        .lead-copy em {
+          color: var(--ink-3);
+          font-style: normal;
+        }
+        .lead-copy strong {
+          min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          font-size: 20px;
+          line-height: 1.05;
+        }
+        .lead-copy small {
+          color: var(--ink-2);
+          line-height: 1.32;
+        }
+        .feuilleton-lead-card b {
+          font-size: 24px;
+          line-height: 1;
+        }
+        .archive-quick-links {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          border: 1px solid var(--ink);
+          background: var(--ink);
+          gap: 1px;
+        }
+        .archive-quick-links a {
+          min-height: 44px;
+          display: grid;
+          place-items: center;
+          background: var(--sheet);
+          color: var(--ink);
+          text-decoration: none;
+        }
         .notebook-shell-content {
           min-width: 0;
+          transform-origin: 50% 0;
+        }
+        @media (prefers-reduced-motion: no-preference) {
+          .notebook-shell-content {
+            animation: notebook-page-turn .28s cubic-bezier(.2, .8, .2, 1) both;
+          }
+          .feuilleton-lead-card,
+          .archive-quick-links a,
+          .library-book-row {
+            transition: transform .16s ease, box-shadow .16s ease, background-color .16s ease;
+          }
+          .feuilleton-lead-card:hover,
+          .archive-quick-links a:hover,
+          .library-book-row:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 4px 4px 0 var(--ink);
+          }
+        }
+        @keyframes notebook-page-turn {
+          from {
+            opacity: .62;
+            transform: translateY(10px) rotateX(2deg);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) rotateX(0);
+          }
         }
         .notebook-embedded-vocabulary .vocab-page {
           min-height: auto;
@@ -307,24 +452,6 @@ export default function NotebookEntryPage() {
         .library-notebook {
           display: grid;
           gap: 18px;
-        }
-        .library-archive-strip {
-          display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-          border: 1px solid var(--ink);
-          background: var(--ink);
-          gap: 1px;
-        }
-        .library-archive-strip a {
-          min-height: 44px;
-          display: grid;
-          place-items: center;
-          background: var(--sheet);
-          color: var(--ink);
-          font: 900 11px/1 var(--app-mono, "Inter", "Helvetica Neue", Arial, sans-serif);
-          letter-spacing: .1em;
-          text-transform: uppercase;
-          text-decoration: none;
         }
         .library-grid {
           display: grid;
@@ -566,12 +693,26 @@ export default function NotebookEntryPage() {
             margin: 0 16px 14px;
             grid-template-columns: 1fr;
           }
+          .notebook-archive-lead {
+            margin: 0 16px 14px;
+            grid-template-columns: 1fr;
+          }
+          .feuilleton-lead-card {
+            grid-template-columns: 64px minmax(0, 1fr) auto;
+          }
+          .lead-panel-image,
+          .lead-imprint {
+            width: 64px;
+          }
+          .lead-copy strong {
+            white-space: normal;
+            font-size: 17px;
+          }
           .library-notebook {
             padding: 0 16px;
           }
           .library-grid,
-          .library-exercises > div,
-          .library-archive-strip {
+          .library-exercises > div {
             grid-template-columns: 1fr;
           }
           .library-reader {
@@ -626,6 +767,49 @@ function ProgressionRow({ label, metric }: { label: string; metric: any }) {
       <i><em style={{ width: `${pct}%` }} /></i>
       <b>{current}/{target}</b>
     </div>
+  );
+}
+
+function NotebookArchiveLead({ feuilleton }: { feuilleton: GraphicNovelToday | null }) {
+  const scene = feuilleton?.active_scene || feuilleton?.available_scene || feuilleton?.recent_completed?.[0] || null;
+  const panelImage = scene?.panels?.find((panel) => panel.image_url)?.image_url || null;
+  const href = scene ? `/graphic-novel?scene=${encodeURIComponent(scene.id)}` : '/graphic-novel';
+  const eyebrow = scene?.status === 'completed'
+    ? 'Latest Feuilleton'
+    : scene?.status === 'in_progress'
+      ? 'Feuilleton in progress'
+      : 'Today in the serial';
+
+  return (
+    <section className="notebook-archive-lead" aria-label="Notebook archive lead">
+      <Link className="feuilleton-lead-card" href={href} onClick={() => pulseAppHaptic('selection')}>
+        {panelImage ? (
+          <span
+            className="lead-panel-image"
+            style={{ backgroundImage: `url("${panelImage.replace(/"/g, '%22')}")` }}
+            aria-hidden="true"
+          />
+        ) : (
+          <span className="lead-imprint" aria-hidden="true">
+            <i />
+            <i />
+            <i />
+          </span>
+        )}
+        <span className="lead-copy">
+          <em>{eyebrow}</em>
+          <strong>{scene?.title || 'Open the Feuilleton'}</strong>
+          <small>{scene?.brief || 'A fresh scene waits beside today’s notes.'}</small>
+        </span>
+        <b aria-hidden="true">→</b>
+      </Link>
+      <nav className="archive-quick-links" aria-label="Archive shortcuts">
+        <Link href="/serial" onClick={() => pulseAppHaptic('selection')}>Serial</Link>
+        <Link href="/almanac" onClick={() => pulseAppHaptic('selection')}>Seals</Link>
+        <Link href="/missions" onClick={() => pulseAppHaptic('selection')}>Missions</Link>
+        <Link href="/bibliotheque" onClick={() => pulseAppHaptic('selection')}>Uploads</Link>
+      </nav>
+    </section>
   );
 }
 
@@ -750,6 +934,7 @@ function LibraryNotebookSurface({
     setSelectedBook(updated);
     setBooks((prev) => prev.map((item) => item.id === updated.id ? updated : item));
     setEpisode((prev) => prev ? { ...prev, is_completed: true } : prev);
+    pulseAppHaptic('complete');
   }
 
   useEffect(() => {
@@ -808,13 +993,6 @@ function LibraryNotebookSurface({
 
   return (
     <div className="library-notebook">
-      <section className="library-archive-strip" aria-label="Notebook archives">
-        <Link href="/serial">Serial archive</Link>
-        <Link href="/almanac">Seal collection</Link>
-        <Link href="/missions">Past missions</Link>
-        <Link href="/bibliotheque">Uploads</Link>
-      </section>
-
       {error && <div className="library-state">{error}</div>}
       {loading && <div className="library-state">Loading library</div>}
 
@@ -834,6 +1012,7 @@ function LibraryNotebookSurface({
                 key={book.id}
                 className={`library-book-row ${selectedBook?.id === book.id ? 'active' : ''}`}
                 href={`/notebook?mode=library&book=${book.id}&episode=${book.current_episode_index || 0}`}
+                onClick={() => pulseAppHaptic('selection')}
               >
                 <span>{book.target_level}</span>
                 <strong>{book.title}</strong>
@@ -933,10 +1112,13 @@ function LibraryEpisodeExerciseRunner({
 
   function checkAnswer() {
     if (!activeStep || !answer.trim()) return;
-    setFeedback(libraryExerciseFeedback(activeStep, answer));
+    const nextFeedback = libraryExerciseFeedback(activeStep, answer);
+    setFeedback(nextFeedback);
+    pulseAppHaptic(nextFeedback.status === 'correct' ? 'correct' : 'repair');
   }
 
   function nextStep() {
+    pulseAppHaptic('selection');
     setFeedback(null);
     setStepIndex((current) => current + 1);
   }

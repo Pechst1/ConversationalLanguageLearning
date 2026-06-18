@@ -5,6 +5,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 ATELIER_PAGE = ROOT / "web-frontend" / "pages" / "atelier.tsx"
+HAPTICS_LIB = ROOT / "web-frontend" / "lib" / "haptics.ts"
 
 
 def read_atelier() -> str:
@@ -55,11 +56,22 @@ def test_do_mode_uses_rule_first_ramp_and_feedback_sheet() -> None:
     assert "const errata: AtelierErratum[]" in source
 
 
-def test_atelier_feedback_uses_reduced_motion_safe_haptics() -> None:
+def test_inline_feedback_scopes_errata_to_each_exercise() -> None:
     source = read_atelier()
 
+    assert "const hasItemScopedErrata = errata.some" in source
+    assert "if (erratumItemId) return erratumItemId === item.id" in source
+    assert "if (hasItemScopedErrata) return false" in source
+    assert "errLearner === learnerNorm && errTarget === targetNorm" in source
+
+
+def test_atelier_feedback_uses_reduced_motion_safe_haptics() -> None:
+    source = read_atelier()
+    haptics = HAPTICS_LIB.read_text(encoding="utf-8")
+
     assert "function pulseAtelierHaptic" in source
-    assert "prefers-reduced-motion: reduce" in source
-    assert "vibrate(pattern)" in source
+    assert "pulseAppHaptic(kind)" in source
+    assert "prefers-reduced-motion: reduce" in haptics
+    assert "vibrate(pattern)" in haptics
     assert "pulseAtelierHaptic(result.verdict === 'correct' ? 'correct' : 'repair')" in source
     assert "pulseAtelierHaptic('complete')" in source

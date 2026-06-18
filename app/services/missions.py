@@ -915,9 +915,9 @@ class MissionGenerator:
                 [{"role": "user", "content": json.dumps(user_payload, ensure_ascii=False)}],
                 system_prompt=system_prompt,
                 response_format=MISSION_SCENARIO_RESPONSE_FORMAT,
-                temperature=0.9,
-                max_tokens=700,
+                max_tokens=2000,
                 model=settings.ATELIER_EXERCISE_LLM_MODEL,
+                reasoning_effort=settings.ATELIER_EXERCISE_LLM_REASONING_EFFORT,
                 disable_retries=True,
             )
             data = json.loads(result.content)

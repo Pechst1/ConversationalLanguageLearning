@@ -25,6 +25,19 @@ COLOPHON = "colophon"
 
 GILT_VARIANTS = ("row", "stack", "nested", "quad")
 PLATE_KINDS = {PLATE_SEMAINE, PLATE_CHAPTER, COLOPHON}
+
+# Rounds that reward a logo token when an attempt is flawless. Recognize keeps
+# its original "perfect screen" token; the harder drafting rounds now mint too,
+# with a higher credit weight because they take more effort.
+DRAFTING_ROUNDS = {"transform", "sentence", "speak", "conversation", "produce"}
+ATTEMPT_CREDIT: dict[str, int] = {
+    "recognize": 1,
+    "transform": 2,
+    "sentence": 3,
+    "speak": 3,
+    "conversation": 3,
+    "produce": 4,
+}
 COLLECTIBLE_KINDS = (LOGO_TOKEN, GILT_SEAL, STORY_SEAL, PLATE_SEMAINE, PLATE_CHAPTER, COLOPHON)
 WORKSHOP_RULES: dict[str, dict[str, Any]] = {
     PLATE_SEMAINE: {"member_kind": LOGO_TOKEN, "required": 7, "label": "Semaine gilt plate"},
@@ -75,8 +88,12 @@ class AtelierRewardService:
         self.db = db
 
     def mint_logo_token_for_attempt(self, attempt: AtelierAttempt, *, first_submission: bool) -> list[dict[str, Any]]:
-        if not first_submission or not self._is_flawless_recognize_screen(attempt):
+        if not first_submission:
             return []
+        effort = self._rewardable_effort(attempt)
+        if not effort:
+            return []
+        credit = ATTEMPT_CREDIT.get(attempt.round, 1)
         item, created = self._mint(
             user_id=attempt.user_id,
             kind=LOGO_TOKEN,
@@ -85,6 +102,10 @@ class AtelierRewardService:
             metadata={
                 "name": "Logo token",
                 "date": self._date_for(attempt.created_at),
+                # "recognize" for the classic perfect screen, "drafting" for the
+                # harder output rounds that now also earn credit.
+                "effort": effort,
+                "credit": credit,
                 "screen": {
                     "session_id": str(attempt.atelier_session_id),
                     "concept_id": attempt.concept_id,
@@ -95,6 +116,15 @@ class AtelierRewardService:
             },
         )
         return [serialize_collectible(item)] if created else []
+
+    @classmethod
+    def _rewardable_effort(cls, attempt: AtelierAttempt) -> str | None:
+        """Return the effort tier a flawless attempt earns, or None if it does not qualify."""
+        if cls._is_flawless_recognize_screen(attempt):
+            return "recognize"
+        if attempt.round in DRAFTING_ROUNDS and cls._is_flawless_attempt(attempt):
+            return "drafting"
+        return None
 
     def mint_gilt_seal_for_session(self, session: AtelierSession) -> list[dict[str, Any]]:
         attempts = list(

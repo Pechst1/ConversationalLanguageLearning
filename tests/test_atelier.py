@@ -490,6 +490,27 @@ def test_generator_serves_valid_fallback_when_llm_generation_fails(db_session):
     assert AtelierExerciseGenerator.validate_payload(exercise_set.payload, concept=concept)
 
 
+def test_personalized_generation_uses_shared_llm_cache_before_deterministic_fallback(db_session):
+    concept = _concept(db_session, "FR_B1_COND_001")
+    _clear_exercise_sets(db_session, concept)
+    shared_payload = json.loads(json.dumps(_raw_llm_payload(concept)))
+    shared_payload["xray"] = {"sentence": "Si la réunion commence, nous écouterons.", "marks": []}
+    shared_set = AtelierExerciseGenerator(
+        db_session,
+        llm_service=_FakeLLMService(shared_payload),
+    ).get_or_create(concept, reuse_shared_cache=True)
+    user = _user(db_session)
+
+    exercise_set = AtelierExerciseGenerator(
+        db_session,
+        llm_service=_FailingLLMService(),
+    ).get_or_create(concept, user=user, target_vocabulary=[{"word": "réunion"}])
+
+    assert exercise_set.id == shared_set.id
+    assert exercise_set.source == "llm"
+    assert exercise_set.payload["xray"]["sentence"] == "Si la réunion commence, nous écouterons."
+
+
 def test_llm_generated_exercise_can_omit_rule_card_and_xray_fields(db_session):
     concept = _concept(db_session, "FR_B1_TENSE_001")
     _clear_exercise_sets(db_session, concept)
@@ -538,6 +559,46 @@ def test_generator_falls_back_after_ai_critic_rejects_word_bank(db_session):
     assert exercise_set.source == "fallback"
     assert fake_llm.critique_calls == 2
     assert AtelierExerciseGenerator.validate_payload(exercise_set.payload, concept=concept)
+
+
+def test_generator_does_not_fallback_for_word_bank_chip_order_critique(db_session):
+    concept = _concept(db_session, "FR_B1_COND_001")
+    _clear_exercise_sets(db_session, concept)
+    llm_payload = json.loads(json.dumps(_raw_llm_payload(concept)))
+    fake_llm = _GenerationCritiqueFakeLLMService(
+        [llm_payload],
+        critique_contents=[
+            {
+                "verdicts": [
+                    {
+                        "item_id": "si-bank-2",
+                        "round": "recognize",
+                        "mode": "word_bank",
+                        "passes": False,
+                        "reason": "Tokens include extra distractors and the chip ordering lacks placement clarity, but distractors are allowed.",
+                    }
+                ]
+            }
+        ],
+    )
+
+    exercise_set = AtelierExerciseGenerator(db_session, llm_service=fake_llm).get_or_create(concept)
+
+    assert exercise_set.source == "llm"
+    assert fake_llm.critique_calls == 1
+    assert AtelierExerciseGenerator.validate_payload(exercise_set.payload, concept=concept)
+    event = (
+        db_session.query(AtelierGenerationEvent)
+        .filter(
+            AtelierGenerationEvent.concept_id == concept.id,
+            AtelierGenerationEvent.event_type == "ai_critique",
+        )
+        .order_by(AtelierGenerationEvent.created_at.desc())
+        .first()
+    )
+    assert event.passed is True
+    assert event.payload["verdicts"][0]["passes"] is True
+    assert "Advisory only" in event.payload["verdicts"][0]["reason"]
 
 
 def test_generator_rejects_cached_llm_payload_without_required_item_ids(db_session):
@@ -1155,6 +1216,83 @@ def test_classify_mode_reports_specific_feedback(db_session):
     assert "the learner" not in erratum["why_wrong"].lower()
 
 
+def test_classify_ai_correction_rehydrates_item_ids_for_repeated_wrong_label(db_session):
+    concept = _concept(db_session, "FR_B1_COND_001")
+    payload = _test_generated_payload(db_session, concept)
+    items = payload["recognize"]["classify"]["items"]
+    fake_llm = _FakeLLMService(
+        {
+            "verdict": "partial",
+            "score_0_4": 1.33,
+            "corrected_answer": "",
+            "corrected_answers": [
+                {"item_id": "si-classify-1", "corrected_answer": "present"},
+                {"item_id": "si-classify-2", "corrected_answer": "imperative"},
+                {"item_id": "si-classify-3", "corrected_answer": "future"},
+            ],
+            "concept_hits": [
+                {
+                    "external_id": "FR_B1_COND_001",
+                    "label": concept.name,
+                    "detected_count": 1,
+                    "target_count": 3,
+                }
+            ],
+            "missing_targets": [],
+            "errata": [
+                {
+                    "item_id": "",
+                    "display_label": "Form classification",
+                    "learner_text": "present",
+                    "corrected_target": "imperative",
+                    "why_wrong": "You classified `prends` as `present`, but here it is an imperative command.",
+                    "repair_hint": "You should name the verb form before reading the whole sentence frame.",
+                    "severity": 2,
+                    "recurring": True,
+                    "task_error_type": "si_present_result_form",
+                    "external_id": "FR_B1_COND_001",
+                },
+                {
+                    "item_id": "",
+                    "display_label": "Form classification",
+                    "learner_text": "present",
+                    "corrected_target": "future",
+                    "why_wrong": "You classified `appellerai` as `present`, but `-rai` marks future simple.",
+                    "repair_hint": "You should name the verb form before reading the whole sentence frame.",
+                    "severity": 2,
+                    "recurring": True,
+                    "task_error_type": "si_present_result_form",
+                    "external_id": "FR_B1_COND_001",
+                },
+            ],
+        }
+    )
+
+    correction = AtelierCorrectionService(db_session, llm_service=fake_llm).correct(
+        concept=concept,
+        round_name="recognize",
+        mode="classify",
+        exercise_id="FR_B1_COND_001:classify",
+        prompt_payload={"items": items},
+        answer_payload={
+            "answers": {
+                "si-classify-1": "present",
+                "si-classify-2": "present",
+                "si-classify-3": "present",
+            }
+        },
+    )
+
+    assert correction["correction_debug"]["fallback_used"] is False
+    assert {
+        erratum["corrected_target"]: erratum["item_id"]
+        for erratum in correction["errata"]
+    } == {
+        "imperative": "si-classify-2",
+        "future": "si-classify-3",
+    }
+
+
 def test_classify_mode_grades_against_correct_label_not_explanatory_answer(db_session):
     concept = _concept(db_session, "FR_B1_TENSE_001")
     item = _classify(
@@ -1239,6 +1377,7 @@ def test_transform_correction_uses_structured_llm_output(db_session):
     )
 
     assert result["corrected_answer"]["si-transform-1"].startswith("S'il arrive")
+    assert result["errata"][0]["item_id"] == "si-transform-1"
     assert result["errata"][0]["concept_id"] == concept.id
     assert "si frame" in result["errata"][0]["why_wrong"]
     assert "the learner" not in result["errata"][0]["why_wrong"].lower()

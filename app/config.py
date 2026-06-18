@@ -124,7 +124,7 @@ class Settings(BaseSettings):
         description="Fast capable model for generating Atelier exercise payloads.",
     )
     ATELIER_EXERCISE_LLM_TIMEOUT_SECONDS: float = Field(
-        8.0,
+        90.0,
         description="Single-attempt timeout for Atelier exercise generation before deterministic fallback.",
     )
     ATELIER_EXERCISE_LLM_REASONING_EFFORT: Optional[str] = Field(
@@ -140,7 +140,7 @@ class Settings(BaseSettings):
         description="Fast model for AI critique of generated Atelier exercises.",
     )
     ATELIER_CRITIQUE_LLM_TIMEOUT_SECONDS: float = Field(
-        5.0,
+        45.0,
         description="Single-attempt timeout for Atelier exercise critique.",
     )
     ATELIER_CRITIQUE_LLM_MAX_TOKENS: int = Field(
@@ -164,11 +164,11 @@ class Settings(BaseSettings):
         description="Use LLM-backed Atelier correction for live submits, with deterministic fallback on provider failure.",
     )
     ATELIER_CORRECTION_LLM_MODEL: str = Field(
-        "gpt-5.4-nano",
+        "gpt-5-nano",
         description="Fast model for low-latency Atelier submit corrections.",
     )
     ATELIER_CORRECTION_LLM_TIMEOUT_SECONDS: float = Field(
-        5.0,
+        25.0,
         description="Short single-attempt timeout for optional Atelier LLM correction before deterministic fallback.",
     )
     ATELIER_CORRECTION_LLM_MAX_TOKENS: int = Field(
@@ -184,11 +184,11 @@ class Settings(BaseSettings):
     OPENAI_IMAGE_SIZE: str = Field("1024x1024", description="Default OpenAI image generation size")
     OPENAI_IMAGE_TIMEOUT_SECONDS: float = Field(240.0, description="Timeout for OpenAI image generation calls")
     OPENAI_GRAPHIC_NOVEL_SCRIPT_MODEL: str = Field(
-        "gpt-5.4-mini",
+        "gpt-5-mini",
         description="OpenAI model for standard Feuilleton story/script generation",
     )
     OPENAI_GRAPHIC_NOVEL_PREMIUM_SCRIPT_MODEL: str = Field(
-        "gpt-5.5",
+        "gpt-4o",
         description="OpenAI model for premium Feuilleton story/script generation",
     )
     GRAPHIC_NOVEL_DEFAULT_PANEL_COUNT: int = Field(6, description="Default Feuilleton panel count")

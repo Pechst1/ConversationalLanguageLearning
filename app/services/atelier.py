@@ -37,7 +37,7 @@ from app.services.llm_service import LLMProviderError, LLMService
 from app.services.progress import ProgressService
 from app.services.vocabulary_credit import VocabularyCreditService
 
-ATELIER_GENERATOR_VERSION = "atelier-v7"
+ATELIER_GENERATOR_VERSION = "atelier-v8"
 ATELIER_CORRECTION_PROMPT_VERSION = "atelier-correction-v2"
 ATELIER_AI_AUTO_ROUNDS = {"sentence", "speak", "conversation", "produce"}
 
@@ -1417,6 +1417,7 @@ class AtelierExerciseGenerator:
         reuse_shared_cache: bool | None = None,
     ) -> AtelierExerciseSet:
         use_shared_cache = (user is None and session_id is None) if reuse_shared_cache is None else reuse_shared_cache
+        cached_shared_llm: AtelierExerciseSet | None = None
         if use_shared_cache:
             cached = (
                 self.db.query(AtelierExerciseSet)
@@ -1430,6 +1431,17 @@ class AtelierExerciseGenerator:
             )
             if cached and self.validate_payload(cached.payload, concept=concept):
                 return cached
+        else:
+            cached_shared_llm = (
+                self.db.query(AtelierExerciseSet)
+                .filter(
+                    AtelierExerciseSet.concept_id == concept.id,
+                    AtelierExerciseSet.generator_version == ATELIER_GENERATOR_VERSION,
+                    AtelierExerciseSet.source == "llm",
+                )
+                .order_by(AtelierExerciseSet.created_at.desc())
+                .first()
+            )
 
         cached_fallback = (
             self.db.query(AtelierExerciseSet)
@@ -1449,6 +1461,8 @@ class AtelierExerciseGenerator:
             target_vocabulary=target_vocabulary,
         )
         if not generated:
+            if cached_shared_llm and self.validate_payload(cached_shared_llm.payload, concept=concept):
+                return cached_shared_llm
             if cached_fallback and self.validate_payload(cached_fallback.payload, concept=concept):
                 return cached_fallback
             payload = self._fallback_payload(concept)
@@ -1799,7 +1813,9 @@ class AtelierExerciseGenerator:
                     validation_feedback = validation_errors
                     continue
 
-                critique = self.critique_exercise_payload(concept, payload, user=user, session_id=session_id)
+                critique = self._downgrade_nonblocking_critique(
+                    self.critique_exercise_payload(concept, payload, user=user, session_id=session_id)
+                )
                 failed_critique = [verdict for verdict in critique if not verdict.passes]
                 if failed_critique:
                     critique_feedback = [
@@ -1900,8 +1916,8 @@ class AtelierExerciseGenerator:
                 "Fail an item if it is not solvable from its choices/chips, if the answer key is wrong, if it does not test the target concept, or if the French is unnatural/incorrect.",
                 "Fail trivial items whose prompt or labels reveal the answer without testing the concept.",
                 "For fill, require at least 3 distinct choices with plausible wrong forms, not placeholders.",
-                "For word_bank, meaning_cue must tell the learner what sentence to build, must match the answer sentence's meaning, must not expose the French target sentence, prompt/tokens must not contain blanks, answer_tokens must form the complete target French sentence, and tokens must include at least one plausible distractor chip.",
-                "For directed_rewrite transform items, the instruction must quote the source word or phrase to change and name the target form to use.",
+                "For word_bank, meaning_cue must tell the learner what sentence to build, must match the answer sentence's meaning, must not expose the French target sentence, prompt/tokens must not contain blanks, answer_tokens must form the complete target French sentence, and tokens must include at least one plausible distractor chip. Do NOT fail word_bank items for chip order, token ordering, placement clarity, or extra plausible distractors; chips are intentionally unordered.",
+                "For transform items, judge ONLY the learner-facing `instruction` text (never the `expected_answer` field — that is the hidden grading key and is SUPPOSED to contain the full corrected sentence; never treat expected_answer as a spoiler). A good instruction quotes the exact source word or phrase to change (in quotes) and names the grammatical target CATEGORY in plain learner language (a tense or rule name such as 'the imparfait', 'the future', 'its negated form', 'the partitive after a negation'). Do NOT require the instruction to spell out the corrected/conjugated answer word, and do NOT fail it for omitting that word. FAIL a transform item only if the instruction itself spells out the answer word, OR if it is too vague to point at one grammatical target (e.g. coined jargon like 'être-exception contrast' or 'its contrast with negation' that a learner cannot act on).",
                 "Do not rewrite items. Return pass/fail and one concise reason only.",
             ],
         }
@@ -1957,6 +1973,67 @@ class AtelierExerciseGenerator:
                 payload={"unavailable": True, "error": str(exc)},
             )
             return []
+
+    @staticmethod
+    def _downgrade_nonblocking_critique(verdicts: list[ItemVerdict]) -> list[ItemVerdict]:
+        adjusted: list[ItemVerdict] = []
+        for verdict in verdicts:
+            if verdict.passes or not AtelierExerciseGenerator._is_nonblocking_word_bank_critique(verdict):
+                adjusted.append(verdict)
+                continue
+            adjusted.append(
+                ItemVerdict(
+                    item_id=verdict.item_id,
+                    round=verdict.round,
+                    mode=verdict.mode,
+                    passes=True,
+                    reason=f"Advisory only; structural guard passed. {verdict.reason}",
+                )
+            )
+        return adjusted
+
+    @staticmethod
+    def _is_nonblocking_word_bank_critique(verdict: ItemVerdict) -> bool:
+        if verdict.round != "recognize" or verdict.mode != "word_bank":
+            return False
+        reason = _normalize(verdict.reason)
+        hard_markers = (
+            "answer key",
+            "wrong answer",
+            "correct answer is wrong",
+            "answer tokens do not form",
+            "answer tokens dont form",
+            "cannot build",
+            "not solvable",
+            "not available in tokens",
+            "missing correct token",
+            "omits correct token",
+            "meaning cue",
+            "expose",
+            "blank",
+            "unnatural",
+            "incorrect french",
+            "does not practice",
+            "doesn't practice",
+            "doesnt practice",
+            "not test the target",
+            "not testing the target",
+            "target concept",
+        )
+        if any(marker in reason for marker in hard_markers):
+            return False
+        soft_markers = (
+            "placement clarity",
+            "chip order",
+            "token order",
+            "tokens order",
+            "ordering",
+            "extra distractor",
+            "too many distractors",
+            "distractors are allowed",
+            "tokens include",
+        )
+        return any(marker in reason for marker in soft_markers)
 
     @staticmethod
     def _critique_items(payload: dict[str, Any]) -> list[dict[str, Any]]:
@@ -2468,17 +2545,20 @@ class AtelierExerciseGenerator:
                 item["correct_answer"] = _join_french_tokens(item["answer_tokens"])
             if not str(item.get("meaning_cue") or "").strip():
                 item["meaning_cue"] = _word_bank_meaning_cue(concept, item.get("correct_answer") or item["answer_tokens"])
-            tokens = item.get("tokens") or item["answer_tokens"]
-            if not isinstance(tokens, list):
-                tokens = item["answer_tokens"]
-            distractors = self._word_bank_distractors(concept, item["answer_tokens"])
-            for distractor in distractors:
-                if _normalize(distractor) not in {_normalize(token) for token in tokens}:
-                    tokens = [*tokens, distractor]
-            if _normalize(_join_french_tokens(tokens)) == _normalize(item["correct_answer"]):
-                item["tokens"] = _stable_scramble(item["answer_tokens"], item_id)
-            else:
-                item["tokens"] = [str(token) for token in tokens]
+            # Always build the chips from the answer tokens (+ distractors) so the answer is
+            # guaranteed buildable from the offered chips — the LLM's own token list is unreliable.
+            chips = [str(token) for token in item["answer_tokens"]]
+            for distractor in self._word_bank_distractors(concept, item["answer_tokens"]):
+                if _normalize(distractor) not in {_normalize(token) for token in chips}:
+                    chips.append(str(distractor))
+            item["tokens"] = _stable_scramble(chips, item_id)
+        for item in (((payload.get("recognize") or {}).get("fill") or {}).get("items") or []):
+            # Guarantee the correct answer is always one of the choices.
+            choices = [str(choice) for choice in (item.get("choices") or [])]
+            answer = str(item.get("correct_answer") or "").strip()
+            if answer and _normalize(answer) not in {_normalize(choice) for choice in choices}:
+                choices = [answer, *choices]
+            item["choices"] = choices
         produce = dict(payload.get("produce") or {})
         requirements = produce.get("requirements") or []
         raw_requirement = requirements[0] if requirements else {}
@@ -2826,6 +2906,13 @@ class AtelierCorrectionService:
         answer_payload: dict[str, Any],
         correction: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
+        # Every round is now corrected AI-first synchronously in correct(); the
+        # AI verdict is already baked into `correction` by the time we get here.
+        # We no longer expose a manual "AI correction" trigger or surface an
+        # "AI unavailable" state: when the live model succeeds we mark the review
+        # complete, and when it quietly falls back to the deterministic engine we
+        # simply treat the AI review as not applicable rather than nagging the
+        # learner with a button or an error line.
         correction_debug = (correction or {}).get("correction_debug") or {}
         if correction_debug and not correction_debug.get("fallback_used"):
             return {
@@ -2833,35 +2920,6 @@ class AtelierCorrectionService:
                 "auto_started": False,
                 "model": correction_debug.get("model") or settings.ATELIER_CORRECTION_LLM_MODEL,
                 "completed_at": self._now_iso(),
-            }
-        answer_text = self._answer_text(answer_payload).strip()
-        model = settings.ATELIER_CORRECTION_LLM_MODEL
-        if round_name == "recognize":
-            if (correction or {}).get("errata") and answer_text:
-                if self._can_schedule_ai_review():
-                    return {"status": "available", "auto_started": False, "model": model}
-                return {
-                    "status": "failed",
-                    "auto_started": False,
-                    "model": model,
-                    "error": "AI provider unavailable.",
-                }
-            return {"status": "not_applicable", "auto_started": False}
-        if round_name == "transform":
-            return {"status": "available", "auto_started": False, "model": model}
-        if round_name in ATELIER_AI_AUTO_ROUNDS and answer_text:
-            if self._can_schedule_ai_review():
-                return {
-                    "status": "pending",
-                    "auto_started": True,
-                    "model": model,
-                    "started_at": self._now_iso(),
-                }
-            return {
-                "status": "failed",
-                "auto_started": False,
-                "model": model,
-                "error": "AI provider unavailable.",
             }
         return {"status": "not_applicable", "auto_started": False}
 
@@ -4097,6 +4155,42 @@ class AtelierCorrectionService:
                 }
             )
 
+        fallback_errata = [
+            erratum
+            for erratum in (fallback.get("errata") or [])
+            if isinstance(erratum, dict)
+        ]
+
+        def fallback_item_id_for(parsed_erratum: dict[str, Any]) -> str:
+            item_id = str(parsed_erratum.get("item_id") or "").strip()
+            if item_id:
+                return item_id
+            learner_norm = _normalize(parsed_erratum.get("learner_text"))
+            target_norm = _normalize(parsed_erratum.get("corrected_target"))
+            label_norm = _normalize(parsed_erratum.get("display_label"))
+            matches = []
+            for fallback_erratum in fallback_errata:
+                if not fallback_erratum.get("item_id"):
+                    continue
+                fallback_target_norm = _normalize(fallback_erratum.get("corrected_target"))
+                fallback_learner_norm = _normalize(fallback_erratum.get("learner_text"))
+                if target_norm and target_norm != fallback_target_norm:
+                    continue
+                if learner_norm and learner_norm != fallback_learner_norm:
+                    continue
+                matches.append(fallback_erratum)
+            if len(matches) == 1:
+                return str(matches[0].get("item_id") or "")
+            if label_norm:
+                label_matches = [
+                    fallback_erratum
+                    for fallback_erratum in matches
+                    if _normalize(fallback_erratum.get("display_label")) == label_norm
+                ]
+                if len(label_matches) == 1:
+                    return str(label_matches[0].get("item_id") or "")
+            return ""
+
         errata = []
         for item in parsed.get("errata") or []:
             external_id = item.get("external_id")
@@ -4115,7 +4209,7 @@ class AtelierCorrectionService:
                 corrected_target = str(si_target or corrected_target)
             errata.append(
                 {
-                    "item_id": str(item.get("item_id") or ""),
+                    "item_id": fallback_item_id_for(item),
                     "display_label": display_label[:120],
                     "learner_text": str(item.get("learner_text") or ""),
                     "corrected_target": corrected_target,

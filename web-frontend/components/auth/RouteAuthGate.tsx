@@ -33,23 +33,34 @@ export default function RouteAuthGate({ children }: { children: React.ReactNode 
   const { status } = useAppSession();
   const isGuestOnly = GUEST_ONLY_PATHNAMES.has(router.pathname);
   const isProtected = !PUBLIC_PATHNAMES.has(router.pathname);
+  const pendingRedirectRef = React.useRef<string | null>(null);
 
   React.useEffect(() => {
     if (!router.isReady) return;
 
     if (isProtected && status === 'unauthenticated') {
       const callbackUrl = router.asPath.startsWith('/') ? router.asPath : '/atelier';
-      router.replace({
+      const redirectKey = `/auth/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`;
+      if (pendingRedirectRef.current === redirectKey) return;
+      pendingRedirectRef.current = redirectKey;
+      void router.replace({
         pathname: '/auth/signin',
         query: { callbackUrl },
+      }, undefined, { scroll: false }).finally(() => {
+        pendingRedirectRef.current = null;
       });
       return;
     }
 
     if (isGuestOnly && status === 'authenticated') {
-      router.replace(safeCallbackUrl(router.query.callbackUrl));
+      const destination = safeCallbackUrl(router.query.callbackUrl);
+      if (router.asPath === destination || pendingRedirectRef.current === destination) return;
+      pendingRedirectRef.current = destination;
+      void router.replace(destination, undefined, { scroll: false }).finally(() => {
+        pendingRedirectRef.current = null;
+      });
     }
-  }, [isGuestOnly, isProtected, router, status]);
+  }, [isGuestOnly, isProtected, router, router.asPath, router.isReady, router.query.callbackUrl, status]);
 
   if (!router.isReady) return <LoadingFrame />;
   if (isProtected && status !== 'authenticated') return <LoadingFrame />;

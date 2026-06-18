@@ -422,19 +422,19 @@ a {
 .rf .mk .grin, .rf .mk .sad { display: none; }
 .rf[data-state="grin"] .mk .grin { display: block; }
 .rf[data-state="sad"] .mk .sad { display: block; }
-.rf.circle .mk .eye { top: 16px; }
+.rf.circle .mk .eye { top: 13px; }
 .rf.circle .mk .eye.l { left: 13px; }
 .rf.circle .mk .eye.r { right: 13px; }
-.rf.circle .mk svg { top: 22px; }
-.rf.square .mk .eye { top: 17px; background: var(--ink); }
+.rf.circle .mk svg { top: 18px; }
+.rf.square .mk .eye { top: 14px; background: var(--ink); }
 .rf.square .mk .eye.l { left: 14px; }
 .rf.square .mk .eye.r { right: 14px; }
-.rf.square .mk svg { top: 24px; }
+.rf.square .mk svg { top: 20px; }
 .rf.square .mk svg path { stroke: var(--ink); }
-.rf.triangle .mk .eye { top: 23px; }
+.rf.triangle .mk .eye { top: 21px; }
 .rf.triangle .mk .eye.l { left: 15px; }
 .rf.triangle .mk .eye.r { right: 15px; }
-.rf.triangle .mk svg { top: 28px; width: 13px; }
+.rf.triangle .mk svg { top: 26px; width: 13px; }
 .rf[data-state="sad"] { transform: rotate(-6deg); opacity: 0.6; }
 @media (prefers-reduced-motion: no-preference) {
   .rf[data-state="grin"] { animation: af-hop 0.5s cubic-bezier(0.3, 1.3, 0.4, 1); }
