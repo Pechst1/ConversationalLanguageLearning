@@ -217,9 +217,9 @@ def _raw_llm_payload(concept: GrammarConcept) -> dict:
                 "max_words": 120,
             },
             "output_ladder": {
-                "sentence": {"items": [_output_item("tense-sentence", "short_sentence", concept, "Describe a background interrupted by an event.", "Je marchais quand une voiture est passée.")]},
-                "speak": {"items": [_output_item("tense-speak", "spoken_response", concept, "Say what was happening when something changed.", "Je lisais quand il est entré.")]},
-                "conversation": {"items": [_output_item("tense-conversation", "conversation_turn", concept, "Answer with one background and one completed event.", "Il faisait froid, puis nous sommes entrés.")]},
+                "sentence": {"items": [_output_item("tense-sentence", "short_sentence", concept, "Yesterday a friend asks why you arrived late. Explain what was happening and what happened in one French sentence.", "Je marchais quand une voiture est passée.")]},
+                "speak": {"items": [_output_item("tense-speak", "spoken_response", concept, "A colleague asks what you were doing when the phone rang. Say one sentence with the background and the event.", "Je lisais quand il est entré.")]},
+                "conversation": {"items": [_output_item("tense-conversation", "conversation_turn", concept, "Message received: « Pourquoi tu n'as pas répondu hier soir ? » Reply with what was going on and what happened.", "Il faisait froid, puis nous sommes entrés.")]},
             },
         }
     if external_id == "FR_A2_NEG_001":
@@ -262,9 +262,9 @@ def _raw_llm_payload(concept: GrammarConcept) -> dict:
                 "max_words": 100,
             },
             "output_ladder": {
-                "sentence": {"items": [_output_item("neg-sentence", "short_sentence", concept, "Say what you do not have today.", "Je n'ai pas de dossier aujourd'hui.")]},
-                "speak": {"items": [_output_item("neg-speak", "spoken_response", concept, "Say what is missing.", "Nous n'avons pas de café.")]},
-                "conversation": {"items": [_output_item("neg-conversation", "conversation_turn", concept, "Answer with one negative quantity.", "Je ne vois pas de métro ici.")]},
+                "sentence": {"items": [_output_item("neg-sentence", "short_sentence", concept, "A friend asks what food or drink is left at home today. Say one thing you do not have.", "Je n'ai pas de dossier aujourd'hui.")]},
+                "speak": {"items": [_output_item("neg-speak", "spoken_response", concept, "At a cafe, someone asks what is available. Say one missing item with ne...pas de/d'.", "Nous n'avons pas de café.")]},
+                "conversation": {"items": [_output_item("neg-conversation", "conversation_turn", concept, "Message received: « Tu as encore du café ? » Reply with a negated quantity.", "Je ne vois pas de métro ici.")]},
             },
         }
     return {
@@ -306,9 +306,9 @@ def _raw_llm_payload(concept: GrammarConcept) -> dict:
             "max_words": 120,
         },
         "output_ladder": {
-            "sentence": {"items": [_output_item("si-sentence", "short_sentence", concept, "Write one real future condition.", "Si je finis tôt, je t'appellerai.")]},
-            "speak": {"items": [_output_item("si-speak", "spoken_response", concept, "Say what you will do if it rains.", "S'il pleut, je prendrai le métro.")]},
-            "conversation": {"items": [_output_item("si-conversation", "conversation_turn", concept, "Answer with a si-clause and a consequence.", "Si elle appelle, je répondrai tout de suite.")]},
+            "sentence": {"items": [_output_item("si-sentence", "short_sentence", concept, "A colleague asks: « Tu termines tôt aujourd'hui ? » Answer with what you will do if that happens.", "Si je finis tôt, je t'appellerai.")]},
+            "speak": {"items": [_output_item("si-speak", "spoken_response", concept, "A friend asks what you will do if it rains tomorrow. Say one natural si + present answer.", "S'il pleut, je prendrai le métro.")]},
+            "conversation": {"items": [_output_item("si-conversation", "conversation_turn", concept, "Message received: « S'il pleut demain, on fait quoi ? » Reply with a real condition and its consequence.", "Si elle appelle, je répondrai tout de suite.")]},
         },
     }
 
@@ -448,6 +448,37 @@ def test_generator_creates_three_recognize_modes_and_three_transform_items(db_se
     first_bank = payload["recognize"]["word_bank"]["items"][0]
     assert first_bank["tokens"] != first_bank["answer_tokens"]
     assert first_bank["correct_answer"] == "Si elle appelle, je répondrai"
+
+
+def test_generator_repairs_vague_output_ladder_prompts(db_session):
+    concept = _concept(db_session, "FR_B1_TENSE_001")
+    _clear_exercise_sets(db_session, concept)
+    llm_payload = json.loads(json.dumps(_raw_llm_payload(concept)))
+    llm_payload["output_ladder"]["sentence"]["items"][0]["prompt"] = "Write one sentence using the target grammar."
+    llm_payload["output_ladder"]["speak"]["items"][0]["prompt"] = "Say one natural response using the target grammar."
+    llm_payload["output_ladder"]["conversation"]["items"][0]["prompt"] = "Answer in one conversational turn using the target grammar."
+
+    exercise_set = AtelierExerciseGenerator(
+        db_session,
+        llm_service=_FakeLLMService(llm_payload),
+    ).get_or_create(concept)
+
+    sentence_prompt = exercise_set.payload["output_ladder"]["sentence"]["items"][0]["prompt"]
+    speak_prompt = exercise_set.payload["output_ladder"]["speak"]["items"][0]["prompt"]
+    conversation_prompt = exercise_set.payload["output_ladder"]["conversation"]["items"][0]["prompt"]
+    assert "target grammar" not in sentence_prompt.lower()
+    assert "friend asks why you arrived late" in sentence_prompt
+    assert "phone rang" in speak_prompt
+    assert "Message received" in conversation_prompt
+    assert AtelierExerciseGenerator.validate_payload(exercise_set.payload, concept=concept)
+
+
+def test_generator_rejects_raw_vague_output_ladder_prompt(db_session):
+    concept = _concept(db_session, "FR_B1_TENSE_001")
+    payload = json.loads(json.dumps(_raw_llm_payload(concept)))
+    payload["output_ladder"]["sentence"]["items"][0]["prompt"] = "Write one sentence using the target grammar."
+
+    assert not AtelierExerciseGenerator.validate_payload(payload, concept=concept)
 
 
 def test_generator_does_not_reuse_cached_fallback_when_llm_required(db_session):

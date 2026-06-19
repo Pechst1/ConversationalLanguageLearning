@@ -307,6 +307,24 @@ def _filled(value: Any) -> bool:
     return bool(str(value or "").strip())
 
 
+def _is_generic_output_ladder_prompt(value: Any) -> bool:
+    normalized = re.sub(r"\s+", " ", str(value or "").strip().lower())
+    if not normalized:
+        return True
+    return any(
+        marker in normalized
+        for marker in (
+            "target grammar",
+            "target concept",
+            "use the grammar",
+            "using the grammar",
+            "one sentence using",
+            "say one natural response",
+            "answer in one conversational turn",
+        )
+    )
+
+
 def _quoted_fragments(value: Any) -> list[str]:
     text = str(value or "")
     fragments: list[str] = []
@@ -1023,6 +1041,8 @@ def validate_atelier_generation_payload(payload: dict[str, Any]) -> list[str]:
             and item.get("requirements")
         ):
             errors.append(f"output_ladder.{round_name} item is incomplete")
+        elif _is_generic_output_ladder_prompt(item.get("prompt")):
+            errors.append(f"output_ladder.{round_name} prompt must give a concrete mini-situation")
     return errors
 
 

@@ -93,6 +93,58 @@ function stripExpressPrefix(value: unknown): string {
   return String(value || '').replace(/^\s*express\s*:\s*/i, '').trim();
 }
 
+function isVagueOutputPrompt(value: unknown): boolean {
+  const normalized = String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  if (!normalized) return true;
+  return [
+    'target grammar',
+    'target concept',
+    'use the grammar',
+    'using the grammar',
+    'one sentence using',
+    'say one natural response',
+    'answer in one conversational turn',
+    'write one real future condition',
+    'describe a background interrupted by an event',
+    'answer with one background and one completed event',
+  ].some((marker) => normalized.includes(marker));
+}
+
+function fallbackOutputPrompt(payload: Record<string, any>, item: Record<string, any>, round: 'sentence' | 'speak' | 'conversation'): string {
+  const conceptTitle = String(payload?.concept?.name || payload?.rule_panel?.title || '').toLowerCase();
+  const anchorSentence = String(item?.context_anchor?.sentence || '').trim();
+  if (conceptTitle.includes('imparfait') || conceptTitle.includes('passé composé') || conceptTitle.includes('passe compose')) {
+    return round === 'conversation'
+      ? 'Message received: « Pourquoi tu n’as pas répondu hier soir ? » Reply with what was going on and what happened.'
+      : round === 'speak'
+        ? 'A colleague asks what you were doing when the phone rang. Say one sentence with the background and the event.'
+        : 'Yesterday a friend asks why you arrived late. Explain what was happening and what happened in one French sentence.';
+  }
+  if (conceptTitle.includes('si type') || conceptTitle.includes('si +') || conceptTitle.includes('condition')) {
+    return round === 'conversation'
+      ? 'Message received: « S’il pleut demain, on fait quoi ? » Reply with a real condition and its consequence.'
+      : round === 'speak'
+        ? 'A friend asks what you will do if it rains tomorrow. Say one natural si + present answer.'
+        : 'A colleague asks: « Tu termines tôt aujourd’hui ? » Answer with what you will do if that happens.';
+  }
+  if (conceptTitle.includes('negation') || conceptTitle.includes('négation') || conceptTitle.includes('pas de')) {
+    return round === 'conversation'
+      ? 'Message received: « Tu as encore du café ? » Reply with a negated quantity.'
+      : round === 'speak'
+        ? 'At a café, someone asks what is available. Say one missing item with ne…pas de/d’.'
+        : 'A friend asks what food or drink is left at home today. Say one thing you do not have.';
+  }
+  if (anchorSentence) return `React to this situation: ${anchorSentence}`;
+  return round === 'conversation'
+    ? 'Message received: « Qu’est-ce qui se passe ? » Reply naturally in French.'
+    : 'A friend asks for one concrete update about today. Answer in French with one complete sentence.';
+}
+
+function outputLadderPrompt(payload: Record<string, any>, item: Record<string, any>, round: 'sentence' | 'speak' | 'conversation'): string {
+  const prompt = String(item?.prompt || '').trim();
+  return isVagueOutputPrompt(prompt) ? fallbackOutputPrompt(payload, item, round) : prompt;
+}
+
 function roundUsesSessionScope(round: RoundName) {
   return round === 'produce';
 }
@@ -3028,6 +3080,7 @@ function OutputLadderPanel({
   const chunksRef = useRef<Blob[]>([]);
   const item = payload.output_ladder?.[round]?.items?.[0] || {};
   const feedback = submitted ? feedbackFromFreeformCorrection(correction, item.example_answer || '') : null;
+  const promptText = outputLadderPrompt(payload, item, round);
 
   const transcribeAudio = async (blob: Blob) => {
     setIsTranscribing(true);
@@ -3096,12 +3149,12 @@ function OutputLadderPanel({
         <div className="chat-thread">
           <div className="chat-bubble incoming">
             <span className="chat-who">Message reçu</span>
-            <p>{item.prompt}</p>
+            <p>{promptText}</p>
           </div>
         </div>
       ) : (
         <div className="live-block">
-          <p className="exercise-prompt">{item.prompt}</p>
+          <p className="exercise-prompt">{promptText}</p>
         </div>
       )}
       {round === 'speak' && (

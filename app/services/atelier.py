@@ -1124,6 +1124,67 @@ def _concept_correction_instructions(concepts: list[GrammarConcept | None]) -> l
     return instructions[:6]
 
 
+def _is_vague_output_prompt(prompt: Any) -> bool:
+    normalized = _normalize(prompt)
+    if not normalized:
+        return True
+    vague_markers = (
+        "using the target grammar",
+        "use the target grammar",
+        "target grammar",
+        "using the grammar",
+        "use the grammar",
+        "one sentence using",
+        "say one natural response",
+        "answer in one conversational turn",
+        "write one real future condition",
+        "describe a background interrupted by an event",
+        "answer with one background and one completed event",
+        "say what is missing",
+        "say what you do not have",
+        "answer with one negative quantity",
+        "answer with a si clause",
+        "use the target concept",
+    )
+    if any(marker in normalized for marker in vague_markers):
+        return True
+    has_scene_signal = bool(
+        re.search(
+            r"\b(?:asks?|says?|tells?|messages?|texts?|writes?|calls?|explains?|wonders?|friend|colleague|teacher|neighbor|client|message|question|yesterday|tomorrow|today|cafe|office|station|train|market|meeting|phone|rain|kitchen|table)\b",
+            normalized,
+        )
+    )
+    return len(normalized.split()) < 8 or not has_scene_signal
+
+
+def _fallback_output_prompt_for(concept: GrammarConcept | None, round_name: str) -> str:
+    profile = infer_grammar_profile(concept) if concept else None
+    profile_key = profile.key if profile else ""
+    prompts: dict[str, dict[str, str]] = {
+        "tense_aspect": {
+            "sentence": "Yesterday a friend asks why you arrived late. Explain what was happening and what happened in one French sentence.",
+            "speak": "A colleague asks what you were doing when the phone rang. Say one sentence with the background and the event.",
+            "conversation": "Message received: « Pourquoi tu n'as pas répondu hier soir ? » Reply with what was going on and what happened.",
+        },
+        "si_present_result_form": {
+            "sentence": "A colleague asks: « Tu termines tôt aujourd'hui ? » Answer with what you will do if that happens.",
+            "speak": "A friend asks what you will do if it rains tomorrow. Say one natural si + present answer.",
+            "conversation": "Message received: « S'il pleut demain, on fait quoi ? » Reply with a real condition and its consequence.",
+        },
+        "article_after_negation": {
+            "sentence": "A friend asks what food or drink is left at home today. Say one thing you do not have.",
+            "speak": "At a cafe, someone asks what is available. Say one missing item with ne...pas de/d'.",
+            "conversation": "Message received: « Tu as encore du café ? » Reply with a negated quantity.",
+        },
+    }
+    fallback = {
+        "sentence": "A friend asks for one concrete update about today. Answer in French with one complete sentence.",
+        "speak": "Someone asks you a quick real-life question. Say one concrete French response.",
+        "conversation": "Message received: « Qu'est-ce qui se passe ? » Reply naturally in French.",
+    }
+    return prompts.get(profile_key, fallback).get(round_name, fallback["sentence"])
+
+
 @dataclass(frozen=True)
 class ConceptSelection:
     concept: GrammarConcept
@@ -1724,6 +1785,8 @@ class AtelierExerciseGenerator:
                 ):
                     errors.append(f"output_ladder.{key} item {item_id(item)} is incomplete")
                     continue
+                if _is_vague_output_prompt(item.get("prompt")):
+                    errors.append(f"output_ladder.{key} item {item_id(item)} prompt must give a concrete situation")
         return errors
 
     @staticmethod
@@ -2175,7 +2238,7 @@ class AtelierExerciseGenerator:
                                 prefix=prefix,
                                 round_name="sentence",
                                 kind="short_sentence",
-                                prompt="Write one sentence using the target grammar.",
+                                prompt=_fallback_output_prompt_for(concept, "sentence"),
                                 example=sentences[0],
                                 min_words=5,
                                 max_words=24,
@@ -2189,7 +2252,7 @@ class AtelierExerciseGenerator:
                                 prefix=prefix,
                                 round_name="speak",
                                 kind="spoken_response",
-                                prompt="Say one natural response using the target grammar.",
+                                prompt=_fallback_output_prompt_for(concept, "speak"),
                                 example=sentences[1],
                                 min_words=5,
                                 max_words=24,
@@ -2203,7 +2266,7 @@ class AtelierExerciseGenerator:
                                 prefix=prefix,
                                 round_name="conversation",
                                 kind="conversation_turn",
-                                prompt="Answer in one conversational turn using the target grammar.",
+                                prompt=_fallback_output_prompt_for(concept, "conversation"),
                                 example=sentences[2],
                                 min_words=6,
                                 max_words=30,
@@ -2639,6 +2702,8 @@ class AtelierExerciseGenerator:
                     }
                 ]
                 item["id"] = str(item.get("id") or f"{concept.external_id or concept.id}-{round_name}-{index + 1}")
+                if _is_vague_output_prompt(item.get("prompt")):
+                    item["prompt"] = _fallback_output_prompt_for(concept, round_name)
                 item["min_words"] = int(item.get("min_words") or (5 if round_name == "sentence" else 6))
                 item["max_words"] = int(item.get("max_words") or (30 if round_name == "conversation" else 24))
                 normalized_items.append(item)
