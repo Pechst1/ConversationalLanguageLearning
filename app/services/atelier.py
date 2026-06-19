@@ -37,7 +37,7 @@ from app.services.llm_service import LLMProviderError, LLMService
 from app.services.progress import ProgressService
 from app.services.vocabulary_credit import VocabularyCreditService
 
-ATELIER_GENERATOR_VERSION = "atelier-v8"
+ATELIER_GENERATOR_VERSION = "atelier-v9"
 ATELIER_CORRECTION_PROMPT_VERSION = "atelier-correction-v2"
 ATELIER_AI_AUTO_ROUNDS = {"sentence", "speak", "conversation", "produce"}
 
@@ -386,7 +386,11 @@ def _repo_root() -> Path:
 
 def _normalize(value: Any) -> str:
     text = "" if value is None else str(value)
-    text = text.replace("’", "'").replace("`", "'").strip().lower()
+    # Fold every smart/curly apostrophe and prime variant to a straight quote so a
+    # typed "S'il" matches "S'il" regardless of which apostrophe iOS auto-inserted.
+    # (iOS smart punctuation often produces U+2018 ‘ here, not the U+2019 ’ we used
+    # to handle, which made correct rewrites get flagged wrong.)
+    text = re.sub(r"[‘’‚‛′`´ʹʻʼ]", "'", text).strip().lower()
     text = unicodedata.normalize("NFKD", text)
     text = "".join(char for char in text if not unicodedata.combining(char))
     text = re.sub(r"'\s+", "'", text)
@@ -403,8 +407,9 @@ def _join_french_tokens(tokens: list[Any]) -> str:
 
 
 def _tokenize_french_sentence(sentence: str) -> list[str]:
-    tokens = re.findall(r"[A-Za-zÀ-ÖØ-öø-ÿ]+(?:['’][A-Za-zÀ-ÖØ-öø-ÿ]+)?|[.,!?;:]", sentence)
-    return [token.replace("’", "'") for token in tokens if token.strip()]
+    sentence = re.sub(r"[‘’‚‛′`´ʹʻʼ]", "'", sentence)
+    tokens = re.findall(r"[A-Za-zÀ-ÖØ-öø-ÿ]+(?:'[A-Za-zÀ-ÖØ-öø-ÿ]+)?|[.,!?;:]", sentence)
+    return [token for token in tokens if token.strip()]
 
 
 def _bounded_edit_distance(left: str, right: str, *, limit: int) -> int:
@@ -1954,8 +1959,8 @@ class AtelierExerciseGenerator:
                 "Fail an item if it is not solvable from its choices/chips, if the answer key is wrong, if it does not test the target concept, or if the French is unnatural/incorrect.",
                 "Fail trivial items whose prompt or labels reveal the answer without testing the concept.",
                 "For fill, require at least 3 distinct choices with plausible wrong forms, not placeholders.",
-                "For word_bank, meaning_cue must tell the learner what sentence to build, must match the answer sentence's meaning, must not expose the French target sentence, prompt/tokens must not contain blanks, answer_tokens must form the complete target French sentence, and tokens must include at least one plausible distractor chip. Do NOT fail word_bank items for chip order, token ordering, placement clarity, or extra plausible distractors; chips are intentionally unordered.",
-                "For transform items, judge ONLY the learner-facing `instruction` text (never the `expected_answer` field — that is the hidden grading key and is SUPPOSED to contain the full corrected sentence; never treat expected_answer as a spoiler). A good instruction quotes the exact source word or phrase to change (in quotes) and names the grammatical target CATEGORY in plain learner language (a tense or rule name such as 'the imparfait', 'the future', 'its negated form', 'the partitive after a negation'). Do NOT require the instruction to spell out the corrected/conjugated answer word, and do NOT fail it for omitting that word. FAIL a transform item only if the instruction itself spells out the answer word, OR if it is too vague to point at one grammatical target (e.g. coined jargon like 'être-exception contrast' or 'its contrast with negation' that a learner cannot act on).",
+                "For word_bank, meaning_cue must tell the learner what sentence to build, must match the answer sentence's meaning, must not expose the French target sentence, prompt/tokens must not contain blanks, answer_tokens must form the complete target French sentence, and tokens must include at least one plausible distractor chip. The assembled answer_tokens MUST be a grammatically complete, natural French sentence: FAIL it if two clauses are spliced without the conjunction the meaning needs (e.g. an English cue 'I was reading WHEN the phone rang' whose French answer omits 'quand', or a si/parce que/que clause missing its connector). Do NOT fail word_bank items for chip order, token ordering, placement clarity, or extra plausible distractors; chips are intentionally unordered.",
+                "For transform items, judge ONLY the learner-facing `instruction` text (never the `expected_answer` field — that is the hidden grading key and SHOULD contain the full corrected sentence; never treat it as a spoiler). Be LENIENT: a transform passes whenever it (a) quotes the exact source word or phrase to change and (b) names a grammatical target — a tense, mood, or rule name such as 'the imparfait', 'the passé composé', 'the future', 'the present', 'its negated form'. Naming the target tense/mood is REQUIRED and is NOT a spoiler, even when the answer ends up in that tense: \"Change 'pleuvait' to the passé composé\" must PASS. Only FAIL a transform when the instruction literally writes the conjugated answer word the learner must type (for example \"change 'pleut' to 'pleuvait'\", or \"change 'avais' to 'as'\"), or when it is so vague it names neither a specific source word nor any grammatical target. Do not fail for style, prescriptiveness, or for omitting the answer word.",
                 "Do not rewrite items. Return pass/fail and one concise reason only.",
             ],
         }
@@ -2493,21 +2498,21 @@ class AtelierExerciseGenerator:
         profile = infer_grammar_profile(concept)
         if profile.key == "article_after_negation":
             return [
-                {"id": f"{prefix}-fallback-transform-1", "type": "directed_rewrite", "instruction": "Negate the quantity; change 'du' to 'de' after pas.", "source": "Je bois du café.", "expected_answer": "Je ne bois pas de café."},
-                {"id": f"{prefix}-fallback-transform-2", "type": "contrast_rewrite", "instruction": "Use the être exception; keep 'du' after n'est pas.", "source": "C'est du café.", "expected_answer": "Ce n'est pas du café."},
-                {"id": f"{prefix}-fallback-transform-3", "type": "repair_rewrite", "instruction": "Repair the article; change 'une' to d' after pas.", "source": "Elle n'a pas une idée.", "expected_answer": "Elle n'a pas d'idée."},
+                {"id": f"{prefix}-fallback-transform-1", "type": "directed_rewrite", "instruction": "Make this negative and change the partitive 'du' to its form after 'pas'.", "source": "Je bois du café.", "expected_answer": "Je ne bois pas de café."},
+                {"id": f"{prefix}-fallback-transform-2", "type": "contrast_rewrite", "instruction": "Negate 'C'est du café' with ne…pas, watching the être exception.", "source": "C'est du café.", "expected_answer": "Ce n'est pas du café."},
+                {"id": f"{prefix}-fallback-transform-3", "type": "repair_rewrite", "instruction": "Repair the article 'une' after 'pas' to its negated quantity form.", "source": "Elle n'a pas une idée.", "expected_answer": "Elle n'a pas d'idée."},
             ]
         if profile.key == "tense_aspect":
             return [
-                {"id": f"{prefix}-fallback-transform-1", "type": "directed_rewrite", "instruction": "Change 'pleut' to background imparfait and 'sors' to passé composé.", "source": "Il pleut quand je sors.", "expected_answer": "Il pleuvait quand je suis sorti."},
-                {"id": f"{prefix}-fallback-transform-2", "type": "contrast_rewrite", "instruction": "Change the habit 'lisais' into one completed event.", "source": "Je lisais souvent ce livre.", "expected_answer": "J'ai lu ce livre hier."},
-                {"id": f"{prefix}-fallback-transform-3", "type": "repair_rewrite", "instruction": "Repair the contrast by making 'être' background and 'sonner' a completed event.", "source": "Je suis fatigué quand le téléphone sonnait.", "expected_answer": "J'étais fatigué quand le téléphone a sonné."},
+                {"id": f"{prefix}-fallback-transform-1", "type": "directed_rewrite", "instruction": "Change 'pleut' to the imparfait and 'sors' to the passé composé.", "source": "Il pleut quand je sors.", "expected_answer": "Il pleuvait quand je suis sorti."},
+                {"id": f"{prefix}-fallback-transform-2", "type": "contrast_rewrite", "instruction": "Turn the habit 'lisais' into a single completed event in the passé composé.", "source": "Je lisais souvent ce livre.", "expected_answer": "J'ai lu ce livre hier."},
+                {"id": f"{prefix}-fallback-transform-3", "type": "repair_rewrite", "instruction": "Repair the contrast: put 'suis' in the imparfait and 'sonnait' in the passé composé.", "source": "Je suis fatigué quand le téléphone sonnait.", "expected_answer": "J'étais fatigué quand le téléphone a sonné."},
             ]
         if profile.key == "si_present_result_form":
             return [
-                {"id": f"{prefix}-fallback-transform-1", "type": "directed_rewrite", "instruction": "Change 'quand il arrivera' to a si-clause with present 'arrive'.", "source": "Quand il arrivera, on commencera.", "expected_answer": "S'il arrive, on commencera."},
-                {"id": f"{prefix}-fallback-transform-2", "type": "contrast_rewrite", "instruction": "Change 'avais' to present 'as' and 'viendrais' to future 'viendras'.", "source": "Si tu avais le temps, tu viendrais.", "expected_answer": "Si tu as le temps, tu viendras."},
-                {"id": f"{prefix}-fallback-transform-3", "type": "repair_rewrite", "instruction": "Repair 'viendras' after si; use present 'viens'.", "source": "Si tu viendras demain, apporte le livre.", "expected_answer": "Si tu viens demain, apporte le livre."},
+                {"id": f"{prefix}-fallback-transform-1", "type": "directed_rewrite", "instruction": "Rewrite 'Quand il arrivera, on commencera' to start with a si-clause whose condition is in the present.", "source": "Quand il arrivera, on commencera.", "expected_answer": "S'il arrive, on commencera."},
+                {"id": f"{prefix}-fallback-transform-2", "type": "contrast_rewrite", "instruction": "Make this a si type 1: put 'avais' in the present and 'viendrais' in the future.", "source": "Si tu avais le temps, tu viendrais.", "expected_answer": "Si tu as le temps, tu viendras."},
+                {"id": f"{prefix}-fallback-transform-3", "type": "repair_rewrite", "instruction": "Repair the verb 'viendras' after 'si': the condition must be in the present.", "source": "Si tu viendras demain, apporte le livre.", "expected_answer": "Si tu viens demain, apporte le livre."},
             ]
         return [
             {
@@ -3762,6 +3767,12 @@ class AtelierCorrectionService:
     ) -> dict[str, Any]:
         text = str(answer_payload.get("text") or "").strip()
         item = ((prompt_payload.get("items") or [{}])[0] or {})
+        profile_key = infer_grammar_profile(concept).key if concept else ""
+        si_analysis = (
+            self._si_output_ladder_analysis(concept, item, text)
+            if profile_key == "si_present_result_form" and text
+            else {}
+        )
         requirements = item.get("requirements") or (
             [
                 {
@@ -3780,6 +3791,8 @@ class AtelierCorrectionService:
         total_hits = 0
         for req in requirements:
             detected = self._count_hits(req, text)
+            if si_analysis.get("condition_present"):
+                detected = max(detected, 1)
             total_hits += min(detected, int(req.get("target_count") or 1))
             hit = {**req, "detected_count": detected}
             hits.append(hit)
@@ -3797,7 +3810,7 @@ class AtelierCorrectionService:
                 {
                     "display_label": "Missing output",
                     "learner_text": "",
-                    "corrected_target": item.get("example_answer") or item.get("prompt") or "",
+                    "corrected_target": self._output_ladder_target_hint(concept, item, {}),
                     "why_wrong": "This output step was left blank, so it cannot strengthen active use yet.",
                     "repair_hint": "Produce one sentence or turn before submitting; blank output is not scheduled as grammar errata.",
                     "severity": 1,
@@ -3813,7 +3826,7 @@ class AtelierCorrectionService:
                     {
                         "display_label": item.get("errata_label") or self._label_for(concept, item),
                         "learner_text": text,
-                        "corrected_target": item.get("example_answer") or req.get("label") or "",
+                        "corrected_target": self._output_ladder_target_hint(concept, item, req),
                         "why_wrong": f"You submitted output, but this step needs {req.get('target_count', 1)} visible use of {req.get('label')} and only detected {req.get('detected_count', 0)}.",
                         "repair_hint": item.get("repair_hint") or self._repair_for(concept),
                         "severity": 1,
@@ -3823,9 +3836,13 @@ class AtelierCorrectionService:
                         "external_id": req.get("external_id"),
                     }
                 )
+            if isinstance(si_analysis.get("erratum"), dict):
+                errata.append(si_analysis["erratum"])
 
         score = round((total_hits / max(total_required, 1)) * 4, 2)
-        if text and not missing:
+        if text and errata and total_hits:
+            score = min(score, 2.75)
+        if text and not missing and not errata:
             verdict = "accepted"
             score = max(score, 3.0)
         elif text:
@@ -3841,6 +3858,202 @@ class AtelierCorrectionService:
             "errata": errata,
             "correction_debug": _correction_debug(model=None, fallback_used=True),
         }
+
+    def _output_ladder_target_hint(
+        self,
+        concept: GrammarConcept | None,
+        item: dict[str, Any],
+        requirement: dict[str, Any],
+    ) -> str:
+        if concept:
+            profile = infer_grammar_profile(concept)
+            if profile.key == "si_present_result_form":
+                return "Use si + present, then a future simple or imperative result."
+            return profile.pattern or profile.principle
+        return str(requirement.get("label") or item.get("instruction") or item.get("prompt") or "")
+
+    def _si_output_ladder_analysis(
+        self,
+        concept: GrammarConcept | None,
+        item: dict[str, Any],
+        text: str,
+    ) -> dict[str, Any]:
+        scan = self._scan_text_for_si_frame(text)
+        status = str(scan.get("status") or "")
+        condition_present = status == "present"
+        if not text.strip():
+            return {"condition_present": False, "erratum": None}
+
+        if condition_present:
+            conditional = self._first_conditional_result(scan.get("result_text") or "")
+            if conditional:
+                token, future_token = conditional
+                corrected = self._replace_first_conditional_result(text, token, future_token)
+                return {
+                    "condition_present": True,
+                    "erratum": {
+                        "display_label": "Future result",
+                        "learner_text": text,
+                        "corrected_target": corrected,
+                        "why_wrong": (
+                            f"You wrote `{token}` in the result clause. With si + present for a real condition, "
+                            f"the result uses future simple, so this should be `{future_token}`."
+                        ),
+                        "repair_hint": "Keep your si-clause, then change only the result verb from conditional to future simple.",
+                        "severity": 2,
+                        "recurring": True,
+                        "task_error_type": "future_result",
+                        "concept_id": concept.id if concept else None,
+                        "external_id": concept.external_id if concept else None,
+                    },
+                }
+            if not self._has_si_type_one_result(scan.get("result_text") or ""):
+                return {
+                    "condition_present": True,
+                    "erratum": {
+                        "display_label": "Result form needed",
+                        "learner_text": text,
+                        "corrected_target": self._output_ladder_target_hint(concept, item, {}),
+                        "why_wrong": "Your si-clause is in the present, but the consequence does not show a future simple or imperative result.",
+                        "repair_hint": "After the comma, make the consequence future simple or a direct command.",
+                        "severity": 2,
+                        "recurring": True,
+                        "task_error_type": "future_result",
+                        "concept_id": concept.id if concept else None,
+                        "external_id": concept.external_id if concept else None,
+                    },
+                }
+            return {"condition_present": True, "erratum": None}
+
+        if status == "future_after_si":
+            token = str(scan.get("condition_token") or "the verb after si")
+            return {
+                "condition_present": False,
+                "erratum": {
+                    "display_label": "Si-clause tense",
+                    "learner_text": text,
+                    "corrected_target": self._output_ladder_target_hint(concept, item, {}),
+                    "why_wrong": f"You put `{token}` inside the si-clause. In si type 1, the verb right after si stays in the present.",
+                    "repair_hint": "Move the future idea to the result clause; keep the condition after si in the present.",
+                    "severity": 2,
+                    "recurring": True,
+                    "task_error_type": "si_clause_tense",
+                    "concept_id": concept.id if concept else None,
+                    "external_id": concept.external_id if concept else None,
+                },
+            }
+
+        return {"condition_present": False, "erratum": None}
+
+    @staticmethod
+    def _si_scan_text(value: Any) -> str:
+        text = "" if value is None else str(value)
+        text = re.sub(r"[‘’‚‛′`´ʹʻʼ]", "'", text).strip().lower()
+        text = unicodedata.normalize("NFKD", text)
+        text = "".join(char for char in text if not unicodedata.combining(char))
+        text = re.sub(r"'\s+", "'", text)
+        text = re.sub(r"[.!?;:\u00ab\u00bb]", " ", text)
+        text = re.sub(r"\s+", " ", text)
+        return text.strip()
+
+    def _scan_text_for_si_frame(self, text: str) -> dict[str, Any]:
+        normalized = self._si_scan_text(text)
+        patterns = [
+            r"\bsi\s+(?:je|tu|il|elle|on|nous|vous|ils|elles)\s+(?P<verb>[a-z][a-z']*)",
+            r"\bsi\s+j'(?P<verb>[a-z][a-z']*)",
+            r"\bs'(?:il|elle|on|ils|elles)\s+(?P<verb>[a-z][a-z']*)",
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, normalized)
+            if not match:
+                continue
+            token = match.group("verb")
+            comma_index = normalized.find(",", match.end())
+            result_text = normalized[comma_index + 1 :] if comma_index >= 0 else normalized[match.end() :]
+            status = "present"
+            if self._looks_future_or_conditional(token):
+                status = "future_after_si"
+            elif self._looks_past_or_hypothetical_after_si(token):
+                status = "non_present_after_si"
+            return {
+                "status": status,
+                "condition_token": token,
+                "result_text": result_text.strip(),
+            }
+        return {"status": "missing", "condition_token": "", "result_text": normalized}
+
+    @staticmethod
+    def _looks_future_or_conditional(token: str) -> bool:
+        return bool(re.search(r"(?:rai|ras|ra|rons|rez|ront|rais|rait|rions|riez|raient)$", token))
+
+    @staticmethod
+    def _looks_past_or_hypothetical_after_si(token: str) -> bool:
+        present_exceptions = {
+            "ai",
+            "a",
+            "as",
+            "avons",
+            "avez",
+            "ont",
+            "est",
+            "sont",
+            "sommes",
+            "etes",
+            "suis",
+            "es",
+            "fais",
+            "fait",
+            "vais",
+            "va",
+            "sais",
+            "sait",
+        }
+        if token in present_exceptions:
+            return False
+        return bool(re.search(r"(?:ais|ait|aient)$", token))
+
+    @staticmethod
+    def _first_conditional_result(text: str) -> tuple[str, str] | None:
+        match = re.search(r"\b([a-z][a-z']*r)(ais|ait|ions|iez|aient)\b", _normalize(text))
+        if not match:
+            return None
+        suffix_map = {
+            "ais": "ai",
+            "ait": "a",
+            "ions": "ons",
+            "iez": "ez",
+            "aient": "ont",
+        }
+        token = match.group(0)
+        future = f"{match.group(1)}{suffix_map[match.group(2)]}"
+        return token, future
+
+    @staticmethod
+    def _replace_first_conditional_result(text: str, token: str, future_token: str) -> str:
+        token_norm = _normalize(token)
+        replaced = False
+
+        def replace(match: re.Match[str]) -> str:
+            nonlocal replaced
+            if replaced or _normalize(match.group(0)) != token_norm:
+                return match.group(0)
+            replaced = True
+            return future_token
+
+        pattern = re.compile(r"\b[A-Za-zÀ-ÖØ-öø-ÿ]+r(?:ais|ait|ions|iez|aient)\b", re.IGNORECASE)
+        corrected = pattern.sub(replace, text)
+        return corrected if replaced else future_token
+
+    def _has_si_type_one_result(self, text: str) -> bool:
+        normalized = _normalize(text)
+        if re.search(r"\b\w+(?:rai|ras|ra|rons|rez|ront)\b", normalized):
+            return True
+        return bool(
+            re.search(
+                r"\b(?:prends|prenez|mange|mangez|allez|viens|venez|fais|faites|appelle|appelez|reponds|repondez|termine|terminez|va|vas)\b",
+                normalized,
+            )
+        )
 
     def _correct_produce(
         self,
@@ -4005,18 +4218,24 @@ class AtelierCorrectionService:
         if not llm or not concept:
             return None
         system_prompt = self._correction_system_prompt()
+        compact_task = self._compact_llm_task(prompt_payload)
+        for compact_item in compact_task.get("items") or []:
+            if isinstance(compact_item, dict) and compact_item.get("example_answer"):
+                compact_item["example_answer_note"] = "example only; never grade against this as the required target"
         user_payload = {
             "round": round_name,
             "concept": self._compact_llm_concept(concept),
-            "task": self._compact_llm_task(prompt_payload),
+            "task": compact_task,
             "answer": self._compact_llm_answer(answer_payload),
             "requirements": ((prompt_payload.get("items") or [{}])[0] or {}).get("requirements") or [],
             "deterministic_assessment": self._compact_llm_assessment(fallback),
             "instructions": [
                 "This is part of a guided output ladder: short sentence, spoken transcript, or conversation turn.",
                 "Accept natural original French if it uses the target concept correctly; it does not need to match the example answer.",
+                "The item.example_answer is only one sample answer. Do not use it as corrected_target for a different valid original answer.",
                 "Address feedback directly with 'you'; never say 'the learner' or 'the user'.",
                 "Create recurring grammar errata only for concrete errors in the submitted output, not for missing target counts.",
+                "If the answer has si + present but uses a conditional result such as pourrais/répondrais/irions, count the si-frame as present and give one future-result erratum for that submitted verb.",
                 "For spoken_response, treat the typed text as the transcript of what the person said.",
                 "For conversation_turn, judge whether the reply is plausible in context and uses the target concept.",
             ],
@@ -4287,7 +4506,11 @@ class AtelierCorrectionService:
             "Use the concept profile to create accessible, specific labels rather than generic grammar buckets. "
             "The why field must name the concrete submitted form, the expected target form, and the grammar reason. "
             "The repair field must give a concrete next action, not generic advice. "
-            "Task-compliance slips can be shown, but do not mark them recurring unless they are repeated grammar errors."
+            "Task-compliance slips can be shown, but do not mark them recurring unless they are repeated grammar errors. "
+            "The deterministic_assessment and deterministic_target are only fallible hints from a string matcher: it ignores accents, "
+            "apostrophe style, capitalisation, and accepts alternative correct wordings. You MUST judge correctness yourself. "
+            "If the submitted answer accomplishes the task in correct French — even when it differs from the deterministic_target or the "
+            "matcher flagged it — return it as correct with an empty errata list. Never invent an error for an answer that is actually right."
         )
 
     def _clean_feedback_text(self, text: Any) -> str:

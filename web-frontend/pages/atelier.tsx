@@ -86,6 +86,13 @@ function answerKey(round: RoundName, mode: string, conceptId?: number | null) {
   return `${round}:${mode}:${conceptId || 'session'}`;
 }
 
+// The word-bank meaning cue often arrives as "Express: I was reading…". The task
+// is already stated once at the top of the screen, so each subtask shows only the
+// bare English sentence to translate.
+function stripExpressPrefix(value: unknown): string {
+  return String(value || '').replace(/^\s*express\s*:\s*/i, '').trim();
+}
+
 function roundUsesSessionScope(round: RoundName) {
   return round === 'produce';
 }
@@ -2747,8 +2754,14 @@ function RecognizePanel({
 }) {
   const items = payload.recognize?.[mode]?.items || [];
   const formShapes: Array<'circle' | 'square' | 'triangle'> = ['circle', 'square', 'triangle'];
+  const wordBankTask = mode === 'word_bank'
+    ? String(items[0]?.prompt || 'Build each full French sentence from the chips.')
+    : '';
   return (
     <div className="recognize-set">
+      {mode === 'word_bank' && (
+        <p className="recognize-task-note">{wordBankTask}</p>
+      )}
       {items.map((item: any, index: number) => {
         const feedback = itemFeedback(item, answers[item.id], correction);
         const formState: 'neutral' | 'grin' | 'sad' = submitted ? (feedback?.correct ? 'grin' : 'sad') : 'neutral';
@@ -2761,9 +2774,10 @@ function RecognizePanel({
             </div>
             <div className="recognize-card-body">
               <div className="t-mono-low">EXERCISE {index + 1}</div>
-              <p className="exercise-prompt">{item.prompt}</p>
-              {mode === 'word_bank' && item.meaning_cue && (
-                <p className="meaning-cue">{item.meaning_cue}</p>
+              {mode === 'word_bank' ? (
+                <p className="wb-cue">{stripExpressPrefix(item.meaning_cue) || item.prompt}</p>
+              ) : (
+                <p className="exercise-prompt">{item.prompt}</p>
               )}
               {mode === 'fill' && (
                 <div className="choice-row">
@@ -2890,8 +2904,14 @@ function itemFeedback(item: any, learner: any, correction: Record<string, any> |
     if (hasItemScopedErrata) return false;
     const errTarget = normalizeClient(erratum.corrected_target);
     const errLearner = normalizeClient(erratum.learner_text);
-    if (errTarget && errTarget === targetNorm) return true;
-    return Boolean(errLearner && learnerNorm && errLearner === learnerNorm && errTarget === targetNorm);
+    // When the erratum names the submitted form, it must match THIS card's answer.
+    // Otherwise an erratum from a sibling item that happens to share the same target
+    // (e.g. two fill blanks both corrected to "de") would leak onto this card and
+    // show as a confusing extra "fix".
+    if (errLearner) {
+      return Boolean(learnerNorm) && errLearner === learnerNorm && (!errTarget || errTarget === targetNorm);
+    }
+    return Boolean(errTarget && errTarget === targetNorm);
   });
   const correct = learnerNorm === targetNorm;
   return {
@@ -5357,6 +5377,8 @@ function AtelierStyles() {
       .exercise-prompt, .source-sentence { font-family: var(--serif); font-style: italic; font-size: 29px; line-height: 1.45; margin: 12px 0 20px; }
       .source-sentence { background: var(--paper-2); border: 1px solid var(--ink); padding: 14px 16px; }
       .meaning-cue { margin: -8px 0 16px; border-left: 3px solid var(--yellow); padding: 8px 0 8px 12px; color: var(--ink-2); font-size: 13px; line-height: 1.4; }
+      .recognize-task-note { margin: 0 0 22px; color: var(--ink-2); font-size: 14px; line-height: 1.45; max-width: 640px; }
+      .wb-cue { margin: 6px 0 16px; font-family: var(--serif); font-style: italic; font-size: 22px; line-height: 1.4; color: var(--ink); }
       .instruction { margin: 10px 0 0; font-weight: 700; color: var(--ink-2); }
       .choice-row, .type-case, .target-chips { display: flex; flex-wrap: wrap; gap: 10px; }
       .choice-row button, .type-case button, .target-chips span { border: 1px solid var(--ink); background: var(--paper); padding: 8px 15px; font-family: var(--serif); font-style: italic; font-size: 19px; }

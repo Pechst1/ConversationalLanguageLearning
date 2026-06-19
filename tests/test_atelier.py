@@ -1578,6 +1578,36 @@ def test_output_ladder_short_sentence_scores_active_use(db_session):
     assert result["errata"] == []
 
 
+def test_output_ladder_si_sentence_flags_submitted_conditional_result(db_session):
+    concept = _concept(db_session, "FR_B1_COND_001")
+    payload = _test_generated_payload(db_session, concept)
+    prompt_payload = {"round": "sentence", "mode": "sentence", **payload["output_ladder"]["sentence"]}
+    example = prompt_payload["items"][0]["example_answer"]
+
+    result = AtelierCorrectionService(db_session).correct(
+        concept=concept,
+        round_name="sentence",
+        mode="sentence",
+        exercise_id="FR_B1_COND_001:sentence",
+        prompt_payload=prompt_payload,
+        answer_payload={"text": "Si je finis mon travail, je pourrais finir tot."},
+    )
+
+    assert result["verdict"] == "partial"
+    assert result["concept_hits"][0]["detected_count"] == 1
+    assert result["missing_targets"] == []
+    assert len(result["errata"]) == 1
+    erratum = result["errata"][0]
+    assert erratum["task_error_type"] == "future_result"
+    assert erratum["learner_text"] == "Si je finis mon travail, je pourrais finir tot."
+    assert "pourrais" in erratum["why_wrong"]
+    assert "pourrai" in erratum["why_wrong"]
+    assert "Si je finis mon travail" in erratum["corrected_target"]
+    assert "pourrai finir" in erratum["corrected_target"]
+    assert erratum["corrected_target"] != example
+    assert "t'appellerai" not in erratum["corrected_target"]
+
+
 def test_output_ladder_missing_target_is_not_recurring_erratum(db_session):
     concept = _concept(db_session, "FR_B1_COND_001")
     payload = _test_generated_payload(db_session, concept)
@@ -1618,6 +1648,9 @@ def test_sentence_submit_uses_llm_correction_and_marks_review_complete(db_sessio
     )
 
     assert fake_llm.calls[0]["method"] == "generate_error_detection"
+    llm_payload = json.loads(fake_llm.calls[0]["messages"][0]["content"])
+    assert llm_payload["task"]["items"][0]["example_answer_note"].startswith("example only")
+    assert "Do not use it as corrected_target" in " ".join(llm_payload["instructions"])
     assert attempt.correction_payload["correction_debug"]["fallback_used"] is False
     assert attempt.correction_payload["ai_review"]["status"] == "complete"
     assert attempt.correction_payload["ai_review"]["auto_started"] is False
