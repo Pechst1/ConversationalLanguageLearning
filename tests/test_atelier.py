@@ -27,6 +27,7 @@ from app.db.models.vocabulary import VocabularyWord
 from app.services.error_memory import ErrorMemoryService
 from app.services.atelier import (
     ATELIER_EXERCISE_RESPONSE_FORMAT,
+    ATELIER_GENERATION_MAX_ATTEMPTS,
     ATELIER_GENERATOR_VERSION,
     AtelierCorrectionService,
     AtelierExerciseGenerator,
@@ -34,6 +35,7 @@ from app.services.atelier import (
     AtelierScheduler,
     session_exercise_set,
     select_atelier_vocabulary,
+    _is_vague_output_prompt,
 )
 from app.services.atelier_assets import AtelierAssetService
 from app.services.atelier_rewards import AtelierRewardService
@@ -211,7 +213,7 @@ def _raw_llm_payload(concept: GrammarConcept) -> dict:
             },
             "produce": {
                 "source_fragment": "Un matin, la ville etait calme.",
-                "prompt": "Write a short paragraph contrasting background and events.",
+                "prompt": "A friend asks what happened yesterday when your plans changed. Write a short French note that contrasts the background scene with the completed events.",
                 "requirements": [{"label": concept.name, "target_count": 2}],
                 "min_words": 50,
                 "max_words": 120,
@@ -256,7 +258,7 @@ def _raw_llm_payload(concept: GrammarConcept) -> dict:
             },
             "produce": {
                 "source_fragment": "Le comptoir est presque vide.",
-                "prompt": "Write a short note using negated quantities.",
+                "prompt": "A roommate asks what supplies are missing before shopping. Write a short French note naming what you do not have.",
                 "requirements": [{"label": concept.name, "target_count": 1}],
                 "min_words": 40,
                 "max_words": 100,
@@ -300,7 +302,7 @@ def _raw_llm_payload(concept: GrammarConcept) -> dict:
         },
         "produce": {
             "source_fragment": "Le directeur attend une reponse avant le depart.",
-            "prompt": "Write a short paragraph with real future conditions.",
+            "prompt": "A teammate asks how tomorrow's plan changes if the weather or timing changes. Write a short French reply with real si-conditions and their consequences.",
             "requirements": [{"label": concept.name, "target_count": 2}],
             "min_words": 50,
             "max_words": 120,
@@ -486,6 +488,29 @@ def test_generator_rejects_raw_vague_output_ladder_prompt(db_session):
     assert not AtelierExerciseGenerator.validate_payload(payload, concept=concept)
 
 
+def test_vague_output_prompt_detector_accepts_concrete_dialogue_prompts():
+    concrete_prompts = [
+        "Colleague: «Que s'est-il passé pendant ton service?»",
+        "Barista: « Vous voulez un café ? »",
+        "Ton collègue te dit : « Je viendrai au dîner si je finis tard. » Réponds en une phrase pour dire ce que tu feras.",
+        "Un ami vous dit : « J'ai apporté du pain. Tu en veux ? » Répondez brièvement pour dire que vous n'en voulez pas.",
+        "You are in a museum. A visitor asks: \"Quel est ce bâtiment?\" Point to a nearby modern building and answer in one sentence using the correct demonstrative.",
+    ]
+
+    assert all(not _is_vague_output_prompt(prompt) for prompt in concrete_prompts)
+
+
+def test_vague_output_prompt_detector_rejects_meta_tasks_without_scene():
+    vague_prompts = [
+        "Write one sentence using the target grammar.",
+        "Answer in one turn confirming the book is yours with correct possessive agreement.",
+        "Say and write where your suitcase is using the appropriate possessive.",
+        "Write one real future condition.",
+    ]
+
+    assert all(_is_vague_output_prompt(prompt) for prompt in vague_prompts)
+
+
 def test_generator_does_not_reuse_cached_fallback_when_llm_required(db_session):
     concept = _concept(db_session, "FR_B1_COND_001")
     _clear_exercise_sets(db_session, concept)
@@ -594,7 +619,7 @@ def test_generator_falls_back_after_ai_critic_rejects_word_bank(db_session):
     exercise_set = AtelierExerciseGenerator(db_session, llm_service=fake_llm).get_or_create(concept)
 
     assert exercise_set.source == "fallback"
-    assert fake_llm.critique_calls == 2
+    assert fake_llm.critique_calls == ATELIER_GENERATION_MAX_ATTEMPTS
     assert AtelierExerciseGenerator.validate_payload(exercise_set.payload, concept=concept)
 
 

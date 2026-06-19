@@ -537,6 +537,11 @@ class ExerciseGenerationService:
         system_prompt = (
             "You generate compact French grammar exercise payloads for Atelier. "
             "Return only valid JSON matching the provided schema. "
+            "EVERY single item — all 3 fill, all 3 classify, all 3 word_bank, all 3 transform, and every output prompt — must directly "
+            "practise the ONE named target concept (see target_concept name and core_rule in the context). Never make an item that really "
+            "tests a neighbouring grammar point instead: e.g. for an imparfait-vs-passé-composé concept, do NOT make any item whose actual "
+            "challenge is partitive articles, negation, or si-clauses. A sentence may incidentally contain other grammar, but the thing the "
+            "learner must get right has to be the target concept. "
             "Every recognize mode must contain exactly 3 subitems, transform must contain exactly 3 rewrite tasks, "
             "and output_ladder must include exactly 1 concise item for each of sentence, speak, and conversation. "
             "Each word_bank item must be a full French sentence-building task: prompt must not contain a blank, "
