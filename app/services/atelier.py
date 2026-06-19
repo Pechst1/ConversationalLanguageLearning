@@ -1185,6 +1185,23 @@ def _fallback_output_prompt_for(concept: GrammarConcept | None, round_name: str)
     return prompts.get(profile_key, fallback).get(round_name, fallback["sentence"])
 
 
+def _fallback_produce_prompt_for(concept: GrammarConcept | None) -> str:
+    profile = infer_grammar_profile(concept) if concept else None
+    profile_key = profile.key if profile else ""
+    prompts: dict[str, str] = {
+        "tense_aspect": "A friend asks what happened yesterday when your plans changed. Write a short French note that contrasts the background scene with the completed events.",
+        "si_present_result_form": "A teammate asks how tomorrow's plan changes if the weather or timing changes. Write a short French reply with real si-conditions and their consequences.",
+        "article_after_negation": "A roommate asks what supplies are missing before shopping. Write a short French note naming what you do not have.",
+    }
+    if profile_key in prompts:
+        return prompts[profile_key]
+    pattern = profile.pattern if profile else "the target grammar pattern"
+    return (
+        "A friend asks for a short update about today's plan. "
+        f"Write a French note with concrete details, making this pattern visible: {pattern}"
+    )
+
+
 @dataclass(frozen=True)
 class ConceptSelection:
     concept: GrammarConcept
@@ -1768,6 +1785,8 @@ class AtelierExerciseGenerator:
             and bool(produce.get("requirements"))
         ):
             errors.append("produce source_fragment, prompt, or requirements missing")
+        elif _is_vague_output_prompt(produce.get("prompt")):
+            errors.append("produce prompt must set a concrete situation")
         ladder = payload.get("output_ladder") or {}
         for key in ("sentence", "speak", "conversation"):
             items = (ladder.get(key) or {}).get("items") or []
@@ -2218,7 +2237,7 @@ class AtelierExerciseGenerator:
                 "transform": {"items": self._fallback_transform_items(concept, sentences, prefix=prefix)},
                 "produce": {
                     "source_fragment": sentences[0],
-                    "prompt": f"Write a short French note that uses {profile.label.lower()} clearly.",
+                    "prompt": _fallback_produce_prompt_for(concept),
                     "requirements": [
                         {
                             "concept_id": concept.id,
@@ -2691,6 +2710,8 @@ class AtelierExerciseGenerator:
                 ),
             }
         ]
+        if _is_vague_output_prompt(produce.get("prompt")):
+            produce["prompt"] = _fallback_produce_prompt_for(concept)
         produce["min_words"] = int(produce.get("min_words") or 70)
         produce["max_words"] = int(produce.get("max_words") or 140)
         payload["produce"] = produce
@@ -3885,6 +3906,7 @@ class AtelierCorrectionService:
         if not text:
             errata.append(
                 {
+                    "item_id": item.get("id"),
                     "display_label": "Missing output",
                     "learner_text": "",
                     "corrected_target": self._output_ladder_target_hint(concept, item, {}),
@@ -3901,6 +3923,7 @@ class AtelierCorrectionService:
             for req in missing:
                 errata.append(
                     {
+                        "item_id": item.get("id"),
                         "display_label": item.get("errata_label") or self._label_for(concept, item),
                         "learner_text": text,
                         "corrected_target": self._output_ladder_target_hint(concept, item, req),
@@ -3969,6 +3992,7 @@ class AtelierCorrectionService:
                 return {
                     "condition_present": True,
                     "erratum": {
+                        "item_id": item.get("id"),
                         "display_label": "Future result",
                         "learner_text": text,
                         "corrected_target": corrected,
@@ -3988,6 +4012,7 @@ class AtelierCorrectionService:
                 return {
                     "condition_present": True,
                     "erratum": {
+                        "item_id": item.get("id"),
                         "display_label": "Result form needed",
                         "learner_text": text,
                         "corrected_target": self._output_ladder_target_hint(concept, item, {}),
@@ -4007,6 +4032,7 @@ class AtelierCorrectionService:
             return {
                 "condition_present": False,
                 "erratum": {
+                    "item_id": item.get("id"),
                     "display_label": "Si-clause tense",
                     "learner_text": text,
                     "corrected_target": self._output_ladder_target_hint(concept, item, {}),

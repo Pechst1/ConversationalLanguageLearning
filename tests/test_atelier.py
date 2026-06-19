@@ -454,6 +454,7 @@ def test_generator_repairs_vague_output_ladder_prompts(db_session):
     concept = _concept(db_session, "FR_B1_TENSE_001")
     _clear_exercise_sets(db_session, concept)
     llm_payload = json.loads(json.dumps(_raw_llm_payload(concept)))
+    llm_payload["produce"]["prompt"] = "Write a short paragraph using the target grammar."
     llm_payload["output_ladder"]["sentence"]["items"][0]["prompt"] = "Write one sentence using the target grammar."
     llm_payload["output_ladder"]["speak"]["items"][0]["prompt"] = "Say one natural response using the target grammar."
     llm_payload["output_ladder"]["conversation"]["items"][0]["prompt"] = "Answer in one conversational turn using the target grammar."
@@ -463,9 +464,12 @@ def test_generator_repairs_vague_output_ladder_prompts(db_session):
         llm_service=_FakeLLMService(llm_payload),
     ).get_or_create(concept)
 
+    produce_prompt = exercise_set.payload["produce"]["prompt"]
     sentence_prompt = exercise_set.payload["output_ladder"]["sentence"]["items"][0]["prompt"]
     speak_prompt = exercise_set.payload["output_ladder"]["speak"]["items"][0]["prompt"]
     conversation_prompt = exercise_set.payload["output_ladder"]["conversation"]["items"][0]["prompt"]
+    assert "target grammar" not in produce_prompt.lower()
+    assert "friend asks what happened yesterday" in produce_prompt
     assert "target grammar" not in sentence_prompt.lower()
     assert "friend asks why you arrived late" in sentence_prompt
     assert "phone rang" in speak_prompt
@@ -476,6 +480,7 @@ def test_generator_repairs_vague_output_ladder_prompts(db_session):
 def test_generator_rejects_raw_vague_output_ladder_prompt(db_session):
     concept = _concept(db_session, "FR_B1_TENSE_001")
     payload = json.loads(json.dumps(_raw_llm_payload(concept)))
+    payload["produce"]["prompt"] = "Write a short paragraph using the target grammar."
     payload["output_ladder"]["sentence"]["items"][0]["prompt"] = "Write one sentence using the target grammar."
 
     assert not AtelierExerciseGenerator.validate_payload(payload, concept=concept)
@@ -970,7 +975,7 @@ def test_start_session_threads_vocabulary_examples_into_output_ladder(client: Te
     assert exercise_payload["produce"]["context_anchors"][0]["word"] == "dossier"
 
 
-def test_three_new_grammar_concepts_complete_full_backend_exercise_cycle(db_session):
+def test_new_grammar_concepts_complete_full_backend_exercise_cycle(db_session):
     user = _user(db_session)
     specs = [
         {
@@ -1002,6 +1007,56 @@ def test_three_new_grammar_concepts_complete_full_backend_exercise_cycle(db_sess
             "main_traps": "using indicative after il faut que; missing the que trigger",
             "anchor_examples": "Il faut que tu sois prêt. | Je veux qu'elle vienne demain. | Bien qu'il soit tard, nous continuons.",
             "exercise_tags": ["subjunctive", "il_faut_que", "mood"],
+        },
+        {
+            "external_id": f"FR_A2_COND_CYCLE_{uuid4().hex[:8]}",
+            "name": "Conditional polite requests",
+            "category": "Mood",
+            "subskill": "conditional_mood",
+            "core_rule": "Use conditional forms such as je voudrais, je pourrais, or ce serait to make polite requests.",
+            "main_traps": "using the future instead of the conditional; making the request too direct",
+            "anchor_examples": "Je voudrais une table. | Pourriez-vous m'aider ? | Ce serait possible demain.",
+            "exercise_tags": ["conditional", "polite_request", "mood"],
+        },
+        {
+            "external_id": f"FR_A2_DET_CYCLE_{uuid4().hex[:8]}",
+            "name": "Articles and determiners",
+            "category": "Determiners",
+            "subskill": "determiners",
+            "core_rule": "Choose the determiner that matches the noun and the intended meaning.",
+            "main_traps": "mixing definite and indefinite articles; choosing the wrong gender",
+            "anchor_examples": "Je prends le train. | Elle cherche une adresse. | Ces billets sont chers.",
+            "exercise_tags": ["determiner", "article", "gender"],
+        },
+        {
+            "external_id": f"FR_A2_AGR_CYCLE_{uuid4().hex[:8]}",
+            "name": "Adjective agreement",
+            "category": "Agreement",
+            "subskill": "adjective_agreement",
+            "core_rule": "Make adjectives agree in gender and number with the noun they describe.",
+            "main_traps": "forgetting feminine endings; forgetting plural endings",
+            "anchor_examples": "La porte est ouverte. | Les fenêtres sont grandes. | Un petit sac est prêt.",
+            "exercise_tags": ["agreement", "adjective", "gender"],
+        },
+        {
+            "external_id": f"FR_A2_PREP_CYCLE_{uuid4().hex[:8]}",
+            "name": "Common place prepositions",
+            "category": "Prepositions",
+            "subskill": "place_prepositions",
+            "core_rule": "Use common prepositions such as à, de, dans, sur, or chez to connect places and actions.",
+            "main_traps": "using à where de is needed; omitting chez before a person's place",
+            "anchor_examples": "Je vais à la gare. | Elle revient de Paris. | Nous dormons chez des amis.",
+            "exercise_tags": ["preposition", "place", "à", "de"],
+        },
+        {
+            "external_id": f"FR_A2_COMP_CYCLE_{uuid4().hex[:8]}",
+            "name": "Basic comparisons",
+            "category": "Comparison",
+            "subskill": "comparatives",
+            "core_rule": "Use plus, moins, or aussi with que to compare two people or things.",
+            "main_traps": "forgetting que; using the wrong comparison word",
+            "anchor_examples": "Ce train est plus rapide que le bus. | Elle est aussi calme que lui. | C'est moins cher que prévu.",
+            "exercise_tags": ["comparison", "comparative", "que"],
         },
     ]
     concepts: list[GrammarConcept] = []
@@ -1110,6 +1165,168 @@ def test_three_new_grammar_concepts_complete_full_backend_exercise_cycle(db_sess
     assert recap["strengthened"] == len(concepts)
     assert len(recap["concepts"]) == len(concepts)
     assert session.status == "completed"
+
+
+def test_generated_grammar_cycle_wrong_answers_stay_item_specific(db_session):
+    specs = [
+        {
+            "external_id": f"FR_B1_SI_WRONG_{uuid4().hex[:8]}",
+            "name": "Si type 1: present condition, future result",
+            "category": "Conditionals",
+            "subskill": "si_type_1",
+            "core_rule": "Use si plus a present-tense condition, then future simple or an imperative result.",
+            "main_traps": "putting future after si; using conditional in the result",
+            "anchor_examples": "Si tu viens, je préparerai le dîner. | S'il pleut, prends ton manteau.",
+            "exercise_tags": ["si", "future_condition"],
+        },
+        {
+            "external_id": f"FR_A2_REL_WRONG_{uuid4().hex[:8]}",
+            "name": "Relative pronouns: qui, que, où",
+            "category": "Pronouns",
+            "subskill": "relative_clauses",
+            "core_rule": "Use qui, que, or où according to the role inside the relative clause.",
+            "main_traps": "using qui for objects; using que for places",
+            "anchor_examples": "C'est le livre que j'ai lu. | Voici l'ami qui arrive. | La ville où j'habite est calme.",
+            "exercise_tags": ["relative_pronoun", "qui", "que", "où"],
+        },
+        {
+            "external_id": f"FR_A2_COND_WRONG_{uuid4().hex[:8]}",
+            "name": "Conditional polite requests",
+            "category": "Mood",
+            "subskill": "conditional_mood",
+            "core_rule": "Use conditional forms such as je voudrais, je pourrais, or ce serait to make polite requests.",
+            "main_traps": "using the future instead of the conditional; making the request too direct",
+            "anchor_examples": "Je voudrais une table. | Pourriez-vous m'aider ? | Ce serait possible demain.",
+            "exercise_tags": ["conditional", "polite_request", "mood"],
+        },
+        {
+            "external_id": f"FR_A2_AGR_WRONG_{uuid4().hex[:8]}",
+            "name": "Adjective agreement",
+            "category": "Agreement",
+            "subskill": "adjective_agreement",
+            "core_rule": "Make adjectives agree in gender and number with the noun they describe.",
+            "main_traps": "forgetting feminine endings; forgetting plural endings",
+            "anchor_examples": "La porte est ouverte. | Les fenêtres sont grandes. | Un petit sac est prêt.",
+            "exercise_tags": ["agreement", "adjective", "gender"],
+        },
+        {
+            "external_id": f"FR_A2_PREP_WRONG_{uuid4().hex[:8]}",
+            "name": "Common place prepositions",
+            "category": "Prepositions",
+            "subskill": "place_prepositions",
+            "core_rule": "Use common prepositions such as à, de, dans, sur, or chez to connect places and actions.",
+            "main_traps": "using à where de is needed; omitting chez before a person's place",
+            "anchor_examples": "Je vais à la gare. | Elle revient de Paris. | Nous dormons chez des amis.",
+            "exercise_tags": ["preposition", "place", "à", "de"],
+        },
+    ]
+    concepts: list[GrammarConcept] = []
+    for index, spec in enumerate(specs, start=1):
+        concept = GrammarConcept(
+            language="fr",
+            level="B1" if spec["external_id"].startswith("FR_B1") else "A2",
+            difficulty_order=500 + index,
+            is_foundation=False,
+            active=True,
+            **spec,
+        )
+        db_session.add(concept)
+        concepts.append(concept)
+    db_session.commit()
+    for concept in concepts:
+        db_session.refresh(concept)
+
+    generator = AtelierExerciseGenerator(db_session, llm_service=_FailingLLMService())
+    correction_service = AtelierCorrectionService(db_session)
+
+    def assert_specific_errata(result: dict, expected_item_ids: set[str] | None) -> None:
+        assert result["errata"], result
+        for erratum in result["errata"]:
+            assert erratum.get("display_label")
+            assert erratum.get("why_wrong")
+            assert erratum.get("repair_hint")
+            assert "the learner" not in str(erratum.get("why_wrong") or "").lower()
+            assert "the user" not in str(erratum.get("why_wrong") or "").lower()
+            assert "the learner" not in str(erratum.get("repair_hint") or "").lower()
+            assert "the user" not in str(erratum.get("repair_hint") or "").lower()
+            if expected_item_ids is not None:
+                assert erratum.get("item_id") in expected_item_ids
+
+    for concept in concepts:
+        exercise_set = generator.get_or_create(concept, reuse_shared_cache=False)
+        payload = exercise_set.payload
+        rule_panel = payload.get("rule_panel") or {}
+
+        for mode in ("fill", "classify", "word_bank"):
+            items = payload["recognize"][mode]["items"]
+            answers = {}
+            for item in items:
+                if mode == "fill":
+                    choices = [str(choice) for choice in item.get("choices") or []]
+                    answers[item["id"]] = next(
+                        (choice for choice in choices if choice != str(item.get("correct_answer"))),
+                        "__wrong__",
+                    )
+                elif mode == "classify":
+                    labels = [str(label) for label in item.get("labels") or []]
+                    answers[item["id"]] = next(
+                        (label for label in labels if label != str(item.get("correct_label"))),
+                        "__wrong_label__",
+                    )
+                else:
+                    tokens = [str(token) for token in item.get("answer_tokens") or []]
+                    answers[item["id"]] = tokens[1:] + tokens[:1] if len(tokens) > 1 else ["__wrong__"]
+
+            correction = correction_service.correct(
+                concept=concept,
+                round_name="recognize",
+                mode=mode,
+                exercise_id=f"{concept.external_id}:{mode}:wrong",
+                prompt_payload={"round": "recognize", "mode": mode, "rule_panel": rule_panel, **payload["recognize"][mode]},
+                answer_payload={"answers": answers},
+            )
+
+            assert correction["verdict"] in {"incorrect", "partial"}
+            assert_specific_errata(correction, {item["id"] for item in items})
+
+        transform_items = payload["transform"]["items"]
+        transform_correction = correction_service.correct(
+            concept=concept,
+            round_name="transform",
+            mode="rewrite",
+            exercise_id=f"{concept.external_id}:transform:wrong",
+            prompt_payload={"round": "transform", "mode": "rewrite", "rule_panel": rule_panel, **payload["transform"]},
+            answer_payload={"answers": {item["id"]: "Je mange une pomme." for item in transform_items}},
+        )
+
+        assert transform_correction["verdict"] in {"incorrect", "partial"}
+        assert_specific_errata(transform_correction, {item["id"] for item in transform_items})
+
+        for round_name in ("sentence", "speak", "conversation"):
+            item = payload["output_ladder"][round_name]["items"][0]
+            output_correction = correction_service.correct(
+                concept=concept,
+                round_name=round_name,
+                mode=round_name,
+                exercise_id=f"{concept.external_id}:{round_name}:wrong",
+                prompt_payload={"round": round_name, "mode": round_name, "rule_panel": rule_panel, **payload["output_ladder"][round_name]},
+                answer_payload={"text": "Bonjour."},
+            )
+
+            assert output_correction["verdict"] == "partial"
+            assert_specific_errata(output_correction, {item["id"]})
+
+        produce_correction = correction_service.correct(
+            concept=None,
+            round_name="produce",
+            mode="integrated_writing",
+            exercise_id=f"{concept.external_id}:produce:wrong",
+            prompt_payload={"round": "produce", "mode": "integrated_writing", "rule_panel": rule_panel, **payload["produce"]},
+            answer_payload={"text": "Bonjour."},
+        )
+
+        assert produce_correction["missing_targets"]
+        assert_specific_errata(produce_correction, None)
 
 
 def test_report_exercise_records_generation_event(client: TestClient, db_session):
