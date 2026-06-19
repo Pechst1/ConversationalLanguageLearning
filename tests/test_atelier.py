@@ -970,6 +970,148 @@ def test_start_session_threads_vocabulary_examples_into_output_ladder(client: Te
     assert exercise_payload["produce"]["context_anchors"][0]["word"] == "dossier"
 
 
+def test_three_new_grammar_concepts_complete_full_backend_exercise_cycle(db_session):
+    user = _user(db_session)
+    specs = [
+        {
+            "external_id": f"FR_A2_REL_CYCLE_{uuid4().hex[:8]}",
+            "name": "Relative pronouns: qui, que, où",
+            "category": "Pronouns",
+            "subskill": "relative_clauses",
+            "core_rule": "Use qui, que, or où according to the role inside the relative clause.",
+            "main_traps": "using qui for objects; using que for places",
+            "anchor_examples": "C'est le livre que j'ai lu. | Voici l'ami qui arrive. | La ville où j'habite est calme.",
+            "exercise_tags": ["relative_pronoun", "qui", "que", "où"],
+        },
+        {
+            "external_id": f"FR_A2_PRON_CYCLE_{uuid4().hex[:8]}",
+            "name": "Direct and indirect object pronouns",
+            "category": "Pronouns",
+            "subskill": "object_pronouns",
+            "core_rule": "Choose le, la, les, lui, leur, y, or en according to the object being replaced.",
+            "main_traps": "using a direct pronoun for an indirect object; forgetting en for de phrases",
+            "anchor_examples": "Je le vois demain. | Nous lui parlons ce soir. | Elle en prend deux.",
+            "exercise_tags": ["pronoun_choice", "le", "lui", "en"],
+        },
+        {
+            "external_id": f"FR_A2_SUBJ_CYCLE_{uuid4().hex[:8]}",
+            "name": "Subjunctive after necessity",
+            "category": "Mood",
+            "subskill": "subjunctive",
+            "core_rule": "After necessity triggers such as il faut que, use the subjunctive in the dependent clause.",
+            "main_traps": "using indicative after il faut que; missing the que trigger",
+            "anchor_examples": "Il faut que tu sois prêt. | Je veux qu'elle vienne demain. | Bien qu'il soit tard, nous continuons.",
+            "exercise_tags": ["subjunctive", "il_faut_que", "mood"],
+        },
+    ]
+    concepts: list[GrammarConcept] = []
+    for index, spec in enumerate(specs, start=1):
+        concept = GrammarConcept(
+            language="fr",
+            level="A2",
+            difficulty_order=300 + index,
+            is_foundation=False,
+            active=True,
+            **spec,
+        )
+        db_session.add(concept)
+        concepts.append(concept)
+    db_session.commit()
+    for concept in concepts:
+        db_session.refresh(concept)
+
+    generator = AtelierExerciseGenerator(db_session, llm_service=_FailingLLMService())
+    exercise_sets = [generator.get_or_create(concept, reuse_shared_cache=False) for concept in concepts]
+    assert all(AtelierExerciseGenerator.validate_payload(exercise_set.payload, concept=concept) for concept, exercise_set in zip(concepts, exercise_sets, strict=True))
+
+    session = AtelierSession(
+        user_id=user.id,
+        selected_concept_ids=[concept.id for concept in concepts],
+        quote_payload={"exercise_set_ids": {str(concept.id): str(exercise_set.id) for concept, exercise_set in zip(concepts, exercise_sets, strict=True)}},
+        status="in_progress",
+        recap_payload={},
+    )
+    db_session.add(session)
+    db_session.commit()
+
+    correction_service = AtelierCorrectionService(db_session, llm_service=_FailingCorrectionLLMService())
+    attempts: list[AtelierAttempt] = []
+    for concept, exercise_set in zip(concepts, exercise_sets, strict=True):
+        payload = exercise_set.payload
+        for mode in ("fill", "classify", "word_bank"):
+            items = payload["recognize"][mode]["items"]
+            if mode == "word_bank":
+                answers = {item["id"]: item["answer_tokens"] for item in items}
+            elif mode == "classify":
+                answers = {item["id"]: item["correct_label"] for item in items}
+            else:
+                answers = {item["id"]: item["correct_answer"] for item in items}
+            attempts.append(
+                correction_service.submit_attempt(
+                    session=session,
+                    user=user,
+                    concept=concept,
+                    round_name="recognize",
+                    mode=mode,
+                    exercise_id=f"{concept.external_id}:{mode}",
+                    answer_payload={"answers": answers},
+                )
+            )
+
+        transform_items = payload["transform"]["items"]
+        attempts.append(
+            correction_service.submit_attempt(
+                session=session,
+                user=user,
+                concept=concept,
+                round_name="transform",
+                mode="rewrite",
+                exercise_id=f"{concept.external_id}:transform",
+                answer_payload={"answers": {item["id"]: item["expected_answer"] for item in transform_items}},
+            )
+        )
+
+        for round_name in ("sentence", "speak", "conversation"):
+            item = payload["output_ladder"][round_name]["items"][0]
+            assert "target grammar" not in item["prompt"].lower()
+            attempts.append(
+                correction_service.submit_attempt(
+                    session=session,
+                    user=user,
+                    concept=concept,
+                    round_name=round_name,
+                    mode=round_name,
+                    exercise_id=f"{concept.external_id}:{round_name}",
+                    answer_payload={"text": item["example_answer"]},
+                )
+            )
+
+    produce_text = " ".join(exercise_set.payload["output_ladder"]["sentence"]["items"][0]["example_answer"] for exercise_set in exercise_sets)
+    attempts.append(
+        correction_service.submit_attempt(
+            session=session,
+            user=user,
+            concept=None,
+            round_name="produce",
+            mode="integrated_writing",
+            exercise_id="integrated-writing",
+            answer_payload={"text": produce_text},
+        )
+    )
+
+    assert len(attempts) == (len(concepts) * 7) + 1
+    assert {attempt.verdict for attempt in attempts}.issubset({"correct", "accepted"})
+    assert all((attempt.correction_payload.get("ai_review") or {}).get("status") == "not_applicable" for attempt in attempts)
+    assert all(not attempt.correction_payload.get("errata") for attempt in attempts)
+
+    recap = AtelierSRSService(db_session).complete_session(session=session, user=user)
+
+    assert recap["attempts"] == len(attempts)
+    assert recap["strengthened"] == len(concepts)
+    assert len(recap["concepts"]) == len(concepts)
+    assert session.status == "completed"
+
+
 def test_report_exercise_records_generation_event(client: TestClient, db_session):
     token = _token(client)
     AtelierScheduler(db_session).ensure_catalog()

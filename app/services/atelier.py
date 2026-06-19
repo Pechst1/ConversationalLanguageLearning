@@ -2577,11 +2577,23 @@ class AtelierExerciseGenerator:
                 {"id": f"{prefix}-fallback-transform-2", "type": "contrast_rewrite", "instruction": "Make this a si type 1: put 'avais' in the present and 'viendrais' in the future.", "source": "Si tu avais le temps, tu viendrais.", "expected_answer": "Si tu as le temps, tu viendras."},
                 {"id": f"{prefix}-fallback-transform-3", "type": "repair_rewrite", "instruction": "Repair the verb 'viendras' after 'si': the condition must be in the present.", "source": "Si tu viendras demain, apporte le livre.", "expected_answer": "Si tu viens demain, apporte le livre."},
             ]
+        def source_fragment(sentence: str) -> str:
+            tokens = _tokenize_french_sentence(sentence)
+            return next(
+                (
+                    token
+                    for token in tokens
+                    if re.fullmatch(r"[A-Za-zÀ-ÖØ-öø-ÿ]+(?:['’][A-Za-zÀ-ÖØ-öø-ÿ]+)?", token)
+                    and len(_normalize(token)) >= 4
+                ),
+                sentence,
+            )
+
         return [
             {
                 "id": f"{prefix}-fallback-transform-{index}",
                 "type": kind,
-                "instruction": f"Rewrite the sentence so the exact target form shows {profile.label.lower()}.",
+                "instruction": f"Rewrite the sentence while keeping '{source_fragment(sentence)}' and making the target form visible: {profile.label.lower()}.",
                 "source": sentence,
                 "expected_answer": sentence,
             }
