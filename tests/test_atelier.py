@@ -1589,6 +1589,27 @@ def test_produce_accepts_submission_with_missing_targets(db_session):
     assert all(erratum["task_error_type"] == "task_compliance" for erratum in result["errata"])
 
 
+def test_produce_counts_si_frame_before_flagging_conditional_result(db_session):
+    concept = _concept(db_session, "FR_B1_COND_001")
+
+    result = AtelierCorrectionService(db_session).correct(
+        concept=concept,
+        round_name="produce",
+        mode="integrated_writing",
+        exercise_id="integrated-writing",
+        prompt_payload={},
+        answer_payload={"text": "Si je finis mon travail, je pourrais finir tot."},
+    )
+
+    assert result["verdict"] == "accepted"
+    assert result["concept_hits"][0]["detected_count"] == 1
+    assert result["missing_targets"][0]["detected_count"] == 1
+    assert result["errata"][0]["task_error_type"] == "future_result"
+    assert "pourrais" in result["errata"][0]["why_wrong"]
+    assert "pourrai" in result["errata"][0]["corrected_target"]
+    assert "only detected 0" not in json.dumps(result, ensure_ascii=False)
+
+
 def test_output_ladder_short_sentence_scores_active_use(db_session):
     concept = _concept(db_session, "FR_B1_COND_001")
     payload = _test_generated_payload(db_session, concept)
@@ -1637,6 +1658,32 @@ def test_output_ladder_si_sentence_flags_submitted_conditional_result(db_session
     assert "pourrai finir" in erratum["corrected_target"]
     assert erratum["corrected_target"] != example
     assert "t'appellerai" not in erratum["corrected_target"]
+
+
+def test_output_ladder_all_freeform_rounds_flag_submitted_conditional_result(db_session):
+    concept = _concept(db_session, "FR_B1_COND_001")
+    payload = _test_generated_payload(db_session, concept)
+
+    for round_name in ("sentence", "speak", "conversation"):
+        prompt_payload = {"round": round_name, "mode": round_name, **payload["output_ladder"][round_name]}
+        example = prompt_payload["items"][0]["example_answer"]
+
+        result = AtelierCorrectionService(db_session).correct(
+            concept=concept,
+            round_name=round_name,
+            mode=round_name,
+            exercise_id=f"FR_B1_COND_001:{round_name}",
+            prompt_payload=prompt_payload,
+            answer_payload={"text": "Si je finis mon travail, je pourrais finir tot."},
+        )
+
+        assert result["verdict"] == "partial"
+        assert result["concept_hits"][0]["detected_count"] == 1
+        assert result["missing_targets"] == []
+        assert result["errata"][0]["task_error_type"] == "future_result"
+        assert "pourrais" in result["errata"][0]["why_wrong"]
+        assert "pourrai" in result["errata"][0]["corrected_target"]
+        assert result["errata"][0]["corrected_target"] != example
 
 
 def test_output_ladder_missing_target_is_not_recurring_erratum(db_session):

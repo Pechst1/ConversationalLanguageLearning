@@ -2997,9 +2997,10 @@ function feedbackFromFreeformCorrection(correction: Record<string, any> | null, 
   if (!correction) return null;
   const errata: AtelierErratum[] = Array.isArray(correction?.errata) ? correction.errata : [];
   const erratum = errata[0];
+  const targetSource = erratum?.corrected_target || (errata.length === 0 ? correction?.corrected_answer : '') || fallbackTarget;
   return {
     correct: errata.length === 0,
-    target: correctionTargetText(correction?.corrected_answer || erratum?.corrected_target || fallbackTarget),
+    target: correctionTargetText(targetSource),
     why: erratum?.why_wrong || undefined,
     repair: erratum?.repair_hint || undefined,
     issues: errata,

@@ -4143,14 +4143,25 @@ class AtelierCorrectionService:
         missing: list[dict[str, Any]] = []
         total_required = sum(int(req["target_count"]) for req in requirements)
         total_hits = 0
+        produce_errata: list[dict[str, Any]] = []
         for req in requirements:
+            req_concept = self._concept_for_requirement(req)
+            si_analysis = (
+                self._si_output_ladder_analysis(req_concept, {}, text)
+                if req_concept and infer_grammar_profile(req_concept).key == "si_present_result_form" and text.strip()
+                else {}
+            )
             count = self._count_hits(req, text)
+            if si_analysis.get("condition_present"):
+                count = max(count, 1)
+            if isinstance(si_analysis.get("erratum"), dict):
+                produce_errata.append(si_analysis["erratum"])
             total_hits += min(count, int(req["target_count"]))
             hit = {**req, "detected_count": count}
             hits.append(hit)
             if count < int(req["target_count"]):
                 missing.append({**hit, "missing_count": int(req["target_count"]) - count})
-        errata = [
+        missing_errata = [
             {
                 "display_label": "Missing writing target",
                 "learner_text": text,
@@ -4165,6 +4176,7 @@ class AtelierCorrectionService:
             }
             for req in missing
         ]
+        errata = [*produce_errata, *missing_errata]
         score = round((total_hits / max(total_required, 1)) * 4, 2)
         verdict = "accepted" if text.strip() else "needs_review"
         return {
