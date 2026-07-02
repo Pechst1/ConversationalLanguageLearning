@@ -17,6 +17,7 @@ export interface FeedbackSheetProps extends React.HTMLAttributes<HTMLDivElement>
   correctionItems?: FeedbackCorrectionItem[];
   onTryAgain?: () => void;
   onNext?: () => void;
+  nextLabel?: string;
   onReport?: () => void;
 }
 
@@ -29,6 +30,7 @@ export function FeedbackSheet({
   correctionItems,
   onTryAgain,
   onNext,
+  nextLabel,
   onReport,
   className,
   ...props
@@ -67,7 +69,7 @@ export function FeedbackSheet({
         )}
         {onNext && (
           <button type="button" className="primary" onClick={onNext}>
-            {status === 'correct' ? 'Next' : 'Got it, next'}
+            {nextLabel || (status === 'correct' ? 'Next' : 'Got it, next')}
           </button>
         )}
       </div>

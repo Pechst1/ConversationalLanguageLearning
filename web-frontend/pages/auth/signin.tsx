@@ -8,7 +8,7 @@ import * as yup from 'yup';
 import { ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { useAppAuth } from '@/lib/app-auth';
+import { sanitizeAuthCallbackUrl, useAppAuth } from '@/lib/app-auth';
 import toast from 'react-hot-toast';
 
 const schema = yup.object({
@@ -25,6 +25,9 @@ export default function SignInPage() {
   const router = useRouter();
   const auth = useAppAuth();
   const [isLoading, setIsLoading] = React.useState(false);
+  const destination = sanitizeAuthCallbackUrl(router.query.callbackUrl);
+  const callbackQuery = destination === '/atelier' ? {} : { callbackUrl: destination };
+  const forgotPasswordHref = { pathname: '/auth/forgot-password', query: callbackQuery };
 
   const {
     register,
@@ -37,10 +40,6 @@ export default function SignInPage() {
   const onSubmit = async (data: FormData) => {
     setIsLoading(true);
     try {
-      const destination =
-        typeof router.query.callbackUrl === 'string'
-          ? router.query.callbackUrl
-          : '/atelier';
       const result = await auth.signInWithCredentials(data.email, data.password);
 
       if (result?.error) {
@@ -91,7 +90,7 @@ export default function SignInPage() {
               <h2 id="signin-title">Sign in</h2>
               <p>
                 New here?{' '}
-                <Link href="/auth/signup" className="auth-inline-link">
+                <Link href={{ pathname: '/auth/signup', query: callbackQuery }} className="auth-inline-link">
                   Create account
                 </Link>
               </p>
@@ -119,7 +118,7 @@ export default function SignInPage() {
               />
 
               <div className="auth-form-meta">
-                <Link href="/auth/forgot-password" className="auth-inline-link">
+                <Link href={forgotPasswordHref} className="auth-inline-link">
                   Forgot your password?
                 </Link>
               </div>

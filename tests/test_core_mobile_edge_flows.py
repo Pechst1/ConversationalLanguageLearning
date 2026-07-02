@@ -20,51 +20,45 @@ def test_atelier_recovers_from_offline_empty_and_unfinished_states() -> None:
     assert "function AtelierLoadNotice" in atelier
     assert "onRetry" in atelier
     assert "Session not ready" in atelier
-    assert "const canStart = hasActiveSession || concepts.length > 0" in atelier
+    assert "const [activeSessionReady, setActiveSessionReady] = useState(false)" in atelier
+    assert "setActiveSessionReady(true)" in atelier
+    assert "const canStart = activeSessionReady && (hasActiveSession || concepts.length > 0)" in atelier
     assert "disabled={loading || (recommendation.kind === 'start_session' && !canStart)}" in atelier
+    assert '<button className="btn solid" type="button" onClick={onRetry}>Retry</button>' in atelier
     assert "toast('This drill is already submitted.')" in atelier
     assert "disabled={submitting || completedDrills < total}" in atelier
     assert "Could not complete the session." in atelier
 
 
-def test_custom_mission_blocks_thin_prompts_missing_targets_and_empty_messages() -> None:
+def test_lean_mission_blocks_empty_messages_and_requires_one_reply_before_finish() -> None:
     missions = read(WEB / "pages" / "missions.tsx")
 
-    assert "const canLeaveTopic = scenario.trim().length >= 12" in missions
-    assert "const canLeaveTargets = targetsLoading || !hasTargetOptions || selectedTargetCount > 0" in missions
-    assert "const canCreate = canLeaveTopic && (name.trim().length >= 3 || outcome.trim().length >= 3)" in missions
-    assert "Add a little more context so the mission has something real to work with." in missions
-    assert "Pick at least one grammar or vocabulary target before continuing." in missions
-    assert "Name the mission or describe the outcome before creating it." in missions
-    assert "disabled={step === 0 ? !canLeaveTopic : !canLeaveTargets}" in missions
-    assert 'data-testid="custom-mission-create" disabled={creating || !canCreate}' in missions
-
-    assert "const text = (retryText ?? turnText).trim()" in missions
-    assert "if (!text) return" in missions
-    assert "setFailedTurn({ text, mode })" in missions
-    assert "retry-send-bar" in missions
-    assert "Voice transcript did not send." in missions
+    assert "const text = reply.trim()" in missions
+    assert "if (!mission || !text || submitting || completed) return" in missions
     assert "Message did not send." in missions
-    assert "disabled={submitting || transcribing || recording || !turnText.trim() || isClosed}" in missions
-    assert "disabled={completing || !hasInteraction}" in missions
-    assert "Send one reply first" in missions
+    assert "const canSend = reply.trim().length > 0 && !submitting && !completed" in missions
+    assert "disabled={!canSend}" in missions
+    assert "disabled={completing || !interactionReady}" in missions
+    assert "Send first" in missions
+    assert "TranslateButton text={translatePrompt} label=\"Translate frame\"" in missions
+    assert "TranslateButton text={messenger.opening_message}" in missions
+    assert "writeLocalDayProgressFlag('missionDone')" in missions
 
 
 def test_mission_deep_links_preserve_thread_context_and_clear_stale_state() -> None:
     missions = read(WEB / "pages" / "missions.tsx")
 
-    assert "const vocabularyIds = queryNumberList(router.query.vocabulary_id)" in missions
-    assert "const erratumIds = queryStringList(router.query.erratum_id)" in missions
-    assert "setThreadSeedContext(nextThreadSeed)" in missions
-    assert "cadence: atelierSessionId ? 'post_session' : 'ad_hoc'" in missions
-    assert "preferred_concept_ids: conceptIds.length ? conceptIds : undefined" in missions
-    assert "preferred_errata_ids: erratumIds.length ? erratumIds : undefined" in missions
-    assert "preferred_vocabulary_ids: vocabularyIds.length ? vocabularyIds : undefined" in missions
+    assert "function querySeed" in missions
+    assert "conceptIds: queryNumberList(routerQuery.concept_id)" in missions
+    assert "vocabularyIds: queryNumberList(routerQuery.vocabulary_id)" in missions
+    assert "erratumIds: queryStringList(routerQuery.erratum_id)" in missions
+    assert "serialThreadId: firstQuery(routerQuery.serial_thread_id)" in missions
+    assert "cadence: nextSeed.atelierSessionId ? 'post_session' : 'ad_hoc'" in missions
+    assert "preferred_concept_ids: nextSeed.conceptIds.length ? nextSeed.conceptIds : undefined" in missions
+    assert "preferred_errata_ids: nextSeed.erratumIds.length ? nextSeed.erratumIds : undefined" in missions
+    assert "preferred_vocabulary_ids: nextSeed.vocabularyIds.length ? nextSeed.vocabularyIds : undefined" in missions
     assert "router.replace({ pathname: '/missions', query: { mission: next.id } }, undefined, { shallow: true })" in missions
-    assert "setWritingText('')" in missions
-    assert "setTurnText('')" in missions
-    assert "setFailedTurn(null)" in missions
-    assert "setComposerSent(false)" in missions
+    assert "setReply('')" in missions
 
 
 def test_feuilleton_locks_task_sheet_until_scene_and_requires_real_answers() -> None:
@@ -130,6 +124,9 @@ def test_settings_safety_edges_for_account_and_device_actions() -> None:
     assert "await api.getSettings()" in settings
     assert "persistVisualSettings(loadedTheme, loadedFontSize)" in settings
     assert "await api.updateSettings(payload)" in settings
+    assert "settingsLoadError" in settings
+    assert "Reload settings before saving changes." in settings
+    assert "Could not load your saved settings" in settings
     assert "setSaveMessage('Failed to save settings')" in settings
 
     assert "confirm('Are you ABSOLUTELY sure?" in settings

@@ -4,13 +4,13 @@ import { cn } from '@/lib/utils';
 import { Eye, EyeOff } from 'lucide-react';
 
 const inputVariants = cva(
-  'flex w-full rounded-none border-2 border-brutal-black bg-white px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bauhaus-blue focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 shadow-brutal transition-all focus:translate-x-[2px] focus:translate-y-[2px] focus:shadow-none',
+  'flex w-full rounded-none border border-[var(--app-ink)] bg-[var(--app-sheet)] px-3 py-2 text-sm text-[var(--app-ink)] ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-[var(--app-ink-3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-info)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-[background,border-color,color] duration-[var(--dur-fast)] ease-[var(--ease-standard)]',
   {
     variants: {
       variant: {
         default: '',
-        error: 'border-bauhaus-red focus-visible:ring-bauhaus-red',
-        success: 'border-green-600 focus-visible:ring-green-600',
+        error: 'border-[var(--accent-alert)] focus-visible:ring-[var(--accent-alert)]',
+        success: 'border-[var(--accent-info)] focus-visible:ring-[var(--accent-info)]',
       },
       size: {
         default: 'h-12',

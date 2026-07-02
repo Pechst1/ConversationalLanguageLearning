@@ -153,6 +153,7 @@ class MissionTurnResponse(BaseModel):
 class MissionCompleteResponse(BaseModel):
     mission: MissionRead
     recap: MissionRecapRead
+    next_serial: dict[str, Any] | None = None
 
 
 __all__ = [

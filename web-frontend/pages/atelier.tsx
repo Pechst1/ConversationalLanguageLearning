@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { ArrowRight, BookOpen, Check, HelpCircle, Loader2, MapPinned, Mic, RotateCcw, Send, Square } from 'lucide-react';
+import { ArrowRight, BookOpen, Check, HelpCircle, Loader2, MapPinned, Mic, RotateCcw, Send, Square, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import apiService, {
@@ -19,7 +19,9 @@ import apiService, {
 } from '@/services/api';
 import { ConceptMotif } from '@/components/grammar/ConceptMotif';
 import EditorialMasthead from '@/components/layout/EditorialMasthead';
+import PhoneProductNav from '@/components/layout/PhoneProductNav';
 import { ExerciseShell } from '@/components/ui/ExerciseShell';
+import { FeedbackSheet } from '@/components/ui/FeedbackSheet';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Confetti, LogoToken, ReactForm, Seal, sealForEdition, type SealVariant } from '@/components/ui/Seal';
 import {
@@ -31,11 +33,12 @@ import {
   type RecommendedAction,
 } from '@/lib/atelier-next';
 import { pulseAppHaptic } from '@/lib/haptics';
+import { STORY_FEATURE_VISIBLE } from '@/lib/launch-flags';
 import { cn } from '@/lib/utils';
 
 type RoundName = 'recognize' | 'transform' | 'sentence' | 'produce' | 'speak' | 'conversation';
 type RecognizeMode = 'fill' | 'word_bank' | 'classify';
-type RoadmapTarget = RoundName | 'review' | 'mission' | 'library' | 'feuilleton' | 'rest';
+type RoadmapTarget = RoundName | 'vocabulary' | 'review' | 'mission' | 'library' | 'feuilleton' | 'rest';
 type RoadmapAction = {
   label: string;
   onClick: () => void;
@@ -82,8 +85,9 @@ const OUTPUT_LADDER_META: Record<'sentence' | 'speak' | 'conversation', { eyebro
   },
 };
 
-function answerKey(round: RoundName, mode: string, conceptId?: number | null) {
-  return `${round}:${mode}:${conceptId || 'session'}`;
+function answerKey(round: RoundName, mode: string, conceptId?: number | null, itemId?: string | null) {
+  const base = `${round}:${mode}:${conceptId || 'session'}`;
+  return itemId ? `${base}:${itemId}` : base;
 }
 
 // The word-bank meaning cue often arrives as "Express: I was reading…". The task
@@ -149,6 +153,10 @@ function roundUsesSessionScope(round: RoundName) {
   return round === 'produce';
 }
 
+function roundUsesItemScope(round: RoundName) {
+  return round === 'recognize' || round === 'transform';
+}
+
 function roundMode(round: RoundName, mode: RecognizeMode) {
   return round === 'recognize' ? mode : round;
 }
@@ -157,12 +165,115 @@ function isRoundName(value: unknown): value is RoundName {
   return roundLabels.some((item) => item.id === value);
 }
 
-function totalDrills(session: AtelierSessionStart | null) {
-  if (!session) return 0;
-  return session.concepts.length * (recognizeModes.length + 4) + 1;
+type AtelierExerciseSet = AtelierSessionStart['exercise_sets'][number];
+
+function drillItems(payload: Record<string, any> | null, round: RoundName, mode: RecognizeMode): any[] {
+  if (!payload) return [];
+  if (round === 'recognize') return payload.recognize?.[mode]?.items || [];
+  if (round === 'transform') return payload.transform?.items || [];
+  if (round === 'sentence' || round === 'speak' || round === 'conversation') {
+    return payload.output_ladder?.[round]?.items || [{}];
+  }
+  if (round === 'produce') return [payload.produce || {}];
+  return [];
 }
 
-type AtelierExerciseSet = AtelierSessionStart['exercise_sets'][number];
+function safeDrillItemIndex(index: number, items: any[]) {
+  if (!items.length) return 0;
+  return Math.max(0, Math.min(index, items.length - 1));
+}
+
+function itemIdForKey(item: any, index: number) {
+  return String(item?.id || index || '').trim();
+}
+
+function answerValueHasContent(value: unknown): boolean {
+  if (Array.isArray(value)) return value.some((item) => String(item || '').trim());
+  if (typeof value === 'string') return value.trim().length > 0;
+  if (value == null) return false;
+  if (typeof value === 'object') return Object.values(value as Record<string, unknown>).some(answerValueHasContent);
+  return true;
+}
+
+function drillAnswerIsReady(
+  payload: Record<string, any> | null,
+  round: RoundName,
+  mode: RecognizeMode,
+  activeItemIndex: number,
+  currentAnswers: Record<string, any>,
+  produceAnswer = '',
+) {
+  if (round === 'produce') return produceAnswer.trim().length > 0;
+  if (!payload) return false;
+  if (round === 'recognize') {
+    const items = payload.recognize?.[mode]?.items || [];
+    const item = items[safeDrillItemIndex(activeItemIndex, items)] || {};
+    return answerValueHasContent(currentAnswers[item.id]);
+  }
+  if (round === 'transform') {
+    const items = payload.transform?.items || [];
+    const item = items[safeDrillItemIndex(activeItemIndex, items)] || {};
+    return answerValueHasContent(currentAnswers[item.id]);
+  }
+  if (round === 'sentence' || round === 'speak' || round === 'conversation') {
+    return answerValueHasContent(currentAnswers.text);
+  }
+  return false;
+}
+
+function scopedExerciseId(concept: AtelierConcept | null, round: RoundName, mode: RecognizeMode, itemId?: string | null) {
+  const base = round === 'produce'
+    ? 'integrated-writing'
+    : `${concept?.external_id || concept?.id || 'session'}:${round === 'recognize' ? mode : round}`;
+  return itemId && roundUsesItemScope(round) ? `${base}:${itemId}` : base;
+}
+
+function sessionDrillEntries(session: AtelierSessionStart | null) {
+  if (!session) return [];
+  const entries: Array<{ key: string; legacyKey?: string }> = [];
+  const exerciseSetByConcept = new Map(session.exercise_sets.map((set) => [set.concept_id, set.payload]));
+  session.concepts.forEach((concept) => {
+    const payload = exerciseSetByConcept.get(concept.id) || null;
+    recognizeModes.forEach((recognizeMode) => {
+      const legacyKey = answerKey('recognize', recognizeMode.id, concept.id);
+      const items = drillItems(payload, 'recognize', recognizeMode.id);
+      if (!items.length) {
+        entries.push({ key: legacyKey });
+        return;
+      }
+      items.forEach((item, index) => entries.push({
+        key: answerKey('recognize', recognizeMode.id, concept.id, itemIdForKey(item, index)),
+        legacyKey,
+      }));
+    });
+  });
+  session.concepts.forEach((concept) => {
+    const payload = exerciseSetByConcept.get(concept.id) || null;
+    const legacyKey = answerKey('transform', 'transform', concept.id);
+    const items = drillItems(payload, 'transform', 'fill');
+    if (!items.length) {
+      entries.push({ key: legacyKey });
+      return;
+    }
+    items.forEach((item, index) => entries.push({
+      key: answerKey('transform', 'transform', concept.id, itemIdForKey(item, index)),
+      legacyKey,
+    }));
+  });
+  session.concepts.forEach((concept) => entries.push({ key: answerKey('sentence', 'sentence', concept.id) }));
+  entries.push({ key: answerKey('produce', 'produce', null) });
+  session.concepts.forEach((concept) => entries.push({ key: answerKey('speak', 'speak', concept.id) }));
+  session.concepts.forEach((concept) => entries.push({ key: answerKey('conversation', 'conversation', concept.id) }));
+  return entries;
+}
+
+function totalDrills(session: AtelierSessionStart | null) {
+  return sessionDrillEntries(session).length;
+}
+
+function submittedDrills(session: AtelierSessionStart | null, submitted: Record<string, boolean>) {
+  return sessionDrillEntries(session).filter((entry) => submitted[entry.key] || Boolean(entry.legacyKey && submitted[entry.legacyKey])).length;
+}
 
 function asPositiveCount(value: any, fallback = 1) {
   const numeric = Number(value);
@@ -259,6 +370,7 @@ export default function AtelierPage() {
   const [today, setToday] = useState<AtelierToday | null>(null);
   const [session, setSession] = useState<AtelierSessionStart | null>(null);
   const [activeConceptIndex, setActiveConceptIndex] = useState(0);
+  const [activeItemIndex, setActiveItemIndex] = useState(0);
   const [round, setRound] = useState<RoundName>('recognize');
   const [mode, setMode] = useState<RecognizeMode>('fill');
   const [answers, setAnswers] = useState<Record<string, Record<string, any>>>({});
@@ -279,6 +391,7 @@ export default function AtelierPage() {
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [vocabularyDue, setVocabularyDue] = useState(0);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [activeSessionReady, setActiveSessionReady] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [serialWelcomeDismissed, setSerialWelcomeDismissed] = useState(false);
   const [rewardMoment, setRewardMoment] = useState<RewardMoment | null>(null);
@@ -293,19 +406,22 @@ export default function AtelierPage() {
     const restoredErrata: AtelierErratum[] = [];
 
     (next.attempts || []).forEach((attempt: AtelierAttemptRead) => {
-      const key = attempt.submitted_key || answerKey(attempt.round, attempt.round === 'recognize' ? attempt.mode : attempt.round, attempt.concept_id);
+      const fallbackKey = attempt.submitted_key || answerKey(attempt.round, attempt.round === 'recognize' ? attempt.mode : attempt.round, attempt.concept_id);
+      const keys = Array.isArray(attempt.submitted_keys) && attempt.submitted_keys.length ? attempt.submitted_keys : [fallbackKey];
       const correction = correctionWithAiReview(attempt);
-      restoredSubmitted[key] = true;
-      restoredCorrections[key] = correction;
-      restoredAttemptIds[key] = attempt.attempt_id;
-      if (['sentence', 'produce', 'speak', 'conversation'].includes(attempt.round)) {
-        restoredAnswers[key] = { text: attempt.answer_payload?.text || '' };
-      } else {
-        restoredAnswers[key] = { ...(attempt.answer_payload?.answers || {}) };
-      }
+      keys.forEach((key) => {
+        restoredSubmitted[key] = true;
+        restoredCorrections[key] = correction;
+        restoredAttemptIds[key] = attempt.attempt_id;
+        if (['sentence', 'produce', 'speak', 'conversation'].includes(attempt.round)) {
+          restoredAnswers[key] = { text: attempt.answer_payload?.text || '' };
+        } else {
+          restoredAnswers[key] = { ...(attempt.answer_payload?.answers || {}) };
+        }
+      });
       errataForAttempt(correction, attempt.attempt_id).forEach((item: AtelierErratum) => restoredErrata.unshift(item));
       if (aiReviewStatus(correction) === 'pending') {
-        scheduleAiReviewPollingRef.current(attempt.attempt_id, key);
+        scheduleAiReviewPollingRef.current(attempt.attempt_id, keys[0]);
       }
     });
 
@@ -324,6 +440,7 @@ export default function AtelierPage() {
     setRecentCorrection((next.attempts || []).slice(-1)[0] ? correctionWithAiReview((next.attempts || []).slice(-1)[0]) : null);
     setRecap(next.status === 'completed' && next.recap ? next.recap : null);
     setActiveConceptIndex(Math.max(0, Math.min(conceptIndex, next.concepts.length - 1)));
+    setActiveItemIndex(Math.max(0, Number(position.item_index || 0)));
     setRound(nextRound as RoundName);
     setMode(recognizeModes.some((item) => item.id === position.mode) ? position.mode as RecognizeMode : 'fill');
     if (openSession) {
@@ -335,13 +452,34 @@ export default function AtelierPage() {
     scheduleAiReviewPollingRef.current = scheduleAiReviewPolling;
   });
 
+  const loadActiveSession = useCallback(async (alive: () => boolean) => {
+    try {
+      const active = await apiService.getActiveAtelierSession();
+      if (!alive()) return;
+      if (active.session) {
+        hydrateSession(active.session);
+      } else {
+        setSession(null);
+      }
+      setActiveSessionReady(true);
+      return true;
+    } catch (error) {
+      console.error(error);
+      if (alive()) {
+        setActiveSessionReady(false);
+        setLoadError('Atelier could not confirm your active session. Retry before starting a new session so your current work stays intact.');
+      }
+      return false;
+    }
+  }, [hydrateSession]);
+
   useEffect(() => {
     let alive = true;
     setLoading(true);
     setLoadError(null);
+    setActiveSessionReady(false);
     Promise.all([
       apiService.getAtelierToday(),
-      apiService.getActiveAtelierSession(),
       apiService.getVocabularyDueContext({
         limit: 1,
         due_limit: 1,
@@ -351,16 +489,12 @@ export default function AtelierPage() {
         linked_limit: 0,
         direction: 'fr_to_de',
       }).catch(() => null),
+      loadActiveSession(() => alive),
     ])
-      .then(([todayData, active, vocabularyContext]) => {
+      .then(([todayData, vocabularyContext]) => {
         if (!alive) return;
         setToday(todayData);
         setVocabularyDue(Number(vocabularyContext?.summary?.due || 0));
-        if (active.session) {
-          hydrateSession(active.session);
-        } else {
-          setSession(null);
-        }
       })
       .catch((error) => {
         console.error(error);
@@ -373,7 +507,7 @@ export default function AtelierPage() {
     return () => {
       alive = false;
     };
-  }, [hydrateSession, reloadKey]);
+  }, [loadActiveSession, reloadKey]);
 
   useEffect(() => {
     return () => {
@@ -393,9 +527,15 @@ export default function AtelierPage() {
     if (!session || !activeConcept) return null;
     return session.exercise_sets.find((set) => set.concept_id === activeConcept.id)?.payload || null;
   }, [session, activeConcept]);
+  const activeItems = useMemo(() => drillItems(activeSet, round, mode), [activeSet, round, mode]);
+  const activeItemIndexSafe = safeDrillItemIndex(activeItemIndex, activeItems);
+  const activeItem = activeItems[activeItemIndexSafe] || null;
+  const activeItemId = roundUsesItemScope(round) ? itemIdForKey(activeItem, activeItemIndexSafe) || null : null;
   const scopedMode = roundMode(round, mode);
-  const scopedKey = answerKey(round, scopedMode, roundUsesSessionScope(round) ? null : activeConcept?.id);
+  const scopedKey = answerKey(round, scopedMode, roundUsesSessionScope(round) ? null : activeConcept?.id, activeItemId);
   const currentAnswers = answers[scopedKey] || {};
+  const produceAnswer = answers[answerKey('produce', 'produce', null)]?.text || '';
+  const currentAttemptReady = drillAnswerIsReady(activeSet, round, mode, activeItemIndexSafe, currentAnswers, produceAnswer);
   const dayProgress = useMemo(
     () => buildDayProgress({
       today,
@@ -408,6 +548,12 @@ export default function AtelierPage() {
     () => resolveRecommendedNext(today, session, dayProgress),
     [today, session, dayProgress],
   );
+
+  useEffect(() => {
+    if (activeItemIndex !== activeItemIndexSafe) {
+      setActiveItemIndex(activeItemIndexSafe);
+    }
+  }, [activeItemIndex, activeItemIndexSafe]);
 
   function applyAttemptResult(key: string, result: AtelierAttemptResult, replaceErrata = false, schedulePending = true) {
     const correction = correctionWithAiReview(result);
@@ -474,9 +620,7 @@ export default function AtelierPage() {
   const reportCurrentExercise = async () => {
     if (!session) return;
     const reportMode = round === 'recognize' ? mode : round === 'transform' ? 'transform' : round;
-    const exerciseId = round === 'produce'
-      ? 'integrated-writing'
-      : `${activeConcept?.external_id || activeConcept?.id || 'session'}:${reportMode}`;
+    const exerciseId = scopedExerciseId(activeConcept, round, mode, activeItemId);
     const exerciseSet = activeConcept
       ? session.exercise_sets.find((set) => set.concept_id === activeConcept.id)
       : null;
@@ -488,6 +632,7 @@ export default function AtelierPage() {
         round,
         mode: reportMode,
         exercise_id: exerciseId,
+        item_id: activeItemId,
         reason: 'Learner flagged this drill from the feedback sheet.',
       });
       toast.success('Exercise reported.');
@@ -502,9 +647,10 @@ export default function AtelierPage() {
     value: any,
     scopedRound: RoundName = round,
     scopedModeValue: string = roundMode(round, mode),
-    conceptId: number | null | undefined = roundUsesSessionScope(round) ? null : activeConcept?.id
+    conceptId: number | null | undefined = roundUsesSessionScope(round) ? null : activeConcept?.id,
+    itemId: string | null | undefined = roundUsesItemScope(scopedRound) ? activeItemId : null,
   ) => {
-    const keyScope = answerKey(scopedRound, scopedModeValue, conceptId);
+    const keyScope = answerKey(scopedRound, scopedModeValue, conceptId, itemId);
     setAnswers((prev) => ({
       ...prev,
       [keyScope]: {
@@ -515,12 +661,17 @@ export default function AtelierPage() {
   };
 
   const startSession = async () => {
+    if (!activeSessionReady) {
+      setLoadError('Atelier could not confirm your active session. Retry before starting a new session so your current work stays intact.');
+      return;
+    }
     setSubmitting(true);
     try {
       const conceptId = Number(router.query.concept_id);
       const next = await apiService.startAtelierSession(
         Number.isFinite(conceptId) ? { preferred_concept_id: conceptId } : undefined
       );
+      setActiveSessionReady(true);
       hydrateSession(next, true);
     } catch (error) {
       console.error(error);
@@ -536,27 +687,33 @@ export default function AtelierPage() {
       toast('This drill is already submitted.');
       return;
     }
+    if (!currentAttemptReady) {
+      toast('Add an answer before checking.');
+      return;
+    }
     setSubmitting(true);
     try {
       let result: AtelierAttemptResult;
       const attemptKey = scopedKey;
       const resubmit = !!resubmitKeys[attemptKey];
       if (round === 'recognize') {
+        const itemAnswers = activeItemId ? { [activeItemId]: currentAnswers[activeItemId] ?? '' } : currentAnswers;
         result = await apiService.submitAtelierAttempt(session.session_id, {
           concept_id: activeConcept?.id,
           round,
           mode,
-          exercise_id: `${activeConcept?.external_id || activeConcept?.id}:${mode}`,
-          answer_payload: { answers: currentAnswers },
+          exercise_id: scopedExerciseId(activeConcept, round, mode, activeItemId),
+          answer_payload: { answers: itemAnswers },
           resubmit,
         });
       } else if (round === 'transform') {
+        const itemAnswers = activeItemId ? { [activeItemId]: currentAnswers[activeItemId] ?? '' } : currentAnswers;
         result = await apiService.submitAtelierAttempt(session.session_id, {
           concept_id: activeConcept?.id,
           round,
           mode: 'rewrite',
-          exercise_id: `${activeConcept?.external_id || activeConcept?.id}:transform`,
-          answer_payload: { answers: currentAnswers },
+          exercise_id: scopedExerciseId(activeConcept, round, mode, activeItemId),
+          answer_payload: { answers: itemAnswers },
           resubmit,
         });
       } else if (round === 'sentence' || round === 'speak' || round === 'conversation') {
@@ -589,7 +746,6 @@ export default function AtelierPage() {
         toast.success('Logo token earned.');
       } else {
         pulseAtelierHaptic(result.verdict === 'correct' ? 'correct' : 'repair');
-        toast.success(result.verdict === 'correct' ? 'Correct' : 'Submitted');
       }
     } catch (error) {
       console.error(error);
@@ -613,6 +769,24 @@ export default function AtelierPage() {
       const recapPayload = { ...result.recap, session_id: result.session_id, minted_collectibles: result.minted_collectibles || [] };
       setRecap(recapPayload);
       setSession((prev) => prev ? { ...prev, status: 'completed', recap: recapPayload } : prev);
+      try {
+        const [todayData, vocabularyContext] = await Promise.all([
+          apiService.getAtelierToday(),
+          apiService.getVocabularyDueContext({
+            limit: 1,
+            due_limit: 1,
+            fragile_limit: 0,
+            new_limit: 0,
+            topic_limit: 0,
+            linked_limit: 0,
+            direction: 'fr_to_de',
+          }).catch(() => null),
+        ]);
+        setToday(todayData);
+        setVocabularyDue(Number(vocabularyContext?.summary?.due || 0));
+      } catch (refreshError) {
+        console.error(refreshError);
+      }
       const mintedGiltSeal = firstMintedCollectible(result.minted_collectibles, 'gilt_seal');
       if (mintedGiltSeal) {
         setRewardMoment({ id: `${mintedGiltSeal.id}:${Date.now()}`, kind: 'gilt_seal', collectible: mintedGiltSeal });
@@ -706,11 +880,16 @@ export default function AtelierPage() {
         if (nextRound === 'recognize' && recognizeModes.some((item) => item.id === action.mode)) {
           setMode(action.mode as RecognizeMode);
         }
+        setActiveItemIndex(Math.max(0, Number(action.itemIndex ?? 0)));
       }
       setView('session');
       return;
     }
     if (action.kind === 'start_session') {
+      if (!activeSessionReady) {
+        setLoadError('Atelier could not confirm your active session. Retry before starting a new session so your current work stays intact.');
+        return;
+      }
       void startSession();
       return;
     }
@@ -723,6 +902,7 @@ export default function AtelierPage() {
       return;
     }
     if (action.kind === 'library') {
+      if (!STORY_FEATURE_VISIBLE) return;
       void router.push(action.href);
       return;
     }
@@ -737,60 +917,79 @@ export default function AtelierPage() {
 
   const goNext = () => {
     if (!session) return;
+    if (roundUsesItemScope(round) && activeItemIndexSafe < Math.max(activeItems.length - 1, 0)) {
+      setActiveItemIndex(activeItemIndexSafe + 1);
+      return;
+    }
     if (round === 'recognize') {
       const modeIndex = recognizeModes.findIndex((item) => item.id === mode);
       if (modeIndex < recognizeModes.length - 1) {
         setMode(recognizeModes[modeIndex + 1].id);
+        setActiveItemIndex(0);
         return;
       }
       if (activeConceptIndex < session.concepts.length - 1) {
         setActiveConceptIndex(activeConceptIndex + 1);
         setMode('fill');
+        setActiveItemIndex(0);
         return;
       }
       setRound('transform');
       setActiveConceptIndex(0);
+      setActiveItemIndex(0);
       return;
     }
     if (round === 'transform') {
       if (activeConceptIndex < session.concepts.length - 1) {
         setActiveConceptIndex(activeConceptIndex + 1);
+        setActiveItemIndex(0);
         return;
       }
       setRound('sentence');
       setActiveConceptIndex(0);
+      setActiveItemIndex(0);
       return;
     }
     if (round === 'sentence') {
       if (activeConceptIndex < session.concepts.length - 1) {
         setActiveConceptIndex(activeConceptIndex + 1);
+        setActiveItemIndex(0);
         return;
       }
       setRound('produce');
       setActiveConceptIndex(0);
+      setActiveItemIndex(0);
       return;
     }
     if (round === 'produce') {
       setRound('speak');
       setActiveConceptIndex(0);
+      setActiveItemIndex(0);
       return;
     }
     if (round === 'speak') {
       if (activeConceptIndex < session.concepts.length - 1) {
         setActiveConceptIndex(activeConceptIndex + 1);
+        setActiveItemIndex(0);
         return;
       }
       setRound('conversation');
       setActiveConceptIndex(0);
+      setActiveItemIndex(0);
       return;
     }
     if (round === 'conversation' && activeConceptIndex < session.concepts.length - 1) {
       setActiveConceptIndex(activeConceptIndex + 1);
+      setActiveItemIndex(0);
     }
   };
 
-  const completedDrills = Object.values(submitted).filter(Boolean).length;
-  const showSerialWelcome = !loading && !serialWelcomeDismissed && today?.onboarding?.serial_seen === false;
+  const completedDrills = submittedDrills(session, submitted);
+  const showSerialWelcome = !loading
+    && !serialWelcomeDismissed
+    && today?.onboarding?.serial_seen === false
+    && !session
+    && dayProgress.sessionStatus === 'none';
   const dismissSerialWelcome = async () => {
     setSerialWelcomeDismissed(true);
     try {
@@ -821,24 +1020,26 @@ export default function AtelierPage() {
           <TodayView
             today={today}
             activeSession={session}
-            onContinue={() => setView('session')}
-            onStart={startSession}
             dayProgress={dayProgress}
             recommendation={recommendation}
             onRecommendedAction={handleRecommendedAction}
             onOpenReview={() => openRecommendedReview()}
             loading={submitting}
             loadError={loadError}
+            activeSessionReady={activeSessionReady}
             onRetry={() => setReloadKey((key) => key + 1)}
           />
         ) : (
           <SessionView
             session={session}
             activeConceptIndex={activeConceptIndex}
+            activeItemIndex={activeItemIndexSafe}
+            activeItemCount={Math.max(activeItems.length, 1)}
             round={round}
             mode={mode}
             activeSet={activeSet}
             activeConcept={activeConcept}
+            activeItemId={activeItemId}
             currentAnswers={currentAnswers}
             updateAnswer={updateAnswer}
             submitAttempt={submitAttempt}
@@ -853,7 +1054,7 @@ export default function AtelierPage() {
             aiReviewSubmitting={!!aiReviewSubmitting[scopedKey]}
             completedDrills={completedDrills}
             onBack={() => setView('today')}
-            produceAnswer={answers[answerKey('produce', 'produce', null)]?.text || ''}
+            produceAnswer={produceAnswer}
           />
         )}
         {recap && (
@@ -1023,54 +1224,54 @@ function SerialWelcomeModal({ onClose }: { onClose: () => void }) {
 function TodayView({
   today,
   activeSession,
-  onContinue,
-  onStart,
   dayProgress,
   recommendation,
   onRecommendedAction,
   onOpenReview,
   loading,
   loadError,
+  activeSessionReady,
   onRetry,
 }: {
   today: AtelierToday | null;
   activeSession: AtelierSessionStart | null;
-  onContinue: () => void;
-  onStart: () => void;
   dayProgress: DayProgress;
   recommendation: RecommendedAction;
   onRecommendedAction: (action?: RecommendedAction) => void;
   onOpenReview: () => void;
   loading: boolean;
   loadError: string | null;
+  activeSessionReady: boolean;
   onRetry: () => void;
 }) {
   const hasActiveSession = dayProgress.sessionStatus === 'active';
   const concepts = activeSession?.concepts?.length ? activeSession.concepts : today?.concepts || [];
   const dueErrata = dayProgress.errataDue || roadmapErrataCount(today, activeSession);
   const grammarTopics = concepts.slice(0, 3).map(displayConceptTitle);
-  const canStart = hasActiveSession || concepts.length > 0;
+  const canStart = activeSessionReady && (hasActiveSession || concepts.length > 0);
   const recommendedTarget = recommendedRoadmapTarget(recommendation);
   const primaryAction = roadmapPrimaryAction(recommendation, loading, canStart, () => onRecommendedAction(recommendation));
+  const parcoursAction = primaryAction
+    ? { ...primaryAction, label: parcoursPrimaryLabel(recommendation, primaryAction.label) }
+    : null;
   const reviewTotal = recommendation.kind === 'review'
     ? recommendation.errataDue + recommendation.vocabularyDue
     : dayProgress.errataDue + dayProgress.vocabularyDue;
-  const reviewKindCount = [dayProgress.errataDue, dayProgress.vocabularyDue].filter((count) => count > 0).length;
+  const vocabularyReviewDue = Math.max(0, Number(dayProgress.vocabularyDue || 0));
+  const repairDue = Math.max(0, Number(dayProgress.errataDue || 0));
+  const vocabularyIsNext = recommendedTarget === 'review' && vocabularyReviewDue > 0;
+  const repairIsNext = recommendedTarget === 'review' && vocabularyReviewDue === 0 && repairDue > 0;
   const serialAction = serialActionFromToday(today, activeSession);
   const serialEpisode = (today as any)?.serial_episode || (today as any)?.serial || null;
-  const libraryEpisode = (today as any)?.library_episode || null;
-  const libraryHref = recommendation.kind === 'library'
-    ? recommendation.href
-    : libraryEpisode?.href || (libraryEpisode?.book_id ? `/notebook?mode=library&book=${libraryEpisode.book_id}&episode=${libraryEpisode.episode_index ?? libraryEpisode.order_index ?? 0}` : '/notebook?mode=library');
+  const libraryEpisode = STORY_FEATURE_VISIBLE ? (today as any)?.library_episode || null : null;
+  const libraryHref = STORY_FEATURE_VISIBLE
+    ? recommendation.kind === 'library'
+      ? recommendation.href
+      : libraryEpisode?.href || (libraryEpisode?.book_id ? `/notebook?mode=library&book=${libraryEpisode.book_id}&episode=${libraryEpisode.episode_index ?? libraryEpisode.order_index ?? 0}` : '/notebook?mode=library')
+    : '/notebook';
   const serialKind = serialAction?.episodeKind
     || (recommendation.kind === 'serial' ? recommendation.episodeKind : 'feuilleton');
-  const serialHref = serialAction
-    ? `/${serialAction.episodeKind === 'mission' ? 'missions' : 'graphic-novel'}${serialAction.query}`
-    : recommendation.kind === 'serial'
-      ? `/${recommendation.episodeKind === 'mission' ? 'missions' : 'graphic-novel'}${recommendation.query}`
-      : recommendation.kind === 'feuilleton'
-        ? `/graphic-novel${recommendation.query}`
-        : `/graphic-novel${dayQueryString(activeSession, today)}`;
+  const storyHref = parcoursStoryHref(serialAction, recommendation, serialEpisode);
   const serialDone = serialKind === 'mission' ? dayProgress.missionDone : dayProgress.feuilletonDone;
   const serialInvited = !serialAction && recommendation.kind !== 'serial' && !serialDone;
   const serialCopy = serialThreadCopy({
@@ -1081,12 +1282,6 @@ function TodayView({
     status: serialEpisode?.status,
     hookText: serialEpisode?.hook?.teaser || serialEpisode?.hook?.text || serialEpisode?.previously,
   });
-  const serialHeader = serialOnRampHeader(serialOnRampVariant({
-    kind: serialKind,
-    invited: serialInvited,
-    done: serialDone,
-    status: serialEpisode?.status,
-  }), serialCopy);
   const sessionComplete = dayProgress.sessionStatus === 'completed';
   const positionRound = activeSession?.current_position?.round;
   const activeRound = recommendation.kind === 'resume_session' && isRoundName(recommendation.round)
@@ -1114,12 +1309,34 @@ function TodayView({
         ? grammarTopics
         : ['Session not ready']
     : ['Session not ready'];
+  const dateKicker = `${editionDate.toUpperCase()} · TODAY'S EDITION`;
+  const episodeLine = parcoursEpisodeLine(today, serialAction || recommendation);
+  const storyReady = Boolean(storyHref);
+  const storyRubric = serialKind === 'mission'
+    ? storyReady ? 'La mission · à toi' : 'La mission · bientôt'
+    : storyReady ? 'Le feuilleton · à toi' : recommendation.kind === 'feuilleton' ? 'Le feuilleton · à créer' : 'Le feuilleton · bientôt';
+  const storyTeaser = storyReady
+    ? parcoursStoryTeaser(serialEpisode, serialCopy.title)
+    : recommendation.kind === 'feuilleton'
+      ? 'Générer l’édition du jour.'
+      : 'Une scène suivra la séance.';
+  const storyCharacter = storyReady
+    ? parcoursStoryCharacter(serialEpisode, serialKind)
+    : { name: 'Atelier', initial: 'A' };
+  const storyStatus = storyReady
+    ? 'Ready'
+    : recommendation.kind === 'feuilleton'
+      ? 'Use Continue to create it'
+      : 'Unlocked by today’s path';
+  const previousFocus = parcoursPreviousFocus(today);
+  const upcomingFocus = parcoursUpcomingFocus(today);
   const nodes: RoadmapNode[] = [
     { id: 'grammar', label: currentPanelLabel, target: activeRound },
+    { id: 'vocabulary', label: 'Vocabulary training', target: 'vocabulary', href: '/vocabulary/review' },
     { id: 'review', label: 'Review', target: 'review' },
-    { id: 'living-thread', label: 'Living thread', target: serialKind, href: serialHref },
+    { id: 'living-thread', label: 'Living thread', target: serialKind, href: storyHref || undefined },
   ];
-  if (libraryEpisode) {
+  if (STORY_FEATURE_VISIBLE && libraryEpisode) {
     nodes.push({ id: 'library', label: 'Library', target: 'library', href: libraryHref });
   }
 
@@ -1133,88 +1350,46 @@ function TodayView({
 
   return (
     <main className="atelier-edition-stage">
-      <section className={`ph ${recommendation.kind === 'rest' ? 'is-rest' : ''}`} aria-label="Atelier roadmap">
-        <AtelierEditionHead title="Atelier" />
-        <div className={`ph-body ${recommendation.kind === 'rest' ? 'center' : ''}`}>
+      <section className={`ph parcours ${recommendation.kind === 'rest' ? 'is-rest' : ''}`} aria-label="Atelier roadmap">
+        <AtelierEditionHead title="Atelier" rightSlot={<AtelierDayBadge day={streak} />} />
+        <div className={`ph-body parcours-body ${recommendation.kind === 'rest' ? 'center' : ''}`}>
           {loadError && <AtelierLoadNotice message={loadError} onRetry={onRetry} />}
 
           {recommendation.kind === 'rest' ? (
-            <>
-              <AtelierEditionHeader
-                rubric="Edition closed"
-                rubricMuted
-                date={editionDate}
-                sub={`Day ${streak} · unbroken`}
-                streak={streak}
-              />
-              <AtelierEditionClosed
-                reviewTotal={reviewTotal}
-                datestamp={formatAtelierDatestamp()}
-              />
-            </>
+            <AtelierParcoursCaughtUp
+              dateKicker={dateKicker}
+              episodeLine={episodeLine}
+              serialHref={storyHref}
+              reviewTotal={reviewTotal}
+              datestamp={formatAtelierDatestamp()}
+            />
           ) : (
             <>
-              <AtelierEditionHeader
-                rubric={serialHeader.rubric}
-                date={editionDate}
-                sub={serialHeader.sub}
-                streak={streak}
+              <AtelierParcoursMap
+                dateKicker={dateKicker}
+                episodeLine={episodeLine}
+                previousDayLabel={previousFocus.dayLabel}
+                previousTopic={previousFocus.topic}
+                previousComplete={previousFocus.complete}
+                tomorrowDayLabel={upcomingFocus.dayLabel}
+                tomorrowTopic={upcomingFocus.topic}
+                tomorrowHref={upcomingFocus.href}
+                storyRubric={storyRubric}
+                storyTeaser={storyTeaser}
+                storyCharacter={storyCharacter}
+                storyHref={storyHref}
+                storyStatus={storyStatus}
+                cta={parcoursAction}
+                disabled={loading || (recommendation.kind === 'start_session' && !canStart)}
+                reviewDue={repairDue + vocabularyReviewDue}
+                onOpenReview={onOpenReview}
               />
-              <div className="edition-serial">
-                <SerialThreadCard
-                  kind={serialKind}
-                  href={serialHref}
-                  episodeLabel={serialEpisodeLabel(serialAction || recommendation)}
-                  status={serialEpisode?.status}
-                  hookText={serialEpisode?.hook?.teaser || serialEpisode?.hook?.text || serialEpisode?.previously}
-                  invited={serialInvited}
-                  recommended={recommendedTarget === serialKind}
-                  done={serialDone}
-                />
-              </div>
 
-              <section className="also-today" aria-label="Also in today's edition">
-                <div className="also-label">Also in today&apos;s edition</div>
-                <button
-                  className="also-card"
-                  type="button"
-                  disabled={loading || !canStart}
-                  onClick={hasActiveSession ? onContinue : onStart}
-                >
-                  <span className="s-ava sm also-mark" data-char="toi">VI</span>
-                  <span className="also-copy">
-                    <span className="also-title">Grammar session</span>
-                    <span className="also-meta">{signatureSub}</span>
-                  </span>
-                  <span className="also-arrow"><SerialArrowIcon /></span>
-                </button>
-                {reviewTotal > 0 && (
-                  <button className="also-card review" type="button" onClick={onOpenReview}>
-                    <span className="review-dot" aria-hidden="true" />
-                    <span className="also-copy">
-                      <span className="also-title">Repair queue</span>
-                      <span className="also-meta">{reviewTotal} item{reviewTotal === 1 ? '' : 's'} to revisit</span>
-                    </span>
-                    <span className="also-arrow"><SerialArrowIcon /></span>
-                  </button>
-                )}
-                {libraryEpisode && (
-                  <LibraryThreadCard
-                    href={libraryHref}
-                    bookTitle={libraryEpisode.book_title || 'Your book'}
-                    episodeTitle={libraryEpisode.title || `Episode ${(libraryEpisode.episode_index ?? libraryEpisode.order_index ?? 0) + 1}`}
-                    episodeIndex={Number(libraryEpisode.episode_index ?? libraryEpisode.order_index ?? 0)}
-                    totalEpisodes={Number(libraryEpisode.total_episodes ?? 0)}
-                    readingMinutes={Number(libraryEpisode.est_reading_minutes ?? 4)}
-                    recommended={recommendedTarget === 'library'}
-                  />
-                )}
-              </section>
-
-              <details className="today-plan">
-                <summary>Today&apos;s plan</summary>
+              <details className="today-plan parcours-plan">
+                <summary>Today&apos;s plan · {reviewTotal} due</summary>
                 <div className="today-plan-body">
                   <div className="plan-note">
+                    <span>{nodes.length} connected stops</span>
                     <span>{signatureSub}</span>
                     <span>{timeLine}</span>
                   </div>
@@ -1249,22 +1424,37 @@ function TodayView({
                         </AtelierEditionStep>
                       );
                     })}
+                    {vocabularyReviewDue > 0 && (
+                      <AtelierEditionStep
+                        roman="VOC"
+                        name="Vocabulary training"
+                        meta={withNodeMinutes(`${vocabularyReviewDue} due · French 5000`, dayProgress, 'vocabulary')}
+                        state={vocabularyIsNext ? 'current' : 'up'}
+                        vocabulary
+                        badge={!vocabularyIsNext ? String(vocabularyReviewDue) : undefined}
+                        metaGo={vocabularyIsNext}
+                      >
+                        {vocabularyIsNext && (
+                          <AtelierVocabularyOpen vocabularyDue={vocabularyReviewDue} />
+                        )}
+                      </AtelierEditionStep>
+                    )}
                     <AtelierEditionStep
                       roman="R"
-                      name="Review"
-                      meta={withNodeMinutes(reviewTotal > 0
-                        ? `${reviewTotal} to review${recommendedTarget === 'review' && reviewKindCount > 1 ? ` · ${reviewKindCount} kinds` : ''}`
+                      name="Repair queue"
+                      meta={withNodeMinutes(repairDue > 0
+                        ? `${repairDue} grammar repair${repairDue === 1 ? '' : 's'}`
                         : 'Queue clear', dayProgress, 'review')}
-                      state={recommendedTarget === 'review' ? 'current' : reviewTotal > 0 ? 'up' : 'done'}
+                      state={repairIsNext ? 'current' : repairDue > 0 ? 'up' : 'done'}
                       review
-                      badge={recommendedTarget !== 'review' && reviewTotal > 0 ? String(reviewTotal) : undefined}
-                      metaGo={recommendedTarget === 'review'}
+                      badge={!repairIsNext && repairDue > 0 ? String(repairDue) : undefined}
+                      metaGo={repairIsNext}
                       last
                     >
-                      {recommendedTarget === 'review' && (
+                      {repairIsNext && (
                         <AtelierReviewOpen
-                          errataDue={dayProgress.errataDue}
-                          vocabularyDue={dayProgress.vocabularyDue}
+                          errataDue={repairDue}
+                          vocabularyDue={0}
                           onOpenReview={onOpenReview}
                         />
                       )}
@@ -1285,6 +1475,7 @@ function recommendedRoadmapTarget(action: RecommendedAction): RoadmapTarget {
   if (action.kind === 'start_session') return 'recognize';
   if (action.kind === 'resume_session') return isRoundName(action.round) ? action.round : 'recognize';
   if (action.kind === 'serial') return action.episodeKind;
+  if (action.kind === 'library') return STORY_FEATURE_VISIBLE ? 'library' : 'rest';
   return action.kind;
 }
 
@@ -1306,9 +1497,225 @@ function roadmapPrimaryAction(
     return { label: total > 0 ? 'Review' : 'Continue', onClick };
   }
   if (action.kind === 'mission') return { label: 'Act in French', onClick };
-  if (action.kind === 'library') return { label: 'Continue book', onClick };
+  if (action.kind === 'library') return STORY_FEATURE_VISIBLE ? { label: 'Continue book', onClick } : null;
   if (action.kind === 'serial') return { label: action.episodeKind === 'mission' ? 'Reply' : 'Read scene', onClick };
   return { label: 'Read scene', onClick };
+}
+
+function parcoursPrimaryLabel(action: RecommendedAction, fallback: string) {
+  if (action.kind === 'start_session') return fallback;
+  if (action.kind === 'rest') return 'Open notebook';
+  return 'Continue';
+}
+
+function firstNonEmptyString(...values: unknown[]) {
+  for (const value of values) {
+    const text = String(value || '').trim();
+    if (text) return text;
+  }
+  return '';
+}
+
+function stringFromQueryIndex(query: string) {
+  const params = new URLSearchParams(query.replace(/^\?/, ''));
+  const value = Number(params.get('episode_index'));
+  return Number.isFinite(value) ? value : null;
+}
+
+function parcoursEpisodeLine(today: AtelierToday | null, action: RecommendedAction) {
+  const serialEpisode = (today as any)?.serial_episode || (today as any)?.serial || null;
+  const explicit = firstNonEmptyString(serialEpisode?.episode_label, serialEpisode?.label);
+  if (/épisode|episode/i.test(explicit)) return explicit.replace(/^episode/i, 'Épisode');
+
+  const actionIndex = action.kind === 'serial' ? stringFromQueryIndex(action.query) : null;
+  const rawIndex = serialEpisode?.episode_index ?? serialEpisode?.order_index ?? serialEpisode?.index ?? actionIndex;
+  const index = rawIndex == null ? Number.NaN : Number(rawIndex);
+  const episodeNumber = Number.isFinite(index) ? Math.max(1, Math.round(index) + 1) : 4;
+  const title = firstNonEmptyString(
+    serialEpisode?.title,
+    serialEpisode?.episode_title,
+    serialEpisode?.hook?.title,
+    serialEpisode?.brief?.title,
+    episodeNumber === 1 ? "L’arrivée" : "L’inspection",
+  );
+  return `Épisode ${episodeNumber} · ${title}`;
+}
+
+function stripDisplayQuotes(value: string) {
+  return value
+    .replace(/^\s*[«"“]+/, '')
+    .replace(/[»"”]+\s*$/, '')
+    .trim();
+}
+
+function parcoursStoryTeaser(serialEpisode: Record<string, any> | null, fallback: string) {
+  const raw = firstNonEmptyString(
+    serialEpisode?.hook?.teaser,
+    serialEpisode?.hook?.text,
+    serialEpisode?.previously,
+    serialEpisode?.beat,
+  );
+  const genericFallback = /continue the serial|the world is waiting|new episode ready|the script is ready/i.test(fallback);
+  return stripDisplayQuotes(raw || (genericFallback ? 'Romy ne répond plus.' : fallback));
+}
+
+function parcoursStoryCharacter(serialEpisode: Record<string, any> | null, kind: 'mission' | 'feuilleton') {
+  const name = firstNonEmptyString(
+    serialEpisode?.character?.name,
+    serialEpisode?.character_name,
+    serialEpisode?.npc_name,
+    serialEpisode?.speaker_name,
+    serialEpisode?.speaker,
+    kind === 'mission' ? 'Monsieur Marchand' : 'Romy Tremblay',
+  );
+  return {
+    name,
+    initial: name.replace(/^monsieur\s+/i, '').trim().charAt(0).toUpperCase() || 'R',
+  };
+}
+
+function isRecordValue(value: unknown): value is Record<string, any> {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value));
+}
+
+function queryHasAnyParam(query: string, names: string[]) {
+  const params = new URLSearchParams(query.replace(/^\?/, ''));
+  return names.some((name) => Boolean(params.get(name)));
+}
+
+function parcoursStoryHref(
+  serialAction: Extract<RecommendedAction, { kind: 'serial' }> | null,
+  recommendation: RecommendedAction,
+  serialEpisode: Record<string, any> | null,
+) {
+  const episodeKind = serialAction?.episodeKind || (recommendation.kind === 'serial' ? recommendation.episodeKind : null);
+  const query = serialAction?.query || (recommendation.kind === 'serial' ? recommendation.query : '');
+  if (!episodeKind || !query) return null;
+
+  if (episodeKind === 'mission') {
+    return queryHasAnyParam(query, ['mission', 'mission_id']) || serialEpisode?.mission_id
+      ? `/missions${query}`
+      : null;
+  }
+
+  return queryHasAnyParam(query, ['scene', 'scene_id']) || serialEpisode?.scene_id
+    ? `/graphic-novel${query}`
+    : null;
+}
+
+function parcoursSummaryFocus(today: AtelierToday | null, key: 'previous' | 'today' | 'next') {
+  const summary = today?.summary || {};
+  const parcours = isRecordValue(summary.parcours) ? summary.parcours : {};
+  if (key === 'previous') {
+    return parcours.previous || summary.previous_focus || summary.previous_concept || summary.last_focus || null;
+  }
+  if (key === 'next') {
+    return summary.tomorrow_focus || parcours.next || summary.next_focus || summary.next_concept || null;
+  }
+  return parcours.today || summary.today_focus || null;
+}
+
+function focusLabel(value: unknown): string {
+  if (Array.isArray(value)) {
+    return value.map(focusLabel).find(Boolean) || '';
+  }
+  if (typeof value === 'string' || typeof value === 'number') {
+    return String(value).trim();
+  }
+  if (!isRecordValue(value)) return '';
+  return [
+    value.label,
+    value.display_title,
+    value.title,
+    value.name,
+    value.concept,
+    value.concepts,
+  ].map(focusLabel).find(Boolean) || '';
+}
+
+function focusDateValue(value: unknown): string {
+  if (Array.isArray(value)) {
+    return value.map(focusDateValue).find(Boolean) || '';
+  }
+  if (!isRecordValue(value)) return '';
+  return firstNonEmptyString(
+    value.completed_at,
+    value.scheduled_at,
+    value.next_review,
+    value.date,
+    value.concept?.next_review,
+    value.concepts?.[0]?.next_review,
+  );
+}
+
+function focusConceptId(value: unknown): string {
+  if (Array.isArray(value)) {
+    return value.map(focusConceptId).find(Boolean) || '';
+  }
+  if (!isRecordValue(value)) return '';
+  return firstNonEmptyString(
+    value.id,
+    value.concept_id,
+    value.concept?.id,
+    value.concept?.concept_id,
+    value.concepts?.[0]?.id,
+    value.concepts?.[0]?.concept_id,
+  );
+}
+
+function localDateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function shiftDateKey(offsetDays: number) {
+  const date = new Date();
+  date.setDate(date.getDate() + offsetDays);
+  return localDateKey(date);
+}
+
+function focusDayLabel(value: unknown, fallback: string, direction: 'previous' | 'next') {
+  const rawDate = focusDateValue(value);
+  if (!rawDate) return fallback;
+  const date = new Date(rawDate);
+  if (Number.isNaN(date.getTime())) return fallback;
+  const key = localDateKey(date);
+  if (direction === 'previous' && key === shiftDateKey(-1)) return 'Hier';
+  if (direction === 'next' && key === shiftDateKey(1)) return 'Demain';
+  return new Intl.DateTimeFormat('fr-FR', { weekday: 'long' }).format(date);
+}
+
+function parcoursPreviousFocus(today: AtelierToday | null) {
+  const focus = parcoursSummaryFocus(today, 'previous');
+  const label = focusLabel(focus);
+  return {
+    dayLabel: focusDayLabel(focus, label ? 'Dernière' : 'Avant', 'previous'),
+    topic: label ? parcoursTopicShort(label) : 'à enregistrer',
+    complete: Boolean(label),
+  };
+}
+
+function parcoursUpcomingFocus(today: AtelierToday | null) {
+  const focus = parcoursSummaryFocus(today, 'next');
+  const label = focusLabel(focus);
+  const conceptId = focusConceptId(focus);
+  return {
+    dayLabel: focusDayLabel(focus, label ? 'À suivre' : 'Après', 'next'),
+    topic: label ? parcoursTopicShort(label) : 'après la séance',
+    href: conceptId ? `/notebook?mode=grammar&concept=${encodeURIComponent(conceptId)}` : '/notebook',
+  };
+}
+
+function parcoursTopicShort(value: string) {
+  const normalized = value.trim();
+  const lower = normalized.toLowerCase();
+  if (lower.includes('imparfait')) return 'l’imparfait';
+  if (lower.includes('relatif')) return 'pronoms relatifs';
+  if (lower.includes('si ') || lower.includes('condition')) return 'si + présent';
+  if (lower.includes('négation') || lower.includes('negation')) return 'la négation';
+  return normalized.length > 26 ? `${normalized.slice(0, 23).trim()}…` : normalized;
 }
 
 function formatAtelierEditionDate(date = new Date()) {
@@ -1354,7 +1761,7 @@ function grammarFocusCountLabel(count: number) {
 function plannedAtelierDrills(concepts: AtelierConcept[], activeSession: AtelierSessionStart | null) {
   const sessionTotal = totalDrills(activeSession);
   if (sessionTotal > 0) return sessionTotal;
-  if (concepts.length > 0) return concepts.length * (recognizeModes.length + 4) + 1;
+  if (concepts.length > 0) return concepts.length * 15 + 1;
   return 0;
 }
 
@@ -1436,12 +1843,17 @@ function percentToward(current: unknown, target: unknown) {
 
 type AtelierEditionStepState = 'done' | 'current' | 'up';
 
-function AtelierEditionHead({ title }: { title: string }) {
+function AtelierEditionHead({ title, rightSlot }: { title: string; rightSlot?: React.ReactNode }) {
   return (
     <header className="ph-head">
       <span className="mark"><AtelierEditionMark size={26} /></span>
       <span className="ttl">{title}</span>
-      <Link className="gear" href="/settings" aria-label="Settings"><AtelierEditionGear /></Link>
+      <span className="head-right">
+        {rightSlot}
+        <Link className="gear" href="/settings" aria-label="Settings" title="Settings">
+          <AtelierEditionGear />
+        </Link>
+      </span>
     </header>
   );
 }
@@ -1479,6 +1891,41 @@ function AtelierEditionHeader({
   );
 }
 
+function AtelierEditionCover({
+  kicker,
+  title,
+  meta,
+  streak,
+  remainingMinutes,
+  cta,
+  disabled,
+}: {
+  kicker: string;
+  title: string;
+  meta: string;
+  streak: number;
+  remainingMinutes: number;
+  cta?: RoadmapAction | null;
+  disabled?: boolean;
+}) {
+  return (
+    <section className="edition-cover" aria-label="Today's edition cover">
+      <div className="cover-kicker">{kicker}</div>
+      <h1>{title}</h1>
+      {cta && (
+        <button className="cta" type="button" disabled={disabled} onClick={cta.onClick}>
+          {cta.label} <ArrowRight size={16} />
+        </button>
+      )}
+      <div className="cover-meta">
+        <span>Day {streak}</span>
+        <span>~{remainingMinutes} min</span>
+        {meta && <span>{meta}</span>}
+      </div>
+    </section>
+  );
+}
+
 function AtelierEditionStep({
   roman,
   name,
@@ -1487,6 +1934,7 @@ function AtelierEditionStep({
   first,
   last,
   review,
+  vocabulary,
   badge,
   metaGo,
   children,
@@ -1498,13 +1946,14 @@ function AtelierEditionStep({
   first?: boolean;
   last?: boolean;
   review?: boolean;
+  vocabulary?: boolean;
   badge?: string;
   metaGo?: boolean;
   children?: React.ReactNode;
 }) {
   return (
     <div className={`step ${state} ${first ? 'is-first' : ''} ${last ? 'is-last' : ''}`}>
-      <span className={`plate ${state} ${review ? 'review' : ''} ${review && state !== 'up' && badge ? 'live' : ''}`}>
+      <span className={`plate ${state} ${review ? 'review' : ''} ${vocabulary ? 'vocabulary' : ''} ${(review || vocabulary) && state !== 'up' && badge ? 'live' : ''}`}>
         {state === 'done' ? <AtelierEditionCheck /> : roman}
         {badge != null && <span className="badge">{badge}</span>}
       </span>
@@ -1557,24 +2006,50 @@ function AtelierReviewOpen({
 }) {
   const total = errataDue + vocabularyDue;
   const kindCount = [vocabularyDue, errataDue].filter((count) => count > 0).length;
+  const ctaLabel = vocabularyDue > 0 && errataDue === 0
+    ? `Train ${vocabularyDue} word${vocabularyDue === 1 ? '' : 's'}`
+    : errataDue > 0 && vocabularyDue === 0
+      ? `Repair ${errataDue} item${errataDue === 1 ? '' : 's'}`
+      : `Review ${total} item${total === 1 ? '' : 's'}`;
   return (
     <div className="review-open-wrap">
       <div className="review-open">
-        <div className="r">
-          <span className="dot vocab" />
-          <span className="lab"><b>Vocabulary cards</b><em>French 5000 · spaced</em></span>
-          <span className="ct">{vocabularyDue}</span>
-        </div>
-        <div className="r">
-          <span className="dot errata" />
-          <span className="lab"><b>Grammar errata</b><em>Repairs from past slips</em></span>
-          <span className="ct">{errataDue}</span>
-        </div>
+        {vocabularyDue > 0 && (
+          <div className="r">
+            <span className="dot vocab" />
+            <span className="lab"><b>Vocabulary cards</b><em>French 5000 · spaced</em></span>
+            <span className="ct">{vocabularyDue}</span>
+          </div>
+        )}
+        {errataDue > 0 && (
+          <div className="r">
+            <span className="dot errata" />
+            <span className="lab"><b>Grammar errata</b><em>Repairs from past slips</em></span>
+            <span className="ct">{errataDue}</span>
+          </div>
+        )}
       </div>
       <button className="cta" onClick={onOpenReview}>
-        Review {total} item{total === 1 ? '' : 's'} <AtelierEditionArrow />
+        {ctaLabel} <AtelierEditionArrow />
       </button>
       {kindCount > 1 && <div className="review-kind-note">{kindCount} kinds</div>}
+    </div>
+  );
+}
+
+function AtelierVocabularyOpen({ vocabularyDue }: { vocabularyDue: number }) {
+  return (
+    <div className="vocab-open-wrap">
+      <div className="vocab-open">
+        <span className="dot vocab" aria-hidden="true" />
+        <span className="lab">
+          <b>French 5000 cards</b>
+          <em>{vocabularyDue} due · spaced recall</em>
+        </span>
+      </div>
+      <Link className="cta" href="/vocabulary/review">
+        Train {vocabularyDue} word{vocabularyDue === 1 ? '' : 's'} <AtelierEditionArrow />
+      </Link>
     </div>
   );
 }
@@ -1873,6 +2348,33 @@ function SerialArrowIcon() {
   );
 }
 
+function PathMark({ shape, active = false }: { shape: 'circle' | 'square' | 'triangle' | 'diamond'; active?: boolean }) {
+  const size = active ? 18 : 13;
+  const color = shape === 'circle' ? 'var(--blue)' : shape === 'square' ? 'var(--yellow)' : shape === 'diamond' ? '#21865b' : 'var(--red)';
+  if (shape === 'triangle') {
+    return (
+      <span
+        aria-hidden="true"
+        style={{ width: 0, height: 0, borderLeft: `${size / 2}px solid transparent`, borderRight: `${size / 2}px solid transparent`, borderBottom: `${size}px solid ${color}`, flex: '0 0 auto' }}
+      />
+    );
+  }
+  if (shape === 'diamond') {
+    return (
+      <span
+        aria-hidden="true"
+        style={{ width: size, height: size, background: color, transform: 'rotate(45deg)', flex: '0 0 auto' }}
+      />
+    );
+  }
+  return (
+    <span
+      aria-hidden="true"
+      style={{ width: size, height: size, borderRadius: shape === 'circle' ? '50%' : 0, background: color, flex: '0 0 auto' }}
+    />
+  );
+}
+
 function AtelierEditionClosed({ reviewTotal, datestamp }: { reviewTotal: number; datestamp: string }) {
   return (
     <div className="closed">
@@ -1892,39 +2394,195 @@ function AtelierEditionClosed({ reviewTotal, datestamp }: { reviewTotal: number;
   );
 }
 
+function AtelierDayBadge({ day }: { day: number }) {
+  return (
+    <div className="day-badge" aria-label={`Day ${day}`}>
+      <svg viewBox="0 0 16 16" aria-hidden="true">
+        <path d="M9.4 1.8C8.1 3.8 9 5.2 7.6 6.4C6.8 7 5.7 7 5.1 6.3C4.5 8.2 5.5 10.5 8 10.5C10.6 10.5 12.1 8.7 12.1 6.5C12.1 4.5 10.8 3.1 9.4 1.8Z" fill="currentColor" />
+      </svg>
+      <span>Day</span>
+      <b>{day}</b>
+    </div>
+  );
+}
+
+function AtelierParcoursMap({
+  dateKicker,
+  episodeLine,
+  previousDayLabel,
+  previousTopic,
+  previousComplete,
+  tomorrowDayLabel,
+  tomorrowTopic,
+  tomorrowHref,
+  storyRubric,
+  storyTeaser,
+  storyCharacter,
+  storyHref,
+  storyStatus,
+  cta,
+  disabled,
+  reviewDue,
+  onOpenReview,
+}: {
+  dateKicker: string;
+  episodeLine: string;
+  previousDayLabel: string;
+  previousTopic: string;
+  previousComplete: boolean;
+  tomorrowDayLabel: string;
+  tomorrowTopic: string;
+  tomorrowHref: string;
+  storyRubric: string;
+  storyTeaser: string;
+  storyCharacter: { name: string; initial: string };
+  storyHref: string | null;
+  storyStatus: string;
+  cta?: RoadmapAction | null;
+  disabled?: boolean;
+  reviewDue: number;
+  onOpenReview: () => void;
+}) {
+  return (
+    <>
+      <div className="parcours-kicker" aria-label="Atelier edition context">
+        <span>{dateKicker}</span>
+        <b>{episodeLine}</b>
+      </div>
+
+      <div className="parcours-map" aria-label="Today path">
+        <svg className="parcours-lines" viewBox="0 0 340 560" preserveAspectRatio="none" aria-hidden="true">
+          <path className="solid" d="M84 78 C115 130 212 116 259 155 C312 199 262 254 184 292 C145 311 114 327 95 356" />
+          <path className="dotted" d="M115 360 C170 376 236 398 257 430 C236 477 177 478 142 514" />
+        </svg>
+
+        <div className="week-ribbon">Début de la semaine</div>
+
+        <div className="parcours-node monday-node">
+          <span className="node-check dark"><AtelierEditionCheck /></span>
+          <b>Lundi</b>
+        </div>
+
+        <div className="parcours-node tuesday-node">
+          <span className={`node-check blue ${previousComplete ? '' : 'hollow'}`}>
+            {previousComplete && <AtelierEditionCheck />}
+          </span>
+          <b>{previousDayLabel}</b>
+          <em>{previousTopic}</em>
+        </div>
+
+        <button
+          className="today-node"
+          type="button"
+          onClick={cta?.onClick}
+          disabled={disabled || !cta}
+          aria-label={cta?.label || 'Today'}
+        >
+          <span className="today-square"><i /></span>
+          <b>Aujourd&apos;hui</b>
+        </button>
+
+        {storyHref ? (
+          <Link className="story-ticket" href={storyHref}>
+            <span className="story-rubric">{storyRubric}</span>
+            <strong>« {storyTeaser} »</strong>
+            <span className="story-byline">
+              <span className="story-avatar">{storyCharacter.initial}</span>
+              <i />
+              <b>{storyCharacter.name}</b>
+            </span>
+          </Link>
+        ) : (
+          <div className="story-ticket is-disabled" aria-disabled="true">
+            <span className="story-rubric">{storyRubric}</span>
+            <strong>« {storyTeaser} »</strong>
+            <span className="story-byline">
+              <span className="story-avatar">{storyCharacter.initial}</span>
+              <i />
+              <b>{storyCharacter.name}</b>
+            </span>
+            <span className="story-status">{storyStatus}</span>
+          </div>
+        )}
+
+        <button
+          className={`review-node ${reviewDue > 0 ? 'due' : ''}`}
+          type="button"
+          onClick={onOpenReview}
+          aria-label={reviewDue > 0 ? `Review ${reviewDue} due` : 'Review'}
+        >
+          <span />
+          <b>Révision</b>
+        </button>
+
+        <Link className="tomorrow-node" href={tomorrowHref}>
+          <span />
+          <b>{tomorrowDayLabel}</b>
+          <em>{tomorrowTopic}</em>
+        </Link>
+      </div>
+
+      <div className="parcours-primary-wrap">
+        {cta ? (
+          <button className="parcours-primary" type="button" disabled={disabled} onClick={cta.onClick}>
+            {cta.label} <AtelierEditionArrow />
+          </button>
+        ) : (
+          <Link className="parcours-primary soft" href="/notebook">
+            Open notebook <AtelierEditionArrow />
+          </Link>
+        )}
+      </div>
+    </>
+  );
+}
+
+function AtelierParcoursCaughtUp({
+  dateKicker,
+  episodeLine,
+  serialHref,
+  reviewTotal,
+  datestamp,
+}: {
+  dateKicker: string;
+  episodeLine: string;
+  serialHref: string | null;
+  reviewTotal: number;
+  datestamp: string;
+}) {
+  return (
+    <section className="parcours-caught" aria-label="Atelier caught up">
+      <div className="parcours-kicker">
+        <span>{dateKicker}</span>
+        <b>{episodeLine}</b>
+      </div>
+      <div className="caught-mark" aria-hidden="true"><AtelierEditionCheck /></div>
+      <h1>Edition complete.</h1>
+      <p>Session, review and feuilleton are settled. The path is clear until tomorrow.</p>
+      <div className="caught-ledger">
+        <div><span>Review</span><b>{reviewTotal > 0 ? `${reviewTotal} filed` : 'Clear'}</b></div>
+        <div><span>Status</span><b>{datestamp}</b></div>
+      </div>
+      <div className="caught-doors">
+        {serialHref ? (
+          <Link href={serialHref}>Read the Feuilleton <AtelierEditionArrow /></Link>
+        ) : (
+          <Link href="/notebook">Browse Notebook <AtelierEditionArrow /></Link>
+        )}
+        <Link href={serialHref ? '/notebook' : '/practice'}>
+          {serialHref ? 'Browse Notebook' : 'Free practice'} <AtelierEditionArrow />
+        </Link>
+      </div>
+    </section>
+  );
+}
+
 function AtelierEditionNav({
   active = 'atelier',
-  variant = 'two',
 }: {
-  active?: 'atelier' | 'notebook';
-  variant?: 'two' | 'three';
+  active?: 'atelier' | 'missions' | 'feuilleton' | 'notebook';
 }) {
-  if (variant === 'three') {
-    return (
-      <nav className="ph-nav three" aria-label="Primary">
-        <Link className={active === 'atelier' ? 'active' : ''} href="/atelier">
-          <AtelierEditionMarkTab /><span>Today</span>
-        </Link>
-        <Link className="center-act" href="/practice">
-          <AtelierEditionPenNib /><span className="lbl">Practise</span>
-        </Link>
-        <Link className={active === 'notebook' ? 'active' : ''} href="/notebook">
-          <AtelierEditionBookTab /><span>Notebook</span>
-        </Link>
-      </nav>
-    );
-  }
-
-  return (
-    <nav className="ph-nav" aria-label="Primary">
-      <Link className={active === 'atelier' ? 'active' : ''} href="/atelier">
-        <AtelierEditionMarkTab /><span>Today</span>
-      </Link>
-      <Link className={active === 'notebook' ? 'active' : ''} href="/notebook">
-        <AtelierEditionBookTab /><span>Notebook</span>
-      </Link>
-    </nav>
-  );
+  return <PhoneProductNav active={active} placement="embedded" />;
 }
 
 function AtelierEditionPenNib() {
@@ -1933,6 +2591,23 @@ function AtelierEditionPenNib() {
       <path d="M5 19l3-9 9-5-5 9-7 5z" />
       <path d="M8 16l4-4" />
       <circle cx="13" cy="11" r="1.4" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+function AtelierMissionTab() {
+  return (
+    <svg viewBox="0 0 22 22" fill="none" aria-hidden="true">
+      <path d="M11 3L19 18H3L11 3Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="miter" />
+    </svg>
+  );
+}
+
+function AtelierFeuilletonTab() {
+  return (
+    <svg viewBox="0 0 22 22" fill="none" aria-hidden="true">
+      <rect x="4" y="4" width="14" height="14" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M11 4V18M4 11H18" stroke="currentColor" strokeWidth="1.4" />
     </svg>
   );
 }
@@ -2011,24 +2686,18 @@ function firstDueErratum(today: AtelierToday | null, activeSession: AtelierSessi
 }
 
 function AtelierRoadmapEmpty({ onRetry }: { onRetry: () => void }) {
+  const streak = atelierEditionStreak(null, null);
   return (
-    <section className="ph" aria-label="Atelier roadmap">
-      <AtelierEditionHead title="Atelier" />
-      <div className="ph-body">
-        <AtelierEditionHeader
-          rubric="Today's edition"
-          date={formatAtelierEditionDate()}
-          sub="Session not ready"
-          streak={atelierEditionStreak(null, null)}
-        />
-        <div className="spine">
-          <AtelierEditionStep roman="I" name="Recognize" meta="Start here" state="current" first last>
-            <AtelierCurrentPanel
-              label="Today · grammar"
-              foci={['Session not ready']}
-              cta={{ label: 'Retry setup', onClick: onRetry }}
-            />
-          </AtelierEditionStep>
+    <section className="ph parcours" aria-label="Atelier roadmap">
+      <AtelierEditionHead title="Atelier" rightSlot={<AtelierDayBadge day={streak} />} />
+      <div className="ph-body parcours-body parcours-empty-body">
+        <div className="parcours-error-card" role="alert">
+          <span>{formatAtelierEditionDate().toUpperCase()} · CONNECTION</span>
+          <h1>Atelier is not loaded.</h1>
+          <p>The home path needs today&apos;s session, review queue, and story state before it can safely send you anywhere.</p>
+          <button className="parcours-primary" type="button" onClick={onRetry}>
+            Retry setup <AtelierEditionArrow />
+          </button>
         </div>
       </div>
       <AtelierEditionNav active="atelier" />
@@ -2038,7 +2707,7 @@ function AtelierRoadmapEmpty({ onRetry }: { onRetry: () => void }) {
 
 function sessionSubmittedCount(session: AtelierSessionStart | null) {
   if (!session) return 0;
-  return Object.values(session.submitted_map || {}).filter(Boolean).length;
+  return submittedDrills(session, session.submitted_map || {});
 }
 
 function activeSessionLabel(session: AtelierSessionStart) {
@@ -2063,7 +2732,7 @@ function AtelierLoadNotice({ message, onRetry }: { message: string; onRetry: () 
         <span className="t-mono red">OFFLINE</span>
         <p>{message}</p>
       </div>
-      <button className="btn solid" onClick={onRetry}>Retry</button>
+      <button className="btn solid" type="button" onClick={onRetry}>Retry</button>
     </section>
   );
 }
@@ -2288,16 +2957,23 @@ function ErrataReviewOverlay({
 
 function hasConceptRecognizeSubmission(submitted: Record<string, boolean>, conceptId?: number | null) {
   if (!conceptId) return false;
-  return recognizeModes.some((item) => submitted[answerKey('recognize', item.id, conceptId)]);
+  return recognizeModes.some((item) => {
+    const legacyKey = answerKey('recognize', item.id, conceptId);
+    const itemPrefix = `${legacyKey}:`;
+    return submitted[legacyKey] || Object.keys(submitted).some((key) => key.startsWith(itemPrefix) && submitted[key]);
+  });
 }
 
 function SessionView({
   session,
   activeConceptIndex,
+  activeItemIndex,
+  activeItemCount,
   round,
   mode,
   activeSet,
   activeConcept,
+  activeItemId,
   currentAnswers,
   updateAnswer,
   submitAttempt,
@@ -2316,12 +2992,15 @@ function SessionView({
 }: {
   session: AtelierSessionStart;
   activeConceptIndex: number;
+  activeItemIndex: number;
+  activeItemCount: number;
   round: RoundName;
   mode: RecognizeMode;
   activeSet: Record<string, any> | null;
   activeConcept: AtelierConcept | null;
+  activeItemId: string | null;
   currentAnswers: Record<string, any>;
-  updateAnswer: (key: string, value: any, scopedRound?: RoundName, scopedMode?: string, conceptId?: number | null) => void;
+  updateAnswer: (key: string, value: any, scopedRound?: RoundName, scopedMode?: string, conceptId?: number | null, itemId?: string | null) => void;
   submitAttempt: () => void;
   completeSession: () => void;
   submitting: boolean;
@@ -2337,14 +3016,14 @@ function SessionView({
   produceAnswer: string;
 }) {
   const currentMode = roundMode(round, mode);
-  const currentKey = answerKey(round, currentMode, roundUsesSessionScope(round) ? null : activeConcept?.id);
+  const currentKey = answerKey(round, currentMode, roundUsesSessionScope(round) ? null : activeConcept?.id, activeItemId);
   const currentCorrection = correctionsByKey[currentKey] || null;
   const currentSubmitted = !!submitted[currentKey];
-  const currentHasCorrections = currentSubmitted && Array.isArray(currentCorrection?.errata) && currentCorrection.errata.length > 0;
   const total = totalDrills(session);
   const activeRoundLabel = roundLabels.find((item) => item.id === round)?.label || 'Practice';
   const activeRecognizeLabel = recognizeModes.find((item) => item.id === mode)?.label || 'Recognize';
   const activeConceptTitle = activeConcept?.atelier_blueprint?.display_title || activeConcept?.name || 'Daily session';
+  const focusedItemLabel = activeItemCount > 1 ? `${activeItemIndex + 1}/${activeItemCount}` : '';
   const [ruleOpenByConcept, setRuleOpenByConcept] = useState<Record<string, boolean>>({});
   const conceptRuleKey = `${session.session_id}:${activeConcept?.id || 'session'}`;
   const firstConceptDrill = Boolean(
@@ -2356,6 +3035,19 @@ function SessionView({
   const rulePreference = ruleOpenByConcept[conceptRuleKey];
   const ruleExpanded = firstConceptDrill ? rulePreference !== false : rulePreference === true;
   const isFinalConversation = round === 'conversation' && activeConceptIndex >= session.concepts.length - 1;
+  const currentFeedback = currentSubmitted
+    ? feedbackForExercise(round, mode, activeSet, activeItemIndex, currentAnswers, currentCorrection)
+    : null;
+  const feedbackNextLabel = isFinalConversation
+    ? 'Complete'
+    : activeItemIndex < activeItemCount - 1
+      ? 'Next exercise'
+      : 'Next drill';
+  const feedbackRule = currentFeedback && !currentFeedback.correct
+    ? feedbackRuleLine(activeSet, activeConcept)
+    : undefined;
+  const feedbackNext = isFinalConversation ? completeSession : goNext;
+  const nextDisabled = !drillAnswerIsReady(activeSet, round, mode, activeItemIndex, currentAnswers, produceAnswer);
   const toggleRule = () => {
     setRuleOpenByConcept((prev) => ({ ...prev, [conceptRuleKey]: !ruleExpanded }));
   };
@@ -2374,7 +3066,7 @@ function SessionView({
       {activeSet && activeConcept && (
         <section className="do-stage">
           <ExerciseShell
-            eyebrow={`${activeRoundLabel}${round === 'recognize' ? ` · ${activeRecognizeLabel}` : ''}`}
+            eyebrow={`${activeRoundLabel}${round === 'recognize' ? ` · ${activeRecognizeLabel}` : ''}${focusedItemLabel ? ` · ${focusedItemLabel}` : ''}`}
             title={activeConceptTitle}
             action={
               <button
@@ -2395,11 +3087,18 @@ function SessionView({
                 {firstConceptDrill && <div className="rule-bridge">Now try it on the easiest item.</div>}
               </div>
             )}
+              <FocusedExerciseMeter
+                round={round}
+                mode={mode}
+                activeItemIndex={activeItemIndex}
+                activeItemCount={activeItemCount}
+              />
               {round === 'recognize' && (
                 <div className="exercise-frame">
                     <RecognizePanel
                       payload={activeSet}
                       mode={mode}
+                      activeItemIndex={activeItemIndex}
                       answers={currentAnswers}
                       updateAnswer={updateAnswer}
                       correction={currentCorrection}
@@ -2408,11 +3107,8 @@ function SessionView({
                     <ActionRow
                       submitting={submitting}
                       submitted={currentSubmitted}
+                      nextDisabled={nextDisabled}
                       submitAttempt={submitAttempt}
-                      goNext={goNext}
-                      canRetry={currentHasCorrections}
-                      retryAttempt={retryAttempt}
-                      onReport={currentHasCorrections ? reportExercise : undefined}
                     />
                 </div>
               )}
@@ -2420,6 +3116,7 @@ function SessionView({
                 <div className="exercise-frame">
                   <TransformPanel
                     payload={activeSet}
+                    activeItemIndex={activeItemIndex}
                     answers={currentAnswers}
                     updateAnswer={updateAnswer}
                     correction={currentCorrection}
@@ -2430,11 +3127,8 @@ function SessionView({
                   <ActionRow
                     submitting={submitting}
                     submitted={currentSubmitted}
+                    nextDisabled={nextDisabled}
                     submitAttempt={submitAttempt}
-                    goNext={goNext}
-                    canRetry={currentHasCorrections}
-                    retryAttempt={retryAttempt}
-                    onReport={currentHasCorrections ? reportExercise : undefined}
                   />
                 </div>
               )}
@@ -2453,13 +3147,8 @@ function SessionView({
                   <ActionRow
                     submitting={submitting}
                     submitted={currentSubmitted}
+                    nextDisabled={nextDisabled}
                     submitAttempt={submitAttempt}
-                    goNext={goNext}
-                    nextLabel="NEXT STEP"
-                    nextDisabled={isFinalConversation}
-                    canRetry={currentHasCorrections}
-                    retryAttempt={retryAttempt}
-                    onReport={currentHasCorrections ? reportExercise : undefined}
                   />
                 </div>
               )}
@@ -2480,21 +3169,20 @@ function SessionView({
                   <ActionRow
                     submitting={submitting}
                     submitted={currentSubmitted}
+                    nextDisabled={nextDisabled}
                     submitAttempt={submitAttempt}
-                    goNext={goNext}
-                    canRetry={currentHasCorrections}
-                    retryAttempt={retryAttempt}
-                    onReport={currentHasCorrections ? reportExercise : undefined}
                   />
                 </div>
               )}
-              {isFinalConversation && currentSubmitted && (
-                <div className="action-row final-action">
-                  <button className="btn solid lg" disabled={submitting} onClick={completeSession}>
-                    COMPLETE SESSION <Check size={14} />
-                  </button>
-                </div>
-              )}
+              <ExerciseFeedbackMoment
+                feedback={currentFeedback}
+                submitted={currentSubmitted}
+                rule={feedbackRule}
+                onNext={feedbackNext}
+                nextLabel={feedbackNextLabel}
+                onTryAgain={currentFeedback && !currentFeedback.correct ? retryAttempt : undefined}
+                onReport={currentFeedback && !currentFeedback.correct ? reportExercise : undefined}
+              />
           </ExerciseShell>
         </section>
       )}
@@ -2502,51 +3190,87 @@ function SessionView({
   );
 }
 
+function FocusedExerciseMeter({
+  round,
+  mode,
+  activeItemIndex,
+  activeItemCount,
+}: {
+  round: RoundName;
+  mode: RecognizeMode;
+  activeItemIndex: number;
+  activeItemCount: number;
+}) {
+  if (activeItemCount <= 1) return null;
+  const label = round === 'recognize'
+    ? recognizeModes.find((item) => item.id === mode)?.label || 'Recognize'
+    : roundLabels.find((item) => item.id === round)?.label || 'Exercise';
+  return (
+    <div className="focused-exercise-meter" aria-label={`${label} exercise ${activeItemIndex + 1} of ${activeItemCount}`}>
+      <span>{label}</span>
+      <div>
+        {Array.from({ length: activeItemCount }).map((_, index) => (
+          <i key={index} className={index === activeItemIndex ? 'active' : index < activeItemIndex ? 'done' : ''} />
+        ))}
+      </div>
+      <b>{activeItemIndex + 1}/{activeItemCount}</b>
+    </div>
+  );
+}
+
 function ActionRow({
   submitting,
   submitted,
+  nextDisabled,
   submitAttempt,
-  goNext,
-  nextLabel = 'NEXT DRILL',
-  nextDisabled = false,
-  canRetry = false,
-  retryAttempt,
-  onReport,
 }: {
   submitting: boolean;
   submitted: boolean;
+  nextDisabled: boolean;
   submitAttempt: () => void;
-  goNext: () => void;
-  nextLabel?: string;
-  nextDisabled?: boolean;
-  canRetry?: boolean;
-  retryAttempt?: () => void;
-  onReport?: () => void;
 }) {
+  if (submitted) return null;
   return (
     <div className="action-row">
-      {!submitted ? (
-        <button className="btn red" disabled={submitting} onClick={submitAttempt}>
-          Check <Send size={14} />
-        </button>
-      ) : (
-        <>
-          {onReport && (
-            <button className="btn ghost" disabled={submitting} onClick={onReport}>
-              Report
-            </button>
-          )}
-          {canRetry && retryAttempt && (
-            <button className="btn ghost" disabled={submitting} onClick={retryAttempt}>
-              Try again <RotateCcw size={14} />
-            </button>
-          )}
-          <button className="btn solid" disabled={submitting || nextDisabled} onClick={goNext}>
-            {nextLabel === 'NEXT DRILL' ? 'Next' : nextLabel} <ArrowRight size={14} />
-          </button>
-        </>
-      )}
+      <button className="btn red" disabled={submitting || nextDisabled} onClick={submitAttempt}>
+        Check <Send size={14} />
+      </button>
     </div>
+  );
+}
+
+function ExerciseFeedbackMoment({
+  feedback,
+  submitted,
+  rule,
+  onTryAgain,
+  onNext,
+  nextLabel,
+  onReport,
+}: {
+  feedback: InlineFeedbackModel;
+  submitted: boolean;
+  rule?: string;
+  onTryAgain?: () => void;
+  onNext: () => void;
+  nextLabel: string;
+  onReport?: () => void;
+}) {
+  if (!submitted || !feedback) return null;
+  const correctionItems = feedbackCorrectionItems(feedback);
+  return (
+    <FeedbackSheet
+      status={feedback.correct ? 'correct' : 'wrong'}
+      title={feedback.correct ? 'Set.' : 'Almost.'}
+      explanation={feedback.correct ? 'Keep this shape for the next one.' : feedback.why || 'One small repair before you move on.'}
+      repair={!correctionItems.length && !feedback.correct ? feedbackRepairLine(feedback) : undefined}
+      rule={!feedback.correct ? rule : undefined}
+      correctionItems={correctionItems}
+      onTryAgain={!feedback.correct ? onTryAgain : undefined}
+      onNext={onNext}
+      nextLabel={nextLabel}
+      onReport={!feedback.correct ? onReport : undefined}
+    />
   );
 }
 
@@ -2792,6 +3516,7 @@ function ModeMarkers({
 function RecognizePanel({
   payload,
   mode,
+  activeItemIndex,
   answers,
   updateAnswer,
   correction,
@@ -2799,105 +3524,104 @@ function RecognizePanel({
 }: {
   payload: Record<string, any>;
   mode: RecognizeMode;
+  activeItemIndex: number;
   answers: Record<string, any>;
   updateAnswer: (key: string, value: any) => void;
   correction: Record<string, any> | null;
   submitted: boolean;
 }) {
   const items = payload.recognize?.[mode]?.items || [];
+  const itemIndex = safeDrillItemIndex(activeItemIndex, items);
+  const item = items[itemIndex] || {};
   const formShapes: Array<'circle' | 'square' | 'triangle'> = ['circle', 'square', 'triangle'];
   const wordBankTask = mode === 'word_bank'
-    ? String(items[0]?.prompt || 'Build each full French sentence from the chips.')
+    ? String(item?.prompt || 'Build the full French sentence from the chips.')
     : '';
+  const feedback = itemFeedback(item, answers[item.id], correction);
+  const formState: 'neutral' | 'grin' | 'sad' = submitted ? (feedback?.correct ? 'grin' : 'sad') : 'neutral';
+  const wordBankTokens = mode === 'word_bank' ? wordBankTokensFromAnswer(answers[item.id]) : [];
+  const sourceTokens = Array.isArray(item.tokens) ? item.tokens.map((token: string) => String(token)) : [];
   return (
     <div className="recognize-set">
       {mode === 'word_bank' && (
         <p className="recognize-task-note">{wordBankTask}</p>
       )}
-      {items.map((item: any, index: number) => {
-        const feedback = itemFeedback(item, answers[item.id], correction);
-        const formState: 'neutral' | 'grin' | 'sad' = submitted ? (feedback?.correct ? 'grin' : 'sad') : 'neutral';
-        const wordBankTokens = mode === 'word_bank' ? wordBankTokensFromAnswer(answers[item.id]) : [];
-        const sourceTokens = Array.isArray(item.tokens) ? item.tokens.map((token: string) => String(token)) : [];
-        return (
-          <article key={item.id} className="sub-exercise recognize-card">
-            <div className="recognize-form-slot" aria-hidden="true">
-              <ReactForm shape={formShapes[index % formShapes.length]} state={formState} />
+      <article key={item.id || itemIndex} className="sub-exercise recognize-card">
+        <div className="recognize-form-slot" aria-hidden="true">
+          <ReactForm shape={formShapes[itemIndex % formShapes.length]} state={formState} />
+        </div>
+        <div className="recognize-card-body">
+          <div className="t-mono-low">EXERCISE {itemIndex + 1}</div>
+          {mode === 'word_bank' ? (
+            <p className="wb-cue">{stripExpressPrefix(item.meaning_cue) || item.prompt}</p>
+          ) : (
+            <p className="exercise-prompt">{item.prompt}</p>
+          )}
+          {mode === 'fill' && (
+            <div className="choice-row">
+              {(item.choices || []).map((choice: string) => (
+                <button key={choice} className={answers[item.id] === choice ? 'selected' : ''} disabled={submitted} onClick={() => updateAnswer(item.id, choice)}>{choice}</button>
+              ))}
             </div>
-            <div className="recognize-card-body">
-              <div className="t-mono-low">EXERCISE {index + 1}</div>
-              {mode === 'word_bank' ? (
-                <p className="wb-cue">{stripExpressPrefix(item.meaning_cue) || item.prompt}</p>
-              ) : (
-                <p className="exercise-prompt">{item.prompt}</p>
-              )}
-              {mode === 'fill' && (
-                <div className="choice-row">
-                  {item.choices.map((choice: string) => (
-                    <button key={choice} className={answers[item.id] === choice ? 'selected' : ''} disabled={submitted} onClick={() => updateAnswer(item.id, choice)}>{choice}</button>
-                  ))}
-                </div>
-              )}
-              {mode === 'word_bank' && (
-                <>
-                  <div className="type-case">
-                    {sourceTokens.map((token: string, tokenIndex: number) => {
-                      const used = wordBankTokenIsUsed(wordBankTokens, sourceTokens, token, tokenIndex);
-                      return (
-                        <button
-                          key={`${token}-${tokenIndex}`}
-                          type="button"
-                          className={used ? 'used' : ''}
-                          disabled={submitted || used}
-                          onClick={() => updateAnswer(item.id, [...wordBankTokens, token])}
-                        >
-                          {token}
-                        </button>
-                      );
-                    })}
+          )}
+          {mode === 'word_bank' && (
+            <>
+              <div className="type-case">
+                {sourceTokens.map((token: string, tokenIndex: number) => {
+                  const used = wordBankTokenIsUsed(wordBankTokens, sourceTokens, token, tokenIndex);
+                  return (
+                    <button
+                      key={`${token}-${tokenIndex}`}
+                      type="button"
+                      className={used ? 'used' : ''}
+                      disabled={submitted || used}
+                      onClick={() => updateAnswer(item.id, [...wordBankTokens, token])}
+                    >
+                      {token}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="word-bank-builder">
+                <input
+                  value={Array.isArray(answers[item.id]) ? joinWordBankTokens(answers[item.id]) : answers[item.id] || ''}
+                  onChange={(event) => updateAnswer(item.id, event.target.value)}
+                  disabled={submitted}
+                  placeholder="Built sentence"
+                />
+                {wordBankTokens.length > 0 && (
+                  <div className="word-bank-answer">
+                    {wordBankTokens.map((token, selectedIndex) => (
+                      <button
+                        key={`${token}-${selectedIndex}`}
+                        type="button"
+                        disabled={submitted}
+                        onClick={() => updateAnswer(item.id, wordBankTokens.filter((_, tokenIndex) => tokenIndex !== selectedIndex))}
+                      >
+                        {token}
+                      </button>
+                    ))}
                   </div>
-                  <div className="word-bank-builder">
-                    <input
-                      value={Array.isArray(answers[item.id]) ? joinWordBankTokens(answers[item.id]) : answers[item.id] || ''}
-                      onChange={(event) => updateAnswer(item.id, event.target.value)}
-                      disabled={submitted}
-                      placeholder="Built sentence"
-                    />
-                    {wordBankTokens.length > 0 && (
-                      <div className="word-bank-answer">
-                        {wordBankTokens.map((token, selectedIndex) => (
-                          <button
-                            key={`${token}-${selectedIndex}`}
-                            type="button"
-                            disabled={submitted}
-                            onClick={() => updateAnswer(item.id, wordBankTokens.filter((_, tokenIndex) => tokenIndex !== selectedIndex))}
-                          >
-                            {token}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
-              {mode === 'classify' && (
-                <div className="choice-row compact">
-                  {item.labels.map((label: string) => (
-                    <button key={label} className={answers[item.id] === label ? 'selected' : ''} disabled={submitted} onClick={() => updateAnswer(item.id, label)}>{label}</button>
-                  ))}
-                </div>
-              )}
-              {submitted && <InlineFeedback feedback={feedback} />}
+                )}
+              </div>
+            </>
+          )}
+          {mode === 'classify' && (
+            <div className="choice-row compact">
+              {(item.labels || []).map((label: string) => (
+                <button key={label} className={answers[item.id] === label ? 'selected' : ''} disabled={submitted} onClick={() => updateAnswer(item.id, label)}>{label}</button>
+              ))}
             </div>
-          </article>
-        );
-      })}
+          )}
+        </div>
+      </article>
     </div>
   );
 }
 
 function TransformPanel({
   payload,
+  activeItemIndex,
   answers,
   updateAnswer,
   correction,
@@ -2906,6 +3630,7 @@ function TransformPanel({
   aiReviewSubmitting,
 }: {
   payload: Record<string, any>;
+  activeItemIndex: number;
   answers: Record<string, any>;
   updateAnswer: (key: string, value: any) => void;
   correction: Record<string, any> | null;
@@ -2914,20 +3639,16 @@ function TransformPanel({
   aiReviewSubmitting: boolean;
 }) {
   const items = payload.transform?.items || [];
+  const itemIndex = safeDrillItemIndex(activeItemIndex, items);
+  const item = items[itemIndex] || {};
   return (
     <div className="transform-set">
-      {items.map((item: any, index: number) => {
-        const feedback = itemFeedback(item, answers[item.id], correction);
-        return (
-          <article key={item.id} className="sub-exercise">
-            <div className="t-mono-low"><RotateCcw size={13} /> REWRITE {index + 1} · {String(item.type || '').replace('_', ' ')}</div>
-            <p className="instruction">{item.instruction}</p>
-            <p className="source-sentence">{item.source}</p>
-            <textarea value={answers[item.id] || ''} onChange={(event) => updateAnswer(item.id, event.target.value)} placeholder="Rewrite here" />
-            {submitted && <InlineFeedback feedback={feedback} />}
-          </article>
-        );
-      })}
+      <article key={item.id || itemIndex} className="sub-exercise">
+        <div className="t-mono-low"><RotateCcw size={13} /> REWRITE {itemIndex + 1} · {String(item.type || '').replace('_', ' ')}</div>
+        <p className="instruction">{item.instruction}</p>
+        <p className="source-sentence">{item.source}</p>
+        <textarea value={answers[item.id] || ''} onChange={(event) => updateAnswer(item.id, event.target.value)} placeholder="Rewrite here" readOnly={submitted} />
+      </article>
       {submitted && (
         <CorrectionAiReview
           correction={correction}
@@ -2960,12 +3681,15 @@ function itemFeedback(item: any, learner: any, correction: Record<string, any> |
     // Otherwise an erratum from a sibling item that happens to share the same target
     // (e.g. two fill blanks both corrected to "de") would leak onto this card and
     // show as a confusing extra "fix".
+    if (errLearner && errTarget) {
+      return Boolean(learnerNorm) && errLearner === learnerNorm && errTarget === targetNorm;
+    }
     if (errLearner) {
       return Boolean(learnerNorm) && errLearner === learnerNorm && (!errTarget || errTarget === targetNorm);
     }
     return Boolean(errTarget && errTarget === targetNorm);
   });
-  const correct = learnerNorm === targetNorm;
+  const correct = normalizeClient(learnerText) === normalizeClient(targetText);
   return {
     correct,
     target: targetText,
@@ -3007,6 +3731,57 @@ function feedbackFromFreeformCorrection(correction: Record<string, any> | null, 
   };
 }
 
+function feedbackForExercise(
+  round: RoundName,
+  mode: RecognizeMode,
+  activeSet: Record<string, any> | null,
+  activeItemIndex: number,
+  currentAnswers: Record<string, any>,
+  correction: Record<string, any> | null,
+): InlineFeedbackModel {
+  if (!activeSet || !correction) return null;
+  if (round === 'recognize') {
+    const items = activeSet.recognize?.[mode]?.items || [];
+    const item = items[safeDrillItemIndex(activeItemIndex, items)] || {};
+    return itemFeedback(item, currentAnswers[item.id], correction);
+  }
+  if (round === 'transform') {
+    const items = activeSet.transform?.items || [];
+    const item = items[safeDrillItemIndex(activeItemIndex, items)] || {};
+    return itemFeedback(item, currentAnswers[item.id], correction);
+  }
+  if (round === 'sentence' || round === 'speak' || round === 'conversation') {
+    const item = activeSet.output_ladder?.[round]?.items?.[0] || {};
+    return feedbackFromFreeformCorrection(correction, item.example_answer || '');
+  }
+  return feedbackFromFreeformCorrection(correction);
+}
+
+function feedbackRuleLine(activeSet: Record<string, any> | null, activeConcept: AtelierConcept | null) {
+  const title = String(activeSet?.rule_panel?.title || activeConcept?.atelier_blueprint?.display_title || activeConcept?.name || '').trim();
+  return title ? `Rule: ${title}` : undefined;
+}
+
+function feedbackRepairLine(feedback: InlineFeedbackModel) {
+  if (!feedback || feedback.correct) return undefined;
+  const pieces = [
+    feedback.target ? `Target: ${feedback.target}` : '',
+    feedback.repair || '',
+  ].filter(Boolean);
+  return pieces.join(' · ') || undefined;
+}
+
+function feedbackCorrectionItems(feedback: InlineFeedbackModel) {
+  if (!feedback || feedback.correct) return [];
+  const issues = feedback.issues || [];
+  if (issues.length <= 1) return [];
+  return issues.map((issue, index) => ({
+    title: issue.display_label || `Fix ${index + 1}`,
+    explanation: issue.why_wrong || (issue.corrected_target ? `Target: ${issue.corrected_target}` : undefined),
+    repair: issue.repair_hint || undefined,
+  }));
+}
+
 function InlineFeedback({ feedback }: { feedback: InlineFeedbackModel }) {
   if (!feedback) return null;
   if (feedback.correct) {
@@ -3044,14 +3819,25 @@ function CorrectionAiReview({
   onRequestAiReview?: () => void;
   submitting?: boolean;
 }) {
-  // Corrections are now graded AI-first the moment you submit, so there is no
-  // manual "AI correction" trigger and no "AI unavailable" nag. We only show a
-  // quiet confirmation that Claude reviewed the answer.
   const status = aiReviewStatus(correction);
+  if (status === 'pending' || status === 'reviewing' || status === 'queued') {
+    return (
+      <div className="ai-review-line">
+        <Loader2 size={13} className="spin" /> AI reviewing
+      </div>
+    );
+  }
+  if (status === 'failed' || status === 'unavailable') {
+    return (
+      <div className="ai-review-line failed">
+        <X size={13} /> AI unavailable
+      </div>
+    );
+  }
   if (status !== 'complete') return null;
   return (
     <div className="ai-review-line complete">
-      <Check size={13} /> Checked by AI
+      <Check size={13} /> AI correction ready
     </div>
   );
 }
@@ -3080,7 +3866,6 @@ function OutputLadderPanel({
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const item = payload.output_ladder?.[round]?.items?.[0] || {};
-  const feedback = submitted ? feedbackFromFreeformCorrection(correction, item.example_answer || '') : null;
   const promptText = outputLadderPrompt(payload, item, round);
 
   const transcribeAudio = async (blob: Blob) => {
@@ -3170,6 +3955,7 @@ function OutputLadderPanel({
       <textarea
         value={answer}
         onChange={(event) => updateAnswer(event.target.value)}
+        readOnly={submitted}
         className={round === 'conversation' ? 'chat-reply' : undefined}
         placeholder={
           round === 'speak'
@@ -3182,7 +3968,6 @@ function OutputLadderPanel({
       <div className="word-count">
         {wordRangeLabel(wordCount(answer), item.min_words, item.max_words)}
       </div>
-      {submitted && <InlineFeedback feedback={feedback} />}
       {submitted && (
         <CorrectionAiReview
           correction={correction}
@@ -3222,13 +4007,12 @@ function ProducePanel({
   const produce = payload.produce || {};
   const sourceFragment = String(produce.source_fragment || '').trim();
   const promptText = String(produce.prompt || '').trim();
-  const feedback = submitted ? feedbackFromFreeformCorrection(correction) : null;
   return (
     <div className="produce-panel">
       <div className="ladder-head">
         <span className="ladder-eyebrow">Write a short paragraph</span>
         <p className="ladder-instruction">
-          {promptText || 'Write a few connected sentences that use the target grammar.'}
+          {promptText || 'Writing prompt unavailable.'}
         </p>
       </div>
       {sourceFragment && (
@@ -3250,9 +4034,8 @@ function ProducePanel({
           ))}
         </div>
       )}
-      <textarea value={answer} onChange={(event) => updateAnswer(event.target.value)} placeholder="Write your paragraph here. The targets guide the review; they do not lock submission." />
+      <textarea value={answer} onChange={(event) => updateAnswer(event.target.value)} placeholder="Write your paragraph here. The targets guide the review; they do not lock submission." readOnly={submitted} />
       <div className="word-count">{wordRangeLabel(wordCount(answer), produce.min_words, produce.max_words)}</div>
-      {submitted && <InlineFeedback feedback={feedback} />}
       {submitted && (
         <CorrectionAiReview
           correction={correction}
@@ -3457,6 +4240,7 @@ function recapActionLabel(action: RecommendedAction, reviewTotal: number) {
     };
   }
   if (action.kind === 'library') {
+    if (!STORY_FEATURE_VISIBLE) return null;
     return {
       title: action.bookTitle ? `Continue ${action.bookTitle}` : 'Continue your library book',
       copy: action.title
@@ -3732,13 +4516,19 @@ function AtelierStyles() {
         line-height: 1;
         letter-spacing: 0;
       }
-      .ph-head .gear {
+      .ph-head .head-right {
         position: absolute;
-        right: 16px;
+        right: 14px;
         top: 50%;
         transform: translateY(-50%);
-        width: 36px;
-        height: 36px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 6px;
+      }
+      .ph-head .gear {
+        width: 34px;
+        height: 34px;
         border: 1px solid var(--ink);
         background: var(--sheet);
         color: var(--ink);
@@ -3758,10 +4548,13 @@ function AtelierStyles() {
         display: flex;
         flex-direction: column;
       }
+      .ph.parcours {
+        height: var(--app-viewport-height);
+      }
       .ph-nav {
         flex: 0 0 auto;
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
         min-height: var(--phone-bottom-nav-space);
         padding-bottom: var(--phone-safe-bottom-space);
         border-top: 1px solid var(--ink);
@@ -3790,6 +4583,521 @@ function AtelierStyles() {
         color: var(--ink);
         background: var(--sheet);
         border-top-color: var(--ink);
+      }
+      .day-badge {
+        min-width: 82px;
+        height: 34px;
+        border: 1px solid var(--ink);
+        background: var(--sheet);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        padding: 0 8px;
+        color: var(--ink);
+        text-transform: uppercase;
+      }
+      .day-badge svg {
+        width: 13px;
+        height: 13px;
+      }
+      .day-badge span {
+        color: var(--ink-3);
+        font-size: 8px;
+        font-weight: 900;
+        letter-spacing: .12em;
+      }
+      .day-badge b {
+        font-family: var(--serif);
+        font-style: italic;
+        font-size: 18px;
+        line-height: 1;
+      }
+      @media (max-width: 420px) {
+        .day-badge {
+          min-width: 72px;
+          gap: 5px;
+          padding-inline: 6px;
+        }
+        .ph-head .gear {
+          width: 32px;
+          height: 32px;
+        }
+      }
+      .parcours .ph-body {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+        padding: 0 var(--phone-gutter);
+        display: flex;
+        flex-direction: column;
+      }
+      .parcours-empty-body {
+        justify-content: center;
+        padding-bottom: 28px;
+      }
+      .parcours-error-card {
+        width: min(100%, 390px);
+        margin: 0 auto;
+        border: 1.5px solid var(--ink);
+        background: var(--sheet);
+        padding: 24px 20px 20px;
+        box-shadow: 6px 6px 0 var(--ink);
+      }
+      .parcours-error-card span {
+        display: block;
+        color: var(--blue);
+        font-size: 9px;
+        font-weight: 900;
+        letter-spacing: .14em;
+        text-transform: uppercase;
+      }
+      .parcours-error-card h1 {
+        margin: 12px 0 8px;
+        color: var(--ink);
+        font-family: var(--serif);
+        font-size: 30px;
+        font-style: italic;
+        line-height: .98;
+        letter-spacing: 0;
+      }
+      .parcours-error-card p {
+        margin: 0 0 20px;
+        color: var(--ink-2);
+        font-size: 13px;
+        font-weight: 700;
+        line-height: 1.45;
+      }
+      .parcours-kicker {
+        flex: 0 0 auto;
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 15px 3px 0;
+        color: var(--ink-3);
+        font-size: 10px;
+        font-weight: 900;
+        letter-spacing: .16em;
+        text-transform: uppercase;
+      }
+      .parcours-kicker b {
+        color: var(--blue);
+        text-align: right;
+        letter-spacing: .09em;
+      }
+      .parcours-map {
+        position: relative;
+        flex: 0 0 auto;
+        height: clamp(510px, calc(var(--app-viewport-height) - var(--phone-topbar-height) - var(--phone-bottom-nav-space) - 132px), 610px);
+        min-height: 510px;
+        margin-top: 4px;
+        overflow: visible;
+      }
+      .parcours-lines {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+      }
+      .parcours-lines path {
+        fill: none;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .parcours-lines .solid {
+        stroke: var(--ink);
+        stroke-width: 4;
+      }
+      .parcours-lines .dotted {
+        stroke: var(--ink-3);
+        stroke-width: 3.2;
+        stroke-dasharray: 3 14;
+      }
+      .week-ribbon {
+        position: absolute;
+        top: 4.5%;
+        left: 32%;
+        border: 1px dashed var(--ink-3);
+        padding: 5px 8px;
+        color: var(--ink-3);
+        background: color-mix(in srgb, var(--paper) 88%, transparent);
+        font-size: 10px;
+        font-weight: 500;
+        letter-spacing: .16em;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+      .parcours-node,
+      .today-node,
+      .review-node,
+      .tomorrow-node {
+        position: absolute;
+        z-index: 2;
+        text-align: center;
+        color: var(--ink);
+        text-decoration: none;
+      }
+      .parcours-node b,
+      .today-node b,
+      .review-node b,
+      .tomorrow-node b {
+        display: block;
+        color: var(--ink-3);
+        font-size: 9px;
+        font-weight: 900;
+        letter-spacing: .09em;
+        line-height: 1;
+        text-transform: uppercase;
+      }
+      .parcours-node em,
+      .tomorrow-node em {
+        display: block;
+        margin-top: 5px;
+        color: var(--ink-3);
+        font-family: var(--serif);
+        font-size: 16px;
+        font-style: italic;
+        line-height: 1;
+        letter-spacing: 0;
+        text-transform: none;
+        white-space: nowrap;
+      }
+      .node-check {
+        width: 46px;
+        height: 46px;
+        display: grid;
+        place-items: center;
+        margin: 0 auto 8px;
+        border: 1px solid var(--ink);
+      }
+      .node-check.dark {
+        background: var(--ink);
+        color: var(--paper);
+      }
+      .node-check.blue {
+        border-radius: 999px;
+        background: var(--blue);
+        color: #fff;
+      }
+      .node-check.blue.hollow {
+        background: var(--paper);
+        border-color: var(--ink-3);
+        color: transparent;
+      }
+      .node-check svg {
+        width: 20px;
+        height: 20px;
+      }
+      .monday-node {
+        top: 10%;
+        left: 16%;
+        transform: translate(-50%, 0);
+      }
+      .tuesday-node {
+        top: 31%;
+        left: 75%;
+        transform: translate(-50%, 0);
+      }
+      .today-node {
+        top: 56%;
+        left: 26%;
+        border: 0;
+        background: transparent;
+        padding: 0;
+        cursor: pointer;
+      }
+      .today-node:disabled {
+        cursor: wait;
+      }
+      .today-square {
+        position: relative;
+        width: 58px;
+        height: 58px;
+        display: grid;
+        place-items: center;
+        margin: 0 auto 9px;
+        border: 1.5px solid var(--ink);
+        background: var(--yellow);
+      }
+      .today-square::after {
+        content: "";
+        position: absolute;
+        z-index: -1;
+        right: -8px;
+        bottom: -8px;
+        width: 100%;
+        height: 100%;
+        background: var(--red);
+      }
+      .today-square i {
+        width: 17px;
+        height: 17px;
+        background: var(--ink);
+      }
+      .story-ticket {
+        position: absolute;
+        z-index: 3;
+        top: 50%;
+        left: 43%;
+        width: min(208px, 54vw);
+        min-height: 108px;
+        border: 1.5px solid var(--ink);
+        background: var(--sheet);
+        color: var(--ink);
+        padding: 13px 14px 12px;
+        text-decoration: none;
+        box-shadow: 5px 5px 0 var(--ink);
+      }
+      .story-ticket.is-disabled {
+        color: var(--ink);
+        cursor: default;
+      }
+      .story-ticket::before {
+        content: "";
+        position: absolute;
+        left: -14px;
+        top: 43px;
+        width: 25px;
+        height: 25px;
+        border-left: 1.5px solid var(--ink);
+        border-bottom: 1.5px solid var(--ink);
+        background: var(--sheet);
+        transform: rotate(45deg);
+      }
+      .story-rubric {
+        display: block;
+        color: var(--blue);
+        font-size: 9px;
+        font-weight: 900;
+        letter-spacing: .1em;
+        text-transform: uppercase;
+      }
+      .story-ticket strong {
+        display: block;
+        margin-top: 8px;
+        font-family: var(--serif);
+        font-size: 21px;
+        font-style: italic;
+        font-weight: 700;
+        line-height: .98;
+        letter-spacing: 0;
+      }
+      .story-byline {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 12px;
+        min-width: 0;
+      }
+      .story-avatar {
+        width: 32px;
+        height: 32px;
+        display: grid;
+        place-items: center;
+        background: var(--blue);
+        color: #fff;
+        border: 1px solid var(--ink);
+        font-family: var(--serif);
+        font-size: 18px;
+        font-style: italic;
+        font-weight: 700;
+        flex: 0 0 auto;
+      }
+      .story-byline i {
+        width: 9px;
+        height: 9px;
+        background: var(--blue);
+        border: 1px solid var(--ink);
+        flex: 0 0 auto;
+      }
+      .story-byline b {
+        min-width: 0;
+        overflow: hidden;
+        color: var(--ink);
+        font-size: 10px;
+        font-weight: 900;
+        letter-spacing: .12em;
+        text-overflow: ellipsis;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+      .story-status {
+        display: block;
+        margin-top: 9px;
+        color: var(--ink-3);
+        font-size: 8px;
+        font-weight: 900;
+        letter-spacing: .1em;
+        text-transform: uppercase;
+      }
+      .review-node {
+        top: 74%;
+        left: 74%;
+        transform: translate(-50%, 0);
+        border: 0;
+        background: transparent;
+        padding: 0;
+        cursor: pointer;
+      }
+      .review-node span {
+        display: block;
+        width: 48px;
+        height: 44px;
+        margin: 0 auto 7px;
+        clip-path: polygon(50% 0, 100% 100%, 0 100%);
+        background: var(--ink-3);
+        position: relative;
+      }
+      .review-node span::after {
+        content: "";
+        position: absolute;
+        inset: 3px 3px 4px;
+        clip-path: inherit;
+        background: var(--paper);
+      }
+      .review-node.due span::after {
+        background: var(--sheet);
+      }
+      .tomorrow-node {
+        top: 83%;
+        left: 35%;
+        transform: translate(-50%, 0);
+      }
+      .tomorrow-node span {
+        display: block;
+        width: 44px;
+        height: 44px;
+        margin: 0 auto 8px;
+        border: 1.5px solid var(--ink-3);
+        border-radius: 999px;
+        background: var(--paper);
+      }
+      .parcours-primary-wrap {
+        flex: 0 0 auto;
+        padding: 4px 16px 20px;
+      }
+      .atelier-page .parcours-primary {
+        min-height: 58px;
+        width: 100%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        border: 1.5px solid var(--ink);
+        border-radius: 17px;
+        background: var(--red);
+        color: #fff;
+        font-size: 15px;
+        font-weight: 900;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        text-decoration: none;
+      }
+      .atelier-page .parcours-primary.soft {
+        background: var(--sheet);
+        color: var(--ink);
+      }
+      .atelier-page .parcours-primary:disabled {
+        opacity: .58;
+        cursor: wait;
+      }
+      .atelier-page .parcours-primary svg {
+        width: 18px;
+        height: 18px;
+      }
+      .parcours-plan {
+        flex: 0 0 auto;
+        margin: 2px 0 20px;
+      }
+      .parcours-caught {
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: column;
+        padding-bottom: 24px;
+      }
+      .caught-mark {
+        width: 68px;
+        height: 68px;
+        display: grid;
+        place-items: center;
+        margin: 72px auto 18px;
+        border: 1.5px solid var(--ink);
+        border-radius: 999px;
+        background: var(--blue);
+        color: #fff;
+      }
+      .caught-mark svg {
+        width: 28px;
+        height: 28px;
+      }
+      .parcours-caught h1 {
+        margin: 0 auto;
+        max-width: 300px;
+        text-align: center;
+        font-family: var(--serif);
+        font-size: 38px;
+        font-style: italic;
+        font-weight: 700;
+        line-height: 1;
+      }
+      .parcours-caught p {
+        max-width: 280px;
+        margin: 14px auto 0;
+        text-align: center;
+        color: var(--ink-2);
+        font-size: 14px;
+        line-height: 1.4;
+      }
+      .caught-ledger {
+        margin: 28px 10px 0;
+        border-top: 1px solid var(--ink);
+      }
+      .caught-ledger div {
+        min-height: 52px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        border-bottom: 1px solid var(--paper-3);
+      }
+      .caught-ledger span {
+        color: var(--ink-3);
+        font-size: 10px;
+        font-weight: 900;
+        letter-spacing: .12em;
+        text-transform: uppercase;
+      }
+      .caught-ledger b {
+        font-size: 12px;
+        font-weight: 900;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+      }
+      .caught-doors {
+        display: grid;
+        gap: 10px;
+        margin: auto 10px 0;
+      }
+      .caught-doors a {
+        min-height: 56px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border: 1px solid var(--ink);
+        background: var(--sheet);
+        color: var(--ink);
+        padding: 0 14px;
+        text-decoration: none;
+        font-size: 12px;
+        font-weight: 900;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+      }
+      .caught-doors svg {
+        width: 17px;
+        height: 17px;
       }
       .ph-nav.three {
         grid-template-columns: 1fr auto 1fr;
@@ -4004,6 +5312,9 @@ function AtelierStyles() {
         background: var(--red);
         color: #fff;
       }
+      .plate.vocabulary .badge {
+        background: var(--blue);
+      }
       .plate svg {
         width: 20px;
         height: 20px;
@@ -4172,6 +5483,45 @@ function AtelierStyles() {
         font-size: 9px;
         font-weight: 900;
         letter-spacing: .15em;
+        text-transform: uppercase;
+        color: var(--ink-3);
+      }
+      .vocab-open-wrap {
+        margin-top: 12px;
+        display: grid;
+        gap: 12px;
+      }
+      .vocab-open {
+        min-height: 64px;
+        display: grid;
+        grid-template-columns: 18px minmax(0, 1fr);
+        align-items: center;
+        gap: 12px;
+        border: 1px solid var(--ink);
+        background: var(--sheet);
+        padding: 13px 15px;
+      }
+      .vocab-open .dot.vocab {
+        width: 14px;
+        height: 14px;
+        background: var(--blue);
+        border: 1px solid var(--ink);
+      }
+      .vocab-open .lab {
+        min-width: 0;
+      }
+      .vocab-open .lab b {
+        display: block;
+        font-size: 13px;
+        font-weight: 800;
+      }
+      .vocab-open .lab em {
+        display: block;
+        margin-top: 1px;
+        font-style: normal;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: .1em;
         text-transform: uppercase;
         color: var(--ink-3);
       }
@@ -4380,6 +5730,42 @@ function AtelierStyles() {
         .ph {
           width: 100%;
           max-width: var(--app-viewport-width);
+        }
+        .story-ticket {
+          left: 40%;
+          width: min(198px, 52vw);
+          padding: 12px 12px 11px;
+        }
+        .story-ticket::before {
+          left: -12px;
+          top: 39px;
+          width: 22px;
+          height: 22px;
+        }
+        .story-rubric {
+          font-size: 8px;
+          letter-spacing: .09em;
+        }
+        .story-ticket strong {
+          font-size: 19px;
+          line-height: 1;
+        }
+        .story-byline {
+          gap: 7px;
+          margin-top: 10px;
+        }
+        .story-avatar {
+          width: 28px;
+          height: 28px;
+          font-size: 16px;
+        }
+        .story-byline b {
+          font-size: 9px;
+          letter-spacing: .08em;
+        }
+        .review-node {
+          top: 76%;
+          left: 72%;
         }
       }
       .today-spread {
@@ -4897,21 +6283,31 @@ function AtelierStyles() {
       }
       .edition-cover {
         display: grid;
-        gap: 16px;
+        gap: 14px;
         margin: 20px 0 18px;
-        padding: clamp(18px, 4vw, 28px);
+        padding: clamp(20px, 5vw, 34px) 0;
         border: 1px solid var(--ink);
-        background: var(--paper);
-        box-shadow: var(--ink-block-shadow);
+        border-left: 0;
+        border-right: 0;
+        background: transparent;
+        box-shadow: none;
       }
-      .edition-cover p {
-        max-width: 12ch;
+      .edition-cover .cover-kicker {
+        color: var(--red);
+        font-family: var(--mono);
+        font-size: 10px;
+        font-weight: 900;
+        letter-spacing: .16em;
+        text-transform: uppercase;
+      }
+      .edition-cover h1 {
+        max-width: 13ch;
         margin: 0;
         font-family: var(--serif);
-        font-size: clamp(32px, 6vw, 54px);
+        font-size: clamp(35px, 7vw, 58px);
         font-style: italic;
         font-weight: 400;
-        line-height: .96;
+        line-height: .94;
         letter-spacing: 0;
       }
       .edition-cover .cta {
@@ -4926,24 +6322,82 @@ function AtelierStyles() {
         align-items: center;
         justify-content: center;
         gap: 10px;
+        box-shadow: none;
         font-family: var(--mono);
         font-size: 11px;
-        font-weight: 500;
-        letter-spacing: .08em;
+        font-weight: 900;
+        letter-spacing: .12em;
         text-transform: uppercase;
-        transition: transform var(--dur-fast) var(--ease-standard), box-shadow var(--dur-fast) var(--ease-standard);
+        transition: background var(--dur-fast) var(--ease-standard), color var(--dur-fast) var(--ease-standard);
       }
       .edition-cover .cta:hover:not(:disabled) {
-        transform: translate(-2px, -2px);
-        box-shadow: 4px 4px 0 var(--ink);
+        background: var(--ink);
       }
       .edition-cover .cta:disabled {
         opacity: .5;
         cursor: wait;
       }
+      .edition-cover .cover-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 14px;
+        color: var(--ink-3);
+        font-family: var(--mono);
+        font-size: 10px;
+        font-weight: 900;
+        letter-spacing: .1em;
+        line-height: 1.35;
+        text-transform: uppercase;
+      }
       .edition-serial {
         margin-top: var(--phone-section-gap);
       }
+      .edition-today {
+        display: grid;
+        gap: 16px;
+        margin-top: var(--phone-section-gap);
+      }
+      .edition-progress { display: grid; gap: 6px; }
+      .edition-progress-label {
+        font-family: var(--mono); font-size: 10px; font-weight: 900;
+        letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3);
+      }
+      .edition-progress-bar { height: 5px; background: var(--paper-2); }
+      .edition-progress-bar i { display: block; height: 100%; background: var(--ink); }
+      .edition-hero {
+        display: grid; gap: 4px; width: 100%; text-align: left;
+        border: 1px solid var(--ink); background: var(--paper);
+        box-shadow: 6px 6px 0 var(--ink); padding: 16px; cursor: pointer;
+      }
+      .edition-hero:disabled { opacity: .5; cursor: not-allowed; box-shadow: 4px 4px 0 var(--ink); }
+      .edition-hero-kicker {
+        font-family: var(--mono); font-size: 9px; font-weight: 900;
+        letter-spacing: .14em; text-transform: uppercase; color: var(--red);
+      }
+      .edition-hero-title {
+        font-family: var(--serif); font-style: italic; font-size: 23px; line-height: 1.1;
+      }
+      .edition-hero-meta { font-size: 13px; color: var(--ink-2); }
+      .edition-hero-go {
+        margin-top: 10px; display: inline-flex; align-items: center; gap: 8px;
+        font-family: var(--mono); font-size: 11px; font-weight: 900;
+        letter-spacing: .14em; text-transform: uppercase; color: var(--ink);
+      }
+      .edition-then { display: grid; border: 1px solid var(--paper-2); }
+      .edition-then-label {
+        padding: 10px 12px 4px; font-family: var(--mono); font-size: 9px; font-weight: 900;
+        letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3);
+      }
+      .edition-row {
+        display: flex; align-items: baseline; justify-content: space-between;
+        width: 100%; text-align: left; padding: 11px 12px; border-top: 1px solid var(--paper-2);
+        background: var(--paper); color: var(--ink); text-decoration: none; cursor: pointer;
+      }
+      .edition-row-name { font-family: var(--serif); font-style: italic; font-size: 16px; }
+      .edition-row-meta {
+        font-family: var(--mono); font-size: 10px; font-weight: 900; color: var(--ink-3); font-style: normal;
+      }
+      .edition-row-meta.accent { color: var(--blue); }
       .also-today {
         display: grid;
         gap: 9px;
@@ -4981,6 +6435,9 @@ function AtelierStyles() {
       }
       .also-card.review {
         background: var(--paper);
+      }
+      .also-card.vocabulary {
+        background: var(--sheet);
       }
       .also-mark {
         background: var(--paper);
@@ -5029,6 +6486,14 @@ function AtelierStyles() {
         border-style: solid;
         border-width: 0 13px 23px 13px;
         border-color: transparent transparent var(--red) transparent;
+        flex: 0 0 auto;
+      }
+      .vocab-dot {
+        width: 18px;
+        height: 18px;
+        background: var(--blue);
+        border: 1px solid var(--ink);
+        box-shadow: 3px 3px 0 var(--ink);
         flex: 0 0 auto;
       }
       .today-plan {
@@ -5316,6 +6781,39 @@ function AtelierStyles() {
       }
       .atelier-do-mode .sub-exercise:last-child {
         padding-bottom: 0;
+      }
+      .focused-exercise-meter {
+        margin: 0 0 18px;
+        display: grid;
+        grid-template-columns: auto minmax(72px, 1fr) auto;
+        align-items: center;
+        gap: 12px;
+        color: var(--ink-3);
+        font-family: var(--mono);
+        font-size: 10px;
+        font-weight: 900;
+        letter-spacing: .12em;
+        text-transform: uppercase;
+      }
+      .focused-exercise-meter div {
+        display: flex;
+        gap: 5px;
+      }
+      .focused-exercise-meter i {
+        display: block;
+        flex: 1 1 0;
+        min-width: 18px;
+        height: 5px;
+        background: var(--paper-3);
+      }
+      .focused-exercise-meter i.done {
+        background: var(--ink-3);
+      }
+      .focused-exercise-meter i.active {
+        background: var(--red);
+      }
+      .focused-exercise-meter b {
+        color: var(--ink);
       }
       .atelier-do-mode .exercise-prompt,
       .atelier-do-mode .source-sentence {
@@ -5765,9 +7263,12 @@ function AtelierStyles() {
           padding-right: 18px;
         }
         .edition-cover {
-          width: calc(100% - 5px);
-          max-width: calc(100% - 5px);
-          box-shadow: 4px 4px 0 var(--ink);
+          width: 100%;
+          max-width: 100%;
+          box-shadow: none;
+        }
+        .edition-cover h1 {
+          max-width: 12ch;
         }
         .edition-cover .cta {
           width: 100%;

@@ -4,11 +4,11 @@ import { useRouter } from 'next/router';
 import { Settings } from 'lucide-react';
 
 import {
-  PHONE_PRODUCT_TABS,
   resolveProductSection,
   resolveProductTitle,
   type ProductSection,
 } from '@/lib/product-shell';
+import PhoneProductNav from './PhoneProductNav';
 
 type MastheadSection =
   | 'home'
@@ -51,10 +51,6 @@ export default function EditorialMasthead({
   const router = useRouter();
   const mobileSection = resolveProductSection(router.pathname) || productSectionFromMasthead(active);
   const mobileTitle = resolveProductTitle(mobileSection, router.pathname);
-  const mobileItems = PHONE_PRODUCT_TABS.map((item) => ({
-    ...item,
-    active: item.id === mobileSection,
-  }));
   const isSettingsActive = active === 'settings' || router.pathname === '/settings';
 
   return (
@@ -84,21 +80,7 @@ export default function EditorialMasthead({
         </div>
       </div>
       {!hideMobileNav && (
-        <nav className="app-mobile-nav" aria-label="Mobile primary">
-          {mobileItems.map((item) => {
-            return (
-              <Link
-                key={item.href}
-                className={item.active ? 'active' : ''}
-                href={item.href}
-                aria-current={item.active ? 'page' : undefined}
-              >
-                <MobileTabIcon kind={item.icon} />
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
-        </nav>
+        <PhoneProductNav active={mobileSection} />
       )}
       <style jsx global>{`
         .app-masthead {
@@ -209,9 +191,6 @@ export default function EditorialMasthead({
           height: 16px;
           flex: 0 0 auto;
         }
-        .app-mobile-nav {
-          display: none;
-        }
         .app-mobile-title {
           display: none;
         }
@@ -300,58 +279,6 @@ export default function EditorialMasthead({
           .app-mobile-action .app-settings-affordance span {
             display: none;
           }
-          .app-mobile-nav {
-            position: fixed;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            z-index: 90;
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            grid-template-rows: var(--phone-bottom-nav-height);
-            align-content: start;
-            min-height: var(--phone-bottom-nav-space);
-            padding: 0 0 var(--phone-safe-bottom-space);
-            border-top: 1px solid var(--app-ink);
-            background: var(--app-paper);
-            box-shadow: none;
-            backdrop-filter: none;
-          }
-          .app-mobile-nav a {
-            display: flex;
-            min-width: 0;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 4px;
-            min-height: var(--phone-bottom-nav-height);
-            margin-top: -1px;
-            padding-bottom: 0;
-            border-top: 2px solid transparent;
-            color: var(--app-ink-3);
-            text-decoration: none;
-            font-size: 10px;
-            line-height: 1;
-            letter-spacing: .08em;
-            text-transform: uppercase;
-            font-weight: 800;
-          }
-          .app-mobile-nav a.active {
-            border-top-color: var(--app-ink);
-            background: var(--app-sheet);
-            color: var(--app-ink);
-          }
-          .app-mobile-nav svg {
-            width: 20px;
-            height: 20px;
-            flex: 0 0 auto;
-          }
-          .app-mobile-nav span {
-            overflow: hidden;
-            max-width: 100%;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-          }
         }
       `}</style>
     </header>
@@ -360,6 +287,8 @@ export default function EditorialMasthead({
 
 function productSectionFromMasthead(active?: MastheadSection): ProductSection | undefined {
   if (active === 'notebook' || active === 'progress') return 'notebook';
+  if (active === 'missions') return 'missions';
+  if (active === 'feuilleton') return 'feuilleton';
   if (active === 'settings') return undefined;
   return 'atelier';
 }
@@ -376,25 +305,6 @@ function SettingsAffordance({ active, mobile = false }: { active: boolean; mobil
       <Settings aria-hidden="true" strokeWidth={2.4} />
       {!mobile && <span>Settings</span>}
     </Link>
-  );
-}
-
-function MobileTabIcon({ kind }: { kind: 'mark' | 'book' }) {
-  if (kind === 'mark') {
-    return (
-      <svg viewBox="0 0 20 20" aria-hidden="true">
-        <rect x="0" y="0" width="8" height="8" fill="currentColor" />
-        <path d="M20 0 A 12 12 0 0 0 8 12 L 20 12 Z" fill="currentColor" />
-        <rect x="0" y="12" width="8" height="8" fill="currentColor" />
-      </svg>
-    );
-  }
-  return (
-    <svg viewBox="0 0 20 20" aria-hidden="true" fill="none">
-      <rect x="3" y="2" width="13" height="16" stroke="currentColor" strokeWidth="1.6" />
-      <path d="M3 4h13M3 6h13" stroke="currentColor" strokeWidth="1" />
-      <path d="M11 2v8l-2-2-2 2V2" fill="currentColor" />
-    </svg>
   );
 }
 

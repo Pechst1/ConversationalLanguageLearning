@@ -61,11 +61,15 @@ def test_graphic_novel_scene_leads_with_panels_before_brief() -> None:
 
 def test_graphic_novel_completion_routes_to_returned_serial_beat() -> None:
     source = read_web("pages/graphic-novel.tsx")
+    missions = read_web("pages/missions.tsx")
     api = read_web("services/api.ts")
 
     assert "next_serial?: SerialToday | null" in api
     assert "function routeForSerialBeat" in source
     assert "routeForSerialBeat(result.next_serial)" in source
+    assert "function routeForMissionSerialBeat" in missions
+    assert "serialQueryString(serial)" in missions
+    assert "routeForMissionSerialBeat(result.next_serial)" in missions
     assert "File this edition first" in source
     assert "const primaryAction = scene.status === 'completed'" in source
     assert "label: 'Finish edition', href: '#reading-panels'" in source
@@ -98,11 +102,14 @@ def test_product_direction_surfaces_are_wired() -> None:
 
     assert "CEFRPromiseStrip" in atelier
     assert "estimatedRemainingMinutes" in atelier
-    assert "MissionFormatBrief" in missions
-    assert "voicemail_reply" in missions
-    assert "admin_form" in missions
+    assert "TranslateButton" in missions
+    assert "className=\"mission-stage\"" in missions
+    assert "missionVariety" in missions
+    assert "voicemail_reply" in api
+    assert "admin_form" in api
     assert "mission_format" in api
     assert "getCefrProgress()" in api
-    assert "destination: '/bibliotheque'" in redirects
+    assert "destination: '/atelier'" in redirects
     assert "source: '/stories/:path*'" in redirects
+    assert "source: '/bibliotheque/:path*'" in redirects
     assert "from './stories'" in bibliotheque

@@ -1218,6 +1218,11 @@ def test_mission_complete_endpoint_advances_serial_thread(client: TestClient, db
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 200
+    payload = response.json()
+    assert payload["mission"]["status"] == "completed"
+    assert payload["next_serial"]["kind"] == "feuilleton"
+    assert payload["next_serial"]["episode_index"] == 1
+    assert payload["next_serial"]["status"] == "generation_queued"
 
     db_session.expire_all()
     refreshed = db_session.get(SerialThread, thread.id)

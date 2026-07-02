@@ -1,10 +1,13 @@
 """Service for handling Web Push notifications."""
 import json
-from sqlalchemy.orm import Session
+
+from pywebpush import WebPushException, webpush
 from sqlalchemy import select
-from pywebpush import webpush, WebPushException
+from sqlalchemy.orm import Session
+
 from app.config import settings
 from app.db.models.push_subscription import PushSubscription
+
 
 class NotificationService:
     def __init__(self, db: Session):
@@ -15,9 +18,11 @@ class NotificationService:
         endpoint = subscription_info.get("endpoint")
         if not endpoint:
             raise ValueError("Endpoint required")
-            
+
         keys = subscription_info.get("keys")
-        
+        if not isinstance(keys, dict) or not keys.get("p256dh") or not keys.get("auth"):
+            raise ValueError("Subscription keys p256dh and auth are required")
+
         # Check if exists
         stmt = select(PushSubscription).where(
             PushSubscription.user_id == user_id,
@@ -32,10 +37,10 @@ class NotificationService:
                 user_id=user_id,
                 endpoint=endpoint,
                 keys=keys,
-                user_agent=user_agent
+                user_agent=user_agent,
             )
             self.db.add(sub)
-        
+
         self.db.commit()
 
     def send_notification(self, user_id, message: str, title: str = "Language Learning"):

@@ -9,6 +9,14 @@ import apiService, { GraphicNovelScene, RealWorldMission, SerialArchiveEpisode }
 
 const STATIC_REPLAY_EPISODES = 24;
 
+function resolveEpisodeIndex(rawIndex: string | string[] | undefined, asPath: string): number | null {
+  const direct = Array.isArray(rawIndex) ? rawIndex[0] : rawIndex;
+  const fallback = asPath.includes('?') ? new URLSearchParams(asPath.split('?')[1]).get('index') : null;
+  const browserFallback = typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get('index');
+  const parsed = Number(direct ?? fallback ?? browserFallback);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 export async function getStaticPaths() {
   return {
     paths: Array.from({ length: STATIC_REPLAY_EPISODES }, (_, index) => ({
@@ -24,14 +32,17 @@ export async function getStaticProps() {
 
 export default function SerialEpisodeReplayPage() {
   const router = useRouter();
-  const episodeIndex = Number(router.query.index);
+  const episodeIndex = useMemo(
+    () => resolveEpisodeIndex(router.query.index, router.asPath),
+    [router.asPath, router.query.index],
+  );
   const [episode, setEpisode] = useState<SerialArchiveEpisode | null>(null);
   const [scene, setScene] = useState<GraphicNovelScene | null>(null);
   const [mission, setMission] = useState<RealWorldMission | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!router.isReady || !Number.isFinite(episodeIndex)) return;
+    if (!router.isReady || episodeIndex === null) return;
     let alive = true;
     setLoading(true);
     apiService.getSerialEpisodes()

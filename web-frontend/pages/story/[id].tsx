@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import ImmersiveStoryView from '@/components/story/ImmersiveStoryView';
 import { useAppSession } from '@/lib/app-auth';
+import { STORY_FEATURE_VISIBLE } from '@/lib/launch-flags';
 import apiService from '@/services/api';
 
 // Types
@@ -95,7 +96,7 @@ export default function StoryPage({ storyData = null, storyId: initialStoryId, e
     const router = useRouter();
     const { data: session } = useAppSession();
     const routeStoryId = Array.isArray(router.query.id) ? router.query.id[0] : router.query.id;
-    const storyId = initialStoryId || routeStoryId || '';
+    const storyId = STORY_FEATURE_VISIBLE ? initialStoryId || routeStoryId || '' : '';
     const [scene, setScene] = useState<Scene | null>(storyData?.scene || null);
     const [chapter, setChapter] = useState<Chapter | null>(storyData?.chapter || null);
     const [progress, setProgress] = useState<StoryProgress | null>(storyData?.progress || null);
@@ -109,6 +110,10 @@ export default function StoryPage({ storyData = null, storyId: initialStoryId, e
     const [pendingTransition, setPendingTransition] = useState<any>(null);
     const [isImmersiveMode, setIsImmersiveMode] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!STORY_FEATURE_VISIBLE) void router.replace('/atelier');
+    }, [router]);
 
     const handleContinueTransition = async () => {
         setPendingTransition(null);
@@ -358,6 +363,8 @@ export default function StoryPage({ storyData = null, storyId: initialStoryId, e
             setIsLoading(false);
         }
     };
+
+    if (!STORY_FEATURE_VISIBLE) return null;
 
     if (loadError) {
         return (

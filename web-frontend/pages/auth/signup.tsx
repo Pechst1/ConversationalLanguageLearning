@@ -8,13 +8,14 @@ import * as yup from 'yup';
 import { ArrowRight, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { sanitizeAuthCallbackUrl } from '@/lib/app-auth';
 import apiService from '@/services/api';
 import toast from 'react-hot-toast';
 
 const schema = yup.object({
   name: yup.string().required('Name is required'),
   email: yup.string().email('Invalid email').required('Email is required'),
-  password: yup.string().min(6, 'Password must be at least 6 characters').required('Password is required'),
+  password: yup.string().min(8, 'Password must be at least 8 characters').required('Password is required'),
   confirmPassword: yup.string().oneOf([yup.ref('password')], 'Passwords must match').required('Please confirm your password'),
   nativeLanguage: yup.string().required('Native language is required'),
   targetLanguage: yup.string().required('Target language is required'),
@@ -52,11 +53,25 @@ const authInputClass =
 const selectClass =
   'h-12 w-full rounded-none border-2 border-[var(--app-ink)] bg-[var(--app-sheet)] px-3 py-2 text-sm font-semibold text-[var(--app-ink)] shadow-none focus:border-[var(--app-ink)] focus:outline-none focus:ring-2 focus:ring-[var(--app-blue)] focus:ring-offset-2 focus:ring-offset-[var(--app-paper)]';
 
+function authErrorMessage(error: any) {
+  const detail = error?.response?.data?.detail;
+  if (Array.isArray(detail)) {
+    return detail
+      .map((item) => String(item?.msg || item?.message || '').trim())
+      .filter(Boolean)
+      .join(' ');
+  }
+  if (typeof detail === 'string' && detail.trim()) return detail;
+  return 'An error occurred. Please try again.';
+}
+
 export default function SignUpPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = React.useState(false);
   const [selectedTopics, setSelectedTopics] = React.useState<string[]>([]);
   const [customTopic, setCustomTopic] = React.useState('');
+  const destination = sanitizeAuthCallbackUrl(router.query.callbackUrl);
+  const callbackQuery = destination === '/atelier' ? {} : { callbackUrl: destination };
 
   const {
     register,
@@ -105,10 +120,9 @@ export default function SignUpPage() {
       });
 
       toast.success('Account created successfully! Please sign in.');
-      router.push('/auth/signin');
+      router.push({ pathname: '/auth/signin', query: callbackQuery });
     } catch (error: any) {
-      const message = error.response?.data?.detail || 'An error occurred. Please try again.';
-      toast.error(message);
+      toast.error(authErrorMessage(error));
     } finally {
       setIsLoading(false);
     }
@@ -150,7 +164,7 @@ export default function SignUpPage() {
               <h2 id="signup-title">Join Atelier</h2>
               <p>
                 Already have an account?{' '}
-                <Link href="/auth/signin" className="auth-inline-link">
+                <Link href={{ pathname: '/auth/signin', query: callbackQuery }} className="auth-inline-link">
                   Sign in
                 </Link>
               </p>

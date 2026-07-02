@@ -217,6 +217,8 @@ export interface VocabularyRecommendationItem {
   priority_score: number;
   is_new: boolean;
   deck_name?: string | null;
+  part_of_speech?: string | null;
+  topic_tags?: string[];
   translations: {
     de?: string | null;
     en?: string | null;
@@ -370,6 +372,72 @@ export interface VocabularyMasteryMap {
   deck_label: string;
 }
 
+export interface CoverageBand {
+  band: string;
+  label?: string;
+  nailed: number;
+  total: number;
+  percent: number;
+}
+
+export interface CoverageTrack {
+  id: string;
+  label: string;
+  track: string;
+  unit?: string;
+  nailed: number;
+  total: number;
+  percent: number;
+  cefr_bands?: CoverageBand[];
+  href?: string;
+  example_words?: string[];
+  [key: string]: any;
+}
+
+export interface VocabularyCoverage {
+  cefr_bar: CoverageBand[];
+  categories: CoverageTrack[];
+  verb_tracks: CoverageTrack[];
+  grammar_tracks: CoverageTrack[];
+  next_best_set: Record<string, any>;
+  nailed_rule: Record<string, any>;
+}
+
+export interface ConjugationReviewItem {
+  id: string;
+  lemma: string;
+  normalized_lemma: string;
+  tense: string;
+  tense_label: string;
+  person: string;
+  prompt: string;
+  answer: string;
+  cefr_band: string;
+  is_irregular: boolean;
+  progress_id?: string | null;
+  state: string;
+  reps: number;
+  lapses: number;
+  due_at?: string | null;
+  table: Array<{ person: string; form: string; tense: string; tense_label: string; auxiliary?: string | null }>;
+}
+
+export interface ConjugationReviewQueue {
+  items: ConjugationReviewItem[];
+  summary: { total: number; due: number; new: number };
+  algorithm: string;
+}
+
+export interface ConjugationReviewResponse {
+  lemma: string;
+  tense: string;
+  state: string;
+  proficiency_score: number;
+  reps: number;
+  lapses: number;
+  next_review?: string | null;
+}
+
 export interface WeeklyDossierStats {
   repairs_filed: number;
   vocabulary_reviews: number;
@@ -415,6 +483,7 @@ export interface AtelierAttemptRead {
   verdict: string;
   score_0_4: number;
   submitted_key: string;
+  submitted_keys?: string[];
   created_at?: string | null;
 }
 
@@ -439,6 +508,9 @@ export interface AtelierSessionStart {
     mode?: string;
     concept_id?: number | null;
     concept_index?: number;
+    item_id?: string | null;
+    item_index?: number;
+    item_count?: number;
   };
   due_errata: AtelierErratum[];
   recap: Record<string, any>;
@@ -915,10 +987,50 @@ export interface GraphicNovelCompleteResult {
   next_serial?: SerialToday | null;
 }
 
+export interface MissionCompleteResult {
+  mission: RealWorldMission;
+  recap: VocabularyRecapPayload;
+  next_serial?: SerialToday | null;
+}
+
 export interface PasswordResetRequestResponse {
   message: string;
   reset_token?: string | null;
   reset_url?: string | null;
+}
+
+export type FeedbackCategory =
+  | 'bug'
+  | 'broken_link'
+  | 'content'
+  | 'layout'
+  | 'slow_loading'
+  | 'suggestion'
+  | 'other';
+
+export interface FeedbackReportPayload {
+  category: FeedbackCategory;
+  message?: string;
+  route: string;
+  url?: string;
+  screen?: string;
+  viewport?: Record<string, any>;
+  user_agent?: string;
+  context_payload?: Record<string, any>;
+}
+
+export interface FeedbackReport {
+  id: string;
+  user_id: string;
+  category: FeedbackCategory;
+  message?: string | null;
+  route: string;
+  url?: string | null;
+  screen?: string | null;
+  viewport: Record<string, any>;
+  user_agent?: string | null;
+  context_payload: Record<string, any>;
+  created_at: string;
 }
 
 function apiErrorMessage(error: any): string {
@@ -1120,6 +1232,13 @@ class ApiService {
     }
   }
 
+  async translateToEnglish(text: string): Promise<string> {
+    const trimmed = (text || '').trim();
+    if (!trimmed) return '';
+    const response = await this.atelierPost<{ translation: string }>('/atelier/translate', { text: trimmed });
+    return response.translation || '';
+  }
+
   // Authentication endpoints
   async register(userData: {
     email: string;
@@ -1202,7 +1321,7 @@ class ApiService {
   }
 
   async getVapidPublicKey() {
-    return this.get<{ publicKey: string }>('/notifications/vapid-public-key');
+    return this.get<{ publicKey: string | null }>('/notifications/vapid-public-key');
   }
 
   async subscribeToNotifications(subscription: any) {
@@ -1301,31 +1420,36 @@ class ApiService {
   }
 
   async getVocabularyRecommendations(params?: VocabularyRecommendationParams): Promise<VocabularyRecommendations> {
-    return this.get('/progress/vocabulary/recommendations', {
-      params,
-      suppressGlobalError: true,
-    } as AxiosRequestConfig & { suppressGlobalError: boolean });
+    return this.atelierGet('/progress/vocabulary/recommendations', { params });
   }
 
   async getVocabularyDueContext(params?: VocabularyDueContextParams): Promise<VocabularyDueContext> {
-    return this.get('/vocabulary/due-context', {
-      params,
-      suppressGlobalError: true,
-    } as AxiosRequestConfig & { suppressGlobalError: boolean });
+    return this.atelierGet('/vocabulary/due-context', { params });
+  }
+
+  async getVocabularyCoverage(): Promise<VocabularyCoverage> {
+    return this.atelierGet('/vocabulary/coverage');
+  }
+
+  async getConjugationReview(params?: { limit?: number; cefr_band?: string }): Promise<ConjugationReviewQueue> {
+    return this.atelierGet('/vocabulary/conjugation/review', { params });
+  }
+
+  async submitConjugationReview(data: {
+    lemma: string;
+    tense: string;
+    rating: number;
+    response_time_ms?: number;
+  }): Promise<ConjugationReviewResponse> {
+    return this.atelierPost('/vocabulary/conjugation/review', data);
   }
 
   async getVocabularyMasteryMap(params?: { limit?: number; direction?: string }): Promise<VocabularyMasteryMap> {
-    return this.get('/progress/vocabulary/map', {
-      params,
-      suppressGlobalError: true,
-    } as AxiosRequestConfig & { suppressGlobalError: boolean });
+    return this.atelierGet('/progress/vocabulary/map', { params });
   }
 
   async getWeeklyDossier(params?: { period_days?: number }): Promise<WeeklyDossier> {
-    return this.get('/progress/weekly-dossier', {
-      params,
-      suppressGlobalError: true,
-    } as AxiosRequestConfig & { suppressGlobalError: boolean });
+    return this.atelierGet('/progress/weekly-dossier', { params });
   }
 
   async getAnkiProgress(params?: { direction?: string }) {
@@ -1341,7 +1465,7 @@ class ApiService {
   }
 
   async submitAnkiReview(data: { word_id: number; rating: number; response_time_ms?: number }): Promise<AnkiReviewResponse> {
-    return this.post('/anki/review', data);
+    return this.atelierPost('/anki/review', data);
   }
 
   async getWordProgress(wordId: number) {
@@ -1399,9 +1523,7 @@ class ApiService {
   }
 
   async getVocabularyBiography(wordId: number): Promise<VocabularyBiography> {
-    return this.get(`/vocabulary/${wordId}/biography`, {
-      suppressGlobalError: true,
-    } as AxiosRequestConfig & { suppressGlobalError: boolean });
+    return this.atelierGet(`/vocabulary/${wordId}/biography`);
   }
 
   // Grammar endpoints
@@ -1471,7 +1593,7 @@ class ApiService {
   }
 
   async getCefrProgress() {
-    return this.get<CEFRProgress>('/progress/cefr');
+    return this.atelierGet<CEFRProgress>('/progress/cefr');
   }
 
   async startAtelierSession(data?: { concept_ids?: number[]; preferred_concept_id?: number; preferred_vocabulary_ids?: number[] }) {
@@ -1584,7 +1706,7 @@ class ApiService {
   }
 
   async completeMission(missionId: string) {
-    const response = await this.atelierPost<{ mission: RealWorldMission; recap: VocabularyRecapPayload }>(`/missions/${missionId}/complete`);
+    const response = await this.atelierPost<MissionCompleteResult>(`/missions/${missionId}/complete`);
     return response;
   }
 
@@ -1798,6 +1920,14 @@ class ApiService {
       { responseType: 'arraybuffer' }
     );
     return response.data;
+  }
+
+  async submitFeedbackReport(data: FeedbackReportPayload): Promise<FeedbackReport> {
+    return this.post<FeedbackReport>(
+      '/feedback/reports',
+      data,
+      { suppressGlobalError: true } as SilentRequestConfig,
+    );
   }
 }
 

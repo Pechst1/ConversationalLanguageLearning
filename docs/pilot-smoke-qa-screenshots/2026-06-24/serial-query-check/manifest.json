@@ -1,0 +1,50 @@
+{
+  "capturedAt": "2026-06-24T18:57:05.023Z",
+  "frontendUrl": "http://localhost:3001",
+  "backendUrl": "http://localhost:8000",
+  "captureScope": "partial",
+  "requestedFrames": [
+    "serial-episode-query-detail"
+  ],
+  "pilotSeed": {
+    "atelier_session_id": "2df14222-0c35-4729-bd66-fd493aaa2c88",
+    "concept_ids": [
+      564,
+      565,
+      566
+    ],
+    "errata_ids": [
+      "6a1a3d25-659c-4299-9989-6b8245a8fb62"
+    ],
+    "feuilleton_scene_id": "32abc4fb-d422-41c4-95b2-89e0246e2824",
+    "mission_id": "3926a37a-06ce-43d0-9e88-ff29d444e3aa",
+    "serial_mission_id": "e1233f8d-bd1f-4cf0-a2f9-22febd2a5e08",
+    "serial_thread_id": "13f29acf-3bb9-4384-8a24-1ef8ad5127a2",
+    "user_id": "a002e6aa-3648-49c1-bd39-c0006250bb38",
+    "word_ids": [
+      10041,
+      10042,
+      10043,
+      10044
+    ]
+  },
+  "viewports": [
+    {
+      "label": "compact",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 3,
+      "mobile": true
+    }
+  ],
+  "frames": [
+    {
+      "viewport": "compact",
+      "name": "serial-episode-query-detail",
+      "route": "/serial/episode?index=0",
+      "path": "/Users/vincentpechstein/Downloads/Pixel-lab/ConversationalLanguageLearning/docs/pilot-smoke-qa-screenshots/2026-06-24/serial-query-check/serial-episode-query-detail.png",
+      "ok": true,
+      "warning": null
+    }
+  ]
+}

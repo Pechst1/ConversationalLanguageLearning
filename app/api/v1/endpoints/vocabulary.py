@@ -16,9 +16,11 @@ from app.db.models.mission import RealWorldMission
 from app.db.models.progress import ReviewLog, UserVocabularyProgress
 from app.db.models.session import WordInteraction
 from app.db.models.user import User
-from app.db.models.vocabulary import VocabularyWord
+from app.db.models.vocabulary import VerbConjugation, VocabularyWord
 from app.schemas.progress import VocabularyDueContextResponse
 from app.schemas.vocabulary import (
+    ConjugationReviewRequest,
+    ConjugationReviewResponse,
     VocabularyBiographyEvent,
     VocabularyBiographyExample,
     VocabularyBiographyOrigin,
@@ -27,8 +29,10 @@ from app.schemas.vocabulary import (
     VocabularyListResponse,
     VocabularyWordRead,
 )
+from app.services.conjugation import ConjugationService
 from app.services.progress import ProgressService
 from app.services.vocabulary import VocabularyNotFoundError, VocabularyService
+from app.services.vocabulary_coverage import VocabularyCoverageService
 from app.utils.cache import cache_backend, build_cache_key
 
 router = APIRouter(prefix="/vocabulary", tags=["vocabulary"])
@@ -503,6 +507,74 @@ def get_vocabulary_due_context(
         linked_word_ids=resolved_linked_ids,
     )
     return VocabularyDueContextResponse(**payload)
+
+
+@router.get("/coverage")
+def get_vocabulary_coverage(
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user_or_demo),
+) -> dict[str, Any]:
+    """Return the three-axis coverage map for the learner."""
+
+    return VocabularyCoverageService(db).coverage(user=current_user)
+
+
+@router.get("/conjugation/review")
+def get_conjugation_review_queue(
+    *,
+    limit: int = Query(12, ge=1, le=50),
+    cefr_band: str | None = Query(None, max_length=10),
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user_or_demo),
+) -> dict[str, Any]:
+    """Return due/new irregular conjugation drill prompts."""
+
+    service = ConjugationService(db)
+    items = service.review_queue(user=current_user, limit=limit, cefr_band=cefr_band)
+    if not items:
+        if db.query(VerbConjugation.id).limit(1).first() is None:
+            service.ensure_verb_rows_from_vocabulary()
+        service.seed_essential_irregulars()
+        db.commit()
+        items = service.review_queue(user=current_user, limit=limit, cefr_band=cefr_band)
+    return {
+        "items": items,
+        "summary": {
+            "total": len(items),
+            "due": len([item for item in items if item.get("progress_id")]),
+            "new": len([item for item in items if not item.get("progress_id")]),
+        },
+        "algorithm": "irregular_conjugation_fsrs_v1",
+    }
+
+
+@router.post("/conjugation/review", response_model=ConjugationReviewResponse)
+def submit_conjugation_review(
+    payload: ConjugationReviewRequest,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user_or_demo),
+) -> ConjugationReviewResponse:
+    """Rate an irregular conjugation item."""
+
+    try:
+        progress = ConjugationService(db).review(
+            user=current_user,
+            lemma=payload.lemma,
+            tense=payload.tense,
+            rating=payload.rating,
+            response_time_ms=payload.response_time_ms,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    return ConjugationReviewResponse(
+        lemma=progress.verb_lemma,
+        tense=progress.tense,
+        state=progress.state or "new",
+        proficiency_score=progress.proficiency_score or 0,
+        reps=progress.reps or 0,
+        lapses=progress.lapses or 0,
+        next_review=progress.next_review_date,
+    )
 
 
 @router.get("/lookup", response_model=VocabularyWordRead)

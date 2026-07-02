@@ -9,14 +9,20 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Union
+from uuid import UUID
 
 from sqlalchemy.orm import Session
 
 from app.db.models.progress import UserVocabularyProgress, ReviewLog
+from app.services.progress import vocabulary_due_filter
 from app.services.srs import FSRSScheduler, ReviewOutcome, SchedulerState
 
 
 logger = logging.getLogger(__name__)
+
+
+def _coerce_user_id(user_id: str | UUID) -> UUID:
+    return user_id if isinstance(user_id, UUID) else UUID(str(user_id))
 
 
 @dataclass(slots=True)
@@ -308,6 +314,7 @@ class EnhancedSRSService:
             scheduled_days=progress.scheduled_days or 1,
             state=progress.state or "new"
         )
+        previous_schedule = progress.scheduled_days or state.scheduled_days
         
         # Process review
         outcome = self.fsrs_scheduler.review(
@@ -334,7 +341,7 @@ class EnhancedSRSService:
             state_transition=f"{state.state} -> {outcome.state}",
             scheduler_type="fsrs"
         )
-        review_log.set_schedule_transition(progress.scheduled_days, outcome.scheduled_days)
+        review_log.set_schedule_transition(previous_schedule, outcome.scheduled_days)
         
         self.db.add(review_log)
     
@@ -397,26 +404,21 @@ class EnhancedSRSService:
     
     def get_due_cards(
         self, 
-        user_id: str, 
+        user_id: str | UUID,
         limit: int = 20,
         scheduler_type: Optional[str] = None
     ) -> list[UserVocabularyProgress]:
         """Get vocabulary cards due for review."""
         
-        from sqlalchemy import select, and_, or_
+        from sqlalchemy import select
         
         now = datetime.now(timezone.utc)
+        coerced_user_id = _coerce_user_id(user_id)
         
         # Base query for due cards
         query = select(UserVocabularyProgress).where(
-            and_(
-                UserVocabularyProgress.user_id == user_id,
-                or_(
-                    UserVocabularyProgress.due_at <= now,
-                    UserVocabularyProgress.next_review_date <= now,
-                    UserVocabularyProgress.due_date <= now.date()
-                )
-            )
+            UserVocabularyProgress.user_id == coerced_user_id,
+            vocabulary_due_filter(now),
         )
         
         # Filter by scheduler if specified
@@ -433,7 +435,7 @@ class EnhancedSRSService:
     
     def get_review_statistics(
         self, 
-        user_id: str, 
+        user_id: str | UUID,
         days: int = 30
     ) -> dict[str, Union[int, float]]:
         """Get review statistics for the user."""
@@ -441,6 +443,7 @@ class EnhancedSRSService:
         from sqlalchemy import select, func, and_
         
         cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
+        coerced_user_id = _coerce_user_id(user_id)
         
         # Total reviews
         total_reviews = self.db.scalar(
@@ -448,7 +451,7 @@ class EnhancedSRSService:
             .join(UserVocabularyProgress)
             .where(
                 and_(
-                    UserVocabularyProgress.user_id == user_id,
+                    UserVocabularyProgress.user_id == coerced_user_id,
                     ReviewLog.review_date >= cutoff_date
                 )
             )
@@ -460,7 +463,7 @@ class EnhancedSRSService:
             .join(UserVocabularyProgress) 
             .where(
                 and_(
-                    UserVocabularyProgress.user_id == user_id,
+                    UserVocabularyProgress.user_id == coerced_user_id,
                     ReviewLog.review_date >= cutoff_date,
                     ReviewLog.scheduler_type == "fsrs"
                 )
@@ -472,7 +475,7 @@ class EnhancedSRSService:
             .join(UserVocabularyProgress)
             .where(
                 and_(
-                    UserVocabularyProgress.user_id == user_id,
+                    UserVocabularyProgress.user_id == coerced_user_id,
                     ReviewLog.review_date >= cutoff_date,
                     ReviewLog.scheduler_type == "anki"
                 )

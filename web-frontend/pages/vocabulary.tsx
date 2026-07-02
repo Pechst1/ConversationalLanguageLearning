@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import EditorialMasthead from '@/components/layout/EditorialMasthead';
 import { ContextAnchor, FragilityBadge, MobileBottomSheet, NotebookModeSwitch, WordBiographySheet } from '@/components/mobile';
 import apiService, {
+  CoverageTrack,
   GraphicNovelScene,
   MissionTargetVocabulary,
   RealWorldMission,
@@ -16,6 +17,7 @@ import apiService, {
   VocabularyEvent,
   VocabularyDueContext,
   VocabularyBiography,
+  VocabularyCoverage,
   VocabularyMasteryMap,
   VocabularyRecommendationItem,
   VocabularyWord,
@@ -563,6 +565,60 @@ function VocabularyNotebookState({
   );
 }
 
+function CoverageRing({ percent, size = 44, stroke = 6, color = 'var(--blue)' }: { percent: number; size?: number; stroke?: number; color?: string }) {
+  const radius = (size - stroke) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const filled = (Math.max(0, Math.min(100, percent)) / 100) * circumference;
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden="true" className="coverage-ring">
+      <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="var(--paper-2)" strokeWidth={stroke} />
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        fill="none"
+        stroke={color}
+        strokeWidth={stroke}
+        strokeDasharray={`${filled} ${circumference}`}
+        transform={`rotate(-90 ${size / 2} ${size / 2})`}
+      />
+    </svg>
+  );
+}
+
+function CoverageTile({ track, compact = false }: { track: CoverageTrack; compact?: boolean }) {
+  const width = Math.max(0, Math.min(100, Number(track.percent || 0)));
+  return (
+    <Link href={track.href || '/vocabulary/review'} className={`coverage-tile ${compact ? 'compact' : ''}`}>
+      <span className="coverage-tile-label">{track.label}</span>
+      <strong><b>{track.nailed}</b><span>/ {track.total}</span></strong>
+      <div className="coverage-bar" aria-label={`${track.percent}% mastered`}>
+        <i style={{ width: `${width}%` }} />
+      </div>
+      <em>{track.unit || 'targets'} · {track.percent}%</em>
+      {(track.example_words || []).length > 0 && (
+        <small>{(track.example_words || []).slice(0, 3).join(' · ')}</small>
+      )}
+    </Link>
+  );
+}
+
+type CoverageTotals = { nailed: number; total: number };
+
+function sumCoverage(items: Array<{ nailed?: number; total?: number }>): CoverageTotals {
+  return items.reduce<CoverageTotals>(
+    (totals, item) => ({
+      nailed: totals.nailed + Number(item.nailed || 0),
+      total: totals.total + Number(item.total || 0),
+    }),
+    { nailed: 0, total: 0 }
+  );
+}
+
+function coveragePercent(nailed: number, total: number) {
+  return total ? Math.round((nailed / total) * 100) : 0;
+}
+
 interface VocabularyPageProps {
   embedded?: boolean;
 }
@@ -586,18 +642,22 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
   const [detailSupport, setDetailSupport] = useState<DetailSupport>(emptyDetailSupport);
   const [weeklyDossier, setWeeklyDossier] = useState<WeeklyDossier | null>(null);
   const [masteryMap, setMasteryMap] = useState<VocabularyMasteryMap | null>(null);
+  const [coverage, setCoverage] = useState<VocabularyCoverage | null>(null);
+  const [atlasOpen, setAtlasOpen] = useState(false);
   const [biographyWordId, setBiographyWordId] = useState<number | null>(null);
   const [biography, setBiography] = useState<VocabularyBiography | null>(null);
   const [biographyLoading, setBiographyLoading] = useState(false);
   const [biographyError, setBiographyError] = useState<string | null>(null);
 
   const refreshNotebookMirror = async () => {
-    const [dossierResult, mapResult] = await Promise.all([
+    const [dossierResult, mapResult, coverageResult] = await Promise.all([
       settle(apiService.getWeeklyDossier({ period_days: 7 })),
       settle(apiService.getVocabularyMasteryMap({ limit: 5000, direction: 'fr_to_de' })),
+      settle(apiService.getVocabularyCoverage()),
     ]);
     if (dossierResult.status === 'fulfilled') setWeeklyDossier(dossierResult.value);
     if (mapResult.status === 'fulfilled') setMasteryMap(mapResult.value);
+    if (coverageResult.status === 'fulfilled') setCoverage(coverageResult.value);
   };
 
   useEffect(() => {
@@ -616,8 +676,9 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
       })),
       settle(apiService.getWeeklyDossier({ period_days: 7 })),
       settle(apiService.getVocabularyMasteryMap({ limit: 5000, direction: 'fr_to_de' })),
+      settle(apiService.getVocabularyCoverage()),
     ])
-      .then(([contextResult, dossierResult, mapResult]) => {
+      .then(([contextResult, dossierResult, mapResult, coverageResult]) => {
         if (!alive) return;
         if (contextResult.status === 'fulfilled') {
           setContext(contextResult.value);
@@ -628,6 +689,7 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
         }
         if (dossierResult.status === 'fulfilled') setWeeklyDossier(dossierResult.value);
         if (mapResult.status === 'fulfilled') setMasteryMap(mapResult.value);
+        if (coverageResult.status === 'fulfilled') setCoverage(coverageResult.value);
       })
       .catch((error) => {
         console.error(error);
@@ -915,6 +977,78 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
   const activeVocabularySearch = query.trim();
   const hasVocabularyFilters = filter !== 'all' || activeVocabularySearch.length > 0;
   const activeFilterLabel = filter === 'all' ? 'all states' : humanBucket(filter);
+  const reliableTopicCategories = (coverage?.categories || [])
+    .filter((track) => !['uncategorized', 'adjectives_adverbs', 'function_words'].includes(track.id))
+    .slice(0, 4);
+  const coverageNext = coverage?.next_best_set || null;
+  const cefrTotals = coverage ? sumCoverage(coverage.cefr_bar || []) : { nailed: 0, total: 0 };
+  const verbTotals = coverage ? sumCoverage(coverage.verb_tracks || []) : { nailed: 0, total: 0 };
+  const grammarTotals = coverage ? sumCoverage(coverage.grammar_tracks || []) : { nailed: 0, total: 0 };
+  const topicTotals = coverage ? sumCoverage(reliableTopicCategories) : { nailed: 0, total: 0 };
+  const coverageSummaryCards = coverage
+    ? [
+        {
+          label: 'Overall',
+          value: `${cefrTotals.nailed} / ${cefrTotals.total}`,
+          meta: `${coveragePercent(cefrTotals.nailed, cefrTotals.total)}% deck + rules`,
+          href: '/vocabulary/review',
+        },
+        {
+          label: 'Verbs',
+          value: `${verbTotals.nailed} / ${verbTotals.total}`,
+          meta: 'meanings + forms',
+          href: '/vocabulary/conjugation',
+        },
+        {
+          label: 'Grammar',
+          value: `${grammarTotals.nailed} / ${grammarTotals.total}`,
+          meta: 'supporting rules',
+          href: '/grammar',
+        },
+        {
+          label: 'Topics',
+          value: `${topicTotals.nailed} / ${topicTotals.total}`,
+          meta: `${reliableTopicCategories.length} reliable lanes`,
+          href: reliableTopicCategories[0]?.href || '/vocabulary/review',
+        },
+      ]
+    : [];
+
+  // Calm, momentum-first derived values: lead with the level you're working toward
+  // and the one set you're on, not the whole 5,000-word mountain.
+  const cefrBands = coverage?.cefr_bar || [];
+  const currentBand =
+    cefrBands.find((band) => (band.percent || 0) > 0 && (band.percent || 0) < 100) ||
+    cefrBands.find((band) => (band.percent || 0) < 100) ||
+    cefrBands[0] ||
+    null;
+  const atlasLanes = [...(coverage?.categories || []), ...(coverage?.verb_tracks || [])].filter(
+    (track) => !['uncategorized', 'adjectives_adverbs', 'function_words'].includes(track.id),
+  );
+  const activeSet: Record<string, any> | null =
+    coverageNext && coverageNext.label
+      ? coverageNext
+      : atlasLanes.find((track) => (track.percent || 0) > 0 && (track.percent || 0) < 100) || atlasLanes[0] || null;
+  const nextLanes = atlasLanes
+    .filter((track) => track.id !== activeSet?.id && (track.percent || 0) < 100)
+    .slice(0, 3);
+  const weekReviews = weeklyDossier?.stats?.vocabulary_reviews ?? 0;
+  const bandNote =
+    (currentBand?.percent || 0) >= 60 ? 'almost there' : (currentBand?.percent || 0) > 0 ? 'on track' : 'just getting started';
+  const topicCats = (coverage?.categories || [])
+    .filter((track) => !['uncategorized', 'adjectives_adverbs', 'function_words'].includes(track.id))
+    .slice(0, 6);
+  const verbSummary = sumCoverage(coverage?.verb_tracks || []);
+  const atlasMonoLabel: React.CSSProperties = {
+    fontFamily: 'var(--mono)',
+    fontSize: 10,
+    fontWeight: 900,
+    letterSpacing: '.12em',
+    textTransform: 'uppercase',
+    color: 'var(--ink-3)',
+  };
+  const setCount = (nailed: number, total: number, unit: string) =>
+    Number(nailed) > 0 ? `${nailed} / ${total}` : `${total} ${unit}`;
 
   function clearVocabularyFilters() {
     setFilter('all');
@@ -952,6 +1086,83 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
             />
           </>
         )}
+
+        <section className="vocab-coverage-atlas" aria-label="Coverage map">
+          {!coverage ? (
+            <VocabularyNotebookState loading title="Building coverage map" body="Reading progress." />
+          ) : (
+            <>
+              <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 }}>
+                <div>
+                  <div style={atlasMonoLabel}>Level {currentBand?.band || 'A1'}</div>
+                  <div style={{ fontFamily: 'var(--serif)', fontStyle: 'italic', fontSize: 34, lineHeight: 1, fontWeight: 650 }}>{currentBand?.percent || 0}%</div>
+                  <div style={{ fontSize: 12, color: 'var(--ink-2)', marginTop: 3 }}>{bandNote}</div>
+                </div>
+                {weekReviews > 0 && (
+                  <span style={{ fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 900, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--blue)', whiteSpace: 'nowrap' }}>+{weekReviews} reviews this week</span>
+                )}
+              </div>
+              <div style={{ height: 6, background: 'var(--paper-2)', marginTop: 10 }}>
+                <div style={{ height: '100%', width: `${Math.max(0, Math.min(100, currentBand?.percent || 0))}%`, background: 'var(--blue)' }} />
+              </div>
+
+              {topicCats.length > 0 && (
+                <>
+                  <div style={{ ...atlasMonoLabel, marginTop: 20, marginBottom: 10 }}>Choose a set to master</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    {topicCats.map((track, index) => {
+                      const pct = Math.max(0, Math.min(100, Number(track.percent || 0)));
+                      return (
+                        <Link
+                          key={track.id}
+                          href={track.href || '/vocabulary/review'}
+                          style={{ display: 'grid', gap: 9, border: '1px solid var(--ink)', background: 'var(--paper)', padding: 12, textDecoration: 'none', color: 'var(--ink)', boxShadow: index === 0 ? '5px 5px 0 var(--ink)' : 'none' }}
+                        >
+                          <span style={{ fontFamily: 'var(--serif)', fontStyle: 'italic', fontSize: 16, lineHeight: 1.15 }}>{track.label}</span>
+                          <div style={{ height: 5, background: 'var(--paper-2)' }}><div style={{ height: '100%', width: `${pct}%`, background: 'var(--blue)' }} /></div>
+                          <span style={{ fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 900, color: 'var(--ink-3)' }}>{setCount(track.nailed, track.total, 'words')}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+
+              {(coverage.verb_tracks || []).length > 0 && (
+                <Link
+                  href="/vocabulary/conjugation"
+                  style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, border: '1px solid var(--paper-2)', background: 'var(--paper)', padding: '12px', marginTop: 8, textDecoration: 'none', color: 'var(--ink)' }}
+                >
+                  <span style={{ fontFamily: 'var(--serif)', fontStyle: 'italic', fontSize: 16 }}>Verbs &amp; conjugation</span>
+                  <span style={{ fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 900, color: 'var(--ink-3)', whiteSpace: 'nowrap' }}>{setCount(verbSummary.nailed, verbSummary.total, 'forms')}</span>
+                </Link>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setAtlasOpen((open) => !open)}
+                aria-expanded={atlasOpen}
+                style={{ justifySelf: 'start', display: 'inline-flex', alignItems: 'center', gap: 8, minHeight: 38, padding: '0 14px', border: '1px solid var(--ink)', background: 'transparent', color: 'var(--ink)', fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 900, letterSpacing: '.1em', textTransform: 'uppercase', cursor: 'pointer' }}
+              >
+                {atlasOpen ? 'Hide full atlas' : 'See full atlas'} <ArrowRight size={14} />
+              </button>
+
+              {atlasOpen && (
+                <div style={{ display: 'grid', gap: 10, borderTop: '1px solid var(--paper-2)', paddingTop: 14 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(82px, 1fr))', gap: 8 }}>
+                    {(coverage.cefr_bar || []).map((band) => (
+                      <div key={band.band} style={{ border: '1px solid var(--ink)', background: 'var(--paper)', padding: 10, display: 'grid', gap: 6 }}>
+                        <span style={{ fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 900, color: 'var(--ink-3)' }}>{band.band}</span>
+                        <strong style={{ fontSize: 18, lineHeight: 1 }}>{band.percent}%</strong>
+                        <div style={{ height: 5, background: 'var(--paper-2)' }}><div style={{ height: '100%', width: `${Math.max(0, Math.min(100, band.percent || 0))}%`, background: 'var(--blue)' }} /></div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </section>
 
         <section className="vocab-weekly-dossier" aria-label="Weekly vocabulary dossier">
           <div>
@@ -1313,6 +1524,12 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
           padding-bottom: 20px;
         }
         .vocab-kicker,
+        .coverage-atlas-head span,
+        .coverage-axis-title span,
+        .coverage-axis-title a,
+        .coverage-tile em,
+        .coverage-cefr-band span,
+        .coverage-cefr-band em,
         .vocab-weekly-dossier span,
         .vocab-weekly-dossier dt,
         .vocab-map-legend,
@@ -1381,6 +1598,289 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
         }
         .vocab-mode-switch {
           margin-top: 18px;
+        }
+        .vocab-coverage-atlas {
+          display: grid;
+          gap: 16px;
+          margin-top: 18px;
+          border: 1px solid var(--ink);
+          background: var(--sheet);
+          padding: 18px 16px;
+        }
+        .atlas-hero {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+        }
+        .atlas-hero-body {
+          display: grid;
+          gap: 1px;
+        }
+        .atlas-hero-body span {
+          font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+          font-size: 10px;
+          font-weight: 900;
+          letter-spacing: .12em;
+          text-transform: uppercase;
+          color: var(--ink-3);
+        }
+        .atlas-hero-body strong {
+          font-family: "EB Garamond", Garamond, serif;
+          font-style: italic;
+          font-size: 32px;
+          line-height: 1;
+          font-weight: 650;
+        }
+        .atlas-hero-body em {
+          font-size: 12px;
+          color: var(--ink-2);
+          font-style: normal;
+        }
+        .atlas-momentum {
+          margin-left: auto;
+          align-self: flex-start;
+          font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+          font-size: 10px;
+          font-weight: 900;
+          letter-spacing: .08em;
+          text-transform: uppercase;
+          color: var(--blue);
+        }
+        .atlas-block {
+          display: grid;
+          gap: 9px;
+        }
+        .atlas-axis-title {
+          font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+          font-size: 10px;
+          font-weight: 900;
+          letter-spacing: .12em;
+          text-transform: uppercase;
+          color: var(--ink-3);
+        }
+        .atlas-active {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          border: 1px solid var(--ink);
+          background: var(--paper);
+          padding: 14px;
+          box-shadow: 5px 5px 0 var(--ink);
+          text-decoration: none;
+          color: var(--ink);
+        }
+        .atlas-active-body {
+          flex: 1;
+          display: grid;
+          gap: 2px;
+        }
+        .atlas-active-body strong {
+          font-family: "EB Garamond", Garamond, serif;
+          font-style: italic;
+          font-size: 19px;
+          font-weight: 650;
+        }
+        .atlas-active-body em {
+          font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+          font-size: 10px;
+          font-weight: 900;
+          letter-spacing: .08em;
+          text-transform: uppercase;
+          color: var(--ink-3);
+          font-style: normal;
+        }
+        .atlas-next {
+          display: grid;
+          gap: 0;
+          border: 1px solid var(--paper-2);
+        }
+        .atlas-next-row {
+          display: flex;
+          align-items: baseline;
+          justify-content: space-between;
+          padding: 11px 12px;
+          border-bottom: 1px solid var(--paper-2);
+          text-decoration: none;
+          color: var(--ink);
+          background: var(--paper);
+        }
+        .atlas-next-row:last-child { border-bottom: 0; }
+        .atlas-next-row span {
+          font-family: "EB Garamond", Garamond, serif;
+          font-style: italic;
+          font-size: 16px;
+        }
+        .atlas-next-row em {
+          font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+          font-size: 10px;
+          font-weight: 900;
+          color: var(--ink-3);
+          font-style: normal;
+        }
+        .atlas-fulltoggle {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          justify-self: start;
+          min-height: 38px;
+          padding: 0 14px;
+          border: 1px solid var(--ink);
+          background: transparent;
+          color: var(--ink);
+          font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+          font-size: 10px;
+          font-weight: 900;
+          letter-spacing: .1em;
+          text-transform: uppercase;
+          cursor: pointer;
+        }
+        .atlas-full {
+          display: grid;
+          gap: 10px;
+          border-top: 1px solid var(--paper-2);
+          padding-top: 14px;
+        }
+        .coverage-atlas-head,
+        .coverage-axis-title {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 16px;
+        }
+        .coverage-atlas-head h2 {
+          margin: 5px 0 0;
+          font-family: "EB Garamond", Garamond, serif;
+          font-size: clamp(24px, 6vw, 36px);
+          font-style: italic;
+          font-weight: 650;
+          line-height: 1;
+          letter-spacing: 0;
+        }
+        .coverage-atlas-head p {
+          margin: 5px 0 0;
+          color: var(--ink-2);
+          font-size: 13px;
+          line-height: 1.25;
+        }
+        .coverage-cta {
+          display: inline-flex;
+          min-height: 38px;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          border: 1px solid var(--ink);
+          background: var(--ink);
+          padding: 0 14px;
+          color: var(--sheet);
+          font-size: 13px;
+          font-weight: 900;
+          text-decoration: none;
+          white-space: nowrap;
+        }
+        .coverage-summary-grid {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 8px;
+        }
+        .coverage-summary-card {
+          display: grid;
+          gap: 5px;
+          min-height: 82px;
+          border: 1px solid var(--ink);
+          background: var(--paper);
+          padding: 10px;
+          color: var(--ink);
+          text-decoration: none;
+        }
+        .coverage-summary-card span,
+        .coverage-summary-card em {
+          color: var(--ink-3);
+          font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+          font-size: 10px;
+          font-style: normal;
+          font-weight: 900;
+          letter-spacing: .08em;
+          text-transform: uppercase;
+        }
+        .coverage-summary-card strong {
+          font-size: 19px;
+          line-height: 1;
+        }
+        .coverage-cefr-strip {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(76px, 1fr));
+          gap: 8px;
+        }
+        .coverage-cefr-band,
+        .coverage-tile {
+          display: grid;
+          min-height: 74px;
+          align-content: space-between;
+          gap: 6px;
+          border: 1px solid var(--ink);
+          background: var(--paper);
+          padding: 10px;
+        }
+        .coverage-cefr-band strong,
+        .coverage-tile strong {
+          font-size: 20px;
+          line-height: 1;
+        }
+        .coverage-tile strong {
+          display: flex;
+          gap: 4px;
+          align-items: baseline;
+        }
+        .coverage-tile strong span {
+          color: var(--ink-3);
+          font-size: 14px;
+        }
+        .coverage-bar {
+          height: 7px;
+          overflow: hidden;
+          border: 1px solid var(--ink);
+          background: var(--paper-2);
+        }
+        .coverage-bar i {
+          display: block;
+          height: 100%;
+          background: var(--blue);
+        }
+        .coverage-topic-panel {
+          display: grid;
+          gap: 8px;
+        }
+        .coverage-tile-grid {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 8px;
+        }
+        .coverage-tile {
+          color: inherit;
+          text-decoration: none;
+        }
+        .coverage-tile.compact {
+          min-height: 86px;
+        }
+        .coverage-tile-label {
+          font-weight: 900;
+          line-height: 1.1;
+        }
+        .coverage-tile small {
+          min-width: 0;
+          overflow: hidden;
+          color: var(--ink-3);
+          font-size: 11px;
+          line-height: 1.2;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .coverage-topic-empty {
+          border: 1px dashed var(--ink-3);
+          padding: 10px;
+          color: var(--ink-2);
+          font-size: 13px;
+          line-height: 1.3;
         }
         .vocab-weekly-dossier,
         .vocab-mastery-map {
@@ -2199,6 +2699,37 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
             color: var(--ink-3);
             letter-spacing: 0;
             text-transform: none;
+          }
+          .vocab-coverage-atlas {
+            margin: 12px 16px 16px;
+            padding: 12px;
+          }
+          .coverage-atlas-head {
+            display: grid;
+            gap: 12px;
+          }
+          .coverage-atlas-head h2 {
+            font-size: 28px;
+          }
+          .coverage-cta {
+            width: 100%;
+          }
+          .coverage-summary-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+          .coverage-summary-card {
+            min-height: 72px;
+            padding: 9px;
+          }
+          .coverage-cefr-strip {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+          }
+          .coverage-tile-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+          .coverage-cefr-band,
+          .coverage-tile {
+            min-height: 72px;
           }
           .vocab-weekly-dossier,
           .vocab-mastery-map {

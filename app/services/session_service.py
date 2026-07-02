@@ -1053,7 +1053,11 @@ class SessionService:
             .filter(VocabularyWord.language == (user.target_language or "fr"))
             .filter(func.length(VocabularyWord.word) > 2)
             .filter(func.lower(VocabularyWord.word).notin_(self.COMMON_STOPWORDS))
-            .order_by(func.random())
+            .order_by(
+                VocabularyWord.frequency_rank.asc().nullslast(),
+                VocabularyWord.difficulty_level.asc().nullslast(),
+                func.lower(VocabularyWord.word).asc(),
+            )
             .limit(800)
             .all()
         )

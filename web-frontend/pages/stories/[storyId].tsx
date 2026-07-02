@@ -8,14 +8,21 @@ import { useStoryDetail, useStartStory } from '@/hooks/useStories';
 import DifficultyBadge from '@/components/stories/DifficultyBadge';
 import ChapterTimeline from '@/components/stories/ChapterTimeline';
 import StoryProgressOverview from '@/components/stories/StoryProgressOverview';
+import { STORY_FEATURE_VISIBLE } from '@/lib/launch-flags';
 
 export default function StoryDetailPage() {
   const router = useRouter();
   const { storyId } = router.query;
-  const resolvedStoryId = typeof storyId === 'string' ? storyId : null;
+  const resolvedStoryId = STORY_FEATURE_VISIBLE && typeof storyId === 'string' ? storyId : null;
 
   const { storyDetail, loading, error } = useStoryDetail(resolvedStoryId);
   const { startStory, loading: startingStory } = useStartStory();
+
+  React.useEffect(() => {
+    if (!STORY_FEATURE_VISIBLE) void router.replace('/atelier');
+  }, [router]);
+
+  if (!STORY_FEATURE_VISIBLE) return null;
 
   const handleStartStory = async () => {
     if (!resolvedStoryId) return;

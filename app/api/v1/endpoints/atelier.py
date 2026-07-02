@@ -1,14 +1,14 @@
 """Atelier grammar practice API."""
 from __future__ import annotations
 
-from datetime import datetime, time, timezone
+from datetime import datetime, time, timedelta, timezone
 from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from pydantic import ValidationError
-from sqlalchemy import func, or_
+from pydantic import BaseModel, ValidationError
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
@@ -21,7 +21,7 @@ from app.db.models.atelier import (
     AtelierSession,
 )
 from app.db.models.error import UserError
-from app.db.models.grammar import GrammarConcept
+from app.db.models.grammar import GrammarConcept, UserGrammarProgress
 from app.db.models.graphic_novel import GraphicNovelScene
 from app.db.models.mission import RealWorldMission
 from app.db.models.progress import UserVocabularyProgress
@@ -68,6 +68,7 @@ from app.services.atelier_rewards import AtelierRewardService, AtelierWorkshopSh
 from app.services.book_library import BookLibraryService
 from app.services.cefr_progress import CEFRProgressService
 from app.services.error_memory import ErrorMemoryService
+from app.services.progress import vocabulary_due_filter
 from app.services.serial import SerialThreadService
 
 router = APIRouter(prefix="/atelier", tags=["atelier"])
@@ -109,19 +110,13 @@ def _atelier_day_progress(
     errata_due: int,
     library_episode: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    today = datetime.now(timezone.utc).date()
+    now = datetime.now(timezone.utc)
+    today = now.date()
     start = datetime.combine(today, time.min, tzinfo=timezone.utc)
     vocabulary_due = (
         db.query(func.count(UserVocabularyProgress.id))
         .filter(UserVocabularyProgress.user_id == user.id)
-        .filter(
-            or_(
-                UserVocabularyProgress.due_date.is_(None),
-                UserVocabularyProgress.due_date <= today,
-                UserVocabularyProgress.due_at <= start,
-                UserVocabularyProgress.next_review_date <= start,
-            )
-        )
+        .filter(vocabulary_due_filter(now))
         .scalar()
         or 0
     )
@@ -147,14 +142,26 @@ def _atelier_day_progress(
         is not None
     )
     level = str(getattr(user, "proficiency_level", None) or "A2").upper()
-    review_minutes = 4 if errata_due else 2
+    review_minutes = 4 if errata_due else 0
+    vocabulary_minutes = 4 if vocabulary_due else 0
     session_minutes = 8 if level in {"BEGINNER", "A1", "A2"} else 10
     mission_minutes = 5 if level in {"BEGINNER", "A1", "A2"} else 7
     feuilleton_minutes = 5 if level in {"BEGINNER", "A1", "A2"} else 6
     library_minutes = int((library_episode or {}).get("est_reading_minutes") or 4)
     mission_suggested = today.weekday() in {0, 2, 4}
-    nodes = [
-        {"id": "review", "label": "Review", "estimatedMinutes": review_minutes, "done": errata_due == 0 and vocabulary_due == 0},
+    nodes = []
+    if vocabulary_due > 0:
+        nodes.append(
+            {
+                "id": "vocabulary",
+                "label": "Vocabulary",
+                "estimatedMinutes": vocabulary_minutes,
+                "done": False,
+                "suggested": True,
+            }
+        )
+    nodes.extend([
+        {"id": "review", "label": "Repair", "estimatedMinutes": review_minutes, "done": errata_due == 0},
         {"id": "session", "label": "Session", "estimatedMinutes": session_minutes, "done": session_done},
         {
             "id": "mission",
@@ -163,7 +170,7 @@ def _atelier_day_progress(
             "done": mission_done,
             "suggested": mission_suggested,
         },
-    ]
+    ])
     if library_episode is not None:
         nodes.append(
             {
@@ -329,6 +336,148 @@ def _session_selections(db: Session, user: User, session: AtelierSession) -> lis
     return selections
 
 
+def _session_concepts_in_order(db: Session, session: AtelierSession) -> list[GrammarConcept]:
+    concept_ids = [int(item) for item in (session.selected_concept_ids or []) if item]
+    if not concept_ids:
+        return []
+    concepts = db.query(GrammarConcept).filter(GrammarConcept.id.in_(concept_ids)).all()
+    by_id = {concept.id: concept for concept in concepts}
+    return [by_id[concept_id] for concept_id in concept_ids if concept_id in by_id]
+
+
+def _concept_focus_payload(
+    concept: GrammarConcept,
+    asset_service: AtelierAssetService,
+    progress: UserGrammarProgress | None = None,
+) -> dict[str, Any]:
+    blueprint = asset_service.approved_blueprint_payload(concept) or {}
+    label = str(
+        blueprint.get("display_title")
+        or blueprint.get("title")
+        or concept.name
+        or "Grammar focus"
+    ).strip()
+    payload: dict[str, Any] = {
+        "id": concept.id,
+        "external_id": concept.external_id,
+        "label": label,
+        "display_title": label,
+        "name": concept.name,
+        "level": concept.level,
+        "category": concept.category,
+        "subskill": concept.subskill,
+    }
+    if progress and progress.next_review:
+        payload["next_review"] = progress.next_review.isoformat()
+    return payload
+
+
+def _recent_session_focus(
+    db: Session,
+    user: User,
+    asset_service: AtelierAssetService,
+    *,
+    today_start: datetime,
+) -> dict[str, Any] | None:
+    session = (
+        db.query(AtelierSession)
+        .filter(AtelierSession.user_id == user.id, AtelierSession.status == "completed")
+        .filter(AtelierSession.completed_at.isnot(None), AtelierSession.completed_at < today_start)
+        .order_by(AtelierSession.completed_at.desc())
+        .first()
+    )
+    if not session:
+        return None
+
+    concepts = _session_concepts_in_order(db, session)
+    if not concepts:
+        return None
+
+    focus = _concept_focus_payload(concepts[0], asset_service)
+    completed_at = session.completed_at or session.created_at
+    return {
+        "source": "last_completed_session",
+        "session_id": str(session.id),
+        "label": focus["label"],
+        "display_title": focus["display_title"],
+        "completed_at": completed_at.isoformat() if completed_at else None,
+        "concepts": [_concept_focus_payload(concept, asset_service) for concept in concepts],
+    }
+
+
+def _next_scheduled_focus(
+    db: Session,
+    user: User,
+    asset_service: AtelierAssetService,
+    *,
+    current_concept_ids: set[int],
+) -> dict[str, Any] | None:
+    now = datetime.now(timezone.utc)
+    query = (
+        db.query(GrammarConcept, UserGrammarProgress)
+        .join(UserGrammarProgress, UserGrammarProgress.concept_id == GrammarConcept.id)
+        .filter(UserGrammarProgress.user_id == user.id)
+        .filter(UserGrammarProgress.next_review.isnot(None), UserGrammarProgress.next_review > now)
+        .filter(GrammarConcept.active.is_(True))
+        .filter(GrammarConcept.external_id.isnot(None), GrammarConcept.external_id != "")
+    )
+    if current_concept_ids:
+        query = query.filter(~GrammarConcept.id.in_(current_concept_ids))
+    row = (
+        query.order_by(
+            UserGrammarProgress.next_review.asc(),
+            GrammarConcept.difficulty_order.asc(),
+            GrammarConcept.id.asc(),
+        )
+        .first()
+    )
+    if not row:
+        return None
+
+    concept, progress = row
+    focus = _concept_focus_payload(concept, asset_service, progress)
+    scheduled_at = progress.next_review.isoformat() if progress.next_review else None
+    return {
+        "source": "next_srs_review",
+        "label": focus["label"],
+        "display_title": focus["display_title"],
+        "scheduled_at": scheduled_at,
+        "concept": focus,
+        "concepts": [focus],
+    }
+
+
+def _atelier_parcours_summary(
+    db: Session,
+    user: User,
+    selections: list[ConceptSelection],
+    asset_service: AtelierAssetService,
+) -> dict[str, Any]:
+    today = datetime.now(timezone.utc).date()
+    today_start = datetime.combine(today, time.min, tzinfo=timezone.utc)
+    current_concept_ids = {selection.concept.id for selection in selections}
+    today_concepts = [
+        _concept_focus_payload(selection.concept, asset_service, selection.progress)
+        for selection in selections
+    ]
+    today_focus = {
+        "source": "today_selection",
+        "label": today_concepts[0]["label"] if today_concepts else None,
+        "display_title": today_concepts[0]["display_title"] if today_concepts else None,
+        "concepts": today_concepts,
+    } if today_concepts else None
+    return {
+        "previous": _recent_session_focus(db, user, asset_service, today_start=today_start),
+        "today": today_focus,
+        "next": _next_scheduled_focus(
+            db,
+            user,
+            asset_service,
+            current_concept_ids=current_concept_ids,
+        ),
+    }
+
+
 def _session_attempts(db: Session, session: AtelierSession) -> list[AtelierAttempt]:
     return list(
         db.query(AtelierAttempt)
@@ -338,20 +487,64 @@ def _session_attempts(db: Session, session: AtelierSession) -> list[AtelierAttem
     )
 
 
+def _attempt_key(round_name: str, mode: str, concept_id: int | None, item_id: str | None = None) -> str:
+    key_mode = mode
+    key_concept: str | int = concept_id or "session"
+    if round_name == "transform":
+        key_mode = "transform"
+    elif round_name in {"sentence", "speak", "conversation", "produce"}:
+        key_mode = round_name
+    if round_name == "produce":
+        key_concept = "session"
+    key = f"{round_name}:{key_mode}:{key_concept}"
+    return f"{key}:{item_id}" if item_id else key
+
+
+def _legacy_submitted_key(attempt: AtelierAttempt) -> str:
+    return _attempt_key(attempt.round, attempt.mode, attempt.concept_id)
+
+
+def _answer_item_ids(attempt: AtelierAttempt) -> list[str]:
+    answers = (attempt.answer_payload or {}).get("answers")
+    if not isinstance(answers, dict):
+        return []
+    return [str(item_id) for item_id, answer in answers.items() if str(item_id).strip() and answer is not None]
+
+
+def _submitted_keys_for_attempt(attempt: AtelierAttempt) -> list[str]:
+    legacy_key = _legacy_submitted_key(attempt)
+    if attempt.round not in {"recognize", "transform"}:
+        return [legacy_key]
+
+    item_ids = _answer_item_ids(attempt)
+    if not item_ids:
+        return [legacy_key]
+
+    keys = [_attempt_key(attempt.round, attempt.mode, attempt.concept_id, item_id) for item_id in item_ids]
+    if len(item_ids) > 1:
+        keys.append(legacy_key)
+    return keys
+
+
 def _submitted_key(attempt: AtelierAttempt) -> str:
-    mode = attempt.mode
-    concept_id: str | int = attempt.concept_id or "session"
-    if attempt.round == "transform":
-        mode = "transform"
-    elif attempt.round in {"sentence", "speak", "conversation", "produce"}:
-        mode = attempt.round
-    if attempt.round == "produce":
-        concept_id = "session"
-    return f"{attempt.round}:{mode}:{concept_id}"
+    keys = _submitted_keys_for_attempt(attempt)
+    legacy_key = _legacy_submitted_key(attempt)
+    if legacy_key in keys and len(keys) > 1:
+        return legacy_key
+    return keys[0]
+
+
+def _submitted_map(attempts: list[AtelierAttempt]) -> dict[str, bool]:
+    submitted: dict[str, bool] = {}
+    for attempt in attempts:
+        for key in _submitted_keys_for_attempt(attempt):
+            submitted[key] = True
+    return submitted
 
 
 def _attempt_read(attempt: AtelierAttempt) -> dict[str, Any]:
     correction = attempt.correction_payload or {}
+    submitted_keys = _submitted_keys_for_attempt(attempt)
     return {
         "attempt_id": str(attempt.id),
         "session_id": str(attempt.atelier_session_id),
@@ -366,31 +559,70 @@ def _attempt_read(attempt: AtelierAttempt) -> dict[str, Any]:
         "verdict": attempt.verdict,
         "score_0_4": attempt.score_0_4,
         "submitted_key": _submitted_key(attempt),
+        "submitted_keys": submitted_keys,
         "created_at": attempt.created_at.isoformat() if attempt.created_at else None,
     }
 
 
-def _current_position(session: AtelierSession, attempts: list[AtelierAttempt]) -> dict[str, Any]:
-    submitted = {_submitted_key(attempt): True for attempt in attempts}
+def _payload_items(exercise_sets: list[dict[str, Any]], concept_id: int, round_name: str, mode: str) -> list[dict[str, Any]]:
+    exercise_set = next((item for item in exercise_sets if item.get("concept_id") == concept_id), None)
+    payload = exercise_set.get("payload") if exercise_set else {}
+    if round_name == "recognize":
+        return list((((payload or {}).get("recognize") or {}).get(mode) or {}).get("items") or [])
+    if round_name == "transform":
+        return list(((payload or {}).get("transform") or {}).get("items") or [])
+    return []
+
+
+def _current_position(session: AtelierSession, attempts: list[AtelierAttempt], exercise_sets: list[dict[str, Any]]) -> dict[str, Any]:
+    submitted = _submitted_map(attempts)
     concept_ids = [int(item) for item in (session.selected_concept_ids or [])]
     for concept_index, concept_id in enumerate(concept_ids):
         for mode in ("fill", "classify", "word_bank"):
-            if not submitted.get(f"recognize:{mode}:{concept_id}"):
+            legacy_key = _attempt_key("recognize", mode, concept_id)
+            items = _payload_items(exercise_sets, concept_id, "recognize", mode)
+            if not items and not submitted.get(legacy_key):
                 return {"round": "recognize", "mode": mode, "concept_id": concept_id, "concept_index": concept_index}
+            for item_index, item in enumerate(items):
+                item_id = str(item.get("id") or item_index)
+                if not (submitted.get(_attempt_key("recognize", mode, concept_id, item_id)) or submitted.get(legacy_key)):
+                    return {
+                        "round": "recognize",
+                        "mode": mode,
+                        "concept_id": concept_id,
+                        "concept_index": concept_index,
+                        "item_id": item_id,
+                        "item_index": item_index,
+                        "item_count": len(items),
+                    }
     for concept_index, concept_id in enumerate(concept_ids):
-        if not submitted.get(f"transform:transform:{concept_id}"):
+        legacy_key = _attempt_key("transform", "transform", concept_id)
+        items = _payload_items(exercise_sets, concept_id, "transform", "transform")
+        if not items and not submitted.get(legacy_key):
             return {"round": "transform", "mode": "transform", "concept_id": concept_id, "concept_index": concept_index}
+        for item_index, item in enumerate(items):
+            item_id = str(item.get("id") or item_index)
+            if not (submitted.get(_attempt_key("transform", "transform", concept_id, item_id)) or submitted.get(legacy_key)):
+                return {
+                    "round": "transform",
+                    "mode": "transform",
+                    "concept_id": concept_id,
+                    "concept_index": concept_index,
+                    "item_id": item_id,
+                    "item_index": item_index,
+                    "item_count": len(items),
+                }
     for concept_index, concept_id in enumerate(concept_ids):
-        if not submitted.get(f"sentence:sentence:{concept_id}"):
-            return {"round": "sentence", "mode": "sentence", "concept_id": concept_id, "concept_index": concept_index}
-    if not submitted.get("produce:produce:session"):
+        if not submitted.get(_attempt_key("sentence", "sentence", concept_id)):
+            return {"round": "sentence", "mode": "sentence", "concept_id": concept_id, "concept_index": concept_index, "item_index": 0, "item_count": 1}
+    if not submitted.get(_attempt_key("produce", "produce", None)):
         return {"round": "produce", "mode": "produce", "concept_id": None, "concept_index": 0}
     for concept_index, concept_id in enumerate(concept_ids):
-        if not submitted.get(f"speak:speak:{concept_id}"):
-            return {"round": "speak", "mode": "speak", "concept_id": concept_id, "concept_index": concept_index}
+        if not submitted.get(_attempt_key("speak", "speak", concept_id)):
+            return {"round": "speak", "mode": "speak", "concept_id": concept_id, "concept_index": concept_index, "item_index": 0, "item_count": 1}
     for concept_index, concept_id in enumerate(concept_ids):
-        if not submitted.get(f"conversation:conversation:{concept_id}"):
-            return {"round": "conversation", "mode": "conversation", "concept_id": concept_id, "concept_index": concept_index}
+        if not submitted.get(_attempt_key("conversation", "conversation", concept_id)):
+            return {"round": "conversation", "mode": "conversation", "concept_id": concept_id, "concept_index": concept_index, "item_index": 0, "item_count": 1}
     return {"round": "complete", "mode": "complete", "concept_id": None, "concept_index": 0}
 
 
@@ -438,8 +670,8 @@ def _session_response(db: Session, user: User, session: AtelierSession) -> Ateli
         quote=session.quote_payload or scheduler.quote_for_today(),
         exercise_sets=exercise_sets,
         attempts=[_attempt_read(attempt) for attempt in attempts],
-        submitted_map={_submitted_key(attempt): True for attempt in attempts},
-        current_position=_current_position(session, attempts),
+        submitted_map=_submitted_map(attempts),
+        current_position=_current_position(session, attempts, exercise_sets),
         due_errata=due_errata,
         target_vocabulary_ids=[int(item["word_id"]) for item in target_vocabulary if item.get("word_id")],
         target_vocabulary=target_vocabulary,
@@ -459,6 +691,17 @@ async def get_today(
     due_by_concept = _errata_by_concept(due_errata)
     summary = scheduler.summary(current_user)
     summary["due_errata"] = len(due_errata)
+    parcours = _atelier_parcours_summary(db, current_user, selections, asset_service)
+    summary["parcours"] = parcours
+    if parcours.get("previous"):
+        summary["previous_focus"] = parcours["previous"]
+    if parcours.get("today"):
+        summary["today_focus"] = parcours["today"]
+    if parcours.get("next"):
+        summary["next_focus"] = parcours["next"]
+        scheduled_at = str((parcours["next"] or {}).get("scheduled_at") or "")
+        if scheduled_at.startswith((datetime.now(timezone.utc).date() + timedelta(days=1)).isoformat()):
+            summary["tomorrow_focus"] = parcours["next"]
     serial_episode = await SerialThreadService(db).today(current_user) if settings.SERIAL_WORLD_ENABLED else None
     library_episode = _atelier_library_episode(db, current_user)
     progress = _atelier_day_progress(db, current_user, errata_due=len(due_errata), library_episode=library_episode)
@@ -511,6 +754,15 @@ def start_session(
 ) -> AtelierSessionStartResponse:
     scheduler = AtelierScheduler(db)
     scheduler.ensure_catalog()
+
+    active = (
+        db.query(AtelierSession)
+        .filter(AtelierSession.user_id == current_user.id, AtelierSession.status == "in_progress")
+        .order_by(AtelierSession.created_at.desc())
+        .first()
+    )
+    if active:
+        return _session_response(db, current_user, active)
 
     if not payload or not (payload.concept_ids or payload.preferred_concept_id or payload.preferred_vocabulary_ids):
         prepared = (
@@ -844,3 +1096,36 @@ def submit_erratum_review_attempt(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Atelier erratum not found")
     db.commit()
     return AtelierErrataAttemptResponse(**result)
+
+
+class TranslateRequest(BaseModel):
+    text: str
+
+
+@router.post("/translate")
+def translate_to_english(
+    request: TranslateRequest,
+    current_user: User = Depends(get_atelier_user),
+) -> dict[str, str]:
+    """On-demand French -> English translation for any learner-facing line."""
+    text = (request.text or "").strip()
+    if not text:
+        return {"translation": ""}
+    from app.services.llm_service import LLMService
+
+    try:
+        result = LLMService().generate_chat_completion(
+            messages=[{"role": "user", "content": text}],
+            system_prompt=(
+                "Translate the user's French text into natural, concise English. "
+                "Return ONLY the English translation — no quotes, labels, or notes."
+            ),
+            temperature=0.0,
+            max_tokens=1200,
+            model=settings.ATELIER_CORRECTION_LLM_MODEL,
+            reasoning_effort="minimal",
+            request_timeout=20.0,
+        )
+        return {"translation": (result.content or "").strip()}
+    except Exception:  # pragma: no cover - translation is best-effort
+        return {"translation": ""}

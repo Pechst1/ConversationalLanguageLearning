@@ -42,7 +42,7 @@ assert.deepEqual(
     libraryDone: true,
     feuilletonDone: false,
   }),
-  { kind: 'resume_session', conceptIndex: 2, round: 'sentence', mode: 'write' },
+  { kind: 'resume_session', conceptIndex: 2, round: 'sentence', mode: 'write', itemIndex: 0 },
 );
 
 assert.deepEqual(
@@ -127,14 +127,7 @@ assert.deepEqual(
       feuilletonDone: false,
     },
   ),
-  {
-    kind: 'library',
-    bookId: 'book-1',
-    episodeIndex: 2,
-    href: '/notebook?mode=library&book=book-1&episode=2',
-    title: 'The letter',
-    bookTitle: 'Petit Test',
-  },
+  { kind: 'feuilleton', query: '?concept_id=7&atelier_session_id=atelier-1' },
 );
 
 assert.deepEqual(
@@ -241,12 +234,52 @@ assert.deepEqual(
     feuilletonDone: true,
     sessionDone: true,
     timeBudgetMinutes: 20,
-    estimatedTotalMinutes: 20,
-    estimatedRemainingMinutes: 20,
+    estimatedTotalMinutes: 24,
+    estimatedRemainingMinutes: 24,
     filed: false,
-    nodes: [],
+    nodes: [
+      {
+        id: 'vocabulary',
+        label: 'Vocabulary',
+        estimatedMinutes: 4,
+        done: false,
+        suggested: true,
+      },
+    ],
   },
 );
+
+global.window = {
+  localStorage: {
+    getItem: () => JSON.stringify({ missionDone: true, feuilletonDone: true }),
+  },
+};
+assert.equal(buildDayProgress({ today, session: null }).missionDone, true);
+assert.equal(buildDayProgress({ today, session: null }).feuilletonDone, true);
+delete global.window;
+
+const recoveredVocabularyProgress = buildDayProgress({
+  today: {
+    ...today,
+    progress: {
+      errataDue: 0,
+      vocabularyDue: 0,
+      missionDone: false,
+      feuilletonDone: false,
+    },
+  },
+  session: { ...session, status: 'completed', current_position: { round: 'complete' } },
+  vocabularyDue: 6,
+});
+
+assert.equal(recoveredVocabularyProgress.vocabularyDue, 6);
+assert.deepEqual(recoveredVocabularyProgress.nodes[0], {
+  id: 'vocabulary',
+  label: 'Vocabulary',
+  estimatedMinutes: 4,
+  done: false,
+  suggested: true,
+});
 
 assert.deepEqual(
   buildDayProgress({

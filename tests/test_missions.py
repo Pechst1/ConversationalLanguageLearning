@@ -14,12 +14,14 @@ from app.db.models.error import UserError
 from app.db.models.grammar import GrammarConcept
 from app.db.models.mission import RealWorldMission, RealWorldMissionTurn
 from app.db.models.progress import UserVocabularyProgress
+from app.db.models.serial import SerialThread
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
 from app.services.atelier import AtelierScheduler
 from app.services.llm_service import LLMResult
-from app.services.missions import MissionConversationService, MissionCorrectionService, MissionGenerator
+from app.services.missions import MissionConversationService, MissionCorrectionService, MissionGenerator, MissionScheduler
 from app.services.news_service import NewsService
+import app.services.missions as missions_module
 
 
 def _token(client: TestClient) -> str:
@@ -146,6 +148,137 @@ def test_weekly_mission_is_created_once(client: TestClient, monkeypatch):
     assert second.status_code == 200
     assert first.json()["weekly_mission"]["id"] == second.json()["weekly_mission"]["id"]
     assert first.json()["weekly_mission"]["cadence"] == "weekly"
+
+
+def test_food_vocabulary_builds_food_domain_mission(db_session, monkeypatch):
+    monkeypatch.setattr(missions_module, "_safe_llm", lambda: None)
+    user = User(
+        id=uuid4(),
+        email=f"food-mission-{uuid4().hex}@example.com",
+        hashed_password="test",
+        native_language="en",
+        target_language="fr",
+        proficiency_level="A2",
+    )
+    word = VocabularyWord(
+        language="fr",
+        word="marché",
+        normalized_word="marche",
+        part_of_speech="noun",
+        topic_tags=["food_drink"],
+        frequency_rank=75,
+        german_translation="Markt",
+        direction="fr_to_de",
+        is_anki_card=True,
+    )
+    db_session.add_all([user, word])
+    db_session.commit()
+
+    payload = asyncio.run(
+        MissionGenerator(db_session).build_payload(
+            user=user,
+            mission_type="message",
+            cadence="ad_hoc",
+            preferred_vocabulary_ids=[word.id],
+            use_news=False,
+        )
+    )
+
+    assert payload["prompt_payload"]["variety"]["domain"] == "food_dining"
+    assert payload["prompt_payload"]["messenger"]["contact_name"] == "Samira"
+    assert "pain" in payload["prompt_payload"]["messenger"]["opening_message"].lower()
+    assert payload["target_vocabulary_ids"] == [word.id]
+
+
+def test_consecutive_standalone_missions_vary_domain_contact_and_channel(db_session, monkeypatch):
+    monkeypatch.setattr(missions_module, "_safe_llm", lambda: None)
+    user = User(
+        id=uuid4(),
+        email=f"variety-mission-{uuid4().hex}@example.com",
+        hashed_password="test",
+        native_language="en",
+        target_language="fr",
+        proficiency_level="A2",
+    )
+    db_session.add(user)
+    db_session.commit()
+    scheduler = MissionScheduler(db_session)
+
+    first = asyncio.run(scheduler.create(user=user, mission_type="message", cadence="ad_hoc", use_news=False))
+    second = asyncio.run(scheduler.create(user=user, mission_type="message", cadence="ad_hoc", use_news=False))
+    first_variety = first.prompt_payload["variety"]
+    second_variety = second.prompt_payload["variety"]
+
+    assert first_variety["domain"] != second_variety["domain"]
+    assert first_variety["contact"] != second_variety["contact"]
+    assert first_variety["channel"] != second_variety["channel"]
+
+
+def test_eight_standalone_missions_keep_setups_fresh(db_session, monkeypatch):
+    monkeypatch.setattr(missions_module, "_safe_llm", lambda: None)
+    user = User(
+        id=uuid4(),
+        email=f"eight-variety-mission-{uuid4().hex}@example.com",
+        hashed_password="test",
+        native_language="en",
+        target_language="fr",
+        proficiency_level="A2",
+    )
+    db_session.add(user)
+    db_session.commit()
+    scheduler = MissionScheduler(db_session)
+
+    missions = [
+        asyncio.run(scheduler.create(user=user, mission_type="message", cadence="ad_hoc", use_news=False))
+        for _ in range(8)
+    ]
+    varieties = [mission.prompt_payload["variety"] for mission in missions]
+
+    assert len({item["domain"] for item in varieties}) == 8
+    assert len({item["contact"] for item in varieties}) == 8
+    assert len({item["channel"] for item in varieties}) >= 6
+    assert len({item["tone"] for item in varieties}) >= 6
+    assert {item["fuel_source"] for item in varieties} == {"vocab", "theme", "news_seed"}
+
+
+def test_missions_today_excludes_serial_linked_acts(db_session, monkeypatch):
+    monkeypatch.setattr(missions_module, "_safe_llm", lambda: None)
+    user = User(
+        id=uuid4(),
+        email=f"today-standalone-{uuid4().hex}@example.com",
+        hashed_password="test",
+        native_language="en",
+        target_language="fr",
+        proficiency_level="A2",
+    )
+    thread = SerialThread(user_id=user.id, world_bible={}, state={}, news_seed={}, current_episode_index=0)
+    db_session.add_all([user, thread])
+    db_session.flush()
+    db_session.add(
+        RealWorldMission(
+            user_id=user.id,
+            serial_thread_id=thread.id,
+            status="in_progress",
+            cadence="ad_hoc",
+            mission_type="message",
+            title="Serial act",
+            brief="Reply inside the serial.",
+            selected_concept_ids=[],
+            target_errata_ids=[],
+            target_vocabulary_ids=[],
+            source_snapshot={},
+            objectives=[],
+            prompt_payload={"variety": {"domain": "serial"}},
+            recap_payload={},
+        )
+    )
+    db_session.commit()
+
+    today = asyncio.run(MissionScheduler(db_session).today(user))
+
+    assert today["weekly_mission"]["serial_thread_id"] is None
+    assert today["active_mission"] is None or today["active_mission"]["serial_thread_id"] is None
+    assert all(item["serial_thread_id"] is None for item in today["recent_completed"])
 
 
 def test_create_mission_uses_concept_erratum_and_news(client: TestClient, db_session, monkeypatch):
@@ -341,6 +474,8 @@ def test_custom_mission_e2e_create_turn_complete_and_queue(client: TestClient, d
     assert recap["readiness"]["overall"] >= 0
     assert recap["vocabulary_credit"]["produced_correct"] >= 1
     assert recap["saved_to_srs"]["saved_count"] >= 1
+    assert recap["minted_collectibles"][0]["kind"] == "logo_token"
+    assert recap["minted_collectibles"][0]["source_kind"] == "mission"
 
 
 def test_mission_submit_and_turns_are_persisted(client: TestClient, db_session, monkeypatch):
@@ -582,3 +717,11 @@ def test_mission_completion_returns_recap(client: TestClient, db_session, monkey
     assert "completed_at" in response.json()["recap"]
     assert response.json()["recap"]["readiness"]["overall"] >= 0
     assert response.json()["recap"]["saved_to_srs"]["saved_count"] >= 1
+    assert response.json()["recap"]["minted_collectibles"][0]["kind"] == "logo_token"
+
+    again = client.post(
+        f"/api/v1/missions/{mission_id}/complete",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert again.status_code == 200
+    assert again.json()["recap"] == response.json()["recap"]

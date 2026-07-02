@@ -336,12 +336,16 @@ def submit_mission_turn(
         )
 
     correction_service = MissionCorrectionService(db)
+    # Use the full LLM grammar check (not the deterministic-only fast path) so real
+    # mistakes like "mon porte" -> "ma porte" are caught and shown under the learner's
+    # own message right away. The turn already awaits the in-character reply, so the
+    # extra check fits the same round-trip.
     correction = correction_service.correct_submission(
         user=current_user,
         mission=mission,
         text=request.text,
         mode=request.mode,
-        near_realtime=True,
+        near_realtime=False,
     )
     first_index = _next_turn_index(db, mission)
     user_turn = RealWorldMissionTurn(
@@ -414,28 +418,33 @@ async def complete_mission(
     current_user: Annotated[User, Depends(get_atelier_user)],
 ) -> MissionCompleteResponse:
     mission = _mission_or_404(db, mission_id, current_user)
+    already_completed = mission.status == "completed"
     completed = MissionScheduler(db).complete(user=current_user, mission=mission)
-    await _advance_serial_thread(db, completed)
-    CEFRProgressService(db).recompute(current_user, source="mission_complete")
+    next_serial = None
+    if not already_completed:
+        next_serial = await _advance_serial_thread(db, completed)
+        CEFRProgressService(db).recompute(current_user, source="mission_complete")
     return MissionCompleteResponse(
         mission=serialize_mission(completed) or {},
         recap=completed.recap_payload or {},
+        next_serial=next_serial,
     )
 
 
-async def _advance_serial_thread(db: Session, mission: RealWorldMission) -> None:
+async def _advance_serial_thread(db: Session, mission: RealWorldMission) -> dict[str, Any] | None:
     """Advance the serial story when a thread-linked mission completes.
 
     Resilient: if the next Feuilleton beat fails to generate, the thread index
     has already advanced, so /serial/today regenerates it lazily next load.
     """
     if not settings.SERIAL_WORLD_ENABLED or not getattr(mission, "serial_thread_id", None):
-        return
+        return None
     thread = db.get(SerialThread, mission.serial_thread_id)
     if not thread:
-        return
+        return None
     try:
-        await SerialThreadService(db).apply_completion(thread, mission=mission)
+        return await SerialThreadService(db).apply_completion(thread, mission=mission)
     except Exception as exc:  # noqa: BLE001 — completion must never fail on serial advance
         db.rollback()
         logger.warning("Serial advance after mission failed: {}", str(exc))
+        return None

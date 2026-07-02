@@ -37,6 +37,7 @@ export default function AtelierStyleguidePage() {
               <div className="swatches">
                 <i style={{ background: 'var(--app-ink)' }} />
                 <i style={{ background: 'var(--accent-action)' }} />
+                <i style={{ background: 'var(--accent-alert)' }} />
                 <i style={{ background: 'var(--accent-info)' }} />
                 <i style={{ background: 'var(--accent-reward)' }} />
               </div>
@@ -49,6 +50,24 @@ export default function AtelierStyleguidePage() {
             </CardHeader>
             <CardContent>
               <Button rightIcon={<ArrowRight size={16} />}>Continue</Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Read Surface</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="styleguide-read-card">Flat editorial card</div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Do Shadow</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="styleguide-do-card">Exercise-only accent</div>
             </CardContent>
           </Card>
 
@@ -159,19 +178,38 @@ export default function AtelierStyleguidePage() {
         }
         .styleguide-grid {
           display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
+          grid-template-columns: repeat(5, minmax(0, 1fr));
           gap: 16px;
           margin-bottom: 32px;
         }
         .swatches {
           display: grid;
-          grid-template-columns: repeat(4, 1fr);
+          grid-template-columns: repeat(5, 1fr);
           gap: 8px;
         }
         .swatches i {
           display: block;
           aspect-ratio: 1;
           border: 1px solid var(--app-ink);
+        }
+        .styleguide-read-card,
+        .styleguide-do-card {
+          min-height: 74px;
+          display: grid;
+          place-items: center;
+          border: 1px solid var(--app-ink);
+          background: var(--app-sheet);
+          color: var(--app-ink-2);
+          font-family: var(--mono);
+          font-size: var(--type-mono);
+          font-weight: var(--weight-medium);
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+        }
+        .styleguide-do-card {
+          box-shadow: var(--shadow-do);
+          background: var(--app-paper);
+          color: var(--app-ink);
         }
         .styleguide-prompt {
           margin: 0 0 20px;

@@ -8,8 +8,9 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: 'bg-[var(--accent-action)] text-white shadow-[var(--ink-block-shadow)] hover:-translate-x-0.5 hover:-translate-y-0.5',
-        destructive: 'bg-[var(--app-red)] text-white border-[var(--app-red)] hover:bg-[var(--app-ink)] hover:border-[var(--app-ink)]',
+        default: 'bg-[var(--accent-action)] text-white hover:bg-[var(--app-ink)] hover:border-[var(--app-ink)]',
+        press: 'bg-[var(--accent-action)] text-white shadow-[var(--shadow-do)] hover:-translate-x-0.5 hover:-translate-y-0.5',
+        destructive: 'bg-[var(--accent-alert)] text-white border-[var(--accent-alert)] hover:bg-[var(--app-ink)] hover:border-[var(--app-ink)]',
         outline: 'bg-[var(--app-sheet)] text-[var(--app-ink)] hover:bg-[var(--app-paper-2)]',
         secondary: 'bg-[var(--app-yellow)] text-[var(--app-ink)] border-[var(--app-yellow)] hover:bg-[var(--app-paper-2)] hover:border-[var(--app-ink)]',
         ghost: 'border-transparent bg-transparent text-[var(--app-ink)] hover:bg-[var(--app-paper-2)]',

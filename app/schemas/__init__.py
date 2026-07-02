@@ -27,6 +27,7 @@ from app.schemas.atelier import (
     AtelierTodayResponse,
 )
 from app.schemas.auth import LogoutRequest, RefreshTokenRequest, Token, TokenPayload
+from app.schemas.feedback import FeedbackReportCreate, FeedbackReportRead
 from app.schemas.graphic_novel import (
     GraphicNovelAttemptRequest,
     GraphicNovelAttemptResponse,
@@ -135,6 +136,8 @@ __all__ = [
     "TokenPayload",
     "RefreshTokenRequest",
     "LogoutRequest",
+    "FeedbackReportCreate",
+    "FeedbackReportRead",
     "AtelierAttemptRequest",
     "AtelierAttemptResponse",
     "AtelierCompleteResponse",

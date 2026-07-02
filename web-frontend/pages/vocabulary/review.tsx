@@ -1,12 +1,36 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { ArrowLeft, Check, History, Loader2, RotateCcw } from 'lucide-react';
+import {
+  ArrowDown,
+  BookOpen,
+  Briefcase,
+  CalendarDays,
+  Check,
+  HeartPulse,
+  History,
+  Home,
+  Landmark,
+  Loader2,
+  MapPin,
+  MessageCircle,
+  Mic,
+  Palette,
+  RotateCcw,
+  Shapes,
+  Shirt,
+  Square,
+  Train,
+  Utensils,
+  Users,
+  Volume2,
+  type LucideIcon,
+} from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import EditorialMasthead from '@/components/layout/EditorialMasthead';
-import { ContinuationCard, FragilityBadge, WordBiographySheet } from '@/components/mobile';
+import { WordBiographySheet } from '@/components/mobile';
 import apiService, {
   VocabularyBiography,
   VocabularyDueContext,
@@ -15,10 +39,10 @@ import apiService, {
 import { AnkiReviewResponse, ReviewResponse } from '@/types/reviews';
 
 const reviewOptions = [
-  { rating: 0, label: 'Again', hint: 'Bring it back soon', tone: 'red' },
-  { rating: 1, label: 'Hard', hint: 'Keep it close', tone: 'yellow' },
-  { rating: 2, label: 'Good', hint: 'Normal review', tone: 'blue' },
-  { rating: 3, label: 'Easy', hint: 'Push it out', tone: 'black' },
+  { rating: 0, label: 'Encore', hint: 'Again', tone: 'red' },
+  { rating: 1, label: 'Dur', hint: 'Hard', tone: 'yellow' },
+  { rating: 2, label: 'Bien', hint: 'Good', tone: 'blue' },
+  { rating: 3, label: 'Facile', hint: 'Easy', tone: 'green' },
 ] as const;
 
 const reviewQueueParams = {
@@ -92,6 +116,114 @@ function queueDirection(item: VocabularyRecommendationItem) {
   return 'French 5000';
 }
 
+function normalizeAnswer(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^A-Za-z0-9À-ÿ]+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+function foldedSignal(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/œ/g, 'oe')
+    .replace(/æ/g, 'ae')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+function hasSignal(signal: string, words: string[]) {
+  return words.some((word) => signal.includes(word));
+}
+
+type ReviewVisualCue = {
+  label: string;
+  caption: string;
+  tone: string;
+  Icon: LucideIcon;
+};
+
+function wordVisualCue(item: VocabularyRecommendationItem): ReviewVisualCue {
+  const signal = foldedSignal([
+    queueFrench(item),
+    queueWord(item),
+    queueMeaning(item),
+    queueTranslation(item),
+    item.part_of_speech || '',
+    ...(item.topic_tags || []),
+  ].filter(Boolean).join(' '));
+
+  if (hasSignal(signal, ['abaisser', 'baisse', 'reduire', 'reduction', 'senken', 'lower', 'down'])) {
+    return { label: 'lower', caption: 'movement', tone: 'blue', Icon: ArrowDown };
+  }
+  if (hasSignal(signal, ['famille', 'ami', 'soeur', 'frere', 'mere', 'pere', 'person', 'schwester', 'freund'])) {
+    return { label: 'people', caption: 'relation', tone: 'red', Icon: Users };
+  }
+  if (hasSignal(signal, ['cafe', 'vin', 'restaurant', 'manger', 'boire', 'pain', 'food', 'essen', 'trinken'])) {
+    return { label: 'food', caption: 'table', tone: 'yellow', Icon: Utensils };
+  }
+  if (hasSignal(signal, ['heure', 'jour', 'semaine', 'temps', 'week', 'time', 'morgen', 'gestern'])) {
+    return { label: 'time', caption: 'when', tone: 'blue', Icon: CalendarDays };
+  }
+  if (hasSignal(signal, ['train', 'gare', 'metro', 'bus', 'voiture', 'voyage', 'reise', 'transport'])) {
+    return { label: 'travel', caption: 'movement', tone: 'green', Icon: Train };
+  }
+  if (hasSignal(signal, ['maison', 'appartement', 'porte', 'fenetre', 'home', 'haus', 'wohnung'])) {
+    return { label: 'home', caption: 'place', tone: 'yellow', Icon: Home };
+  }
+  if (hasSignal(signal, ['ville', 'rue', 'hotel', 'bureau', 'place', 'street', 'stadt', 'office'])) {
+    return { label: 'place', caption: 'where', tone: 'blue', Icon: MapPin };
+  }
+  if (hasSignal(signal, ['travail', 'argent', 'prix', 'client', 'job', 'work', 'geld'])) {
+    return { label: 'work', caption: 'practical', tone: 'green', Icon: Briefcase };
+  }
+  if (hasSignal(signal, ['sante', 'douleur', 'malade', 'corps', 'health', 'arzt', 'krank'])) {
+    return { label: 'body', caption: 'health', tone: 'red', Icon: HeartPulse };
+  }
+  if (hasSignal(signal, ['ecole', 'cours', 'livre', 'apprendre', 'question', 'learn', 'schule'])) {
+    return { label: 'study', caption: 'knowledge', tone: 'blue', Icon: BookOpen };
+  }
+  if (hasSignal(signal, ['dire', 'parler', 'demander', 'message', 'lettre', 'sagen', 'sprechen'])) {
+    return { label: 'speech', caption: 'message', tone: 'green', Icon: MessageCircle };
+  }
+  if (hasSignal(signal, ['loi', 'etat', 'gouvernement', 'politique', 'law', 'recht'])) {
+    return { label: 'society', caption: 'systems', tone: 'red', Icon: Landmark };
+  }
+  if (hasSignal(signal, ['film', 'musique', 'jeu', 'art', 'danser', 'music'])) {
+    return { label: 'culture', caption: 'leisure', tone: 'yellow', Icon: Palette };
+  }
+  if (hasSignal(signal, ['robe', 'chemise', 'pantalon', 'chaussure', 'kleid', 'schuh'])) {
+    return { label: 'clothing', caption: 'object', tone: 'green', Icon: Shirt };
+  }
+  if (hasSignal(signal, ['verb', 'verbe'])) {
+    return { label: 'action', caption: 'verb', tone: 'blue', Icon: Shapes };
+  }
+  return { label: 'word', caption: item.part_of_speech || 'memory cue', tone: 'neutral', Icon: Shapes };
+}
+
+function cardMode(item: VocabularyRecommendationItem | null): 'recognition' | 'production' | 'audio' | 'cloze' {
+  if (!item) return 'recognition';
+  if ((item.proficiency_score || 0) >= 90 && item.example_sentence) return 'cloze';
+  if ((item.proficiency_score || 0) >= 72 && item.bucket !== 'new') return 'audio';
+  if ((item.proficiency_score || 0) >= 55 && item.bucket !== 'new') return 'production';
+  return 'recognition';
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function clozePrompt(item: VocabularyRecommendationItem) {
+  const french = queueFrench(item);
+  const example = queueExample(item);
+  if (!french || !example) return example;
+  const boundary = 'A-Za-z0-9À-ÖØ-öø-ÿ';
+  const pattern = new RegExp(`(^|[^${boundary}])(${escapeRegExp(french)})(?=$|[^${boundary}])`, 'i');
+  return example.replace(pattern, '$1_____');
+}
+
 function formatDueLabel(item: VocabularyRecommendationItem) {
   const raw = item.due_at || item.next_review;
   if (!raw) return item.bucket === 'new' ? 'new pick' : item.bucket;
@@ -102,18 +234,6 @@ function formatDueLabel(item: VocabularyRecommendationItem) {
 
 function ratingToneLabel(rating: number) {
   return reviewOptions.find((item) => item.rating === rating)?.label || 'Review';
-}
-
-function hrefWithQuery(path: string, pairs: Array<[string, string | number | null | undefined]>) {
-  const params = new URLSearchParams();
-  pairs.forEach(([key, value]) => {
-    if (value === null || value === undefined) return;
-    const text = String(value).trim();
-    if (!text) return;
-    params.append(key, text);
-  });
-  const query = params.toString();
-  return query ? `${path}?${query}` : path;
 }
 
 function decrementSummaryCount(value: number | undefined) {
@@ -169,29 +289,23 @@ function VocabularyReviewContinuation({
 }) {
   const wordId = lastItem?.word_id || null;
   const word = lastItem ? queueFrench(lastItem) || queueWord(lastItem) : '';
-  const ratingCopy = lastRating !== null ? `Last card marked ${ratingToneLabel(lastRating)}.` : 'No words are waiting in this queue.';
-  const focus = [
-    word ? { label: `Word · ${word}`, tone: 'vocabulary' as const } : null,
-    lastRating !== null ? { label: `Rated · ${ratingToneLabel(lastRating)}`, tone: 'neutral' as const } : null,
-  ].filter(Boolean) as Array<{ label: string; tone: 'vocabulary' | 'neutral' }>;
+  const ratingCopy = lastRating !== null ? ratingToneLabel(lastRating) : '';
 
   return (
     <section className="review-done">
       <Check size={28} />
-      <ContinuationCard
-        tone="vocabulary"
-        eyebrow="French 5000"
-        title="Carry the freshest word into context"
-        description={`${ratingCopy} Return to the Atelier path and let today's recommendation advance.`}
-        focus={focus}
-        actions={[
-          { label: 'Complete and return', onClick: onReturn, loading: returning, tone: 'primary' },
-          { label: 'Use in mission', href: hrefWithQuery('/missions', [['vocabulary_id', wordId]]), disabled: !wordId },
-          { label: 'Read in Feuilleton', href: hrefWithQuery('/graphic-novel', [['vocabulary_id', wordId]]), disabled: !wordId },
-          { label: 'Refresh queue', onClick: onRefresh, tone: 'quiet' },
-        ]}
-        footer="The card is scheduled; Atelier owns the next step."
-      />
+      <div>
+        <span>Révision espacée</span>
+        <h2>Queue claire</h2>
+        {(word || ratingCopy) && <p>{[word, ratingCopy].filter(Boolean).join(' · ')}</p>}
+      </div>
+      <div className="review-done-actions">
+        <button type="button" onClick={onReturn} disabled={returning}>
+          {returning ? 'Retour...' : 'Atelier'}
+        </button>
+        <button type="button" onClick={onRefresh}>Actualiser</button>
+        {wordId && <Link href={`/vocabulary?word=${wordId}`}>Notebook</Link>}
+      </div>
     </section>
   );
 }
@@ -204,6 +318,10 @@ export default function VocabularyReviewPage() {
   const [reviewing, setReviewing] = useState(false);
   const [returning, setReturning] = useState(false);
   const [revealed, setRevealed] = useState(false);
+  const [typedAnswer, setTypedAnswer] = useState('');
+  const [audioPlaying, setAudioPlaying] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
   const [reviewedIds, setReviewedIds] = useState<Set<number>>(() => new Set());
   const [lastRating, setLastRating] = useState<number | null>(null);
   const [lastReviewedItem, setLastReviewedItem] = useState<VocabularyRecommendationItem | null>(null);
@@ -211,6 +329,11 @@ export default function VocabularyReviewPage() {
   const [biography, setBiography] = useState<VocabularyBiography | null>(null);
   const [biographyLoading, setBiographyLoading] = useState(false);
   const [biographyError, setBiographyError] = useState<string | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordingStreamRef = useRef<MediaStream | null>(null);
+  const recordingWordIdRef = useRef<number | null>(null);
+  const activeWordIdRef = useRef<number | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
 
   const loadQueue = useCallback(async () => {
     setLoading(true);
@@ -222,9 +345,10 @@ export default function VocabularyReviewPage() {
       setLastRating(null);
       setLastReviewedItem(null);
       setRevealed(false);
+      setTypedAnswer('');
     } catch (error) {
       console.error(error);
-      setLoadError('Vocabulary review is unavailable right now.');
+      setLoadError('Review unavailable');
     } finally {
       setLoading(false);
     }
@@ -234,16 +358,6 @@ export default function VocabularyReviewPage() {
     void loadQueue();
   }, [loadQueue]);
 
-  const refreshQueueSummary = useCallback(async () => {
-    try {
-      const next = await apiService.getVocabularyDueContext(reviewQueueParams);
-      setContext(next);
-    } catch (error) {
-      console.error(error);
-      toast('Review saved. Atelier will refresh the count when you return.');
-    }
-  }, []);
-
   const allItems = useMemo(() => queueItems(context), [context]);
   const remainingItems = useMemo(
     () => allItems.filter((item) => !reviewedIds.has(item.word_id)),
@@ -252,14 +366,47 @@ export default function VocabularyReviewPage() {
   const current = remainingItems[0] || null;
   const completed = reviewedIds.size;
   const total = remainingItems.length + completed;
+  const sessionRemaining = remainingItems.length;
+  const remainingSummary = useMemo(() => ({
+    due: remainingItems.filter((item) => item.bucket === 'due').length,
+    fragile: remainingItems.filter((item) => item.bucket === 'fragile').length,
+    new: remainingItems.filter((item) => item.bucket === 'new').length,
+  }), [remainingItems]);
   const progress = total ? Math.round((completed / total) * 100) : 0;
 
+  const stopRecordingTracks = useCallback(() => {
+    recordingStreamRef.current?.getTracks().forEach((track) => track.stop());
+    recordingStreamRef.current = null;
+  }, []);
+
+  const cancelActiveRecording = useCallback(() => {
+    recordingWordIdRef.current = null;
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recorder.state !== 'inactive') {
+      recorder.stop();
+    }
+    mediaRecorderRef.current = null;
+    stopRecordingTracks();
+    setRecording(false);
+  }, [stopRecordingTracks]);
+
   useEffect(() => {
+    activeWordIdRef.current = current?.word_id || null;
+    cancelActiveRecording();
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
     setBiographyOpen(false);
     setBiography(null);
     setBiographyError(null);
     setBiographyLoading(false);
-  }, [current?.word_id]);
+    setTypedAnswer('');
+    setAudioPlaying(false);
+    setRecording(false);
+    setTranscribing(false);
+  }, [current?.word_id, cancelActiveRecording]);
+
+  useEffect(() => () => cancelActiveRecording(), [cancelActiveRecording]);
 
   const openBiography = async () => {
     if (!current) return;
@@ -277,6 +424,114 @@ export default function VocabularyReviewPage() {
     }
   };
 
+  const playAudioPrompt = async (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    if (!current || audioPlaying) return;
+    const text = queueFrench(current);
+    if (!text) return;
+    setAudioPlaying(true);
+    try {
+      const audio = await apiService.synthesizeSpeech(text);
+      const blob = new Blob([audio], { type: 'audio/mpeg' });
+      const url = URL.createObjectURL(blob);
+      const player = new Audio(url);
+      player.onended = () => {
+        URL.revokeObjectURL(url);
+        setAudioPlaying(false);
+      };
+      player.onerror = () => {
+        URL.revokeObjectURL(url);
+        setAudioPlaying(false);
+      };
+      await player.play();
+    } catch (error) {
+      console.error(error);
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'fr-FR';
+        utterance.onend = () => setAudioPlaying(false);
+        utterance.onerror = () => setAudioPlaying(false);
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(utterance);
+      } else {
+        setAudioPlaying(false);
+        toast.error('Could not play the audio prompt.');
+      }
+    }
+  };
+
+  const transcribeReviewAudio = async (blob: Blob, wordId: number) => {
+    if (activeWordIdRef.current !== wordId) return;
+    setTranscribing(true);
+    try {
+      const transcript = await apiService.transcribeAudio(blob);
+      if (activeWordIdRef.current !== wordId) {
+        return;
+      }
+      if (transcript.trim()) {
+        setTypedAnswer(transcript.trim());
+      } else {
+        toast('No speech detected.');
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error('Could not transcribe the recording.');
+    } finally {
+      if (activeWordIdRef.current === wordId) {
+        setTranscribing(false);
+      }
+    }
+  };
+
+  const startRecording = async (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    if (!current || recording || transcribing) return;
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+      toast.error('Voice recording is not available in this browser.');
+      return;
+    }
+    try {
+      const wordId = current.word_id;
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (activeWordIdRef.current !== wordId) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+      const recorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = recorder;
+      recordingStreamRef.current = stream;
+      recordingWordIdRef.current = wordId;
+      chunksRef.current = [];
+      recorder.ondataavailable = (recorderEvent) => {
+        if (recorderEvent.data.size > 0) {
+          chunksRef.current.push(recorderEvent.data);
+        }
+      };
+      recorder.onstop = () => {
+        const stoppedWordId = recordingWordIdRef.current;
+        recordingWordIdRef.current = null;
+        const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' });
+        stopRecordingTracks();
+        setRecording(false);
+        if (stoppedWordId === wordId && activeWordIdRef.current === wordId) {
+          void transcribeReviewAudio(audioBlob, wordId);
+        }
+      };
+      recorder.start();
+      setRecording(true);
+    } catch (error) {
+      console.error(error);
+      toast.error('Microphone access failed.');
+    }
+  };
+
+  const stopRecording = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    const recorder = mediaRecorderRef.current;
+    if (!recorder || !recording || recorder.state === 'inactive') return;
+    recorder.stop();
+  };
+
   const submitRating = async (rating: number) => {
     if (!current || reviewing) return;
     setReviewing(true);
@@ -288,7 +543,7 @@ export default function VocabularyReviewPage() {
       setLastReviewedItem(current);
       setContext((prev) => optimisticallyDecrementSummary(prev, current));
       setRevealed(false);
-      await refreshQueueSummary();
+      setTypedAnswer('');
     } catch (error) {
       console.error(error);
       toast.error('Could not save vocabulary review.');
@@ -302,14 +557,37 @@ export default function VocabularyReviewPage() {
     await router.push('/atelier');
   };
 
-  const summary = context?.summary;
-  const prompt = current ? queueWord(current) : '';
-  const answer = current ? queueTranslation(current) : '';
+  const handleRatingClick = (rating: number) => {
+    if (reviewing) return;
+    if (!revealed) {
+      setRevealed(true);
+      return;
+    }
+    void submitRating(rating);
+  };
+
+  const mode = cardMode(current);
+  const prompt = current
+    ? mode === 'audio'
+      ? 'Listen to the French word'
+      : mode === 'production'
+      ? queueMeaning(current)
+      : mode === 'cloze'
+        ? clozePrompt(current)
+        : queueWord(current)
+    : '';
+  const answer = current ? (mode === 'recognition' ? queueTranslation(current) : queueFrench(current)) : '';
   const french = current ? queueFrench(current) : '';
   const meaning = current ? queueMeaning(current) : '';
   const example = current ? queueExample(current) : '';
   const exampleTranslation = current ? queueExampleTranslation(current) : '';
-  const contextText = example || (current ? `${french} - ${meaning}` : '');
+  const visualCue = current ? wordVisualCue(current) : null;
+  const VisualIcon = visualCue?.Icon || Shapes;
+  const visibleExample = mode === 'audio' ? '' : example;
+  const contextText = mode === 'audio'
+    ? [meaning, example].filter(Boolean).join(' · ')
+    : example || (current ? `${french} - ${meaning}` : '');
+  const typedMatches = normalizeAnswer(typedAnswer) === normalizeAnswer(answer);
 
   return (
     <>
@@ -318,43 +596,46 @@ export default function VocabularyReviewPage() {
       </Head>
       <EditorialMasthead
         active="studio"
-        mobileAction={<Link className="review-mobile-action" href="/atelier">Today</Link>}
       />
       <main className="vocab-review-page">
         <header className="review-hero">
-          <Link href="/atelier" className="review-back"><ArrowLeft size={15} /> Back to today</Link>
-          <div className="review-kicker">ATELIER PATH</div>
-          <h1>Vocabulary review</h1>
-          <p>Clear the FSRS cards from today&apos;s Review step, then return to Atelier for the next recommendation.</p>
+          <div className="review-title-row">
+            <div>
+              <div className="review-kicker">VOCABULAIRE</div>
+              <h1>Révision</h1>
+            </div>
+            <div className="review-due-mark">
+              <strong>{sessionRemaining}</strong>
+              <span>restantes</span>
+            </div>
+          </div>
+          <div className="review-progress" aria-label="Vocabulary review progress">
+            <div>
+              <strong>{completed} / {total || 0}</strong>
+              <span>{sessionRemaining ? `${sessionRemaining} en attente` : 'clair'}</span>
+            </div>
+            <div className="review-progress-bar" aria-label={`${progress}% complete`}>
+              <span style={{ width: `${progress}%` }} />
+            </div>
+          </div>
           <div className="review-stats">
-            <span><strong>{summary?.due || 0}</strong> due</span>
-            <span><strong>{summary?.fragile || 0}</strong> fragile</span>
-            <span><strong>{summary?.new || 0}</strong> new</span>
+            <span>{remainingSummary.due} due</span>
+            <span>{remainingSummary.fragile} fragile</span>
+            <span>{remainingSummary.new} new</span>
           </div>
-          <Link href="/vocabulary" className="review-deck-link">Open notebook deck</Link>
         </header>
-
-        <section className="review-progress" aria-label="Vocabulary review progress">
-          <div>
-            <strong>{completed} / {total || 0}</strong>
-            <span>{remainingItems.length ? `${remainingItems.length} waiting` : 'queue clear'}</span>
-          </div>
-          <div className="review-progress-bar" aria-label={`${progress}% complete`}>
-            <span style={{ width: `${progress}%` }} />
-          </div>
-        </section>
 
         {loading && (
           <section className="review-state">
             <Loader2 className="spin" size={22} />
-            <strong>Loading today&apos;s vocabulary session.</strong>
+            <strong>Chargement</strong>
           </section>
         )}
 
         {!loading && loadError && (
           <section className="review-state error">
             <strong>{loadError}</strong>
-            <button type="button" onClick={loadQueue}><RotateCcw size={14} /> Retry</button>
+            <button type="button" onClick={loadQueue} aria-label="Retry vocabulary review"><RotateCcw size={14} /> Retry</button>
           </section>
         )}
 
@@ -370,32 +651,67 @@ export default function VocabularyReviewPage() {
 
         {!loading && !loadError && current && (
           <div className="review-card-container">
-            <div 
+            <div
               className="vocab-flashcard-perspective cursor-pointer select-none"
               onClick={() => setRevealed((value) => !value)}
             >
               <div className={`vocab-flashcard-inner ${revealed ? 'flipped' : ''}`}>
-                
+
                 {/* FRONT FACE */}
                 <div className="vocab-flashcard-front">
                   <div className="review-card-head w-full">
                     <span>{queueDirection(current)}</span>
                     <em>{formatDueLabel(current)}</em>
                   </div>
-                  
+
                   <div className="review-prompt w-full flex-1 flex flex-col justify-center my-4">
-                    <h2 className="text-4xl font-black mb-2">{prompt}</h2>
-                    {example && (
-                      <div className="review-example mt-2 text-stone-600 text-left border-l-4 border-[var(--yellow)] bg-[var(--paper)] p-3">
-                        <p className="text-lg italic font-serif">&quot;{example}&quot;</p>
-                        {exampleTranslation && <em className="text-sm font-sans block mt-1 text-[var(--ink-2)]">{exampleTranslation}</em>}
+                    {mode === 'audio' ? (
+                      <div className="review-audio-prompt">
+                        <h2>{prompt}</h2>
+                        <div className="review-audio-actions" onClick={(event) => event.stopPropagation()}>
+                          <button type="button" disabled={audioPlaying} onClick={playAudioPrompt}>
+                            {audioPlaying ? <Loader2 className="spin" size={17} /> : <Volume2 size={17} />}
+                            {audioPlaying ? 'Playing' : 'Play'}
+                          </button>
+                          <button
+                            type="button"
+                            className={recording ? 'recording' : ''}
+                            disabled={transcribing}
+                            onClick={recording ? stopRecording : startRecording}
+                          >
+                            {transcribing ? <Loader2 className="spin" size={17} /> : recording ? <Square size={17} /> : <Mic size={17} />}
+                            {transcribing ? 'Transcribing' : recording ? 'Stop' : 'Record'}
+                          </button>
+                        </div>
+                        <span>Écouter · répondre</span>
                       </div>
+                    ) : (
+                      <>
+                        {visualCue && (
+                          <div className={`review-visual-cue ${visualCue.tone}`} aria-label={`${visualCue.label} visual cue`}>
+                            <VisualIcon size={31} />
+                            <span>{visualCue.label}</span>
+                            <em>{visualCue.caption}</em>
+                          </div>
+                        )}
+                        <h2 className="review-prompt-term">{prompt}</h2>
+                      </>
+                    )}
+                    {mode !== 'recognition' && (
+                      <input
+                        className="review-type-input"
+                        value={typedAnswer}
+                        onChange={(event) => setTypedAnswer(event.target.value)}
+                        onClick={(event) => event.stopPropagation()}
+                        placeholder={mode === 'audio' ? 'Type what you heard' : 'Type the French answer'}
+                        aria-label="Type the French answer"
+                      />
                     )}
                   </div>
-                  
-                  <div className="vocab-card-hint-text">Tap card to reveal answer</div>
+
+                  <div className="vocab-card-hint-text">Taper pour révéler</div>
                 </div>
-                
+
                 {/* BACK FACE */}
                 <div className="vocab-flashcard-back">
                   <div className="review-card-head w-full relative flex justify-between items-center">
@@ -408,33 +724,33 @@ export default function VocabularyReviewPage() {
                         openBiography();
                       }}
                       aria-label={`Open word biography for ${prompt}`}
+                      title="History"
                     >
                       <History size={13} />
-                      History
                     </button>
                   </div>
-                  
-                  <div className="review-answer-container w-full flex-1 flex flex-col justify-center my-4">
-                    <span className="vocab-card-face-label">ANSWER</span>
-                    <strong className="text-3xl font-black block my-2">{answer || meaning || french}</strong>
-                    {contextText && contextText !== example && (
-                      <div className="mt-4 p-3 bg-stone-100 border border-black/10 text-left text-sm max-h-[140px] overflow-y-auto">
-                        <strong>Context Anchor:</strong>
-                        <p className="italic font-serif mt-1">&quot;{contextText}&quot;</p>
+
+                  <div className="review-answer-container w-full flex-1 flex flex-col">
+                    <strong className="review-answer-word">{answer || meaning || french}</strong>
+                    {mode !== 'recognition' && typedAnswer && (
+                      <small className={typedMatches ? 'review-type-result match' : 'review-type-result miss'}>
+                        {typedMatches ? 'Typed answer matches' : `You typed: ${typedAnswer}`}
+                      </small>
+                    )}
+                    {visibleExample && (
+                      <div className="review-example">
+                        <p>&quot;{visibleExample}&quot;</p>
+                        {exampleTranslation && <em>{exampleTranslation}</em>}
+                      </div>
+                    )}
+                    {contextText && contextText !== example && !visibleExample && (
+                      <div className="review-context-anchor">
+                        <p>&quot;{contextText}&quot;</p>
                       </div>
                     )}
                   </div>
-
-                  <div className="review-meta w-full flex gap-2 justify-center items-center flex-wrap pt-2 border-t border-black/15">
-                    <FragilityBadge progress={current} compact />
-                    <span className="text-[10px] uppercase font-mono px-2 py-0.5 border border-black/20">{current.scheduler || 'fsrs'}</span>
-                    <span className="text-[10px] uppercase font-mono px-2 py-0.5 border border-black/20">{current.bucket}</span>
-                    <span className="text-[10px] uppercase font-mono px-2 py-0.5 border border-black/20">{Math.round(current.proficiency_score || 0)}%</span>
-                  </div>
-                  
-                  <div className="vocab-card-hint-text">Tap card to flip back</div>
                 </div>
-                
+
               </div>
             </div>
 
@@ -444,11 +760,12 @@ export default function VocabularyReviewPage() {
                   key={option.rating}
                   type="button"
                   className={option.tone}
-                  disabled={reviewing || !revealed}
-                  onClick={() => submitRating(option.rating)}
+                  disabled={reviewing}
+                  onClick={() => handleRatingClick(option.rating)}
+                  title={revealed ? option.hint : 'Reveal answer'}
+                  aria-label={revealed ? `Rate ${option.hint}` : 'Reveal answer before rating'}
                 >
                   <strong>{option.label}</strong>
-                  <span>{option.hint}</span>
                 </button>
               ))}
             </div>
@@ -462,7 +779,7 @@ export default function VocabularyReviewPage() {
         loading={biographyLoading}
         error={biographyError}
         onClose={() => setBiographyOpen(false)}
-        action={biography ? <Link href={`/vocabulary?word=${biography.word.id}`}>Deck</Link> : undefined}
+        action={biography ? <Link href={`/vocabulary?word=${biography.word.id}`}>Notebook</Link> : undefined}
       />
 
       <style jsx>{`
@@ -477,65 +794,46 @@ export default function VocabularyReviewPage() {
           --blue: #1d3a8a;
           --yellow: #f3c318;
           min-height: 100vh;
-          padding: 20px clamp(20px, 4vw, 48px) 112px;
+          width: min(100%, 640px);
+          margin: 0 auto;
+          padding: 22px clamp(20px, 4vw, 32px) 112px;
           background: var(--paper);
           color: var(--ink);
         }
-        .review-mobile-action,
-        .review-back,
         .review-kicker,
         .review-stats span,
         .review-progress span,
         .review-card-head,
         .review-prompt span,
-        .review-answer span,
-        .review-meta {
+        .review-answer span {
           font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
           font-size: 11px;
           font-weight: 900;
           letter-spacing: .1em;
           text-transform: uppercase;
         }
-        .review-mobile-action,
-        .review-back {
-          color: var(--ink);
-          text-decoration: none;
-        }
-        .review-back {
-          display: inline-flex;
+        .review-title-row {
+          display: flex;
           align-items: center;
-          gap: 6px;
-          margin-bottom: 22px;
-          color: var(--blue);
-        }
-        .review-deck-link {
-          display: inline-flex;
-          margin-top: 14px;
-          color: var(--ink-3);
-          font-size: 12px;
-          font-weight: 850;
-          text-decoration: underline;
-          text-underline-offset: 4px;
-        }
-        .review-deck-link:hover {
-          color: var(--blue);
+          justify-content: space-between;
+          gap: 18px;
         }
         .review-hero {
           border-bottom: 1px solid var(--ink);
-          padding-bottom: 20px;
+          padding-bottom: 18px;
         }
         .review-kicker {
           color: var(--ink-3);
         }
         .review-hero h1,
-        .review-card h2,
         .review-done h2 {
-          margin: 8px 0 0;
+          margin: 6px 0 0;
+          color: var(--ink);
           font-family: "EB Garamond", Garamond, serif;
-          font-size: clamp(48px, 14vw, 92px);
+          font-size: clamp(32px, 8vw, 46px);
           font-style: italic;
           font-weight: 500;
-          line-height: .9;
+          line-height: .94;
           letter-spacing: 0;
         }
         .review-hero p,
@@ -547,28 +845,44 @@ export default function VocabularyReviewPage() {
           line-height: 1.35;
         }
         .review-stats {
-          display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 16px;
-          margin-top: 20px;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px 16px;
+          margin-top: 12px;
+          color: var(--ink-3);
         }
         .review-stats span {
-          border-top: 1px solid var(--ink);
-          padding-top: 8px;
+          padding: 0;
         }
-        .review-stats strong {
+        .review-due-mark {
+          min-width: 76px;
+          border: 1px solid var(--ink);
+          background: var(--sheet);
+          padding: 8px 10px;
+          text-align: center;
+        }
+        .review-due-mark strong {
           display: block;
-          font-family: var(--app-sans, "Inter", sans-serif);
-          font-size: 32px;
+          font-size: 25px;
           line-height: 1;
+        }
+        .review-due-mark span {
+          display: block;
+          margin-top: 3px;
+          color: var(--ink-3);
+          font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+          font-size: 9px;
+          font-weight: 900;
+          letter-spacing: .08em;
+          text-transform: uppercase;
         }
         .review-progress {
           display: grid;
-          gap: 10px;
-          margin-top: 18px;
+          gap: 7px;
+          margin-top: 16px;
           border: 1px solid var(--ink);
           background: var(--sheet);
-          padding: 13px 14px;
+          padding: 10px 12px;
         }
         .review-progress div:first-child {
           display: flex;
@@ -577,14 +891,14 @@ export default function VocabularyReviewPage() {
           align-items: baseline;
         }
         .review-progress strong {
-          font-size: 20px;
+          font-size: 17px;
         }
         .review-progress span {
           color: var(--ink-3);
           font-size: 10px;
         }
         .review-progress-bar {
-          height: 9px;
+          height: 8px;
           border: 1px solid var(--ink);
           background: var(--paper);
         }
@@ -595,20 +909,20 @@ export default function VocabularyReviewPage() {
           transition: width 180ms ease;
         }
         .review-card-container {
-          margin-top: 18px;
+          margin-top: 24px;
           display: flex;
           flex-direction: column;
         }
         .vocab-flashcard-perspective {
           perspective: 1000px;
           width: 100%;
-          min-height: 380px;
+          min-height: 320px;
         }
         .vocab-flashcard-inner {
           position: relative;
           width: 100%;
           height: 100%;
-          min-height: 380px;
+          min-height: 320px;
           transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
           transform-style: preserve-3d;
         }
@@ -620,28 +934,21 @@ export default function VocabularyReviewPage() {
           position: absolute;
           width: 100%;
           height: 100%;
-          min-height: 380px;
+          min-height: 320px;
           backface-visibility: hidden;
-          border: 4px solid var(--ink);
-          padding: 24px;
+          border: 2px solid var(--ink);
+          padding: 26px 28px;
           display: flex;
           flex-direction: column;
-          box-shadow: 6px 6px 0px 0px var(--ink);
+          box-shadow: 8px 8px 0px 0px var(--ink);
         }
         .vocab-flashcard-front {
-          background: var(--sheet);
+          background: #fbfaf6;
         }
         .vocab-flashcard-back {
-          background: var(--yellow);
+          background: #fbfaf6;
           transform: rotateY(180deg);
-        }
-        .vocab-card-face-label {
-          font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-          font-size: 10px;
-          font-weight: 900;
-          letter-spacing: .1em;
-          text-transform: uppercase;
-          color: var(--ink-3);
+          overflow: hidden;
         }
         .vocab-card-hint-text {
           align-self: center;
@@ -651,7 +958,7 @@ export default function VocabularyReviewPage() {
           letter-spacing: .05em;
           text-transform: uppercase;
           color: var(--ink-3);
-          opacity: 0.8;
+          opacity: 0.82;
           margin-top: auto;
         }
         .review-state,
@@ -664,30 +971,75 @@ export default function VocabularyReviewPage() {
           display: flex;
           justify-content: space-between;
           gap: 14px;
-          color: var(--ink-3);
+          color: var(--ink-2);
         }
         .review-card-head em {
-          color: var(--blue);
+          color: var(--ink-3);
           font-style: normal;
         }
         .review-prompt {
           border-top: 1px solid var(--ink);
-          padding-top: 18px;
+          padding-top: 20px;
+          min-height: 166px;
+          align-items: stretch;
+        }
+        .review-prompt-term {
+          margin: 0;
+          color: var(--ink);
+          font-family: "EB Garamond", Garamond, serif;
+          font-size: clamp(42px, 12vw, 62px);
+          font-style: italic;
+          font-weight: 600;
+          line-height: 1;
+          letter-spacing: 0;
+          overflow-wrap: anywhere;
+          text-shadow: none;
+          text-align: center;
+        }
+        .review-visual-cue {
+          width: min(164px, 100%);
+          margin: 0 auto 16px;
+          display: grid;
+          justify-items: center;
+          gap: 4px;
+          border: 1px solid var(--ink);
+          background: var(--paper);
+          padding: 10px 12px;
+          box-shadow: 4px 4px 0 var(--ink);
+        }
+        .review-visual-cue svg {
+          color: var(--blue);
+          stroke-width: 2.2;
+        }
+        .review-prompt .review-visual-cue span {
+          color: var(--ink);
+          font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+          font-size: 10px;
+          font-weight: 900;
+          letter-spacing: .08em;
+          text-transform: uppercase;
+        }
+        .review-visual-cue em {
+          margin: 0;
+          color: var(--ink-3);
+          font-size: 11px;
+          font-style: normal;
+        }
+        .review-visual-cue.red svg {
+          color: var(--red);
+        }
+        .review-visual-cue.yellow svg {
+          color: var(--yellow);
+        }
+        .review-visual-cue.green svg {
+          color: #23845d;
+        }
+        .review-visual-cue.neutral svg {
+          color: var(--ink-3);
         }
         .review-prompt span,
         .review-answer span {
           color: var(--ink-3);
-        }
-        .review-card h2 {
-          margin: 12px 0 0;
-          color: var(--ink);
-          font-family: var(--app-sans, "Inter", sans-serif);
-          font-size: clamp(42px, 13vw, 74px);
-          font-style: normal;
-          font-weight: 950;
-          line-height: .92;
-          letter-spacing: 0;
-          overflow-wrap: anywhere;
         }
         .review-prompt-top {
           display: flex;
@@ -697,13 +1049,13 @@ export default function VocabularyReviewPage() {
         }
         .review-history-button {
           display: inline-flex;
-          min-height: 32px;
+          width: 32px;
+          height: 32px;
           align-items: center;
           justify-content: center;
-          gap: 6px;
           border: 1px solid var(--ink);
           background: var(--paper);
-          padding: 0 9px;
+          padding: 0;
           color: var(--blue);
           font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
           font-size: 10px;
@@ -716,9 +1068,12 @@ export default function VocabularyReviewPage() {
           opacity: .55;
         }
         .review-example {
-          border-left: 4px solid var(--yellow);
+          margin-top: 12px;
+          border-left: 4px solid var(--blue);
           background: var(--paper);
-          padding: 12px 14px;
+          padding: 10px 12px;
+          color: var(--ink);
+          text-align: left;
         }
         .review-example.empty {
           border-left-color: var(--ink-3);
@@ -733,12 +1088,12 @@ export default function VocabularyReviewPage() {
           text-transform: uppercase;
         }
         .review-example p {
-          margin: 7px 0 0;
+          margin: 0;
           color: var(--ink);
           font-family: var(--app-serif, "EB Garamond", Garamond, serif);
-          font-size: 24px;
+          font-size: clamp(18px, 5vw, 20px);
           font-style: italic;
-          line-height: 1.22;
+          line-height: 1.18;
         }
         .review-example.empty p {
           color: var(--ink-3);
@@ -749,10 +1104,128 @@ export default function VocabularyReviewPage() {
         }
         .review-example em {
           display: block;
-          margin-top: 7px;
+          margin-top: 6px;
           color: var(--ink-2);
+          font-size: 12px;
           font-style: normal;
-          line-height: 1.35;
+          line-height: 1.25;
+        }
+        .review-context-anchor {
+          max-height: 140px;
+          overflow-y: auto;
+          margin-top: 16px;
+          border: 1px solid rgba(20, 17, 13, .2);
+          background: rgba(248, 243, 232, .72);
+          padding: 12px 14px;
+          color: var(--ink);
+          text-align: left;
+          font-size: 14px;
+        }
+        .review-context-anchor strong {
+          font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+          font-size: 10px;
+          font-weight: 900;
+          letter-spacing: .1em;
+          text-transform: uppercase;
+        }
+        .review-context-anchor p {
+          margin: 6px 0 0;
+          font-family: var(--app-serif, "EB Garamond", Garamond, serif);
+          font-size: 17px;
+          font-style: italic;
+          line-height: 1.25;
+        }
+        .review-audio-prompt {
+          display: grid;
+          justify-items: center;
+          gap: 12px;
+        }
+        .review-audio-prompt h2 {
+          margin: 0;
+          color: var(--ink);
+          font-family: var(--app-sans, "Inter", sans-serif);
+          font-size: clamp(28px, 9vw, 42px);
+          font-style: normal;
+          font-weight: 950;
+          line-height: .96;
+          letter-spacing: 0;
+          text-align: center;
+        }
+        .review-audio-prompt span {
+          color: var(--ink-3);
+          font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+          font-size: 10px;
+          font-weight: 900;
+          letter-spacing: .08em;
+          text-transform: uppercase;
+          text-align: center;
+        }
+        .review-audio-actions {
+          display: flex;
+          flex-wrap: wrap;
+          justify-content: center;
+          gap: 10px;
+        }
+        .review-audio-actions button {
+          display: inline-flex;
+          min-width: 118px;
+          min-height: 44px;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          border: 2px solid var(--ink);
+          background: var(--yellow);
+          color: var(--ink);
+          font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+          font-size: 11px;
+          font-weight: 950;
+          letter-spacing: .08em;
+          text-transform: uppercase;
+          box-shadow: 3px 3px 0 var(--ink);
+        }
+        .review-audio-actions button.recording {
+          background: var(--red);
+          color: var(--paper);
+        }
+        .review-audio-actions button:disabled {
+          cursor: wait;
+          opacity: .65;
+        }
+        .review-type-input {
+          width: min(100%, 420px);
+          min-height: 44px;
+          margin: 14px auto 0;
+          border: 2px solid var(--ink);
+          background: var(--sheet);
+          padding: 0 14px;
+          color: var(--ink);
+          font-size: 18px;
+          font-weight: 850;
+          text-align: center;
+          outline: none;
+        }
+        .review-type-input:focus {
+          border-color: var(--blue);
+          box-shadow: inset 4px 0 0 var(--blue);
+        }
+        .review-type-result {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-height: 28px;
+          margin: 6px auto 0;
+          border: 1px solid var(--ink);
+          padding: 4px 8px;
+          font-size: 12px;
+          font-weight: 900;
+        }
+        .review-type-result.match {
+          border-color: var(--blue);
+          color: var(--blue);
+        }
+        .review-type-result.miss {
+          border-color: var(--red);
+          color: var(--red);
         }
         .reveal-answer {
           min-height: 56px;
@@ -769,48 +1242,59 @@ export default function VocabularyReviewPage() {
           background: var(--paper);
           padding: 12px 14px;
         }
-        .review-answer strong {
+        .review-answer strong,
+        .review-answer-word {
           display: block;
-          margin-top: 6px;
-          font-size: 24px;
-          line-height: 1.15;
+          margin: 0;
+          color: var(--ink);
+          font-family: "EB Garamond", Garamond, serif;
+          font-size: clamp(34px, 10vw, 54px);
+          font-style: italic;
+          font-weight: 600;
+          line-height: 1;
           overflow-wrap: anywhere;
+          text-align: center;
         }
-        .review-meta {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
-          align-items: center;
-          color: var(--ink-3);
+        .review-answer-container {
+          min-height: 0;
+          margin: 12px 0 0;
+          justify-content: center;
+          overflow-y: auto;
+          scrollbar-width: thin;
         }
-        .review-meta span {
-          border: 1px solid var(--ink);
-          background: var(--paper);
-          padding: 7px 9px;
+        .vocab-flashcard-back .review-answer-word {
+          font-size: clamp(30px, 8vw, 46px);
+          line-height: .98;
         }
         .review-ratings {
           display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 8px;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 10px;
+          margin-top: 18px;
         }
         .review-ratings button {
-          min-height: 82px;
-          border: 1px solid var(--ink);
+          min-height: 48px;
+          border: 2px solid var(--ink);
           background: var(--paper);
-          padding: 10px 12px;
+          padding: 0 8px;
           color: var(--ink);
-          text-align: left;
+          text-align: center;
+          border-radius: 10px;
         }
         .review-ratings button:disabled {
-          opacity: .48;
+          cursor: wait;
+          opacity: .55;
         }
         .review-ratings strong,
         .review-ratings span {
           display: block;
         }
         .review-ratings strong {
-          font-size: 17px;
+          font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+          font-size: 13px;
           line-height: 1.1;
+          letter-spacing: .04em;
+          text-transform: uppercase;
         }
         .review-ratings span {
           margin-top: 5px;
@@ -818,36 +1302,36 @@ export default function VocabularyReviewPage() {
           font-size: 13px;
         }
         .review-ratings .red {
-          border-left: 4px solid var(--red);
+          border-color: var(--red);
+          color: var(--red);
         }
         .review-ratings .yellow {
-          border-left: 4px solid var(--yellow);
+          border-color: var(--yellow);
         }
         .review-ratings .blue {
-          border-left: 4px solid var(--blue);
+          border-color: var(--blue);
+          color: var(--blue);
         }
-        .review-ratings .black {
-          background: var(--ink);
-          color: var(--paper);
-        }
-        .review-ratings .black span {
-          color: rgba(248, 243, 232, .72);
+        .review-ratings .green {
+          border-color: #23845d;
+          color: #23845d;
         }
         .review-state,
         .review-done {
           display: grid;
           place-items: center;
           gap: 12px;
-          min-height: 280px;
-          padding: 24px;
+          min-height: 150px;
+          margin-top: 22px;
+          padding: 18px;
           text-align: center;
         }
         .review-state.error {
-          border-left: 5px solid var(--red);
+          border-left: 4px solid var(--red);
         }
         .review-state button,
         .review-state a {
-          min-height: 46px;
+          min-height: 42px;
           display: inline-flex;
           align-items: center;
           justify-content: center;
@@ -860,9 +1344,23 @@ export default function VocabularyReviewPage() {
           font-weight: 900;
           text-decoration: none;
         }
-        .review-done :global(.continuation-card) {
-          width: min(100%, 560px);
-          text-align: left;
+        .review-done span {
+          color: var(--ink-3);
+          font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+          font-size: 11px;
+          font-weight: 900;
+          letter-spacing: .1em;
+          text-transform: uppercase;
+        }
+        .review-done p {
+          margin: 6px 0 0;
+          color: var(--ink-2);
+        }
+        .review-done-actions {
+          display: flex;
+          flex-wrap: wrap;
+          justify-content: center;
+          gap: 8px;
         }
         .spin {
           animation: spin 800ms linear infinite;
@@ -872,23 +1370,27 @@ export default function VocabularyReviewPage() {
         }
         @media (max-width: 760px) {
           .vocab-review-page {
-            padding: 18px 20px calc(104px + env(safe-area-inset-bottom));
+            padding: 20px 28px calc(104px + env(safe-area-inset-bottom));
           }
           .review-hero h1,
           .review-done h2 {
-            font-size: clamp(52px, 18vw, 88px);
+            font-size: clamp(34px, 10vw, 42px);
           }
-          .review-card h2 {
-            font-size: clamp(40px, 12vw, 64px);
+          .review-title-row {
+            align-items: end;
           }
           .review-ratings {
             position: sticky;
             bottom: calc(72px + env(safe-area-inset-bottom));
             z-index: 10;
-            margin: 0 -16px -16px;
-            border-top: 1px solid var(--ink);
+            margin: 18px -8px -8px;
             background: var(--paper);
-            padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+            padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
+          }
+          .review-ratings button {
+            min-height: 44px;
+            border-radius: 9px;
+            font-size: 12px;
           }
         }
       `}</style>

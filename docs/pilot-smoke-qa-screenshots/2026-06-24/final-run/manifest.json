@@ -1,0 +1,88 @@
+{
+  "capturedAt": "2026-06-24T17:43:32.141Z",
+  "frontendUrl": "http://127.0.0.1:3001",
+  "backendUrl": "http://127.0.0.1:8000",
+  "viewports": [
+    {
+      "label": "mobile",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 3,
+      "mobile": true
+    }
+  ],
+  "frames": [
+    {
+      "viewport": "mobile",
+      "name": "atelier-home-active",
+      "route": "/atelier",
+      "path": "/private/tmp/pilot-smoke-qa-2/atelier-home-active.png",
+      "ok": true,
+      "warning": null
+    },
+    {
+      "viewport": "mobile",
+      "name": "notebook-list",
+      "route": "/grammar",
+      "path": "/private/tmp/pilot-smoke-qa-2/notebook-list.png",
+      "ok": true,
+      "warning": null
+    },
+    {
+      "viewport": "mobile",
+      "name": "vocabulary-notebook",
+      "route": "/vocabulary",
+      "path": "/private/tmp/pilot-smoke-qa-2/vocabulary-notebook.png",
+      "ok": true,
+      "warning": null
+    },
+    {
+      "viewport": "mobile",
+      "name": "missions-active-chat",
+      "route": "/missions",
+      "path": "/private/tmp/pilot-smoke-qa-2/missions-active-chat.png",
+      "ok": true,
+      "warning": null
+    },
+    {
+      "viewport": "mobile",
+      "name": "feuilleton-active-or-empty",
+      "route": "/graphic-novel",
+      "path": "/private/tmp/pilot-smoke-qa-2/feuilleton-active-or-empty.png",
+      "ok": true,
+      "warning": null
+    },
+    {
+      "viewport": "mobile",
+      "name": "serial-archive",
+      "route": "/serial",
+      "path": "/private/tmp/pilot-smoke-qa-2/serial-archive.png",
+      "ok": true,
+      "warning": null
+    },
+    {
+      "viewport": "mobile",
+      "name": "serial-cast",
+      "route": "/serial/cast",
+      "path": "/private/tmp/pilot-smoke-qa-2/serial-cast.png",
+      "ok": true,
+      "warning": null
+    },
+    {
+      "viewport": "mobile",
+      "name": "serial-episode-detail",
+      "route": "/serial/episode?index=0",
+      "path": "/private/tmp/pilot-smoke-qa-2/serial-episode-detail.png",
+      "ok": true,
+      "warning": null
+    },
+    {
+      "viewport": "mobile",
+      "name": "settings",
+      "route": "/settings",
+      "path": "/private/tmp/pilot-smoke-qa-2/settings.png",
+      "ok": true,
+      "warning": null
+    }
+  ]
+}

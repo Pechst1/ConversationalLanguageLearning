@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { ArrowLeft, KeyRound, Mail } from 'lucide-react';
 
+import { sanitizeAuthCallbackUrl } from '@/lib/app-auth';
 import apiService from '@/services/api';
 
 export default function ForgotPasswordPage() {
@@ -22,6 +23,9 @@ export default function ForgotPasswordPage() {
   const [devResetUrl, setDevResetUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const resetMode = Boolean(token);
+  const destination = sanitizeAuthCallbackUrl(router.query.callbackUrl);
+  const callbackQuery = destination === '/atelier' ? {} : { callbackUrl: destination };
+  const signInHref = { pathname: '/auth/signin', query: callbackQuery };
 
   const requestReset = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -77,7 +81,7 @@ export default function ForgotPasswordPage() {
 
       <main className="auth-page">
         <section className="auth-card" aria-labelledby="password-help-title">
-          <Link className="auth-back" href="/auth/signin">
+          <Link className="auth-back" href={signInHref}>
             <ArrowLeft size={15} aria-hidden="true" /> Sign in
           </Link>
           <div className="auth-icon" aria-hidden="true">
@@ -138,6 +142,11 @@ export default function ForgotPasswordPage() {
           )}
 
           {message && <p className="status-message">{message}</p>}
+          {resetMode && message ? (
+            <Link className="plain-link" href={signInHref}>
+              Continue to sign in
+            </Link>
+          ) : null}
           {error && <p className="error-message">{error}</p>}
           {devResetUrl && (
             <p className="dev-note">

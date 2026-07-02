@@ -1,12 +1,24 @@
-export type ProductSection = 'atelier' | 'notebook';
+import { STORY_FEATURE_VISIBLE } from './launch-flags';
+
+export type ProductSection = 'atelier' | 'missions' | 'feuilleton' | 'notebook';
 
 export type ProductTab = {
   id: ProductSection;
   label: string;
   href: string;
-  icon: 'mark' | 'book';
+  icon: 'mark' | 'mission' | 'feuilleton' | 'book';
   activeRoutes: string[];
 };
+
+const STORY_ROUTES: string[] = [
+  '/bibliotheque',
+  '/bibliotheque/[storyId]',
+  '/bibliotheque/[storyId]/chapter/[chapterId]',
+  '/stories',
+  '/stories/[storyId]',
+  '/stories/[storyId]/chapter/[chapterId]',
+  '/story/[id]',
+];
 
 export const PHONE_PRODUCT_TABS: ProductTab[] = [
   {
@@ -24,19 +36,30 @@ export const PHONE_PRODUCT_TABS: ProductTab[] = [
       '/sessions',
       '/practice',
       '/audio-session',
+      ...(STORY_FEATURE_VISIBLE ? STORY_ROUTES : []),
+      '/vocabulary/review',
+    ],
+  },
+  {
+    id: 'missions',
+    label: 'Missions',
+    href: '/missions',
+    icon: 'mission',
+    activeRoutes: [
       '/missions',
+    ],
+  },
+  {
+    id: 'feuilleton',
+    label: 'Feuilleton',
+    href: '/graphic-novel',
+    icon: 'feuilleton',
+    activeRoutes: [
       '/graphic-novel',
       '/serial',
       '/serial/cast',
+      '/serial/episode',
       '/serial/episode/[index]',
-      '/bibliotheque',
-      '/bibliotheque/[storyId]',
-      '/bibliotheque/[storyId]/chapter/[chapterId]',
-      '/stories',
-      '/stories/[storyId]',
-      '/stories/[storyId]/chapter/[chapterId]',
-      '/story/[id]',
-      '/vocabulary/review',
     ],
   },
   {
@@ -51,6 +74,7 @@ export const PHONE_PRODUCT_TABS: ProductTab[] = [
       '/progress',
       '/achievements',
       '/almanac',
+      '/vocabulary/conjugation',
     ],
   },
 ];
@@ -61,23 +85,19 @@ const OWN_SHELL_ROUTES = new Set([
   '/graphic-novel',
   '/serial',
   '/serial/cast',
+  '/serial/episode',
   '/serial/episode/[index]',
-  '/bibliotheque',
-  '/bibliotheque/[storyId]',
-  '/bibliotheque/[storyId]/chapter/[chapterId]',
   '/grammar',
   '/notebook',
   '/almanac',
   '/vocabulary',
   '/vocabulary/review',
+  '/vocabulary/conjugation',
   '/learn',
   '/learn/new',
   '/learn/session/[id]',
   '/audio-session',
-  '/stories',
-  '/stories/[storyId]',
-  '/stories/[storyId]/chapter/[chapterId]',
-  '/story/[id]',
+  ...(STORY_FEATURE_VISIBLE ? STORY_ROUTES : []),
 ]);
 
 export function routeUsesOwnProductShell(pathname: string) {
@@ -92,15 +112,7 @@ export function resolveProductTitle(section: ProductSection | undefined, pathnam
   if (pathname === '/learn/session/[id]' || pathname === '/sessions' || pathname === '/practice') {
     return 'Session';
   }
-  if (
-    pathname === '/bibliotheque'
-    || pathname === '/bibliotheque/[storyId]'
-    || pathname === '/bibliotheque/[storyId]/chapter/[chapterId]'
-    || pathname === '/stories'
-    || pathname === '/stories/[storyId]'
-    || pathname === '/stories/[storyId]/chapter/[chapterId]'
-    || pathname === '/story/[id]'
-  ) {
+  if (STORY_FEATURE_VISIBLE && STORY_ROUTES.includes(pathname)) {
     return 'Bibliothèque';
   }
   if (pathname === '/settings') return 'Settings';

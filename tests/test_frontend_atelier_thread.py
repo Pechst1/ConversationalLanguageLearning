@@ -18,13 +18,13 @@ def test_atelier_renders_today_practice_thread() -> None:
     assert "function TodayView" in source
     assert "edition-cover" in source
     assert "today-plan" in source
-    assert ">Today</span>" in source
+    assert "<b>Aujourd&apos;hui</b>" in source
     assert 'aria-label="Atelier roadmap"' in source
     assert "SerialThreadCard" in source
-    assert "LibraryThreadCard" in source
+    assert "STORY_FEATURE_VISIBLE" in source
 
 
-def test_today_thread_hands_context_to_mission_feuilleton_and_notebook() -> None:
+def test_today_thread_hands_context_to_mission_feuilleton_and_hides_story_library() -> None:
     source = read_atelier()
 
     assert "function NotebookBridge" in source
@@ -32,8 +32,9 @@ def test_today_thread_hands_context_to_mission_feuilleton_and_notebook() -> None
     assert "const query = conceptQueryString(concepts)" in source
     assert "const nodes: RoadmapNode[] = [" in source
     assert "serialActionFromToday(today, activeSession)" in source
-    assert "libraryEpisode = (today as any)?.library_episode" in source
-    assert "recommendation.kind === 'library'" in source
+    assert "libraryEpisode = STORY_FEATURE_VISIBLE ? (today as any)?.library_episode || null : null" in source
+    assert "if (STORY_FEATURE_VISIBLE && libraryEpisode)" in source
+    assert "STORY_FEATURE_VISIBLE ? 'library' : 'rest'" in source
     assert "const conceptIds = concepts.map((concept) => `concept_id=${concept.id}`).join('&')" in source
     assert "href={`/grammar?concept=${concept.id}`}" in source
     assert "href={`/missions${conceptIds ? `?${conceptIds}` : ''}`}" in source

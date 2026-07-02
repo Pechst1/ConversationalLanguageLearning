@@ -13,6 +13,7 @@ os.environ.setdefault("ATELIER_LLM_ENABLED", "false")
 os.environ.setdefault("GRAPHIC_NOVEL_IMAGE_GENERATION_ENABLED", "false")
 
 import pytest
+
 try:  # pragma: no cover - optional dependency
     import pytest_asyncio
 except ImportError:  # pragma: no cover
@@ -24,9 +25,15 @@ from sqlalchemy.pool import StaticPool
 
 from app.api.deps import get_db
 from app.db import models  # noqa: F401  # Imported for side effects
-from app.db.models.achievement import Achievement, UserAchievement
 from app.db.base import Base
-from app.db.models import RefreshToken, User, VocabularyWord
+from app.db.models import (
+    RefreshToken,
+    User,
+    UserConjugationProgress,
+    VerbConjugation,
+    VocabularyWord,
+)
+from app.db.models.achievement import Achievement, UserAchievement
 from app.db.models.analytics import AnalyticsSnapshot
 from app.db.models.atelier import (
     AtelierAttempt,
@@ -37,24 +44,26 @@ from app.db.models.atelier import (
     AtelierLanguagePack,
     AtelierSession,
 )
-from app.db.models.error import UserError, UserErrorConcept
 from app.db.models.cefr import UserCEFRProgressHistory
-from app.db.models.mission import RealWorldMission, RealWorldMissionAttempt, RealWorldMissionTurn
-from app.db.models.library import BookEpisode, UserBook
-from app.db.models.serial import SerialEpisode, SerialThread
-from app.db.models.graphic_novel import (
-    GraphicNovelAttempt,
-    GraphicNovelPanel,
-    GraphicNovelScene,
-    PersonalInputItem,
-)
+from app.db.models.error import UserError, UserErrorConcept
+from app.db.models.feedback import UserFeedbackReport
 from app.db.models.grammar import (
     GrammarConcept,
     GrammarConceptArchive,
     GrammarConceptLocalization,
     UserGrammarProgress,
 )
+from app.db.models.graphic_novel import (
+    GraphicNovelAttempt,
+    GraphicNovelPanel,
+    GraphicNovelScene,
+    PersonalInputItem,
+)
+from app.db.models.library import BookEpisode, UserBook
+from app.db.models.mission import RealWorldMission, RealWorldMissionAttempt, RealWorldMissionTurn
 from app.db.models.progress import ReviewLog, UserVocabularyProgress
+from app.db.models.push_subscription import PushSubscription
+from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.session import (
     ConversationMessage,
     LearningSession,
@@ -83,11 +92,15 @@ def db_engine():
         bind=engine,
         tables=[
             User.__table__,
+            UserFeedbackReport.__table__,
+            PushSubscription.__table__,
             RefreshToken.__table__,
             Achievement.__table__,
             UserAchievement.__table__,
             AnalyticsSnapshot.__table__,
             VocabularyWord.__table__,
+            VerbConjugation.__table__,
+            UserConjugationProgress.__table__,
             GrammarConcept.__table__,
             GrammarConceptArchive.__table__,
             GrammarConceptLocalization.__table__,
@@ -160,9 +173,13 @@ def db_engine():
                 GrammarConceptArchive.__table__,
                 GrammarConcept.__table__,
                 VocabularyWord.__table__,
+                UserConjugationProgress.__table__,
+                VerbConjugation.__table__,
                 UserAchievement.__table__,
                 Achievement.__table__,
                 RefreshToken.__table__,
+                PushSubscription.__table__,
+                UserFeedbackReport.__table__,
                 User.__table__,
             ],
         )

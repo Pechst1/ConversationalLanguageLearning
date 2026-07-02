@@ -310,7 +310,11 @@ export default function GraphicNovelPage() {
       const errataIds = queryList(routeQuery.erratum_id);
       const vocabularyIds = queryList(routeQuery.vocabulary_id).map(Number).filter(Boolean);
       const atelierSessionId = typeof routeQuery.atelier_session_id === 'string' ? routeQuery.atelier_session_id : undefined;
-      const missionId = typeof routeQuery.mission_id === 'string' ? routeQuery.mission_id : undefined;
+      const missionId = typeof routeQuery.mission === 'string'
+        ? routeQuery.mission
+        : typeof routeQuery.mission_id === 'string'
+          ? routeQuery.mission_id
+          : undefined;
       const serialThreadId = typeof routeQuery.serial_thread_id === 'string' ? routeQuery.serial_thread_id : undefined;
       const episodeIndex = Number(routeQuery.episode_index);
       const next = await apiService.createGraphicNovelScene({
@@ -494,7 +498,7 @@ export default function GraphicNovelPage() {
                   <Link className="btn atelier-return" href="/atelier">
                     BACK TO TODAY <ArrowRight size={14} />
                   </Link>
-                  {!scene?.serial_thread_id && (
+                  {scene && !scene.serial_thread_id && (
                     <>
                       <div className="preset-row" aria-label="Feuilleton mode">
                         <button
@@ -896,10 +900,16 @@ function FeuilletonEmptyState({
         <strong>Task sheet locked</strong>
         <span>Panel tasks unlock below the episode panels after the edition is generated.</span>
       </div>
-      <button className="btn red" disabled={creating} onClick={onCreate}>
-        {creating ? <Loader2 className="spin" size={14} /> : null}
-        {creating ? 'CREATING SCENE' : 'CREATE FIRST SCENE'} <ArrowRight size={14} />
-      </button>
+      {creating ? (
+        <div className="feuilleton-empty-status" aria-live="polite">
+          <Loader2 className="spin" size={14} />
+          CREATING SCENE
+        </div>
+      ) : (
+        <button className="btn red" onClick={onCreate}>
+          CREATE FIRST SCENE <ArrowRight size={14} />
+        </button>
+      )}
     </section>
   );
 }
@@ -2161,11 +2171,49 @@ function displayTaskInstruction(task: Record<string, any>) {
   if (mentionsParentheses(instruction) && !hasParentheticalCue(task.prompt)) {
     instruction = 'Complétez la phrase avec la forme correcte.';
   }
-  const openFeatures = visibleOpenTaskFeatures(task);
-  if (openFeatures.length > 0 && !openFeatures.some((feature) => instruction.toLowerCase().includes(feature.toLowerCase()))) {
-    instruction = `${instruction || 'Rédigez une phrase courte.'} Utilisez clairement : ${openFeatures.join(' · ')}.`;
-  }
+  // The old code appended "Utilisez clairement : clear invitation · tu register · …"
+  // which mixed French and English internal feature codes into one cluttered line.
+  // The French instruction already states the task, so we leave it clean.
   return instruction || 'Complétez la tâche.';
+}
+
+// Human label for the task kind, so the card never shows a raw enum like
+// "SHORT_SENTENCE". Prefer a real provided label; never the snake_case task_type.
+function taskKindLabel(task: Record<string, any>): string {
+  const rawLabel = String(task.label || '').trim();
+  if (rawLabel && !/^[a-z][a-z_]*$/.test(rawLabel)) return rawLabel;
+  const kind = String(task.task_type || '');
+  return ({ choice: 'Choose the line', cloze: 'Complete the line', short_sentence: 'Write the line' } as Record<string, string>)[kind] || 'Your line';
+}
+
+// Always-available "translate to English" affordance. Uses a supplied translation
+// when present, otherwise fetches one on demand.
+function TaskTranslate({ french, supplied }: { french: string; supplied?: string }) {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState(supplied || '');
+  const [loading, setLoading] = useState(false);
+  if (!french.trim()) return null;
+  const reveal = async () => {
+    setOpen(true);
+    if (!text) {
+      setLoading(true);
+      try {
+        setText(await apiService.translateToEnglish(french));
+      } catch {
+        setText('');
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+  return (
+    <div className="task-translate">
+      <button type="button" className="task-translate-btn" onClick={() => (open ? setOpen(false) : reveal())}>
+        {open ? 'Hide English' : 'Translate'}
+      </button>
+      {open && <p className="task-translate-text">{loading ? 'Translating…' : text || 'Translation unavailable.'}</p>}
+    </div>
+  );
 }
 
 function choiceOptionView(option: unknown): ChoiceOptionView | null {
@@ -2478,19 +2526,14 @@ function TaskControls({
   return (
     <div className={`task-box ${correction ? correction.verdict : ''}`}>
       <div className="task-title">
-        <span>{task.label || task.task_type}</span>
+        <span>{taskKindLabel(task)}</span>
         <small>{instruction}</small>
       </div>
       <TaskVocabularyMarker items={taskVocabulary} />
       {task.prompt && (
         <div className="task-prompt-wrap">
           <p className="task-prompt">{task.prompt}</p>
-          {promptTranslation && (
-            <details className="task-translation">
-              <summary>Translate</summary>
-              <p>{promptTranslation}</p>
-            </details>
-          )}
+          <TaskTranslate french={String(task.prompt)} supplied={promptTranslation} />
         </div>
       )}
       {hasOptions && (
@@ -2563,7 +2606,7 @@ function feuilletonNextMissionHref(scene: GraphicNovelScene) {
     .map((item) => Number(item.word_id))
     .filter((item) => Number.isFinite(item));
   const pairs: Array<[string, string | number | null | undefined]> = [
-    ['mission_id', scene.mission_id || undefined],
+    ['mission', scene.mission_id || undefined],
     ['atelier_session_id', scene.atelier_session_id || undefined],
     ['serial_thread_id', scene.serial_thread_id || undefined],
     ['episode_index', typeof scene.episode_index === 'number' ? scene.episode_index + 1 : undefined],
@@ -2668,7 +2711,7 @@ function FeuilletonContinuationCard({
   const errataIds = (scene.target_errata_ids || []).slice(0, 2);
   const hook = scene.hook || scene.script_payload?.hook || scene.recap?.hook || {};
   const missionPairs: Array<[string, string | number | null | undefined]> = [
-    ['mission_id', scene.mission_id || undefined],
+    ['mission', scene.mission_id || undefined],
     ['atelier_session_id', scene.atelier_session_id || undefined],
     ['serial_thread_id', scene.serial_thread_id || undefined],
     ['episode_index', typeof scene.episode_index === 'number' ? scene.episode_index + 1 : undefined],
@@ -3163,7 +3206,11 @@ function feuilletonThreadContextFromQuery(query: RouterQueryLike): FeuilletonThr
   const grammarCount = queryList(query.concept_id).length;
   const errataCount = queryList(query.erratum_id).length;
   const vocabularyCount = queryList(query.vocabulary_id).length;
-  const missionId = typeof query.mission_id === 'string' ? query.mission_id : '';
+  const missionId = typeof query.mission === 'string'
+    ? query.mission
+    : typeof query.mission_id === 'string'
+      ? query.mission_id
+      : '';
   const atelierSessionId = typeof query.atelier_session_id === 'string' ? query.atelier_session_id : '';
   const serialThreadId = typeof query.serial_thread_id === 'string' ? query.serial_thread_id : '';
   const chips: NonNullable<FeuilletonThreadContext>['chips'] = [];
@@ -3209,7 +3256,7 @@ function joinContextSources(items: string[]) {
 }
 
 function graphicNovelContextKey(query: RouterQueryLike) {
-  const keys = ['atelier_session_id', 'mission_id', 'concept_id', 'erratum_id', 'vocabulary_id'];
+  const keys = ['atelier_session_id', 'mission', 'mission_id', 'concept_id', 'erratum_id', 'vocabulary_id'];
   const serialKeys = ['serial_thread_id', 'episode_index'];
   const parts = [...keys, ...serialKeys].flatMap((key) => queryList(query[key]).map((value) => `${key}:${value}`));
   return parts.length ? parts.join('|') : '';
@@ -3342,6 +3389,22 @@ function FeuilletonStyles() {
         font-size: 16px;
         font-weight: 700;
         line-height: 1.45;
+      }
+      .feuilleton-empty-status {
+        min-height: 50px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        border: 1px solid var(--ink);
+        background: var(--paper-2);
+        color: var(--ink-2);
+        padding: 0 16px;
+        font-family: var(--mono);
+        font-size: 10px;
+        font-weight: 900;
+        letter-spacing: .12em;
+        text-transform: uppercase;
       }
       .generation-progress {
         display: flex;
@@ -3826,6 +3889,7 @@ function FeuilletonStyles() {
         text-transform: uppercase;
       }
       .s-news .txt {
+        padding-left: 3px;
         color: var(--ink-2);
         font-family: var(--serif);
         font-size: 13px;
@@ -4598,6 +4662,21 @@ function FeuilletonStyles() {
       .task-title small { color: var(--ink-2); line-height: 1.35; }
       .task-prompt-wrap { display: grid; gap: 6px; }
       .task-prompt { margin: 0; font-family: var(--serif); font-size: 21px; font-style: italic; }
+      .task-translate { display: grid; gap: 6px; }
+      .task-translate-btn {
+        justify-self: start;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        cursor: pointer;
+        color: var(--blue);
+        font-size: 10px;
+        font-family: var(--mono);
+        font-weight: 900;
+        letter-spacing: .12em;
+        text-transform: uppercase;
+      }
+      .task-translate-text { margin: 0; color: var(--ink-2); font-family: var(--sans); font-size: 14px; font-style: normal; line-height: 1.4; }
       .task-translation summary {
         cursor: pointer;
         color: var(--blue);

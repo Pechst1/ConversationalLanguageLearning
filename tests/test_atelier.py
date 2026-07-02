@@ -846,6 +846,48 @@ def test_atelier_today_returns_blueprint_payload(client: TestClient):
     assert blueprint["correction_rubric"]["tone"]["address"] == "you"
 
 
+def test_atelier_today_does_not_count_future_due_at_later_today_as_due(
+    client: TestClient,
+    db_session,
+):
+    token = _token(client)
+    headers = {"Authorization": f"Bearer {token}"}
+    user_id = UUID(decode_token(token)["sub"])
+    user = db_session.get(User, user_id)
+    now = datetime.now(timezone.utc)
+    due_at = now + timedelta(hours=6)
+    word = VocabularyWord(
+        language="fr",
+        word="patienter",
+        normalized_word="patienter",
+        german_translation="warten",
+        direction="fr_to_de",
+        deck_name="French 5000",
+        is_anki_card=True,
+    )
+    db_session.add(word)
+    db_session.flush()
+    db_session.add(
+        UserVocabularyProgress(
+            user_id=user.id,
+            word_id=word.id,
+            scheduler="anki",
+            state="reviewing",
+            phase="review",
+            due_at=due_at,
+            due_date=now.date(),
+            next_review_date=due_at,
+            reps=3,
+        )
+    )
+    db_session.commit()
+
+    response = client.get("/api/v1/atelier/today", headers=headers)
+
+    assert response.status_code == 200
+    assert response.json()["progress"]["vocabularyDue"] == 0
+
+
 def test_start_session_with_preferred_concept_keeps_full_atelier_set(client: TestClient, db_session):
     token = _token(client)
     AtelierScheduler(db_session).ensure_catalog()
@@ -2603,6 +2645,10 @@ def test_atelier_api_today_session_attempt_and_complete(client: TestClient, db_s
     exercise_set = next(item for item in data["exercise_sets"] if item["concept_id"] == concept["id"])
     fill_items = exercise_set["payload"]["recognize"]["fill"]["items"]
 
+    started_again = client.post("/api/v1/atelier/sessions", headers=headers, json={})
+    assert started_again.status_code == 201
+    assert started_again.json()["session_id"] == session_id
+
     attempt = client.post(
         f"/api/v1/atelier/sessions/{session_id}/attempts",
         headers=headers,
@@ -2685,6 +2731,52 @@ def test_atelier_api_today_session_attempt_and_complete(client: TestClient, db_s
     compose = client.post("/api/v1/atelier/workshop/compose", headers=headers, json={"target": "plate_semaine"})
     assert compose.status_code == 409
     assert compose.json()["detail"]["shortfall"] == 6
+
+
+def test_atelier_item_scoped_attempt_advances_to_next_subexercise(client: TestClient, db_session):
+    token = _token(client)
+    headers = {"Authorization": f"Bearer {token}"}
+    _prime_core_exercise_sets(db_session)
+
+    started = client.post("/api/v1/atelier/sessions", headers=headers, json={})
+    assert started.status_code == 201
+    data = started.json()
+    session_id = data["session_id"]
+    concept = data["concepts"][0]
+    exercise_set = next(item for item in data["exercise_sets"] if item["concept_id"] == concept["id"])
+    fill_items = exercise_set["payload"]["recognize"]["fill"]["items"]
+    first_item = fill_items[0]
+    second_item = fill_items[1]
+
+    attempt = client.post(
+        f"/api/v1/atelier/sessions/{session_id}/attempts",
+        headers=headers,
+        json={
+            "concept_id": concept["id"],
+            "round": "recognize",
+            "mode": "fill",
+            "exercise_id": f"{concept['external_id']}:fill:{first_item['id']}",
+            "answer_payload": {"answers": {first_item["id"]: first_item["correct_answer"]}},
+        },
+    )
+
+    assert attempt.status_code == 200
+    payload = attempt.json()
+    assert payload["verdict"] == "correct"
+    assert list(payload["correction"]["corrected_answer"].keys()) == [first_item["id"]]
+
+    active = client.get("/api/v1/atelier/sessions/active", headers=headers)
+    assert active.status_code == 200
+    active_session = active.json()["session"]
+    item_key = f"recognize:fill:{concept['id']}:{first_item['id']}"
+    assert active_session["submitted_map"][item_key] is True
+    assert f"recognize:fill:{concept['id']}" not in active_session["submitted_map"]
+    assert active_session["attempts"][0]["submitted_keys"] == [item_key]
+    assert active_session["current_position"]["round"] == "recognize"
+    assert active_session["current_position"]["mode"] == "fill"
+    assert active_session["current_position"]["item_id"] == second_item["id"]
+    assert active_session["current_position"]["item_index"] == 1
+    assert active_session["current_position"]["item_count"] == len(fill_items)
 
 
 def test_workshop_compose_preserves_nested_members(db_session):

@@ -7,6 +7,7 @@ from loguru import logger
 
 from app.db.session import SessionLocal
 from app.db.models.user import User
+from app.schemas.anki import AnkiCardUpdate
 from app.services.progress import ProgressService
 
 
@@ -120,25 +121,30 @@ def sync_anki_for_user(user_id: str, deck_name: str) -> dict:
                 # Flatten fields
                 fields = {k: v.get("value", "") for k, v in card.get("fields", {}).items()}
                 
-                cards_data.append({
-                    "note_id": card.get("note"),
-                    "card_id": card.get("cardId"),
-                    "deck_name": card.get("deckName"),
-                    "model_name": card.get("modelName"),
-                    "fields": fields,
-                    "due": card.get("due"),
-                    "interval": card.get("interval"),
-                    "ease": card.get("factor"),
-                    "reps": card.get("reps"),
-                    "lapses": card.get("lapses"),
-                    "ord": card.get("ord"),
-                })
+                try:
+                    cards_data.append(
+                        AnkiCardUpdate(
+                            note_id=int(card.get("note") or 0),
+                            card_id=int(card.get("cardId") or 0),
+                            deck_name=str(card.get("deckName") or deck_name),
+                            model_name=str(card.get("modelName") or ""),
+                            fields=fields,
+                            due=card.get("due"),
+                            interval=card.get("interval"),
+                            ease=card.get("factor"),
+                            reps=card.get("reps"),
+                            lapses=card.get("lapses"),
+                            ord=card.get("ord"),
+                        )
+                    )
+                except (TypeError, ValueError) as exc:
+                    logger.warning(f"Skipping malformed Anki card during sync: {exc}")
             
             user = db.query(User).filter(User.id == user_id).first()
             if user and cards_data:
                 result = service.sync_anki_progress(user=user, cards=cards_data)
                 db.commit()
-                return {"success": True, "cards_synced": result.get("synced", 0)}
+                return {"success": True, "cards_synced": result.get("updated", 0) + result.get("created", 0)}
             
             return {"success": True, "cards_synced": 0}
             

@@ -11,6 +11,7 @@ import toast from 'react-hot-toast';
 import ScenarioSelector from '@/components/learning/ScenarioSelector';
 import { Globe } from 'lucide-react';
 import { ImportStoryModal } from '@/components/stories/ImportStoryModal';
+import { STORY_FEATURE_VISIBLE } from '@/lib/launch-flags';
 
 const durationOptions = [10, 15, 20, 30, 45];
 
@@ -114,29 +115,31 @@ export default function NewSessionPage() {
           </p>
         </header>
 
-        <Card className="mb-8 border-4 border-black bg-[var(--app-sheet)] shadow-[6px_6px_0px_0px_#000] rounded-none">
-          <CardHeader className="bg-purple-100/50 border-b-4 border-black py-4 px-6">
-            <CardTitle className="flex items-center gap-2 text-purple-900 font-bold uppercase text-lg">
-              <Globe className="h-5 w-5 text-purple-700" />
-              Import Content
-            </CardTitle>
-            <CardDescription className="text-purple-800 text-xs font-medium">
-              Turn any French YouTube video or web article into an interactive lesson.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-6">
-            <Button
-              onClick={() => setIsImportModalOpen(true)}
-              variant="outline"
-              className="w-full h-12 border-2 border-black bg-white hover:bg-purple-50 text-purple-700 font-bold rounded-none shadow-[4px_4px_0px_0px_#000] hover:-translate-y-0.5 hover:shadow-[5px_5px_0px_0px_#000] transition-all"
-              leftIcon={<Globe className="h-4 w-4" />}
-            >
-              Paste Link (YouTube / Web)
-            </Button>
-          </CardContent>
-        </Card>
+        {STORY_FEATURE_VISIBLE && (
+          <Card className="mb-8 border-4 border-black bg-[var(--app-sheet)] shadow-[6px_6px_0px_0px_#000] rounded-none">
+            <CardHeader className="bg-purple-100/50 border-b-4 border-black py-4 px-6">
+              <CardTitle className="flex items-center gap-2 text-purple-900 font-bold uppercase text-lg">
+                <Globe className="h-5 w-5 text-purple-700" />
+                Import Content
+              </CardTitle>
+              <CardDescription className="text-purple-800 text-xs font-medium">
+                Turn any French YouTube video or web article into an interactive lesson.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-6">
+              <Button
+                onClick={() => setIsImportModalOpen(true)}
+                variant="outline"
+                className="w-full h-12 border-2 border-black bg-white hover:bg-purple-50 text-purple-700 font-bold rounded-none shadow-[4px_4px_0px_0px_#000] hover:-translate-y-0.5 hover:shadow-[5px_5px_0px_0px_#000] transition-all"
+                leftIcon={<Globe className="h-4 w-4" />}
+              >
+                Paste Link (YouTube / Web)
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
-        {isImportModalOpen && <ImportStoryModal onClose={() => setIsImportModalOpen(false)} />}
+        {STORY_FEATURE_VISIBLE && isImportModalOpen && <ImportStoryModal onClose={() => setIsImportModalOpen(false)} />}
 
         <Card className="border-4 border-black bg-[var(--app-sheet)] shadow-[8px_8px_0px_0px_#000] rounded-none">
           <CardHeader className="border-b-4 border-black py-4 px-6 bg-[var(--app-paper-2)]">

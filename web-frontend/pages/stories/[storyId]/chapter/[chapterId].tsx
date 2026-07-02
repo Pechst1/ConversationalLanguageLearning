@@ -4,19 +4,24 @@ import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { useChapter, useStartChapterSession } from '@/hooks/useStories';
 import StorySessionLayout from '@/components/stories/StorySessionLayout';
+import { STORY_FEATURE_VISIBLE } from '@/lib/launch-flags';
 
 export default function StoryChapterPage() {
   const router = useRouter();
   const { storyId, chapterId } = router.query;
 
-  const resolvedStoryId = typeof storyId === 'string' ? storyId : null;
-  const resolvedChapterId = typeof chapterId === 'string' ? chapterId : null;
+  const resolvedStoryId = STORY_FEATURE_VISIBLE && typeof storyId === 'string' ? storyId : null;
+  const resolvedChapterId = STORY_FEATURE_VISIBLE && typeof chapterId === 'string' ? chapterId : null;
 
   const { chapter, loading: loadingChapter } = useChapter(resolvedStoryId, resolvedChapterId);
   const { startChapterSession, loading: startingSession } = useStartChapterSession();
 
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!STORY_FEATURE_VISIBLE) void router.replace('/atelier');
+  }, [router]);
 
   // Auto-start session when chapter loads
   useEffect(() => {
@@ -45,6 +50,8 @@ export default function StoryChapterPage() {
 
     initializeSession();
   }, [resolvedStoryId, resolvedChapterId, sessionId, startChapterSession, startingSession]);
+
+  if (!STORY_FEATURE_VISIBLE) return null;
 
   // Loading state
   if (loadingChapter || startingSession || !sessionId) {

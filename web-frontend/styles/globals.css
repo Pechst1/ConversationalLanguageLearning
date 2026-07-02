@@ -12,8 +12,10 @@
   --app-ink-3: #8a826f;
   --app-blue: #1d3a8a;
   --app-red: #d8321a;
+  --app-alert: #8a5b00;
   --app-yellow: #f3c318;
   --accent-action: var(--app-red);
+  --accent-alert: var(--app-alert);
   --accent-info: var(--app-blue);
   --accent-reward: var(--app-yellow);
   --app-serif: "EB Garamond", Garamond, "Times New Roman", serif;
@@ -54,7 +56,10 @@
   --dur-fast: 120ms;
   --dur: 220ms;
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
-  --ink-block-shadow: 6px 6px 0 var(--app-ink);
+  --shadow-read: none;
+  --shadow-do: 6px 6px 0 var(--app-ink);
+  --shadow-do-sm: 4px 4px 0 var(--app-ink);
+  --ink-block-shadow: var(--shadow-do);
   --char-marin: #2c6a5d;
   --char-lila: #c2890f;
   --char-gus: #8a2f2a;
@@ -71,8 +76,10 @@
   --ink-3: var(--app-ink-3);
   --blue: var(--app-blue);
   --red: var(--app-red);
+  --alert: var(--app-alert);
   --yellow: var(--app-yellow);
   --accent-action: var(--app-red);
+  --accent-alert: var(--app-alert);
   --accent-info: var(--app-blue);
   --accent-reward: var(--app-yellow);
   --serif: var(--app-serif);
@@ -130,6 +137,7 @@
   --app-ink-3: #9e927d;
   --app-blue: #6f91ff;
   --app-red: #ff5a42;
+  --app-alert: #f3b84c;
   --app-yellow: #f0c826;
 }
 
@@ -152,6 +160,7 @@
     --app-ink-3: #9e927d;
     --app-blue: #6f91ff;
     --app-red: #ff5a42;
+    --app-alert: #f3b84c;
     --app-yellow: #f0c826;
     color-scheme: dark;
   }
@@ -189,6 +198,20 @@ body {
   font-feature-settings: "kern" 1;
   text-rendering: optimizeLegibility;
   overflow-x: hidden;
+}
+
+.read-surface {
+  border: 1px solid var(--app-ink);
+  background: var(--app-sheet);
+  box-shadow: var(--shadow-read);
+}
+
+.do-ink-shadow {
+  box-shadow: var(--shadow-do);
+}
+
+.attention-color {
+  color: var(--accent-alert);
 }
 
 .app-root,
@@ -544,7 +567,7 @@ a {
   background: var(--app-sheet);
   color: var(--app-ink);
   padding: var(--space-4);
-  box-shadow: var(--ink-block-shadow);
+  box-shadow: var(--shadow-do);
   animation: atelier-sheet-in var(--dur) var(--ease-standard) both;
 }
 
@@ -664,7 +687,7 @@ a {
     bottom: calc(82px + env(safe-area-inset-bottom));
     width: auto;
     grid-template-columns: 30px minmax(0, 1fr);
-    box-shadow: 4px 4px 0 var(--app-ink);
+    box-shadow: var(--shadow-do-sm);
   }
 
   .atelier-feedback-sheet .feedback-actions {
@@ -855,7 +878,7 @@ html.is-native * {
   color: var(--ink);
   border: 1.5px solid var(--ink);
   background: var(--paper);
-  box-shadow: 6px 6px 0 var(--ink);
+  box-shadow: var(--shadow-read);
 }
 
 .s-thread a {
@@ -993,12 +1016,12 @@ html.is-native * {
 }
 
 .s-thread.invite {
-  box-shadow: 6px 6px 0 var(--blue);
+  box-shadow: var(--shadow-read);
 }
 
 .s-thread.library {
   margin-top: 14px;
-  box-shadow: 6px 6px 0 var(--yellow);
+  box-shadow: var(--shadow-read);
 }
 
 .s-thread.library .ttop .ser,
@@ -1025,16 +1048,16 @@ html.is-native * {
   .s-thread {
     width: calc(100% - 5px);
     max-width: calc(100% - 5px);
-    box-shadow: 4px 4px 0 var(--ink);
+    box-shadow: var(--shadow-read);
   }
 
   .s-thread.invite {
-    box-shadow: 4px 4px 0 var(--blue);
+    box-shadow: var(--shadow-read);
   }
 
   .s-thread.library {
     margin-top: 12px;
-    box-shadow: 4px 4px 0 var(--yellow);
+    box-shadow: var(--shadow-read);
   }
 
   .s-thread.rest {
@@ -1045,7 +1068,7 @@ html.is-native * {
 .s-reply {
   border: 1.5px solid var(--ink);
   background: var(--paper);
-  box-shadow: 6px 6px 0 var(--ink);
+  box-shadow: var(--shadow-read);
   padding: 0;
   margin-top: 4px;
 }

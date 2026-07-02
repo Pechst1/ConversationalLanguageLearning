@@ -72,7 +72,7 @@ def _payload(concept: GrammarConcept) -> dict:
         },
         "produce": {
             "source_fragment": "Le comptoir est presque vide.",
-            "prompt": "Write a short note using negated quantities.",
+            "prompt": "A roommate asks what supplies are missing before shopping. Write a short French note naming what you do not have.",
             "requirements": [{"label": concept.name, "target_count": 1}],
             "min_words": 40,
             "max_words": 100,
@@ -95,7 +95,11 @@ def _output_item(item_id: str, concept: GrammarConcept, example: str) -> dict:
         "id": item_id,
         "type": kind,
         "instruction": "Use the target grammar visibly.",
-        "prompt": "Answer naturally.",
+        "prompt": {
+            "sentence": "A friend asks what food or drink is left at home today. Say one thing you do not have.",
+            "speak": "At a cafe, someone asks what is available. Say one missing item with ne...pas de/d'.",
+            "conversation": "Message received: « Tu as encore du café ? » Reply with a negated quantity.",
+        }[item_id],
         "example_answer": example,
         "requirements": [{"label": concept.name, "target_count": 1}],
         "min_words": 5,

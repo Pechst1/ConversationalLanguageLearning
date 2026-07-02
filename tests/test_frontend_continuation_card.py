@@ -33,23 +33,22 @@ def test_vocabulary_review_done_state_offers_context_handoffs() -> None:
     source = read(VOCABULARY_REVIEW_PAGE)
 
     assert "function VocabularyReviewContinuation" in source
-    assert "<ContinuationCard" in source
-    assert "Carry the freshest word into context" in source
-    assert "hrefWithQuery('/missions', [['vocabulary_id', wordId]])" in source
-    assert "hrefWithQuery('/graphic-novel', [['vocabulary_id', wordId]])" in source
-    assert "Refresh queue" in source
+    assert "Queue claire" in source
+    assert "onReturn" in source
+    assert "onRefresh" in source
+    assert "href={`/vocabulary?word=${wordId}`}" in source
+    assert "Actualiser" in source
 
 
-def test_mission_bridge_uses_shared_continuation_card() -> None:
+def test_mission_completion_routes_to_coverage_and_new_moment() -> None:
     source = read(MISSIONS_PAGE)
 
-    assert "import { ContinuationCard, RedInkRepairSlip, VocabularyCreditBadge }" in source
-    assert "function MissionBridgePanel" in source
-    assert "<ContinuationCard" in source
-    assert "Next repair bridge" in source
-    assert "Quick repair session" in source
-    assert "Read in Feuilleton" in source
-    assert "routeWithQuery('/graphic-novel', feuilletonPairs)" in source
+    assert "completionLine(mission)" in source
+    assert "href=\"/vocabulary\"" in source
+    assert "Coverage map" in source
+    assert "New moment" in source
+    assert "createSeededMission({" in source
+    assert "minted_collectibles" in source
 
 
 def test_feuilleton_post_scene_uses_shared_continuation_card() -> None:
@@ -83,8 +82,8 @@ def test_serial_world_design_surfaces_are_integrated() -> None:
 
     assert "function SerialThreadCard" in atelier
     assert "className={`s-thread" in atelier
-    assert "function MissionWorldReplyCard" in missions
-    assert "className=\"s-reply mission-world-reply\"" in missions
+    assert "const isSerialAct = Boolean(mission?.serial_thread_id || seed.serialThreadId)" in missions
+    assert "Feuilleton act" in missions
     assert "function FeuilletonCliffhangerHero" in feuilleton
     assert "className=\"s-cliff feuilleton-cliffhanger\"" in feuilleton
     assert "--char-romy: #1d3a8a" in globals_css

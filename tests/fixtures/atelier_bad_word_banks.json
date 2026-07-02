@@ -1,1 +1,14 @@
-[]
+[
+  {
+    "item_id": "wb1",
+    "reason": "prompt contains a blank marker"
+  },
+  {
+    "item_id": "wb2",
+    "reason": "answer_tokens are not available in tokens"
+  },
+  {
+    "item_id": "wb3",
+    "reason": "answer is not a complete sentence"
+  }
+]

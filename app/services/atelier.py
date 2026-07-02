@@ -1867,6 +1867,15 @@ class AtelierExerciseGenerator:
         # The normalizer guarantees buildable chips and at least one distractor.
         if len(normalized_answer) < 2:
             errors.append(f"word_bank item {item_id} answer must be a build of at least two words")
+        if _has_adjacent_duplicate_tokens(answer_tokens):
+            errors.append(f"word_bank item {item_id} has duplicated adjacent answer tokens")
+        normalized_parts = [part for token in normalized_answer for part in re.split(r"[\s']+", token) if part]
+        sentence_signals = {"je", "tu", "il", "elle", "nous", "vous", "ils", "elles", "on", "ce", "c", "si", "quand"}
+        fragment_markers = {"de", "du", "des", "d", "le", "la", "les", "un", "une", "a", "au", "aux"}
+        content_parts = [part for part in normalized_parts if part not in fragment_markers]
+        has_sentence_signal = any(part in sentence_signals for part in normalized_parts)
+        if len(normalized_parts) < 3 or (not has_sentence_signal and len(content_parts) < 3):
+            errors.append(f"word_bank item {item_id} answer must be a complete sentence")
         if cue and joined_answer and joined_answer in cue:
             errors.append(f"word_bank item {item_id} meaning_cue must not expose the French answer")
         if any(extra in {"forme cible", "autre forme", "target form", "correct form", "other form"} for extra in _extra_normalized_tokens(answer_tokens, tokens)):
@@ -3332,15 +3341,32 @@ class AtelierCorrectionService:
             "rule_panel": payload.get("rule_panel") or {},
         }
         if round_name == "recognize":
-            return {**base_payload, **payload["recognize"][mode]}
+            return self._scope_prompt_items({**base_payload, **payload["recognize"][mode]}, exercise_id)
         if round_name == "transform":
-            return {**base_payload, **payload["transform"]}
+            return self._scope_prompt_items({**base_payload, **payload["transform"]}, exercise_id)
         if round_name in {"sentence", "speak", "conversation"}:
             ladder = (payload.get("output_ladder") or {}).get(round_name) or {}
             return {**base_payload, **ladder}
         if round_name == "produce":
             return {**base_payload, **payload["produce"]}
         return {"id": exercise_id, "round": round_name, "mode": mode}
+
+    @staticmethod
+    def _scope_prompt_items(prompt_payload: dict[str, Any], exercise_id: str) -> dict[str, Any]:
+        items = prompt_payload.get("items")
+        if not isinstance(items, list) or not items:
+            return prompt_payload
+        candidate = str(exercise_id or "").split(":")[-1].strip()
+        if not candidate:
+            return prompt_payload
+        matched = [item for item in items if str((item or {}).get("id") or "") == candidate]
+        if not matched:
+            return prompt_payload
+        return {
+            **prompt_payload,
+            "items": matched,
+            "item_id": candidate,
+        }
 
     def _rule_reference(
         self,

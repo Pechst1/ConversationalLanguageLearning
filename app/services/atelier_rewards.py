@@ -183,6 +183,33 @@ class AtelierRewardService:
         )
         return [serialize_collectible(item)] if created else []
 
+    def mint_logo_token_for_mission(self, mission: Any) -> list[dict[str, Any]]:
+        """Mint the geometric token awarded for resolving one standalone mission."""
+        prompt = mission.prompt_payload or {}
+        variety = prompt.get("variety") if isinstance(prompt.get("variety"), dict) else {}
+        messenger = prompt.get("messenger") if isinstance(prompt.get("messenger"), dict) else {}
+        completed_at = mission.completed_at or datetime.now(timezone.utc)
+        item, created = self._mint(
+            user_id=mission.user_id,
+            kind=LOGO_TOKEN,
+            source_kind="mission",
+            source_ref=str(mission.id),
+            metadata={
+                "name": "Mission token",
+                "date": self._date_for(completed_at),
+                "mission_id": str(mission.id),
+                "mission_title": mission.title,
+                "domain": variety.get("domain"),
+                "domain_label": variety.get("domain_label"),
+                "channel": variety.get("channel"),
+                "contact": variety.get("contact") or messenger.get("contact_name"),
+                "tone": variety.get("tone"),
+                "source": "real_world_mission",
+                "credit": 3,
+            },
+        )
+        return [serialize_collectible(item)] if created else []
+
     def almanac(self, *, user_id: UUID) -> dict[str, Any]:
         rows = self._collectibles_for_user(user_id)
         grouped: dict[str, list[dict[str, Any]]] = {kind: [] for kind in COLLECTIBLE_KINDS}

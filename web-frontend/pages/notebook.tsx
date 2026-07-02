@@ -10,6 +10,7 @@ import { ExerciseShell } from '@/components/ui/ExerciseShell';
 import { FeedbackSheet } from '@/components/ui/FeedbackSheet';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { pulseAppHaptic } from '@/lib/haptics';
+import { STORY_FEATURE_VISIBLE } from '@/lib/launch-flags';
 import api, { type CEFRProgress, type GraphicNovelToday, type LibraryBook, type LibraryEpisode } from '@/services/api';
 
 import { GrammarNotebookSurface } from './grammar';
@@ -45,7 +46,9 @@ function storedNotebookMode(): NotebookMode {
   if (typeof window === 'undefined') return 'grammar';
   try {
     const stored = window.localStorage.getItem(NOTEBOOK_MODE_STORAGE_KEY);
-    return stored === 'vocabulary' || stored === 'library' ? stored : 'grammar';
+    if (stored === 'vocabulary') return 'vocabulary';
+    if (STORY_FEATURE_VISIBLE && stored === 'library') return 'library';
+    return 'grammar';
   } catch {
     return 'grammar';
   }
@@ -62,8 +65,9 @@ function rememberNotebookMode(mode: NotebookMode) {
 
 function notebookModeFromQuery(query: NotebookQuery): NotebookMode | null {
   const explicitMode = firstQueryValue(query.mode);
-  if (explicitMode === 'grammar' || explicitMode === 'vocabulary' || explicitMode === 'library') return explicitMode;
-  if (firstQueryValue(query.book)) return 'library';
+  if (explicitMode === 'grammar' || explicitMode === 'vocabulary') return explicitMode;
+  if (STORY_FEATURE_VISIBLE && explicitMode === 'library') return 'library';
+  if (STORY_FEATURE_VISIBLE && firstQueryValue(query.book)) return 'library';
   if (firstQueryValue(query.word)) return 'vocabulary';
   if (firstQueryValue(query.concept) || firstQueryValue(query.review)) return 'grammar';
   return null;
@@ -71,13 +75,14 @@ function notebookModeFromQuery(query: NotebookQuery): NotebookMode | null {
 
 function notebookModeFromHref(href: string | null): NotebookMode | null {
   if (!href) return null;
-  if (href.includes('mode=library') || href.includes('/bibliotheque') || href.includes('/stories')) return 'library';
+  if (STORY_FEATURE_VISIBLE && (href.includes('mode=library') || href.includes('/bibliotheque') || href.includes('/stories'))) return 'library';
   if (href.includes('/vocabulary')) return 'vocabulary';
   if (href.includes('/grammar')) return 'grammar';
   return null;
 }
 
-function queryForMode(query: NotebookQuery, mode: NotebookMode): NotebookQuery {
+function queryForMode(query: NotebookQuery, requestedMode: NotebookMode): NotebookQuery {
+  const mode = !STORY_FEATURE_VISIBLE && requestedMode === 'library' ? 'grammar' : requestedMode;
   const nextQuery: NotebookQuery = { mode };
   const locale = firstQueryValue(query.locale);
   if (locale) nextQuery.locale = locale;
@@ -156,12 +161,13 @@ export default function NotebookEntryPage() {
 
   const switchMode = useCallback(
     (nextMode: NotebookMode) => {
-      if (nextMode !== mode) pulseAppHaptic('selection');
-      setMode(nextMode);
-      rememberNotebookMode(nextMode);
+      const resolvedMode = !STORY_FEATURE_VISIBLE && nextMode === 'library' ? 'grammar' : nextMode;
+      if (resolvedMode !== mode) pulseAppHaptic('selection');
+      setMode(resolvedMode);
+      rememberNotebookMode(resolvedMode);
       if (!router.isReady) return;
       void router.push(
-        { pathname: '/notebook', query: queryForMode(router.query, nextMode) },
+        { pathname: '/notebook', query: queryForMode(router.query, resolvedMode) },
         undefined,
         { shallow: true, scroll: false }
       );
@@ -181,10 +187,12 @@ export default function NotebookEntryPage() {
     [switchMode]
   );
 
+  const visibleMode = !STORY_FEATURE_VISIBLE && mode === 'library' ? 'grammar' : mode;
+
   return (
     <>
       <Head>
-        <title>{`${mode === 'grammar' ? 'Grammar Notebook' : mode === 'vocabulary' ? 'Vocabulary Notebook' : 'Library Notebook'} · Atelier`}</title>
+        <title>{`${visibleMode === 'grammar' ? 'Grammar Notebook' : visibleMode === 'vocabulary' ? 'Vocabulary Notebook' : 'Library Notebook'} · Atelier`}</title>
       </Head>
       <EditorialMasthead active="notebook" />
       <div className="notebook-shell-page">
@@ -200,18 +208,18 @@ export default function NotebookEntryPage() {
           <NotebookArchiveLead feuilleton={feuilletonToday} />
 
           <NotebookModeSwitch
-            active={mode}
+            active={visibleMode}
             grammarMeta="Rules and weak spots"
             vocabularyMeta="French 5000"
-            libraryMeta="Books and episodes"
+            libraryMeta={STORY_FEATURE_VISIBLE ? 'Books and episodes' : undefined}
             className="notebook-shell-switch"
             onClickCapture={handleModeSwitchClick}
           />
 
-          <section key={mode} className="notebook-shell-content" data-mode={mode}>
-            {mode === 'grammar' ? (
+          <section key={visibleMode} className="notebook-shell-content" data-mode={visibleMode}>
+            {visibleMode === 'grammar' ? (
               <GrammarNotebookSurface embedded />
-            ) : mode === 'vocabulary' ? (
+            ) : visibleMode === 'vocabulary' ? (
               <div className="notebook-embedded-vocabulary">
                 <VocabularyPage embedded />
               </div>
@@ -804,10 +812,12 @@ function NotebookArchiveLead({ feuilleton }: { feuilleton: GraphicNovelToday | n
         <b aria-hidden="true">→</b>
       </Link>
       <nav className="archive-quick-links" aria-label="Archive shortcuts">
-        <Link href="/serial" onClick={() => pulseAppHaptic('selection')}>Serial</Link>
+        <Link href="/serial">Serial archive</Link>
         <Link href="/almanac" onClick={() => pulseAppHaptic('selection')}>Seals</Link>
-        <Link href="/missions" onClick={() => pulseAppHaptic('selection')}>Missions</Link>
-        <Link href="/bibliotheque" onClick={() => pulseAppHaptic('selection')}>Uploads</Link>
+        <Link href="/missions">Past missions</Link>
+        {STORY_FEATURE_VISIBLE && (
+          <Link href="/bibliotheque" onClick={() => pulseAppHaptic('selection')}>Uploads</Link>
+        )}
       </nav>
     </section>
   );

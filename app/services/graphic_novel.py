@@ -972,6 +972,9 @@ class GraphicNovelScheduler:
         return "seen_context"
 
     def complete(self, *, user: User, scene: GraphicNovelScene) -> GraphicNovelScene:
+        if scene.status == "completed":
+            return scene
+
         attempts = scene.attempts or []
         errata_count = sum(len((attempt.correction_payload or {}).get("errata") or []) for attempt in attempts)
         vocabulary_credit = self._apply_target_vocabulary_credit(user=user, scene=scene)
@@ -2362,14 +2365,20 @@ class GraphicNovelStoryGenerator:
                 "bubble_rule": "Speech bubbles are overlay dialogue, so keep them short and leave some panels without bubbles when silence is stronger.",
             },
         }
+        # gpt-5 reasoning models spend the token budget on reasoning first, so a low
+        # max_tokens leaves no room for the actual plan ("response did not include
+        # content"). Give ample room and keep reasoning light; gpt-4o ignores reasoning_effort.
+        reasoning_kwargs = {"reasoning_effort": "low"} if str(story_model).startswith("gpt-5") else {}
         try:
             result = self.llm.generate_chat_completion(
                 messages=[{"role": "user", "content": json.dumps(payload, ensure_ascii=False)}],
                 system_prompt=system,
                 response_format=self._serial_plan_response_format(panel_count=panel_count),
                 temperature=0.85 if story_quality == "premium" else 0.7,
-                max_tokens=2200,
+                max_tokens=9000,
                 model=story_model,
+                request_timeout=90.0,
+                **reasoning_kwargs,
             )
             parsed = json.loads(result.content)
             if isinstance(parsed, dict) and isinstance(parsed.get("panels"), list) and parsed.get("hook"):
@@ -3552,8 +3561,10 @@ class GraphicNovelStoryGenerator:
                 system_prompt=system,
                 response_format=self._skeleton_response_format(panel_count=panel_count),
                 temperature=0.9 if story_quality == "premium" else 0.75,
-                max_tokens=2600,
+                max_tokens=9000,
                 model=story_model,
+                request_timeout=90.0,
+                **({"reasoning_effort": "low"} if str(story_model).startswith("gpt-5") else {}),
             )
             return json.loads(result.content), {
                 "provider": result.provider,
@@ -3653,8 +3664,10 @@ class GraphicNovelStoryGenerator:
                 system_prompt=system,
                 response_format=self._surface_response_format(panel_count=panel_count),
                 temperature=0.82 if story_quality == "premium" else 0.68,
-                max_tokens=3600,
+                max_tokens=9000,
                 model=story_model,
+                request_timeout=90.0,
+                **({"reasoning_effort": "low"} if str(story_model).startswith("gpt-5") else {}),
             )
             return json.loads(result.content), {
                 "provider": result.provider,

@@ -16,6 +16,7 @@ import { useAppSession } from '@/lib/app-auth';
 import { isNativePlatform } from '@/lib/native-platform';
 import { resolveProductSection, routeUsesOwnProductShell } from '@/lib/product-shell';
 import { installViewportMetrics } from '@/lib/viewport-metrics';
+import FeedbackWidget from '@/components/feedback/FeedbackWidget';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -30,6 +31,7 @@ export default function Layout({ children, showSidebar = true, className }: Layo
   const isPublicRoute = router.pathname === '/' || router.pathname.startsWith('/auth');
   const usesOwnShell = routeUsesOwnProductShell(router.pathname);
   const showsNavigation = showSidebar && !isPublicRoute && !usesOwnShell;
+  const showsFeedback = status === 'authenticated' && !isPublicRoute;
   const activeSection = getMastheadSection(router.pathname);
 
   useEffect(() => {
@@ -117,6 +119,7 @@ export default function Layout({ children, showSidebar = true, className }: Layo
           </motion.div>
         </AnimatePresence>
       </main>
+      {showsFeedback && <FeedbackWidget />}
     </div>
   );
 }

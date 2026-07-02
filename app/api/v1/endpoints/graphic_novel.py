@@ -168,9 +168,11 @@ async def complete_graphic_novel_scene(
                 "missing_task_ids": missing_task_ids,
             },
         )
+    already_completed = scene.status == "completed"
     completed = scheduler.complete(user=current_user, scene=scene)
-    next_serial = await _advance_serial_thread(db, completed)
-    CEFRProgressService(db).recompute(current_user, source="feuilleton_complete")
+    next_serial = None if already_completed else await _advance_serial_thread(db, completed)
+    if not already_completed:
+        CEFRProgressService(db).recompute(current_user, source="feuilleton_complete")
     return GraphicNovelCompleteResponse(
         scene=serialize_scene(completed) or {},
         recap=completed.recap_payload or {},
