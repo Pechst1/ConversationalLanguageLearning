@@ -25,12 +25,350 @@ from app.services.llm_service import LLMProviderError, LLMService
 from app.services.news_service import NewsService
 from app.services.progress import ProgressService
 from app.services.serial_arc_planner import cefr_generation_profile
+from app.services.atelier_rewards import AtelierRewardService
 from app.services.vocabulary_credit import VocabularyCreditService
+from app.services.vocabulary_coverage import VocabularyCoverageService, normalize_category
 
 
 MISSION_CORRECTION_PROMPT_VERSION = "mission-correction-v1"
 MISSION_FAST_CORRECTION_PROMPT_VERSION = "mission-correction-fast-v1"
 MISSION_TEMPLATES = ("message", "explain_plan", "news_summary", "travel_work", "conversation")
+MISSION_FUEL_SOURCES = ("vocab", "theme", "news_seed")
+
+
+REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
+    {
+        "domain": "food_dining",
+        "label": "Food and dining",
+        "categories": {"food_drink"},
+        "title": "Bakery Backup",
+        "contact_name": "Samira",
+        "contact_role": "baker at the corner boulangerie",
+        "contact_initials": "SA",
+        "channel": "counter_chat",
+        "channel_label": "Counter chat",
+        "tone": "warm_practical",
+        "register": "polite neutral",
+        "scene_anchor": "At the boulangerie counter, just before the lunch rush",
+        "opening_message": "Bonjour ! Il n'y a plus de tradition pour l'instant. Vous voulez essayer le pain aux céréales ?",
+        "brief": "The bakery is out of your usual bread. React naturally, choose an alternative, and ask one practical question.",
+        "success_signal": "Samira knows what you want and whether to slice or set anything aside.",
+        "twist": "Your usual baguette is gone, but the baker has one very opinionated recommendation.",
+        "ambient_cues": ["warm bread smell", "a small queue behind you", "one quick decision"],
+        "quick_replies": ["D'accord, je vais prendre...", "Est-ce que vous avez aussi...", "Vous me conseillez lequel ?"],
+    },
+    {
+        "domain": "housing",
+        "label": "Housing",
+        "categories": {"home_objects", "nature_weather"},
+        "title": "Cold Radiator",
+        "contact_name": "M. Marchand",
+        "contact_role": "landlord",
+        "contact_initials": "MM",
+        "channel": "sms",
+        "channel_label": "SMS",
+        "tone": "polite_firm",
+        "register": "vous / polite formal",
+        "scene_anchor": "In your apartment, wearing a coat indoors",
+        "opening_message": "Bonjour, j'ai vu votre message. Le chauffage ne marche plus du tout ?",
+        "brief": "Your radiator has stopped working. Explain the problem and ask for a repair slot.",
+        "success_signal": "The landlord understands the issue and proposes a concrete time.",
+        "twist": "He can only send someone in a very French window: between 8 h and noon.",
+        "ambient_cues": ["cold apartment", "formal register matters", "one appointment window"],
+        "quick_replies": ["Bonjour Monsieur, le chauffage...", "Serait-il possible de...", "Je suis disponible..."],
+    },
+    {
+        "domain": "neighbours",
+        "label": "Neighbours",
+        "categories": {"people_relationships", "communication", "home_objects"},
+        "title": "The Downstairs Note",
+        "contact_name": "Mme Vidal",
+        "contact_role": "downstairs neighbour",
+        "contact_initials": "MV",
+        "channel": "note_reply",
+        "channel_label": "Building note",
+        "tone": "soothing",
+        "register": "polite formal",
+        "scene_anchor": "At the mailboxes, after finding a stern handwritten note",
+        "opening_message": "Bonsoir, on a entendu beaucoup de bruit hier soir. Est-ce que cela va se reproduire ?",
+        "brief": "A neighbour complains about noise. Smooth it over and make the next evening less tense.",
+        "success_signal": "Your neighbour feels heard and knows what will change.",
+        "twist": "She is grumpy, but she signs the note with a tiny smiley face.",
+        "ambient_cues": ["thin walls", "shared stairwell", "keep the peace"],
+        "quick_replies": ["Bonsoir Madame, je suis désolé...", "Je ferai attention...", "Merci de me l'avoir dit..."],
+    },
+    {
+        "domain": "deliveries_admin",
+        "label": "Deliveries and admin",
+        "categories": {"communication", "technology_media", "places_infrastructure"},
+        "title": "Parcel Detour",
+        "contact_name": "Service Client",
+        "contact_role": "seller support agent",
+        "contact_initials": "SC",
+        "channel": "support_message",
+        "channel_label": "Support chat",
+        "tone": "calm_specific",
+        "register": "polite neutral",
+        "scene_anchor": "On your phone, staring at a delivery photo that is not your door",
+        "opening_message": "Bonjour, le suivi indique que le colis a été livré. Pouvez-vous confirmer votre adresse ?",
+        "brief": "A parcel went to the wrong address. Explain what happened and ask for a fix.",
+        "success_signal": "Support has the right address and a clear next step.",
+        "twist": "The delivery photo shows a blue door; your building has a green one.",
+        "ambient_cues": ["delivery screenshot", "wrong door colour", "one support ticket"],
+        "quick_replies": ["Bonjour, mon adresse est...", "La photo ne correspond pas...", "Pouvez-vous relancer..."],
+    },
+    {
+        "domain": "health",
+        "label": "Health",
+        "categories": {"body_health", "time_calendar"},
+        "title": "Dentist Voicemail",
+        "contact_name": "Cabinet Martin",
+        "contact_role": "dentist reception",
+        "contact_initials": "CM",
+        "channel": "voice_note",
+        "channel_label": "Voice note",
+        "tone": "clear_courteous",
+        "register": "polite formal",
+        "scene_anchor": "Outside the metro, replaying a short voicemail",
+        "opening_message": "Bonjour, nous devons déplacer votre rendez-vous de jeudi. Est-ce que vendredi matin vous conviendrait ?",
+        "brief": "The dentist needs to move your appointment. Confirm or ask for a better time.",
+        "success_signal": "The reception desk can book the right slot without calling again.",
+        "twist": "They offer the one morning you usually have class.",
+        "ambient_cues": ["short voicemail", "calendar open", "health register"],
+        "quick_replies": ["Bonjour, merci pour votre message...", "Vendredi matin...", "Est-ce possible plutôt..."],
+    },
+    {
+        "domain": "transport",
+        "label": "Transport",
+        "categories": {"transport_travel", "time_calendar", "places_infrastructure"},
+        "title": "Cancelled Train",
+        "contact_name": "Agent Moreau",
+        "contact_role": "station agent",
+        "contact_initials": "AM",
+        "channel": "counter_chat",
+        "channel_label": "Station desk",
+        "tone": "urgent_polite",
+        "register": "vous / polite formal",
+        "scene_anchor": "At the station desk, while the departure board keeps changing",
+        "opening_message": "Votre train est supprimé. Vous voulez partir aujourd'hui ou demander un remboursement ?",
+        "brief": "Your train is cancelled. Ask for the next option and clarify the refund.",
+        "success_signal": "The agent knows whether to reroute or refund you.",
+        "twist": "The next direct train exists, but it leaves from a different station.",
+        "ambient_cues": ["departure board flashing", "queue behind you", "refund question"],
+        "quick_replies": ["Je dois arriver aujourd'hui...", "Quel est le prochain train...", "Et pour le remboursement..."],
+    },
+    {
+        "domain": "social_plans",
+        "label": "Social plans",
+        "categories": {"people_relationships", "arts_leisure", "food_drink"},
+        "title": "Last-Minute Picnic",
+        "contact_name": "Noémie",
+        "contact_role": "French friend",
+        "contact_initials": "NO",
+        "channel": "whatsapp",
+        "channel_label": "WhatsApp",
+        "tone": "light_warm",
+        "register": "tu / warm informal",
+        "scene_anchor": "A sunny afternoon, phone buzzing on the kitchen table",
+        "opening_message": "On fait un pique-nique aux Buttes-Chaumont dans une heure. Tu viens ?",
+        "brief": "A friend invites you last-minute. Accept warmly and ask where to meet.",
+        "success_signal": "Noémie knows you are coming and where to wait for you.",
+        "twist": "Everyone is bringing something, and nobody remembered cups.",
+        "ambient_cues": ["sunny park plan", "one hour notice", "bring something small"],
+        "quick_replies": ["Oui, avec plaisir !", "Je peux apporter...", "On se retrouve où ?"],
+    },
+    {
+        "domain": "work",
+        "label": "Work",
+        "categories": {"work_money", "time_calendar", "communication"},
+        "title": "Twenty Minutes Late",
+        "contact_name": "Nadia",
+        "contact_role": "colleague",
+        "contact_initials": "NA",
+        "channel": "work_chat",
+        "channel_label": "Work chat",
+        "tone": "calm_practical",
+        "register": "polite neutral",
+        "scene_anchor": "On the tram, after a delay pushes your morning meeting",
+        "opening_message": "Tu es toujours là pour la réunion de 9 h ? On commence bientôt.",
+        "brief": "Tell a colleague you will be 20 minutes late and give the practical reason.",
+        "success_signal": "Nadia knows when you arrive and what to do meanwhile.",
+        "twist": "The tram delay is real, but the meeting link also changed.",
+        "ambient_cues": ["morning delay", "work tone", "one useful workaround"],
+        "quick_replies": ["Je suis désolé, j'aurai...", "Le tram est bloqué...", "Vous pouvez commencer par..."],
+    },
+    {
+        "domain": "services",
+        "label": "Services",
+        "categories": {"technology_media", "communication", "work_money"},
+        "title": "Three Days Offline",
+        "contact_name": "Assistance Fibre",
+        "contact_role": "internet operator",
+        "contact_initials": "AF",
+        "channel": "support_chat",
+        "channel_label": "Support chat",
+        "tone": "polite_firm",
+        "register": "polite formal",
+        "scene_anchor": "At home, tethering your laptop from a tired phone",
+        "opening_message": "Bonjour, je vois une panne dans votre secteur. Depuis quand exactement n'avez-vous plus internet ?",
+        "brief": "Your wifi has been down for three days. Chase the operator politely but firmly.",
+        "success_signal": "Support logs the duration and gives a repair or compensation step.",
+        "twist": "They keep calling it a short interruption. It is day three.",
+        "ambient_cues": ["phone hotspot", "third day", "polite but firm"],
+        "quick_replies": ["Bonjour, la connexion est coupée...", "Cela fait trois jours...", "Quel geste commercial..."],
+    },
+    {
+        "domain": "shopping",
+        "label": "Shopping",
+        "categories": {"clothing", "work_money", "communication"},
+        "title": "Wrong Size",
+        "contact_name": "Boutique Anaïs",
+        "contact_role": "shop assistant",
+        "contact_initials": "BA",
+        "channel": "email",
+        "channel_label": "Short email",
+        "tone": "polite_clear",
+        "register": "polite formal",
+        "scene_anchor": "At your desk, with the return label half printed",
+        "opening_message": "Bonjour, pouvez-vous nous indiquer la taille reçue et la taille souhaitée ?",
+        "brief": "The wrong size arrived. Arrange an exchange with enough detail.",
+        "success_signal": "The shop can send the correct size or confirm the return.",
+        "twist": "The last item in your size is being held until tonight.",
+        "ambient_cues": ["order number nearby", "return label", "one size left"],
+        "quick_replies": ["Bonjour, j'ai reçu...", "Je souhaitais la taille...", "Pouvez-vous me confirmer..."],
+    },
+    {
+        "domain": "bureaucracy",
+        "label": "Bureaucracy",
+        "categories": {"society_politics", "places_infrastructure", "communication"},
+        "title": "Mairie Detail",
+        "contact_name": "Accueil Mairie",
+        "contact_role": "city hall clerk",
+        "contact_initials": "AM",
+        "channel": "formal_email",
+        "channel_label": "Formal email",
+        "tone": "formal_precise",
+        "register": "vous / administrative formal",
+        "scene_anchor": "At the kitchen table, one form still missing a detail",
+        "opening_message": "Bonjour, votre dossier est presque complet. Il manque une précision sur votre justificatif de domicile.",
+        "brief": "A city hall form needs one detail clarified. Ask exactly what they need.",
+        "success_signal": "The clerk tells you which document or detail will complete the file.",
+        "twist": "The document is valid, but the address line is formatted differently.",
+        "ambient_cues": ["PDF form", "official wording", "one missing detail"],
+        "quick_replies": ["Bonjour Madame, Monsieur...", "Pourriez-vous préciser...", "Je peux vous envoyer..."],
+    },
+    {
+        "domain": "everyday_warmth",
+        "label": "Everyday warmth",
+        "categories": {"people_relationships", "emotions_abstract", "communication"},
+        "title": "Cat Note",
+        "contact_name": "Luc",
+        "contact_role": "neighbour upstairs",
+        "contact_initials": "LU",
+        "channel": "sms",
+        "channel_label": "SMS",
+        "tone": "kind_playful",
+        "register": "tu / friendly neighbour",
+        "scene_anchor": "In the stairwell, after a neighbour mentions your runaway cat",
+        "opening_message": "Ton chat a encore essayé d'entrer chez moi. Il est adorable, mais très déterminé.",
+        "brief": "A neighbour leaves a kind note about your cat. Reply warmly and make a small plan.",
+        "success_signal": "Luc smiles instead of feeling annoyed and knows what you will do.",
+        "twist": "The cat apparently has a preferred chair in Luc's flat.",
+        "ambient_cues": ["stairwell note", "friendly tease", "small apology"],
+        "quick_replies": ["Oh non, désolé !", "Je vais faire attention...", "Merci de me l'avoir dit..."],
+    },
+)
+
+
+# Concrete, real-life sub-goals per scenario domain. The mission is "solved" — and
+# the character closes the scene — the moment ALL of these are handled, so the
+# conversation never drags on past the goal.
+MISSION_SUCCESS_OBJECTIVES: dict[str, list[str]] = {
+    "food_dining": ["Say what you want to order or cook", "Handle the one constraint they raise"],
+    "housing": ["Describe the broken thing clearly", "Ask for a repair time", "Confirm when you are available"],
+    "neighbours": ["Acknowledge their complaint", "Say what you will change"],
+    "deliveries_admin": ["Confirm your address", "Explain what went wrong (the wrong door)", "Give the tracking number or order reference"],
+    "health": ["React to the proposed time", "Confirm a slot or propose a workable one"],
+    "transport": ["Say whether you want to travel today or get a refund", "Confirm the next concrete step"],
+    "social_plans": ["Say yes or no to the plan", "Confirm the time and the place"],
+    "work": ["Say you will be late and by how long", "Give the reason and what you will do"],
+    "services": ["Describe the problem and how long it has lasted", "Ask for a repair or compensation"],
+    "shopping": ["Say what is wrong with the order", "Ask for an exchange or refund"],
+    "bureaucracy": ["State what you need", "Confirm the missing document or detail"],
+    "everyday_warmth": ["Reply warmly to their note", "Say one concrete next step"],
+}
+
+
+def success_objectives_for(domain: Any, *, success_signal: str | None = None) -> list[str]:
+    objectives = MISSION_SUCCESS_OBJECTIVES.get(str(domain or ""))
+    if objectives:
+        return list(objectives)
+    if success_signal:
+        return [str(success_signal)]
+    return ["Handle the situation clearly", "Make the next step concrete"]
+
+
+class SerialEpisodeNotReadyError(ValueError):
+    """Raised when a serial mission is requested ahead of the story's filed beat."""
+
+    def __init__(
+        self,
+        *,
+        thread_id: UUID,
+        episode_index: int | None,
+        current_episode_index: int,
+        blocking_episode: SerialEpisode | None = None,
+    ) -> None:
+        message = "Complete the current serial episode before starting the next mission."
+        super().__init__(message)
+        self.detail = {
+            "code": "serial_episode_not_ready",
+            "message": message,
+            "thread_id": str(thread_id),
+            "episode_index": episode_index,
+            "current_episode_index": current_episode_index,
+            "blocking_episode_index": blocking_episode.episode_index if blocking_episode else None,
+            "blocking_kind": blocking_episode.kind if blocking_episode else None,
+            "blocking_status": blocking_episode.status if blocking_episode else None,
+        }
+
+
+MISSION_SCENARIO_RESPONSE_FORMAT: dict[str, Any] = {
+    "type": "json_schema",
+    "json_schema": {
+        "name": "mission_scenario",
+        "strict": True,
+        "schema": {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "title": {"type": "string"},
+                "brief": {"type": "string"},
+                "contact_name": {"type": "string"},
+                "contact_role": {"type": "string"},
+                "contact_initials": {"type": "string"},
+                "scene_anchor": {"type": "string"},
+                "thread_title": {"type": "string"},
+                "opening_message": {"type": "string"},
+                "ambient_cues": {"type": "array", "items": {"type": "string"}},
+                "quick_replies": {"type": "array", "items": {"type": "string"}},
+                "success_signal": {"type": "string"},
+                "inbox_context": {"type": "string"},
+                "domain": {"type": "string"},
+                "channel": {"type": "string"},
+                "tone": {"type": "string"},
+                "twist": {"type": "string"},
+                "mission_format": {"type": "string"},
+            },
+            "required": [
+                "title", "brief", "contact_name", "contact_role", "contact_initials",
+                "scene_anchor", "thread_title", "opening_message", "ambient_cues",
+                "quick_replies", "success_signal", "inbox_context", "domain",
+                "channel", "tone", "twist", "mission_format",
+            ],
+        },
+    },
+}
 
 
 MISSION_CORRECTION_RESPONSE_FORMAT: dict[str, Any] = {
@@ -225,10 +563,15 @@ class MissionGenerator:
         use_news: bool = True,
         custom_context: dict[str, Any] | None = None,
         stakes_level: int | None = None,
+        active_category: str | None = None,
+        recent_variety: list[dict[str, Any]] | None = None,
+        fuel_source: str | None = None,
     ) -> dict[str, Any]:
         mission_type = mission_type if mission_type in MISSION_TEMPLATES else "message"
         custom_context = self._custom_context(custom_context)
         stakes_level = self._stakes_level(stakes_level, cadence=cadence)
+        active_category = normalize_category(active_category) if active_category else None
+        fuel_source = fuel_source if fuel_source in MISSION_FUEL_SOURCES else "vocab"
         concepts = self._select_concepts(
             user=user,
             atelier_session=atelier_session,
@@ -236,12 +579,36 @@ class MissionGenerator:
             limit=3,
         )
         errata = self._select_errata(user=user, preferred_errata_ids=preferred_errata_ids, limit=3)
-        vocabulary = self._select_vocabulary(user=user, preferred_vocabulary_ids=preferred_vocabulary_ids, limit=4)
+        vocabulary = self._select_vocabulary(
+            user=user,
+            preferred_vocabulary_ids=preferred_vocabulary_ids,
+            active_category=active_category,
+            limit=4,
+        )
+        variety_category = active_category
+        if not variety_category and (fuel_source == "vocab" or preferred_vocabulary_ids):
+            variety_category = self._dominant_vocabulary_category(vocabulary)
+        variety = self._choose_variety(
+            active_category=variety_category,
+            recent_variety=recent_variety or [],
+            fuel_source=fuel_source,
+        )
         source_snapshot = await self._source_snapshot(
             user=user,
             mission_type=mission_type,
             use_news=use_news,
         )
+        source_snapshot = {
+            **source_snapshot,
+            "mission_variety": {
+                "domain": variety["domain"],
+                "domain_label": variety["label"],
+                "channel": variety["channel"],
+                "tone": variety["tone"],
+                "fuel_source": fuel_source,
+                "active_category": variety_category,
+            },
+        }
         objectives = self._objectives(
             mission_type=mission_type,
             concepts=concepts,
@@ -250,8 +617,33 @@ class MissionGenerator:
             source_snapshot=source_snapshot,
             stakes_level=stakes_level,
         )
-        title, brief = self._brief(mission_type=mission_type, cadence=cadence, source_snapshot=source_snapshot, concepts=concepts)
-        messenger = self._messenger_payload(mission_type=mission_type, source_snapshot=source_snapshot, concepts=concepts)
+        title, brief = self._brief(
+            mission_type=mission_type,
+            cadence=cadence,
+            source_snapshot=source_snapshot,
+            concepts=concepts,
+            variety=variety,
+        )
+        messenger = self._messenger_payload(
+            mission_type=mission_type,
+            source_snapshot=source_snapshot,
+            concepts=concepts,
+            variety=variety,
+        )
+        if mission_type != "news_summary":
+            scenario = self._llm_scenario(
+                user=user,
+                mission_type=mission_type,
+                concepts=concepts,
+                vocabulary=vocabulary,
+                variety=variety,
+                recent_variety=recent_variety or [],
+            )
+            if scenario:
+                title = scenario.get("title") or title
+                brief = scenario.get("brief") or brief
+                messenger = {**messenger, **scenario["messenger"]}
+                variety = {**variety, **scenario.get("variety", {})}
         if vocabulary:
             messenger = self._with_vocabulary_focus(messenger, vocabulary)
         if custom_context:
@@ -269,13 +661,29 @@ class MissionGenerator:
             source_snapshot=source_snapshot,
         )
         prompt_payload = {
-            "version": "real-world-mission-v2",
+            "version": "real-world-mission-v3",
             "mission_type": mission_type,
             "cadence": cadence,
             "stakes_level": stakes_level,
             "experience": "reality_messenger",
             "custom_context": custom_context,
+            "mission_format": variety.get("mission_format") or self._mission_format_for_channel(variety.get("channel")),
+            "variety": {
+                "domain": variety.get("domain"),
+                "domain_label": variety.get("label"),
+                "contact": messenger.get("contact_name") or variety.get("contact_name"),
+                "channel": variety.get("channel"),
+                "channel_label": messenger.get("channel_label") or variety.get("channel_label"),
+                "tone": variety.get("tone"),
+                "twist": messenger.get("twist") or variety.get("twist"),
+                "fuel_source": fuel_source,
+                "active_category": variety_category,
+                "recently_avoided": recent_variety or [],
+            },
             "messenger": messenger,
+            "success_objectives": success_objectives_for(
+                variety.get("domain"), success_signal=messenger.get("success_signal")
+            ),
             "conversation_opening": conversation_opening,
             "conversation_title": self._conversation_title(mission_type),
             "conversation_instruction": self._conversation_instruction(mission_type),
@@ -287,7 +695,7 @@ class MissionGenerator:
                 int(cefr_generation_profile(user.proficiency_level).get("min_words") or 0),
             ),
             "max_words": self._max_words(stakes_level=stakes_level),
-            "target_register": "natural French; formal only when the scenario requires it",
+            "target_register": messenger.get("target_register") or variety.get("register") or "natural French; formal only when the scenario requires it",
             "show_source_context": mission_type == "news_summary",
             "source_context_card": self._source_context_card(source_snapshot) if mission_type == "news_summary" else None,
             "branching": {
@@ -297,6 +705,14 @@ class MissionGenerator:
                 "tone_failures_matter": stakes_level >= 3,
             },
             "target_vocabulary": vocabulary,
+            "slim_payload": self._slim_payload(
+                user=user,
+                brief=brief,
+                messenger=messenger,
+                mission_type=mission_type,
+                vocabulary=vocabulary,
+                variety=variety,
+            ),
         }
         target_vocabulary_ids = [item["word_id"] for item in vocabulary]
         target_vocabulary_ids.extend(error.linked_word_id for error in errata if error.linked_word_id)
@@ -422,8 +838,9 @@ class MissionGenerator:
         self,
         *,
         user: User,
-        preferred_vocabulary_ids: list[int] | None = None,
         limit: int,
+        preferred_vocabulary_ids: list[int] | None = None,
+        active_category: str | None = None,
     ) -> list[dict[str, Any]]:
         selected: list[dict[str, Any]] = []
         seen_word_ids: set[int] = set()
@@ -453,6 +870,10 @@ class MissionGenerator:
                     "bucket": item.get("bucket") or "due",
                     "scheduler": item.get("scheduler") or "fsrs",
                     "priority_score": item.get("priority_score") or 0,
+                    "part_of_speech": item.get("part_of_speech"),
+                    "topic_tags": item.get("topic_tags") or [],
+                    "example_sentence": item.get("example_sentence"),
+                    "example_translation": item.get("example_translation"),
                 }
             )
             seen_word_ids.add(word_id)
@@ -478,22 +899,207 @@ class MissionGenerator:
                         "bucket": "preferred",
                         "scheduler": "explicit",
                         "priority_score": 1.0,
+                        "part_of_speech": word.part_of_speech,
+                        "topic_tags": word.topic_tags or [],
+                        "example_sentence": word.example_sentence,
+                        "example_translation": word.example_translation,
                     }
                 )
 
-        recommendations = ProgressService(self.db).get_vocabulary_recommendations(
-            user=user,
-            limit=limit * 2,
-            due_limit=max(1, min(limit, 2)),
-            fragile_limit=max(0, min(limit, 1)),
-            new_limit=max(0, limit - 3),
-            direction="fr_to_de",
-        )
-        for item in recommendations.get("items") or []:
-            add_item(item)
-            if len(selected) >= limit:
-                break
+        if len(selected) < limit:
+            recently_nailed = VocabularyCoverageService(self.db).recently_nailed_vocabulary(
+                user=user,
+                category=active_category,
+                limit=limit * 2,
+            )
+            for item in recently_nailed:
+                add_item(item)
+                if len(selected) >= limit:
+                    break
+
+        if len(selected) < limit and active_category and not preferred_ids:
+            # Pull common words from the deck and match tags in Python so the selector
+            # behaves the same on SQLite tests and PostgreSQL production.
+            scan_limit = max(limit * 40, 200)
+            category_rows = (
+                self.db.query(VocabularyWord)
+                .filter(VocabularyWord.direction == "fr_to_de")
+                .order_by(VocabularyWord.frequency_rank.asc().nullslast())
+                .limit(scan_limit)
+                .all()
+            )
+            for word in category_rows:
+                categories = {normalize_category(str(tag)) for tag in (word.topic_tags or [])}
+                if active_category not in categories:
+                    continue
+                add_item(
+                    {
+                        "word_id": word.id,
+                        "word": word.word,
+                        "translation": word.german_translation or word.english_translation or word.french_translation,
+                        "translations": {
+                            "de": word.german_translation,
+                            "en": word.english_translation,
+                            "fr": word.french_translation,
+                        },
+                        "bucket": "topic",
+                        "scheduler": "explicit",
+                        "priority_score": 0.5,
+                        "part_of_speech": word.part_of_speech,
+                        "topic_tags": word.topic_tags or [],
+                    }
+                )
+                if len(selected) >= limit:
+                    break
+
+        if len(selected) < limit:
+            if active_category:
+                remaining = limit - len(selected)
+                due_limit = max(1, min(remaining, 2))
+                fragile_limit = max(0, min(remaining - due_limit, 1))
+                new_limit = 0
+            else:
+                due_limit = max(1, min(limit, 2))
+                fragile_limit = max(0, min(limit, 1))
+                new_limit = 0 if preferred_ids else max(0, limit - 3)
+            recommendations = ProgressService(self.db).get_vocabulary_recommendations(
+                user=user,
+                limit=limit * 2,
+                due_limit=due_limit,
+                fragile_limit=fragile_limit,
+                new_limit=new_limit,
+                direction="fr_to_de",
+            )
+            for item in recommendations.get("items") or []:
+                add_item(item)
+                if len(selected) >= limit:
+                    break
         return selected[:limit]
+
+    def _slim_payload(
+        self,
+        *,
+        user: User,
+        brief: str,
+        messenger: dict[str, Any],
+        mission_type: str,
+        vocabulary: list[dict[str, Any]],
+        variety: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        variety = variety or {}
+        frame_parts = [
+            _compact_text(messenger.get("contact_role") or messenger.get("contact_name"), max_length=80),
+            _compact_text(messenger.get("scene_anchor") or messenger.get("inbox_context") or brief, max_length=180),
+        ]
+        frame = " · ".join(part for part in frame_parts if part)
+        ask = (
+            _compact_text(messenger.get("success_signal"), max_length=160)
+            or _compact_text(brief, max_length=160)
+            or "Send one natural French reply that solves the practical task."
+        )
+        used_word_ids = _dedupe_ints([item.get("word_id") for item in vocabulary])
+        used_verb_lemmas = [
+            str(item.get("word") or "").strip().lower()
+            for item in vocabulary
+            if str(item.get("part_of_speech") or "").lower() in {"verb", "verbe"}
+        ]
+        return {
+            "frame": frame,
+            "ask": ask,
+            "input_kind": "chat" if mission_type == "conversation" else "message",
+            "channel": variety.get("channel") or messenger.get("channel_label") or "message",
+            "domain": variety.get("domain"),
+            "tone": variety.get("tone"),
+            "twist": messenger.get("twist") or variety.get("twist"),
+            "cefr_band": getattr(user, "cefr_estimate", None) or getattr(user, "proficiency_level", None) or "A1",
+            "used_word_ids": used_word_ids,
+            "used_verb_lemmas": used_verb_lemmas,
+        }
+
+    def _choose_variety(
+        self,
+        *,
+        active_category: str | None,
+        recent_variety: list[dict[str, Any]],
+        fuel_source: str,
+    ) -> dict[str, Any]:
+        category = active_category
+        recent_domains = {str(item.get("domain") or "") for item in recent_variety}
+        recent_contacts = {str(item.get("contact") or item.get("contact_name") or "") for item in recent_variety}
+        recent_channels = {str(item.get("channel") or "") for item in recent_variety}
+        recent_tones = {str(item.get("tone") or "") for item in recent_variety}
+        category_candidates = [
+            item
+            for item in REAL_WORLD_MISSION_DOMAINS
+            if category and category in item.get("categories", set())
+        ]
+        candidates = category_candidates if (
+            category_candidates
+            and any(str(item.get("domain") or "") not in recent_domains for item in category_candidates)
+        ) else list(REAL_WORLD_MISSION_DOMAINS)
+        ordered = sorted(
+            candidates,
+            key=lambda item: (
+                str(item.get("domain") or "") in recent_domains,
+                str(item.get("contact_name") or "") in recent_contacts,
+                str(item.get("channel") or "") in recent_channels,
+                str(item.get("tone") or "") in recent_tones,
+                str(item.get("domain") or ""),
+            ),
+        )
+        pick = ordered[0]
+        variety = {key: value for key, value in pick.items() if key != "categories"}
+        variety["active_category"] = category
+        variety["fuel_source"] = fuel_source
+        variety["fuel_detail"] = self._fuel_detail(fuel_source=fuel_source, active_category=category)
+        variety["mission_format"] = self._mission_format_for_channel(variety.get("channel"))
+        return variety
+
+    @staticmethod
+    def _dominant_vocabulary_category(vocabulary: list[dict[str, Any]]) -> str | None:
+        counts: dict[str, int] = {}
+        for item in vocabulary:
+            for tag in item.get("topic_tags") or []:
+                category = normalize_category(str(tag))
+                if category and category != "uncategorized":
+                    counts[category] = counts.get(category, 0) + 1
+        if not counts:
+            return None
+        return sorted(counts.items(), key=lambda item: (-item[1], item[0]))[0][0]
+
+    @staticmethod
+    def _mission_format_for_channel(channel: Any) -> str:
+        normalized = str(channel or "").strip().lower()
+        if normalized in {"voice_note", "phone_call"}:
+            return "voicemail_reply"
+        if normalized in {"email", "formal_email"}:
+            return "email_formal"
+        if normalized == "admin_form":
+            return "admin_form"
+        return "chat_message"
+
+    @staticmethod
+    def _fuel_detail(*, fuel_source: str, active_category: str | None) -> dict[str, Any]:
+        month = datetime.now(timezone.utc).month
+        seasonal_seed = {
+            1: "January paperwork and winter errands",
+            2: "grey-weather routines",
+            3: "early spring plans",
+            4: "Easter travel and changing schedules",
+            5: "bank holidays and terraces reopening",
+            6: "heat, exams, and end-of-year plans",
+            7: "summer closures and visitors",
+            8: "August absences and reduced opening hours",
+            9: "la rentree",
+            10: "rainy commutes and autumn admin",
+            11: "strike notices and darker evenings",
+            12: "holiday logistics",
+        }.get(month, "ordinary Paris errands")
+        if fuel_source == "theme":
+            return {"theme": active_category or "everyday city life", "seed": seasonal_seed}
+        if fuel_source == "news_seed":
+            return {"theme": "light French current-life seed", "seed": seasonal_seed}
+        return {"theme": "recently nailed vocabulary", "seed": active_category or "learner vocabulary"}
 
     @staticmethod
     def _with_vocabulary_focus(messenger: dict[str, Any], vocabulary: list[dict[str, Any]]) -> dict[str, Any]:
@@ -501,13 +1107,10 @@ class MissionGenerator:
         if not words:
             return messenger
         focus_label = ", ".join(words)
-        quick_replies = list(messenger.get("quick_replies") or [])
-        quick_replies.append(f"Je peux utiliser: {focus_label}...")
         realism_rules = list(messenger.get("realism_rules") or [])
-        realism_rules.append(f"Reuse one of today's vocabulary words naturally: {focus_label}.")
+        realism_rules.append(f"Make the situation genuinely need one of these learner words, without presenting them as a list: {focus_label}.")
         return {
             **messenger,
-            "quick_replies": quick_replies[:4],
             "realism_rules": realism_rules,
             "vocabulary_focus": vocabulary,
         }
@@ -815,6 +1418,102 @@ class MissionGenerator:
             )
         return objectives
 
+    def _llm_scenario(
+        self,
+        *,
+        user: User,
+        mission_type: str,
+        concepts: list[GrammarConcept],
+        vocabulary: list[dict[str, Any]],
+        variety: dict[str, Any],
+        recent_variety: list[dict[str, Any]],
+    ) -> dict[str, Any] | None:
+        """A vivid, personalized texting scenario. Returns None if the LLM is unavailable,
+        so the canned templates remain the deterministic fallback."""
+        llm = _safe_llm()
+        if llm is None:
+            return None
+        grammar = [concept.name for concept in concepts if getattr(concept, "name", None)]
+        vocab = [str(item.get("word")) for item in vocabulary if item.get("word")]
+        cefr = getattr(user, "cefr_estimate", None) or getattr(user, "proficiency_level", None) or "A1"
+        flavor = {
+            "message": "a short text-message exchange with someone before or instead of meeting",
+            "explain_plan": "explaining a plan, change, or decision to someone by message",
+            "travel_work": "sorting out a practical problem at a desk, station, hotel, shop, or office",
+            "conversation": "a back-and-forth real-life conversation that keeps moving",
+        }.get(mission_type, "a short, realistic text-message exchange")
+        system_prompt = (
+            "You design realistic, everyday French texting scenarios for a language learner. "
+            "Invent ONE FUN, REAL, CREATIVE situation the learner would actually face in France. "
+            "Use the provided domain, channel, contact type, tone, and twist; do not switch to a different setup. "
+            "opening_message is the OTHER person's first French text: short, natural, phone-style, in "
+            "character. Weave target vocabulary naturally into the situation so the learner needs it, but never "
+            "show a vocabulary list. Keep every French string at the learner's CEFR level. Avoid all recent "
+            "domains, contacts, channels, and tones. Never reuse a train-station arrival. Return JSON only."
+        )
+        user_payload = {
+            "cefr_level": cefr,
+            "scenario_flavor": flavor,
+            "mission_type": mission_type,
+            "target_grammar": grammar,
+            "due_vocabulary": vocab,
+            "chosen_variety": variety,
+            "recent_variety_to_avoid": recent_variety[-8:],
+            "fields": {
+                "title": "English, the mission-card heading (max 6 words)",
+                "brief": "English, one or two sentences: what the learner must accomplish",
+                "contact_name": "the other person's name",
+                "contact_role": "who they are to the learner (landlord, colleague, friend...)",
+                "contact_initials": "two uppercase letters from contact_name",
+                "scene_anchor": "English, one line of where/when this is happening",
+                "thread_title": "short label for the message thread",
+                "opening_message": "French, the other person's first text",
+                "ambient_cues": "2-3 short real-world details",
+                "quick_replies": "2-3 French reply starters at the CEFR level",
+                "success_signal": "English, what a good outcome looks like",
+                "inbox_context": "English, one line on what the other person actually needs",
+                "domain": "same domain id as chosen_variety",
+                "channel": "same channel id as chosen_variety",
+                "tone": "same tone id as chosen_variety",
+                "twist": "English, tiny believable complication",
+                "mission_format": "chat_message, voicemail_reply, email_formal, admin_form, or phone_call",
+            },
+        }
+        try:
+            result = llm.generate_chat_completion(
+                [{"role": "user", "content": json.dumps(user_payload, ensure_ascii=False)}],
+                system_prompt=system_prompt,
+                response_format=MISSION_SCENARIO_RESPONSE_FORMAT,
+                max_tokens=2000,
+                model=settings.ATELIER_EXERCISE_LLM_MODEL,
+                reasoning_effort=settings.ATELIER_EXERCISE_LLM_REASONING_EFFORT,
+                disable_retries=True,
+            )
+            data = json.loads(result.content)
+        except (LLMProviderError, json.JSONDecodeError, ValueError, TypeError, KeyError) as exc:
+            logger.info("Mission scenario generation unavailable", error=str(exc))
+            return None
+        if not isinstance(data, dict) or not data.get("opening_message"):
+            return None
+        messenger_keys = (
+            "contact_name", "contact_role", "contact_initials", "scene_anchor",
+            "thread_title", "opening_message", "ambient_cues", "quick_replies",
+            "success_signal", "inbox_context", "twist",
+        )
+        messenger = {key: data[key] for key in messenger_keys if data.get(key)}
+        return {
+            "title": data.get("title"),
+            "brief": data.get("brief"),
+            "messenger": messenger,
+            "variety": {
+                "domain": data.get("domain") or variety.get("domain"),
+                "channel": data.get("channel") or variety.get("channel"),
+                "tone": data.get("tone") or variety.get("tone"),
+                "twist": data.get("twist") or variety.get("twist"),
+                "mission_format": data.get("mission_format") or variety.get("mission_format"),
+            },
+        }
+
     def _brief(
         self,
         *,
@@ -822,6 +1521,7 @@ class MissionGenerator:
         cadence: str,
         source_snapshot: dict[str, Any],
         concepts: list[GrammarConcept],
+        variety: dict[str, Any],
     ) -> tuple[str, str]:
         first_source = ((source_snapshot.get("items") or [{}])[0] or {}).get("title", "")
         grammar_goal = self._grammar_goal(concepts)
@@ -845,10 +1545,9 @@ class MissionGenerator:
                 "Back-and-Forth Scenario",
                 f"Hold a short French conversation with the assistant. Reply to each question as if the scene were real, add one useful detail, and let the assistant continue the exchange. {grammar_goal}",
             )
-        label = "post-session" if cadence == "post_session" else "weekly"
         return (
-            "Message Before Arrival",
-            f"Write a short French message you could actually send before meeting someone in France. Say when you arrive, mention one practical need, and ask one polite question. This is a {label} mission. {grammar_goal}",
+            str(variety.get("title") or "Real-World Moment"),
+            str(variety.get("brief") or "Handle one believable French situation with a clear, human reply."),
         )
 
     def _conversation_opening(self, *, mission_type: str, source_snapshot: dict[str, Any]) -> str:
@@ -891,30 +1590,30 @@ class MissionGenerator:
         mission_type: str,
         source_snapshot: dict[str, Any],
         concepts: list[GrammarConcept],
+        variety: dict[str, Any],
     ) -> dict[str, Any]:
         grammar_hint = self._grammar_goal(concepts)
         first_source = ((source_snapshot.get("items") or [{}])[0] or {}).get("title", "")
         defaults: dict[str, Any] = {
-            "channel_label": "Reality messages",
-            "contact_name": "Camille",
-            "contact_role": "Local contact",
-            "contact_initials": "CA",
+            "channel_label": variety.get("channel_label") or "Reality messages",
+            "contact_name": variety.get("contact_name") or "Camille",
+            "contact_role": variety.get("contact_role") or "local contact",
+            "contact_initials": variety.get("contact_initials") or "CA",
             "presence": "available now",
             "time_label": "17:42",
-            "thread_title": "Camille · arrival logistics",
-            "scene_anchor": "Outside Gare de Lyon, 12 minutes before boarding",
-            "dispatch_note": "Send a believable French reply that would make sense on a real phone.",
-            "inbox_context": "The other person needs useful information, not a classroom answer.",
-            "opening_message": "Coucou, tu arrives à quelle heure ? Tu as besoin de quelque chose avant qu'on parte ?",
-            "ambient_cues": ["battery at 18%", "platform announcement nearby", "one practical constraint"],
-            "quick_replies": [
-                "J'arrive vers 18 h 20...",
-                "Est-ce que je peux...",
-                "Si le train est en retard...",
-            ],
-            "success_signal": "They know when you arrive, what you need, and what to answer next.",
+            "thread_title": f"{variety.get('contact_name') or 'Camille'} · {variety.get('title') or 'real moment'}",
+            "scene_anchor": variety.get("scene_anchor") or "A real-world moment in France",
+            "dispatch_note": variety.get("brief") or "Send a believable French reply that would make sense in real life.",
+            "inbox_context": variety.get("twist") or "The other person needs useful information, not a classroom answer.",
+            "opening_message": variety.get("opening_message") or "Bonjour, expliquez-moi ce dont vous avez besoin.",
+            "ambient_cues": list(variety.get("ambient_cues") or ["one practical constraint", "a real person waiting", "short message rhythm"]),
+            "quick_replies": list(variety.get("quick_replies") or ["Bonjour, je voudrais...", "Est-ce que vous pouvez...", "Merci beaucoup..."]),
+            "success_signal": variety.get("success_signal") or "They know what to do next.",
+            "twist": variety.get("twist"),
+            "target_register": variety.get("register"),
             "realism_rules": [
-                "Keep the reply short enough for a real message.",
+                f"Use a {variety.get('register') or 'natural'} register.",
+                f"Keep the {variety.get('channel_label') or 'message'} short enough for the channel.",
                 "Add one concrete detail before asking for help.",
                 grammar_hint,
             ],
@@ -1160,9 +1859,14 @@ class MissionCorrectionService:
             "learner_level": user.proficiency_level or "A2",
         }
         system = (
-            "You are a strict but concise French correction engine for a real-world mission. "
-            "Address feedback directly as 'you'. Never say 'the learner' or 'the user'. "
-            "Do not create generic repairs; explain exactly what changed."
+            "You are a concise French correction engine for one chat reply in a real-world mission. "
+            "Find AT MOST the 3 most important real mistakes (grammar, agreement, gender, wrong word, spelling, conjugation). "
+            "For each mistake: set learner_text to the EXACT short wrong fragment the person wrote; set corrected_target to ONLY the "
+            "corrected fragment — a single word or short phrase, NEVER a full-message rewrite; write why_wrong as a SHORT ENGLISH "
+            "explanation (max ~12 words, e.g. \"porte is feminine: ma porte\"); write repair_hint as a short ENGLISH tip. "
+            "why_wrong and repair_hint MUST be in English; corrected_target stays in French. Address the person as 'you'. "
+            "This is a casual chat: do NOT flag informal-but-correct phrasing, register, or missing target words — only real language errors. "
+            "If the message is already correct and natural, return an empty errata list. Still fill corrected_answer with a clean full version."
         )
         try:
             result = self.llm.generate_error_detection(
@@ -1170,7 +1874,10 @@ class MissionCorrectionService:
                 system_prompt=system,
                 response_format=MISSION_CORRECTION_RESPONSE_FORMAT,
                 temperature=0.1,
-                max_tokens=1400,
+                max_tokens=2400,
+                model=settings.ATELIER_CORRECTION_LLM_MODEL,
+                reasoning_effort="minimal",
+                request_timeout=25.0,
             )
             parsed = json.loads(result.content)
             parsed["_model"] = result.model
@@ -1905,7 +2612,11 @@ class MissionScheduler:
         weekly = await self.ensure_weekly(user)
         active = (
             self.db.query(RealWorldMission)
-            .filter(RealWorldMission.user_id == user.id, RealWorldMission.status == "in_progress")
+            .filter(
+                RealWorldMission.user_id == user.id,
+                RealWorldMission.status == "in_progress",
+                RealWorldMission.serial_thread_id.is_(None),
+            )
             .order_by(RealWorldMission.updated_at.desc())
             .first()
         )
@@ -1916,6 +2627,7 @@ class MissionScheduler:
                     RealWorldMission.user_id == user.id,
                     RealWorldMission.cadence == "ad_hoc",
                     RealWorldMission.status == "available",
+                    RealWorldMission.serial_thread_id.is_(None),
                 )
                 .order_by(RealWorldMission.created_at.desc())
                 .first()
@@ -1926,13 +2638,18 @@ class MissionScheduler:
                 RealWorldMission.user_id == user.id,
                 RealWorldMission.cadence == "post_session",
                 RealWorldMission.status.in_(["available", "in_progress"]),
+                RealWorldMission.serial_thread_id.is_(None),
             )
             .order_by(RealWorldMission.created_at.desc())
             .first()
         )
         recent = (
             self.db.query(RealWorldMission)
-            .filter(RealWorldMission.user_id == user.id, RealWorldMission.status == "completed")
+            .filter(
+                RealWorldMission.user_id == user.id,
+                RealWorldMission.status == "completed",
+                RealWorldMission.serial_thread_id.is_(None),
+            )
             .order_by(RealWorldMission.completed_at.desc().nullslast(), RealWorldMission.created_at.desc())
             .limit(5)
             .all()
@@ -1958,12 +2675,11 @@ class MissionScheduler:
         )
         if existing:
             return existing
-        mission_type = MISSION_TEMPLATES[iso.week % len(MISSION_TEMPLATES)]
         return await self.create(
             user=user,
-            mission_type=mission_type,
+            mission_type="message",
             cadence="weekly",
-            use_news=mission_type == "news_summary",
+            use_news=False,
         )
 
     async def create(
@@ -1999,6 +2715,7 @@ class MissionScheduler:
         if serial_thread and episode_index is None:
             episode_index = serial_thread.current_episode_index
         if serial_thread:
+            self._ensure_serial_mission_slot_ready(thread=serial_thread, episode_index=episode_index)
             existing_mission = self._existing_serial_mission(thread=serial_thread, episode_index=episode_index)
             if existing_mission:
                 return existing_mission
@@ -2022,6 +2739,17 @@ class MissionScheduler:
         atelier_session = self.db.get(AtelierSession, atelier_session_id) if atelier_session_id else None
         if atelier_session and atelier_session.user_id != user.id:
             atelier_session = None
+        standalone = serial_thread is None
+        recent_variety = self._recent_variety(user=user, limit=8) if standalone else []
+        fuel_source = self._next_fuel_source(user=user) if standalone else "theme"
+        # Always anchor a standalone mission to a real vocabulary category so the
+        # scenario and its target words come from the same theme (food words -> a
+        # market scene), instead of generic mid-frequency junk like "abaisser".
+        active_category = (
+            self._active_coverage_category(user=user)
+            if standalone and not has_custom_context
+            else None
+        )
         payload = await self.generator.build_payload(
             user=user,
             mission_type=mission_type,
@@ -2033,6 +2761,9 @@ class MissionScheduler:
             use_news=use_news,
             custom_context=custom_context if has_custom_context else None,
             stakes_level=stakes_level,
+            active_category=active_category,
+            recent_variety=recent_variety,
+            fuel_source=fuel_source,
         )
         iso = date.today().isocalendar() if cadence == "weekly" and not has_custom_context else None
         mission = RealWorldMission(
@@ -2080,6 +2811,67 @@ class MissionScheduler:
                 self.db.refresh(mission)
         return mission
 
+    def _active_coverage_category(self, *, user: User) -> str | None:
+        excluded = {"verbs", "uncategorized", "complete", "adjectives_adverbs", "function_words"}
+        try:
+            coverage = VocabularyCoverageService(self.db).coverage(user=user)
+        except Exception as exc:  # noqa: BLE001 - coverage should not block mission creation
+            logger.debug("Mission coverage category unavailable", error=str(exc))
+            coverage = {}
+        if isinstance(coverage, dict):
+            next_best = coverage.get("next_best_set")
+            if isinstance(next_best, dict):
+                category_id = normalize_category(str(next_best.get("id") or ""))
+                if category_id and category_id not in excluded:
+                    return category_id
+            # Otherwise the lowest-progress real topic category — the one most worth working.
+            candidates = [
+                track
+                for track in (coverage.get("categories") or [])
+                if isinstance(track, dict) and normalize_category(str(track.get("id") or "")) not in excluded
+            ]
+            if candidates:
+                candidates.sort(key=lambda track: float(track.get("percent") or 0))
+                category_id = normalize_category(str(candidates[0].get("id") or ""))
+                if category_id:
+                    return category_id
+        # New user / no coverage yet: a beginner-friendly theme the scenario bank covers.
+        return "food_drink"
+
+    def _recent_variety(self, *, user: User, limit: int) -> list[dict[str, Any]]:
+        rows = (
+            self.db.query(RealWorldMission)
+            .filter(RealWorldMission.user_id == user.id, RealWorldMission.serial_thread_id.is_(None))
+            .order_by(RealWorldMission.created_at.desc())
+            .limit(limit)
+            .all()
+        )
+        result: list[dict[str, Any]] = []
+        for row in rows:
+            prompt = row.prompt_payload or {}
+            variety = prompt.get("variety") if isinstance(prompt.get("variety"), dict) else {}
+            messenger = prompt.get("messenger") if isinstance(prompt.get("messenger"), dict) else {}
+            if not variety and not messenger:
+                continue
+            result.append(
+                {
+                    "domain": variety.get("domain"),
+                    "contact": variety.get("contact") or messenger.get("contact_name"),
+                    "channel": variety.get("channel"),
+                    "tone": variety.get("tone"),
+                    "mission_id": str(row.id),
+                }
+            )
+        return result
+
+    def _next_fuel_source(self, *, user: User) -> str:
+        recent_count = (
+            self.db.query(RealWorldMission)
+            .filter(RealWorldMission.user_id == user.id, RealWorldMission.serial_thread_id.is_(None))
+            .count()
+        )
+        return MISSION_FUEL_SOURCES[recent_count % len(MISSION_FUEL_SOURCES)]
+
     def _existing_serial_mission(
         self,
         *,
@@ -2104,6 +2896,50 @@ class MissionScheduler:
         if not mission or mission.user_id != thread.user_id:
             return None
         return mission
+
+    def _ensure_serial_mission_slot_ready(self, *, thread: SerialThread, episode_index: int | None) -> None:
+        if episode_index is None:
+            return
+        current_episode_index = int(thread.current_episode_index or 0)
+        current_episode = self._serial_episode_at(thread=thread, episode_index=current_episode_index)
+        existing_episode = self._serial_episode_at(thread=thread, episode_index=episode_index)
+        if episode_index > current_episode_index:
+            raise SerialEpisodeNotReadyError(
+                thread_id=thread.id,
+                episode_index=episode_index,
+                current_episode_index=current_episode_index,
+                blocking_episode=current_episode,
+            )
+        if existing_episode and existing_episode.kind != "mission":
+            raise SerialEpisodeNotReadyError(
+                thread_id=thread.id,
+                episode_index=episode_index,
+                current_episode_index=current_episode_index,
+                blocking_episode=existing_episode,
+            )
+        previous_episode = self._previous_serial_episode(thread=thread, episode_index=episode_index)
+        if previous_episode and previous_episode.status != "completed":
+            raise SerialEpisodeNotReadyError(
+                thread_id=thread.id,
+                episode_index=episode_index,
+                current_episode_index=current_episode_index,
+                blocking_episode=previous_episode,
+            )
+
+    def _serial_episode_at(self, *, thread: SerialThread, episode_index: int) -> SerialEpisode | None:
+        return (
+            self.db.query(SerialEpisode)
+            .filter(SerialEpisode.thread_id == thread.id, SerialEpisode.episode_index == episode_index)
+            .first()
+        )
+
+    def _previous_serial_episode(self, *, thread: SerialThread, episode_index: int) -> SerialEpisode | None:
+        return (
+            self.db.query(SerialEpisode)
+            .filter(SerialEpisode.thread_id == thread.id, SerialEpisode.episode_index < episode_index)
+            .order_by(SerialEpisode.episode_index.desc())
+            .first()
+        )
 
     def _serial_custom_context(
         self,
@@ -2463,6 +3299,9 @@ class MissionScheduler:
         return "seen_context"
 
     def complete(self, *, user: User, mission: RealWorldMission) -> RealWorldMission:
+        if mission.status == "completed":
+            return mission
+
         attempts = mission.attempts or []
         turns = [turn for turn in (mission.turns or []) if turn.role == "user"]
         errata_count = sum(len((attempt.correction_payload or {}).get("errata") or []) for attempt in attempts)
@@ -2495,11 +3334,17 @@ class MissionScheduler:
                 }
         mission.status = "completed"
         mission.completed_at = datetime.now(timezone.utc)
+        minted_collectibles = (
+            AtelierRewardService(self.db).mint_logo_token_for_mission(mission)
+            if not getattr(mission, "serial_thread_id", None)
+            else []
+        )
         mission.recap_payload = {
             "attempts": len(attempts),
             "turns": len(turns),
             "errata_logged": errata_count,
             "vocabulary_credit": vocabulary_credit,
+            "minted_collectibles": minted_collectibles,
             "objectives": mission.objectives or [],
             "completed_at": mission.completed_at.isoformat(),
             **debrief,
@@ -2543,17 +3388,25 @@ class MissionConversationService:
         preliminary_branch = self.branch_state(mission=mission, user_text=user_text, assistant_text="")
         if not self.llm:
             return self._fallback_response(mission, branch=preliminary_branch, objective_progress=latest_progress)
+        messenger = (mission.prompt_payload or {}).get("messenger") or {}
+        contact_name = _compact_text(messenger.get("contact_name"), max_length=80) or "the other person in the scene"
+        contact_role = _compact_text(messenger.get("contact_role"), max_length=120)
+        persona_bits = [f"You ARE {contact_name}"]
+        if contact_role:
+            persona_bits.append(f"({contact_role})")
+        persona = " ".join(persona_bits) + "."
+        # The character does not know this is a lesson, so we keep only in-world
+        # context out of the prompt — no target vocabulary, learner level, or
+        # teaching instructions that would tempt the model into tutor mode.
+        success_objectives = (mission.prompt_payload or {}).get("success_objectives") or []
         context = json.dumps(
             {
-                "title": mission.title,
-                "brief": mission.brief,
-                "objectives": mission.objectives,
+                "scene_title": mission.title,
+                "scene_brief": mission.brief,
+                "your_goals_for_this_scene": success_objectives,
                 "stakes_level": int(getattr(mission, "stakes_level", None) or 1),
-                "source_snapshot": mission.source_snapshot,
-                "target_vocabulary": (mission.prompt_payload or {}).get("target_vocabulary") or [],
-                "learner_level": user.proficiency_level,
-                "conversation_instruction": (mission.prompt_payload or {}).get("conversation_instruction"),
-                "objective_progress": latest_progress,
+                "scene_so_far": mission.source_snapshot,
+                "register": messenger.get("target_register") or (mission.prompt_payload or {}).get("target_register"),
                 "branch_state": preliminary_branch,
             },
             ensure_ascii=False,
@@ -2563,19 +3416,29 @@ class MissionConversationService:
             for turn in sorted(mission.turns or [], key=lambda item: item.turn_index)
         ][-10:]
         messages = [
-            {"role": "user", "content": f"Mission context: {context}"},
+            {"role": "user", "content": f"Scene context: {context}"},
             *history,
         ]
         if not history or history[-1].get("content") != user_text:
             messages.append({"role": "user", "content": user_text})
         system = (
-            "You are a French conversation partner inside a realistic mission. "
-            "Stay in scenario, answer in French, keep replies to 1-3 short sentences, and end with a natural prompt. "
-            "Treat this as a real back-and-forth. React to the learner's last answer, add one new concrete detail, "
-            "then ask the next natural question. If branch_state is needs_detail, missing_next_step, or tone_mismatch, "
-            "be confused, blocked, or socially cool in-fiction and ask for the missing detail or register repair. "
-            "If objective_progress is all met and branch_state is understood, resolve the request in-fiction instead of surfacing a score. "
-            "Do not explain grammar unless the learner asks."
+            "You are an actor playing ONE character inside an ongoing French story (a feuilleton). "
+            f"{persona} "
+            "Reply only in first person as this character, in natural French, in 1-3 short sentences, and move the scene forward: "
+            "react to what the other person just said, add one concrete in-world detail, and end on a natural line or question. "
+            "ABSOLUTE RULE — you are a person in a story, NEVER a language teacher. Do NOT correct, grade, praise, or comment on the "
+            "other person's grammar, spelling, vocabulary, or register. Never say things like 'bonne phrase', 'utilise X au lieu de Y', "
+            "or 'essaie de reformuler'. If their French is imperfect but you can understand the meaning, simply respond in character as if "
+            "you understood. Only ask them to clarify when the actual MEANING (not the grammar) is genuinely unclear, and do it as a real "
+            "person would ('Pardon, quel jour exactement ?'). "
+            "If branch_state is needs_detail, missing_next_step, or tone_mismatch, stay in character but be confused, blocked, or socially "
+            "cool, and ask for the missing thing. "
+            "RESOLUTION: `your_goals_for_this_scene` lists the concrete things that must be settled for this situation to be solved. "
+            "Looking at the whole conversation so far, if the other person has handled ALL of those goals, you MUST wrap up now: give "
+            "one warm, satisfying closing line that confirms the outcome and the next concrete step, and end with «Bonne journée !» or a "
+            "natural sign-off — do NOT ask any further questions. If one or more goals are still open, steer toward the most important "
+            "missing one with a single natural question. Never drag the scene out once everything is settled. "
+            "Never break character; never mention lessons, scores, levels, exercises, or vocabulary."
         )
         try:
             result = self.llm.generate_chat_completion(
@@ -2943,5 +3806,6 @@ __all__ = [
     "MissionGenerator",
     "MissionSRSService",
     "MissionScheduler",
+    "SerialEpisodeNotReadyError",
     "serialize_mission",
 ]

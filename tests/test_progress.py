@@ -5,6 +5,7 @@ from datetime import date, datetime, timedelta, timezone
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy.exc import IntegrityError
 
 from app.config import settings
 from app.db.models.error import UserError
@@ -13,7 +14,10 @@ from app.db.models.mission import RealWorldMission
 from app.db.models.progress import ReviewLog, UserVocabularyProgress
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
+from app.schemas.anki import AnkiCardUpdate
+from app.services.enhanced_srs import EnhancedSRSService
 from app.services.progress import ProgressService
+from app.services.unified_srs import ItemType, UnifiedSRSService
 
 
 def register_and_login(client: TestClient, email: str, password: str) -> str:
@@ -101,6 +105,158 @@ def test_submit_review_returns_next_schedule(client: TestClient, review_vocabula
     assert detail_payload["reps"] == 1
     assert detail_payload["state"] != "new"
     assert detail_payload["reviews_logged"] == 1
+
+
+def test_good_reviews_do_not_count_as_lapses(client: TestClient, db_session, review_vocabulary) -> None:
+    token = register_and_login(client, "progress-good@example.com", "verysecure")
+    user = db_session.query(User).filter(User.email == "progress-good@example.com").one()
+    word_id = review_vocabulary[0].id
+
+    response = client.post(
+        "/api/v1/progress/review",
+        json={"word_id": word_id, "rating": 2},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 200
+    progress = ProgressService(db_session).get_progress(user_id=user.id, word_id=word_id)
+    assert progress is not None
+    assert progress.lapses == 0
+
+
+def test_anki_good_review_does_not_count_as_lapse(db_session) -> None:
+    user = User(email="anki-good@example.com", hashed_password="x", target_language="fr")
+    word = VocabularyWord(language="fr", word="choisir", normalized_word="choisir", is_anki_card=True)
+    db_session.add_all([user, word])
+    db_session.flush()
+    progress = UserVocabularyProgress(user_id=user.id, word_id=word.id, scheduler="anki", phase="review")
+    db_session.add(progress)
+    db_session.flush()
+
+    EnhancedSRSService(db_session).process_review(progress=progress, rating=2)
+
+    assert progress.lapses == 0
+
+
+def test_vocabulary_progress_is_unique_per_user_word(db_session) -> None:
+    user = User(email="progress-unique@example.com", hashed_password="x", target_language="fr")
+    word = VocabularyWord(language="fr", word="unique", normalized_word="unique")
+    db_session.add_all([user, word])
+    db_session.flush()
+    first = ProgressService(db_session).get_or_create_progress(user_id=user.id, word_id=word.id)
+    again = ProgressService(db_session).get_or_create_progress(user_id=user.id, word_id=word.id)
+
+    assert again.id == first.id
+    assert (
+        db_session.query(UserVocabularyProgress)
+        .filter(UserVocabularyProgress.user_id == user.id, UserVocabularyProgress.word_id == word.id)
+        .count()
+    ) == 1
+
+    db_session.add(UserVocabularyProgress(user_id=user.id, word_id=word.id))
+    with pytest.raises(IntegrityError):
+        db_session.flush()
+    db_session.rollback()
+
+
+def test_anki_sync_preserves_future_due_datetime(db_session) -> None:
+    user = User(email="anki-sync-due@example.com", hashed_password="x", target_language="fr")
+    db_session.add(user)
+    db_session.flush()
+    now = datetime.now(timezone.utc)
+    due_at = now + timedelta(days=3)
+
+    stats = ProgressService(db_session).sync_anki_progress(
+        user=user,
+        cards=[
+            AnkiCardUpdate(
+                note_id=101,
+                card_id=202,
+                deck_name="Französisch Wortschatz",
+                model_name="Basic",
+                fields={"Wort": "arriver", "Definition": "ankommen"},
+                due=int(due_at.timestamp()),
+                interval=3,
+                ease=2500,
+                reps=5,
+                lapses=0,
+                ord=0,
+            )
+        ],
+    )
+
+    assert stats["created"] == 1
+    progress = db_session.query(UserVocabularyProgress).filter(UserVocabularyProgress.user_id == user.id).one()
+    assert isinstance(progress.due_at, datetime)
+    assert progress.due_date == progress.due_at.date()
+    assert progress.next_review_date == progress.due_at
+    assert ProgressService(db_session).count_due_reviews(user.id, now=now) == 0
+
+
+def test_future_due_at_later_today_is_not_currently_due_across_srs_surfaces(db_session) -> None:
+    user = User(email="future-due-srs@example.com", hashed_password="x", target_language="fr")
+    word = VocabularyWord(
+        language="fr",
+        word="attendre",
+        normalized_word="attendre",
+        german_translation="warten",
+        direction="fr_to_de",
+        deck_name="French 5000",
+        is_anki_card=True,
+    )
+    db_session.add_all([user, word])
+    db_session.flush()
+    now = datetime.now(timezone.utc)
+    due_at = now + timedelta(hours=6)
+    progress = UserVocabularyProgress(
+        user_id=user.id,
+        word_id=word.id,
+        scheduler="anki",
+        state="reviewing",
+        phase="review",
+        due_at=due_at,
+        due_date=now.date(),
+        next_review_date=due_at,
+        last_review_date=now - timedelta(days=2),
+        interval_days=2,
+        scheduled_days=2,
+        reps=4,
+        stability=8.0,
+        difficulty=2.0,
+        proficiency_score=80,
+    )
+    db_session.add(progress)
+    db_session.commit()
+
+    progress_service = ProgressService(db_session)
+
+    assert progress_service.count_due_reviews(user.id, now=now) == 0
+    recommendations = progress_service.get_vocabulary_recommendations(
+        user=user,
+        limit=3,
+        due_limit=3,
+        fragile_limit=0,
+        new_limit=0,
+        direction="fr_to_de",
+        now=now,
+    )
+    assert recommendations["summary"]["due"] == 0
+    assert word.word not in {item["word"] for item in recommendations["items"] if item["bucket"] == "due"}
+
+    due_cards = EnhancedSRSService(db_session).get_due_cards(str(user.id), limit=10)
+    assert word.id not in {card.word_id for card in due_cards}
+
+    anki_summary = progress_service.anki_progress_summary(user=user)
+    assert anki_summary["due_today"] == 0
+    assert anki_summary["directions"]["fr_to_de"]["due_today"] == 0
+
+    unified_session = UnifiedSRSService(db_session).get_daily_practice_queue(user_id=user.id)
+    vocab_titles = {
+        item.display_title
+        for item in unified_session.queue
+        if item.item_type == ItemType.VOCAB
+    }
+    assert word.word not in vocab_titles
 
 
 def test_vocabulary_mastery_map_returns_human_srs_states(client: TestClient, db_session) -> None:
@@ -358,6 +514,8 @@ def test_queue_orders_due_before_new(client: TestClient, review_vocabulary, db_s
         .one()
     )
     progress.due_date = date.today()
+    progress.due_at = None
+    progress.next_review_date = None
     db_session.commit()
 
     updated_queue = client.get("/api/v1/progress/queue", headers=headers, params={"limit": 2})

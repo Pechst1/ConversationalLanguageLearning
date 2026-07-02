@@ -453,6 +453,13 @@ def test_feuilleton_vocabulary_task_miss_creates_credit_erratum(client: TestClie
     assert complete.status_code == 200
     assert complete.json()["recap"]["vocabulary_credit"]["missed_target"] >= 1
 
+    again = client.post(
+        f"/api/v1/graphic-novel/scenes/{scene['id']}/complete",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert again.status_code == 200
+    assert again.json()["recap"] == complete.json()["recap"]
+
 
 def test_feuilleton_completion_requires_required_tasks(client: TestClient, db_session, monkeypatch):
     _patch_story(monkeypatch)

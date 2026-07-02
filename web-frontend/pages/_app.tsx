@@ -1,5 +1,6 @@
 import Head from 'next/head';
 import type { AppProps } from 'next/app';
+import { useEffect } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import RouteAuthGate from '@/components/auth/RouteAuthGate';
 import Layout from '@/components/layout/Layout';
@@ -21,6 +22,10 @@ export default function App({
   Component,
   pageProps: { session, ...pageProps },
 }: AppProps) {
+  useEffect(() => {
+    document.querySelectorAll('[data-next-hide-fouc]').forEach((element) => element.remove());
+  }, []);
+
   return (
     <AppAuthProvider session={session}>
       <QueryClientProvider client={queryClient}>

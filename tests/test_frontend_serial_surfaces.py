@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 WEB = ROOT / "web-frontend"
 
@@ -19,8 +18,10 @@ def test_serial_archive_cast_and_replay_pages_are_wired() -> None:
     api = read_web("services/api.ts")
 
     assert "apiService.getSerialEpisodes()" in archive
-    assert "Season {seasonNumber}" in archive
-    assert "SeasonProgressStrip" in archive
+    assert "'Season ' + seasonNumber" in archive
+    assert 'className="s-map"' in archive
+    assert "aria-label={`Season ${seasonNumber} thread`}" in archive
+    assert 'className="s-ep-link"' in archive
     assert "href=\"/serial/cast\"" in archive
     assert "apiService.getSerialCast()" in cast
     assert "apiService.setSerialAvatar" in cast
@@ -48,6 +49,50 @@ def test_graphic_novel_serial_page_keeps_bubbles_and_panel_tasks_inline() -> Non
     assert "choiceOptionView" in source
 
 
+def test_graphic_novel_scene_leads_with_panels_before_brief() -> None:
+    source = read_web("pages/graphic-novel.tsx")
+
+    assert source.index("<SerialSceneReader") < source.index("<SceneBrief scene={scene}")
+    assert "className=\"serial-reader s-feuil\"" in source
+    assert "function SerialFinalAct" in source
+    assert source.index(") : scene.script_payload?.render_mode === 'page' ?") < source.index("<SceneBrief scene={scene}")
+    assert source.index('className="panel-grid" id="reading-panels"') < source.index("<SceneBrief scene={scene}")
+
+
+def test_graphic_novel_completion_routes_to_returned_serial_beat() -> None:
+    source = read_web("pages/graphic-novel.tsx")
+    missions = read_web("pages/missions.tsx")
+    api = read_web("services/api.ts")
+
+    assert "next_serial?: SerialToday | null" in api
+    assert "function routeForSerialBeat" in source
+    assert "routeForSerialBeat(result.next_serial)" in source
+    assert "function routeForMissionSerialBeat" in missions
+    assert "serialQueryString(serial)" in missions
+    assert "routeForMissionSerialBeat(result.next_serial)" in missions
+    assert "File this edition first" in source
+    assert "const primaryAction = scene.status === 'completed'" in source
+    assert "label: 'Finish edition', href: '#reading-panels'" in source
+    assert "href={scene.status === 'completed' ? feuilletonNextMissionHref(scene) : '#reading-panels'}" in source
+
+
+def test_almanac_story_seals_render_panel_crop_art() -> None:
+    source = read_web("pages/almanac.tsx")
+
+    assert "function StorySealCard" in source
+    assert "function PlateCard" in source
+    assert "metadata?.seal_crop" in source
+    assert "storySealImageUrl(seal)" in source
+    assert "objectPosition" in source
+    assert "className=\"story-seal-grid\"" in source
+    assert "className=\"story-seal-ring\"" in source
+    assert "loadError" in source
+    assert "composeError" in source
+    assert "The originals stay nested in your almanac" in source
+    assert "className=\"plate-members\"" in source
+    assert "setAlmanac(null)" not in source
+
+
 def test_product_direction_surfaces_are_wired() -> None:
     atelier = read_web("pages/atelier.tsx")
     missions = read_web("pages/missions.tsx")
@@ -57,11 +102,14 @@ def test_product_direction_surfaces_are_wired() -> None:
 
     assert "CEFRPromiseStrip" in atelier
     assert "estimatedRemainingMinutes" in atelier
-    assert "MissionFormatBrief" in missions
-    assert "voicemail_reply" in missions
-    assert "admin_form" in missions
+    assert "TranslateButton" in missions
+    assert "className=\"mission-stage\"" in missions
+    assert "missionVariety" in missions
+    assert "voicemail_reply" in api
+    assert "admin_form" in api
     assert "mission_format" in api
     assert "getCefrProgress()" in api
-    assert "destination: '/bibliotheque'" in redirects
+    assert "destination: '/atelier'" in redirects
     assert "source: '/stories/:path*'" in redirects
+    assert "source: '/bibliotheque/:path*'" in redirects
     assert "from './stories'" in bibliotheque

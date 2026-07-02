@@ -35,7 +35,7 @@ class WebSocketService {
         return;
       }
 
-      const wsUrl = `${process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000'}/api/v1/sessions/${this.sessionId}/ws?token=${this.accessToken}`;
+      const wsUrl = `${resolveWebSocketBaseUrl()}/api/v1/sessions/${this.sessionId}/ws?token=${this.accessToken}`;
 
       try {
         this.socket = new WebSocket(wsUrl);
@@ -196,6 +196,32 @@ class WebSocketService {
 
   isConnected(): boolean {
     return this.socket?.readyState === WebSocket.OPEN;
+  }
+}
+
+function resolveWebSocketBaseUrl(): string {
+  const configured = process.env.NEXT_PUBLIC_WS_URL?.replace(/\/+$/, '');
+  if (configured) return configured;
+
+  const apiBase = (
+    process.env.NEXT_PUBLIC_API_BASE_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    'http://localhost:8000/api/v1'
+  ).replace(/\/+$/, '');
+  if (typeof window !== 'undefined' && apiBase.startsWith('/')) {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${protocol}//${window.location.host}${apiBase.replace(/\/api\/v1$/, '')}`;
+  }
+
+  try {
+    const url = new URL(apiBase);
+    url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+    url.pathname = url.pathname.replace(/\/api\/v1\/?$/, '').replace(/\/+$/, '');
+    url.search = '';
+    url.hash = '';
+    return url.toString().replace(/\/+$/, '');
+  } catch {
+    return 'ws://localhost:8000';
   }
 }
 

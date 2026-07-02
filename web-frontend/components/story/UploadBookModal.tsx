@@ -17,16 +17,12 @@ export default function UploadBookModal({ isOpen, onClose, onSuccess }: UploadBo
     const [title, setTitle] = useState('');
     const [author, setAuthor] = useState('');
     const [levels, setLevels] = useState('A1,A2,B1');
-    const [maxChapters, setMaxChapters] = useState(5);
     const [loading, setLoading] = useState(false);
     const [progressMessage, setProgressMessage] = useState('');
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
 
     if (!isOpen) return null;
-
-    // Estimate ~30 seconds per chapter for LLM processing
-    const estimatedMinutes = Math.ceil((maxChapters * 30) / 60);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
@@ -77,7 +73,7 @@ export default function UploadBookModal({ isOpen, onClose, onSuccess }: UploadBo
             if (title) formData.append('title', title);
             if (author) formData.append('author', author);
             formData.append('target_levels', levels);
-            formData.append('max_chapters', String(maxChapters));
+            formData.append('max_chapters', '0');
 
             const token = await getAppAccessToken();
             const authHeaders = token ? { Authorization: `Bearer ${token}` } : undefined;
@@ -227,35 +223,23 @@ export default function UploadBookModal({ isOpen, onClose, onSuccess }: UploadBo
                             <p className="text-xs text-gray-500 mt-1">Kommagetrennt (A1, A2, B1, B2, C1, C2)</p>
                         </div>
 
-                        {/* Chapter Limit Slider */}
+                        {/* Whole-book processing */}
                         <div className="p-4 bg-gray-50 border-2 border-gray-200 rounded-lg">
                             <div className="flex items-center justify-between mb-2">
                                 <label className="font-bold flex items-center gap-2">
                                     <BookOpen className="h-4 w-4" />
-                                    Kapitelanzahl
+                                    Umfang
                                 </label>
-                                <span className="text-lg font-black text-bauhaus-blue">{maxChapters}</span>
-                            </div>
-                            <input
-                                type="range"
-                                min="1"
-                                max="20"
-                                value={maxChapters}
-                                onChange={(e) => setMaxChapters(Number(e.target.value))}
-                                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-bauhaus-blue"
-                            />
-                            <div className="flex justify-between text-xs text-gray-500 mt-1">
-                                <span>1</span>
-                                <span>20</span>
+                                <span className="text-sm font-black text-bauhaus-blue">Ganzes Buch</span>
                             </div>
 
                             {/* Estimated Time */}
                             <div className="mt-3 flex items-center gap-2 text-sm text-gray-600">
                                 <Clock className="h-4 w-4" />
-                                <span>Geschätzte Zeit: <strong>~{estimatedMinutes} Min.</strong></span>
+                                <span>Die Verarbeitung teilt den Text automatisch in kurze Leseepisoden.</span>
                             </div>
                             <p className="text-xs text-gray-400 mt-1">
-                                Du kannst später weitere Kapitel hinzufügen.
+                                Upload-Status und Episoden bleiben in deiner privaten Bibliothek erhalten.
                             </p>
                         </div>
                     </div>

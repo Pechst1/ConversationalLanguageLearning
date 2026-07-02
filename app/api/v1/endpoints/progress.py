@@ -1,7 +1,7 @@
 """Endpoints for learner vocabulary progress."""
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, or_, select
@@ -34,7 +34,7 @@ from app.schemas import (
     WeeklyDossierStats,
     WeeklyDossierThread,
 )
-from app.services.progress import ProgressService
+from app.services.progress import ProgressService, vocabulary_progress_is_due
 from app.services.cefr_progress import CEFRProgressService
 from app.services.unified_srs import InterleavingMode, UnifiedSRSService
 
@@ -64,21 +64,10 @@ def recompute_cefr_progress(
     return CEFRProgressResponse(**CEFRProgressService(db).recompute(current_user, source="api"))
 
 
-def _aware(value: datetime | None) -> datetime | None:
-    if value is None:
-        return None
-    if value.tzinfo is None:
-        return value.replace(tzinfo=timezone.utc)
-    return value
-
-
 def _progress_due(progress: UserVocabularyProgress | None, now: datetime) -> bool:
     if progress is None:
         return False
-    due_at = _aware(progress.due_at) or _aware(progress.next_review_date)
-    if due_at is not None:
-        return due_at <= now
-    return progress.due_date is not None and progress.due_date <= date.today()
+    return vocabulary_progress_is_due(progress, now)
 
 
 def _mastery_state(progress: UserVocabularyProgress | None, now: datetime) -> str:
@@ -500,6 +489,12 @@ def submit_review(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vocabulary word not found")
 
     service = ProgressService(db)
+    progress = service.get_progress(user_id=current_user.id, word_id=word.id)
+    if (progress and progress.scheduler == "anki") or getattr(word, "is_anki_card", False):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This word uses the Anki scheduler. Submit reviews through /api/v1/anki/review.",
+        )
     progress, review_log, outcome = service.record_review(
         user=current_user,
         word=word,

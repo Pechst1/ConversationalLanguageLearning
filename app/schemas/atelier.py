@@ -1,7 +1,7 @@
 """Pydantic schemas for Atelier practice."""
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -35,6 +35,7 @@ class AtelierTodayResponse(BaseModel):
     progress: dict[str, Any] = Field(default_factory=dict)
     cefr: dict[str, Any] = Field(default_factory=dict)
     onboarding: dict[str, Any] = Field(default_factory=dict)
+    library_episode: dict[str, Any] | None = None
     serial_episode: dict[str, Any] | None = None
     serial: dict[str, Any] | None = None
 
@@ -73,17 +74,77 @@ class AtelierAttemptRequest(BaseModel):
     resubmit: bool = False
 
 
+class AtelierCollectibleRead(BaseModel):
+    id: UUID
+    kind: str
+    minted_at: str | None = None
+    source_kind: str
+    source_ref: str
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    composed: bool = False
+    composed_into_id: UUID | None = None
+
+
+class AtelierPlateRead(AtelierCollectibleRead):
+    members: list[AtelierCollectibleRead] = Field(default_factory=list)
+
+
+class AtelierWorkshopProgressRead(BaseModel):
+    target: str
+    member_kind: str
+    required: int
+    available: int
+    progress: int
+    shortfall: int
+
+
+class AtelierAlmanacResponse(BaseModel):
+    collectibles: dict[str, list[AtelierCollectibleRead]] = Field(default_factory=dict)
+    progress: dict[str, AtelierWorkshopProgressRead] = Field(default_factory=dict)
+    plates: list[AtelierPlateRead] = Field(default_factory=list)
+    totals: dict[str, int] = Field(default_factory=dict)
+
+
+class AtelierWorkshopComposeRequest(BaseModel):
+    target: Literal["plate_semaine", "plate_chapter", "colophon"]
+
+
+class AtelierWorkshopComposeResponse(BaseModel):
+    plate: AtelierCollectibleRead
+    members: list[AtelierCollectibleRead] = Field(default_factory=list)
+    progress: dict[str, AtelierWorkshopProgressRead] = Field(default_factory=dict)
+    minted_collectibles: list[AtelierCollectibleRead] = Field(default_factory=list)
+
+
 class AtelierAttemptResponse(BaseModel):
     attempt_id: UUID
     verdict: str
     score_0_4: float
     correction: dict[str, Any]
     ai_review: dict[str, Any] = Field(default_factory=dict)
+    minted_collectibles: list[AtelierCollectibleRead] = Field(default_factory=list)
+
+
+class AtelierExerciseReportRequest(BaseModel):
+    session_id: UUID | None = None
+    concept_id: int | None = None
+    exercise_set_id: UUID | None = None
+    round: str | None = Field(None, max_length=30)
+    mode: str | None = Field(None, max_length=40)
+    exercise_id: str | None = Field(None, max_length=160)
+    item_id: str | None = Field(None, max_length=120)
+    reason: str = Field(..., min_length=3, max_length=500)
+
+
+class AtelierExerciseReportResponse(BaseModel):
+    ok: bool
+    event_id: UUID
 
 
 class AtelierCompleteResponse(BaseModel):
     session_id: UUID
     recap: dict[str, Any]
+    minted_collectibles: list[AtelierCollectibleRead] = Field(default_factory=list)
 
 
 class AtelierErrataReviewRequest(BaseModel):
@@ -116,17 +177,24 @@ class AtelierErrataAttemptResponse(BaseModel):
 
 
 __all__ = [
+    "AtelierAlmanacResponse",
     "AtelierErrataAttemptRequest",
     "AtelierErrataAttemptResponse",
     "AtelierAttemptRequest",
     "AtelierAttemptResponse",
     "AtelierActiveSessionResponse",
+    "AtelierCollectibleRead",
     "AtelierCompleteResponse",
     "AtelierConceptRead",
     "AtelierErrataReviewRequest",
     "AtelierErrataReviewResponse",
     "AtelierErrataTaskResponse",
+    "AtelierExerciseReportRequest",
+    "AtelierExerciseReportResponse",
     "AtelierSessionStartRequest",
     "AtelierSessionStartResponse",
     "AtelierTodayResponse",
+    "AtelierWorkshopComposeRequest",
+    "AtelierWorkshopComposeResponse",
+    "AtelierWorkshopProgressRead",
 ]

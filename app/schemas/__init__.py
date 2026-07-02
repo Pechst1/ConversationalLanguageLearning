@@ -5,7 +5,6 @@ from app.schemas.achievement import (
     AchievementRead,
     AchievementUnlockResponse,
 )
-from app.schemas.anki import AnkiCardUpdate, AnkiConnectSyncRequest
 from app.schemas.analytics import (
     AnalyticsStatisticsResponse,
     AnalyticsSummary,
@@ -17,7 +16,7 @@ from app.schemas.analytics import (
     VocabularyHeatmapEntry,
     VocabularyHeatmapResponse,
 )
-from app.schemas.auth import LogoutRequest, RefreshTokenRequest, Token, TokenPayload
+from app.schemas.anki import AnkiCardUpdate, AnkiConnectSyncRequest
 from app.schemas.atelier import (
     AtelierAttemptRequest,
     AtelierAttemptResponse,
@@ -26,6 +25,16 @@ from app.schemas.atelier import (
     AtelierSessionStartRequest,
     AtelierSessionStartResponse,
     AtelierTodayResponse,
+)
+from app.schemas.auth import LogoutRequest, RefreshTokenRequest, Token, TokenPayload
+from app.schemas.feedback import FeedbackReportCreate, FeedbackReportRead
+from app.schemas.graphic_novel import (
+    GraphicNovelAttemptRequest,
+    GraphicNovelAttemptResponse,
+    GraphicNovelCompleteResponse,
+    GraphicNovelCreateRequest,
+    GraphicNovelSceneResponse,
+    GraphicNovelTodayResponse,
 )
 from app.schemas.missions import (
     MissionAttemptResponse,
@@ -36,14 +45,6 @@ from app.schemas.missions import (
     MissionTodayResponse,
     MissionTurnRequest,
     MissionTurnResponse,
-)
-from app.schemas.graphic_novel import (
-    GraphicNovelAttemptRequest,
-    GraphicNovelAttemptResponse,
-    GraphicNovelCompleteResponse,
-    GraphicNovelCreateRequest,
-    GraphicNovelSceneResponse,
-    GraphicNovelTodayResponse,
 )
 from app.schemas.progress import (
     AnkiDirectionSummary,
@@ -59,16 +60,26 @@ from app.schemas.progress import (
     UnifiedQueueResponse,
     UnifiedQueueSummary,
     UnifiedQueueTypeSummary,
+    VocabularyMasteryMapCell,
+    VocabularyMasteryMapResponse,
+    VocabularyMasteryMapSummary,
     VocabularyRecommendationItem,
     VocabularyRecommendationResponse,
     VocabularyRecommendationSummary,
     VocabularyRecommendationTranslations,
-    VocabularyMasteryMapCell,
-    VocabularyMasteryMapResponse,
-    VocabularyMasteryMapSummary,
     WeeklyDossierResponse,
     WeeklyDossierStats,
     WeeklyDossierThread,
+)
+from app.schemas.serial import (
+    EpisodeRead,
+    HookRead,
+    SerialAdvanceRequest,
+    SerialStateRead,
+    SerialThreadCreateRequest,
+    SerialThreadRead,
+    StateDelta,
+    WorldBibleRead,
 )
 from app.schemas.session import (
     AssistantTurnRead,
@@ -99,17 +110,10 @@ from app.schemas.session import (
     TargetWordRead,
     WordExposureRequest,
 )
-from app.schemas.serial import (
-    EpisodeRead,
-    HookRead,
-    SerialAdvanceRequest,
-    SerialStateRead,
-    SerialThreadCreateRequest,
-    SerialThreadRead,
-    StateDelta,
-    WorldBibleRead,
-)
 from app.schemas.user import (
+    PasswordResetConfirm,
+    PasswordResetRequest,
+    PasswordResetRequestResponse,
     UserBase,
     UserCreate,
     UserEmailChange,
@@ -132,6 +136,8 @@ __all__ = [
     "TokenPayload",
     "RefreshTokenRequest",
     "LogoutRequest",
+    "FeedbackReportCreate",
+    "FeedbackReportRead",
     "AtelierAttemptRequest",
     "AtelierAttemptResponse",
     "AtelierCompleteResponse",
@@ -218,6 +224,9 @@ __all__ = [
     "SerialThreadRead",
     "StateDelta",
     "WorldBibleRead",
+    "PasswordResetConfirm",
+    "PasswordResetRequest",
+    "PasswordResetRequestResponse",
     "UserBase",
     "UserCreate",
     "UserEmailChange",

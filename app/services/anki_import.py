@@ -532,13 +532,13 @@ class AnkiImportService:
             'de_to_fr': 0,
         }
         
-        vocab_words = []
+        vocab_entries: list[tuple[VocabularyWord, Dict[str, Any]]] = []
         
         for card in cards:
             vocab_word = self._create_vocabulary_word(card, deck_name)
             if vocab_word:
                 self.db.add(vocab_word)
-                vocab_words.append(vocab_word)
+                vocab_entries.append((vocab_word, card))
                 result['imported'] += 1
                 
                 # Count by direction
@@ -549,6 +549,7 @@ class AnkiImportService:
         
         # Flush to get IDs before linking
         self.db.flush()
+        vocab_words = [vocab_word for vocab_word, _ in vocab_entries]
         
         # Link paired cards
         if len(vocab_words) == 2:
@@ -559,8 +560,8 @@ class AnkiImportService:
         # Create progress tracking for user
         user = self.db.get(User, user_id)
         if user:
-            for vocab_word in vocab_words:
-                self._create_user_progress(vocab_word, user, preserve_scheduling, cards[0])
+            for vocab_word, card in vocab_entries:
+                self._create_user_progress(vocab_word, user, preserve_scheduling, card)
         
         return result
     
@@ -685,6 +686,14 @@ class AnkiImportService:
         
         if existing_progress:
             logger.info(f"Progress for word {vocab_word.word} already exists")
+            existing_progress.scheduler = "anki"
+            existing_progress.deck_name = vocab_word.deck_name
+            existing_progress.note_id = vocab_word.note_id
+            existing_progress.card_id = vocab_word.card_id
+            existing_progress.raw_history = str(card_data.get('raw_row', {}))
+            if preserve_scheduling:
+                self._extract_scheduling_data(existing_progress, card_data)
+            self.db.add(existing_progress)
             return
         
         # Create new progress entry
@@ -854,9 +863,11 @@ class AnkiImportService:
         except ValueError:
             pass
 
-        # Day offsets (Anki sometimes stores days since collection epoch)
+        # Day offsets exported by our import path are relative. Raw collection-day
+        # values are intentionally ignored because applying them as offsets can
+        # push cards years into the future.
         int_value = self._parse_int_value(text)
-        if int_value is not None:
+        if int_value is not None and -3650 <= int_value <= 3650:
             reference = datetime.now(timezone.utc)
             return reference + timedelta(days=int_value)
 

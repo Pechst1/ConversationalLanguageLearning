@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/router';
 import { BookOpen, Clock, Lock, Play, ChevronRight, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import EditorialMasthead from '@/components/layout/EditorialMasthead';
+import { STORY_FEATURE_VISIBLE } from '@/lib/launch-flags';
 import apiService from '@/services/api';
 
 interface Story {
@@ -33,10 +35,12 @@ interface StoriesPageProps {
 import UploadBookModal from '@/components/story/UploadBookModal';
 
 export default function StoriesPage({ stories = [] }: StoriesPageProps) {
+    const router = useRouter();
     const [storyList, setStoryList] = useState(stories);
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
 
     const loadStories = React.useCallback(async () => {
+        if (!STORY_FEATURE_VISIBLE) return;
         try {
             const rows = await apiService.get<Story[]>('/stories');
             setStoryList(Array.isArray(rows) ? rows : []);
@@ -47,12 +51,18 @@ export default function StoriesPage({ stories = [] }: StoriesPageProps) {
     }, []);
 
     React.useEffect(() => {
+        if (!STORY_FEATURE_VISIBLE) {
+            void router.replace('/atelier');
+            return;
+        }
         void loadStories();
-    }, [loadStories]);
+    }, [loadStories, router]);
 
     const handleUploadSuccess = () => {
         void loadStories();
     };
+
+    if (!STORY_FEATURE_VISIBLE) return null;
 
     return (
         <div className="min-h-screen bg-[var(--app-paper)] text-[var(--app-ink)]">

@@ -136,7 +136,7 @@ class BookParserService:
         *,
         title: str | None = None,
         author: str | None = None,
-        max_chapters: int = 10,
+        max_chapters: int | None = None,
     ) -> BookParseResult:
         """Parse an uploaded book file into structured course content.
         
@@ -145,7 +145,7 @@ class BookParserService:
             filename: Original filename (used to detect format)
             title: Optional override for book title
             author: Optional override for author name
-            max_chapters: Maximum number of chapters to process (default 10)
+            max_chapters: Optional maximum number of chapters to process. None processes the whole book.
             
         Returns:
             BookParseResult with extracted chapters, characters, vocabulary
@@ -166,6 +166,10 @@ class BookParserService:
             text = self._extract_html_text(file_content)
         else:
             raise ValueError(f"Parser not implemented for: {extension}")
+
+        text = self._clean_extracted_text(text)
+        if not text:
+            raise ValueError("No readable text could be extracted from this file.")
         
         # Extract title and author if not provided
         if not title:
@@ -176,14 +180,13 @@ class BookParserService:
         # Split into chapters
         all_chapters = self._split_into_chapters(text)
         
-        # Limit number of chapters processed
-        chapters = all_chapters[:max_chapters]
+        chapters = all_chapters[:max_chapters] if max_chapters and max_chapters > 0 else all_chapters
         
         logger.info(
             "Processing chapters",
             total_found=len(all_chapters),
             processing=len(chapters),
-            max_chapters=max_chapters,
+            max_chapters=max_chapters or "all",
         )
         
         # Process each chapter with LLM
@@ -407,7 +410,6 @@ class BookParserService:
         """Extract plain text from PDF file."""
         try:
             import fitz  # PyMuPDF
-            from io import BytesIO
             
             doc = fitz.open(stream=content, filetype="pdf")
             text_parts = []
@@ -416,9 +418,8 @@ class BookParserService:
                 text_parts.append(page.get_text())
             
             return "\n\n".join(text_parts)
-        except ImportError:
-            logger.warning("PyMuPDF not installed, PDF parsing limited")
-            return ""
+        except ImportError as exc:
+            raise ValueError("PDF parsing requires PyMuPDF to be installed.") from exc
 
     def _extract_html_text(self, content: bytes) -> str:
         """Extract plain text from HTML file."""
@@ -521,7 +522,7 @@ class BookParserService:
                         chapters.append(ParsedChapter(
                             title=chapter_title.strip() if chapter_title else f"Chapter {chapter_num_str}",
                             order_index=chapter_num if chapter_num > 0 else i,  # Use actual chapter number
-                            content=content[:self.MAX_CHAPTER_LENGTH],
+                            content=content,
                             estimated_word_count=len(content.split()),
                         ))
                 break
@@ -547,6 +548,36 @@ class BookParserService:
                     ))
         
         return chapters
+
+    def _clean_extracted_text(self, text: str) -> str:
+        """Clean common OCR/PDF/HTML extraction noise without changing the source prose."""
+
+        if not text:
+            return ""
+        cleaned = text.replace("\r\n", "\n").replace("\r", "\n")
+        cleaned = re.sub(r"([A-Za-zÀ-ÖØ-öø-ÿ])-\n([A-Za-zÀ-ÖØ-öø-ÿ])", r"\1\2", cleaned)
+        raw_lines = [re.sub(r"\s+", " ", line).strip() for line in cleaned.split("\n")]
+        non_empty = [line for line in raw_lines if line]
+        line_counts: dict[str, int] = {}
+        for line in non_empty:
+            if len(line) <= 80:
+                line_counts[line] = line_counts.get(line, 0) + 1
+
+        filtered: list[str] = []
+        repeat_threshold = max(4, len(non_empty) // 20)
+        for line in raw_lines:
+            if not line:
+                if filtered and filtered[-1]:
+                    filtered.append("")
+                continue
+            if re.fullmatch(r"(?:page\s*)?\d{1,4}", line, flags=re.IGNORECASE):
+                continue
+            if line_counts.get(line, 0) >= repeat_threshold:
+                continue
+            filtered.append(line)
+        normalized = "\n".join(filtered)
+        normalized = re.sub(r"\n{3,}", "\n\n", normalized)
+        return normalized.strip()
     
     def _analyze_chapter_with_llm(self, chapter: ParsedChapter) -> dict:
         """Use LLM to analyze chapter content and extract structured data."""

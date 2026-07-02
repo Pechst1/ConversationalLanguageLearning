@@ -1,60 +1,160 @@
-"""API endpoints for Story RPG feature."""
+"""API endpoints for Story RPG feature and guided reading library."""
+from __future__ import annotations
+
+import base64
+import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, BackgroundTasks
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    UploadFile,
+    status,
+)
 from loguru import logger
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
+from app.config import settings
+from app.db.models.library import UserBook
 from app.db.models.user import User
-from app.services.error_memory import ErrorMemoryService
-from app.services.story_service import StoryService
-from app.services.npc_service import NPCService
 from app.schemas.story import (
-    StoryRead,
-    StoryWithProgressRead,
-    StoryProgressRead,
-    StoryStartRequest,
-    StoryStartResponse,
-    StoryInputRequest,
-    StoryInputResponse,
-    SceneRead,
     ChapterRead,
-    ObjectiveRead,
+    ConsequenceRead,
     NPCInSceneRead,
     NPCResponseRead,
-    ConsequenceRead,
+    ObjectiveRead,
+    SceneRead,
+    StoryInputRequest,
+    StoryInputResponse,
+    StoryProgressRead,
+    StoryStartResponse,
+    StoryWithProgressRead,
 )
+from app.services.book_library import SUPPORTED_LIBRARY_FORMATS, BookLibraryService
+from app.services.error_memory import ErrorMemoryService
+from app.services.npc_service import NPCService
+from app.services.story_service import StoryService
+from app.tasks.book_library import process_user_book_upload, process_user_book_upload_inline
 
 router = APIRouter()
+
+
+def _first_target_level(target_levels: str | None) -> str:
+    first = (target_levels or "A2").split(",")[0].strip().upper()
+    if first.startswith(("A1", "A2", "B1", "B2", "C1", "C2")):
+        return first[:2]
+    return "A2"
+
+
+def _start_library_upload(
+    *,
+    db_session: Session,
+    background_tasks: BackgroundTasks,
+    current_user: User,
+    content: bytes,
+    filename: str,
+    title: str | None,
+    author: str | None,
+    target_level: str | None,
+    task_id: str,
+) -> dict:
+    service = BookLibraryService(db_session)
+    try:
+        book, deduped = service.create_upload_record(
+            user=current_user,
+            file_content=content,
+            filename=filename,
+            title=title,
+            author=author,
+            target_level=target_level,
+            task_id=task_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    if not deduped:
+        _enqueue_library_processing(
+            background_tasks=background_tasks,
+            book=book,
+            content=content,
+            filename=filename,
+            title=title,
+            author=author,
+            target_level=target_level,
+            user=current_user,
+        )
+
+    return {
+        "task_id": book.task_id,
+        "book_id": str(book.id),
+        "library_book_id": str(book.id),
+        "status": "completed" if book.status == "ready" else "processing",
+        "book_status": book.status,
+        "deduped": deduped,
+        "message": "Book already in your library." if deduped else "Upload started.",
+    }
+
+
+def _enqueue_library_processing(
+    *,
+    background_tasks: BackgroundTasks,
+    book: UserBook,
+    content: bytes,
+    filename: str,
+    title: str | None,
+    author: str | None,
+    target_level: str | None,
+    user: User,
+) -> None:
+    task_kwargs = {
+        "book_id": str(book.id),
+        "file_content_b64": base64.b64encode(content).decode("ascii"),
+        "filename": filename,
+        "title": title,
+        "author": author,
+        "target_level": target_level,
+        "user_id": str(user.id),
+    }
+    if settings.CELERY_BROKER_URL or settings.CELERY_RESULT_BACKEND or settings.REDIS_URL:
+        try:
+            process_user_book_upload.delay(**task_kwargs)
+            return
+        except Exception as exc:
+            logger.warning("Falling back to local background book processing", book_id=str(book.id), error=str(exc))
+    background_tasks.add_task(process_user_book_upload_inline, **task_kwargs)
+
 
 @router.post("/upload-book")
 async def upload_book(
     *,
-    file: UploadFile = File(...),
-    title: str | None = Form(None),
-    author: str | None = Form(None),
-    target_levels: str | None = Form("A1,A2,B1"),
-    max_chapters: int = Form(5),
+    file: Annotated[UploadFile, File(...)],
+    title: Annotated[str | None, Form()] = None,
+    author: Annotated[str | None, Form()] = None,
+    target_levels: Annotated[str | None, Form()] = "A1,A2,B1",
+    max_chapters: Annotated[int, Form()] = 0,
     background_tasks: BackgroundTasks,
-    current_user: User = Depends(get_current_user),
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
 ) -> dict:
     """
-    Upload a book file and convert it to an interactive language course in the background.
+    Upload a book file and convert it to a private guided-reading library book.
     Returns a task_id to track progress.
     """
-    # Validate file type
     filename = file.filename or "unknown.txt"
     extension = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
     
-    if extension not in {"txt", "epub", "pdf", "html", "htm"}:
+    if extension not in SUPPORTED_LIBRARY_FORMATS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Unsupported file format: {extension}. Use TXT, EPUB, PDF, or HTML.",
         )
     
-    # Read file content
     content = await file.read()
     
     if len(content) > 10_000_000:  # 10MB limit
@@ -62,44 +162,137 @@ async def upload_book(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="File too large. Maximum size is 10MB.",
         )
-
-    # Create task ID
-    import uuid
     task_id = str(uuid.uuid4())
-    
-    # Initial status
-    upload_tasks[task_id] = {
-        "status": "processing",
-        "progress": 0,
-        "message": "Starting upload...",
-        "filename": filename
-    }
-    
-    # Start background task
-    background_tasks.add_task(
-        process_book_task,
-        task_id,
-        content,
-        filename,
-        title,
-        author,
-        target_levels,
-        max_chapters
+    target_level = _first_target_level(target_levels)
+    _ = max_chapters
+
+    # The legacy max_chapters form field is intentionally ignored: guided reading covers the whole book.
+    return _start_library_upload(
+        db_session=db,
+        background_tasks=background_tasks,
+        current_user=current_user,
+        content=content,
+        filename=filename,
+        title=title,
+        author=author,
+        target_level=target_level,
+        task_id=task_id,
     )
-    
-    return {"task_id": task_id, "message": "Upload started"}
 
 @router.get("/upload-status/{task_id}")
-async def get_upload_status(task_id: str) -> dict:
-    """Get the status of a book upload task."""
-    status = upload_tasks.get(task_id)
-    if not status:
+async def get_upload_status(
+    task_id: str,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> dict:
+    """Get DB-backed status for a guided-reading upload task."""
+    book = (
+        db.query(UserBook)
+        .filter(UserBook.task_id == task_id, UserBook.user_id == current_user.id)
+        .first()
+    )
+    if not book:
         raise HTTPException(status_code=404, detail="Task not found")
-    return status
+    return BookLibraryService(db).upload_status_payload(book)
 
-# Global task storage (in-memory for now)
-# Global task storage (in-memory for now)
-upload_tasks = {}
+@router.post("/library/upload")
+async def upload_library_book(
+    *,
+    file: Annotated[UploadFile, File(...)],
+    title: Annotated[str | None, Form()] = None,
+    author: Annotated[str | None, Form()] = None,
+    target_level: Annotated[str | None, Form()] = "A2",
+    background_tasks: BackgroundTasks,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> dict:
+    """Upload a book into the current user's private guided-reading library."""
+
+    filename = file.filename or "unknown.txt"
+    extension = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    if extension not in SUPPORTED_LIBRARY_FORMATS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsupported file format: {extension}. Use TXT, EPUB, PDF, or HTML.",
+        )
+    content = await file.read()
+    if len(content) > 10_000_000:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="File too large. Maximum size is 10MB.")
+
+    return _start_library_upload(
+        db_session=db,
+        background_tasks=background_tasks,
+        current_user=current_user,
+        content=content,
+        filename=filename,
+        title=title,
+        author=author,
+        target_level=target_level,
+        task_id=str(uuid.uuid4()),
+    )
+
+
+@router.get("/library")
+async def list_library_books(
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> list[dict]:
+    """List private guided-reading books for the current learner."""
+
+    return BookLibraryService(db).list_books(user=current_user)
+
+
+@router.get("/library/{book_id}")
+async def get_library_book(
+    book_id: str,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> dict:
+    """Read one private guided-reading book plus episode summaries."""
+
+    try:
+        book = BookLibraryService(db).get_book(user=current_user, book_id=book_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    return BookLibraryService(db).serialize_book(book, include_episodes=True)
+
+
+@router.get("/library/{book_id}/episodes/{order_index}")
+async def get_library_episode(
+    book_id: str,
+    order_index: int,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> dict:
+    """Read a passage-grounded episode and its generated exercise payload."""
+
+    service = BookLibraryService(db)
+    try:
+        book = service.get_book(user=current_user, book_id=book_id)
+        episode = service.get_episode(user=current_user, book_id=book.id, order_index=order_index)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    return service.serialize_episode(
+        episode,
+        completed_indices={int(value) for value in (book.completed_episode_indices or [])},
+    )
+
+
+@router.post("/library/{book_id}/episodes/{order_index}/complete")
+async def complete_library_episode(
+    book_id: str,
+    order_index: int,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> dict:
+    """Mark a guided-reading episode complete and advance book progress."""
+
+    service = BookLibraryService(db)
+    try:
+        book = service.complete_episode(user=current_user, book_id=book_id, order_index=order_index)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    return service.serialize_book(book, include_episodes=True)
 
 class ContentImportRequest(BaseModel):
     url: str
@@ -111,7 +304,7 @@ async def import_content(
     current_user: User = Depends(get_current_user),
 ):
     """Import content from URL (YouTube/Article)."""
-    from app.services.content_import import ContentImportService, ContentImportError
+    from app.services.content_import import ContentImportError, ContentImportService
     
     service = ContentImportService(db)
     try:
@@ -147,77 +340,10 @@ async def start_story_discussion(
         logger.error(f"Failed to start discussion session: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to start session")
 
-async def process_book_task(
-    task_id: str,
-    content: bytes,
-    filename: str,
-    title: str | None,
-    author: str | None,
-    target_levels: str | None,
-    max_chapters: int,
-):
-    """Background task to process book upload."""
-    from app.services.book_parser import BookParserService
-    from app.db.session import SessionLocal
-    
-    db = SessionLocal()
-    try:
-        upload_tasks[task_id]["message"] = "Parsing book content..."
-        upload_tasks[task_id]["progress"] = 10
-        
-        parser = BookParserService(db)
-        
-        # Limit max_chapters
-        chapter_limit = min(max(1, max_chapters), 50)
-        
-        parse_result = parser.parse_book_file(
-            content,
-            filename,
-            title=title,
-            author=author,
-            max_chapters=chapter_limit,
-        )
-        
-        upload_tasks[task_id]["message"] = f"Creating story from {len(parse_result.chapters)} chapters..."
-        upload_tasks[task_id]["progress"] = 50
-        
-        levels = [l.strip() for l in (target_levels or "A1,A2,B1").split(",")]
-        
-        story = parser.create_story_from_parse_result(
-            parse_result,
-            target_levels=levels,
-        )
-        
-        # Trigger cover generation
-        from app.services.story_visualization import StoryVisualizationService
-        viz_service = StoryVisualizationService(db)
-        # Verify if async call is needed here or if we should sync call it? 
-        # generate_story_cover is async. We are in async def, so await is fine.
-        upload_tasks[task_id]["message"] = "Generating cover image..."
-        upload_tasks[task_id]["progress"] = 80
-        
-        try:
-            await viz_service.generate_story_cover(story)
-        except Exception as e:
-            logger.error(f"Cover generation failed: {e}")
-            # Continue even if cover fails
-            
-        upload_tasks[task_id]["status"] = "completed"
-        upload_tasks[task_id]["progress"] = 100
-        upload_tasks[task_id]["message"] = "Ready!"
-        upload_tasks[task_id]["story_id"] = story.id
-        
-    except Exception as e:
-        logger.exception(f"Upload task {task_id} failed")
-        upload_tasks[task_id]["status"] = "failed"
-        upload_tasks[task_id]["error"] = str(e)
-    finally:
-        db.close()
-
 async def generate_cover_task(story_id: str):
     """Background task to generate story cover."""
-    from app.db.session import SessionLocal
     from app.db.models.story import Story
+    from app.db.session import SessionLocal
     from app.services.story_visualization import StoryVisualizationService
     
     db = SessionLocal()
@@ -335,8 +461,8 @@ async def get_scene_visualization(
         style: Optional art style override (whimsical, dramatic, classic, minimal, fantasy)
         include_avatar: Whether to include user's avatar in the image
     """
-    from app.services.story_visualization import StoryVisualizationService
     from app.db.models.story import Scene
+    from app.services.story_visualization import StoryVisualizationService
     
     scene = db.get(Scene, scene_id)
     if not scene:
@@ -372,8 +498,8 @@ async def get_chapter_cover(
     current_user: User = Depends(get_current_user),
 ) -> dict:
     """Generate an AI cover image for a story chapter."""
-    from app.services.story_visualization import StoryVisualizationService
     from app.db.models.story import Chapter
+    from app.services.story_visualization import StoryVisualizationService
     
     chapter = db.get(Chapter, chapter_id)
     if not chapter:
@@ -672,8 +798,8 @@ async def process_story_input(
     """Process player input in a story and get NPC response."""
     from app.core.conversation.generator import ConversationGenerator, ConversationHistoryMessage
     from app.core.error_detection.detector import ErrorDetector
-    from app.services.progress import ProgressService
     from app.services.llm_service import LLMService
+    from app.services.progress import ProgressService
     
     story_service = StoryService(db)
     npc_service = NPCService(db)
@@ -1064,7 +1190,7 @@ async def get_story_chapters(
     current_user: Annotated[User, Depends(get_current_user)],
 ):
     """Get all chapters for a story with completion status."""
-    from app.db.models.story import Story, Chapter
+    from app.db.models.story import Chapter, Story
     from app.schemas.story import ChapterWithStatusRead
 
     story_service = StoryService(db)
@@ -1138,9 +1264,10 @@ async def check_chapter_goals(
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> "GoalCheckResponse":
     """Check narrative goal completion for a chapter session using French morphological matching."""
-    from app.db.models.story import Chapter
-    from app.schemas.story import GoalCheckRequest, GoalCheckResponse
     import uuid
+
+    from app.db.models.story import Chapter
+    from app.schemas.story import GoalCheckResponse
 
     story_service = StoryService(db)
 
@@ -1180,10 +1307,10 @@ async def complete_chapter(
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> "ChapterCompletionResponse":
     """Complete a chapter and unlock the next one."""
-    from app.db.models.story import Chapter
-    from app.schemas.story import ChapterCompletionRequest, ChapterCompletionResponse, ChapterRead
-    from app.services.story_service import GoalCheckResult
     import uuid
+
+    from app.db.models.story import Chapter
+    from app.schemas.story import ChapterCompletionResponse, ChapterRead
 
     story_service = StoryService(db)
 
@@ -1256,7 +1383,7 @@ async def make_narrative_choice(
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> "NarrativeChoiceResponse":
     """Make a narrative branching choice and advance to the corresponding chapter."""
-    from app.schemas.story import NarrativeChoiceRequest, NarrativeChoiceResponse, ChapterRead
+    from app.schemas.story import ChapterRead, NarrativeChoiceResponse
 
     story_service = StoryService(db)
 
@@ -1289,11 +1416,11 @@ async def make_narrative_choice(
 
 # Import schemas at module level for type hints
 from app.schemas.story import (
-    GoalCheckRequest,
-    GoalCheckResponse,
     ChapterCompletionRequest,
     ChapterCompletionResponse,
+    ChapterWithStatusRead,
+    GoalCheckRequest,
+    GoalCheckResponse,
     NarrativeChoiceRequest,
     NarrativeChoiceResponse,
-    ChapterWithStatusRead,
 )

@@ -37,7 +37,26 @@ type AppAuthContextValue = {
   signOut: (options?: { callbackUrl?: string }) => Promise<void>;
 };
 
+const REFRESH_ACCESS_TOKEN_ERROR = 'RefreshAccessTokenError';
 const AppAuthContext = createContext<AppAuthContextValue | null>(null);
+
+export function hasSessionRefreshError(session: AppSession) {
+  return session?.error === REFRESH_ACCESS_TOKEN_ERROR;
+}
+
+export function sanitizeAuthCallbackUrl(
+  value: string | string[] | undefined,
+  fallback = '/atelier',
+) {
+  const candidate = Array.isArray(value) ? value[0] : value;
+  if (!candidate || !candidate.startsWith('/') || candidate.startsWith('//') || candidate.startsWith('/\\')) {
+    return fallback;
+  }
+  if (candidate === '/auth/signin' || candidate.startsWith('/auth/signin?') || candidate === '/auth/signup' || candidate.startsWith('/auth/signup?')) {
+    return fallback;
+  }
+  return candidate;
+}
 
 function nativeSessionToAppSession(session: NativeAuthSession | null): AppSession {
   if (!session) return null;
@@ -96,13 +115,18 @@ function NativeAuthProvider({ children }: { children: React.ReactNode }) {
 
 function WebAuthBridge({ children }: { children: React.ReactNode }) {
   const nextSession = useSession();
+  const sessionData = nextSession.data as AppSession;
+  const refreshFailed = hasSessionRefreshError(sessionData);
+  const effectiveSession = refreshFailed ? null : sessionData;
+  const effectiveStatus: AppAuthStatus = refreshFailed ? 'unauthenticated' : nextSession.status;
   const value = useMemo<AppAuthContextValue>(() => ({
-    data: nextSession.data as AppSession,
-    status: nextSession.status,
+    data: effectiveSession,
+    status: effectiveStatus,
     isNative: false,
     refresh: async () => {
       const updated = await nextSession.update();
-      return updated as AppSession;
+      const next = updated as AppSession;
+      return hasSessionRefreshError(next) ? null : next;
     },
     signInWithCredentials: async (email, password) => {
       const result = await signIn('credentials', {
@@ -122,7 +146,7 @@ function WebAuthBridge({ children }: { children: React.ReactNode }) {
     signOut: async (options) => {
       await signOut({ callbackUrl: options?.callbackUrl });
     },
-  }), [nextSession]);
+  }), [effectiveSession, effectiveStatus, nextSession]);
 
   return <AppAuthContext.Provider value={value}>{children}</AppAuthContext.Provider>;
 }

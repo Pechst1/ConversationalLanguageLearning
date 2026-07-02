@@ -2,7 +2,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Column, Date, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Column, Date, DateTime, Float, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.types import JSON
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
@@ -15,6 +15,9 @@ class UserVocabularyProgress(Base):
     """Track per-user vocabulary progress with both FSRS and Anki SM-2 support."""
 
     __tablename__ = "user_vocabulary_progress"
+    __table_args__ = (
+        Index("uq_user_vocabulary_progress_user_word", "user_id", "word_id", unique=True),
+    )
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(
@@ -80,7 +83,7 @@ class UserVocabularyProgress(Base):
         self.next_review_date = next_review
         self.due_date = next_review.date() if next_review else None
         self.reps += 1
-        if rating <= 2:
+        if rating <= 0:
             self.lapses += 1
 
     def mark_anki_review(self, review_date: datetime, due_at: datetime, rating: int, 
@@ -94,7 +97,7 @@ class UserVocabularyProgress(Base):
         self.ease_factor = ease_factor
         self.phase = phase
         self.reps += 1
-        if rating < 3:
+        if rating <= 0:
             self.lapses += 1
 
     def record_usage(self, correct: bool, *, used_hint: bool = False, is_new: bool = False) -> None:

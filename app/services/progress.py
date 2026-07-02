@@ -3,10 +3,11 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 from sqlalchemy import and_, func, not_, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
 from app.db.models.progress import ReviewLog, UserVocabularyProgress
@@ -15,6 +16,94 @@ from app.db.models.vocabulary import VocabularyWord
 from app.schemas.anki import AnkiCardUpdate
 from app.services.srs import FSRSScheduler, ReviewOutcome, SchedulerState
 from app.utils.cache import cache_backend
+
+
+def as_aware_datetime(value: datetime | None) -> datetime | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value
+
+
+def vocabulary_due_deadline(
+    now: datetime | None = None,
+    *,
+    include_upcoming_days: int = 0,
+) -> tuple[datetime, date]:
+    """Return datetime/date due cutoffs with precise times taking precedence."""
+
+    now = as_aware_datetime(now or datetime.now(timezone.utc)) or datetime.now(timezone.utc)
+    upcoming_limit = now.date() + timedelta(days=max(0, include_upcoming_days))
+    if include_upcoming_days <= 0:
+        return now, upcoming_limit
+    deadline = datetime.combine(upcoming_limit + timedelta(days=1), datetime.min.time(), tzinfo=timezone.utc)
+    return deadline, upcoming_limit
+
+
+def vocabulary_due_filter(
+    now: datetime | None = None,
+    *,
+    include_upcoming_days: int = 0,
+):
+    """SQL predicate for due vocabulary progress.
+
+    Exact datetime fields are authoritative. Date-only due_date is a legacy
+    fallback used only when both precise datetime fields are absent.
+    """
+
+    due_at_deadline, due_date_deadline = vocabulary_due_deadline(
+        now,
+        include_upcoming_days=include_upcoming_days,
+    )
+    return or_(
+        UserVocabularyProgress.due_at <= due_at_deadline,
+        and_(
+            UserVocabularyProgress.due_at.is_(None),
+            UserVocabularyProgress.next_review_date <= due_at_deadline,
+        ),
+        and_(
+            UserVocabularyProgress.due_at.is_(None),
+            UserVocabularyProgress.next_review_date.is_(None),
+            or_(
+                UserVocabularyProgress.due_date.is_(None),
+                UserVocabularyProgress.due_date <= due_date_deadline,
+            ),
+        ),
+    )
+
+
+def vocabulary_progress_due_at(progress: UserVocabularyProgress) -> datetime | None:
+    due_at = as_aware_datetime(progress.due_at)
+    if due_at is not None:
+        return due_at
+    next_review = as_aware_datetime(progress.next_review_date)
+    if next_review is not None:
+        return next_review
+    if progress.due_date is not None:
+        return datetime.combine(progress.due_date, datetime.min.time(), tzinfo=timezone.utc)
+    return None
+
+
+def vocabulary_progress_is_due(
+    progress: UserVocabularyProgress,
+    now: datetime | None = None,
+    *,
+    include_upcoming_days: int = 0,
+) -> bool:
+    due_at_deadline, due_date_deadline = vocabulary_due_deadline(
+        now,
+        include_upcoming_days=include_upcoming_days,
+    )
+    due_at = as_aware_datetime(progress.due_at)
+    if due_at is not None:
+        return due_at <= due_at_deadline
+    next_review = as_aware_datetime(progress.next_review_date)
+    if next_review is not None:
+        return next_review <= due_at_deadline
+    if progress.due_date is not None:
+        return progress.due_date <= due_date_deadline
+    return True
 
 
 @dataclass(slots=True)
@@ -103,11 +192,18 @@ class ProgressService:
         """Return an existing row or create a new one in-memory."""
 
         progress = self.db.scalars(self._progress_query(user_id, word_id)).first()
-        if progress is None:
-            progress = UserVocabularyProgress(user_id=user_id, word_id=word_id, state="new")
-            self.db.add(progress)
-            self.db.flush([progress])
-            progress = self.db.get(UserVocabularyProgress, progress.id)
+        if progress is not None:
+            return progress
+
+        progress = UserVocabularyProgress(user_id=user_id, word_id=word_id, state="new")
+        try:
+            with self.db.begin_nested():
+                self.db.add(progress)
+                self.db.flush([progress])
+        except IntegrityError:
+            progress = self.db.scalars(self._progress_query(user_id, word_id)).first()
+            if progress is None:
+                raise
         return progress
 
     def get_learning_queue(
@@ -134,12 +230,7 @@ class ProgressService:
             .join(VocabularyWord, VocabularyWord.id == UserVocabularyProgress.word_id)
             .where(UserVocabularyProgress.user_id == user.id)
             .where(VocabularyWord.language == target_language)
-            .where(
-                or_(
-                    UserVocabularyProgress.due_date.is_(None),
-                    UserVocabularyProgress.due_date <= today,
-                )
-            )
+            .where(vocabulary_due_filter(now))
         )
         direction_filter = self._shared_direction_filter(direction)
         deck_filter = self._shared_deck_filter(deck_name)
@@ -232,7 +323,11 @@ class ProgressService:
         new_word_stmt = (
             new_word_stmt.where(func.length(VocabularyWord.word) > 2)
             .where(func.lower(VocabularyWord.word).notin_(stopwords))
-            .order_by(func.random())
+            .order_by(
+                VocabularyWord.frequency_rank.asc().nullslast(),
+                VocabularyWord.difficulty_level.asc().nullslast(),
+                func.lower(VocabularyWord.word).asc(),
+            )
             .limit(missing)
         )
         new_words = list(self.db.scalars(new_word_stmt))
@@ -242,22 +337,10 @@ class ProgressService:
 
     @staticmethod
     def _as_aware_datetime(value: datetime | None) -> datetime | None:
-        if value is None:
-            return None
-        if value.tzinfo is None:
-            return value.replace(tzinfo=timezone.utc)
-        return value
+        return as_aware_datetime(value)
 
     def _progress_due_at(self, progress: UserVocabularyProgress) -> datetime | None:
-        due_at = self._as_aware_datetime(progress.due_at)
-        if due_at is not None:
-            return due_at
-        next_review = self._as_aware_datetime(progress.next_review_date)
-        if next_review is not None:
-            return next_review
-        if progress.due_date is not None:
-            return datetime.combine(progress.due_date, datetime.min.time(), tzinfo=timezone.utc)
-        return None
+        return vocabulary_progress_due_at(progress)
 
     def _fsrs_retrievability(
         self, progress: UserVocabularyProgress, *, now: datetime
@@ -339,6 +422,8 @@ class ProgressService:
             "priority_score": round(priority_score, 3),
             "is_new": progress is None,
             "deck_name": word.deck_name,
+            "part_of_speech": word.part_of_speech,
+            "topic_tags": word.topic_tags or [],
             "translations": {
                 "de": word.german_translation,
                 "en": word.english_translation,
@@ -365,8 +450,6 @@ class ProgressService:
         """Return due, fragile, and new words ranked by FSRS-style memory urgency."""
 
         now = now or datetime.now(timezone.utc)
-        today = now.date()
-        upcoming_limit = today + timedelta(days=max(0, include_upcoming_days))
         stopwords = self._queue_stopwords()
         target_language = (user.target_language or "fr").strip() or "fr"
         direction_filter = (
@@ -413,12 +496,10 @@ class ProgressService:
             seen_keys.add(dedupe_key)
 
             due_at = self._progress_due_at(progress)
-            is_due = (
-                due_at is not None and due_at <= now
-            ) or (
-                progress.due_date is not None and progress.due_date <= upcoming_limit
-            ) or (
-                due_at is None and (progress.reps or 0) == 0
+            is_due = vocabulary_progress_is_due(
+                progress,
+                now,
+                include_upcoming_days=include_upcoming_days,
             )
             fragile = (
                 (progress.lapses or 0) > 0
@@ -715,7 +796,11 @@ class ProgressService:
             query = query.filter(deck_filter)
         if exclude_ids:
             query = query.filter(~VocabularyWord.id.in_(exclude_ids))
-        query = query.order_by(func.random()).limit(limit)
+        query = query.order_by(
+            VocabularyWord.frequency_rank.asc().nullslast(),
+            VocabularyWord.difficulty_level.asc().nullslast(),
+            func.lower(VocabularyWord.word).asc(),
+        ).limit(limit)
         return list(query.all())
 
     def list_anki_progress(self, *, user: User, direction: str | None = None) -> list[dict[str, Any]]:
@@ -749,6 +834,7 @@ class ProgressService:
             ease_factor = None
             interval_days = None
             due_at = None
+            due_date = None
             next_review = None
             last_review = None
             reps = 0
@@ -763,6 +849,7 @@ class ProgressService:
                 ease_factor = progress.ease_factor
                 interval_days = progress.interval_days
                 due_at = progress.due_at
+                due_date = progress.due_date
                 next_review = progress.next_review_date
                 last_review = progress.last_review_date
                 reps = progress.reps or 0
@@ -793,6 +880,7 @@ class ProgressService:
                     "ease_factor": ease_factor,
                     "interval_days": interval_days,
                     "due_at": due_at,
+                    "due_date": due_date,
                     "next_review": next_review,
                     "last_review": last_review,
                     "reps": reps,
@@ -825,6 +913,36 @@ class ProgressService:
                     return key
             return "other"
 
+        def parse_datetime(value: Any) -> datetime | None:
+            if isinstance(value, datetime):
+                return as_aware_datetime(value)
+            if isinstance(value, str):
+                try:
+                    return as_aware_datetime(datetime.fromisoformat(value))
+                except ValueError:
+                    return None
+            return None
+
+        def parse_date(value: Any) -> date | None:
+            if isinstance(value, date) and not isinstance(value, datetime):
+                return value
+            if isinstance(value, str):
+                try:
+                    return date.fromisoformat(value)
+                except ValueError:
+                    return None
+            return None
+
+        def record_is_due(record: dict[str, Any]) -> bool:
+            due_at = parse_datetime(record.get("due_at"))
+            if due_at is not None:
+                return due_at <= now
+            next_review = parse_datetime(record.get("next_review"))
+            if next_review is not None:
+                return next_review <= now
+            due_date = parse_date(record.get("due_date"))
+            return bool(due_date and due_date <= now.date())
+
         overall_counts = {"new": 0, "learning": 0, "review": 0, "relearn": 0, "other": 0}
         overall_due = 0
         direction_keys = ["fr_to_de", "de_to_fr"]
@@ -841,22 +959,17 @@ class ProgressService:
         for record in records:
             direction = record.get("direction")
             stage_key = normalize_stage(record.get("learning_stage"))
-            due_candidate = record.get("due_at") or record.get("next_review")
-            if isinstance(due_candidate, str):
-                try:
-                    due_candidate = datetime.fromisoformat(due_candidate)
-                except ValueError:
-                    due_candidate = None
+            is_due = record_is_due(record)
 
             overall_counts[stage_key] = overall_counts.get(stage_key, 0) + 1
-            if due_candidate and due_candidate.date() <= now.date():
+            if is_due:
                 overall_due += 1
 
             if direction in direction_summary:
                 summary = direction_summary[direction]
                 summary["total"] += 1
                 summary["stage_counts"][stage_key] = summary["stage_counts"].get(stage_key, 0) + 1
-                if due_candidate and due_candidate.date() <= now.date():
+                if is_due:
                     summary["due_today"] += 1
 
         total_cards = sum(overall_counts.values())
@@ -886,7 +999,6 @@ class ProgressService:
 
         now = now or datetime.now(timezone.utc)
         today = now.date()
-        upcoming_limit = today + timedelta(days=max(0, include_upcoming_days))
         cache_key = (
             f"{user_id}:{direction or 'all'}:{deck_name or 'all'}:"
             f"{today.isoformat()}:{include_upcoming_days}"
@@ -900,10 +1012,7 @@ class ProgressService:
             .join(VocabularyWord, VocabularyWord.id == UserVocabularyProgress.word_id)
             .filter(
                 UserVocabularyProgress.user_id == user_id,
-                or_(
-                    UserVocabularyProgress.due_date.is_(None),
-                    UserVocabularyProgress.due_date <= upcoming_limit,
-                ),
+                vocabulary_due_filter(now, include_upcoming_days=include_upcoming_days),
             )
         )
         if direction:
@@ -1069,6 +1178,7 @@ class ProgressService:
             progress.times_seen = (progress.times_seen or 0) + 1
             progress.adjust_proficiency(5)
         elif event in {"produced_incorrect", "used_incorrectly", "incorrect"}:
+            progress, _, _ = self.record_review(user=user, word=word, rating=0, now=now)
             progress.record_usage(correct=False)
             progress.state = "relearning"
             progress.phase = "relearn"
@@ -1300,21 +1410,20 @@ class ProgressService:
             if card.lapses is not None:
                 progress.lapses = card.lapses
             
-            # Handle due date logic
-            if card.due:
+            # Handle due date logic.
+            due_at: datetime | None = None
+            if card.due is not None:
                 if card.due > 100000000:
-                    # It's a timestamp
                     try:
-                        due_date = datetime.fromtimestamp(card.due, tz=timezone.utc)
-                        progress.due_at = due_date.date()
-                        progress.next_review_date = due_date
+                        due_at = datetime.fromtimestamp(card.due, tz=timezone.utc)
                     except (ValueError, OSError):
-                        pass
-                else:
-                    # It's days.
-                    if card.interval:
-                         progress.next_review_date = now + timedelta(days=card.interval)
-                         progress.due_at = progress.next_review_date.date()
+                        due_at = None
+                elif card.interval is not None:
+                    due_at = now + timedelta(days=max(0, card.interval))
+            if due_at is not None:
+                progress.due_at = due_at
+                progress.next_review_date = due_at
+                progress.due_date = due_at.date()
 
             progress.updated_at = now
             progress.scheduler = "anki"

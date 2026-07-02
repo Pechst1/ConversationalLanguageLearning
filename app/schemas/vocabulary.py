@@ -106,3 +106,24 @@ class VocabularyBiographyResponse(BaseModel):
     linked_errata_count: int = 0
     context_event_count: int = 0
     timeline: list[VocabularyBiographyEvent] = Field(default_factory=list)
+
+
+class ConjugationReviewRequest(BaseModel):
+    """Payload for rating one verb x tense conjugation item."""
+
+    lemma: str = Field(min_length=1, max_length=120)
+    tense: str = Field(min_length=1, max_length=80)
+    rating: int = Field(ge=0, le=3)
+    response_time_ms: int | None = Field(None, ge=0)
+
+
+class ConjugationReviewResponse(BaseModel):
+    """Result after scheduling a conjugation item."""
+
+    lemma: str
+    tense: str
+    state: str
+    proficiency_score: int
+    reps: int
+    lapses: int
+    next_review: datetime | None = None

@@ -10,11 +10,30 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     """Global application settings loaded from environment variables."""
 
+    APP_ENV: str = Field("development", description="Runtime environment name, e.g. development/staging/production.")
     PROJECT_NAME: str = "Conversational Language Learning"
     API_V1_STR: str = "/api/v1"
     SECRET_KEY: str = Field(..., description="JWT secret key")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
+    PASSWORD_RESET_TOKEN_TTL_MINUTES: int = Field(
+        60,
+        description="How long one-time password reset links remain valid.",
+    )
+    PASSWORD_RESET_BASE_URL: str = Field(
+        "http://localhost:3000/auth/forgot-password",
+        description="Frontend URL used as the base for password reset links.",
+    )
+    PASSWORD_RESET_RETURN_TOKEN_IN_RESPONSE: bool = Field(
+        False,
+        description="Dev/test only: include the raw reset token in the API response.",
+    )
+    SMTP_HOST: Optional[str] = None
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: Optional[str] = None
+    SMTP_PASSWORD: Optional[str] = None
+    SMTP_FROM_EMAIL: Optional[str] = None
+    SMTP_USE_TLS: bool = True
 
     DATABASE_URL: AnyUrl = Field(
         "postgresql+psycopg2://postgres:postgres@localhost:5432/language_learning",
@@ -101,23 +120,55 @@ class Settings(BaseSettings):
         description="Use LLM-backed generation and correction for Atelier when a provider is configured.",
     )
     ATELIER_EXERCISE_LLM_MODEL: str = Field(
-        "gpt-4o-mini",
-        description="Fast model for generating Atelier exercise payloads.",
+        "gpt-5-mini",
+        description="Fast capable model for generating Atelier exercise payloads.",
     )
     ATELIER_EXERCISE_LLM_TIMEOUT_SECONDS: float = Field(
-        60.0,
-        description="Single-attempt timeout for Atelier exercise generation.",
+        90.0,
+        description="Single-attempt timeout for Atelier exercise generation before deterministic fallback.",
+    )
+    ATELIER_EXERCISE_LLM_REASONING_EFFORT: Optional[str] = Field(
+        "minimal",
+        description="Optional reasoning_effort override for Atelier exercise models that support it.",
+    )
+    ATELIER_EXERCISE_CRITIQUE_ENABLED: bool = Field(
+        True,
+        description="Use an AI critic to validate generated Atelier exercise payloads before serving them.",
+    )
+    ATELIER_CRITIQUE_LLM_MODEL: str = Field(
+        "gpt-5-mini",
+        description="Fast model for AI critique of generated Atelier exercises.",
+    )
+    ATELIER_CRITIQUE_LLM_TIMEOUT_SECONDS: float = Field(
+        45.0,
+        description="Single-attempt timeout for Atelier exercise critique.",
+    )
+    ATELIER_CRITIQUE_LLM_MAX_TOKENS: int = Field(
+        1200,
+        description="Output token cap for Atelier exercise critique.",
+    )
+    ATELIER_CRITIQUE_LLM_REASONING_EFFORT: Optional[str] = Field(
+        "minimal",
+        description="Optional reasoning_effort override for Atelier critique models that support it.",
+    )
+    ATELIER_BACKGROUND_PREGENERATION_ENABLED: bool = Field(
+        True,
+        description="Pre-generate the learner's next Atelier session in the background.",
+    )
+    ATELIER_LLM_FAILURE_BACKOFF_SECONDS: float = Field(
+        120.0,
+        description="How long Atelier skips live exercise generation after a provider outage.",
     )
     ATELIER_CORRECTION_LLM_ENABLED: bool = Field(
         True,
         description="Use LLM-backed Atelier correction for live submits, with deterministic fallback on provider failure.",
     )
     ATELIER_CORRECTION_LLM_MODEL: str = Field(
-        "gpt-5.4-nano",
+        "gpt-5-nano",
         description="Fast model for low-latency Atelier submit corrections.",
     )
     ATELIER_CORRECTION_LLM_TIMEOUT_SECONDS: float = Field(
-        5.0,
+        25.0,
         description="Short single-attempt timeout for optional Atelier LLM correction before deterministic fallback.",
     )
     ATELIER_CORRECTION_LLM_MAX_TOKENS: int = Field(
@@ -125,7 +176,7 @@ class Settings(BaseSettings):
         description="Output token cap for live Atelier LLM correction.",
     )
     ATELIER_CORRECTION_LLM_REASONING_EFFORT: Optional[str] = Field(
-        None,
+        "minimal",
         description="Optional reasoning_effort override for Atelier correction models that support it.",
     )
     OPENAI_IMAGE_MODEL: str = Field("gpt-image-2", description="Default OpenAI image model")
@@ -133,11 +184,11 @@ class Settings(BaseSettings):
     OPENAI_IMAGE_SIZE: str = Field("1024x1024", description="Default OpenAI image generation size")
     OPENAI_IMAGE_TIMEOUT_SECONDS: float = Field(240.0, description="Timeout for OpenAI image generation calls")
     OPENAI_GRAPHIC_NOVEL_SCRIPT_MODEL: str = Field(
-        "gpt-5.4-mini",
+        "gpt-5-mini",
         description="OpenAI model for standard Feuilleton story/script generation",
     )
     OPENAI_GRAPHIC_NOVEL_PREMIUM_SCRIPT_MODEL: str = Field(
-        "gpt-5.5",
+        "gpt-4o",
         description="OpenAI model for premium Feuilleton story/script generation",
     )
     GRAPHIC_NOVEL_DEFAULT_PANEL_COUNT: int = Field(6, description="Default Feuilleton panel count")

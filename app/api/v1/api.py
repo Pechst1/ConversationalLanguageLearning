@@ -9,9 +9,12 @@ from app.api.v1.endpoints import (
     audio,
     audio_session,
     auth,
-    graphic_novel,
+    feedback,
     grammar,
+    graphic_novel,
     missions,
+    notifications,
+    npcs,
     progress,
     serial,
     sessions,
@@ -21,9 +24,9 @@ from app.api.v1.endpoints import (
     vocabulary,
 )
 
-
 api_router = APIRouter()
 api_router.include_router(auth.router)
+api_router.include_router(feedback.router)
 api_router.include_router(users.router)
 api_router.include_router(progress.router)
 api_router.include_router(sessions.router)
@@ -40,10 +43,5 @@ api_router.include_router(graphic_novel.router)
 api_router.include_router(serial.router)
 api_router.include_router(audio_session.router)
 api_router.include_router(stories.router, prefix="/stories", tags=["stories"])
-
-# Import npcs after stories since it's related
-from app.api.v1.endpoints import npcs
-from app.api.v1.endpoints import notifications
-
 api_router.include_router(npcs.router, prefix="/npcs", tags=["npcs"])
 api_router.include_router(notifications.router)

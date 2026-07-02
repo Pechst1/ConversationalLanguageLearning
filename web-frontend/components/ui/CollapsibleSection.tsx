@@ -13,7 +13,7 @@ interface CollapsibleSectionProps {
 export function CollapsibleSection({
     title,
     icon,
-    iconBgColor = 'bg-bauhaus-blue',
+    iconBgColor = 'bg-[var(--accent-info)]',
     defaultOpen = true,
     children,
     badge,
@@ -21,26 +21,26 @@ export function CollapsibleSection({
     const [isOpen, setIsOpen] = useState(defaultOpen);
 
     return (
-        <div className="border-4 border-black bg-white shadow-[8px_8px_0px_0px_#000]">
+        <div className="border border-[var(--app-ink)] bg-[var(--app-sheet)] text-[var(--app-ink)]">
             <button
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
-                className="w-full flex items-center justify-between p-4 bg-gray-50 border-b-4 border-black hover:bg-gray-100 transition-colors"
+                className="w-full flex items-center justify-between p-4 bg-[var(--app-sheet)] border-b border-[var(--app-ink)] hover:bg-[var(--app-paper-2)] transition-colors"
             >
                 <div className="flex items-center gap-3">
                     {icon && (
-                        <div className={`${iconBgColor} border-2 border-black p-1 shadow-[4px_4px_0px_0px_#000]`}>
+                        <div className={`${iconBgColor} border border-[var(--app-ink)] p-1`}>
                             {icon}
                         </div>
                     )}
-                    <h2 className="text-xl font-black uppercase tracking-tight">{title}</h2>
+                    <h2 className="text-lg font-medium uppercase tracking-[0.08em]">{title}</h2>
                     {badge !== undefined && (
-                        <span className="bg-bauhaus-yellow text-black text-sm font-bold px-2 py-0.5 border-2 border-black">
+                        <span className="bg-[var(--accent-reward)] text-[var(--app-ink)] text-sm font-bold px-2 py-0.5 border border-[var(--app-ink)]">
                             {badge}
                         </span>
                     )}
                 </div>
-                <div className="border-2 border-black p-1 bg-white shadow-[2px_2px_0px_0px_#000]">
+                <div className="border border-[var(--app-ink)] p-1 bg-[var(--app-paper)]">
                     {isOpen ? (
                         <ChevronDown className="w-5 h-5" />
                     ) : (

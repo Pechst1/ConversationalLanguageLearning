@@ -126,6 +126,40 @@ def _image_quality(value: str | None) -> str:
     return configured if configured in GRAPHIC_NOVEL_IMAGE_QUALITIES else "medium"
 
 
+def _clamped_unit(value: Any, default: float) -> float:
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        parsed = default
+    return max(0.0, min(1.0, parsed))
+
+
+def _seal_crop_payload(*, panel_payload: dict[str, Any], image: dict[str, Any] | None = None) -> dict[str, Any]:
+    raw = panel_payload.get("seal_crop") if isinstance(panel_payload.get("seal_crop"), dict) else {}
+    focal = raw.get("focal_point") if isinstance(raw.get("focal_point"), dict) else {}
+    region = raw.get("region") if isinstance(raw.get("region"), dict) else {}
+    width = _clamped_unit(region.get("width"), 1.0) or 1.0
+    height = _clamped_unit(region.get("height"), width) or width
+    side = min(width, height)
+    crop = {
+        "kind": "panel_crop",
+        "panel_index": int(panel_payload.get("panel_index") or raw.get("panel_index") or 0),
+        "focal_point": {
+            "x": _clamped_unit(focal.get("x"), 0.5),
+            "y": _clamped_unit(focal.get("y"), 0.5),
+        },
+        "region": {
+            "x": _clamped_unit(region.get("x"), 0.0),
+            "y": _clamped_unit(region.get("y"), 0.0),
+            "width": side,
+            "height": side,
+        },
+        "image_url": (image or {}).get("url") or raw.get("image_url"),
+    }
+    crop["fallback"] = not bool(crop["image_url"])
+    return crop
+
+
 def _public_figure_mode(value: str | None) -> str:
     return value if value in GRAPHIC_NOVEL_PUBLIC_FIGURE_MODES else "named_context"
 
@@ -537,6 +571,11 @@ class GraphicNovelScheduler:
         generation_debug["force_new"] = force_new
         if force_new_nonce:
             generation_debug["force_new_nonce"] = force_new_nonce
+        for panel_payload in script.get("panels") or []:
+            if isinstance(panel_payload, dict):
+                panel_payload["seal_crop"] = _seal_crop_payload(panel_payload=panel_payload)
+        if script.get("panels"):
+            script["seal_crop"] = (script["panels"][0] or {}).get("seal_crop") or {}
         scene = GraphicNovelScene(
             user_id=user.id,
             atelier_session_id=atelier_session.id if atelier_session else None,
@@ -620,6 +659,7 @@ class GraphicNovelScheduler:
                         "model": image.get("model"),
                         "fallback_used": image.get("fallback_used", False),
                         "image_status": "available" if image.get("url") else "queued",
+                        "seal_crop": _seal_crop_payload(panel_payload=panel_payload, image=image),
                     },
                 )
             )
@@ -829,6 +869,7 @@ class GraphicNovelScheduler:
                 metadata["image_status"] = "available"
                 metadata["model"] = image.get("model")
                 metadata["fallback_used"] = image.get("fallback_used", False)
+                metadata["seal_crop"] = _seal_crop_payload(panel_payload=panel_payload, image=image)
                 panel.generation_metadata = metadata
                 self.db.add(panel)
             scene.script_payload = script
@@ -931,6 +972,9 @@ class GraphicNovelScheduler:
         return "seen_context"
 
     def complete(self, *, user: User, scene: GraphicNovelScene) -> GraphicNovelScene:
+        if scene.status == "completed":
+            return scene
+
         attempts = scene.attempts or []
         errata_count = sum(len((attempt.correction_payload or {}).get("errata") or []) for attempt in attempts)
         vocabulary_credit = self._apply_target_vocabulary_credit(user=user, scene=scene)
@@ -2321,14 +2365,20 @@ class GraphicNovelStoryGenerator:
                 "bubble_rule": "Speech bubbles are overlay dialogue, so keep them short and leave some panels without bubbles when silence is stronger.",
             },
         }
+        # gpt-5 reasoning models spend the token budget on reasoning first, so a low
+        # max_tokens leaves no room for the actual plan ("response did not include
+        # content"). Give ample room and keep reasoning light; gpt-4o ignores reasoning_effort.
+        reasoning_kwargs = {"reasoning_effort": "low"} if str(story_model).startswith("gpt-5") else {}
         try:
             result = self.llm.generate_chat_completion(
                 messages=[{"role": "user", "content": json.dumps(payload, ensure_ascii=False)}],
                 system_prompt=system,
                 response_format=self._serial_plan_response_format(panel_count=panel_count),
                 temperature=0.85 if story_quality == "premium" else 0.7,
-                max_tokens=2200,
+                max_tokens=9000,
                 model=story_model,
+                request_timeout=90.0,
+                **reasoning_kwargs,
             )
             parsed = json.loads(result.content)
             if isinstance(parsed, dict) and isinstance(parsed.get("panels"), list) and parsed.get("hook"):
@@ -3511,8 +3561,10 @@ class GraphicNovelStoryGenerator:
                 system_prompt=system,
                 response_format=self._skeleton_response_format(panel_count=panel_count),
                 temperature=0.9 if story_quality == "premium" else 0.75,
-                max_tokens=2600,
+                max_tokens=9000,
                 model=story_model,
+                request_timeout=90.0,
+                **({"reasoning_effort": "low"} if str(story_model).startswith("gpt-5") else {}),
             )
             return json.loads(result.content), {
                 "provider": result.provider,
@@ -3612,8 +3664,10 @@ class GraphicNovelStoryGenerator:
                 system_prompt=system,
                 response_format=self._surface_response_format(panel_count=panel_count),
                 temperature=0.82 if story_quality == "premium" else 0.68,
-                max_tokens=3600,
+                max_tokens=9000,
                 model=story_model,
+                request_timeout=90.0,
+                **({"reasoning_effort": "low"} if str(story_model).startswith("gpt-5") else {}),
             )
             return json.loads(result.content), {
                 "provider": result.provider,

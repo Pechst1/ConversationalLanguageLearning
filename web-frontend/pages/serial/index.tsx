@@ -1,10 +1,39 @@
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowRight, Loader2, Users } from 'lucide-react';
+import { Loader2, Users } from 'lucide-react';
 
 import EditorialMasthead from '@/components/layout/EditorialMasthead';
 import apiService, { SerialArchiveEpisode } from '@/services/api';
+
+const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+const FRENCH_MONTHS = ['janv.', 'févr.', 'mars', 'avril', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+
+function roman(index: number): string {
+  return ROMAN[index] || String(index + 1);
+}
+
+function frenchDate(iso?: string | null): string {
+  if (!iso) return 'à suivre';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return 'à suivre';
+  return `${d.getDate()} ${FRENCH_MONTHS[d.getMonth()]}`;
+}
+
+function leadChar(episode: SerialArchiveEpisode): string | undefined {
+  const cast = episode.required_cast;
+  if (Array.isArray(cast) && cast.length) return String(cast[0]).toLowerCase();
+  return undefined;
+}
+
+function pick(payload: Record<string, any> | undefined, keys: string[]): string | undefined {
+  if (!payload) return undefined;
+  for (const key of keys) {
+    const value = payload[key];
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  return undefined;
+}
 
 export default function SerialArchivePage() {
   const [episodes, setEpisodes] = useState<SerialArchiveEpisode[]>([]);
@@ -34,93 +63,85 @@ export default function SerialArchivePage() {
     };
   }, []);
 
+  const filed = episodes.filter((episode) => episode.completed_at || episode.status === 'completed').length;
+
   return (
     <>
       <SerialStyles />
       <main className="serial-page">
         <EditorialMasthead active="studio" />
-        <section className="serial-head">
-          <div>
-            <span>Le Feuilleton</span>
-            <h1>Season {seasonNumber}</h1>
-            <p>The living archive of acts, scenes, and the hooks they left behind.</p>
-          </div>
-          <Link className="serial-link" href="/serial/cast">
-            <Users size={16} /> Cast
-          </Link>
-        </section>
+        <div className="serial-column">
+          <header className="serial-head">
+            <p className="rubric">Le Feuilleton · index</p>
+            <h1>The story so far</h1>
+            <p className="sub">
+              {filed > 0 ? `${filed} installment${filed === 1 ? '' : 's'} with these people` : 'Season ' + seasonNumber}
+            </p>
+            <Link className="cast-link" href="/serial/cast">
+              <Users size={14} aria-hidden="true" /> The cast
+            </Link>
+          </header>
 
-        {loading ? (
-          <div className="serial-loading"><Loader2 className="spin" /> Loading the archive</div>
-        ) : (
-          <>
-            <SeasonProgressStrip episodes={episodes} seasonNumber={seasonNumber} currentEpisodeIndex={currentEpisodeIndex} />
-            <section className="episode-list" aria-label={`Season ${seasonNumber} episodes`}>
-              {episodes.length ? episodes.map((episode) => (
-                <Link className="episode-row" key={episode.id} href={`/serial/episode/${episode.episode_index}`}>
-                  <div className="episode-thumb">
-                    {episode.thumbnail_url ? (
-                      <Image src={episode.thumbnail_url} alt="" fill sizes="96px" unoptimized />
-                    ) : (
-                      <span>{episode.kind === 'mission' ? 'Act' : 'See'}</span>
-                    )}
-                  </div>
-                  <div>
-                    <span>{episode.episode_label} · {episode.kind}</span>
-                    <h2>{episode.title}</h2>
-                    {episode.hook_text && <p>{episode.hook_text}</p>}
-                  </div>
-                  <ArrowRight size={18} />
-                </Link>
-              )) : (
-                <div className="serial-empty">
-                  <h2>No filed episodes yet.</h2>
-                  <p>Once you complete an act or Feuilleton scene, it will land here.</p>
-                  <Link className="serial-link" href="/atelier">Back to Atelier</Link>
-                </div>
-              )}
-            </section>
-          </>
-        )}
+          {loading ? (
+            <div className="serial-loading"><Loader2 className="spin" aria-hidden="true" /> Loading the archive</div>
+          ) : episodes.length ? (
+            <ol className="s-map" aria-label={`Season ${seasonNumber} thread`}>
+              {episodes.map((episode, index) => {
+                const done = Boolean(episode.completed_at) || episode.status === 'completed';
+                const up = !done && episode.episode_index >= currentEpisodeIndex;
+                const who = leadChar(episode);
+                const date = frenchDate(episode.completed_at);
+                const loc = pick(episode.brief_payload, ['location', 'setting', 'place', 'scene_label']);
+                const choice = pick(episode.brief_payload, ['choice', 'user_choice', 'decision', 'outcome']);
+                const plate = pick(episode.brief_payload, ['plate', 'shot', 'scene_label', 'setting']);
+                const showPlate = !up && (Boolean(episode.thumbnail_url) || Boolean(choice));
+                const classes = ['s-ep'];
+                if (up) classes.push('up');
+                if (index === 0) classes.push('first');
+                if (index === episodes.length - 1) classes.push('last');
+
+                return (
+                  <li className={classes.join(' ')} key={episode.id} data-char={who}>
+                    <Link className="s-ep-link" href={`/serial/episode?index=${episode.episode_index}`} aria-label={`${episode.title}`}>
+                      <span className="dot2">{roman(episode.episode_index)}</span>
+                      <div className="ebody">
+                        <div className="edate">
+                          Ép. {roman(episode.episode_index)} · {date}{loc ? ` · ${loc}` : ''} · {episode.kind === 'mission' ? 'act' : 'scene'}
+                        </div>
+                        <div className="ehook">{episode.hook_text || episode.title}</div>
+                        {showPlate && (
+                          <div className="eplate">
+                            <div className="thumb">
+                              {episode.thumbnail_url ? (
+                                <Image src={episode.thumbnail_url} alt="" fill sizes="72px" unoptimized />
+                              ) : (
+                                <span>{plate || (episode.kind === 'mission' ? 'act' : 'scene')}</span>
+                              )}
+                            </div>
+                            {choice && (
+                              <div className="choice">
+                                <b>You chose</b>
+                                <em>{choice}</em>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ol>
+          ) : (
+            <div className="serial-empty">
+              <h2>No installments filed yet.</h2>
+              <p>Once you act in a scene or finish a Feuilleton episode, it lands here as part of the story.</p>
+              <Link className="cast-link" href="/atelier">Back to today</Link>
+            </div>
+          )}
+        </div>
       </main>
     </>
-  );
-}
-
-function SeasonProgressStrip({
-  episodes,
-  seasonNumber,
-  currentEpisodeIndex,
-}: {
-  episodes: SerialArchiveEpisode[];
-  seasonNumber: number;
-  currentEpisodeIndex: number;
-}) {
-  const byIndex = new Map(episodes.map((episode) => [episode.episode_index, episode]));
-  const total = Math.max(currentEpisodeIndex + 1, episodes.length, 1);
-  return (
-    <section className="season-strip" aria-label={`Season ${seasonNumber} progress`}>
-      <div>
-        <span>Season {seasonNumber}</span>
-        <strong>{episodes.length}/{total} filed</strong>
-      </div>
-      <div className="season-track">
-        {Array.from({ length: total }).map((_, index) => {
-          const episode = byIndex.get(index);
-          const state = episode ? 'done' : index === currentEpisodeIndex ? 'current' : 'future';
-          const label = `Episode ${index + 1}`;
-          return episode ? (
-            <Link key={index} className={`season-dot ${state}`} href={`/serial/episode/${index}`} aria-label={`${label} filed`}>
-              {index + 1}
-            </Link>
-          ) : (
-            <span key={index} className={`season-dot ${state}`} aria-label={`${label} ${state}`}>
-              {index + 1}
-            </span>
-          );
-        })}
-      </div>
-    </section>
   );
 }
 
@@ -129,188 +150,201 @@ function SerialStyles() {
     <style jsx global>{`
       .serial-page {
         min-height: 100vh;
-        background: #f4efe3;
-        color: #14110d;
-        padding: 0 18px 48px;
+        background: var(--app-paper);
+        color: var(--app-ink);
+      }
+      .serial-column {
+        width: min(640px, 100%);
+        margin: 0 auto;
+        padding: var(--space-5) var(--space-4) calc(var(--space-8) + env(safe-area-inset-bottom));
       }
       .serial-head {
-        display: flex;
-        align-items: end;
-        justify-content: space-between;
-        gap: 18px;
-        max-width: 980px;
-        margin: 28px auto 22px;
-        border-bottom: 3px solid #14110d;
-        padding-bottom: 18px;
+        border-bottom: 1px solid var(--app-ink);
+        padding-bottom: var(--space-4);
       }
-      .serial-head span,
-      .episode-row span {
-        font-size: 11px;
-        font-weight: 900;
-        letter-spacing: .12em;
+      .serial-head .rubric {
+        margin: 0;
+        color: var(--app-red);
+        font-family: var(--mono);
+        font-size: var(--type-mono);
+        font-weight: var(--weight-medium);
+        letter-spacing: 0.13em;
         text-transform: uppercase;
       }
       .serial-head h1 {
-        margin: 6px 0;
-        font-family: Georgia, serif;
-        font-size: 46px;
-        line-height: .95;
+        margin: var(--space-2) 0 0;
+        font-family: var(--app-serif);
+        font-style: italic;
+        font-weight: var(--weight-medium);
+        font-size: var(--type-title);
+        line-height: 1;
       }
-      .serial-head p,
-      .episode-row p,
-      .serial-empty p {
-        margin: 0;
-        color: #554d43;
-        line-height: 1.45;
+      .serial-head .sub {
+        margin: var(--space-2) 0 0;
+        color: var(--app-ink-2);
+        font-size: 0.95rem;
       }
-      .serial-link {
+      .cast-link {
         display: inline-flex;
         align-items: center;
-        gap: 8px;
-        border: 2px solid #14110d;
-        background: #fff9ec;
-        color: #14110d;
-        padding: 10px 12px;
-        font-weight: 900;
-        text-decoration: none;
-        white-space: nowrap;
-      }
-      .season-strip {
-        display: grid;
-        grid-template-columns: auto 1fr;
-        align-items: center;
-        gap: 18px;
-        max-width: 980px;
-        margin: 0 auto 18px;
-        border: 2px solid #14110d;
-        background: #fff9ec;
-        padding: 12px;
-      }
-      .season-strip > div:first-child {
-        display: grid;
-        gap: 3px;
-        min-width: 120px;
-      }
-      .season-strip span,
-      .season-strip strong {
-        font-size: 11px;
-        font-weight: 900;
-        letter-spacing: .12em;
+        gap: 6px;
+        margin-top: var(--space-3);
+        color: var(--app-blue);
+        font-family: var(--mono);
+        font-size: var(--type-mono);
+        font-weight: var(--weight-medium);
+        letter-spacing: 0.06em;
         text-transform: uppercase;
-      }
-      .season-strip strong {
-        font-size: 16px;
-        letter-spacing: 0;
-        text-transform: none;
-      }
-      .season-track {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        overflow-x: auto;
-        padding-bottom: 2px;
-      }
-      .season-dot {
-        display: grid;
-        place-items: center;
-        flex: 0 0 auto;
-        width: 34px;
-        height: 34px;
-        border: 2px solid #14110d;
-        color: #14110d;
-        background: #e8ddc8;
-        text-decoration: none;
-        font-weight: 900;
-      }
-      .season-dot.done {
-        background: #f7c516;
-        box-shadow: 2px 2px 0 #14110d;
-      }
-      .season-dot.current {
-        background: #1d3a8a;
-        color: #fff9ec;
-      }
-      .episode-list {
-        display: grid;
-        gap: 14px;
-        max-width: 980px;
-        margin: 0 auto;
-      }
-      .episode-row {
-        display: grid;
-        grid-template-columns: 96px 1fr auto;
-        align-items: center;
-        gap: 16px;
-        border: 2px solid #14110d;
-        background: #fff9ec;
-        box-shadow: 4px 4px 0 #14110d;
-        color: #14110d;
-        padding: 12px;
         text-decoration: none;
       }
-      .episode-thumb {
+      .s-map {
+        list-style: none;
+        margin: var(--space-5) 0 0;
+        padding: 0;
+      }
+      .s-ep {
         position: relative;
-        width: 96px;
-        aspect-ratio: 1;
-        overflow: hidden;
-        border: 2px solid #14110d;
-        background: #e8ddc8;
+        --accent: var(--app-ink);
       }
-      .episode-thumb img {
-        object-fit: cover;
+      .s-ep::before {
+        content: "";
+        position: absolute;
+        left: 14px;
+        top: 0;
+        bottom: 0;
+        border-left: 2px solid var(--app-ink);
+        z-index: 0;
       }
-      .episode-thumb span {
+      .s-ep.up::before { border-left: 1.5px dashed var(--app-ink-3); }
+      .s-ep.first::before { top: 16px; }
+      .s-ep.last::before { bottom: calc(100% - 16px); }
+      .s-ep-link {
+        position: relative;
+        display: grid;
+        grid-template-columns: 30px minmax(0, 1fr);
+        gap: 14px;
+        padding-bottom: var(--space-2);
+        color: inherit;
+        text-decoration: none;
+      }
+      .s-ep .dot2 {
+        position: relative;
+        z-index: 1;
+        width: 30px;
+        height: 30px;
+        border: 1.5px solid var(--app-ink);
+        background: var(--accent);
         display: grid;
         place-items: center;
-        width: 100%;
-        height: 100%;
-        color: #1d3a8a;
+        color: var(--app-paper);
+        font-family: var(--app-serif);
+        font-style: italic;
+        font-weight: 700;
+        font-size: 14px;
       }
-      .episode-row h2,
-      .serial-empty h2 {
-        margin: 4px 0 6px;
-        font-family: Georgia, serif;
-        font-size: 24px;
+      .s-ep.up .dot2 {
+        background: var(--app-paper);
+        color: var(--app-ink-3);
+        border-color: var(--app-ink-3);
+      }
+      .s-ep .ebody {
+        padding-bottom: var(--space-5);
+        min-width: 0;
+      }
+      .s-ep .edate {
+        font-family: var(--mono);
+        font-size: 0.62rem;
+        font-weight: var(--weight-medium);
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
+        color: var(--app-ink-3);
+      }
+      .s-ep .ehook {
+        margin: var(--space-1) 0 0;
+        font-family: var(--app-serif);
+        font-style: italic;
+        font-weight: var(--weight-medium);
+        font-size: 1.18rem;
+        line-height: 1.14;
+        color: var(--app-ink);
+      }
+      .s-ep.up .ehook { color: var(--app-ink-3); }
+      .s-ep .eplate {
+        margin-top: var(--space-3);
+        display: flex;
+        gap: var(--space-3);
+        align-items: stretch;
+      }
+      .s-ep .eplate .thumb {
+        position: relative;
+        flex: 0 0 72px;
+        height: 50px;
+        overflow: hidden;
+        border: 1px solid var(--app-ink);
+        background: var(--app-paper-2);
+        background-image: repeating-linear-gradient(135deg, rgba(20, 17, 13, 0.07) 0 2px, transparent 2px 9px);
+        display: grid;
+        place-items: end start;
+        padding: 4px;
+      }
+      .s-ep .eplate .thumb img { object-fit: cover; }
+      .s-ep .eplate .thumb span {
+        font-family: var(--mono);
+        font-size: 0.5rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--app-ink-3);
+      }
+      .s-ep .eplate .choice {
+        min-width: 0;
+        font-size: 0.78rem;
+        line-height: 1.35;
+        color: var(--app-ink-2);
+      }
+      .s-ep .eplate .choice b {
+        display: block;
+        margin-bottom: 2px;
+        font-family: var(--mono);
+        font-size: 0.56rem;
+        font-weight: var(--weight-medium);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--app-ink-3);
+      }
+      .s-ep .eplate .choice em {
+        font-family: var(--app-serif);
+        font-style: italic;
+        font-size: 0.92rem;
+        color: var(--app-ink);
       }
       .serial-loading,
       .serial-empty {
-        max-width: 980px;
-        margin: 0 auto;
-        border: 2px solid #14110d;
-        background: #fff9ec;
-        padding: 18px;
+        margin-top: var(--space-5);
+        border: 1px solid var(--app-ink);
+        background: var(--app-sheet);
+        padding: var(--space-4);
       }
       .serial-loading {
         display: flex;
         align-items: center;
-        gap: 10px;
-        font-weight: 900;
+        gap: var(--space-2);
+        color: var(--app-ink-2);
       }
-      .spin {
-        animation: spin 1s linear infinite;
+      .serial-empty h2 {
+        margin: 0 0 var(--space-2);
+        font-family: var(--app-serif);
+        font-style: italic;
+        font-weight: var(--weight-medium);
+        font-size: 1.4rem;
       }
+      .serial-empty p {
+        margin: 0 0 var(--space-3);
+        color: var(--app-ink-2);
+        line-height: 1.45;
+      }
+      .spin { animation: spin 1s linear infinite; }
       @keyframes spin { to { transform: rotate(360deg); } }
-      @media (max-width: 720px) {
-        .serial-head {
-          align-items: start;
-          flex-direction: column;
-        }
-        .serial-head h1 {
-          font-size: 38px;
-        }
-        .episode-row {
-          grid-template-columns: 72px 1fr;
-        }
-        .episode-row > svg {
-          display: none;
-        }
-        .episode-thumb {
-          width: 72px;
-        }
-        .season-strip {
-          grid-template-columns: 1fr;
-        }
-      }
+      @media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
     `}</style>
   );
 }

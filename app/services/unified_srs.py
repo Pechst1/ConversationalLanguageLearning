@@ -22,16 +22,22 @@ from app.db.models.error import UserError
 from app.db.models.grammar import GrammarConcept, UserGrammarProgress
 from app.db.models.progress import UserVocabularyProgress
 from app.db.models.user import User
-from app.db.models.vocabulary import VocabularyWord
+from app.db.models.vocabulary import UserConjugationProgress, VocabularyWord
+from app.services.conjugation import ConjugationService, DISPLAY_TENSES
 from app.services.enhanced_srs import EnhancedSRSService
 from app.services.grammar import GrammarService
-from app.services.progress import ProgressService
+from app.services.progress import (
+    ProgressService,
+    vocabulary_due_filter,
+    vocabulary_progress_due_at,
+)
 
 
 class ItemType(str, Enum):
     VOCAB = "vocab"
     GRAMMAR = "grammar"
     ERROR = "error"
+    CONJUGATION = "conjugation"
 
 
 class InterleavingMode(str, Enum):
@@ -83,12 +89,14 @@ TIME_ESTIMATES = {
     ItemType.VOCAB: 8,      # Quick flashcard
     ItemType.GRAMMAR: 180,  # 3 min for 9 exercises
     ItemType.ERROR: 15,     # Error review
+    ItemType.CONJUGATION: 20,  # Typed irregular form
 }
 
 # Base priority by type (errors are most urgent - fragile memory)
 BASE_PRIORITY = {
     ItemType.ERROR: 30,
     ItemType.GRAMMAR: 20,
+    ItemType.CONJUGATION: 15,
     ItemType.VOCAB: 10,
 }
 
@@ -129,6 +137,7 @@ class UnifiedSRSService:
         vocab_due = self._due_vocab_query(user_id, today, now, target_language).count()
         grammar_due = self._due_grammar_query(user_id, now, target_language).count()
         errors_due = self._due_error_query(user_id, now).count()
+        conjugation_due = self._due_conjugation_query(user_id, now).count()
         
         by_type = {
             "vocab": {
@@ -145,10 +154,15 @@ class UnifiedSRSService:
                 "due": errors_due,
                 "new": 0,
                 "minutes": round(errors_due * TIME_ESTIMATES[ItemType.ERROR] / 60)
+            },
+            "conjugation": {
+                "due": conjugation_due,
+                "new": 0,
+                "minutes": round(conjugation_due * TIME_ESTIMATES[ItemType.CONJUGATION] / 60)
             }
         }
         
-        total_due = vocab_due + grammar_due + errors_due
+        total_due = vocab_due + grammar_due + errors_due + conjugation_due
         total_minutes = sum(t["minutes"] for t in by_type.values())
         
         return DailyPracticeSummary(
@@ -187,6 +201,7 @@ class UnifiedSRSService:
         items.extend(self._fetch_due_vocab(user_id, today, now, target_language))
         items.extend(self._fetch_due_grammar(user_id, now, target_language))
         items.extend(self._fetch_due_errors(user_id, now))
+        items.extend(self._fetch_due_conjugations(user_id, now))
         
         # Calculate priority scores
         for item in items:
@@ -247,6 +262,13 @@ class UnifiedSRSService:
                 user_id=user_id,
                 error_id=item_id,
                 fsrs_rating=fsrs_rating,
+            )
+        if item_type == ItemType.CONJUGATION:
+            return self._complete_conjugation_item(
+                user_id=user_id,
+                item_id=item_id,
+                fsrs_rating=fsrs_rating,
+                response_time_ms=response_time_ms,
             )
 
         raise ValueError(f"Unsupported item type: {item_type}")
@@ -475,6 +497,47 @@ class UnifiedSRSService:
             "state": error.state,
             "message": f"Reviewed error: {error.error_category}",
         }
+
+    def _complete_conjugation_item(
+        self,
+        *,
+        user_id: UUID,
+        item_id: str,
+        fsrs_rating: int,
+        response_time_ms: int | None = None,
+    ) -> dict[str, Any]:
+        """Complete an irregular conjugation review."""
+
+        user = self.db.get(User, user_id)
+        if not user:
+            raise ValueError("User not found")
+        normalized, separator, tense = item_id.partition(":")
+        if not separator:
+            raise ValueError(f"Invalid conjugation item id: {item_id}")
+        progress = (
+            self.db.query(UserConjugationProgress)
+            .filter(
+                UserConjugationProgress.user_id == user_id,
+                UserConjugationProgress.normalized_lemma == normalized,
+                UserConjugationProgress.tense == tense,
+            )
+            .first()
+        )
+        lemma = progress.verb_lemma if progress else normalized
+        updated = ConjugationService(self.db).review(
+            user=user,
+            lemma=lemma,
+            tense=tense,
+            rating=fsrs_rating,
+            response_time_ms=response_time_ms,
+        )
+        next_review = updated.next_review_date
+        next_review_days = (next_review.date() - datetime.now(timezone.utc).date()).days if next_review else None
+        return {
+            "next_review_days": next_review_days,
+            "state": updated.state,
+            "message": f"Reviewed conjugation: {updated.verb_lemma} · {DISPLAY_TENSES.get(updated.tense, updated.tense)}",
+        }
     
     def _fetch_due_grammar(
         self, user_id: UUID, now: datetime, target_language: str
@@ -590,6 +653,53 @@ class UnifiedSRSService:
             ))
         
         return items
+
+    def _fetch_due_conjugations(self, user_id: UUID, now: datetime) -> list[DueLearningItem]:
+        """Fetch irregular conjugation SRS items due for review."""
+
+        items: list[DueLearningItem] = []
+        rows = (
+            self._due_conjugation_query(user_id, now)
+            .order_by(
+                UserConjugationProgress.next_review_date.asc().nullsfirst(),
+                UserConjugationProgress.due_date.asc().nullsfirst(),
+                UserConjugationProgress.lapses.desc(),
+            )
+            .limit(40)
+            .all()
+        )
+        for progress in rows:
+            due_at = progress.next_review_date
+            if due_at is None and progress.due_date:
+                due_at = datetime.combine(progress.due_date, time.min, tzinfo=timezone.utc)
+            due_since = self._due_since_days(due_at or now, now)
+            tense_label = DISPLAY_TENSES.get(progress.tense, progress.tense)
+            items.append(
+                DueLearningItem(
+                    id=f"conjugation_{progress.normalized_lemma}:{progress.tense}",
+                    item_type=ItemType.CONJUGATION,
+                    priority_score=0,
+                    display_title=f"{progress.verb_lemma} · {tense_label}",
+                    display_subtitle="Irregular conjugation drill",
+                    level=progress.cefr_band or "A1",
+                    due_since_days=due_since,
+                    estimated_seconds=TIME_ESTIMATES[ItemType.CONJUGATION],
+                    original_id=f"{progress.normalized_lemma}:{progress.tense}",
+                    metadata={
+                        "lemma": progress.verb_lemma,
+                        "normalized_lemma": progress.normalized_lemma,
+                        "tense": progress.tense,
+                        "tense_label": tense_label,
+                        "stability": progress.stability or 0,
+                        "difficulty": progress.difficulty or 5,
+                        "lapses": progress.lapses or 0,
+                        "state": progress.state or "new",
+                        "review_mode": "conjugation",
+                        "route": "/vocabulary/conjugation",
+                    },
+                )
+            )
+        return items
     
     def _calculate_priority(self, item: DueLearningItem) -> float:
         """
@@ -643,7 +753,7 @@ class UnifiedSRSService:
         
         # Build interleaved queue
         result = []
-        type_cycle = [ItemType.ERROR, ItemType.GRAMMAR, ItemType.VOCAB]
+        type_cycle = [ItemType.ERROR, ItemType.GRAMMAR, ItemType.CONJUGATION, ItemType.VOCAB]
         
         while any(by_type.values()):
             for item_type in type_cycle:
@@ -688,16 +798,7 @@ class UnifiedSRSService:
             .filter(
                 UserVocabularyProgress.user_id == user_id,
                 VocabularyWord.language == target_language,
-                or_(
-                    UserVocabularyProgress.due_at <= now,
-                    UserVocabularyProgress.next_review_date <= now,
-                    UserVocabularyProgress.due_date <= today,
-                    and_(
-                        UserVocabularyProgress.due_at.is_(None),
-                        UserVocabularyProgress.next_review_date.is_(None),
-                        UserVocabularyProgress.due_date.is_(None),
-                    ),
-                ),
+                vocabulary_due_filter(now),
             )
         )
 
@@ -733,15 +834,24 @@ class UnifiedSRSService:
             ),
         )
 
+    def _due_conjugation_query(self, user_id: UUID, now: datetime):
+        today = now.date()
+        return self.db.query(UserConjugationProgress).filter(
+            UserConjugationProgress.user_id == user_id,
+            or_(UserConjugationProgress.state.is_(None), not_(UserConjugationProgress.state.in_(MASTERED_STATES))),
+            or_(
+                UserConjugationProgress.next_review_date <= now,
+                UserConjugationProgress.due_date <= today,
+                and_(
+                    UserConjugationProgress.next_review_date.is_(None),
+                    UserConjugationProgress.due_date.is_(None),
+                ),
+            ),
+        )
+
     @staticmethod
     def _vocab_due_at(progress: UserVocabularyProgress, now: datetime) -> datetime:
-        if progress.due_at:
-            return progress.due_at
-        if progress.next_review_date:
-            return progress.next_review_date
-        if progress.due_date:
-            return datetime.combine(progress.due_date, time.min, tzinfo=timezone.utc)
-        return now
+        return vocabulary_progress_due_at(progress) or now
 
     @staticmethod
     def _due_since_days(due_at: datetime | None, now: datetime) -> int:

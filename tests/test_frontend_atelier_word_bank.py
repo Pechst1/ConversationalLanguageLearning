@@ -15,7 +15,7 @@ def read_atelier() -> str:
 def test_word_bank_mode_uses_clickable_sentence_tokens_and_answer_field() -> None:
     source = read_atelier()
 
-    assert "{ id: 'word_bank', label: 'Word-bank', short: 'B' }" in source
+    assert "{ id: 'word_bank', label: 'Word-bank', short: 'C' }" in source
     assert "mode === 'word_bank'" in source
     assert "sourceTokens.map((token: string, tokenIndex: number) => {" in source
     assert "onClick={() => updateAnswer(item.id, [...wordBankTokens, token])}" in source
@@ -29,7 +29,7 @@ def test_word_bank_tokens_can_be_removed_after_tapping() -> None:
 
     assert "wordBankTokenIsUsed(wordBankTokens, sourceTokens, token, tokenIndex)" in source
     assert "className={used ? 'used' : ''}" in source
-    assert "wordBankTokens.filter((_, index) => index !== selectedIndex)" in source
+    assert "wordBankTokens.filter((_, tokenIndex) => tokenIndex !== selectedIndex)" in source
 
 
 def test_word_bank_feedback_uses_accent_insensitive_comparison() -> None:
@@ -72,4 +72,4 @@ def test_atelier_ai_review_is_polled_without_blocking_next_step() -> None:
     assert "AI correction ready" in source
     assert "AI correction" in source
     assert "AI unavailable" in source
-    assert "disabled={submitting || !submitted || nextDisabled}" in source
+    assert "disabled={submitting || nextDisabled}" in source

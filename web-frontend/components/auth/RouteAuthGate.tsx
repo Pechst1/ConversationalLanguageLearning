@@ -1,12 +1,13 @@
 import React from 'react';
 import { useRouter } from 'next/router';
 
-import { useAppSession } from '@/lib/app-auth';
+import { sanitizeAuthCallbackUrl, useAppSession } from '@/lib/app-auth';
 
 const PUBLIC_PATHNAMES = new Set([
   '/',
   '/auth/signin',
   '/auth/signup',
+  '/auth/forgot-password',
   '/mobile-visual-qa',
 ]);
 
@@ -23,35 +24,41 @@ function LoadingFrame() {
   );
 }
 
-function safeCallbackUrl(value: string | string[] | undefined) {
-  const candidate = Array.isArray(value) ? value[0] : value;
-  return candidate && candidate.startsWith('/') ? candidate : '/atelier';
-}
-
 export default function RouteAuthGate({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { status } = useAppSession();
   const isGuestOnly = GUEST_ONLY_PATHNAMES.has(router.pathname);
   const isProtected = !PUBLIC_PATHNAMES.has(router.pathname);
+  const pendingRedirectRef = React.useRef<string | null>(null);
 
   React.useEffect(() => {
     if (!router.isReady) return;
 
     if (isProtected && status === 'unauthenticated') {
-      const callbackUrl = router.asPath.startsWith('/') ? router.asPath : '/atelier';
-      router.replace({
+      const callbackUrl = sanitizeAuthCallbackUrl(router.asPath);
+      const redirectKey = `/auth/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`;
+      if (pendingRedirectRef.current === redirectKey) return;
+      pendingRedirectRef.current = redirectKey;
+      void router.replace({
         pathname: '/auth/signin',
         query: { callbackUrl },
+      }, undefined, { scroll: false }).finally(() => {
+        pendingRedirectRef.current = null;
       });
       return;
     }
 
     if (isGuestOnly && status === 'authenticated') {
-      router.replace(safeCallbackUrl(router.query.callbackUrl));
+      const destination = sanitizeAuthCallbackUrl(router.query.callbackUrl);
+      if (router.asPath === destination || pendingRedirectRef.current === destination) return;
+      pendingRedirectRef.current = destination;
+      void router.replace(destination, undefined, { scroll: false }).finally(() => {
+        pendingRedirectRef.current = null;
+      });
     }
-  }, [isGuestOnly, isProtected, router, status]);
+  }, [isGuestOnly, isProtected, router, router.asPath, router.isReady, router.query.callbackUrl, status]);
 
-  if (!router.isReady) return <LoadingFrame />;
+  if (!router.isReady && isProtected && status !== 'authenticated') return <LoadingFrame />;
   if (isProtected && status !== 'authenticated') return <LoadingFrame />;
   if (isGuestOnly && status === 'authenticated') return <LoadingFrame />;
 

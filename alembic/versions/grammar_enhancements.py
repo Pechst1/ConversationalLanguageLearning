@@ -23,6 +23,8 @@ depends_on = None
 
 def column_exists(table_name, column_name):
     """Check if a column already exists in the table."""
+    if getattr(op.get_context(), "as_sql", False):
+        return False
     conn = op.get_bind()
     result = conn.execute(sa.text(
         "SELECT column_name FROM information_schema.columns "

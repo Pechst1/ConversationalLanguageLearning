@@ -154,6 +154,8 @@ class VocabularyRecommendationItem(BaseModel):
     priority_score: float
     is_new: bool = False
     deck_name: str | None = None
+    part_of_speech: str | None = None
+    topic_tags: list[str] = Field(default_factory=list)
     translations: VocabularyRecommendationTranslations
     example_sentence: str | None = None
     example_translation: str | None = None

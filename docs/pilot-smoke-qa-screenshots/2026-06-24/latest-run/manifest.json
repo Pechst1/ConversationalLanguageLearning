@@ -1,0 +1,113 @@
+{
+  "capturedAt": "2026-06-24T19:08:18.111Z",
+  "frontendUrl": "http://localhost:3001",
+  "backendUrl": "http://localhost:8000",
+  "captureScope": "partial",
+  "requestedFrames": [
+    "atelier-onboarding",
+    "atelier-home-active",
+    "missions-active-chat",
+    "feuilleton-active-or-empty",
+    "serial-cast",
+    "serial-episode-detail",
+    "serial-episode-query-detail",
+    "settings"
+  ],
+  "pilotSeed": {
+    "atelier_session_id": "d673bc84-c39e-433c-bcbd-4b865a952ec4",
+    "concept_ids": [
+      564,
+      565,
+      566
+    ],
+    "errata_ids": [
+      "fe395bb1-be0d-4e2b-80dc-6db3a0a07261"
+    ],
+    "feuilleton_scene_id": "97f15be1-63ac-4514-aade-d04708718dc0",
+    "mission_id": "0abf5671-5af5-4960-a987-fb5997406e69",
+    "serial_mission_id": "b4d703d8-7514-477a-810e-ec547e545cdc",
+    "serial_thread_id": "a74043d9-abd1-4ed5-b7e6-05eead5d819e",
+    "user_id": "4bace077-5107-4651-8620-c685fa92570a",
+    "word_ids": [
+      10041,
+      10042,
+      10043,
+      10044
+    ]
+  },
+  "viewports": [
+    {
+      "label": "compact",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 3,
+      "mobile": true
+    }
+  ],
+  "frames": [
+    {
+      "viewport": "compact",
+      "name": "atelier-onboarding",
+      "route": "/atelier",
+      "path": "/Users/vincentpechstein/Downloads/Pixel-lab/ConversationalLanguageLearning/docs/pilot-smoke-qa-screenshots/2026-06-24/latest-run/atelier-onboarding.png",
+      "ok": true,
+      "warning": null
+    },
+    {
+      "viewport": "compact",
+      "name": "atelier-home-active",
+      "route": "/atelier",
+      "path": "/Users/vincentpechstein/Downloads/Pixel-lab/ConversationalLanguageLearning/docs/pilot-smoke-qa-screenshots/2026-06-24/latest-run/atelier-home-active.png",
+      "ok": true,
+      "warning": null
+    },
+    {
+      "viewport": "compact",
+      "name": "missions-active-chat",
+      "route": "/missions",
+      "path": "/Users/vincentpechstein/Downloads/Pixel-lab/ConversationalLanguageLearning/docs/pilot-smoke-qa-screenshots/2026-06-24/latest-run/missions-active-chat.png",
+      "ok": true,
+      "warning": null
+    },
+    {
+      "viewport": "compact",
+      "name": "feuilleton-active-or-empty",
+      "route": "/graphic-novel?scene=97f15be1-63ac-4514-aade-d04708718dc0",
+      "path": "/Users/vincentpechstein/Downloads/Pixel-lab/ConversationalLanguageLearning/docs/pilot-smoke-qa-screenshots/2026-06-24/latest-run/feuilleton-active-or-empty.png",
+      "ok": true,
+      "warning": null
+    },
+    {
+      "viewport": "compact",
+      "name": "serial-cast",
+      "route": "/serial/cast",
+      "path": "/Users/vincentpechstein/Downloads/Pixel-lab/ConversationalLanguageLearning/docs/pilot-smoke-qa-screenshots/2026-06-24/latest-run/serial-cast.png",
+      "ok": true,
+      "warning": null
+    },
+    {
+      "viewport": "compact",
+      "name": "serial-episode-detail",
+      "route": "/serial/episode/0",
+      "path": "/Users/vincentpechstein/Downloads/Pixel-lab/ConversationalLanguageLearning/docs/pilot-smoke-qa-screenshots/2026-06-24/latest-run/serial-episode-detail.png",
+      "ok": true,
+      "warning": null
+    },
+    {
+      "viewport": "compact",
+      "name": "serial-episode-query-detail",
+      "route": "/serial/episode?index=0",
+      "path": "/Users/vincentpechstein/Downloads/Pixel-lab/ConversationalLanguageLearning/docs/pilot-smoke-qa-screenshots/2026-06-24/latest-run/serial-episode-query-detail.png",
+      "ok": true,
+      "warning": null
+    },
+    {
+      "viewport": "compact",
+      "name": "settings",
+      "route": "/settings",
+      "path": "/Users/vincentpechstein/Downloads/Pixel-lab/ConversationalLanguageLearning/docs/pilot-smoke-qa-screenshots/2026-06-24/latest-run/settings.png",
+      "ok": true,
+      "warning": null
+    }
+  ]
+}

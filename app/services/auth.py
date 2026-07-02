@@ -1,15 +1,22 @@
 """Authentication service layer."""
 from __future__ import annotations
 
+import logging
+import secrets
+import smtplib
 import uuid
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from email.message import EmailMessage
 from hashlib import sha256
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.core.security import (
     create_access_token,
     create_refresh_token,
@@ -17,9 +24,10 @@ from app.core.security import (
     get_password_hash,
     verify_password,
 )
-from app.config import settings
 from app.db.models.user import RefreshToken, User
 from app.schemas import Token, UserCreate
+
+logger = logging.getLogger(__name__)
 
 
 class EmailAlreadyExistsError(ValueError):
@@ -28,6 +36,18 @@ class EmailAlreadyExistsError(ValueError):
 
 class InvalidCredentialsError(ValueError):
     """Raised when authentication credentials are invalid."""
+
+
+class InvalidPasswordResetTokenError(ValueError):
+    """Raised when a password reset token is invalid or expired."""
+
+
+@dataclass(frozen=True)
+class PasswordResetRequestResult:
+    """Result of a password reset request."""
+
+    reset_token: str | None = None
+    reset_url: str | None = None
 
 
 class AuthService:
@@ -102,6 +122,107 @@ class AuthService:
         if not user or not verify_password(password, user.hashed_password):
             raise InvalidCredentialsError("Incorrect email or password")
         return user
+
+    def request_password_reset(self, email: str) -> PasswordResetRequestResult:
+        """Create and deliver a one-time reset token when the account exists."""
+
+        normalized_email = email.strip().lower()
+        user = self.db.scalar(
+            select(User).where(
+                func.lower(User.email) == normalized_email,
+                User.is_active.is_(True),
+            )
+        )
+        if not user:
+            return PasswordResetRequestResult()
+
+        token = secrets.token_urlsafe(32)
+        reset_url = self.build_password_reset_url(token)
+        user.password_reset_token_hash = self.hash_token(token)
+        user.password_reset_requested_at = datetime.now(timezone.utc)
+        self.db.add(user)
+        self.db.commit()
+
+        self._deliver_password_reset(user, reset_url)
+        if settings.PASSWORD_RESET_RETURN_TOKEN_IN_RESPONSE:
+            return PasswordResetRequestResult(reset_token=token, reset_url=reset_url)
+        return PasswordResetRequestResult()
+
+    def confirm_password_reset(self, token: str, new_password: str) -> User:
+        """Consume a one-time reset token, set a new password, and revoke sessions."""
+
+        token_hash = self.hash_token(token.strip())
+        user = self.db.scalar(
+            select(User).where(
+                User.password_reset_token_hash == token_hash,
+                User.is_active.is_(True),
+            )
+        )
+        if not user or not self._password_reset_token_is_fresh(user.password_reset_requested_at):
+            raise InvalidPasswordResetTokenError("Invalid or expired password reset link.")
+
+        user.hashed_password = get_password_hash(new_password)
+        user.password_updated_at = datetime.now(timezone.utc)
+        user.password_reset_token_hash = None
+        user.password_reset_requested_at = None
+        user.auth_version = int(user.auth_version or 0) + 1
+        self.db.add(user)
+        self.db.commit()
+        self.revoke_all_refresh_tokens(user)
+        return user
+
+    @staticmethod
+    def build_password_reset_url(token: str) -> str:
+        """Build the frontend reset URL with the raw token as a query parameter."""
+
+        parsed = urlparse(settings.PASSWORD_RESET_BASE_URL)
+        query = dict(parse_qsl(parsed.query, keep_blank_values=True))
+        query["token"] = token
+        return urlunparse(parsed._replace(query=urlencode(query)))
+
+    def _password_reset_token_is_fresh(self, requested_at: datetime | None) -> bool:
+        if not requested_at:
+            return False
+        if requested_at.tzinfo is None:
+            requested_at = requested_at.replace(tzinfo=timezone.utc)
+        expires_at = requested_at + timedelta(minutes=settings.PASSWORD_RESET_TOKEN_TTL_MINUTES)
+        return expires_at >= datetime.now(timezone.utc)
+
+    def _deliver_password_reset(self, user: User, reset_url: str) -> bool:
+        """Send a reset email when SMTP is configured; otherwise log a safe hint."""
+
+        if not settings.SMTP_HOST or not settings.SMTP_FROM_EMAIL:
+            logger.info("Password reset requested for %s, but SMTP is not configured.", user.email)
+            return False
+
+        message = EmailMessage()
+        message["Subject"] = "Reset your Atelier password"
+        message["From"] = settings.SMTP_FROM_EMAIL
+        message["To"] = user.email
+        message.set_content(
+            "\n".join(
+                [
+                    "We received a request to reset your Atelier password.",
+                    "",
+                    f"Open this link within {settings.PASSWORD_RESET_TOKEN_TTL_MINUTES} minutes:",
+                    reset_url,
+                    "",
+                    "If you did not request this, you can ignore this email.",
+                ]
+            )
+        )
+
+        try:
+            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=10) as smtp:
+                if settings.SMTP_USE_TLS:
+                    smtp.starttls()
+                if settings.SMTP_USERNAME and settings.SMTP_PASSWORD:
+                    smtp.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
+                smtp.send_message(message)
+        except Exception:  # pragma: no cover - network/email provider failure
+            logger.exception("Password reset email delivery failed for %s", user.email)
+            return False
+        return True
 
     @staticmethod
     def hash_token(token: str) -> str:

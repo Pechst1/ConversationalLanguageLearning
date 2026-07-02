@@ -1,19 +1,18 @@
 """User database model."""
-from datetime import date, datetime, time
 import uuid
+from datetime import date, datetime, time
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Integer, String, Time
-from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.types import JSON
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+from sqlalchemy.types import JSON
 
 from app.db.base import Base
 
 if TYPE_CHECKING:
-    from app.db.models.grammar import UserGrammarProgress
+    pass
 
 
 class User(Base):
@@ -94,6 +93,8 @@ class User(Base):
     # Account security
     auth_version = Column(Integer, default=0, nullable=False)
     password_updated_at = Column(DateTime(timezone=True))
+    password_reset_token_hash = Column(String(255))
+    password_reset_requested_at = Column(DateTime(timezone=True))
     email_updated_at = Column(DateTime(timezone=True))
     pending_email = Column(String(255))
     pending_email_token_hash = Column(String(255))

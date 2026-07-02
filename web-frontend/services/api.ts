@@ -20,6 +20,47 @@ export interface LiveStoryListResponse {
   topics_used: string[];
 }
 
+export interface LibraryBook {
+  id: string;
+  title: string;
+  author?: string | null;
+  source_filename?: string | null;
+  source_type: string;
+  source_hash: string;
+  target_level: string;
+  status: string;
+  status_message?: string | null;
+  error_message?: string | null;
+  progress_percent: number;
+  total_episodes: number;
+  current_episode_index: number;
+  completed_episode_indices: number[];
+  completion_percentage: number;
+  estimated_total_words: number;
+  task_id?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  ready_at?: string | null;
+  episodes?: LibraryEpisode[];
+}
+
+export interface LibraryEpisode {
+  id: string;
+  book_id: string;
+  order_index: number;
+  title: string;
+  est_reading_minutes: number;
+  cefr_level: string;
+  word_count: number;
+  vocab_seed: Array<Record<string, any>>;
+  grammar_seed: Array<Record<string, any>>;
+  exercise_payload: Record<string, any>;
+  status: string;
+  is_completed: boolean;
+  passage_text?: string;
+  passage_preview?: string;
+}
+
 export interface AtelierConcept {
   id: number;
   external_id?: string | null;
@@ -41,6 +82,7 @@ export interface AtelierConcept {
 
 export interface AtelierErratum {
   id?: string;
+  item_id?: string | null;
   concept_id?: number | null;
   source_attempt_id?: string | null;
   display_label: string;
@@ -80,12 +122,16 @@ export interface AtelierToday {
   } | null;
   serial_episode?: Record<string, any> | null;
   serial?: Record<string, any> | null;
+  library_episode?: Record<string, any> | null;
 }
 
 export interface AtelierDayProgress {
   errataDue: number;
   vocabularyDue: number;
   missionDone: boolean;
+  missionSuggested?: boolean;
+  libraryDone?: boolean;
+  librarySuggested?: boolean;
   feuilletonDone: boolean;
   sessionDone?: boolean;
   timeBudgetMinutes?: number;
@@ -97,6 +143,7 @@ export interface AtelierDayProgress {
     label: string;
     estimatedMinutes: number;
     done?: boolean;
+    suggested?: boolean;
   }>;
 }
 
@@ -170,6 +217,8 @@ export interface VocabularyRecommendationItem {
   priority_score: number;
   is_new: boolean;
   deck_name?: string | null;
+  part_of_speech?: string | null;
+  topic_tags?: string[];
   translations: {
     de?: string | null;
     en?: string | null;
@@ -323,6 +372,72 @@ export interface VocabularyMasteryMap {
   deck_label: string;
 }
 
+export interface CoverageBand {
+  band: string;
+  label?: string;
+  nailed: number;
+  total: number;
+  percent: number;
+}
+
+export interface CoverageTrack {
+  id: string;
+  label: string;
+  track: string;
+  unit?: string;
+  nailed: number;
+  total: number;
+  percent: number;
+  cefr_bands?: CoverageBand[];
+  href?: string;
+  example_words?: string[];
+  [key: string]: any;
+}
+
+export interface VocabularyCoverage {
+  cefr_bar: CoverageBand[];
+  categories: CoverageTrack[];
+  verb_tracks: CoverageTrack[];
+  grammar_tracks: CoverageTrack[];
+  next_best_set: Record<string, any>;
+  nailed_rule: Record<string, any>;
+}
+
+export interface ConjugationReviewItem {
+  id: string;
+  lemma: string;
+  normalized_lemma: string;
+  tense: string;
+  tense_label: string;
+  person: string;
+  prompt: string;
+  answer: string;
+  cefr_band: string;
+  is_irregular: boolean;
+  progress_id?: string | null;
+  state: string;
+  reps: number;
+  lapses: number;
+  due_at?: string | null;
+  table: Array<{ person: string; form: string; tense: string; tense_label: string; auxiliary?: string | null }>;
+}
+
+export interface ConjugationReviewQueue {
+  items: ConjugationReviewItem[];
+  summary: { total: number; due: number; new: number };
+  algorithm: string;
+}
+
+export interface ConjugationReviewResponse {
+  lemma: string;
+  tense: string;
+  state: string;
+  proficiency_score: number;
+  reps: number;
+  lapses: number;
+  next_review?: string | null;
+}
+
 export interface WeeklyDossierStats {
   repairs_filed: number;
   vocabulary_reviews: number;
@@ -368,6 +483,7 @@ export interface AtelierAttemptRead {
   verdict: string;
   score_0_4: number;
   submitted_key: string;
+  submitted_keys?: string[];
   created_at?: string | null;
 }
 
@@ -392,6 +508,9 @@ export interface AtelierSessionStart {
     mode?: string;
     concept_id?: number | null;
     concept_index?: number;
+    item_id?: string | null;
+    item_index?: number;
+    item_count?: number;
   };
   due_errata: AtelierErratum[];
   recap: Record<string, any>;
@@ -403,6 +522,7 @@ export interface AtelierAttemptResult {
   score_0_4: number;
   correction: Record<string, any>;
   ai_review?: Record<string, any>;
+  minted_collectibles?: AtelierCollectible[];
 }
 
 export interface AtelierErrataReviewTask {
@@ -750,6 +870,43 @@ export interface SerialAvatarPayload {
   avatar_builder?: Record<string, any>;
 }
 
+export interface AtelierCollectible {
+  id: string;
+  kind: string;
+  minted_at?: string | null;
+  source_kind: string;
+  source_ref: string;
+  metadata?: Record<string, any>;
+  composed?: boolean;
+  composed_into_id?: string | null;
+  members?: AtelierCollectible[];
+}
+
+export interface AtelierWorkshopProgress {
+  target: string;
+  member_kind: string;
+  required: number;
+  available: number;
+  progress: number;
+  shortfall: number;
+}
+
+export interface AtelierAlmanac {
+  collectibles: Record<string, AtelierCollectible[]>;
+  progress: Record<string, AtelierWorkshopProgress>;
+  plates: AtelierCollectible[];
+  totals: Record<string, number>;
+}
+
+export type AtelierWorkshopTarget = 'plate_semaine' | 'plate_chapter' | 'colophon';
+
+export interface AtelierWorkshopComposeResult {
+  plate: AtelierCollectible;
+  members: AtelierCollectible[];
+  progress: Record<string, AtelierWorkshopProgress>;
+  minted_collectibles: AtelierCollectible[];
+}
+
 export interface MissionAttemptResult {
   attempt: Record<string, any>;
   correction: VocabularyCorrectionPayload;
@@ -824,6 +981,58 @@ export interface GraphicNovelAttemptResult {
   scene: GraphicNovelScene;
 }
 
+export interface GraphicNovelCompleteResult {
+  scene: GraphicNovelScene;
+  recap: VocabularyRecapPayload;
+  next_serial?: SerialToday | null;
+}
+
+export interface MissionCompleteResult {
+  mission: RealWorldMission;
+  recap: VocabularyRecapPayload;
+  next_serial?: SerialToday | null;
+}
+
+export interface PasswordResetRequestResponse {
+  message: string;
+  reset_token?: string | null;
+  reset_url?: string | null;
+}
+
+export type FeedbackCategory =
+  | 'bug'
+  | 'broken_link'
+  | 'content'
+  | 'layout'
+  | 'slow_loading'
+  | 'suggestion'
+  | 'other';
+
+export interface FeedbackReportPayload {
+  category: FeedbackCategory;
+  message?: string;
+  route: string;
+  url?: string;
+  screen?: string;
+  viewport?: Record<string, any>;
+  user_agent?: string;
+  context_payload?: Record<string, any>;
+}
+
+export interface FeedbackReport {
+  id: string;
+  user_id: string;
+  category: FeedbackCategory;
+  message?: string | null;
+  route: string;
+  url?: string | null;
+  screen?: string | null;
+  viewport: Record<string, any>;
+  user_agent?: string | null;
+  context_payload: Record<string, any>;
+  created_at: string;
+}
+
 function apiErrorMessage(error: any): string {
   const detail = error?.response?.data?.detail;
   if (typeof detail === 'string') return detail;
@@ -846,7 +1055,9 @@ function isUnauthorized(error: any): boolean {
 }
 
 export function resolveBrowserApiBaseUrl() {
-  const configured = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+  const configured = normalizeApiBaseUrl(
+    process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1',
+  );
   if (typeof window === 'undefined') return configured;
   if (isNativePlatform()) return configured;
 
@@ -861,6 +1072,12 @@ export function resolveBrowserApiBaseUrl() {
   }
 
   return configured;
+}
+
+function normalizeApiBaseUrl(value: string) {
+  const trimmed = value.replace(/\/+$/, '');
+  if (!trimmed || trimmed.startsWith('/') || trimmed.endsWith('/api/v1')) return trimmed;
+  return `${trimmed}/api/v1`;
 }
 
 class ApiService {
@@ -1015,6 +1232,13 @@ class ApiService {
     }
   }
 
+  async translateToEnglish(text: string): Promise<string> {
+    const trimmed = (text || '').trim();
+    if (!trimmed) return '';
+    const response = await this.atelierPost<{ translation: string }>('/atelier/translate', { text: trimmed });
+    return response.translation || '';
+  }
+
   // Authentication endpoints
   async register(userData: {
     email: string;
@@ -1043,6 +1267,20 @@ class ApiService {
 
   async logout(refreshToken?: string | null) {
     return this.post('/auth/logout', refreshToken ? { refresh_token: refreshToken } : {});
+  }
+
+  async requestPasswordReset(data: { email: string }) {
+    return this.post<PasswordResetRequestResponse>('/auth/password-reset/request', data, {
+      skipAuth: true,
+      suppressGlobalError: true,
+    } as SilentRequestConfig);
+  }
+
+  async confirmPasswordReset(data: { token: string; new_password: string }) {
+    return this.post<void>('/auth/password-reset/confirm', data, {
+      skipAuth: true,
+      suppressGlobalError: true,
+    } as SilentRequestConfig);
   }
 
   // User endpoints
@@ -1083,7 +1321,7 @@ class ApiService {
   }
 
   async getVapidPublicKey() {
-    return this.get<{ publicKey: string }>('/notifications/vapid-public-key');
+    return this.get<{ publicKey: string | null }>('/notifications/vapid-public-key');
   }
 
   async subscribeToNotifications(subscription: any) {
@@ -1182,31 +1420,36 @@ class ApiService {
   }
 
   async getVocabularyRecommendations(params?: VocabularyRecommendationParams): Promise<VocabularyRecommendations> {
-    return this.get('/progress/vocabulary/recommendations', {
-      params,
-      suppressGlobalError: true,
-    } as AxiosRequestConfig & { suppressGlobalError: boolean });
+    return this.atelierGet('/progress/vocabulary/recommendations', { params });
   }
 
   async getVocabularyDueContext(params?: VocabularyDueContextParams): Promise<VocabularyDueContext> {
-    return this.get('/vocabulary/due-context', {
-      params,
-      suppressGlobalError: true,
-    } as AxiosRequestConfig & { suppressGlobalError: boolean });
+    return this.atelierGet('/vocabulary/due-context', { params });
+  }
+
+  async getVocabularyCoverage(): Promise<VocabularyCoverage> {
+    return this.atelierGet('/vocabulary/coverage');
+  }
+
+  async getConjugationReview(params?: { limit?: number; cefr_band?: string }): Promise<ConjugationReviewQueue> {
+    return this.atelierGet('/vocabulary/conjugation/review', { params });
+  }
+
+  async submitConjugationReview(data: {
+    lemma: string;
+    tense: string;
+    rating: number;
+    response_time_ms?: number;
+  }): Promise<ConjugationReviewResponse> {
+    return this.atelierPost('/vocabulary/conjugation/review', data);
   }
 
   async getVocabularyMasteryMap(params?: { limit?: number; direction?: string }): Promise<VocabularyMasteryMap> {
-    return this.get('/progress/vocabulary/map', {
-      params,
-      suppressGlobalError: true,
-    } as AxiosRequestConfig & { suppressGlobalError: boolean });
+    return this.atelierGet('/progress/vocabulary/map', { params });
   }
 
   async getWeeklyDossier(params?: { period_days?: number }): Promise<WeeklyDossier> {
-    return this.get('/progress/weekly-dossier', {
-      params,
-      suppressGlobalError: true,
-    } as AxiosRequestConfig & { suppressGlobalError: boolean });
+    return this.atelierGet('/progress/weekly-dossier', { params });
   }
 
   async getAnkiProgress(params?: { direction?: string }) {
@@ -1222,7 +1465,7 @@ class ApiService {
   }
 
   async submitAnkiReview(data: { word_id: number; rating: number; response_time_ms?: number }): Promise<AnkiReviewResponse> {
-    return this.post('/anki/review', data);
+    return this.atelierPost('/anki/review', data);
   }
 
   async getWordProgress(wordId: number) {
@@ -1280,9 +1523,7 @@ class ApiService {
   }
 
   async getVocabularyBiography(wordId: number): Promise<VocabularyBiography> {
-    return this.get(`/vocabulary/${wordId}/biography`, {
-      suppressGlobalError: true,
-    } as AxiosRequestConfig & { suppressGlobalError: boolean });
+    return this.atelierGet(`/vocabulary/${wordId}/biography`);
   }
 
   // Grammar endpoints
@@ -1352,7 +1593,7 @@ class ApiService {
   }
 
   async getCefrProgress() {
-    return this.get<CEFRProgress>('/progress/cefr');
+    return this.atelierGet<CEFRProgress>('/progress/cefr');
   }
 
   async startAtelierSession(data?: { concept_ids?: number[]; preferred_concept_id?: number; preferred_vocabulary_ids?: number[] }) {
@@ -1389,8 +1630,29 @@ class ApiService {
     return this.atelierPost<AtelierAttemptResult>(`/atelier/attempts/${attemptId}/ai-review`, {});
   }
 
+  async reportAtelierExercise(data: {
+    session_id?: string | null;
+    concept_id?: number | null;
+    exercise_set_id?: string | null;
+    round?: string | null;
+    mode?: string | null;
+    exercise_id?: string | null;
+    item_id?: string | null;
+    reason: string;
+  }) {
+    return this.atelierPost<{ ok: boolean; event_id: string }>('/atelier/exercises/report', data);
+  }
+
+  async getAtelierAlmanac() {
+    return this.atelierGet<AtelierAlmanac>('/atelier/almanac');
+  }
+
+  async composeAtelierWorkshop(target: AtelierWorkshopTarget) {
+    return this.atelierPost<AtelierWorkshopComposeResult>('/atelier/workshop/compose', { target });
+  }
+
   async completeAtelierSession(sessionId: string) {
-    return this.atelierPost<{ session_id: string; recap: Record<string, any> }>(`/atelier/sessions/${sessionId}/complete`);
+    return this.atelierPost<{ session_id: string; recap: Record<string, any>; minted_collectibles?: AtelierCollectible[] }>(`/atelier/sessions/${sessionId}/complete`);
   }
 
   async reviewAtelierErratum(errorId: string, data?: { rating?: number; repaired?: boolean }) {
@@ -1444,7 +1706,7 @@ class ApiService {
   }
 
   async completeMission(missionId: string) {
-    const response = await this.atelierPost<{ mission: RealWorldMission; recap: VocabularyRecapPayload }>(`/missions/${missionId}/complete`);
+    const response = await this.atelierPost<MissionCompleteResult>(`/missions/${missionId}/complete`);
     return response;
   }
 
@@ -1532,7 +1794,7 @@ class ApiService {
   }
 
   async completeGraphicNovelScene(sceneId: string) {
-    const response = await this.atelierPost<{ scene: GraphicNovelScene; recap: VocabularyRecapPayload }>(`/graphic-novel/scenes/${sceneId}/complete`);
+    const response = await this.atelierPost<GraphicNovelCompleteResult>(`/graphic-novel/scenes/${sceneId}/complete`);
     return response;
   }
 
@@ -1566,6 +1828,22 @@ class ApiService {
   // ─────────────────────────────────────────────────────────────────
   // Story Importer
   // ─────────────────────────────────────────────────────────────────
+
+  async getLibraryBooks(): Promise<LibraryBook[]> {
+    return this.get<LibraryBook[]>('/stories/library');
+  }
+
+  async getLibraryBook(bookId: string): Promise<LibraryBook> {
+    return this.get<LibraryBook>(`/stories/library/${bookId}`);
+  }
+
+  async getLibraryEpisode(bookId: string, orderIndex: number): Promise<LibraryEpisode> {
+    return this.get<LibraryEpisode>(`/stories/library/${bookId}/episodes/${orderIndex}`);
+  }
+
+  async completeLibraryEpisode(bookId: string, orderIndex: number): Promise<LibraryBook> {
+    return this.post<LibraryBook>(`/stories/library/${bookId}/episodes/${orderIndex}/complete`);
+  }
 
   async importContent(url: string): Promise<{ story_id: string; title: string }> {
     return this.post('/stories/import', { url });
@@ -1642,6 +1920,14 @@ class ApiService {
       { responseType: 'arraybuffer' }
     );
     return response.data;
+  }
+
+  async submitFeedbackReport(data: FeedbackReportPayload): Promise<FeedbackReport> {
+    return this.post<FeedbackReport>(
+      '/feedback/reports',
+      data,
+      { suppressGlobalError: true } as SilentRequestConfig,
+    );
   }
 }
 

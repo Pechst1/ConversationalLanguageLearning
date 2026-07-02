@@ -1,0 +1,78 @@
+{
+  "capturedAt": "2026-06-24T17:41:37.557Z",
+  "frontendUrl": "http://127.0.0.1:3001",
+  "backendUrl": "http://127.0.0.1:8000",
+  "viewports": [
+    {
+      "label": "mobile",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 3,
+      "mobile": true
+    }
+  ],
+  "frames": [
+    {
+      "name": "atelier-home-active",
+      "route": "/atelier",
+      "viewport": "mobile",
+      "ok": false,
+      "error": "Timed out waiting for expression: /Begin session|Continue session|Session not ready/i.test(document.body.innerText)"
+    },
+    {
+      "viewport": "mobile",
+      "name": "notebook-list",
+      "route": "/grammar",
+      "path": "/private/tmp/pilot-smoke-qa/notebook-list.png",
+      "ok": true,
+      "warning": null
+    },
+    {
+      "viewport": "mobile",
+      "name": "vocabulary-notebook",
+      "route": "/vocabulary",
+      "path": "/private/tmp/pilot-smoke-qa/vocabulary-notebook.png",
+      "ok": true,
+      "warning": null
+    },
+    {
+      "name": "missions-active-chat",
+      "route": "/missions",
+      "viewport": "mobile",
+      "ok": false,
+      "error": "Timed out waiting for expression: Boolean(document.querySelector('[data-testid=\"mobile-mission-switcher\"], [data-testid=\"mission-messenger\"], .mission-empty'))"
+    },
+    {
+      "viewport": "mobile",
+      "name": "feuilleton-active-or-empty",
+      "route": "/graphic-novel",
+      "path": "/private/tmp/pilot-smoke-qa/feuilleton-active-or-empty.png",
+      "ok": true,
+      "warning": null
+    },
+    {
+      "viewport": "mobile",
+      "name": "serial-archive",
+      "route": "/serial",
+      "path": "/private/tmp/pilot-smoke-qa/serial-archive.png",
+      "ok": true,
+      "warning": null
+    },
+    {
+      "viewport": "mobile",
+      "name": "serial-cast",
+      "route": "/serial/cast",
+      "path": "/private/tmp/pilot-smoke-qa/serial-cast.png",
+      "ok": true,
+      "warning": null
+    },
+    {
+      "viewport": "mobile",
+      "name": "serial-episode-detail",
+      "route": "/serial/episode?index=0",
+      "path": "/private/tmp/pilot-smoke-qa/serial-episode-detail.png",
+      "ok": true,
+      "warning": null
+    }
+  ]
+}

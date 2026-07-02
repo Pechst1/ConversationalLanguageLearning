@@ -31,15 +31,15 @@ def test_red_ink_repair_slip_is_shared_mobile_primitive() -> None:
     assert "export { RedInkRepairSlip" in exports
 
 
-def test_repair_slip_replaces_duplicate_mission_and_feuilleton_markup() -> None:
+def test_mission_screen_removed_duplicate_repair_chrome_while_feuilleton_uses_slip() -> None:
     missions = read(MISSIONS_PAGE)
     feuilleton = read(FEUILLETON_PAGE)
 
-    assert "import { ContinuationCard, RedInkRepairSlip, VocabularyCreditBadge }" in missions
-    assert "function TurnRepairMarkup" in missions
-    assert "className=\"turn-repair-slip\"" in missions
-    assert "function CorrectionStack" in missions
-    assert "slipNumber={`NO. ${String(index + 1).padStart(2, '0')}`}" in missions
+    assert "RedInkRepairSlip" not in missions
+    assert "function TurnRepairMarkup" not in missions
+    assert "className=\"turn-repair-slip\"" not in missions
+    assert "function CorrectionStack" not in missions
+    assert "className=\"scene-frame\"" in missions
     assert "import { ContinuationCard, MobileBottomSheet, RedInkRepairSlip, VocabularyCreditBadge }" in feuilleton
     assert "source=\"Feuilleton" in feuilleton
 

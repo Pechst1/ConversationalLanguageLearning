@@ -7,11 +7,12 @@ import { ArrowLeft, ArrowRight, Loader2 } from 'lucide-react';
 import EditorialMasthead from '@/components/layout/EditorialMasthead';
 import apiService, { SerialCastMember } from '@/services/api';
 
+const AVATAR_REFERENCE_ASSET = 'assets/serial/characters/user/model-sheet.png';
+
 export default function SerialCastPage() {
   const [cast, setCast] = useState<SerialCastMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [avatarDescription, setAvatarDescription] = useState('');
-  const [avatarReference, setAvatarReference] = useState('assets/serial/characters/user/model-sheet.png');
   const [avatarMode, setAvatarMode] = useState<'avatar' | 'pov'>('pov');
   const [avatarSaving, setAvatarSaving] = useState(false);
   const [avatarMessage, setAvatarMessage] = useState('');
@@ -38,7 +39,7 @@ export default function SerialCastPage() {
     setAvatarSaving(true);
     setAvatarMessage('');
     try {
-      const references = avatarReference
+      const references = AVATAR_REFERENCE_ASSET
         .split(',')
         .map((item) => item.trim())
         .filter(Boolean);
@@ -81,12 +82,13 @@ export default function SerialCastPage() {
               </div>
               <label>
                 <span>Descriptor</span>
-                <input value={avatarDescription} onChange={(event) => setAvatarDescription(event.target.value)} placeholder="short visual descriptor for the learner avatar" />
+                <input value={avatarDescription} onChange={(event) => setAvatarDescription(event.target.value)} placeholder="short visual cue" />
               </label>
-              <label>
-                <span>Model sheet asset</span>
-                <input value={avatarReference} onChange={(event) => setAvatarReference(event.target.value)} placeholder="assets/serial/characters/user/model-sheet.png" />
-              </label>
+              <div className="avatar-reference-summary" aria-label="Avatar visual reference">
+                <span>Reference</span>
+                <strong>Private model sheet</strong>
+                <small>Used for visual consistency in generated panels.</small>
+              </div>
               <div className="avatar-actions">
                 <button type="button" disabled={avatarSaving} onClick={() => void saveAvatar('avatar')}>
                   {avatarSaving ? <Loader2 className="spin" size={14} /> : null} Save avatar
@@ -205,7 +207,8 @@ function CastStyles() {
         padding: 13px;
       }
       .avatar-builder > div:first-child,
-      .avatar-builder label {
+      .avatar-builder label,
+      .avatar-reference-summary {
         display: grid;
         gap: 5px;
         min-width: 0;
@@ -229,6 +232,12 @@ function CastStyles() {
         background: #f4efe3;
         padding: 0 10px;
         font: inherit;
+      }
+      .avatar-reference-summary small {
+        color: #8b8578;
+        font-size: 12px;
+        font-weight: 800;
+        line-height: 1.25;
       }
       .avatar-actions {
         display: flex;

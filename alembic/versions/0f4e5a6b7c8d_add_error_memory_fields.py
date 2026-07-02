@@ -16,11 +16,19 @@ branch_labels = None
 depends_on = None
 
 
+def _offline_mode() -> bool:
+    return bool(getattr(op.get_context(), "as_sql", False))
+
+
 def _has_table(table_name: str) -> bool:
+    if _offline_mode():
+        return True
     return sa.inspect(op.get_bind()).has_table(table_name)
 
 
 def _has_column(table_name: str, column_name: str) -> bool:
+    if _offline_mode():
+        return False
     if not _has_table(table_name):
         return False
     return column_name in {column["name"] for column in sa.inspect(op.get_bind()).get_columns(table_name)}
@@ -32,6 +40,8 @@ def _add_column_once(table_name: str, column: sa.Column) -> None:
 
 
 def _has_index(table_name: str, index_name: str) -> bool:
+    if _offline_mode():
+        return False
     if not _has_table(table_name):
         return False
     return index_name in {index["name"] for index in sa.inspect(op.get_bind()).get_indexes(table_name)}
@@ -55,9 +65,11 @@ def upgrade() -> None:
     _create_index_once("ix_user_errors_linked_word_id", "user_errors", ["linked_word_id"])
     _create_index_once("ix_user_errors_user_memory", "user_errors", ["user_id", "memory_key"])
 
-    inspector = sa.inspect(op.get_bind())
-    fks = {fk["name"] for fk in inspector.get_foreign_keys("user_errors")}
-    if "fk_user_errors_linked_word_id_vocabulary_words" not in fks:
+    fks = set()
+    if not _offline_mode():
+        inspector = sa.inspect(op.get_bind())
+        fks = {fk["name"] for fk in inspector.get_foreign_keys("user_errors")}
+    if _offline_mode() or "fk_user_errors_linked_word_id_vocabulary_words" not in fks:
         op.create_foreign_key(
             "fk_user_errors_linked_word_id_vocabulary_words",
             "user_errors",
@@ -69,9 +81,11 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    inspector = sa.inspect(op.get_bind())
-    fks = {fk["name"] for fk in inspector.get_foreign_keys("user_errors")}
-    if "fk_user_errors_linked_word_id_vocabulary_words" in fks:
+    fks = set()
+    if not _offline_mode():
+        inspector = sa.inspect(op.get_bind())
+        fks = {fk["name"] for fk in inspector.get_foreign_keys("user_errors")}
+    if _offline_mode() or "fk_user_errors_linked_word_id_vocabulary_words" in fks:
         op.drop_constraint("fk_user_errors_linked_word_id_vocabulary_words", "user_errors", type_="foreignkey")
     for index_name in (
         "ix_user_errors_user_memory",

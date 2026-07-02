@@ -1,4 +1,5 @@
 import type { AtelierSessionStart, AtelierToday } from '@/services/api';
+import { STORY_FEATURE_VISIBLE } from './launch-flags';
 
 export const REVIEW_THRESHOLD = 1;
 export const DAY_PROGRESS_STORAGE_PREFIX = 'atelier:progress';
@@ -8,6 +9,9 @@ export interface DayProgress {
   errataDue: number;
   vocabularyDue: number;
   missionDone: boolean;
+  missionSuggested: boolean;
+  libraryDone: boolean;
+  librarySuggested: boolean;
   feuilletonDone: boolean;
   sessionDone?: boolean;
   timeBudgetMinutes?: number;
@@ -19,14 +23,16 @@ export interface DayProgress {
     label: string;
     estimatedMinutes: number;
     done?: boolean;
+    suggested?: boolean;
   }>;
 }
 
 export type RecommendedAction =
-  | { kind: 'resume_session'; conceptIndex: number; round: string; mode?: string }
+  | { kind: 'resume_session'; conceptIndex: number; round: string; mode?: string; itemIndex?: number }
   | { kind: 'start_session' }
   | { kind: 'review'; errataDue: number; vocabularyDue: number }
   | { kind: 'mission'; query: string }
+  | { kind: 'library'; bookId: string; episodeIndex: number; href: string; title?: string; bookTitle?: string }
   | { kind: 'feuilleton'; query: string }
   | { kind: 'serial'; threadId: string; episodeKind: 'mission' | 'feuilleton'; query: string }
   | { kind: 'rest' };
@@ -37,6 +43,9 @@ interface ServerDayProgress {
   errataDue?: number;
   vocabularyDue?: number;
   missionDone?: boolean;
+  missionSuggested?: boolean;
+  libraryDone?: boolean;
+  librarySuggested?: boolean;
   feuilletonDone?: boolean;
   sessionDone?: boolean;
   timeBudgetMinutes?: number;
@@ -54,10 +63,20 @@ interface SerialEpisodeEnvelope {
   episode_index?: number | null;
 }
 
+interface LibraryEpisodeEnvelope {
+  book_id?: string;
+  order_index?: number | null;
+  episode_index?: number | null;
+  href?: string | null;
+  title?: string | null;
+  book_title?: string | null;
+}
+
 type AtelierTodayWithProgress = AtelierToday & {
   progress?: ServerDayProgress | null;
   serial_episode?: SerialEpisodeEnvelope | null;
   serial?: SerialEpisodeEnvelope | null;
+  library_episode?: LibraryEpisodeEnvelope | null;
 };
 
 export function serialActionFromToday(
@@ -89,6 +108,7 @@ export function resolveRecommendedNext(
       conceptIndex: session?.current_position?.concept_index ?? 0,
       round: session?.current_position?.round || 'recognize',
       mode: session?.current_position?.mode,
+      itemIndex: session?.current_position?.item_index ?? 0,
     };
   }
 
@@ -105,8 +125,25 @@ export function resolveRecommendedNext(
     return { kind: 'review', errataDue: progress.errataDue, vocabularyDue: progress.vocabularyDue };
   }
 
-  if (!progress.missionDone) {
+  if (!progress.missionDone && progress.missionSuggested) {
     return { kind: 'mission', query: dayQueryString(session, today) };
+  }
+
+  const libraryEpisode = STORY_FEATURE_VISIBLE
+    ? (today as AtelierTodayWithProgress | null)?.library_episode || null
+    : null;
+  if (STORY_FEATURE_VISIBLE && !progress.libraryDone && progress.librarySuggested && libraryEpisode?.book_id) {
+    const episodeIndex = Number(libraryEpisode.episode_index ?? libraryEpisode.order_index ?? 0);
+    const href = libraryEpisode.href
+      || `/notebook?mode=library&book=${libraryEpisode.book_id}&episode=${Number.isFinite(episodeIndex) ? episodeIndex : 0}`;
+    return {
+      kind: 'library',
+      bookId: libraryEpisode.book_id,
+      episodeIndex: Number.isFinite(episodeIndex) ? episodeIndex : 0,
+      href,
+      title: libraryEpisode.title || undefined,
+      bookTitle: libraryEpisode.book_title || undefined,
+    };
   }
 
   if (!progress.feuilletonDone) {
@@ -191,6 +228,37 @@ export function buildDayProgress(input: {
 }): DayProgress {
   const { today, session, vocabularyDue } = input;
   const serverProgress = (today as AtelierTodayWithProgress | null)?.progress;
+  const localProgress = readLocalDayProgressFlags();
+  const serverVocabularyDue = Number(serverProgress?.vocabularyDue ?? 0);
+  const contextVocabularyDue = Number(vocabularyDue ?? 0);
+  const resolvedVocabularyDue = Math.max(
+    Number.isFinite(serverVocabularyDue) ? serverVocabularyDue : 0,
+    Number.isFinite(contextVocabularyDue) ? contextVocabularyDue : 0,
+  );
+  const serverNodes = serverProgress?.nodes || [];
+  const visibleServerNodes = STORY_FEATURE_VISIBLE
+    ? serverNodes
+    : serverNodes.filter((node) => node.id !== 'library');
+  const hiddenLibraryMinutes = STORY_FEATURE_VISIBLE
+    ? 0
+    : serverNodes
+        .filter((node) => node.id === 'library')
+        .reduce((total, node) => total + Math.max(0, Number(node.estimatedMinutes || 0)), 0);
+  const hasVocabularyNode = visibleServerNodes.some((node) => node.id === 'vocabulary');
+  const addVocabularyNode = resolvedVocabularyDue > 0 && !hasVocabularyNode;
+  const nodes = addVocabularyNode
+    ? [
+        {
+          id: 'vocabulary',
+          label: 'Vocabulary',
+          estimatedMinutes: 4,
+          done: false,
+          suggested: true,
+        },
+        ...visibleServerNodes,
+      ]
+    : visibleServerNodes;
+  const extraVocabularyMinutes = addVocabularyNode ? 4 : 0;
   const status = session?.status;
   const sessionStatus = status === 'active' || status === 'in_progress'
     ? 'active'
@@ -201,14 +269,21 @@ export function buildDayProgress(input: {
   return {
     sessionStatus,
     errataDue: Number(serverProgress?.errataDue ?? today?.summary?.due_errata ?? today?.due_errata?.length ?? 0),
-    vocabularyDue: Number(serverProgress?.vocabularyDue ?? vocabularyDue ?? 0),
-    missionDone: Boolean(serverProgress?.missionDone ?? false),
-    feuilletonDone: Boolean(serverProgress?.feuilletonDone ?? false),
+    vocabularyDue: resolvedVocabularyDue,
+    missionDone: Boolean(serverProgress?.missionDone ?? localProgress.missionDone),
+    missionSuggested: Boolean(serverProgress?.missionSuggested ?? false),
+    libraryDone: STORY_FEATURE_VISIBLE
+      ? Boolean(serverProgress?.libraryDone ?? !(today as AtelierTodayWithProgress | null)?.library_episode)
+      : true,
+    librarySuggested: STORY_FEATURE_VISIBLE
+      ? Boolean(serverProgress?.librarySuggested ?? Boolean((today as AtelierTodayWithProgress | null)?.library_episode))
+      : false,
+    feuilletonDone: Boolean(serverProgress?.feuilletonDone ?? localProgress.feuilletonDone),
     sessionDone: Boolean(serverProgress?.sessionDone ?? sessionStatus === 'completed'),
     timeBudgetMinutes: Number(serverProgress?.timeBudgetMinutes ?? 20),
-    estimatedTotalMinutes: Number(serverProgress?.estimatedTotalMinutes ?? 20),
-    estimatedRemainingMinutes: Number(serverProgress?.estimatedRemainingMinutes ?? 20),
+    estimatedTotalMinutes: Math.max(0, Number(serverProgress?.estimatedTotalMinutes ?? 20) - hiddenLibraryMinutes) + extraVocabularyMinutes,
+    estimatedRemainingMinutes: Math.max(0, Number(serverProgress?.estimatedRemainingMinutes ?? 20) - hiddenLibraryMinutes) + extraVocabularyMinutes,
     filed: Boolean(serverProgress?.filed ?? false),
-    nodes: serverProgress?.nodes || [],
+    nodes,
   };
 }

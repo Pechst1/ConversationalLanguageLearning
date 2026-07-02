@@ -37,7 +37,11 @@ from app.services.llm_service import LLMProviderError, LLMService
 from app.services.progress import ProgressService
 from app.services.vocabulary_credit import VocabularyCreditService
 
-ATELIER_GENERATOR_VERSION = "atelier-v7"
+ATELIER_GENERATOR_VERSION = "atelier-v9"
+# How many LLM generation attempts to make before giving up. Each retry is fed the
+# previous attempt's structural/critique feedback so the model can self-correct,
+# which keeps the deterministic fallback rare.
+ATELIER_GENERATION_MAX_ATTEMPTS = 3
 ATELIER_CORRECTION_PROMPT_VERSION = "atelier-correction-v2"
 ATELIER_AI_AUTO_ROUNDS = {"sentence", "speak", "conversation", "produce"}
 
@@ -386,7 +390,11 @@ def _repo_root() -> Path:
 
 def _normalize(value: Any) -> str:
     text = "" if value is None else str(value)
-    text = text.replace("’", "'").replace("`", "'").strip().lower()
+    # Fold every smart/curly apostrophe and prime variant to a straight quote so a
+    # typed "S'il" matches "S'il" regardless of which apostrophe iOS auto-inserted.
+    # (iOS smart punctuation often produces U+2018 ‘ here, not the U+2019 ’ we used
+    # to handle, which made correct rewrites get flagged wrong.)
+    text = re.sub(r"[‘’‚‛′`´ʹʻʼ]", "'", text).strip().lower()
     text = unicodedata.normalize("NFKD", text)
     text = "".join(char for char in text if not unicodedata.combining(char))
     text = re.sub(r"'\s+", "'", text)
@@ -403,8 +411,9 @@ def _join_french_tokens(tokens: list[Any]) -> str:
 
 
 def _tokenize_french_sentence(sentence: str) -> list[str]:
-    tokens = re.findall(r"[A-Za-zÀ-ÖØ-öø-ÿ]+(?:['’][A-Za-zÀ-ÖØ-öø-ÿ]+)?|[.,!?;:]", sentence)
-    return [token.replace("’", "'") for token in tokens if token.strip()]
+    sentence = re.sub(r"[‘’‚‛′`´ʹʻʼ]", "'", sentence)
+    tokens = re.findall(r"[A-Za-zÀ-ÖØ-öø-ÿ]+(?:'[A-Za-zÀ-ÖØ-öø-ÿ]+)?|[.,!?;:]", sentence)
+    return [token for token in tokens if token.strip()]
 
 
 def _bounded_edit_distance(left: str, right: str, *, limit: int) -> int:
@@ -937,6 +946,36 @@ def _store_session_exercise_set_id(session: AtelierSession, concept: GrammarConc
     flag_modified(session, "quote_payload")
 
 
+def _session_has_concept_attempt(db: Session, *, session: AtelierSession, concept: GrammarConcept) -> bool:
+    return (
+        db.query(AtelierAttempt.id)
+        .filter(
+            AtelierAttempt.atelier_session_id == session.id,
+            AtelierAttempt.concept_id == concept.id,
+        )
+        .first()
+        is not None
+    )
+
+
+def _latest_valid_shared_llm_exercise_set(db: Session, concept: GrammarConcept) -> AtelierExerciseSet | None:
+    candidates = (
+        db.query(AtelierExerciseSet)
+        .filter(
+            AtelierExerciseSet.concept_id == concept.id,
+            AtelierExerciseSet.generator_version == ATELIER_GENERATOR_VERSION,
+            AtelierExerciseSet.source == "llm",
+        )
+        .order_by(AtelierExerciseSet.created_at.desc())
+        .limit(5)
+        .all()
+    )
+    for candidate in candidates:
+        if AtelierExerciseGenerator.validate_payload(candidate.payload, concept=concept):
+            return candidate
+    return None
+
+
 def session_exercise_set(
     db: Session,
     *,
@@ -955,6 +994,14 @@ def session_exercise_set(
             and exercise_set.generator_version == ATELIER_GENERATOR_VERSION
             and AtelierExerciseGenerator.validate_payload(exercise_set.payload, concept=concept)
         ):
+            if exercise_set.source == "fallback" and not _session_has_concept_attempt(db, session=session, concept=concept):
+                cached_llm = _latest_valid_shared_llm_exercise_set(db, concept)
+                if cached_llm:
+                    _store_session_exercise_set_id(session, concept, cached_llm)
+                    db.add(session)
+                    db.commit()
+                    db.refresh(session)
+                    return cached_llm
             return exercise_set
 
     exercise_set = AtelierExerciseGenerator(db).get_or_create(
@@ -1079,6 +1126,100 @@ def _concept_correction_instructions(concepts: list[GrammarConcept | None]) -> l
                 "When a si-frame is explicitly required, preserve si in corrected rewrites; do not replace it with quand unless the task asks for quand."
             )
     return instructions[:6]
+
+
+def _is_vague_output_prompt(prompt: Any) -> bool:
+    text = "" if prompt is None else str(prompt)
+    normalized = _normalize(prompt)
+    if not normalized:
+        return True
+    hard_vague_markers = (
+        "using the target grammar",
+        "use the target grammar",
+        "target grammar",
+        "using the grammar",
+        "use the grammar",
+        "use the target concept",
+    )
+    if any(marker in normalized for marker in hard_vague_markers):
+        return True
+
+    soft_vague_markers = (
+        "one sentence using",
+        "say one natural response",
+        "answer in one turn",
+        "answer in one conversational turn",
+        "write one real future condition",
+        "describe a background interrupted by an event",
+        "answer with one background and one completed event",
+        "say what is missing",
+        "say what you do not have",
+        "answer with one negative quantity",
+        "answer with a si clause",
+    )
+    has_direct_dialogue = bool(
+        re.search(r"«[^»]{3,}»|\"[^\"]{3,}\"|'[^']{3,}'", text)
+    )
+    has_scene_signal = bool(
+        re.search(
+            r"\b(?:asks|says|tells|messages|texts|writes|calls|explains|wonders|"
+            r"demande|demandes|demandent|dit|disent|ecrit|ecrivent|envoie|envoient|"
+            r"friend|ami|amie|colleague|coworker|collegue|teacher|professeur|neighbor|neighbour|voisin|voisine|"
+            r"client|waiter|serveur|serveuse|barista|roommate|colocataire|visitor|visiteur|visiteuse|"
+            r"teammate|classmate|clerk|message|question|yesterday|hier|tomorrow|demain|today|aujourd hui|"
+            r"cafe|office|bureau|station|gare|train|market|marche|meeting|reunion|phone|telephone|rain|pluie|"
+            r"kitchen|cuisine|table|museum|musee|bookstore|librairie)\b",
+            normalized,
+        )
+    )
+    if any(marker in normalized for marker in soft_vague_markers):
+        return not (has_scene_signal or has_direct_dialogue)
+    return len(normalized.split()) < 6 and not has_direct_dialogue or not (has_scene_signal or has_direct_dialogue)
+
+
+def _fallback_output_prompt_for(concept: GrammarConcept | None, round_name: str) -> str:
+    profile = infer_grammar_profile(concept) if concept else None
+    profile_key = profile.key if profile else ""
+    prompts: dict[str, dict[str, str]] = {
+        "tense_aspect": {
+            "sentence": "Yesterday a friend asks why you arrived late. Explain what was happening and what happened in one French sentence.",
+            "speak": "A colleague asks what you were doing when the phone rang. Say one sentence with the background and the event.",
+            "conversation": "Message received: « Pourquoi tu n'as pas répondu hier soir ? » Reply with what was going on and what happened.",
+        },
+        "si_present_result_form": {
+            "sentence": "A colleague asks: « Tu termines tôt aujourd'hui ? » Answer with what you will do if that happens.",
+            "speak": "A friend asks what you will do if it rains tomorrow. Say one natural si + present answer.",
+            "conversation": "Message received: « S'il pleut demain, on fait quoi ? » Reply with a real condition and its consequence.",
+        },
+        "article_after_negation": {
+            "sentence": "A friend asks what food or drink is left at home today. Say one thing you do not have.",
+            "speak": "At a cafe, someone asks what is available. Say one missing item with ne...pas de/d'.",
+            "conversation": "Message received: « Tu as encore du café ? » Reply with a negated quantity.",
+        },
+    }
+    fallback = {
+        "sentence": "A friend asks for one concrete update about today. Answer in French with one complete sentence.",
+        "speak": "Someone asks you a quick real-life question. Say one concrete French response.",
+        "conversation": "Message received: « Qu'est-ce qui se passe ? » Reply naturally in French.",
+    }
+    return prompts.get(profile_key, fallback).get(round_name, fallback["sentence"])
+
+
+def _fallback_produce_prompt_for(concept: GrammarConcept | None) -> str:
+    profile = infer_grammar_profile(concept) if concept else None
+    profile_key = profile.key if profile else ""
+    prompts: dict[str, str] = {
+        "tense_aspect": "A friend asks what happened yesterday when your plans changed. Write a short French note that contrasts the background scene with the completed events.",
+        "si_present_result_form": "A teammate asks how tomorrow's plan changes if the weather or timing changes. Write a short French reply with real si-conditions and their consequences.",
+        "article_after_negation": "A roommate asks what supplies are missing before shopping. Write a short French note naming what you do not have.",
+    }
+    if profile_key in prompts:
+        return prompts[profile_key]
+    pattern = profile.pattern if profile else "the target grammar pattern"
+    return (
+        "A friend asks for a short update about today's plan. "
+        f"Write a French note with concrete details, making this pattern visible: {pattern}"
+    )
 
 
 @dataclass(frozen=True)
@@ -1417,6 +1558,7 @@ class AtelierExerciseGenerator:
         reuse_shared_cache: bool | None = None,
     ) -> AtelierExerciseSet:
         use_shared_cache = (user is None and session_id is None) if reuse_shared_cache is None else reuse_shared_cache
+        cached_shared_llm: AtelierExerciseSet | None = None
         if use_shared_cache:
             cached = (
                 self.db.query(AtelierExerciseSet)
@@ -1430,6 +1572,17 @@ class AtelierExerciseGenerator:
             )
             if cached and self.validate_payload(cached.payload, concept=concept):
                 return cached
+        else:
+            cached_shared_llm = (
+                self.db.query(AtelierExerciseSet)
+                .filter(
+                    AtelierExerciseSet.concept_id == concept.id,
+                    AtelierExerciseSet.generator_version == ATELIER_GENERATOR_VERSION,
+                    AtelierExerciseSet.source == "llm",
+                )
+                .order_by(AtelierExerciseSet.created_at.desc())
+                .first()
+            )
 
         cached_fallback = (
             self.db.query(AtelierExerciseSet)
@@ -1449,6 +1602,8 @@ class AtelierExerciseGenerator:
             target_vocabulary=target_vocabulary,
         )
         if not generated:
+            if cached_shared_llm and self.validate_payload(cached_shared_llm.payload, concept=concept):
+                return cached_shared_llm
             if cached_fallback and self.validate_payload(cached_fallback.payload, concept=concept):
                 return cached_fallback
             payload = self._fallback_payload(concept)
@@ -1650,6 +1805,8 @@ class AtelierExerciseGenerator:
             and bool(produce.get("requirements"))
         ):
             errors.append("produce source_fragment, prompt, or requirements missing")
+        elif _is_vague_output_prompt(produce.get("prompt")):
+            errors.append("produce prompt must set a concrete situation")
         ladder = payload.get("output_ladder") or {}
         for key in ("sentence", "speak", "conversation"):
             items = (ladder.get(key) or {}).get("items") or []
@@ -1667,6 +1824,8 @@ class AtelierExerciseGenerator:
                 ):
                     errors.append(f"output_ladder.{key} item {item_id(item)} is incomplete")
                     continue
+                if _is_vague_output_prompt(item.get("prompt")):
+                    errors.append(f"output_ladder.{key} item {item_id(item)} prompt must give a concrete situation")
         return errors
 
     @staticmethod
@@ -1678,17 +1837,19 @@ class AtelierExerciseGenerator:
         normalized_choices = [_normalize(choice) for choice in choices if _normalize(choice)]
         unique_choices = set(normalized_choices)
         correct = _normalize(item.get("correct_answer"))
+        # Thin solvability guard only: the normalizer repairs a missing blank, a
+        # too-short choice list, and a missing correct choice before this runs, so
+        # these should only fire for genuinely unrenderable items. Distractor
+        # *quality* (adjacent verb forms etc.) is left to the AI critique, not a
+        # hard structural reject.
         if not _contains_blank_marker(prompt):
             errors.append(f"fill item {item_id} must contain a visible blank")
-        if len(unique_choices) < 3:
-            errors.append(f"fill item {item_id} needs at least 3 distinct choices")
+        if len(unique_choices) < 2:
+            errors.append(f"fill item {item_id} needs at least 2 distinct choices")
         if correct not in unique_choices:
             errors.append(f"fill item {item_id} correct_answer must be one of choices")
         if any(choice in {"forme cible", "autre forme", "target form", "correct form", "other form"} for choice in unique_choices):
             errors.append(f"fill item {item_id} uses generic placeholder choices")
-        if concept and infer_grammar_profile(concept).key == "si_present_result_form" and len(correct) >= 4:
-            if not any(_looks_like_adjacent_form(correct, choice) for choice in unique_choices if choice != correct):
-                errors.append(f"fill item {item_id} needs an adjacent verb-form distractor")
         return errors
 
     @staticmethod
@@ -1700,20 +1861,25 @@ class AtelierExerciseGenerator:
         normalized_answer = [_normalize(token) for token in answer_tokens if _normalize(token)]
         cue = _normalize(item.get("meaning_cue"))
         joined_answer = _normalize(_join_french_tokens(answer_tokens))
-        if len(normalized_answer) < 4:
+        # Thin guard: require a non-degenerate multi-word build and a non-spoiling
+        # cue. Distractor *type* (adjacent si forms etc.) and sentence naturalness
+        # are quality concerns for the AI critique, not hard structural rejects.
+        # The normalizer guarantees buildable chips and at least one distractor.
+        if len(normalized_answer) < 2:
+            errors.append(f"word_bank item {item_id} answer must be a build of at least two words")
+        if _has_adjacent_duplicate_tokens(answer_tokens):
+            errors.append(f"word_bank item {item_id} has duplicated adjacent answer tokens")
+        normalized_parts = [part for token in normalized_answer for part in re.split(r"[\s']+", token) if part]
+        sentence_signals = {"je", "tu", "il", "elle", "nous", "vous", "ils", "elles", "on", "ce", "c", "si", "quand"}
+        fragment_markers = {"de", "du", "des", "d", "le", "la", "les", "un", "une", "a", "au", "aux"}
+        content_parts = [part for part in normalized_parts if part not in fragment_markers]
+        has_sentence_signal = any(part in sentence_signals for part in normalized_parts)
+        if len(normalized_parts) < 3 or (not has_sentence_signal and len(content_parts) < 3):
             errors.append(f"word_bank item {item_id} answer must be a complete sentence")
         if cue and joined_answer and joined_answer in cue:
             errors.append(f"word_bank item {item_id} meaning_cue must not expose the French answer")
-        if _has_adjacent_duplicate_tokens(answer_tokens):
-            errors.append(f"word_bank item {item_id} has duplicated adjacent answer tokens")
-        extras = _extra_normalized_tokens(answer_tokens, tokens)
-        if not extras:
-            errors.append(f"word_bank item {item_id} needs at least 1 distractor token")
-        if any(extra in {"forme cible", "autre forme", "target form", "correct form", "other form"} for extra in extras):
+        if any(extra in {"forme cible", "autre forme", "target form", "correct form", "other form"} for extra in _extra_normalized_tokens(answer_tokens, tokens)):
             errors.append(f"word_bank item {item_id} uses a generic distractor token")
-        if concept and infer_grammar_profile(concept).key == "si_present_result_form":
-            if not AtelierExerciseGenerator._has_si_adjacent_word_bank_distractor(answer_tokens, extras):
-                errors.append(f"word_bank item {item_id} needs an adjacent si verb-form distractor")
         return errors
 
     @staticmethod
@@ -1769,7 +1935,7 @@ class AtelierExerciseGenerator:
         )
         validation_feedback: list[str] | None = None
         try:
-            for attempt_index in range(2):
+            for attempt_index in range(ATELIER_GENERATION_MAX_ATTEMPTS):
                 bundle = generation_service.generate_atelier_exercise(
                     concept=concept,
                     user=user,
@@ -1799,7 +1965,9 @@ class AtelierExerciseGenerator:
                     validation_feedback = validation_errors
                     continue
 
-                critique = self.critique_exercise_payload(concept, payload, user=user, session_id=session_id)
+                critique = self._downgrade_nonblocking_critique(
+                    self.critique_exercise_payload(concept, payload, user=user, session_id=session_id)
+                )
                 failed_critique = [verdict for verdict in critique if not verdict.passes]
                 if failed_critique:
                     critique_feedback = [
@@ -1896,12 +2064,11 @@ class AtelierExerciseGenerator:
             },
             "items": items,
             "instructions": [
-                "Judge each item independently.",
-                "Fail an item if it is not solvable from its choices/chips, if the answer key is wrong, if it does not test the target concept, or if the French is unnatural/incorrect.",
-                "Fail trivial items whose prompt or labels reveal the answer without testing the concept.",
-                "For fill, require at least 3 distinct choices with plausible wrong forms, not placeholders.",
-                "For word_bank, meaning_cue must tell the learner what sentence to build, must match the answer sentence's meaning, must not expose the French target sentence, prompt/tokens must not contain blanks, answer_tokens must form the complete target French sentence, and tokens must include at least one plausible distractor chip.",
-                "For directed_rewrite transform items, the instruction must quote the source word or phrase to change and name the target form to use.",
+                "Judge each item independently and DEFAULT TO PASS. Only fail an item for a concrete defect listed below — never for style, difficulty, dryness, or imperfect-but-reasonable alignment. When in doubt, pass.",
+                "Concrete defects that fail an item: (1) the answer key is wrong, or is not selectable from the choices / not buildable from the chips; (2) the French in the answer key is clearly ungrammatical or unnatural; (3) the item has essentially NO connection to the target concept's grammar family (a related or adjacent sub-skill still passes — only fail when it tests an entirely different, unrelated grammar point); (4) the prompt or labels hand over the answer so no thinking is required.",
+                "Do NOT fail an item merely for the number, style, or strength of distractors — distractor quality is repaired automatically. Two distinct plausible choices is acceptable.",
+                "For word_bank, meaning_cue must tell the learner what sentence to build, must match the answer sentence's meaning, must not expose the French target sentence, prompt/tokens must not contain blanks, answer_tokens must form the complete target French sentence, and tokens must include at least one plausible distractor chip. The assembled answer_tokens MUST be a grammatically complete, natural French sentence: FAIL it if two clauses are spliced without the conjunction the meaning needs (e.g. an English cue 'I was reading WHEN the phone rang' whose French answer omits 'quand', or a si/parce que/que clause missing its connector). Do NOT fail word_bank items for chip order, token ordering, placement clarity, or extra plausible distractors; chips are intentionally unordered.",
+                "For transform items, judge ONLY the learner-facing `instruction` text (never the `expected_answer` field — that is the hidden grading key and SHOULD contain the full corrected sentence; never treat it as a spoiler). Be LENIENT: a transform passes whenever it (a) quotes the exact source word or phrase to change and (b) names a grammatical target — a tense, mood, or rule name such as 'the imparfait', 'the passé composé', 'the future', 'the present', 'its negated form'. Naming the target tense/mood is REQUIRED and is NOT a spoiler, even when the answer ends up in that tense: \"Change 'pleuvait' to the passé composé\" must PASS. Only FAIL a transform when the instruction literally writes the conjugated answer word the learner must type (for example \"change 'pleut' to 'pleuvait'\", or \"change 'avais' to 'as'\"), or when it is so vague it names neither a specific source word nor any grammatical target. Do not fail for style, prescriptiveness, or for omitting the answer word.",
                 "Do not rewrite items. Return pass/fail and one concise reason only.",
             ],
         }
@@ -1910,7 +2077,8 @@ class AtelierExerciseGenerator:
                 [{"role": "user", "content": json.dumps(user_payload, ensure_ascii=False)}],
                 system_prompt=(
                     "You are Atelier's AI exercise critic. Return only JSON matching the schema. "
-                    "Be strict about answer keys, natural French, and whether the target grammar is actually practiced."
+                    "You are a safety net for genuine defects (wrong answer keys, ungrammatical French, items unrelated to the target grammar), "
+                    "NOT a style editor. A learnable, solvable, on-topic item must pass even if you would have written it differently. Default to pass."
                 ),
                 response_format=ATELIER_EXERCISE_CRITIQUE_RESPONSE_FORMAT,
                 temperature=0.0,
@@ -1957,6 +2125,67 @@ class AtelierExerciseGenerator:
                 payload={"unavailable": True, "error": str(exc)},
             )
             return []
+
+    @staticmethod
+    def _downgrade_nonblocking_critique(verdicts: list[ItemVerdict]) -> list[ItemVerdict]:
+        adjusted: list[ItemVerdict] = []
+        for verdict in verdicts:
+            if verdict.passes or not AtelierExerciseGenerator._is_nonblocking_word_bank_critique(verdict):
+                adjusted.append(verdict)
+                continue
+            adjusted.append(
+                ItemVerdict(
+                    item_id=verdict.item_id,
+                    round=verdict.round,
+                    mode=verdict.mode,
+                    passes=True,
+                    reason=f"Advisory only; structural guard passed. {verdict.reason}",
+                )
+            )
+        return adjusted
+
+    @staticmethod
+    def _is_nonblocking_word_bank_critique(verdict: ItemVerdict) -> bool:
+        if verdict.round != "recognize" or verdict.mode != "word_bank":
+            return False
+        reason = _normalize(verdict.reason)
+        hard_markers = (
+            "answer key",
+            "wrong answer",
+            "correct answer is wrong",
+            "answer tokens do not form",
+            "answer tokens dont form",
+            "cannot build",
+            "not solvable",
+            "not available in tokens",
+            "missing correct token",
+            "omits correct token",
+            "meaning cue",
+            "expose",
+            "blank",
+            "unnatural",
+            "incorrect french",
+            "does not practice",
+            "doesn't practice",
+            "doesnt practice",
+            "not test the target",
+            "not testing the target",
+            "target concept",
+        )
+        if any(marker in reason for marker in hard_markers):
+            return False
+        soft_markers = (
+            "placement clarity",
+            "chip order",
+            "token order",
+            "tokens order",
+            "ordering",
+            "extra distractor",
+            "too many distractors",
+            "distractors are allowed",
+            "tokens include",
+        )
+        return any(marker in reason for marker in soft_markers)
 
     @staticmethod
     def _critique_items(payload: dict[str, Any]) -> list[dict[str, Any]]:
@@ -2035,7 +2264,7 @@ class AtelierExerciseGenerator:
                 "transform": {"items": self._fallback_transform_items(concept, sentences, prefix=prefix)},
                 "produce": {
                     "source_fragment": sentences[0],
-                    "prompt": f"Write a short French note that uses {profile.label.lower()} clearly.",
+                    "prompt": _fallback_produce_prompt_for(concept),
                     "requirements": [
                         {
                             "concept_id": concept.id,
@@ -2055,7 +2284,7 @@ class AtelierExerciseGenerator:
                                 prefix=prefix,
                                 round_name="sentence",
                                 kind="short_sentence",
-                                prompt="Write one sentence using the target grammar.",
+                                prompt=_fallback_output_prompt_for(concept, "sentence"),
                                 example=sentences[0],
                                 min_words=5,
                                 max_words=24,
@@ -2069,7 +2298,7 @@ class AtelierExerciseGenerator:
                                 prefix=prefix,
                                 round_name="speak",
                                 kind="spoken_response",
-                                prompt="Say one natural response using the target grammar.",
+                                prompt=_fallback_output_prompt_for(concept, "speak"),
                                 example=sentences[1],
                                 min_words=5,
                                 max_words=24,
@@ -2083,7 +2312,7 @@ class AtelierExerciseGenerator:
                                 prefix=prefix,
                                 round_name="conversation",
                                 kind="conversation_turn",
-                                prompt="Answer in one conversational turn using the target grammar.",
+                                prompt=_fallback_output_prompt_for(concept, "conversation"),
                                 example=sentences[2],
                                 min_words=6,
                                 max_words=30,
@@ -2257,6 +2486,45 @@ class AtelierExerciseGenerator:
         return distractors[:2] or ["autrement"]
 
     @staticmethod
+    def _generic_word_bank_distractors(answer_tokens: list[Any]) -> list[str]:
+        answer_norms = {_normalize(token) for token in answer_tokens if _normalize(token)}
+        pool = ["soudain", "déjà", "souvent", "hier", "demain", "toujours", "vraiment", "autrement"]
+        return [word for word in pool if _normalize(word) not in answer_norms]
+
+    def _fill_choice_distractors(self, concept: GrammarConcept | None, answer: str, choices: list[str]) -> list[str]:
+        present = {_normalize(choice) for choice in choices}
+        answer_norm = _normalize(answer)
+        out: list[str] = []
+
+        def consider(candidate: str) -> None:
+            norm = _normalize(candidate)
+            if not norm or norm == answer_norm or norm in present or norm in {_normalize(value) for value in out}:
+                return
+            out.append(candidate)
+
+        if concept is not None:
+            for candidate in self._word_bank_distractors(concept, [answer]):
+                consider(candidate)
+        for candidate in ["de", "du", "des", "le", "la", "ne", "pas", "soudain", "autrement"]:
+            consider(candidate)
+        return out
+
+    @staticmethod
+    def _ensure_fill_blank(prompt: str, answer: str) -> str:
+        if _contains_blank_marker(prompt):
+            return prompt
+        answer = (answer or "").strip()
+        if answer:
+            pattern = re.compile(rf"(?<!\w){re.escape(answer)}(?!\w)", flags=re.IGNORECASE)
+            replaced, replacements = pattern.subn("____", prompt, count=1)
+            if replacements:
+                return replaced
+        trailing = re.search(r"[.!?]\s*$", prompt)
+        if trailing:
+            return f"{prompt[: trailing.start()].rstrip()} ____{prompt[trailing.start():]}"
+        return f"{prompt.rstrip()} ____".strip()
+
+    @staticmethod
     def _si_verb_distractors(token: str) -> list[str]:
         normalized = _normalize(token)
         if not normalized:
@@ -2378,27 +2646,39 @@ class AtelierExerciseGenerator:
         profile = infer_grammar_profile(concept)
         if profile.key == "article_after_negation":
             return [
-                {"id": f"{prefix}-fallback-transform-1", "type": "directed_rewrite", "instruction": "Negate the quantity; change 'du' to 'de' after pas.", "source": "Je bois du café.", "expected_answer": "Je ne bois pas de café."},
-                {"id": f"{prefix}-fallback-transform-2", "type": "contrast_rewrite", "instruction": "Use the être exception; keep 'du' after n'est pas.", "source": "C'est du café.", "expected_answer": "Ce n'est pas du café."},
-                {"id": f"{prefix}-fallback-transform-3", "type": "repair_rewrite", "instruction": "Repair the article; change 'une' to d' after pas.", "source": "Elle n'a pas une idée.", "expected_answer": "Elle n'a pas d'idée."},
+                {"id": f"{prefix}-fallback-transform-1", "type": "directed_rewrite", "instruction": "Make this negative and change the partitive 'du' to its form after 'pas'.", "source": "Je bois du café.", "expected_answer": "Je ne bois pas de café."},
+                {"id": f"{prefix}-fallback-transform-2", "type": "contrast_rewrite", "instruction": "Negate 'C'est du café' with ne…pas, watching the être exception.", "source": "C'est du café.", "expected_answer": "Ce n'est pas du café."},
+                {"id": f"{prefix}-fallback-transform-3", "type": "repair_rewrite", "instruction": "Repair the article 'une' after 'pas' to its negated quantity form.", "source": "Elle n'a pas une idée.", "expected_answer": "Elle n'a pas d'idée."},
             ]
         if profile.key == "tense_aspect":
             return [
-                {"id": f"{prefix}-fallback-transform-1", "type": "directed_rewrite", "instruction": "Change 'pleut' to background imparfait and 'sors' to passé composé.", "source": "Il pleut quand je sors.", "expected_answer": "Il pleuvait quand je suis sorti."},
-                {"id": f"{prefix}-fallback-transform-2", "type": "contrast_rewrite", "instruction": "Change the habit 'lisais' into one completed event.", "source": "Je lisais souvent ce livre.", "expected_answer": "J'ai lu ce livre hier."},
-                {"id": f"{prefix}-fallback-transform-3", "type": "repair_rewrite", "instruction": "Repair the contrast by making 'être' background and 'sonner' a completed event.", "source": "Je suis fatigué quand le téléphone sonnait.", "expected_answer": "J'étais fatigué quand le téléphone a sonné."},
+                {"id": f"{prefix}-fallback-transform-1", "type": "directed_rewrite", "instruction": "Change 'pleut' to the imparfait and 'sors' to the passé composé.", "source": "Il pleut quand je sors.", "expected_answer": "Il pleuvait quand je suis sorti."},
+                {"id": f"{prefix}-fallback-transform-2", "type": "contrast_rewrite", "instruction": "Turn the habit 'lisais' into a single completed event in the passé composé.", "source": "Je lisais souvent ce livre.", "expected_answer": "J'ai lu ce livre hier."},
+                {"id": f"{prefix}-fallback-transform-3", "type": "repair_rewrite", "instruction": "Repair the contrast: put 'suis' in the imparfait and 'sonnait' in the passé composé.", "source": "Je suis fatigué quand le téléphone sonnait.", "expected_answer": "J'étais fatigué quand le téléphone a sonné."},
             ]
         if profile.key == "si_present_result_form":
             return [
-                {"id": f"{prefix}-fallback-transform-1", "type": "directed_rewrite", "instruction": "Change 'quand il arrivera' to a si-clause with present 'arrive'.", "source": "Quand il arrivera, on commencera.", "expected_answer": "S'il arrive, on commencera."},
-                {"id": f"{prefix}-fallback-transform-2", "type": "contrast_rewrite", "instruction": "Change 'avais' to present 'as' and 'viendrais' to future 'viendras'.", "source": "Si tu avais le temps, tu viendrais.", "expected_answer": "Si tu as le temps, tu viendras."},
-                {"id": f"{prefix}-fallback-transform-3", "type": "repair_rewrite", "instruction": "Repair 'viendras' after si; use present 'viens'.", "source": "Si tu viendras demain, apporte le livre.", "expected_answer": "Si tu viens demain, apporte le livre."},
+                {"id": f"{prefix}-fallback-transform-1", "type": "directed_rewrite", "instruction": "Rewrite 'Quand il arrivera, on commencera' to start with a si-clause whose condition is in the present.", "source": "Quand il arrivera, on commencera.", "expected_answer": "S'il arrive, on commencera."},
+                {"id": f"{prefix}-fallback-transform-2", "type": "contrast_rewrite", "instruction": "Make this a si type 1: put 'avais' in the present and 'viendrais' in the future.", "source": "Si tu avais le temps, tu viendrais.", "expected_answer": "Si tu as le temps, tu viendras."},
+                {"id": f"{prefix}-fallback-transform-3", "type": "repair_rewrite", "instruction": "Repair the verb 'viendras' after 'si': the condition must be in the present.", "source": "Si tu viendras demain, apporte le livre.", "expected_answer": "Si tu viens demain, apporte le livre."},
             ]
+        def source_fragment(sentence: str) -> str:
+            tokens = _tokenize_french_sentence(sentence)
+            return next(
+                (
+                    token
+                    for token in tokens
+                    if re.fullmatch(r"[A-Za-zÀ-ÖØ-öø-ÿ]+(?:['’][A-Za-zÀ-ÖØ-öø-ÿ]+)?", token)
+                    and len(_normalize(token)) >= 4
+                ),
+                sentence,
+            )
+
         return [
             {
                 "id": f"{prefix}-fallback-transform-{index}",
                 "type": kind,
-                "instruction": f"Rewrite the sentence so the exact target form shows {profile.label.lower()}.",
+                "instruction": f"Rewrite the sentence while keeping '{source_fragment(sentence)}' and making the target form visible: {profile.label.lower()}.",
                 "source": sentence,
                 "expected_answer": sentence,
             }
@@ -2468,17 +2748,44 @@ class AtelierExerciseGenerator:
                 item["correct_answer"] = _join_french_tokens(item["answer_tokens"])
             if not str(item.get("meaning_cue") or "").strip():
                 item["meaning_cue"] = _word_bank_meaning_cue(concept, item.get("correct_answer") or item["answer_tokens"])
-            tokens = item.get("tokens") or item["answer_tokens"]
-            if not isinstance(tokens, list):
-                tokens = item["answer_tokens"]
-            distractors = self._word_bank_distractors(concept, item["answer_tokens"])
-            for distractor in distractors:
-                if _normalize(distractor) not in {_normalize(token) for token in tokens}:
-                    tokens = [*tokens, distractor]
-            if _normalize(_join_french_tokens(tokens)) == _normalize(item["correct_answer"]):
-                item["tokens"] = _stable_scramble(item["answer_tokens"], item_id)
-            else:
-                item["tokens"] = [str(token) for token in tokens]
+            # Always build the chips from the answer tokens (+ distractors) so the answer is
+            # guaranteed buildable from the offered chips — the LLM's own token list is unreliable.
+            chips = [str(token) for token in item["answer_tokens"]]
+            existing = {_normalize(token) for token in chips}
+            for distractor in self._word_bank_distractors(concept, item["answer_tokens"]):
+                if _normalize(distractor) not in existing:
+                    chips.append(str(distractor))
+                    existing.add(_normalize(distractor))
+            # Guarantee at least one distractor chip so the build is non-trivial.
+            if len(existing) <= len(item["answer_tokens"]):
+                for fallback_chip in self._generic_word_bank_distractors(item["answer_tokens"]):
+                    if _normalize(fallback_chip) not in existing:
+                        chips.append(str(fallback_chip))
+                        existing.add(_normalize(fallback_chip))
+                        break
+            item["tokens"] = _stable_scramble(chips, item_id)
+        for item in (((payload.get("recognize") or {}).get("fill") or {}).get("items") or []):
+            # Guarantee the correct answer is selectable, choices are distinct, and the
+            # prompt actually renders a blank — repairing here instead of rejecting.
+            answer = str(item.get("correct_answer") or "").strip()
+            seen: set[str] = set()
+            choices: list[str] = []
+            for choice in [str(choice) for choice in (item.get("choices") or [])]:
+                norm = _normalize(choice)
+                if norm and norm not in seen:
+                    seen.add(norm)
+                    choices.append(choice)
+            if answer and _normalize(answer) not in seen:
+                choices = [answer, *choices]
+                seen.add(_normalize(answer))
+            for distractor in self._fill_choice_distractors(concept, answer, choices):
+                if len(choices) >= 3:
+                    break
+                if _normalize(distractor) not in seen:
+                    choices.append(distractor)
+                    seen.add(_normalize(distractor))
+            item["choices"] = choices
+            item["prompt"] = self._ensure_fill_blank(str(item.get("prompt") or ""), answer)
         produce = dict(payload.get("produce") or {})
         requirements = produce.get("requirements") or []
         raw_requirement = requirements[0] if requirements else {}
@@ -2493,6 +2800,8 @@ class AtelierExerciseGenerator:
                 ),
             }
         ]
+        if _is_vague_output_prompt(produce.get("prompt")):
+            produce["prompt"] = _fallback_produce_prompt_for(concept)
         produce["min_words"] = int(produce.get("min_words") or 70)
         produce["max_words"] = int(produce.get("max_words") or 140)
         payload["produce"] = produce
@@ -2516,6 +2825,8 @@ class AtelierExerciseGenerator:
                     }
                 ]
                 item["id"] = str(item.get("id") or f"{concept.external_id or concept.id}-{round_name}-{index + 1}")
+                if _is_vague_output_prompt(item.get("prompt")):
+                    item["prompt"] = _fallback_output_prompt_for(concept, round_name)
                 item["min_words"] = int(item.get("min_words") or (5 if round_name == "sentence" else 6))
                 item["max_words"] = int(item.get("max_words") or (30 if round_name == "conversation" else 24))
                 normalized_items.append(item)
@@ -2826,6 +3137,13 @@ class AtelierCorrectionService:
         answer_payload: dict[str, Any],
         correction: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
+        # Every round is now corrected AI-first synchronously in correct(); the
+        # AI verdict is already baked into `correction` by the time we get here.
+        # We no longer expose a manual "AI correction" trigger or surface an
+        # "AI unavailable" state: when the live model succeeds we mark the review
+        # complete, and when it quietly falls back to the deterministic engine we
+        # simply treat the AI review as not applicable rather than nagging the
+        # learner with a button or an error line.
         correction_debug = (correction or {}).get("correction_debug") or {}
         if correction_debug and not correction_debug.get("fallback_used"):
             return {
@@ -2833,35 +3151,6 @@ class AtelierCorrectionService:
                 "auto_started": False,
                 "model": correction_debug.get("model") or settings.ATELIER_CORRECTION_LLM_MODEL,
                 "completed_at": self._now_iso(),
-            }
-        answer_text = self._answer_text(answer_payload).strip()
-        model = settings.ATELIER_CORRECTION_LLM_MODEL
-        if round_name == "recognize":
-            if (correction or {}).get("errata") and answer_text:
-                if self._can_schedule_ai_review():
-                    return {"status": "available", "auto_started": False, "model": model}
-                return {
-                    "status": "failed",
-                    "auto_started": False,
-                    "model": model,
-                    "error": "AI provider unavailable.",
-                }
-            return {"status": "not_applicable", "auto_started": False}
-        if round_name == "transform":
-            return {"status": "available", "auto_started": False, "model": model}
-        if round_name in ATELIER_AI_AUTO_ROUNDS and answer_text:
-            if self._can_schedule_ai_review():
-                return {
-                    "status": "pending",
-                    "auto_started": True,
-                    "model": model,
-                    "started_at": self._now_iso(),
-                }
-            return {
-                "status": "failed",
-                "auto_started": False,
-                "model": model,
-                "error": "AI provider unavailable.",
             }
         return {"status": "not_applicable", "auto_started": False}
 
@@ -3052,15 +3341,32 @@ class AtelierCorrectionService:
             "rule_panel": payload.get("rule_panel") or {},
         }
         if round_name == "recognize":
-            return {**base_payload, **payload["recognize"][mode]}
+            return self._scope_prompt_items({**base_payload, **payload["recognize"][mode]}, exercise_id)
         if round_name == "transform":
-            return {**base_payload, **payload["transform"]}
+            return self._scope_prompt_items({**base_payload, **payload["transform"]}, exercise_id)
         if round_name in {"sentence", "speak", "conversation"}:
             ladder = (payload.get("output_ladder") or {}).get(round_name) or {}
             return {**base_payload, **ladder}
         if round_name == "produce":
             return {**base_payload, **payload["produce"]}
         return {"id": exercise_id, "round": round_name, "mode": mode}
+
+    @staticmethod
+    def _scope_prompt_items(prompt_payload: dict[str, Any], exercise_id: str) -> dict[str, Any]:
+        items = prompt_payload.get("items")
+        if not isinstance(items, list) or not items:
+            return prompt_payload
+        candidate = str(exercise_id or "").split(":")[-1].strip()
+        if not candidate:
+            return prompt_payload
+        matched = [item for item in items if str((item or {}).get("id") or "") == candidate]
+        if not matched:
+            return prompt_payload
+        return {
+            **prompt_payload,
+            "items": matched,
+            "item_id": candidate,
+        }
 
     def _rule_reference(
         self,
@@ -3666,6 +3972,12 @@ class AtelierCorrectionService:
     ) -> dict[str, Any]:
         text = str(answer_payload.get("text") or "").strip()
         item = ((prompt_payload.get("items") or [{}])[0] or {})
+        profile_key = infer_grammar_profile(concept).key if concept else ""
+        si_analysis = (
+            self._si_output_ladder_analysis(concept, item, text)
+            if profile_key == "si_present_result_form" and text
+            else {}
+        )
         requirements = item.get("requirements") or (
             [
                 {
@@ -3684,6 +3996,8 @@ class AtelierCorrectionService:
         total_hits = 0
         for req in requirements:
             detected = self._count_hits(req, text)
+            if si_analysis.get("condition_present"):
+                detected = max(detected, 1)
             total_hits += min(detected, int(req.get("target_count") or 1))
             hit = {**req, "detected_count": detected}
             hits.append(hit)
@@ -3699,9 +4013,10 @@ class AtelierCorrectionService:
         if not text:
             errata.append(
                 {
+                    "item_id": item.get("id"),
                     "display_label": "Missing output",
                     "learner_text": "",
-                    "corrected_target": item.get("example_answer") or item.get("prompt") or "",
+                    "corrected_target": self._output_ladder_target_hint(concept, item, {}),
                     "why_wrong": "This output step was left blank, so it cannot strengthen active use yet.",
                     "repair_hint": "Produce one sentence or turn before submitting; blank output is not scheduled as grammar errata.",
                     "severity": 1,
@@ -3715,9 +4030,10 @@ class AtelierCorrectionService:
             for req in missing:
                 errata.append(
                     {
+                        "item_id": item.get("id"),
                         "display_label": item.get("errata_label") or self._label_for(concept, item),
                         "learner_text": text,
-                        "corrected_target": item.get("example_answer") or req.get("label") or "",
+                        "corrected_target": self._output_ladder_target_hint(concept, item, req),
                         "why_wrong": f"You submitted output, but this step needs {req.get('target_count', 1)} visible use of {req.get('label')} and only detected {req.get('detected_count', 0)}.",
                         "repair_hint": item.get("repair_hint") or self._repair_for(concept),
                         "severity": 1,
@@ -3727,9 +4043,13 @@ class AtelierCorrectionService:
                         "external_id": req.get("external_id"),
                     }
                 )
+            if isinstance(si_analysis.get("erratum"), dict):
+                errata.append(si_analysis["erratum"])
 
         score = round((total_hits / max(total_required, 1)) * 4, 2)
-        if text and not missing:
+        if text and errata and total_hits:
+            score = min(score, 2.75)
+        if text and not missing and not errata:
             verdict = "accepted"
             score = max(score, 3.0)
         elif text:
@@ -3745,6 +4065,205 @@ class AtelierCorrectionService:
             "errata": errata,
             "correction_debug": _correction_debug(model=None, fallback_used=True),
         }
+
+    def _output_ladder_target_hint(
+        self,
+        concept: GrammarConcept | None,
+        item: dict[str, Any],
+        requirement: dict[str, Any],
+    ) -> str:
+        if concept:
+            profile = infer_grammar_profile(concept)
+            if profile.key == "si_present_result_form":
+                return "Use si + present, then a future simple or imperative result."
+            return profile.pattern or profile.principle
+        return str(requirement.get("label") or item.get("instruction") or item.get("prompt") or "")
+
+    def _si_output_ladder_analysis(
+        self,
+        concept: GrammarConcept | None,
+        item: dict[str, Any],
+        text: str,
+    ) -> dict[str, Any]:
+        scan = self._scan_text_for_si_frame(text)
+        status = str(scan.get("status") or "")
+        condition_present = status == "present"
+        if not text.strip():
+            return {"condition_present": False, "erratum": None}
+
+        if condition_present:
+            conditional = self._first_conditional_result(scan.get("result_text") or "")
+            if conditional:
+                token, future_token = conditional
+                corrected = self._replace_first_conditional_result(text, token, future_token)
+                return {
+                    "condition_present": True,
+                    "erratum": {
+                        "item_id": item.get("id"),
+                        "display_label": "Future result",
+                        "learner_text": text,
+                        "corrected_target": corrected,
+                        "why_wrong": (
+                            f"You wrote `{token}` in the result clause. With si + present for a real condition, "
+                            f"the result uses future simple, so this should be `{future_token}`."
+                        ),
+                        "repair_hint": "Keep your si-clause, then change only the result verb from conditional to future simple.",
+                        "severity": 2,
+                        "recurring": True,
+                        "task_error_type": "future_result",
+                        "concept_id": concept.id if concept else None,
+                        "external_id": concept.external_id if concept else None,
+                    },
+                }
+            if not self._has_si_type_one_result(scan.get("result_text") or ""):
+                return {
+                    "condition_present": True,
+                    "erratum": {
+                        "item_id": item.get("id"),
+                        "display_label": "Result form needed",
+                        "learner_text": text,
+                        "corrected_target": self._output_ladder_target_hint(concept, item, {}),
+                        "why_wrong": "Your si-clause is in the present, but the consequence does not show a future simple or imperative result.",
+                        "repair_hint": "After the comma, make the consequence future simple or a direct command.",
+                        "severity": 2,
+                        "recurring": True,
+                        "task_error_type": "future_result",
+                        "concept_id": concept.id if concept else None,
+                        "external_id": concept.external_id if concept else None,
+                    },
+                }
+            return {"condition_present": True, "erratum": None}
+
+        if status == "future_after_si":
+            token = str(scan.get("condition_token") or "the verb after si")
+            return {
+                "condition_present": False,
+                "erratum": {
+                    "item_id": item.get("id"),
+                    "display_label": "Si-clause tense",
+                    "learner_text": text,
+                    "corrected_target": self._output_ladder_target_hint(concept, item, {}),
+                    "why_wrong": f"You put `{token}` inside the si-clause. In si type 1, the verb right after si stays in the present.",
+                    "repair_hint": "Move the future idea to the result clause; keep the condition after si in the present.",
+                    "severity": 2,
+                    "recurring": True,
+                    "task_error_type": "si_clause_tense",
+                    "concept_id": concept.id if concept else None,
+                    "external_id": concept.external_id if concept else None,
+                },
+            }
+
+        return {"condition_present": False, "erratum": None}
+
+    @staticmethod
+    def _si_scan_text(value: Any) -> str:
+        text = "" if value is None else str(value)
+        text = re.sub(r"[‘’‚‛′`´ʹʻʼ]", "'", text).strip().lower()
+        text = unicodedata.normalize("NFKD", text)
+        text = "".join(char for char in text if not unicodedata.combining(char))
+        text = re.sub(r"'\s+", "'", text)
+        text = re.sub(r"[.!?;:\u00ab\u00bb]", " ", text)
+        text = re.sub(r"\s+", " ", text)
+        return text.strip()
+
+    def _scan_text_for_si_frame(self, text: str) -> dict[str, Any]:
+        normalized = self._si_scan_text(text)
+        patterns = [
+            r"\bsi\s+(?:je|tu|il|elle|on|nous|vous|ils|elles)\s+(?P<verb>[a-z][a-z']*)",
+            r"\bsi\s+j'(?P<verb>[a-z][a-z']*)",
+            r"\bs'(?:il|elle|on|ils|elles)\s+(?P<verb>[a-z][a-z']*)",
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, normalized)
+            if not match:
+                continue
+            token = match.group("verb")
+            comma_index = normalized.find(",", match.end())
+            result_text = normalized[comma_index + 1 :] if comma_index >= 0 else normalized[match.end() :]
+            status = "present"
+            if self._looks_future_or_conditional(token):
+                status = "future_after_si"
+            elif self._looks_past_or_hypothetical_after_si(token):
+                status = "non_present_after_si"
+            return {
+                "status": status,
+                "condition_token": token,
+                "result_text": result_text.strip(),
+            }
+        return {"status": "missing", "condition_token": "", "result_text": normalized}
+
+    @staticmethod
+    def _looks_future_or_conditional(token: str) -> bool:
+        return bool(re.search(r"(?:rai|ras|ra|rons|rez|ront|rais|rait|rions|riez|raient)$", token))
+
+    @staticmethod
+    def _looks_past_or_hypothetical_after_si(token: str) -> bool:
+        present_exceptions = {
+            "ai",
+            "a",
+            "as",
+            "avons",
+            "avez",
+            "ont",
+            "est",
+            "sont",
+            "sommes",
+            "etes",
+            "suis",
+            "es",
+            "fais",
+            "fait",
+            "vais",
+            "va",
+            "sais",
+            "sait",
+        }
+        if token in present_exceptions:
+            return False
+        return bool(re.search(r"(?:ais|ait|aient)$", token))
+
+    @staticmethod
+    def _first_conditional_result(text: str) -> tuple[str, str] | None:
+        match = re.search(r"\b([a-z][a-z']*r)(ais|ait|ions|iez|aient)\b", _normalize(text))
+        if not match:
+            return None
+        suffix_map = {
+            "ais": "ai",
+            "ait": "a",
+            "ions": "ons",
+            "iez": "ez",
+            "aient": "ont",
+        }
+        token = match.group(0)
+        future = f"{match.group(1)}{suffix_map[match.group(2)]}"
+        return token, future
+
+    @staticmethod
+    def _replace_first_conditional_result(text: str, token: str, future_token: str) -> str:
+        token_norm = _normalize(token)
+        replaced = False
+
+        def replace(match: re.Match[str]) -> str:
+            nonlocal replaced
+            if replaced or _normalize(match.group(0)) != token_norm:
+                return match.group(0)
+            replaced = True
+            return future_token
+
+        pattern = re.compile(r"\b[A-Za-zÀ-ÖØ-öø-ÿ]+r(?:ais|ait|ions|iez|aient)\b", re.IGNORECASE)
+        corrected = pattern.sub(replace, text)
+        return corrected if replaced else future_token
+
+    def _has_si_type_one_result(self, text: str) -> bool:
+        normalized = _normalize(text)
+        if re.search(r"\b\w+(?:rai|ras|ra|rons|rez|ront)\b", normalized):
+            return True
+        return bool(
+            re.search(
+                r"\b(?:prends|prenez|mange|mangez|allez|viens|venez|fais|faites|appelle|appelez|reponds|repondez|termine|terminez|va|vas)\b",
+                normalized,
+            )
+        )
 
     def _correct_produce(
         self,
@@ -3769,14 +4288,25 @@ class AtelierCorrectionService:
         missing: list[dict[str, Any]] = []
         total_required = sum(int(req["target_count"]) for req in requirements)
         total_hits = 0
+        produce_errata: list[dict[str, Any]] = []
         for req in requirements:
+            req_concept = self._concept_for_requirement(req)
+            si_analysis = (
+                self._si_output_ladder_analysis(req_concept, {}, text)
+                if req_concept and infer_grammar_profile(req_concept).key == "si_present_result_form" and text.strip()
+                else {}
+            )
             count = self._count_hits(req, text)
+            if si_analysis.get("condition_present"):
+                count = max(count, 1)
+            if isinstance(si_analysis.get("erratum"), dict):
+                produce_errata.append(si_analysis["erratum"])
             total_hits += min(count, int(req["target_count"]))
             hit = {**req, "detected_count": count}
             hits.append(hit)
             if count < int(req["target_count"]):
                 missing.append({**hit, "missing_count": int(req["target_count"]) - count})
-        errata = [
+        missing_errata = [
             {
                 "display_label": "Missing writing target",
                 "learner_text": text,
@@ -3791,6 +4321,7 @@ class AtelierCorrectionService:
             }
             for req in missing
         ]
+        errata = [*produce_errata, *missing_errata]
         score = round((total_hits / max(total_required, 1)) * 4, 2)
         verdict = "accepted" if text.strip() else "needs_review"
         return {
@@ -3909,18 +4440,24 @@ class AtelierCorrectionService:
         if not llm or not concept:
             return None
         system_prompt = self._correction_system_prompt()
+        compact_task = self._compact_llm_task(prompt_payload)
+        for compact_item in compact_task.get("items") or []:
+            if isinstance(compact_item, dict) and compact_item.get("example_answer"):
+                compact_item["example_answer_note"] = "example only; never grade against this as the required target"
         user_payload = {
             "round": round_name,
             "concept": self._compact_llm_concept(concept),
-            "task": self._compact_llm_task(prompt_payload),
+            "task": compact_task,
             "answer": self._compact_llm_answer(answer_payload),
             "requirements": ((prompt_payload.get("items") or [{}])[0] or {}).get("requirements") or [],
             "deterministic_assessment": self._compact_llm_assessment(fallback),
             "instructions": [
                 "This is part of a guided output ladder: short sentence, spoken transcript, or conversation turn.",
                 "Accept natural original French if it uses the target concept correctly; it does not need to match the example answer.",
+                "The item.example_answer is only one sample answer. Do not use it as corrected_target for a different valid original answer.",
                 "Address feedback directly with 'you'; never say 'the learner' or 'the user'.",
                 "Create recurring grammar errata only for concrete errors in the submitted output, not for missing target counts.",
+                "If the answer has si + present but uses a conditional result such as pourrais/répondrais/irions, count the si-frame as present and give one future-result erratum for that submitted verb.",
                 "For spoken_response, treat the typed text as the transcript of what the person said.",
                 "For conversation_turn, judge whether the reply is plausible in context and uses the target concept.",
             ],
@@ -4097,6 +4634,42 @@ class AtelierCorrectionService:
                 }
             )
 
+        fallback_errata = [
+            erratum
+            for erratum in (fallback.get("errata") or [])
+            if isinstance(erratum, dict)
+        ]
+
+        def fallback_item_id_for(parsed_erratum: dict[str, Any]) -> str:
+            item_id = str(parsed_erratum.get("item_id") or "").strip()
+            if item_id:
+                return item_id
+            learner_norm = _normalize(parsed_erratum.get("learner_text"))
+            target_norm = _normalize(parsed_erratum.get("corrected_target"))
+            label_norm = _normalize(parsed_erratum.get("display_label"))
+            matches = []
+            for fallback_erratum in fallback_errata:
+                if not fallback_erratum.get("item_id"):
+                    continue
+                fallback_target_norm = _normalize(fallback_erratum.get("corrected_target"))
+                fallback_learner_norm = _normalize(fallback_erratum.get("learner_text"))
+                if target_norm and target_norm != fallback_target_norm:
+                    continue
+                if learner_norm and learner_norm != fallback_learner_norm:
+                    continue
+                matches.append(fallback_erratum)
+            if len(matches) == 1:
+                return str(matches[0].get("item_id") or "")
+            if label_norm:
+                label_matches = [
+                    fallback_erratum
+                    for fallback_erratum in matches
+                    if _normalize(fallback_erratum.get("display_label")) == label_norm
+                ]
+                if len(label_matches) == 1:
+                    return str(label_matches[0].get("item_id") or "")
+            return ""
+
         errata = []
         for item in parsed.get("errata") or []:
             external_id = item.get("external_id")
@@ -4115,7 +4688,7 @@ class AtelierCorrectionService:
                 corrected_target = str(si_target or corrected_target)
             errata.append(
                 {
-                    "item_id": str(item.get("item_id") or ""),
+                    "item_id": fallback_item_id_for(item),
                     "display_label": display_label[:120],
                     "learner_text": str(item.get("learner_text") or ""),
                     "corrected_target": corrected_target,
@@ -4155,7 +4728,11 @@ class AtelierCorrectionService:
             "Use the concept profile to create accessible, specific labels rather than generic grammar buckets. "
             "The why field must name the concrete submitted form, the expected target form, and the grammar reason. "
             "The repair field must give a concrete next action, not generic advice. "
-            "Task-compliance slips can be shown, but do not mark them recurring unless they are repeated grammar errors."
+            "Task-compliance slips can be shown, but do not mark them recurring unless they are repeated grammar errors. "
+            "The deterministic_assessment and deterministic_target are only fallible hints from a string matcher: it ignores accents, "
+            "apostrophe style, capitalisation, and accepts alternative correct wordings. You MUST judge correctness yourself. "
+            "If the submitted answer accomplishes the task in correct French — even when it differs from the deterministic_target or the "
+            "matcher flagged it — return it as correct with an empty errata list. Never invent an error for an answer that is actually right."
         )
 
     def _clean_feedback_text(self, text: Any) -> str:

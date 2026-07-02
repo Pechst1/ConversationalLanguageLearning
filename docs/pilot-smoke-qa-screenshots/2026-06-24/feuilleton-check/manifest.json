@@ -1,0 +1,49 @@
+{
+  "capturedAt": "2026-06-24T19:02:08.404Z",
+  "frontendUrl": "http://localhost:3001",
+  "backendUrl": "http://localhost:8000",
+  "captureScope": "partial",
+  "requestedFrames": [
+    "feuilleton-active-or-empty"
+  ],
+  "pilotSeed": {
+    "atelier_session_id": "fdad2799-9aed-49e1-b9b1-1debdf21eb1f",
+    "concept_ids": [
+      564,
+      565,
+      566
+    ],
+    "errata_ids": [
+      "4c43699f-e0ff-4541-a526-06bf901d9189"
+    ],
+    "feuilleton_scene_id": "be5acac8-4898-4332-8f19-6e4b62abdb93",
+    "mission_id": "5a4f8cd2-830f-461e-b2f6-e23bc4ae413e",
+    "serial_mission_id": "46d2dac7-0194-4d59-83f4-2398438ebb14",
+    "serial_thread_id": "9a738f9d-a804-4bb2-ac55-da7033a9ef6c",
+    "user_id": "ae79351c-0e8f-4a40-82ce-c48476e5e02b",
+    "word_ids": [
+      10041,
+      10042,
+      10043,
+      10044
+    ]
+  },
+  "viewports": [
+    {
+      "label": "compact",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 3,
+      "mobile": true
+    }
+  ],
+  "frames": [
+    {
+      "name": "feuilleton-active-or-empty",
+      "route": "/graphic-novel?scene=be5acac8-4898-4332-8f19-6e4b62abdb93",
+      "viewport": "compact",
+      "ok": false,
+      "error": "Timed out waiting for expression: document.body.innerText.includes('Feuilleton')"
+    }
+  ]
+}

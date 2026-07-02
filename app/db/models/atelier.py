@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, Float, ForeignKey, Index, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
@@ -45,6 +45,39 @@ class AtelierSession(Base):
     )
 
 
+class AtelierCollectible(Base):
+    """Earned Atelier reward economy item minted by server-side achievements."""
+
+    __tablename__ = "atelier_collectibles"
+
+    id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    kind: Mapped[str] = mapped_column(String(40), nullable=False)
+    minted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    source_kind: Mapped[str] = mapped_column(String(40), nullable=False)
+    source_ref: Mapped[str] = mapped_column(String(180), nullable=False)
+    metadata_payload = mapped_column("metadata", JSONB().with_variant(JSON(), "sqlite"), default=dict, nullable=False)
+    composed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    composed_into_id: Mapped[uuid.UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("atelier_collectibles.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+
+    user: Mapped["User"] = relationship("User")
+    composed_into: Mapped["AtelierCollectible | None"] = relationship(
+        "AtelierCollectible", remote_side=[id], back_populates="members"
+    )
+    members: Mapped[list["AtelierCollectible"]] = relationship(
+        "AtelierCollectible", back_populates="composed_into"
+    )
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "source_kind", "source_ref", "kind", name="uq_atelier_collectibles_source"),
+        Index("ix_atelier_collectibles_user_kind_composed", "user_id", "kind", "composed"),
+    )
+
+
 class AtelierExerciseSet(Base):
     """Cached generated exercise payload for one grammar concept/version."""
 
@@ -67,6 +100,43 @@ class AtelierExerciseSet(Base):
     __table_args__ = (
         UniqueConstraint("concept_id", "generator_version", "content_hash", name="uq_atelier_exercise_set_payload"),
         Index("ix_atelier_exercise_sets_lookup", "concept_id", "generator_version", "created_at"),
+    )
+
+
+class AtelierGenerationEvent(Base):
+    """Queryable quality log for AI generation, structural guard, and critique outcomes."""
+
+    __tablename__ = "atelier_generation_events"
+
+    id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    concept_id: Mapped[int | None] = mapped_column(
+        ForeignKey("grammar_concepts.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    atelier_session_id: Mapped[uuid.UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("atelier_sessions.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    exercise_set_id: Mapped[uuid.UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("atelier_exercise_sets.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    generator_version: Mapped[str] = mapped_column(String(80), nullable=False)
+    event_type: Mapped[str] = mapped_column(String(40), nullable=False)
+    source: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    model: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    passed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    payload = mapped_column(JSONB().with_variant(JSON(), "sqlite"), default=dict, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    user: Mapped["User | None"] = relationship("User")
+    concept: Mapped["GrammarConcept | None"] = relationship("GrammarConcept")
+    session: Mapped["AtelierSession | None"] = relationship("AtelierSession")
+    exercise_set: Mapped["AtelierExerciseSet | None"] = relationship("AtelierExerciseSet")
+
+    __table_args__ = (
+        Index("ix_atelier_generation_events_concept_type", "concept_id", "event_type", "created_at"),
+        Index("ix_atelier_generation_events_user_created", "user_id", "created_at"),
     )
 
 
@@ -161,8 +231,10 @@ class AtelierAttempt(Base):
 
 __all__ = [
     "AtelierAttempt",
+    "AtelierCollectible",
     "AtelierConceptBlueprint",
     "AtelierExerciseSet",
+    "AtelierGenerationEvent",
     "AtelierLanguagePack",
     "AtelierSession",
 ]

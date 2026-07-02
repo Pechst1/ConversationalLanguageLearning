@@ -307,6 +307,24 @@ def _filled(value: Any) -> bool:
     return bool(str(value or "").strip())
 
 
+def _is_generic_output_ladder_prompt(value: Any) -> bool:
+    normalized = re.sub(r"\s+", " ", str(value or "").strip().lower())
+    if not normalized:
+        return True
+    return any(
+        marker in normalized
+        for marker in (
+            "target grammar",
+            "target concept",
+            "use the grammar",
+            "using the grammar",
+            "one sentence using",
+            "say one natural response",
+            "answer in one conversational turn",
+        )
+    )
+
+
 def _quoted_fragments(value: Any) -> list[str]:
     text = str(value or "")
     fragments: list[str] = []
@@ -519,25 +537,40 @@ class ExerciseGenerationService:
         system_prompt = (
             "You generate compact French grammar exercise payloads for Atelier. "
             "Return only valid JSON matching the provided schema. "
+            "EVERY single item — all 3 fill, all 3 classify, all 3 word_bank, all 3 transform, and every output prompt — must directly "
+            "practise the ONE named target concept (see target_concept name and core_rule in the context). Never make an item that really "
+            "tests a neighbouring grammar point instead: e.g. for an imparfait-vs-passé-composé concept, do NOT make any item whose actual "
+            "challenge is partitive articles, negation, or si-clauses. A sentence may incidentally contain other grammar, but the thing the "
+            "learner must get right has to be the target concept. "
             "Every recognize mode must contain exactly 3 subitems, transform must contain exactly 3 rewrite tasks, "
             "and output_ladder must include exactly 1 concise item for each of sentence, speak, and conversation. "
             "Each word_bank item must be a full French sentence-building task: prompt must not contain a blank, "
-            "meaning_cue must be a learner-facing L1 translation/gloss or an explicit 'Express: ...' target meaning, "
+            "meaning_cue must be the learner's L1 (English) translation of the exact target sentence (you may prefix it with 'Express: '); "
+            "it must NEVER be a generic build instruction such as 'write a complete sentence using X' or 'use every target chip' — always the real English meaning, "
             "answer_tokens must be the complete ordered French sentence, and tokens must contain those exact answer_tokens "
             "scrambled plus at least one plausible distractor chip. The meaning_cue must match the correct_answer without exposing the French target sentence. "
             "For verb patterns, make one distractor an adjacent wrong form "
             "of the target verb, such as present vs future or future vs conditional. Use fill only for blanks; never pad answer_tokens just to reach a length. "
             "Fill items must have at least three distinct choices: the answer plus two plausible wrong forms. "
             "Classify labels must name contrastive grammatical forms, never generic affirmative/negative or true/false labels. "
-            "Transform instructions must name the exact word or phrase to change and the target form to use. "
+            "Transform instructions must QUOTE the exact source word or phrase to change (in quotes) and name the grammatical target category "
+            "(a tense or rule name such as 'the imparfait', 'the future', 'its negated form'), but MUST NOT spell out the corrected word or the answer. "
+            "For example: \"Change 'pleut' to the imparfait\" (never \"change pleut to pleuvait\"); "
+            "\"Change the article 'une' after 'pas' to its negated form\" (never \"change 'une' to de\"). "
             "Each output_ladder example_answer must be a standalone full French answer that visibly uses the target grammar; "
             "do not split required grammar between prompt and answer. "
+            "Every output_ladder prompt (sentence, speak, conversation) and the produce.prompt must set a concrete, real-life mini-situation the learner reacts to "
+            "— a short incoming message, a question from a person, or a brief scene — that naturally forces the target grammar in the reply. "
+            "Never use a generic instruction like 'write/say/answer one sentence using the target grammar'; give an actual situation with a who/what/where. "
             "When context.target_vocabulary is provided, naturally weave those French words into prompts or examples where they fit. "
             "When context.due_errata includes task_error_type or error_pattern, aim at those sub-patterns directly. "
             "Worked examples: fill = prompt 'Je ne bois pas ____ café.' choices ['de','du'] correct_answer 'de'; "
             "word_bank = prompt 'Build the full French sentence.' meaning_cue 'Express: I do not drink coffee.' "
             "answer_tokens ['Je','ne','bois','pas','de','café']; "
-            "classify = labels ['article changes','être exception']; transform = name the source word and target form. "
+            "classify = labels ['article changes','être exception']; "
+            "transform = directed_rewrite with instruction \"Change the article 'du' after the negation to its negated partitive form\" "
+            "(source 'du', expected_answer 'de') — quote the source and name the grammatical target in plain learner words; "
+            "NEVER invent internal codes like 'être-exception contrast' or 'its contrast with negation', and never spell out the answer in the instruction. "
             f"{target_contract} "
             "Generate the exercise prompts, answer keys, and short target examples; the backend supplies rule-card and correction copy. "
             "Use accurate French accents and learner-facing wording rather than internal codes. "
@@ -1013,6 +1046,8 @@ def validate_atelier_generation_payload(payload: dict[str, Any]) -> list[str]:
             and item.get("requirements")
         ):
             errors.append(f"output_ladder.{round_name} item is incomplete")
+        elif _is_generic_output_ladder_prompt(item.get("prompt")):
+            errors.append(f"output_ladder.{round_name} prompt must give a concrete mini-situation")
     return errors
 
 

@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
-import { getSession } from 'next-auth/react';
+
+import { getAppAccessToken } from '@/lib/app-auth';
+import { resolveBrowserApiBaseUrl } from '@/services/api';
 
 interface SpeakingModeContextType {
     isSpeakingMode: boolean;
@@ -87,10 +89,9 @@ export function SpeakingModeProvider({ children }: { children: React.ReactNode }
 
         try {
             setIsSpeaking(true);
-            const session = await getSession();
-            const token = (session as any)?.accessToken;
+            const token = await getAppAccessToken();
 
-            const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+            const baseUrl = resolveBrowserApiBaseUrl();
             const response = await fetch(`${baseUrl}/audio/speak`, {
                 method: 'POST',
                 headers: {

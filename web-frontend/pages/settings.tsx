@@ -150,6 +150,8 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
     const [saveMessage, setSaveMessage] = useState<string | null>(null);
     const [hasChanges, setHasChanges] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
+    const [settingsLoadError, setSettingsLoadError] = useState<string | null>(null);
+    const [settingsReloadKey, setSettingsReloadKey] = useState(0);
     const [customInterestTopic, setCustomInterestTopic] = useState('');
     const [privacyAction, setPrivacyAction] = useState<'export' | 'signout' | 'delete' | null>(null);
     const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '' });
@@ -166,6 +168,8 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
     // Load settings from API on mount
     useEffect(() => {
         const fetchSettings = async () => {
+            setIsLoading(true);
+            setSettingsLoadError(null);
             try {
                 const user: any = await api.getSettings();
                 const loadedTheme = (user.theme || 'system') as AppTheme;
@@ -210,14 +214,14 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                 persistVisualSettings(loadedTheme, loadedFontSize);
             } catch (error) {
                 console.error('Failed to load user settings:', error);
-                // Fallback to defaults or show error
+                setSettingsLoadError('Could not load your saved settings. Retry before editing so defaults are not saved over your preferences.');
             } finally {
                 setIsLoading(false);
             }
         };
 
         fetchSettings();
-    }, []);
+    }, [settingsReloadKey]);
 
     useEffect(() => {
         applyVisualSettings(settings.theme, settings.fontSize);
@@ -229,6 +233,10 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
     };
 
     const saveSettings = async () => {
+        if (settingsLoadError) {
+            toast.error('Reload settings before saving changes.');
+            return;
+        }
         setIsSaving(true);
         try {
             // Map frontend settings to backend payload
@@ -392,6 +400,10 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                         await navigator.serviceWorker.ready;
 
                         const { publicKey } = await api.getVapidPublicKey();
+                        if (!publicKey?.trim()) {
+                            toast.error("Push notifications are not configured yet.", { id: loadingToast });
+                            return;
+                        }
 
                         const sub = await reg.pushManager.subscribe({
                             userVisibleOnly: true,
@@ -452,6 +464,21 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                 <div className="mx-auto max-w-6xl border border-[var(--app-ink)] bg-[var(--app-sheet)] p-6">
                     <div className="text-xs font-black uppercase tracking-[0.16em] text-[var(--app-ink-3)]">Settings</div>
                     <h1 className="mt-2 font-serif text-3xl italic">Loading your account controls...</h1>
+                </div>
+            </div>
+        );
+    }
+
+    if (settingsLoadError) {
+        return (
+            <div className="settings-page min-h-screen bg-[var(--app-paper)] px-5 py-6 pb-24 sm:p-6">
+                <div className="mx-auto max-w-2xl border border-[var(--app-ink)] bg-[var(--app-sheet)] p-6 shadow-[8px_8px_0_var(--app-ink)]">
+                    <div className="text-xs font-black uppercase tracking-[0.16em] text-[var(--app-blue)]">Settings unavailable</div>
+                    <h1 className="mt-2 font-serif text-3xl italic leading-tight">Your saved settings did not load.</h1>
+                    <p className="mt-3 text-sm font-semibold leading-6 text-[var(--app-ink-2)]">{settingsLoadError}</p>
+                    <Button className="mt-5" onClick={() => setSettingsReloadKey((value) => value + 1)}>
+                        Retry
+                    </Button>
                 </div>
             </div>
         );
@@ -535,12 +562,12 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
 
                                     <div>
                                         <label className="block text-sm font-bold uppercase mb-2">Email</label>
-                                        <input
-                                            type="email"
-                                            value={settings.email}
-                                            disabled
-                                            className="w-full p-3 border-2 border-gray-300 bg-gray-100 text-gray-500"
-                                        />
+                                        <div
+                                            className="w-full min-h-[52px] p-3 border-2 border-gray-300 bg-gray-100 text-gray-700 break-all"
+                                            title={settings.email}
+                                        >
+                                            {settings.email}
+                                        </div>
                                         <p className="text-xs text-gray-500 mt-1">Use the secure form below to change your sign-in email.</p>
                                     </div>
 

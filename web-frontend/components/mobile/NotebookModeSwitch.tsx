@@ -1,13 +1,15 @@
 import React from 'react';
 import Link from 'next/link';
+import { STORY_FEATURE_VISIBLE } from '@/lib/launch-flags';
 import { cn } from '@/lib/utils';
 
-export type NotebookMode = 'grammar' | 'vocabulary';
+export type NotebookMode = 'grammar' | 'vocabulary' | 'library';
 
 export interface NotebookModeSwitchProps extends React.HTMLAttributes<HTMLElement> {
   active: NotebookMode;
   grammarMeta?: React.ReactNode;
   vocabularyMeta?: React.ReactNode;
+  libraryMeta?: React.ReactNode;
 }
 
 const STORAGE_KEY = 'atelier:notebook-mode';
@@ -22,10 +24,10 @@ function rememberNotebookMode(mode: NotebookMode) {
 }
 
 const NotebookModeSwitch = React.forwardRef<HTMLElement, NotebookModeSwitchProps>(
-  ({ active, grammarMeta, vocabularyMeta, className, ...props }, ref) => (
+  ({ active, grammarMeta, vocabularyMeta, libraryMeta, className, ...props }, ref) => (
     <nav
       ref={ref}
-      className={cn('notebook-mode-switch', className)}
+      className={cn('notebook-mode-switch', STORY_FEATURE_VISIBLE && 'with-library', className)}
       aria-label="Notebook mode"
       data-active-mode={active}
       {...props}
@@ -48,6 +50,17 @@ const NotebookModeSwitch = React.forwardRef<HTMLElement, NotebookModeSwitchProps
         <span>Vocabulary</span>
         {vocabularyMeta && <em>{vocabularyMeta}</em>}
       </Link>
+      {STORY_FEATURE_VISIBLE && (
+        <Link
+          href="/notebook?mode=library"
+          aria-current={active === 'library' ? 'page' : undefined}
+          className={active === 'library' ? 'active' : ''}
+          onClick={() => rememberNotebookMode('library')}
+        >
+          <span>Library</span>
+          {libraryMeta && <em>{libraryMeta}</em>}
+        </Link>
+      )}
       <style jsx>{`
         .notebook-mode-switch {
           --switch-paper: var(--app-paper, var(--paper, #f1ece1));
@@ -62,6 +75,9 @@ const NotebookModeSwitch = React.forwardRef<HTMLElement, NotebookModeSwitchProps
           width: 100%;
           border: 1px solid var(--switch-ink);
           background: var(--switch-ink);
+        }
+        .notebook-mode-switch.with-library {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
         }
         .notebook-mode-switch :global(a) {
           display: grid;
@@ -81,11 +97,14 @@ const NotebookModeSwitch = React.forwardRef<HTMLElement, NotebookModeSwitchProps
           background: var(--switch-ink);
           color: var(--switch-paper);
         }
-        .notebook-mode-switch :global(a.active:last-child) {
+        .notebook-mode-switch :global(a.active:nth-child(2)) {
           box-shadow: inset 0 4px 0 var(--switch-yellow);
         }
         .notebook-mode-switch :global(a.active:first-child) {
           box-shadow: inset 0 4px 0 var(--switch-blue);
+        }
+        .notebook-mode-switch.with-library :global(a.active:last-child) {
+          box-shadow: inset 0 4px 0 var(--switch-blue), inset 0 -4px 0 var(--switch-yellow);
         }
         .notebook-mode-switch span,
         .notebook-mode-switch em {

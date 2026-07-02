@@ -1,4 +1,6 @@
 const isNativeStaticExport = process.env.NATIVE_STATIC_EXPORT === 'true';
+const launchFlags = require('./launch-flags.json');
+const isStoryFeatureVisible = Boolean(launchFlags.storyFeatureVisible);
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -43,9 +45,19 @@ if (!isNativeStaticExport) {
     { source: '/daily-practice', destination: '/atelier', permanent: false },
     { source: '/learn', destination: '/atelier', permanent: false },
     { source: '/index', destination: '/atelier', permanent: false },
-    { source: '/stories', destination: '/bibliotheque', permanent: false },
-    { source: '/stories/:path*', destination: '/bibliotheque/:path*', permanent: false },
-    { source: '/story/:id', destination: '/bibliotheque/:id', permanent: false },
+    ...(isStoryFeatureVisible
+      ? [
+          { source: '/stories', destination: '/bibliotheque', permanent: false },
+          { source: '/stories/:path*', destination: '/bibliotheque/:path*', permanent: false },
+          { source: '/story/:id', destination: '/bibliotheque/:id', permanent: false },
+        ]
+      : [
+          { source: '/stories', destination: '/atelier', permanent: false },
+          { source: '/stories/:path*', destination: '/atelier', permanent: false },
+          { source: '/story/:id', destination: '/atelier', permanent: false },
+          { source: '/bibliotheque', destination: '/atelier', permanent: false },
+          { source: '/bibliotheque/:path*', destination: '/atelier', permanent: false },
+        ]),
     { source: '/atelier/auth/signin', destination: '/auth/signin', permanent: false },
     { source: '/atelier/auth/signup', destination: '/auth/signup', permanent: false },
   ];

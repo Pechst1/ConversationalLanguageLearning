@@ -1,0 +1,157 @@
+{
+  "capturedAt": "2026-06-24T21:16:12.609Z",
+  "frontendUrl": "http://localhost:3001",
+  "backendUrl": "http://127.0.0.1:8000",
+  "captureScope": "partial",
+  "requestedFrames": [
+    "atelier-home-active",
+    "atelier-session-active",
+    "feuilleton-active-or-empty"
+  ],
+  "pilotSeed": {
+    "atelier_session_id": "dce7f7b9-9897-4b69-b577-dff005f848dc",
+    "concept_ids": [
+      564,
+      565,
+      566
+    ],
+    "errata_ids": [
+      "e9f38b93-09e7-4d1c-9f69-8419607cad7e"
+    ],
+    "feuilleton_scene_id": "91afb4ac-6eff-4013-9dda-9b7883afd02c",
+    "mission_id": "1c7b185f-845f-4a6f-a145-4ddf105c008b",
+    "serial_mission_id": "f853d7fd-9ab7-4263-a22b-3b1e1af92049",
+    "serial_thread_id": "f6aef138-0439-4b15-80d1-a2fc70e76354",
+    "user_id": "301069f1-aeb1-4aa7-8ffe-56d8dc9ced50",
+    "word_ids": [
+      10041,
+      10042,
+      10043,
+      10044
+    ]
+  },
+  "viewports": [
+    {
+      "label": "compact",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 3,
+      "mobile": true
+    },
+    {
+      "label": "wide",
+      "width": 440,
+      "height": 956,
+      "deviceScaleFactor": 3,
+      "mobile": true
+    },
+    {
+      "label": "landscape",
+      "width": 852,
+      "height": 393,
+      "deviceScaleFactor": 3,
+      "mobile": true
+    },
+    {
+      "label": "desktop",
+      "width": 1280,
+      "height": 800,
+      "deviceScaleFactor": 1,
+      "mobile": false
+    }
+  ],
+  "frames": [
+    {
+      "viewport": "compact",
+      "name": "atelier-home-active-compact",
+      "route": "/atelier",
+      "path": "/Users/vincentpechstein/Downloads/Pixel-lab/ConversationalLanguageLearning/docs/pilot-smoke-qa-screenshots/2026-06-24/round2-work-packages-check/atelier-home-active-compact.png",
+      "ok": true,
+      "warning": null
+    },
+    {
+      "name": "atelier-session-active-compact",
+      "route": "/atelier",
+      "viewport": "compact",
+      "ok": false,
+      "error": "Action target not found"
+    },
+    {
+      "viewport": "compact",
+      "name": "feuilleton-active-or-empty-compact",
+      "route": "/graphic-novel?scene=91afb4ac-6eff-4013-9dda-9b7883afd02c",
+      "path": "/Users/vincentpechstein/Downloads/Pixel-lab/ConversationalLanguageLearning/docs/pilot-smoke-qa-screenshots/2026-06-24/round2-work-packages-check/feuilleton-active-or-empty-compact.png",
+      "ok": true,
+      "warning": null
+    },
+    {
+      "viewport": "wide",
+      "name": "atelier-home-active-wide",
+      "route": "/atelier",
+      "path": "/Users/vincentpechstein/Downloads/Pixel-lab/ConversationalLanguageLearning/docs/pilot-smoke-qa-screenshots/2026-06-24/round2-work-packages-check/atelier-home-active-wide.png",
+      "ok": true,
+      "warning": null
+    },
+    {
+      "name": "atelier-session-active-wide",
+      "route": "/atelier",
+      "viewport": "wide",
+      "ok": false,
+      "error": "Action target not found"
+    },
+    {
+      "viewport": "wide",
+      "name": "feuilleton-active-or-empty-wide",
+      "route": "/graphic-novel?scene=91afb4ac-6eff-4013-9dda-9b7883afd02c",
+      "path": "/Users/vincentpechstein/Downloads/Pixel-lab/ConversationalLanguageLearning/docs/pilot-smoke-qa-screenshots/2026-06-24/round2-work-packages-check/feuilleton-active-or-empty-wide.png",
+      "ok": true,
+      "warning": null
+    },
+    {
+      "viewport": "landscape",
+      "name": "atelier-home-active-landscape",
+      "route": "/atelier",
+      "path": "/Users/vincentpechstein/Downloads/Pixel-lab/ConversationalLanguageLearning/docs/pilot-smoke-qa-screenshots/2026-06-24/round2-work-packages-check/atelier-home-active-landscape.png",
+      "ok": true,
+      "warning": null
+    },
+    {
+      "name": "atelier-session-active-landscape",
+      "route": "/atelier",
+      "viewport": "landscape",
+      "ok": false,
+      "error": "Action target not found"
+    },
+    {
+      "viewport": "landscape",
+      "name": "feuilleton-active-or-empty-landscape",
+      "route": "/graphic-novel?scene=91afb4ac-6eff-4013-9dda-9b7883afd02c",
+      "path": "/Users/vincentpechstein/Downloads/Pixel-lab/ConversationalLanguageLearning/docs/pilot-smoke-qa-screenshots/2026-06-24/round2-work-packages-check/feuilleton-active-or-empty-landscape.png",
+      "ok": true,
+      "warning": null
+    },
+    {
+      "viewport": "desktop",
+      "name": "atelier-home-active-desktop",
+      "route": "/atelier",
+      "path": "/Users/vincentpechstein/Downloads/Pixel-lab/ConversationalLanguageLearning/docs/pilot-smoke-qa-screenshots/2026-06-24/round2-work-packages-check/atelier-home-active-desktop.png",
+      "ok": true,
+      "warning": null
+    },
+    {
+      "name": "atelier-session-active-desktop",
+      "route": "/atelier",
+      "viewport": "desktop",
+      "ok": false,
+      "error": "Action target not found"
+    },
+    {
+      "viewport": "desktop",
+      "name": "feuilleton-active-or-empty-desktop",
+      "route": "/graphic-novel?scene=91afb4ac-6eff-4013-9dda-9b7883afd02c",
+      "path": "/Users/vincentpechstein/Downloads/Pixel-lab/ConversationalLanguageLearning/docs/pilot-smoke-qa-screenshots/2026-06-24/round2-work-packages-check/feuilleton-active-or-empty-desktop.png",
+      "ok": true,
+      "warning": null
+    }
+  ]
+}
