@@ -2,7 +2,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { ArrowRight, BookOpen, Check, HelpCircle, Loader2, MapPinned, Mic, RotateCcw, Send, Square, X } from 'lucide-react';
+import axios from 'axios';
+import { ArrowRight, BookOpen, Check, HelpCircle, Loader2, MapPinned, Mic, RotateCcw, Send, Square, Volume2, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import apiService, {
@@ -18,12 +19,69 @@ import apiService, {
   VocabularyRecommendationItem,
 } from '@/services/api';
 import { ConceptMotif } from '@/components/grammar/ConceptMotif';
+import {
+  LaUneStyles,
+  LuMasthead,
+  LuLead,
+  LuSeance,
+  LuLexique,
+  LuErrata,
+  LuBiblio,
+  LuPhraseDuJour,
+  LuCitation,
+  LuCours,
+  LuDemain,
+  LuNotice,
+  LuSkeleton,
+  type LuSeanceConcept,
+} from '@/components/laune/LaUne';
+import {
+  LEpreuveStyles,
+  EpShell,
+  EpTopbar,
+  EpEyebrow,
+  EpProvenance,
+  EpConcept,
+  EpMotif,
+  EpRule,
+  EpPrompt,
+  Blank,
+  EpOpts,
+  EpOpt,
+  EpSlug,
+  EpSetLine,
+  EpCases,
+  EpConfidence,
+  EpVerdict,
+  EpBar,
+  EpFoot,
+  EpFix,
+  EpIns,
+  EpLabelFix,
+  EpLineFix,
+  EpGalley,
+  EpRelecture,
+  EpCorrect,
+  EpRepair,
+  EpListen,
+  EpRecord,
+  EpLock,
+  EpBatStage,
+  EpRecapHead,
+  EpTally,
+  EpProof,
+  EpSeal,
+  EpStreak,
+  EpMint,
+  EpPhrase,
+  EpHandoff,
+  type MotifPrim,
+} from '@/components/epreuve/Epreuve';
 import EditorialMasthead from '@/components/layout/EditorialMasthead';
 import PhoneProductNav from '@/components/layout/PhoneProductNav';
 import { ExerciseShell } from '@/components/ui/ExerciseShell';
-import { FeedbackSheet } from '@/components/ui/FeedbackSheet';
 import { ProgressBar } from '@/components/ui/ProgressBar';
-import { Confetti, LogoToken, ReactForm, Seal, sealForEdition, type SealVariant } from '@/components/ui/Seal';
+import { Confetti, LogoToken, Seal, sealForEdition, type SealVariant } from '@/components/ui/Seal';
 import {
   buildDayProgress,
   dayQueryString,
@@ -53,6 +111,17 @@ type RewardMoment = {
   id: string;
   kind: 'logo_token' | 'gilt_seal';
   collectible?: AtelierCollectible;
+};
+type RepairRetest = {
+  id: string;
+  status: 'queued' | 'completed';
+  sourceAttemptId: string;
+  conceptId: number | null;
+  round: RoundName;
+  mode: string;
+  exerciseId: string;
+  dueAfterCompleted: number;
+  promptPayload: Record<string, any>;
 };
 
 const recognizeModes: Array<{ id: RecognizeMode; label: string; short: string }> = [
@@ -176,6 +245,60 @@ function drillItems(payload: Record<string, any> | null, round: RoundName, mode:
   }
   if (round === 'produce') return [payload.produce || {}];
   return [];
+}
+
+function exerciseSetForRetest(retest: RepairRetest): Record<string, any> {
+  const prompt = retest.promptPayload || {};
+  const rulePanel = prompt.rule_panel || {};
+  if (retest.round === 'recognize') {
+    return { rule_panel: rulePanel, recognize: { [retest.mode]: { items: prompt.items || [] } } };
+  }
+  if (retest.round === 'transform') {
+    return { rule_panel: rulePanel, transform: { items: prompt.items || [] } };
+  }
+  if (retest.round === 'produce') {
+    return { rule_panel: rulePanel, produce: prompt };
+  }
+  return { rule_panel: rulePanel, output_ladder: { [retest.round]: { items: prompt.items || [] } } };
+}
+
+function scopedPromptPayload(
+  payload: Record<string, any> | null,
+  round: RoundName,
+  mode: string,
+  item: Record<string, any> | null,
+): Record<string, any> {
+  const rule_panel = payload?.rule_panel || {};
+  if (round === 'recognize' || round === 'transform') {
+    return { round, mode, rule_panel, items: item ? [item] : [] };
+  }
+  if (round === 'produce') return { round, mode, rule_panel, ...(payload?.produce || {}) };
+  return { round, mode, rule_panel, items: item ? [item] : [] };
+}
+
+function repairRetestFromAttempt(attempt: AtelierAttemptRead, correction: Record<string, any>): RepairRetest | null {
+  const raw = correction?.retest;
+  if (!raw || !raw.id || !attempt.attempt_id || !attempt.round) return null;
+  if (!['recognize', 'transform', 'sentence', 'produce', 'speak', 'conversation'].includes(attempt.round)) return null;
+  return {
+    id: String(raw.id),
+    status: raw.status === 'completed' ? 'completed' : 'queued',
+    sourceAttemptId: attempt.attempt_id,
+    conceptId: attempt.concept_id ?? null,
+    round: attempt.round,
+    mode: String(attempt.mode || attempt.round),
+    exerciseId: String(attempt.exercise_id || ''),
+    dueAfterCompleted: Math.max(1, Number(raw.due_after_completed || 1)),
+    promptPayload: attempt.prompt_payload || {},
+  };
+}
+
+function provenanceLine(erratum?: AtelierErratum | null): string | null {
+  if (!erratum) return null;
+  const source = String(erratum.source_label || '').trim();
+  const reason = String(erratum.reason || erratum.display_label || '').trim();
+  if (!source && !reason) return null;
+  return [source ? `Manqué · ${source}` : '', reason].filter(Boolean).join(' · ');
 }
 
 function safeDrillItemIndex(index: number, items: any[]) {
@@ -321,17 +444,6 @@ function pulseAtelierHaptic(kind: 'correct' | 'repair' | 'complete' | 'token') {
   pulseAppHaptic(kind);
 }
 
-function joinWordBankTokens(tokens: any[]) {
-  return tokens
-    .map((token) => String(token || '').trim())
-    .filter(Boolean)
-    .join(' ')
-    .replace(/\s+([,.;:!?])/g, '$1')
-    .replace(/([cdjlmnst])'\s+/gi, "$1'")
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
 function wordBankTokensFromAnswer(answer: any) {
   if (Array.isArray(answer)) {
     return answer.map((token) => String(token || '').trim()).filter(Boolean);
@@ -365,6 +477,37 @@ function firstMintedCollectible(collectibles: AtelierCollectible[] | undefined, 
   return (collectibles || []).find((item) => item.kind === kind);
 }
 
+type AtelierErrorNotice = { label: string; message: string };
+
+const ATELIER_CONFIRM_NEEDED_NOTICE: AtelierErrorNotice = {
+  label: 'RETRY NEEDED',
+  message: 'Atelier could not confirm your active session. Retry before starting a new session so your current work stays intact.',
+};
+
+function describeAtelierError(error: unknown, context: 'load' | 'session'): AtelierErrorNotice {
+  const isAxiosError = axios.isAxiosError(error);
+  const status = isAxiosError ? error.response?.status : undefined;
+  const timedOut = isAxiosError && (error.code === 'ECONNABORTED' || /timeout/i.test(error.message || ''));
+  const noResponse = isAxiosError && !error.response;
+
+  if (noResponse && !timedOut) {
+    return { label: 'OFFLINE', message: 'You appear to be offline. Check your connection and retry.' };
+  }
+  if (timedOut) {
+    return context === 'session'
+      ? { label: 'STILL PREPARING', message: 'Today’s session is taking longer than usual to prepare. Retry — it may already be ready.' }
+      : { label: 'STILL LOADING', message: 'Atelier is taking longer than usual to respond. Retry in a moment.' };
+  }
+  if (typeof status === 'number' && status >= 500) {
+    return context === 'session'
+      ? { label: 'NOT READY', message: 'Today’s session could not be prepared. Retry in a moment.' }
+      : { label: 'NOT READY', message: 'Atelier could not load today’s edition. Retry in a moment.' };
+  }
+  return context === 'session'
+    ? { label: 'RETRY NEEDED', message: 'Could not start today’s session. Retry from this screen.' }
+    : { label: 'RETRY NEEDED', message: 'Atelier is unavailable right now. Retry, or come back in a moment.' };
+}
+
 export default function AtelierPage() {
   const router = useRouter();
   const [today, setToday] = useState<AtelierToday | null>(null);
@@ -374,11 +517,16 @@ export default function AtelierPage() {
   const [round, setRound] = useState<RoundName>('recognize');
   const [mode, setMode] = useState<RecognizeMode>('fill');
   const [answers, setAnswers] = useState<Record<string, Record<string, any>>>({});
+  const [confidenceByKey, setConfidenceByKey] = useState<Record<string, 'sure' | 'unsure'>>({});
   const [submitted, setSubmitted] = useState<Record<string, boolean>>({});
   const [resubmitKeys, setResubmitKeys] = useState<Record<string, boolean>>({});
   const [correctionsByKey, setCorrectionsByKey] = useState<Record<string, Record<string, any>>>({});
   const [attemptIdsByKey, setAttemptIdsByKey] = useState<Record<string, string>>({});
   const [aiReviewSubmitting, setAiReviewSubmitting] = useState<Record<string, boolean>>({});
+  const [repairDrafts, setRepairDrafts] = useState<Record<string, string>>({});
+  const [repairSubmitting, setRepairSubmitting] = useState<Record<string, boolean>>({});
+  const [repairRetests, setRepairRetests] = useState<Record<string, RepairRetest>>({});
+  const [activeRetestId, setActiveRetestId] = useState<string | null>(null);
   const [errata, setErrata] = useState<AtelierErratum[]>([]);
   const [recentCorrection, setRecentCorrection] = useState<Record<string, any> | null>(null);
   const [recap, setRecap] = useState<Record<string, any> | null>(null);
@@ -390,7 +538,7 @@ export default function AtelierPage() {
   const [submitting, setSubmitting] = useState(false);
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [vocabularyDue, setVocabularyDue] = useState(0);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<AtelierErrorNotice | null>(null);
   const [activeSessionReady, setActiveSessionReady] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [serialWelcomeDismissed, setSerialWelcomeDismissed] = useState(false);
@@ -403,6 +551,8 @@ export default function AtelierPage() {
     const restoredSubmitted: Record<string, boolean> = { ...(next.submitted_map || {}) };
     const restoredCorrections: Record<string, Record<string, any>> = {};
     const restoredAttemptIds: Record<string, string> = {};
+    const restoredConfidence: Record<string, 'sure' | 'unsure'> = {};
+    const restoredRetests: Record<string, RepairRetest> = {};
     const restoredErrata: AtelierErratum[] = [];
 
     (next.attempts || []).forEach((attempt: AtelierAttemptRead) => {
@@ -418,7 +568,13 @@ export default function AtelierPage() {
         } else {
           restoredAnswers[key] = { ...(attempt.answer_payload?.answers || {}) };
         }
+        const confidence = attempt.answer_payload?.confidence || correction?.confidence;
+        if (confidence === 'sure' || confidence === 'unsure') {
+          restoredConfidence[key] = confidence;
+        }
       });
+      const retest = repairRetestFromAttempt(attempt, correction);
+      if (retest) restoredRetests[retest.id] = retest;
       errataForAttempt(correction, attempt.attempt_id).forEach((item: AtelierErratum) => restoredErrata.unshift(item));
       if (aiReviewStatus(correction) === 'pending') {
         scheduleAiReviewPollingRef.current(attempt.attempt_id, keys[0]);
@@ -433,9 +589,13 @@ export default function AtelierPage() {
 
     setSession(next);
     setAnswers(restoredAnswers);
+    setConfidenceByKey(restoredConfidence);
     setSubmitted(restoredSubmitted);
     setCorrectionsByKey(restoredCorrections);
     setAttemptIdsByKey(restoredAttemptIds);
+    setRepairDrafts({});
+    setRepairRetests(restoredRetests);
+    setActiveRetestId(null);
     setErrata(restoredErrata);
     setRecentCorrection((next.attempts || []).slice(-1)[0] ? correctionWithAiReview((next.attempts || []).slice(-1)[0]) : null);
     setRecap(next.status === 'completed' && next.recap ? next.recap : null);
@@ -467,7 +627,7 @@ export default function AtelierPage() {
       console.error(error);
       if (alive()) {
         setActiveSessionReady(false);
-        setLoadError('Atelier could not confirm your active session. Retry before starting a new session so your current work stays intact.');
+        setLoadError(describeAtelierError(error, 'load'));
       }
       return false;
     }
@@ -499,7 +659,7 @@ export default function AtelierPage() {
       .catch((error) => {
         console.error(error);
         if (!alive) return;
-        setLoadError('Atelier is unavailable right now. Keep the phone flow calm: retry, or come back after the connection is restored.');
+        setLoadError(describeAtelierError(error, 'load'));
       })
       .finally(() => {
         if (alive) setLoading(false);
@@ -522,20 +682,36 @@ export default function AtelierPage() {
     return () => window.clearTimeout(timer);
   }, [rewardMoment]);
 
-  const activeConcept = session?.concepts[activeConceptIndex] || today?.concepts[activeConceptIndex] || null;
-  const activeSet = useMemo(() => {
+  const activeRetest = activeRetestId ? repairRetests[activeRetestId] || null : null;
+  const exerciseRound = activeRetest?.round || round;
+  const exerciseMode = exerciseRound === 'recognize'
+    ? (activeRetest?.mode as RecognizeMode || mode)
+    : mode;
+  const baseActiveConcept = session?.concepts[activeConceptIndex] || today?.concepts[activeConceptIndex] || null;
+  const activeConcept = activeRetest && session
+    ? session.concepts.find((concept) => concept.id === activeRetest.conceptId) || baseActiveConcept
+    : baseActiveConcept;
+  const sessionActiveSet = useMemo(() => {
     if (!session || !activeConcept) return null;
     return session.exercise_sets.find((set) => set.concept_id === activeConcept.id)?.payload || null;
   }, [session, activeConcept]);
-  const activeItems = useMemo(() => drillItems(activeSet, round, mode), [activeSet, round, mode]);
-  const activeItemIndexSafe = safeDrillItemIndex(activeItemIndex, activeItems);
+  const baseActiveItems = useMemo(() => drillItems(sessionActiveSet, round, mode), [sessionActiveSet, round, mode]);
+  const baseActiveItemIndexSafe = safeDrillItemIndex(activeItemIndex, baseActiveItems);
+  const activeSet = activeRetest ? exerciseSetForRetest(activeRetest) : sessionActiveSet;
+  const activeItems = useMemo(() => drillItems(activeSet, exerciseRound, exerciseMode), [activeSet, exerciseRound, exerciseMode]);
+  const activeItemIndexSafe = activeRetest ? 0 : baseActiveItemIndexSafe;
   const activeItem = activeItems[activeItemIndexSafe] || null;
-  const activeItemId = roundUsesItemScope(round) ? itemIdForKey(activeItem, activeItemIndexSafe) || null : null;
-  const scopedMode = roundMode(round, mode);
-  const scopedKey = answerKey(round, scopedMode, roundUsesSessionScope(round) ? null : activeConcept?.id, activeItemId);
+  const activeAnswerItemId = roundUsesItemScope(exerciseRound) ? itemIdForKey(activeItem, activeItemIndexSafe) || null : null;
+  const activeItemId = activeRetest
+    ? `retest:${activeRetest.id}`
+    : activeAnswerItemId;
+  const scopedMode = roundMode(exerciseRound, exerciseMode);
+  const scopedKey = answerKey(exerciseRound, scopedMode, roundUsesSessionScope(exerciseRound) ? null : activeConcept?.id, activeItemId);
   const currentAnswers = answers[scopedKey] || {};
-  const produceAnswer = answers[answerKey('produce', 'produce', null)]?.text || '';
-  const currentAttemptReady = drillAnswerIsReady(activeSet, round, mode, activeItemIndexSafe, currentAnswers, produceAnswer);
+  const produceAnswer = exerciseRound === 'produce'
+    ? currentAnswers.text || ''
+    : answers[answerKey('produce', 'produce', null)]?.text || '';
+  const currentAttemptReady = drillAnswerIsReady(activeSet, exerciseRound, exerciseMode, activeItemIndexSafe, currentAnswers, produceAnswer);
   const dayProgress = useMemo(
     () => buildDayProgress({
       today,
@@ -550,10 +726,10 @@ export default function AtelierPage() {
   );
 
   useEffect(() => {
-    if (activeItemIndex !== activeItemIndexSafe) {
+    if (!activeRetest && activeItemIndex !== activeItemIndexSafe) {
       setActiveItemIndex(activeItemIndexSafe);
     }
-  }, [activeItemIndex, activeItemIndexSafe]);
+  }, [activeItemIndex, activeItemIndexSafe, activeRetest]);
 
   function applyAttemptResult(key: string, result: AtelierAttemptResult, replaceErrata = false, schedulePending = true) {
     const correction = correctionWithAiReview(result);
@@ -662,10 +838,11 @@ export default function AtelierPage() {
 
   const startSession = async () => {
     if (!activeSessionReady) {
-      setLoadError('Atelier could not confirm your active session. Retry before starting a new session so your current work stays intact.');
+      setLoadError(ATELIER_CONFIRM_NEEDED_NOTICE);
       return;
     }
     setSubmitting(true);
+    setLoadError(null);
     try {
       const conceptId = Number(router.query.concept_id);
       const next = await apiService.startAtelierSession(
@@ -675,7 +852,7 @@ export default function AtelierPage() {
       hydrateSession(next, true);
     } catch (error) {
       console.error(error);
-      setLoadError('Could not start today’s session. Check the connection and retry from this screen.');
+      setLoadError(describeAtelierError(error, 'session'));
     } finally {
       setSubmitting(false);
     }
@@ -696,49 +873,87 @@ export default function AtelierPage() {
       let result: AtelierAttemptResult;
       const attemptKey = scopedKey;
       const resubmit = !!resubmitKeys[attemptKey];
-      if (round === 'recognize') {
-        const itemAnswers = activeItemId ? { [activeItemId]: currentAnswers[activeItemId] ?? '' } : currentAnswers;
+      const confidence = confidenceByKey[attemptKey];
+      const retestSourceAttemptId = activeRetest?.sourceAttemptId || null;
+      if (exerciseRound === 'recognize') {
+        const itemAnswers = activeAnswerItemId ? { [activeAnswerItemId]: currentAnswers[activeAnswerItemId] ?? '' } : currentAnswers;
         result = await apiService.submitAtelierAttempt(session.session_id, {
           concept_id: activeConcept?.id,
-          round,
-          mode,
-          exercise_id: scopedExerciseId(activeConcept, round, mode, activeItemId),
+          round: exerciseRound,
+          mode: exerciseMode,
+          exercise_id: activeRetest
+            ? `${activeRetest.exerciseId}:retest:${activeRetest.id}`
+            : scopedExerciseId(activeConcept, exerciseRound, exerciseMode, activeAnswerItemId),
           answer_payload: { answers: itemAnswers },
+          confidence,
+          retest_source_attempt_id: retestSourceAttemptId,
           resubmit,
         });
-      } else if (round === 'transform') {
-        const itemAnswers = activeItemId ? { [activeItemId]: currentAnswers[activeItemId] ?? '' } : currentAnswers;
+      } else if (exerciseRound === 'transform') {
+        const itemAnswers = activeAnswerItemId ? { [activeAnswerItemId]: currentAnswers[activeAnswerItemId] ?? '' } : currentAnswers;
         result = await apiService.submitAtelierAttempt(session.session_id, {
           concept_id: activeConcept?.id,
-          round,
+          round: exerciseRound,
           mode: 'rewrite',
-          exercise_id: scopedExerciseId(activeConcept, round, mode, activeItemId),
+          exercise_id: activeRetest
+            ? `${activeRetest.exerciseId}:retest:${activeRetest.id}`
+            : scopedExerciseId(activeConcept, exerciseRound, exerciseMode, activeAnswerItemId),
           answer_payload: { answers: itemAnswers },
+          confidence,
+          retest_source_attempt_id: retestSourceAttemptId,
           resubmit,
         });
-      } else if (round === 'sentence' || round === 'speak' || round === 'conversation') {
+      } else if (exerciseRound === 'sentence' || exerciseRound === 'speak' || exerciseRound === 'conversation') {
         result = await apiService.submitAtelierAttempt(session.session_id, {
           concept_id: activeConcept?.id,
-          round,
-          mode: round,
-          exercise_id: `${activeConcept?.external_id || activeConcept?.id}:${round}`,
+          round: exerciseRound,
+          mode: exerciseRound,
+          exercise_id: activeRetest
+            ? `${activeRetest.exerciseId}:retest:${activeRetest.id}`
+            : `${activeConcept?.external_id || activeConcept?.id}:${exerciseRound}`,
           answer_payload: { text: currentAnswers.text || '' },
+          confidence,
+          retest_source_attempt_id: retestSourceAttemptId,
           resubmit,
         });
       } else {
-        const produceKey = answerKey('produce', 'produce', null);
         result = await apiService.submitAtelierAttempt(session.session_id, {
           concept_id: null,
-          round,
+          round: exerciseRound,
           mode: 'integrated_writing',
-          exercise_id: 'integrated-writing',
-          answer_payload: { text: answers[produceKey]?.text || '' },
+          exercise_id: activeRetest ? `${activeRetest.exerciseId}:retest:${activeRetest.id}` : 'integrated-writing',
+          answer_payload: { text: currentAnswers.text || '' },
+          confidence,
+          retest_source_attempt_id: retestSourceAttemptId,
           resubmit,
         });
       }
       applyAttemptResult(attemptKey, result);
       setSubmitted((prev) => ({ ...prev, [attemptKey]: true }));
       setResubmitKeys((prev) => ({ ...prev, [attemptKey]: false }));
+      const adaptiveLock = result.correction?.adaptive_lock;
+      if (adaptiveLock?.concept_id && Array.isArray(adaptiveLock.skipped_modes)) {
+        setSubmitted((prev) => ({
+          ...prev,
+          ...Object.fromEntries(adaptiveLock.skipped_modes.map((skippedMode: string) => [
+            answerKey('recognize', skippedMode, Number(adaptiveLock.concept_id)),
+            true,
+          ])),
+        }));
+        setSession((prev) => prev ? {
+          ...prev,
+          learning_moments: {
+            ...(prev.learning_moments || {}),
+            adaptive_locks: {
+              ...(prev.learning_moments?.adaptive_locks || {}),
+              [String(adaptiveLock.concept_id)]: adaptiveLock,
+            },
+          },
+        } : prev);
+      }
+      if (activeRetest) {
+        setRepairRetests((prev) => ({ ...prev, [activeRetest.id]: { ...activeRetest, status: 'completed' } }));
+      }
       const mintedLogoToken = firstMintedCollectible(result.minted_collectibles, 'logo_token');
       if (mintedLogoToken) {
         setRewardMoment({ id: `${mintedLogoToken.id}:${Date.now()}`, kind: 'logo_token', collectible: mintedLogoToken });
@@ -759,6 +974,39 @@ export default function AtelierPage() {
     setSubmitted((prev) => ({ ...prev, [scopedKey]: false }));
     setResubmitKeys((prev) => ({ ...prev, [scopedKey]: true }));
     setRecentCorrection(null);
+  };
+
+  const submitMicroRepair = async (erratumIndex: number) => {
+    const attemptId = attemptIdsByKey[scopedKey];
+    const draftKey = `${scopedKey}:${erratumIndex}`;
+    const text = repairDrafts[draftKey] || '';
+    if (!attemptId || !text.trim() || repairSubmitting[draftKey]) return;
+    setRepairSubmitting((prev) => ({ ...prev, [draftKey]: true }));
+    try {
+      const result = await apiService.repairAtelierAttempt(attemptId, { text, erratum_index: erratumIndex });
+      const correction = applyAttemptResult(scopedKey, result, true, false);
+      const rawRetest = correction?.retest;
+      if (rawRetest?.id) {
+        const retest: RepairRetest = {
+          id: String(rawRetest.id),
+          status: rawRetest.status === 'completed' ? 'completed' : 'queued',
+          sourceAttemptId: attemptId,
+          conceptId: activeConcept?.id ?? null,
+          round: exerciseRound,
+          mode: exerciseRound === 'recognize' ? exerciseMode : exerciseRound === 'transform' ? 'rewrite' : exerciseRound,
+          exerciseId: activeRetest?.exerciseId || scopedExerciseId(activeConcept, exerciseRound, exerciseMode, activeAnswerItemId),
+          dueAfterCompleted: Math.max(1, Number(rawRetest.due_after_completed || 1)),
+          promptPayload: scopedPromptPayload(activeSet, exerciseRound, exerciseMode, activeItem),
+        };
+        setRepairRetests((prev) => ({ ...prev, [retest.id]: retest }));
+      }
+      pulseAtelierHaptic(correction?.micro_repairs?.[String(erratumIndex)]?.status === 'ok' ? 'correct' : 'repair');
+    } catch (error) {
+      console.error(error);
+      toast.error('Could not check that repair.');
+    } finally {
+      setRepairSubmitting((prev) => ({ ...prev, [draftKey]: false }));
+    }
   };
 
   const completeSession = async () => {
@@ -887,7 +1135,7 @@ export default function AtelierPage() {
     }
     if (action.kind === 'start_session') {
       if (!activeSessionReady) {
-        setLoadError('Atelier could not confirm your active session. Retry before starting a new session so your current work stays intact.');
+        setLoadError(ATELIER_CONFIRM_NEEDED_NOTICE);
         return;
       }
       void startSession();
@@ -915,10 +1163,10 @@ export default function AtelierPage() {
     }
   };
 
-  const goNext = () => {
+  const advanceBaseDrill = () => {
     if (!session) return;
-    if (roundUsesItemScope(round) && activeItemIndexSafe < Math.max(activeItems.length - 1, 0)) {
-      setActiveItemIndex(activeItemIndexSafe + 1);
+    if (roundUsesItemScope(round) && baseActiveItemIndexSafe < Math.max(baseActiveItems.length - 1, 0)) {
+      setActiveItemIndex(baseActiveItemIndexSafe + 1);
       return;
     }
     if (round === 'recognize') {
@@ -984,7 +1232,28 @@ export default function AtelierPage() {
     }
   };
 
-  const completedDrills = submittedDrills(session, submitted);
+  const goNext = () => {
+    if (!session) return;
+    if (activeRetest) {
+      setActiveRetestId(null);
+      advanceBaseDrill();
+      return;
+    }
+    const baselineCompleted = submittedDrills(session, submitted);
+    const dueRetest = Object.values(repairRetests).find((retest) => (
+      retest.status === 'queued' && baselineCompleted >= retest.dueAfterCompleted
+    ));
+    if (dueRetest) {
+      setActiveRetestId(dueRetest.id);
+      return;
+    }
+    advanceBaseDrill();
+  };
+
+  const completedRetests = Object.values(repairRetests).filter((retest) => retest.status === 'completed').length;
+  const totalRetests = Object.keys(repairRetests).length;
+  const completedDrills = submittedDrills(session, submitted) + completedRetests;
+  const plannedDrills = totalDrills(session) + totalRetests;
   const showSerialWelcome = !loading
     && !serialWelcomeDismissed
     && today?.onboarding?.serial_seen === false
@@ -1005,6 +1274,13 @@ export default function AtelierPage() {
       console.error(error);
     }
   };
+  // The modal's own button reads "Start today" -- it should be the one true
+  // start action, not a first tap that only dismisses a modal in front of a
+  // second, identically-labelled button underneath.
+  const beginFromSerialWelcome = async () => {
+    await dismissSerialWelcome();
+    void startSession();
+  };
 
   return (
     <>
@@ -1015,7 +1291,13 @@ export default function AtelierPage() {
       <div className="atelier-page">
         <Masthead view={view} />
         {loading ? (
-          <div className="spread loading">LOADING ATELIER</div>
+          <main className="atelier-edition-stage">
+            <div className="lu motion" aria-label="Atelier · La Une">
+              <LaUneStyles />
+              <div className="lu-page"><LuSkeleton /></div>
+              <AtelierEditionNav active="atelier" />
+            </div>
+          </main>
         ) : view === 'today' || !session ? (
           <TodayView
             today={today}
@@ -1035,13 +1317,20 @@ export default function AtelierPage() {
             activeConceptIndex={activeConceptIndex}
             activeItemIndex={activeItemIndexSafe}
             activeItemCount={Math.max(activeItems.length, 1)}
-            round={round}
-            mode={mode}
+            round={exerciseRound}
+            mode={exerciseMode}
             activeSet={activeSet}
             activeConcept={activeConcept}
             activeItemId={activeItemId}
             currentAnswers={currentAnswers}
-            updateAnswer={updateAnswer}
+            updateAnswer={(key, value) => updateAnswer(
+              key,
+              value,
+              exerciseRound,
+              scopedMode,
+              roundUsesSessionScope(exerciseRound) ? null : activeConcept?.id,
+              activeItemId,
+            )}
             submitAttempt={submitAttempt}
             completeSession={completeSession}
             submitting={submitting}
@@ -1053,6 +1342,14 @@ export default function AtelierPage() {
             reportExercise={reportCurrentExercise}
             aiReviewSubmitting={!!aiReviewSubmitting[scopedKey]}
             completedDrills={completedDrills}
+            totalDrills={plannedDrills}
+            confidence={confidenceByKey[scopedKey]}
+            onPickConfidence={(confidence) => setConfidenceByKey((prev) => ({ ...prev, [scopedKey]: confidence }))}
+            repairDrafts={repairDrafts}
+            onSetRepairDraft={(key, value) => setRepairDrafts((prev) => ({ ...prev, [key]: value }))}
+            onSubmitRepair={submitMicroRepair}
+            repairSubmitting={repairSubmitting}
+            isRetest={Boolean(activeRetest)}
             onBack={() => setView('today')}
             produceAnswer={produceAnswer}
           />
@@ -1094,7 +1391,7 @@ export default function AtelierPage() {
             onClose={() => setRewardMoment(null)}
           />
         )}
-        {showSerialWelcome && <SerialWelcomeModal onClose={dismissSerialWelcome} />}
+        {showSerialWelcome && <SerialWelcomeModal onClose={beginFromSerialWelcome} />}
       </div>
     </>
   );
@@ -1145,45 +1442,6 @@ function RewardMomentOverlay({
           Continue <ArrowRight size={14} />
         </button>
       </section>
-    </div>
-  );
-}
-
-// One geometric mascot (or the full three-form crest for harder drafting rounds)
-// reacting to the verdict, so every exercise — not just Recognize — closes with
-// the reward forms the brand is built on.
-function RoundRewardForm({
-  round,
-  correction,
-  submitted,
-}: {
-  round: RoundName | 'transform';
-  correction: Record<string, any> | null;
-  submitted: boolean;
-}) {
-  if (!submitted || !correction) return null;
-  const verdict = String(correction.verdict || '');
-  const positive = verdict === 'correct' || verdict === 'accepted';
-  const partial = verdict === 'partial';
-  const state: 'grin' | 'sad' | 'neutral' = positive ? 'grin' : partial ? 'neutral' : 'sad';
-  const enhanced = round === 'sentence' || round === 'speak' || round === 'conversation' || round === 'produce';
-  const label = positive
-    ? (enhanced ? 'Drafted in your own words' : 'Clean')
-    : partial ? 'Almost — tighten it up' : 'Repaired below';
-  return (
-    <div className={cn('round-reward', enhanced && 'enhanced', state)} aria-hidden="true">
-      <div className="round-reward-forms">
-        {enhanced ? (
-          <>
-            <ReactForm shape="circle" state={state} />
-            <ReactForm shape="square" state={state} />
-            <ReactForm shape="triangle" state={state} />
-          </>
-        ) : (
-          <ReactForm shape="circle" state={state} />
-        )}
-      </div>
-      <span className="round-reward-label">{label}</span>
     </div>
   );
 }
@@ -1240,27 +1498,16 @@ function TodayView({
   onRecommendedAction: (action?: RecommendedAction) => void;
   onOpenReview: () => void;
   loading: boolean;
-  loadError: string | null;
+  loadError: AtelierErrorNotice | null;
   activeSessionReady: boolean;
   onRetry: () => void;
 }) {
+  const router = useRouter();
   const hasActiveSession = dayProgress.sessionStatus === 'active';
   const concepts = activeSession?.concepts?.length ? activeSession.concepts : today?.concepts || [];
-  const dueErrata = dayProgress.errataDue || roadmapErrataCount(today, activeSession);
-  const grammarTopics = concepts.slice(0, 3).map(displayConceptTitle);
   const canStart = activeSessionReady && (hasActiveSession || concepts.length > 0);
-  const recommendedTarget = recommendedRoadmapTarget(recommendation);
-  const primaryAction = roadmapPrimaryAction(recommendation, loading, canStart, () => onRecommendedAction(recommendation));
-  const parcoursAction = primaryAction
-    ? { ...primaryAction, label: parcoursPrimaryLabel(recommendation, primaryAction.label) }
-    : null;
-  const reviewTotal = recommendation.kind === 'review'
-    ? recommendation.errataDue + recommendation.vocabularyDue
-    : dayProgress.errataDue + dayProgress.vocabularyDue;
   const vocabularyReviewDue = Math.max(0, Number(dayProgress.vocabularyDue || 0));
   const repairDue = Math.max(0, Number(dayProgress.errataDue || 0));
-  const vocabularyIsNext = recommendedTarget === 'review' && vocabularyReviewDue > 0;
-  const repairIsNext = recommendedTarget === 'review' && vocabularyReviewDue === 0 && repairDue > 0;
   const serialAction = serialActionFromToday(today, activeSession);
   const serialEpisode = (today as any)?.serial_episode || (today as any)?.serial || null;
   const libraryEpisode = STORY_FEATURE_VISIBLE ? (today as any)?.library_episode || null : null;
@@ -1283,190 +1530,180 @@ function TodayView({
     hookText: serialEpisode?.hook?.teaser || serialEpisode?.hook?.text || serialEpisode?.previously,
   });
   const sessionComplete = dayProgress.sessionStatus === 'completed';
-  const positionRound = activeSession?.current_position?.round;
-  const activeRound = recommendation.kind === 'resume_session' && isRoundName(recommendation.round)
-    ? recommendation.round
-    : isRoundName(positionRound)
-      ? positionRound
-      : 'recognize';
-  const activeRoundIndex = Math.max(0, roundLabels.findIndex((item) => item.id === activeRound));
-  const editionDate = formatAtelierEditionDate();
   const streak = atelierEditionStreak(today, activeSession);
   const submittedCount = sessionSubmittedCount(activeSession);
-  const completedSignatureCount = sessionComplete ? roundLabels.length : Math.min(activeRoundIndex, roundLabels.length);
-  const signatureSub = hasActiveSession
-    ? `${Math.max(completedSignatureCount, Math.min(submittedCount, roundLabels.length))} of ${roundLabels.length} signatures set`
-    : `${grammarFocusCountLabel(concepts.length || grammarTopics.length)} · ${plannedAtelierDrills(concepts, activeSession)} drills`;
-  const currentPanelLabel = hasActiveSession ? 'Resume · in progress' : 'Today · grammar';
   const cefr = today?.cefr || null;
   const remainingMinutes = Math.max(0, Number(dayProgress.estimatedRemainingMinutes ?? dayProgress.estimatedTotalMinutes ?? 20));
-  const totalMinutes = Math.max(1, Number(dayProgress.estimatedTotalMinutes ?? 20));
-  const timeLine = `~${remainingMinutes} min left · ${totalMinutes} min edition`;
-  const currentPanelFoci = canStart
-    ? hasActiveSession
-      ? [currentRoundFocus(activeSession, activeRound, grammarTopics)]
-      : grammarTopics.length
-        ? grammarTopics
-        : ['Session not ready']
-    : ['Session not ready'];
-  const dateKicker = `${editionDate.toUpperCase()} · TODAY'S EDITION`;
-  const episodeLine = parcoursEpisodeLine(today, serialAction || recommendation);
   const storyReady = Boolean(storyHref);
-  const storyRubric = serialKind === 'mission'
-    ? storyReady ? 'La mission · à toi' : 'La mission · bientôt'
-    : storyReady ? 'Le feuilleton · à toi' : recommendation.kind === 'feuilleton' ? 'Le feuilleton · à créer' : 'Le feuilleton · bientôt';
-  const storyTeaser = storyReady
-    ? parcoursStoryTeaser(serialEpisode, serialCopy.title)
-    : recommendation.kind === 'feuilleton'
-      ? 'Générer l’édition du jour.'
-      : 'Une scène suivra la séance.';
-  const storyCharacter = storyReady
-    ? parcoursStoryCharacter(serialEpisode, serialKind)
-    : { name: 'Atelier', initial: 'A' };
-  const storyStatus = storyReady
-    ? 'Ready'
-    : recommendation.kind === 'feuilleton'
-      ? 'Use Continue to create it'
-      : 'Unlocked by today’s path';
-  const previousFocus = parcoursPreviousFocus(today);
   const upcomingFocus = parcoursUpcomingFocus(today);
-  const nodes: RoadmapNode[] = [
-    { id: 'grammar', label: currentPanelLabel, target: activeRound },
-    { id: 'vocabulary', label: 'Vocabulary training', target: 'vocabulary', href: '/vocabulary/review' },
-    { id: 'review', label: 'Review', target: 'review' },
-    { id: 'living-thread', label: 'Living thread', target: serialKind, href: storyHref || undefined },
-  ];
-  if (STORY_FEATURE_VISIBLE && libraryEpisode) {
-    nodes.push({ id: 'library', label: 'Library', target: 'library', href: libraryHref });
-  }
 
-  if (loadError && !today && !hasActiveSession) {
-    return (
-      <main className="atelier-edition-stage">
-        <AtelierRoadmapEmpty onRetry={onRetry} />
-      </main>
-    );
-  }
+  // ---- La Une (front page) mapping: every field below maps onto real API data. ----
+  const isRest = recommendation.kind === 'rest';
+  const editionDateFull = `${formatAtelierEditionDate()} ${new Date().getFullYear()}`;
+  const episodeNumber = (() => {
+    const idx = Number(serialEpisode?.episode_index);
+    return Number.isFinite(idx) ? idx + 1 : 1;
+  })();
+  const isMissionBeat = serialKind === 'mission';
+  const leadArtUrl = serialLeadImageUrl(serialEpisode);
+  const leadArtMode: 'art' | 'press' | 'late' | 'none' =
+    serialEpisode?.status === 'generating' ? 'press'
+      : serialEpisode?.status === 'delayed' ? 'late'
+        : leadArtUrl ? 'art'
+          : 'none';
+  const leadHeadline = storyReady
+    ? parcoursStoryTeaser(serialEpisode, serialCopy.title)
+    : isMissionBeat
+      ? 'Une lettre attend ta réponse.'
+      : `Épisode ${episodeNumber} — ta première scène t’attend.`;
+  const leadByline = parcoursStoryCharacter(serialEpisode, serialKind).name;
+  const openStory = storyHref ? () => { void router.push(storyHref); } : null;
+
+  const sessionNode = (dayProgress.nodes || []).find((node) => node.id === 'session');
+  const sessionMins = Math.max(1, Number(sessionNode?.estimatedMinutes ?? remainingMinutes ?? 8));
+  const seanceStatus: 'fresh' | 'resume' | 'done' = sessionComplete ? 'done' : hasActiveSession ? 'resume' : 'fresh';
+  const seanceConcepts: LuSeanceConcept[] = concepts.slice(0, 3).map((concept, index) => ({
+    t: displayConceptTitle(concept),
+    cefr: String(concept.level || 'A1'),
+    role: concept.role === 'new' || concept.role === 'fragile' || concept.role === 'contrast'
+      ? concept.role
+      : index === 2 ? 'contrast' : 'fragile',
+  }));
+  const totalDrillsCount = plannedAtelierDrills(concepts, activeSession);
+  const seanceProgress: [number, number] | null = hasActiveSession
+    ? [Math.min(submittedCount, totalDrillsCount), Math.max(1, totalDrillsCount)]
+    : null;
+  const seanceAction: RecommendedAction = hasActiveSession
+    ? {
+        kind: 'resume_session',
+        conceptIndex: activeSession?.current_position?.concept_index ?? 0,
+        round: (activeSession?.current_position?.round as string) || 'recognize',
+        mode: activeSession?.current_position?.mode,
+        itemIndex: activeSession?.current_position?.item_index ?? 0,
+      }
+    : { kind: 'start_session' };
+  const seanceDisabled = loading || (!hasActiveSession && !canStart);
+
+  const forecastAvailable = cefr?.forecast?.status === 'available';
+  const forecastRange = Array.isArray(cefr?.forecast?.range_days) ? cefr?.forecast?.range_days : null;
+  const forecastDays = forecastRange
+    ? Math.round((Number(forecastRange[0]) + Number(forecastRange[1])) / 2)
+    : null;
+  const coursWords: [number, number] = [
+    Number(cefr?.breakdown?.vocabulary?.current || 0),
+    Number(cefr?.breakdown?.vocabulary?.target || 0),
+  ];
+  const coursGrammar: [number, number] = [
+    Number(cefr?.breakdown?.grammar?.current || 0),
+    Number(cefr?.breakdown?.grammar?.target || 0),
+  ];
+
+  const nextEpisodeNumber = episodeNumber + 1;
+  const nextEpisodeTease = firstNonEmptyString(serialEpisode?.hook?.teaser, serialEpisode?.hook?.text) || null;
+  const quote = today?.quote || null;
+  const phraseOfDay = today?.phrase_of_day || null;
+  const boucleDate = (() => {
+    const now = new Date();
+    const pad = (value: number) => String(value).padStart(2, '0');
+    return `${pad(now.getDate())} · ${pad(now.getMonth() + 1)} · ${String(now.getFullYear()).slice(-2)}`;
+  })();
+
+  const errorOnlyPage = loadError && !today && !hasActiveSession;
 
   return (
     <main className="atelier-edition-stage">
-      <section className={`ph parcours ${recommendation.kind === 'rest' ? 'is-rest' : ''}`} aria-label="Atelier roadmap">
-        <AtelierEditionHead title="Atelier" rightSlot={<AtelierDayBadge day={streak} />} />
-        <div className={`ph-body parcours-body ${recommendation.kind === 'rest' ? 'center' : ''}`}>
-          {loadError && <AtelierLoadNotice message={loadError} onRetry={onRetry} />}
+      <div className="lu motion" aria-label="Atelier · La Une">
+        <LaUneStyles />
+        <div className="lu-page">
+          <LuMasthead
+            name="L’Atelier"
+            date={editionDateFull}
+            edition={`Éd. Nº ${episodeNumber}`}
+            streak={streak}
+            boucle={isRest}
+            boucleDate={boucleDate}
+          />
 
-          {recommendation.kind === 'rest' ? (
-            <AtelierParcoursCaughtUp
-              dateKicker={dateKicker}
-              episodeLine={episodeLine}
-              serialHref={storyHref}
-              reviewTotal={reviewTotal}
-              datestamp={formatAtelierDatestamp()}
+          {loadError && (
+            <LuNotice
+              tone={loadError.label === 'OFFLINE' ? 'red' : loadError.label.includes('PREPARING') || loadError.label.includes('LOADING') ? 'yellow' : 'blue'}
+              label={loadError.label}
+              message={loadError.message}
+              onRetry={onRetry}
             />
-          ) : (
+          )}
+
+          {errorOnlyPage ? null : (
             <>
-              <AtelierParcoursMap
-                dateKicker={dateKicker}
-                episodeLine={episodeLine}
-                previousDayLabel={previousFocus.dayLabel}
-                previousTopic={previousFocus.topic}
-                previousComplete={previousFocus.complete}
-                tomorrowDayLabel={upcomingFocus.dayLabel}
-                tomorrowTopic={upcomingFocus.topic}
-                tomorrowHref={upcomingFocus.href}
-                storyRubric={storyRubric}
-                storyTeaser={storyTeaser}
-                storyCharacter={storyCharacter}
-                storyHref={storyHref}
-                storyStatus={storyStatus}
-                cta={parcoursAction}
-                disabled={loading || (recommendation.kind === 'start_session' && !canStart)}
-                reviewDue={repairDue + vocabularyReviewDue}
-                onOpenReview={onOpenReview}
+              <LuLead
+                ep={episodeNumber}
+                mission={isMissionBeat}
+                artMode={leadArtMode}
+                artUrl={leadArtUrl}
+                headline={leadHeadline}
+                byline={leadByline}
+                done={serialDone}
+                onOpen={openStory}
               />
 
-              <details className="today-plan parcours-plan">
-                <summary>Today&apos;s plan · {reviewTotal} due</summary>
-                <div className="today-plan-body">
-                  <div className="plan-note">
-                    <span>{nodes.length} connected stops</span>
-                    <span>{signatureSub}</span>
-                    <span>{timeLine}</span>
-                  </div>
-                  <CEFRPromiseStrip cefr={cefr} />
-                  <div className="spine" data-node-count={nodes.length}>
-                    {roundLabels.map((item, index) => {
-                      const state = sessionComplete
-                        ? 'done'
-                        : index < activeRoundIndex && dayProgress.sessionStatus !== 'none'
-                          ? 'done'
-                          : index === activeRoundIndex
-                            ? 'current'
-                            : 'up';
-                      return (
-                        <AtelierEditionStep
-                          key={item.id}
-                          roman={item.roman}
-                          name={item.label}
-                          meta={withNodeMinutes(roundMetaLabel(state, dayProgress.sessionStatus), dayProgress, 'session')}
-                          state={state}
-                          first={index === 0}
-                        >
-                          {state === 'current' && (
-                            <AtelierCurrentPanel
-                              label={currentPanelLabel}
-                              foci={currentPanelFoci}
-                              errataCount={dueErrata}
-                              cta={primaryAction}
-                              disabled={loading || (recommendation.kind === 'start_session' && !canStart)}
-                            />
-                          )}
-                        </AtelierEditionStep>
-                      );
-                    })}
-                    {vocabularyReviewDue > 0 && (
-                      <AtelierEditionStep
-                        roman="VOC"
-                        name="Vocabulary training"
-                        meta={withNodeMinutes(`${vocabularyReviewDue} due · French 5000`, dayProgress, 'vocabulary')}
-                        state={vocabularyIsNext ? 'current' : 'up'}
-                        vocabulary
-                        badge={!vocabularyIsNext ? String(vocabularyReviewDue) : undefined}
-                        metaGo={vocabularyIsNext}
-                      >
-                        {vocabularyIsNext && (
-                          <AtelierVocabularyOpen vocabularyDue={vocabularyReviewDue} />
-                        )}
-                      </AtelierEditionStep>
-                    )}
-                    <AtelierEditionStep
-                      roman="R"
-                      name="Repair queue"
-                      meta={withNodeMinutes(repairDue > 0
-                        ? `${repairDue} grammar repair${repairDue === 1 ? '' : 's'}`
-                        : 'Queue clear', dayProgress, 'review')}
-                      state={repairIsNext ? 'current' : repairDue > 0 ? 'up' : 'done'}
-                      review
-                      badge={!repairIsNext && repairDue > 0 ? String(repairDue) : undefined}
-                      metaGo={repairIsNext}
-                      last
-                    >
-                      {repairIsNext && (
-                        <AtelierReviewOpen
-                          errataDue={repairDue}
-                          vocabularyDue={0}
-                          onOpenReview={onOpenReview}
-                        />
-                      )}
-                    </AtelierEditionStep>
-                  </div>
-                </div>
-              </details>
+              <LuSeance
+                concepts={seanceConcepts}
+                mins={sessionMins}
+                drills={totalDrillsCount}
+                status={seanceStatus}
+                progress={seanceProgress}
+                disabled={seanceDisabled}
+                onCta={() => onRecommendedAction(seanceAction)}
+              />
+
+              <div className="lu-duo">
+                <LuLexique due={vocabularyReviewDue} href="/vocabulary/review" />
+                <LuErrata due={repairDue} onOpen={onOpenReview} />
+              </div>
+
+              {STORY_FEATURE_VISIBLE && libraryEpisode && (
+                <LuBiblio
+                  title={libraryEpisode.book_title || libraryEpisode.title || 'La Bibliothèque'}
+                  chapter={Number(libraryEpisode.episode_index ?? libraryEpisode.order_index ?? 0) + 1}
+                  href={libraryHref}
+                />
+              )}
+
+              {phraseOfDay && (
+                <LuPhraseDuJour
+                  text={phraseOfDay.text}
+                  byline={phraseOfDay.byline}
+                  paru={phraseOfDay.paru}
+                />
+              )}
+
+              {quote && (
+                <LuCitation text={quote.text} source={quote.source} detail={quote.source_detail} />
+              )}
+
+              <LuCours
+                from={cefr?.estimate || 'A1.1'}
+                to={cefr?.target || cefr?.next_level || 'A1.2'}
+                days={forecastDays}
+                words={coursWords}
+                grammar={coursGrammar}
+                forecast={forecastAvailable}
+              />
+
+              <LuDemain
+                focus={upcomingFocus.topic}
+                focusHref={upcomingFocus.href}
+                ep={nextEpisodeNumber}
+                epTease={nextEpisodeTease}
+                grand={isRest}
+              />
+
+              <div className="lu-colophon">Fin de l’édition</div>
             </>
           )}
         </div>
         <AtelierEditionNav active="atelier" />
-      </section>
+      </div>
     </main>
   );
 }
@@ -1516,6 +1753,37 @@ function firstNonEmptyString(...values: unknown[]) {
   return '';
 }
 
+// Resolve the front-page lead image ("head picture of the journal").
+// Prefers a composed panel URL if the payload ever carries one, then falls back
+// to the episode location's establishing illustration from the serial world
+// bible (served by Next from /public/assets/serial/...). Returns null when no
+// real image resolves, so the lead stays text-first instead of showing a
+// broken frame.
+function serialLeadImageUrl(serialEpisode: Record<string, any> | null): string | null {
+  if (!serialEpisode) return null;
+  const toUrl = (raw: unknown): string | null => {
+    const value = String(raw || '').trim();
+    if (!value) return null;
+    if (/^https?:\/\//.test(value) || value.startsWith('/')) return value;
+    return `/${value.replace(/^\.?\/+/, '')}`;
+  };
+  const composed = toUrl(
+    firstNonEmptyString(
+      serialEpisode?.hero_image,
+      serialEpisode?.image_url,
+      serialEpisode?.hook?.image_url,
+      serialEpisode?.panels?.[0]?.image_url,
+    ),
+  );
+  if (composed) return composed;
+  const locationId = serialEpisode?.location_id;
+  const locations = serialEpisode?.thread?.world_bible?.visual_design?.locations;
+  const refs = locationId && locations && locations[locationId]
+    ? locations[locationId].reference_images
+    : null;
+  return Array.isArray(refs) && refs.length ? toUrl(refs[0]) : null;
+}
+
 function stringFromQueryIndex(query: string) {
   const params = new URLSearchParams(query.replace(/^\?/, ''));
   const value = Number(params.get('episode_index'));
@@ -1549,14 +1817,16 @@ function stripDisplayQuotes(value: string) {
 }
 
 function parcoursStoryTeaser(serialEpisode: Record<string, any> | null, fallback: string) {
+  // `beat` (e.g. "act") is an internal state-machine field, never narrative
+  // copy — never include it here. When there's no real hook yet, fall back to
+  // the honest, human-authored serialCopy.title rather than inventing a plot
+  // beat (e.g. a name-dropped cliffhanger) that may not be true this episode.
   const raw = firstNonEmptyString(
     serialEpisode?.hook?.teaser,
     serialEpisode?.hook?.text,
     serialEpisode?.previously,
-    serialEpisode?.beat,
   );
-  const genericFallback = /continue the serial|the world is waiting|new episode ready|the script is ready/i.test(fallback);
-  return stripDisplayQuotes(raw || (genericFallback ? 'Romy ne répond plus.' : fallback));
+  return stripDisplayQuotes(raw || fallback);
 }
 
 function parcoursStoryCharacter(serialEpisode: Record<string, any> | null, kind: 'mission' | 'feuilleton') {
@@ -1736,13 +2006,12 @@ function formatAtelierDatestamp(date = new Date()) {
 
 function atelierEditionStreak(today: AtelierToday | null, activeSession: AtelierSessionStart | null) {
   const value = Number(
-    today?.summary?.streak_days
-      ?? today?.summary?.streak
+    today?.summary?.streak
       ?? activeSession?.recap?.streak_after
       ?? activeSession?.recap?.streak_before
-      ?? 12,
+      ?? 0,
   );
-  return Number.isFinite(value) && value > 0 ? Math.round(value) : 12;
+  return Number.isFinite(value) && value > 0 ? Math.round(value) : 0;
 }
 
 function grammarFocusCountLabel(count: number) {
@@ -1794,6 +2063,16 @@ function withNodeMinutes(label: string, progress: DayProgress, nodeId: string) {
   const node = (progress.nodes || []).find((item) => item.id === nodeId);
   if (!node?.estimatedMinutes) return label;
   return `${label} · ~${node.estimatedMinutes} min`;
+}
+
+// The "session" node's estimatedMinutes is the budget for the whole 6-round
+// session, not per round — dividing it here avoids implying each of the 6
+// rounds independently costs the full session estimate (a ~6x overstatement).
+function withRoundShareMinutes(label: string, progress: DayProgress, nodeId: string, roundCount: number) {
+  const node = (progress.nodes || []).find((item) => item.id === nodeId);
+  if (!node?.estimatedMinutes || roundCount <= 0) return label;
+  const share = Math.max(1, Math.round(node.estimatedMinutes / roundCount));
+  return `${label} · ~${share} min`;
 }
 
 function CEFRPromiseStrip({ cefr }: { cefr?: AtelierToday['cefr'] | null }) {
@@ -2395,13 +2674,20 @@ function AtelierEditionClosed({ reviewTotal, datestamp }: { reviewTotal: number;
 }
 
 function AtelierDayBadge({ day }: { day: number }) {
+  const hasStreak = day > 0;
   return (
-    <div className="day-badge" aria-label={`Day ${day}`}>
+    <div className={`day-badge${hasStreak ? '' : ' unlit'}`} aria-label={hasStreak ? `Day ${day} streak` : 'No streak yet'}>
       <svg viewBox="0 0 16 16" aria-hidden="true">
         <path d="M9.4 1.8C8.1 3.8 9 5.2 7.6 6.4C6.8 7 5.7 7 5.1 6.3C4.5 8.2 5.5 10.5 8 10.5C10.6 10.5 12.1 8.7 12.1 6.5C12.1 4.5 10.8 3.1 9.4 1.8Z" fill="currentColor" />
       </svg>
-      <span>Day</span>
-      <b>{day}</b>
+      {hasStreak ? (
+        <>
+          <span>Day</span>
+          <b>{day}</b>
+        </>
+      ) : (
+        <span>New</span>
+      )}
     </div>
   );
 }
@@ -2725,11 +3011,11 @@ function vocabularyTranslation(item: VocabularyRecommendationItem) {
   return item.translation || item.translations?.de || item.translations?.en || item.translations?.fr || 'target word';
 }
 
-function AtelierLoadNotice({ message, onRetry }: { message: string; onRetry: () => void }) {
+function AtelierLoadNotice({ label, message, onRetry }: { label: string; message: string; onRetry: () => void }) {
   return (
     <section className="atelier-load-notice">
       <div>
-        <span className="t-mono red">OFFLINE</span>
+        <span className="t-mono red">{label}</span>
         <p>{message}</p>
       </div>
       <button className="btn solid" type="button" onClick={onRetry}>Retry</button>
@@ -2964,6 +3250,28 @@ function hasConceptRecognizeSubmission(submitted: Record<string, boolean>, conce
   });
 }
 
+// Maps a concept's Bauhaus blueprint visual_motif into L'Épreuve house-form
+// primitives, scaled to the 46-unit motif canvas, printing one more piece per
+// round advanced through the concept (the motif assembles as you set the type).
+function epMotifPrimsFrom(concept: AtelierConcept | null, roundOrdinal: number): MotifPrim[] {
+  const vm = concept?.atelier_blueprint?.visual_motif as Record<string, any> | undefined;
+  const raw = Array.isArray(vm?.primitives) ? vm!.primitives : [];
+  const canvas = Number(vm?.canvas?.width) || 84;
+  const k = 46 / canvas;
+  const houses = raw.filter((p: any) => p && (p.type === 'rect' || p.type === 'circle' || p.type === 'triangle'));
+  return houses.map((p: any, i: number): MotifPrim => {
+    if (p.type === 'circle') {
+      const r = Number(p.r) || 6;
+      return { shape: 'circle', cx: (Number(p.cx) || 0) * k, cy: (Number(p.cy) || 0) * k, s: r * 2 * k, printed: i < roundOrdinal, printing: i === roundOrdinal - 1 };
+    }
+    const w = Number(p.w) || 12;
+    const h = Number(p.h) || 12;
+    const cx = ((Number(p.x) || 0) + w / 2) * k;
+    const cy = ((Number(p.y) || 0) + h / 2) * k;
+    return { shape: p.type === 'triangle' ? 'triangle' : 'square', cx, cy, s: Math.max(w, h) * k, printed: i < roundOrdinal, printing: i === roundOrdinal - 1 };
+  });
+}
+
 function SessionView({
   session,
   activeConceptIndex,
@@ -2987,6 +3295,14 @@ function SessionView({
   reportExercise,
   aiReviewSubmitting,
   completedDrills,
+  totalDrills: totalDrillsForSession,
+  confidence,
+  onPickConfidence,
+  repairDrafts,
+  onSetRepairDraft,
+  onSubmitRepair,
+  repairSubmitting,
+  isRetest,
   onBack,
   produceAnswer,
 }: {
@@ -3012,6 +3328,14 @@ function SessionView({
   reportExercise: () => void;
   aiReviewSubmitting: boolean;
   completedDrills: number;
+  totalDrills: number;
+  confidence?: 'sure' | 'unsure';
+  onPickConfidence: (confidence: 'sure' | 'unsure') => void;
+  repairDrafts: Record<string, string>;
+  onSetRepairDraft: (key: string, value: string) => void;
+  onSubmitRepair: (erratumIndex: number) => void;
+  repairSubmitting: Record<string, boolean>;
+  isRetest: boolean;
   onBack: () => void;
   produceAnswer: string;
 }) {
@@ -3019,7 +3343,7 @@ function SessionView({
   const currentKey = answerKey(round, currentMode, roundUsesSessionScope(round) ? null : activeConcept?.id, activeItemId);
   const currentCorrection = correctionsByKey[currentKey] || null;
   const currentSubmitted = !!submitted[currentKey];
-  const total = totalDrills(session);
+  const total = totalDrillsForSession;
   const activeRoundLabel = roundLabels.find((item) => item.id === round)?.label || 'Practice';
   const activeRecognizeLabel = recognizeModes.find((item) => item.id === mode)?.label || 'Recognize';
   const activeConceptTitle = activeConcept?.atelier_blueprint?.display_title || activeConcept?.name || 'Daily session';
@@ -3034,7 +3358,7 @@ function SessionView({
   );
   const rulePreference = ruleOpenByConcept[conceptRuleKey];
   const ruleExpanded = firstConceptDrill ? rulePreference !== false : rulePreference === true;
-  const isFinalConversation = round === 'conversation' && activeConceptIndex >= session.concepts.length - 1;
+  const isFinalConversation = !isRetest && round === 'conversation' && activeConceptIndex >= session.concepts.length - 1;
   const currentFeedback = currentSubmitted
     ? feedbackForExercise(round, mode, activeSet, activeItemIndex, currentAnswers, currentCorrection)
     : null;
@@ -3052,47 +3376,50 @@ function SessionView({
     setRuleOpenByConcept((prev) => ({ ...prev, [conceptRuleKey]: !ruleExpanded }));
   };
 
-  return (
-    <main className="session-spread atelier-do-mode">
-      <section className="do-topbar" aria-label="Session progress">
-        <button className="do-close" onClick={onBack} aria-label="Close session">×</button>
-        <div className="do-progress">
-          <ProgressBar value={completedDrills} max={total || 1} label={`${completedDrills} of ${total} drills complete`} />
-          <span>{completedDrills}/{total || '–'} · press run</span>
-        </div>
-        <button className="do-finish" onClick={completeSession} disabled={submitting || completedDrills < total}>Finish</button>
-      </section>
+  // ---- L'Épreuve frame mapping (composing stick + assembling motif). ----
+  const sessionComplete = String(session.status) === 'completed' || (total > 0 && completedDrills >= total);
+  const roundOrdinal = Math.max(1, roundLabels.findIndex((item) => item.id === round) + 1);
+  const epMotifPrims = epMotifPrimsFrom(activeConcept, roundOrdinal);
+  const epGroups = [{ total: Math.max(1, total), set: completedDrills, current: !sessionComplete }];
+  const epCap: [string, string] = [`${completedDrills}/${total || '–'}`, 'presse'];
+  const provenance = provenanceLine(activeConcept?.due_errata?.[0]);
+  const activeLock = currentCorrection?.adaptive_lock;
 
+  return (
+    <EpShell className="atelier-do-mode">
+      <LEpreuveStyles />
+      <EpreuveWiringStyles />
+      <EpTopbar
+        groups={epGroups}
+        cap={epCap}
+        onClose={onBack}
+        onFinish={completeSession}
+        finishDisabled={submitting || completedDrills < total}
+      />
+      <div className="ep-body">
       {activeSet && activeConcept && (
-        <section className="do-stage">
-          <ExerciseShell
-            eyebrow={`${activeRoundLabel}${round === 'recognize' ? ` · ${activeRecognizeLabel}` : ''}${focusedItemLabel ? ` · ${focusedItemLabel}` : ''}`}
+        <section className="do-stage ep-sheet">
+          <EpEyebrow
+            round={activeRoundLabel}
+            mode={round === 'recognize' ? activeRecognizeLabel : undefined}
+            i={activeItemCount > 1 ? activeItemIndex + 1 : 1}
+            n={activeItemCount > 1 ? activeItemCount : 1}
+            retour={isRetest}
+          />
+          {provenance && <EpProvenance>{provenance}</EpProvenance>}
+          <EpConcept
             title={activeConceptTitle}
-            action={
-              <button
-                className="rule-toggle"
-                type="button"
-                onClick={toggleRule}
-                aria-label={ruleExpanded ? 'Hide rule' : 'Show rule'}
-                aria-expanded={ruleExpanded}
-                title={ruleExpanded ? 'Hide rule' : 'Show rule'}
-              >
-                <HelpCircle size={18} />
-              </button>
-            }
-          >
-            {ruleExpanded && (
-              <div className="do-rule-sheet">
-                <ConceptRulePanel payload={activeSet} concept={activeConcept} />
-                {firstConceptDrill && <div className="rule-bridge">Now try it on the easiest item.</div>}
-              </div>
-            )}
-              <FocusedExerciseMeter
-                round={round}
-                mode={mode}
-                activeItemIndex={activeItemIndex}
-                activeItemCount={activeItemCount}
-              />
+            motif={<EpMotif prims={epMotifPrims} canvas={46} done={sessionComplete} />}
+            askOn={ruleExpanded}
+            onAsk={toggleRule}
+          />
+          {ruleExpanded && (
+            <EpRule
+              lede={<ConceptRulePanel payload={activeSet} concept={activeConcept} />}
+              examples={firstConceptDrill ? ['Now try it on the easiest item.'] : []}
+              onClose={toggleRule}
+            />
+          )}
               {round === 'recognize' && (
                 <div className="exercise-frame">
                     <RecognizePanel
@@ -3109,6 +3436,8 @@ function SessionView({
                       submitted={currentSubmitted}
                       nextDisabled={nextDisabled}
                       submitAttempt={submitAttempt}
+                      confidence={confidence}
+                      onPickConfidence={onPickConfidence}
                     />
                 </div>
               )}
@@ -3129,6 +3458,8 @@ function SessionView({
                     submitted={currentSubmitted}
                     nextDisabled={nextDisabled}
                     submitAttempt={submitAttempt}
+                    confidence={confidence}
+                    onPickConfidence={onPickConfidence}
                   />
                 </div>
               )}
@@ -3138,7 +3469,7 @@ function SessionView({
                     payload={activeSet}
                     round={round}
                     answer={currentAnswers.text || ''}
-                    updateAnswer={(value) => updateAnswer('text', value, round, round, activeConcept?.id)}
+                    updateAnswer={(value) => updateAnswer('text', value)}
                     correction={currentCorrection}
                     submitted={currentSubmitted}
                     onRequestAiReview={requestAiReview}
@@ -3149,6 +3480,8 @@ function SessionView({
                     submitted={currentSubmitted}
                     nextDisabled={nextDisabled}
                     submitAttempt={submitAttempt}
+                    confidence={confidence}
+                    onPickConfidence={onPickConfidence}
                   />
                 </div>
               )}
@@ -3160,7 +3493,7 @@ function SessionView({
                     payload={activeSet}
                     targetVocabulary={session.target_vocabulary}
                     answer={produceAnswer}
-                    updateAnswer={(value) => updateAnswer('text', value, 'produce', 'produce', null)}
+                    updateAnswer={(value) => updateAnswer('text', value)}
                     correction={currentCorrection}
                     submitted={currentSubmitted}
                     onRequestAiReview={requestAiReview}
@@ -3171,8 +3504,16 @@ function SessionView({
                     submitted={currentSubmitted}
                     nextDisabled={nextDisabled}
                     submitAttempt={submitAttempt}
+                    confidence={confidence}
+                    onPickConfidence={onPickConfidence}
                   />
                 </div>
+              )}
+              {activeLock && currentSubmitted && (
+                <EpLock
+                  title={activeConceptTitle}
+                  motif={<EpMotif prims={epMotifPrims} canvas={76} done />}
+                />
               )}
               <ExerciseFeedbackMoment
                 feedback={currentFeedback}
@@ -3182,11 +3523,18 @@ function SessionView({
                 nextLabel={feedbackNextLabel}
                 onTryAgain={currentFeedback && !currentFeedback.correct ? retryAttempt : undefined}
                 onReport={currentFeedback && !currentFeedback.correct ? reportExercise : undefined}
+                correction={currentCorrection}
+                repairDrafts={repairDrafts}
+                onSetRepairDraft={onSetRepairDraft}
+                onSubmitRepair={onSubmitRepair}
+                repairSubmitting={repairSubmitting}
+                feedbackKey={currentKey}
+                isLabelCompare={round === 'recognize' && mode === 'classify'}
               />
-          </ExerciseShell>
         </section>
       )}
-    </main>
+      </div>
+    </EpShell>
   );
 }
 
@@ -3223,19 +3571,24 @@ function ActionRow({
   submitted,
   nextDisabled,
   submitAttempt,
+  confidence,
+  onPickConfidence,
 }: {
   submitting: boolean;
   submitted: boolean;
   nextDisabled: boolean;
   submitAttempt: () => void;
+  confidence?: 'sure' | 'unsure';
+  onPickConfidence: (confidence: 'sure' | 'unsure') => void;
 }) {
   if (submitted) return null;
   return (
-    <div className="action-row">
-      <button className="btn red" disabled={submitting || nextDisabled} onClick={submitAttempt}>
-        Check <Send size={14} />
-      </button>
-    </div>
+    <EpFoot>
+      <EpConfidence value={confidence} onPick={onPickConfidence} />
+      <EpBar tone="go" icon="check" disabled={submitting || nextDisabled} onClick={submitAttempt}>
+        {submitting ? 'Vérification…' : 'Vérifier la ligne'}
+      </EpBar>
+    </EpFoot>
   );
 }
 
@@ -3247,6 +3600,13 @@ function ExerciseFeedbackMoment({
   onNext,
   nextLabel,
   onReport,
+  correction,
+  repairDrafts,
+  onSetRepairDraft,
+  onSubmitRepair,
+  repairSubmitting,
+  feedbackKey,
+  isLabelCompare,
 }: {
   feedback: InlineFeedbackModel;
   submitted: boolean;
@@ -3255,22 +3615,114 @@ function ExerciseFeedbackMoment({
   onNext: () => void;
   nextLabel: string;
   onReport?: () => void;
+  correction: Record<string, any> | null;
+  repairDrafts: Record<string, string>;
+  onSetRepairDraft: (key: string, value: string) => void;
+  onSubmitRepair: (erratumIndex: number) => void;
+  repairSubmitting: Record<string, boolean>;
+  feedbackKey: string;
+  isLabelCompare?: boolean;
 }) {
   if (!submitted || !feedback) return null;
-  const correctionItems = feedbackCorrectionItems(feedback);
+  const issues = feedback.issues?.length
+    ? feedback.issues
+    : feedback.target
+      ? [{ display_label: 'Ligne corrigée', learner_text: feedback.learner, corrected_target: feedback.target, why_wrong: feedback.why } as AtelierErratum]
+      : [];
+  const repairs = correction?.micro_repairs || {};
+  // The typed retype only gates Next for corrections that are real lines;
+  // one-word fixes are settled by the galley marks alone.
+  const repairsComplete = isLabelCompare || issues.every((issue, index) => {
+    const target = String(issue.corrected_target || '').trim();
+    if (!isRepairableLine(target)) return true;
+    return repairs[String(index)]?.status === 'ok';
+  });
+  const aiStatus = aiReviewStatus(correction);
+  const relecture = aiStatus === 'pending' || aiStatus === 'reviewing' || aiStatus === 'queued'
+    ? <EpRelecture status="pending" />
+    : aiStatus === 'complete' ? <EpRelecture status="done">Relecture terminée</EpRelecture> : null;
+  // French words the learner fell back to L1 for — the backend added each to the
+  // vocabulary notebook, so we confirm it inline under the correction.
+  const vocabularyGaps: Array<{ french: string; gloss?: string }> = Array.isArray(correction?.vocabulary_gaps?.added)
+    ? correction.vocabulary_gaps.added
+        .map((gap: any) => ({ french: String(gap?.french || '').trim(), gloss: String(gap?.gloss || '').trim() }))
+        .filter((gap: { french: string }) => gap.french)
+    : [];
+
+  if (feedback.correct) {
+    return (
+      <div className="ep-feedback go">
+        <EpVerdict tone="go">Bon à tirer</EpVerdict>
+        <EpCorrect said={feedback.target || feedback.learner || 'Ligne réglée.'} struck />
+        <EpFoot>
+          <EpBar icon="check" onClick={onNext}>{nextLabel}</EpBar>
+        </EpFoot>
+      </div>
+    );
+  }
+
   return (
-    <FeedbackSheet
-      status={feedback.correct ? 'correct' : 'wrong'}
-      title={feedback.correct ? 'Set.' : 'Almost.'}
-      explanation={feedback.correct ? 'Keep this shape for the next one.' : feedback.why || 'One small repair before you move on.'}
-      repair={!correctionItems.length && !feedback.correct ? feedbackRepairLine(feedback) : undefined}
-      rule={!feedback.correct ? rule : undefined}
-      correctionItems={correctionItems}
-      onTryAgain={!feedback.correct ? onTryAgain : undefined}
-      onNext={onNext}
-      nextLabel={nextLabel}
-      onReport={!feedback.correct ? onReport : undefined}
-    />
+    <div className="ep-feedback no">
+      <EpVerdict tone="no">À recomposer</EpVerdict>
+      {issues.map((issue, index) => {
+        const learner = String(issue.learner_text || feedback.learner || '').trim();
+        const target = String(issue.corrected_target || feedback.target || '').trim();
+        const repairKey = `${feedbackKey}:${index}`;
+        const repair = repairs[String(index)] || null;
+        return (
+          <React.Fragment key={`${issue.display_label || 'repair'}-${index}`}>
+            <EpGalley
+              anchor={issue.display_label || `Correction ${index + 1}`}
+              why={issue.why_wrong || feedback.why}
+              relecture={relecture}
+            >
+              {isLabelCompare && learner
+                ? <EpLabelFix old={learner} fix={target || 'corrigé'} />
+                : isRepairableLine(target) || isRepairableLine(learner)
+                  ? <EpLineFix old={learner} fix={target || 'corrigé'} />
+                  : learner ? <EpFix old={learner} fix={target || 'corrigé'} /> : <EpIns fix={target || 'corrigé'} />}
+            </EpGalley>
+            {!isLabelCompare && target && isRepairableLine(target) && (
+              <EpRepair
+                target={target}
+                typed={repair?.typed || repairDrafts[repairKey] || ''}
+                status={repair?.status || null}
+                onChange={(value) => onSetRepairDraft(repairKey, value)}
+                onSubmit={() => onSubmitRepair(index)}
+                submitting={!!repairSubmitting[repairKey]}
+              />
+            )}
+          </React.Fragment>
+        );
+      })}
+      {vocabularyGaps.length > 0 && (
+        <div className="ep-notebook-add">
+          <span className="nh">Ajouté au carnet</span>
+          <ul>
+            {vocabularyGaps.map((gap, index) => (
+              <li key={`${gap.french}-${index}`}>
+                <b>{gap.french}</b>
+                {gap.gloss ? <em> — {gap.gloss}</em> : null}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {rule && <div className="ep-rulenote">{rule}</div>}
+      <EpFoot>
+        {repairsComplete
+          ? <EpBar icon="check" onClick={onNext}>{nextLabel}</EpBar>
+          : onTryAgain && <EpBar tone="ghost" icon="retry" onClick={onTryAgain}>Réessayer la ligne</EpBar>}
+      </EpFoot>
+      <div className="ep-fb-links">
+        {repairsComplete && onTryAgain && (
+          <button type="button" onClick={onTryAgain}>Réessayer</button>
+        )}
+        {onReport && (
+          <button type="button" onClick={onReport}>Signaler cet exercice</button>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -3285,12 +3737,16 @@ function Stat({ num, label, sub, accent = 'var(--ink)' }: { num: any; label: str
 }
 
 function ConceptCover({ concept, index, compact = false, active = false }: { concept: AtelierConcept; index: number; compact?: boolean; active?: boolean }) {
-  const accent = index === 2 || concept.role === 'contrast' ? 'var(--blue)' : 'var(--red)';
+  const accent = index === 2 || concept.role === 'contrast'
+    ? 'var(--blue)'
+    : concept.role === 'new'
+      ? 'var(--yellow)'
+      : 'var(--red)';
   const displayTitle = concept.atelier_blueprint?.display_title || concept.name;
   const dueErratum = concept.due_errata?.[0];
   const statusText = dueErratum
     ? dueErratum.reason || `${dueErratum.display_label}${dueErratum.learner_text && dueErratum.corrected_target ? `: ${dueErratum.learner_text} → ${dueErratum.corrected_target}` : ''}`
-    : concept.role === 'contrast' ? 'Different rule' : 'Weak spot';
+    : concept.role === 'contrast' ? 'Different rule' : concept.role === 'new' ? 'First time' : 'Weak spot';
   return (
     <article className={`concept-cover ${compact ? 'compact' : ''} ${active ? 'active' : ''}`}>
       <div className="cover-band" style={{ background: accent }}>
@@ -3513,6 +3969,21 @@ function ModeMarkers({
   );
 }
 
+function EpreuveBlankPrompt({ prompt, answer }: { prompt: string; answer?: string }) {
+  const parts = String(prompt || '').split(/_{2,}/);
+  if (parts.length < 2) return <>{prompt}</>;
+  return (
+    <>
+      {parts.map((part, index) => (
+        <React.Fragment key={`${part}-${index}`}>
+          {part}
+          {index < parts.length - 1 && <Blank set={Boolean(answer)}>{answer}</Blank>}
+        </React.Fragment>
+      ))}
+    </>
+  );
+}
+
 function RecognizePanel({
   payload,
   mode,
@@ -3533,88 +4004,77 @@ function RecognizePanel({
   const items = payload.recognize?.[mode]?.items || [];
   const itemIndex = safeDrillItemIndex(activeItemIndex, items);
   const item = items[itemIndex] || {};
-  const formShapes: Array<'circle' | 'square' | 'triangle'> = ['circle', 'square', 'triangle'];
-  const wordBankTask = mode === 'word_bank'
-    ? String(item?.prompt || 'Build the full French sentence from the chips.')
-    : '';
   const feedback = itemFeedback(item, answers[item.id], correction);
-  const formState: 'neutral' | 'grin' | 'sad' = submitted ? (feedback?.correct ? 'grin' : 'sad') : 'neutral';
   const wordBankTokens = mode === 'word_bank' ? wordBankTokensFromAnswer(answers[item.id]) : [];
   const sourceTokens = Array.isArray(item.tokens) ? item.tokens.map((token: string) => String(token)) : [];
   return (
-    <div className="recognize-set">
-      {mode === 'word_bank' && (
-        <p className="recognize-task-note">{wordBankTask}</p>
+    <div className="ep-exercise ep-recognize">
+      {mode === 'fill' && (
+        <>
+          <EpPrompt label="Réglez le mot manquant">
+            <EpreuveBlankPrompt prompt={String(item.prompt || '')} answer={answers[item.id]} />
+          </EpPrompt>
+          <EpOpts>
+            {(item.choices || []).map((choice: string) => (
+              <EpOpt
+                key={choice}
+                chosen={answers[item.id] === choice}
+                right={submitted && normalizeClient(choice) === normalizeClient(feedback?.target)}
+                wrong={submitted && answers[item.id] === choice && !feedback?.correct}
+                disabled={submitted}
+                onClick={() => updateAnswer(item.id, choice)}
+              >{choice}</EpOpt>
+            ))}
+          </EpOpts>
+        </>
       )}
-      <article key={item.id || itemIndex} className="sub-exercise recognize-card">
-        <div className="recognize-form-slot" aria-hidden="true">
-          <ReactForm shape={formShapes[itemIndex % formShapes.length]} state={formState} />
-        </div>
-        <div className="recognize-card-body">
-          <div className="t-mono-low">EXERCISE {itemIndex + 1}</div>
-          {mode === 'word_bank' ? (
-            <p className="wb-cue">{stripExpressPrefix(item.meaning_cue) || item.prompt}</p>
-          ) : (
-            <p className="exercise-prompt">{item.prompt}</p>
-          )}
-          {mode === 'fill' && (
-            <div className="choice-row">
-              {(item.choices || []).map((choice: string) => (
-                <button key={choice} className={answers[item.id] === choice ? 'selected' : ''} disabled={submitted} onClick={() => updateAnswer(item.id, choice)}>{choice}</button>
-              ))}
-            </div>
-          )}
-          {mode === 'word_bank' && (
-            <>
-              <div className="type-case">
-                {sourceTokens.map((token: string, tokenIndex: number) => {
-                  const used = wordBankTokenIsUsed(wordBankTokens, sourceTokens, token, tokenIndex);
-                  return (
-                    <button
-                      key={`${token}-${tokenIndex}`}
-                      type="button"
-                      className={used ? 'used' : ''}
-                      disabled={submitted || used}
-                      onClick={() => updateAnswer(item.id, [...wordBankTokens, token])}
-                    >
-                      {token}
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="word-bank-builder">
-                <input
-                  value={Array.isArray(answers[item.id]) ? joinWordBankTokens(answers[item.id]) : answers[item.id] || ''}
-                  onChange={(event) => updateAnswer(item.id, event.target.value)}
+      {mode === 'word_bank' && (
+        <>
+          <EpPrompt label="Composez la ligne" cue={stripExpressPrefix(item.meaning_cue) || item.prompt}>
+            <EpSetLine empty={wordBankTokens.length === 0}>
+              {wordBankTokens.map((token, selectedIndex) => (
+                <EpSlug
+                  key={`${token}-${selectedIndex}`}
+                  set
                   disabled={submitted}
-                  placeholder="Built sentence"
-                />
-                {wordBankTokens.length > 0 && (
-                  <div className="word-bank-answer">
-                    {wordBankTokens.map((token, selectedIndex) => (
-                      <button
-                        key={`${token}-${selectedIndex}`}
-                        type="button"
-                        disabled={submitted}
-                        onClick={() => updateAnswer(item.id, wordBankTokens.filter((_, tokenIndex) => tokenIndex !== selectedIndex))}
-                      >
-                        {token}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-          {mode === 'classify' && (
-            <div className="choice-row compact">
-              {(item.labels || []).map((label: string) => (
-                <button key={label} className={answers[item.id] === label ? 'selected' : ''} disabled={submitted} onClick={() => updateAnswer(item.id, label)}>{label}</button>
+                  onClick={() => updateAnswer(item.id, wordBankTokens.filter((_, tokenIndex) => tokenIndex !== selectedIndex))}
+                >{token}</EpSlug>
               ))}
-            </div>
-          )}
-        </div>
-      </article>
+            </EpSetLine>
+          </EpPrompt>
+          <div className="ep-typecase" aria-label="Caractères disponibles">
+            {sourceTokens.map((token: string, tokenIndex: number) => {
+              const used = wordBankTokenIsUsed(wordBankTokens, sourceTokens, token, tokenIndex);
+              return (
+                <EpSlug
+                  key={`${token}-${tokenIndex}`}
+                  spent={used}
+                  disabled={submitted || used}
+                  onClick={() => updateAnswer(item.id, [...wordBankTokens, token])}
+                >{token}</EpSlug>
+              );
+            })}
+          </div>
+        </>
+      )}
+      {mode === 'classify' && (
+        <>
+          <EpPrompt label="Classez le sort">{item.prompt}</EpPrompt>
+          <EpCases boxes={(item.labels || []).map((label: string) => ({
+            label,
+            slugs: [
+              <EpOpt
+                key={label}
+                chosen={answers[item.id] === label}
+                right={submitted && normalizeClient(label) === normalizeClient(feedback?.target)}
+                wrong={submitted && answers[item.id] === label && !feedback?.correct}
+                disabled={submitted}
+                onClick={() => updateAnswer(item.id, label)}
+              >Placer ici</EpOpt>,
+            ],
+          }))} />
+        </>
+      )}
     </div>
   );
 }
@@ -3642,21 +4102,23 @@ function TransformPanel({
   const itemIndex = safeDrillItemIndex(activeItemIndex, items);
   const item = items[itemIndex] || {};
   return (
-    <div className="transform-set">
-      <article key={item.id || itemIndex} className="sub-exercise">
-        <div className="t-mono-low"><RotateCcw size={13} /> REWRITE {itemIndex + 1} · {String(item.type || '').replace('_', ' ')}</div>
-        <p className="instruction">{item.instruction}</p>
-        <p className="source-sentence">{item.source}</p>
-        <textarea value={answers[item.id] || ''} onChange={(event) => updateAnswer(item.id, event.target.value)} placeholder="Rewrite here" readOnly={submitted} />
-      </article>
-      {submitted && (
-        <CorrectionAiReview
-          correction={correction}
-          onRequestAiReview={onRequestAiReview}
-          submitting={aiReviewSubmitting}
-        />
-      )}
-      <RoundRewardForm round="transform" correction={correction} submitted={submitted} />
+    <div className="ep-exercise ep-transform">
+      <EpPrompt label={`Transformez la ligne · ${String(item.type || 'réécriture').replace('_', ' ')}`} cue={item.instruction}>
+        {item.source}
+      </EpPrompt>
+      <textarea
+        className="ep-composed-input"
+        value={answers[item.id] || ''}
+        onChange={(event) => updateAnswer(item.id, event.target.value)}
+        placeholder="Composez la nouvelle ligne…"
+        readOnly={submitted}
+      />
+      {submitted && (() => {
+        const corrected = correction?.corrected_answer;
+        const correctedForItem = corrected && typeof corrected === 'object' ? corrected[item.id] : undefined;
+        const modelText = String(correctedForItem || item.expected_answer || answers[item.id] || '').trim();
+        return modelText ? <EpreuveModelAudio text={modelText} /> : null;
+      })()}
     </div>
   );
 }
@@ -3689,9 +4151,15 @@ function itemFeedback(item: any, learner: any, correction: Record<string, any> |
     }
     return Boolean(errTarget && errTarget === targetNorm);
   });
-  const correct = normalizeClient(learnerText) === normalizeClient(targetText);
+  // Trust the server's per-item errata rather than re-deriving correctness from
+  // a naive client join/compare: word-bank tokens join with plain spaces (e.g.
+  // "J' ai" for "J'" + "ai"), which normalizeClient doesn't collapse the way the
+  // backend's French-elision-aware normalizer does — a correct answer with an
+  // elidable apostrophe (j', c', l', ...) would otherwise show as wrong.
+  const correct = matchingErrata.length === 0;
   return {
     correct,
+    learner: learnerText,
     target: targetText,
     why: matchingErrata[0]?.why_wrong ?? undefined,
     repair: matchingErrata[0]?.repair_hint ?? undefined,
@@ -3701,6 +4169,7 @@ function itemFeedback(item: any, learner: any, correction: Record<string, any> |
 
 type InlineFeedbackModel = {
   correct: boolean;
+  learner?: string;
   target?: string;
   why?: string;
   repair?: string;
@@ -3717,17 +4186,37 @@ function correctionTargetText(value: unknown): string {
   return String(value);
 }
 
-function feedbackFromFreeformCorrection(correction: Record<string, any> | null, fallbackTarget = ''): InlineFeedbackModel {
+function feedbackFromFreeformCorrection(correction: Record<string, any> | null, fallbackTarget = '', learner = ''): InlineFeedbackModel {
   if (!correction) return null;
-  const errata: AtelierErratum[] = Array.isArray(correction?.errata) ? correction.errata : [];
-  const erratum = errata[0];
-  const targetSource = erratum?.corrected_target || (errata.length === 0 ? correction?.corrected_answer : '') || fallbackTarget;
+  const allErrata: AtelierErratum[] = Array.isArray(correction?.errata) ? correction.errata : [];
+  // "Missing target" task-compliance notes carry a grammar rule pattern or an
+  // awkward "needs N visible use of…" template in their corrected_target and do
+  // not explain a concrete fix — drop them from the shown correction.
+  const errata = allErrata.filter((item) => String(item?.task_error_type || '') !== 'task_compliance');
+  // Show the learner's whole line rewritten cleanly. The full rewrite lives in
+  // corrected_answer (reliable); a per-erratum corrected_target is sometimes a
+  // rule pattern or a hedge like "c'était/ce serait? depending on…", so only use
+  // it when corrected_answer is unavailable or unchanged.
+  const cleanRewrite = correctionTargetText(correction?.corrected_answer);
+  const rewriteDiffers = !!cleanRewrite && normalizeClient(cleanRewrite) !== normalizeClient(learner);
+  const shownTarget = rewriteDiffers ? cleanRewrite : (errata[0]?.corrected_target || cleanRewrite || fallbackTarget);
+  const whyLines = errata.map((item) => String(item?.why_wrong || '').trim()).filter(Boolean);
+  const correct = errata.length === 0;
+  // One clean before/after for the whole line, with each error explained in the
+  // note — instead of one messy before/after per erratum.
+  const issues: AtelierErratum[] = correct ? [] : [{
+    display_label: errata.length > 1 ? `${errata.length} corrections` : (errata[0]?.display_label || 'Ligne corrigée'),
+    learner_text: learner,
+    corrected_target: shownTarget,
+    why_wrong: whyLines.join(' '),
+  } as AtelierErratum];
   return {
-    correct: errata.length === 0,
-    target: correctionTargetText(targetSource),
-    why: erratum?.why_wrong || undefined,
-    repair: erratum?.repair_hint || undefined,
-    issues: errata,
+    correct,
+    learner,
+    target: shownTarget,
+    why: whyLines.join(' ') || undefined,
+    repair: errata[0]?.repair_hint || undefined,
+    issues,
   };
 }
 
@@ -3752,9 +4241,9 @@ function feedbackForExercise(
   }
   if (round === 'sentence' || round === 'speak' || round === 'conversation') {
     const item = activeSet.output_ladder?.[round]?.items?.[0] || {};
-    return feedbackFromFreeformCorrection(correction, item.example_answer || '');
+    return feedbackFromFreeformCorrection(correction, item.example_answer || '', String(currentAnswers.text || ''));
   }
-  return feedbackFromFreeformCorrection(correction);
+  return feedbackFromFreeformCorrection(correction, '', String(currentAnswers.text || ''));
 }
 
 function feedbackRuleLine(activeSet: Record<string, any> | null, activeConcept: AtelierConcept | null) {
@@ -3762,54 +4251,14 @@ function feedbackRuleLine(activeSet: Record<string, any> | null, activeConcept: 
   return title ? `Rule: ${title}` : undefined;
 }
 
-function feedbackRepairLine(feedback: InlineFeedbackModel) {
-  if (!feedback || feedback.correct) return undefined;
-  const pieces = [
-    feedback.target ? `Target: ${feedback.target}` : '',
-    feedback.repair || '',
-  ].filter(Boolean);
-  return pieces.join(' · ') || undefined;
-}
-
-function feedbackCorrectionItems(feedback: InlineFeedbackModel) {
-  if (!feedback || feedback.correct) return [];
-  const issues = feedback.issues || [];
-  if (issues.length <= 1) return [];
-  return issues.map((issue, index) => ({
-    title: issue.display_label || `Fix ${index + 1}`,
-    explanation: issue.why_wrong || (issue.corrected_target ? `Target: ${issue.corrected_target}` : undefined),
-    repair: issue.repair_hint || undefined,
-  }));
-}
-
-function InlineFeedback({ feedback }: { feedback: InlineFeedbackModel }) {
-  if (!feedback) return null;
-  if (feedback.correct) {
-    return <div className="inline-feedback correct"><Check size={14} /> Correct</div>;
-  }
-  const issues = feedback.issues || [];
-  if (issues.length > 1) {
-    return (
-      <div className="inline-feedback wrong">
-        <strong>{issues.length} fixes in this exercise</strong>
-        {issues.map((issue: AtelierErratum, index: number) => (
-          <section key={`${issue.item_id || issue.display_label}-${index}`} className="feedback-issue">
-            <b>{issue.display_label || `Fix ${index + 1}`}</b>
-            {issue.corrected_target && <p><strong>Target:</strong> {issue.corrected_target}</p>}
-            {issue.why_wrong && <p><strong>Why:</strong> {issue.why_wrong}</p>}
-            {issue.repair_hint && <p><strong>Repair:</strong> {issue.repair_hint}</p>}
-          </section>
-        ))}
-      </div>
-    );
-  }
-  return (
-    <div className="inline-feedback wrong">
-      {feedback.target && <p><strong>Target:</strong> {feedback.target}</p>}
-      {feedback.why && <p><strong>Why:</strong> {feedback.why}</p>}
-      {feedback.repair && <p><strong>Repair:</strong> {feedback.repair}</p>}
-    </div>
-  );
+// "Recopie la correction" is a line-level exercise: retyping a one-word fill
+// option or a classify label teaches nothing, so the typed repair only appears
+// when the corrected target is an actual sentence.
+function isRepairableLine(target: string): boolean {
+  const trimmed = target.trim();
+  if (!trimmed) return false;
+  const words = trimmed.split(/\s+/).length;
+  return words >= 3 || (words >= 2 && /[.!?…]$/.test(trimmed));
 }
 
 function CorrectionAiReview({
@@ -3842,6 +4291,110 @@ function CorrectionAiReview({
   );
 }
 
+function browserSpeak(text: string, onDone: () => void) {
+  if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+    onDone();
+    return;
+  }
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = 'fr-FR';
+  utterance.onend = onDone;
+  utterance.onerror = onDone;
+  window.speechSynthesis.speak(utterance);
+}
+
+// Plays a native French model of the target sentence via TTS (falls back to the
+// browser voice) so the learner can hear and shadow it. Rendered only AFTER an
+// answer is submitted — playing the target beforehand would spoil the exercise.
+function ModelAudioButton({ text, label = 'Écouter le modèle' }: { text: string; label?: string }) {
+  const [playing, setPlaying] = useState(false);
+  const value = String(text || '').trim();
+  if (!value) return null;
+  const play = async () => {
+    if (playing) return;
+    setPlaying(true);
+    try {
+      const audio = await apiService.synthesizeSpeech(value);
+      const blob = new Blob([audio], { type: 'audio/mpeg' });
+      const url = URL.createObjectURL(blob);
+      const player = new Audio(url);
+      player.onended = () => { URL.revokeObjectURL(url); setPlaying(false); };
+      player.onerror = () => { URL.revokeObjectURL(url); browserSpeak(value, () => setPlaying(false)); };
+      await player.play();
+    } catch (error) {
+      console.error(error);
+      browserSpeak(value, () => setPlaying(false));
+    }
+  };
+  return (
+    <button type="button" className="model-audio-button" onClick={play} disabled={playing} aria-label={label}>
+      {playing ? <Loader2 size={14} className="spin" /> : <Volume2 size={14} />}
+      <span>{label}</span>
+    </button>
+  );
+}
+
+function EpreuveModelAudio({ text }: { text: string }) {
+  const [playing, setPlaying] = useState(false);
+  const value = String(text || '').trim();
+  if (!value) return null;
+  const play = async () => {
+    if (playing) return;
+    setPlaying(true);
+    try {
+      const audio = await apiService.synthesizeSpeech(value);
+      const blob = new Blob([audio], { type: 'audio/mpeg' });
+      const url = URL.createObjectURL(blob);
+      const player = new Audio(url);
+      player.onended = () => { URL.revokeObjectURL(url); setPlaying(false); };
+      player.onerror = () => { URL.revokeObjectURL(url); browserSpeak(value, () => setPlaying(false)); };
+      await player.play();
+    } catch (error) {
+      console.error(error);
+      browserSpeak(value, () => setPlaying(false));
+    }
+  };
+  return <EpListen fr={value} playing={playing} onPlay={play} />;
+}
+
+function EpreuveWiringStyles() {
+  return (
+    <style jsx global>{`
+      .ep .ep-exercise { display: grid; gap: 14px; padding: 4px 0 2px; }
+      .ep .ep-typecase { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px; border: 1px solid var(--app-ink); background: var(--app-sheet); }
+      .ep .ep-composed-input { width: 100%; min-height: 122px; resize: vertical; border: 1px solid var(--app-ink); background: var(--app-paper); color: var(--app-ink); padding: 13px 14px; font: 400 17px/1.45 var(--app-serif); outline: none; box-shadow: 3px 3px 0 var(--ep-channel); }
+      .ep .ep-composed-input:focus { border-color: var(--app-blue); box-shadow: 3px 3px 0 color-mix(in srgb, var(--app-blue) 30%, transparent); }
+      .ep .ep-composed-input::placeholder { color: var(--app-ink-3); font-style: italic; }
+      .ep .ep-output .word-count, .ep .ep-produce-panel .word-count { margin-top: -5px; font: 800 8px/1 var(--app-grotesk); letter-spacing: .12em; text-transform: uppercase; color: var(--app-ink-3); }
+      .ep .ep-character-byline { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; border-top: 1px solid var(--app-ink); border-bottom: 1px solid var(--app-ink); padding: 8px 0; }
+      .ep .ep-character-byline span { font: 700 18px/1.1 var(--app-serif); font-style: italic; color: var(--app-ink); }
+      .ep .ep-character-byline em, .ep .ep-world-reply > span { font: 900 8px/1 var(--app-grotesk); letter-spacing: .12em; text-transform: uppercase; color: var(--app-blue); }
+      .ep .ep-world-reply { margin: 10px 0 0; border-left: 3px solid var(--app-blue); background: var(--app-sheet); padding: 12px 14px; color: var(--app-ink); }
+      .ep .ep-world-reply p { margin: 6px 0 0; font: 500 17px/1.35 var(--app-serif); }
+      .ep .ep-feedback { margin-top: 20px; }
+      .ep .ep-feedback .ep-foot { padding: 0; margin-top: 16px; }
+      .ep .ep-feedback .ep-correct { margin-top: 4px; }
+      .ep .ep-rulenote { margin-top: 12px; font-family: var(--ep-mono); font-size: 9px; letter-spacing: .06em; text-transform: uppercase; color: var(--app-ink-3); }
+      .ep .ep-notebook-add { margin-top: 14px; border: 1px solid var(--app-ink); background: var(--app-sheet); padding: 11px 13px; }
+      .ep .ep-notebook-add .nh { display: block; font-family: var(--ep-mono); font-size: 8.5px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; color: var(--ep-bon); margin-bottom: 7px; }
+      .ep .ep-notebook-add ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+      .ep .ep-notebook-add li { font-family: var(--app-serif); font-size: 15px; line-height: 1.3; color: var(--app-ink); }
+      .ep .ep-notebook-add li b { font-weight: 700; }
+      .ep .ep-notebook-add li em { font-style: italic; color: var(--app-ink-3); }
+      .ep .ep-fb-links { display: flex; justify-content: center; gap: 20px; margin-top: 11px; }
+      .ep .ep-fb-links button { border: 0; background: none; padding: 4px 2px; color: var(--app-ink-3); font: 700 9px/1 var(--app-grotesk); letter-spacing: .12em; text-transform: uppercase; cursor: pointer; }
+      .ep .ep-fb-links button:hover { color: var(--app-ink); }
+      .ep .ep-lock { margin: 15px 0 0; border: 1px solid var(--app-ink); background: var(--app-sheet); }
+      .ep-recap { position: relative; width: min(100%, 510px); max-height: min(90dvh, 780px); overflow: auto; border: 1px solid var(--app-ink); border-radius: 0; box-shadow: 6px 6px 0 var(--ep-channel); }
+      .ep-recap-close { position: absolute; z-index: 2; right: 10px; top: 10px; width: 30px; height: 30px; border: 1px solid var(--app-ink); background: var(--app-paper); color: var(--app-ink); font-size: 20px; line-height: 1; }
+      .ep-recap .ep-bat-stage { padding-top: 26px; }
+      .ep-recap-rewards { display: flex; align-items: center; gap: 18px; margin-top: 18px; padding: 15px 0; border-top: 1px solid var(--app-paper-3); border-bottom: 1px solid var(--app-paper-3); }
+      .ep-recap-rewards .ep-mint { flex: 1; }
+      @media (max-width: 480px) { .ep-recap { width: calc(100vw - 28px); } .ep .ep-composed-input { min-height: 110px; } }
+    `}</style>
+  );
+}
+
 function OutputLadderPanel({
   payload,
   round,
@@ -3867,6 +4420,8 @@ function OutputLadderPanel({
   const chunksRef = useRef<Blob[]>([]);
   const item = payload.output_ladder?.[round]?.items?.[0] || {};
   const promptText = outputLadderPrompt(payload, item, round);
+  const character = item.character || {};
+  const worldReply = correction?.world_reply || {};
 
   const transcribeAudio = async (blob: Blob) => {
     setIsTranscribing(true);
@@ -3926,56 +4481,49 @@ function OutputLadderPanel({
 
   const meta = OUTPUT_LADDER_META[round];
   return (
-    <div className={`output-ladder-panel output-${round}`}>
-      <div className="ladder-head">
-        <span className="ladder-eyebrow">{meta.eyebrow}</span>
-        <p className="ladder-instruction">{meta.instruction}</p>
-      </div>
-      {round === 'conversation' ? (
-        <div className="chat-thread">
-          <div className="chat-bubble incoming">
-            <span className="chat-who">Message reçu</span>
-            <p>{promptText}</p>
-          </div>
-        </div>
-      ) : (
-        <div className="live-block">
-          <p className="exercise-prompt">{promptText}</p>
+    <div className={`ep-exercise ep-output ep-output-${round}`}>
+      {round === 'conversation' && character.name && (
+        <div className="ep-character-byline" aria-label={`Conversation avec ${character.name}`}>
+          <span>{character.name}</span>
+          <em>{character.role || 'Le Feuilleton'} · {String(character.register || 'vous').toUpperCase()}</em>
         </div>
       )}
+      <EpPrompt label={meta.eyebrow} cue={meta.instruction}>
+        {promptText}
+      </EpPrompt>
       {round === 'speak' && (
-        <div className="voice-capture">
-          <button type="button" className={`voice-button ${isRecording ? 'recording' : ''}`} disabled={submitted || isTranscribing} onClick={toggleRecording}>
-            {isTranscribing ? <Loader2 size={18} className="spin" /> : isRecording ? <Square size={18} /> : <Mic size={18} />}
-            {isTranscribing ? 'TRANSCRIBING' : isRecording ? 'STOP' : 'RECORD'}
-          </button>
-          <span>{isRecording ? 'Speak now — tap STOP when done.' : 'Tap RECORD to speak, or just type below if you have no mic.'}</span>
-        </div>
+        <EpRecord
+          status={isTranscribing ? 'transcribing' : isRecording ? 'recording' : 'idle'}
+          disabled={submitted}
+          onToggle={toggleRecording}
+        />
       )}
       <textarea
         value={answer}
         onChange={(event) => updateAnswer(event.target.value)}
         readOnly={submitted}
-        className={round === 'conversation' ? 'chat-reply' : undefined}
+        className="ep-composed-input"
         placeholder={
           round === 'speak'
-            ? 'Your spoken words appear here — or type them.'
+            ? 'Vos mots apparaissent ici, ou composez-les.'
             : round === 'conversation'
-              ? 'Write your reply…'
-              : 'Write your sentence here.'
+              ? 'Composez votre réponse…'
+              : 'Composez votre ligne…'
         }
       />
       <div className="word-count">
         {wordRangeLabel(wordCount(answer), item.min_words, item.max_words)}
       </div>
-      {submitted && (
-        <CorrectionAiReview
-          correction={correction}
-          onRequestAiReview={onRequestAiReview}
-          submitting={aiReviewSubmitting}
-        />
+      {submitted && (() => {
+        const modelText = String(correction?.corrected_answer || item.example_answer || answer || '').trim();
+        return modelText ? <EpreuveModelAudio text={modelText} /> : null;
+      })()}
+      {round === 'conversation' && submitted && worldReply.text && (
+        <blockquote className="ep-world-reply">
+          <span>{worldReply.character?.name || character.name}</span>
+          <p>{worldReply.text}</p>
+        </blockquote>
       )}
-      <RoundRewardForm round={round} correction={correction} submitted={submitted} />
     </div>
   );
 }
@@ -4008,19 +4556,10 @@ function ProducePanel({
   const sourceFragment = String(produce.source_fragment || '').trim();
   const promptText = String(produce.prompt || '').trim();
   return (
-    <div className="produce-panel">
-      <div className="ladder-head">
-        <span className="ladder-eyebrow">Write a short paragraph</span>
-        <p className="ladder-instruction">
-          {promptText || 'Writing prompt unavailable.'}
-        </p>
-      </div>
-      {sourceFragment && (
-        <div className="live-block">
-          <div className="t-mono yellow">SET-UP</div>
-          <p className="fr">« {sourceFragment} »</p>
-        </div>
-      )}
+    <div className="ep-exercise ep-produce-panel">
+      <EpPrompt label="Composez le paragraphe" cue={sourceFragment ? `« ${sourceFragment} »` : undefined}>
+        {promptText || 'La consigne de composition est indisponible.'}
+      </EpPrompt>
       <div className="target-chips">
         {requirements.map((req) => <span key={req.label}>{req.count} × {req.label}</span>)}
       </div>
@@ -4034,16 +4573,8 @@ function ProducePanel({
           ))}
         </div>
       )}
-      <textarea value={answer} onChange={(event) => updateAnswer(event.target.value)} placeholder="Write your paragraph here. The targets guide the review; they do not lock submission." readOnly={submitted} />
+      <textarea className="ep-composed-input" value={answer} onChange={(event) => updateAnswer(event.target.value)} placeholder="Composez votre paragraphe ici…" readOnly={submitted} />
       <div className="word-count">{wordRangeLabel(wordCount(answer), produce.min_words, produce.max_words)}</div>
-      {submitted && (
-        <CorrectionAiReview
-          correction={correction}
-          onRequestAiReview={onRequestAiReview}
-          submitting={aiReviewSubmitting}
-        />
-      )}
-      <RoundRewardForm round="produce" correction={correction} submitted={submitted} />
     </div>
   );
 }
@@ -4151,74 +4682,51 @@ function RecapModal({
   const minted = Array.isArray(recap.minted_collectibles) ? recap.minted_collectibles as AtelierCollectible[] : [];
   const logoTokens = minted.filter((item) => item.kind === 'logo_token');
   const giltSeal = minted.find((item) => item.kind === 'gilt_seal');
-  const editionNo = Number(recap.streak_after || recap.streak_before || 1);
-  const seal = sealForEdition(editionNo);
-  const sealVariant = (giltSeal?.metadata?.seal_variant as SealVariant) || seal.variant;
   const attempts = Math.max(0, Number(recap.attempts || 0));
   const strengthened = Math.max(0, Number(recap.strengthened || concepts.length || 0));
   const errataLogged = Math.max(0, Number(recap.errata_logged || 0));
-  const mintedLine = giltSeal
-    ? 'Gilt seal struck'
-    : logoTokens.length
-      ? `${logoTokens.length} logo token${logoTokens.length === 1 ? '' : 's'} minted`
-      : 'No new tokens this run';
-  const hookCopy = nextLabel?.copy || 'The serial waits for the next line.';
+  const phrase = recap.phrase_of_day || null;
+  const recapErrata = Array.isArray(recap.errata) ? recap.errata : [];
+  const proofLines = recapErrata.slice(0, 4).map((item: Record<string, any>, index: number) => ({
+    fr: <><del>{item.learner_text || '—'}</del> <ins>{item.corrected_target || 'corrigé'}</ins></>,
+    tag: item.display_label || `Correction ${index + 1}`,
+    re: true,
+  }));
+  if (!proofLines.length) {
+    proofLines.push(...(practiced.length ? practiced : ['La séance']).map((item) => ({ fr: item, tag: 'ligne réglée', re: false })));
+  }
   return (
     <div className="recap-overlay">
-      <section className="recap-modal printed">
-        <header>
-          <div>
-            <div className="edition-seal">Edition printed</div>
-            <h2>Today&apos;s edition is set.</h2>
+      <section className="ep ep-recap" aria-label="L’épreuve de la séance">
+        <LEpreuveStyles />
+        <EpreuveWiringStyles />
+        <button type="button" className="ep-recap-close" onClick={onClose} aria-label="Fermer l’épreuve">×</button>
+        <EpBatStage sub={giltSeal ? 'Séance sans faute, frappée en doré.' : 'Les lignes sont prêtes pour l’édition de demain.'} />
+        <EpRecapHead date={formatAtelierDatestamp().replace('Closed · ', '')} />
+        <div className="ep-recap-body">
+          <EpTally items={[
+            { n: attempts, l: 'lignes réglées' },
+            { n: strengthened, l: 'concepts affermis' },
+            { n: errataLogged, l: 'errata classés' },
+          ]} />
+          <EpProof lines={proofLines} />
+          {phrase?.text && <EpPhrase quote={phrase.text} by={phrase.byline || 'L’élève de l’Atelier'} />}
+          <div className="ep-recap-rewards">
+            <EpSeal gilt={Boolean(giltSeal)} stamp />
+            {(logoTokens.length > 0 || giltSeal) && (
+              <EpMint
+                tokens={Math.max(1, logoTokens.length)}
+                note={giltSeal ? 'Sceau doré frappé pour une séance sans faute.' : `${logoTokens.length} jeton${logoTokens.length > 1 ? 's' : ''} ajouté${logoTokens.length > 1 ? 's' : ''} à l’atelier.`}
+              />
+            )}
           </div>
-          <button className="btn ghost" onClick={onClose}>×</button>
-        </header>
-        <div className="printed-body">
-          <section className="printed-seal-stage" aria-label="Today's seal">
-            <Seal
-              variant={sealVariant}
-              no={editionNo}
-              date={formatAtelierDatestamp().replace('Closed · ', '')}
-              stamp
-              size="lg"
-              tone={giltSeal ? 'gilt' : 'ink'}
-            />
-            <div>
-              <span className="t-mono-low">{giltSeal ? 'Gilt seal earned' : 'Day seal'}</span>
-              <p>{giltSeal ? 'A flawless edition, struck in gilt.' : `${seal.name} · struck to the almanac.`}</p>
-            </div>
-          </section>
-          <section>
-            <span className="t-mono-low">Practiced</span>
-            {(practiced.length ? practiced : ["Today's set"]).map((item) => <p key={item}>{item}</p>)}
-          </section>
-          <section className="printed-stats" aria-label="Session stats">
-            <div><b>{attempts}</b><span>screens set</span></div>
-            <div><b>{strengthened}</b><span>concepts strengthened</span></div>
-            <div><b>{errataLogged}</b><span>repairs logged</span></div>
-          </section>
-          <section className="printed-minted" aria-label="Minted today">
-            <span className="t-mono-low">Minted today</span>
-            <div className="minted-row">
-              {logoTokens.slice(0, 5).map((token) => <LogoToken key={token.id} size="sm" />)}
-              {giltSeal && <Seal variant={sealVariant} no={editionNo} size="md" tone="gilt" />}
-              <p>{mintedLine}</p>
-            </div>
-          </section>
-          <section className="printed-hook">
-            <span className="t-mono-low">Tomorrow&apos;s hook</span>
-            <p>{hookCopy}</p>
-          </section>
+          <EpStreak was={recap.streak_before || 0} now={recap.streak_after || 1} on={Math.min(5, Number(recap.streak_after || 1))} />
+          <EpHandoff
+            next={nextLabel?.action || 'La Une'}
+            onRead={nextLabel ? onRecommendedAction : onClose}
+            onHome={onClose}
+          />
         </div>
-        <footer>
-          {nextLabel ? (
-            <button className="btn red lg" onClick={onRecommendedAction}>
-              {nextLabel.action} <ArrowRight size={14} />
-            </button>
-          ) : (
-            <button className="btn solid" onClick={onClose}>Done</button>
-          )}
-        </footer>
       </section>
     </div>
   );
@@ -4463,17 +4971,17 @@ function AtelierStyles() {
         background: #f1ece1;
       }
       .ph {
-        --paper: #f1ece1;
-        --paper-2: #e8e0cf;
-        --paper-3: #d8cdb6;
-        --sheet: #f8f3e8;
-        --ink: #14110d;
-        --ink-2: #4a4538;
-        --ink-3: #8a826f;
-        --blue: #1d3a8a;
-        --red: #d8321a;
-        --yellow: #f3c318;
-        --serif: "EB Garamond", Garamond, "Times New Roman", serif;
+        --paper: var(--app-paper);
+        --paper-2: var(--app-paper-2);
+        --paper-3: var(--app-paper-3);
+        --sheet: var(--app-sheet);
+        --ink: var(--app-ink);
+        --ink-2: var(--app-ink-2);
+        --ink-3: var(--app-ink-3);
+        --blue: var(--app-blue);
+        --red: var(--app-red);
+        --yellow: var(--app-yellow);
+        --serif: var(--app-serif);
         --grotesk: "Inter", "Helvetica Neue", Arial, sans-serif;
         position: relative;
         width: min(var(--app-viewport-width), var(--phone-shell-max));
@@ -4612,6 +5120,15 @@ function AtelierStyles() {
         font-style: italic;
         font-size: 18px;
         line-height: 1;
+      }
+      .day-badge.unlit {
+        color: var(--ink-3);
+      }
+      .day-badge.unlit svg {
+        opacity: .35;
+      }
+      .day-badge.unlit span {
+        color: var(--ink-3);
       }
       @media (max-width: 420px) {
         .day-badge {
@@ -6956,13 +7473,6 @@ function AtelierStyles() {
       .ai-review-line.failed { color: var(--muted); }
       .ai-review-button { min-height: 34px; border: 1px solid var(--blue); background: transparent; color: var(--blue); padding: 0 12px; font-family: var(--mono); font-size: 10px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }
       .ai-review-button:disabled { opacity: .45; cursor: wait; }
-      .round-reward { margin-top: 16px; display: flex; align-items: center; gap: 12px; }
-      .round-reward-forms { display: inline-flex; gap: 8px; }
-      .round-reward-forms .rf { width: 30px; height: 30px; }
-      .round-reward.enhanced .round-reward-forms .rf { width: 34px; height: 34px; }
-      .round-reward-label { font-family: var(--mono); font-size: 10px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
-      .round-reward.grin .round-reward-label { color: var(--ink); }
-      .round-reward.sad .round-reward-label { color: var(--red); }
       .reward-credit-line { margin: 2px 0 0; font-family: var(--mono); font-size: 11px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; color: var(--blue); }
       .reward-moment-card.drafting { border-color: var(--blue); }
       .output-ladder-panel { display: grid; gap: 18px; }
@@ -6988,6 +7498,10 @@ function AtelierStyles() {
       .voice-button { height: 42px; min-width: 132px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: var(--ink); color: var(--paper); border: 1px solid var(--ink); font-family: var(--mono); font-size: 11px; letter-spacing: .18em; font-weight: 900; }
       .voice-button.recording { background: var(--red); border-color: var(--red); }
       .voice-button:disabled { opacity: .45; cursor: not-allowed; }
+      .model-audio-row { margin-top: 12px; }
+      .model-audio-button { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px; border: 1px solid var(--ink); background: var(--sheet); color: var(--ink); font-family: var(--mono); font-size: 10px; letter-spacing: .13em; font-weight: 800; text-transform: uppercase; cursor: pointer; }
+      .model-audio-button:hover { background: var(--paper-2); }
+      .model-audio-button:disabled { opacity: .55; cursor: progress; }
       .spin { animation: spin .7s linear infinite; }
       .output-ladder-panel textarea { min-height: 150px; resize: vertical; box-shadow: 5px 5px 0 var(--ink); }
       .output-speak textarea { min-height: 118px; }

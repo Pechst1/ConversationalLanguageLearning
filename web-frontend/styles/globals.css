@@ -57,8 +57,11 @@
   --dur: 220ms;
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --shadow-read: none;
-  --shadow-do: 6px 6px 0 var(--app-ink);
-  --shadow-do-sm: 4px 4px 0 var(--app-ink);
+  /* Print-block offset shadows in tinted ink (~the reference's --ep-channel,
+     ink @ 16%) — solid-black offsets read brutalist against the paper. */
+  --shadow-channel: color-mix(in srgb, var(--app-ink) 18%, transparent);
+  --shadow-do: 5px 5px 0 var(--shadow-channel);
+  --shadow-do-sm: 3px 3px 0 var(--shadow-channel);
   --ink-block-shadow: var(--shadow-do);
   --char-marin: #2c6a5d;
   --char-lila: #c2890f;

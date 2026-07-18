@@ -15,6 +15,8 @@ export interface FeedbackSheetProps extends React.HTMLAttributes<HTMLDivElement>
   repair?: string;
   rule?: string;
   correctionItems?: FeedbackCorrectionItem[];
+  /** Optional, domain-specific correction treatment rendered before the actions. */
+  detail?: React.ReactNode;
   onTryAgain?: () => void;
   onNext?: () => void;
   nextLabel?: string;
@@ -28,6 +30,7 @@ export function FeedbackSheet({
   repair,
   rule,
   correctionItems,
+  detail,
   onTryAgain,
   onNext,
   nextLabel,
@@ -45,7 +48,7 @@ export function FeedbackSheet({
       <div className="feedback-copy">
         <h3>{title}</h3>
         {explanation && <p>{explanation}</p>}
-        {hasCorrectionItems ? (
+        {detail ? detail : hasCorrectionItems ? (
           <div className="feedback-corrections">
             {correctionItems.map((item, index) => (
               <section key={`${item.title}-${index}`}>

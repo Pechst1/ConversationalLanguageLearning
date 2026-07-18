@@ -84,15 +84,14 @@ export default function EditorialMasthead({
       )}
       <style jsx global>{`
         .app-masthead {
-          --app-paper: #f1ece1;
-          --app-ink: #14110d;
-          --app-ink-3: #8a826f;
-          --app-sheet: #f8f3e8;
           position: sticky;
           top: 0;
           z-index: 40;
           border-bottom: 1px solid var(--app-ink);
-          background: rgba(241, 236, 225, .94);
+          /* Theme-aware translucent paper — was hardcoded rgba(241,236,225,.94)
+             plus --app-* overrides that force-pinned this header to light on
+             every page it sits above (session, notebook, serial). */
+          background: color-mix(in srgb, var(--app-paper) 92%, transparent);
           backdrop-filter: blur(10px);
           /* Clear the status bar / Dynamic Island on native devices. */
           padding-top: env(safe-area-inset-top);
@@ -159,7 +158,7 @@ export default function EditorialMasthead({
         .app-nav-trailing {
           border-bottom: 0;
           cursor: default;
-          color: #4a4538;
+          color: var(--app-ink-2);
           display: inline-flex;
           align-items: center;
           gap: 10px;

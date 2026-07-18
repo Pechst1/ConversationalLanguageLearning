@@ -3,11 +3,28 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import toast from 'react-hot-toast';
-import { ArrowRight, Check, Loader2, Pause, PlayCircle, Send, Sparkles, Volume2, X } from 'lucide-react';
+import { ArrowRight, Check, Loader2, Pause, Send, Sparkles, Volume2, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import EditorialMasthead from '@/components/layout/EditorialMasthead';
-import { ContinuationCard, MobileBottomSheet, RedInkRepairSlip, VocabularyCreditBadge } from '@/components/mobile';
+import {
+  FeuilletonStyles as SupplementStyles,
+  FeMasthead,
+  FePreviously,
+  FeRelChip,
+  FeAudioBar,
+  FeCliff,
+  FePanel,
+  FeTranscript,
+  FeTask,
+  FeSectionNav,
+  FeSkeleton,
+  FeNotice,
+  FeContinuation,
+  FeFiled,
+  type FeBubbleData,
+} from '@/components/feuilleton/Feuilleton';
+import { MobileBottomSheet, RedInkRepairSlip, VocabularyCreditBadge } from '@/components/mobile';
 import { writeLocalDayProgressFlag } from '@/lib/atelier-next';
 import { panelImageUrl } from '@/lib/graphic-novel-images';
 import apiService, {
@@ -17,6 +34,7 @@ import apiService, {
   GraphicNovelScene,
   GraphicNovelToday,
   MissionTargetVocabulary,
+  SerialCastMember,
   SerialToday,
 } from '@/services/api';
 
@@ -109,6 +127,7 @@ function routeForSerialBeat(serial: SerialToday | null | undefined): string | nu
 export default function GraphicNovelPage() {
   const router = useRouter();
   const [today, setToday] = useState<GraphicNovelToday | null>(null);
+  const [canonicalBeat, setCanonicalBeat] = useState<SerialToday | null>(null);
   const [scene, setScene] = useState<GraphicNovelScene | null>(null);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -143,14 +162,9 @@ export default function GraphicNovelPage() {
 
   const tasks = useMemo(() => extractTasks(scene), [scene]);
   const targetVocabulary = useMemo(() => sceneTargetVocabulary(scene), [scene]);
-  const sceneNeedsImagePolling = useMemo(() => (
+  const sceneNeedsGenerationPolling = useMemo(() => (
     Boolean(scene?.id)
-    && scene?.status === 'generating'
-    && (
-      scene.script_payload?.render_mode === 'page'
-        ? !scene.script_payload?.page_image?.url
-        : (scene.panels || []).some((panel) => !panelImageUrl(panel))
-    )
+    && ['writing', 'generating'].includes(String(scene?.status || ''))
   ), [scene]);
   const mobileTaskStops = useMemo(() => buildMobileTaskStops(scene), [scene]);
   const attemptsByTask = useMemo(() => {
@@ -206,16 +220,52 @@ export default function GraphicNovelPage() {
       if (routeSceneId) {
         const loaded = await apiService.getGraphicNovelScene(routeSceneId);
         setScene(loaded);
+        setGenerationFailure(loaded.status === 'failed' ? {
+          code: 'feuilleton_generation_failed',
+          message: loaded.script_payload?.generation_error || "L’édition n’a pas pu être composée.",
+        } : null);
+        return;
+      }
+      if (contextSceneKey) {
+        const next = await apiService.getGraphicNovelToday();
+        setToday(next);
+        setCanonicalBeat(null);
+        setScene(null);
         setGenerationFailure(null);
         return;
       }
-      const next = await apiService.getGraphicNovelToday();
+      const [serialResult, editionsResult] = await Promise.allSettled([
+        apiService.getSerialToday(),
+        apiService.getGraphicNovelToday(),
+      ]);
+      const next = editionsResult.status === 'fulfilled' ? editionsResult.value : null;
       setToday(next);
-      setScene(contextSceneKey ? null : next.active_scene || next.available_scene || null);
+      if (serialResult.status === 'fulfilled') {
+        const serial = serialResult.value;
+        setCanonicalBeat(serial);
+        if (serial.kind === 'feuilleton' && serial.scene_id) {
+          const loaded = await apiService.getGraphicNovelScene(serial.scene_id);
+          setScene(loaded);
+          setGenerationFailure(loaded.status === 'failed' ? {
+            code: 'feuilleton_generation_failed',
+            message: loaded.script_payload?.generation_error || "L’édition n’a pas pu être composée.",
+          } : null);
+        } else {
+          setScene(null);
+          setGenerationFailure(serial.kind === 'feuilleton' && serial.status === 'delayed' ? {
+            code: 'serial_edition_delayed',
+            message: "L’édition de demain est retardée.",
+          } : null);
+        }
+        return;
+      }
+      setCanonicalBeat(null);
+      setScene(next?.active_scene || next?.available_scene || null);
       setGenerationFailure(null);
     } catch (error) {
       console.error(error);
       setToday(null);
+      setCanonicalBeat(null);
       setScene(null);
       setGenerationFailure(null);
     } finally {
@@ -258,28 +308,42 @@ export default function GraphicNovelPage() {
   }, [openMobileTask, taskSubmitError?.taskId]);
 
   useEffect(() => {
-    if (!scene?.id || !sceneNeedsImagePolling) return;
+    if (!scene?.id || !sceneNeedsGenerationPolling) return;
     let cancelled = false;
     const poll = async () => {
       try {
         const loaded = await apiService.getGraphicNovelScene(scene.id);
-        if (!cancelled) setScene(loaded);
+        if (cancelled) return;
+        if (loaded.status === 'failed') {
+          setGenerationFailure({
+            code: 'feuilleton_generation_failed',
+            message: loaded.script_payload?.generation_error || "L’édition n’a pas pu être composée.",
+          });
+        } else if (loaded.status === 'writing' && feuilletonGenerationIsStalled(loaded)) {
+          setGenerationFailure({
+            code: 'feuilleton_generation_stalled',
+            message: "La rédaction a dépassé son délai. Vous pouvez relancer cette édition sans perdre votre progression.",
+          });
+        } else {
+          setGenerationFailure(null);
+        }
+        setScene(loaded);
       } catch (error) {
         console.error(error);
       }
     };
     const timer = window.setInterval(() => {
       void poll();
-    }, 4000);
+    }, scene?.status === 'writing' ? 1500 : 3500);
     return () => {
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [scene?.id, sceneNeedsImagePolling]);
+  }, [scene?.id, scene?.status, sceneNeedsGenerationPolling]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !scene || !mobileTaskStops.length) return;
-    const media = window.matchMedia('(max-width: 760px)');
+    const media = window.matchMedia('(max-width: 900px)');
     if (!media.matches) return;
     const elements = mobileTaskStops
       .map((stop) => document.querySelector<HTMLElement>(`[data-mobile-task-stop="${stop.id}"]`))
@@ -300,6 +364,49 @@ export default function GraphicNovelPage() {
     elements.forEach((element) => observer.observe(element));
     return () => observer.disconnect();
   }, [scene, mobileTaskStops]);
+
+  async function openCanonicalBeat() {
+    setCreating(true);
+    const toastId = toast.loading('Retrouver le fil de votre histoire…');
+    try {
+      const serial = await apiService.getSerialToday();
+      setCanonicalBeat(serial);
+      if (serial.kind === 'feuilleton' && serial.scene_id) {
+        const loaded = await apiService.getGraphicNovelScene(serial.scene_id);
+        setScene(loaded);
+        setGenerationFailure(null);
+        await router.replace({ pathname: '/graphic-novel', query: sceneRouteQuery(loaded) }, undefined, { shallow: true });
+        toast.success('L’épisode canonique est ouvert.', { id: toastId });
+        return;
+      }
+      if (serial.kind === 'feuilleton' && serial.status === 'delayed') {
+        toast.dismiss(toastId);
+        await createScene({
+          serial_thread_id: serial.thread_id,
+          episode_index: serial.episode_index,
+          force_new: true,
+        });
+        return;
+      }
+      const nextRoute = routeForSerialBeat(serial);
+      if (nextRoute) {
+        toast.success(serial.kind === 'mission' ? 'La suite se joue dans la mission du jour.' : 'L’édition reprend.', { id: toastId });
+        await router.push(nextRoute);
+        return;
+      }
+      toast.dismiss(toastId);
+      await createScene({
+        serial_thread_id: serial.thread_id,
+        episode_index: serial.episode_index,
+        force_new: false,
+      });
+    } catch (error) {
+      console.error(error);
+      toast.error('Impossible de retrouver le fil canonique.', { id: toastId });
+    } finally {
+      setCreating(false);
+    }
+  }
 
   async function createScene(extra?: Record<string, any>) {
     setCreating(true);
@@ -334,8 +441,9 @@ export default function GraphicNovelPage() {
         render_mode: renderMode,
         image_quality: imageQuality,
         public_figure_mode: 'named_context',
-        force_new: true,
-        refresh_news: true,
+        force_new: Boolean(scene),
+        refresh_news: false,
+        async_generation: true,
         ...extra,
       });
       setThreadContext(feuilletonThreadContextFromQuery(routeQuery));
@@ -343,7 +451,14 @@ export default function GraphicNovelPage() {
       setGenerationFailure(null);
       setLastCorrection(null);
       router.replace({ pathname: '/graphic-novel', query: sceneRouteQuery(next) }, undefined, { shallow: true });
-      toast.success(next.status === 'generating' ? 'Script ready. Art is printing.' : 'Feuilleton ready.', { id: toastId });
+      toast.success(
+        next.status === 'writing'
+          ? 'Edition started. You can keep reading while the press works.'
+          : next.status === 'generating'
+            ? 'Script ready. Art is printing.'
+            : 'Feuilleton ready.',
+        { id: toastId },
+      );
     } catch (error: any) {
       const detail = error?.response?.data?.detail;
       if (detail?.code === 'feuilleton_generation_failed') {
@@ -450,45 +565,59 @@ export default function GraphicNovelPage() {
   return (
     <>
       <FeuilletonStyles />
-      <main className={`feuilleton-page ${scene ? 'has-scene' : ''} ${serialReadFirst ? 'is-serial' : ''}`}>
+      <SupplementStyles />
+      <main aria-label="Feuilleton mode" className={`feuilleton-page ${scene ? 'has-scene' : ''} ${serialReadFirst ? 'is-serial' : ''}`}>
         <EditorialMasthead
-          active="studio"
-          hideMobileNav={!!scene}
-          mobileAction={(
-            <div className="feuilleton-mobile-actions">
-              <Link className="feuilleton-mobile-today" href="/atelier" aria-label="Back to today">
-                Today
-              </Link>
-              {scene && (
-                <button
-                  aria-label={showMobileTranslations ? 'Hide English translations' : 'Show English translations'}
-                  aria-pressed={showMobileTranslations}
-                  className={`feuilleton-mobile-en-toggle ${showMobileTranslations ? 'active' : ''}`}
-                  type="button"
-                  onClick={() => setShowMobileTranslations((current) => !current)}
-                >
-                  {showMobileTranslations ? 'EN ●' : 'EN'}
-                </button>
-              )}
-              {scene && (
-                <button
-                  aria-label="Create a new Feuilleton scene"
-                  className="feuilleton-mobile-new-scene"
-                  disabled={creating}
-                  type="button"
-                  onClick={() => createScene()}
-                >
-                  {creating ? <Loader2 className="spin" size={13} /> : <Sparkles size={13} />}
-                  <span>{creating ? 'Making' : 'New'}</span>
-                </button>
-              )}
-            </div>
-          )}
+          active="feuilleton"
+          hideMobileNav={Boolean(scene && ['available', 'in_progress'].includes(scene.status))}
         />
 
         <div className="fn-spread fn-grid">
           <section className="fn-main">
-            {(!scene || !serialReadFirst) && (
+            <div className="fe-embed"><FeSectionNav active="episode" /></div>
+            {scene && !scene.serial_thread_id && !['writing', 'generating'].includes(scene.status) && (
+              <div className="feuilleton-reader-tools" aria-label="Contrôles de l’édition">
+                <Link href="/atelier">Retour à l’Atelier</Link>
+                <button
+                  type="button"
+                  aria-pressed={showMobileTranslations}
+                  onClick={() => setShowMobileTranslations((current) => !current)}
+                >
+                  {showMobileTranslations ? 'Masquer EN' : 'Afficher EN'}
+                </button>
+                <button
+                  className="new-edition"
+                  type="button"
+                  disabled={creating || scene.status === 'writing'}
+                  onClick={openCanonicalBeat}
+                >
+                  {creating || scene.status === 'writing' ? <Loader2 className="spin" size={13} /> : <ArrowRight size={13} />}
+                  {creating || scene.status === 'writing' ? 'Recherche du fil' : 'Reprendre l’histoire'}
+                </button>
+              </div>
+            )}
+            {scene && !scene.serial_thread_id && !['writing', 'generating'].includes(scene.status) && (
+              <div className="feuilleton-mobile-edition-tools" aria-label="Contrôles de l’édition">
+                <Link href="/atelier">Atelier</Link>
+                <button
+                  type="button"
+                  aria-pressed={showMobileTranslations}
+                  onClick={() => setShowMobileTranslations((current) => !current)}
+                >
+                  {showMobileTranslations ? 'Masquer EN' : 'Afficher EN'}
+                </button>
+                <button
+                  className="new-edition"
+                  type="button"
+                  disabled={creating || scene.status === 'writing'}
+                  onClick={openCanonicalBeat}
+                >
+                  {creating || scene.status === 'writing' ? <Loader2 className="spin" size={13} /> : <ArrowRight size={13} />}
+                  <span>{creating || scene.status === 'writing' ? 'Recherche' : 'Suite canonique'}</span>
+                </button>
+              </div>
+            )}
+            {!scene && (
               <div className="fn-title">
                 <div>
                   <div className="t-mono">ATELIER DETOUR</div>
@@ -498,35 +627,6 @@ export default function GraphicNovelPage() {
                   <Link className="btn atelier-return" href="/atelier">
                     BACK TO TODAY <ArrowRight size={14} />
                   </Link>
-                  {scene && !scene.serial_thread_id && (
-                    <>
-                      <div className="preset-row" aria-label="Feuilleton mode">
-                        <button
-                          className={storyQuality === 'standard' && renderMode === 'panels' && imageQuality === 'medium' ? 'active' : ''}
-                          type="button"
-                          onClick={() => {
-                            setPanelCount(6);
-                            setStoryQuality('standard');
-                            setRenderMode('panels');
-                            setImageQuality('medium');
-                          }}
-                        >
-                          Daily <span>panels · medium · study</span>
-                        </button>
-                      </div>
-                      <div className="seg-row" aria-label="Panel count">
-                        {([4, 6, 8] as PanelCount[]).map((count) => (
-                          <button key={count} className={panelCount === count ? 'active' : ''} onClick={() => setPanelCount(count)} type="button">
-                            {count} <span>{count === 4 ? 'quick' : count === 6 ? 'standard' : 'long'}</span>
-                          </button>
-                        ))}
-                      </div>
-                      <button className="btn red" disabled={creating} onClick={() => createScene()}>
-                        {creating ? <Loader2 className="spin" size={14} /> : <Sparkles size={14} />}
-                        {creating ? 'GENERATING PANELS' : 'NEW SCENE'} <ArrowRight size={14} />
-                      </button>
-                    </>
-                  )}
                 </div>
               </div>
             )}
@@ -555,9 +655,13 @@ export default function GraphicNovelPage() {
                 </div>
               </div>
             ) : generationFailure ? (
-              <EditionPreparing failure={generationFailure} onRetry={() => createScene()} creating={creating} />
+              <EditionPreparing failure={generationFailure} onRetry={canonicalBeat ? openCanonicalBeat : () => createScene()} creating={creating} />
+            ) : scene && (scene.status === 'writing' || (scene.status === 'generating' && !(scene.panels || []).length)) ? (
+              <EditionWriting scene={scene} />
             ) : scene ? (
               <>
+                {scene.status === 'generating' && <EditionArtProgress scene={scene} />}
+                {!serialReadFirst && <StandaloneReaderMast scene={scene} />}
                 {serialReadFirst ? (
                   <SerialSceneReader
                     scene={scene}
@@ -695,6 +799,7 @@ export default function GraphicNovelPage() {
               </>
             ) : (
               <FeuilletonEmptyState
+                canonicalBeat={canonicalBeat}
                 creating={creating}
                 onCreate={() => createScene()}
                 today={today}
@@ -703,11 +808,13 @@ export default function GraphicNovelPage() {
             )}
           </section>
 
-          <aside className="fn-side">
-            <QueueCard today={today} scene={scene} onSelect={setScene} />
-            <TargetCard scene={scene} tasks={tasks} attemptsByTask={attemptsByTask} />
-            <CorrectionStack scene={scene} correction={lastCorrection} />
-          </aside>
+          {!scene && (
+            <aside className="fn-side">
+              <QueueCard today={today} scene={scene} onSelect={setScene} />
+              <TargetCard scene={scene} tasks={tasks} attemptsByTask={attemptsByTask} />
+              <CorrectionStack scene={scene} correction={lastCorrection} />
+            </aside>
+          )}
         </div>
       </main>
     </>
@@ -870,16 +977,46 @@ function GenerationProgress({
 }
 
 function FeuilletonEmptyState({
+  canonicalBeat,
   creating,
   onCreate,
   today,
   threadContext,
 }: {
+  canonicalBeat: SerialToday | null;
   creating: boolean;
   onCreate: () => void;
   today: GraphicNovelToday | null;
   threadContext: FeuilletonThreadContext;
 }) {
+  const canonicalRoute = routeForSerialBeat(canonicalBeat);
+  if (canonicalBeat?.kind === 'mission' && canonicalRoute) {
+    const names = serialBeatCharacterNames(canonicalBeat);
+    const storyPressure = serialBeatStoryPressure(canonicalBeat);
+    return (
+      <section className="canonical-beat-handoff" aria-label="Prochain acte du Feuilleton">
+        <div className="canonical-beat-number">
+          <span>SAISON 1</span>
+          <strong>{String(canonicalBeat.episode_index + 1).padStart(2, '0')}</strong>
+          <em>ACTE</em>
+        </div>
+        <div className="canonical-beat-copy">
+          <span className="t-mono">VOTRE HISTOIRE · MAINTENANT</span>
+          <h2>La suite se joue avant de se lire.</h2>
+          <p>{storyPressure}</p>
+          {names.length > 0 && (
+            <div className="canonical-cast" aria-label="Personnages de cet acte">
+              {names.map((name) => <span key={name}>{name}</span>)}
+            </div>
+          )}
+          <Link className="canonical-beat-cta" href={canonicalRoute}>
+            OUVRIR LA MISSION DU JOUR <ArrowRight size={18} />
+          </Link>
+          <small>Votre réponse deviendra la conséquence du prochain épisode. Aucun récit parallèle ne sera créé.</small>
+        </div>
+      </section>
+    );
+  }
   const recommendation = today?.recommendation || {};
   const seedLabel = threadContext
     ? 'Atelier thread ready'
@@ -906,12 +1043,47 @@ function FeuilletonEmptyState({
           CREATING SCENE
         </div>
       ) : (
-        <button className="btn red" onClick={onCreate}>
+        <button aria-label="Create a new Feuilleton scene" className="btn red" onClick={onCreate}>
           CREATE FIRST SCENE <ArrowRight size={14} />
         </button>
       )}
     </section>
   );
+}
+
+function serialBeatCharacterNames(serial: SerialToday) {
+  const required = Array.isArray(serial.brief_payload?.required_cast)
+    ? serial.brief_payload?.required_cast.map(String)
+    : [];
+  const world = serial.thread?.world_bible || {};
+  const cast = Array.isArray(world.cast) ? world.cast : [];
+  const namesById: Record<string, string> = {
+    landlord_marchand: 'M. Marchand',
+    marin_leveque: 'Marin',
+    lila_bonnet: 'Lila',
+    romy_tremblay: 'Romy',
+    augustin_de_roncourt: 'Gus',
+    margaux_barman: 'Margaux',
+  };
+  cast.forEach((member: Record<string, any>) => {
+    if (member?.id && member?.name) namesById[String(member.id)] = String(member.name);
+  });
+  return required.map((id: string) => namesById[id] || id.replace(/_/g, ' ')).slice(0, 3);
+}
+
+function serialBeatStoryPressure(serial: SerialToday) {
+  const brief = serial.brief_payload || {};
+  const plot = brief.a_plot || {};
+  const required = Array.isArray(brief.required_cast) ? brief.required_cast.map(String) : [];
+  const previous = String(serial.previously || serial.hook_from_previous?.text || '').trim();
+  if (previous) return `Précédemment : ${previous}`;
+  if (required.includes('landlord_marchand')) {
+    return 'Votre message à M. Marchand doit régler le problème de l’appartement. Sa réponse deviendra la première conséquence du Feuilleton.';
+  }
+  const stage = String(plot.stage_summary || plot.summary || '').trim();
+  const looksEnglish = /\b(the|your|with|must|will|from|into|about)\b/i.test(stage);
+  if (stage && !looksEnglish) return stage;
+  return 'Une réponse réelle doit faire avancer la situation. Le prochain épisode montrera exactement ce qu’elle a changé.';
 }
 
 function MobileReadingBar({
@@ -1037,24 +1209,81 @@ function SerialSceneReader({
   );
 }
 
+// Unifies the four-route Feuilleton IA: the reader, the season archive, and the
+// cast are one section of the paper, so each is reachable from the others.
+// Rendered here and mirrored on /serial and /serial/cast.
+// Surfaces the relationship the learner has built with the character in this
+// episode (register + closeness) so the bond is felt while reading/acting, not
+// only on the cast page. Self-contained: fetches the current thread cast once
+// and matches the member appearing in this episode with the closest bond.
+function characterInitial(value?: string | null): string {
+  const text = String(value || '').trim();
+  return text ? text.charAt(0).toUpperCase() : '?';
+}
+
+// Surfaces the relationship the learner has built with the character in this
+// episode (register + closeness) so the bond is felt while reading/acting, not
+// only on the cast page. Redrawn onto the shared supplement FeRelChip; still
+// self-contained (best-effort fetch, links to the cast).
+function SerialRelationshipChip({ scene }: { scene: GraphicNovelScene }) {
+  const [member, setMember] = useState<SerialCastMember | null>(null);
+  const episodeIndex = typeof scene.episode_index === 'number' ? scene.episode_index : null;
+  useEffect(() => {
+    if (episodeIndex === null) return;
+    let alive = true;
+    apiService.getSerialCast()
+      .then((data) => {
+        if (!alive) return;
+        const inEpisode = (data.cast || []).filter((candidate) =>
+          (candidate.episodes || []).some((episode) => episode.episode_index === episodeIndex));
+        const primary = [...inEpisode].sort(
+          (a, b) => Number(b.relationship?.closeness || 0) - Number(a.relationship?.closeness || 0),
+        )[0] || null;
+        setMember(primary);
+      })
+      .catch(() => { /* relationship cue is best-effort; the read never blocks on it */ });
+    return () => { alive = false; };
+  }, [episodeIndex]);
+
+  if (!member) return null;
+  const register = String(member.relationship?.register || 'vous').toLowerCase() === 'tu' ? 'tu' : 'vous';
+  const closeness = Number(member.relationship?.closeness || 0);
+  return (
+    <Link
+      href="/serial/cast"
+      className="serial-rel-chip"
+      aria-label={`Relation avec ${member.name} : ${register}, proximité ${closeness} sur 5`}
+    >
+      <FeRelChip
+        char={member.id}
+        accent={member.accent_colour}
+        name={member.name}
+        ini={characterInitial(member.name)}
+        register={register}
+        closeness={closeness}
+      />
+    </Link>
+  );
+}
+
 function SerialReaderMast({ scene }: { scene: GraphicNovelScene }) {
   const episodeNo = typeof scene.episode_index === 'number' ? scene.episode_index + 1 : 1;
   const loc = serialLocation(scene);
-  const dateLabel = feuilletonEditionDate(scene) || 'Today';
+  const dateLabel = feuilletonEditionDate(scene) || "Aujourd’hui";
   const news = serialNewsLine(scene);
   const previously = serialPreviouslyText(scene);
+  const dateline = [`Saison 1`, loc, dateLabel].filter(Boolean) as string[];
   return (
-    <>
-      <header className="s-mast serial-reader-mast">
-        <div className="kicker">Le Feuilleton</div>
-        <div className="title">{scene.title || 'The serial'}</div>
-        <div className="dateline">
-          <span>Épisode {episodeNo}</span>
-          {loc && <><i /><span>{loc}</span></>}
-          <i />
-          <span>{dateLabel}</span>
-        </div>
-      </header>
+    <div className="fe-embed serial-reader-mast">
+      <FeMasthead
+        season={1}
+        index={episodeNo}
+        title={scene.title || 'Le feuilleton'}
+        dateline={dateline}
+      />
+      <div className="serial-mast-rel">
+        <SerialRelationshipChip scene={scene} />
+      </div>
       {news && (
         <aside className="s-news" data-char="romy">
           <span className="lbl">Cette semaine</span>
@@ -1062,15 +1291,27 @@ function SerialReaderMast({ scene }: { scene: GraphicNovelScene }) {
         </aside>
       )}
       {previously && (
-        <aside className="s-prev" aria-label="Previously on the serial">
-          <div className="ph">
-            <span className="tag">Previously on</span>
-            <span className="tag stamp2">Ép. {Math.max(1, episodeNo - 1)}</span>
-          </div>
-          <div className="pb">{previously}</div>
-        </aside>
+        <FePreviously epRef={`Ép. ${Math.max(1, episodeNo - 1)}`}>{previously}</FePreviously>
       )}
-    </>
+    </div>
+  );
+}
+
+function StandaloneReaderMast({ scene }: { scene: GraphicNovelScene }) {
+  const source = scene.source_snapshot || {};
+  const sourceName = String(source.source || source.mode || 'Atelier');
+  const dateLabel = feuilletonEditionDate(scene) || "Aujourd’hui";
+  return (
+    <header className="fe-embed standalone-reader-mast">
+      <FeMasthead
+        index="du jour"
+        title={scene.title || 'Le Feuilleton'}
+        dateline={[dateLabel, sourceName]}
+        progress={scene.status === 'completed' ? 100 : 42}
+        progressRed={scene.status !== 'completed'}
+      />
+      {scene.brief && <p>{feuilletonPublicBrief(scene.brief)}</p>}
+    </header>
   );
 }
 
@@ -1104,47 +1345,44 @@ function SerialPanel({
   const bubbles = (overlay.bubbles || []) as PanelBubble[];
   const panelVocabulary = panelVocabularyMatches(panel, tasks, targetVocabulary);
   const imageUrl = panelImageUrl(panel);
-  const isQueuedArt = !imageUrl && panel.generation_metadata?.image_status === 'queued';
-  const shouldUseFallback = isFallbackPanel(panel) || !imageUrl;
   const who = serialPanelCharacter(panel);
   const captionText = String(caption.fr || panel.beat || '').trim();
+  const queued = !imageUrl && panel.generation_metadata?.image_status === 'queued';
   return (
     <motion.article
       initial={{ opacity: 0, y: 18 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.34, delay: (panel.panel_index || 1) * 0.05 }}
-      className="s-panel serial-panel"
+      className="serial-panel fe-story-panel"
       data-char={who}
       data-mobile-task-stop={stop.id}
       id={stop.elementId}
     >
-      <div className={`s-art ${shouldUseFallback ? 'fallback-panel' : 'generated-panel'}`}>
-        {shouldUseFallback ? (
-          <ComicFallbackPanel panel={panel} queued={isQueuedArt} />
-        ) : (
-          <Image
-            src={imageUrl}
-            alt=""
-            fill
-            sizes="(max-width: 760px) calc(100vw - 36px), 720px"
-            unoptimized
-          />
-        )}
-        <span className="frame-note">{serialPanelFrame(panel)}</span>
-        <BubbleOverlay bubbles={bubbles} showMobileTranslations={showMobileTranslations} />
+      <div className="fe-embed">
+        <FePanel
+          slug={imageUrl ? undefined : String(panel.title || `Planche ${panel.panel_index}`).toUpperCase()}
+          direction={serialPanelFrame(panel)}
+          ratio="wide"
+          imageUrl={imageUrl}
+          imageAlt=""
+          status={queued ? 'generating' : undefined}
+          statusNote="La planche arrive — le dialogue est déjà prêt."
+          bubbles={fePanelBubbles(bubbles, showMobileTranslations)}
+          caption={captionText}
+          capNum={String(panel.panel_index || 1).padStart(2, '0')}
+          credit={panel.title}
+        >
+          {!imageUrl && !queued && <ComicFallbackPanel panel={panel} />}
+        </FePanel>
       </div>
-      {captionText && (
-        <div className="s-cap">
-          <span className="n">{String(panel.panel_index || 1).padStart(2, '0')}</span>
-          <span className="c">{captionText}</span>
-        </div>
-      )}
       <PanelVocabularyMarker items={panelVocabulary} />
       {bubbles.some((bubble) => bubble?.fr) && (
-        <details className="mobile-panel-dialogue serial-dialogue">
-          <summary>Dialogue transcript</summary>
-          <BubbleTranscript bubbles={bubbles} showMobileTranslations={showMobileTranslations} />
-        </details>
+        <div className="fe-embed fe-panel-transcript">
+          <FeTranscript char={who} lines={bubbles.filter((bubble) => bubble?.fr).map((bubble) => ({
+            who: bubble.speaker || 'Dialogue',
+            fr: showMobileTranslations && bubble.en ? `${bubble.fr} · ${bubble.en}` : bubble.fr,
+          }))} />
+        </div>
       )}
       {caption.en && (
         <details className={`caption-translation serial-caption-translation ${showMobileTranslations ? 'mobile-en-visible' : ''}`} open={showMobileTranslations || undefined}>
@@ -1195,26 +1433,24 @@ function SerialTaskEmbed({
   if (!validTasks.length) return null;
   const firstTask = validTasks[0];
   return (
-    <div className="s-fork serial-act">
-      <div className="fh">
-        <span className="s-ava sm" data-char="toi">T</span>
-        <span className="q"><b>You write the next line.</b> {serialTaskPrompt(firstTask)}</span>
-      </div>
+    <div className="fe-embed serial-act" data-char="toi">
       <MobileStoryTaskLauncher stop={stop} attemptsByTask={attemptsByTask} onOpenMobileTask={onOpenMobileTask} revealed={revealed} />
-      <div className="serial-act-body">
-        {validTasks.map((task) => (
-          <TaskControls
-            key={task.id}
-            task={task}
-            value={answers[task.id] || ''}
-            setValue={(value) => setAnswer(task.id, value)}
-            onSubmit={() => onSubmit(task)}
-            submitting={submittingTask === task.id}
-            attempt={attemptsByTask[task.id]}
-            targetVocabulary={targetVocabulary}
-          />
-        ))}
-      </div>
+      <FeTask anchor={`Planche ${stop.label.replace(/[^0-9]/g, '') || ''}`} kicker="Votre réplique" title={serialTaskPrompt(firstTask)}>
+          <div className="serial-act-body">
+            {validTasks.map((task) => (
+              <TaskControls
+                key={task.id}
+                task={task}
+                value={answers[task.id] || ''}
+                setValue={(value) => setAnswer(task.id, value)}
+                onSubmit={() => onSubmit(task)}
+                submitting={submittingTask === task.id}
+                attempt={attemptsByTask[task.id]}
+                targetVocabulary={targetVocabulary}
+              />
+            ))}
+          </div>
+      </FeTask>
     </div>
   );
 }
@@ -1520,22 +1756,66 @@ function EditionPreparing({
   creating: boolean;
 }) {
   const delayed = failure?.code === 'serial_edition_delayed';
+  const rawMessage = String(failure?.message || '').trim();
+  const message = delayed
+    ? "L’édition de demain est retardée. L’histoire reprendra sans rejouer un ancien épisode."
+    : !rawMessage || /feuilleton generation failed/i.test(rawMessage)
+      ? "L’édition n’a pas pu être composée. Votre progression n’a pas été modifiée."
+      : rawMessage;
   return (
-    <section className="paper edition-preparing">
-      <div>
-        <div className="t-mono">{delayed ? 'TOMORROW’S EDITION' : 'TODAY’S EDITION'}</div>
-        <h2>{delayed ? "L'édition de demain est retardée." : 'No complete edition returned.'}</h2>
-        <p>{delayed ? 'The story desk did not have a live writer, so the serial paused instead of replaying old radiator copy.' : 'This state is reserved for hard service failures, not a quality judgment. Try again, or continue in Atelier while the image service catches up.'}</p>
-      </div>
+    <section className="fe-embed edition-preparing">
+      <FeNotice
+        label={delayed ? 'Édition de demain' : 'Avis de la rédaction'}
+        msg={message}
+        onRetry={creating ? undefined : onRetry}
+        retryLabel="Relancer l’édition"
+      />
       <div className="edition-actions">
-        <button className="btn red" disabled={creating} onClick={onRetry}>
-          {creating ? <Loader2 className="spin" size={14} /> : <Sparkles size={14} />}
-          TRY AGAIN
-        </button>
-        <Link className="btn solid" href="/grammar">OPEN NOTEBOOK <ArrowRight size={13} /></Link>
-        <Link className="btn" href="/atelier">BACK TO ATELIER <ArrowRight size={13} /></Link>
+        {creating && <span className="edition-retrying"><Loader2 className="spin" size={14} /> Relance en cours</span>}
+        <Link className="edition-link" href="/grammar">Ouvrir le carnet <ArrowRight size={13} /></Link>
+        <Link className="edition-link" href="/atelier">Retour à l’Atelier <ArrowRight size={13} /></Link>
       </div>
     </section>
+  );
+}
+
+function EditionWriting({ scene }: { scene: GraphicNovelScene }) {
+  const printing = scene.status === 'generating';
+  return (
+    <section className="fe-embed edition-writing" aria-live="polite" aria-label="Edition en préparation">
+      <FeMasthead
+        index={typeof scene.episode_index === 'number' ? scene.episode_index + 1 : 'du jour'}
+        title={printing ? 'Les planches s’impriment' : 'L’édition se compose'}
+        dateline={["Aujourd’hui", printing ? 'Impression en cours' : 'Rédaction en cours']}
+        progress={printing ? 64 : 24}
+        progressRed
+      />
+      <FeSkeleton press="— la rédaction assemble le récit —" />
+      <div className="edition-writing-note">
+        <span className="edition-writing-pulse" aria-hidden="true" />
+        <div>
+          <strong>{printing ? 'Le récit est prêt.' : 'Le récit arrive d’abord.'}</strong>
+          <p>{printing
+            ? 'Les planches sont en cours d’impression. Cette page se met à jour automatiquement.'
+            : 'Les planches seront imprimées ensuite. Cette page se met à jour automatiquement.'}</p>
+        </div>
+        <Link href="/atelier">Retour à l’Atelier</Link>
+      </div>
+    </section>
+  );
+}
+
+function EditionArtProgress({ scene }: { scene: GraphicNovelScene }) {
+  const panels = scene.panels || [];
+  const ready = panels.filter((panel) => Boolean(panelImageUrl(panel))).length;
+  return (
+    <div className="fe-embed edition-art-progress" role="status" aria-live="polite">
+      <Loader2 className="spin" size={14} />
+      <div>
+        <strong>L’histoire est prête.</strong>
+        <span>Les planches s’impriment en arrière-plan · {ready}/{panels.length}</span>
+      </div>
+    </div>
   );
 }
 
@@ -1586,7 +1866,7 @@ function PageScene({
               alt=""
               width={1400}
               height={1980}
-              sizes="(max-width: 760px) calc(100vw - 44px), 900px"
+              sizes="(max-width: 900px) calc(100vw - 44px), 900px"
               unoptimized
             />
           ) : <ComicFallbackPanel panel={fallbackPanel as GraphicNovelPanel} />}
@@ -1732,54 +2012,49 @@ function PanelCard({
   const tasks = (overlay.tasks || []) as OverlayTask[];
   const mobileTasks: OverlayTask[] = tasks.map((task) => ({ ...task, panel }));
   const stop = panelTaskStop(panel, mobileTasks);
-  const fallbackPanel = isFallbackPanel(panel);
   const caption = overlay.caption || {};
   const bubbles = (overlay.bubbles || []) as PanelBubble[];
   const panelVocabulary = panelVocabularyMatches(panel, mobileTasks, targetVocabulary);
   const imageUrl = panelImageUrl(panel);
   const isQueuedArt = !imageUrl && panel.generation_metadata?.image_status === 'queued';
-  const shouldUseFallback = fallbackPanel || !imageUrl;
+  const captionText = String(caption.fr || panel.beat || '').trim();
+  const who = serialPanelCharacter(panel);
   return (
     <motion.article
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: (panel.panel_index || 1) * 0.08 }}
-      className="panel-card"
+      className="fe-story-panel"
       id={readFirst ? `reading-${stop.elementId}` : stop.elementId}
       data-mobile-task-stop={readFirst ? undefined : stop.id}
     >
-      <div className={`panel-image ${shouldUseFallback ? 'fallback-panel' : 'generated-panel'}`}>
-        {shouldUseFallback ? (
-          <ComicFallbackPanel panel={panel} queued={isQueuedArt} />
-        ) : (
-          <Image
-            src={imageUrl}
-            alt=""
-            fill
-            sizes="(max-width: 760px) calc(100vw - 28px), 50vw"
-            unoptimized
-          />
-        )}
-        <BubbleOverlay bubbles={bubbles} showMobileTranslations={showMobileTranslations} />
+      <div className="fe-embed">
+        <FePanel
+          slug={imageUrl ? undefined : String(panel.title || `Planche ${panel.panel_index}`).toUpperCase()}
+          direction={panel.title}
+          ratio={panel.panel_index % 3 === 0 ? 'wide' : 'tall'}
+          imageUrl={imageUrl}
+          imageAlt=""
+          status={isQueuedArt ? 'generating' : undefined}
+          statusNote="On tire la planche — le texte reste lisible."
+          bubbles={fePanelBubbles(bubbles, showMobileTranslations)}
+          caption={captionText}
+          capNum={String(panel.panel_index || 1).padStart(2, '0')}
+          credit={panel.title}
+        >
+          {!imageUrl && !isQueuedArt && <ComicFallbackPanel panel={panel} />}
+        </FePanel>
       </div>
-      <div className="panel-body">
-        <div className="panel-head">
-          <span className="t-mono">PANEL {panel.panel_index}</span>
-          <strong>{panel.title}</strong>
-          <PanelAudioButton panel={panel} />
-        </div>
+      <div className="fe-panel-body">
         <PanelVocabularyMarker items={panelVocabulary} />
         {bubbles.some((bubble) => bubble?.fr) && (
-          <details className="mobile-panel-dialogue">
-            <summary>Dialogue transcript</summary>
-            <BubbleTranscript bubbles={bubbles} showMobileTranslations={showMobileTranslations} />
-          </details>
+          <div className="fe-embed fe-panel-transcript">
+            <FeTranscript char={who} lines={bubbles.filter((bubble) => bubble?.fr).map((bubble) => ({
+              who: bubble.speaker || 'Dialogue',
+              fr: showMobileTranslations && bubble.en ? `${bubble.fr} · ${bubble.en}` : bubble.fr,
+            }))} />
+          </div>
         )}
-      {caption.fr ? (
-        <CaptionBlock caption={caption} showMobileTranslations={showMobileTranslations} />
-      ) : (
-        <p>{panel.beat}</p>
-      )}
         {readFirst ? (
           <PanelInlineTaskDisclosure
             stop={stop}
@@ -1885,17 +2160,22 @@ function EpisodeAudioControls({ scene }: { scene: GraphicNovelScene }) {
     await player.play();
   };
 
+  const ticks = audioPanels.length > 1
+    ? audioPanels.map((_, index) => Math.round((index / audioPanels.length) * 100))
+    : [];
+  const planches = `${audioPanels.length} planche${audioPanels.length === 1 ? '' : 's'}`;
   return (
-    <section className="paper episode-audio" aria-label="Episode audio">
-      <div>
-        <span className="t-mono">Audio edition</span>
-        <strong>{audioPanels.length} panel{audioPanels.length === 1 ? '' : 's'} ready</strong>
-      </div>
-      <button type="button" onClick={() => playing ? stop() : void playFrom(0)}>
-        {playing ? <Pause size={16} /> : <PlayCircle size={17} />}
-        {playing ? 'Pause' : 'Lire l’épisode'}
-      </button>
-    </section>
+    <div className="fe-embed episode-audio" aria-label="Écouter l’épisode">
+      <FeAudioBar
+        playing={playing}
+        title="Écouter l’épisode"
+        onToggle={() => (playing ? stop() : void playFrom(0))}
+        at={playing ? 6 : 0}
+        ticks={ticks}
+        time={planches}
+        now={playing ? <><b>Lecture</b> — planches narrées</> : undefined}
+      />
+    </div>
   );
 }
 
@@ -2086,6 +2366,21 @@ function BubbleTranscript({ bubbles, showMobileTranslations }: { bubbles: PanelB
 function clampPercent(value: number | undefined, fallback: number) {
   if (typeof value !== 'number' || Number.isNaN(value)) return fallback;
   return Math.max(4, Math.min(64, value));
+}
+
+function fePanelBubbles(bubbles: PanelBubble[], showTranslations: boolean): FeBubbleData[] {
+  return bubbles.filter((bubble) => bubble?.fr).slice(0, 2).map((bubble, index) => ({
+    who: bubble.speaker,
+    char: panelBubbleCharacter(bubble),
+    accent: bubble.accent_color || bubble.accent_colour,
+    fr: bubble.fr,
+    en: showTranslations ? bubble.en : undefined,
+    at: {
+      left: `${clampPercent(bubble.x, index === 0 ? 8 : 55)}%`,
+      top: `${clampPercent(bubble.y, index === 0 ? 10 : 30)}%`,
+    },
+    tail: index === 0 ? 'bl' : 'br',
+  }));
 }
 
 function CaptionBlock({ caption, showMobileTranslations }: { caption: any; showMobileTranslations: boolean }) {
@@ -2574,48 +2869,19 @@ function FeuilletonCliffhangerHero({ scene }: { scene: GraphicNovelScene }) {
   const question = String(hook?.unresolved_question || hook?.teaser || '').trim();
   const beat = String(hook?.text || '').trim();
   if (!question && !beat) return null;
-  const finalPanel = [...(scene.panels || [])].sort((left, right) => (right.panel_index || 0) - (left.panel_index || 0))[0];
   const who = feuilletonCliffhangerCharacter(scene, hook);
+  const demain = beat && question && question !== beat
+    ? beat
+    : feuilletonCharacterName(who)
+      ? `${feuilletonCharacterName(who)} revient`
+      : undefined;
   return (
-    <section className="s-cliff feuilleton-cliffhanger" data-char={who} aria-label="Feuilleton cliffhanger">
-      <div className="ctop">
-        <span className="ser">Le Feuilleton</span>
-        <span className="end">À suivre</span>
-      </div>
-      <div className="cart">
-        <span className="frame-note">{finalPanel?.title ? `FINAL · ${finalPanel.title}` : 'FINAL · the question lands'}</span>
-        <div className="float">
-          <span className="s-ava sm" data-char={who}>{feuilletonCharacterInitial(who)}</span>
-        </div>
-      </div>
-      <div className="cbody">
-        <div className="who">{feuilletonCharacterName(who)}</div>
-        <div className="q">{question || beat}</div>
-        {beat && question !== beat && <div className="beat">{beat}</div>}
-        <Link className="ccta" href={scene.status === 'completed' ? feuilletonNextMissionHref(scene) : '#reading-panels'}>
-          {scene.status === 'completed' ? 'Answer in the next episode' : 'File this edition first'} <ArrowRight size={18} aria-hidden="true" />
-        </Link>
-        <div className="next">Next · Act · Episode {typeof scene.episode_index === 'number' ? scene.episode_index + 2 : ''}</div>
-      </div>
-    </section>
+    <div className="fe-embed feuilleton-cliffhanger" data-char={who} aria-label="Feuilleton cliffhanger">
+      <FeCliff kicker="À suivre" hook={question || beat} demain={demain} />
+    </div>
   );
 }
 
-function feuilletonNextMissionHref(scene: GraphicNovelScene) {
-  const vocabularyIds = sceneTargetVocabulary(scene)
-    .map((item) => Number(item.word_id))
-    .filter((item) => Number.isFinite(item));
-  const pairs: Array<[string, string | number | null | undefined]> = [
-    ['mission', scene.mission_id || undefined],
-    ['atelier_session_id', scene.atelier_session_id || undefined],
-    ['serial_thread_id', scene.serial_thread_id || undefined],
-    ['episode_index', typeof scene.episode_index === 'number' ? scene.episode_index + 1 : undefined],
-    ...(scene.selected_concept_ids || []).slice(0, 4).map((id): [string, number] => ['concept_id', id]),
-    ...vocabularyIds.slice(0, 4).map((id): [string, number] => ['vocabulary_id', id]),
-    ...(scene.target_errata_ids || []).slice(0, 2).map((id): [string, string] => ['erratum_id', String(id)]),
-  ];
-  return routeWithQuery('/missions', pairs);
-}
 
 function feuilletonCliffhangerCharacter(scene: GraphicNovelScene, hook: Record<string, any>) {
   const finalPanel = [...(scene.panels || [])].sort((left, right) => (right.panel_index || 0) - (left.panel_index || 0))[0];
@@ -2636,10 +2902,6 @@ function feuilletonCliffhangerCharacter(scene: GraphicNovelScene, hook: Record<s
   if (text.includes('margaux')) return 'margaux';
   if (text.includes('romy') || text.includes('romane')) return 'romy';
   return 'romy';
-}
-
-function feuilletonCharacterInitial(who: string) {
-  return ({ marin: 'M', lila: 'L', gus: 'G', romy: 'R', margaux: 'Mx', marchand: 'M·' } as Record<string, string>)[who] || 'R';
 }
 
 function feuilletonCharacterName(who: string) {
@@ -2719,37 +2981,26 @@ function FeuilletonContinuationCard({
     ...vocabularyIds.slice(0, 4).map((id): [string, number] => ['vocabulary_id', id]),
     ...errataIds.map((id): [string, string] => ['erratum_id', String(id)]),
   ];
-  const atelierPairs: Array<[string, string | number | null | undefined]> = [
-    ['atelier_session_id', scene.atelier_session_id || undefined],
+  const readerPairs: Array<[string, string | number | null | undefined]> = [
     ['serial_thread_id', scene.serial_thread_id || undefined],
-    ...conceptIds.map((id): [string, number] => ['concept_id', id]),
-    ...vocabularyIds.slice(0, 4).map((id): [string, number] => ['vocabulary_id', id]),
+    ['episode_index', typeof scene.episode_index === 'number' ? scene.episode_index + 1 : undefined],
   ];
-  const focus = [
-    ...items.map((item) => ({ label: `Word · ${item.word}`, tone: 'vocabulary' as const })),
-    ...conceptIds.slice(0, 2).map((id) => ({ label: `Rule · ${id}`, tone: 'grammar' as const })),
-  ].slice(0, 4);
-  const primaryAction = scene.status === 'completed'
-    ? { label: hook?.next_beat_kind === 'mission' ? 'Next episode' : 'Use in mission', href: routeWithQuery('/missions', missionPairs), tone: 'primary' as const }
-    : { label: 'Finish edition', href: '#reading-panels', tone: 'primary' as const };
+  const nextBeatIsMission = hook?.next_beat_kind === 'mission';
+  const nextBeatLabel = nextBeatIsMission ? 'Agir dans Le Courrier' : 'Lire le prochain épisode';
+  const nextBeatHref = nextBeatIsMission
+    ? routeWithQuery('/missions', missionPairs)
+    : routeWithQuery('/graphic-novel', readerPairs);
 
   return (
-    <ContinuationCard
-      className="feuilleton-continuation"
-      tone="feuilleton"
-      eyebrow={hook?.text ? 'Cliffhanger' : scene.status === 'completed' ? 'Edition filed' : 'After the final panel'}
-      title={hook?.teaser || (scene.status === 'completed' ? 'Turn this scene into practice' : 'Finish the scene, then carry it forward')}
-      description={scene.status === 'completed'
-        ? hook?.text || 'The reading context is saved. Use the same words in a mission, or review the deck while the scene is fresh.'
-        : 'The story is carrying today’s vocabulary; completing it saves contextual credit.'}
-      focus={hook?.unresolved_question ? [{ label: hook.unresolved_question, tone: 'mission' as const }, ...focus].slice(0, 4) : focus}
-      actions={[
-        primaryAction,
-        { label: 'Review words', href: '/vocabulary/review' },
-        { label: 'Back to Atelier', href: routeWithQuery('/atelier', atelierPairs), tone: 'quiet' },
-      ]}
-      footer="Reading becomes memory when the thread keeps moving."
-    />
+    <section className="feuilleton-continuation" aria-label="Suite du feuilleton">
+      {scene.status === 'completed' && <FeFiled />}
+      <FeContinuation
+        readNext={scene.status === 'completed' ? nextBeatLabel : 'Terminer l’édition'}
+        readNextHref={scene.status === 'completed' ? nextBeatHref : '#reading-panels'}
+        actIn={scene.status === 'completed' ? 'Revoir les mots de l’épisode' : 'Retour à l’Atelier'}
+        actInHref={scene.status === 'completed' ? '/vocabulary/review' : '/atelier'}
+      />
+    </section>
   );
 }
 
@@ -3262,36 +3513,35 @@ function graphicNovelContextKey(query: RouterQueryLike) {
   return parts.length ? parts.join('|') : '';
 }
 
+function feuilletonGenerationIsStalled(scene: GraphicNovelScene) {
+  if (!scene.started_at) return false;
+  const startedAt = new Date(scene.started_at).getTime();
+  return Number.isFinite(startedAt) && Date.now() - startedAt > 6 * 60 * 1000;
+}
+
 function FeuilletonStyles() {
   return (
     <style jsx global>{`
       .feuilleton-page {
-        --paper: #f1ece1;
-        --paper-2: #e8e0cf;
-        --paper-3: #d8cdb6;
-        --sheet: #f8f3e8;
-        --ink: #14110d;
-        --ink-2: #4a4538;
-        --ink-3: #8a826f;
-        --red: #d8321a;
-        --blue: #1d3a8a;
-        --yellow: #f3c318;
+        /* Consume the theme-aware global tokens so the reader honours light/dark
+           (globals.css). The reader previously hardcoded a light palette AND
+           re-aliased the --app-* tokens to it, forcing light everywhere — that is
+           removed. Local names are kept as thin aliases so the rest of this large
+           stylesheet's var(--paper)/var(--ink)/... references resolve through the
+           theme tokens with no layout change. */
+        --paper: var(--app-paper);
+        --paper-2: var(--app-paper-2);
+        --paper-3: var(--app-paper-3);
+        --sheet: var(--app-sheet);
+        --ink: var(--app-ink);
+        --ink-2: var(--app-ink-2);
+        --ink-3: var(--app-ink-3);
+        --red: var(--app-red);
+        --blue: var(--app-blue);
+        --yellow: var(--app-yellow);
         --green: #3f7a4b;
-        --serif: "EB Garamond", Garamond, "Times New Roman", serif;
+        --serif: var(--app-serif);
         --grotesk: "Inter", "Helvetica Neue", Arial, sans-serif;
-
-        /* Override global app theme custom properties locally to force light/paper styling inside this scope */
-        --app-paper: var(--paper);
-        --app-paper-2: var(--paper-2);
-        --app-paper-3: var(--paper-3);
-        --app-sheet: var(--sheet);
-        --app-ink: var(--ink);
-        --app-ink-2: var(--ink-2);
-        --app-ink-3: var(--ink-3);
-        --app-blue: var(--blue);
-        --app-red: var(--red);
-        --app-yellow: var(--yellow);
-        --app-green: var(--green);
 
         min-height: 100vh;
         background: var(--paper);
@@ -3317,6 +3567,161 @@ function FeuilletonStyles() {
       .fn-grid { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 28px; padding-top: 34px; padding-bottom: 80px; align-items: start; }
       .fn-main { min-width: 0; display: grid; gap: 24px; }
       .fn-side { display: grid; gap: 20px; align-content: start; }
+      .feuilleton-page.has-scene .fn-grid {
+        width: min(920px, 100%);
+        grid-template-columns: minmax(0, 1fr);
+      }
+      .feuilleton-reader-tools {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: -12px;
+      }
+      .feuilleton-reader-tools a,
+      .feuilleton-reader-tools button {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        min-height: 34px;
+        border: 1px solid var(--ink);
+        padding: 7px 10px;
+        color: var(--ink);
+        font-size: 9px;
+        font-weight: 900;
+        letter-spacing: .1em;
+        text-decoration: none;
+        text-transform: uppercase;
+      }
+      .feuilleton-reader-tools .new-edition { background: var(--red); color: #fff; }
+      .feuilleton-reader-tools button:disabled { cursor: wait; opacity: .6; }
+      .feuilleton-mobile-edition-tools { display: none; }
+      .standalone-reader-mast {
+        border: 1.5px solid var(--ink);
+        background: var(--sheet);
+      }
+      .standalone-reader-mast > p {
+        max-width: 680px;
+        margin: 0 auto;
+        padding: 14px 22px 18px;
+        font-family: var(--serif);
+        font-size: 17px;
+        font-style: italic;
+        line-height: 1.45;
+        text-align: center;
+        color: var(--ink-2);
+      }
+      .edition-writing {
+        max-width: 720px;
+        margin: 0 auto;
+        border: 1.5px solid var(--ink);
+        background: var(--sheet);
+      }
+      .edition-writing .fe-skel { margin: 18px; }
+      .edition-writing-note {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 12px;
+        margin: 0 18px 18px;
+        padding: 12px 14px;
+        border-top: 1px solid var(--ink);
+        border-bottom: 1px solid var(--ink);
+      }
+      .edition-writing-pulse {
+        width: 10px;
+        height: 24px;
+        background: var(--red);
+        animation: feuilleton-press-pulse 1.1s ease-in-out infinite alternate;
+      }
+      @keyframes feuilleton-press-pulse { from { transform: scaleY(.4); opacity: .45; } to { transform: scaleY(1); opacity: 1; } }
+      .edition-writing-note strong { display: block; font-family: var(--serif); font-size: 16px; font-style: italic; }
+      .edition-writing-note p { margin: 3px 0 0; color: var(--ink-2); font-size: 12px; line-height: 1.4; }
+      .edition-writing-note a { color: var(--ink); font-size: 9px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+      .edition-art-progress {
+        max-width: 720px;
+        margin: 0 auto 14px;
+        padding: 11px 14px;
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        align-items: center;
+        gap: 11px;
+        border: 1px solid var(--ink);
+        border-left: 5px solid var(--red);
+        background: var(--sheet);
+      }
+      .edition-art-progress strong {
+        display: block;
+        font-family: var(--serif);
+        font-size: 15px;
+        font-style: italic;
+      }
+      .edition-art-progress span {
+        display: block;
+        margin-top: 2px;
+        color: var(--ink-2);
+        font-size: 9px;
+        font-weight: 800;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+      }
+      .fe-story-panel {
+        min-width: 0;
+        border-bottom: 1px solid var(--paper-3);
+        padding-bottom: 12px;
+      }
+      .fe-story-panel .fe-panel { margin: 18px 0 10px; }
+      .fe-story-panel .fe-art > .comic-fallback { z-index: 0; }
+      .fe-story-panel .fe-art > .slug,
+      .fe-story-panel .fe-art > .dir { z-index: 2; }
+      .fe-story-panel .fe-art > .fe-bubble,
+      .fe-story-panel .fe-art > .fe-narr { z-index: 3; }
+      .fe-story-panel .fe-credit { min-width: 0; overflow: hidden; }
+      .fe-story-panel .fe-credit > span:first-child {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .fe-story-panel .fe-credit > span:last-child { flex: 0 0 auto; white-space: nowrap; }
+      .fe-story-panel .fe-panel-transcript { margin: 0 2px 12px; }
+      .fe-story-panel .context-vocabulary-marker { margin: 10px 2px; }
+      .fe-panel-body { display: grid; gap: 12px; }
+      .serial-act .fe-task { margin: 10px 18px 18px; }
+      .serial-act .mobile-story-task-launcher { margin: 0 18px; }
+      .edition-preparing { max-width: 700px; margin: 0 auto; }
+      .edition-preparing .edition-actions { margin-top: 14px; }
+      .edition-retrying { display: inline-flex; align-items: center; gap: 8px; font-size: 10px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+      /* Feuilleton section nav — one section, three views (functional weave-in;
+         the "Le Feuilleton" design pass will restyle). */
+      .feuilleton-section-nav {
+        display: flex;
+        gap: 18px;
+        padding: 14px 0 12px;
+        border-bottom: 1px solid var(--ink);
+        font-size: 10px;
+        font-weight: 900;
+        letter-spacing: .14em;
+        text-transform: uppercase;
+      }
+      .feuilleton-section-nav a {
+        color: var(--ink-3);
+        text-decoration: none;
+        padding-bottom: 2px;
+        border-bottom: 2px solid transparent;
+      }
+      .feuilleton-section-nav a:hover { color: var(--ink-2); }
+      .feuilleton-section-nav a.active { color: var(--ink); border-bottom-color: var(--red); }
+      /* supplement masthead embed — the shared FeMasthead / FePreviously / FeRelChip
+         dropped into the reader via .fe-embed (see components/feuilleton). */
+      .serial-reader-mast .serial-mast-rel { display: flex; justify-content: center; padding: 12px 18px 0; }
+      .serial-reader-mast .serial-rel-chip { text-decoration: none; color: inherit; }
+      .serial-reader-mast .s-news {
+        margin: 12px 18px 0; padding: 10px 13px; border: 1px solid var(--ink); background: var(--sheet);
+        border-left: 3px solid var(--accent);
+      }
+      .serial-reader-mast .s-news .lbl { display: block; font-size: 8.5px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; color: var(--red); }
+      .serial-reader-mast .s-news .txt { display: block; margin-top: 4px; font-family: var(--serif); font-style: italic; font-size: 14px; line-height: 1.34; color: var(--ink-2); }
       .fn-title { display: flex; align-items: end; justify-content: space-between; gap: 24px; border-bottom: 4px solid var(--ink); padding-bottom: 20px; }
       .fn-title h1 {
         margin: 8px 0 0;
@@ -3406,6 +3811,98 @@ function FeuilletonStyles() {
         letter-spacing: .12em;
         text-transform: uppercase;
       }
+      .canonical-beat-handoff {
+        display: grid;
+        grid-template-columns: 142px minmax(0, 1fr);
+        min-height: 330px;
+        border: 1.5px solid var(--ink);
+        background: var(--sheet);
+        box-shadow: 8px 8px 0 var(--ink);
+      }
+      .canonical-beat-number {
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        align-items: center;
+        justify-items: center;
+        gap: 12px;
+        border-right: 1px solid var(--ink);
+        background: var(--ink);
+        color: var(--paper);
+        padding: 22px 12px;
+      }
+      .canonical-beat-number span,
+      .canonical-beat-number em {
+        font-size: 9px;
+        font-style: normal;
+        font-weight: 900;
+        letter-spacing: .14em;
+        text-transform: uppercase;
+      }
+      .canonical-beat-number strong {
+        font-family: var(--serif);
+        font-size: 68px;
+        font-style: italic;
+        font-weight: 600;
+        line-height: 1;
+      }
+      .canonical-beat-copy {
+        align-content: center;
+        display: grid;
+        gap: 14px;
+        padding: 34px 40px;
+      }
+      .canonical-beat-copy h2 {
+        max-width: 560px;
+        margin: 0;
+        font-family: var(--serif);
+        font-size: 42px;
+        font-style: italic;
+        font-weight: 650;
+        line-height: .98;
+      }
+      .canonical-beat-copy p {
+        max-width: 610px;
+        margin: 0;
+        color: var(--ink-2);
+        font-size: 16px;
+        line-height: 1.5;
+      }
+      .canonical-cast {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+      }
+      .canonical-cast span {
+        border: 1px solid var(--ink);
+        padding: 5px 8px;
+        font-size: 9px;
+        font-weight: 900;
+        letter-spacing: .1em;
+        text-transform: uppercase;
+      }
+      .canonical-beat-cta {
+        display: inline-flex;
+        width: fit-content;
+        min-height: 52px;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        border: 1px solid var(--ink);
+        background: var(--red);
+        color: #fff;
+        padding: 0 20px;
+        font-size: 11px;
+        font-weight: 900;
+        letter-spacing: .1em;
+        text-decoration: none;
+      }
+      .canonical-beat-copy small {
+        max-width: 560px;
+        color: var(--ink-3);
+        font-size: 11px;
+        font-weight: 750;
+        line-height: 1.4;
+      }
       .generation-progress {
         display: flex;
         align-items: center;
@@ -3454,6 +3951,22 @@ function FeuilletonStyles() {
         gap: 10px;
         min-width: 240px;
       }
+      .edition-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        min-height: 34px;
+        border-bottom: 1px solid var(--ink-3);
+        color: var(--ink-2);
+        padding: 4px 0;
+        font-size: 9px;
+        font-weight: 900;
+        letter-spacing: .1em;
+        text-decoration: none;
+        text-transform: uppercase;
+      }
+      .edition-link:hover { border-color: var(--ink); color: var(--ink); }
       .btn { display: inline-flex; align-items: center; justify-content: center; gap: 9px; min-height: 42px; padding: 0 18px; border: 1px solid var(--ink); background: var(--paper); transition: .12s ease; }
       .btn:hover:not(:disabled) { background: var(--ink); color: var(--paper); }
       .btn:disabled { opacity: .45; cursor: not-allowed; }
@@ -3781,10 +4294,6 @@ function FeuilletonStyles() {
       .mobile-empty-task-note {
         display: none;
       }
-      .feuilleton-mobile-actions,
-      .feuilleton-mobile-en-toggle {
-        display: none;
-      }
       .mobile-panel-dialogue {
         display: none;
       }
@@ -3828,47 +4337,46 @@ function FeuilletonStyles() {
         background: var(--paper);
         overflow: hidden;
       }
-      .s-mast {
-        border-bottom: 2px solid var(--ink);
-        padding: 18px 20px 16px;
-        text-align: center;
+      .serial-panel-stack { padding: 0 18px 8px; }
+      /* Relationship cue for the character in this episode (functional; the
+         "Le Feuilleton" design pass will restyle it). */
+      .relationship-chip {
+        display: flex;
+        width: fit-content;
+        align-items: center;
+        gap: 7px;
+        margin: 12px auto 0;
+        border: 1px solid var(--ink);
+        background: var(--sheet);
+        padding: 4px 10px;
+        text-decoration: none;
+        color: inherit;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: .06em;
       }
-      .s-mast .kicker {
-        display: block;
-        margin: 0;
-        color: var(--ink-3);
-        font-size: 9px;
-        font-weight: 900;
-        letter-spacing: .26em;
-        text-transform: uppercase;
-      }
-      .s-mast .title {
-        margin: 6px 0 0;
+      .relationship-chip b {
         font-family: var(--serif);
-        font-size: clamp(32px, 7vw, 50px);
         font-style: italic;
         font-weight: 700;
-        line-height: .96;
+        font-size: 13px;
         letter-spacing: 0;
       }
-      .s-mast .dateline {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-wrap: wrap;
-        gap: 8px;
-        margin-top: 10px;
-        color: var(--ink-2);
-        font-size: 8.5px;
+      .relationship-chip i {
+        font-style: normal;
         font-weight: 900;
-        letter-spacing: .12em;
         text-transform: uppercase;
+        letter-spacing: .1em;
+        padding: 2px 6px;
+        border: 1px solid currentColor;
       }
-      .s-mast .dateline i {
-        display: inline-block;
-        width: 3px;
-        height: 3px;
-        background: var(--ink-3);
+      .relationship-chip i.tu { color: var(--red); }
+      .relationship-chip i.vous { color: var(--ink-3); }
+      .relationship-chip em {
+        font-style: normal;
+        text-transform: uppercase;
+        letter-spacing: .1em;
+        color: var(--ink-2);
       }
       .s-news {
         display: flex;
@@ -3895,40 +4403,6 @@ function FeuilletonStyles() {
         font-size: 13px;
         font-style: italic;
         line-height: 1.25;
-      }
-      .s-prev {
-        margin: 16px 18px 4px;
-        border: 1px solid var(--ink);
-        background: var(--paper);
-      }
-      .s-prev .ph {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 7px 12px;
-        border-bottom: 1px dashed var(--ink-3);
-      }
-      .s-prev .tag {
-        color: var(--red);
-        font-size: 8.5px;
-        font-weight: 900;
-        letter-spacing: .16em;
-        text-transform: uppercase;
-      }
-      .s-prev .tag.stamp2 {
-        margin-left: auto;
-        border: 1px solid var(--ink-3);
-        color: var(--ink-3);
-        padding: 2px 6px;
-        transform: rotate(-2deg);
-      }
-      .s-prev .pb {
-        padding: 10px 13px 12px;
-        color: var(--ink-2);
-        font-family: var(--serif);
-        font-size: 14.5px;
-        font-style: italic;
-        line-height: 1.32;
       }
       .serial-reader-toggle {
         display: grid;
@@ -3958,62 +4432,8 @@ function FeuilletonStyles() {
         gap: 0;
         padding: 0 0 10px;
       }
-      .s-panel {
-        margin: 18px;
-      }
       .serial-panel {
         --accent: var(--char-romy);
-      }
-      .s-art {
-        position: relative;
-        min-height: 260px;
-        aspect-ratio: 4 / 3;
-        border: 1.5px solid var(--ink);
-        background: var(--paper-2);
-        background-image: repeating-linear-gradient(135deg, rgba(20,17,13,.06) 0 2px, transparent 2px 12px);
-        overflow: hidden;
-      }
-      .s-art img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        display: block;
-      }
-      .s-art .frame-note {
-        position: absolute;
-        top: 9px;
-        left: 9px;
-        z-index: 4;
-        max-width: 72%;
-        border: 1px solid var(--ink-3);
-        background: color-mix(in srgb, var(--paper) 92%, transparent);
-        color: var(--ink-3);
-        padding: 3px 6px;
-        font-family: var(--mono);
-        font-size: 9px;
-        font-weight: 600;
-        letter-spacing: .02em;
-      }
-      .s-cap {
-        display: grid;
-        grid-template-columns: auto 1fr;
-        gap: 11px;
-        align-items: baseline;
-        padding: 10px 2px 2px;
-      }
-      .s-cap .n {
-        color: var(--ink-3);
-        font-size: 10px;
-        font-weight: 900;
-        letter-spacing: .04em;
-      }
-      .s-cap .c {
-        color: var(--ink);
-        font-family: var(--serif);
-        font-size: 17px;
-        font-style: italic;
-        line-height: 1.3;
-        text-wrap: pretty;
       }
       .serial-panel .context-vocabulary-marker {
         margin: 9px 0 0;
@@ -4079,9 +4499,6 @@ function FeuilletonStyles() {
       .feuilleton-cliffhanger {
         margin: 0;
         border: 0;
-      }
-      .feuilleton-cliffhanger .s-ava {
-        --accent: inherit;
       }
       .source-translation {
         margin-top: 10px;
@@ -4754,70 +5171,65 @@ function FeuilletonStyles() {
         .fn-masthead nav { flex-wrap: wrap; }
         .fn-side { order: -1; }
       }
-      @media (max-width: 760px) {
+      @media (max-width: 900px) {
+        .feuilleton-reader-tools { display: none; }
         .feuilleton-page {
           padding-bottom: calc(var(--phone-bottom-nav-space) + 18px);
         }
-        .feuilleton-page .feuilleton-mobile-actions {
-          display: inline-grid;
-          grid-template-columns: auto auto auto;
-          align-items: center;
-          gap: 8px;
+        .feuilleton-page .fe-embed > .fe-secnav {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 0;
+          border-bottom: 1px solid var(--ink);
+          background: transparent;
+          padding: 0;
         }
-        .feuilleton-page .feuilleton-mobile-today {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          min-width: 64px;
-          min-height: 44px;
-          border: 1px solid var(--ink);
-          background: var(--sheet);
-          color: var(--ink);
-          padding: 8px 10px;
-          text-decoration: none;
-          font-size: 10px;
-          font-weight: 900;
+        .feuilleton-page .fe-embed > .fe-secnav a {
+          min-width: 0;
+          padding: 10px 4px 8px;
+          overflow: hidden;
+          text-align: center;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          font-size: 8.5px;
           letter-spacing: .08em;
-          text-transform: uppercase;
         }
-        .feuilleton-page .feuilleton-mobile-en-toggle {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          min-width: 56px;
-          min-height: 44px;
+        .feuilleton-page .feuilleton-mobile-edition-tools {
+          display: grid;
+          grid-template-columns: .65fr 1fr 1.35fr;
           border: 1px solid var(--ink);
           background: var(--sheet);
-          color: var(--ink);
-          padding: 8px 12px;
-          font-size: 11px;
-          font-weight: 900;
-          letter-spacing: .13em;
-          text-transform: uppercase;
         }
-        .feuilleton-page .feuilleton-mobile-en-toggle.active {
-          background: var(--ink);
-          color: var(--paper);
-        }
-        .feuilleton-page .feuilleton-mobile-new-scene {
+        .feuilleton-page .feuilleton-mobile-edition-tools a,
+        .feuilleton-page .feuilleton-mobile-edition-tools button {
           display: inline-flex;
+          min-width: 0;
+          min-height: 36px;
           align-items: center;
           justify-content: center;
-          gap: 6px;
-          min-height: 44px;
-          border: 1px solid var(--ink);
-          background: var(--red);
-          color: var(--paper);
-          padding: 8px 12px;
-          font-size: 10px;
+          gap: 5px;
+          border-right: 1px solid var(--ink);
+          padding: 6px;
+          overflow: hidden;
+          color: var(--ink);
+          font-size: 8.5px;
           font-weight: 900;
-          letter-spacing: .12em;
+          letter-spacing: .07em;
+          line-height: 1.1;
+          text-align: center;
+          text-decoration: none;
+          text-overflow: ellipsis;
           text-transform: uppercase;
           white-space: nowrap;
         }
-        .feuilleton-page .feuilleton-mobile-new-scene:disabled {
-          opacity: .55;
-          cursor: not-allowed;
+        .feuilleton-page .feuilleton-mobile-edition-tools .new-edition {
+          border-right: 0;
+          background: var(--red);
+          color: #fff;
+        }
+        .feuilleton-page .feuilleton-mobile-edition-tools button:disabled {
+          cursor: wait;
+          opacity: .6;
         }
         .fn-spread {
           padding-inline: var(--phone-gutter);
@@ -4845,9 +5257,6 @@ function FeuilletonStyles() {
           border-bottom-width: 1px;
         }
         .feuilleton-page.has-scene .fn-title {
-          display: none;
-        }
-        .feuilleton-page.has-scene .app-mobile-nav {
           display: none;
         }
         .fn-title h1 {
@@ -4998,6 +5407,42 @@ function FeuilletonStyles() {
         .feuilleton-page .empty-state-copy h2 {
           font-size: 31px;
         }
+        .feuilleton-page .canonical-beat-handoff {
+          grid-template-columns: 78px minmax(0, 1fr);
+          min-height: 360px;
+          box-shadow: 5px 5px 0 var(--ink);
+        }
+        .feuilleton-page .canonical-beat-number {
+          padding: 18px 8px;
+        }
+        .feuilleton-page .canonical-beat-number strong {
+          font-size: 48px;
+        }
+        .feuilleton-page .canonical-beat-number span,
+        .feuilleton-page .canonical-beat-number em {
+          font-size: 8px;
+          letter-spacing: .09em;
+          writing-mode: vertical-rl;
+        }
+        .feuilleton-page .canonical-beat-copy {
+          gap: 13px;
+          padding: 24px 18px;
+        }
+        .feuilleton-page .canonical-beat-copy h2 {
+          font-size: 32px;
+        }
+        .feuilleton-page .canonical-beat-copy p {
+          font-size: 14px;
+          line-height: 1.4;
+        }
+        .feuilleton-page .canonical-beat-cta {
+          width: 100%;
+          min-height: 58px;
+          justify-content: space-between;
+          padding: 0 14px;
+          font-size: 10px;
+          line-height: 1.25;
+        }
         .feuilleton-page .mobile-empty-note {
           display: block;
           color: var(--ink-2);
@@ -5031,10 +5476,18 @@ function FeuilletonStyles() {
         }
         .feuilleton-page .edition-preparing {
           grid-template-columns: 1fr;
-          padding: 20px;
+          padding: 0;
+          background: transparent;
         }
         .feuilleton-page .edition-actions {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
           min-width: 0;
+        }
+        .feuilleton-page .edition-preparing .fe-notice {
+          margin: 0;
+        }
+        .feuilleton-page .edition-retrying {
+          grid-column: 1 / -1;
         }
         .feuilleton-page .scene-brief {
           width: 100%;
@@ -5182,18 +5635,6 @@ function FeuilletonStyles() {
           border-left: 0;
           border-right: 0;
         }
-        .feuilleton-page .s-mast {
-          padding: 16px 16px 14px;
-        }
-        .feuilleton-page .s-mast .kicker {
-          display: block;
-        }
-        .feuilleton-page .s-mast .title {
-          font-size: 34px;
-        }
-        .feuilleton-page .s-mast .dateline {
-          gap: 7px;
-        }
         .feuilleton-page .s-news {
           display: grid;
           gap: 7px;
@@ -5202,9 +5643,7 @@ function FeuilletonStyles() {
         .feuilleton-page .s-news .lbl {
           width: fit-content;
         }
-        .feuilleton-page .s-prev,
         .feuilleton-page .serial-reader-toggle,
-        .feuilleton-page .s-panel,
         .feuilleton-page .s-fork {
           margin-left: var(--phone-gutter);
           margin-right: var(--phone-gutter);
@@ -5212,16 +5651,6 @@ function FeuilletonStyles() {
         .feuilleton-page .serial-panel .s-fork {
           margin-left: 0;
           margin-right: 0;
-        }
-        .feuilleton-page .s-art {
-          min-height: var(--phone-art-min-height);
-          aspect-ratio: 3 / 4;
-        }
-        .feuilleton-page .s-cap {
-          gap: 9px;
-        }
-        .feuilleton-page .s-cap .c {
-          font-size: 16px;
         }
         .feuilleton-page .serial-act-body {
           padding: 11px;
@@ -5364,6 +5793,9 @@ function FeuilletonStyles() {
           opacity: 0;
           pointer-events: none;
           transition: opacity 150ms ease-out;
+        }
+        .feuilleton-page .serial-act > .fe-task {
+          display: none;
         }
         .feuilleton-page .mobile-story-task-launcher.revealed {
           opacity: 1;

@@ -123,6 +123,12 @@ export interface AtelierToday {
   serial_episode?: Record<string, any> | null;
   serial?: Record<string, any> | null;
   library_episode?: Record<string, any> | null;
+  phrase_of_day?: {
+    text: string;
+    byline: string;
+    session_date: string;
+    paru: boolean;
+  } | null;
 }
 
 export interface AtelierDayProgress {
@@ -514,6 +520,9 @@ export interface AtelierSessionStart {
   };
   due_errata: AtelierErratum[];
   recap: Record<string, any>;
+  learning_moments?: {
+    adaptive_locks?: Record<string, Record<string, any>>;
+  };
 }
 
 export interface AtelierAttemptResult {
@@ -815,12 +824,20 @@ export interface MissionToday {
 }
 
 export interface SerialToday {
+  id?: string;
   thread_id: string;
   episode_index: number;
+  episode_label?: string;
+  beat?: 'act' | 'see' | string;
   kind: 'mission' | 'feuilleton' | string;
   status?: string;
   mission_id?: string | null;
   scene_id?: string | null;
+  previously?: string | null;
+  hook_from_previous?: Record<string, any> | null;
+  hook?: Record<string, any> | null;
+  brief_payload?: Record<string, any> | null;
+  location_id?: string | null;
   thread?: Record<string, any>;
 }
 
@@ -1616,6 +1633,8 @@ class ApiService {
       mode: string;
       exercise_id: string;
       answer_payload: Record<string, any>;
+      confidence?: 'sure' | 'unsure' | null;
+      retest_source_attempt_id?: string | null;
       resubmit?: boolean;
     }
   ) {
@@ -1624,6 +1643,10 @@ class ApiService {
 
   async getAtelierAttempt(attemptId: string) {
     return this.atelierGet<AtelierAttemptResult>(`/atelier/attempts/${attemptId}`);
+  }
+
+  async repairAtelierAttempt(attemptId: string, data: { text: string; erratum_index: number }) {
+    return this.atelierPost<AtelierAttemptResult>(`/atelier/attempts/${attemptId}/repair`, data);
   }
 
   async requestAtelierAttemptAiReview(attemptId: string) {
@@ -1777,9 +1800,10 @@ class ApiService {
     public_figure_mode?: 'off' | 'named_context' | 'editorial_caricature';
     force_new?: boolean;
     refresh_news?: boolean;
+    async_generation?: boolean;
   }) {
     const response = await this.atelierPost<{ scene: GraphicNovelScene }>('/graphic-novel/scenes', data || {}, {
-      timeout: 720000,
+      timeout: 30000,
     });
     return response.scene;
   }

@@ -63,7 +63,7 @@ let previewAccessToken = '';
 let previewSeedPayload = null;
 const atelierReadyExpression = "Boolean(document.querySelector('.atelier-edition-stage .ph, .atelier-edition-stage .current-panel, .atelier-edition-stage .spine'))";
 const atelierOnboardingExpression = "Boolean(document.querySelector('.serial-welcome-backdrop'))";
-const missionsReadyExpression = "Boolean(document.querySelector('.missions-page .mission-stage, .missions-page .composer, .missions-page .mission-nav'))";
+const missionsReadyExpression = "Boolean(document.querySelector('.cr .cr-desk, .cr .cr-empty'))";
 
 const allFrames = [
   {
@@ -889,7 +889,7 @@ async function assertSmokeHealth(client, frame) {
         const appMastheads = visible('header.app-masthead, .app-masthead');
         const productMastheads = visible('header.app-masthead, .app-masthead, .ph-head');
         const fullScreenDoMode = Boolean(document.querySelector('.atelier-do-mode, .session-spread'));
-        const ownProductShell = Boolean(document.querySelector('.missions-page .mission-nav'));
+        const ownProductShell = Boolean(document.querySelector('.cr .cr-desk, .cr .cr-empty, .cr .cr-skel'));
         const errors = [];
         if (appMastheads.length > 1) {
           errors.push('duplicate editorial masthead: ' + appMastheads.length);
