@@ -18,14 +18,15 @@ def test_serial_archive_cast_and_replay_pages_are_wired() -> None:
     api = read_web("services/api.ts")
 
     assert "apiService.getSerialEpisodes()" in archive
-    assert "'Season ' + seasonNumber" in archive
-    assert 'className="s-map"' in archive
-    assert "aria-label={`Season ${seasonNumber} thread`}" in archive
-    assert 'className="s-ep-link"' in archive
+    # "Le Feuilleton" supplement reskin: the archive is the bound season.
+    assert "La saison reliée" in archive
+    assert "FeArchivePlate" in archive
+    assert "FeSectionNav" in archive
     assert "href=\"/serial/cast\"" in archive
     assert "apiService.getSerialCast()" in cast
     assert "apiService.setSerialAvatar" in cast
-    assert "Use POV" in cast
+    assert "Rester en POV" in cast
+    assert "FeCastCard" in cast
     assert "model_sheet_url" in cast
     assert "relationship.closeness" in cast
     assert "apiService.getGraphicNovelScene" in replay
@@ -69,11 +70,46 @@ def test_graphic_novel_completion_routes_to_returned_serial_beat() -> None:
     assert "routeForSerialBeat(result.next_serial)" in source
     assert "function routeForMissionSerialBeat" in missions
     assert "serialQueryString(serial)" in missions
-    assert "routeForMissionSerialBeat(result.next_serial)" in missions
-    assert "File this edition first" in source
-    assert "const primaryAction = scene.status === 'completed'" in source
-    assert "label: 'Finish edition', href: '#reading-panels'" in source
-    assert "href={scene.status === 'completed' ? feuilletonNextMissionHref(scene) : '#reading-panels'}" in source
+    assert "routeForMissionSerialBeat(completedNextSerial)" in missions
+    # The non-serial continuation still follows the declared next beat.
+    assert "const nextBeatIsMission = hook?.next_beat_kind === 'mission'" in source
+    assert "routeWithQuery('/missions', missionPairs)" in source
+    assert "routeWithQuery('/graphic-novel', readerPairs)" in source
+    assert "scene.status === 'completed' ? nextBeatLabel : 'Terminer l’édition'" in source
+    assert "scene.status === 'completed' ? nextBeatHref : '#reading-panels'" in source
+
+
+def test_feuilleton_legacy_reader_rules_are_pruned_after_fe_panel_adoption() -> None:
+    source = read_web("pages/graphic-novel.tsx")
+
+    for dead_selector in (".s-mast", ".s-prev", ".s-panel", ".s-art", ".s-cap"):
+        assert dead_selector not in source
+
+    # Task and news selectors remain live.
+    assert 'className="s-news"' in source
+    assert 'className="s-fork serial-final-act"' in source
+
+
+def test_graphic_novel_default_route_rejoins_canonical_story_beat() -> None:
+    source = read_web("pages/graphic-novel.tsx")
+
+    assert "const [canonicalBeat, setCanonicalBeat]" in source
+    assert "const [serialResult, editionsResult] = await Promise.allSettled" in source
+    assert "if (serial.kind === 'feuilleton' && serial.scene_id)" in source
+    assert "canonicalBeat?.kind === 'mission'" in source
+    assert "La suite se joue avant de se lire." in source
+    assert "OUVRIR LA MISSION DU JOUR" in source
+    assert "onClick={openCanonicalBeat}" in source
+    assert "Aucun récit parallèle ne sera créé." in source
+
+
+def test_feuilleton_translation_toggle_and_tablet_reader_are_reading_first() -> None:
+    source = read_web("pages/graphic-novel.tsx")
+
+    assert "en: showTranslations ? bubble.en : undefined" in source
+    assert "window.matchMedia('(max-width: 900px)')" in source
+    assert "@media (max-width: 900px)" in source
+    assert ".feuilleton-page .serial-act > .fe-task" in source
 
 
 def test_almanac_story_seals_render_panel_crop_art() -> None:
@@ -100,10 +136,10 @@ def test_product_direction_surfaces_are_wired() -> None:
     redirects = read_web("next.config.js")
     bibliotheque = read_web("pages/bibliotheque.tsx")
 
-    assert "CEFRPromiseStrip" in atelier
+    assert "<LuCours" in atelier
     assert "estimatedRemainingMinutes" in atelier
-    assert "TranslateButton" in missions
-    assert "className=\"mission-stage\"" in missions
+    assert "CrTranslate" in missions or "translate={translateFrame}" in missions
+    assert "className=\"cr motion\"" in missions
     assert "missionVariety" in missions
     assert "voicemail_reply" in api
     assert "admin_form" in api

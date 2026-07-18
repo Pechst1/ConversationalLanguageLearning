@@ -39,8 +39,11 @@ def test_mission_screen_removed_duplicate_repair_chrome_while_feuilleton_uses_sl
     assert "function TurnRepairMarkup" not in missions
     assert "className=\"turn-repair-slip\"" not in missions
     assert "function CorrectionStack" not in missions
-    assert "className=\"scene-frame\"" in missions
-    assert "import { ContinuationCard, MobileBottomSheet, RedInkRepairSlip, VocabularyCreditBadge }" in feuilleton
+    # Missions keeps its own quiet graphite repair (CrRepair), not the shared slip.
+    assert "<CrRepair" in missions
+    assert "correctedAnswer={correctedAnswer}" in missions
+    assert "savedCount={savedCount}" in missions
+    assert "import { MobileBottomSheet, RedInkRepairSlip, VocabularyCreditBadge }" in feuilleton
     assert "source=\"Feuilleton" in feuilleton
 
 

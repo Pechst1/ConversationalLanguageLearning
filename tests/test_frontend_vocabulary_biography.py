@@ -156,11 +156,11 @@ def test_atelier_daily_session_surfaces_target_vocabulary_in_context() -> None:
 def test_atelier_today_surfaces_vocabulary_training_step() -> None:
     source = read_page(ATELIER_PAGE)
 
+    # On the La Une front page the vocabulary review path is the "Le Lexique"
+    # article, which routes to /vocabulary/review when words are due.
     assert "vocabularyReviewDue" in source
-    assert 'name="Vocabulary training"' in source
+    assert "<LuLexique" in source
     assert 'href="/vocabulary/review"' in source
-    assert 'roman="VOC"' in source
-    assert "function AtelierVocabularyOpen" in source
 
 
 def test_atelier_daily_plan_waits_for_active_session_hydration() -> None:

@@ -1,3 +1,14 @@
+import sys
+
+import pytest
+
+if sys.version_info >= (3, 14):
+    pytest.skip(
+        "spaCy's pydantic.v1 dependency is not compatible with Python 3.14 yet; "
+        "tracked in docs/audit-2026-07-18-status-and-work-packages.md (WP-10)",
+        allow_module_level=True,
+    )
+
 import spacy
 
 from app.core.error_detection import (

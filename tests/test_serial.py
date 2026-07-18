@@ -986,7 +986,7 @@ def test_delayed_feuilleton_retries_without_duplicate_episode(db_session, monkey
         .filter(SerialEpisode.thread_id == thread.id, SerialEpisode.episode_index == 1)
         .one()
     )
-    assert calls == 1
+    assert calls == 0
     assert still_delayed["status"] == "delayed"
     assert delayed_episode.status == "delayed"
     assert delayed_episode.scene_id is None
@@ -997,7 +997,11 @@ def test_delayed_feuilleton_retries_without_duplicate_episode(db_session, monkey
         == 1
     )
 
-    retried = _run(service.today(user))
+    first_retry = _run(service.start_feuilleton_beat(thread, retry_delayed=True))
+    assert calls == 1
+    assert first_retry.status == "delayed"
+
+    retried = _run(service.start_feuilleton_beat(thread, retry_delayed=True))
     db_session.expire_all()
     retry_episode = (
         db_session.query(SerialEpisode)
@@ -1006,8 +1010,8 @@ def test_delayed_feuilleton_retries_without_duplicate_episode(db_session, monkey
     )
 
     assert calls == 2
-    assert retried["status"] == "available"
-    assert retried["scene_id"]
+    assert retried.status == "available"
+    assert retried.scene_id
     assert retry_episode.status == "available"
     assert retry_episode.scene_id
     assert (
@@ -1070,6 +1074,85 @@ def test_stale_generating_scene_expires_to_retryable_delayed_episode(db_session)
     assert episode.status == "delayed"
     assert episode.scene_id is None
     assert "retardée" in episode.hook["text"]
+
+
+def test_stale_generating_scene_with_readable_panels_is_published(db_session):
+    user = _user(db_session, email="serial-stale-readable@example.com")
+    service = SerialThreadService(db_session)
+    thread = _run(service.get_or_create_thread(user))
+    thread.current_episode_index = 3
+    stale_at = datetime.now(timezone.utc) - timedelta(minutes=20)
+    panel_payload = {
+        "panel_index": 1,
+        "title": "The readable panel",
+        "beat": "The story continues even without artwork.",
+        "image_prompt": "A Parisian interior.",
+        "overlay_payload": {"caption": {"fr": "L'histoire continue.", "en": "The story continues."}},
+    }
+    scene = GraphicNovelScene(
+        user_id=user.id,
+        serial_thread_id=thread.id,
+        episode_index=3,
+        status="generating",
+        cadence="serial",
+        title="Readable scene",
+        brief="A complete script waiting only for artwork.",
+        selected_concept_ids=[],
+        target_errata_ids=[],
+        target_vocabulary_ids=[],
+        source_snapshot={},
+        script_payload={
+            "panels": [panel_payload],
+            "location_id": "le_mistral",
+            "hook": {"text": "The readable hook.", "next_beat_kind": "mission"},
+        },
+        recap_payload={},
+        cache_key=f"serial-stale-readable-{uuid4().hex}",
+        prompt_version="test",
+        image_model="test",
+        image_quality="medium",
+        started_at=stale_at,
+        updated_at=stale_at,
+    )
+    db_session.add(scene)
+    db_session.flush()
+    panel = GraphicNovelPanel(
+        scene_id=scene.id,
+        panel_index=1,
+        title=panel_payload["title"],
+        beat=panel_payload["beat"],
+        image_prompt=panel_payload["image_prompt"],
+        image_url=None,
+        image_payload={"status": "queued"},
+        overlay_payload=panel_payload["overlay_payload"],
+        generation_metadata={"image_status": "queued"},
+    )
+    episode = SerialEpisode(
+        thread_id=thread.id,
+        episode_index=3,
+        kind="feuilleton",
+        scene_id=scene.id,
+        hook={},
+        hook_from_previous={},
+        state_delta={},
+        status="generating",
+        brief_payload=service._episode_brief(thread, "see").model_dump(mode="json"),
+    )
+    db_session.add_all([thread, panel, episode])
+    db_session.commit()
+
+    expired = service.expire_stale_generations(thread)
+    db_session.refresh(scene)
+    db_session.refresh(panel)
+    db_session.refresh(episode)
+
+    assert expired == 1
+    assert scene.status == "available"
+    assert scene.script_payload["generation_phase"] == "ready"
+    assert panel.generation_metadata["image_status"] == "failed"
+    assert episode.status == "available"
+    assert episode.scene_id == scene.id
+    assert episode.hook["text"] == "The readable hook."
 
 
 def test_full_loop(db_session, monkeypatch):

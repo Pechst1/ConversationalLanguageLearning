@@ -15,30 +15,38 @@ def read_atelier() -> str:
 def test_word_bank_mode_uses_clickable_sentence_tokens_and_answer_field() -> None:
     source = read_atelier()
 
+    # The word-bank chips are now the L'Épreuve "movable type" set line
+    # (EpSetLine/EpSlug) instead of a plain button grid + joined-text input.
     assert "{ id: 'word_bank', label: 'Word-bank', short: 'C' }" in source
     assert "mode === 'word_bank'" in source
     assert "sourceTokens.map((token: string, tokenIndex: number) => {" in source
     assert "onClick={() => updateAnswer(item.id, [...wordBankTokens, token])}" in source
-    assert "joinWordBankTokens(answers[item.id])" in source
-    assert "placeholder=\"Built sentence\"" in source
-    assert "onChange={(event) => updateAnswer(item.id, event.target.value)}" in source
+    assert "<EpSetLine empty={wordBankTokens.length === 0}>" in source
+    assert "wordBankTokens.map((token, selectedIndex) => (" in source
 
 
 def test_word_bank_tokens_can_be_removed_after_tapping() -> None:
     source = read_atelier()
 
+    # "used" state is now the EpSlug `spent` prop, not a plain className toggle.
     assert "wordBankTokenIsUsed(wordBankTokens, sourceTokens, token, tokenIndex)" in source
-    assert "className={used ? 'used' : ''}" in source
+    assert "spent={used}" in source
     assert "wordBankTokens.filter((_, tokenIndex) => tokenIndex !== selectedIndex)" in source
 
 
-def test_word_bank_feedback_uses_accent_insensitive_comparison() -> None:
+def test_word_bank_feedback_trusts_server_errata_not_client_string_compare() -> None:
     source = read_atelier()
 
     assert "function normalizeClient" in source
     assert ".normalize('NFD')" in source
     assert ".replace(/[\\u0300-\\u036f]/g, '')" in source
-    assert "normalizeClient(learnerText) === normalizeClient(targetText)" in source
+    # Correctness comes from the server's per-item errata, not a client-side
+    # normalizeClient(learner) === normalizeClient(target) compare: a word-bank
+    # answer built from tokens like "J'" + "ai" joins with a plain space ("J' ai"),
+    # and normalizeClient doesn't collapse that the way the backend's
+    # French-elision-aware normalizer does, so a correct answer with an elidable
+    # apostrophe (j', c', l', ...) would otherwise be flagged wrong.
+    assert "const correct = matchingErrata.length === 0;" in source
 
 
 def test_atelier_page_does_not_render_old_hardcoded_exercise_fallbacks() -> None:
@@ -48,7 +56,8 @@ def test_atelier_page_does_not_render_old_hardcoded_exercise_fallbacks() -> None
     assert "Le Tour de France 2026 partira de Barcelone le 4 juillet." not in source
     assert "Use the x-ray and the rule panel as the proofing reference while you answer." not in source
     assert "Session content unavailable." in source
-    assert "Writing prompt unavailable." in source
+    # French copy per the L'Épreuve language rule (in-fiction chrome is French).
+    assert "La consigne de composition est indisponible." in source
 
 
 def test_atelier_word_counts_do_not_mask_missing_generated_limits() -> None:

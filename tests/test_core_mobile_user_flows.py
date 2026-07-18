@@ -19,6 +19,8 @@ def test_public_onboarding_moves_from_minimal_account_creation_to_daily_atelier(
     forgot = read(WEB / "pages" / "auth" / "forgot-password.tsx")
     app_auth = read(WEB / "lib" / "app-auth.tsx")
     route_gate = read(WEB / "components" / "auth" / "RouteAuthGate.tsx")
+    next_config = read(WEB / "next.config.js")
+    frontend_readme = read(WEB / "README.md")
 
     assert "if (status === 'authenticated')" in home
     assert "router.push('/atelier')" in home
@@ -36,6 +38,8 @@ def test_public_onboarding_moves_from_minimal_account_creation_to_daily_atelier(
     assert "const effectiveStatus: AppAuthStatus = refreshFailed ? 'unauthenticated' : nextSession.status" in app_auth
     assert "'/auth/forgot-password'" in route_gate
     assert "sanitizeAuthCallbackUrl(router.asPath)" in route_gate
+    assert "NEXTAUTH_URL: process.env.NEXTAUTH_URL || 'http://localhost:3000'" not in next_config
+    assert "NEXTAUTH_URL=http://localhost:3001 npm run dev -- -p 3001" in frontend_readme
 
     assert "Password must be at least 8 characters" in signup
     assert "function authErrorMessage" in signup
@@ -125,15 +129,27 @@ def test_lean_mission_flow_is_complete_on_mobile() -> None:
     assert "apiService.createMission({" in missions
     assert "apiService.submitMissionTurn(mission.id" in missions
     assert "apiService.completeMission(mission.id)" in missions
-    assert "routeForMissionSerialBeat(result.next_serial)" in missions
-    assert "Next act" in missions
-    assert "apiService.translateToEnglish(text)" in missions
-    assert "className=\"mission-stage\"" in missions
-    assert "className=\"scene-frame\"" in missions
-    assert "className=\"thread-body\"" in missions
-    assert "className=\"composer\"" in missions
-    assert "className=\"reward-strip\"" in missions
-    assert "Token minted" in missions
+    assert "setCompletedNextSerial(result.next_serial || null)" in missions
+    # Completion stays on the recap; the learner explicitly chooses Atelier or the next act.
+    assert "Lire l’acte suivant" in missions
+    assert "Retour à l’Atelier" in missions
+    assert "router.push(routeForMissionSerialBeat(result.next_serial))" not in missions
+    assert "apiService.translateToEnglish(openingMessage)" in missions
+    # "Le Courrier" correspondence-desk surface: shell, desk header, slip thread,
+    # per-format composer, resolved-dossier stamp.
+    assert "className=\"cr motion\"" in missions
+    assert "<CrDesk" in missions
+    assert "className=\"cr-thread\"" in missions
+    assert "<CrComposer" in missions
+    assert "className=\"cr-resolve\"" in missions
+    assert "Compte rendu de mission" in missions
+    assert "Jeton frappé" in missions
+    # Format-aware composer + voice + archive.
+    assert "function missionFormat(" in missions
+    assert "missionFormatPayload(mission)" in missions
+    assert "CourrierMic" in missions
+    assert "apiService.transcribeMissionAudio(blob)" in missions
+    assert "today?.recent_completed" in missions
 
     assert "custom_scenario?: string" in api
     assert "desired_outcome?: string" in api
@@ -156,13 +172,14 @@ def test_feuilleton_scene_flow_has_creation_tasks_completion_and_context_returns
     assert "apiService.completeGraphicNovelScene(scene.id)" in feuilleton
     assert 'aria-label="Create a new Feuilleton scene"' in feuilleton
     assert 'aria-label="Feuilleton mode"' in feuilleton
-    assert 'aria-label="Panel count"' in feuilleton
+    assert "apiService.getSerialToday()" in feuilleton
+    assert 'aria-label="Prochain acte du Feuilleton"' in feuilleton
     assert 'aria-label="Feuilleton reading actions"' in feuilleton
     assert 'aria-label="Final Feuilleton task"' in feuilleton
     assert 'aria-label="Feuilleton completion"' in feuilleton
     assert "function FeuilletonContinuationCard" in feuilleton
     assert "routeWithQuery('/missions', missionPairs)" in feuilleton
-    assert "routeWithQuery('/atelier', atelierPairs)" in feuilleton
+    assert "routeWithQuery('/graphic-novel', readerPairs)" in feuilleton
 
     assert "async getGraphicNovelToday()" in api
     assert "async createGraphicNovelScene" in api

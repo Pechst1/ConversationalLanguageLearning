@@ -18,11 +18,11 @@ from app.db.models.grammar import GrammarConcept
 from app.db.models.graphic_novel import GraphicNovelPanel, GraphicNovelScene
 from app.db.models.mission import RealWorldMission
 from app.db.models.progress import UserVocabularyProgress
-from app.db.models.serial import SerialThread
+from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
 from app.services.atelier import AtelierScheduler
-from app.services.graphic_novel import GraphicNovelCorrectionService, GraphicNovelGenerationError, GraphicNovelScheduler, GraphicNovelStoryGenerator
+from app.services.graphic_novel import GraphicNovelCorrectionService, GraphicNovelScheduler, GraphicNovelStoryGenerator
 
 
 def _patch_story(monkeypatch):
@@ -654,7 +654,7 @@ def test_feuilleton_panel_mode_uses_per_panel_image_payloads(client: TestClient,
     assert all("human continuity" in panel["image_prompt"].lower() for panel in scene["panels"])
 
 
-def test_feuilleton_generation_failure_is_honest(client: TestClient, db_session, monkeypatch):
+def test_feuilleton_generation_recovers_without_story_llm(client: TestClient, db_session, monkeypatch):
     monkeypatch.setattr("app.services.graphic_novel._safe_llm", lambda: None)
     token = _token(client)
     concept = _concept(db_session)
@@ -665,10 +665,118 @@ def test_feuilleton_generation_failure_is_honest(client: TestClient, db_session,
         headers={"Authorization": f"Bearer {token}"},
     )
 
-    assert response.status_code == 503
-    detail = response.json()["detail"]
-    assert detail["code"] == "feuilleton_generation_failed"
-    assert "story_llm_unavailable" in detail["errors"]
+    assert response.status_code == 200
+    scene = response.json()["scene"]
+    script = scene["script_payload"]
+    assert script["generation_debug"]["status"] == "local_character_recovery_script"
+    assert script["generation_debug"]["provider_error"] == "story_llm_unavailable"
+    assert script["generation_debug"]["fallback_used"] is True
+    assert script["visual_only_demo"] is False
+    assert script["generation_debug"]["serial_plan_source"] == "continuity_recovery"
+    assert script["title"] == "Romy garde une porte ouverte"
+    assert script["final_prompt"]["id"] == "serial_final_line"
+    panel_tasks = [
+        task
+        for panel in scene["panels"]
+        for task in panel["overlay_payload"].get("tasks", [])
+    ]
+    assert len(panel_tasks) == script["task_count"]
+    validation_errors = script["generation_debug"]["validation_errors"]
+    assert not any(error.startswith("overlay_task_count_mismatch") for error in validation_errors)
+    assert "task_missing_scene_function" not in validation_errors
+    assert "task_missing_feedback_context" not in validation_errors
+    assert "closed_task_copied_from_caption" not in validation_errors
+    assert "comedy_validation_grammar_not_driving_every_panel_failed" not in validation_errors
+    assert "third_person_feedback" not in validation_errors
+
+
+def test_ad_hoc_recovery_rejoins_active_serial_cast_and_plot(client: TestClient, db_session, monkeypatch):
+    monkeypatch.setattr("app.services.graphic_novel._safe_llm", lambda: None)
+    token = _token(client)
+    user = _user_from_token(db_session, token)
+    thread = SerialThread(
+        user_id=user.id,
+        status="active",
+        world_bible=_serial_world(),
+        state={
+            "user": {"has_met_group": True},
+            "relationships": {
+                "romy_tremblay": {"register": "tu", "closeness": 3},
+                "lila_bonnet": {"register": "tu", "closeness": 4},
+            },
+        },
+        news_seed={"title": "A quiet day in Paris"},
+        current_episode_index=2,
+    )
+    episode = SerialEpisode(
+        thread=thread,
+        episode_index=2,
+        kind="mission",
+        status="available",
+        location_id="le_mistral",
+        hook_from_previous={
+            "text": "Romy found a note under the table.",
+            "unresolved_question": "Pourquoi Romy a-t-elle caché le mot ?",
+        },
+        brief_payload={
+            "required_cast": ["romy_tremblay", "lila_bonnet"],
+            "location_id": "le_mistral",
+            "a_plot": {"stage_summary": "Romy must decide whether to show Lila the note."},
+            "hook_guidance": "Romy montrera-t-elle enfin le mot à Lila ?",
+        },
+    )
+    db_session.add_all([thread, episode])
+    db_session.commit()
+
+    response = client.post(
+        "/api/v1/graphic-novel/scenes",
+        json={"cadence": "ad_hoc", "use_news": False},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 200
+    scene = response.json()["scene"]
+    script = scene["script_payload"]
+    assert script["generation_debug"]["status"] == "local_character_recovery_script"
+    assert script["generation_debug"]["serial_plan_source"] == "continuity_recovery"
+    assert script["title"] == "Romy garde une porte ouverte"
+    speakers = {
+        bubble["speaker"]
+        for panel in scene["panels"]
+        for bubble in panel["overlay_payload"].get("bubbles", [])
+    }
+    assert speakers == {"Romy Tremblay", "Lila Bonnet"}
+    captions = [panel["overlay_payload"]["caption"]["fr"] for panel in scene["panels"]]
+    assert len(set(captions)) == len(captions)
+    assert all("tampon" not in caption.lower() for caption in captions)
+
+
+def test_feuilleton_generation_recovers_after_story_provider_exhausts_retries(
+    client: TestClient,
+    db_session,
+    monkeypatch,
+):
+    monkeypatch.setattr("app.services.graphic_novel._safe_llm", lambda: object())
+    monkeypatch.setattr(
+        GraphicNovelStoryGenerator,
+        "_llm_skeleton",
+        lambda self, **kwargs: None,
+    )
+    token = _token(client)
+    concept = _concept(db_session)
+
+    response = client.post(
+        "/api/v1/graphic-novel/scenes",
+        json={"cadence": "ad_hoc", "preferred_concept_ids": [concept.id]},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 200
+    generation = response.json()["scene"]["script_payload"]["generation_debug"]
+    assert generation["status"] == "local_character_recovery_script"
+    assert generation["provider_error"] == "skeleton_model_returned_no_valid_json_or_provider_timeout"
+    assert generation["attempts"] >= 1
+    assert generation["fallback_used"] is True
 
 
 def test_feuilleton_demo_script_can_power_mobile_qa_without_llm(client: TestClient, db_session, monkeypatch):
@@ -1196,7 +1304,7 @@ def test_serial_feuilleton_uses_llm_episode_plan_when_available(db_session, monk
     assert script["panels"][0]["overlay_payload"]["bubbles"][0]["accent_color"] == "marigold"
 
 
-def test_serial_episode_one_can_still_fallback_but_episode_two_needs_story_true_plan(db_session, monkeypatch):
+def test_serial_episode_two_uses_character_aware_continuity_recovery_without_llm(db_session, monkeypatch):
     generator = GraphicNovelStoryGenerator(db_session)
     user = User(
         id=uuid4(),
@@ -1236,23 +1344,117 @@ def test_serial_episode_one_can_still_fallback_but_episode_two_needs_story_true_
 
     assert fallback_script["generation_debug"]["serial_plan_source"] == "template"
     assert fallback_script["generation_debug"]["fallback_used"] is True
-    with pytest.raises(GraphicNovelGenerationError) as exc:
-        generator.build_script(
-            user=user,
-            concepts=[],
-            errata=[],
-            source_snapshot={"mode": "serial_news_seed", "title": "Paris tests a repair hotline", "source": "QA"},
-            panel_count=6,
-            story_quality="standard",
-            humor_style="satirical",
-            experience_mode="study",
-            render_mode="panels",
-            image_quality="medium",
-            public_figure_mode="named_context",
-            target_vocabulary=[{"word_id": 1, "word": "réparer", "translation": "to repair"}],
-            serial_context={**serial_context, "episode_index": 2},
-        )
-    assert "serial_story_llm_unavailable" in exc.value.errors
+    recovery_script = generator.build_script(
+        user=user,
+        concepts=[],
+        errata=[],
+        source_snapshot={"mode": "serial_news_seed", "title": "Paris tests a repair hotline", "source": "QA"},
+        panel_count=6,
+        story_quality="standard",
+        humor_style="satirical",
+        experience_mode="study",
+        render_mode="panels",
+        image_quality="medium",
+        public_figure_mode="named_context",
+        target_vocabulary=[{"word_id": 1, "word": "réparer", "translation": "to repair"}],
+        serial_context={
+            **serial_context,
+            "episode_index": 2,
+            "state": {
+                "heating_fixed": True,
+                "user": {"has_met_group": True},
+                "relationships": {"marin_leveque": {"register": "tu", "closeness": 3}},
+            },
+            "hook_from_previous": {
+                "text": "Marin asks for help with a secret.",
+                "unresolved_question": "Pourquoi Marin garde-t-il la main dans sa poche ?",
+            },
+            "episode_brief": {
+                "required_cast": ["marin_leveque", "lila_bonnet"],
+                "a_plot": {"stage_summary": "Marin's hidden ring creates pressure between him and Lila."},
+                "hook_guidance": "Marin dira-t-il enfin ce qu'il cache ?",
+            },
+        },
+    )
+
+    assert recovery_script["generation_debug"]["serial_plan_source"] == "continuity_recovery"
+    assert recovery_script["generation_debug"]["fallback_used"] is True
+    assert recovery_script["title"] == "La bague dans la poche"
+    captions = [panel["overlay_payload"]["caption"]["fr"] for panel in recovery_script["panels"]]
+    assert len(set(captions)) == len(captions)
+    dialogue = [
+        bubble
+        for panel in recovery_script["panels"]
+        for bubble in panel["overlay_payload"].get("bubbles", [])
+    ]
+    assert dialogue and {bubble["speaker"] for bubble in dialogue} <= {"Marin Lévêque", "Lila Bonnet"}
+    assert all(bubble["speaker"] != "Voix" for bubble in dialogue)
+    visible_copy = json.dumps(recovery_script, ensure_ascii=False).lower()
+    assert "radiator phrase" not in visible_copy
+    assert "introduce yourself" not in visible_copy
+
+
+def test_serial_recovery_can_select_visual_only_supporting_character(db_session, monkeypatch):
+    generator = GraphicNovelStoryGenerator(db_session)
+    monkeypatch.setattr(GraphicNovelStoryGenerator, "_serial_episode_plan", lambda self, **kwargs: None)
+    user = User(
+        id=uuid4(),
+        email=f"serial-supporting-cast-{uuid4()}@example.com",
+        hashed_password="x",
+        target_language="fr",
+        native_language="en",
+        proficiency_level="A2",
+    )
+    db_session.add(user)
+    db_session.commit()
+    world = _serial_world()
+    world["visual_design"]["characters"]["landlord_marchand"] = {
+        "canonical_descriptor": "Older Parisian landlord, neat grey coat, wire-frame glasses.",
+        "accent_colour": "ink-grey",
+    }
+
+    script = generator.build_script(
+        user=user,
+        concepts=[],
+        errata=[],
+        source_snapshot={"mode": "serial_news_seed", "title": "A quiet Paris day", "source": "QA"},
+        panel_count=6,
+        story_quality="standard",
+        humor_style="dry",
+        experience_mode="study",
+        render_mode="panels",
+        image_quality="medium",
+        public_figure_mode="named_context",
+        target_vocabulary=[{"word_id": 4, "word": "rendez-vous", "translation": "appointment"}],
+        serial_context={
+            "thread_id": str(uuid4()),
+            "episode_index": 2,
+            "world_bible": world,
+            "state": {"relationships": {"landlord_marchand": {"register": "vous", "closeness": 1}}},
+            "previous_locations": ["user_apartment"],
+            "hook_from_previous": {"text": "M. Marchand finally answers the message."},
+            "episode_brief": {
+                "required_cast": ["landlord_marchand"],
+                "location_id": "user_apartment",
+                "a_plot": {"stage_summary": "The repair appointment turns into a test of trust."},
+            },
+        },
+    )
+
+    assert script["title"] == "M. Marchand a une condition"
+    assert script["generation_debug"]["serial_plan_source"] == "continuity_recovery"
+    assert script["dialogue_register"].endswith("vous")
+    assert {member["name"] for member in script["character_bible"]} == {"M. Marchand"}
+    speakers = {
+        bubble["speaker"]
+        for panel in script["panels"]
+        for bubble in panel["overlay_payload"].get("bubbles", [])
+    }
+    assert speakers == {"M. Marchand"}
+    assert not any(
+        error.startswith("overlay_task_count_mismatch")
+        for error in script["generation_debug"]["validation_errors"]
+    )
 
 
 def test_serial_plan_rejects_first_meeting_task_after_group_is_known(db_session):
@@ -1527,6 +1729,220 @@ def test_scene_creation_queues_images_when_image_generation_enabled(db_session, 
     assert scene.panels
     assert all(panel.image_url is None for panel in scene.panels)
     assert all(panel.generation_metadata["image_status"] == "queued" for panel in scene.panels)
+
+
+def test_async_scene_endpoint_returns_pollable_writing_shell(client: TestClient, db_session, monkeypatch):
+    token = _token(client)
+    monkeypatch.setattr(
+        "app.api.v1.endpoints.graphic_novel._generate_prepared_scene",
+        lambda scene_id, user_id, create_kwargs: None,
+    )
+
+    response = client.post(
+        "/api/v1/graphic-novel/scenes",
+        json={
+            "cadence": "ad_hoc",
+            "panel_count": 4,
+            "use_news": False,
+            "async_generation": True,
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 200
+    scene = response.json()["scene"]
+    assert scene["status"] == "writing"
+    assert scene["title"] == "L’édition se compose"
+    assert scene["script_payload"]["generation_phase"] == "script"
+    assert scene["panels"] == []
+    persisted = db_session.get(GraphicNovelScene, UUID(scene["id"]))
+    assert persisted is not None
+    assert persisted.status == "writing"
+
+    repeated = client.post(
+        "/api/v1/graphic-novel/scenes",
+        json={
+            "cadence": "ad_hoc",
+            "panel_count": 4,
+            "use_news": False,
+            "async_generation": True,
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert repeated.status_code == 200
+    assert repeated.json()["scene"]["id"] == scene["id"]
+
+
+def test_async_serial_retry_links_episode_to_pollable_shell(client: TestClient, db_session, monkeypatch):
+    token = _token(client)
+    user = _user_from_token(db_session, token)
+    thread = SerialThread(
+        user_id=user.id,
+        status="active",
+        world_bible=_serial_world(),
+        state={},
+        news_seed={},
+        current_episode_index=1,
+    )
+    db_session.add(thread)
+    db_session.flush()
+    episode = SerialEpisode(
+        thread_id=thread.id,
+        episode_index=1,
+        kind="feuilleton",
+        hook={},
+        hook_from_previous={},
+        state_delta={},
+        brief_payload={},
+        status="delayed",
+    )
+    db_session.add(episode)
+    db_session.commit()
+    monkeypatch.setattr(
+        "app.api.v1.endpoints.graphic_novel._generate_prepared_scene",
+        lambda scene_id, user_id, create_kwargs: None,
+    )
+
+    response = client.post(
+        "/api/v1/graphic-novel/scenes",
+        json={
+            "cadence": "ad_hoc",
+            "serial_thread_id": str(thread.id),
+            "episode_index": 1,
+            "panel_count": 4,
+            "use_news": False,
+            "force_new": True,
+            "async_generation": True,
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 200
+    scene = response.json()["scene"]
+    db_session.refresh(episode)
+    assert scene["status"] == "writing"
+    assert episode.status == "writing"
+    assert str(episode.scene_id) == scene["id"]
+
+
+def test_prepared_background_generation_finishes_art_without_worker(monkeypatch):
+    calls: dict[str, Any] = {}
+
+    class FakeDb:
+        def get(self, model, item_id):
+            return object()
+
+        def rollback(self):
+            return None
+
+        def close(self):
+            return None
+
+    class FakeScheduler:
+        def __init__(self, db):
+            self.db = db
+
+        async def create(self, **kwargs):
+            calls.update(kwargs)
+
+        def mark_generation_failed(self, scene_id, error):
+            pytest.fail(f"background generation unexpectedly failed: {error}")
+
+    monkeypatch.setattr("app.api.v1.endpoints.graphic_novel.SessionLocal", FakeDb)
+    monkeypatch.setattr("app.api.v1.endpoints.graphic_novel.GraphicNovelScheduler", FakeScheduler)
+
+    from app.api.v1.endpoints.graphic_novel import _generate_prepared_scene
+
+    _generate_prepared_scene(uuid4(), uuid4(), {"cadence": "ad_hoc", "force_new": True})
+
+    assert calls["sync"] is True
+    assert calls["pending_scene_id"]
+    assert calls["force_new"] is True
+
+
+def test_prepared_scene_is_finalized_in_place(db_session, monkeypatch):
+    monkeypatch.setattr(settings, "GRAPHIC_NOVEL_IMAGE_GENERATION_ENABLED", False)
+
+    class FakeGenerator:
+        def build_script(self, **kwargs):
+            script = _valid_visual_script(panel_count=kwargs["panel_count"])
+            script["render_mode"] = kwargs["render_mode"]
+            return script
+
+    user = User(
+        id=uuid4(),
+        email=f"prepared-feuilleton-{uuid4()}@example.com",
+        hashed_password="x",
+        target_language="fr",
+        native_language="en",
+        proficiency_level="B1",
+    )
+    db_session.add(user)
+    db_session.commit()
+    scheduler = GraphicNovelScheduler(db_session, generator=FakeGenerator())
+    pending = scheduler.prepare_generation(user=user, cadence="ad_hoc", image_quality="medium")
+
+    completed = asyncio.run(
+        scheduler.create(
+            user=user,
+            cadence="ad_hoc",
+            panel_count=4,
+            force_new=True,
+            sync=True,
+            pending_scene_id=pending.id,
+        )
+    )
+
+    assert completed.id == pending.id
+    assert completed.status == "available"
+    assert completed.script_payload["generation_phase"] == "ready"
+    assert len(completed.panels) == 4
+
+
+def test_art_failure_keeps_prepared_scene_readable(db_session, monkeypatch):
+    monkeypatch.setattr(settings, "GRAPHIC_NOVEL_IMAGE_GENERATION_ENABLED", True)
+
+    class FakeGenerator:
+        def build_script(self, **kwargs):
+            script = _valid_visual_script(panel_count=kwargs["panel_count"])
+            script["render_mode"] = kwargs["render_mode"]
+            return script
+
+    user = User(
+        id=uuid4(),
+        email=f"prepared-art-fallback-{uuid4()}@example.com",
+        hashed_password="x",
+        target_language="fr",
+        native_language="en",
+        proficiency_level="B1",
+    )
+    db_session.add(user)
+    db_session.commit()
+    scheduler = GraphicNovelScheduler(db_session, generator=FakeGenerator())
+    monkeypatch.setattr(
+        scheduler,
+        "_render_panel_payloads",
+        AsyncMock(side_effect=RuntimeError("image provider unavailable")),
+    )
+    pending = scheduler.prepare_generation(user=user, cadence="ad_hoc", image_quality="medium")
+
+    completed = asyncio.run(
+        scheduler.create(
+            user=user,
+            cadence="ad_hoc",
+            panel_count=4,
+            force_new=True,
+            sync=True,
+            pending_scene_id=pending.id,
+        )
+    )
+
+    assert completed.id == pending.id
+    assert completed.status == "available"
+    assert completed.script_payload["generation_phase"] == "ready"
+    assert completed.script_payload["art_generation_error"] == "image provider unavailable"
+    assert len(completed.panels) == 4
+    assert all(panel.generation_metadata["image_status"] == "failed" for panel in completed.panels)
 
 
 def test_local_image_storage_persists_panel_url(db_session, monkeypatch, tmp_path):

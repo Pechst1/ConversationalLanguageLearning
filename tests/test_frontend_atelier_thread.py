@@ -15,30 +15,37 @@ def read_atelier() -> str:
 def test_atelier_renders_today_practice_thread() -> None:
     source = read_atelier()
 
+    # Home screen is the "La Une" front page (components/laune/LaUne.tsx).
     assert "function TodayView" in source
-    assert "edition-cover" in source
-    assert "today-plan" in source
-    assert "<b>Aujourd&apos;hui</b>" in source
-    assert 'aria-label="Atelier roadmap"' in source
-    assert "SerialThreadCard" in source
+    assert "from '@/components/laune/LaUne'" in source
+    assert "<LaUneStyles" in source
+    assert "<LuMasthead" in source
+    assert "<LuLead" in source
+    assert "<LuSeance" in source
+    assert 'aria-label="Atelier · La Une"' in source
     assert "STORY_FEATURE_VISIBLE" in source
 
 
 def test_today_thread_hands_context_to_mission_feuilleton_and_hides_story_library() -> None:
     source = read_atelier()
 
-    assert "function NotebookBridge" in source
-    assert "function MissionBridge" in source
-    assert "const query = conceptQueryString(concepts)" in source
-    assert "const nodes: RoadmapNode[] = [" in source
+    # The lead story routes to today's serial mission/feuilleton beat; the
+    # library article stays gated behind STORY_FEATURE_VISIBLE.
     assert "serialActionFromToday(today, activeSession)" in source
+    assert "const serialKind = serialAction?.episodeKind" in source
+    assert "const openStory = storyHref ? () => { void router.push(storyHref); } : null" in source
+    assert "mission={isMissionBeat}" in source
     assert "libraryEpisode = STORY_FEATURE_VISIBLE ? (today as any)?.library_episode || null : null" in source
-    assert "if (STORY_FEATURE_VISIBLE && libraryEpisode)" in source
-    assert "STORY_FEATURE_VISIBLE ? 'library' : 'rest'" in source
-    assert "const conceptIds = concepts.map((concept) => `concept_id=${concept.id}`).join('&')" in source
-    assert "href={`/grammar?concept=${concept.id}`}" in source
-    assert "href={`/missions${conceptIds ? `?${conceptIds}` : ''}`}" in source
-    assert "href={`/graphic-novel${conceptIds ? `?${conceptIds}` : ''}`}" in source
+    assert "STORY_FEATURE_VISIBLE && libraryEpisode && (" in source
+
+
+def test_atelier_fallback_shell_uses_shared_theme_tokens() -> None:
+    source = read_atelier()
+
+    assert "--paper: var(--app-paper)" in source
+    assert "--sheet: var(--app-sheet)" in source
+    assert "--ink: var(--app-ink)" in source
+    assert "--paper: #f1ece1" not in source
 
 
 def test_do_mode_uses_rule_first_ramp_and_feedback_sheet() -> None:
@@ -52,8 +59,12 @@ def test_do_mode_uses_rule_first_ramp_and_feedback_sheet() -> None:
     assert "Now try it on the easiest item." in source
     assert "payload.rule_panel" in source
     assert "reportAtelierExercise" in source
-    assert "InlineFeedback" in source
-    assert "feedback.issues || []" in source
+    # Feedback is the inline épreuve verdict (EpVerdict + galley marks in the
+    # page flow), not a floating sheet; one-word fixes skip the typed repair.
+    assert "InlineFeedbackModel" in source
+    assert "feedback.issues?.length" in source
+    assert "<EpVerdict tone=" in source
+    assert "isRepairableLine(target)" in source
     assert "const errata: AtelierErratum[]" in source
 
 
@@ -64,6 +75,16 @@ def test_inline_feedback_scopes_errata_to_each_exercise() -> None:
     assert "if (erratumItemId) return erratumItemId === item.id" in source
     assert "if (hasItemScopedErrata) return false" in source
     assert "errLearner === learnerNorm && errTarget === targetNorm" in source
+
+
+def test_feedback_confirms_lexical_gap_words_added_to_notebook() -> None:
+    source = read_atelier()
+
+    # A German/English fallback word the learner used is added to the vocabulary
+    # notebook by the backend; the feedback confirms it inline.
+    assert "correction?.vocabulary_gaps?.added" in source
+    assert 'className="ep-notebook-add"' in source
+    assert "Ajouté au carnet" in source
 
 
 def test_atelier_feedback_uses_reduced_motion_safe_haptics() -> None:

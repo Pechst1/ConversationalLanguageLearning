@@ -472,6 +472,8 @@ def test_custom_mission_e2e_create_turn_complete_and_queue(client: TestClient, d
     assert complete.json()["mission"]["status"] == "completed"
     assert recap["turns"] == 1
     assert recap["readiness"]["overall"] >= 0
+    assert recap["objective_results"]
+    assert all("met" in item and "label" in item for item in recap["objective_results"])
     assert recap["vocabulary_credit"]["produced_correct"] >= 1
     assert recap["saved_to_srs"]["saved_count"] >= 1
     assert recap["minted_collectibles"][0]["kind"] == "logo_token"
@@ -496,7 +498,7 @@ def test_mission_submit_and_turns_are_persisted(client: TestClient, db_session, 
     )
     turn = client.post(
         f"/api/v1/missions/{mission_id}/turns",
-        json={"text": "Je peux expliquer le plan en détail.", "mode": "chat"},
+        json={"text": "Bonjour, vous avet un probleme avec ce trajet ?", "mode": "chat"},
         headers={"Authorization": f"Bearer {token}"},
     )
     duplicate_submit = client.post(
@@ -506,7 +508,7 @@ def test_mission_submit_and_turns_are_persisted(client: TestClient, db_session, 
     )
     duplicate_turn = client.post(
         f"/api/v1/missions/{mission_id}/turns",
-        json={"text": "Je peux expliquer le plan en détail.", "mode": "chat"},
+        json={"text": "Bonjour, vous avet un probleme avec ce trajet ?", "mode": "chat"},
         headers={"Authorization": f"Bearer {token}"},
     )
 
@@ -517,10 +519,14 @@ def test_mission_submit_and_turns_are_persisted(client: TestClient, db_session, 
     assert turn.json()["user_turn"]["role"] == "user"
     assert turn.json()["assistant_turn"]["role"] == "assistant"
     assert len(turn.json()["mission"]["turns"]) == 2
+    assert turn.json()["correction"]["persistence"]["saved_count"] >= 2
+    assert len(turn.json()["correction"]["persistence"]["error_ids"]) >= 2
+    assert turn.json()["user_turn"]["correction"]["persistence"] == turn.json()["correction"]["persistence"]
     assert duplicate_submit.status_code == 200
     assert len(duplicate_submit.json()["mission"]["attempts"]) == 1
     assert duplicate_turn.status_code == 200
     assert len(duplicate_turn.json()["mission"]["turns"]) == 2
+    assert duplicate_turn.json()["correction"]["persistence"]["saved_count"] >= 2
 
 
 def test_mission_missing_target_vocabulary_creates_credit_erratum(client: TestClient, db_session, monkeypatch):
@@ -624,6 +630,61 @@ def test_mission_near_realtime_correction_uses_local_rules_without_llm(db_sessio
     assert correction["corrected_answer"] == "Vous avez un problème?"
     assert correction["correction_debug"]["prompt_version"] == "mission-correction-fast-v1"
     assert correction["correction_debug"]["near_realtime"] is True
+
+
+def test_mission_correction_keeps_full_reply_when_provider_returns_excerpt(db_session):
+    class _ExcerptMissionLLM:
+        def generate_error_detection(self, messages, **kwargs):  # type: ignore[no-untyped-def]
+            return LLMResult(
+                provider="stub",
+                model="stub-correction",
+                content=json.dumps(
+                    {
+                        "verdict": "needs_revision",
+                        "score_0_4": 2,
+                        "corrected_answer": "Bonjour Monsieur Marchand.",
+                        "objective_progress": [],
+                        "concept_hits": [],
+                        "missing_targets": [],
+                        "errata": [
+                            {
+                                "display_label": "Word choice",
+                                "learner_text": "radiator",
+                                "corrected_target": "radiateur",
+                                "why_wrong": "Use the French word radiateur.",
+                                "repair_hint": "Replace the English noun.",
+                                "severity": 2,
+                                "recurring": False,
+                                "task_error_type": "word_choice",
+                            }
+                        ],
+                        "vocabulary_links": [],
+                    }
+                ),
+                prompt_tokens=1,
+                completion_tokens=1,
+                total_tokens=2,
+                cost=0,
+                raw_response={},
+            )
+
+    user = User(id=uuid4(), email="mission-full-rewrite@example.com", hashed_password="x", proficiency_level="A2")
+    mission = _mission_for_correction()
+    learner_text = (
+        "Bonjour Monsieur Marchand. Malheureusement le radiator ne marche pas. "
+        "Pourriez-vous organiser une réparation demain matin ?"
+    )
+
+    correction = MissionCorrectionService(db_session, llm_service=_ExcerptMissionLLM()).correct_submission(
+        user=user,
+        mission=mission,
+        text=learner_text,
+        mode="chat",
+    )
+
+    assert correction["corrected_answer"].startswith("Bonjour Monsieur Marchand.")
+    assert "radiateur" in correction["corrected_answer"]
+    assert "demain matin" in correction["corrected_answer"]
 
 
 def test_mission_stakes_tiers_change_objectives_and_word_count(db_session):

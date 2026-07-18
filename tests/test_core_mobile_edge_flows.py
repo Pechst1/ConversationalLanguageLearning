@@ -15,18 +15,22 @@ def read(path: Path) -> str:
 def test_atelier_recovers_from_offline_empty_and_unfinished_states() -> None:
     atelier = read(WEB / "pages" / "atelier.tsx")
 
-    assert "setLoadError('Atelier is unavailable right now." in atelier
-    assert "setLoadError('Could not start today’s session." in atelier
-    assert "function AtelierLoadNotice" in atelier
-    assert "onRetry" in atelier
-    assert "Session not ready" in atelier
+    # The home screen is the "La Une" front page (components/laune/LaUne.tsx);
+    # load errors surface as a press-notice with a Retry, and the start CTA
+    # stays disabled until the active session is confirmed.
+    assert "function describeAtelierError" in atelier
+    assert "setLoadError(describeAtelierError(error, 'load'))" in atelier
+    assert "setLoadError(describeAtelierError(error, 'session'))" in atelier
+    assert "from '@/components/laune/LaUne'" in atelier
+    assert "<LuNotice" in atelier
+    assert "onRetry={onRetry}" in atelier
     assert "const [activeSessionReady, setActiveSessionReady] = useState(false)" in atelier
     assert "setActiveSessionReady(true)" in atelier
     assert "const canStart = activeSessionReady && (hasActiveSession || concepts.length > 0)" in atelier
-    assert "disabled={loading || (recommendation.kind === 'start_session' && !canStart)}" in atelier
-    assert '<button className="btn solid" type="button" onClick={onRetry}>Retry</button>' in atelier
+    assert "const seanceDisabled = loading || (!hasActiveSession && !canStart)" in atelier
     assert "toast('This drill is already submitted.')" in atelier
-    assert "disabled={submitting || completedDrills < total}" in atelier
+    # Finish gate now lives on the L'Épreuve topbar (EpTopbar finishDisabled prop).
+    assert "finishDisabled={submitting || completedDrills < total}" in atelier
     assert "Could not complete the session." in atelier
 
 
@@ -37,11 +41,14 @@ def test_lean_mission_blocks_empty_messages_and_requires_one_reply_before_finish
     assert "if (!mission || !text || submitting || completed) return" in missions
     assert "Message did not send." in missions
     assert "const canSend = reply.trim().length > 0 && !submitting && !completed" in missions
-    assert "disabled={!canSend}" in missions
-    assert "disabled={completing || !interactionReady}" in missions
-    assert "Send first" in missions
-    assert "TranslateButton text={translatePrompt} label=\"Translate frame\"" in missions
-    assert "TranslateButton text={messenger.opening_message}" in missions
+    # "Le Courrier" composer: submit gated by canSend, Terminer gated by interaction.
+    assert "canSubmit={canSend}" in missions
+    assert "canFinish={interactionReady}" in missions
+    assert "finishing={completing}" in missions
+    assert "finishLabel=\"Terminer\"" in missions
+    # The situation frame + the character opening both carry a translate assist.
+    assert "translate={translateFrame}" in missions
+    assert "apiService.translateToEnglish(openingMessage)" in missions
     assert "writeLocalDayProgressFlag('missionDone')" in missions
 
 
@@ -64,17 +71,21 @@ def test_mission_deep_links_preserve_thread_context_and_clear_stale_state() -> N
 def test_feuilleton_locks_task_sheet_until_scene_and_requires_real_answers() -> None:
     feuilleton = read(WEB / "pages" / "graphic-novel.tsx")
 
-    assert "setScene(contextSceneKey ? null : next.active_scene || next.available_scene || null)" in feuilleton
+    assert "setScene(next?.active_scene || next?.available_scene || null)" in feuilleton
     assert "autoCreateContextRef.current === contextSceneKey" in feuilleton
     assert "Task sheet locked" in feuilleton
     assert "Panel tasks unlock below the episode panels after the edition is generated." in feuilleton
     assert "No scene on the stand." in feuilleton
-    assert "disabled={creating}" in feuilleton
+    assert "disabled={creating || scene.status === 'writing'}" in feuilleton
 
     assert "const answer = (answers[taskId] || '').trim()" in feuilleton
     assert "if (!answer)" in feuilleton
     assert "Write or choose an answer first." in feuilleton
     assert "The correction could not be submitted. Try once more." in feuilleton
+    assert "setGenerationFailure(null)" in feuilleton
+    assert "loaded.status === 'writing' && feuilletonGenerationIsStalled(loaded)" in feuilleton
+    assert "scene.status === 'generating' && <EditionArtProgress scene={scene}" in feuilleton
+    assert "L’histoire est prête." in feuilleton
     assert "const hasPendingTask = Boolean(nextTaskId) && submittedCount < taskCount" in feuilleton
     assert "disabled={!hasPendingTask}" in feuilleton
     assert "const allTasksDone = taskCount === 0 || submittedCount >= taskCount" in feuilleton

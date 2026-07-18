@@ -18,10 +18,24 @@ def test_missions_renders_visible_real_moment_context() -> None:
 
     assert "function missionFrame" in source
     assert "function missionMessenger" in source
-    assert "className=\"scene-frame\"" in source
-    assert "className=\"thread-head\"" in source
-    assert "className=\"word-ribbon\"" in source
-    assert "TranslateButton text={translatePrompt} label=\"Translate frame\"" in source
+    # "Le Courrier": desk header + situation standfirst + slip thread + word ribbon.
+    assert "<CrDesk" in source
+    assert "<CrSituation" in source
+    assert "className=\"cr-thread\"" in source
+    assert "<CrRibbon words={ribbon}" in source
+    assert "translate={translateFrame}" in source
+
+
+def test_mission_quick_replies_focus_the_composer_and_show_character_typing() -> None:
+    source = read_page(MISSIONS_PAGE)
+
+    assert "const replyRef = useRef<HTMLTextAreaElement | null>(null)" in source
+    assert "setReply(value)" in source
+    assert "replyRef.current?.focus()" in source
+    assert "onQuick={useQuickReply}" in source
+    assert "ref={replyRef}" in source
+    assert 'className="cr-typing"' in source
+    assert "{messenger.contact_name} rédige sa réponse" in source
 
 
 def test_missions_preserves_query_context_before_url_replacement() -> None:
