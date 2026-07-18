@@ -38,6 +38,7 @@ class AtelierTodayResponse(BaseModel):
     library_episode: dict[str, Any] | None = None
     serial_episode: dict[str, Any] | None = None
     serial: dict[str, Any] | None = None
+    phrase_of_day: dict[str, Any] | None = None
 
 
 class AtelierSessionStartRequest(BaseModel):
@@ -59,6 +60,7 @@ class AtelierSessionStartResponse(BaseModel):
     target_vocabulary_ids: list[int] = Field(default_factory=list)
     target_vocabulary: list[dict[str, Any]] = Field(default_factory=list)
     recap: dict[str, Any] = Field(default_factory=dict)
+    learning_moments: dict[str, Any] = Field(default_factory=dict)
 
 
 class AtelierActiveSessionResponse(BaseModel):
@@ -71,6 +73,8 @@ class AtelierAttemptRequest(BaseModel):
     mode: str
     exercise_id: str
     answer_payload: dict[str, Any] = Field(default_factory=dict)
+    confidence: Literal["sure", "unsure"] | None = None
+    retest_source_attempt_id: UUID | None = None
     resubmit: bool = False
 
 
@@ -123,6 +127,11 @@ class AtelierAttemptResponse(BaseModel):
     correction: dict[str, Any]
     ai_review: dict[str, Any] = Field(default_factory=dict)
     minted_collectibles: list[AtelierCollectibleRead] = Field(default_factory=list)
+
+
+class AtelierAttemptRepairRequest(BaseModel):
+    text: str = Field(..., min_length=1, max_length=1200)
+    erratum_index: int = Field(0, ge=0, le=20)
 
 
 class AtelierExerciseReportRequest(BaseModel):

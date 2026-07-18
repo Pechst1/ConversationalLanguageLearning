@@ -93,13 +93,15 @@ class AtelierExerciseSet(Base):
     content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     payload = mapped_column(JSONB().with_variant(JSON(), "sqlite"), default=dict, nullable=False)
     validation_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    retired_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+    retirement_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     concept: Mapped["GrammarConcept"] = relationship("GrammarConcept")
 
     __table_args__ = (
         UniqueConstraint("concept_id", "generator_version", "content_hash", name="uq_atelier_exercise_set_payload"),
-        Index("ix_atelier_exercise_sets_lookup", "concept_id", "generator_version", "created_at"),
+        Index("ix_atelier_exercise_sets_lookup", "concept_id", "generator_version", "retired_at", "created_at"),
     )
 
 

@@ -26,6 +26,7 @@ from app.services.news_service import NewsService
 from app.services.progress import ProgressService
 from app.services.serial_arc_planner import cefr_generation_profile
 from app.services.atelier_rewards import AtelierRewardService
+from app.services.daily_words import DailyWordSlateService
 from app.services.vocabulary_credit import VocabularyCreditService
 from app.services.vocabulary_coverage import VocabularyCoverageService, normalize_category
 
@@ -905,6 +906,42 @@ class MissionGenerator:
                         "example_translation": word.example_translation,
                     }
                 )
+
+        # "Les mots du jour": the day's slate words come before any other
+        # bucket (capped so the mission keeps room for recently-nailed words)
+        # so the same vocabulary crosses read → retrieve → produce in one day.
+        if len(selected) < limit:
+            slate_ids = [
+                word_id
+                for word_id in DailyWordSlateService(self.db).slate_word_ids(user=user)
+                if word_id not in seen_word_ids
+            ][: max(1, limit - 1)]
+            if slate_ids:
+                rows = self.db.query(VocabularyWord).filter(VocabularyWord.id.in_(slate_ids)).all()
+                by_id = {row.id: row for row in rows}
+                for word_id in slate_ids:
+                    word = by_id.get(word_id)
+                    if not word:
+                        continue
+                    add_item(
+                        {
+                            "word_id": word.id,
+                            "word": word.word,
+                            "translation": word.german_translation or word.english_translation or word.french_translation,
+                            "translations": {
+                                "de": word.german_translation,
+                                "en": word.english_translation,
+                                "fr": word.french_translation,
+                            },
+                            "bucket": "mot_du_jour",
+                            "scheduler": "slate",
+                            "priority_score": 0.9,
+                            "part_of_speech": word.part_of_speech,
+                            "topic_tags": word.topic_tags or [],
+                            "example_sentence": word.example_sentence,
+                            "example_translation": word.example_translation,
+                        }
+                    )
 
         if len(selected) < limit:
             recently_nailed = VocabularyCoverageService(self.db).recently_nailed_vocabulary(
@@ -1804,10 +1841,34 @@ class MissionCorrectionService:
             "near_realtime": near_realtime,
         }
         correction = self._apply_vocabulary_feedback(mission=mission, text=text, correction=correction)
+        correction["corrected_answer"] = self._complete_corrected_answer(text=text, correction=correction)
         correction.pop("_fallback_used", None)
         correction.pop("_model", None)
         correction.pop("_prompt_version", None)
         return correction
+
+    @staticmethod
+    def _complete_corrected_answer(*, text: str, correction: dict[str, Any]) -> str:
+        """Keep the polished answer complete even when a provider returns an excerpt."""
+        learner_text = text.strip()
+        candidate = str(correction.get("corrected_answer") or "").strip()
+        learner_words = re.findall(r"\S+", learner_text)
+        candidate_words = re.findall(r"\S+", candidate)
+        minimum_words = max(3, round(len(learner_words) * 0.65))
+        if candidate and (not learner_words or len(candidate_words) >= minimum_words):
+            return candidate
+
+        repaired = learner_text
+        for erratum in correction.get("errata") or []:
+            task_type = str(erratum.get("task_error_type") or "")
+            if task_type == "task_compliance" or task_type.startswith("vocabulary"):
+                continue
+            wrong = str(erratum.get("learner_text") or "").strip()
+            fixed = str(erratum.get("corrected_target") or "").strip()
+            if not wrong or not fixed or wrong.casefold() == fixed.casefold():
+                continue
+            repaired = re.sub(re.escape(wrong), lambda _match, value=fixed: value, repaired, count=1, flags=re.IGNORECASE)
+        return repaired or candidate
 
     def persist_errata(
         self,
@@ -2521,6 +2582,21 @@ class MissionDebriefService:
         latest_correction = self._latest_correction(attempts=attempts, turns=turns)
         objective_progress = latest_correction.get("objective_progress") or []
         objectives = mission.objectives or []
+        progress_by_id = {
+            str(item.get("id")): item
+            for item in objective_progress
+            if isinstance(item, dict) and item.get("id")
+        }
+        objective_results = [
+            {
+                "id": item.get("id"),
+                "label": item.get("label") or item.get("id") or "Mission objective",
+                "required": bool(item.get("required")),
+                "met": bool(progress_by_id.get(str(item.get("id")), {}).get("met")),
+                "note": progress_by_id.get(str(item.get("id")), {}).get("note"),
+            }
+            for item in objectives
+        ]
         met_required = sum(1 for item in objective_progress if item.get("met"))
         required_total = max(1, len([item for item in objectives if item.get("required")]) or len(objectives) or 1)
         score = float(latest_correction.get("score_0_4") or 0)
@@ -2546,6 +2622,7 @@ class MissionDebriefService:
                 "label": outcome,
                 "next_best_move": self._next_best_move(mission=mission, errata_count=errata_count, readiness=readiness),
             },
+            "objective_results": objective_results,
             "saved_to_srs": srs_result,
             "next_mission_seed": self._next_mission_seed(mission=mission, readiness=readiness, errata_count=errata_count),
         }
@@ -3250,6 +3327,7 @@ class MissionScheduler:
             "errata_created": 0,
         }
         explicit_event_ids: set[int] = set()
+        produced_word_ids: set[int] = set()
         for correction in correction_payloads:
             for event in correction.get("vocabulary_events") or []:
                 if not isinstance(event, dict):
@@ -3259,7 +3337,13 @@ class MissionScheduler:
                     continue
                 credit_kind = self._vocabulary_credit_kind(str(event.get("event_type") or "seen_context"))
                 explicit_event_ids.add(event_ids[0])
+                if credit_kind == "produced_correct":
+                    produced_word_ids.add(event_ids[0])
                 summary[credit_kind] = summary.get(credit_kind, 0) + 1
+        if produced_word_ids:
+            DailyWordSlateService(self.db).record_encounters(
+                user=user, word_ids=sorted(produced_word_ids), kind="place"
+            )
 
         credit_service = VocabularyCreditService(self.db)
         seen_results = []
@@ -3453,6 +3537,64 @@ class MissionConversationService:
         except LLMProviderError as exc:
             logger.debug("Mission conversation fallback", error=str(exc))
             return self._fallback_response(mission, branch=preliminary_branch, objective_progress=latest_progress)
+
+    def respond_for_atelier(
+        self,
+        *,
+        character: dict[str, Any],
+        opener: str,
+        scene_context: str,
+        user_text: str,
+    ) -> str:
+        """Run an Atelier final turn through the same in-character world engine.
+
+        Corrections remain in Atelier so they are filed quietly to its errata. This
+        method owns only the fictional reply and deliberately carries no tutor voice.
+        """
+        name = _compact_text(character.get("name"), max_length=80) or "Votre interlocuteur"
+        role = _compact_text(character.get("role"), max_length=120)
+        register = _compact_text(character.get("register"), max_length=40) or "vous"
+        if not self.llm:
+            if register == "tu":
+                return f"{name} hoche la tête. « Je comprends. Et maintenant, qu'est-ce que tu proposes ? »"
+            return f"{name} acquiesce. « Je comprends. Et maintenant, qu'est-ce que vous proposez ? »"
+
+        context = json.dumps(
+            {
+                "character": {"name": name, "role": role, "register": register},
+                "scene": _compact_text(scene_context, max_length=800),
+                "opening_line": _compact_text(opener, max_length=500),
+            },
+            ensure_ascii=False,
+        )
+        system = (
+            "You are an actor playing ONE character inside an ongoing French feuilleton. "
+            f"You ARE {name}{f' ({role})' if role else ''}. "
+            f"Use the {register} register with the learner. Reply only in first person as this "
+            "character, in natural French, in 1-3 short sentences. React to the learner's meaning, "
+            "add one concrete in-world detail, and move the scene forward. You are never a language "
+            "teacher: never correct, grade, praise, mention grammar, or reveal that this is an exercise. "
+            "If the French is imperfect but understandable, simply answer in character."
+        )
+        try:
+            result = self.llm.generate_chat_completion(
+                messages=[
+                    {"role": "user", "content": f"Scene context: {context}"},
+                    {"role": "assistant", "content": opener},
+                    {"role": "user", "content": user_text},
+                ],
+                system_prompt=system,
+                temperature=0.7,
+                max_tokens=180,
+                model=settings.OPENAI_MISSION_FAST_MODEL,
+                request_timeout=settings.MISSION_CHAT_TIMEOUT_SECONDS,
+            )
+            return _compact_text(result.content, max_length=600)
+        except LLMProviderError as exc:
+            logger.debug("Atelier serial conversation fallback", error=str(exc))
+            if register == "tu":
+                return f"{name} répond : « D'accord. Et toi, qu'est-ce que tu ferais ensuite ? »"
+            return f"{name} répond : « D'accord. Et vous, que feriez-vous ensuite ? »"
 
     def _fallback_response(
         self,

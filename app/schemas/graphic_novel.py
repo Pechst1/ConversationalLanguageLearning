@@ -88,6 +88,7 @@ class GraphicNovelCreateRequest(BaseModel):
     public_figure_mode: str = Field("named_context", pattern="^(off|named_context|editorial_caricature)$")
     force_new: bool = False
     refresh_news: bool = False
+    async_generation: bool = False
 
     @field_validator("panel_count")
     @classmethod

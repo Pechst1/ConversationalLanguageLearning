@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 from uuid import UUID
 
+from fastapi import BackgroundTasks
 from loguru import logger
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -44,10 +45,33 @@ ATELIER_GENERATOR_VERSION = "atelier-v9"
 ATELIER_GENERATION_MAX_ATTEMPTS = 3
 ATELIER_CORRECTION_PROMPT_VERSION = "atelier-correction-v2"
 ATELIER_AI_AUTO_ROUNDS = {"sentence", "speak", "conversation", "produce"}
+ATELIER_QUALITY_MIN_REPORTS = 3
+ATELIER_QUALITY_MIN_ATTEMPTS = 8
+ATELIER_QUALITY_MAX_WRONG_RATE = 0.65
+ATELIER_QUALITY_COMBINED_REPORTS = 2
+ATELIER_QUALITY_COMBINED_ATTEMPTS = 4
+ATELIER_QUALITY_COMBINED_WRONG_RATE = 0.5
 
 
 class AtelierExerciseGenerationError(RuntimeError):
     """Raised when Atelier cannot produce an LLM-backed exercise payload."""
+
+
+def atelier_calibration_adjustment(raw_score_0_4: float, confidence: str | None) -> tuple[float, float]:
+    """Return confidence-aware score evidence and an SRS interval multiplier.
+
+    A confidently wrong answer is stronger evidence of a misconception than an
+    acknowledged guess. Correct, confident retrieval gets a deliberately small
+    mastery and interval lift. Missing confidence remains the neutral baseline.
+    """
+    score = max(0.0, min(4.0, float(raw_score_0_4)))
+    if confidence == "sure":
+        if score < 4.0:
+            return max(0.0, score - 0.5), 0.6
+        return 4.0, 1.15
+    if confidence == "unsure" and score < 4.0:
+        return min(4.0, score + 0.25), 0.82
+    return score, 1.0
 
 
 ATELIER_EXERCISE_RESPONSE_FORMAT: dict[str, Any] = {
@@ -338,6 +362,25 @@ ATELIER_CORRECTION_RESPONSE_FORMAT: dict[str, Any] = {
                         ],
                     },
                 },
+                "lexical_gaps": {
+                    "type": "array",
+                    "description": (
+                        "Words the learner wrote in their own language (German/English) as a "
+                        "fallback because they did not know the French. Empty when the answer is "
+                        "fully French."
+                    ),
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "properties": {
+                            "learner_fragment": {"type": "string"},
+                            "source_language": {"type": "string", "enum": ["de", "en", "other"]},
+                            "french": {"type": "string"},
+                            "gloss": {"type": "string"},
+                        },
+                        "required": ["learner_fragment", "source_language", "french", "gloss"],
+                    },
+                },
             },
             "required": [
                 "verdict",
@@ -347,6 +390,7 @@ ATELIER_CORRECTION_RESPONSE_FORMAT: dict[str, Any] = {
                 "concept_hits",
                 "missing_targets",
                 "errata",
+                "lexical_gaps",
             ],
         },
     },
@@ -965,6 +1009,7 @@ def _latest_valid_shared_llm_exercise_set(db: Session, concept: GrammarConcept) 
             AtelierExerciseSet.concept_id == concept.id,
             AtelierExerciseSet.generator_version == ATELIER_GENERATOR_VERSION,
             AtelierExerciseSet.source == "llm",
+            AtelierExerciseSet.retired_at.is_(None),
         )
         .order_by(AtelierExerciseSet.created_at.desc())
         .limit(5)
@@ -983,6 +1028,8 @@ def session_exercise_set(
     session: AtelierSession,
     concept: GrammarConcept,
     target_vocabulary: list[dict[str, Any]] | None = None,
+    fast_path: bool = False,
+    background_tasks: BackgroundTasks | None = None,
 ) -> AtelierExerciseSet:
     stored_ids = _session_exercise_set_ids(session)
     stored_id = stored_ids.get(str(concept.id))
@@ -992,6 +1039,7 @@ def session_exercise_set(
             exercise_set
             and exercise_set.concept_id == concept.id
             and exercise_set.generator_version == ATELIER_GENERATOR_VERSION
+            and exercise_set.retired_at is None
             and AtelierExerciseGenerator.validate_payload(exercise_set.payload, concept=concept)
         ):
             if exercise_set.source == "fallback" and not _session_has_concept_attempt(db, session=session, concept=concept):
@@ -1003,6 +1051,32 @@ def session_exercise_set(
                     db.refresh(session)
                     return cached_llm
             return exercise_set
+
+    if fast_path:
+        # Never block the request on a personalized LLM generation+critique chain:
+        # serve the best already-cached content (shared LLM, then shared fallback,
+        # then deterministic) instantly, and upgrade to a personalized version in
+        # the background once it's ready (swapped in via _generate_personalized_
+        # exercise_set_background, or picked up by the shared-cache check above on
+        # the next fetch).
+        exercise_set = AtelierExerciseGenerator(db).get_or_create(
+            concept,
+            target_vocabulary=target_vocabulary,
+            reuse_shared_cache=True,
+            skip_llm=True,
+        )
+        _store_session_exercise_set_id(session, concept, exercise_set)
+        db.add(session)
+        db.commit()
+        db.refresh(session)
+        if background_tasks is not None:
+            background_tasks.add_task(
+                _generate_personalized_exercise_set_background,
+                user.id,
+                session.id,
+                concept.id,
+            )
+        return exercise_set
 
     exercise_set = AtelierExerciseGenerator(db).get_or_create(
         concept,
@@ -1016,6 +1090,51 @@ def session_exercise_set(
     db.commit()
     db.refresh(session)
     return exercise_set
+
+
+def _generate_personalized_exercise_set_background(
+    user_id: UUID | str,
+    session_id: UUID | str,
+    concept_id: int,
+) -> None:
+    """Upgrade a fast-path (shared cache / deterministic) exercise set to a
+    personalized LLM generation, off the request path. Skips the swap if the
+    learner already attempted the fast-path content, so we never yank an
+    exercise out from under a submitted answer."""
+    db = SessionLocal()
+    try:
+        user = db.get(User, UUID(str(user_id)) if isinstance(user_id, str) else user_id)
+        session = db.get(AtelierSession, UUID(str(session_id)) if isinstance(session_id, str) else session_id)
+        concept = db.get(GrammarConcept, concept_id)
+        if not user or not session or not concept:
+            return
+        if _session_has_concept_attempt(db, session=session, concept=concept):
+            return
+        target_vocabulary = session_vocabulary_context(session)
+        exercise_set = AtelierExerciseGenerator(db).get_or_create(
+            concept,
+            user=user,
+            session_id=session.id,
+            target_vocabulary=target_vocabulary,
+            reuse_shared_cache=False,
+        )
+        db.refresh(session)
+        if _session_has_concept_attempt(db, session=session, concept=concept):
+            return
+        _store_session_exercise_set_id(session, concept, exercise_set)
+        db.add(session)
+        db.commit()
+    except Exception as exc:  # pragma: no cover - background upgrade must not affect live sessions
+        logger.warning(
+            "Atelier personalized exercise upgrade failed",
+            user_id=str(user_id),
+            session_id=str(session_id),
+            concept_id=concept_id,
+            error=str(exc),
+        )
+        db.rollback()
+    finally:
+        db.close()
 
 
 def pregenerate_next_atelier_session(user_id: UUID | str) -> None:
@@ -1045,6 +1164,7 @@ def pregenerate_next_atelier_session(user_id: UUID | str) -> None:
             "target_vocabulary_ids": [int(item["word_id"]) for item in target_vocabulary if item.get("word_id")],
             "target_vocabulary": target_vocabulary,
             "prepared": True,
+            "concept_roles": {str(selection.concept.id): selection.role for selection in selections},
         }
         session = AtelierSession(
             user_id=user.id,
@@ -1320,6 +1440,19 @@ LOCAL_QUOTES = [
 ]
 
 
+_GRAMMAR_LEVEL_ORDER = ["A1", "A2", "B1", "B2", "C1", "C2"]
+
+
+def _cefr_levels_at_or_below(user: User) -> list[str]:
+    """Coarse CEFR bucket (A1..C2) a cold-start concept pick should not exceed."""
+    raw = str(getattr(user, "cefr_estimate", None) or getattr(user, "proficiency_level", None) or "A1.1")
+    coarse = raw.strip().upper()[:2]
+    if coarse not in _GRAMMAR_LEVEL_ORDER:
+        coarse = "A1"
+    index = _GRAMMAR_LEVEL_ORDER.index(coarse)
+    return _GRAMMAR_LEVEL_ORDER[: index + 1]
+
+
 class AtelierScheduler:
     """Select the three concepts that define an Atelier session."""
 
@@ -1359,20 +1492,34 @@ class AtelierScheduler:
             GrammarConcept.external_id.isnot(None),
             GrammarConcept.external_id != "",
         )
-        for external_id in ("FR_B1_COND_001", "FR_B1_TENSE_001", "FR_A2_NEG_001"):
-            if len(selected) >= 2:
-                break
-            concept = active_query.filter(GrammarConcept.external_id == external_id).first()
-            if concept and concept.id not in used_ids:
-                progress = self._progress_for(user, concept.id)
-                selected.append(ConceptSelection(concept=concept, role="fragile", progress=progress))
+
+        # Cold start (no due errata, no scored progress yet): serve foundation
+        # concepts at or below the learner's own CEFR level, never a hardcoded
+        # catalog slice that may sit above it. Role is "new" (never attempted)
+        # rather than "fragile" (attempted and shaky) -- those are different
+        # learner states and the frontend labels them differently.
+        if len(selected) < 2:
+            eligible_levels = _cefr_levels_at_or_below(user)
+            cold_start_concepts = (
+                active_query.filter(
+                    GrammarConcept.id.notin_(used_ids),
+                    GrammarConcept.level.in_(eligible_levels),
+                )
+                .order_by(GrammarConcept.is_foundation.desc(), GrammarConcept.difficulty_order.asc(), GrammarConcept.id.asc())
+                .limit(2 - len(selected))
+                .all()
+            )
+            for concept in cold_start_concepts:
+                selected.append(ConceptSelection(concept=concept, role="new", progress=self._progress_for(user, concept.id)))
                 used_ids.add(concept.id)
 
         contrast = (
             active_query.filter(
                 GrammarConcept.id.notin_(used_ids),
-                GrammarConcept.external_id == "FR_A2_NEG_001",
+                GrammarConcept.level.in_(_cefr_levels_at_or_below(user)),
+                GrammarConcept.is_foundation.is_(True),
             )
+            .order_by(GrammarConcept.difficulty_order.asc(), GrammarConcept.id.asc())
             .first()
         )
         if not contrast:
@@ -1400,7 +1547,20 @@ class AtelierScheduler:
                 selected.append(ConceptSelection(concept=concept, role="contrast", progress=self._progress_for(user, concept.id)))
                 used_ids.add(concept.id)
 
+        # A learner's very first-ever edition should be one concept and a short
+        # win, not the full 3-concept/~46-drill day. Later editions (once any
+        # session has ever completed) use the full spread.
+        if self.is_first_session(user):
+            return selected[:1]
         return selected[:3]
+
+    def is_first_session(self, user: User) -> bool:
+        return (
+            self.db.query(AtelierSession.id)
+            .filter(AtelierSession.user_id == user.id, AtelierSession.status == "completed")
+            .first()
+            is None
+        )
 
     def quote_for_today(self, today: date | None = None) -> dict[str, str]:
         today = today or date.today()
@@ -1556,6 +1716,7 @@ class AtelierExerciseGenerator:
         session_id: UUID | str | None = None,
         target_vocabulary: list[dict[str, Any]] | None = None,
         reuse_shared_cache: bool | None = None,
+        skip_llm: bool = False,
     ) -> AtelierExerciseSet:
         use_shared_cache = (user is None and session_id is None) if reuse_shared_cache is None else reuse_shared_cache
         cached_shared_llm: AtelierExerciseSet | None = None
@@ -1566,6 +1727,7 @@ class AtelierExerciseGenerator:
                     AtelierExerciseSet.concept_id == concept.id,
                     AtelierExerciseSet.generator_version == ATELIER_GENERATOR_VERSION,
                     AtelierExerciseSet.source == "llm",
+                    AtelierExerciseSet.retired_at.is_(None),
                 )
                 .order_by(AtelierExerciseSet.created_at.desc())
                 .first()
@@ -1579,6 +1741,7 @@ class AtelierExerciseGenerator:
                     AtelierExerciseSet.concept_id == concept.id,
                     AtelierExerciseSet.generator_version == ATELIER_GENERATOR_VERSION,
                     AtelierExerciseSet.source == "llm",
+                    AtelierExerciseSet.retired_at.is_(None),
                 )
                 .order_by(AtelierExerciseSet.created_at.desc())
                 .first()
@@ -1590,12 +1753,13 @@ class AtelierExerciseGenerator:
                 AtelierExerciseSet.concept_id == concept.id,
                 AtelierExerciseSet.generator_version == ATELIER_GENERATOR_VERSION,
                 AtelierExerciseSet.source == "fallback",
+                AtelierExerciseSet.retired_at.is_(None),
             )
             .order_by(AtelierExerciseSet.created_at.desc())
             .first()
         )
 
-        generated = self._generate_with_llm(
+        generated = None if skip_llm else self._generate_with_llm(
             concept,
             user=user,
             session_id=session_id,
@@ -1636,9 +1800,32 @@ class AtelierExerciseGenerator:
                 AtelierExerciseSet.concept_id == concept.id,
                 AtelierExerciseSet.generator_version == ATELIER_GENERATOR_VERSION,
                 AtelierExerciseSet.content_hash == content_hash,
+                AtelierExerciseSet.retired_at.is_(None),
             )
             .first()
         )
+        if not existing_same_hash:
+            retired_same_hash = (
+                self.db.query(AtelierExerciseSet.id)
+                .filter(
+                    AtelierExerciseSet.concept_id == concept.id,
+                    AtelierExerciseSet.generator_version == ATELIER_GENERATOR_VERSION,
+                    AtelierExerciseSet.content_hash == content_hash,
+                    AtelierExerciseSet.retired_at.isnot(None),
+                )
+                .first()
+            )
+            if retired_same_hash:
+                # A deterministic fallback can legitimately regenerate byte-for-byte
+                # after its predecessor was retired. Preserve the retired audit row
+                # and give the replacement a distinct cache identity.
+                content_hash = _payload_hash(
+                    {
+                        "payload_hash": payload_hash,
+                        "replacement_for": str(retired_same_hash[0]),
+                        "generated_at": datetime.now(timezone.utc).isoformat(),
+                    }
+                )
         if existing_same_hash:
             existing_same_hash.model = model
             existing_same_hash.source = source
@@ -2916,6 +3103,150 @@ class AtelierExerciseGenerator:
         return infer_grammar_profile(concept).check
 
 
+class AtelierExerciseQualityService:
+    """Aggregate learner evidence, retire unhealthy sets, and replace them."""
+
+    def __init__(self, db: Session) -> None:
+        self.db = db
+
+    def metrics(self, exercise_set: AtelierExerciseSet) -> dict[str, Any]:
+        reports = (
+            self.db.query(AtelierGenerationEvent)
+            .filter(
+                AtelierGenerationEvent.exercise_set_id == exercise_set.id,
+                AtelierGenerationEvent.event_type == "user_report",
+            )
+            .all()
+        )
+        session_ids: list[UUID] = []
+        for session in self.db.query(AtelierSession).all():
+            if _session_exercise_set_ids(session).get(str(exercise_set.concept_id)) == str(exercise_set.id):
+                session_ids.append(session.id)
+
+        attempts: list[AtelierAttempt] = []
+        if session_ids:
+            attempts = (
+                self.db.query(AtelierAttempt)
+                .filter(
+                    AtelierAttempt.atelier_session_id.in_(session_ids),
+                    AtelierAttempt.concept_id == exercise_set.concept_id,
+                )
+                .all()
+            )
+        wrong = sum(
+            1
+            for attempt in attempts
+            if attempt.verdict not in {"correct", "accepted"} or float(attempt.score_0_4 or 0) < 4.0
+        )
+        return {
+            "report_count": len(reports),
+            "attempt_count": len(attempts),
+            "wrong_count": wrong,
+            "wrong_rate": round(wrong / len(attempts), 4) if attempts else 0.0,
+        }
+
+    @staticmethod
+    def should_retire(metrics: dict[str, Any]) -> bool:
+        reports = int(metrics.get("report_count") or 0)
+        attempts = int(metrics.get("attempt_count") or 0)
+        wrong_rate = float(metrics.get("wrong_rate") or 0.0)
+        return (
+            reports >= ATELIER_QUALITY_MIN_REPORTS
+            or (
+                attempts >= ATELIER_QUALITY_MIN_ATTEMPTS
+                and wrong_rate >= ATELIER_QUALITY_MAX_WRONG_RATE
+            )
+            or (
+                reports >= ATELIER_QUALITY_COMBINED_REPORTS
+                and attempts >= ATELIER_QUALITY_COMBINED_ATTEMPTS
+                and wrong_rate >= ATELIER_QUALITY_COMBINED_WRONG_RATE
+            )
+        )
+
+    def evaluate_and_retire(
+        self,
+        exercise_set: AtelierExerciseSet,
+        *,
+        regenerate: bool = True,
+    ) -> AtelierExerciseSet | None:
+        if exercise_set.retired_at is not None:
+            return None
+        metrics = self.metrics(exercise_set)
+        if not self.should_retire(metrics):
+            return None
+
+        now = datetime.now(timezone.utc)
+        reason = (
+            "automatic_quality_threshold: "
+            f"reports={metrics['report_count']}, attempts={metrics['attempt_count']}, "
+            f"wrong_rate={metrics['wrong_rate']:.2f}"
+        )
+        exercise_set.retired_at = now
+        exercise_set.retirement_reason = reason
+        self.db.add(exercise_set)
+        self.db.add(
+            AtelierGenerationEvent(
+                concept_id=exercise_set.concept_id,
+                exercise_set_id=exercise_set.id,
+                generator_version=exercise_set.generator_version,
+                event_type="exercise_retired",
+                source="quality_flywheel",
+                model=exercise_set.model,
+                passed=False,
+                payload={"reason": reason, "metrics": metrics, "retired_at": now.isoformat()},
+            )
+        )
+        self.db.commit()
+
+        if not regenerate:
+            return None
+        self.db.add(
+            AtelierGenerationEvent(
+                concept_id=exercise_set.concept_id,
+                exercise_set_id=exercise_set.id,
+                generator_version=exercise_set.generator_version,
+                event_type="regeneration_enqueued",
+                source="quality_flywheel",
+                model=exercise_set.model,
+                passed=True,
+                payload={"retired_exercise_set_id": str(exercise_set.id)},
+            )
+        )
+        self.db.commit()
+        concept = self.db.get(GrammarConcept, exercise_set.concept_id)
+        if not concept:
+            return None
+        replacement = AtelierExerciseGenerator(self.db).get_or_create(
+            concept,
+            reuse_shared_cache=True,
+        )
+        self.db.add(
+            AtelierGenerationEvent(
+                concept_id=concept.id,
+                exercise_set_id=replacement.id,
+                generator_version=replacement.generator_version,
+                event_type="exercise_replacement",
+                source="quality_flywheel",
+                model=replacement.model,
+                passed=True,
+                payload={
+                    "retired_exercise_set_id": str(exercise_set.id),
+                    "replacement_exercise_set_id": str(replacement.id),
+                },
+            )
+        )
+        self.db.commit()
+        return replacement
+
+    def run(self) -> list[UUID]:
+        retired: list[UUID] = []
+        active_sets = self.db.query(AtelierExerciseSet).filter(AtelierExerciseSet.retired_at.is_(None)).all()
+        for exercise_set in active_sets:
+            if self.evaluate_and_retire(exercise_set) is not None:
+                retired.append(exercise_set.id)
+        return retired
+
+
 class AtelierCorrectionService:
     """Exercise-aware checking and structured correction payloads."""
 
@@ -2935,8 +3266,17 @@ class AtelierCorrectionService:
         mode: str,
         exercise_id: str,
         answer_payload: dict[str, Any],
+        prompt_payload_override: dict[str, Any] | None = None,
+        retest_of: UUID | None = None,
     ) -> AtelierAttempt:
-        prompt_payload = self._prompt_payload(concept, round_name, mode, exercise_id, user=user, session=session)
+        prompt_payload = prompt_payload_override or self._prompt_payload(
+            concept,
+            round_name,
+            mode,
+            exercise_id,
+            user=user,
+            session=session,
+        )
         target_vocabulary = session_vocabulary_context(session)
         if target_vocabulary:
             prompt_payload = inject_vocabulary_context(prompt_payload, target_vocabulary)
@@ -2960,12 +3300,27 @@ class AtelierCorrectionService:
                 **correction,
                 "rule_reference": rule_reference,
             }
+        confidence = answer_payload.get("confidence")
+        if confidence in {"sure", "unsure"}:
+            correction = {
+                **correction,
+                "confidence": confidence,
+                "calibration": "confident" if confidence == "sure" else "hesitant",
+            }
+        if retest_of:
+            correction = {**correction, "retest_of": str(retest_of)}
         if target_vocabulary:
             correction = self._apply_target_vocabulary_credit(
                 user=user,
                 session=session,
                 target_vocabulary=target_vocabulary,
                 answer_payload=answer_payload,
+                correction=correction,
+            )
+        if correction.get("lexical_gaps"):
+            correction = self._ingest_lexical_gaps(
+                user=user,
+                session=session,
                 correction=correction,
             )
         correction = {
@@ -2997,6 +3352,73 @@ class AtelierCorrectionService:
             attempt.correction_payload = correction
             flag_modified(attempt, "correction_payload")
             self.db.add(attempt)
+        self.db.commit()
+        self.db.refresh(attempt)
+        return attempt
+
+    def record_micro_repair(
+        self,
+        *,
+        attempt: AtelierAttempt,
+        text: str,
+        erratum_index: int,
+    ) -> AtelierAttempt:
+        """Persist one typed correction without turning it into a rewardable drill."""
+        correction = dict(attempt.correction_payload or {})
+        errata = list(correction.get("errata") or [])
+        targets = [str(item.get("corrected_target") or "").strip() for item in errata]
+        targets = [target for target in targets if target]
+        if not targets:
+            corrected = correction.get("corrected_answer")
+            if isinstance(corrected, dict):
+                fallback = " ".join(str(value or "") for value in corrected.values())
+            elif isinstance(corrected, list):
+                fallback = " ".join(str(value or "") for value in corrected)
+            else:
+                fallback = str(corrected or "")
+            if fallback.strip():
+                targets = [fallback.strip()]
+        if erratum_index >= len(targets):
+            raise ValueError("That correction is not available for a typed repair.")
+
+        target = targets[erratum_index]
+        typed = str(text or "").strip()
+        is_correct = bool(typed) and _normalize(typed) == _normalize(target)
+        repairs = dict(correction.get("micro_repairs") or {})
+        repairs[str(erratum_index)] = {
+            "target": target,
+            "typed": typed,
+            "status": "ok" if is_correct else "no",
+            "erratum_index": erratum_index,
+            "submitted_at": datetime.now(timezone.utc).isoformat(),
+        }
+        correction["micro_repairs"] = repairs
+
+        # A correct retype earns a delayed retrieval attempt. It is not an
+        # attempt reward and it is tied to this source correction for reloads.
+        all_repaired = len(repairs) >= len(targets) and all(
+            repairs.get(str(index), {}).get("status") == "ok"
+            for index in range(len(targets))
+        )
+        if all_repaired and not correction.get("retest"):
+            submitted_count = (
+                self.db.query(AtelierAttempt.id)
+                .filter(AtelierAttempt.atelier_session_id == attempt.atelier_session_id)
+                .count()
+            )
+            correction["retest"] = {
+                "id": f"retest:{attempt.id}",
+                "status": "queued",
+                "source_attempt_id": str(attempt.id),
+                "concept_id": attempt.concept_id,
+                "round": attempt.round,
+                "mode": attempt.mode,
+                "exercise_id": attempt.exercise_id,
+                "due_after_completed": submitted_count + 2,
+            }
+
+        attempt.correction_payload = correction
+        self.db.add(attempt)
         self.db.commit()
         self.db.refresh(attempt)
         return attempt
@@ -3073,6 +3495,97 @@ class AtelierCorrectionService:
                 "events": [result.to_dict() for result in results],
             },
         }
+
+    def _ingest_lexical_gaps(
+        self,
+        *,
+        user: User,
+        session: AtelierSession,
+        correction: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Turn detected L1 fallback words into due vocabulary cards.
+
+        When a free-text answer leans on a German/English word the learner did
+        not know, the correction already carries the French for it. Here we make
+        that French a real notebook card: find-or-create the VocabularyWord and
+        seed it into the learner's SRS as a soon-due gap so it comes back for
+        review.
+        """
+        gaps = correction.get("lexical_gaps") or []
+        added: list[dict[str, Any]] = []
+        for gap in gaps:
+            french = str(gap.get("french") or "").strip()
+            if not french:
+                continue
+            word = self._find_or_create_french_gap_word(french, gap)
+            self._introduce_gap_word(user=user, word=word, session=session)
+            added.append(
+                {
+                    "word_id": word.id,
+                    "french": word.word,
+                    "learner_fragment": gap.get("learner_fragment"),
+                    "gloss": gap.get("gloss") or "",
+                    "source_language": gap.get("source_language"),
+                }
+            )
+        if not added:
+            return correction
+        return {**correction, "vocabulary_gaps": {"added": added}}
+
+    def _find_or_create_french_gap_word(
+        self, french: str, gap: dict[str, Any]
+    ) -> VocabularyWord:
+        normalized = _normalize(french)
+        existing = (
+            self.db.query(VocabularyWord)
+            .filter(
+                VocabularyWord.language == "fr",
+                VocabularyWord.normalized_word == normalized,
+            )
+            .first()
+        )
+        if existing:
+            return existing
+        source_language = str(gap.get("source_language") or "").strip().lower()
+        gloss = str(gap.get("gloss") or "").strip() or None
+        word = VocabularyWord(
+            language="fr",
+            word=french,
+            normalized_word=normalized,
+            french_translation=french,
+            german_translation=gloss if source_language == "de" else None,
+            english_translation=gloss if source_language == "en" else None,
+            definition=gloss,
+            difficulty_level=1,
+            topic_tags=["atelier-gap"],
+        )
+        self.db.add(word)
+        self.db.flush([word])
+        return word
+
+    def _introduce_gap_word(
+        self,
+        *,
+        user: User,
+        word: VocabularyWord,
+        session: AtelierSession,
+    ) -> None:
+        now = datetime.now(timezone.utc)
+        progress = ProgressService(self.db).get_or_create_progress(
+            user_id=user.id, word_id=word.id
+        )
+        # Only schedule a fresh gap card; never disturb a word the learner is
+        # already reviewing on its own cadence.
+        if (progress.state or "new") == "new" and not progress.next_review_date:
+            due = now + timedelta(days=1)
+            progress.state = "learning"
+            progress.phase = "learn"
+            progress.next_review_date = due
+            progress.due_date = due.date()
+            progress.times_seen = (progress.times_seen or 0) + 1
+            progress.updated_at = now
+            self.db.add(progress)
+            self.db.flush([progress])
 
     @staticmethod
     def _answer_text(answer_payload: dict[str, Any]) -> str:
@@ -3152,6 +3665,22 @@ class AtelierCorrectionService:
                 "model": correction_debug.get("model") or settings.ATELIER_CORRECTION_LLM_MODEL,
                 "completed_at": self._now_iso(),
             }
+        # Recognize submits are answered from the key, so the live response is
+        # deterministic-only; when something was wrong, queue the model in the
+        # background so the relecture upgrades the explanation in place.
+        if (
+            round_name == "recognize"
+            and (correction or {}).get("errata")
+            and self._can_schedule_ai_review()
+        ):
+            return {
+                "status": "pending",
+                "auto_started": True,
+                "model": settings.ATELIER_CORRECTION_LLM_MODEL,
+                "started_at": self._now_iso(),
+                "completed_at": None,
+                "error": None,
+            }
         return {"status": "not_applicable", "auto_started": False}
 
     @staticmethod
@@ -3225,9 +3754,15 @@ class AtelierCorrectionService:
                 prompt_payload=attempt.prompt_payload or {},
                 answer_payload=attempt.answer_payload or {},
                 session=session,
+                force_llm=True,
             )
             if (ai_correction.get("correction_debug") or {}).get("fallback_used"):
                 return self._mark_ai_review_failed(attempt, "AI correction did not complete.")
+            # Re-read the row: a micro-repair or confidence tap may have landed
+            # while the model ran, and the merge below must see it.
+            self.db.refresh(attempt)
+            correction = dict(attempt.correction_payload or {})
+            review = self.ai_review_from_correction(correction)
             ai_review = {
                 **review,
                 "status": "complete",
@@ -3240,6 +3775,12 @@ class AtelierCorrectionService:
                 ai_review["started_at"] = review["started_at"]
             if correction.get("vocabulary_credit") and not ai_correction.get("vocabulary_credit"):
                 ai_correction["vocabulary_credit"] = correction["vocabulary_credit"]
+            # The learner may have typed a micro-repair or picked confidence
+            # while this review ran; those live on the same payload and must
+            # survive the swap.
+            for carried_key in ("micro_repairs", "retest", "retest_of", "confidence", "calibration", "adaptive_lock", "vocabulary_gaps"):
+                if carried_key in correction and carried_key not in ai_correction:
+                    ai_correction[carried_key] = correction[carried_key]
             ai_correction["ai_review"] = ai_review
             attempt.correction_payload = ai_correction
             attempt.verdict = ai_correction["verdict"]
@@ -3293,9 +3834,10 @@ class AtelierCorrectionService:
         prompt_payload: dict[str, Any],
         answer_payload: dict[str, Any],
         session: AtelierSession | None = None,
+        force_llm: bool = False,
     ) -> dict[str, Any]:
         if round_name == "recognize":
-            return self._correct_recognize_ai_first(concept, mode, prompt_payload, answer_payload)
+            return self._correct_recognize_ai_first(concept, mode, prompt_payload, answer_payload, force_llm=force_llm)
         if round_name == "transform":
             return self._correct_transform(concept, prompt_payload, answer_payload)
         if round_name in {"sentence", "speak", "conversation"}:
@@ -3436,8 +3978,15 @@ class AtelierCorrectionService:
         mode: str,
         prompt_payload: dict[str, Any],
         answer_payload: dict[str, Any],
+        force_llm: bool = False,
     ) -> dict[str, Any]:
         fallback = self._correct_recognize(concept, mode, prompt_payload, answer_payload)
+        # Recognize answers are graded against a known answer key, so the
+        # deterministic verdict is already exact. Live submits return it
+        # immediately; the LLM only runs in the background relecture
+        # (force_llm=True) to upgrade the explanation prose in place.
+        if not force_llm:
+            return fallback
         if not self._should_use_correction_llm() or not concept:
             return fallback
         return self._correct_recognize_with_llm(concept, mode, prompt_payload, answer_payload, fallback) or fallback
@@ -4033,8 +4582,11 @@ class AtelierCorrectionService:
                         "item_id": item.get("id"),
                         "display_label": item.get("errata_label") or self._label_for(concept, item),
                         "learner_text": text,
-                        "corrected_target": self._output_ladder_target_hint(concept, item, req),
-                        "why_wrong": f"You submitted output, but this step needs {req.get('target_count', 1)} visible use of {req.get('label')} and only detected {req.get('detected_count', 0)}.",
+                        # Task-compliance guidance, not a line-level correction — no
+                        # rule pattern in corrected_target (it would render as a fake
+                        # "corrected" line); the note explains what the step wants.
+                        "corrected_target": "",
+                        "why_wrong": f"This step is stronger when you use {req.get('label')} at least {req.get('target_count', 1)} time(s); this answer used it {req.get('detected_count', 0)}.",
                         "repair_hint": item.get("repair_hint") or self._repair_for(concept),
                         "severity": 1,
                         "recurring": False,
@@ -4453,13 +5005,25 @@ class AtelierCorrectionService:
             "deterministic_assessment": self._compact_llm_assessment(fallback),
             "instructions": [
                 "This is part of a guided output ladder: short sentence, spoken transcript, or conversation turn.",
+                "corrected_answer MUST be the learner's own line rewritten correctly and naturally as one clean, complete French sentence "
+                "that keeps their meaning — never a grammar rule, a placeholder, a question, or a list of alternatives.",
                 "Accept natural original French if it uses the target concept correctly; it does not need to match the example answer.",
+                "Accepting original phrasing does NOT mean ignoring mistakes: flag every concrete grammar, gender/number agreement, article, "
+                "verb-form, and spelling/accent error as its own erratum. Only mark the line flawless (correct/accepted) when the French is "
+                "genuinely error-free; if any concrete error is present the verdict is at most 'partial'.",
                 "The item.example_answer is only one sample answer. Do not use it as corrected_target for a different valid original answer.",
                 "Address feedback directly with 'you'; never say 'the learner' or 'the user'.",
                 "Create recurring grammar errata only for concrete errors in the submitted output, not for missing target counts.",
                 "If the answer has si + present but uses a conditional result such as pourrais/répondrais/irions, count the si-frame as present and give one future-result erratum for that submitted verb.",
                 "For spoken_response, treat the typed text as the transcript of what the person said.",
                 "For conversation_turn, judge whether the reply is plausible in context and uses the target concept.",
+                "Report each distinct error as its own erratum, with learner_text and corrected_target scoped to just the span that is wrong "
+                "(the word or phrase), not the whole sentence. Never combine spelling, gender/number agreement, verb form, vocabulary, and "
+                "word-order problems into one erratum; give each its own entry, label, and task_error_type.",
+                "If a target or vocabulary word is used in the wrong context or with the wrong meaning, flag it as its own erratum with "
+                "task_error_type 'vocabulary_choice', naming the word, its actual meaning, and the word the context needs.",
+                "If the answer contains a German or English word the learner used because they did not know the French, keep their meaning, "
+                "give the French in corrected_answer, list it in lexical_gaps, and do not mark the answer flawless.",
             ],
         }
         return self._llm_correction(
@@ -4492,6 +5056,11 @@ class AtelierCorrectionService:
                 "Review each rewrite against the exercise instruction and concept rule.",
                 "Address feedback directly with 'you'; never say 'the learner' or 'the user'.",
                 "For every erratum, explain the exact form you wrote, why that form fails this task, and what the target form does differently.",
+                "Report each distinct error as its own erratum, with learner_text and corrected_target scoped to just the wrong span (the word "
+                "or phrase), not the whole line. Never combine spelling, gender/number agreement, verb form, vocabulary, and word-order "
+                "problems into one erratum; give each its own entry, label, and task_error_type.",
+                "If a word is used in the wrong context or with the wrong meaning, flag it as its own erratum with task_error_type "
+                "'vocabulary_choice', naming the word, its actual meaning, and the word the context needs.",
                 "Errata should be recurring only for grammar mistakes, not blank or task-compliance misses.",
             ]
             + _concept_correction_instructions([concept]),
@@ -4525,10 +5094,16 @@ class AtelierCorrectionService:
             "deterministic_assessment": self._compact_llm_assessment(fallback),
             "instructions": [
                 "Accept the writing even when required targets are missing; missing targets are task-compliance slips.",
+                "corrected_answer MUST be the learner's own paragraph rewritten correctly and naturally, keeping their meaning — a clean, "
+                "complete French text, never a grammar rule, a placeholder, a question, or a list of alternatives.",
+                "Accepting the writing does NOT mean marking it flawless: a paragraph with any concrete grammar, gender/number agreement, "
+                "article, verb-form, or spelling/accent error is 'partial', never 'accepted'/'correct', with one erratum per distinct error.",
                 "Address feedback directly with 'you'; never say 'the learner' or 'the user'.",
                 "Create grammar errata only for concrete French grammar errors visible in the submitted text.",
                 "Separate grammar, pronoun, vocabulary/lexical-choice, spelling, and task-compliance issues instead of collapsing them into one label.",
                 "If you flag wrong vocabulary, use task_error_type 'lexical_choice' or 'vocabulary_choice' and explain the intended meaning.",
+                "If the paragraph contains a German or English word used because the learner did not know the French, keep their meaning, "
+                "give the French in corrected_answer, list it in lexical_gaps, and do not mark the paragraph flawless.",
             ]
             + _concept_correction_instructions(clean_concepts),
         }
@@ -4702,13 +5277,47 @@ class AtelierCorrectionService:
                 }
             )
         if not errata and fallback.get("errata"):
-            errata = fallback["errata"]
+            # The LLM judged the answer clean; only inherit concrete grammar errata
+            # from the deterministic matcher, never its "missing target count"
+            # task-compliance notes (which the LLM is told to treat leniently and
+            # which render as a rule pattern rather than a real correction).
+            errata = [
+                erratum
+                for erratum in fallback["errata"]
+                if isinstance(erratum, dict) and erratum.get("task_error_type") != "task_compliance"
+            ]
+
+        lexical_gaps = self._normalize_lexical_gaps(parsed.get("lexical_gaps"))
+        gap_external_id = default_concept.external_id if default_concept else None
+        gap_concept_id = default_concept.id if default_concept else None
+        for gap in lexical_gaps:
+            errata.append(
+                {
+                    "item_id": "",
+                    "display_label": "Mot en français",
+                    "learner_text": gap["learner_fragment"],
+                    "corrected_target": gap["french"],
+                    "why_wrong": self._lexical_gap_why(gap),
+                    "repair_hint": f"Remplacez « {gap['learner_fragment']} » par « {gap['french']} ».",
+                    "severity": 2,
+                    "recurring": False,
+                    "task_error_type": "lexical_gap",
+                    "concept_id": gap_concept_id,
+                    "external_id": gap_external_id,
+                }
+            )
 
         verdict = parsed.get("verdict") or fallback.get("verdict") or "needs_review"
         if verdict not in {"correct", "partial", "incorrect", "accepted", "needs_review"}:
             verdict = fallback.get("verdict") or "needs_review"
         score = float(parsed.get("score_0_4") if parsed.get("score_0_4") is not None else fallback.get("score_0_4", 0))
         score = max(0.0, min(4.0, round(score, 2)))
+        if lexical_gaps:
+            # A learner who fell back to their own language did not finish the line
+            # in French, so it can never read as flawless.
+            if verdict in {"correct", "accepted"}:
+                verdict = "partial"
+            score = min(score, 2.5)
         return {
             "verdict": verdict,
             "score_0_4": score,
@@ -4716,8 +5325,60 @@ class AtelierCorrectionService:
             "concept_hits": concept_hits,
             "missing_targets": missing_targets if parsed.get("missing_targets") is not None else fallback.get("missing_targets", []),
             "errata": errata,
+            "lexical_gaps": lexical_gaps,
             "correction_debug": _correction_debug(model=model, fallback_used=False),
         }
+
+    @staticmethod
+    def _normalize_lexical_gaps(raw: Any) -> list[dict[str, Any]]:
+        gaps: list[dict[str, Any]] = []
+        seen: set[tuple[str, str]] = set()
+        for gap in raw or []:
+            if not isinstance(gap, dict):
+                continue
+            fragment = str(gap.get("learner_fragment") or "").strip()
+            french = str(gap.get("french") or "").strip()
+            if not fragment or not french:
+                continue
+            # A French typo (missing apostrophe/accent, small misspelling) is not a
+            # cross-language fallback: the model sometimes flags "Jai" -> "J'ai" as a
+            # gap. Only keep genuine gaps where the two words really differ, so a
+            # spelling slip never pollutes the notebook.
+            frag_norm = _normalize(fragment)
+            french_norm = _normalize(french)
+            if frag_norm == french_norm:
+                continue
+            if (
+                max(len(frag_norm), len(french_norm)) >= 4
+                and _bounded_edit_distance(frag_norm, french_norm, limit=2) <= 2
+            ):
+                continue
+            source_language = str(gap.get("source_language") or "other").strip().lower()[:8] or "other"
+            key = (fragment.lower(), french.lower())
+            if key in seen:
+                continue
+            seen.add(key)
+            gaps.append(
+                {
+                    "learner_fragment": fragment,
+                    "source_language": source_language,
+                    "french": french,
+                    "gloss": str(gap.get("gloss") or "").strip(),
+                }
+            )
+        return gaps
+
+    @staticmethod
+    def _lexical_gap_why(gap: dict[str, Any]) -> str:
+        language_name = {"de": "en allemand", "en": "en anglais"}.get(
+            gap.get("source_language") or "", "dans votre langue"
+        )
+        gloss = str(gap.get("gloss") or "").strip()
+        gloss_suffix = f" ({gloss})" if gloss else ""
+        return (
+            f"You wrote « {gap['learner_fragment']} » {language_name}. "
+            f"In French this is « {gap['french']} »{gloss_suffix}."
+        )
 
     def _correction_system_prompt(self) -> str:
         return (
@@ -4732,7 +5393,14 @@ class AtelierCorrectionService:
             "The deterministic_assessment and deterministic_target are only fallible hints from a string matcher: it ignores accents, "
             "apostrophe style, capitalisation, and accepts alternative correct wordings. You MUST judge correctness yourself. "
             "If the submitted answer accomplishes the task in correct French — even when it differs from the deterministic_target or the "
-            "matcher flagged it — return it as correct with an empty errata list. Never invent an error for an answer that is actually right."
+            "matcher flagged it — return it as correct with an empty errata list. Never invent an error for an answer that is actually right. "
+            "corrected_answer must preserve the meaning the learner intended; never swap in unrelated wording copied from the prompt. "
+            "Lexical fallbacks: if the answer contains a word the learner wrote in their own language (German or English) because they did "
+            "not know the French — including words inside parentheses, brackets, or quotes — do NOT silently replace it and do NOT mark the "
+            "answer flawless. Keep the learner's intended meaning: put the correct French for that specific word into corrected_answer, and "
+            "add an entry to lexical_gaps giving the exact fragment they wrote (learner_fragment), its language (de/en/other), the correct "
+            "French (french), and a short English gloss. An answer that leans on a non-French word is at most 'partial', never 'correct' or "
+            "'accepted'. When the answer is fully French, return lexical_gaps as an empty array."
         )
 
     def _clean_feedback_text(self, text: Any) -> str:
@@ -4902,6 +5570,47 @@ class AtelierSRSService:
     def __init__(self, db: Session) -> None:
         self.db = db
 
+    def phrase_for_la_une(self, *, user: User, today: date | None = None) -> dict[str, Any] | None:
+        """Return only the phrase filed in the immediately preceding edition."""
+        session_date = (today or date.today()) - timedelta(days=1)
+        sessions = (
+            self.db.query(AtelierSession)
+            .filter(
+                AtelierSession.user_id == user.id,
+                AtelierSession.status == "completed",
+            )
+            .order_by(AtelierSession.completed_at.desc(), AtelierSession.created_at.desc())
+            .limit(30)
+            .all()
+        )
+        for session in sessions:
+            phrase = (session.recap_payload or {}).get("phrase_of_day")
+            if not isinstance(phrase, dict) or phrase.get("session_date") != session_date.isoformat():
+                continue
+            text = str(phrase.get("text") or "").strip()
+            if not text:
+                continue
+            return {
+                "text": text,
+                "byline": str(phrase.get("byline") or "L’élève de l’Atelier"),
+                "session_date": session_date.isoformat(),
+                "paru": True,
+            }
+        return None
+
+    @staticmethod
+    def _answer_text(answer_payload: dict[str, Any]) -> str:
+        text = answer_payload.get("text")
+        if isinstance(text, str):
+            return text
+        answers = answer_payload.get("answers")
+        if isinstance(answers, dict):
+            return " ".join(
+                _join_french_tokens(value) if isinstance(value, list) else str(value or "")
+                for value in answers.values()
+            ).strip()
+        return ""
+
     def complete_session(self, *, session: AtelierSession, user: User) -> dict[str, Any]:
         attempts = list(
             self.db.query(AtelierAttempt)
@@ -4910,12 +5619,31 @@ class AtelierSRSService:
             .all()
         )
         scores_by_concept: dict[int, list[float]] = defaultdict(list)
+        interval_multipliers_by_concept: dict[int, list[float]] = defaultdict(list)
         errata_count = 0
         errata_rows: list[dict[str, Any]] = []
         error_memory = ErrorMemoryService(self.db)
+        confidence_summary = {"sure": 0, "unsure": 0, "confident_misses": 0, "hesitant_misses": 0}
+        phrase_candidates: list[tuple[float, str]] = []
         for attempt in attempts:
             if attempt.concept_id:
-                scores_by_concept[attempt.concept_id].append(float(attempt.score_0_4 or 0))
+                raw_score = float(attempt.score_0_4 or 0)
+                confidence = (attempt.answer_payload or {}).get("confidence")
+                adjusted_score, interval_multiplier = atelier_calibration_adjustment(raw_score, confidence)
+                if confidence == "sure":
+                    confidence_summary["sure"] += 1
+                    if raw_score < 4:
+                        confidence_summary["confident_misses"] += 1
+                elif confidence == "unsure":
+                    confidence_summary["unsure"] += 1
+                    if raw_score < 4:
+                        confidence_summary["hesitant_misses"] += 1
+                scores_by_concept[attempt.concept_id].append(adjusted_score)
+                interval_multipliers_by_concept[attempt.concept_id].append(interval_multiplier)
+            if attempt.round in {"sentence", "speak", "conversation", "produce"} and attempt.verdict in {"correct", "accepted"}:
+                text = self._answer_text(attempt.answer_payload).strip()
+                if text:
+                    phrase_candidates.append((float(attempt.score_0_4 or 0), text))
             correction_payload = attempt.correction_payload or {}
             memory_updates = correction_payload.get("memory_updates") or error_memory.record_atelier_attempt(
                 user=user,
@@ -4936,11 +5664,14 @@ class AtelierSRSService:
         for concept_id in concept_ids:
             values = scores_by_concept.get(concept_id) or [0.0]
             quality = round((sum(values) / len(values)) / 4 * 10, 1)
+            interval_multipliers = interval_multipliers_by_concept.get(concept_id) or [1.0]
+            interval_multiplier = sum(interval_multipliers) / len(interval_multipliers)
             progress = grammar_service.record_review(
                 user=user,
                 concept_id=concept_id,
                 score=quality,
                 notes=f"Atelier session {session.id}",
+                interval_multiplier=interval_multiplier,
             )
             progress_rows.append(
                 {
@@ -4962,9 +5693,19 @@ class AtelierSRSService:
             "concepts": progress_rows,
             "attempts": len(attempts),
             "errata": errata_rows,
+            "confidence": confidence_summary,
+            "adaptive_locks": dict((session.quote_payload or {}).get("adaptive_locks") or {}),
         }
+        completed_at = datetime.now(timezone.utc)
+        if phrase_candidates:
+            _, phrase = max(phrase_candidates, key=lambda item: (item[0], len(item[1])))
+            recap["phrase_of_day"] = {
+                "text": phrase,
+                "byline": user.full_name or "L’élève de l’Atelier",
+                "session_date": completed_at.date().isoformat(),
+            }
         session.status = "completed"
-        session.completed_at = datetime.now(timezone.utc)
+        session.completed_at = completed_at
         session.recap_payload = recap
         self.db.add(session)
         self.db.commit()
@@ -5022,6 +5763,7 @@ __all__ = [
     "AtelierCorrectionService",
     "AtelierExerciseGenerationError",
     "AtelierExerciseGenerator",
+    "AtelierExerciseQualityService",
     "AtelierScheduler",
     "AtelierSRSService",
     "ItemVerdict",

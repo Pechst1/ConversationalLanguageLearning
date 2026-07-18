@@ -25,12 +25,14 @@ from app.db.models.grammar import GrammarConcept, UserGrammarProgress
 from app.db.models.graphic_novel import GraphicNovelScene
 from app.db.models.mission import RealWorldMission
 from app.db.models.progress import UserVocabularyProgress
+from app.db.models.serial import SerialThread
 from app.db.models.user import User
 from app.schemas import TokenPayload
 from app.schemas.atelier import (
     AtelierActiveSessionResponse,
     AtelierAlmanacResponse,
     AtelierAttemptRequest,
+    AtelierAttemptRepairRequest,
     AtelierAttemptResponse,
     AtelierCompleteResponse,
     AtelierConceptRead,
@@ -51,6 +53,7 @@ from app.services.atelier import (
     ATELIER_GENERATOR_VERSION,
     AtelierCorrectionService,
     AtelierExerciseGenerationError,
+    AtelierExerciseQualityService,
     AtelierScheduler,
     AtelierSRSService,
     ConceptSelection,
@@ -68,12 +71,110 @@ from app.services.atelier_rewards import AtelierRewardService, AtelierWorkshopSh
 from app.services.book_library import BookLibraryService
 from app.services.cefr_progress import CEFRProgressService
 from app.services.error_memory import ErrorMemoryService
+from app.services.missions import MissionConversationService
 from app.services.progress import vocabulary_due_filter
 from app.services.serial import SerialThreadService
 
 router = APIRouter(prefix="/atelier", tags=["atelier"])
 atelier_oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login", auto_error=False)
 ATELIER_DEMO_EMAIL = "atelier-demo@local.test"
+
+
+def _serial_conversation_context(db: Session, user: User) -> dict[str, Any] | None:
+    """Choose the current-beat cast member, falling back to the closest relationship."""
+    thread = (
+        db.query(SerialThread)
+        .filter(SerialThread.user_id == user.id, SerialThread.status == "active")
+        .order_by(SerialThread.updated_at.desc())
+        .first()
+    )
+    if not thread:
+        return None
+    serial_service = SerialThreadService(db)
+    episode = serial_service.current_episode(thread)
+    brief = episode.brief_payload if episode and isinstance(episode.brief_payload, dict) else {}
+    preferred_ids = [str(value) for value in brief.get("required_cast") or [] if str(value).strip()]
+    mission = db.get(RealWorldMission, episode.mission_id) if episode and episode.mission_id else None
+    mission_prompt = mission.prompt_payload if mission and isinstance(mission.prompt_payload, dict) else {}
+    mission_character_id = str(mission_prompt.get("serial_character_id") or "").strip()
+    if mission_character_id:
+        preferred_ids.insert(0, mission_character_id)
+
+    cast = serial_service.cast_payload(thread)
+    if not cast:
+        return None
+    by_id = {str(member.get("id")): member for member in cast if member.get("id")}
+    character = next((by_id.get(character_id) for character_id in preferred_ids if by_id.get(character_id)), None)
+    if not character:
+        character = max(
+            cast,
+            key=lambda member: int(((member.get("relationship") or {}).get("closeness") or 0)),
+        )
+    relationship = character.get("relationship") if isinstance(character.get("relationship"), dict) else {}
+    register = str(relationship.get("register") or "vous").lower()
+    messenger = mission_prompt.get("messenger") if isinstance(mission_prompt.get("messenger"), dict) else {}
+    opener = str(
+        messenger.get("opening_message")
+        or mission_prompt.get("conversation_opening")
+        or (
+            "J'ai besoin de ton avis. Qu'est-ce que tu en penses ?"
+            if register == "tu"
+            else "J'ai besoin de votre avis. Qu'est-ce que vous en pensez ?"
+        )
+    ).strip()
+    previous_hook = (episode.hook_from_previous or {}).get("text") if episode else ""
+    scene_context = str(
+        previous_hook
+        or brief.get("hook_guidance")
+        or brief.get("stage_summary")
+        or "La conversation reprend dans le feuilleton du jour."
+    ).strip()
+    return {
+        "thread_id": str(thread.id),
+        "episode_index": episode.episode_index if episode else thread.current_episode_index,
+        "scene_context": scene_context,
+        "opener": opener,
+        "character": {
+            "id": character.get("id"),
+            "name": character.get("name"),
+            "role": character.get("role"),
+            "register": register,
+            "closeness": int(relationship.get("closeness") or 0),
+        },
+    }
+
+
+def _with_serial_conversation(
+    payload: dict[str, Any],
+    *,
+    context: dict[str, Any] | None,
+    concept: GrammarConcept,
+) -> dict[str, Any]:
+    if not context:
+        return payload
+    output_ladder = dict(payload.get("output_ladder") or {})
+    conversation = dict(output_ladder.get("conversation") or {})
+    items = [dict(item or {}) for item in conversation.get("items") or []]
+    if not items:
+        return payload
+    character = context["character"]
+    register = str(character.get("register") or "vous")
+    items[0].update(
+        {
+            "prompt": f"{context['opener']} Répondez à {character.get('name') or 'ce personnage'} en utilisant « {concept.name} » de façon naturelle.",
+            "character": character,
+            "serial_context": {
+                "thread_id": context["thread_id"],
+                "episode_index": context["episode_index"],
+                "scene_context": context["scene_context"],
+                "opener": context["opener"],
+                "register": register,
+            },
+        }
+    )
+    conversation["items"] = items
+    output_ladder["conversation"] = conversation
+    return {**payload, "output_ladder": output_ladder}
 
 
 def _atelier_library_episode(db: Session, user: User) -> dict[str, Any] | None:
@@ -109,6 +210,7 @@ def _atelier_day_progress(
     *,
     errata_due: int,
     library_episode: dict[str, Any] | None = None,
+    is_first_session: bool = False,
 ) -> dict[str, Any]:
     now = datetime.now(timezone.utc)
     today = now.date()
@@ -144,7 +246,7 @@ def _atelier_day_progress(
     level = str(getattr(user, "proficiency_level", None) or "A2").upper()
     review_minutes = 4 if errata_due else 0
     vocabulary_minutes = 4 if vocabulary_due else 0
-    session_minutes = 8 if level in {"BEGINNER", "A1", "A2"} else 10
+    session_minutes = 3 if is_first_session else 8 if level in {"BEGINNER", "A1", "A2"} else 10
     mission_minutes = 5 if level in {"BEGINNER", "A1", "A2"} else 7
     feuilleton_minutes = 5 if level in {"BEGINNER", "A1", "A2"} else 6
     library_minutes = int((library_episode or {}).get("est_reading_minutes") or 4)
@@ -304,6 +406,58 @@ def _attempt_response(
     )
 
 
+def _maybe_apply_adaptive_lock(
+    db: Session,
+    *,
+    session: AtelierSession,
+    concept: GrammarConcept | None,
+    attempt: AtelierAttempt,
+) -> dict[str, Any] | None:
+    """Lock the unused recognition modes after three genuinely clean items."""
+    if not concept or attempt.round != "recognize":
+        return None
+    locks = _adaptive_locks(session)
+    if str(concept.id) in locks:
+        return None
+    recognition_attempts = list(
+        db.query(AtelierAttempt)
+        .filter(
+            AtelierAttempt.atelier_session_id == session.id,
+            AtelierAttempt.concept_id == concept.id,
+            AtelierAttempt.round == "recognize",
+        )
+        .order_by(AtelierAttempt.created_at.asc(), AtelierAttempt.id.asc())
+        .all()
+    )
+    if len(recognition_attempts) < 3:
+        return None
+    if any(
+        candidate.verdict != "correct"
+        or float(candidate.score_0_4 or 0) < 4
+        or (candidate.correction_payload or {}).get("errata")
+        for candidate in recognition_attempts
+    ):
+        return None
+    seen_modes = {candidate.mode for candidate in recognition_attempts}
+    skipped_modes = [mode for mode in ("fill", "classify", "word_bank") if mode not in seen_modes]
+    if not skipped_modes:
+        return None
+    lock = {
+        "concept_id": concept.id,
+        "title": concept.name,
+        "skipped_modes": skipped_modes,
+        "clean_recognize_items": len(recognition_attempts),
+        "earned_at": datetime.now(timezone.utc).isoformat(),
+    }
+    quote = dict(session.quote_payload or {})
+    next_locks = dict(locks)
+    next_locks[str(concept.id)] = lock
+    quote["adaptive_locks"] = next_locks
+    session.quote_payload = quote
+    db.add(session)
+    return lock
+
+
 def _errata_by_concept(due_errata: list[dict[str, Any]]) -> dict[int, list[dict[str, Any]]]:
     grouped: dict[int, list[dict[str, Any]]] = {}
     for item in due_errata:
@@ -314,6 +468,10 @@ def _errata_by_concept(due_errata: list[dict[str, Any]]) -> dict[int, list[dict[
     return grouped
 
 
+def _concept_roles_payload(selections: list[ConceptSelection]) -> dict[str, str]:
+    return {str(selection.concept.id): selection.role for selection in selections}
+
+
 def _session_selections(db: Session, user: User, session: AtelierSession) -> list[ConceptSelection]:
     concept_ids = [int(item) for item in (session.selected_concept_ids or [])]
     if not concept_ids:
@@ -321,15 +479,22 @@ def _session_selections(db: Session, user: User, session: AtelierSession) -> lis
     concepts = db.query(GrammarConcept).filter(GrammarConcept.id.in_(concept_ids)).all()
     by_id = {concept.id: concept for concept in concepts}
     scheduler = AtelierScheduler(db)
+    quote = session.quote_payload if isinstance(session.quote_payload, dict) else {}
+    stored_roles = quote.get("concept_roles") if isinstance(quote, dict) else None
+    stored_roles = stored_roles if isinstance(stored_roles, dict) else {}
     selections: list[ConceptSelection] = []
     for index, concept_id in enumerate(concept_ids):
         concept = by_id.get(concept_id)
         if not concept:
             continue
+        # Prefer the role recorded at session-creation time (e.g. "new" for a
+        # cold-start pick); older sessions with no stored roles fall back to
+        # the previous index-based fragile/contrast heuristic.
+        role = stored_roles.get(str(concept_id)) or ("fragile" if index < 2 else "contrast")
         selections.append(
             ConceptSelection(
                 concept=concept,
-                role="fragile" if index < 2 else "contrast",
+                role=role,
                 progress=scheduler._progress_for(user, concept.id),
             )
         )
@@ -534,11 +699,22 @@ def _submitted_key(attempt: AtelierAttempt) -> str:
     return keys[0]
 
 
-def _submitted_map(attempts: list[AtelierAttempt]) -> dict[str, bool]:
+def _adaptive_locks(session: AtelierSession) -> dict[str, dict[str, Any]]:
+    raw = (session.quote_payload or {}).get("adaptive_locks") or {}
+    return raw if isinstance(raw, dict) else {}
+
+
+def _submitted_map(
+    attempts: list[AtelierAttempt],
+    adaptive_locks: dict[str, dict[str, Any]] | None = None,
+) -> dict[str, bool]:
     submitted: dict[str, bool] = {}
     for attempt in attempts:
         for key in _submitted_keys_for_attempt(attempt):
             submitted[key] = True
+    for concept_id, lock in (adaptive_locks or {}).items():
+        for mode in lock.get("skipped_modes") or []:
+            submitted[_attempt_key("recognize", str(mode), int(concept_id))] = True
     return submitted
 
 
@@ -575,7 +751,7 @@ def _payload_items(exercise_sets: list[dict[str, Any]], concept_id: int, round_n
 
 
 def _current_position(session: AtelierSession, attempts: list[AtelierAttempt], exercise_sets: list[dict[str, Any]]) -> dict[str, Any]:
-    submitted = _submitted_map(attempts)
+    submitted = _submitted_map(attempts, _adaptive_locks(session))
     concept_ids = [int(item) for item in (session.selected_concept_ids or [])]
     for concept_index, concept_id in enumerate(concept_ids):
         for mode in ("fill", "classify", "word_bank"):
@@ -626,7 +802,14 @@ def _current_position(session: AtelierSession, attempts: list[AtelierAttempt], e
     return {"round": "complete", "mode": "complete", "concept_id": None, "concept_index": 0}
 
 
-def _session_response(db: Session, user: User, session: AtelierSession) -> AtelierSessionStartResponse:
+def _session_response(
+    db: Session,
+    user: User,
+    session: AtelierSession,
+    *,
+    fast_path: bool = False,
+    background_tasks: BackgroundTasks | None = None,
+) -> AtelierSessionStartResponse:
     scheduler = AtelierScheduler(db)
     asset_service = AtelierAssetService(db)
     selections = _session_selections(db, user, session)
@@ -634,6 +817,7 @@ def _session_response(db: Session, user: User, session: AtelierSession) -> Ateli
     due_by_concept = _errata_by_concept(due_errata)
     exercise_sets: list[dict[str, Any]] = []
     target_vocabulary = session_vocabulary_context(session)
+    serial_conversation = _serial_conversation_context(db, user)
     for concept_index, selection in enumerate(selections):
         try:
             exercise_set = session_exercise_set(
@@ -642,6 +826,8 @@ def _session_response(db: Session, user: User, session: AtelierSession) -> Ateli
                 session=session,
                 concept=selection.concept,
                 target_vocabulary=target_vocabulary,
+                fast_path=fast_path,
+                background_tasks=background_tasks,
             )
         except AtelierExerciseGenerationError as exc:
             raise HTTPException(
@@ -652,6 +838,11 @@ def _session_response(db: Session, user: User, session: AtelierSession) -> Ateli
             exercise_set.payload,
             target_vocabulary,
             concept_index=concept_index,
+        )
+        payload = _with_serial_conversation(
+            payload,
+            context=serial_conversation,
+            concept=selection.concept,
         )
         exercise_sets.append(
             {
@@ -670,20 +861,34 @@ def _session_response(db: Session, user: User, session: AtelierSession) -> Ateli
         quote=session.quote_payload or scheduler.quote_for_today(),
         exercise_sets=exercise_sets,
         attempts=[_attempt_read(attempt) for attempt in attempts],
-        submitted_map=_submitted_map(attempts),
+        submitted_map=_submitted_map(attempts, _adaptive_locks(session)),
         current_position=_current_position(session, attempts, exercise_sets),
         due_errata=due_errata,
         target_vocabulary_ids=[int(item["word_id"]) for item in target_vocabulary if item.get("word_id")],
         target_vocabulary=target_vocabulary,
         recap=session.recap_payload or {},
+        learning_moments={"adaptive_locks": _adaptive_locks(session)},
     )
 
 
 @router.get("/today", response_model=AtelierTodayResponse)
 async def get_today(
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_atelier_user),
 ) -> AtelierTodayResponse:
+    if settings.ATELIER_BACKGROUND_PREGENERATION_ENABLED:
+        has_open_session = (
+            db.query(AtelierSession.id)
+            .filter(
+                AtelierSession.user_id == current_user.id,
+                AtelierSession.status.in_(["prepared", "in_progress"]),
+            )
+            .first()
+            is not None
+        )
+        if not has_open_session:
+            background_tasks.add_task(pregenerate_next_atelier_session, current_user.id)
     scheduler = AtelierScheduler(db)
     selections = scheduler.select_today(current_user)
     asset_service = AtelierAssetService(db)
@@ -704,7 +909,13 @@ async def get_today(
             summary["tomorrow_focus"] = parcours["next"]
     serial_episode = await SerialThreadService(db).today(current_user) if settings.SERIAL_WORLD_ENABLED else None
     library_episode = _atelier_library_episode(db, current_user)
-    progress = _atelier_day_progress(db, current_user, errata_due=len(due_errata), library_episode=library_episode)
+    progress = _atelier_day_progress(
+        db,
+        current_user,
+        errata_due=len(due_errata),
+        library_episode=library_episode,
+        is_first_session=scheduler.is_first_session(current_user),
+    )
     cefr = CEFRProgressService(db).current(current_user)
     return AtelierTodayResponse(
         concepts=[_concept_read(selection, due_by_concept, asset_service) for selection in selections],
@@ -721,6 +932,7 @@ async def get_today(
         library_episode=library_episode,
         serial_episode=serial_episode,
         serial=serial_episode,
+        phrase_of_day=AtelierSRSService(db).phrase_for_la_une(user=current_user),
     )
 
 
@@ -762,7 +974,11 @@ def start_session(
         .first()
     )
     if active:
-        return _session_response(db, current_user, active)
+        # fast_path is a no-op once a concept's exercise set is already stored
+        # (the common case); it only matters if this in-progress session was
+        # flipped over from "prepared" before background pregeneration finished
+        # writing every concept's exercise set, so a reload doesn't block here.
+        return _session_response(db, current_user, active, fast_path=True, background_tasks=background_tasks)
 
     if not payload or not (payload.concept_ids or payload.preferred_concept_id or payload.preferred_vocabulary_ids):
         prepared = (
@@ -778,7 +994,12 @@ def start_session(
             db.refresh(prepared)
             if settings.ATELIER_BACKGROUND_PREGENERATION_ENABLED:
                 background_tasks.add_task(pregenerate_next_atelier_session, current_user.id)
-            return _session_response(db, current_user, prepared)
+            # A "prepared" row can exist before background pregeneration has
+            # finished writing every concept's exercise set (it commits the
+            # session row up front, then populates exercise sets one by one) --
+            # without fast_path this would block on the same slow generation
+            # chain HS-1 exists to avoid.
+            return _session_response(db, current_user, prepared, fast_path=True, background_tasks=background_tasks)
 
     if payload and payload.concept_ids:
         concepts = (
@@ -841,6 +1062,7 @@ def start_session(
         **scheduler.quote_for_today(),
         "target_vocabulary_ids": [int(item["word_id"]) for item in target_vocabulary if item.get("word_id")],
         "target_vocabulary": target_vocabulary,
+        "concept_roles": _concept_roles_payload(selections),
     }
     session = AtelierSession(
         user_id=current_user.id,
@@ -852,7 +1074,7 @@ def start_session(
     db.add(session)
     db.commit()
     db.refresh(session)
-    response = _session_response(db, current_user, session)
+    response = _session_response(db, current_user, session, fast_path=True, background_tasks=background_tasks)
     if settings.ATELIER_BACKGROUND_PREGENERATION_ENABLED:
         background_tasks.add_task(pregenerate_next_atelier_session, current_user.id)
     return response
@@ -923,6 +1145,44 @@ def submit_attempt(
             detail="This Atelier drill has already been submitted. Pass resubmit=true to replace it intentionally.",
         )
 
+    retest_source: AtelierAttempt | None = None
+    prompt_payload_override: dict[str, Any] | None = None
+    if payload.retest_source_attempt_id:
+        retest_source = _attempt_or_404(db, payload.retest_source_attempt_id, current_user)
+        if retest_source.atelier_session_id != session.id:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="The re-test belongs to a different session")
+        retest = (retest_source.correction_payload or {}).get("retest") or {}
+        if retest.get("status") != "queued":
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This re-test is no longer available")
+        if (payload.round, payload.mode, payload.concept_id) != (retest_source.round, retest_source.mode, retest_source.concept_id):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="The re-test must keep its original exercise context")
+        prompt_payload_override = dict(retest_source.prompt_payload or {})
+    elif payload.round == "conversation" and concept:
+        serial_context = _serial_conversation_context(db, current_user)
+        if serial_context:
+            exercise_set = session_exercise_set(
+                db,
+                user=current_user,
+                session=session,
+                concept=concept,
+                target_vocabulary=session_vocabulary_context(session),
+            )
+            enriched = _with_serial_conversation(
+                exercise_set.payload,
+                context=serial_context,
+                concept=concept,
+            )
+            ladder = ((enriched.get("output_ladder") or {}).get("conversation") or {})
+            prompt_payload_override = {
+                "round": "conversation",
+                "mode": payload.mode,
+                "rule_panel": enriched.get("rule_panel") or {},
+                **ladder,
+            }
+
+    answer_payload = dict(payload.answer_payload or {})
+    if payload.confidence:
+        answer_payload["confidence"] = payload.confidence
     correction_service = AtelierCorrectionService(db)
     first_submission = existing is None
     attempt = correction_service.submit_attempt(
@@ -932,14 +1192,79 @@ def submit_attempt(
         round_name=payload.round,
         mode=payload.mode,
         exercise_id=payload.exercise_id,
-        answer_payload=payload.answer_payload,
+        answer_payload=answer_payload,
+        prompt_payload_override=prompt_payload_override,
+        retest_of=retest_source.id if retest_source else None,
     )
+    if payload.round == "conversation":
+        conversation_item = next(
+            (
+                item
+                for item in (attempt.prompt_payload or {}).get("items") or []
+                if isinstance(item, dict) and isinstance(item.get("character"), dict)
+            ),
+            None,
+        )
+        if conversation_item:
+            serial_context = conversation_item.get("serial_context") or {}
+            character = conversation_item.get("character") or {}
+            learner_text = str((attempt.answer_payload or {}).get("text") or "").strip()
+            world_reply = MissionConversationService(db).respond_for_atelier(
+                character=character,
+                opener=str(serial_context.get("opener") or conversation_item.get("prompt") or ""),
+                scene_context=str(serial_context.get("scene_context") or ""),
+                user_text=learner_text,
+            )
+            attempt.correction_payload = {
+                **(attempt.correction_payload or {}),
+                "world_reply": {
+                    "text": world_reply,
+                    "character": character,
+                },
+            }
+            db.add(attempt)
+            db.commit()
+            db.refresh(attempt)
+    adaptive_lock = _maybe_apply_adaptive_lock(db, session=session, concept=concept, attempt=attempt)
+    if adaptive_lock:
+        correction = {**(attempt.correction_payload or {}), "adaptive_lock": adaptive_lock}
+        attempt.correction_payload = correction
+        db.add(attempt)
+    if retest_source:
+        source_correction = dict(retest_source.correction_payload or {})
+        source_retest = dict(source_correction.get("retest") or {})
+        source_retest.update({"status": "completed", "attempt_id": str(attempt.id)})
+        source_correction["retest"] = source_retest
+        retest_source.correction_payload = source_correction
+        db.add(retest_source)
+    if adaptive_lock or retest_source:
+        db.commit()
+        db.refresh(attempt)
     if correction_service.should_auto_start_ai_review(attempt):
         background_tasks.add_task(run_atelier_ai_review, attempt.id)
     if settings.ATELIER_BACKGROUND_PREGENERATION_ENABLED:
         background_tasks.add_task(pregenerate_next_atelier_session, current_user.id)
-    minted = AtelierRewardService(db).mint_logo_token_for_attempt(attempt, first_submission=first_submission)
+    minted = [] if retest_source else AtelierRewardService(db).mint_logo_token_for_attempt(attempt, first_submission=first_submission)
     return _attempt_response(attempt, minted_collectibles=minted)
+
+
+@router.post("/attempts/{attempt_id}/repair", response_model=AtelierAttemptResponse)
+def repair_attempt(
+    attempt_id: UUID,
+    payload: AtelierAttemptRepairRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_atelier_user),
+) -> AtelierAttemptResponse:
+    attempt = _attempt_or_404(db, attempt_id, current_user)
+    try:
+        updated = AtelierCorrectionService(db).record_micro_repair(
+            attempt=attempt,
+            text=payload.text,
+            erratum_index=payload.erratum_index,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    return _attempt_response(updated)
 
 
 @router.post("/exercises/report", response_model=AtelierExerciseReportResponse, status_code=status.HTTP_201_CREATED)
@@ -999,6 +1324,8 @@ def report_exercise(
     db.add(event)
     db.commit()
     db.refresh(event)
+    if exercise_set:
+        AtelierExerciseQualityService(db).evaluate_and_retire(exercise_set)
     return AtelierExerciseReportResponse(ok=True, event_id=event.id)
 
 

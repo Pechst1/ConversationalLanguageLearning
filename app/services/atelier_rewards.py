@@ -418,18 +418,22 @@ class AtelierRewardService:
     @staticmethod
     def _expected_session_keys(session: AtelierSession) -> set[tuple[Any, ...]]:
         concept_ids = [int(item) for item in (session.selected_concept_ids or [])]
+        locks = dict((session.quote_payload or {}).get("adaptive_locks") or {})
         expected: set[tuple[Any, ...]] = {("produce", None)}
         for concept_id in concept_ids:
+            skipped_modes = set((locks.get(str(concept_id)) or {}).get("skipped_modes") or [])
             expected.update(
                 {
-                    ("recognize", "fill", concept_id),
-                    ("recognize", "classify", concept_id),
-                    ("recognize", "word_bank", concept_id),
                     ("transform", concept_id),
                     ("sentence", concept_id),
                     ("speak", concept_id),
                     ("conversation", concept_id),
                 }
+            )
+            expected.update(
+                ("recognize", mode, concept_id)
+                for mode in ("fill", "classify", "word_bank")
+                if mode not in skipped_modes
             )
         return expected
 

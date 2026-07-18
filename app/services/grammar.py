@@ -252,13 +252,15 @@ class GrammarService:
         concept_id: int,
         score: float,
         notes: str | None = None,
+        interval_multiplier: float = 1.0,
     ) -> UserGrammarProgress:
         """Record a grammar review with a 0-10 score."""
         score = max(0.0, min(10.0, score))  # Clamp to 0-10
+        interval_multiplier = max(0.25, min(2.0, float(interval_multiplier)))
         progress = self.get_or_create_progress(user_id=user.id, concept_id=concept_id)
 
         now = datetime.now(timezone.utc)
-        interval = calculate_next_review(score)
+        interval = calculate_next_review(score) * interval_multiplier
 
         progress.score = score
         progress.reps += 1
@@ -277,6 +279,7 @@ class GrammarService:
             user_id=str(user.id),
             concept_id=concept_id,
             score=score,
+            interval_multiplier=interval_multiplier,
             next_review=progress.next_review.isoformat(),
             state=progress.state,
         )

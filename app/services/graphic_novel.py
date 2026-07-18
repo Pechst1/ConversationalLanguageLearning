@@ -7,7 +7,7 @@ import hashlib
 import json
 import re
 import unicodedata
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote
@@ -40,6 +40,7 @@ from app.services.news_service import NewsService
 from app.services.progress import ProgressService
 from app.services.serial_costs import serial_generation_cost_event
 from app.services.serial_notifications import enqueue_serial_edition_notification
+from app.services.daily_words import DailyWordSlateService
 from app.services.vocabulary_credit import VocabularyCreditService
 
 
@@ -407,10 +408,122 @@ class GraphicNovelScheduler:
         self.db = db
         self.generator = generator or GraphicNovelStoryGenerator(db)
 
+    def prepare_generation(
+        self,
+        *,
+        user: User,
+        cadence: str = "ad_hoc",
+        atelier_session_id: UUID | None = None,
+        mission_id: UUID | None = None,
+        serial_thread_id: UUID | None = None,
+        episode_index: int | None = None,
+        personal_input_item_id: UUID | None = None,
+        image_quality: str | None = None,
+        force_new: bool = False,
+    ) -> GraphicNovelScene:
+        """Persist a pollable shell before the slower story and art work starts."""
+        if not force_new:
+            recent_cutoff = datetime.now(timezone.utc) - timedelta(minutes=10)
+            existing = (
+                self.db.query(GraphicNovelScene)
+                .filter(
+                    GraphicNovelScene.user_id == user.id,
+                    GraphicNovelScene.status == "writing",
+                    GraphicNovelScene.atelier_session_id == atelier_session_id,
+                    GraphicNovelScene.mission_id == mission_id,
+                    GraphicNovelScene.serial_thread_id == serial_thread_id,
+                    GraphicNovelScene.episode_index == episode_index,
+                    GraphicNovelScene.started_at >= recent_cutoff,
+                )
+                .order_by(GraphicNovelScene.started_at.desc())
+                .first()
+            )
+            if existing:
+                return existing
+        scene = GraphicNovelScene(
+            user_id=user.id,
+            atelier_session_id=atelier_session_id,
+            mission_id=mission_id,
+            serial_thread_id=serial_thread_id,
+            episode_index=episode_index,
+            personal_input_item_id=personal_input_item_id,
+            status="writing",
+            cadence=cadence,
+            title="L’édition se compose",
+            brief="La rédaction prépare le récit, les dialogues et les exercices.",
+            selected_concept_ids=[],
+            target_errata_ids=[],
+            target_vocabulary_ids=[],
+            source_snapshot={},
+            script_payload={"generation_phase": "script", "generation_dispatched": False},
+            recap_payload={},
+            cache_key=f"pending:{uuid4().hex}",
+            prompt_version=GRAPHIC_NOVEL_PROMPT_VERSION,
+            image_model=settings.OPENAI_IMAGE_MODEL,
+            image_quality=_image_quality(image_quality),
+            started_at=datetime.now(timezone.utc),
+        )
+        self.db.add(scene)
+        self.db.commit()
+        self.db.refresh(scene)
+        return scene
+
+    def claim_prepared_generation(self, scene_id: UUID) -> bool:
+        scene = (
+            self.db.query(GraphicNovelScene)
+            .filter(GraphicNovelScene.id == scene_id)
+            .with_for_update()
+            .first()
+        )
+        if not scene or scene.status != "writing":
+            return False
+        payload = dict(scene.script_payload or {})
+        if payload.get("generation_dispatched"):
+            return False
+        payload["generation_dispatched"] = True
+        scene.script_payload = payload
+        self.db.commit()
+        self.db.refresh(scene)
+        return True
+
+    def mark_generation_failed(self, scene_id: UUID, error: Exception) -> None:
+        scene = self.db.get(GraphicNovelScene, scene_id)
+        if not scene:
+            return
+        scene.status = "failed"
+        payload = dict(scene.script_payload or {})
+        payload.update(
+            {
+                "generation_phase": "failed",
+                "generation_error": _compact_text(str(error), max_length=500),
+            }
+        )
+        scene.script_payload = payload
+        if scene.serial_thread_id is not None and scene.episode_index is not None:
+            episode = (
+                self.db.query(SerialEpisode)
+                .filter(
+                    SerialEpisode.thread_id == scene.serial_thread_id,
+                    SerialEpisode.episode_index == scene.episode_index,
+                )
+                .first()
+            )
+            if episode and episode.scene_id == scene.id:
+                episode.status = "delayed"
+                episode.scene_id = None
+                episode.hook = {
+                    "text": "L'édition de demain est retardée.",
+                    "unresolved_question": "Quand l'imprimerie relancera-t-elle l'épisode ?",
+                    "teaser": "Demain : l'édition reprend dès que la salle de rédaction revient.",
+                    "next_beat_kind": "feuilleton",
+                }
+                self.db.add(episode)
+        self.db.commit()
+
     async def today(self, user: User) -> dict[str, Any]:
         active = (
             self.db.query(GraphicNovelScene)
-            .filter(GraphicNovelScene.user_id == user.id, GraphicNovelScene.status.in_(["in_progress", "generating"]))
+            .filter(GraphicNovelScene.user_id == user.id, GraphicNovelScene.status.in_(["writing", "in_progress", "generating"]))
             .order_by(GraphicNovelScene.updated_at.desc())
             .first()
         )
@@ -471,6 +584,7 @@ class GraphicNovelScheduler:
         force_new: bool = False,
         refresh_news: bool = False,
         sync: bool | None = None,
+        pending_scene_id: UUID | None = None,
     ) -> GraphicNovelScene:
         resolved_panel_count = _panel_count(panel_count)
         resolved_story_quality = _story_quality(story_quality)
@@ -547,7 +661,7 @@ class GraphicNovelScheduler:
             .filter(GraphicNovelScene.user_id == user.id, GraphicNovelScene.cache_key == cache_key)
             .first()
         )
-        if existing and not force_new:
+        if existing and not force_new and pending_scene_id is None:
             return existing
 
         script = self.generator.build_script(
@@ -576,56 +690,74 @@ class GraphicNovelScheduler:
                 panel_payload["seal_crop"] = _seal_crop_payload(panel_payload=panel_payload)
         if script.get("panels"):
             script["seal_crop"] = (script["panels"][0] or {}).get("seal_crop") or {}
-        scene = GraphicNovelScene(
-            user_id=user.id,
-            atelier_session_id=atelier_session.id if atelier_session else None,
-            mission_id=mission.id if mission else None,
-            serial_thread_id=serial_thread.id if serial_thread else None,
-            episode_index=episode_index,
-            personal_input_item_id=personal_item.id if personal_item else None,
-            status="available" if sync_images else "generating",
-            cadence=cadence,
-            title=script["title"],
-            brief=script["brief"],
-            selected_concept_ids=[concept.id for concept in concepts],
-            target_errata_ids=_ids(errata),
-            target_vocabulary_ids=target_vocabulary_ids,
-            source_snapshot=source_snapshot,
-            script_payload=script,
-            recap_payload={},
-            cache_key=cache_key,
-            prompt_version=GRAPHIC_NOVEL_PROMPT_VERSION,
-            image_model=settings.OPENAI_IMAGE_MODEL,
-            image_quality=resolved_image_quality,
-            started_at=datetime.now(timezone.utc) if not sync_images else None,
-        )
-        self.db.add(scene)
-        self.db.flush([scene])
-        rendered_panels = (
-            await self._render_panel_payloads(
-                scene=scene,
-                script=script,
-                panel_payloads=script["panels"],
+        if pending_scene_id is not None:
+            scene = self.db.get(GraphicNovelScene, pending_scene_id)
+            if not scene or scene.user_id != user.id:
+                raise ValueError("Pending Feuilleton scene not found")
+            scene.atelier_session_id = atelier_session.id if atelier_session else None
+            scene.mission_id = mission.id if mission else None
+            scene.serial_thread_id = serial_thread.id if serial_thread else None
+            scene.episode_index = episode_index
+            scene.personal_input_item_id = personal_item.id if personal_item else None
+            scene.status = "generating"
+            scene.cadence = cadence
+            scene.title = script["title"]
+            scene.brief = script["brief"]
+            scene.selected_concept_ids = [concept.id for concept in concepts]
+            scene.target_errata_ids = _ids(errata)
+            scene.target_vocabulary_ids = target_vocabulary_ids
+            scene.source_snapshot = source_snapshot
+            scene.script_payload = {**script, "generation_phase": "art"}
+            scene.recap_payload = {}
+            scene.cache_key = cache_key
+            scene.prompt_version = GRAPHIC_NOVEL_PROMPT_VERSION
+            scene.image_model = settings.OPENAI_IMAGE_MODEL
+            scene.image_quality = resolved_image_quality
+            scene.started_at = scene.started_at or datetime.now(timezone.utc)
+        else:
+            scene = GraphicNovelScene(
+                user_id=user.id,
+                atelier_session_id=atelier_session.id if atelier_session else None,
+                mission_id=mission.id if mission else None,
+                serial_thread_id=serial_thread.id if serial_thread else None,
+                episode_index=episode_index,
+                personal_input_item_id=personal_item.id if personal_item else None,
+                status="generating",
+                cadence=cadence,
+                title=script["title"],
+                brief=script["brief"],
+                selected_concept_ids=[concept.id for concept in concepts],
+                target_errata_ids=_ids(errata),
+                target_vocabulary_ids=target_vocabulary_ids,
+                source_snapshot=source_snapshot,
+                script_payload={**script, "generation_phase": "art"},
+                recap_payload={},
+                cache_key=cache_key,
+                prompt_version=GRAPHIC_NOVEL_PROMPT_VERSION,
+                image_model=settings.OPENAI_IMAGE_MODEL,
                 image_quality=resolved_image_quality,
-                render_mode=resolved_render_mode,
+                started_at=datetime.now(timezone.utc),
             )
-            if sync_images
-            else [
-                (
-                    panel_payload,
-                    {
-                        "url": None,
-                        "prompt": panel_payload.get("image_prompt", ""),
-                        "model": settings.OPENAI_IMAGE_MODEL,
-                        "quality": resolved_image_quality,
-                        "fallback_used": False,
-                        "render_mode": resolved_render_mode,
-                        "status": "queued",
-                    },
-                )
-                for panel_payload in script["panels"]
-            ]
-        )
+            self.db.add(scene)
+        self.db.flush([scene])
+        # Commit the readable story before artwork starts. Image generation can
+        # legitimately take several minutes; it must never hide or strand the
+        # script, dialogue, and learning tasks behind a writing placeholder.
+        rendered_panels = [
+            (
+                panel_payload,
+                {
+                    "url": None,
+                    "prompt": panel_payload.get("image_prompt", ""),
+                    "model": settings.OPENAI_IMAGE_MODEL,
+                    "quality": resolved_image_quality,
+                    "fallback_used": False,
+                    "render_mode": resolved_render_mode,
+                    "status": "queued",
+                },
+            )
+            for panel_payload in script["panels"]
+        ]
         for panel_payload, image in rendered_panels:
             self.db.add(
                 GraphicNovelPanel(
@@ -663,15 +795,33 @@ class GraphicNovelScheduler:
                     },
                 )
             )
+        if serial_thread and episode_index is not None:
+            episode = (
+                self.db.query(SerialEpisode)
+                .filter(
+                    SerialEpisode.thread_id == serial_thread.id,
+                    SerialEpisode.episode_index == episode_index,
+                )
+                .first()
+            )
+            if episode:
+                episode.kind = "feuilleton"
+                episode.scene_id = scene.id
+                episode.location_id = script.get("location_id") or episode.location_id
+                episode.hook = script.get("hook") or episode.hook or {}
+                episode.status = "generating"
+                self.db.add(episode)
         self.db.commit()
         self.db.refresh(scene)
+        if sync_images:
+            scene = await self.render_scene_images(scene.id)
+        else:
+            self._enqueue_scene_image_generation(scene.id)
         if serial_thread:
             logger.bind(
                 event_name="serial_generation_cost_estimate",
                 **serial_generation_cost_event(scene),
             ).info("Serial generation cost estimate recorded")
-        if not sync_images:
-            self._enqueue_scene_image_generation(scene.id)
         return scene
 
     async def _render_panel_payloads(
@@ -872,7 +1022,7 @@ class GraphicNovelScheduler:
                 metadata["seal_crop"] = _seal_crop_payload(panel_payload=panel_payload, image=image)
                 panel.generation_metadata = metadata
                 self.db.add(panel)
-            scene.script_payload = script
+            scene.script_payload = {**script, "generation_phase": "ready"}
             scene.status = "available"
             scene.completed_at = datetime.now(timezone.utc)
             if getattr(scene, "serial_thread_id", None):
@@ -894,13 +1044,30 @@ class GraphicNovelScheduler:
             self.db.commit()
             self.db.refresh(scene)
             return scene
-        except Exception:
+        except Exception as exc:
             self.db.rollback()
             scene = self.db.get(GraphicNovelScene, scene_uuid)
             if scene:
-                scene.status = "generation_failed"
+                # Artwork is enhancement, not a publication gate. Keep the
+                # episode readable and let the UI render deterministic panels.
+                payload = dict(scene.script_payload or {})
+                payload.update(
+                    {
+                        "generation_phase": "ready",
+                        "art_generation_error": _compact_text(str(exc), max_length=500),
+                    }
+                )
+                scene.script_payload = payload
+                scene.status = "available"
+                for panel in scene.panels or []:
+                    metadata = dict(panel.generation_metadata or {})
+                    metadata["image_status"] = "failed"
+                    panel.generation_metadata = metadata
+                    self.db.add(panel)
                 self.db.add(scene)
                 self.db.commit()
+                self.db.refresh(scene)
+                return scene
             raise
 
     def _apply_target_vocabulary_credit(self, *, user: User, scene: GraphicNovelScene) -> dict[str, int]:
@@ -978,6 +1145,11 @@ class GraphicNovelScheduler:
         attempts = scene.attempts or []
         errata_count = sum(len((attempt.correction_payload or {}).get("errata") or []) for attempt in attempts)
         vocabulary_credit = self._apply_target_vocabulary_credit(user=user, scene=scene)
+        DailyWordSlateService(self.db).record_encounters(
+            user=user,
+            word_ids=_dedupe_ints(scene.target_vocabulary_ids or []),
+            kind="lu",
+        )
         scene.status = "completed"
         scene.completed_at = datetime.now(timezone.utc)
         scene.recap_payload = {
@@ -1598,7 +1770,7 @@ class GraphicNovelStoryGenerator:
                     "reference_pack_version": COMEDY_REFERENCE_PACK_VERSION,
                 },
             )
-        generation["fallback_used"] = False
+        generation.setdefault("fallback_used", False)
 
         return {
             "version": GRAPHIC_NOVEL_PROMPT_VERSION,
@@ -1826,9 +1998,23 @@ class GraphicNovelStoryGenerator:
                 metadata["demo_script_used"] = True
                 metadata["validation_errors"] = validation_errors
                 return demo_script, metadata
-            metadata["status"] = "llm_disabled"
-            metadata["errors"] = ["story_llm_unavailable"]
-            return None, metadata
+            return self._local_recovery_story(
+                user=user,
+                concepts=concepts,
+                source_snapshot=source_snapshot,
+                targets=targets,
+                panel_count=panel_count,
+                story_quality=story_quality,
+                humor_style=humor_style,
+                story_model=story_model,
+                experience_mode=experience_mode,
+                render_mode=render_mode,
+                image_quality=image_quality,
+                public_figure_mode=public_figure_mode,
+                target_vocabulary=target_vocabulary,
+                metadata=metadata,
+                reason="story_llm_unavailable",
+            )
 
         standard_story_model = settings.OPENAI_GRAPHIC_NOVEL_SCRIPT_MODEL
         models_to_try = [story_model]
@@ -1939,7 +2125,305 @@ class GraphicNovelStoryGenerator:
             metadata["errors"] = []
             metadata["validation_errors"] = validation_errors
             return script, metadata
-        return None, metadata
+        return self._local_recovery_story(
+            user=user,
+            concepts=concepts,
+            source_snapshot=source_snapshot,
+            targets=targets,
+            panel_count=panel_count,
+            story_quality=story_quality,
+            humor_style=humor_style,
+            story_model=story_model,
+            experience_mode=experience_mode,
+            render_mode=render_mode,
+            image_quality=image_quality,
+            public_figure_mode=public_figure_mode,
+            target_vocabulary=target_vocabulary,
+            metadata=metadata,
+            reason=(metadata.get("errors") or ["story_generation_exhausted"])[-1],
+        )
+
+    def _local_recovery_story(
+        self,
+        *,
+        user: User,
+        concepts: list[GrammarConcept],
+        source_snapshot: dict[str, Any],
+        targets: list[dict[str, Any]],
+        panel_count: int,
+        story_quality: str,
+        humor_style: str,
+        story_model: str,
+        experience_mode: str,
+        render_mode: str,
+        image_quality: str,
+        public_figure_mode: str,
+        target_vocabulary: list[dict[str, Any]],
+        metadata: dict[str, Any],
+        reason: str,
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        """Publish a complete, learnable edition when the story provider is unavailable."""
+        active_thread = (
+            self.db.query(SerialThread)
+            .filter(SerialThread.user_id == user.id, SerialThread.status == "active")
+            .order_by(SerialThread.updated_at.desc())
+            .first()
+        )
+        serial_context: dict[str, Any] | None = None
+        if active_thread and isinstance(active_thread.world_bible, dict) and active_thread.world_bible.get("cast"):
+            serial_context = GraphicNovelScheduler(self.db, generator=self)._serial_context(
+                serial_thread=active_thread,
+                episode_index=active_thread.current_episode_index,
+            ) or {}
+        else:
+            default_world_path = (
+                Path(__file__).resolve().parent.parent / "prompts" / "serial" / "world_bible_paris_v2.json"
+            )
+            try:
+                default_world = json.loads(default_world_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                default_world = {}
+            if isinstance(default_world, dict) and default_world.get("cast"):
+                serial_context = {
+                    "thread_id": None,
+                    "episode_index": 0,
+                    "world_bible": default_world,
+                    "state": {
+                        "user": {"has_met_group": True, "default_register": "vous"},
+                        "relationships": {
+                            "romy_tremblay": {"register": "tu", "closeness": 1},
+                            "lila_bonnet": {"register": "tu", "closeness": 1},
+                            "marin_leveque": {"register": "tu", "closeness": 1},
+                        },
+                    },
+                    "news_seed": {},
+                    "previous_locations": [],
+                    "hook_from_previous": {},
+                    "episode_brief": {
+                        "required_cast": ["romy_tremblay", "lila_bonnet", "marin_leveque"],
+                        "location_id": "le_mistral",
+                        "a_plot": {
+                            "stage_summary": "Romy finds a small contradiction in the group's plan and asks the protagonist to choose a side."
+                        },
+                        "hook_guidance": "Pourquoi Romy garde-t-elle la dernière question pour vous ?",
+                    },
+                }
+        if serial_context:
+            serial_context["force_local_plan"] = True
+            serial_context["noncanonical_side_quest"] = True
+            raw_serial = self._serial_story_script(
+                user=user,
+                concepts=concepts,
+                source_snapshot=source_snapshot,
+                targets=targets,
+                panel_count=panel_count,
+                story_quality=story_quality,
+                humor_style=humor_style,
+                story_model=story_model,
+                experience_mode=experience_mode,
+                render_mode=render_mode,
+                image_quality=image_quality,
+                public_figure_mode=public_figure_mode,
+                target_vocabulary=target_vocabulary,
+                serial_context=serial_context,
+            )
+            script = self._normalize_script(
+                script=raw_serial,
+                source_snapshot=source_snapshot,
+                concepts=concepts,
+                targets=targets,
+                target_vocabulary=target_vocabulary,
+                panel_count=panel_count,
+                story_quality=story_quality,
+                humor_style=humor_style,
+                story_model=story_model,
+                experience_mode=experience_mode,
+                render_mode=render_mode,
+                image_quality=image_quality,
+                public_figure_mode=public_figure_mode,
+                story_cost=0.0,
+            )
+            validation_errors = self._validate_script(
+                script=script,
+                panel_count=panel_count,
+                experience_mode=experience_mode,
+                public_figure_mode=public_figure_mode,
+                target_language=user.target_language,
+                serial_context=serial_context,
+            )
+            return script, {
+                **metadata,
+                "status": "local_character_recovery_script",
+                "errors": [],
+                "provider_error": reason,
+                "fallback_used": True,
+                "recovery_script_used": True,
+                "serial_context_used": True,
+                "serial_plan_source": raw_serial.get("plan_source"),
+                "validation_errors": validation_errors,
+            }
+
+        raw = self._demo_story_script(
+            user=user,
+            concepts=concepts,
+            source_snapshot=source_snapshot,
+            targets=targets,
+            panel_count=panel_count,
+            story_quality=story_quality,
+            humor_style=humor_style,
+            story_model=story_model,
+            experience_mode=experience_mode,
+            render_mode=render_mode,
+            image_quality=image_quality,
+            public_figure_mode=public_figure_mode,
+            target_vocabulary=target_vocabulary,
+        )
+        raw["title"] = "Le dossier qui refusait d’avancer"
+        raw["brief"] = "Au guichet, un tampon prend le pouvoir et transforme une formalité en petite affaire d’État."
+        raw["visual_only_demo"] = False
+        raw["source_usage"] = {
+            **(raw.get("source_usage") or {}),
+            "mode": "local_recovery",
+            "how_used": "A resilient local edition was composed from today’s learning targets.",
+        }
+        raw["quality_notes"] = [
+            "Local recovery edition published after the remote story desk was unavailable.",
+            "Learning targets and completion accounting remain active.",
+        ]
+        raw["visual_gag_quality"] = {
+            **(raw.get("visual_gag_quality") or {}),
+            "exercises_extend_premise": True,
+            "notes": ["Recovery tasks continue the counter scene."],
+        }
+
+        concept_id = concepts[0].id if concepts else None
+        target_word = (target_vocabulary or [{}])[0]
+        target_word_id = target_word.get("word_id")
+        target_word_text = str(target_word.get("word") or "dossier").strip()
+        target_translation = str(target_word.get("translation") or "file").strip()
+        panel_task_count = _task_count(panel_count, experience_mode)
+        task_templates = [
+            {
+                "task_type": "cloze",
+                "label": "La phrase du guichet",
+                "instruction": "Complétez la réplique avec la forme correcte.",
+                "prompt": "Tout le monde ___ le tampon depuis dix minutes.",
+                "prompt_translation": "Everyone has been waiting for the stamp for ten minutes.",
+                "expected_answer": "attend",
+                "accepted_answers": ["attend"],
+                "options": [],
+                "expected_features": ["présent", "accord avec tout le monde"],
+                "placeholder": "attend",
+                "scene_function": "The reply keeps the queue moving while the stamp delays the office.",
+                "feedback_context": "Use the present tense with a singular collective subject in this scene.",
+            },
+            {
+                "task_type": "choice",
+                "label": "Choisissez la réplique",
+                "instruction": "Choisissez la réponse la plus naturelle.",
+                "prompt": "Le formulaire est prêt, mais le tampon hésite. Que dites-vous ?",
+                "prompt_translation": "The form is ready, but the stamp is hesitating. What do you say?",
+                "expected_answer": "On pourrait peut-être avancer sans lui.",
+                "accepted_answers": ["On pourrait peut-être avancer sans lui."],
+                "options": [
+                    {
+                        "value": "On pourrait peut-être avancer sans lui.",
+                        "fr": "On pourrait peut-être avancer sans lui.",
+                        "en": "Perhaps we could move on without it.",
+                    },
+                    {
+                        "value": "Il faut attendre la prochaine réunion.",
+                        "fr": "Il faut attendre la prochaine réunion.",
+                        "en": "We have to wait for the next meeting.",
+                    },
+                ],
+                "expected_features": ["proposition naturelle"],
+                "placeholder": "A ou B",
+                "scene_function": "The choice decides whether the office challenges the stamp or keeps waiting.",
+                "feedback_context": "Both replies are valid French; choose the one that moves this scene forward.",
+            },
+            {
+                "task_type": "short_sentence",
+                "label": f"Placez « {target_word_text} »",
+                "instruction": f"Écrivez une phrase courte avec « {target_word_text} ».",
+                "prompt": f"Le tampon bloque la file. Utilisez « {target_word_text} » pour faire avancer la scène.",
+                "prompt_translation": f"The stamp is blocking the queue. Use “{target_word_text}” to move the scene forward.",
+                "expected_answer": f"Je prends le {target_word_text} et j’avance.",
+                "accepted_answers": [],
+                "expected_features": ["phrase complète", target_word_text],
+                "placeholder": "Écrivez votre réplique…",
+                "min_words": 4,
+                "max_words": 18,
+                "vocabulary_task": bool(target_word_id),
+                "target_word_id": target_word_id,
+                "target_word": target_word_text,
+                "target_translation": target_translation,
+                "scene_function": "Your line turns the target word into the scene’s next action.",
+                "feedback_context": "Keep the target word inside one complete, natural reply to the clerk.",
+            },
+        ]
+        for index, panel in enumerate(raw.get("panels") or []):
+            overlay = panel.setdefault("overlay_payload", {})
+            overlay["tasks"] = []
+            if index < panel_task_count:
+                template = dict(task_templates[index % len(task_templates)])
+                template["id"] = f"recovery_panel_{index + 1}"
+                template["concept_id"] = concept_id
+                overlay["tasks"] = [template]
+
+        raw["final_prompt"] = {
+            "id": "recovery_final",
+            "task_type": "short_sentence",
+            "label": "La dernière réplique",
+            "instruction": "Écrivez une dernière phrase qui débloque la situation.",
+            "prompt_body": "Le tampon vient de s’approuver lui-même. Que dites-vous au guichet ?",
+            "prompt_translation": "The stamp has just approved itself. What do you say at the counter?",
+            "expected_features": ["phrase complète", "réaction à la scène"],
+            "placeholder": "Votre dernière réplique…",
+            "min_words": 4,
+            "max_words": 20,
+            "concept_id": concept_id,
+        }
+        script = self._normalize_script(
+            script=raw,
+            source_snapshot=source_snapshot,
+            concepts=concepts,
+            targets=targets,
+            target_vocabulary=target_vocabulary,
+            panel_count=panel_count,
+            story_quality=story_quality,
+            humor_style=humor_style,
+            story_model=story_model,
+            experience_mode=experience_mode,
+            render_mode=render_mode,
+            image_quality=image_quality,
+            public_figure_mode=public_figure_mode,
+            story_cost=0.0,
+        )
+        for panel in script.get("panels") or []:
+            if isinstance(panel, dict) and isinstance(panel.get("image_prompt"), str):
+                panel["image_prompt"] = (
+                    panel["image_prompt"]
+                    .replace("the learner", "the protagonist")
+                    .replace("the user", "the protagonist")
+                )
+        validation_errors = self._validate_script(
+            script=script,
+            panel_count=panel_count,
+            experience_mode=experience_mode,
+            public_figure_mode=public_figure_mode,
+            target_language=user.target_language,
+        )
+        recovery_metadata = {
+            **metadata,
+            "status": "local_recovery_script",
+            "errors": [],
+            "provider_error": reason,
+            "fallback_used": True,
+            "recovery_script_used": True,
+            "validation_errors": validation_errors,
+        }
+        return script, recovery_metadata
 
     def _demo_story_script(
         self,
@@ -2387,6 +2871,326 @@ class GraphicNovelStoryGenerator:
             logger.info("Serial episode plan unavailable; using deterministic template", error=str(exc))
         return None
 
+    def _serial_recovery_episode_plan(
+        self,
+        *,
+        state: dict[str, Any],
+        hook_from_previous: dict[str, Any],
+        location: dict[str, Any],
+        cast: list[dict[str, Any]],
+        target_vocabulary: list[dict[str, Any]],
+        episode_brief: dict[str, Any] | None,
+        panel_count: int,
+        experience_mode: str,
+    ) -> dict[str, Any]:
+        """Compose a continuity-safe episode without a remote story provider."""
+        brief = episode_brief or {}
+        recurring_cast = [member for member in cast if str(member.get("id") or "") != "user"]
+        primary = recurring_cast[0] if recurring_cast else {
+            "id": "margaux_barman",
+            "name": "Margaux",
+            "role": "patronne du Mistral",
+        }
+        secondary = recurring_cast[1] if len(recurring_cast) > 1 else primary
+        primary_id = str(primary.get("id") or "margaux_barman")
+        secondary_id = str(secondary.get("id") or primary_id)
+        primary_name = str(primary.get("name") or "Margaux")
+        secondary_name = str(secondary.get("name") or primary_name)
+        location_name = str(location.get("name") or "Paris")
+        a_plot = brief.get("a_plot") if isinstance(brief.get("a_plot"), dict) else {}
+        b_plot = brief.get("b_plot") if isinstance(brief.get("b_plot"), dict) else {}
+        plot_summary = _compact_text(
+            a_plot.get("stage_summary")
+            or a_plot.get("summary")
+            or a_plot.get("premise")
+            or brief.get("story_premise")
+            or "A practical promise exposes what the characters are avoiding.",
+            max_length=420,
+        )
+        side_pressure = _compact_text(
+            b_plot.get("seed") or b_plot.get("summary") or "The group notices more than anyone says.",
+            max_length=260,
+        )
+        previous_question = _compact_text(
+            hook_from_previous.get("unresolved_question")
+            or hook_from_previous.get("text")
+            or hook_from_previous.get("teaser"),
+            max_length=260,
+        )
+        relationships = state.get("relationships") if isinstance(state.get("relationships"), dict) else {}
+        primary_relationship = relationships.get(primary_id) if isinstance(relationships.get(primary_id), dict) else {}
+        raw_register = str(primary_relationship.get("register") or primary.get("register_with_user") or "tu").lower()
+        register = "vous" if "vous" in raw_register else "tu"
+        target_word = (target_vocabulary or [{}])[0]
+        target_word_text = str(target_word.get("word") or "promesse").strip()
+        target_translation = str(target_word.get("translation") or "promise").strip()
+
+        title_by_character = {
+            "landlord_marchand": "M. Marchand a une condition",
+            "romy_tremblay": "Romy garde une porte ouverte",
+            "marin_leveque": "La bague dans la poche",
+            "lila_bonnet": "Ce que Lila a caché",
+            "augustin_de_roncourt": "Le détail qui trahit Gus",
+            "margaux_barman": "Margaux avait tout entendu",
+        }
+        anchor_by_character = {
+            "landlord_marchand": "a phone showing a formal appointment and a small ring of apartment keys",
+            "romy_tremblay": "a reporter's recorder beside one still-packed Montréal box",
+            "marin_leveque": "a worn coat pocket concealing a grandmother's ring",
+            "lila_bonnet": "a Berlin envelope hidden under paint-stained paper",
+            "augustin_de_roncourt": "a burgundy notebook from La Méthode with one Creteil receipt inside",
+            "margaux_barman": "a plain café glass beside the group's unpaid note",
+        }
+        anchor_object = anchor_by_character.get(primary_id, "a folded note that changes the group's plan")
+
+        voice_lines = {
+            "landlord_marchand": [
+                "J’ai lu votre message. Il est très clair.",
+                "Je peux passer à dix-huit heures, pas avant.",
+                "Une précision : vous serez bien là ?",
+                "Je préfère les faits aux grandes histoires.",
+            ],
+            "romy_tremblay": [
+                "C’est pas pire. Mais tu ne me racontes pas tout.",
+                "J’ai une question, et tu vas la détester.",
+                "Voyons donc. Tu pensais vraiment que je ne verrais rien ?",
+                "Bon. C’est quoi, la vraie histoire ?",
+            ],
+            "marin_leveque": [
+                "C’est un signe, ça. Un signe très mal organisé.",
+                "Promets-moi juste de ne pas rire tout de suite.",
+                "Ma grand-mère aurait déjà choisi la date.",
+                "Bon. Là, j’ai besoin que tu sois honnête.",
+            ],
+            "lila_bonnet": [
+                "Toi, tu me caches quelque chose.",
+                "Mais arrête, c’est évident.",
+                "Je plaisante parce que sinon je vais répondre pour toi.",
+                "Bon. On fait quoi, alors ?",
+            ],
+            "augustin_de_roncourt": [
+                "Règle numéro un : ne jamais laisser le réel gâcher une belle version.",
+                "Mon cher, ce détail est techniquement sans importance.",
+                "Le mensonge est un costume. Celui-ci tombe très mal.",
+                "Tu peux rire. Mais reste encore une minute.",
+            ],
+            "margaux_barman": [
+                "J’ai rien entendu.",
+                "La même chose ?",
+                "Vous parlez beaucoup pour des gens qui ont déjà compris.",
+                "Ça finira bien, ou ça finira. Bois.",
+            ],
+        }
+
+        def line_for(member: dict[str, Any], index: int) -> str:
+            member_id = str(member.get("id") or "")
+            lines = voice_lines.get(member_id)
+            if lines:
+                return lines[index % len(lines)]
+            name = str(member.get("name") or "Quelqu’un")
+            generic = [
+                f"{name} : on reprend depuis le détail qui manque.",
+                "Tu peux encore changer la suite.",
+                "Dis-le maintenant, avant que tout le monde décide à ta place.",
+                "Alors, quelle version est vraie ?",
+            ]
+            return generic[index % len(generic)]
+
+        selected_indices = {
+            4: [0, 2, 6, 7],
+            6: [0, 1, 2, 4, 6, 7],
+            8: list(range(8)),
+        }[panel_count]
+        title_templates = [
+            "La conséquence",
+            "Le détail",
+            f"La version de {secondary_name}",
+            "Deux façons d’avancer",
+            "Ce qui ne colle pas",
+            "La phrase retenue",
+            "Le geste",
+            "La question",
+        ]
+        captions = [
+            f"La question d’hier est encore là. {primary_name} aussi.",
+            f"{primary_name} regarde le détail que tout le monde avait choisi d’éviter.",
+            (
+                f"À Paris, un silence peut durer exactement jusqu’à l’arrivée de {secondary_name}."
+                if secondary_id != primary_id
+                else "À Paris, un silence peut durer exactement jusqu’au prochain message."
+            ),
+            "Deux réponses sont possibles. Une seule laisse la porte ouverte.",
+            "Le plan tenait debout. Puis quelqu’un a posé la bonne question.",
+            "Pour une fois, personne ne plaisante au bon moment.",
+            "Le geste est petit. C’est justement pour cela qu’il compte.",
+            f"{primary_name} est déjà dans l’escalier quand la dernière phrase tombe.",
+        ]
+        caption_translations = [
+            f"Yesterday's question is still here. So is {primary_name}.",
+            f"{primary_name} looks at the detail everyone chose to avoid.",
+            "In Paris, a silence lasts exactly until the next person or message arrives.",
+            "Two answers are possible. Only one leaves the door open.",
+            "The plan held together. Then someone asked the right question.",
+            "For once, nobody jokes at the right moment.",
+            "The gesture is small. That is precisely why it matters.",
+            f"{primary_name} is already on the stairs when the last sentence lands.",
+        ]
+        beats = [
+            f"The episode opens on the direct consequence of the previous hook: {previous_question or plot_summary}",
+            f"{primary_name} isolates the practical detail at {location_name}: {plot_summary}",
+            f"{secondary_name} arrives with a conflicting reading of the situation: {side_pressure}",
+            f"The protagonist must choose whether to answer {primary_name} directly or buy time.",
+            f"A physical clue involving {anchor_object} reveals that the first version was incomplete.",
+            f"{primary_name} drops the performance and says what this decision costs personally.",
+            f"A quiet gesture between the protagonist and {primary_name} shows that the relationship has changed.",
+            f"At the exit, {primary_name} asks one question that makes the next mission unavoidable.",
+        ]
+        actions = [
+            f"At {location_name}, open on {anchor_object}; {primary_name} enters the frame carrying yesterday's consequence.",
+            f"A close editorial composition of {primary_name} checking the decisive detail while the protagonist watches in POV.",
+            f"{secondary_name} crosses into the scene and places a second piece of evidence beside {anchor_object}.",
+            f"A tense two-shot leaves visible space between {primary_name} and the protagonist for the choice to land.",
+            f"The camera finds the inconsistency in {anchor_object}; every character reacts differently and specifically.",
+            f"A restrained close shot of {primary_name}, no spectacle, with the location still unmistakably {location_name}.",
+            f"A small practical kindness changes the blocking: {primary_name} makes room beside them without announcing it.",
+            f"At the threshold of {location_name}, {primary_name} turns back while the unanswered question hangs in the negative space.",
+        ]
+
+        def task_for(source_index: int, panel_number: int) -> dict[str, Any]:
+            common = {
+                "id": f"continuity_panel_{panel_number}",
+                    "scene_function": f"Your answer changes how {primary_name} handles this exact story pressure.",
+                "feedback_context": f"Keep the reply natural for the current {register} relationship with {primary_name}.",
+            }
+            if source_index == 0:
+                return {
+                    **common,
+                    "task_type": "cloze",
+                    "label": "La conséquence d’hier",
+                    "instruction": "Complétez la phrase qui rouvre l’histoire.",
+                    "prompt": f"Quand {primary_name} a ouvert la porte, tout ___ déjà changé.",
+                    "prompt_translation": f"When {primary_name} opened the door, everything had already changed.",
+                    "expected_answer": "avait",
+                    "accepted_answers": ["avait"],
+                    "options": [],
+                    "expected_features": ["plus-que-parfait", "avoir à l’imparfait"],
+                    "placeholder": "avait",
+                }
+            if source_index in {1, 3}:
+                return {
+                    **common,
+                    "task_type": "choice",
+                    "label": "La réponse qui change la scène",
+                    "instruction": f"Choisissez la réplique la plus juste pour {primary_name}.",
+                    "prompt": f"{primary_name} attend une décision. Que dites-vous ?",
+                    "prompt_translation": f"{primary_name} is waiting for a decision. What do you say?",
+                    "expected_answer": "franche",
+                    "accepted_answers": ["franche"],
+                    "options": [
+                        {
+                            "value": "franche",
+                            "label": "A",
+                            "fr": "Je préfère vous dire la vérité maintenant." if register == "vous" else "Je préfère te dire la vérité maintenant.",
+                            "en": "I would rather tell you the truth now.",
+                            "next_panel_beat": f"{primary_name} stays and listens instead of leaving.",
+                        },
+                        {
+                            "value": "attendre",
+                            "label": "B",
+                            "fr": "On peut en reparler plus tard.",
+                            "en": "We can talk about it later.",
+                            "next_panel_beat": f"{primary_name} notices the delay and protects the unanswered question.",
+                        },
+                    ],
+                    "expected_features": [register, "réponse directe"],
+                    "placeholder": "",
+                }
+            if source_index == 4:
+                return {
+                    **common,
+                    "task_type": "short_sentence",
+                    "label": f"Le mot de la scène : {target_word_text}",
+                    "instruction": f"Écrivez une phrase naturelle avec « {target_word_text} ».",
+                    "prompt": f"Le détail change le plan. Répondez à {primary_name} avec « {target_word_text} ».",
+                    "prompt_translation": f"The detail changes the plan. Reply to {primary_name} using “{target_word_text}”.",
+                    "expected_answer": "",
+                    "accepted_answers": [],
+                    "options": [],
+                    "expected_features": ["phrase complète", target_word_text, register],
+                    "placeholder": "Votre réplique…",
+                    "vocabulary_task": bool(target_word.get("word_id")),
+                    "target_word_id": target_word.get("word_id"),
+                    "target_word": target_word_text,
+                    "target_translation": target_translation,
+                }
+            return {
+                **common,
+                "task_type": "short_sentence",
+                "label": "Votre réplique",
+                "instruction": "Écrivez une phrase courte qui fait avancer cette relation.",
+                "prompt": f"{primary_name} vous regarde sans plaisanter. Que répondez-vous ?",
+                "prompt_translation": f"{primary_name} looks at you without joking. What do you say?",
+                "expected_answer": "",
+                "accepted_answers": [],
+                "options": [],
+                "expected_features": ["phrase complète", register, "réaction précise"],
+                "placeholder": "Je pense que…",
+            }
+
+        panels: list[dict[str, Any]] = []
+        for panel_number, source_index in enumerate(selected_indices, start=1):
+            speaker = primary if source_index % 2 == 0 or secondary_id == primary_id else secondary
+            bubble = {
+                "speaker_id": speaker.get("id"),
+                "speaker": speaker.get("name"),
+                "fr": line_for(speaker, source_index),
+                "en": "",
+                "x": 10 if panel_number % 2 else 52,
+                "y": 9 + (panel_number % 3) * 6,
+                "tone": "quiet" if source_index in {5, 6, 7} else "dry",
+            }
+            tasks = [] if source_index == 6 or experience_mode == "reward" else [task_for(source_index, panel_number)]
+            panels.append(
+                {
+                    "title": title_templates[source_index],
+                    "beat": beats[source_index],
+                    "panel_action": actions[source_index],
+                    "caption_fr": captions[source_index],
+                    "caption_en": caption_translations[source_index],
+                    "tasks": tasks,
+                    "bubbles": [bubble],
+                }
+            )
+
+        unresolved_question = _compact_text(brief.get("hook_guidance"), max_length=260)
+        if not unresolved_question or not unresolved_question.endswith("?") or _looks_like_english_sentence(unresolved_question):
+            unresolved_question = f"Qu’est-ce que {primary_name} n’a pas encore dit ?"
+        title = title_by_character.get(primary_id, f"{primary_name} ne dit pas tout")
+        return {
+            "episode_title": title,
+            "episode_brief": f"À {location_name}, la conséquence du dernier choix oblige {primary_name} à montrer ce qui comptait vraiment.",
+            "twist": f"Le problème pratique cachait une décision personnelle de {primary_name}; {secondary_name} l’avait déjà comprise.",
+            "panels": panels,
+            "opening_cloze": {
+                "prompt": f"Quand {primary_name} a ouvert la porte, tout ___ déjà changé.",
+                "prompt_translation": f"When {primary_name} opened the door, everything had already changed.",
+                "answer": "avait",
+            },
+            "choice": {
+                "option_a_next_beat": f"{primary_name} reste et écoute la vérité.",
+                "option_b_next_beat": f"{primary_name} accepte le délai, mais garde la question ouverte.",
+            },
+            "hook": {
+                "text": f"Avant de partir, {primary_name} pose enfin la question que tout le monde évitait.",
+                "unresolved_question": unresolved_question,
+                "teaser": f"Demain : la réponse à {primary_name}.",
+            },
+            "anchor_object": anchor_object,
+            "focal_character_id": primary_id,
+            "focal_character_name": primary_name,
+            "relationship_register": register,
+        }
+
     @staticmethod
     def _serial_requires_story_true_plan(episode_index: Any) -> bool:
         try:
@@ -2789,9 +3593,10 @@ class GraphicNovelStoryGenerator:
             or "la nouvelle du jour"
         )
         cast = self._serial_cast(world)
-        required_cast = {str(item) for item in episode_brief.get("required_cast") or [] if str(item or "").strip()}
+        required_cast = [str(item) for item in episode_brief.get("required_cast") or [] if str(item or "").strip()]
         if required_cast:
-            chosen_cast = [item for item in cast if item.get("id") in required_cast]
+            cast_by_id = {str(item.get("id") or ""): item for item in cast}
+            chosen_cast = [cast_by_id[item_id] for item_id in required_cast if item_id in cast_by_id]
         else:
             chosen_cast = [
                 item
@@ -2816,7 +3621,7 @@ class GraphicNovelStoryGenerator:
             "A": {
                 "state_delta": {
                     "set": {"user.first_impression": "shy", "user.default_register": "vous"},
-                    "reason": "The learner entered formally and cautiously.",
+                    "reason": "You entered formally and cautiously.",
                     "source": {"type": "feuilleton_choice", "task_id": "panel_2_choice"},
                 },
                 "next_panel_beat": "The group gently teases the formal vous, but Marin waves you into the booth anyway.",
@@ -2824,7 +3629,7 @@ class GraphicNovelStoryGenerator:
             "B": {
                 "state_delta": {
                     "set": {"user.first_impression": "game", "user.knows_tu_switch": "learning"},
-                    "reason": "The learner entered warmly with tu.",
+                    "reason": "You entered warmly with tu.",
                     "source": {"type": "feuilleton_choice", "task_id": "panel_2_choice"},
                 },
                 "next_panel_beat": "Lila grins at the warm tu and decides you may be useful entertainment.",
@@ -2834,7 +3639,12 @@ class GraphicNovelStoryGenerator:
         target_word_text = str(target_word.get("word") or "réparer")
         target_word_translation = str(target_word.get("translation") or "to repair")
         task_count = _task_count(panel_count, experience_mode)
-        episode_plan = self._serial_episode_plan(
+        try:
+            current_episode_index = int(serial_context.get("episode_index"))
+        except (TypeError, ValueError):
+            current_episode_index = 0
+        force_local_plan = bool(serial_context.get("force_local_plan"))
+        episode_plan = None if force_local_plan else self._serial_episode_plan(
             user=user,
             world=world,
             state=state,
@@ -2851,21 +3661,21 @@ class GraphicNovelStoryGenerator:
             story_model=story_model,
             episode_index=serial_context.get("episode_index"),
         )
-        try:
-            current_episode_index = int(serial_context.get("episode_index"))
-        except (TypeError, ValueError):
-            current_episode_index = 0
         plan_requires_story_true = self._serial_requires_story_true_plan(current_episode_index)
-        if not episode_plan and plan_requires_story_true:
-            raise GraphicNovelGenerationError(
-                "Serial story LLM unavailable",
-                errors=["serial_story_llm_unavailable"],
-                metadata={
-                    "episode_index": current_episode_index,
-                    "thread_id": serial_context.get("thread_id"),
-                    "episode_brief": episode_brief,
-                },
+        plan_source = "llm" if episode_plan else "template"
+        if not episode_plan and (plan_requires_story_true or force_local_plan):
+            episode_plan = self._serial_recovery_episode_plan(
+                state=state,
+                hook_from_previous=serial_context.get("hook_from_previous") or {},
+                location=location,
+                cast=visual_characters,
+                target_vocabulary=target_vocabulary,
+                episode_brief=episode_brief,
+                panel_count=panel_count,
+                experience_mode=experience_mode,
             )
+            plan_requires_story_true = True
+            plan_source = "continuity_recovery"
         if episode_plan and plan_requires_story_true:
             plan_errors = self._serial_plan_quality_errors(
                 episode_plan=episode_plan,
@@ -2874,17 +3684,40 @@ class GraphicNovelStoryGenerator:
                 target_vocabulary=target_vocabulary,
                 state=state,
             )
-            if plan_errors:
-                raise GraphicNovelGenerationError(
-                    "Serial story plan did not contain episode-specific interaction material",
+            if plan_errors and plan_source == "llm":
+                logger.warning(
+                    "Serial episode plan failed continuity checks; using local continuity writer",
+                    episode_index=current_episode_index,
                     errors=plan_errors,
-                    metadata={
-                        "episode_index": current_episode_index,
-                        "thread_id": serial_context.get("thread_id"),
-                        "episode_brief": episode_brief,
-                    },
                 )
-        plan_source = "llm" if episode_plan else "template"
+                episode_plan = self._serial_recovery_episode_plan(
+                    state=state,
+                    hook_from_previous=serial_context.get("hook_from_previous") or {},
+                    location=location,
+                    cast=visual_characters,
+                    target_vocabulary=target_vocabulary,
+                    episode_brief=episode_brief,
+                    panel_count=panel_count,
+                    experience_mode=experience_mode,
+                )
+                plan_source = "continuity_recovery"
+                plan_errors = self._serial_plan_quality_errors(
+                    episode_plan=episode_plan,
+                    panel_count=panel_count,
+                    branch_target=branch_target,
+                    target_vocabulary=target_vocabulary,
+                    state=state,
+                )
+            if plan_errors:
+                # Normalization below can still fill missing presentation fields.
+                # Keep these as quality notes rather than making the entire
+                # episode unavailable after both the provider and recovery pass.
+                logger.warning(
+                    "Serial continuity recovery published with validation notes",
+                    episode_index=current_episode_index,
+                    thread_id=serial_context.get("thread_id"),
+                    errors=plan_errors,
+                )
         title_default = "Feuilleton: Le Mistral, minuit" if location_id == "le_mistral" else f"Feuilleton: {location_name}"
         brief_default = "A serial episode that dramatizes the previous mission consequence and ends on a cliffhanger."
         twist_default = "The practical radiator problem turns into an accidental doorway into a friend group."
@@ -3182,20 +4015,30 @@ class GraphicNovelStoryGenerator:
             }
             for panel in panels
         ]
+        a_plot = episode_brief.get("a_plot") if isinstance(episode_brief.get("a_plot"), dict) else {}
+        plot_summary = _compact_text(
+            a_plot.get("stage_summary") or a_plot.get("summary") or episode_brief_text,
+            max_length=360,
+        )
+        focal_character = _compact_text((episode_plan or {}).get("focal_character_name"), max_length=80)
+        if not focal_character:
+            focal_character = str((chosen_cast or [{}])[0].get("name") or "le groupe")
+        relationship_register = _compact_text((episode_plan or {}).get("relationship_register"), max_length=12) or "tu"
+        anchor_object = _compact_text((episode_plan or {}).get("anchor_object"), max_length=220) or "one story-specific object from the current A-plot"
         selected_visual_premise = {
             "angle": "Persistent friend-group serial consequence.",
-            "mechanic": "The learner's real-world French changes the next social beat in Paris.",
-            "headline_mechanic": f"Romy routes this week's town texture through: {news_title}",
-            "anchor_object": "glowing phone and hot drink",
+            "mechanic": "Your real-world French changes the next social beat in Paris.",
+            "headline_mechanic": plot_summary or f"The current relationship with {focal_character} reaches a new pressure point.",
+            "anchor_object": anchor_object,
             "domain": location_description,
-            "why_it_matches_source": "News remains a diegetic texture through Romy while the plot follows learner state.",
+            "why_it_matches_source": "The episode follows the active serial brief, prior hook, cast relationships, and learner state.",
             "beat_sequence": beat_sequence,
             "score_0_10": 8.4,
         }
         visual_candidates = [
             selected_visual_premise,
-            {**selected_visual_premise, "angle": "The radiator problem becomes a found-family entrance.", "score_0_10": 8.0},
-            {**selected_visual_premise, "angle": "Romy's news item reframes the newcomer as tomorrow's question.", "score_0_10": 7.8},
+            {**selected_visual_premise, "angle": f"{focal_character}'s private contradiction becomes visible through one decisive prop.", "score_0_10": 8.0},
+            {**selected_visual_premise, "angle": f"A quiet relationship shift at {location_name} creates tomorrow's question.", "score_0_10": 7.8},
         ]
         return {
             "title": episode_title,
@@ -3206,21 +4049,25 @@ class GraphicNovelStoryGenerator:
             "human_characters": visual_characters,
             "prop_bible": [
                 {
-                    "name": "phone with landlord thread",
-                    "visual_description": "a small glowing phone, never with readable text",
-                    "comic_function": "shows what the learner's Mission changed",
+                    "name": "episode anchor",
+                    "visual_description": anchor_object,
+                    "comic_function": "makes the current A-plot and its contradiction visible in every relevant panel",
                 },
                 {
-                    "name": "hot drink",
-                    "visual_description": "a plain white cup with amber warmth",
-                    "comic_function": "marks the found-family warmth beat",
+                    "name": "relationship gesture",
+                    "visual_description": f"one small practical gesture between the protagonist and {focal_character}",
+                    "comic_function": "marks the warmth beat without interrupting the story",
                 },
             ],
             "twist": episode_twist,
             "payoff": hook["text"],
             "source_usage": {
                 "mode": str(source_snapshot.get("mode") or "serial_news_seed"),
-                "how_used": "Romy brings the daily news seed into town texture; it is not the whole premise.",
+                "how_used": (
+                    "Romy brings the daily news seed into one supporting beat; the active relationship remains the plot."
+                    if episode_brief.get("include_news_panel")
+                    else "The news seed stays offstage because this episode brief is driven by character continuity."
+                ),
                 "attribution": str(source_snapshot.get("source") or ((source_snapshot.get("items") or [{}])[0] or {}).get("source") or "Atelier serial seed"),
             },
             "captions": [
@@ -3232,11 +4079,11 @@ class GraphicNovelStoryGenerator:
                 for panel in panels
             ],
             "comic_tone": humor_style,
-            "dialogue_register": "persistent cast, natural French, tu/vous tension as story content",
+            "dialogue_register": f"persistent cast, natural French, current relationship register with {focal_character}: {relationship_register}",
             "support_register": f"{self._learner_level(user)} learner support",
             "glosses": [
-                {"term": "en panne", "meaning": "broken / out of order", "reason": "The radiator problem."},
-                {"term": "un prétexte", "meaning": "an excuse / reason", "reason": "The next mission seed."},
+                {"term": target_word_text, "meaning": target_word_translation, "reason": "The current episode task."},
+                {"term": "laisser la porte ouverte", "meaning": "to leave the door open", "reason": "The relationship choice."},
             ],
             "visual_gag_quality": {
                 "headline_link_visible": True,
@@ -3250,11 +4097,11 @@ class GraphicNovelStoryGenerator:
             "final_prompt": {
                 "id": "serial_final_line",
                 "task_type": "short_sentence",
-                "instruction": "Write a warm tu-register line for the next message.",
-                "prompt_body": "Propose un prétexte concret pour revoir le groupe demain.",
-                "prompt_translation": "Suggest a concrete reason to see the group again tomorrow.",
-                "expected_features": ["tu register", "invitation", "concrete time or place"],
-                "placeholder": "On se retrouve...",
+                "instruction": f"Écrivez la phrase qui décidera de la suite avec {focal_character}.",
+                "prompt_body": f"{focal_character} attend une réponse. Que dites-vous maintenant ?",
+                "prompt_translation": f"{focal_character} is waiting for an answer. What do you say now?",
+                "expected_features": [f"{relationship_register} register", "complete reply", "concrete next step"],
+                "placeholder": "Je vais vous dire…" if relationship_register == "vous" else "Je vais te dire…",
                 "min_words": 8,
                 "max_words": 28,
             },
@@ -3267,7 +4114,16 @@ class GraphicNovelStoryGenerator:
             "public_figure_mode": public_figure_mode,
             "hook": hook,
             "location_id": location_id,
-            "serial_context": serial_context,
+            "serial_context": {
+                "thread_id": serial_context.get("thread_id"),
+                "episode_index": serial_context.get("episode_index"),
+                "state": state,
+                "previous_locations": serial_context.get("previous_locations") or [],
+                "hook_from_previous": serial_context.get("hook_from_previous") or {},
+                "episode_brief": episode_brief,
+                "location": location_name,
+                "news_line": news_title if episode_brief.get("include_news_panel") else "",
+            },
             "plan_source": plan_source,
         }
 
@@ -3352,11 +4208,47 @@ class GraphicNovelStoryGenerator:
                     "id": member_id,
                     "name": str(member.get("name") or member_id or "Ami"),
                     "role": str(member.get("role") or "recurring cast"),
+                    "personality": str(member.get("personality") or ""),
+                    "speech_pattern": str(member.get("speech_pattern") or ""),
+                    "register_with_user": str(member.get("register_with_user") or ""),
+                    "dynamic_with_user": str(member.get("dynamic_with_user") or ""),
                     "visual_description": design_text or str(member.get("personality") or member.get("speech_pattern") or "consistent recurring cast member"),
                     "comic_function": str(member.get("dynamic_with_user") or member.get("teaches") or member.get("role") or "serial cast member"),
                     "visual_design": design or {},
                 }
             )
+        known_ids = {str(member.get("id") or "") for member in characters}
+        supporting_defaults = {
+            "landlord_marchand": {
+                "name": "M. Marchand",
+                "role": "the protagonist's precise Parisian landlord",
+                "personality": "Controlled and formal, but capable of a reluctant practical kindness.",
+                "speech_pattern": "Short exact sentences, formal vous, no wasted words.",
+                "register_with_user": "vous",
+                "dynamic_with_user": "A practical relationship whose trust grows through precise French.",
+            }
+        }
+        if isinstance(visual_design, dict):
+            for member_id, design in visual_design.items():
+                if member_id == "user" or member_id in known_ids or not isinstance(design, dict):
+                    continue
+                defaults = supporting_defaults.get(member_id, {})
+                design_text = self._serial_visual_description(design)
+                name = str(defaults.get("name") or member_id.replace("_", " ").title())
+                characters.append(
+                    {
+                        "id": member_id,
+                        "name": name,
+                        "role": str(defaults.get("role") or "recurring supporting character"),
+                        "personality": str(defaults.get("personality") or "A specific recurring Paris character."),
+                        "speech_pattern": str(defaults.get("speech_pattern") or "Natural, concise French."),
+                        "register_with_user": str(defaults.get("register_with_user") or "vous"),
+                        "dynamic_with_user": str(defaults.get("dynamic_with_user") or "A continuing relationship in the serial."),
+                        "visual_description": design_text or "consistent recurring supporting character",
+                        "comic_function": str(defaults.get("dynamic_with_user") or "serial supporting character"),
+                        "visual_design": design,
+                    }
+                )
         return characters or [
             {
                 "id": "margaux",
@@ -3384,8 +4276,8 @@ class GraphicNovelStoryGenerator:
             "id": "user",
             "name": "You",
             "role": "learner protagonist",
-            "visual_description": design_text or "learner protagonist, shown only when the user has created an avatar",
-            "comic_function": "the user's visible avatar in this serial; otherwise the story uses POV framing",
+            "visual_description": design_text or "learner protagonist, shown only after you create an avatar",
+            "comic_function": "your visible avatar in this serial; otherwise the story uses POV framing",
             "visual_design": user_design,
         }
 
@@ -3824,10 +4716,11 @@ class GraphicNovelStoryGenerator:
                 "placeholder": {"type": "string"},
                 "scene_function": {"type": "string"},
                 "feedback_context": {"type": "string"},
-                "branch_target": {
-                    "type": "object",
-                    "additionalProperties": True,
-                },
+                # NB: branch_target is derived server-side in _normalize_serial_task
+                # (_branch_target_from_options); it is NOT read from the model. It was
+                # previously declared here as an open object ("additionalProperties": true,
+                # not in required), which is invalid under OpenAI strict structured
+                # outputs and made every feuilleton_surface_script call 400. Removed.
             },
             "required": [
                 "id",
@@ -4813,7 +5706,7 @@ class GraphicNovelStoryGenerator:
             f"Scene visual preamble: satirize this mechanic without naming the real source in the image: {headline_mechanic}. "
             f"Visual domain: {domain}. Anchor object: {anchor}. "
             f"Human continuity: {character_line or 'fictional French people with simple readable silhouettes'}. "
-            f"{'User protagonist mode: POV framing; do not invent a visible learner avatar unless a user avatar model sheet appears in Human continuity. ' if protagonist_mode == 'pov' else 'User protagonist mode: visible avatar model sheet is allowed; keep the learner human and secondary to the relationship beat. '}"
+            f"{'User protagonist mode: POV framing; do not invent a visible protagonist unless a user avatar model sheet appears in Human continuity. ' if protagonist_mode == 'pov' else 'User protagonist mode: visible avatar model sheet is allowed; keep the protagonist human and secondary to the relationship beat. '}"
             f"Recurring props: {prop_line or anchor}. "
             f"Panel action: {panel_action}. "
             f"Action change from previous panel: {panel_note}. "

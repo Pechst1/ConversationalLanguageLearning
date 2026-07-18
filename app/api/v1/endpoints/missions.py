@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
@@ -82,6 +82,21 @@ def _turn_read(turn: RealWorldMissionTurn) -> dict:
         "audio_payload": turn.audio_payload or {},
         "correction": turn.correction_payload or {},
         "created_at": turn.created_at.isoformat() if turn.created_at else None,
+    }
+
+
+def _correction_with_persistence(
+    correction: dict,
+    persisted: list[dict],
+) -> dict:
+    saved = [item for item in persisted if item.get("id")]
+    return {
+        **correction,
+        "persistence": {
+            "saved_count": len(saved),
+            "error_ids": [str(item["id"]) for item in saved],
+            "records": saved,
+        },
     }
 
 
@@ -270,7 +285,11 @@ def submit_mission(
         mode=request.mode,
         source_id=str(attempt.id),
     )
+    correction = _correction_with_persistence(correction, persisted)
+    attempt.correction_payload = correction
+    db.add(attempt)
     db.commit()
+    db.refresh(attempt)
     db.refresh(mission)
     return MissionAttemptResponse(
         attempt=_attempt_read(attempt),
@@ -370,6 +389,11 @@ def submit_mission_turn(
         mode=request.mode,
         source_id=str(user_turn.id),
     )
+    correction = _correction_with_persistence(correction, persisted)
+    user_turn.correction_payload = correction
+    db.add(user_turn)
+    db.commit()
+    db.refresh(user_turn)
     conversation_service = MissionConversationService(db)
     assistant_text = conversation_service.respond(
         user=current_user,

@@ -166,8 +166,6 @@ class SerialThreadService:
         episode = self._current_episode(thread)
         if not episode:
             episode = await self.start_next_beat(thread)
-        elif episode.kind == "feuilleton" and episode.status == "delayed":
-            episode = await self.start_feuilleton_beat(thread, retry_delayed=True)
         else:
             self._ensure_episode_contract(episode)
         return {
@@ -195,13 +193,38 @@ class SerialThreadService:
             return 0
 
         for scene in scenes:
-            scene.status = "generation_failed"
-            scene.completed_at = now or datetime.now(timezone.utc)
             episode = (
                 self.db.query(SerialEpisode)
                 .filter(SerialEpisode.thread_id == scene.serial_thread_id, SerialEpisode.scene_id == scene.id)
                 .first()
             )
+            script = scene.script_payload if isinstance(scene.script_payload, dict) else {}
+            script_panels = script.get("panels") if isinstance(script.get("panels"), list) else []
+            has_readable_edition = bool(script_panels and scene.panels)
+            if has_readable_edition:
+                payload = dict(script)
+                payload["generation_phase"] = "ready"
+                payload["art_generation_error"] = "Artwork timed out; the readable edition was recovered."
+                scene.script_payload = payload
+                scene.status = "available"
+                scene.completed_at = now or datetime.now(timezone.utc)
+                for panel in scene.panels:
+                    metadata = dict(panel.generation_metadata or {})
+                    if not panel.image_url:
+                        metadata["image_status"] = "failed"
+                    panel.generation_metadata = metadata
+                    self.db.add(panel)
+                if episode and episode.status in {"writing", "generating", "delayed"}:
+                    episode.status = "available"
+                    episode.scene_id = scene.id
+                    episode.location_id = payload.get("location_id") or episode.location_id
+                    episode.hook = payload.get("hook") or episode.hook or {}
+                    self.db.add(episode)
+                self.db.add(scene)
+                continue
+
+            scene.status = "generation_failed"
+            scene.completed_at = now or datetime.now(timezone.utc)
             if episode and episode.status == "generating":
                 episode.status = "delayed"
                 episode.scene_id = None

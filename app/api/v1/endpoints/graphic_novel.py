@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Annotated, Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from loguru import logger
 from sqlalchemy.orm import Session
 
@@ -12,8 +12,9 @@ from app.api.deps import get_db
 from app.api.v1.endpoints.atelier import get_atelier_user
 from app.config import settings
 from app.db.models.graphic_novel import GraphicNovelScene
-from app.db.models.serial import SerialThread
+from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.user import User
+from app.db.session import SessionLocal
 from app.services.cefr_progress import CEFRProgressService
 from app.services.serial import SerialThreadService
 from app.schemas.graphic_novel import (
@@ -60,6 +61,7 @@ async def get_graphic_novel_today(
 @router.post("/scenes/", response_model=GraphicNovelSceneResponse)
 async def create_graphic_novel_scene(
     request: GraphicNovelCreateRequest,
+    background_tasks: BackgroundTasks,
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_atelier_user)],
 ) -> GraphicNovelSceneResponse:
@@ -68,8 +70,30 @@ async def create_graphic_novel_scene(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Reward Feuilleton mode is currently disabled.",
         )
-    try:
-        scene = await GraphicNovelScheduler(db).create(
+    create_kwargs = {
+        "cadence": request.cadence,
+        "atelier_session_id": request.atelier_session_id,
+        "mission_id": request.mission_id,
+        "serial_thread_id": request.serial_thread_id,
+        "episode_index": request.episode_index,
+        "personal_input_item_id": request.personal_input_item_id,
+        "preferred_concept_ids": request.preferred_concept_ids,
+        "preferred_errata_ids": request.preferred_errata_ids,
+        "target_vocabulary_ids": request.target_vocabulary_ids,
+        "use_news": request.use_news,
+        "panel_count": request.panel_count,
+        "story_quality": request.story_quality,
+        "humor_style": request.humor_style,
+        "experience_mode": request.experience_mode,
+        "render_mode": request.render_mode,
+        "image_quality": request.image_quality,
+        "public_figure_mode": request.public_figure_mode,
+        "force_new": request.force_new,
+        "refresh_news": request.refresh_news,
+    }
+    if request.async_generation:
+        scheduler = GraphicNovelScheduler(db)
+        scene = scheduler.prepare_generation(
             user=current_user,
             cadence=request.cadence,
             atelier_session_id=request.atelier_session_id,
@@ -77,19 +101,36 @@ async def create_graphic_novel_scene(
             serial_thread_id=request.serial_thread_id,
             episode_index=request.episode_index,
             personal_input_item_id=request.personal_input_item_id,
-            preferred_concept_ids=request.preferred_concept_ids,
-            preferred_errata_ids=request.preferred_errata_ids,
-            target_vocabulary_ids=request.target_vocabulary_ids,
-            use_news=request.use_news,
-            panel_count=request.panel_count,
-            story_quality=request.story_quality,
-            humor_style=request.humor_style,
-            experience_mode=request.experience_mode,
-            render_mode=request.render_mode,
             image_quality=request.image_quality,
-            public_figure_mode=request.public_figure_mode,
             force_new=request.force_new,
-            refresh_news=request.refresh_news,
+        )
+        if request.serial_thread_id is not None and request.episode_index is not None:
+            episode = (
+                db.query(SerialEpisode)
+                .filter(
+                    SerialEpisode.thread_id == request.serial_thread_id,
+                    SerialEpisode.episode_index == request.episode_index,
+                )
+                .first()
+            )
+            if episode:
+                episode.kind = "feuilleton"
+                episode.scene_id = scene.id
+                episode.status = "writing"
+                db.add(episode)
+                db.commit()
+        if scheduler.claim_prepared_generation(scene.id):
+            background_tasks.add_task(
+                _generate_prepared_scene,
+                scene.id,
+                current_user.id,
+                {**create_kwargs, "force_new": True},
+            )
+        return GraphicNovelSceneResponse(scene=serialize_scene(scene) or {})
+    try:
+        scene = await GraphicNovelScheduler(db).create(
+            user=current_user,
+            **create_kwargs,
         )
     except GraphicNovelGenerationError as exc:
         raise HTTPException(
@@ -111,6 +152,35 @@ async def create_graphic_novel_scene(
             },
         ) from exc
     return GraphicNovelSceneResponse(scene=serialize_scene(scene) or {})
+
+
+def _generate_prepared_scene(scene_id: UUID, user_id: UUID, create_kwargs: dict[str, Any]) -> None:
+    """Run the blocking story call after the response, on its own DB session/thread."""
+    import asyncio
+
+    db = SessionLocal()
+    scheduler = GraphicNovelScheduler(db)
+    try:
+        user = db.get(User, user_id)
+        if not user:
+            raise ValueError("Feuilleton user not found")
+        asyncio.run(
+            scheduler.create(
+                user=user,
+                pending_scene_id=scene_id,
+                # This function already runs after the HTTP response. Finish the
+                # artwork here so an unavailable Celery worker cannot strand the
+                # edition in `generating` with permanently queued panels.
+                sync=True,
+                **create_kwargs,
+            )
+        )
+    except Exception as exc:  # noqa: BLE001 - persisted for a retryable UI state
+        db.rollback()
+        logger.exception("Prepared Feuilleton generation failed", scene_id=str(scene_id))
+        scheduler.mark_generation_failed(scene_id, exc)
+    finally:
+        db.close()
 
 
 @router.get("/scenes/{scene_id}", response_model=GraphicNovelSceneResponse)
