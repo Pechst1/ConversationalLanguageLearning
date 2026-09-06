@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import base64
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 from uuid import UUID
@@ -19,13 +19,20 @@ from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.user import User
 from app.schemas.serial import EpisodeBrief
 from app.services.atelier_rewards import AtelierRewardService
-from app.services.graphic_novel import GraphicNovelGenerationError, GraphicNovelScheduler
+from app.services.graphic_novel import (
+    GraphicNovelGenerationError,
+    GraphicNovelScheduler,
+    scene_matches_current_contract,
+)
 from app.services.llm_service import LLMService
 from app.services.missions import MissionScheduler
 from app.services.news_service import NewsService
-from app.services.serial_arc_planner import SEASON_FINALE_ARC_ID, SerialArcPlanner, cefr_generation_profile
+from app.services.serial_arc_planner import (
+    SEASON_FINALE_ARC_ID,
+    SerialArcPlanner,
+    cefr_generation_profile,
+)
 from app.services.serial_notifications import enqueue_serial_edition_notification
-
 
 WORLD_BIBLE_PATH = Path(__file__).resolve().parent.parent / "prompts" / "serial" / "world_bible_paris_v2.json"
 WORLD_BIBLE_V1_PATH = Path(__file__).resolve().parent.parent / "prompts" / "serial" / "world_bible_paris_v1.json"
@@ -168,10 +175,51 @@ class SerialThreadService:
             episode = await self.start_next_beat(thread)
         else:
             self._ensure_episode_contract(episode)
+            self._supersede_incompatible_scene(episode)
+        cast = self.cast_payload(thread)
+        required = self._episode_required_cast(episode)
+        by_id = {str(member.get("id")): member for member in cast}
+        active_cast_member = next(
+            (by_id[character_id] for character_id in required if character_id in by_id),
+            cast[0] if cast else None,
+        )
         return {
             **self.serialize_episode(episode),
             "thread": self.serialize_thread(thread),
+            "cast": cast,
+            "active_cast_member": active_cast_member,
         }
+
+    def _supersede_incompatible_scene(self, episode: SerialEpisode) -> bool:
+        """Detach a pre-rebuild scene from the CURRENT feuilleton episode.
+
+        The reader refuses scenes whose prompt_version predates the current contract
+        (409 feuilleton_scene_superseded). Handing such a scene_id out from today()
+        stranded the learner on a spinner. A completed episode keeps its scene as
+        history; an unread one drops the stale scene and goes back to "available" so
+        the next open recomposes it under the current prompt.
+        """
+        if not episode or episode.kind != "feuilleton" or not episode.scene_id:
+            return False
+        if episode.status == "completed":
+            return False
+        scene = self.db.get(GraphicNovelScene, episode.scene_id)
+        if scene is not None and scene_matches_current_contract(scene):
+            return False
+        logger.info(
+            "Superseding incompatible feuilleton scene %s on episode %s (prompt_version=%s)",
+            episode.scene_id,
+            episode.id,
+            getattr(scene, "prompt_version", None),
+        )
+        episode.scene_id = None
+        if episode.status in {"generating", "delayed", "planned"}:
+            episode.status = "available"
+        elif episode.status != "available":
+            episode.status = "available"
+        self.db.commit()
+        self.db.refresh(episode)
+        return True
 
     def expire_stale_generations(
         self,
@@ -180,7 +228,7 @@ class SerialThreadService:
         now: datetime | None = None,
         timeout: timedelta | None = None,
     ) -> int:
-        cutoff = (now or datetime.now(timezone.utc)) - (timeout or self.STALE_GENERATION_TIMEOUT)
+        cutoff = (now or datetime.now(UTC)) - (timeout or self.STALE_GENERATION_TIMEOUT)
         query = self.db.query(GraphicNovelScene).filter(
             GraphicNovelScene.status == "generating",
             GraphicNovelScene.updated_at < cutoff,
@@ -207,7 +255,7 @@ class SerialThreadService:
                 payload["art_generation_error"] = "Artwork timed out; the readable edition was recovered."
                 scene.script_payload = payload
                 scene.status = "available"
-                scene.completed_at = now or datetime.now(timezone.utc)
+                scene.completed_at = now or datetime.now(UTC)
                 for panel in scene.panels:
                     metadata = dict(panel.generation_metadata or {})
                     if not panel.image_url:
@@ -224,7 +272,7 @@ class SerialThreadService:
                 continue
 
             scene.status = "generation_failed"
-            scene.completed_at = now or datetime.now(timezone.utc)
+            scene.completed_at = now or datetime.now(UTC)
             if episode and episode.status == "generating":
                 episode.status = "delayed"
                 episode.scene_id = None
@@ -544,6 +592,8 @@ class SerialThreadService:
         hook_from_previous = self._previous_hook(thread)
         episode_index = thread.current_episode_index
         existing_episode = self._current_episode(thread)
+        if existing_episode is not None:
+            self._supersede_incompatible_scene(existing_episode)
         if (
             existing_episode
             and existing_episode.kind == "feuilleton"
@@ -578,9 +628,13 @@ class SerialThreadService:
             status="generating",
         )
         latest_mission = self._latest_completed_mission(thread)
-        thread.news_seed = await self._news_seed(thread.user)
-        self.db.add(thread)
-        self.db.commit()
+        # News is only fetched for episodes whose authored brief explicitly opts into a
+        # news-led panel. Ordinary feuilleton episodes stay fully fictional.
+        include_news_panel = bool(brief_payload.get("include_news_panel"))
+        if include_news_panel:
+            thread.news_seed = await self._news_seed(thread.user)
+            self.db.add(thread)
+            self.db.commit()
         try:
             scene = await GraphicNovelScheduler(self.db).create(
                 user=thread.user,
@@ -588,7 +642,7 @@ class SerialThreadService:
                 mission_id=latest_mission.id if latest_mission else None,
                 serial_thread_id=thread.id,
                 episode_index=episode_index,
-                use_news=True,
+                use_news=include_news_panel,
                 panel_count=6,
                 story_quality="standard",
                 experience_mode="study",
@@ -675,7 +729,7 @@ class SerialThreadService:
         episode.state_delta = emitted_delta or {}
         episode.hook = emitted_hook or {}
         episode.status = "completed"
-        episode.completed_at = datetime.now(timezone.utc)
+        episode.completed_at = datetime.now(UTC)
         if scene and (scene.script_payload or {}).get("location_id"):
             episode.location_id = (scene.script_payload or {}).get("location_id")
         thread.current_episode_index = max(thread.current_episode_index, episode.episode_index + 1)
@@ -706,6 +760,19 @@ class SerialThreadService:
             "minted_collectibles": minted_collectibles,
         }
 
+    def _episode_lead_image_url(self, episode: SerialEpisode) -> str | None:
+        """First printed panel of the episode's scene — La Une's lead art."""
+        if not episode.scene_id:
+            return None
+        scene = self.db.get(GraphicNovelScene, episode.scene_id)
+        if scene is None or not scene.panels:
+            return None
+        for panel in sorted(scene.panels, key=lambda item: item.panel_index):
+            url = panel.image_url or (panel.image_payload or {}).get("url")
+            if isinstance(url, str) and url and not url.startswith("data:"):
+                return url
+        return None
+
     def serialize_episode(self, episode: SerialEpisode) -> dict[str, Any]:
         previously = (episode.hook_from_previous or {}).get("text") if isinstance(episode.hook_from_previous, dict) else None
         return {
@@ -717,6 +784,7 @@ class SerialThreadService:
             "kind": episode.kind,
             "mission_id": str(episode.mission_id) if episode.mission_id else None,
             "scene_id": str(episode.scene_id) if episode.scene_id else None,
+            "lead_image_url": self._episode_lead_image_url(episode),
             "hook_from_previous": episode.hook_from_previous or None,
             "previously": previously,
             "hook": episode.hook or {},
@@ -799,7 +867,7 @@ class SerialThreadService:
                     "name": member.get("name"),
                     "role": member.get("role"),
                     "dynamic_with_user": member.get("dynamic_with_user"),
-                    "model_sheet_url": f"/assets/serial/characters/{character_id}/model-sheet.png",
+                    "model_sheet_url": f"/assets/serial/characters/{character_id}/model-sheet.webp",
                     "accent_colour": visual.get("accent_colour"),
                     "relationship": {
                         "closeness": int((relationship or {}).get("closeness") or 0),
@@ -975,7 +1043,22 @@ class SerialThreadService:
     def _episode_brief(self, thread: SerialThread, beat: str) -> EpisodeBrief:
         if int(thread.current_episode_index or 0) == 0:
             return self._episode_one_brief(thread, beat)
-        return SerialArcPlanner(thread).plan_next_episode(beat)
+        brief = SerialArcPlanner(thread).plan_next_episode(beat)
+        self._persist_interlude_mode(thread, brief)
+        return brief
+
+    def _persist_interlude_mode(self, thread: SerialThread, brief: EpisodeBrief) -> None:
+        """Remember an entre-deux-saisons thread so the mode survives restarts."""
+        if not bool(getattr(brief, "interlude", False)):
+            return
+        state = dict(thread.state or {})
+        if state.get("interlude_mode") is True:
+            return
+        state["interlude_mode"] = True
+        state.setdefault("season_complete", True)
+        state.setdefault("interlude_since_episode", int(thread.current_episode_index or 0))
+        thread.state = state
+        self.db.add(thread)
 
     def _episode_one_brief(self, thread: SerialThread, beat: str) -> EpisodeBrief:
         normalized_beat = "see" if beat in {"see", "feuilleton"} else "act"
@@ -1225,12 +1308,17 @@ class SerialThreadService:
         state["previous_seasons"] = previous[-5:]
         state["season_finale_completed"] = current_season
         if not next_world:
+            # No authored season follows: enter "entre deux saisons" instead of looping finales.
             state["season_complete"] = True
+            state["interlude_mode"] = True
+            state["interlude_since_episode"] = episode.episode_index + 1
             return state
 
         thread.world_bible = next_world
         state["season_number"] = next_season
         state["season_complete"] = False
+        state["interlude_mode"] = False
+        state.pop("interlude_since_episode", None)
         state["arcs"] = self._empty_arc_state(next_world)
         thread.state = state
         self._initialize_thread_story_state(thread)
@@ -1262,23 +1350,44 @@ class SerialThreadService:
         *,
         state: dict[str, Any],
         thread: SerialThread,
-        episode: SerialEpisode,
         character_id: str,
-        mission: RealWorldMission | None,
-        scene: GraphicNovelScene | None,
-        hook: dict[str, Any] | None,
+        episode: SerialEpisode | None = None,
+        episode_index: int | None = None,
+        mission: RealWorldMission | None = None,
+        scene: GraphicNovelScene | None = None,
+        hook: dict[str, Any] | None = None,
+        success: bool | None = None,
+        summary_override: str | None = None,
+        callback_override: str | None = None,
     ) -> None:
+        """Single owner of relationship closeness, register and callback bounds.
+
+        Episode completion passes the episode plus its mission/scene. A non-episode
+        side effect (WP-06's daily-journey story outcome) passes ``episode_index``
+        with explicit ``success`` / ``summary_override`` / ``callback_override``
+        instead, so the 0..5 closeness clamp, the tu-switch eligibility rule and
+        the five-callback cap stay implemented exactly once.
+        """
+        if episode_index is None:
+            episode_index = episode.episode_index if episode else thread.current_episode_index
         relationships = dict(state.get("relationships") or {})
         entry = dict(relationships.get(character_id) or {})
         entry["closeness"] = max(0, min(5, int(entry.get("closeness") or 0)))
         entry["register"] = str(entry.get("register") or "vous")
-        success = self._completion_success(mission=mission, scene=scene)
+        if success is None:
+            success = self._completion_success(mission=mission, scene=scene)
         if success:
             entry["closeness"] = min(5, entry["closeness"] + 1)
-        summary = self._relationship_summary(mission=mission, scene=scene, hook=hook)
+        summary = summary_override or self._relationship_summary(
+            mission=mission, scene=scene, hook=hook
+        )
         if summary:
             entry["last_summary"] = summary
-        callback = self._harvest_callback(mission=mission)
+        callback = (
+            callback_override
+            if callback_override is not None
+            else self._harvest_callback(mission=mission)
+        )
         if callback:
             callbacks = [str(item) for item in entry.get("callbacks") or [] if str(item or "").strip()]
             if callback not in callbacks:
@@ -1290,11 +1399,11 @@ class SerialThreadService:
             and self._tu_eligible(thread=thread, character_id=character_id)
         ):
             entry["register"] = "tu"
-            entry["register_switch_episode"] = episode.episode_index + 1
+            entry["register_switch_episode"] = episode_index + 1
             state["pending_register_switch"] = {
                 "character_id": character_id,
                 "name": self._character_name(thread, character_id),
-                "episode_index": episode.episode_index + 1,
+                "episode_index": episode_index + 1,
             }
         relationships[character_id] = entry
         state["relationships"] = relationships
@@ -1412,6 +1521,8 @@ class SerialThreadService:
             summary = ""
         hook_text = (hook or {}).get("text") or ""
         line = f"Ep {episode.episode_index + 1} · {beat_kind}: {title}."
+        if summary:
+            line += f" Outcome: {_compact(str(summary), 120)}"
         if hook_text:
             line += f" Left on: {hook_text}"
         state = dict(thread.state or {})
@@ -1420,6 +1531,160 @@ class SerialThreadService:
         state["story_so_far"] = history[-self.STORY_SO_FAR_MAX :]
         state["episodes_completed"] = int(state.get("episodes_completed") or 0) + 1
         thread.state = state
+
+    # --- WP-06: daily-journey story outcomes (side scenes, never episode completion) ---
+    JOURNEY_OUTCOME_STATE_KEY = "journey_outcomes"
+    JOURNEY_OUTCOME_MAX = 20
+
+    @staticmethod
+    def _journey_source_prefix(source_key: str) -> str:
+        """``journey:{journey_id}:`` — the once-per-journey dedup scope.
+
+        The frozen source-key grammar is ``journey:{journey_id}:{effect}``, so
+        the first two segments identify the journey whatever effect name the
+        caller chose. One journey may warm a relationship once, not once per
+        effect label.
+        """
+        parts = str(source_key or "").split(":")
+        return ":".join(parts[:2]) + ":" if len(parts) >= 3 else ""
+
+    def journey_outcome_record(
+        self, thread: SerialThread, *, source_key: str
+    ) -> dict[str, Any] | None:
+        """The already-applied ledger entry for this journey's effect, or ``None``.
+
+        Matches the exact key first, then any entry from the same journey, so a
+        replayed finish cannot apply a second consequence under a different
+        effect label.
+        """
+        ledger = (thread.state or {}).get(self.JOURNEY_OUTCOME_STATE_KEY)
+        if not isinstance(ledger, dict):
+            return None
+        entry = ledger.get(source_key)
+        if isinstance(entry, dict):
+            return dict(entry)
+        prefix = self._journey_source_prefix(source_key)
+        if not prefix:
+            return None
+        for key, value in ledger.items():
+            if str(key).startswith(prefix) and isinstance(value, dict):
+                return dict(value)
+        return None
+
+    def bindable_journey_episode(
+        self, thread: SerialThread, episode_id: str | UUID | None
+    ) -> SerialEpisode | None:
+        """The episode a journey side scene may still *reference*, or ``None``.
+
+        Reuses the reader's existing safeguards instead of forking them: an episode
+        the thread has moved past, a completed one, one that is not readable yet, a
+        feuilleton whose scene predates the current prompt contract
+        (:func:`scene_matches_current_contract`), and a season finale are all
+        refused. A refused episode does not cancel the outcome — the callback is
+        still recorded on the thread, just without an episode reference.
+        """
+        if not episode_id:
+            return None
+        try:
+            resolved_id = episode_id if isinstance(episode_id, UUID) else UUID(str(episode_id))
+        except (TypeError, ValueError):
+            return None
+        episode = self.db.get(SerialEpisode, resolved_id)
+        if episode is None or episode.thread_id != thread.id:
+            return None
+        if episode.episode_index != thread.current_episode_index:
+            return None
+        if episode.status != "available":
+            return None
+        if episode.kind == "feuilleton" and episode.scene_id:
+            scene = self.db.get(GraphicNovelScene, episode.scene_id)
+            if not scene_matches_current_contract(scene):
+                return None
+        if self._is_season_finale_brief(episode.brief_payload or {}):
+            return None
+        return episode
+
+    def _record_journey_beat(self, state: dict[str, Any], *, line: str) -> None:
+        """Append a side-scene line to the rolling memory.
+
+        Deliberately does **not** touch ``episodes_completed``: a daily journey is
+        not an episode, so it must never inflate the serial's completion count.
+        """
+        history = list(state.get("story_so_far") or [])
+        history.append(_compact(line, 240))
+        state["story_so_far"] = history[-self.STORY_SO_FAR_MAX :]
+
+    def apply_journey_story_outcome(
+        self,
+        thread: SerialThread,
+        *,
+        source_key: str,
+        outcome_key: str,
+        character_id: str,
+        summary: str | None = None,
+        callback: str | None = None,
+        episode_id: str | UUID | None = None,
+        success: bool = True,
+        beat_line: str | None = None,
+    ) -> dict[str, Any]:
+        """Record one daily-journey consequence in the canonical serial memory.
+
+        Exactly once per ``source_key``, without committing — the daily-journey
+        state machine owns the transaction. This is a *side scene*: it updates the
+        relationship (through the shared bounds in
+        :meth:`_update_relationship_state`) and the rolling memory, and it never
+        completes an episode, advances ``current_episode_index``, moves an arc
+        stage, or rolls a season over.
+        """
+        state = json.loads(json.dumps(thread.state or {}))
+        ledger = dict(state.get(self.JOURNEY_OUTCOME_STATE_KEY) or {})
+        existing = self.journey_outcome_record(thread, source_key=source_key)
+        if isinstance(existing, dict):
+            return {
+                "applied": True,
+                "already_applied": True,
+                "outcome_key": str(existing.get("outcome_key") or outcome_key),
+                "thread_id": str(thread.id),
+                "episode_id": existing.get("episode_id"),
+                "callback": existing.get("callback"),
+            }
+
+        episode = self.bindable_journey_episode(thread, episode_id)
+        cleaned_callback = self._clean_callback_phrase(callback or "")
+        self._update_relationship_state(
+            state=state,
+            thread=thread,
+            character_id=character_id,
+            episode_index=episode.episode_index if episode else thread.current_episode_index,
+            success=success,
+            summary_override=_compact(summary, 220) if summary else None,
+            callback_override=cleaned_callback,
+        )
+        if beat_line:
+            self._record_journey_beat(state, line=beat_line)
+
+        record = {
+            "source_key": source_key,
+            "outcome_key": outcome_key,
+            "character_id": character_id,
+            "episode_id": str(episode.id) if episode else None,
+            "callback": cleaned_callback or None,
+            "applied_at": datetime.now(UTC).isoformat(),
+        }
+        ledger[source_key] = record
+        state[self.JOURNEY_OUTCOME_STATE_KEY] = dict(
+            list(ledger.items())[-self.JOURNEY_OUTCOME_MAX :]
+        )
+        thread.state = state
+        self.db.add(thread)
+        return {
+            "applied": True,
+            "already_applied": False,
+            "outcome_key": outcome_key,
+            "thread_id": str(thread.id),
+            "episode_id": record["episode_id"],
+            "callback": record["callback"],
+        }
 
     @staticmethod
     def _story_so_far_text(thread: SerialThread) -> str:

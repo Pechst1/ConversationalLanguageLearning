@@ -1,0 +1,251 @@
+{
+  "scenario_key": "order_at_cafe",
+  "content_version": "journey-content-v1",
+  "character_id": "margaux_barman",
+  "character_name": "Margaux",
+  "location_id": "le_mistral",
+  "location_name": "Le Mistral",
+  "image_asset": "assets/serial/locations/le_mistral-counter.webp",
+  "register": "vous",
+  "register_note": "The learner is still new: the whole scene stays on vous, per the world bible register_map (user_default).",
+  "forbidden_topic_groups": [
+    "landlord_paperwork",
+    "administration"
+  ],
+  "forbidden_terms": [],
+  "authored_bands": [
+    "A1",
+    "A2"
+  ],
+  "serial_locations": [
+    "le_mistral"
+  ],
+  "variants": [
+    {
+      "level_band": "A1",
+      "title_fr": "Un café au Mistral",
+      "objective_key": "order_at_cafe.counter_drink",
+      "objective_native": {
+        "en": "Order a hot drink at the counter and say where you want to sit.",
+        "de": "Bestelle ein warmes Getränk am Tresen und sage, wo du sitzen möchtest.",
+        "fr": "Commande une boisson chaude au comptoir et dis où tu veux t'asseoir."
+      },
+      "setup_fr": "Il pleut sur le canal. Tu pousses la porte du Mistral. Margaux essuie le zinc.",
+      "setup_native": {
+        "en": "It is raining on the canal. You push open the door of Le Mistral. Margaux is wiping down the zinc counter.",
+        "de": "Es regnet über dem Kanal. Du schiebst die Tür vom Mistral auf. Margaux wischt den Zinktresen ab.",
+        "fr": "Il pleut sur le canal. Tu pousses la porte du Mistral. Margaux essuie le comptoir en zinc."
+      },
+      "opening_line_fr": "Tiens, bonjour ! Vous vous installez ou c'est à emporter ?",
+      "required_facts_fr": [
+        "Margaux tient le comptoir du Mistral ; le service continue, rien n'est fermé.",
+        "Il pleut, mais la terrasse est couverte et chauffée.",
+        "Trois places sont possibles : le comptoir, la terrasse couverte, ou à emporter.",
+        "Margaux vouvoie encore ce client : le vouvoiement tient toute la scène."
+      ],
+      "target_affordances_fr": [
+        "un café",
+        "un thé",
+        "un chocolat chaud",
+        "je voudrais",
+        "s'il vous plaît",
+        "au comptoir",
+        "en terrasse",
+        "à emporter"
+      ],
+      "estimated_seconds": 264,
+      "reading_seconds": {
+        "scene": 40,
+        "recall": 45,
+        "resolution": 59
+      },
+      "response_task": {
+        "objective_native": {
+          "en": "Say what you would like to drink and where you want to sit.",
+          "de": "Sag, was du trinken möchtest und wo du sitzen willst.",
+          "fr": "Dis ce que tu veux boire et où tu veux t'installer."
+        },
+        "opening_line_fr": "Alors, qu'est-ce que je vous sers ?",
+        "max_turns": 2,
+        "repair_allowed": true,
+        "required_intents": [
+          "name_a_hot_drink",
+          "state_where_you_will_drink_it"
+        ],
+        "optional_intents": [
+          "greet_margaux",
+          "use_a_polite_marker"
+        ],
+        "rubric_native": {
+          "en": "Met: the learner names a hot drink AND says where they will have it (counter, covered terrace, or takeaway). Word order and missing accents do not matter; a polite marker is welcome but not required. Partially met: only one of the two. Not yet: no drink named, or the drink is named in English. Accept « un café », « un thé », « un chocolat chaud », « une noisette ». Pick exactly one outcome key from the allowed list; if the learner names a drink but no place, use served_at_counter.",
+          "de": "Erfüllt: Die Lernerin oder der Lerner nennt ein warmes Getränk UND sagt, wo es getrunken wird (Tresen, überdachte Terrasse oder zum Mitnehmen). Wortstellung und fehlende Akzente spielen keine Rolle; eine Höflichkeitsformel ist willkommen, aber nicht Pflicht. Teilweise erfüllt: nur eines von beidem. Noch nicht: kein Getränk genannt oder auf Englisch genannt. Akzeptiere « un café », « un thé », « un chocolat chaud », « une noisette ». Wähle genau einen erlaubten Outcome-Key; wird ein Getränk, aber kein Ort genannt, nimm served_at_counter.",
+          "fr": "Atteint : l'apprenant nomme une boisson chaude ET dit où il la prend (comptoir, terrasse couverte ou à emporter). L'ordre des mots et les accents manquants n'entrent pas en compte ; une formule de politesse est bienvenue mais pas exigée. Partiellement atteint : un seul des deux. Pas encore : aucune boisson nommée, ou nommée en anglais. Accepte « un café », « un thé », « un chocolat chaud », « une noisette ». Choisis exactement un outcome_key autorisé ; si la boisson est nommée sans lieu, prends served_at_counter."
+        },
+        "suggested_response_fr": "Je voudrais un café au comptoir, s'il vous plaît.",
+        "hint_native": {
+          "en": "Start with « Je voudrais… » and add where you will drink it.",
+          "de": "Beginne mit « Je voudrais… » und sag dann, wo du es trinkst.",
+          "fr": "Commence par « Je voudrais… » puis dis où tu la bois."
+        },
+        "translation_native": {
+          "en": "I would like a coffee at the counter, please.",
+          "de": "Ich hätte gern einen Kaffee am Tresen, bitte.",
+          "fr": "Je voudrais un café au comptoir, s'il vous plaît."
+        },
+        "estimated_seconds": 120
+      },
+      "outcomes": [
+        {
+          "key": "served_at_counter",
+          "line_fr": "{drink_cap|Voilà} pour vous, au comptoir. Je vous l'apporte.",
+          "summary_native": {
+            "en": "Margaux served your {drink_native|order} at the counter.",
+            "de": "Margaux hat dir {drink_native|deine Bestellung} am Tresen serviert.",
+            "fr": "Margaux t'a servi {drink_native|ta commande} au comptoir."
+          }
+        },
+        {
+          "key": "served_at_terrace",
+          "line_fr": "Parfait. {drink_cap|Votre commande} en terrasse, ça arrive.",
+          "summary_native": {
+            "en": "Margaux is bringing your {drink_native|order} out to the terrace.",
+            "de": "Margaux bringt dir {drink_native|deine Bestellung} auf die Terrasse.",
+            "fr": "Margaux t'apporte {drink_native|ta commande} en terrasse."
+          }
+        },
+        {
+          "key": "takeaway",
+          "line_fr": "{drink_cap|C'est noté}, à emporter. Une minute.",
+          "summary_native": {
+            "en": "Margaux is making your {drink_native|order} to take away.",
+            "de": "Margaux macht dir {drink_native|deine Bestellung} zum Mitnehmen.",
+            "fr": "Margaux te prépare {drink_native|ta commande} à emporter."
+          }
+        },
+        {
+          "key": "not_ordered",
+          "line_fr": "Pas de souci, prenez votre temps. Je suis là quand vous voulez.",
+          "summary_native": {
+            "en": "You did not order this time. Margaux said to take your time.",
+            "de": "Du hast diesmal nichts bestellt. Margaux sagt, du kannst dir Zeit lassen.",
+            "fr": "Tu n'as rien commandé cette fois. Margaux te dit de prendre ton temps."
+          }
+        }
+      ]
+    },
+    {
+      "level_band": "A2",
+      "title_fr": "La dernière commande au Mistral",
+      "objective_key": "order_at_cafe.counter_drink_and_request",
+      "objective_native": {
+        "en": "Order a hot drink, choose where to sit, and ask Margaux for one extra thing.",
+        "de": "Bestelle ein warmes Getränk, wähle einen Platz und bitte Margaux um eine Kleinigkeit dazu.",
+        "fr": "Commande une boisson chaude, choisis ta place et demande une chose en plus à Margaux."
+      },
+      "setup_fr": "Fin de service au Mistral. Il reste deux clients et une place au comptoir. Margaux range les tasses sans se presser.",
+      "setup_native": {
+        "en": "Closing time at Le Mistral. Two customers are left and one free spot at the counter. Margaux is putting cups away, unhurried.",
+        "de": "Es ist kurz vor Feierabend im Mistral. Zwei Gäste sind noch da, am Tresen ist ein Platz frei. Margaux räumt in aller Ruhe Tassen weg.",
+        "fr": "C'est la fin du service au Mistral. Il reste deux clients et une place libre au comptoir. Margaux range les tasses tranquillement."
+      },
+      "opening_line_fr": "Vous avez de la chance, je ferme dans vingt minutes. Qu'est-ce qui vous ferait plaisir ?",
+      "required_facts_fr": [
+        "Le Mistral ferme dans vingt minutes ; Margaux sert encore.",
+        "Il reste une place au comptoir et la terrasse couverte est libre.",
+        "Margaux accepte une demande en plus : un verre d'eau, un sucre, l'addition, la carte.",
+        "Le vouvoiement tient toute la scène."
+      ],
+      "target_affordances_fr": [
+        "je voudrais",
+        "est-ce que je peux avoir",
+        "un verre d'eau",
+        "l'addition",
+        "s'il vous plaît",
+        "au comptoir",
+        "en terrasse",
+        "à emporter"
+      ],
+      "estimated_seconds": 276,
+      "reading_seconds": {
+        "scene": 44,
+        "recall": 46,
+        "resolution": 60
+      },
+      "response_task": {
+        "objective_native": {
+          "en": "Say what you would like, where you will sit, and add one request.",
+          "de": "Sag, was du möchtest, wo du sitzt, und stell eine zusätzliche Bitte.",
+          "fr": "Dis ce que tu veux, où tu t'installes, et ajoute une demande."
+        },
+        "opening_line_fr": "Alors, je vous sers quoi ? Et vous voulez autre chose avec ?",
+        "max_turns": 2,
+        "repair_allowed": true,
+        "required_intents": [
+          "name_a_hot_drink",
+          "state_where_you_will_drink_it",
+          "add_one_extra_request"
+        ],
+        "optional_intents": [
+          "greet_margaux",
+          "use_a_polite_marker",
+          "acknowledge_closing_time"
+        ],
+        "rubric_native": {
+          "en": "Met: the learner names a hot drink, says where they will have it, AND makes one extra request (water, sugar, the bill, paying by card). Partially met: two of the three. Not yet: fewer than two. A request framed as « Je peux avoir… ? » or « Est-ce que je peux… ? » both count. Pick exactly one outcome key from the allowed list; if no place is named, use served_at_counter.",
+          "de": "Erfüllt: Es werden ein warmes Getränk, ein Ort UND eine zusätzliche Bitte genannt (Wasser, Zucker, die Rechnung, Kartenzahlung). Teilweise erfüllt: zwei von drei. Noch nicht: weniger als zwei. « Je peux avoir… ? » und « Est-ce que je peux… ? » zählen beide. Wähle genau einen erlaubten Outcome-Key; ohne Ortsangabe nimm served_at_counter.",
+          "fr": "Atteint : l'apprenant nomme une boisson chaude, dit où il la prend ET formule une demande en plus (eau, sucre, addition, paiement par carte). Partiellement atteint : deux sur trois. Pas encore : moins de deux. « Je peux avoir… ? » et « Est-ce que je peux… ? » comptent tous les deux. Choisis exactement un outcome_key autorisé ; sans lieu, prends served_at_counter."
+        },
+        "suggested_response_fr": "Je voudrais un thé au comptoir, et un verre d'eau, s'il vous plaît.",
+        "hint_native": {
+          "en": "Name the drink first, then the place, then ask for the extra thing.",
+          "de": "Nenne zuerst das Getränk, dann den Platz, dann die zusätzliche Bitte.",
+          "fr": "Nomme d'abord la boisson, puis la place, puis la demande en plus."
+        },
+        "translation_native": {
+          "en": "I would like a tea at the counter, and a glass of water, please.",
+          "de": "Ich hätte gern einen Tee am Tresen und ein Glas Wasser, bitte.",
+          "fr": "Je voudrais un thé au comptoir, et un verre d'eau, s'il vous plaît."
+        },
+        "estimated_seconds": 126
+      },
+      "outcomes": [
+        {
+          "key": "served_at_counter",
+          "line_fr": "{drink_cap|Très bien}, au comptoir. Je vous prépare ça{extra|}.",
+          "summary_native": {
+            "en": "Margaux served your {drink_native|order} at the counter{extra_native|}.",
+            "de": "Margaux hat dir {drink_native|deine Bestellung} am Tresen serviert{extra_native|}.",
+            "fr": "Margaux t'a servi {drink_native|ta commande} au comptoir{extra_native|}."
+          }
+        },
+        {
+          "key": "served_at_terrace",
+          "line_fr": "{drink_cap|Très bien}, en terrasse. Je vous apporte tout dans deux minutes.",
+          "summary_native": {
+            "en": "Margaux is bringing your {drink_native|order} out to the covered terrace.",
+            "de": "Margaux bringt dir {drink_native|deine Bestellung} auf die überdachte Terrasse.",
+            "fr": "Margaux t'apporte {drink_native|ta commande} en terrasse couverte."
+          }
+        },
+        {
+          "key": "takeaway",
+          "line_fr": "{drink_cap|C'est noté}, à emporter. Je vous mets ça dans un gobelet.",
+          "summary_native": {
+            "en": "Margaux is putting your {drink_native|order} in a cup to take away.",
+            "de": "Margaux füllt dir {drink_native|deine Bestellung} zum Mitnehmen ab.",
+            "fr": "Margaux te met {drink_native|ta commande} dans un gobelet à emporter."
+          }
+        },
+        {
+          "key": "not_ordered",
+          "line_fr": "Pas de souci, prenez votre temps. Je suis là quand vous voulez.",
+          "summary_native": {
+            "en": "You did not order this time. Margaux said to take your time.",
+            "de": "Du hast diesmal nichts bestellt. Margaux sagt, du kannst dir Zeit lassen.",
+            "fr": "Tu n'as rien commandé cette fois. Margaux te dit de prendre ton temps."
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "fixture": "returning_due",
+  "private": {
+    "plan_rationale": "two due vocabulary targets ranked by urgency and scene fit",
+    "steps": {
+      "00000000-0000-4000-9000-000002000001": {
+        "correct_option_id": "opt_a",
+        "target_id": "00000000-0000-4000-a000-000000000001"
+      },
+      "00000000-0000-4000-9000-000002000002": {
+        "rubric": "Learner must name a drink and a seating choice.",
+        "required_intents": [
+          "order_drink"
+        ],
+        "optional_intents": [
+          "state_seating"
+        ],
+        "allowed_outcomes": [
+          "served_at_counter",
+          "served_at_terrace"
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "fixture": "duplicate_submit",
+  "private": {
+    "committed_replay": "Same key after commit returns the stored 200 response.",
+    "conflict": "Same key with a different digest returns 409 idempotency_conflict."
+  }
+}

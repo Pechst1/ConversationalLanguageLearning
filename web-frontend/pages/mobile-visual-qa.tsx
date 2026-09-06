@@ -13,6 +13,46 @@ import {
   StickyCTA,
   VocabularyCreditBadge,
 } from '@/components/mobile';
+import {
+  Blank,
+  EpBar,
+  EpConcept,
+  EpConfidence,
+  EpEyebrow,
+  EpFoot,
+  EpGalley,
+  EpLineFix,
+  EpLock,
+  EpMotif,
+  EpOpt,
+  EpOpts,
+  EpPrompt,
+  EpRule,
+  EpShell,
+  EpTopbar,
+  EpVerdict,
+  LEpreuveStyles,
+} from '@/components/epreuve/Epreuve';
+import {
+  CahiersStyles,
+  NcChips,
+  NcFilingSummary,
+  NcIndexRow,
+  NcLedgerHead,
+  NcMasthead,
+  NcModeTabs,
+  NcSec,
+  NcExample,
+  NcWordRow,
+} from '@/components/cahiers/Cahiers';
+import {
+  LaUneStyles,
+  LuDemain,
+  LuEnBref,
+  LuManchette,
+  LuMasthead,
+  LuPhraseDuJour,
+} from '@/components/laune/LaUne';
 
 const positiveCorrection = {
   vocabulary_credit: {
@@ -38,6 +78,108 @@ export async function getStaticProps() {
   return { props: {} };
 }
 
+// The whole front page in one composition, with every block populated. This is
+// the density reference: docs/pilot-density-pass.md defines the hierarchy
+// contract but was never verified against a real capture. It renders
+// unconditionally because this page is statically generated and does not
+// hydrate in the preview, so a query-param switch would never fire.
+function LaUneFullPage() {
+  return (
+    <div className="lu">
+      <LaUneStyles />
+      <div className="lu-page">
+        <LuMasthead
+          name="L’Atelier"
+          date="Jeudi 30 juillet 2026"
+          edition="Éd. Nº 4"
+          streak={3}
+          niveau="A1.1"
+        />
+        <LuManchette
+          ep={4}
+          artMode="none"
+          headline="Romy garde une porte ouverte."
+          byline="Romy Tremblay"
+          minutes={19}
+          budgetMinutes={10}
+          concept="Négation : ne … pas"
+          because="parce que votre objectif « voyager » commence par une seule règle bien posée."
+          onOpen={() => undefined}
+          onCta={() => undefined}
+        />
+        <LuEnBref
+          rows={[
+            { id: 'seance', label: 'La séance', value: '3 règles · ~12 min', onClick: () => undefined },
+            { id: 'lexique', label: 'Le lexique', value: '6 mots à revoir · 2 corrections', href: '/vocabulary/review' },
+            { id: 'cours', label: 'Le cours', value: 'B1.1 · à vérifier', href: '/notebook?mode=releve' },
+          ]}
+        />
+        <LuPhraseDuJour text="Je ne prends pas le métro ce matin." byline="Vincent" />
+        <LuDemain focus="Articles partitifs" ep={5} epTease="Le carnet change de mains." />
+      </div>
+    </div>
+  );
+}
+
+// One drill sheet with every layer a learner meets: the round eyebrow, the
+// concept head, the rule card, the prompt, the choices, the confidence ask and
+// the correction. Same purpose as LaUneFullPage — a measurable capture.
+function EpreuveSheet() {
+  return (
+    <div className="ep">
+      <LEpreuveStyles />
+      <EpTopbar groups={[{ total: 31, set: 12, current: true }]} cap={['12/31', '']} partial />
+      <div className="ep-body">
+        <section className="ep-sheet">
+          <EpEyebrow round="Reconnaître" mode="Compléter" i={2} n={3} />
+          <EpConcept title="Négation : ne … pas" motif={<EpMotif prims={[]} canvas={46} />} askOn />
+          <EpRule
+            lede="Le verbe conjugué se place entre ne et pas."
+            examples={['Je ne mange pas de pain.']}
+          />
+          <EpPrompt cue="Choisissez la forme correcte.">
+            Je <Blank>ne mange pas</Blank> de pain.
+          </EpPrompt>
+          <EpOpts>
+            <EpOpt>ne mange pas</EpOpt>
+            <EpOpt chosen>mange ne pas</EpOpt>
+            <EpOpt>ne pas mange</EpOpt>
+          </EpOpts>
+          <EpConfidence value="sure" />
+          <EpFoot><EpBar icon="check">Vérifier</EpBar></EpFoot>
+          <EpVerdict tone="no">À recomposer</EpVerdict>
+          <EpGalley anchor="Ordre des mots" why="Le verbe conjugué se place entre ne et pas.">
+            <EpLineFix old="Je mange ne pas de pain." fix="Je ne mange pas de pain." />
+          </EpGalley>
+          <EpFoot><EpBar icon="check">Exercice suivant</EpBar></EpFoot>
+        </section>
+      </div>
+    </div>
+  );
+}
+
+// The notebook as a learner meets it: masthead, mode switch, filing summary,
+// a filtered ledger and one opened fiche.
+function CahiersSheet() {
+  return (
+    <div className="nc">
+      <CahiersStyles />
+      <div className="nc-page">
+        <NcMasthead cefr="A1.1 en cours" />
+        <NcModeTabs active="grammaire" library={false} />
+        <NcFilingSummary items={[{ n: 42, label: 'règles' }, { n: 6, label: 'à revoir', tone: 'due' }]} />
+        <NcChips chips={[{ l: 'Toutes', n: 42 }, { l: 'À revoir', n: 6 }, { l: 'Fragiles', n: 3 }]} active={0} />
+        <NcLedgerHead t="Index des règles" n="42" />
+        <NcIndexRow no={1} title="Négation : ne … pas" level="A1" cat="Syntaxe" mastery={7} state="solid" stateLabel="Solide" />
+        <NcIndexRow no={2} title="Articles définis" level="A1" cat="Déterminants" mastery={3} state="fragile" stateLabel="Fragile" due errata={2} />
+        <NcSec kick="La règle">
+          <NcExample fr="Je ne mange pas de pain." de="Ich esse kein Brot." />
+        </NcSec>
+      </div>
+    </div>
+  );
+}
+
 export default function MobileVisualQA() {
   if (process.env.NODE_ENV === 'production') {
     return null;
@@ -52,7 +194,7 @@ export default function MobileVisualQA() {
       <main className="mobile-qa-page" data-mobile-visual-qa>
         <header className="qa-topbar" aria-label="Mobile QA header">
           <div>
-            <span>Atelier</span>
+            <span>L’Atelier</span>
             <strong>Today&apos;s practice</strong>
           </div>
           <MobileMastheadAction label="Rules" aria-label="Open rules">
@@ -126,6 +268,29 @@ export default function MobileVisualQA() {
           </FeedbackSlip>
         </section>
 
+        {/* Honest-edition states. These three carry promises about the learner's
+            time, so they are checkable here without a signed-in /atelier. */}
+        <section className="qa-honest" aria-label="Honest edition states">
+          <div className="lu lu-page">
+            <LaUneStyles />
+            <LuManchette
+              ep={4}
+              headline="Romy garde une porte ouverte."
+              byline="Romy"
+              minutes={19}
+              budgetMinutes={10}
+              replyMode="speak"
+              concept="Négation : ne … pas"
+              onCta={() => undefined}
+            />
+          </div>
+          <div className="ep">
+            <LEpreuveStyles />
+            <EpTopbar groups={[{ total: 31, set: 12, current: true }]} cap={['12/31', '']} partial />
+            <EpLock title="Négation : ne … pas" retired={6} />
+          </div>
+        </section>
+
         <StickyCTA
           eyebrow="Next"
           title="Continue the mobile session"
@@ -133,6 +298,18 @@ export default function MobileVisualQA() {
           secondary={<button type="button">Later</button>}
           primary={<button type="button" className="primary">Begin</button>}
         />
+
+        <section className="qa-honest" aria-label="La Une density reference">
+          <LaUneFullPage />
+        </section>
+
+        <section className="qa-honest" aria-label="Epreuve density reference">
+          <EpreuveSheet />
+        </section>
+
+        <section className="qa-honest" aria-label="Cahiers density reference">
+          <CahiersSheet />
+        </section>
       </main>
 
       <MobileBottomSheet
@@ -280,6 +457,18 @@ export default function MobileVisualQA() {
           display: grid;
           gap: 12px;
           padding: 14px 16px 0;
+        }
+        /* La Une sizes itself to the phone shell
+           (min(--app-viewport-width, --phone-shell-max)), which would overflow
+           this padded reference page. Narrow the shell variables for the demo
+           instead of overriding the component's own width rule. */
+        .qa-honest {
+          display: grid;
+          gap: 12px;
+          padding: 14px 16px 0;
+          --app-viewport-width: 100%;
+          --phone-shell-max: 100%;
+          --app-viewport-height: auto;
         }
         .qa-stack p {
           margin: 0;

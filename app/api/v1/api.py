@@ -9,6 +9,7 @@ from app.api.v1.endpoints import (
     audio,
     audio_session,
     auth,
+    daily_journey,
     feedback,
     grammar,
     graphic_novel,
@@ -45,3 +46,4 @@ api_router.include_router(audio_session.router)
 api_router.include_router(stories.router, prefix="/stories", tags=["stories"])
 api_router.include_router(npcs.router, prefix="/npcs", tags=["npcs"])
 api_router.include_router(notifications.router)
+api_router.include_router(daily_journey.router)

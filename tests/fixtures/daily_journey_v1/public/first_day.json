@@ -1,0 +1,32 @@
+{
+  "fixture": "first_day",
+  "contract_version": 1,
+  "endpoint": "/api/v1/daily-journeys/today",
+  "method": "GET",
+  "http_status": 200,
+  "response": {
+    "contract_version": 1,
+    "enabled": true,
+    "control_language": "en",
+    "local_date": "2026-09-05",
+    "timezone": "Europe/Paris",
+    "journey": null,
+    "available": {
+      "scenario_key": "order_at_cafe",
+      "content_version": "journey-content-v1",
+      "title_fr": "Un café au Mistral",
+      "objective_key": "order_at_cafe.counter_drink",
+      "objective_native": "Order a hot drink at the counter and say where you want to sit.",
+      "level_band": "A1",
+      "character_id": "margaux_barman",
+      "character_name": "Margaux",
+      "location_id": "le_mistral",
+      "location_name": "Le Mistral",
+      "image_url": "/assets/serial/locations/le_mistral-counter.webp",
+      "serial_thread_id": null,
+      "serial_episode_id": null,
+      "estimated_seconds": 264
+    },
+    "legacy_resume": null
+  }
+}

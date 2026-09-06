@@ -8,10 +8,9 @@ Research-backed design:
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
-from datetime import date, datetime, time, timedelta, timezone
-from enum import Enum
-
-from typing import Any, Literal
+from datetime import UTC, date, datetime, time, timedelta
+from enum import StrEnum
+from typing import Any
 from uuid import UUID
 
 from loguru import logger
@@ -23,8 +22,9 @@ from app.db.models.grammar import GrammarConcept, UserGrammarProgress
 from app.db.models.progress import UserVocabularyProgress
 from app.db.models.user import User
 from app.db.models.vocabulary import UserConjugationProgress, VocabularyWord
-from app.services.conjugation import ConjugationService, DISPLAY_TENSES
+from app.services.conjugation import DISPLAY_TENSES, ConjugationService
 from app.services.enhanced_srs import EnhancedSRSService
+from app.services.glosses import normalize_language, word_gloss
 from app.services.grammar import GrammarService
 from app.services.progress import (
     ProgressService,
@@ -33,14 +33,14 @@ from app.services.progress import (
 )
 
 
-class ItemType(str, Enum):
+class ItemType(StrEnum):
     VOCAB = "vocab"
     GRAMMAR = "grammar"
     ERROR = "error"
     CONJUGATION = "conjugation"
 
 
-class InterleavingMode(str, Enum):
+class InterleavingMode(StrEnum):
     RANDOM = "random"  # Mix all types (research-recommended default)
     BLOCKS = "blocks"  # Complete one type before next
     PRIORITY = "priority"  # Strict priority order
@@ -110,7 +110,15 @@ ERROR_SOURCE_LABELS = {
     "audio": "Audio",
     "story": "Reading",
     "brief_exercise": "Exercise",
+    # An unmapped source_type prints raw on the repair card; the daily journey
+    # writes errata with source_type="daily_journey" (WP-05).
+    "daily_journey": "Daily journey",
 }
+
+# Item types the daily journey can express as a typed learning target. A
+# conjugation drill has no `TargetKind`, so it stays out of the journey pool
+# and keeps its own schedule untouched.
+JOURNEY_CANDIDATE_ITEM_TYPES = (ItemType.VOCAB, ItemType.GRAMMAR, ItemType.ERROR)
 
 
 class UnifiedSRSService:
@@ -130,7 +138,7 @@ class UnifiedSRSService:
     
     def get_due_summary(self, user_id: UUID) -> DailyPracticeSummary:
         """Get summary of all due items for today."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         today = now.date()
         target_language = self._target_language(user_id)
 
@@ -191,7 +199,7 @@ class UnifiedSRSService:
         
         Returns queue that optionally fits within time budget.
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         today = now.date()
         target_language = self._target_language(user_id)
         
@@ -228,6 +236,38 @@ class UnifiedSRSService:
             interleaving_mode=interleaving_mode,
             time_budget_minutes=time_budget_minutes
         )
+
+    def get_journey_candidate_pool(
+        self,
+        user_id: UUID,
+        *,
+        now: datetime | None = None,
+        limit: int = 60,
+    ) -> list[DueLearningItem]:
+        """Read-only, priority-sorted pool of due vocab/grammar/error items.
+
+        Added for WP-05's candidate adapter. It reuses the same due queries and
+        the same `_calculate_priority` formula as `get_daily_practice_queue`,
+        but skips the summary counts and the interleaving shuffle so the caller
+        can rank by scenario relevance itself. It never writes and never moves a
+        due date: an item this pool returns and the journey then omits stays
+        exactly as due as it was.
+        """
+
+        now = now or datetime.now(UTC)
+        today = now.date()
+        target_language = self._target_language(user_id)
+
+        items: list[DueLearningItem] = []
+        items.extend(self._fetch_due_vocab(user_id, today, now, target_language))
+        items.extend(self._fetch_due_grammar(user_id, now, target_language))
+        items.extend(self._fetch_due_errors(user_id, now))
+
+        items = [item for item in items if item.item_type in JOURNEY_CANDIDATE_ITEM_TYPES]
+        for item in items:
+            item.priority_score = self._calculate_priority(item)
+        items.sort(key=lambda entry: entry.priority_score, reverse=True)
+        return items[: max(1, limit)]
 
     def complete_item(
         self,
@@ -293,7 +333,7 @@ class UnifiedSRSService:
         
         for progress, word in progress_items:
             due_since = self._due_since_days(self._vocab_due_at(progress, now), now)
-            translation = word.german_translation or word.english_translation or ""
+            translation = word_gloss(word, self._native_language(user_id))
             topic_tags = set(word.topic_tags or [])
             is_mission_phrase = "mission_phrase" in topic_tags
             
@@ -321,7 +361,9 @@ class UnifiedSRSService:
                     "due_at": self._iso(progress.due_at),
                     "next_review_date": self._iso(progress.next_review_date),
                     "due_date": progress.due_date.isoformat() if progress.due_date else None,
-                    "route": "/daily-practice?focus=mission" if is_mission_phrase else f"/vocabulary?word={word.id}",
+                    # Both destinations must exist in the current product shell;
+                    # /daily-practice is a retired home screen.
+                    "route": "/vocabulary/review?focus=mission" if is_mission_phrase else f"/vocabulary?word={word.id}",
                 }
             ))
         
@@ -336,7 +378,7 @@ class UnifiedSRSService:
         response_time_ms: int | None = None,
     ) -> dict[str, Any]:
         """Complete a vocabulary review via the configured scheduler."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         user = self.db.get(User, user_id)
         if not user:
             raise ValueError("User not found")
@@ -385,7 +427,7 @@ class UnifiedSRSService:
         fsrs_rating: int,
     ) -> dict[str, Any]:
         """Complete a grammar review by mapping rating to grammar score."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         user = self.db.get(User, user_id)
         if not user:
             raise ValueError("User not found")
@@ -424,7 +466,7 @@ class UnifiedSRSService:
         fsrs_rating: int,
     ) -> dict[str, Any]:
         """Complete an error-recall review and update the error SRS fields."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         try:
             error_uuid = UUID(error_id)
         except (TypeError, ValueError) as exc:
@@ -532,7 +574,7 @@ class UnifiedSRSService:
             response_time_ms=response_time_ms,
         )
         next_review = updated.next_review_date
-        next_review_days = (next_review.date() - datetime.now(timezone.utc).date()).days if next_review else None
+        next_review_days = (next_review.date() - datetime.now(UTC).date()).days if next_review else None
         return {
             "next_review_days": next_review_days,
             "state": updated.state,
@@ -671,7 +713,7 @@ class UnifiedSRSService:
         for progress in rows:
             due_at = progress.next_review_date
             if due_at is None and progress.due_date:
-                due_at = datetime.combine(progress.due_date, time.min, tzinfo=timezone.utc)
+                due_at = datetime.combine(progress.due_date, time.min, tzinfo=UTC)
             due_since = self._due_since_days(due_at or now, now)
             tense_label = DISPLAY_TENSES.get(progress.tense, progress.tense)
             items.append(
@@ -779,6 +821,11 @@ class UnifiedSRSService:
         logger.info(f"Applied time budget: {len(result)}/{len(items)} items fit in {budget_seconds}s")
         return result
 
+    def _native_language(self, user_id: UUID) -> str:
+        """The language this learner reads glosses in."""
+        user = self.db.get(User, user_id)
+        return normalize_language(getattr(user, "native_language", None))
+
     def _target_language(self, user_id: UUID) -> str:
         user = self.db.get(User, user_id)
         if not user:
@@ -858,7 +905,7 @@ class UnifiedSRSService:
         if due_at is None:
             return 0
         if due_at.tzinfo is None:
-            due_at = due_at.replace(tzinfo=timezone.utc)
+            due_at = due_at.replace(tzinfo=UTC)
         return max(0, (now - due_at).days)
 
     @staticmethod

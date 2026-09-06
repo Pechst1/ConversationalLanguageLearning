@@ -1,0 +1,11 @@
+{
+  "fixture": "explain_delay_repair",
+  "private": {
+    "repair_policy": "One repair maximum, then a supported resolution.",
+    "allowed_outcomes": [
+      "romy_waits_at_bar",
+      "romy_leaves_note",
+      "meeting_rescheduled"
+    ]
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "fixture": "content_superseded",
+  "private": {
+    "current_content_version": "journey-content-v2",
+    "rule": "A version bump never strands or rewrites an active journey."
+  }
+}

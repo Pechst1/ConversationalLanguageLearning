@@ -3,6 +3,9 @@ __pycache__/
 *.egg-info/
 .venv/
 .env
+.env.prod
+.env.staging
+.env.*.local
 .vscode/
 .idea/
 .mypy_cache/
@@ -73,3 +76,12 @@ MASTER_CODEX.md
 # Ignore celery beat DB
 celerybeat-schedule
 build/
+
+# locally persisted Feuilleton panel images (GRAPHIC_NOVEL_IMAGE_STORAGE=local)
+var/
+
+# Claude Code local state. `.claude/launch.json` IS tracked (it defines the dev
+# server); agent worktrees are large scratch checkouts and local settings are
+# per-machine, so neither belongs in history.
+.claude/worktrees/
+.claude/settings.local.json

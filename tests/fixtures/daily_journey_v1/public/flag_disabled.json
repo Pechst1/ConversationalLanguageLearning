@@ -1,0 +1,17 @@
+{
+  "fixture": "flag_disabled",
+  "contract_version": 1,
+  "endpoint": "/api/v1/daily-journeys/today",
+  "method": "GET",
+  "http_status": 200,
+  "response": {
+    "contract_version": 1,
+    "enabled": false,
+    "control_language": "en",
+    "local_date": "2026-09-05",
+    "timezone": "Europe/Paris",
+    "journey": null,
+    "available": null,
+    "legacy_resume": null
+  }
+}

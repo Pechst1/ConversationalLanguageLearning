@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "build:native": "node scripts/ensure-native-api-env.mjs && NATIVE_STATIC_EXPORT=true next build",
+    "build:native": "node scripts/build-native.mjs",
     "start": "next start",
     "lint": "next lint",
     "cap:sync:ios": "node scripts/sync-capacitor-ios.mjs",
@@ -13,13 +13,18 @@
     "capture:mobile": "node scripts/capture-mobile-states.mjs",
     "test:atelier-next": "node lib/atelier-next.test.js",
     "test:graphic-novel-images": "node lib/graphic-novel-images.test.js",
-    "type-check": "tsc --noEmit"
+    "test:native-env": "node --test scripts/native-api-env.test.mjs",
+    "type-check": "tsc --noEmit",
+    "test:journey": "node components/atelier-v2/journey/journey.test.js",
+    "test:recovery": "node lib/journey-recovery.test.js",
+    "verify:recovery": "node scripts/verify-journey-recovery.js"
   },
   "dependencies": {
     "@capacitor/cli": "^8.4.0",
     "@capacitor/core": "^8.4.0",
     "@capacitor/haptics": "^8.0.2",
     "@capacitor/ios": "^8.4.0",
+    "@capacitor/push-notifications": "^8.1.2",
     "@hookform/resolvers": "^3.3.2",
     "@next-auth/prisma-adapter": "^1.0.7",
     "@tanstack/react-query": "^5.8.4",
@@ -31,7 +36,7 @@
     "date-fns": "^2.30.0",
     "framer-motion": "^10.16.16",
     "lucide-react": "^0.294.0",
-    "next": "14.0.4",
+    "next": "^14.2.35",
     "next-auth": "^4.24.5",
     "react": "^18.2.0",
     "react-calendar-heatmap": "^1.9.0",
@@ -55,7 +60,7 @@
     "@types/react-dom": "^18.2.17",
     "autoprefixer": "^10.4.16",
     "eslint": "^8.54.0",
-    "eslint-config-next": "14.0.4",
+    "eslint-config-next": "^14.2.35",
     "postcss": "^8.4.32",
     "tailwindcss": "^3.3.6",
     "typescript": "^5.3.2"

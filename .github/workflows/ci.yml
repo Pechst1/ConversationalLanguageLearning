@@ -60,7 +60,7 @@ jobs:
           pip install .[dev]
           python -m spacy download fr_core_news_sm
 
-      - name: Lint with ruff
+      - name: Check Python with Ruff
         run: ruff check .
 
       - name: Run unit tests
@@ -77,11 +77,17 @@ jobs:
         working-directory: web-frontend
         env:
           NEXT_PUBLIC_API_BASE_URL: https://api.example.com/api/v1
+          # CI has no deployable host; the guard in native-api-env.mjs would
+          # (correctly) reject the placeholder and turn this step permanently red.
+          ALLOW_PLACEHOLDER_NATIVE_API: "true"
         run: |
           npm run type-check
           npm run lint
           npm run test:atelier-next
+          npm run test:journey
+          npm run test:recovery
           npm run test:graphic-novel-images
+          npm run test:native-env
           npm run build
           npm run build:native
 

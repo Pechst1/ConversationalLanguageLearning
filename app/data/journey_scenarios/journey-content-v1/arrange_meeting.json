@@ -1,0 +1,201 @@
+{
+  "scenario_key": "arrange_meeting",
+  "content_version": "journey-content-v1",
+  "character_id": "lila_bonnet",
+  "character_name": "Lila Bonnet",
+  "location_id": "marche_canal",
+  "location_name": "Le marché du Canal",
+  "image_asset": "assets/serial/locations/marche_canal.webp",
+  "register": "tu",
+  "register_note": "Lila tutoies the learner from night one and mocks a 'vous' (world bible register_with_user).",
+  "forbidden_topic_groups": ["landlord_paperwork", "administration"],
+  "forbidden_terms": [],
+  "authored_bands": ["A1", "A2"],
+  "serial_locations": ["marche_canal", "le_mistral", "marin_lila_flat"],
+  "variants": [
+    {
+      "level_band": "A1",
+      "title_fr": "Rendez-vous au marché",
+      "objective_key": "arrange_meeting.day_and_place",
+      "objective_native": {
+        "en": "Tell Lila one day and one place to meet.",
+        "de": "Nenne Lila einen Tag und einen Ort für ein Treffen.",
+        "fr": "Dis à Lila un jour et un lieu pour vous retrouver."
+      },
+      "setup_fr": "Lila t'écrit. Elle veut te faire visiter le marché du Canal.",
+      "setup_native": {
+        "en": "Lila texts you. She wants to show you around the Canal market.",
+        "de": "Lila schreibt dir. Sie will dir den Markt am Kanal zeigen.",
+        "fr": "Lila t'écrit. Elle veut te faire découvrir le marché du Canal."
+      },
+      "opening_line_fr": "Salut ! Tu es libre quel jour ?",
+      "required_facts_fr": [
+        "Lila propose le marché du Canal, ouvert le samedi et le dimanche matin.",
+        "Le Mistral reste possible en semaine, le soir.",
+        "Lila accepte aussi de repousser à la semaine suivante.",
+        "Lila te tutoie et attend le tutoiement en retour."
+      ],
+      "target_affordances_fr": [
+        "samedi",
+        "dimanche",
+        "le matin",
+        "on se voit",
+        "au marché",
+        "au Mistral",
+        "d'accord"
+      ],
+      "estimated_seconds": 262,
+      "reading_seconds": {"scene": 40, "recall": 44, "resolution": 56},
+      "response_task": {
+        "objective_native": {
+          "en": "Name a day and a meeting place.",
+          "de": "Nenne einen Tag und einen Treffpunkt.",
+          "fr": "Nomme un jour et un lieu de rendez-vous."
+        },
+        "opening_line_fr": "Alors, quel jour ? Et on se retrouve où ?",
+        "max_turns": 2,
+        "repair_allowed": true,
+        "required_intents": ["name_a_day", "name_a_meeting_place"],
+        "optional_intents": ["greet_lila", "say_you_are_happy_to_come"],
+        "rubric_native": {
+          "en": "Met: the learner names a day AND a place, in any order, even in two short fragments (« Samedi, au marché. »). Partially met: only one of the two. Not yet: neither, or an English day name. Days may be written without a capital letter. Pick exactly one outcome key from the allowed list; if the learner names a weekend day, use meeting_saturday_market.",
+          "de": "Erfüllt: Es werden ein Tag UND ein Ort genannt, in beliebiger Reihenfolge, auch als zwei kurze Fragmente (« Samedi, au marché. »). Teilweise erfüllt: nur eines von beidem. Noch nicht: keines, oder ein englischer Wochentag. Kleinschreibung der Wochentage ist korrekt. Wähle genau einen erlaubten Outcome-Key; bei einem Wochenendtag nimm meeting_saturday_market.",
+          "fr": "Atteint : l'apprenant nomme un jour ET un lieu, dans n'importe quel ordre, même en deux fragments courts (« Samedi, au marché. »). Partiellement atteint : un seul des deux. Pas encore : aucun des deux, ou un jour en anglais. La minuscule aux jours est correcte. Choisis exactement un outcome_key autorisé ; pour un jour de week-end, prends meeting_saturday_market."
+        },
+        "suggested_response_fr": "Samedi, au marché.",
+        "hint_native": {
+          "en": "One day plus one place is enough: « Samedi, au… ».",
+          "de": "Ein Tag und ein Ort reichen: « Samedi, au… ».",
+          "fr": "Un jour et un lieu suffisent : « Samedi, au… »."
+        },
+        "translation_native": {
+          "en": "Saturday, at the market.",
+          "de": "Samstag, auf dem Markt.",
+          "fr": "Samedi, au marché."
+        },
+        "estimated_seconds": 122
+      },
+      "outcomes": [
+        {
+          "key": "meeting_saturday_market",
+          "line_fr": "{day_cap|Samedi} au marché alors, ça marche !",
+          "summary_native": {
+            "en": "You and Lila agreed to meet {day_native|on Saturday} at the market.",
+            "de": "Du und Lila trefft euch {day_native|am Samstag} auf dem Markt.",
+            "fr": "Lila et toi vous retrouvez {day_native|samedi} au marché."
+          }
+        },
+        {
+          "key": "meeting_weekday_cafe",
+          "line_fr": "D'accord, {day|en semaine} au Mistral. Je note.",
+          "summary_native": {
+            "en": "You and Lila agreed to meet at Le Mistral {day_native|during the week}.",
+            "de": "Du und Lila trefft euch {day_native|unter der Woche} im Mistral.",
+            "fr": "Lila et toi vous retrouvez au Mistral {day_native|en semaine}."
+          }
+        },
+        {
+          "key": "meeting_postponed",
+          "line_fr": "Bon, pas cette semaine alors. On se rappelle.",
+          "summary_native": {
+            "en": "Lila agreed to postpone; you will fix a date later.",
+            "de": "Lila verschiebt das Treffen; ihr macht später einen Termin aus.",
+            "fr": "Lila accepte de reporter ; vous fixerez la date plus tard."
+          }
+        }
+      ]
+    },
+    {
+      "level_band": "A2",
+      "title_fr": "Un rendez-vous avec Lila",
+      "objective_key": "arrange_meeting.time_and_place",
+      "objective_native": {
+        "en": "Agree on a time and a place to meet Lila this week.",
+        "de": "Einigt euch auf eine Uhrzeit und einen Ort, um Lila diese Woche zu treffen.",
+        "fr": "Mets-toi d'accord avec Lila sur une heure et un lieu pour cette semaine."
+      },
+      "setup_fr": "Lila t'envoie un message : elle veut te montrer le marché du Canal.",
+      "setup_native": {
+        "en": "Lila messages you: she wants to show you the Canal market.",
+        "de": "Lila schreibt dir: Sie will dir den Markt am Kanal zeigen.",
+        "fr": "Lila t'envoie un message : elle veut te faire découvrir le marché du Canal."
+      },
+      "opening_line_fr": "On se voit cette semaine ? Dis-moi quand tu peux.",
+      "required_facts_fr": [
+        "Le marché du Canal n'ouvre que le samedi et le dimanche matin.",
+        "Lila travaille à l'école jusqu'à seize heures trente en semaine.",
+        "Le Mistral est l'option de repli en soirée ; reporter reste possible.",
+        "Lila te tutoie et attend le tutoiement en retour."
+      ],
+      "target_affordances_fr": [
+        "samedi matin",
+        "vers dix heures",
+        "on se voit",
+        "on se retrouve",
+        "au marché",
+        "ça te va",
+        "plutôt"
+      ],
+      "estimated_seconds": 278,
+      "reading_seconds": {"scene": 42, "recall": 48, "resolution": 58},
+      "response_task": {
+        "objective_native": {
+          "en": "Propose a day, a time and a meeting place.",
+          "de": "Schlage einen Tag, eine Uhrzeit und einen Treffpunkt vor.",
+          "fr": "Propose un jour, une heure et un lieu de rendez-vous."
+        },
+        "opening_line_fr": "Alors, quand est-ce qu'on se voit ? Et où ?",
+        "max_turns": 2,
+        "repair_allowed": true,
+        "required_intents": ["propose_a_day", "propose_a_time", "name_a_meeting_place"],
+        "optional_intents": ["check_it_suits_lila", "offer_an_alternative"],
+        "rubric_native": {
+          "en": "Met: the learner proposes a day, a clock time (« vers dix heures », « à 10h ») AND a place. Partially met: two of the three. Not yet: fewer than two. A market proposal for a weekday is a real content error worth one short correction, because the market opens only at the weekend. Pick exactly one outcome key from the allowed list.",
+          "de": "Erfüllt: Es werden ein Tag, eine Uhrzeit (« vers dix heures », « à 10h ») UND ein Ort vorgeschlagen. Teilweise erfüllt: zwei von drei. Noch nicht: weniger als zwei. Ein Markttermin unter der Woche ist ein echter Inhaltsfehler und eine kurze Korrektur wert, denn der Markt öffnet nur am Wochenende. Wähle genau einen erlaubten Outcome-Key.",
+          "fr": "Atteint : l'apprenant propose un jour, une heure (« vers dix heures », « à 10h ») ET un lieu. Partiellement atteint : deux sur trois. Pas encore : moins de deux. Proposer le marché en semaine est une vraie erreur de contenu qui mérite une correction courte, car le marché n'ouvre que le week-end. Choisis exactement un outcome_key autorisé."
+        },
+        "suggested_response_fr": "On se voit samedi matin au marché, vers dix heures ?",
+        "hint_native": {
+          "en": "Give the day, then the time, then the place — the market is a weekend market.",
+          "de": "Nenne Tag, dann Uhrzeit, dann Ort — der Markt ist ein Wochenendmarkt.",
+          "fr": "Donne le jour, puis l'heure, puis le lieu — le marché est un marché de week-end."
+        },
+        "translation_native": {
+          "en": "Shall we meet Saturday morning at the market, around ten?",
+          "de": "Treffen wir uns Samstagvormittag auf dem Markt, gegen zehn?",
+          "fr": "On se voit samedi matin au marché, vers dix heures ?"
+        },
+        "estimated_seconds": 130
+      },
+      "outcomes": [
+        {
+          "key": "meeting_saturday_market",
+          "line_fr": "Super, {day|samedi} au marché alors. Je t'attends près des fleurs.",
+          "summary_native": {
+            "en": "You and Lila agreed to meet {day_native|on Saturday} at the Canal market.",
+            "de": "Du und Lila trefft euch {day_native|am Samstag} auf dem Markt am Kanal.",
+            "fr": "Lila et toi avez convenu de vous retrouver {day_native|samedi} au marché du Canal."
+          }
+        },
+        {
+          "key": "meeting_weekday_cafe",
+          "line_fr": "Bon, {day|en semaine} au Mistral alors. Je préviens Marin.",
+          "summary_native": {
+            "en": "You and Lila agreed to meet at Le Mistral {day_native|during the week}.",
+            "de": "Du und Lila trefft euch {day_native|unter der Woche} im Mistral.",
+            "fr": "Lila et toi vous retrouvez au Mistral {day_native|en semaine}."
+          }
+        },
+        {
+          "key": "meeting_postponed",
+          "line_fr": "Pas cette semaine, d'accord. On se cale ça la semaine prochaine.",
+          "summary_native": {
+            "en": "You and Lila pushed the meet-up to next week.",
+            "de": "Du und Lila habt das Treffen auf nächste Woche verschoben.",
+            "fr": "Lila et toi avez reporté le rendez-vous à la semaine prochaine."
+          }
+        }
+      ]
+    }
+  ]
+}

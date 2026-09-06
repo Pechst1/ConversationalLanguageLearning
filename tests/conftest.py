@@ -45,6 +45,11 @@ from app.db.models.atelier import (
     AtelierSession,
 )
 from app.db.models.cefr import UserCEFRProgressHistory
+from app.db.models.daily_journey import (
+    DailyJourney,
+    DailyJourneyMutation,
+    DailyJourneyStep,
+)
 from app.db.models.error import UserError, UserErrorConcept
 from app.db.models.feedback import UserFeedbackReport
 from app.db.models.grammar import (
@@ -62,6 +67,7 @@ from app.db.models.graphic_novel import (
 from app.db.models.library import BookEpisode, UserBook
 from app.db.models.mission import RealWorldMission, RealWorldMissionAttempt, RealWorldMissionTurn
 from app.db.models.progress import ReviewLog, UserVocabularyProgress
+from app.db.models.pilot_event import PilotEvent
 from app.db.models.push_subscription import PushSubscription
 from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.session import (
@@ -70,6 +76,7 @@ from app.db.models.session import (
     SessionLearningMoment,
     WordInteraction,
 )
+from app.db.models.vocabulary import UserDailyWordSlate
 from app.main import create_app
 from app.utils.cache import cache_backend
 
@@ -98,6 +105,7 @@ def db_engine():
             Achievement.__table__,
             UserAchievement.__table__,
             AnalyticsSnapshot.__table__,
+            PilotEvent.__table__,
             VocabularyWord.__table__,
             VerbConjugation.__table__,
             UserConjugationProgress.__table__,
@@ -127,11 +135,15 @@ def db_engine():
             UserError.__table__,
             UserErrorConcept.__table__,
             UserVocabularyProgress.__table__,
+            UserDailyWordSlate.__table__,
             ReviewLog.__table__,
             LearningSession.__table__,
             ConversationMessage.__table__,
             SessionLearningMoment.__table__,
             WordInteraction.__table__,
+            DailyJourney.__table__,
+            DailyJourneyStep.__table__,
+            DailyJourneyMutation.__table__,
         ],
     )
     try:
@@ -140,13 +152,18 @@ def db_engine():
         Base.metadata.drop_all(
             bind=engine,
             tables=[
+                DailyJourneyMutation.__table__,
+                DailyJourneyStep.__table__,
+                DailyJourney.__table__,
                 WordInteraction.__table__,
                 SessionLearningMoment.__table__,
                 ConversationMessage.__table__,
                 LearningSession.__table__,
                 ReviewLog.__table__,
+                UserDailyWordSlate.__table__,
                 UserVocabularyProgress.__table__,
                 AnalyticsSnapshot.__table__,
+                PilotEvent.__table__,
                 UserErrorConcept.__table__,
                 UserError.__table__,
                 SerialEpisode.__table__,

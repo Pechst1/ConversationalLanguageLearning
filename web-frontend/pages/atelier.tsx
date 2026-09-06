@@ -6,6 +6,7 @@ import axios from 'axios';
 import { ArrowRight, BookOpen, Check, HelpCircle, Loader2, MapPinned, Mic, RotateCcw, Send, Square, Volume2, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+import { createAudioMediaRecorder, recordedAudioBlob } from '@/lib/audio-recording';
 import apiService, {
   AtelierCollectible,
   AtelierAttemptRead,
@@ -16,24 +17,30 @@ import apiService, {
   AtelierErratum,
   AtelierSessionStart,
   AtelierToday,
+  DailyWordSlate,
   VocabularyRecommendationItem,
 } from '@/services/api';
 import { ConceptMotif } from '@/components/grammar/ConceptMotif';
+import { nativePushIsAvailable, registerNativePushToken } from '@/lib/native-push';
+import {
+  cacheAtelierEdition,
+  clearResumeActivity,
+  readCachedAtelierEdition,
+  saveResumeActivity,
+} from '@/lib/pilot-resilience';
 import {
   LaUneStyles,
   LuMasthead,
-  LuLead,
-  LuSeance,
-  LuLexique,
-  LuErrata,
   LuBiblio,
   LuPhraseDuJour,
   LuCitation,
-  LuCours,
   LuDemain,
   LuNotice,
   LuSkeleton,
-  type LuSeanceConcept,
+  LuManchette,
+  LuEnBref,
+  type LuBrefRow,
+  type LuAskKind,
 } from '@/components/laune/LaUne';
 import {
   LEpreuveStyles,
@@ -75,28 +82,40 @@ import {
   EpMint,
   EpPhrase,
   EpHandoff,
+  EpNotice,
   type MotifPrim,
 } from '@/components/epreuve/Epreuve';
 import EditorialMasthead from '@/components/layout/EditorialMasthead';
 import PhoneProductNav from '@/components/layout/PhoneProductNav';
+// Atelier V2 daily journey (WP-07 functional milestone). The V2 branch below is
+// entirely additive: with the capability off nothing here renders and every
+// legacy route, deep link and in-progress session behaves exactly as before.
+import {
+  JourneySession,
+  JourneyTodayCard,
+  useDailyJourney,
+} from '@/components/atelier-v2/journey';
 import { ExerciseShell } from '@/components/ui/ExerciseShell';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Confetti, LogoToken, Seal, sealForEdition, type SealVariant } from '@/components/ui/Seal';
 import {
   buildDayProgress,
   dayQueryString,
+  resolveLegacyRecommendedNext,
   resolveRecommendedNext,
   serialActionFromToday,
   type DayProgress,
   type RecommendedAction,
 } from '@/lib/atelier-next';
+import { learnerGloss } from '@/lib/glosses';
 import { pulseAppHaptic } from '@/lib/haptics';
 import { STORY_FEATURE_VISIBLE } from '@/lib/launch-flags';
 import { cn } from '@/lib/utils';
+import { resolveMediaUrl } from '@/lib/media-url';
 
 type RoundName = 'recognize' | 'transform' | 'sentence' | 'produce' | 'speak' | 'conversation';
 type RecognizeMode = 'fill' | 'word_bank' | 'classify';
-type RoadmapTarget = RoundName | 'vocabulary' | 'review' | 'mission' | 'library' | 'feuilleton' | 'rest';
+type RoadmapTarget = RoundName | 'vocabulary' | 'review' | 'mission' | 'studio' | 'library' | 'feuilleton' | 'rest';
 type RoadmapAction = {
   label: string;
   onClick: () => void;
@@ -125,32 +144,63 @@ type RepairRetest = {
 };
 
 const recognizeModes: Array<{ id: RecognizeMode; label: string; short: string }> = [
-  { id: 'fill', label: 'Fill', short: 'A' },
-  { id: 'classify', label: 'Classify', short: 'B' },
-  { id: 'word_bank', label: 'Word-bank', short: 'C' },
+  { id: 'fill', label: 'Compléter', short: 'A' },
+  { id: 'classify', label: 'Classer', short: 'B' },
+  { id: 'word_bank', label: 'Banque de mots', short: 'C' },
 ];
 
+// Mirrors the backend's enforced exercise-set shape (ATELIER_DRILLS_PER_CONCEPT
+// in app/services/atelier.py): nine recognition items, three transforms, then
+// one written line, one spoken line and one conversation turn per concept, plus
+// a single integrated paragraph for the session.
+const DRILLS_PER_CONCEPT = 15;
+const SESSION_LEVEL_DRILLS = 1;
+
+// A concept's earned skips, granted by the backend once the learner has proved
+// the rung (see _maybe_apply_adaptive_lock). Locked drills are removed from the
+// ladder entirely -- both the work and the denominator.
+type AdaptiveLock = {
+  concept_id?: number;
+  title?: string;
+  skipped_modes?: string[];
+  skipped_rounds?: string[];
+};
+
+function sessionAdaptiveLocks(session: AtelierSessionStart | null): Record<string, AdaptiveLock> {
+  const raw = (session?.learning_moments as Record<string, any> | undefined)?.adaptive_locks;
+  return raw && typeof raw === 'object' ? (raw as Record<string, AdaptiveLock>) : {};
+}
+
+function lockedRecognizeModes(locks: Record<string, AdaptiveLock>, conceptId?: number | null): Set<string> {
+  const lock = conceptId == null ? null : locks[String(conceptId)];
+  return new Set(lock?.skipped_modes || []);
+}
+
+function roundIsLocked(locks: Record<string, AdaptiveLock>, conceptId: number | null | undefined, round: RoundName) {
+  const lock = conceptId == null ? null : locks[String(conceptId)];
+  return Boolean(lock?.skipped_rounds?.includes(round));
+}
+
 const roundLabels: Array<{ id: RoundName; label: string; roman: string }> = [
-  { id: 'recognize', label: 'Recognize', roman: 'I' },
-  { id: 'transform', label: 'Transform', roman: 'II' },
-  { id: 'sentence', label: 'Sentence', roman: 'III' },
-  { id: 'produce', label: 'Paragraph', roman: 'IV' },
-  { id: 'speak', label: 'Spoken', roman: 'V' },
+  { id: 'recognize', label: 'Reconnaître', roman: 'I' },
+  { id: 'transform', label: 'Transformer', roman: 'II' },
+  { id: 'sentence', label: 'Phrase', roman: 'III' },
+  { id: 'produce', label: 'Paragraphe', roman: 'IV' },
+  { id: 'speak', label: 'À l’oral', roman: 'V' },
   { id: 'conversation', label: 'Conversation', roman: 'VI' },
 ];
 
-const OUTPUT_LADDER_META: Record<'sentence' | 'speak' | 'conversation', { eyebrow: string; instruction: string }> = {
+// The eyebrow half of this table was never rendered (EpPrompt dropped its label
+// prop); the round is already named by the sheet's eyebrow above the prompt.
+const OUTPUT_LADDER_META: Record<'sentence' | 'speak' | 'conversation', { instruction: string }> = {
   sentence: {
-    eyebrow: 'Write one line',
-    instruction: 'React to the situation below in a full French sentence.',
+    instruction: 'Réagissez à la situation ci-dessous avec une phrase française complète.',
   },
   speak: {
-    eyebrow: 'Say it aloud',
-    instruction: 'Record your spoken reply — we transcribe it and check the grammar.',
+    instruction: 'Enregistrez votre réponse : nous la transcrivons et relisons la grammaire.',
   },
   conversation: {
-    eyebrow: 'Your turn to reply',
-    instruction: 'Answer the message naturally, using the grammar you just practised.',
+    instruction: 'Répondez naturellement au message avec la grammaire que vous venez de travailler.',
   },
 };
 
@@ -188,29 +238,29 @@ function fallbackOutputPrompt(payload: Record<string, any>, item: Record<string,
   const anchorSentence = String(item?.context_anchor?.sentence || '').trim();
   if (conceptTitle.includes('imparfait') || conceptTitle.includes('passé composé') || conceptTitle.includes('passe compose')) {
     return round === 'conversation'
-      ? 'Message received: « Pourquoi tu n’as pas répondu hier soir ? » Reply with what was going on and what happened.'
+      ? 'Message reçu : « Pourquoi tu n’as pas répondu hier soir ? » Dites ce qui était en cours et ce qui s’est produit.'
       : round === 'speak'
-        ? 'A colleague asks what you were doing when the phone rang. Say one sentence with the background and the event.'
-        : 'Yesterday a friend asks why you arrived late. Explain what was happening and what happened in one French sentence.';
+        ? 'Un collègue demande ce que vous faisiez quand le téléphone a sonné. Dites une phrase avec le contexte et l’événement.'
+        : 'Un ami demande pourquoi vous êtes arrivé en retard hier. Expliquez en une phrase française ce qui se passait et ce qui s’est produit.';
   }
   if (conceptTitle.includes('si type') || conceptTitle.includes('si +') || conceptTitle.includes('condition')) {
     return round === 'conversation'
-      ? 'Message received: « S’il pleut demain, on fait quoi ? » Reply with a real condition and its consequence.'
+      ? 'Message reçu : « S’il pleut demain, on fait quoi ? » Répondez avec une condition réelle et sa conséquence.'
       : round === 'speak'
-        ? 'A friend asks what you will do if it rains tomorrow. Say one natural si + present answer.'
-        : 'A colleague asks: « Tu termines tôt aujourd’hui ? » Answer with what you will do if that happens.';
+        ? 'Un ami demande ce que vous ferez s’il pleut demain. Donnez une réponse naturelle avec si + présent.'
+        : 'Un collègue demande : « Tu termines tôt aujourd’hui ? » Répondez en disant ce que vous ferez dans ce cas.';
   }
   if (conceptTitle.includes('negation') || conceptTitle.includes('négation') || conceptTitle.includes('pas de')) {
     return round === 'conversation'
-      ? 'Message received: « Tu as encore du café ? » Reply with a negated quantity.'
+      ? 'Message reçu : « Tu as encore du café ? » Répondez avec une quantité niée.'
       : round === 'speak'
-        ? 'At a café, someone asks what is available. Say one missing item with ne…pas de/d’.'
-        : 'A friend asks what food or drink is left at home today. Say one thing you do not have.';
+        ? 'Au café, on demande ce qui est disponible. Citez un élément manquant avec ne…pas de/d’.'
+        : 'Un ami demande ce qu’il reste à boire ou à manger. Dites une chose que vous n’avez pas.';
   }
-  if (anchorSentence) return `React to this situation: ${anchorSentence}`;
+  if (anchorSentence) return `Réagissez à cette situation : ${anchorSentence}`;
   return round === 'conversation'
-    ? 'Message received: « Qu’est-ce qui se passe ? » Reply naturally in French.'
-    : 'A friend asks for one concrete update about today. Answer in French with one complete sentence.';
+    ? 'Message reçu : « Qu’est-ce qui se passe ? » Répondez naturellement en français.'
+    : 'Un ami demande une nouvelle concrète de votre journée. Répondez en français avec une phrase complète.';
 }
 
 function outputLadderPrompt(payload: Record<string, any>, item: Record<string, any>, round: 'sentence' | 'speak' | 'conversation'): string {
@@ -293,12 +343,35 @@ function repairRetestFromAttempt(attempt: AtelierAttemptRead, correction: Record
   };
 }
 
+const PROVENANCE_SOURCE_LABELS: Record<string, string> = {
+  pilot_capture: 'Capture pilote',
+  conversation: 'Conversation',
+  atelier: 'Atelier',
+  mission: 'Courrier',
+  feuilleton: 'Feuilleton',
+};
+
 function provenanceLine(erratum?: AtelierErratum | null): string | null {
   if (!erratum) return null;
-  const source = String(erratum.source_label || '').trim();
+  const rawSource = String(erratum.source_label || '').trim();
+  // Machine keys (snake_case) must never reach the page; map them or prettify.
+  const source = rawSource.includes('_')
+    ? PROVENANCE_SOURCE_LABELS[rawSource.toLowerCase()] || rawSource.replace(/_/g, ' ')
+    : rawSource;
   const reason = String(erratum.reason || erratum.display_label || '').trim();
-  if (!source && !reason) return null;
-  return [source ? `Manqué · ${source}` : '', reason].filter(Boolean).join(' · ');
+  // A "learner text -> target" mapping would print the answer of the coming
+  // repair; fall back to the short label instead of spoiling it.
+  const safeReason = /->|→/.test(reason)
+    ? String(erratum.display_label || '').trim() || reason.split(/:|->|→/)[0].trim()
+    : reason;
+  if (!source && !safeReason) return null;
+  return [source ? `Manqué · ${source}` : '', safeReason].filter(Boolean).join(' · ');
+}
+
+/* LLM explanations arrive with markdown backticks (`fera`); print them as
+   French guillemets instead of leaking raw markup onto the page. */
+function printableWhy(text?: string | null): string {
+  return String(text || '').replace(/`([^`]+)`/g, '« $1 »');
 }
 
 function safeDrillItemIndex(index: number, items: any[]) {
@@ -326,7 +399,13 @@ function drillAnswerIsReady(
   currentAnswers: Record<string, any>,
   produceAnswer = '',
 ) {
-  if (round === 'produce') return produceAnswer.trim().length > 0;
+  if (round === 'produce') {
+    // A non-empty scrap of text is not "the paragraph" the assignment asks
+    // for — gate the check button on the stated minimum, same as the server
+    // now does defensively in _apply_produce_length_gate.
+    const minWords = Number(payload?.produce?.min_words) || 0;
+    return minWords > 0 ? wordCount(produceAnswer) >= minWords : produceAnswer.trim().length > 0;
+  }
   if (!payload) return false;
   if (round === 'recognize') {
     const items = payload.recognize?.[mode]?.items || [];
@@ -351,37 +430,53 @@ function scopedExerciseId(concept: AtelierConcept | null, round: RoundName, mode
   return itemId && roundUsesItemScope(round) ? `${base}:${itemId}` : base;
 }
 
-function sessionDrillEntries(session: AtelierSessionStart | null) {
+// A lock retires the rungs the learner has NOT reached yet -- never the drills
+// they already classed. Dropping a whole rung from the ladder took the finished
+// items out of the numerator too, so the stick ran backwards mid-session (24
+// drills done, "18/25" on the cap) and EpLock announced "1 exercice retiré"
+// while three disappeared. `submitted` is what separates the two: banked items
+// stay, unreached ones go, and the count matches `retired_now` again.
+function sessionDrillEntries(
+  session: AtelierSessionStart | null,
+  locks: Record<string, AdaptiveLock> = {},
+  submitted: Record<string, boolean> = {},
+) {
   if (!session) return [];
   const entries: Array<{ key: string; legacyKey?: string }> = [];
   const exerciseSetByConcept = new Map(session.exercise_sets.map((set) => [set.concept_id, set.payload]));
+  const keepLockedItem = (key: string) => Boolean(submitted[key]);
   session.concepts.forEach((concept) => {
     const payload = exerciseSetByConcept.get(concept.id) || null;
+    const skippedModes = lockedRecognizeModes(locks, concept.id);
     recognizeModes.forEach((recognizeMode) => {
+      const modeIsLocked = skippedModes.has(recognizeMode.id);
       const legacyKey = answerKey('recognize', recognizeMode.id, concept.id);
       const items = drillItems(payload, 'recognize', recognizeMode.id);
       if (!items.length) {
-        entries.push({ key: legacyKey });
+        if (!modeIsLocked) entries.push({ key: legacyKey });
         return;
       }
-      items.forEach((item, index) => entries.push({
-        key: answerKey('recognize', recognizeMode.id, concept.id, itemIdForKey(item, index)),
-        legacyKey,
-      }));
+      items.forEach((item, index) => {
+        const key = answerKey('recognize', recognizeMode.id, concept.id, itemIdForKey(item, index));
+        if (modeIsLocked && !keepLockedItem(key)) return;
+        entries.push({ key, legacyKey });
+      });
     });
   });
   session.concepts.forEach((concept) => {
+    const transformIsLocked = roundIsLocked(locks, concept.id, 'transform');
     const payload = exerciseSetByConcept.get(concept.id) || null;
     const legacyKey = answerKey('transform', 'transform', concept.id);
     const items = drillItems(payload, 'transform', 'fill');
     if (!items.length) {
-      entries.push({ key: legacyKey });
+      if (!transformIsLocked) entries.push({ key: legacyKey });
       return;
     }
-    items.forEach((item, index) => entries.push({
-      key: answerKey('transform', 'transform', concept.id, itemIdForKey(item, index)),
-      legacyKey,
-    }));
+    items.forEach((item, index) => {
+      const key = answerKey('transform', 'transform', concept.id, itemIdForKey(item, index));
+      if (transformIsLocked && !keepLockedItem(key)) return;
+      entries.push({ key, legacyKey });
+    });
   });
   session.concepts.forEach((concept) => entries.push({ key: answerKey('sentence', 'sentence', concept.id) }));
   entries.push({ key: answerKey('produce', 'produce', null) });
@@ -390,12 +485,22 @@ function sessionDrillEntries(session: AtelierSessionStart | null) {
   return entries;
 }
 
-function totalDrills(session: AtelierSessionStart | null) {
-  return sessionDrillEntries(session).length;
+function totalDrills(
+  session: AtelierSessionStart | null,
+  locks: Record<string, AdaptiveLock> = {},
+  submitted: Record<string, boolean> = {},
+) {
+  return sessionDrillEntries(session, locks, submitted).length;
 }
 
-function submittedDrills(session: AtelierSessionStart | null, submitted: Record<string, boolean>) {
-  return sessionDrillEntries(session).filter((entry) => submitted[entry.key] || Boolean(entry.legacyKey && submitted[entry.legacyKey])).length;
+function submittedDrills(
+  session: AtelierSessionStart | null,
+  submitted: Record<string, boolean>,
+  locks: Record<string, AdaptiveLock> = {},
+) {
+  return sessionDrillEntries(session, locks, submitted)
+    .filter((entry) => submitted[entry.key] || Boolean(entry.legacyKey && submitted[entry.legacyKey]))
+    .length;
 }
 
 function asPositiveCount(value: any, fallback = 1) {
@@ -412,7 +517,7 @@ function conceptRequirement(concept: AtelierConcept, exerciseSets: AtelierExerci
   const recipeCount = concept.atelier_blueprint?.exercise_recipe?.output_ladder?.paragraph?.target_count;
   return {
     count: asPositiveCount(requirement.target_count, asPositiveCount(recipeCount)),
-    label: String(requirement.label || concept.atelier_blueprint?.display_title || concept.name || 'Target'),
+    label: String(requirement.label || concept.atelier_blueprint?.display_title || concept.name || 'Objectif'),
   };
 }
 
@@ -424,9 +529,11 @@ function wordRangeLabel(count: number, minWords?: unknown, maxWords?: unknown) {
   const min = Number(minWords);
   const max = Number(maxWords);
   if (Number.isFinite(min) && Number.isFinite(max) && min > 0 && max >= min) {
-    return `${count} / ${Math.round(min)}-${Math.round(max)} words`;
+    const remaining = Math.max(0, Math.round(min) - count);
+    const suffix = remaining > 0 ? ` · ${remaining} de plus` : '';
+    return `${count} / ${Math.round(min)}-${Math.round(max)} mots${suffix}`;
   }
-  return `${count} words`;
+  return `${count} mots`;
 }
 
 function normalizeClient(value: any) {
@@ -480,8 +587,8 @@ function firstMintedCollectible(collectibles: AtelierCollectible[] | undefined, 
 type AtelierErrorNotice = { label: string; message: string };
 
 const ATELIER_CONFIRM_NEEDED_NOTICE: AtelierErrorNotice = {
-  label: 'RETRY NEEDED',
-  message: 'Atelier could not confirm your active session. Retry before starting a new session so your current work stays intact.',
+  label: 'À REPRENDRE',
+  message: 'L’Atelier n’a pas pu confirmer la séance en cours. Réessayez avant d’en commencer une autre afin de conserver votre travail.',
 };
 
 function describeAtelierError(error: unknown, context: 'load' | 'session'): AtelierErrorNotice {
@@ -491,21 +598,21 @@ function describeAtelierError(error: unknown, context: 'load' | 'session'): Atel
   const noResponse = isAxiosError && !error.response;
 
   if (noResponse && !timedOut) {
-    return { label: 'OFFLINE', message: 'You appear to be offline. Check your connection and retry.' };
+    return { label: 'HORS LIGNE', message: 'Vous semblez hors ligne. Vérifiez la connexion puis réessayez.' };
   }
   if (timedOut) {
     return context === 'session'
-      ? { label: 'STILL PREPARING', message: 'Today’s session is taking longer than usual to prepare. Retry — it may already be ready.' }
-      : { label: 'STILL LOADING', message: 'Atelier is taking longer than usual to respond. Retry in a moment.' };
+      ? { label: 'TOUJOURS SOUS PRESSE', message: 'La séance du jour demande plus de temps que prévu. Réessayez : elle est peut-être déjà prête.' }
+      : { label: 'CHARGEMENT EN COURS', message: 'L’Atelier répond plus lentement que d’habitude. Réessayez dans un instant.' };
   }
   if (typeof status === 'number' && status >= 500) {
     return context === 'session'
-      ? { label: 'NOT READY', message: 'Today’s session could not be prepared. Retry in a moment.' }
-      : { label: 'NOT READY', message: 'Atelier could not load today’s edition. Retry in a moment.' };
+      ? { label: 'PAS ENCORE PRÊTE', message: 'La séance du jour n’a pas pu être préparée. Réessayez dans un instant.' }
+      : { label: 'PAS ENCORE PRÊTE', message: 'L’Atelier n’a pas pu charger l’édition du jour. Réessayez dans un instant.' };
   }
   return context === 'session'
-    ? { label: 'RETRY NEEDED', message: 'Could not start today’s session. Retry from this screen.' }
-    : { label: 'RETRY NEEDED', message: 'Atelier is unavailable right now. Retry, or come back in a moment.' };
+    ? { label: 'À REPRENDRE', message: 'La séance du jour n’a pas démarré. Réessayez depuis cet écran.' }
+    : { label: 'À REPRENDRE', message: 'L’Atelier est indisponible pour le moment. Réessayez ou revenez dans un instant.' };
 }
 
 export default function AtelierPage() {
@@ -533,7 +640,9 @@ export default function AtelierPage() {
   const [reviewTask, setReviewTask] = useState<AtelierErrataReviewTask | null>(null);
   const [reviewAnswer, setReviewAnswer] = useState('');
   const [reviewResult, setReviewResult] = useState<AtelierErrataAttemptResult | null>(null);
-  const [view, setView] = useState<'today' | 'session'>('today');
+  // 'journey' is the V2 daily-journey shell. It is only ever reachable when the
+  // server says the capability is enabled; 'today' and 'session' are unchanged.
+  const [view, setView] = useState<'today' | 'session' | 'journey'>('today');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
@@ -543,6 +652,7 @@ export default function AtelierPage() {
   const [reloadKey, setReloadKey] = useState(0);
   const [serialWelcomeDismissed, setSerialWelcomeDismissed] = useState(false);
   const [rewardMoment, setRewardMoment] = useState<RewardMoment | null>(null);
+  const [cachedEditionAt, setCachedEditionAt] = useState<string | null>(null);
   const aiPollTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const scheduleAiReviewPollingRef = useRef<(attemptId: string, key: string, remaining?: number) => void>(() => {});
 
@@ -635,7 +745,15 @@ export default function AtelierPage() {
 
   useEffect(() => {
     let alive = true;
-    setLoading(true);
+    const cached = readCachedAtelierEdition<AtelierToday>();
+    if (cached) {
+      setToday(cached.today);
+      setVocabularyDue(cached.vocabularyDue);
+      setCachedEditionAt(cached.cachedAt);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
     setLoadError(null);
     setActiveSessionReady(false);
     Promise.all([
@@ -647,14 +765,16 @@ export default function AtelierPage() {
         new_limit: 0,
         topic_limit: 0,
         linked_limit: 0,
-        direction: 'fr_to_de',
       }).catch(() => null),
       loadActiveSession(() => alive),
     ])
       .then(([todayData, vocabularyContext]) => {
         if (!alive) return;
         setToday(todayData);
-        setVocabularyDue(Number(vocabularyContext?.summary?.due || 0));
+        const due = Number(vocabularyContext?.summary?.due_total ?? vocabularyContext?.summary?.due ?? 0);
+        setVocabularyDue(due);
+        cacheAtelierEdition(todayData, due);
+        setCachedEditionAt(null);
       })
       .catch((error) => {
         console.error(error);
@@ -668,6 +788,16 @@ export default function AtelierPage() {
       alive = false;
     };
   }, [loadActiveSession, reloadKey]);
+
+  useEffect(() => {
+    if (!session || session.status === 'completed') return;
+    saveResumeActivity({
+      href: `/atelier?resume=${session.session_id}`,
+      kind: 'atelier',
+      entityId: session.session_id,
+    });
+    if (router.isReady && router.query.resume) setView('session');
+  }, [router.isReady, router.query.resume, session]);
 
   useEffect(() => {
     return () => {
@@ -712,6 +842,7 @@ export default function AtelierPage() {
     ? currentAnswers.text || ''
     : answers[answerKey('produce', 'produce', null)]?.text || '';
   const currentAttemptReady = drillAnswerIsReady(activeSet, exerciseRound, exerciseMode, activeItemIndexSafe, currentAnswers, produceAnswer);
+  const adaptiveLocks = useMemo(() => sessionAdaptiveLocks(session), [session]);
   const dayProgress = useMemo(
     () => buildDayProgress({
       today,
@@ -720,10 +851,36 @@ export default function AtelierPage() {
     }),
     [today, session, vocabularyDue],
   );
+  // --- Atelier V2 daily journey -------------------------------------------
+  // The controller owns every journey request, idempotency key and contract
+  // state; this page only renders it. It stays idle until the legacy edition
+  // has loaded, so an unauthenticated visit never fires a journey request.
+  const journey = useDailyJourney({ enabled: !loading && !loadError });
+  // The server response is the only authority. A failed or absent `/today`
+  // read is NOT an enabled capability, so the legacy page is untouched when the
+  // flag is off, when the request fails, and before the first read returns.
+  const journeyEnabled =
+    journey.envelope?.enabled === true && journey.phase.kind !== 'disabled';
+
+  // The frozen precedence: the journey branch sits in front of the legacy chain.
   const recommendation = useMemo(
-    () => resolveRecommendedNext(today, session, dayProgress),
+    () => resolveRecommendedNext(today, session, dayProgress, journey.envelope),
+    [today, session, dayProgress, journey.envelope],
+  );
+  // The legacy surfaces (La Une, the session recap) keep receiving the legacy
+  // chain verbatim. The journey has its own entry above them, so nothing here is
+  // reorganized during the functional milestone and no legacy copy has to learn
+  // a new action kind. Whichever the learner picks, the other stays available.
+  const legacyRecommendation = useMemo(
+    () => resolveLegacyRecommendedNext(today, session, dayProgress),
     [today, session, dayProgress],
   );
+  const journeyRecommended = recommendation.kind.startsWith('journey_');
+  // The Today entry for the journey is on screen exactly when the frozen
+  // precedence puts it in front of the legacy chain, plus the finished case.
+  // Nothing may be rendered on top of it: it carries the day's primary action.
+  const journeyEntryVisible =
+    journeyEnabled && (journeyRecommended || journey.phase.kind === 'finished');
 
   useEffect(() => {
     if (!activeRetest && activeItemIndex !== activeItemIndexSafe) {
@@ -784,10 +941,10 @@ export default function AtelierPage() {
     try {
       const result = await apiService.requestAtelierAttemptAiReview(attemptId);
       applyAttemptResult(scopedKey, result, true);
-      toast('AI correction started.');
+      toast('Relecture automatique lancée.');
     } catch (error) {
       console.error(error);
-      toast.error('AI correction is unavailable.');
+      toast.error('La relecture automatique est indisponible.');
     } finally {
       setAiReviewSubmitting((prev) => ({ ...prev, [scopedKey]: false }));
     }
@@ -809,12 +966,12 @@ export default function AtelierPage() {
         mode: reportMode,
         exercise_id: exerciseId,
         item_id: activeItemId,
-        reason: 'Learner flagged this drill from the feedback sheet.',
+        reason: 'Exercice signalé depuis la feuille de correction.',
       });
-      toast.success('Exercise reported.');
+      toast.success('Exercice signalé.');
     } catch (error) {
       console.error(error);
-      toast.error('Could not report this exercise.');
+      toast.error('L’exercice n’a pas pu être signalé.');
     }
   };
 
@@ -861,11 +1018,11 @@ export default function AtelierPage() {
   const submitAttempt = async () => {
     if (!session) return;
     if (submitted[scopedKey]) {
-      toast('This drill is already submitted.');
+      toast('Cet exercice est déjà classé.');
       return;
     }
     if (!currentAttemptReady) {
-      toast('Add an answer before checking.');
+      toast('Ajoutez une réponse avant de vérifier.');
       return;
     }
     setSubmitting(true);
@@ -932,11 +1089,18 @@ export default function AtelierPage() {
       setSubmitted((prev) => ({ ...prev, [attemptKey]: true }));
       setResubmitKeys((prev) => ({ ...prev, [attemptKey]: false }));
       const adaptiveLock = result.correction?.adaptive_lock;
-      if (adaptiveLock?.concept_id && Array.isArray(adaptiveLock.skipped_modes)) {
+      if (adaptiveLock?.concept_id) {
+        const lockedConceptId = Number(adaptiveLock.concept_id);
+        const skippedModes: string[] = Array.isArray(adaptiveLock.skipped_modes) ? adaptiveLock.skipped_modes : [];
+        const skippedRounds: string[] = Array.isArray(adaptiveLock.skipped_rounds) ? adaptiveLock.skipped_rounds : [];
         setSubmitted((prev) => ({
           ...prev,
-          ...Object.fromEntries(adaptiveLock.skipped_modes.map((skippedMode: string) => [
-            answerKey('recognize', skippedMode, Number(adaptiveLock.concept_id)),
+          ...Object.fromEntries(skippedModes.map((skippedMode) => [
+            answerKey('recognize', skippedMode, lockedConceptId),
+            true,
+          ])),
+          ...Object.fromEntries(skippedRounds.map((skippedRound) => [
+            answerKey(skippedRound as RoundName, skippedRound, lockedConceptId),
             true,
           ])),
         }));
@@ -958,13 +1122,13 @@ export default function AtelierPage() {
       if (mintedLogoToken) {
         setRewardMoment({ id: `${mintedLogoToken.id}:${Date.now()}`, kind: 'logo_token', collectible: mintedLogoToken });
         pulseAtelierHaptic('token');
-        toast.success('Logo token earned.');
+        toast.success('Jeton du logo gagné.');
       } else {
         pulseAtelierHaptic(result.verdict === 'correct' ? 'correct' : 'repair');
       }
     } catch (error) {
       console.error(error);
-      toast.error('The correction could not be submitted.');
+      toast.error('La correction n’a pas pu être transmise.');
     } finally {
       setSubmitting(false);
     }
@@ -1003,7 +1167,7 @@ export default function AtelierPage() {
       pulseAtelierHaptic(correction?.micro_repairs?.[String(erratumIndex)]?.status === 'ok' ? 'correct' : 'repair');
     } catch (error) {
       console.error(error);
-      toast.error('Could not check that repair.');
+      toast.error('La correction n’a pas pu être vérifiée.');
     } finally {
       setRepairSubmitting((prev) => ({ ...prev, [draftKey]: false }));
     }
@@ -1017,6 +1181,7 @@ export default function AtelierPage() {
       const recapPayload = { ...result.recap, session_id: result.session_id, minted_collectibles: result.minted_collectibles || [] };
       setRecap(recapPayload);
       setSession((prev) => prev ? { ...prev, status: 'completed', recap: recapPayload } : prev);
+      clearResumeActivity('atelier');
       try {
         const [todayData, vocabularyContext] = await Promise.all([
           apiService.getAtelierToday(),
@@ -1027,11 +1192,10 @@ export default function AtelierPage() {
             new_limit: 0,
             topic_limit: 0,
             linked_limit: 0,
-            direction: 'fr_to_de',
           }).catch(() => null),
         ]);
         setToday(todayData);
-        setVocabularyDue(Number(vocabularyContext?.summary?.due || 0));
+        setVocabularyDue(Number(vocabularyContext?.summary?.due_total ?? vocabularyContext?.summary?.due ?? 0));
       } catch (refreshError) {
         console.error(refreshError);
       }
@@ -1040,9 +1204,22 @@ export default function AtelierPage() {
         setRewardMoment({ id: `${mintedGiltSeal.id}:${Date.now()}`, kind: 'gilt_seal', collectible: mintedGiltSeal });
       }
       pulseAtelierHaptic('complete');
+      if (
+        nativePushIsAvailable()
+        && window.localStorage.getItem('pilot:native-push-prompted:v1') !== 'true'
+      ) {
+        window.localStorage.setItem('pilot:native-push-prompted:v1', 'true');
+        try {
+          const token = await registerNativePushToken();
+          await apiService.subscribeToNativeNotifications(token);
+          toast.success("L’édition de demain pourra vous prévenir.");
+        } catch (pushError) {
+          console.info('Native push was not enabled after the first session.', pushError);
+        }
+      }
     } catch (error) {
       console.error(error);
-      toast.error('Could not complete the session.');
+      toast.error('La séance n’a pas pu être terminée.');
     } finally {
       setSubmitting(false);
     }
@@ -1074,7 +1251,7 @@ export default function AtelierPage() {
       setReviewResult(null);
     } catch (error) {
       console.error(error);
-      toast.error('Could not open this repair.');
+      toast.error('Cette correction n’a pas pu être ouverte.');
     } finally {
       setReviewSubmitting(false);
     }
@@ -1089,13 +1266,13 @@ export default function AtelierPage() {
       setReviewTask(result.task);
       removeErratumFromToday(reviewTask.error_id);
       if (result.is_correct) {
-        toast.success('Erratum repaired');
+        toast.success('Erratum repris');
       } else {
-        toast('Reviewed. It will return soon for another repair.');
+        toast('Relue. Elle reviendra bientôt pour une nouvelle reprise.');
       }
     } catch (error) {
       console.error(error);
-      toast.error('Could not submit this repair.');
+      toast.error('La correction n’a pas pu être envoyée.');
     } finally {
       setReviewSubmitting(false);
     }
@@ -1115,10 +1292,35 @@ export default function AtelierPage() {
       void router.push('/vocabulary/review');
       return;
     }
-    toast('Review queue is clear.');
+    toast('La file de révision est vide.');
   };
 
   const handleRecommendedAction = (action: RecommendedAction = recommendation) => {
+    // --- Atelier V2 branches, in the frozen precedence order ----------------
+    if (action.kind === 'journey_resume') {
+      // Resume, never restart. `resume` is an accepted no-op on an already
+      // active journey, so this is safe to tap twice.
+      if (action.status === 'paused') void journey.actions.resume();
+      setView('journey');
+      return;
+    }
+    if (action.kind === 'journey_start') {
+      void journey.actions.start().then(() => setView('journey'));
+      return;
+    }
+    if (action.kind === 'journey_preparing') {
+      // Never start a second journey: re-read the one the server is preparing.
+      void journey.actions.refresh();
+      setView('journey');
+      return;
+    }
+    if (action.kind === 'journey_unavailable') {
+      // Offer the retry, then let the rest of the day carry on underneath.
+      if (action.retryAllowed) void journey.actions.retryGeneration();
+      else handleRecommendedAction(action.fallback);
+      return;
+    }
+
     if (action.kind === 'resume_session') {
       if (session) {
         const nextRound = isRoundName(action.round) ? action.round : 'recognize';
@@ -1149,6 +1351,10 @@ export default function AtelierPage() {
       void router.push(`/missions${action.query}`);
       return;
     }
+    if (action.kind === 'studio') {
+      void router.push('/audio-session');
+      return;
+    }
     if (action.kind === 'library') {
       if (!STORY_FEATURE_VISIBLE) return;
       void router.push(action.href);
@@ -1163,33 +1369,65 @@ export default function AtelierPage() {
     }
   };
 
-  const advanceBaseDrill = () => {
+  // Where the recognition rung resumes for a concept, skipping every mode the
+  // learner has already earned out of. Returns null when the whole rung is done.
+  const firstOpenRecognizeMode = (conceptId?: number | null): RecognizeMode | null => {
+    const skipped = lockedRecognizeModes(adaptiveLocks, conceptId);
+    return recognizeModes.find((item) => !skipped.has(item.id))?.id || null;
+  };
+
+  const enterTransformRung = (fromIndex: number) => {
     if (!session) return;
-    if (roundUsesItemScope(round) && baseActiveItemIndexSafe < Math.max(baseActiveItems.length - 1, 0)) {
-      setActiveItemIndex(baseActiveItemIndexSafe + 1);
-      return;
-    }
-    if (round === 'recognize') {
-      const modeIndex = recognizeModes.findIndex((item) => item.id === mode);
-      if (modeIndex < recognizeModes.length - 1) {
-        setMode(recognizeModes[modeIndex + 1].id);
-        setActiveItemIndex(0);
-        return;
-      }
-      if (activeConceptIndex < session.concepts.length - 1) {
-        setActiveConceptIndex(activeConceptIndex + 1);
-        setMode('fill');
-        setActiveItemIndex(0);
-        return;
-      }
+    const nextIndex = session.concepts
+      .findIndex((concept, index) => index >= fromIndex && !roundIsLocked(adaptiveLocks, concept.id, 'transform'));
+    if (nextIndex >= 0) {
       setRound('transform');
-      setActiveConceptIndex(0);
+      setActiveConceptIndex(nextIndex);
       setActiveItemIndex(0);
       return;
     }
+    setRound('sentence');
+    setActiveConceptIndex(0);
+    setActiveItemIndex(0);
+  };
+
+  const advanceBaseDrill = () => {
+    if (!session) return;
+    if (roundUsesItemScope(round) && baseActiveItemIndexSafe < Math.max(baseActiveItems.length - 1, 0)) {
+      // An item-level lock earned on this very answer (e.g. two clean
+      // transforms) retires the rest of the rung instead of marching on.
+      if (!roundIsLocked(adaptiveLocks, activeConcept?.id, round)) {
+        setActiveItemIndex(baseActiveItemIndexSafe + 1);
+        return;
+      }
+    }
+    if (round === 'recognize') {
+      const modeIndex = recognizeModes.findIndex((item) => item.id === mode);
+      const skipped = lockedRecognizeModes(adaptiveLocks, activeConcept?.id);
+      const nextMode = recognizeModes.slice(modeIndex + 1).find((item) => !skipped.has(item.id));
+      if (nextMode) {
+        setMode(nextMode.id);
+        setActiveItemIndex(0);
+        return;
+      }
+      for (let index = activeConceptIndex + 1; index < session.concepts.length; index += 1) {
+        const openMode = firstOpenRecognizeMode(session.concepts[index].id);
+        if (openMode) {
+          setActiveConceptIndex(index);
+          setMode(openMode);
+          setActiveItemIndex(0);
+          return;
+        }
+      }
+      enterTransformRung(0);
+      return;
+    }
     if (round === 'transform') {
-      if (activeConceptIndex < session.concepts.length - 1) {
-        setActiveConceptIndex(activeConceptIndex + 1);
+      const nextIndex = session.concepts.findIndex((concept, index) => (
+        index > activeConceptIndex && !roundIsLocked(adaptiveLocks, concept.id, 'transform')
+      ));
+      if (nextIndex >= 0) {
+        setActiveConceptIndex(nextIndex);
         setActiveItemIndex(0);
         return;
       }
@@ -1239,9 +1477,14 @@ export default function AtelierPage() {
       advanceBaseDrill();
       return;
     }
-    const baselineCompleted = submittedDrills(session, submitted);
+    const baselineCompleted = submittedDrills(session, submitted, adaptiveLocks);
+    // The server schedules a retest a couple of drills out; clamp it to the end
+    // of the ladder so one that was booked past the last drill still gets asked
+    // instead of sitting queued forever (and padding the denominator, which then
+    // filed a finished edition as "close en avance").
     const dueRetest = Object.values(repairRetests).find((retest) => (
-      retest.status === 'queued' && baselineCompleted >= retest.dueAfterCompleted
+      retest.status === 'queued'
+      && baselineCompleted >= Math.min(retest.dueAfterCompleted, totalDrills(session, adaptiveLocks, submitted))
     ));
     if (dueRetest) {
       setActiveRetestId(dueRetest.id);
@@ -1252,12 +1495,22 @@ export default function AtelierPage() {
 
   const completedRetests = Object.values(repairRetests).filter((retest) => retest.status === 'completed').length;
   const totalRetests = Object.keys(repairRetests).length;
-  const completedDrills = submittedDrills(session, submitted) + completedRetests;
-  const plannedDrills = totalDrills(session) + totalRetests;
+  const completedDrills = submittedDrills(session, submitted, adaptiveLocks) + completedRetests;
+  const baseDrills = totalDrills(session, adaptiveLocks, submitted);
+  const plannedDrills = baseDrills + totalRetests;
+  // The feuilleton welcome is onboarding for the serial, and its call to action
+  // starts a legacy grammar session. When the daily journey owns Today it must
+  // not render at all: a fixed overlay in front of the day's recommended action
+  // makes that action unclickable, and its one button leads somewhere else.
   const showSerialWelcome = !loading
     && !serialWelcomeDismissed
     && today?.onboarding?.serial_seen === false
     && !session
+    && !journeyEntryVisible
+    // The capability read decides who owns Today. Until it settles, showing the
+    // welcome would flash a full-screen overlay in front of an action that is
+    // about to appear underneath it.
+    && journey.phase.kind !== 'loading'
     && dayProgress.sessionStatus === 'none';
   const dismissSerialWelcome = async () => {
     setSerialWelcomeDismissed(true);
@@ -1285,11 +1538,16 @@ export default function AtelierPage() {
   return (
     <>
       <Head>
-        <title>Atelier</title>
+        <title>L’Atelier</title>
       </Head>
       <AtelierStyles />
       <div className="atelier-page">
-        <Masthead view={view} />
+        <Masthead view={view === 'today' ? 'today' : 'session'} />
+        {cachedEditionAt && (
+          <div className="atelier-cache-note" role="status">
+            Édition précédente · mise à jour en cours…
+          </div>
+        )}
         {loading ? (
           <main className="atelier-edition-stage">
             <div className="lu motion" aria-label="Atelier · La Une">
@@ -1298,19 +1556,52 @@ export default function AtelierPage() {
               <AtelierEditionNav active="atelier" />
             </div>
           </main>
-        ) : view === 'today' || !session ? (
-          <TodayView
-            today={today}
-            activeSession={session}
-            dayProgress={dayProgress}
-            recommendation={recommendation}
-            onRecommendedAction={handleRecommendedAction}
-            onOpenReview={() => openRecommendedReview()}
-            loading={submitting}
-            loadError={loadError}
-            activeSessionReady={activeSessionReady}
-            onRetry={() => setReloadKey((key) => key + 1)}
+        ) : view === 'journey' && journeyEnabled ? (
+          // One connected shell: scene, recall, response, resolution and the
+          // recap all live here, so finishing the day needs no second screen.
+          <JourneySession
+            controller={journey}
+            onExit={() => {
+              setView('today');
+              void journey.actions.refresh();
+            }}
           />
+        ) : /* A capability that turns off mid-session falls back to Today, never
+               into the legacy exercise view the learner did not ask for. */
+        view === 'today' || view === 'journey' || !session ? (
+          <>
+            {/* The journey entry appears exactly when the frozen precedence puts
+                it in front of the legacy chain (branches 1–3 and 5), plus the
+                finished case, where branch 4 makes re-entry a read. */}
+            {journeyEntryVisible && (
+              <div
+                className="atelier-journey-entry"
+                style={{ maxWidth: 720, margin: '0 auto', padding: '16px 16px 0', width: '100%' }}
+              >
+                <JourneyTodayCard
+                  controller={journey}
+                  onOpen={() => setView('journey')}
+                  onOpenLegacy={(href) => {
+                    // The old Atelier session is resumed on its own terms: the
+                    // journey never converts, replaces or completes it.
+                    void router.push(href);
+                  }}
+                />
+              </div>
+            )}
+            <TodayView
+              today={today}
+              activeSession={session}
+              dayProgress={dayProgress}
+              recommendation={legacyRecommendation}
+              onRecommendedAction={handleRecommendedAction}
+              onOpenReview={() => openRecommendedReview()}
+              loading={submitting}
+              loadError={loadError}
+              activeSessionReady={activeSessionReady}
+              onRetry={() => setReloadKey((key) => key + 1)}
+            />
+          </>
         ) : (
           <SessionView
             session={session}
@@ -1358,11 +1649,12 @@ export default function AtelierPage() {
           <RecapModal
             recap={recap}
             concepts={session?.concepts || []}
-            recommendation={recommendation}
+            filedEarly={completedDrills < plannedDrills}
+            recommendation={legacyRecommendation}
             onRecommendedAction={() => {
               setRecap(null);
               setView('today');
-              handleRecommendedAction(recommendation);
+              handleRecommendedAction(legacyRecommendation);
             }}
             onClose={() => {
               setRecap(null);
@@ -1391,7 +1683,12 @@ export default function AtelierPage() {
             onClose={() => setRewardMoment(null)}
           />
         )}
-        {showSerialWelcome && <SerialWelcomeModal onClose={beginFromSerialWelcome} />}
+        {showSerialWelcome && (
+          <SerialWelcomeModal
+            onBegin={beginFromSerialWelcome}
+            onDismiss={() => { void dismissSerialWelcome(); }}
+          />
+        )}
       </div>
     </>
   );
@@ -1408,16 +1705,16 @@ function RewardMomentOverlay({
   const isDrafting = isLogoToken && moment.collectible?.metadata?.effort === 'drafting';
   const credit = Number(moment.collectible?.metadata?.credit || 0);
   const eyebrow = isLogoToken
-    ? (isDrafting ? 'Drafted from scratch' : 'Perfect screen')
-    : 'Flawless edition';
+    ? (isDrafting ? 'Composé de toutes pièces' : 'Écran parfait')
+    : 'Édition sans faute';
   const title = isLogoToken
-    ? (isDrafting ? 'Bonus token earned' : 'Logo token earned')
-    : 'Gilt seal earned';
+    ? (isDrafting ? 'Jeton bonus gagné' : 'Jeton du logo gagné')
+    : 'Sceau doré gagné';
   const body = isLogoToken
     ? (isDrafting
-        ? 'You produced the target form in your own words — the harder work earns extra credit.'
-        : 'The three forms locked into the house mark. Filed to your Almanac.')
-    : 'No slips in the full press run. The day seal was struck in gilt.';
+        ? 'Vous avez produit la forme visée avec vos propres mots : ce travail plus exigeant reçoit un crédit supplémentaire.'
+        : 'Les trois formes ont rejoint la marque de la maison. Elles sont classées dans votre Almanach.')
+    : 'Aucune coquille sur ce tirage. Le sceau du jour a été frappé en doré.';
   return (
     <div className="reward-moment-layer" role="status" aria-live="polite">
       <Confetti count={isLogoToken ? (isDrafting ? 30 : 24) : 30} />
@@ -1435,11 +1732,11 @@ function RewardMomentOverlay({
         <div>
           <span>{eyebrow}</span>
           <h2>{title}</h2>
-          {isDrafting && credit > 0 && <p className="reward-credit-line">+{credit} credit</p>}
+          {isDrafting && credit > 0 && <p className="reward-credit-line">+{credit} crédit</p>}
           <p>{body}</p>
         </div>
         <button type="button" onClick={onClose}>
-          Continue <ArrowRight size={14} />
+          Continuer <ArrowRight size={14} />
         </button>
       </section>
     </div>
@@ -1459,20 +1756,117 @@ function Masthead({ view }: { view: 'today' | 'session' }) {
   );
 }
 
-function SerialWelcomeModal({ onClose }: { onClose: () => void }) {
+/**
+ * The feuilleton welcome. It is a real modal dialog, so it has to behave like
+ * one: it must be dismissible without committing the learner to anything, it
+ * must move focus in and hand it back, and Tab must not walk out of it into the
+ * page it is covering.
+ *
+ * It never renders while the daily journey owns Today (see `journeyEntryVisible`),
+ * because a fixed overlay in front of the day's recommended action makes that
+ * action unclickable.
+ */
+function SerialWelcomeModal({
+  onBegin,
+  onDismiss,
+}: {
+  /** Accept the invitation: dismiss and start today's legacy session. */
+  onBegin: () => void;
+  /** Close without starting anything. */
+  onDismiss: () => void;
+}) {
+  const dialogRef = useRef<HTMLElement | null>(null);
+  const closeRef = useRef<HTMLButtonElement | null>(null);
+  // The dismiss handler is read through a ref so the focus/keyboard effect
+  // never re-runs (and never steals focus back) when the parent re-renders.
+  const dismissRef = useRef(onDismiss);
+  dismissRef.current = onDismiss;
+
+  const focusable = () => {
+    const root = dialogRef.current;
+    if (!root) return [] as HTMLElement[];
+    return Array.from(
+      root.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])'),
+    ).filter((el) => el.offsetParent !== null || el === document.activeElement);
+  };
+
+  useEffect(() => {
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    // Focus the close control first: the escape from the dialog is the first
+    // thing the learner can reach, not the commitment.
+    closeRef.current?.focus();
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        dismissRef.current();
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const items = focusable();
+      if (items.length === 0) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+      if (event.shiftKey && (active === first || !dialogRef.current?.contains(active))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener('keydown', onKeyDown, true);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown, true);
+      // Hand focus back where it was, so closing the dialog does not dump the
+      // learner at the top of the document.
+      if (previouslyFocused && document.contains(previouslyFocused)) previouslyFocused.focus();
+    };
+  }, []);
+
   return (
-    <div className="serial-welcome-backdrop" role="dialog" aria-modal="true" aria-label="Serial welcome">
-      <section className="serial-welcome">
-        <div className="t-mono red">Le Feuilleton</div>
-        <h2>Your daily French serial starts here.</h2>
-        <p>Each day has one episode beat: sometimes you write the message that changes the scene, sometimes you read the comic result.</p>
-        <div className="serial-welcome-steps">
-          <span><b>1</b> Act in French</span>
-          <span><b>2</b> Read the edition</span>
-          <span><b>3</b> Return tomorrow</span>
+    <div
+      className="serial-welcome-backdrop"
+      role="presentation"
+      onMouseDown={(event) => {
+        // Only a press that both starts and ends on the backdrop closes it, so
+        // a drag that finishes outside the card never dismisses by accident.
+        if (event.target === event.currentTarget) onDismiss();
+      }}
+    >
+      <section
+        className="serial-welcome"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="serial-welcome-title"
+        ref={(node) => { dialogRef.current = node; }}
+      >
+        <div className="serial-welcome-head">
+          <div className="t-mono red">Le Feuilleton</div>
+          <button
+            type="button"
+            className="serial-welcome-close"
+            aria-label="Fermer"
+            ref={closeRef}
+            onClick={onDismiss}
+          >
+            <X size={18} />
+          </button>
         </div>
-        <button type="button" onClick={onClose}>
-          Start today <ArrowRight size={16} />
+        <h2 id="serial-welcome-title">Votre feuilleton français quotidien commence ici.</h2>
+        <p>Chaque jour porte un acte : parfois vous écrivez le message qui change la scène, parfois vous lisez sa conséquence illustrée.</p>
+        <div className="serial-welcome-steps">
+          <span><b>1</b> Agir en français</span>
+          <span><b>2</b> Lire l’édition</span>
+          <span><b>3</b> Revenir demain</span>
+        </div>
+        <button type="button" onClick={onBegin}>
+          Commencer aujourd’hui <ArrowRight size={16} />
+        </button>
+        <button type="button" className="serial-welcome-later" onClick={onDismiss}>
+          Plus tard
         </button>
       </section>
     </div>
@@ -1506,6 +1900,14 @@ function TodayView({
   const hasActiveSession = dayProgress.sessionStatus === 'active';
   const concepts = activeSession?.concepts?.length ? activeSession.concepts : today?.concepts || [];
   const canStart = activeSessionReady && (hasActiveSession || concepts.length > 0);
+  const [wordSlate, setWordSlate] = useState<DailyWordSlate | null>(null);
+  useEffect(() => {
+    let alive = true;
+    apiService.getWordsOfTheDay()
+      .then((slate) => { if (alive) setWordSlate(slate); })
+      .catch(() => { /* the slate is an enrichment — La Une renders without it */ });
+    return () => { alive = false; };
+  }, [dayProgress.vocabularyDue, dayProgress.missionDone, dayProgress.feuilletonDone]);
   const vocabularyReviewDue = Math.max(0, Number(dayProgress.vocabularyDue || 0));
   const repairDue = Math.max(0, Number(dayProgress.errataDue || 0));
   const serialAction = serialActionFromToday(today, activeSession);
@@ -1545,7 +1947,7 @@ function TodayView({
     return Number.isFinite(idx) ? idx + 1 : 1;
   })();
   const isMissionBeat = serialKind === 'mission';
-  const leadArtUrl = serialLeadImageUrl(serialEpisode);
+  const leadArtUrl = resolveMediaUrl(serialLeadImageUrl(serialEpisode));
   const leadArtMode: 'art' | 'press' | 'late' | 'none' =
     serialEpisode?.status === 'generating' ? 'press'
       : serialEpisode?.status === 'delayed' ? 'late'
@@ -1557,19 +1959,27 @@ function TodayView({
       ? 'Une lettre attend ta réponse.'
       : `Épisode ${episodeNumber} — ta première scène t’attend.`;
   const leadByline = parcoursStoryCharacter(serialEpisode, serialKind).name;
+  const activeCastMember = serialEpisode?.active_cast_member as Record<string, any> | undefined;
+  const leadPortraitUrl = typeof activeCastMember?.model_sheet_url === 'string'
+    ? activeCastMember.model_sheet_url
+    : null;
+  const leadAccentColour = typeof activeCastMember?.accent_colour === 'string'
+    ? activeCastMember.accent_colour
+    : null;
   const openStory = storyHref ? () => { void router.push(storyHref); } : null;
 
   const sessionNode = (dayProgress.nodes || []).find((node) => node.id === 'session');
   const sessionMins = Math.max(1, Number(sessionNode?.estimatedMinutes ?? remainingMinutes ?? 8));
+  const timeBudget = Math.max(0, Number(dayProgress.timeBudgetMinutes || 0));
   const seanceStatus: 'fresh' | 'resume' | 'done' = sessionComplete ? 'done' : hasActiveSession ? 'resume' : 'fresh';
-  const seanceConcepts: LuSeanceConcept[] = concepts.slice(0, 3).map((concept, index) => ({
+  const seanceConcepts: Array<{ t: string; cefr: string; role: 'new' | 'fragile' | 'contrast' }> = concepts.slice(0, 3).map((concept, index) => ({
     t: displayConceptTitle(concept),
     cefr: String(concept.level || 'A1'),
     role: concept.role === 'new' || concept.role === 'fragile' || concept.role === 'contrast'
       ? concept.role
       : index === 2 ? 'contrast' : 'fragile',
   }));
-  const totalDrillsCount = plannedAtelierDrills(concepts, activeSession);
+  const totalDrillsCount = plannedAtelierDrills(concepts, activeSession, sessionNode?.plannedDrills);
   const seanceProgress: [number, number] | null = hasActiveSession
     ? [Math.min(submittedCount, totalDrillsCount), Math.max(1, totalDrillsCount)]
     : null;
@@ -1583,8 +1993,41 @@ function TodayView({
       }
     : { kind: 'start_session' };
   const seanceDisabled = loading || (!hasActiveSession && !canStart);
+  const prescribedConcept = seanceConcepts.find((concept) => concept.role === 'fragile') || seanceConcepts[0];
+  // The headline minutes are what the edition will really cost at this
+  // learner's measured pace (server-side estimate), never the daily-goal
+  // setting echoed back at them. When the honest number overruns the budget the
+  // prescription says so rather than quietly printing the nicer figure.
+  const prescribedMinutes = Math.max(1, Number(remainingMinutes || sessionMins || 8));
+  const overBudgetMinutes = timeBudget > 0 && prescribedMinutes > timeBudget ? timeBudget : null;
+  // On the days the written mission is not prescribed, the day's third element is
+  // the voice studio, so the prescription has to name speaking rather than a
+  // written reply that is not being asked for.
+  const studioIsPrescribed = Boolean(dayProgress.studioSuggested) && !dayProgress.studioDone;
+  const prescribedWordCount = Math.max(
+    0,
+    Number(wordSlate?.words?.length || Math.min(4, vocabularyReviewDue)),
+  );
+  const onboardingMotivation = String(today?.summary?.learning_motivation || '').trim();
+  const onboardingMotivationLabel = (
+    {
+      travel: 'voyager et vous débrouiller',
+      work: 'travailler en français',
+      relationships: 'parler avec vos proches',
+      culture: 'lire, regarder et écouter',
+    } as Record<string, string>
+  )[onboardingMotivation] || onboardingMotivation;
+  /* One quiet explaining clause on the first edition only — the onboarding
+     motivation earns it. Every other day the manchette states the ask and the
+     rule; the daily "parce que …" variants were text the page did not need. */
+  const prescriptionBecause = today?.summary?.first_session && onboardingMotivation
+    ? `parce que votre objectif « ${onboardingMotivationLabel} » commence par une seule règle bien posée.`
+    : null;
 
   const forecastAvailable = cefr?.forecast?.status === 'available';
+  // The level came from the learner's own statement and the Atelier has not
+  // tested it yet, so it must not be drawn as a measurement.
+  const levelIsDeclared = cefr?.estimate_source === 'declared';
   const forecastRange = Array.isArray(cefr?.forecast?.range_days) ? cefr?.forecast?.range_days : null;
   const forecastDays = forecastRange
     ? Math.round((Number(forecastRange[0]) + Number(forecastRange[1])) / 2)
@@ -1599,9 +2042,65 @@ function TodayView({
   ];
 
   const nextEpisodeNumber = episodeNumber + 1;
-  const nextEpisodeTease = firstNonEmptyString(serialEpisode?.hook?.teaser, serialEpisode?.hook?.text) || null;
+  const rawEpisodeTease = firstNonEmptyString(serialEpisode?.hook?.teaser, serialEpisode?.hook?.text) || null;
+  // A hook that merely repeats tonight's headline is no tease — let LuDemain
+  // fall back to its "en composition" line instead of promising a rerun.
+  const nextEpisodeTease = rawEpisodeTease && rawEpisodeTease.trim() !== String(leadHeadline || '').trim()
+    ? rawEpisodeTease
+    : null;
   const quote = today?.quote || null;
   const phraseOfDay = today?.phrase_of_day || null;
+  /* The manchette's ask follows the recommendation; the because-line is kept
+     only for the first edition, where the onboarding motivation earns it. */
+  const askKind: LuAskKind = isRest
+    ? 'rest'
+    : recommendation.kind === 'mission' || (recommendation.kind === 'serial' && recommendation.episodeKind === 'mission') || recommendation.kind === 'studio'
+      ? 'mission'
+      : recommendation.kind === 'review'
+        ? 'review'
+        : recommendation.kind === 'feuilleton' || recommendation.kind === 'serial'
+          ? 'read'
+          : 'session';
+  const ruleCount = seanceConcepts.length;
+  const slateCount = wordSlate?.words?.length || 0;
+  const lexiqueParts = [
+    vocabularyReviewDue > 0 ? `${vocabularyReviewDue} mot${vocabularyReviewDue === 1 ? '' : 's'} à revoir` : null,
+    slateCount > 0 ? `${slateCount} mot${slateCount === 1 ? '' : 's'} du jour` : null,
+    repairDue > 0 ? `${repairDue} correction${repairDue === 1 ? '' : 's'}` : null,
+  ].filter(Boolean) as string[];
+  const coursValue = levelIsDeclared
+    ? `${cefr?.estimate || 'A1.1'} · à vérifier`
+    : forecastAvailable && forecastDays
+      ? `${cefr?.estimate || 'A1.1'} → ${cefr?.target || cefr?.next_level || ''} · ~${forecastDays} j`
+      : (cefr?.estimate || 'A1.1');
+  const enBrefRows: LuBrefRow[] = [
+    {
+      id: 'seance',
+      label: 'La séance',
+      // A fresh séance quotes the server's estimate (the same number the
+      // manchette prints); the client-side node only knows the resume state.
+      value: seanceStatus === 'done'
+        ? 'Bouclée'
+        : `${ruleCount} règle${ruleCount === 1 ? '' : 's'} · ~${seanceStatus === 'resume' ? sessionMins : Math.max(1, Number(remainingMinutes || sessionMins || 8))} min`,
+      done: seanceStatus === 'done',
+      disabled: seanceDisabled,
+      onClick: () => onRecommendedAction(seanceAction),
+    },
+    {
+      id: 'lexique',
+      label: 'Le lexique',
+      value: lexiqueParts.length ? lexiqueParts.join(' · ') : 'Rien à revoir — la mémoire tient.',
+      done: lexiqueParts.length === 0,
+      href: '/vocabulary/review',
+      onClick: vocabularyReviewDue === 0 && slateCount === 0 && repairDue > 0 ? onOpenReview : undefined,
+    },
+    {
+      id: 'cours',
+      label: 'Le cours',
+      value: coursValue,
+      href: '/notebook?mode=releve',
+    },
+  ];
   const boucleDate = (() => {
     const now = new Date();
     const pad = (value: number) => String(value).padStart(2, '0');
@@ -1620,13 +2119,14 @@ function TodayView({
             date={editionDateFull}
             edition={`Éd. Nº ${episodeNumber}`}
             streak={streak}
+            niveau={cefr?.estimate || ''}
             boucle={isRest}
             boucleDate={boucleDate}
           />
 
           {loadError && (
             <LuNotice
-              tone={loadError.label === 'OFFLINE' ? 'red' : loadError.label.includes('PREPARING') || loadError.label.includes('LOADING') ? 'yellow' : 'blue'}
+              tone={loadError.label === 'HORS LIGNE' ? 'red' : loadError.label.includes('SOUS PRESSE') || loadError.label.includes('CHARGEMENT') ? 'yellow' : 'blue'}
               label={loadError.label}
               message={loadError.message}
               onRetry={onRetry}
@@ -1635,31 +2135,30 @@ function TodayView({
 
           {errorOnlyPage ? null : (
             <>
-              <LuLead
+              <LuManchette
                 ep={episodeNumber}
                 mission={isMissionBeat}
                 artMode={leadArtMode}
                 artUrl={leadArtUrl}
                 headline={leadHeadline}
                 byline={leadByline}
-                done={serialDone}
+                portraitUrl={leadPortraitUrl}
+                accentColour={leadAccentColour}
+                minutes={prescribedMinutes}
+                budgetMinutes={overBudgetMinutes}
+                replyMode={studioIsPrescribed ? 'speak' : 'write'}
+                ask={askKind}
+                concept={prescribedConcept?.t || 'une règle à consolider'}
+                because={prescriptionBecause}
+                recap={dayProgress.missionDone ? `${leadByline} a lu votre lettre.` : null}
+                read={serialDone}
+                done={isRest}
+                disabled={loading || (recommendation.kind === 'start_session' && !canStart)}
                 onOpen={openStory}
+                onCta={() => onRecommendedAction(recommendation)}
               />
 
-              <LuSeance
-                concepts={seanceConcepts}
-                mins={sessionMins}
-                drills={totalDrillsCount}
-                status={seanceStatus}
-                progress={seanceProgress}
-                disabled={seanceDisabled}
-                onCta={() => onRecommendedAction(seanceAction)}
-              />
-
-              <div className="lu-duo">
-                <LuLexique due={vocabularyReviewDue} href="/vocabulary/review" />
-                <LuErrata due={repairDue} onOpen={onOpenReview} />
-              </div>
+              <LuEnBref rows={enBrefRows} />
 
               {STORY_FEATURE_VISIBLE && libraryEpisode && (
                 <LuBiblio
@@ -1677,18 +2176,11 @@ function TodayView({
                 />
               )}
 
-              {quote && (
+              {/* The daily quote is decoration, not learning signal — reserve
+                  it for rest days, where the sparse page has room to breathe. */}
+              {quote && isRest && (
                 <LuCitation text={quote.text} source={quote.source} detail={quote.source_detail} />
               )}
-
-              <LuCours
-                from={cefr?.estimate || 'A1.1'}
-                to={cefr?.target || cefr?.next_level || 'A1.2'}
-                days={forecastDays}
-                words={coursWords}
-                grammar={coursGrammar}
-                forecast={forecastAvailable}
-              />
 
               <LuDemain
                 focus={upcomingFocus.topic}
@@ -1698,7 +2190,6 @@ function TodayView({
                 grand={isRest}
               />
 
-              <div className="lu-colophon">Fin de l’édition</div>
             </>
           )}
         </div>
@@ -1706,43 +2197,6 @@ function TodayView({
       </div>
     </main>
   );
-}
-
-function recommendedRoadmapTarget(action: RecommendedAction): RoadmapTarget {
-  if (action.kind === 'start_session') return 'recognize';
-  if (action.kind === 'resume_session') return isRoundName(action.round) ? action.round : 'recognize';
-  if (action.kind === 'serial') return action.episodeKind;
-  if (action.kind === 'library') return STORY_FEATURE_VISIBLE ? 'library' : 'rest';
-  return action.kind;
-}
-
-function roadmapPrimaryAction(
-  action: RecommendedAction,
-  loading: boolean,
-  canStart: boolean,
-  onClick: () => void,
-): RoadmapAction | null {
-  if (action.kind === 'rest') return null;
-  if (action.kind === 'start_session') {
-    return { label: loading ? 'Starting' : canStart ? 'Start today' : 'Retry', onClick };
-  }
-  if (action.kind === 'resume_session') {
-    return { label: 'Continue', onClick };
-  }
-  if (action.kind === 'review') {
-    const total = action.errataDue + action.vocabularyDue;
-    return { label: total > 0 ? 'Review' : 'Continue', onClick };
-  }
-  if (action.kind === 'mission') return { label: 'Act in French', onClick };
-  if (action.kind === 'library') return STORY_FEATURE_VISIBLE ? { label: 'Continue book', onClick } : null;
-  if (action.kind === 'serial') return { label: action.episodeKind === 'mission' ? 'Reply' : 'Read scene', onClick };
-  return { label: 'Read scene', onClick };
-}
-
-function parcoursPrimaryLabel(action: RecommendedAction, fallback: string) {
-  if (action.kind === 'start_session') return fallback;
-  if (action.kind === 'rest') return 'Open notebook';
-  return 'Continue';
 }
 
 function firstNonEmptyString(...values: unknown[]) {
@@ -1769,6 +2223,8 @@ function serialLeadImageUrl(serialEpisode: Record<string, any> | null): string |
   };
   const composed = toUrl(
     firstNonEmptyString(
+      // The episode's own printed art comes first; plates and hooks are fallbacks.
+      serialEpisode?.lead_image_url,
       serialEpisode?.hero_image,
       serialEpisode?.image_url,
       serialEpisode?.hook?.image_url,
@@ -1782,31 +2238,6 @@ function serialLeadImageUrl(serialEpisode: Record<string, any> | null): string |
     ? locations[locationId].reference_images
     : null;
   return Array.isArray(refs) && refs.length ? toUrl(refs[0]) : null;
-}
-
-function stringFromQueryIndex(query: string) {
-  const params = new URLSearchParams(query.replace(/^\?/, ''));
-  const value = Number(params.get('episode_index'));
-  return Number.isFinite(value) ? value : null;
-}
-
-function parcoursEpisodeLine(today: AtelierToday | null, action: RecommendedAction) {
-  const serialEpisode = (today as any)?.serial_episode || (today as any)?.serial || null;
-  const explicit = firstNonEmptyString(serialEpisode?.episode_label, serialEpisode?.label);
-  if (/épisode|episode/i.test(explicit)) return explicit.replace(/^episode/i, 'Épisode');
-
-  const actionIndex = action.kind === 'serial' ? stringFromQueryIndex(action.query) : null;
-  const rawIndex = serialEpisode?.episode_index ?? serialEpisode?.order_index ?? serialEpisode?.index ?? actionIndex;
-  const index = rawIndex == null ? Number.NaN : Number(rawIndex);
-  const episodeNumber = Number.isFinite(index) ? Math.max(1, Math.round(index) + 1) : 4;
-  const title = firstNonEmptyString(
-    serialEpisode?.title,
-    serialEpisode?.episode_title,
-    serialEpisode?.hook?.title,
-    serialEpisode?.brief?.title,
-    episodeNumber === 1 ? "L’arrivée" : "L’inspection",
-  );
-  return `Épisode ${episodeNumber} · ${title}`;
 }
 
 function stripDisplayQuotes(value: string) {
@@ -1957,16 +2388,6 @@ function focusDayLabel(value: unknown, fallback: string, direction: 'previous' |
   return new Intl.DateTimeFormat('fr-FR', { weekday: 'long' }).format(date);
 }
 
-function parcoursPreviousFocus(today: AtelierToday | null) {
-  const focus = parcoursSummaryFocus(today, 'previous');
-  const label = focusLabel(focus);
-  return {
-    dayLabel: focusDayLabel(focus, label ? 'Dernière' : 'Avant', 'previous'),
-    topic: label ? parcoursTopicShort(label) : 'à enregistrer',
-    complete: Boolean(label),
-  };
-}
-
 function parcoursUpcomingFocus(today: AtelierToday | null) {
   const focus = parcoursSummaryFocus(today, 'next');
   const label = focusLabel(focus);
@@ -2001,7 +2422,7 @@ function formatAtelierDatestamp(date = new Date()) {
   const day = String(date.getDate()).padStart(2, '0');
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const year = String(date.getFullYear()).slice(-2);
-  return `Closed · ${day} · ${month} · ${year}`;
+  return `Classée · ${day} · ${month} · ${year}`;
 }
 
 function atelierEditionStreak(today: AtelierToday | null, activeSession: AtelierSessionStart | null) {
@@ -2014,516 +2435,31 @@ function atelierEditionStreak(today: AtelierToday | null, activeSession: Atelier
   return Number.isFinite(value) && value > 0 ? Math.round(value) : 0;
 }
 
-function grammarFocusCountLabel(count: number) {
-  if (count <= 0) return 'No grammar foci';
-  if (count === 1) return 'One grammar focus';
-  const words: Record<number, string> = {
-    2: 'Two',
-    3: 'Three',
-    4: 'Four',
-    5: 'Five',
-    6: 'Six',
-  };
-  return `${words[count] || String(count)} grammar foci`;
-}
-
-function plannedAtelierDrills(concepts: AtelierConcept[], activeSession: AtelierSessionStart | null) {
-  const sessionTotal = totalDrills(activeSession);
-  if (sessionTotal > 0) return sessionTotal;
-  if (concepts.length > 0) return concepts.length * 15 + 1;
-  return 0;
-}
-
-function currentRoundFocus(
-  session: AtelierSessionStart | null,
-  activeRound: RoundName,
-  grammarTopics: string[],
+// Once a session exists its own payload is the truth (and shrinks as the learner
+// earns skips). Before that, the server's planned count for today's concepts is —
+// never a number invented on the client.
+function plannedAtelierDrills(
+  concepts: AtelierConcept[],
+  activeSession: AtelierSessionStart | null,
+  plannedFromServer?: number,
 ) {
-  const conceptIndex = Math.max(0, Math.min(session?.current_position?.concept_index || 0, Math.max(grammarTopics.length - 1, 0)));
-  const topic = grammarTopics[conceptIndex] || grammarTopics[0] || 'Today’s grammar';
-  return `${topic} — ${roundFocusInstruction(activeRound)}`;
-}
-
-function roundFocusInstruction(round: RoundName) {
-  if (round === 'recognize') return 'recognize the pattern';
-  if (round === 'transform') return 'rewrite with precision';
-  if (round === 'sentence') return 'write one full sentence';
-  if (round === 'produce') return 'shape a short paragraph';
-  if (round === 'speak') return 'say it aloud';
-  return 'use it in a reply';
-}
-
-function roundMetaLabel(state: 'done' | 'current' | 'up', sessionStatus: DayProgress['sessionStatus']) {
-  if (state === 'done') return 'done';
-  if (state === 'current') return sessionStatus === 'none' ? 'Start here' : 'Continue here';
-  return 'up next';
-}
-
-function withNodeMinutes(label: string, progress: DayProgress, nodeId: string) {
-  const node = (progress.nodes || []).find((item) => item.id === nodeId);
-  if (!node?.estimatedMinutes) return label;
-  return `${label} · ~${node.estimatedMinutes} min`;
-}
-
-// The "session" node's estimatedMinutes is the budget for the whole 6-round
-// session, not per round — dividing it here avoids implying each of the 6
-// rounds independently costs the full session estimate (a ~6x overstatement).
-function withRoundShareMinutes(label: string, progress: DayProgress, nodeId: string, roundCount: number) {
-  const node = (progress.nodes || []).find((item) => item.id === nodeId);
-  if (!node?.estimatedMinutes || roundCount <= 0) return label;
-  const share = Math.max(1, Math.round(node.estimatedMinutes / roundCount));
-  return `${label} · ~${share} min`;
-}
-
-function CEFRPromiseStrip({ cefr }: { cefr?: AtelierToday['cefr'] | null }) {
-  if (!cefr) return null;
-  const estimate = cefr.estimate || 'A1.1';
-  const target = cefr.target || cefr.next_level || estimate;
-  const forecast = cefr.forecast || null;
-  const range = Array.isArray(forecast?.range_days) ? forecast.range_days : null;
-  const forecastText = forecast?.status === 'available' && range
-    ? `~${range[0]}-${range[1]} days at this pace`
-    : forecast?.message || 'Forecast unlocks after 7 active days';
-  const breakdown = cefr.breakdown || {};
-  const vocab = breakdown.vocabulary || {};
-  const grammar = breakdown.grammar || {};
-  const vocabPct = percentToward(vocab.current, vocab.target);
-  const grammarPct = percentToward(grammar.current, grammar.target);
-  return (
-    <section className="cefr-strip" aria-label="CEFR progress">
-      <div>
-        <span className="t-mono-low">CEFR PROMISE</span>
-        <strong>{estimate} → {target}</strong>
-        <small>{forecastText}</small>
-      </div>
-      <div className="cefr-bars">
-        <ProgressMini label="Words" value={Number(vocab.current || 0)} target={Number(vocab.target || 0)} pct={vocabPct} />
-        <ProgressMini label="Grammar" value={Number(grammar.current || 0)} target={Number(grammar.target || 0)} pct={grammarPct} />
-      </div>
-    </section>
-  );
-}
-
-function ProgressMini({ label, value, target, pct }: { label: string; value: number; target: number; pct: number }) {
-  return (
-    <div className="cefr-mini">
-      <div><span>{label}</span><b>{value}/{target || 0}</b></div>
-      <i><em style={{ width: `${pct}%` }} /></i>
-    </div>
-  );
-}
-
-function percentToward(current: unknown, target: unknown) {
-  const total = Number(target || 0);
-  if (!Number.isFinite(total) || total <= 0) return 0;
-  const value = Number(current || 0);
-  return Math.max(0, Math.min(100, Math.round((value / total) * 100)));
+  const sessionTotal = totalDrills(activeSession, sessionAdaptiveLocks(activeSession), activeSession?.submitted_map || {});
+  if (sessionTotal > 0) return sessionTotal;
+  const planned = Number(plannedFromServer || 0);
+  if (planned > 0) return planned;
+  return concepts.length > 0 ? concepts.length * DRILLS_PER_CONCEPT + SESSION_LEVEL_DRILLS : 0;
 }
 
 type AtelierEditionStepState = 'done' | 'current' | 'up';
 
-function AtelierEditionHead({ title, rightSlot }: { title: string; rightSlot?: React.ReactNode }) {
-  return (
-    <header className="ph-head">
-      <span className="mark"><AtelierEditionMark size={26} /></span>
-      <span className="ttl">{title}</span>
-      <span className="head-right">
-        {rightSlot}
-        <Link className="gear" href="/settings" aria-label="Settings" title="Settings">
-          <AtelierEditionGear />
-        </Link>
-      </span>
-    </header>
-  );
-}
-
-function AtelierEditionHeader({
-  rubric,
-  rubricMuted,
-  date,
-  sub,
-  streak,
-}: {
-  rubric: string;
-  rubricMuted?: boolean;
-  date: string;
-  sub?: string;
-  streak?: number;
-}) {
-  return (
-    <div className="edition">
-      <div>
-        <div className={`rubric ${rubricMuted ? 'muted' : ''}`}>{rubric}</div>
-        <h1>{date}</h1>
-        {sub && <div className="sub">{sub}</div>}
-      </div>
-      {streak != null && (
-        <div className="stamp">
-          <div className="cap">DAY</div>
-          <div className="n">{streak}</div>
-          <div className="rules">
-            {[0, 1, 2, 3, 4, 5].map((item) => <i key={item} className={item < 5 ? 'on' : ''} />)}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function AtelierEditionCover({
-  kicker,
-  title,
-  meta,
-  streak,
-  remainingMinutes,
-  cta,
-  disabled,
-}: {
-  kicker: string;
-  title: string;
-  meta: string;
-  streak: number;
-  remainingMinutes: number;
-  cta?: RoadmapAction | null;
-  disabled?: boolean;
-}) {
-  return (
-    <section className="edition-cover" aria-label="Today's edition cover">
-      <div className="cover-kicker">{kicker}</div>
-      <h1>{title}</h1>
-      {cta && (
-        <button className="cta" type="button" disabled={disabled} onClick={cta.onClick}>
-          {cta.label} <ArrowRight size={16} />
-        </button>
-      )}
-      <div className="cover-meta">
-        <span>Day {streak}</span>
-        <span>~{remainingMinutes} min</span>
-        {meta && <span>{meta}</span>}
-      </div>
-    </section>
-  );
-}
-
-function AtelierEditionStep({
-  roman,
-  name,
-  meta,
-  state,
-  first,
-  last,
-  review,
-  vocabulary,
-  badge,
-  metaGo,
-  children,
-}: {
-  roman: string;
-  name: string;
-  meta: string;
-  state: AtelierEditionStepState;
-  first?: boolean;
-  last?: boolean;
-  review?: boolean;
-  vocabulary?: boolean;
-  badge?: string;
-  metaGo?: boolean;
-  children?: React.ReactNode;
-}) {
-  return (
-    <div className={`step ${state} ${first ? 'is-first' : ''} ${last ? 'is-last' : ''}`}>
-      <span className={`plate ${state} ${review ? 'review' : ''} ${vocabulary ? 'vocabulary' : ''} ${(review || vocabulary) && state !== 'up' && badge ? 'live' : ''}`}>
-        {state === 'done' ? <AtelierEditionCheck /> : roman}
-        {badge != null && <span className="badge">{badge}</span>}
-      </span>
-      <div className="node">
-        <div className="name">{name}</div>
-        <div className={`meta ${metaGo || state === 'current' ? 'go' : ''}`}>{meta}</div>
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function AtelierCurrentPanel({
-  label,
-  foci,
-  errataCount,
-  cta,
-  disabled,
-}: {
-  label: string;
-  foci: string[];
-  errataCount?: number;
-  cta?: RoadmapAction | null;
-  disabled?: boolean;
-}) {
-  return (
-    <div className="current-panel">
-      <div className="label">{label}</div>
-      <div className="foci">
-        {foci.slice(0, 3).map((focus) => <div className="f" key={focus}>{focus}</div>)}
-        {errataCount && errataCount > 0 ? <div className="f errata">Errata · {errataCount} repair{errataCount === 1 ? '' : 's'}</div> : null}
-      </div>
-      {cta && (
-        <button className="cta" onClick={cta.onClick} disabled={disabled}>
-          {cta.label} <AtelierEditionArrow />
-        </button>
-      )}
-    </div>
-  );
-}
-
-function AtelierReviewOpen({
-  errataDue,
-  vocabularyDue,
-  onOpenReview,
-}: {
-  errataDue: number;
-  vocabularyDue: number;
-  onOpenReview: () => void;
-}) {
-  const total = errataDue + vocabularyDue;
-  const kindCount = [vocabularyDue, errataDue].filter((count) => count > 0).length;
-  const ctaLabel = vocabularyDue > 0 && errataDue === 0
-    ? `Train ${vocabularyDue} word${vocabularyDue === 1 ? '' : 's'}`
-    : errataDue > 0 && vocabularyDue === 0
-      ? `Repair ${errataDue} item${errataDue === 1 ? '' : 's'}`
-      : `Review ${total} item${total === 1 ? '' : 's'}`;
-  return (
-    <div className="review-open-wrap">
-      <div className="review-open">
-        {vocabularyDue > 0 && (
-          <div className="r">
-            <span className="dot vocab" />
-            <span className="lab"><b>Vocabulary cards</b><em>French 5000 · spaced</em></span>
-            <span className="ct">{vocabularyDue}</span>
-          </div>
-        )}
-        {errataDue > 0 && (
-          <div className="r">
-            <span className="dot errata" />
-            <span className="lab"><b>Grammar errata</b><em>Repairs from past slips</em></span>
-            <span className="ct">{errataDue}</span>
-          </div>
-        )}
-      </div>
-      <button className="cta" onClick={onOpenReview}>
-        {ctaLabel} <AtelierEditionArrow />
-      </button>
-      {kindCount > 1 && <div className="review-kind-note">{kindCount} kinds</div>}
-    </div>
-  );
-}
-
-function AtelierVocabularyOpen({ vocabularyDue }: { vocabularyDue: number }) {
-  return (
-    <div className="vocab-open-wrap">
-      <div className="vocab-open">
-        <span className="dot vocab" aria-hidden="true" />
-        <span className="lab">
-          <b>French 5000 cards</b>
-          <em>{vocabularyDue} due · spaced recall</em>
-        </span>
-      </div>
-      <Link className="cta" href="/vocabulary/review">
-        Train {vocabularyDue} word{vocabularyDue === 1 ? '' : 's'} <AtelierEditionArrow />
-      </Link>
-    </div>
-  );
-}
-
-function AtelierQuest({
-  kind,
-  title,
-  href,
-  copy,
-  recommended,
-  done,
-}: {
-  kind: 'mission' | 'feuilleton';
-  title: string;
-  href: string;
-  copy: string;
-  recommended?: boolean;
-  done?: boolean;
-}) {
-  const tag = done
-    ? 'Thread beat done'
-    : recommended
-      ? '● Next beat'
-      : "Thread beat · with today's French";
-  return (
-    <Link className={`quest ${recommended ? 'recommended' : ''} ${done ? 'done' : ''}`} href={href}>
-      {kind === 'mission' ? (
-        <svg className="shape triangle" viewBox="0 0 92 82" aria-hidden="true">
-          <path d="M46 5L87 77H5L46 5Z" />
-        </svg>
-      ) : (
-        <svg className="shape circle" viewBox="0 0 86 86" aria-hidden="true">
-          <circle cx="43" cy="43" r="36" />
-        </svg>
-      )}
-      <span>
-        <span className="tag">{tag}</span>
-        <h3>{title}</h3>
-        <p>{copy}</p>
-      </span>
-    </Link>
-  );
-}
-
 type SerialOnRampVariant = 'act' | 'see' | 'invite' | 'rest';
 
-function serialOnRampVariant({
-  kind,
-  invited,
-  done,
-  status,
-}: {
-  kind: 'mission' | 'feuilleton';
-  invited: boolean;
-  done?: boolean;
-  status?: string;
-}): SerialOnRampVariant {
-  if (status === 'delayed' || done) return 'rest';
-  if (invited) return 'invite';
-  return kind === 'mission' ? 'act' : 'see';
-}
-
-function serialOnRampHeader(
-  variant: SerialOnRampVariant,
-  copy: ReturnType<typeof serialThreadCopy>,
-) {
-  if (variant === 'act') {
-    return {
-      rubric: 'The serial · your turn',
-      sub: `${copy.episode} · reply, not grade`,
-    };
-  }
-  if (variant === 'see') {
-    return {
-      rubric: 'The serial · new episode',
-      sub: `${copy.episode} · ready to read`,
-    };
-  }
-  if (variant === 'invite') {
-    return {
-      rubric: 'The serial · begins today',
-      sub: `${copy.episode} · an invitation`,
-    };
-  }
-  return {
-    rubric: 'The serial · all caught up',
-    sub: `${copy.episode} · you are even with the story`,
-  };
-}
-
-function SerialThreadCard({
-  kind,
-  href,
-  episodeLabel,
-  status,
-  hookText,
-  invited,
-  recommended,
-  done,
-}: {
-  kind: 'mission' | 'feuilleton';
-  href: string;
-  episodeLabel: string;
-  status?: string;
-  hookText?: string;
-  invited: boolean;
-  recommended?: boolean;
-  done?: boolean;
-}) {
-  const variant = status === 'delayed' ? 'rest' : done ? 'rest' : invited ? 'invite' : kind === 'mission' ? 'act' : 'see';
-  const who = done ? 'romy' : invited ? 'margaux' : kind === 'mission' ? 'marchand' : 'marin';
-  const copy = serialThreadCopy({ kind, invited, done, episodeLabel, status, hookText });
-  return (
-    <article className={`s-thread ${variant} ${recommended ? 'recommended' : ''}`} data-char={who}>
-      <div className="ttop">
-        <AtelierEditionMark size={18} />
-        <span className="ser">The serial</span>
-        <Link className="ep" href="/serial">{copy.episode}</Link>
-      </div>
-      {copy.previously && <div className="prev"><b>Previously —</b> {copy.previously}</div>}
-      <Link className="s-thread-link" href={href}>
-        <div className="tmain" data-char={who}>
-        <SerialAvatar who={who} mood={kind === 'mission' ? 'confused' : 'warm'} />
-        <div>
-          <div className="beat">{copy.beat}</div>
-          <h2>{copy.title}</h2>
-          <div className="sub">{copy.sub}</div>
-        </div>
-        </div>
-      </Link>
-      {!done && (
-        <Link className={`tcta ${kind === 'feuilleton' || invited ? 'ink' : ''}`} href={href}>
-          {copy.cta} <SerialArrowIcon />
-        </Link>
-      )}
-      {done && (
-        <div className="t-actions">
-          <Link href="/serial">Re-read the season</Link>
-          <Link href="/serial/cast">The cast</Link>
-        </div>
-      )}
-    </article>
-  );
-}
-
-function LibraryThreadCard({
-  href,
-  bookTitle,
-  episodeTitle,
-  episodeIndex,
-  totalEpisodes,
-  readingMinutes,
-  recommended,
-}: {
-  href: string;
-  bookTitle: string;
-  episodeTitle: string;
-  episodeIndex: number;
-  totalEpisodes: number;
-  readingMinutes: number;
-  recommended?: boolean;
-}) {
-  const label = totalEpisodes > 0
-    ? `Episode ${episodeIndex + 1} of ${totalEpisodes}`
-    : `Episode ${episodeIndex + 1}`;
-  return (
-    <article className={`s-thread library ${recommended ? 'recommended' : ''}`}>
-      <div className="ttop">
-        <BookOpen size={18} aria-hidden="true" />
-        <span className="ser">Library</span>
-        <Link className="ep" href="/notebook?mode=library">{label}</Link>
-      </div>
-      <Link className="s-thread-link" href={href}>
-        <div className="tmain">
-          <div className="library-mark" aria-hidden="true"><BookOpen size={22} /></div>
-          <div>
-            <div className="beat">{bookTitle}</div>
-            <h2>{episodeTitle}</h2>
-            <div className="sub">Read the next passage, then answer comprehension, vocab, grammar, and production prompts drawn from it.</div>
-          </div>
-        </div>
-      </Link>
-      <Link className="tcta ink" href={href}>
-        Continue book · {Math.max(1, Math.round(readingMinutes))} min <SerialArrowIcon />
-      </Link>
-    </article>
-  );
-}
-
 function serialEpisodeLabel(action: RecommendedAction) {
-  if (action.kind !== 'serial') return 'Episode 1';
+  if (action.kind !== 'serial') return 'Épisode 1';
   const params = new URLSearchParams(action.query.replace(/^\?/, ''));
   const index = Number(params.get('episode_index'));
-  if (!Number.isFinite(index)) return 'Episode';
-  return `Episode ${index + 1}`;
+  if (!Number.isFinite(index)) return 'Épisode';
+  return `Épisode ${index + 1}`;
 }
 
 function serialThreadCopy({
@@ -2543,324 +2479,62 @@ function serialThreadCopy({
 }) {
   if (status === 'delayed') {
     return {
-      episode: `${episodeLabel} · delayed`,
+      episode: `${episodeLabel} · retardé`,
       previously: '',
       beat: "L'édition de demain est retardée",
-      title: 'The presses are paused.',
-      sub: 'The serial writer is unavailable, so the edition waits instead of replaying the opener.',
-      cta: 'Retry edition',
+      title: 'Les presses sont à l’arrêt.',
+      sub: 'La rédaction du feuilleton est indisponible : l’édition attend sans rejouer l’ouverture.',
+      cta: 'Réessayer l’édition',
     };
   }
   if (status === 'generating') {
     return {
-      episode: `${episodeLabel} · printing`,
+      episode: `${episodeLabel} · sous presse`,
       previously: '',
-      beat: "Tomorrow's edition is at the printer's",
-      title: 'The script is ready.',
-      sub: hookText ? `Next: ${hookText}` : 'Panels will appear as the image desk finishes them.',
-      cta: 'Open edition',
+      beat: 'L’édition de demain est à l’imprimerie',
+      title: 'Le récit est prêt.',
+      sub: hookText ? `À suivre : ${hookText}` : 'Les planches paraîtront à mesure que le service image les termine.',
+      cta: 'Ouvrir l’édition',
     };
   }
   if (done) {
     return {
-      episode: `${episodeLabel} · settled`,
-      previously: 'you sent the serial forward.',
+      episode: `${episodeLabel} · classé`,
+      previously: 'vous avez fait avancer le feuilleton.',
       beat: '— Fin de l’épisode —',
-      title: 'You’re caught up.',
-      sub: hookText ? `Tomorrow: ${hookText}` : 'The next installment is still being typeset. Let the cliffhanger sit overnight.',
+      title: 'Vous êtes à jour.',
+      sub: hookText ? `Demain : ${hookText}` : 'Le prochain acte est encore en composition. Laissez le suspense reposer jusqu’à demain.',
       cta: '',
     };
   }
   if (invited) {
     return {
-      episode: `${episodeLabel} · begins`,
+      episode: `${episodeLabel} · ouverture`,
       previously: '',
-      beat: 'A new serial',
+      beat: 'Un nouveau feuilleton',
       title: '“L’arrivée”',
-      sub: 'A café in the 11th, a key that will not turn, and people who will remember you. Your French moves the serial.',
-      cta: 'Begin episode 1',
+      sub: 'Un café du 11e, une clé qui refuse de tourner et des gens qui se souviendront de vous. Votre français fait avancer le récit.',
+      cta: 'Commencer l’épisode 1',
     };
   }
   if (kind === 'mission') {
     return {
-      episode: `${episodeLabel} · Act`,
-      previously: 'the last panel left someone waiting for your answer.',
+      episode: `${episodeLabel} · agir`,
+      previously: 'la dernière planche a laissé quelqu’un attendre votre réponse.',
       beat: 'Le monde attend ta réponse',
-      title: 'The world is waiting for your reply',
-      sub: 'Write the next message and let the serial answer back.',
-      cta: 'Reply in serial',
+      title: 'Le monde attend votre réponse',
+      sub: 'Écrivez le prochain message et laissez le feuilleton vous répondre.',
+      cta: 'Répondre dans le feuilleton',
     };
   }
   return {
-    episode: `${episodeLabel} · See`,
-    previously: hookText || 'the reply you wrote becomes the scene.',
-    beat: 'New episode ready',
-    title: 'Continue the serial',
-    sub: 'See what your last message changed, then leave on the next hook.',
-    cta: 'Read episode',
+    episode: `${episodeLabel} · lire`,
+    previously: hookText || 'la réponse que vous avez écrite devient la scène.',
+    beat: 'Nouvel épisode prêt',
+    title: 'Continuer le feuilleton',
+    sub: 'Voyez ce que votre dernier message a changé, puis repartez avec le prochain suspense.',
+    cta: 'Lire l’épisode',
   };
-}
-
-function SerialAvatar({ who, mood }: { who: string; mood?: 'warm' | 'confused' | 'cool' }) {
-  const initials: Record<string, string> = {
-    marin: 'M',
-    lila: 'L',
-    gus: 'G',
-    romy: 'R',
-    margaux: 'Mx',
-    marchand: 'M·',
-    toi: 'T',
-  };
-  return (
-    <span className="s-ava lg" data-char={who} style={(initials[who] || 'T').length > 1 ? { fontSize: 19 } : undefined}>
-      {initials[who] || 'T'}
-      {mood && <span className={`mood-pip ${mood}`}><i /></span>}
-    </span>
-  );
-}
-
-function SerialArrowIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="square" aria-hidden="true">
-      <path d="M4 12h15M13 6l6 6-6 6" />
-    </svg>
-  );
-}
-
-function PathMark({ shape, active = false }: { shape: 'circle' | 'square' | 'triangle' | 'diamond'; active?: boolean }) {
-  const size = active ? 18 : 13;
-  const color = shape === 'circle' ? 'var(--blue)' : shape === 'square' ? 'var(--yellow)' : shape === 'diamond' ? '#21865b' : 'var(--red)';
-  if (shape === 'triangle') {
-    return (
-      <span
-        aria-hidden="true"
-        style={{ width: 0, height: 0, borderLeft: `${size / 2}px solid transparent`, borderRight: `${size / 2}px solid transparent`, borderBottom: `${size}px solid ${color}`, flex: '0 0 auto' }}
-      />
-    );
-  }
-  if (shape === 'diamond') {
-    return (
-      <span
-        aria-hidden="true"
-        style={{ width: size, height: size, background: color, transform: 'rotate(45deg)', flex: '0 0 auto' }}
-      />
-    );
-  }
-  return (
-    <span
-      aria-hidden="true"
-      style={{ width: size, height: size, borderRadius: shape === 'circle' ? '50%' : 0, background: color, flex: '0 0 auto' }}
-    />
-  );
-}
-
-function AtelierEditionClosed({ reviewTotal, datestamp }: { reviewTotal: number; datestamp: string }) {
-  return (
-    <div className="closed">
-      <div className="rubric">— Fin —</div>
-      <div className="endmark" />
-      <h2>Edition complete.</h2>
-      <p className="lead">Session, review, mission and Feuilleton are all settled. You&apos;re done for today &mdash; let the spacing do its quiet work.</p>
-      <div className="ledger">
-        <div className="row"><span>Session · I–VI</span><b><AtelierEditionCheck />Printed</b></div>
-        <div className="row"><span>{reviewTotal > 0 ? `Review · ${reviewTotal} items` : 'Review'}</span><b><AtelierEditionCheck />Cleared</b></div>
-        <div className="row"><span>Mission</span><b><AtelierEditionCheck />Filed</b></div>
-        <div className="row"><span>Feuilleton</span><b><AtelierEditionCheck />Read</b></div>
-      </div>
-      <Link className="free" href="/practice">Free practice, if you like <AtelierEditionArrow /></Link>
-      <div className="datestamp">{datestamp}</div>
-    </div>
-  );
-}
-
-function AtelierDayBadge({ day }: { day: number }) {
-  const hasStreak = day > 0;
-  return (
-    <div className={`day-badge${hasStreak ? '' : ' unlit'}`} aria-label={hasStreak ? `Day ${day} streak` : 'No streak yet'}>
-      <svg viewBox="0 0 16 16" aria-hidden="true">
-        <path d="M9.4 1.8C8.1 3.8 9 5.2 7.6 6.4C6.8 7 5.7 7 5.1 6.3C4.5 8.2 5.5 10.5 8 10.5C10.6 10.5 12.1 8.7 12.1 6.5C12.1 4.5 10.8 3.1 9.4 1.8Z" fill="currentColor" />
-      </svg>
-      {hasStreak ? (
-        <>
-          <span>Day</span>
-          <b>{day}</b>
-        </>
-      ) : (
-        <span>New</span>
-      )}
-    </div>
-  );
-}
-
-function AtelierParcoursMap({
-  dateKicker,
-  episodeLine,
-  previousDayLabel,
-  previousTopic,
-  previousComplete,
-  tomorrowDayLabel,
-  tomorrowTopic,
-  tomorrowHref,
-  storyRubric,
-  storyTeaser,
-  storyCharacter,
-  storyHref,
-  storyStatus,
-  cta,
-  disabled,
-  reviewDue,
-  onOpenReview,
-}: {
-  dateKicker: string;
-  episodeLine: string;
-  previousDayLabel: string;
-  previousTopic: string;
-  previousComplete: boolean;
-  tomorrowDayLabel: string;
-  tomorrowTopic: string;
-  tomorrowHref: string;
-  storyRubric: string;
-  storyTeaser: string;
-  storyCharacter: { name: string; initial: string };
-  storyHref: string | null;
-  storyStatus: string;
-  cta?: RoadmapAction | null;
-  disabled?: boolean;
-  reviewDue: number;
-  onOpenReview: () => void;
-}) {
-  return (
-    <>
-      <div className="parcours-kicker" aria-label="Atelier edition context">
-        <span>{dateKicker}</span>
-        <b>{episodeLine}</b>
-      </div>
-
-      <div className="parcours-map" aria-label="Today path">
-        <svg className="parcours-lines" viewBox="0 0 340 560" preserveAspectRatio="none" aria-hidden="true">
-          <path className="solid" d="M84 78 C115 130 212 116 259 155 C312 199 262 254 184 292 C145 311 114 327 95 356" />
-          <path className="dotted" d="M115 360 C170 376 236 398 257 430 C236 477 177 478 142 514" />
-        </svg>
-
-        <div className="week-ribbon">Début de la semaine</div>
-
-        <div className="parcours-node monday-node">
-          <span className="node-check dark"><AtelierEditionCheck /></span>
-          <b>Lundi</b>
-        </div>
-
-        <div className="parcours-node tuesday-node">
-          <span className={`node-check blue ${previousComplete ? '' : 'hollow'}`}>
-            {previousComplete && <AtelierEditionCheck />}
-          </span>
-          <b>{previousDayLabel}</b>
-          <em>{previousTopic}</em>
-        </div>
-
-        <button
-          className="today-node"
-          type="button"
-          onClick={cta?.onClick}
-          disabled={disabled || !cta}
-          aria-label={cta?.label || 'Today'}
-        >
-          <span className="today-square"><i /></span>
-          <b>Aujourd&apos;hui</b>
-        </button>
-
-        {storyHref ? (
-          <Link className="story-ticket" href={storyHref}>
-            <span className="story-rubric">{storyRubric}</span>
-            <strong>« {storyTeaser} »</strong>
-            <span className="story-byline">
-              <span className="story-avatar">{storyCharacter.initial}</span>
-              <i />
-              <b>{storyCharacter.name}</b>
-            </span>
-          </Link>
-        ) : (
-          <div className="story-ticket is-disabled" aria-disabled="true">
-            <span className="story-rubric">{storyRubric}</span>
-            <strong>« {storyTeaser} »</strong>
-            <span className="story-byline">
-              <span className="story-avatar">{storyCharacter.initial}</span>
-              <i />
-              <b>{storyCharacter.name}</b>
-            </span>
-            <span className="story-status">{storyStatus}</span>
-          </div>
-        )}
-
-        <button
-          className={`review-node ${reviewDue > 0 ? 'due' : ''}`}
-          type="button"
-          onClick={onOpenReview}
-          aria-label={reviewDue > 0 ? `Review ${reviewDue} due` : 'Review'}
-        >
-          <span />
-          <b>Révision</b>
-        </button>
-
-        <Link className="tomorrow-node" href={tomorrowHref}>
-          <span />
-          <b>{tomorrowDayLabel}</b>
-          <em>{tomorrowTopic}</em>
-        </Link>
-      </div>
-
-      <div className="parcours-primary-wrap">
-        {cta ? (
-          <button className="parcours-primary" type="button" disabled={disabled} onClick={cta.onClick}>
-            {cta.label} <AtelierEditionArrow />
-          </button>
-        ) : (
-          <Link className="parcours-primary soft" href="/notebook">
-            Open notebook <AtelierEditionArrow />
-          </Link>
-        )}
-      </div>
-    </>
-  );
-}
-
-function AtelierParcoursCaughtUp({
-  dateKicker,
-  episodeLine,
-  serialHref,
-  reviewTotal,
-  datestamp,
-}: {
-  dateKicker: string;
-  episodeLine: string;
-  serialHref: string | null;
-  reviewTotal: number;
-  datestamp: string;
-}) {
-  return (
-    <section className="parcours-caught" aria-label="Atelier caught up">
-      <div className="parcours-kicker">
-        <span>{dateKicker}</span>
-        <b>{episodeLine}</b>
-      </div>
-      <div className="caught-mark" aria-hidden="true"><AtelierEditionCheck /></div>
-      <h1>Edition complete.</h1>
-      <p>Session, review and feuilleton are settled. The path is clear until tomorrow.</p>
-      <div className="caught-ledger">
-        <div><span>Review</span><b>{reviewTotal > 0 ? `${reviewTotal} filed` : 'Clear'}</b></div>
-        <div><span>Status</span><b>{datestamp}</b></div>
-      </div>
-      <div className="caught-doors">
-        {serialHref ? (
-          <Link href={serialHref}>Read the Feuilleton <AtelierEditionArrow /></Link>
-        ) : (
-          <Link href="/notebook">Browse Notebook <AtelierEditionArrow /></Link>
-        )}
-        <Link href={serialHref ? '/notebook' : '/practice'}>
-          {serialHref ? 'Browse Notebook' : 'Free practice'} <AtelierEditionArrow />
-        </Link>
-      </div>
-    </section>
-  );
 }
 
 function AtelierEditionNav({
@@ -2871,97 +2545,10 @@ function AtelierEditionNav({
   return <PhoneProductNav active={active} placement="embedded" />;
 }
 
-function AtelierEditionPenNib() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square" aria-hidden="true">
-      <path d="M5 19l3-9 9-5-5 9-7 5z" />
-      <path d="M8 16l4-4" />
-      <circle cx="13" cy="11" r="1.4" fill="currentColor" stroke="none" />
-    </svg>
-  );
-}
-
-function AtelierMissionTab() {
-  return (
-    <svg viewBox="0 0 22 22" fill="none" aria-hidden="true">
-      <path d="M11 3L19 18H3L11 3Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="miter" />
-    </svg>
-  );
-}
-
-function AtelierFeuilletonTab() {
-  return (
-    <svg viewBox="0 0 22 22" fill="none" aria-hidden="true">
-      <rect x="4" y="4" width="14" height="14" stroke="currentColor" strokeWidth="1.8" />
-      <path d="M11 4V18M4 11H18" stroke="currentColor" strokeWidth="1.4" />
-    </svg>
-  );
-}
-
-function AtelierEditionMark({ size = 26 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 28 28" aria-hidden="true">
-      <rect x="0" y="0" width="11" height="11" fill="var(--ink)" />
-      <circle cx="22" cy="6" r="6" fill="var(--blue)" />
-      <rect x="0" y="17" width="11" height="11" fill="var(--yellow)" />
-      <path d="M17 28L23 16L28 28H17Z" fill="var(--red)" />
-    </svg>
-  );
-}
-
-function AtelierEditionGear() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-      <circle cx="12" cy="12" r="3.2" />
-      <path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.2 5.2l2.1 2.1M16.7 16.7l2.1 2.1M18.8 5.2l-2.1 2.1M7.3 16.7l-2.1 2.1" />
-    </svg>
-  );
-}
-
-function AtelierEditionArrow() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="square" aria-hidden="true">
-      <path d="M4 12h15M13 6l6 6-6 6" />
-    </svg>
-  );
-}
-
-function AtelierEditionCheck() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="square" aria-hidden="true">
-      <path d="M4 12.5l5 5 11-12" />
-    </svg>
-  );
-}
-
-function AtelierEditionMarkTab() {
-  return (
-    <svg viewBox="0 0 20 20" aria-hidden="true">
-      <rect x="0" y="0" width="8" height="8" fill="currentColor" />
-      <path d="M20 0 A 12 12 0 0 0 8 12 L 20 12 Z" fill="currentColor" />
-      <rect x="0" y="12" width="8" height="8" fill="currentColor" />
-    </svg>
-  );
-}
-
-function AtelierEditionBookTab() {
-  return (
-    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
-      <rect x="3" y="2" width="13" height="16" stroke="currentColor" strokeWidth="1.6" />
-      <path d="M3 4h13M3 6h13" stroke="currentColor" strokeWidth="1" />
-      <path d="M11 2v8l-2-2-2 2V2" fill="currentColor" />
-    </svg>
-  );
-}
-
 function displayConceptTitle(concept: AtelierConcept) {
-  return String(concept.atelier_blueprint?.display_title || concept.name || 'Grammar focus');
-}
-
-function roadmapErrataCount(today: AtelierToday | null, activeSession: AtelierSessionStart | null) {
-  const sessionCount = activeSession?.due_errata?.length || 0;
-  const summaryCount = Number(today?.summary?.due_errata ?? today?.due_errata?.length ?? 0);
-  return Math.max(sessionCount, Number.isFinite(summaryCount) ? summaryCount : 0);
+  // Publication surfaces speak French first; catalog names stay the native-
+  // language fallback until every concept carries its fr localization.
+  return String(concept.title_fr || concept.atelier_blueprint?.display_title || concept.name || 'Règle du jour');
 }
 
 function firstDueErratum(today: AtelierToday | null, activeSession: AtelierSessionStart | null) {
@@ -2971,201 +2558,13 @@ function firstDueErratum(today: AtelierToday | null, activeSession: AtelierSessi
     || null;
 }
 
-function AtelierRoadmapEmpty({ onRetry }: { onRetry: () => void }) {
-  const streak = atelierEditionStreak(null, null);
-  return (
-    <section className="ph parcours" aria-label="Atelier roadmap">
-      <AtelierEditionHead title="Atelier" rightSlot={<AtelierDayBadge day={streak} />} />
-      <div className="ph-body parcours-body parcours-empty-body">
-        <div className="parcours-error-card" role="alert">
-          <span>{formatAtelierEditionDate().toUpperCase()} · CONNECTION</span>
-          <h1>Atelier is not loaded.</h1>
-          <p>The home path needs today&apos;s session, review queue, and story state before it can safely send you anywhere.</p>
-          <button className="parcours-primary" type="button" onClick={onRetry}>
-            Retry setup <AtelierEditionArrow />
-          </button>
-        </div>
-      </div>
-      <AtelierEditionNav active="atelier" />
-    </section>
-  );
-}
-
 function sessionSubmittedCount(session: AtelierSessionStart | null) {
   if (!session) return 0;
-  return submittedDrills(session, session.submitted_map || {});
-}
-
-function activeSessionLabel(session: AtelierSessionStart) {
-  const position = session.current_position || {};
-  const roundId = position.round && position.round !== 'complete' ? position.round : 'produce';
-  const roundLabel = roundLabels.find((item) => item.id === roundId)?.label || 'Writing';
-  const conceptIndex = typeof position.concept_index === 'number'
-    ? position.concept_index
-    : Math.max(0, session.concepts.findIndex((concept) => concept.id === position.concept_id));
-  const concept = session.concepts[Math.max(0, Math.min(conceptIndex, session.concepts.length - 1))];
-  return `${roundLabel}${concept ? ` · ${concept.atelier_blueprint?.display_title || concept.name}` : ''}`;
+  return submittedDrills(session, session.submitted_map || {}, sessionAdaptiveLocks(session));
 }
 
 function vocabularyTranslation(item: VocabularyRecommendationItem) {
-  return item.translation || item.translations?.de || item.translations?.en || item.translations?.fr || 'target word';
-}
-
-function AtelierLoadNotice({ label, message, onRetry }: { label: string; message: string; onRetry: () => void }) {
-  return (
-    <section className="atelier-load-notice">
-      <div>
-        <span className="t-mono red">{label}</span>
-        <p>{message}</p>
-      </div>
-      <button className="btn solid" type="button" onClick={onRetry}>Retry</button>
-    </section>
-  );
-}
-
-function AtelierContinueCard({
-  session,
-  completed,
-  total,
-  onContinue,
-}: {
-  session: AtelierSessionStart;
-  completed: number;
-  total: number;
-  onContinue: () => void;
-}) {
-  const progress = total ? Math.min(100, Math.round((completed / total) * 100)) : 0;
-  return (
-    <section className="paper-frame continue-card">
-      <CropMarks />
-      <div>
-        <div className="t-mono red">IN PROGRESS</div>
-        <h2>Continue today</h2>
-        <p>{activeSessionLabel(session)}</p>
-        <div className="session-progress-bar" aria-label={`${completed} of ${total} drills complete`}>
-          <span style={{ width: `${progress}%` }} />
-        </div>
-        <div className="continue-meta">
-          <span>{completed}/{total || '–'} submitted</span>
-          <span>{session.target_vocabulary?.length || 0} words inside session</span>
-        </div>
-      </div>
-      <button className="btn red lg" onClick={onContinue}>
-        Continue <ArrowRight size={15} />
-      </button>
-      {Boolean(session.target_vocabulary?.length) && (
-        <VocabularyFocus words={session.target_vocabulary} compact className="continue-vocab" />
-      )}
-    </section>
-  );
-}
-
-function VocabularyFocus({
-  words,
-  compact = false,
-  className = '',
-}: {
-  words?: VocabularyRecommendationItem[];
-  compact?: boolean;
-  className?: string;
-}) {
-  const items = (words || []).slice(0, compact ? 3 : 5);
-  if (!items.length) return null;
-  return (
-    <section className={`vocab-focus ${compact ? 'compact' : ''} ${className}`}>
-      <header>
-        <span className="t-mono">TODAY&apos;S WORDS</span>
-      </header>
-      <div className="vocab-focus-list">
-        {items.map((item) => (
-          <span key={`${item.word_id}-${item.bucket}`}>
-            <strong>{item.word}</strong>
-            <em>{vocabularyTranslation(item)}</em>
-          </span>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function NotebookBridge({ concepts, dueErrata }: { concepts: AtelierConcept[]; dueErrata: number }) {
-  return (
-    <section className="paper-2 notebook-bridge">
-      <header>
-        <div>
-          <span className="t-mono">NOTEBOOK</span>
-          <p>Deep reference for today&apos;s rules and recurring slips.</p>
-        </div>
-        <Link className="notebook-link" href="/grammar">OPEN ALL ↗</Link>
-      </header>
-      <div className="notebook-rows">
-        {concepts.slice(0, 3).map((concept, index) => (
-          <Link key={concept.id} className="notebook-row" href={`/grammar?concept=${concept.id}`}>
-            <span className="t-mono-low">{String(index + 1).padStart(2, '0')}</span>
-            <ConceptMotif concept={concept} size={36} />
-            <strong>{concept.atelier_blueprint?.display_title || concept.name}</strong>
-            <span className="cefr">{concept.level}</span>
-          </Link>
-        ))}
-      </div>
-      <p className="notebook-foot">
-        {dueErrata > 0
-          ? `${dueErrata} due errata can be repaired from their rule notes.`
-          : 'No errata due; use this to preview or review today’s concepts.'}
-      </p>
-    </section>
-  );
-}
-
-function MissionBridge({ concepts }: { concepts: AtelierConcept[] }) {
-  const query = conceptQueryString(concepts);
-  const conceptIds = concepts.map((concept) => `concept_id=${concept.id}`).join('&');
-  return (
-    <section className="paper-2 mission-bridge" data-context-query={query}>
-      <header>
-        <div>
-          <span className="t-mono">MISSION</span>
-          <p>Use today&apos;s repairs in a message, conversation, or visual Feuilleton.</p>
-        </div>
-        <MapPinned size={18} />
-      </header>
-      <Link className="btn solid" href={`/missions${conceptIds ? `?${conceptIds}` : ''}`}>
-        OPEN MISSIONS <ArrowRight size={14} />
-      </Link>
-      <Link className="btn ghost" href={`/graphic-novel${conceptIds ? `?${conceptIds}` : ''}`}>
-        OPEN FEUILLETON <ArrowRight size={14} />
-      </Link>
-    </section>
-  );
-}
-
-function conceptQueryString(concepts: AtelierConcept[]) {
-  const conceptIds = concepts.map((concept) => `concept_id=${concept.id}`).join('&');
-  return conceptIds ? `?${conceptIds}` : '';
-}
-
-function DueErrataList({ items, onReview }: { items: AtelierErratum[]; onReview: (errorId?: string) => void }) {
-  return (
-    <section className="paper-2 due-errata-list">
-      <header>
-        <span className="t-mono">ERRATA DUE · {items.length}</span>
-        <span className="t-mono-low">drives today</span>
-      </header>
-      {items.slice(0, 4).map((item) => (
-        <article key={item.id || `${item.display_label}-${item.concept_id}`}>
-          <div>
-            <strong>{item.display_label}</strong>
-            <p>{item.reason || (item.learner_text && item.corrected_target ? `${item.learner_text} → ${item.corrected_target}` : item.repair_hint)}</p>
-            <p className="memory-meta">{item.source_label || 'Practice'} · {item.review_mode || 'grammar'} · {item.occurrences || 1}x</p>
-          </div>
-          <div className="due-errata-actions">
-            {item.concept_id && <Link className="notebook-link" href={`/grammar?concept=${item.concept_id}`}>RULE</Link>}
-            <button className="btn ghost" onClick={() => onReview(item.id)}>REPAIR</button>
-          </div>
-        </article>
-      ))}
-    </section>
-  );
+  return learnerGloss(item, 'mot visé');
 }
 
 function ErrataReviewOverlay({
@@ -3191,27 +2590,29 @@ function ErrataReviewOverlay({
         <CropMarks />
         <header>
           <div>
-            <div className="t-mono-low">{task.source_label || 'Atelier'} · {task.review_mode}</div>
+            {/* review_mode is a machine key ("word_bank", "grammar"); the server
+                now sends the French label beside it. */}
+            <div className="t-mono-low">{task.source_label || 'Atelier'}{task.review_mode_label ? ` · ${task.review_mode_label}` : ''}</div>
             <h2>{task.display_label}</h2>
           </div>
-          <button className="btn ghost" onClick={onClose}>CLOSE ×</button>
+          <button className="btn ghost" onClick={onClose}>FERMER ×</button>
         </header>
         <div className="errata-review-body">
           <div className="errata-review-copy">
-            <div className="t-mono yellow">REPAIR TASK</div>
+            <div className="t-mono yellow">TÂCHE DE REPRISE</div>
             <p className="review-prompt">{task.prompt}</p>
             <p>{task.instruction}</p>
             {task.learner_text && (
               <div className="review-memory">
-                <div className="t-mono-low">REMEMBERED SLIP</div>
+                <div className="t-mono-low">ERREUR MÉMORISÉE</div>
                 <p className="wrong">{task.learner_text}</p>
               </div>
             )}
-            {task.why_wrong && <p><strong>Why:</strong> {task.why_wrong}</p>}
-            {task.repair_hint && <p><strong>Repair:</strong> {task.repair_hint}</p>}
+            {task.why_wrong && <p><strong>Pourquoi :</strong> {printableWhy(task.why_wrong)}</p>}
+            {task.repair_hint && <p><strong>À reprendre :</strong> {printableWhy(task.repair_hint)}</p>}
           </div>
           <div className="errata-review-answer">
-            <label className="t-mono" htmlFor="errata-review-answer">YOUR REPAIR</label>
+            <label className="t-mono" htmlFor="errata-review-answer">VOTRE REPRISE</label>
             <textarea
               id="errata-review-answer"
               value={answer}
@@ -3221,18 +2622,18 @@ function ErrataReviewOverlay({
             />
             {result && (
               <div className={`review-result ${result.is_correct ? 'correct' : ''}`}>
-                <div className="t-mono">{result.is_correct ? 'REPAIRED' : 'NOT YET'}</div>
-                <p>{result.feedback}</p>
+                <div className="t-mono">{result.is_correct ? 'REPRIS' : 'PAS ENCORE'}</div>
+                <p>{printableWhy(result.feedback)}</p>
                 {!result.is_correct && (
-                  <p><strong>Target:</strong> <span className="right">{result.target_answer}</span></p>
+                  <p><strong>Réponse visée :</strong> <span className="right">{result.target_answer}</span></p>
                 )}
               </div>
             )}
             <div className="action-row">
               <button className="btn red lg" disabled={submitting || !answer.trim()} onClick={onSubmit}>
-                SUBMIT REPAIR <Send size={15} />
+                ENVOYER LA REPRISE <Send size={15} />
               </button>
-              {result?.is_correct && <button className="btn solid lg" onClick={onClose}>DONE <Check size={15} /></button>}
+              {result?.is_correct && <button className="btn solid lg" onClick={onClose}>TERMINÉ <Check size={15} /></button>}
             </div>
           </div>
         </div>
@@ -3344,9 +2745,9 @@ function SessionView({
   const currentCorrection = correctionsByKey[currentKey] || null;
   const currentSubmitted = !!submitted[currentKey];
   const total = totalDrillsForSession;
-  const activeRoundLabel = roundLabels.find((item) => item.id === round)?.label || 'Practice';
-  const activeRecognizeLabel = recognizeModes.find((item) => item.id === mode)?.label || 'Recognize';
-  const activeConceptTitle = activeConcept?.atelier_blueprint?.display_title || activeConcept?.name || 'Daily session';
+  const activeRoundLabel = roundLabels.find((item) => item.id === round)?.label || 'Pratique';
+  const activeRecognizeLabel = recognizeModes.find((item) => item.id === mode)?.label || 'Reconnaître';
+  const activeConceptTitle = activeConcept ? displayConceptTitle(activeConcept) : 'Séance du jour';
   const focusedItemLabel = activeItemCount > 1 ? `${activeItemIndex + 1}/${activeItemCount}` : '';
   const [ruleOpenByConcept, setRuleOpenByConcept] = useState<Record<string, boolean>>({});
   const conceptRuleKey = `${session.session_id}:${activeConcept?.id || 'session'}`;
@@ -3363,10 +2764,10 @@ function SessionView({
     ? feedbackForExercise(round, mode, activeSet, activeItemIndex, currentAnswers, currentCorrection)
     : null;
   const feedbackNextLabel = isFinalConversation
-    ? 'Complete'
+    ? 'Terminer'
     : activeItemIndex < activeItemCount - 1
-      ? 'Next exercise'
-      : 'Next drill';
+      ? 'Exercice suivant'
+      : 'Épreuve suivante';
   const feedbackRule = currentFeedback && !currentFeedback.correct
     ? feedbackRuleLine(activeSet, activeConcept)
     : undefined;
@@ -3381,8 +2782,12 @@ function SessionView({
   const roundOrdinal = Math.max(1, roundLabels.findIndex((item) => item.id === round) + 1);
   const epMotifPrims = epMotifPrimsFrom(activeConcept, roundOrdinal);
   const epGroups = [{ total: Math.max(1, total), set: completedDrills, current: !sessionComplete }];
-  const epCap: [string, string] = [`${completedDrills}/${total || '–'}`, 'presse'];
-  const provenance = provenanceLine(activeConcept?.due_errata?.[0]);
+  const epCap: [string, string] = [`${completedDrills}/${total || '–'}`, ''];
+  // The "Manqué · …" note explains why this concept was seated; said once, on
+  // arrival, it is context — repeated above all 15 drills it was clutter.
+  const provenance = roundOrdinal === 1 && activeItemIndex === 0 && !isRetest
+    ? provenanceLine(activeConcept?.due_errata?.[0])
+    : null;
   const activeLock = currentCorrection?.adaptive_lock;
 
   return (
@@ -3394,7 +2799,11 @@ function SessionView({
         cap={epCap}
         onClose={onBack}
         onFinish={completeSession}
-        finishDisabled={submitting || completedDrills < total}
+        // Every classed drill is already banked server-side, so stopping early
+        // files a real (shorter) edition -- streak, recap and errata included.
+        // Only a session with nothing in it has nothing to file.
+        finishDisabled={submitting || completedDrills < 1}
+        partial={completedDrills < total}
       />
       <div className="ep-body">
       {activeSet && activeConcept && (
@@ -3416,7 +2825,7 @@ function SessionView({
           {ruleExpanded && (
             <EpRule
               lede={<ConceptRulePanel payload={activeSet} concept={activeConcept} />}
-              examples={firstConceptDrill ? ['Now try it on the easiest item.'] : []}
+              examples={firstConceptDrill ? ['Essayez maintenant avec l’élément le plus simple.'] : []}
               onClose={toggleRule}
             />
           )}
@@ -3450,8 +2859,6 @@ function SessionView({
                     updateAnswer={updateAnswer}
                     correction={currentCorrection}
                     submitted={currentSubmitted}
-                    onRequestAiReview={requestAiReview}
-                    aiReviewSubmitting={aiReviewSubmitting}
                   />
                   <ActionRow
                     submitting={submitting}
@@ -3472,8 +2879,6 @@ function SessionView({
                     updateAnswer={(value) => updateAnswer('text', value)}
                     correction={currentCorrection}
                     submitted={currentSubmitted}
-                    onRequestAiReview={requestAiReview}
-                    aiReviewSubmitting={aiReviewSubmitting}
                   />
                   <ActionRow
                     submitting={submitting}
@@ -3496,8 +2901,6 @@ function SessionView({
                     updateAnswer={(value) => updateAnswer('text', value)}
                     correction={currentCorrection}
                     submitted={currentSubmitted}
-                    onRequestAiReview={requestAiReview}
-                    aiReviewSubmitting={aiReviewSubmitting}
                   />
                   <ActionRow
                     submitting={submitting}
@@ -3512,6 +2915,7 @@ function SessionView({
               {activeLock && currentSubmitted && (
                 <EpLock
                   title={activeConceptTitle}
+                  retired={Number(activeLock.retired_now ?? activeLock.retired_drills ?? 0)}
                   motif={<EpMotif prims={epMotifPrims} canvas={76} done />}
                 />
               )}
@@ -3530,39 +2934,24 @@ function SessionView({
                 repairSubmitting={repairSubmitting}
                 feedbackKey={currentKey}
                 isLabelCompare={round === 'recognize' && mode === 'classify'}
+                onRetryAiReview={requestAiReview}
+                aiReviewSubmitting={aiReviewSubmitting}
               />
+        </section>
+      )}
+      {(!activeSet || !activeConcept) && (
+        // A concept whose exercise set failed to compose used to render the
+        // topbar over an empty page: no copy, no way forward. The press notice
+        // is the designed state for it.
+        <section className="do-stage ep-sheet">
+          <EpNotice
+            msg="La feuille de cette règle n’a pas pu être composée. Ce qui est déjà classé est enregistré ; revenez à La Une, la rédaction recompose l’édition."
+            onRetry={onBack}
+          />
         </section>
       )}
       </div>
     </EpShell>
-  );
-}
-
-function FocusedExerciseMeter({
-  round,
-  mode,
-  activeItemIndex,
-  activeItemCount,
-}: {
-  round: RoundName;
-  mode: RecognizeMode;
-  activeItemIndex: number;
-  activeItemCount: number;
-}) {
-  if (activeItemCount <= 1) return null;
-  const label = round === 'recognize'
-    ? recognizeModes.find((item) => item.id === mode)?.label || 'Recognize'
-    : roundLabels.find((item) => item.id === round)?.label || 'Exercise';
-  return (
-    <div className="focused-exercise-meter" aria-label={`${label} exercise ${activeItemIndex + 1} of ${activeItemCount}`}>
-      <span>{label}</span>
-      <div>
-        {Array.from({ length: activeItemCount }).map((_, index) => (
-          <i key={index} className={index === activeItemIndex ? 'active' : index < activeItemIndex ? 'done' : ''} />
-        ))}
-      </div>
-      <b>{activeItemIndex + 1}/{activeItemCount}</b>
-    </div>
   );
 }
 
@@ -3607,6 +2996,8 @@ function ExerciseFeedbackMoment({
   repairSubmitting,
   feedbackKey,
   isLabelCompare,
+  onRetryAiReview,
+  aiReviewSubmitting,
 }: {
   feedback: InlineFeedbackModel;
   submitted: boolean;
@@ -3622,6 +3013,8 @@ function ExerciseFeedbackMoment({
   repairSubmitting: Record<string, boolean>;
   feedbackKey: string;
   isLabelCompare?: boolean;
+  onRetryAiReview?: () => void;
+  aiReviewSubmitting?: boolean;
 }) {
   if (!submitted || !feedback) return null;
   const issues = feedback.issues?.length
@@ -3640,7 +3033,13 @@ function ExerciseFeedbackMoment({
   const aiStatus = aiReviewStatus(correction);
   const relecture = aiStatus === 'pending' || aiStatus === 'reviewing' || aiStatus === 'queued'
     ? <EpRelecture status="pending" />
-    : aiStatus === 'complete' ? <EpRelecture status="done">Relecture terminée</EpRelecture> : null;
+    : aiStatus === 'complete'
+      ? <EpRelecture status="done">Relecture terminée</EpRelecture>
+      // A failed second look used to render nothing at all, so the note simply
+      // never resolved and the retry endpoint was unreachable from the sheet.
+      : (aiStatus === 'error' || aiStatus === 'failed')
+        ? <EpRelecture status="failed" onRetry={onRetryAiReview} retrying={aiReviewSubmitting} />
+        : null;
   // French words the learner fell back to L1 for — the backend added each to the
   // vocabulary notebook, so we confirm it inline under the correction.
   const vocabularyGaps: Array<{ french: string; gloss?: string }> = Array.isArray(correction?.vocabulary_gaps?.added)
@@ -3673,8 +3072,10 @@ function ExerciseFeedbackMoment({
           <React.Fragment key={`${issue.display_label || 'repair'}-${index}`}>
             <EpGalley
               anchor={issue.display_label || `Correction ${index + 1}`}
-              why={issue.why_wrong || feedback.why}
-              relecture={relecture}
+              why={printableWhy(issue.why_wrong || feedback.why)}
+              repair={printableWhy(issue.repair_hint || (index === 0 ? feedback.repair : '')) || undefined}
+              // One second-look note per correction sheet, not one per erratum.
+              relecture={index === 0 ? relecture : undefined}
             >
               {isLabelCompare && learner
                 ? <EpLabelFix old={learner} fix={target || 'corrigé'} />
@@ -3726,246 +3127,27 @@ function ExerciseFeedbackMoment({
   );
 }
 
-function Stat({ num, label, sub, accent = 'var(--ink)' }: { num: any; label: string; sub?: string; accent?: string }) {
-  return (
-    <div className="stat">
-      <div className="t-num" style={{ color: accent }}>{num}</div>
-      <div className="t-mono">{label}</div>
-      {sub && <p>{sub}</p>}
-    </div>
-  );
-}
-
-function ConceptCover({ concept, index, compact = false, active = false }: { concept: AtelierConcept; index: number; compact?: boolean; active?: boolean }) {
-  const accent = index === 2 || concept.role === 'contrast'
-    ? 'var(--blue)'
-    : concept.role === 'new'
-      ? 'var(--yellow)'
-      : 'var(--red)';
-  const displayTitle = concept.atelier_blueprint?.display_title || concept.name;
-  const dueErratum = concept.due_errata?.[0];
-  const statusText = dueErratum
-    ? dueErratum.reason || `${dueErratum.display_label}${dueErratum.learner_text && dueErratum.corrected_target ? `: ${dueErratum.learner_text} → ${dueErratum.corrected_target}` : ''}`
-    : concept.role === 'contrast' ? 'Different rule' : concept.role === 'new' ? 'First time' : 'Weak spot';
-  return (
-    <article className={`concept-cover ${compact ? 'compact' : ''} ${active ? 'active' : ''}`}>
-      <div className="cover-band" style={{ background: accent }}>
-        <span>{String(index + 1).padStart(2, '0')}</span>
-        <span>{concept.level} · {(concept.category || 'Grammar').toUpperCase()}</span>
-      </div>
-      <div className="cover-symbol">
-        <ConceptMotif concept={concept} />
-      </div>
-      <div className="cover-title">
-        <h3>{displayTitle}</h3>
-      </div>
-      {!compact && (
-        <div className="cover-foot">
-          <span className="status-dot" style={{ background: accent }} />
-          <span title={statusText}>{statusText}</span>
-          <Link className="cover-ref" href={`/grammar?concept=${concept.id}`}>Notebook ↗</Link>
-        </div>
-      )}
-    </article>
-  );
-}
-
-function Atlas({ items }: { items: any[] }) {
-  return (
-    <section className="paper-2 atlas">
-      <div className="atlas-head">
-        <span className="t-mono">FRAGILITY ATLAS</span>
-        <span className="t-mono-low"><span className="red-dot" /> FRAGILE · <span className="black-square" /> STABLE</span>
-      </div>
-      <div className="atlas-plot">
-        <span className="danger-zone">DANGER ZONE</span>
-        <span className="axis-y">↑ PRIORITY</span>
-        <span className="axis-x">MASTERY →</span>
-        {items.slice(0, 16).map((item, index) => {
-          const mastery = Math.max(0, Math.min(100, Number(item.mastery || 0)));
-          const left = Math.max(1, Math.min(96, mastery));
-          const top = Math.max(4, Math.min(88, 10 + index * 5));
-          return (
-            <span
-              key={`${item.concept_id}-${index}`}
-              className={`atlas-dot ${item.is_foundation ? 'foundation' : ''}`}
-              style={{ left: `${left}%`, top: `${top}%` }}
-              title={item.name}
-            />
-          );
-        })}
-      </div>
-    </section>
-  );
-}
-
-function PriorityList({ items, selectedIds }: { items: any[]; selectedIds: number[] }) {
-  const nextItems = items.filter((item) => !selectedIds.includes(item.concept_id));
-  return (
-    <section className="paper-2 priority-list">
-      <header>
-        <span className="t-mono">NEXT AFTER TODAY · {nextItems.length}</span>
-        <span className="t-mono-low">reference only</span>
-      </header>
-      {nextItems.length === 0 && (
-        <div className="empty-priority">
-          <strong>Queue is clear after today</strong>
-          <span className="t-mono-low">new weak spots will appear here after corrections</span>
-        </div>
-      )}
-      {nextItems.slice(0, 8).map((item, index) => (
-        item.concept_id ? (
-          <Link
-            key={`${item.concept_id}-${index}`}
-            href={`/grammar?concept=${item.concept_id}`}
-            className={selectedIds.includes(item.concept_id) ? 'selected' : ''}
-          >
-            <span className="t-mono-low">{String(index + 1).padStart(2, '0')}</span>
-            <strong>{item.display_title || item.name}</strong>
-            <span className="cefr">{item.level}</span>
-            <span className="status-ring" />
-          </Link>
-        ) : (
-          <div key={`${item.concept_id}-${index}`} className={selectedIds.includes(item.concept_id) ? 'selected' : ''}>
-            <span className="t-mono-low">{String(index + 1).padStart(2, '0')}</span>
-            <strong>{item.display_title || item.name}</strong>
-            <span className="cefr">{item.level}</span>
-            <span className="status-ring" />
-          </div>
-        )
-      ))}
-    </section>
-  );
-}
-
-function ConceptBench({ concepts, activeIndex, setActiveIndex }: { concepts: AtelierConcept[]; activeIndex: number; setActiveIndex: (index: number) => void }) {
-  return (
-    <section className="concept-bench">
-      {concepts.map((concept, index) => (
-        <button key={concept.id} onClick={() => setActiveIndex(index)}>
-          <ConceptCover concept={concept} index={index} compact active={activeIndex === index} />
-        </button>
-      ))}
-    </section>
-  );
-}
-
-function RoundStrip({ round, setRound }: { round: RoundName; setRound: (round: RoundName) => void }) {
-  return (
-    <section className="round-strip">
-      {roundLabels.map((item) => (
-        <button key={item.id} className={round === item.id ? 'active' : ''} onClick={() => setRound(item.id)}>
-          <span>{item.roman}</span> {item.label}
-        </button>
-      ))}
-    </section>
-  );
-}
-
-function SentenceXRay({ xray }: { xray: Record<string, any> }) {
-  const sentence = String(xray?.sentence || '').trim();
-  const marks = xray?.marks || [];
-  if (!sentence) {
-    return (
-      <div className="sentence-xray missing-panel">
-        <p>Session content unavailable.</p>
-      </div>
-    );
-  }
-  const tokens = sentence.split(/(\s+|[.,!?;:])/).filter(Boolean);
-  return (
-    <div className="sentence-xray">
-      <p>
-        {tokens.map((token: string, index: number) => {
-          const clean = token.toLowerCase().replace(/[.,!?;:]/g, '');
-          const markIndex = marks.findIndex((mark: any) => clean === String(mark.text || '').toLowerCase().replace(/[.,!?;:]/g, ''));
-          if (markIndex < 0) return <React.Fragment key={`${token}-${index}`}>{token}</React.Fragment>;
-          return (
-            <span key={`${token}-${index}`} className={`marked mark-${markIndex % 3}`}>
-              {token}
-              <em>{marks[markIndex].label}</em>
-            </span>
-          );
-        })}
-      </p>
-      <div className="xray-legend">
-        {marks.map((mark: any, index: number) => (
-          <span key={`${mark.text}-${index}`}>
-            <i className={`legend-box mark-${index % 3}`} />
-            <b>{mark.label}</b>
-            <small>{mark.text}</small>
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function ConceptRulePanel({ payload, concept }: { payload: Record<string, any>; concept: AtelierConcept }) {
   const rule = payload.rule_panel || {};
   return (
     <aside className="grammar-block rule-panel">
       <div className="between">
-        <div className="t-mono blue">RULE</div>
-        <Link className="notebook-link" href={`/grammar?concept=${concept.id}`}>Notebook ↗</Link>
+        {/* Furniture (kickers + link label) is publication French; the rule text below
+            stays in the learner's own language. */}
+        <div className="t-mono blue">La règle</div>
+        <Link className="notebook-link" href={`/grammar?concept=${concept.id}`}>Cahier ↗</Link>
       </div>
-      <h3>{rule.title}</h3>
+      {/* The concept title is already set as the sheet's h1 two rows above; a
+          second copy here only repeated it (and, before the server localized
+          rule_panel.title, repeated it in English). */}
       <p>{rule.rule}</p>
-      <p><strong>When:</strong> {rule.when}</p>
-      <p><strong>Pattern:</strong> {rule.pattern}</p>
-      <p><strong>Check:</strong> {rule.check}</p>
+      {rule.when && <p><strong>Quand :</strong> {rule.when}</p>}
+      {rule.pattern && <p><strong>Le schéma :</strong> {rule.pattern}</p>}
+      {rule.check && <p><strong>Le contrôle :</strong> {rule.check}</p>}
       <div className="examples">
         {(rule.examples || []).slice(0, 3).map((example: string) => <p key={example}>{example}</p>)}
       </div>
     </aside>
-  );
-}
-
-function recognizeModeSummary(
-  activeSet: Record<string, any> | null,
-  mode: RecognizeMode,
-  answers: Record<string, any>,
-  submitted: boolean,
-) {
-  const items = activeSet?.recognize?.[mode]?.items || [];
-  const answered = submitted ? items.length : items.filter((item: any) => String(answers[item.id] || '').trim()).length;
-  const label = recognizeModes.find((item) => item.id === mode)?.label || mode;
-  return `${label} ${answered}/${items.length || 3}`;
-}
-
-function ModeMarkers({
-  mode,
-  setMode,
-  activeConcept,
-  submitted,
-  answers,
-  allAnswers,
-  activeSet,
-}: {
-  mode: RecognizeMode;
-  setMode: (mode: RecognizeMode) => void;
-  activeConcept: AtelierConcept | null;
-  submitted: Record<string, boolean>;
-  answers: Record<string, any>;
-  allAnswers: Record<string, Record<string, any>>;
-  activeSet: Record<string, any> | null;
-}) {
-  return (
-    <div className="mode-markers">
-      {recognizeModes.map((item) => {
-        const key = answerKey('recognize', item.id, activeConcept?.id);
-        const items = activeSet?.recognize?.[item.id]?.items || [];
-        const modeAnswers = item.id === mode ? answers : allAnswers[key] || {};
-        const answered = submitted[key]
-          ? items.length
-          : items.filter((entry: any) => String(modeAnswers[entry.id] || '').trim()).length;
-        return (
-          <button key={item.id} className={mode === item.id ? 'active' : ''} onClick={() => setMode(item.id)}>
-            <span>{item.short} ·</span> {item.label} <small>{answered}/{items.length || 3}</small>
-          </button>
-        );
-      })}
-    </div>
   );
 }
 
@@ -4011,7 +3193,7 @@ function RecognizePanel({
     <div className="ep-exercise ep-recognize">
       {mode === 'fill' && (
         <>
-          <EpPrompt label="Réglez le mot manquant">
+          <EpPrompt>
             <EpreuveBlankPrompt prompt={String(item.prompt || '')} answer={answers[item.id]} />
           </EpPrompt>
           <EpOpts>
@@ -4030,7 +3212,7 @@ function RecognizePanel({
       )}
       {mode === 'word_bank' && (
         <>
-          <EpPrompt label="Composez la ligne" cue={stripExpressPrefix(item.meaning_cue) || item.prompt}>
+          <EpPrompt cue={stripExpressPrefix(item.meaning_cue) || item.prompt}>
             <EpSetLine empty={wordBankTokens.length === 0}>
               {wordBankTokens.map((token, selectedIndex) => (
                 <EpSlug
@@ -4059,7 +3241,7 @@ function RecognizePanel({
       )}
       {mode === 'classify' && (
         <>
-          <EpPrompt label="Classez le sort">{item.prompt}</EpPrompt>
+          <EpPrompt>{item.prompt}</EpPrompt>
           <EpCases boxes={(item.labels || []).map((label: string) => ({
             label,
             slugs: [
@@ -4086,8 +3268,6 @@ function TransformPanel({
   updateAnswer,
   correction,
   submitted,
-  onRequestAiReview,
-  aiReviewSubmitting,
 }: {
   payload: Record<string, any>;
   activeItemIndex: number;
@@ -4095,15 +3275,13 @@ function TransformPanel({
   updateAnswer: (key: string, value: any) => void;
   correction: Record<string, any> | null;
   submitted: boolean;
-  onRequestAiReview: () => void;
-  aiReviewSubmitting: boolean;
 }) {
   const items = payload.transform?.items || [];
   const itemIndex = safeDrillItemIndex(activeItemIndex, items);
   const item = items[itemIndex] || {};
   return (
     <div className="ep-exercise ep-transform">
-      <EpPrompt label={`Transformez la ligne · ${String(item.type || 'réécriture').replace('_', ' ')}`} cue={item.instruction}>
+      <EpPrompt cue={item.instruction}>
         {item.source}
       </EpPrompt>
       <textarea
@@ -4161,7 +3339,7 @@ function itemFeedback(item: any, learner: any, correction: Record<string, any> |
     correct,
     learner: learnerText,
     target: targetText,
-    why: matchingErrata[0]?.why_wrong ?? undefined,
+    why: printableWhy(matchingErrata[0]?.why_wrong) || undefined,
     repair: matchingErrata[0]?.repair_hint ?? undefined,
     issues: matchingErrata,
   };
@@ -4247,8 +3425,17 @@ function feedbackForExercise(
 }
 
 function feedbackRuleLine(activeSet: Record<string, any> | null, activeConcept: AtelierConcept | null) {
-  const title = String(activeSet?.rule_panel?.title || activeConcept?.atelier_blueprint?.display_title || activeConcept?.name || '').trim();
-  return title ? `Rule: ${title}` : undefined;
+  // Publication furniture is French, and the title is the French one: the server
+  // now localizes rule_panel.title, and title_fr is the concept-level fallback.
+  // This used to print "Rule: Si type 1: present condition, future result".
+  const title = String(
+    activeSet?.rule_panel?.title
+    || activeConcept?.title_fr
+    || activeConcept?.atelier_blueprint?.display_title
+    || activeConcept?.name
+    || '',
+  ).trim();
+  return title ? `La règle · ${title}` : undefined;
 }
 
 // "Recopie la correction" is a line-level exercise: retyping a one-word fill
@@ -4261,36 +3448,6 @@ function isRepairableLine(target: string): boolean {
   return words >= 3 || (words >= 2 && /[.!?…]$/.test(trimmed));
 }
 
-function CorrectionAiReview({
-  correction,
-}: {
-  correction: Record<string, any> | null;
-  onRequestAiReview?: () => void;
-  submitting?: boolean;
-}) {
-  const status = aiReviewStatus(correction);
-  if (status === 'pending' || status === 'reviewing' || status === 'queued') {
-    return (
-      <div className="ai-review-line">
-        <Loader2 size={13} className="spin" /> AI reviewing
-      </div>
-    );
-  }
-  if (status === 'failed' || status === 'unavailable') {
-    return (
-      <div className="ai-review-line failed">
-        <X size={13} /> AI unavailable
-      </div>
-    );
-  }
-  if (status !== 'complete') return null;
-  return (
-    <div className="ai-review-line complete">
-      <Check size={13} /> AI correction ready
-    </div>
-  );
-}
-
 function browserSpeak(text: string, onDone: () => void) {
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
     onDone();
@@ -4301,37 +3458,6 @@ function browserSpeak(text: string, onDone: () => void) {
   utterance.onend = onDone;
   utterance.onerror = onDone;
   window.speechSynthesis.speak(utterance);
-}
-
-// Plays a native French model of the target sentence via TTS (falls back to the
-// browser voice) so the learner can hear and shadow it. Rendered only AFTER an
-// answer is submitted — playing the target beforehand would spoil the exercise.
-function ModelAudioButton({ text, label = 'Écouter le modèle' }: { text: string; label?: string }) {
-  const [playing, setPlaying] = useState(false);
-  const value = String(text || '').trim();
-  if (!value) return null;
-  const play = async () => {
-    if (playing) return;
-    setPlaying(true);
-    try {
-      const audio = await apiService.synthesizeSpeech(value);
-      const blob = new Blob([audio], { type: 'audio/mpeg' });
-      const url = URL.createObjectURL(blob);
-      const player = new Audio(url);
-      player.onended = () => { URL.revokeObjectURL(url); setPlaying(false); };
-      player.onerror = () => { URL.revokeObjectURL(url); browserSpeak(value, () => setPlaying(false)); };
-      await player.play();
-    } catch (error) {
-      console.error(error);
-      browserSpeak(value, () => setPlaying(false));
-    }
-  };
-  return (
-    <button type="button" className="model-audio-button" onClick={play} disabled={playing} aria-label={label}>
-      {playing ? <Loader2 size={14} className="spin" /> : <Volume2 size={14} />}
-      <span>{label}</span>
-    </button>
-  );
 }
 
 function EpreuveModelAudio({ text }: { text: string }) {
@@ -4362,8 +3488,8 @@ function EpreuveWiringStyles() {
     <style jsx global>{`
       .ep .ep-exercise { display: grid; gap: 14px; padding: 4px 0 2px; }
       .ep .ep-typecase { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px; border: 1px solid var(--app-ink); background: var(--app-sheet); }
-      .ep .ep-composed-input { width: 100%; min-height: 122px; resize: vertical; border: 1px solid var(--app-ink); background: var(--app-paper); color: var(--app-ink); padding: 13px 14px; font: 400 17px/1.45 var(--app-serif); outline: none; box-shadow: 3px 3px 0 var(--ep-channel); }
-      .ep .ep-composed-input:focus { border-color: var(--app-blue); box-shadow: 3px 3px 0 color-mix(in srgb, var(--app-blue) 30%, transparent); }
+      .ep .ep-composed-input { width: 100%; min-height: 122px; resize: vertical; border: 1px solid var(--app-ink); background: var(--app-paper); color: var(--app-ink); padding: 13px 14px; font: 400 17px/1.45 var(--app-serif); outline: none; box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--ep-channel) 35%, transparent); }
+      .ep .ep-composed-input:focus { border-color: var(--app-blue); box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--app-blue) 30%, transparent); }
       .ep .ep-composed-input::placeholder { color: var(--app-ink-3); font-style: italic; }
       .ep .ep-output .word-count, .ep .ep-produce-panel .word-count { margin-top: -5px; font: 800 8px/1 var(--app-grotesk); letter-spacing: .12em; text-transform: uppercase; color: var(--app-ink-3); }
       .ep .ep-character-byline { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; border-top: 1px solid var(--app-ink); border-bottom: 1px solid var(--app-ink); padding: 8px 0; }
@@ -4385,7 +3511,7 @@ function EpreuveWiringStyles() {
       .ep .ep-fb-links button { border: 0; background: none; padding: 4px 2px; color: var(--app-ink-3); font: 700 9px/1 var(--app-grotesk); letter-spacing: .12em; text-transform: uppercase; cursor: pointer; }
       .ep .ep-fb-links button:hover { color: var(--app-ink); }
       .ep .ep-lock { margin: 15px 0 0; border: 1px solid var(--app-ink); background: var(--app-sheet); }
-      .ep-recap { position: relative; width: min(100%, 510px); max-height: min(90dvh, 780px); overflow: auto; border: 1px solid var(--app-ink); border-radius: 0; box-shadow: 6px 6px 0 var(--ep-channel); }
+      .ep-recap { position: relative; width: min(100%, 510px); max-height: min(90dvh, 780px); overflow: auto; border: 1px solid var(--app-ink); border-radius: 0; box-shadow: 0 16px 38px color-mix(in srgb, var(--app-ink) 20%, transparent); }
       .ep-recap-close { position: absolute; z-index: 2; right: 10px; top: 10px; width: 30px; height: 30px; border: 1px solid var(--app-ink); background: var(--app-paper); color: var(--app-ink); font-size: 20px; line-height: 1; }
       .ep-recap .ep-bat-stage { padding-top: 26px; }
       .ep-recap-rewards { display: flex; align-items: center; gap: 18px; margin-top: 18px; padding: 15px 0; border-top: 1px solid var(--app-paper-3); border-bottom: 1px solid var(--app-paper-3); }
@@ -4402,8 +3528,6 @@ function OutputLadderPanel({
   updateAnswer,
   correction,
   submitted,
-  onRequestAiReview,
-  aiReviewSubmitting,
 }: {
   payload: Record<string, any>;
   round: 'sentence' | 'speak' | 'conversation';
@@ -4411,8 +3535,6 @@ function OutputLadderPanel({
   updateAnswer: (value: string) => void;
   correction: Record<string, any> | null;
   submitted: boolean;
-  onRequestAiReview: () => void;
-  aiReviewSubmitting: boolean;
 }) {
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
@@ -4430,11 +3552,11 @@ function OutputLadderPanel({
       if (transcript.trim()) {
         updateAnswer(transcript.trim());
       } else {
-        toast('No speech detected.');
+        toast('Aucune parole détectée.');
       }
     } catch (error) {
       console.error(error);
-      toast.error('Could not transcribe the recording.');
+      toast.error('L’enregistrement n’a pas pu être transcrit.');
     } finally {
       setIsTranscribing(false);
     }
@@ -4443,7 +3565,7 @@ function OutputLadderPanel({
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
+      const recorder = createAudioMediaRecorder(stream);
       mediaRecorderRef.current = recorder;
       chunksRef.current = [];
       recorder.ondataavailable = (event) => {
@@ -4452,7 +3574,7 @@ function OutputLadderPanel({
         }
       };
       recorder.onstop = () => {
-        const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' });
+        const audioBlob = recordedAudioBlob(chunksRef.current, recorder);
         stream.getTracks().forEach((track) => track.stop());
         void transcribeAudio(audioBlob);
       };
@@ -4460,7 +3582,7 @@ function OutputLadderPanel({
       setIsRecording(true);
     } catch (error) {
       console.error(error);
-      toast.error('Microphone access failed.');
+      toast.error('L’accès au micro a échoué.');
     }
   };
 
@@ -4488,7 +3610,7 @@ function OutputLadderPanel({
           <em>{character.role || 'Le Feuilleton'} · {String(character.register || 'vous').toUpperCase()}</em>
         </div>
       )}
-      <EpPrompt label={meta.eyebrow} cue={meta.instruction}>
+      <EpPrompt cue={meta.instruction}>
         {promptText}
       </EpPrompt>
       {round === 'speak' && (
@@ -4537,8 +3659,6 @@ function ProducePanel({
   updateAnswer,
   correction,
   submitted,
-  onRequestAiReview,
-  aiReviewSubmitting,
 }: {
   concepts: AtelierConcept[];
   exerciseSets: AtelierExerciseSet[];
@@ -4548,8 +3668,6 @@ function ProducePanel({
   updateAnswer: (value: string) => void;
   correction: Record<string, any> | null;
   submitted: boolean;
-  onRequestAiReview: () => void;
-  aiReviewSubmitting: boolean;
 }) {
   const requirements = concepts.map((concept) => conceptRequirement(concept, exerciseSets));
   const produce = payload.produce || {};
@@ -4557,14 +3675,14 @@ function ProducePanel({
   const promptText = String(produce.prompt || '').trim();
   return (
     <div className="ep-exercise ep-produce-panel">
-      <EpPrompt label="Composez le paragraphe" cue={sourceFragment ? `« ${sourceFragment} »` : undefined}>
+      <EpPrompt cue={sourceFragment ? `« ${sourceFragment} »` : undefined}>
         {promptText || 'La consigne de composition est indisponible.'}
       </EpPrompt>
       <div className="target-chips">
         {requirements.map((req) => <span key={req.label}>{req.count} × {req.label}</span>)}
       </div>
       {Boolean(targetVocabulary?.length) && (
-        <div className="target-word-strip" aria-label="Vocabulary targets for this paragraph">
+        <div className="target-word-strip" aria-label="Lexique visé pour ce paragraphe">
           {(targetVocabulary || []).slice(0, 5).map((item) => (
             <span key={`${item.word_id}-${item.word}`}>
               {item.word}
@@ -4579,106 +3697,25 @@ function ProducePanel({
   );
 }
 
-function TutorNote({
-  concept,
-  correction,
-  round,
-  onRequestAiReview,
-  aiReviewSubmitting,
-}: {
-  concept: AtelierConcept | null;
-  correction: Record<string, any> | null;
-  round: RoundName;
-  onRequestAiReview: () => void;
-  aiReviewSubmitting: boolean;
-}) {
-  const title = correction ? 'RECENT CORRECTION' : 'ATELIER NOTE';
-  const erratum = correction?.errata?.[0];
-  return (
-    <section className="tutor-note">
-      <div className="between">
-        <span className="t-mono">{title}</span>
-        <span className="t-mono-low">{round}</span>
-      </div>
-      {erratum ? (
-        <>
-          <h3>{erratum.display_label}</h3>
-          <p><strong>Why:</strong> {erratum.why_wrong}</p>
-          <p><strong>Repair:</strong> {erratum.repair_hint}</p>
-          <CorrectionAiReview correction={correction} onRequestAiReview={onRequestAiReview} submitting={aiReviewSubmitting} />
-        </>
-      ) : (
-        <>
-          <h3>{concept?.name}</h3>
-          {concept?.core_rule && <p>{concept.core_rule}</p>}
-          <CorrectionAiReview correction={correction} onRequestAiReview={onRequestAiReview} submitting={aiReviewSubmitting} />
-        </>
-      )}
-    </section>
-  );
-}
-
-function ErrataStack({ errata }: { errata: any[] }) {
-  return (
-    <section className="errata-column">
-      <div className="between">
-        <span className="t-mono">CORRECTIONS</span>
-        <span className="t-mono-low">{errata.length}</span>
-      </div>
-      {errata.length === 0 && (
-        <div className="empty-slip">
-          <div className="t-mono-low">No corrections yet</div>
-          <p>Wrong answers appear here as proofreader slips.</p>
-        </div>
-      )}
-      {errata.slice(0, 6).map((item, index) => (
-        <article key={`${item.display_label}-${index}`} className="errata-slip">
-          <span className="slip-label">{item.display_label}</span>
-          <span className="slip-num">Nº {String(index + 1).padStart(2, '0')}</span>
-          <div className="t-mono-low">YOU WROTE</div>
-          <p className="wrong">{item.learner_text || 'missing'}</p>
-          <div className="t-mono-low red">CORRECTED</div>
-          <p className="right">{item.corrected_target}</p>
-          <div className="why">
-            <p><strong>Why.</strong> {item.why_wrong}</p>
-            <p><strong>Repair.</strong> {item.repair_hint}</p>
-          </div>
-          {(item.review_mode || item.source_label || item.next_review_date) && (
-            <div className="slip-memory">
-              {[item.source_label, item.review_mode, item.next_review_date ? 'scheduled' : null].filter(Boolean).join(' · ')}
-            </div>
-          )}
-          {item.concept_id && <Link className="notebook-link slip-link" href={`/grammar?concept=${item.concept_id}`}>Review in notebook ↗</Link>}
-          {item.id && (
-            <Link
-              className="notebook-link slip-link"
-              href={`/missions?erratum_id=${item.id}${item.concept_id ? `&concept_id=${item.concept_id}` : ''}`}
-            >
-              Repair in mission ↗
-            </Link>
-          )}
-        </article>
-      ))}
-    </section>
-  );
-}
-
 function RecapModal({
   recap,
   concepts,
+  filedEarly = false,
   recommendation,
   onRecommendedAction,
   onClose,
 }: {
   recap: Record<string, any>;
   concepts: AtelierConcept[];
+  /** The learner closed the edition before the last drill; say so plainly. */
+  filedEarly?: boolean;
   recommendation: RecommendedAction;
   onRecommendedAction: () => void;
   onClose: () => void;
 }) {
   const reviewTotal = recommendation.kind === 'review' ? recommendation.errataDue + recommendation.vocabularyDue : 0;
   const nextLabel = recapActionLabel(recommendation, reviewTotal);
-  const practiced = concepts.slice(0, 3).map((concept) => concept.atelier_blueprint?.display_title || concept.name);
+  const practiced = concepts.slice(0, 3).map((concept) => displayConceptTitle(concept));
   const minted = Array.isArray(recap.minted_collectibles) ? recap.minted_collectibles as AtelierCollectible[] : [];
   const logoTokens = minted.filter((item) => item.kind === 'logo_token');
   const giltSeal = minted.find((item) => item.kind === 'gilt_seal');
@@ -4687,7 +3724,7 @@ function RecapModal({
   const errataLogged = Math.max(0, Number(recap.errata_logged || 0));
   const phrase = recap.phrase_of_day || null;
   const recapErrata = Array.isArray(recap.errata) ? recap.errata : [];
-  const proofLines = recapErrata.slice(0, 4).map((item: Record<string, any>, index: number) => ({
+  const proofLines: Array<{ fr: React.ReactNode; tag: string; re: boolean }> = recapErrata.slice(0, 4).map((item: Record<string, any>, index: number) => ({
     fr: <><del>{item.learner_text || '—'}</del> <ins>{item.corrected_target || 'corrigé'}</ins></>,
     tag: item.display_label || `Correction ${index + 1}`,
     re: true,
@@ -4701,8 +3738,14 @@ function RecapModal({
         <LEpreuveStyles />
         <EpreuveWiringStyles />
         <button type="button" className="ep-recap-close" onClick={onClose} aria-label="Fermer l’épreuve">×</button>
-        <EpBatStage sub={giltSeal ? 'Séance sans faute, frappée en doré.' : 'Les lignes sont prêtes pour l’édition de demain.'} />
-        <EpRecapHead date={formatAtelierDatestamp().replace('Closed · ', '')} />
+        <EpBatStage
+          sub={giltSeal
+            ? 'Séance sans faute, frappée en doré.'
+            : filedEarly
+              ? 'Édition close en avance — tout ce qui est classé ci-dessous compte.'
+              : 'Les lignes sont prêtes pour l’édition de demain.'}
+        />
+        <EpRecapHead date={formatAtelierDatestamp().replace('Classée · ', '')} />
         <div className="ep-recap-body">
           <EpTally items={[
             { n: attempts, l: 'lignes réglées' },
@@ -4722,7 +3765,10 @@ function RecapModal({
           </div>
           <EpStreak was={recap.streak_before || 0} now={recap.streak_after || 1} on={Math.min(5, Number(recap.streak_after || 1))} />
           <EpHandoff
-            next={nextLabel?.action || 'La Une'}
+            // recapActionLabel returns a verb phrase ("Réviser maintenant",
+            // "Ouvrir la mission"), so it IS the button; the old prop prefixed
+            // it with "Lire" and printed "Lire Réviser maintenant".
+            label={nextLabel?.action}
             onRead={nextLabel ? onRecommendedAction : onClose}
             onHome={onClose}
           />
@@ -4735,56 +3781,59 @@ function RecapModal({
 function recapActionLabel(action: RecommendedAction, reviewTotal: number) {
   if (action.kind === 'review') {
     return {
-      title: `${reviewTotal} review item${reviewTotal === 1 ? '' : 's'} waiting`,
-      copy: 'Clear the repair queue before the optional branches so today’s grammar stays fresh.',
-      action: 'Review now',
+      title: `${reviewTotal} élément${reviewTotal === 1 ? '' : 's'} à réviser`,
+      copy: 'Videz la file des reprises avant les branches facultatives pour garder la grammaire du jour fraîche.',
+      action: 'Réviser maintenant',
     };
   }
   if (action.kind === 'mission') {
     return {
-      title: 'Use it in a Mission',
-      copy: 'The loud on-ramp is here: take the completed session into a real-world prompt.',
-      action: 'Open mission',
+      title: 'L’utiliser dans une mission',
+      copy: 'Le passage vers le réel est ici : réemployez la séance terminée dans une situation concrète.',
+      action: 'Ouvrir la mission',
+    };
+  }
+  if (action.kind === 'studio') {
+    return {
+      title: 'Le dire à voix haute',
+      copy: 'La règle que vous venez de poser tient-elle dans une vraie conversation ? Cinq minutes au studio.',
+      action: 'Ouvrir le studio',
     };
   }
   if (action.kind === 'library') {
     if (!STORY_FEATURE_VISIBLE) return null;
     return {
-      title: action.bookTitle ? `Continue ${action.bookTitle}` : 'Continue your library book',
+      title: action.bookTitle ? `Continuer ${action.bookTitle}` : 'Continuer le livre de la bibliothèque',
       copy: action.title
-        ? `Episode ${action.episodeIndex + 1}: ${action.title}`
-        : 'Read the next passage and work through passage-grounded prompts.',
-      action: 'Continue book',
+        ? `Épisode ${action.episodeIndex + 1} : ${action.title}`
+        : 'Lire le passage suivant et répondre aux questions qui en découlent.',
+      action: 'Continuer le livre',
     };
   }
   if (action.kind === 'serial') {
     return {
-      title: action.episodeKind === 'mission' ? 'The world is waiting for your reply' : 'Continue the serial',
+      title: action.episodeKind === 'mission' ? 'Le monde attend votre réponse' : 'Continuer le feuilleton',
       copy: action.episodeKind === 'mission'
-        ? 'Your next French message moves the shared thread forward.'
-        : 'See the consequence of what you wrote, then catch the next hook.',
-      action: action.episodeKind === 'mission' ? 'Reply now' : 'Open serial',
+        ? 'Votre prochain message en français fait avancer le fil commun.'
+        : 'Voyez la conséquence de votre texte, puis attrapez le prochain suspense.',
+      action: action.episodeKind === 'mission' ? 'Répondre' : 'Ouvrir le feuilleton',
     };
   }
   if (action.kind === 'feuilleton') {
     return {
-      title: 'Read the Feuilleton branch',
-      copy: 'Carry the same grammar into the Feuilleton scene while it is still warm.',
-      action: 'Open Feuilleton',
+      title: 'Lire la branche du Feuilleton',
+      copy: 'Portez la même grammaire dans la scène du Feuilleton pendant qu’elle est encore fraîche.',
+      action: 'Ouvrir le Feuilleton',
     };
   }
   if (action.kind === 'rest') {
     return {
-      title: 'Done for today',
-      copy: 'Everything on the path is complete. Return to the road map and rest.',
-      action: 'Back to today',
+      title: 'Édition terminée',
+      copy: 'Tout le parcours est terminé. Revenez à la carte du jour et laissez reposer.',
+      action: 'Retour au jour',
     };
   }
   return null;
-}
-
-function errataLabel(count: number) {
-  return count;
 }
 
 function CropMarks() {
@@ -4806,6 +3855,8 @@ function AtelierStyles() {
         --paper-2: var(--app-paper-2);
         --paper-3: var(--app-paper-3);
         --paper-deep: #1a1814;
+        --sheet: var(--app-sheet);
+        --muted: var(--app-ink-3);
         --ink: var(--app-ink);
         --ink-2: var(--app-ink-2);
         --ink-3: var(--app-ink-3);
@@ -4838,7 +3889,7 @@ function AtelierStyles() {
         width: min(520px, 100%);
         border: 2px solid var(--ink);
         background: var(--paper);
-        box-shadow: 8px 8px 0 var(--ink);
+        box-shadow: 0 18px 42px color-mix(in srgb, var(--ink) 22%, transparent);
         padding: 24px;
       }
       .serial-welcome h2 {
@@ -4891,6 +3942,36 @@ function AtelierStyles() {
         letter-spacing: .13em;
         text-transform: uppercase;
       }
+      .serial-welcome-head {
+        display: flex;
+        align-items: start;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      /* The close control and the "later" control are escapes, not calls to
+         action: they must be reachable at 44px without shouting. */
+      .serial-welcome button.serial-welcome-close {
+        flex: none;
+        width: 44px;
+        min-height: 44px;
+        margin: -10px -10px 0 0;
+        border: 0;
+        background: transparent;
+        color: var(--ink);
+      }
+      .serial-welcome button.serial-welcome-later {
+        margin-top: 10px;
+        border: 0;
+        background: transparent;
+        color: var(--ink-2);
+        min-height: 44px;
+        font-weight: 700;
+        letter-spacing: .1em;
+      }
+      .serial-welcome button:focus-visible {
+        outline: 2px solid var(--ink);
+        outline-offset: 2px;
+      }
       .atelier-page * { box-sizing: border-box; }
       .atelier-page button, .atelier-page input, .atelier-page textarea { font: inherit; color: inherit; }
       .atelier-page button { border: 0; background: transparent; cursor: pointer; }
@@ -4934,6 +4015,7 @@ function AtelierStyles() {
       .atelier-nav button:disabled { opacity: .35; cursor: not-allowed; }
       .nav-rule { width: 1px; height: 20px; background: var(--ink); }
       .loading { min-height: 60vh; display: grid; place-items: center; font-family: var(--mono); letter-spacing: .14em; color: var(--ink-2); }
+      .atelier-cache-note { max-width: 430px; margin: 6px auto -2px; padding: 0 18px; color: var(--app-ink-3); font: italic 12px/1.35 var(--app-serif); }
       .atelier-mobile-streak {
         display: inline-flex;
         min-width: 42px;
@@ -4970,268 +4052,6 @@ function AtelierStyles() {
         align-items: start;
         background: #f1ece1;
       }
-      .ph {
-        --paper: var(--app-paper);
-        --paper-2: var(--app-paper-2);
-        --paper-3: var(--app-paper-3);
-        --sheet: var(--app-sheet);
-        --ink: var(--app-ink);
-        --ink-2: var(--app-ink-2);
-        --ink-3: var(--app-ink-3);
-        --blue: var(--app-blue);
-        --red: var(--app-red);
-        --yellow: var(--app-yellow);
-        --serif: var(--app-serif);
-        --grotesk: "Inter", "Helvetica Neue", Arial, sans-serif;
-        position: relative;
-        width: min(var(--app-viewport-width), var(--phone-shell-max));
-        min-height: var(--app-viewport-height);
-        background: var(--paper);
-        color: var(--ink);
-        font-family: var(--grotesk);
-        -webkit-font-smoothing: antialiased;
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-        /* Clear the status bar / Dynamic Island: pushes the whole header bar
-           (incl. its absolutely-positioned mark/gear) down uniformly, like the
-           EditorialMasthead used on the Notebook page. */
-        padding-top: var(--phone-safe-top);
-      }
-      .ph * { box-sizing: border-box; }
-      .ph-head {
-        position: relative;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 54px;
-        padding: 8px 16px 10px;
-        border-bottom: 1px solid var(--ink);
-        background: var(--paper);
-        flex: 0 0 auto;
-      }
-      .ph-head .mark {
-        position: absolute;
-        left: 16px;
-        top: 50%;
-        transform: translateY(-50%);
-      }
-      .ph-head .ttl {
-        font-family: var(--serif);
-        font-style: italic;
-        font-weight: 500;
-        font-size: 23px;
-        line-height: 1;
-        letter-spacing: 0;
-      }
-      .ph-head .head-right {
-        position: absolute;
-        right: 14px;
-        top: 50%;
-        transform: translateY(-50%);
-        display: inline-flex;
-        align-items: center;
-        justify-content: flex-end;
-        gap: 6px;
-      }
-      .ph-head .gear {
-        width: 34px;
-        height: 34px;
-        border: 1px solid var(--ink);
-        background: var(--sheet);
-        color: var(--ink);
-        display: grid;
-        place-items: center;
-        text-decoration: none;
-      }
-      .ph-head .gear svg {
-        width: 18px;
-        height: 18px;
-      }
-      .ph-body {
-        flex: 1 1 auto;
-        padding: var(--phone-section-gap) var(--phone-gutter) 22px;
-      }
-      .ph-body.center {
-        display: flex;
-        flex-direction: column;
-      }
-      .ph.parcours {
-        height: var(--app-viewport-height);
-      }
-      .ph-nav {
-        flex: 0 0 auto;
-        display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        min-height: var(--phone-bottom-nav-space);
-        padding-bottom: var(--phone-safe-bottom-space);
-        border-top: 1px solid var(--ink);
-        background: var(--paper);
-      }
-      .ph-nav a {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 5px;
-        text-decoration: none;
-        color: var(--ink-3);
-        font-size: 10px;
-        font-weight: 800;
-        letter-spacing: .14em;
-        text-transform: uppercase;
-        border-top: 2px solid transparent;
-        margin-top: -1px;
-      }
-      .ph-nav a svg {
-        width: 22px;
-        height: 22px;
-      }
-      .ph-nav a.active {
-        color: var(--ink);
-        background: var(--sheet);
-        border-top-color: var(--ink);
-      }
-      .day-badge {
-        min-width: 82px;
-        height: 34px;
-        border: 1px solid var(--ink);
-        background: var(--sheet);
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 7px;
-        padding: 0 8px;
-        color: var(--ink);
-        text-transform: uppercase;
-      }
-      .day-badge svg {
-        width: 13px;
-        height: 13px;
-      }
-      .day-badge span {
-        color: var(--ink-3);
-        font-size: 8px;
-        font-weight: 900;
-        letter-spacing: .12em;
-      }
-      .day-badge b {
-        font-family: var(--serif);
-        font-style: italic;
-        font-size: 18px;
-        line-height: 1;
-      }
-      .day-badge.unlit {
-        color: var(--ink-3);
-      }
-      .day-badge.unlit svg {
-        opacity: .35;
-      }
-      .day-badge.unlit span {
-        color: var(--ink-3);
-      }
-      @media (max-width: 420px) {
-        .day-badge {
-          min-width: 72px;
-          gap: 5px;
-          padding-inline: 6px;
-        }
-        .ph-head .gear {
-          width: 32px;
-          height: 32px;
-        }
-      }
-      .parcours .ph-body {
-        flex: 1 1 auto;
-        min-height: 0;
-        overflow-y: auto;
-        padding: 0 var(--phone-gutter);
-        display: flex;
-        flex-direction: column;
-      }
-      .parcours-empty-body {
-        justify-content: center;
-        padding-bottom: 28px;
-      }
-      .parcours-error-card {
-        width: min(100%, 390px);
-        margin: 0 auto;
-        border: 1.5px solid var(--ink);
-        background: var(--sheet);
-        padding: 24px 20px 20px;
-        box-shadow: 6px 6px 0 var(--ink);
-      }
-      .parcours-error-card span {
-        display: block;
-        color: var(--blue);
-        font-size: 9px;
-        font-weight: 900;
-        letter-spacing: .14em;
-        text-transform: uppercase;
-      }
-      .parcours-error-card h1 {
-        margin: 12px 0 8px;
-        color: var(--ink);
-        font-family: var(--serif);
-        font-size: 30px;
-        font-style: italic;
-        line-height: .98;
-        letter-spacing: 0;
-      }
-      .parcours-error-card p {
-        margin: 0 0 20px;
-        color: var(--ink-2);
-        font-size: 13px;
-        font-weight: 700;
-        line-height: 1.45;
-      }
-      .parcours-kicker {
-        flex: 0 0 auto;
-        display: flex;
-        align-items: baseline;
-        justify-content: space-between;
-        gap: 12px;
-        padding: 15px 3px 0;
-        color: var(--ink-3);
-        font-size: 10px;
-        font-weight: 900;
-        letter-spacing: .16em;
-        text-transform: uppercase;
-      }
-      .parcours-kicker b {
-        color: var(--blue);
-        text-align: right;
-        letter-spacing: .09em;
-      }
-      .parcours-map {
-        position: relative;
-        flex: 0 0 auto;
-        height: clamp(510px, calc(var(--app-viewport-height) - var(--phone-topbar-height) - var(--phone-bottom-nav-space) - 132px), 610px);
-        min-height: 510px;
-        margin-top: 4px;
-        overflow: visible;
-      }
-      .parcours-lines {
-        position: absolute;
-        inset: 0;
-        width: 100%;
-        height: 100%;
-        pointer-events: none;
-      }
-      .parcours-lines path {
-        fill: none;
-        stroke-linecap: round;
-        stroke-linejoin: round;
-      }
-      .parcours-lines .solid {
-        stroke: var(--ink);
-        stroke-width: 4;
-      }
-      .parcours-lines .dotted {
-        stroke: var(--ink-3);
-        stroke-width: 3.2;
-        stroke-dasharray: 3 14;
-      }
       .week-ribbon {
         position: absolute;
         top: 4.5%;
@@ -5244,41 +4064,6 @@ function AtelierStyles() {
         font-weight: 500;
         letter-spacing: .16em;
         text-transform: uppercase;
-        white-space: nowrap;
-      }
-      .parcours-node,
-      .today-node,
-      .review-node,
-      .tomorrow-node {
-        position: absolute;
-        z-index: 2;
-        text-align: center;
-        color: var(--ink);
-        text-decoration: none;
-      }
-      .parcours-node b,
-      .today-node b,
-      .review-node b,
-      .tomorrow-node b {
-        display: block;
-        color: var(--ink-3);
-        font-size: 9px;
-        font-weight: 900;
-        letter-spacing: .09em;
-        line-height: 1;
-        text-transform: uppercase;
-      }
-      .parcours-node em,
-      .tomorrow-node em {
-        display: block;
-        margin-top: 5px;
-        color: var(--ink-3);
-        font-family: var(--serif);
-        font-size: 16px;
-        font-style: italic;
-        line-height: 1;
-        letter-spacing: 0;
-        text-transform: none;
         white-space: nowrap;
       }
       .node-check {
@@ -5317,17 +4102,6 @@ function AtelierStyles() {
         left: 75%;
         transform: translate(-50%, 0);
       }
-      .today-node {
-        top: 56%;
-        left: 26%;
-        border: 0;
-        background: transparent;
-        padding: 0;
-        cursor: pointer;
-      }
-      .today-node:disabled {
-        cursor: wait;
-      }
       .today-square {
         position: relative;
         width: 58px;
@@ -5353,36 +4127,6 @@ function AtelierStyles() {
         height: 17px;
         background: var(--ink);
       }
-      .story-ticket {
-        position: absolute;
-        z-index: 3;
-        top: 50%;
-        left: 43%;
-        width: min(208px, 54vw);
-        min-height: 108px;
-        border: 1.5px solid var(--ink);
-        background: var(--sheet);
-        color: var(--ink);
-        padding: 13px 14px 12px;
-        text-decoration: none;
-        box-shadow: 5px 5px 0 var(--ink);
-      }
-      .story-ticket.is-disabled {
-        color: var(--ink);
-        cursor: default;
-      }
-      .story-ticket::before {
-        content: "";
-        position: absolute;
-        left: -14px;
-        top: 43px;
-        width: 25px;
-        height: 25px;
-        border-left: 1.5px solid var(--ink);
-        border-bottom: 1.5px solid var(--ink);
-        background: var(--sheet);
-        transform: rotate(45deg);
-      }
       .story-rubric {
         display: block;
         color: var(--blue);
@@ -5390,16 +4134,6 @@ function AtelierStyles() {
         font-weight: 900;
         letter-spacing: .1em;
         text-transform: uppercase;
-      }
-      .story-ticket strong {
-        display: block;
-        margin-top: 8px;
-        font-family: var(--serif);
-        font-size: 21px;
-        font-style: italic;
-        font-weight: 700;
-        line-height: .98;
-        letter-spacing: 0;
       }
       .story-byline {
         display: flex;
@@ -5491,49 +4225,6 @@ function AtelierStyles() {
         border-radius: 999px;
         background: var(--paper);
       }
-      .parcours-primary-wrap {
-        flex: 0 0 auto;
-        padding: 4px 16px 20px;
-      }
-      .atelier-page .parcours-primary {
-        min-height: 58px;
-        width: 100%;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 12px;
-        border: 1.5px solid var(--ink);
-        border-radius: 17px;
-        background: var(--red);
-        color: #fff;
-        font-size: 15px;
-        font-weight: 900;
-        letter-spacing: .08em;
-        text-transform: uppercase;
-        text-decoration: none;
-      }
-      .atelier-page .parcours-primary.soft {
-        background: var(--sheet);
-        color: var(--ink);
-      }
-      .atelier-page .parcours-primary:disabled {
-        opacity: .58;
-        cursor: wait;
-      }
-      .atelier-page .parcours-primary svg {
-        width: 18px;
-        height: 18px;
-      }
-      .parcours-plan {
-        flex: 0 0 auto;
-        margin: 2px 0 20px;
-      }
-      .parcours-caught {
-        flex: 1 1 auto;
-        display: flex;
-        flex-direction: column;
-        padding-bottom: 24px;
-      }
       .caught-mark {
         width: 68px;
         height: 68px;
@@ -5548,24 +4239,6 @@ function AtelierStyles() {
       .caught-mark svg {
         width: 28px;
         height: 28px;
-      }
-      .parcours-caught h1 {
-        margin: 0 auto;
-        max-width: 300px;
-        text-align: center;
-        font-family: var(--serif);
-        font-size: 38px;
-        font-style: italic;
-        font-weight: 700;
-        line-height: 1;
-      }
-      .parcours-caught p {
-        max-width: 280px;
-        margin: 14px auto 0;
-        text-align: center;
-        color: var(--ink-2);
-        font-size: 14px;
-        line-height: 1.4;
       }
       .caught-ledger {
         margin: 28px 10px 0;
@@ -5615,36 +4288,6 @@ function AtelierStyles() {
       .caught-doors svg {
         width: 17px;
         height: 17px;
-      }
-      .ph-nav.three {
-        grid-template-columns: 1fr auto 1fr;
-        min-height: var(--phone-bottom-nav-space);
-        align-items: stretch;
-      }
-      .ph-nav .center-act {
-        align-self: center;
-        margin: 0 6px;
-        transform: translateY(-14px);
-        width: 70px;
-        height: 70px;
-        background: var(--red);
-        color: #fff;
-        border: 1.5px solid var(--ink);
-        box-shadow: 4px 4px 0 var(--ink);
-        display: grid;
-        place-items: center;
-        gap: 0;
-        text-decoration: none;
-      }
-      .ph-nav .center-act .lbl {
-        font-size: 8.5px;
-        font-weight: 900;
-        letter-spacing: .12em;
-        margin-top: 2px;
-      }
-      .ph-nav .center-act svg {
-        width: 22px;
-        height: 22px;
       }
       .edition {
         display: flex;
@@ -5713,29 +4356,6 @@ function AtelierStyles() {
       }
       .stamp .rules i.on {
         background: var(--ink);
-      }
-      .cefr-strip {
-        margin-top: 12px;
-        border: 1px solid var(--ink);
-        background: var(--sheet);
-        padding: 10px 12px;
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) minmax(180px, 44%);
-        gap: 14px;
-        align-items: center;
-      }
-      .cefr-strip strong {
-        display: block;
-        margin-top: 2px;
-        font-size: 16px;
-        line-height: 1.1;
-      }
-      .cefr-strip small {
-        display: block;
-        margin-top: 3px;
-        color: var(--ink-3);
-        font-size: 11px;
-        line-height: 1.25;
       }
       .cefr-bars {
         display: grid;
@@ -5823,7 +4443,7 @@ function AtelierStyles() {
       .plate.current {
         background: var(--yellow);
         color: var(--ink);
-        box-shadow: 6px 6px 0 var(--red);
+        box-shadow: inset 0 -3px 0 color-mix(in srgb, var(--red) 48%, transparent);
       }
       .plate.review.live {
         background: var(--red);
@@ -5908,32 +4528,6 @@ function AtelierStyles() {
       .foci .f.errata {
         color: var(--ink-2);
         border-left-color: var(--red);
-      }
-      .ph .cta {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 12px;
-        width: 100%;
-        min-height: 58px;
-        padding: 0 20px;
-        background: var(--red);
-        color: #fff;
-        border: 1.5px solid var(--ink);
-        box-shadow: 6px 6px 0 var(--ink);
-        text-decoration: none;
-        font-size: 14px;
-        font-weight: 900;
-        letter-spacing: .14em;
-        text-transform: uppercase;
-      }
-      .ph .cta svg {
-        width: 18px;
-        height: 18px;
-      }
-      .ph .cta:disabled {
-        opacity: .55;
-        cursor: wait;
       }
       .review-open-wrap {
         margin-top: 12px;
@@ -6089,7 +4683,7 @@ function AtelierStyles() {
       }
       .quest.recommended {
         background: var(--paper);
-        box-shadow: 5px 5px 0 var(--ink);
+        box-shadow: inset 4px 0 0 var(--red);
       }
       .quest.recommended::after {
         content: "";
@@ -6244,28 +4838,9 @@ function AtelierStyles() {
         transform: rotate(-3deg);
       }
       @media (max-width: 420px) {
-        .ph {
-          width: 100%;
-          max-width: var(--app-viewport-width);
-        }
-        .story-ticket {
-          left: 40%;
-          width: min(198px, 52vw);
-          padding: 12px 12px 11px;
-        }
-        .story-ticket::before {
-          left: -12px;
-          top: 39px;
-          width: 22px;
-          height: 22px;
-        }
         .story-rubric {
           font-size: 8px;
           letter-spacing: .09em;
-        }
-        .story-ticket strong {
-          font-size: 19px;
-          line-height: 1;
         }
         .story-byline {
           gap: 7px;
@@ -6315,7 +4890,6 @@ function AtelierStyles() {
         border: 2px solid var(--ink);
         background: var(--yellow);
         padding: clamp(20px, 4vw, 30px);
-        box-shadow: 10px 10px 0 var(--ink);
         overflow: hidden;
       }
       .roadmap-today-card.empty {
@@ -6449,7 +5023,7 @@ function AtelierStyles() {
         border: 2px solid var(--ink);
         background: var(--red);
         color: var(--paper);
-        box-shadow: 5px 5px 0 var(--ink);
+        box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--ink) 24%, transparent);
         font-family: var(--mono);
         font-size: 12px;
         font-weight: 900;
@@ -6460,12 +5034,12 @@ function AtelierStyles() {
       button.roadmap-primary-button:hover:not(:disabled),
       button.roadmap-retry-button:hover:not(:disabled) {
         transform: translate(-2px, -2px);
-        box-shadow: 7px 7px 0 var(--ink);
+        box-shadow: inset 0 -3px 0 color-mix(in srgb, var(--ink) 28%, transparent);
       }
       button.roadmap-primary-button:active:not(:disabled),
       button.roadmap-retry-button:active:not(:disabled) {
         transform: translate(2px, 2px);
-        box-shadow: 2px 2px 0 var(--ink);
+        box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--ink) 20%, transparent);
       }
       button.roadmap-primary-button:disabled {
         background: var(--ink-3);
@@ -6540,7 +5114,7 @@ function AtelierStyles() {
         border: 2px solid var(--ink);
         background: var(--paper);
         color: var(--ink);
-        box-shadow: 4px 4px 0 var(--ink);
+        box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--ink) 22%, transparent);
         font-family: var(--mono);
         font-size: 12px;
         font-weight: 900;
@@ -6556,7 +5130,7 @@ function AtelierStyles() {
         background: var(--yellow);
       }
       .roadmap-spine-node.recommended .roadmap-step-mark {
-        box-shadow: 7px 7px 0 var(--red);
+        box-shadow: inset 0 -3px 0 color-mix(in srgb, var(--red) 48%, transparent);
       }
       .roadmap-spine-node.review.recommended .roadmap-step-mark {
         background: var(--red);
@@ -6596,7 +5170,7 @@ function AtelierStyles() {
         color: var(--ink);
         padding: 16px;
         text-decoration: none;
-        box-shadow: 6px 6px 0 var(--ink);
+        box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--ink) 22%, transparent);
         transition: opacity .15s ease, transform .15s ease, box-shadow .15s ease;
       }
       .roadmap-branch-card::before {
@@ -6613,12 +5187,12 @@ function AtelierStyles() {
       .roadmap-branch-card.recommended {
         opacity: 1;
         background: var(--yellow);
-        box-shadow: 9px 9px 0 var(--red);
+        box-shadow: inset 5px 0 0 var(--red);
       }
       .roadmap-branch-card:hover {
         opacity: 1;
         transform: translate(-2px, -2px);
-        box-shadow: 8px 8px 0 var(--ink);
+        box-shadow: inset 0 -3px 0 color-mix(in srgb, var(--ink) 28%, transparent);
       }
       .roadmap-shape {
         width: 68px;
@@ -6798,74 +5372,6 @@ function AtelierStyles() {
         margin: 6px 0 14px;
         color: var(--ink-2);
       }
-      .edition-cover {
-        display: grid;
-        gap: 14px;
-        margin: 20px 0 18px;
-        padding: clamp(20px, 5vw, 34px) 0;
-        border: 1px solid var(--ink);
-        border-left: 0;
-        border-right: 0;
-        background: transparent;
-        box-shadow: none;
-      }
-      .edition-cover .cover-kicker {
-        color: var(--red);
-        font-family: var(--mono);
-        font-size: 10px;
-        font-weight: 900;
-        letter-spacing: .16em;
-        text-transform: uppercase;
-      }
-      .edition-cover h1 {
-        max-width: 13ch;
-        margin: 0;
-        font-family: var(--serif);
-        font-size: clamp(35px, 7vw, 58px);
-        font-style: italic;
-        font-weight: 400;
-        line-height: .94;
-        letter-spacing: 0;
-      }
-      .edition-cover .cta {
-        width: min(100%, 340px);
-        min-height: 58px;
-        justify-self: start;
-        border: 1px solid var(--ink);
-        background: var(--red);
-        color: #fff;
-        padding: 0 18px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 10px;
-        box-shadow: none;
-        font-family: var(--mono);
-        font-size: 11px;
-        font-weight: 900;
-        letter-spacing: .12em;
-        text-transform: uppercase;
-        transition: background var(--dur-fast) var(--ease-standard), color var(--dur-fast) var(--ease-standard);
-      }
-      .edition-cover .cta:hover:not(:disabled) {
-        background: var(--ink);
-      }
-      .edition-cover .cta:disabled {
-        opacity: .5;
-        cursor: wait;
-      }
-      .edition-cover .cover-meta {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px 14px;
-        color: var(--ink-3);
-        font-family: var(--mono);
-        font-size: 10px;
-        font-weight: 900;
-        letter-spacing: .1em;
-        line-height: 1.35;
-        text-transform: uppercase;
-      }
       .edition-serial {
         margin-top: var(--phone-section-gap);
       }
@@ -6884,9 +5390,9 @@ function AtelierStyles() {
       .edition-hero {
         display: grid; gap: 4px; width: 100%; text-align: left;
         border: 1px solid var(--ink); background: var(--paper);
-        box-shadow: 6px 6px 0 var(--ink); padding: 16px; cursor: pointer;
+        box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--ink) 22%, transparent); padding: 16px; cursor: pointer;
       }
-      .edition-hero:disabled { opacity: .5; cursor: not-allowed; box-shadow: 4px 4px 0 var(--ink); }
+      .edition-hero:disabled { opacity: .5; cursor: not-allowed; box-shadow: none; }
       .edition-hero-kicker {
         font-family: var(--mono); font-size: 9px; font-weight: 900;
         letter-spacing: .14em; text-transform: uppercase; color: var(--red);
@@ -6943,7 +5449,7 @@ function AtelierStyles() {
       }
       .also-card:hover:not(:disabled) {
         background: var(--paper);
-        box-shadow: 3px 3px 0 var(--ink);
+        box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--ink) 22%, transparent);
         transform: translate(-1px, -1px);
       }
       .also-card:disabled {
@@ -7010,7 +5516,7 @@ function AtelierStyles() {
         height: 18px;
         background: var(--blue);
         border: 1px solid var(--ink);
-        box-shadow: 3px 3px 0 var(--ink);
+        box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--ink) 22%, transparent);
         flex: 0 0 auto;
       }
       .today-plan {
@@ -7484,7 +5990,7 @@ function AtelierStyles() {
       .chat-bubble.incoming { justify-self: start; background: var(--paper-2); border-left: 4px solid var(--blue); }
       .chat-bubble .chat-who { display: block; font-family: var(--mono); font-size: 9px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin-bottom: 5px; }
       .chat-bubble p { margin: 0; font-family: var(--serif); font-style: italic; font-size: 22px; line-height: 1.4; }
-      .output-ladder-panel textarea.chat-reply { min-height: 100px; box-shadow: 5px 5px 0 var(--blue); }
+      .output-ladder-panel textarea.chat-reply { min-height: 100px; box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--blue) 30%, transparent); }
       .ladder-stage { display: grid; grid-template-columns: 1fr auto; gap: 24px; align-items: start; border-bottom: 2px solid var(--ink); padding-bottom: 18px; }
       .ladder-stage h3 { margin: 8px 0 6px; font-family: var(--display); font-size: 31px; letter-spacing: -.04em; line-height: .96; }
       .ladder-stage p, .example-answer { margin: 0; color: var(--ink-2); line-height: 1.45; }
@@ -7503,7 +6009,7 @@ function AtelierStyles() {
       .model-audio-button:hover { background: var(--paper-2); }
       .model-audio-button:disabled { opacity: .55; cursor: progress; }
       .spin { animation: spin .7s linear infinite; }
-      .output-ladder-panel textarea { min-height: 150px; resize: vertical; box-shadow: 5px 5px 0 var(--ink); }
+      .output-ladder-panel textarea { min-height: 150px; resize: vertical; box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--ink) 20%, transparent); }
       .output-speak textarea { min-height: 118px; }
       .output-conversation .live-block { border-left-color: var(--blue); }
       .produce-panel .live-block { border-left: 4px solid var(--yellow); padding: 14px 18px; background: var(--paper); }
@@ -7527,7 +6033,7 @@ function AtelierStyles() {
       .tutor-note p { font-size: 13px; line-height: 1.5; color: var(--ink-2); }
       .errata-column { display: grid; gap: 14px; }
       .empty-slip { border: 1px dashed var(--ink-3); padding: 20px 16px; }
-      .errata-slip { position: relative; background: var(--paper); border: 2px solid var(--ink); padding: 38px 18px 18px; box-shadow: 5px 5px 0 var(--ink); transform: rotate(-1deg); animation: slip-in .24s both; }
+      .errata-slip { position: relative; background: var(--paper); border: 2px solid var(--ink); padding: 38px 18px 18px; box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--ink) 20%, transparent); transform: rotate(-1deg); animation: slip-in .24s both; }
       .slip-label { position: absolute; top: -12px; left: 16px; background: var(--red); color: var(--paper); padding: 5px 12px; font-family: var(--mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; font-weight: 900; }
       .slip-num { position: absolute; right: 0; top: 0; background: var(--ink); color: var(--paper); padding: 4px 8px; font-family: var(--mono); font-size: 10px; }
       .errata-slip .wrong, .errata-slip .right { font-family: var(--serif); font-style: italic; font-size: 19px; line-height: 1.35; }
@@ -7538,7 +6044,7 @@ function AtelierStyles() {
       .slip-link { display: inline-block; margin: 10px 0 0; }
       .recap-overlay { position: fixed; inset: 0; background: rgba(20,17,13,.84); z-index: 1000; display: grid; place-items: center; padding: 28px; }
       .errata-review-overlay { z-index: 1010; }
-      .errata-review-modal { width: min(900px, 96vw); max-height: 90vh; overflow: auto; background: var(--paper); border: 2px solid var(--ink); position: relative; box-shadow: 8px 8px 0 var(--ink); }
+      .errata-review-modal { width: min(900px, 96vw); max-height: 90vh; overflow: auto; background: var(--paper); border: 2px solid var(--ink); position: relative; box-shadow: 0 18px 42px color-mix(in srgb, var(--ink) 24%, transparent); }
       .errata-review-modal header { padding: 28px 36px 20px; border-bottom: 2px solid var(--ink); display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; }
       .errata-review-modal h2 { margin: 8px 0 0; font-family: var(--display); font-size: 42px; line-height: .95; letter-spacing: -.04em; }
       .errata-review-body { display: grid; grid-template-columns: .9fr 1.1fr; gap: 28px; padding: 28px 36px 34px; }
@@ -7547,7 +6053,7 @@ function AtelierStyles() {
       .review-prompt { font-family: var(--serif); font-style: italic; font-size: 25px; line-height: 1.3; color: var(--ink) !important; }
       .review-memory { margin-top: 18px; border: 1px solid var(--ink); background: var(--paper-2); padding: 12px 14px; }
       .review-memory .wrong { margin-top: 6px; font-family: var(--serif); font-style: italic; color: var(--red); text-decoration: line-through; text-decoration-thickness: 2px; }
-      .errata-review-answer textarea { width: 100%; min-height: 150px; margin-top: 10px; border: 2px solid var(--ink); background: var(--paper); padding: 14px 16px; outline: none; resize: vertical; font-family: var(--serif); font-size: 22px; font-style: italic; box-shadow: 5px 5px 0 var(--ink); }
+      .errata-review-answer textarea { width: 100%; min-height: 150px; margin-top: 10px; border: 2px solid var(--ink); background: var(--paper); padding: 14px 16px; outline: none; resize: vertical; font-family: var(--serif); font-size: 22px; font-style: italic; box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--ink) 20%, transparent); }
       .review-result { margin-top: 18px; border-left: 4px solid var(--red); background: rgba(216,50,26,.06); padding: 12px 14px; color: var(--ink-2); line-height: 1.45; }
       .review-result.correct { border-left-color: var(--blue); background: rgba(29,58,138,.06); }
       .review-result p { margin: 6px 0 0; }
@@ -7568,7 +6074,7 @@ function AtelierStyles() {
         border: 2px solid var(--ink);
         background: var(--yellow);
         padding: 18px 20px;
-        box-shadow: 6px 6px 0 var(--ink);
+        box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--ink) 22%, transparent);
       }
       .recap-next h3 {
         margin: 8px 0 6px;
@@ -7765,28 +6271,9 @@ function AtelierStyles() {
           background-image: none;
           overflow-x: hidden;
         }
-        .cefr-strip {
-          grid-template-columns: 1fr;
-        }
         .spread {
           padding-left: 16px;
           padding-right: 16px;
-        }
-        .ph-body {
-          padding-left: 18px;
-          padding-right: 18px;
-        }
-        .edition-cover {
-          width: 100%;
-          max-width: 100%;
-          box-shadow: none;
-        }
-        .edition-cover h1 {
-          max-width: 12ch;
-        }
-        .edition-cover .cta {
-          width: 100%;
-          max-width: 100%;
         }
         .today-spread {
           padding-top: 16px;
@@ -7807,7 +6294,7 @@ function AtelierStyles() {
           min-height: 430px;
           margin: 0 auto;
           padding: 20px;
-          box-shadow: 7px 7px 0 var(--ink);
+          box-shadow: inset 0 -3px 0 color-mix(in srgb, var(--ink) 28%, transparent);
         }
         .roadmap-today-top {
           font-size: 10px;
@@ -7841,7 +6328,7 @@ function AtelierStyles() {
         .roadmap-step-mark {
           width: 54px;
           height: 54px;
-          box-shadow: 3px 3px 0 var(--ink);
+          box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--ink) 22%, transparent);
         }
         .roadmap-spine-rail {
           left: 27px;
@@ -7859,7 +6346,7 @@ function AtelierStyles() {
           grid-template-columns: 58px minmax(0, 1fr);
           min-height: 112px;
           padding: 14px;
-          box-shadow: 4px 4px 0 var(--ink);
+          box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--ink) 22%, transparent);
         }
         .roadmap-shape {
           width: 52px;
@@ -8349,7 +6836,7 @@ function AtelierStyles() {
           grid-template-columns: 1fr;
           gap: 14px;
           padding: 16px;
-          box-shadow: 4px 4px 0 var(--ink);
+          box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--ink) 22%, transparent);
         }
         .recap-next h3 {
           font-size: 26px;

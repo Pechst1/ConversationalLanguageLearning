@@ -1,0 +1,109 @@
+{
+  "fixture": "empty_queue",
+  "contract_version": 1,
+  "endpoint": "/api/v1/daily-journeys/{id}",
+  "method": "GET",
+  "http_status": 200,
+  "response": {
+    "id": "00000000-0000-4000-8000-000000000003",
+    "contract_version": 1,
+    "revision": 1,
+    "status": "active",
+    "local_date": "2026-09-05",
+    "timezone": "Europe/Paris",
+    "budget_seconds": 300,
+    "estimated_active_seconds": 219,
+    "current_step_id": "00000000-0000-4000-9000-000003000000",
+    "scenario": {
+      "scenario_key": "order_at_cafe",
+      "content_version": "journey-content-v1",
+      "title_fr": "Un café au Mistral",
+      "objective_key": "order_at_cafe.counter_drink",
+      "objective_native": "Order a hot drink at the counter and say where you want to sit.",
+      "level_band": "A1",
+      "character_id": "margaux_barman",
+      "character_name": "Margaux",
+      "location_id": "le_mistral",
+      "location_name": "Le Mistral",
+      "image_url": "/assets/serial/locations/le_mistral-counter.webp",
+      "serial_thread_id": null,
+      "serial_episode_id": null,
+      "estimated_seconds": 264
+    },
+    "steps": [
+      {
+        "id": "00000000-0000-4000-9000-000003000000",
+        "ordinal": 0,
+        "kind": "scene",
+        "status": "active",
+        "estimated_seconds": 40,
+        "assistance_used": [],
+        "prompt": {
+          "setup_fr": "Il pleut sur le canal. Tu pousses la porte du Mistral. Margaux essuie le zinc.",
+          "setup_native": "It is raining on the canal. You push open the door of Le Mistral. Margaux is wiping down the zinc counter.",
+          "objective_native": "Order a hot drink at the counter and say where you want to sit.",
+          "character_line_fr": "Tiens, bonjour ! Vous vous installez ou c'est à emporter ?",
+          "character_line_audio_url": null,
+          "image_url": "/assets/serial/locations/le_mistral-counter.webp"
+        }
+      },
+      {
+        "id": "00000000-0000-4000-9000-000003000002",
+        "ordinal": 1,
+        "kind": "respond",
+        "status": "pending",
+        "estimated_seconds": 120,
+        "assistance_used": [],
+        "prompt": {
+          "turn_index": 0,
+          "max_turns": 2,
+          "repair_allowed": true,
+          "character_id": "margaux_barman",
+          "character_name": "Margaux",
+          "character_line_fr": "Alors, qu'est-ce que je vous sers ?",
+          "character_line_audio_url": null,
+          "objective_native": "Say what you would like to drink and where you want to sit.",
+          "input_modes": [
+            "text",
+            "voice"
+          ],
+          "targets": [
+            {
+              "kind": "vocabulary",
+              "id": "00000000-0000-4000-a000-000000000001",
+              "label_fr": "un café",
+              "label_native": "a coffee"
+            },
+            {
+              "kind": "grammar",
+              "id": "00000000-0000-4000-a000-000000000002",
+              "label_fr": "s'il vous plaît",
+              "label_native": "polite request"
+            }
+          ],
+          "help_available": [
+            "hint",
+            "translation",
+            "suggested_response"
+          ]
+        }
+      },
+      {
+        "id": "00000000-0000-4000-9000-000003000003",
+        "ordinal": 2,
+        "kind": "resolution",
+        "status": "pending",
+        "estimated_seconds": 59,
+        "assistance_used": [],
+        "prompt": {
+          "outcome_key": "served_at_counter",
+          "character_line_fr": "Voilà pour vous, au comptoir. Je vous l'apporte.",
+          "summary_native": "Margaux served your order at the counter.",
+          "image_url": "/assets/serial/locations/le_mistral-counter.webp"
+        }
+      }
+    ],
+    "recap": null,
+    "retry": null
+  }
+}

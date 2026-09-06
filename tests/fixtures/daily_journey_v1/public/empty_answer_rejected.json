@@ -1,0 +1,13 @@
+{
+  "fixture": "empty_answer_rejected",
+  "contract_version": 1,
+  "endpoint": "/api/v1/daily-journeys/{id}/steps/{step_id}/attempts",
+  "method": "POST",
+  "http_status": 422,
+  "response": {
+    "detail": {
+      "code": "empty_answer",
+      "message": "Write or say something first."
+    }
+  }
+}
