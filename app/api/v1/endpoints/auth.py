@@ -28,8 +28,8 @@ from app.services.auth import (
 )
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-PASSWORD_RESET_REQUEST_MESSAGE = (
-    "If an account exists for that email, a password reset link will be sent shortly."
+PASSWORD_RESET_REQUEST_MESSAGE = (  # noqa: S105 - response text, not a credential
+    "If an account exists for that email, a password reset link will be sent shortly."  # noqa: S105
 )
 
 

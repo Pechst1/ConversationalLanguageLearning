@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 ATELIER_PAGE = ROOT / "web-frontend" / "pages" / "atelier.tsx"
 
@@ -17,7 +16,7 @@ def test_word_bank_mode_uses_clickable_sentence_tokens_and_answer_field() -> Non
 
     # The word-bank chips are now the L'Épreuve "movable type" set line
     # (EpSetLine/EpSlug) instead of a plain button grid + joined-text input.
-    assert "{ id: 'word_bank', label: 'Word-bank', short: 'C' }" in source
+    assert "{ id: 'word_bank', label: 'Banque de mots', short: 'C' }" in source
     assert "mode === 'word_bank'" in source
     assert "sourceTokens.map((token: string, tokenIndex: number) => {" in source
     assert "onClick={() => updateAnswer(item.id, [...wordBankTokens, token])}" in source
@@ -55,7 +54,9 @@ def test_atelier_page_does_not_render_old_hardcoded_exercise_fallbacks() -> None
     assert "Si je finis tôt, je t’appellerai." not in source
     assert "Le Tour de France 2026 partira de Barcelone le 4 juillet." not in source
     assert "Use the x-ray and the rule panel as the proofing reference while you answer." not in source
-    assert "Session content unavailable." in source
+    # The unavailable notice lives on the load-error shell since the 2026-08-31
+    # dead-code excision removed the unused AtelierLoadNotice duplicate.
+    assert "L’Atelier est indisponible pour le moment." in source
     # French copy per the L'Épreuve language rule (in-fiction chrome is French).
     assert "La consigne de composition est indisponible." in source
 
@@ -77,8 +78,8 @@ def test_atelier_ai_review_is_polled_without_blocking_next_step() -> None:
     assert "scheduleAiReviewPolling(result.attempt_id, key)" in source
     assert "apiService.getAtelierAttempt(attemptId)" in source
     assert "}, 2000)" in source
-    assert "AI reviewing" in source
-    assert "AI correction ready" in source
-    assert "AI correction" in source
-    assert "AI unavailable" in source
+    assert "Relecture automatique" in source
+    assert "Relecture terminée" in source
+    assert "Relecture automatique lancée" in source
+    assert "La relecture automatique est indisponible." in source
     assert "disabled={submitting || nextDisabled}" in source

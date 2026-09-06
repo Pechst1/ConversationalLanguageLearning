@@ -1,7 +1,7 @@
 """Atelier grammar practice API."""
 from __future__ import annotations
 
-from datetime import datetime, time, timedelta, timezone
+from datetime import UTC, datetime, time, timedelta
 from typing import Any
 from uuid import UUID
 
@@ -11,9 +11,13 @@ from pydantic import BaseModel, ValidationError
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_db
+from app.api.deps import get_db, harden_demo_user_password
 from app.config import settings
-from app.core.security import InvalidTokenError, decode_token
+from app.core.security import (
+    InvalidTokenError,
+    decode_token,
+    get_unusable_password_hash,
+)
 from app.db.models.atelier import (
     AtelierAttempt,
     AtelierExerciseSet,
@@ -21,9 +25,10 @@ from app.db.models.atelier import (
     AtelierSession,
 )
 from app.db.models.error import UserError
-from app.db.models.grammar import GrammarConcept, UserGrammarProgress
+from app.db.models.grammar import GrammarConcept, GrammarConceptLocalization, UserGrammarProgress
 from app.db.models.graphic_novel import GraphicNovelScene
 from app.db.models.mission import RealWorldMission
+from app.db.models.pilot_event import PilotEvent
 from app.db.models.progress import UserVocabularyProgress
 from app.db.models.serial import SerialThread
 from app.db.models.user import User
@@ -31,8 +36,8 @@ from app.schemas import TokenPayload
 from app.schemas.atelier import (
     AtelierActiveSessionResponse,
     AtelierAlmanacResponse,
-    AtelierAttemptRequest,
     AtelierAttemptRepairRequest,
+    AtelierAttemptRequest,
     AtelierAttemptResponse,
     AtelierCompleteResponse,
     AtelierConceptRead,
@@ -51,13 +56,18 @@ from app.schemas.atelier import (
 )
 from app.services.atelier import (
     ATELIER_GENERATOR_VERSION,
+    ATELIER_ITEMS_PER_RECOGNIZE_MODE,
+    ATELIER_TRANSFORM_ITEMS,
     AtelierCorrectionService,
     AtelierExerciseGenerationError,
     AtelierExerciseQualityService,
     AtelierScheduler,
     AtelierSRSService,
     ConceptSelection,
+    estimate_session_minutes,
+    fr_localizations_by_concept_id,
     inject_vocabulary_context,
+    planned_session_drills,
     pregenerate_next_atelier_session,
     run_atelier_ai_review,
     select_atelier_vocabulary,
@@ -72,6 +82,7 @@ from app.services.book_library import BookLibraryService
 from app.services.cefr_progress import CEFRProgressService
 from app.services.error_memory import ErrorMemoryService
 from app.services.missions import MissionConversationService
+from app.services.pilot_events import PilotEventService
 from app.services.progress import vocabulary_due_filter
 from app.services.serial import SerialThreadService
 
@@ -108,7 +119,7 @@ def _serial_conversation_context(db: Session, user: User) -> dict[str, Any] | No
     if not character:
         character = max(
             cast,
-            key=lambda member: int(((member.get("relationship") or {}).get("closeness") or 0)),
+            key=lambda member: int((member.get("relationship") or {}).get("closeness") or 0),
         )
     relationship = character.get("relationship") if isinstance(character.get("relationship"), dict) else {}
     register = str(relationship.get("register") or "vous").lower()
@@ -144,11 +155,53 @@ def _serial_conversation_context(db: Session, user: User) -> dict[str, Any] | No
     }
 
 
+def _fr_concept_title(
+    concept: GrammarConcept,
+    fr_localizations: dict[int, GrammarConceptLocalization] | None = None,
+) -> str:
+    """The publication title for a concept, falling back to the catalog name."""
+    localization = (fr_localizations or {}).get(concept.id)
+    return str((localization.title if localization else None) or concept.name or "")
+
+
+def _with_fr_titles(
+    payload: dict[str, Any],
+    *,
+    concept: GrammarConcept,
+    fr_localizations: dict[int, GrammarConceptLocalization] | None,
+) -> dict[str, Any]:
+    """Give the exercise-set payload the same French titles as the concept list.
+
+    Exercise sets are generated once and shared across learners, so the stored
+    payload carries the English catalog name in `concept.title_fr` and in
+    `rule_panel.title`. L'Épreuve reads both (the rule sheet's heading and the
+    correction's rule line), so localize them on the way out instead of writing
+    a learner's language into shared content.
+    """
+    localization = (fr_localizations or {}).get(concept.id)
+    title_fr = _fr_concept_title(concept, fr_localizations)
+    next_payload = dict(payload)
+    payload_concept = next_payload.get("concept")
+    if isinstance(payload_concept, dict):
+        next_payload["concept"] = {
+            **payload_concept,
+            "title_fr": title_fr,
+            "category_label_fr": str(
+                (localization.category_label if localization else None) or concept.category or ""
+            ),
+        }
+    rule_panel = next_payload.get("rule_panel")
+    if isinstance(rule_panel, dict):
+        next_payload["rule_panel"] = {**rule_panel, "title": title_fr}
+    return next_payload
+
+
 def _with_serial_conversation(
     payload: dict[str, Any],
     *,
     context: dict[str, Any] | None,
     concept: GrammarConcept,
+    fr_localizations: dict[int, GrammarConceptLocalization] | None = None,
 ) -> dict[str, Any]:
     if not context:
         return payload
@@ -161,7 +214,12 @@ def _with_serial_conversation(
     register = str(character.get("register") or "vous")
     items[0].update(
         {
-            "prompt": f"{context['opener']} Répondez à {character.get('name') or 'ce personnage'} en utilisant « {concept.name} » de façon naturelle.",
+            # The concept is quoted inside a French instruction, so quote the
+            # French title -- the catalog name is an internal English label.
+            "prompt": (
+                f"{context['opener']} Répondez à {character.get('name') or 'ce personnage'} "
+                f"en utilisant « {_fr_concept_title(concept, fr_localizations)} » de façon naturelle."
+            ),
             "character": character,
             "serial_context": {
                 "thread_id": context["thread_id"],
@@ -210,11 +268,11 @@ def _atelier_day_progress(
     *,
     errata_due: int,
     library_episode: dict[str, Any] | None = None,
-    is_first_session: bool = False,
+    concept_count: int = 0,
 ) -> dict[str, Any]:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     today = now.date()
-    start = datetime.combine(today, time.min, tzinfo=timezone.utc)
+    start = datetime.combine(today, time.min, tzinfo=UTC)
     vocabulary_due = (
         db.query(func.count(UserVocabularyProgress.id))
         .filter(UserVocabularyProgress.user_id == user.id)
@@ -243,14 +301,38 @@ def _atelier_day_progress(
         .first()
         is not None
     )
+    # Speaking is the habit the app is named for, so the day plan has to carry it.
+    # A finished voice call files exactly one `plan_completed` pilot event for an
+    # audio_session, which is the honest "spoke today" signal (LearningSession
+    # rows are shared with the legacy text flow and cannot be told apart).
+    studio_done = (
+        db.query(PilotEvent.id)
+        .filter(
+            PilotEvent.user_id == user.id,
+            PilotEvent.event_type == "plan_completed",
+            PilotEvent.entity_type == "audio_session",
+            PilotEvent.occurred_at >= start,
+        )
+        .first()
+        is not None
+    )
     level = str(getattr(user, "proficiency_level", None) or "A2").upper()
     review_minutes = 4 if errata_due else 0
     vocabulary_minutes = 4 if vocabulary_due else 0
-    session_minutes = 3 if is_first_session else 8 if level in {"BEGINNER", "A1", "A2"} else 10
+    # The session estimate is derived from the drills the session will really
+    # contain, at this learner's own measured pace -- not from a level bucket.
+    # A first session is one concept by construction (AtelierScheduler.
+    # concept_limit), so it needs no special case here.
+    session_minutes = estimate_session_minutes(db, user=user, concept_count=concept_count)
     mission_minutes = 5 if level in {"BEGINNER", "A1", "A2"} else 7
     feuilleton_minutes = 5 if level in {"BEGINNER", "A1", "A2"} else 6
     library_minutes = int((library_episode or {}).get("est_reading_minutes") or 4)
+    studio_minutes = 5
     mission_suggested = today.weekday() in {0, 2, 4}
+    # Written missions take Mon/Wed/Fri; the voice studio takes the days between,
+    # so speaking is prescribed rather than merely available. Both stay optional
+    # -- `suggested` only decides whether the day plan proposes it.
+    studio_suggested = not mission_suggested
     nodes = []
     if vocabulary_due > 0:
         nodes.append(
@@ -264,13 +346,26 @@ def _atelier_day_progress(
         )
     nodes.extend([
         {"id": "review", "label": "Repair", "estimatedMinutes": review_minutes, "done": errata_due == 0},
-        {"id": "session", "label": "Session", "estimatedMinutes": session_minutes, "done": session_done},
+        {
+            "id": "session",
+            "label": "Session",
+            "estimatedMinutes": session_minutes,
+            "plannedDrills": planned_session_drills(concept_count),
+            "done": session_done,
+        },
         {
             "id": "mission",
             "label": "Act",
             "estimatedMinutes": mission_minutes,
             "done": mission_done,
             "suggested": mission_suggested,
+        },
+        {
+            "id": "studio",
+            "label": "Studio",
+            "estimatedMinutes": studio_minutes,
+            "done": studio_done,
+            "suggested": studio_suggested,
         },
     ])
     if library_episode is not None:
@@ -294,8 +389,12 @@ def _atelier_day_progress(
         "libraryDone": library_episode is None,
         "librarySuggested": library_episode is not None,
         "feuilletonDone": feuilleton_done,
+        "studioDone": studio_done,
+        "studioSuggested": studio_suggested,
         "sessionDone": session_done,
-        "timeBudgetMinutes": int(getattr(user, "daily_goal_minutes", None) or 20),
+        "timeBudgetMinutes": int(
+            15 if getattr(user, "daily_goal_minutes", None) is None else user.daily_goal_minutes
+        ),
         "estimatedTotalMinutes": total_minutes,
         "estimatedRemainingMinutes": max(0, total_minutes - done_minutes),
         "nodes": nodes,
@@ -334,11 +433,11 @@ def get_atelier_user(
 
     user = db.query(User).filter(User.email == ATELIER_DEMO_EMAIL).first()
     if user:
-        return user
+        return harden_demo_user_password(db, user)
 
     user = User(
         email=ATELIER_DEMO_EMAIL,
-        hashed_password="atelier-demo",
+        hashed_password=get_unusable_password_hash(),
         full_name="Atelier Demo",
         native_language="en",
         target_language="fr",
@@ -356,8 +455,12 @@ def _concept_read(
     selection: ConceptSelection,
     due_errata_by_concept: dict[int, list[dict[str, Any]]] | None = None,
     asset_service: AtelierAssetService | None = None,
+    fr_localizations: dict[int, GrammarConceptLocalization] | None = None,
 ) -> AtelierConceptRead:
-    data = serialize_concept(selection.concept)
+    data = serialize_concept(
+        selection.concept,
+        fr_localization=(fr_localizations or {}).get(selection.concept.id),
+    )
     data["role"] = selection.role
     data["mastery"] = selection.progress.score if selection.progress else 0
     data["next_review"] = (
@@ -406,6 +509,38 @@ def _attempt_response(
     )
 
 
+ADAPTIVE_LOCK_CLEAN_RECOGNIZE_ITEMS = 3
+ADAPTIVE_LOCK_CLEAN_TRANSFORM_ITEMS = 2
+
+
+def _clean_rung_attempts(
+    db: Session,
+    *,
+    session: AtelierSession,
+    concept: GrammarConcept,
+    round_name: str,
+) -> list[AtelierAttempt] | None:
+    """This concept's attempts on a rung, or None if any of them was not clean."""
+    attempts = list(
+        db.query(AtelierAttempt)
+        .filter(
+            AtelierAttempt.atelier_session_id == session.id,
+            AtelierAttempt.concept_id == concept.id,
+            AtelierAttempt.round == round_name,
+        )
+        .order_by(AtelierAttempt.created_at.asc(), AtelierAttempt.id.asc())
+        .all()
+    )
+    if any(
+        candidate.verdict != "correct"
+        or float(candidate.score_0_4 or 0) < 4
+        or (candidate.correction_payload or {}).get("errata")
+        for candidate in attempts
+    ):
+        return None
+    return attempts
+
+
 def _maybe_apply_adaptive_lock(
     db: Session,
     *,
@@ -413,42 +548,60 @@ def _maybe_apply_adaptive_lock(
     concept: GrammarConcept | None,
     attempt: AtelierAttempt,
 ) -> dict[str, Any] | None:
-    """Lock the unused recognition modes after three genuinely clean items."""
-    if not concept or attempt.round != "recognize":
+    """Retire the rungs a learner has already proved, mid-session.
+
+    Recognition: three genuinely clean items retire the unused recognition modes.
+    Transform: two clean rewrites retire the rest of the transform rung, which is
+    the same evidence bar applied to production rather than recognition.
+
+    Returns the updated lock only when it newly retires something, so the client
+    can announce the skip; the lock itself is persisted on the session so a
+    resumed session (`_submitted_map`) agrees with the client's ladder.
+    """
+    if not concept or attempt.round not in {"recognize", "transform"}:
         return None
     locks = _adaptive_locks(session)
-    if str(concept.id) in locks:
+    existing = dict(locks.get(str(concept.id)) or {})
+    skipped_modes = list(existing.get("skipped_modes") or [])
+    skipped_rounds = list(existing.get("skipped_rounds") or [])
+    lock = dict(existing)
+    retired_now = 0
+
+    if attempt.round == "recognize" and not skipped_modes:
+        clean = _clean_rung_attempts(db, session=session, concept=concept, round_name="recognize")
+        if clean is not None and len(clean) >= ADAPTIVE_LOCK_CLEAN_RECOGNIZE_ITEMS:
+            seen_modes = {candidate.mode for candidate in clean}
+            earned = [mode for mode in ("fill", "classify", "word_bank") if mode not in seen_modes]
+            if earned:
+                lock["skipped_modes"] = earned
+                lock["clean_recognize_items"] = len(clean)
+                retired_now += len(earned) * ATELIER_ITEMS_PER_RECOGNIZE_MODE
+
+    if attempt.round == "transform" and "transform" not in skipped_rounds:
+        clean = _clean_rung_attempts(db, session=session, concept=concept, round_name="transform")
+        # Nothing to retire once the learner has worked the whole rung anyway.
+        if (
+            clean is not None
+            and ADAPTIVE_LOCK_CLEAN_TRANSFORM_ITEMS <= len(clean) < ATELIER_TRANSFORM_ITEMS
+        ):
+            lock["skipped_rounds"] = [*skipped_rounds, "transform"]
+            lock["clean_transform_items"] = len(clean)
+            retired_now += ATELIER_TRANSFORM_ITEMS - len(clean)
+
+    if not retired_now:
         return None
-    recognition_attempts = list(
-        db.query(AtelierAttempt)
-        .filter(
-            AtelierAttempt.atelier_session_id == session.id,
-            AtelierAttempt.concept_id == concept.id,
-            AtelierAttempt.round == "recognize",
-        )
-        .order_by(AtelierAttempt.created_at.asc(), AtelierAttempt.id.asc())
-        .all()
+
+    lock.update(
+        {
+            "concept_id": concept.id,
+            "title": concept.name,
+            # What this moment just retired (what the learner is told), versus the
+            # concept's running total across both rungs (session accounting).
+            "retired_now": retired_now,
+            "retired_drills": int(existing.get("retired_drills") or 0) + retired_now,
+            "earned_at": datetime.now(UTC).isoformat(),
+        }
     )
-    if len(recognition_attempts) < 3:
-        return None
-    if any(
-        candidate.verdict != "correct"
-        or float(candidate.score_0_4 or 0) < 4
-        or (candidate.correction_payload or {}).get("errata")
-        for candidate in recognition_attempts
-    ):
-        return None
-    seen_modes = {candidate.mode for candidate in recognition_attempts}
-    skipped_modes = [mode for mode in ("fill", "classify", "word_bank") if mode not in seen_modes]
-    if not skipped_modes:
-        return None
-    lock = {
-        "concept_id": concept.id,
-        "title": concept.name,
-        "skipped_modes": skipped_modes,
-        "clean_recognize_items": len(recognition_attempts),
-        "earned_at": datetime.now(timezone.utc).isoformat(),
-    }
     quote = dict(session.quote_payload or {})
     next_locks = dict(locks)
     next_locks[str(concept.id)] = lock
@@ -577,7 +730,7 @@ def _next_scheduled_focus(
     *,
     current_concept_ids: set[int],
 ) -> dict[str, Any] | None:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     query = (
         db.query(GrammarConcept, UserGrammarProgress)
         .join(UserGrammarProgress, UserGrammarProgress.concept_id == GrammarConcept.id)
@@ -618,8 +771,8 @@ def _atelier_parcours_summary(
     selections: list[ConceptSelection],
     asset_service: AtelierAssetService,
 ) -> dict[str, Any]:
-    today = datetime.now(timezone.utc).date()
-    today_start = datetime.combine(today, time.min, tzinfo=timezone.utc)
+    today = datetime.now(UTC).date()
+    today_start = datetime.combine(today, time.min, tzinfo=UTC)
     current_concept_ids = {selection.concept.id for selection in selections}
     today_concepts = [
         _concept_focus_payload(selection.concept, asset_service, selection.progress)
@@ -715,6 +868,10 @@ def _submitted_map(
     for concept_id, lock in (adaptive_locks or {}).items():
         for mode in lock.get("skipped_modes") or []:
             submitted[_attempt_key("recognize", str(mode), int(concept_id))] = True
+        # A retired rung counts as settled for resume and for progress, so the
+        # learner is never walked back into work they earned their way out of.
+        for round_name in lock.get("skipped_rounds") or []:
+            submitted[_attempt_key(str(round_name), str(round_name), int(concept_id))] = True
     return submitted
 
 
@@ -818,6 +975,7 @@ def _session_response(
     exercise_sets: list[dict[str, Any]] = []
     target_vocabulary = session_vocabulary_context(session)
     serial_conversation = _serial_conversation_context(db, user)
+    fr_localizations = fr_localizations_by_concept_id(db, (selection.concept.id for selection in selections))
     for concept_index, selection in enumerate(selections):
         try:
             exercise_set = session_exercise_set(
@@ -843,6 +1001,12 @@ def _session_response(
             payload,
             context=serial_conversation,
             concept=selection.concept,
+            fr_localizations=fr_localizations,
+        )
+        payload = _with_fr_titles(
+            payload,
+            concept=selection.concept,
+            fr_localizations=fr_localizations,
         )
         exercise_sets.append(
             {
@@ -857,7 +1021,9 @@ def _session_response(
     return AtelierSessionStartResponse(
         session_id=session.id,
         status=session.status,
-        concepts=[_concept_read(selection, due_by_concept, asset_service) for selection in selections],
+        concepts=[
+            _concept_read(selection, due_by_concept, asset_service, fr_localizations) for selection in selections
+        ],
         quote=session.quote_payload or scheduler.quote_for_today(),
         exercise_sets=exercise_sets,
         attempts=[_attempt_read(attempt) for attempt in attempts],
@@ -895,6 +1061,9 @@ async def get_today(
     due_errata = scheduler.due_errata(current_user)
     due_by_concept = _errata_by_concept(due_errata)
     summary = scheduler.summary(current_user)
+    summary["learning_motivation"] = str(getattr(current_user, "learning_motivation", "") or "")
+    summary["speaking_comfort"] = str(getattr(current_user, "speaking_comfort", "warming_up") or "warming_up")
+    summary["first_session"] = scheduler.is_first_session(current_user)
     summary["due_errata"] = len(due_errata)
     parcours = _atelier_parcours_summary(db, current_user, selections, asset_service)
     summary["parcours"] = parcours
@@ -905,7 +1074,7 @@ async def get_today(
     if parcours.get("next"):
         summary["next_focus"] = parcours["next"]
         scheduled_at = str((parcours["next"] or {}).get("scheduled_at") or "")
-        if scheduled_at.startswith((datetime.now(timezone.utc).date() + timedelta(days=1)).isoformat()):
+        if scheduled_at.startswith((datetime.now(UTC).date() + timedelta(days=1)).isoformat()):
             summary["tomorrow_focus"] = parcours["next"]
     serial_episode = await SerialThreadService(db).today(current_user) if settings.SERIAL_WORLD_ENABLED else None
     library_episode = _atelier_library_episode(db, current_user)
@@ -914,11 +1083,14 @@ async def get_today(
         current_user,
         errata_due=len(due_errata),
         library_episode=library_episode,
-        is_first_session=scheduler.is_first_session(current_user),
+        concept_count=len(selections),
     )
     cefr = CEFRProgressService(db).current(current_user)
+    fr_localizations = fr_localizations_by_concept_id(db, (selection.concept.id for selection in selections))
     return AtelierTodayResponse(
-        concepts=[_concept_read(selection, due_by_concept, asset_service) for selection in selections],
+        concepts=[
+            _concept_read(selection, due_by_concept, asset_service, fr_localizations) for selection in selections
+        ],
         quote=scheduler.quote_for_today(),
         summary=summary,
         atlas=scheduler.atlas(current_user),
@@ -1072,6 +1244,24 @@ def start_session(
         recap_payload={},
     )
     db.add(session)
+    PilotEventService(db).record(
+        "plan_started",
+        user_id=current_user.id,
+        entity_type="atelier_session",
+        entity_id=session.id,
+        payload={
+            "concept_ids": list(session.selected_concept_ids or []),
+            "adjusted": bool(payload and (payload.concept_ids or payload.preferred_concept_id)),
+        },
+    )
+    if payload and (payload.concept_ids or payload.preferred_concept_id):
+        PilotEventService(db).record(
+            "plan_adjusted",
+            user_id=current_user.id,
+            entity_type="atelier_session",
+            entity_id=session.id,
+            payload={"concept_ids": list(session.selected_concept_ids or [])},
+        )
     db.commit()
     db.refresh(session)
     response = _session_response(db, current_user, session, fast_path=True, background_tasks=background_tasks)
@@ -1368,6 +1558,14 @@ def complete_session(
     recap = AtelierSRSService(db).complete_session(session=session, user=current_user)
     minted = AtelierRewardService(db).mint_gilt_seal_for_session(session)
     CEFRProgressService(db).recompute(current_user, source="atelier_session_complete")
+    PilotEventService(db).record(
+        "plan_completed",
+        user_id=current_user.id,
+        entity_type="atelier_session",
+        entity_id=session.id,
+        payload={"recap": recap},
+    )
+    db.commit()
     return AtelierCompleteResponse(session_id=session.id, recap=recap, minted_collectibles=minted)
 
 
@@ -1390,6 +1588,14 @@ def review_erratum(
     )
     if not error:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Atelier erratum not found")
+    if payload.repaired:
+        PilotEventService(db).record(
+            "erratum_repair",
+            user_id=current_user.id,
+            entity_type="user_error",
+            entity_id=error_id,
+            payload={"repaired": True, "rating": payload.rating, "source": "review"},
+        )
     db.commit()
     db.refresh(error)
     return AtelierErrataReviewResponse(erratum=serialize_erratum_record(error))
@@ -1421,6 +1627,13 @@ def submit_erratum_review_attempt(
     )
     if not result:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Atelier erratum not found")
+    PilotEventService(db).record(
+        "erratum_repair",
+        user_id=current_user.id,
+        entity_type="user_error",
+        entity_id=error_id,
+        payload={"repaired": bool(result.get("repaired")), "verdict": result.get("verdict")},
+    )
     db.commit()
     return AtelierErrataAttemptResponse(**result)
 

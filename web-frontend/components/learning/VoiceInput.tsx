@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { getAppAccessToken } from '@/lib/app-auth';
+import { audioUploadFilename, createAudioMediaRecorder, recordedAudioBlob } from '@/lib/audio-recording';
 import { resolveBrowserApiBaseUrl } from '@/services/api';
 import { Mic, Square, Loader2 } from 'lucide-react';
 
@@ -17,7 +18,7 @@ export default function VoiceInput({ onTranscript, disabled }: VoiceInputProps) 
     const startRecording = async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            const mediaRecorder = new MediaRecorder(stream);
+            const mediaRecorder = createAudioMediaRecorder(stream);
             mediaRecorderRef.current = mediaRecorder;
             chunksRef.current = [];
 
@@ -28,7 +29,7 @@ export default function VoiceInput({ onTranscript, disabled }: VoiceInputProps) 
             };
 
             mediaRecorder.onstop = async () => {
-                const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' });
+                const audioBlob = recordedAudioBlob(chunksRef.current, mediaRecorder);
                 await processAudio(audioBlob);
 
                 // Stop all tracks
@@ -53,7 +54,7 @@ export default function VoiceInput({ onTranscript, disabled }: VoiceInputProps) 
         setIsProcessing(true);
         try {
             const formData = new FormData();
-            formData.append('file', blob, 'recording.webm');
+            formData.append('file', blob, audioUploadFilename(blob, 'recording'));
 
             const token = await getAppAccessToken();
 

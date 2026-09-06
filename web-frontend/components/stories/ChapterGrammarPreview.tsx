@@ -75,10 +75,10 @@ export default function ChapterGrammarPreview({
           <span className="text-2xl">📚</span>
           <div className="text-left">
             <h3 className="font-semibold text-indigo-900 dark:text-indigo-100">
-              Grammatik-Fokus
+              Point de grammaire
             </h3>
             <p className="text-sm text-indigo-600 dark:text-indigo-400">
-              {concepts.length} Konzept{concepts.length !== 1 ? 'e' : ''} in diesem Kapitel
+              {concepts.length} concept{concepts.length !== 1 ? 's' : ''} dans ce chapitre
             </p>
           </div>
         </div>
@@ -87,12 +87,12 @@ export default function ChapterGrammarPreview({
           {/* Status badges */}
           {dueCount > 0 && (
             <span className="px-2 py-1 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 text-xs rounded-full">
-              {dueCount} fällig
+              {dueCount} à revoir
             </span>
           )}
           {masteredCount > 0 && (
             <span className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 text-xs rounded-full">
-              {masteredCount} gemeistert
+              {masteredCount} acquis
             </span>
           )}
 

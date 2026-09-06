@@ -20,8 +20,10 @@ def test_atelier_renders_today_practice_thread() -> None:
     assert "from '@/components/laune/LaUne'" in source
     assert "<LaUneStyles" in source
     assert "<LuMasthead" in source
-    assert "<LuLead" in source
-    assert "<LuSeance" in source
+    # 2026-08-31 manchette redesign: the lead episode and the séance are the
+    # one-story manchette plus the En bref rows.
+    assert "<LuManchette" in source
+    assert "<LuEnBref" in source
     assert 'aria-label="Atelier · La Une"' in source
     assert "STORY_FEATURE_VISIBLE" in source
 
@@ -51,12 +53,12 @@ def test_atelier_fallback_shell_uses_shared_theme_tokens() -> None:
 def test_do_mode_uses_rule_first_ramp_and_feedback_sheet() -> None:
     source = read_atelier()
 
-    assert "{ id: 'fill', label: 'Fill', short: 'A' }" in source
-    assert "{ id: 'classify', label: 'Classify', short: 'B' }" in source
-    assert "{ id: 'word_bank', label: 'Word-bank', short: 'C' }" in source
+    assert "{ id: 'fill', label: 'Compléter', short: 'A' }" in source
+    assert "{ id: 'classify', label: 'Classer', short: 'B' }" in source
+    assert "{ id: 'word_bank', label: 'Banque de mots', short: 'C' }" in source
     assert "firstConceptDrill" in source
     assert "rule-bridge" in source
-    assert "Now try it on the easiest item." in source
+    assert "Essayez maintenant avec l’élément le plus simple." in source
     assert "payload.rule_panel" in source
     assert "reportAtelierExercise" in source
     # Feedback is the inline épreuve verdict (EpVerdict + galley marks in the

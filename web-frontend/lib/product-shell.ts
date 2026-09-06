@@ -64,7 +64,7 @@ export const PHONE_PRODUCT_TABS: ProductTab[] = [
   },
   {
     id: 'notebook',
-    label: 'Notebook',
+    label: 'Cahier',
     href: '/notebook',
     icon: 'book',
     activeRoutes: [

@@ -74,6 +74,8 @@ class User(Base):
 
     # User interests for personalized conversations
     interests = Column(String(500), default="")  # Comma-separated: "tech,sports,cooking"
+    learning_motivation = Column(String(80), default="")
+    speaking_comfort = Column(String(20), default="warming_up")
 
     # Settings - Grammar
     grammar_correction_level = Column(String(20), default="moderate")

@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 WEB = ROOT / "web-frontend"
 
@@ -22,10 +21,15 @@ def test_public_onboarding_moves_from_minimal_account_creation_to_daily_atelier(
     next_config = read(WEB / "next.config.js")
     frontend_readme = read(WEB / "README.md")
 
-    assert "if (status === 'authenticated')" in home
-    assert "router.push('/atelier')" in home
-    assert '<Link href="/auth/signin">Sign in</Link>' in home
-    assert '<Link className="public-start" href="/auth/signup">Start</Link>' in home
+    # 2026-08-31: the public landing is the calm French sheet — authenticated
+    # visitors get a single "Ouvrir votre édition" action instead of a silent
+    # redirect, and the signed-out pair is French.
+    assert "const authed = status === 'authenticated';" in home
+    assert "Ouvrir votre édition" in home
+    assert 'href="/auth/signin"' in home
+    assert 'href="/auth/signup"' in home
+    assert "~15 min" not in home
+    assert "Learning hub" not in home
 
     assert "sanitizeAuthCallbackUrl(router.query.callbackUrl)" in signin
     assert "const forgotPasswordHref = { pathname: '/auth/forgot-password', query: callbackQuery }" in signin
@@ -87,11 +91,12 @@ def test_phone_shell_keeps_the_primary_product_modes_simple_and_reachable() -> N
     assert "storedNotebookMode" in notebook
     assert "notebookModeFromQuery" in notebook
     assert "router.push(" in notebook
-    assert "<NotebookModeSwitch" in notebook
+    assert "<NcModeTabs" in notebook
     assert "<GrammarNotebookSurface embedded />" in notebook
     assert "<VocabularyPage embedded />" in notebook
     assert "api.getCefrProgress()" in notebook
-    assert "NotebookProgression" in notebook
+    # CEFR progression now rides in the Cahiers masthead folio, not a dashboard grid.
+    assert "cefr?.estimate ? `${cefr.estimate} en cours`" in notebook
 
 
 def test_atelier_is_the_daily_session_and_review_handoff_center() -> None:
@@ -105,17 +110,19 @@ def test_atelier_is_the_daily_session_and_review_handoff_center() -> None:
     assert "apiService.submitAtelierAttempt" in atelier
     assert "apiService.completeAtelierSession" in atelier
     assert "function TodayView" in atelier
-    assert "function MissionBridge" in atelier
-    assert "Use today&apos;s repairs in a message, conversation, or visual Feuilleton." in atelier
-    assert "const query = conceptQueryString(concepts)" in atelier
-    assert "href={`/missions${conceptIds ? `?${conceptIds}` : ''}`}" in atelier
-    assert "href={`/graphic-novel${conceptIds ? `?${conceptIds}` : ''}`}" in atelier
+    # MissionBridge was an unreferenced legacy card; the live handoff is the
+    # recommendation action routing into Le Courrier.
+    assert "if (action.kind === 'mission') {" in atelier
+    assert "void router.push(`/missions${action.query}`);" in atelier
+    assert "void router.push(`/graphic-novel${action.query}`);" in atelier
     assert "session_id: result.session_id" in atelier
     assert "printed-hook" in atelier
 
-    assert "Vocabulary review" in vocabulary_review
+    # The deck's aria labels and end-of-deck copy are French now; "Vocabulary
+    # review" / "Queue claire" were the last English strings on the surface.
+    assert 'aria-label="Progression de la révision"' in vocabulary_review
     assert "VocabularyReviewContinuation" in vocabulary_review
-    assert "Queue claire" in vocabulary_review
+    assert "Paquet vidé" in vocabulary_review
     assert "onReturn" in vocabulary_review
     assert "onRefresh" in vocabulary_review
     assert "href={`/vocabulary?word=${wordId}`}" in vocabulary_review
@@ -170,14 +177,16 @@ def test_feuilleton_scene_flow_has_creation_tasks_completion_and_context_returns
     assert "apiService.createGraphicNovelScene" in feuilleton
     assert "apiService.submitGraphicNovelAttempt(scene.id" in feuilleton
     assert "apiService.completeGraphicNovelScene(scene.id)" in feuilleton
-    assert 'aria-label="Create a new Feuilleton scene"' in feuilleton
-    assert 'aria-label="Feuilleton mode"' in feuilleton
+    assert 'aria-label="Composer une nouvelle scène du Feuilleton"' in feuilleton
+    assert 'aria-label="Mode Feuilleton"' in feuilleton
     assert "apiService.getSerialToday()" in feuilleton
     assert 'aria-label="Prochain acte du Feuilleton"' in feuilleton
-    assert 'aria-label="Feuilleton reading actions"' in feuilleton
-    assert 'aria-label="Final Feuilleton task"' in feuilleton
-    assert 'aria-label="Feuilleton completion"' in feuilleton
-    assert "function FeuilletonContinuationCard" in feuilleton
+    assert 'aria-label="Actions de lecture du Feuilleton"' in feuilleton
+    # Reader rebuild: the final task is one inline action, and the end of the
+    # episode is one section instead of a completion card + continuation card.
+    assert 'aria-label="Dernière réplique"' in feuilleton
+    assert 'aria-label="Fin de l’épisode"' in feuilleton
+    assert "function FeuilletonEnd" in feuilleton
     assert "routeWithQuery('/missions', missionPairs)" in feuilleton
     assert "routeWithQuery('/graphic-novel', readerPairs)" in feuilleton
 

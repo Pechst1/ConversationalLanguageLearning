@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class AtelierConceptRead(BaseModel):
@@ -14,6 +14,8 @@ class AtelierConceptRead(BaseModel):
     level: str
     category: str | None = None
     subskill: str | None = None
+    title_fr: str | None = None
+    category_label_fr: str | None = None
     core_rule: str | None = None
     main_traps: list[str] = Field(default_factory=list)
     anchor_examples: list[str] = Field(default_factory=list)
@@ -170,7 +172,22 @@ class AtelierErrataTaskResponse(BaseModel):
 
 
 class AtelierErrataAttemptRequest(BaseModel):
-    answer_text: str = ""
+    """An empty body is not an answer.
+
+    `answer_text: str = ""` let a missing or blank field through, and the service
+    graded it as a wrong attempt: rating 1, `needs_repair`, one more lapse, the
+    erratum pushed into `relearning`. A learner's memory strength must never be
+    moved by a request that carried no answer.
+    """
+
+    answer_text: str = Field(..., min_length=1, max_length=2000)
+
+    @field_validator("answer_text")
+    @classmethod
+    def _reject_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("answer_text must contain an answer")
+        return value
 
 
 class AtelierErrataAttemptResponse(BaseModel):

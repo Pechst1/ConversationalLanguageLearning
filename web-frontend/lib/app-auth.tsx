@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import { SessionProvider, signIn, signOut, useSession, getSession } from 'next-auth/react';
 
 import { isNativePlatform } from '@/lib/native-platform';
+import { clearPilotResilience } from '@/lib/pilot-resilience';
 import {
   loadNativeAuthSession,
   nativeLogout,
@@ -102,6 +103,7 @@ function NativeAuthProvider({ children }: { children: React.ReactNode }) {
     },
     signOut: async (options) => {
       await nativeLogout();
+      clearPilotResilience();
       setSession(null);
       setStatus('unauthenticated');
       if (options?.callbackUrl && typeof window !== 'undefined') {
@@ -144,6 +146,7 @@ function WebAuthBridge({ children }: { children: React.ReactNode }) {
       };
     },
     signOut: async (options) => {
+      clearPilotResilience();
       await signOut({ callbackUrl: options?.callbackUrl });
     },
   }), [effectiveSession, effectiveStatus, nextSession]);
@@ -209,6 +212,7 @@ export async function getAppAccessToken() {
 }
 
 export async function appSignOut(options?: { callbackUrl?: string }) {
+  clearPilotResilience();
   if (isNativePlatform()) {
     await nativeLogout();
     if (options?.callbackUrl && typeof window !== 'undefined') {

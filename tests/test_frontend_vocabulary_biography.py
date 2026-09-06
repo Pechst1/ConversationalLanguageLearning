@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 VOCABULARY_PAGE = ROOT / "web-frontend" / "pages" / "vocabulary.tsx"
 VOCABULARY_REVIEW_PAGE = ROOT / "web-frontend" / "pages" / "vocabulary" / "review.tsx"
@@ -27,7 +26,10 @@ def test_vocabulary_notebook_opens_word_biography_sheet() -> None:
     assert "const [biographyLoading, setBiographyLoading]" in source
     assert "const [biographyError, setBiographyError]" in source
     assert "setBiographyWordId(detailWordId(detail))" in source
-    assert "Word biography" in source
+    # Was "Word biography": the Cahier is a French publication surface, and the
+    # whole word-detail sheet was still in English (PROMPT/ANSWER, "Progress /
+    # SRS", "Recent context will appear after use."). Pin the French label.
+    assert "La biographie du mot" in source
     assert "open={Boolean(biographyWordId)}" in source
 
 
@@ -36,7 +38,8 @@ def test_vocabulary_notebook_loads_biography_endpoint() -> None:
 
     assert "apiService.getVocabularyBiography(biographyWordId)" in source
     assert "setBiography(nextBiography)" in source
-    assert "Could not load this word biography." in source
+    # French replaces the English failure copy (see above).
+    assert "La biographie de ce mot n\u2019a pas pu \u00eatre ouverte." in source
     assert "setBiographyWordId(null)" in source
 
 
@@ -104,7 +107,7 @@ def test_vocabulary_review_keeps_header_and_rating_controls_compact() -> None:
     assert "const handleRatingClick" in source
     assert "disabled={reviewing}" in source
     assert "disabled={reviewing || !revealed}" not in source
-    assert "Reveal answer before rating" in source
+    assert "Révéler la réponse avant de noter" in source
     assert ">Deck</Link>" not in source
 
 
@@ -115,7 +118,13 @@ def test_vocabulary_review_uses_local_visual_cues_before_generated_images() -> N
     assert "type LucideIcon" in source
     assert "abaisser" in source
     assert "review-visual-cue" in source
-    assert "aria-label={`${visualCue.label} visual cue`}" in source
+    # The badge is French publication copy now: the labels were the last
+    # English on the card ("WORD / MEMORY CUE", "TIME / when"), and the caption
+    # no longer echoes `part_of_speech` — that column is heuristic import data
+    # and printed "exemplaire" (a noun) as a verb.
+    assert "aria-label={`Indice visuel : ${visualCue.label}`}" in source
+    assert "label: 'Temps', caption: 'quand'" in source
+    assert "item.part_of_speech" not in source
 
 
 def test_vocabulary_review_back_face_keeps_answer_content_visible() -> None:
@@ -123,7 +132,7 @@ def test_vocabulary_review_back_face_keeps_answer_content_visible() -> None:
 
     assert "FSRS · {current.bucket}" not in source
     assert 'className="review-answer-container w-full flex-1 flex flex-col"' in source
-    assert ".vocab-flashcard-back {\n          background: #fbfaf6;\n          transform: rotateY(180deg);\n          overflow: hidden;" in source
+    assert ".vocab-flashcard-back {\n          background: var(--app-sheet);\n          transform: rotateY(180deg);\n          overflow: hidden;" in source
     assert ".review-answer-container {\n          min-height: 0;" in source
     assert "overflow-y: auto;" in source
 
@@ -131,14 +140,18 @@ def test_vocabulary_review_back_face_keeps_answer_content_visible() -> None:
 def test_vocabulary_notebook_uses_compact_coverage_snapshot() -> None:
     source = read_vocabulary_page()
 
-    assert "reliableTopicCategories" in source
-    assert "coverageSummaryCards" in source
-    assert "Level {currentBand?.band || 'A1'}" in source
-    assert "Choose a set to master" in source
-    assert "See full atlas" in source
-    assert "French 5000 mastery map" in source
-    assert "Uncategorized" not in source
-    assert "Words & categories" not in source
+    # The coverage atlas is a progressive-disclosure fold in the Cahiers design:
+    # collapsed by default, revealing CEFR / topic / verb coverage tracks and
+    # the Français 5000 mastery map when opened.
+    assert "Atlas des acquis" in source
+    assert "setAtlasOpen((open) => !open)" in source
+    assert "Couverture CECR" in source
+    assert "<NcCoverageTrack" in source
+    assert "<NcMasteryMap" in source
+    assert "Carte de maîtrise — Français 5000" in source
+    assert "Registre des mots — Français 5000" in source
+    # The old English dashboard labels are gone.
+    assert "Choose a set to master" not in source
     assert "Verbs & conjugation" not in source
     assert "Grammar patterns" not in source
 
@@ -146,10 +159,9 @@ def test_vocabulary_notebook_uses_compact_coverage_snapshot() -> None:
 def test_atelier_daily_session_surfaces_target_vocabulary_in_context() -> None:
     source = read_page(ATELIER_PAGE)
 
-    assert "function VocabularyFocus" in source
     assert "session.target_vocabulary" in source
     assert "target-word-strip" in source
-    assert 'aria-label="Vocabulary targets for this paragraph"' in source
+    assert 'aria-label="Lexique visé pour ce paragraphe"' in source
     assert "vocabularyTranslation(item)" in source
 
 
@@ -159,8 +171,10 @@ def test_atelier_today_surfaces_vocabulary_training_step() -> None:
     # On the La Une front page the vocabulary review path is the "Le Lexique"
     # article, which routes to /vocabulary/review when words are due.
     assert "vocabularyReviewDue" in source
-    assert "<LuLexique" in source
-    assert 'href="/vocabulary/review"' in source
+    # The lexique is an En bref row since the manchette redesign.
+    assert "<LuEnBref" in source
+    assert "id: 'lexique'" in source
+    assert "href: '/vocabulary/review'" in source
 
 
 def test_atelier_daily_plan_waits_for_active_session_hydration() -> None:
@@ -174,4 +188,4 @@ def test_atelier_daily_plan_waits_for_active_session_hydration() -> None:
     assert "apiService.getAtelierToday()" in initial_load_block
     assert "apiService.getVocabularyDueContext" in initial_load_block
     assert "apiService.getActiveAtelierSession()" in source
-    assert "Atelier could not confirm your active session" in source
+    assert "L’Atelier n’a pas pu confirmer la séance en cours" in source

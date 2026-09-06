@@ -38,7 +38,7 @@ interface EditorialMastheadProps {
 export default function EditorialMasthead({
   active,
   brandHref = '/atelier',
-  brandLabel = 'Atelier',
+  brandLabel = 'L’Atelier',
   atelierHref = '/atelier',
   studioControl,
   sessionControl,
@@ -73,7 +73,7 @@ export default function EditorialMasthead({
               </Link>
             )}
             {sessionControl}
-            <Link className={mobileSection === 'notebook' ? 'active' : ''} href="/notebook">Notebook</Link>
+            <Link className={mobileSection === 'notebook' ? 'active' : ''} href="/notebook">Cahier</Link>
             {trailing && <span className="app-nav-trailing">{trailing}</span>}
           </nav>
           <SettingsAffordance active={isSettingsActive} />

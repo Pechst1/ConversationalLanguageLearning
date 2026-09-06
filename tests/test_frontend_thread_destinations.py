@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 MISSIONS_PAGE = ROOT / "web-frontend" / "pages" / "missions.tsx"
 FEUILLETON_PAGE = ROOT / "web-frontend" / "pages" / "graphic-novel.tsx"
@@ -57,15 +56,15 @@ def test_feuilleton_renders_visible_seeded_thread_context() -> None:
     source = read_page(FEUILLETON_PAGE)
 
     assert "function TodayThreadBanner" in source
-    assert 'aria-label="Today\'s Thread context"' in source
-    assert "Today&apos;s Thread" in source
-    assert "Scene seeded from Atelier" in source
+    assert 'aria-label="Fil du jour"' in source
+    assert "FIL DU JOUR" in source
+    assert "Scène issue de l’Atelier" in source
     assert "today-thread-chips" in source
-    assert "key: 'grammar', label: 'Grammar'" in source
-    assert "key: 'vocabulary', label: 'Vocabulary'" in source
+    assert "key: 'grammar', label: 'Grammaire'" in source
+    assert "key: 'vocabulary', label: 'Lexique'" in source
     assert "key: 'errata', label: 'Errata'" in source
     assert "key: 'mission', label: 'Mission'" in source
-    assert "key: 'atelier-session', label: 'Atelier Session'" in source
+    assert "key: 'atelier-session', label: 'Séance Atelier'" in source
     assert ".today-thread-chip.red" in source
     assert ".today-thread-chip.blue" in source
     assert ".today-thread-chip.yellow" in source

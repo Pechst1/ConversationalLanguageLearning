@@ -12,18 +12,16 @@ if sys.version_info >= (3, 14):
         allow_module_level=True,
     )
 
+import spacy
 from fastapi.testclient import TestClient
 from starlette.testclient import WebSocketDenialResponse
 from starlette.websockets import WebSocketDisconnect
 
-import spacy
-
 from app.api import deps
-from app.services.realtime import SessionConnectionManager
-from app.services.progress import ProgressService
-from app.services.session_service import SessionService
 from app.core.conversation import ConversationGenerator
-
+from app.services.progress import ProgressService
+from app.services.realtime import SessionConnectionManager
+from app.services.session_service import SessionService
 from tests.test_sessions import StubErrorDetector, StubLLMService, register_and_login
 
 

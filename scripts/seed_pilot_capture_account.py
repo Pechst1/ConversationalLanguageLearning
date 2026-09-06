@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import UTC, date, datetime, time, timedelta
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -20,41 +20,44 @@ from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
 from app.db.session import SessionLocal
 from app.services.grammar_catalog import FrenchCoreGrammarCatalog
+from app.services.graphic_novel import GRAPHIC_NOVEL_PROMPT_VERSION
 from app.services.serial import SerialThreadService
 
-
+# Seeded copy has to read like production: French display copy inside the French
+# fiction, and properly accented headwords/examples. Only the explicit *_translation
+# gloss fields stay in the learner's other language.
 VOCABULARY_FIXTURES = [
     {
         "word": "le radiateur",
         "normalized_word": "radiateur",
-        "german_translation": "der Heizkoerper",
+        "german_translation": "der Heizkörper",
         "english_translation": "the radiator",
         "example_sentence": "Le radiateur ne marche plus depuis hier.",
         "example_translation": "The radiator has not worked since yesterday.",
         "topic_tags": ["housing", "repair"],
     },
     {
-        "word": "un creneau",
+        "word": "un créneau",
         "normalized_word": "creneau",
         "german_translation": "ein Terminfenster",
         "english_translation": "a time slot",
-        "example_sentence": "Vous avez un creneau cette semaine ?",
+        "example_sentence": "Vous avez un créneau cette semaine ?",
         "example_translation": "Do you have a slot this week?",
         "topic_tags": ["scheduling", "repair"],
     },
     {
         "word": "confirmer",
         "normalized_word": "confirmer",
-        "german_translation": "bestaetigen",
+        "german_translation": "bestätigen",
         "english_translation": "to confirm",
-        "example_sentence": "Je peux confirmer ma disponibilite.",
+        "example_sentence": "Je peux confirmer ma disponibilité.",
         "example_translation": "I can confirm my availability.",
         "topic_tags": ["planning"],
     },
     {
         "word": "disponible",
         "normalized_word": "disponible",
-        "german_translation": "verfuegbar",
+        "german_translation": "verfügbar",
         "english_translation": "available",
         "example_sentence": "Je suis disponible jeudi matin.",
         "example_translation": "I am available on Thursday morning.",
@@ -62,15 +65,18 @@ VOCABULARY_FIXTURES = [
     },
 ]
 
+MISSION_TITLE = "Pilote : écrire au propriétaire pour le chauffage"
+SERIAL_MISSION_TITLE = "Pilote feuilleton : demander un créneau à Camille"
+
 CONCEPT_EXTERNAL_IDS = ("FR_B1_COND_001", "FR_B1_TENSE_001", "FR_A2_NEG_001")
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _due_at(days: int = 1) -> datetime:
-    return datetime.combine(date.today() - timedelta(days=days), time(hour=9), tzinfo=timezone.utc)
+    return datetime.combine(date.today() - timedelta(days=days), time(hour=9), tzinfo=UTC)
 
 
 def _ensure_user(db: Session, email: str) -> User:
@@ -149,7 +155,7 @@ def _seed_vocabulary(db: Session, user: User) -> list[VocabularyWord]:
         progress.due_date = date.today() - timedelta(days=1 if index < 3 else 0)
         progress.times_seen = max(int(progress.times_seen or 0), 2 + index)
         progress.times_used_correctly = max(int(progress.times_used_correctly or 0), 1)
-        progress.deck_name = "Pilot capture"
+        progress.deck_name = "Capture pilote"
         db.add(progress)
     db.flush()
     return words
@@ -195,7 +201,7 @@ def _seed_concepts(db: Session, user: User) -> list[GrammarConcept]:
         progress.score = 3.5 + index
         progress.reps = max(int(progress.reps or 0), 1 + index)
         progress.state = "ausbaufahig" if index == 0 else "in_arbeit"
-        progress.notes = "Pilot capture seed: visible due concept."
+        progress.notes = "Amorce de capture pilote : notion à revoir, visible."
         progress.last_review = now - timedelta(days=3 + index)
         progress.next_review = _due_at(index + 1)
         db.add(progress)
@@ -210,7 +216,7 @@ def _target_vocabulary(words: list[VocabularyWord]) -> list[dict[str, Any]]:
             "word": word.word,
             "translation": word.german_translation or word.english_translation,
             "example": word.example_sentence,
-            "reason": "Pilot capture target vocabulary",
+            "reason": "Vocabulaire visé pour la capture pilote",
         }
         for word in words[:3]
     ]
@@ -231,7 +237,7 @@ def _seed_errata(db: Session, user: User, concepts: list[GrammarConcept], words:
     existing.linked_word_id = word.id if word else None
     existing.error_category = "grammar"
     existing.subcategory = "polite_request"
-    existing.display_label = "Polite repair request"
+    existing.display_label = "Demande polie"
     existing.original_text = "Vous pouvez venir demain ?"
     existing.correction = "Pourriez-vous venir demain ?"
     existing.context_snippet = "A landlord repair message needs a softer conditional request."
@@ -266,8 +272,8 @@ def _ensure_atelier_session(
         db.add(session)
     session.selected_concept_ids = concept_ids
     session.quote_payload = {
-        "text": "Faire simple, puis precis.",
-        "author": "Atelier pilot",
+        "text": "Faire simple, puis précis.",
+        "author": "Atelier pilote",
         "target_vocabulary_ids": [word.id for word in words[:3]],
         "target_vocabulary": _target_vocabulary(words),
     }
@@ -282,10 +288,10 @@ def _mission_payload(words: list[VocabularyWord]) -> dict[str, Any]:
         "mission_format": "chat_message",
         "conversation_opening": "Bonjour, dites-moi ce qui ne fonctionne pas exactement.",
         "target_vocabulary": _target_vocabulary(words),
-        "placeholder": "Write the message you would send.",
+        "placeholder": "Écrivez le message que vous enverriez.",
         "quick_replies": [
             "Le radiateur ne marche plus.",
-            "Pourriez-vous proposer un creneau ?",
+            "Pourriez-vous proposer un créneau ?",
             "Je suis disponible jeudi matin.",
         ],
         "contact": {
@@ -322,12 +328,12 @@ def _ensure_mission(
     mission.stakes_level = 2
     mission.serial_thread_id = serial_thread_id
     mission.episode_index = episode_index
-    mission.brief = "Text the landlord about a broken radiator and ask for a repair slot this week."
+    mission.brief = "Écrivez au propriétaire : le radiateur est en panne, demandez un créneau de réparation cette semaine."
     mission.target_vocabulary_ids = [word.id for word in words[:3]]
     mission.objectives = [
-        {"label": "State the problem", "done": True},
-        {"label": "Ask for a repair slot", "done": False},
-        {"label": "Confirm availability", "done": False},
+        {"label": "Décrire la panne", "done": True},
+        {"label": "Demander un créneau", "done": False},
+        {"label": "Confirmer sa disponibilité", "done": False},
     ]
     mission.prompt_payload = _mission_payload(words)
     mission.source_snapshot = {
@@ -363,7 +369,7 @@ def _ensure_mission(
                 correction_payload={
                     "verdict": "good",
                     "score_0_4": 3.0,
-                    "why": "Clear problem statement. Next, ask for the repair slot.",
+                    "why": "La panne est claire. Demandez maintenant le créneau de réparation.",
                     "errata": [],
                 },
             )
@@ -390,9 +396,9 @@ def _ensure_scene(
     final_prompt = {
         "id": "pilot-final-line",
         "task_type": "short_sentence",
-        "label": "Final line",
-        "instruction": "Write one polite sentence that asks for a repair slot.",
-        "prompt": "Camille attend votre derniere phrase.",
+        "label": "Dernière ligne",
+        "instruction": "Écrivez une phrase polie qui demande un créneau de réparation.",
+        "prompt": "Camille attend votre dernière phrase.",
         "prompt_translation": "Camille is waiting for your last sentence.",
         "placeholder": "Pourriez-vous...",
         "expected_features": ["conditionnel", "repair slot"],
@@ -406,12 +412,12 @@ def _ensure_scene(
         "story_quality": "standard",
         "target_vocabulary": target_vocabulary,
         "targets": [
-            {"kind": "grammar", "label": concepts[0].name if concepts else "Polite request"},
+            {"kind": "grammar", "label": concepts[0].name if concepts else "Demande polie"},
             {"kind": "vocabulary", "label": words[0].word if words else "radiateur"},
         ],
         "hook": {
-            "text": "Camille proposes two repair slots, but one collides with class.",
-            "unresolved_question": "Which slot will you confirm?",
+            "text": "Camille propose deux créneaux, mais l'un tombe pendant le cours.",
+            "unresolved_question": "Quel créneau allez-vous confirmer ?",
             "next_beat_kind": "mission",
         },
         "final_prompt": final_prompt,
@@ -424,17 +430,20 @@ def _ensure_scene(
     scene.serial_thread_id = serial_thread.id if serial_thread else None
     scene.episode_index = episode_index
     scene.title = "Le radiateur capricieux"
-    scene.brief = "A short four-panel repair story for the pilot smoke account."
+    scene.brief = "Un court épisode en quatre cases autour d'une réparation, pour le compte de test pilote."
     scene.selected_concept_ids = [concept.id for concept in concepts[:3]]
     scene.target_vocabulary_ids = [word.id for word in words[:3]]
     scene.source_snapshot = {
         "mode": "pilot_capture_seed",
-        "title": "Apartment repair rehearsal",
-        "source": "Atelier pilot",
+        "title": "Répétition d'une réparation d'appartement",
+        "source": "Atelier pilote",
     }
     scene.script_payload = script_payload
     scene.recap_payload = {}
-    scene.prompt_version = "pilot-capture-v1"
+    # Stamp the live reader contract version, otherwise the archive reader's
+    # prompt-version gate (scene_matches_current_contract) rejects the seeded scene
+    # with a 409 instead of opening it.
+    scene.prompt_version = GRAPHIC_NOVEL_PROMPT_VERSION
     scene.image_model = "seeded-placeholder"
     scene.image_quality = "medium"
     scene.started_at = scene.started_at or _now() - timedelta(minutes=15)
@@ -443,30 +452,30 @@ def _ensure_scene(
 
     panel_payloads = [
         {
-            "title": "Cold radiator",
-            "beat": "The learner notices the cold radiator and opens a message thread.",
+            "title": "Radiateur froid",
+            "beat": "Le radiateur est froid ; on ouvre une conversation avec le propriétaire.",
             "speech": "Le radiateur ne marche plus.",
             "task": {
                 "id": "pilot-panel-1-cloze",
                 "task_type": "cloze",
-                "label": "Cloze",
-                "instruction": "Complete the polite request.",
+                "label": "Texte à trous",
+                "instruction": "Complétez la demande polie.",
                 "prompt": "Pourriez-vous me proposer un ___ ?",
                 "prompt_translation": "Could you offer me a slot?",
-                "expected_answer": "creneau",
-                "target_word": "un creneau",
+                "expected_answer": "créneau",
+                "target_word": "un créneau",
             },
         },
         {
-            "title": "Two choices",
-            "beat": "Camille offers two repair windows and asks for confirmation.",
+            "title": "Deux créneaux",
+            "beat": "Camille propose deux créneaux de réparation et demande confirmation.",
             "speech": "Jeudi matin ou vendredi soir ?",
             "task": {
                 "id": "pilot-panel-2-choice",
                 "task_type": "choice",
-                "label": "Choice",
-                "instruction": "Choose the natural reply.",
-                "prompt": "Quelle reponse confirme un creneau ?",
+                "label": "Choix",
+                "instruction": "Choisissez la réponse naturelle.",
+                "prompt": "Quelle réponse confirme un créneau ?",
                 "prompt_translation": "Which reply confirms a slot?",
                 "options": [
                     {"value": "a", "text": "Je confirme jeudi matin.", "en": "I confirm Thursday morning."},
@@ -476,14 +485,14 @@ def _ensure_scene(
             },
         },
         {
-            "title": "Calendar",
-            "beat": "A calendar reveals the class conflict.",
+            "title": "L'agenda",
+            "beat": "L'agenda révèle que le cours tombe au même moment.",
             "speech": "Le matin, j'ai cours.",
             "task": None,
         },
         {
-            "title": "Better ask",
-            "beat": "The learner writes a softer conditional request.",
+            "title": "Mieux demander",
+            "beat": "On reformule la demande au conditionnel, plus douce.",
             "speech": "Pourriez-vous passer vendredi ?",
             "task": None,
         },
@@ -532,13 +541,16 @@ def _ensure_serial(
             status="active",
             world_bible=world,
             state=dict(world.get("initial_state") or {}),
-            news_seed={"title": "Pilot repair seed", "summary": "Deterministic pilot serial setup."},
+            news_seed={"title": "Amorce pilote : la réparation", "summary": "Mise en place déterministe du feuilleton pilote."},
             current_episode_index=1,
         )
         db.add(thread)
         db.flush()
     thread.current_episode_index = 1
-    thread.news_seed = thread.news_seed or {"title": "Pilot repair seed", "summary": "Deterministic pilot serial setup."}
+    thread.news_seed = thread.news_seed or {
+        "title": "Amorce pilote : la réparation",
+        "summary": "Mise en place déterministe du feuilleton pilote.",
+    }
     db.add(thread)
     db.flush()
 
@@ -546,7 +558,7 @@ def _ensure_serial(
         db,
         user,
         words,
-        title="Serial pilot: ask Camille for a repair slot",
+        title=SERIAL_MISSION_TITLE,
         cadence="ad_hoc",
         serial_thread_id=thread.id,
         episode_index=0,
@@ -570,13 +582,13 @@ def _ensure_serial(
     episode_zero.location_id = "atelier"
     episode_zero.completed_at = episode_zero.completed_at or serial_mission.completed_at
     episode_zero.brief_payload = {
-        "title": "Ask for the repair slot",
-        "summary": "The learner texts Camille about the broken radiator.",
+        "title": "Demander le créneau",
+        "summary": "On écrit à Camille au sujet du radiateur en panne.",
     }
     episode_zero.hook = {
-        "text": "Camille offers two possible repair windows.",
+        "text": "Camille propose deux créneaux possibles.",
         "next_beat_kind": "feuilleton",
-        "teaser": "Next: the calendar complicates the reply.",
+        "teaser": "Ensuite : l'agenda complique la réponse.",
     }
     db.add(episode_zero)
 
@@ -599,11 +611,11 @@ def _ensure_serial(
     episode_one.location_id = "apartment"
     episode_one.hook_from_previous = episode_zero.hook
     episode_one.brief_payload = {
-        "title": "The calendar complication",
-        "summary": "A visual beat about confirming the right repair window.",
+        "title": "L'agenda s'en mêle",
+        "summary": "Un épisode en images pour confirmer le bon créneau.",
     }
     episode_one.hook = {
-        "text": "The repair slot is nearly confirmed.",
+        "text": "Le créneau de réparation est presque confirmé.",
         "next_beat_kind": "mission",
     }
     db.add(episode_one)
@@ -623,7 +635,7 @@ def seed(email: str) -> dict[str, Any]:
             db,
             user,
             words,
-            title="Pilot: text the landlord about heat",
+            title=MISSION_TITLE,
             cadence="ad_hoc",
             status="in_progress",
         )

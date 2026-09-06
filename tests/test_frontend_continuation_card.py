@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 MOBILE_INDEX = ROOT / "web-frontend" / "components" / "mobile" / "index.ts"
 CONTINUATION_CARD = ROOT / "web-frontend" / "components" / "mobile" / "ContinuationCard.tsx"
@@ -56,13 +55,15 @@ def test_mission_completion_routes_to_new_moment_and_home() -> None:
 def test_feuilleton_post_scene_uses_journal_continuation_primitives() -> None:
     source = read(FEUILLETON_PAGE)
 
-    assert "function FeuilletonContinuationCard" in source
-    assert "<FeuilletonContinuationCard scene={scene} vocabulary={targetVocabulary} />" in source
-    assert "<FeContinuation" in source
-    assert "<FeFiled />" in source
+    # Reader rebuild: the post-scene furniture (completion card with counters,
+    # lexical summary, two-beat continuation, duplicate complete row) collapsed
+    # into one FeuilletonEnd — the filed stamp plus a single next action.
+    assert "function FeuilletonEnd" in source
+    assert "<FeuilletonEnd" in source
+    assert "<FeFiled label=" in source
+    assert "function FeuilletonContinuationCard" not in source
     assert "Agir dans Le Courrier" in source
     assert "Lire le prochain épisode" in source
-    assert "Revoir les mots de l’épisode" in source
     assert "nextBeatIsMission" in source
     assert "routeWithQuery('/missions', missionPairs)" in source
     assert "routeWithQuery('/graphic-novel', readerPairs)" in source
@@ -91,8 +92,8 @@ def test_serial_world_design_surfaces_are_integrated() -> None:
     feuilleton = read(FEUILLETON_PAGE)
     globals_css = read(GLOBALS)
 
-    assert "function SerialThreadCard" in atelier
-    assert "className={`s-thread" in atelier
+    # SerialThreadCard was an unreferenced legacy card; the serial surfaces on
+    # La Une are LuLead/LuDemain, wired from the serial payload.
     assert "const isSerialAct = Boolean(mission?.serial_thread_id || seed.serialThreadId)" in missions
     # A serial act flips the desk furniture to the blue "Le Feuilleton · Acte N"
     # kicker and stamps "Acte bouclé" on resolution.

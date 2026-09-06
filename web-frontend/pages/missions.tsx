@@ -23,20 +23,19 @@ import {
   IcoStop,
 } from '@/components/courrier/Courrier';
 import apiService, { MissionToday, RealWorldMission, SerialToday } from '@/services/api';
+import { createAudioMediaRecorder, recordedAudioBlob } from '@/lib/audio-recording';
 import { serialQueryString, writeLocalDayProgressFlag } from '@/lib/atelier-next';
+import { clearResumeActivity, readLocalJson, saveResumeActivity, writeLocalJson } from '@/lib/pilot-resilience';
 
+// Only what the Courrier actually prints. contact_role, contact_initials,
+// presence, thread_title, inbox_context and ambient_cues were computed on every
+// render and read by nothing — dead plumbing carrying dead English defaults.
 type MissionMessenger = {
   channel_label: string;
   contact_name: string;
-  contact_role: string;
-  contact_initials: string;
-  presence: string;
-  thread_title: string;
   scene_anchor: string;
   dispatch_note: string;
-  inbox_context: string;
   opening_message: string;
-  ambient_cues: string[];
   quick_replies: string[];
   success_signal: string;
   twist?: string | null;
@@ -114,19 +113,11 @@ function missionMessenger(mission: RealWorldMission | null): MissionMessenger {
   return {
     channel_label: String(raw.channel_label || missionVariety(mission).channel_label || 'Message'),
     contact_name: String(raw.contact_name || 'Camille'),
-    contact_role: String(raw.contact_role || 'local contact'),
-    contact_initials: String(raw.contact_initials || 'CA').slice(0, 3).toUpperCase(),
-    presence: String(raw.presence || 'available now'),
-    thread_title: String(raw.thread_title || `${raw.contact_name || 'Camille'} · ${mission?.title || 'real moment'}`),
-    scene_anchor: String(slim.frame || raw.scene_anchor || mission?.brief || 'A real-world moment in French'),
-    dispatch_note: String(slim.ask || raw.dispatch_note || mission?.brief || 'Send one natural French reply.'),
-    inbox_context: String(raw.inbox_context || slim.frame || mission?.brief || 'The other person needs a useful reply.'),
+    scene_anchor: String(slim.frame || raw.scene_anchor || mission?.brief || 'Un moment de la vraie vie, en français.'),
+    dispatch_note: String(slim.ask || raw.dispatch_note || mission?.brief || 'Une réponse naturelle en français.'),
     opening_message: String(raw.opening_message || prompt.conversation_opening || 'Bonjour, vous pouvez me répondre ?'),
-    ambient_cues: asStringList(raw.ambient_cues).length
-      ? asStringList(raw.ambient_cues)
-      : ['one practical detail', 'a real person waiting', 'short reply rhythm'],
     quick_replies: uniqueText(asStringList(raw.quick_replies), 3),
-    success_signal: String(raw.success_signal || 'The other person knows what to do next.'),
+    success_signal: String(raw.success_signal || 'Votre correspondant sait quoi faire ensuite.'),
     twist: raw.twist || missionVariety(mission).twist || null,
   };
 }
@@ -254,14 +245,23 @@ function repairLines(correction: Record<string, any> | undefined): { fixed?: str
     if (kind === 'task_compliance' || kind.startsWith('vocabulary')) return false;
     return Boolean(item?.corrected_target || item?.why_wrong);
   });
-  return errata.slice(0, 2).map((item: any) => ({
+  // The corrector returns at most three real mistakes; show all of them, so the
+  // "N réparations enregistrées" line below the card can never outrun the card.
+  return errata.slice(0, 3).map((item: any) => ({
     fixed: item.corrected_target ? String(item.corrected_target) : undefined,
     why: item.why_wrong ? String(item.why_wrong) : undefined,
   }));
 }
 
+// Repairs actually filed in error memory. `saved_count` also counts vocabulary
+// credit rows, which this card never shows — reading it printed "1 réparation
+// enregistrée" under a card with nothing repaired on it.
 function correctionPersistence(correction: Record<string, any> | undefined) {
-  return Math.max(0, Number(correction?.persistence?.saved_count || 0));
+  const persistence = correction?.persistence as Record<string, any> | undefined;
+  if (!persistence) return 0;
+  if (typeof persistence.repair_count === 'number') return Math.max(0, persistence.repair_count);
+  const records = Array.isArray(persistence.records) ? persistence.records : [];
+  return records.filter((row: any) => !row?.linked_word_id && String(row?.error_category || '') !== 'vocabulary').length;
 }
 
 function correctedReply(correction: Record<string, any> | undefined, learnerText: unknown) {
@@ -355,6 +355,17 @@ function querySeed(routerQuery: Record<string, string | string[] | undefined>): 
   };
 }
 
+// The serial gate refuses a new act while the current episode is still unread
+// (409 serial_episode_not_ready). Saying only "n'a pas pu être ouvert" left the
+// learner with a retry button that can never work; name the actual blocker.
+function loadErrorMessage(error: any): string {
+  const detail = error?.response?.data?.detail;
+  if (detail && typeof detail === 'object' && detail.code === 'serial_episode_not_ready') {
+    return 'L’acte suivant n’est pas encore ouvert : lisez d’abord l’épisode en cours du Feuilleton.';
+  }
+  return 'Ce moment de mission n’a pas pu être ouvert.';
+}
+
 function shouldCreateFromSeed(seed: QuerySeed) {
   return Boolean(
     seed.serialThreadId
@@ -386,8 +397,10 @@ function archiveStatus(mission: RealWorldMission | null) {
 function resolutionCredit(mission: RealWorldMission | null, isSerialAct: boolean, hasNextAct: boolean) {
   const recap = (mission?.recap || {}) as Record<string, any>;
   const produced = Number(recap.vocabulary_credit?.produced_correct || 0);
+  // The filed repairs, not the ones this page happened to print: the dossier and
+  // the per-message cards must not quote two different totals for one thing.
   const repairs = missionTurns(mission).reduce(
-    (total, turn) => total + repairLines((turn as Record<string, any>).correction).length,
+    (total, turn) => total + correctionPersistence((turn as Record<string, any>).correction),
     0,
   );
   const rows: { label: string; value: string }[] = [];
@@ -421,7 +434,7 @@ function CourrierMic({ onTranscript, disabled }: { onTranscript: (text: string) 
     }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
+      const recorder = createAudioMediaRecorder(stream);
       recorderRef.current = recorder;
       chunksRef.current = [];
       recorder.ondataavailable = (event) => { if (event.data.size > 0) chunksRef.current.push(event.data); };
@@ -430,13 +443,13 @@ function CourrierMic({ onTranscript, disabled }: { onTranscript: (text: string) 
         clearTimer();
         setState('transcribing');
         try {
-          const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+          const blob = recordedAudioBlob(chunksRef.current, recorder);
           const text = await apiService.transcribeMissionAudio(blob);
           if (text && text.trim()) onTranscript(text.trim());
-          else setProblem('Rien n’a été transcrit — réessaie.');
+          else setProblem('Rien n’a été transcrit — réessayez.');
         } catch (transcribeError) {
           console.error(transcribeError);
-          setProblem('La transcription a échoué — réessaie ou écris ta réponse.');
+          setProblem('La transcription a échoué — réessayez, ou écrivez votre réponse.');
         } finally {
           setState('idle');
         }
@@ -447,7 +460,7 @@ function CourrierMic({ onTranscript, disabled }: { onTranscript: (text: string) 
       setState('recording');
     } catch (permissionError) {
       console.error(permissionError);
-      setProblem('Micro refusé — autorise l’accès ou écris ta réponse.');
+      setProblem('Micro refusé — autorisez l’accès, ou écrivez votre réponse.');
       setState('idle');
     }
   };
@@ -617,7 +630,7 @@ export default function MissionsPage() {
     } catch (loadError) {
       console.error(loadError);
       if (!isCurrent()) return;
-      setError('Could not open the mission moment.');
+      setError(loadErrorMessage(loadError));
     } finally {
       if (isCurrent()) setLoading(false);
     }
@@ -630,6 +643,23 @@ export default function MissionsPage() {
     };
   }, [loadMission]);
 
+  useEffect(() => {
+    if (!mission?.id || mission.status === 'completed') return;
+    const key = `pilot:mission-draft:${mission.id}`;
+    const draft = readLocalJson<string>(key, '');
+    setReply((current) => current || draft);
+    saveResumeActivity({
+      href: `/missions?mission=${mission.id}`,
+      kind: 'mission',
+      entityId: mission.id,
+    });
+  }, [mission?.id, mission?.status]);
+
+  useEffect(() => {
+    if (!mission?.id || mission.status === 'completed') return;
+    writeLocalJson(`pilot:mission-draft:${mission.id}`, reply);
+  }, [mission?.id, mission?.status, reply]);
+
   const sendReply = async (event?: FormEvent) => {
     event?.preventDefault();
     const text = reply.trim();
@@ -639,9 +669,10 @@ export default function MissionsPage() {
       const result = await apiService.submitMissionTurn(mission.id, { text, mode: 'chat' });
       setMission({ ...result.mission, outcome: result.outcome || result.mission.outcome });
       setReply('');
+      window.localStorage.removeItem(`pilot:mission-draft:${mission.id}`);
     } catch (sendError) {
       console.error(sendError);
-      toast.error('Message did not send.');
+      toast.error('Le message n’est pas parti.');
     } finally {
       setSubmitting(false);
     }
@@ -653,14 +684,16 @@ export default function MissionsPage() {
     try {
       const result = await apiService.completeMission(mission.id);
       setMission(result.mission);
+      clearResumeActivity('mission');
+      window.localStorage.removeItem(`pilot:mission-draft:${mission.id}`);
       setCompletedNextSerial(result.next_serial || null);
       if (!result.mission.serial_thread_id) {
         writeLocalDayProgressFlag('missionDone');
       }
-      toast.success(isSerialAct ? 'Act resolved' : 'Mission resolved');
+      toast.success(isSerialAct ? 'Acte bouclé' : 'Courrier bouclé');
     } catch (completeError) {
       console.error(completeError);
-      toast.error('Could not finish this moment.');
+      toast.error('Ce moment n’a pas pu être terminé.');
     } finally {
       setCompleting(false);
     }
@@ -676,10 +709,10 @@ export default function MissionsPage() {
       });
       if (!next) return;
       setCompletedNextSerial(null);
-      toast.success(next.serial_thread_id ? 'Act opened' : 'Mission opened');
+      toast.success(next.serial_thread_id ? 'Nouvel acte ouvert' : 'Nouveau courrier ouvert');
     } catch (createError) {
       console.error(createError);
-      toast.error('Could not create a new moment.');
+      toast.error('Le nouveau moment n’a pas pu être créé.');
     }
   };
 
@@ -710,7 +743,7 @@ export default function MissionsPage() {
   return (
     <>
       <Head>
-        <title>{isSerialAct ? 'Le Feuilleton · Acte' : 'Le Courrier'} · Conversational Language Learning</title>
+        <title>{isSerialAct ? 'Le Feuilleton · Acte' : 'Le Courrier'} · L’Atelier</title>
       </Head>
       <main className="cr-stage">
         <div className="cr motion" aria-label={isSerialAct ? 'Le Feuilleton · acte' : 'Le Courrier'}>
@@ -757,6 +790,9 @@ export default function MissionsPage() {
                   statusLine={statusLine}
                   onBack={returnToAtelierHome}
                 />
+                {mission.recommendation_reason?.text && (
+                  <p className="cr-reason">{mission.recommendation_reason.text}</p>
+                )}
 
                 {!completed && (
                   <>
@@ -871,16 +907,18 @@ export default function MissionsPage() {
                       </div>
                     )}
                     {nextBest && <p className="sub" style={{ maxWidth: 300 }}>{nextBest}</p>}
+                    {/* One primary action per screen: the forward move. When the act
+                        continues, that is the next act; otherwise it is the next
+                        courrier. Everything else stays a quiet ghost. */}
                     <div className="cr-nexts">
-                      <CrGhost primary href="/atelier" onClick={returnToAtelierHome}>Retour à l’Atelier</CrGhost>
-                      {isSerialAct && completedNextSerial?.thread_id && (
-                        <CrGhost href={routeForMissionSerialBeat(completedNextSerial)}>Lire l’acte suivant</CrGhost>
-                      )}
-                      {!isSerialAct && (
+                      {isSerialAct && completedNextSerial?.thread_id ? (
+                        <CrGhost primary href={routeForMissionSerialBeat(completedNextSerial)}>Lire l’acte suivant</CrGhost>
+                      ) : (
                         <CrGhost primary onClick={startFreshMission} disabled={creating}>Nouveau courrier</CrGhost>
                       )}
-                      {isSerialAct && (
-                        <CrGhost onClick={startFreshMission} disabled={creating}>Nouveau courrier</CrGhost>
+                      <CrGhost href="/atelier" onClick={returnToAtelierHome}>Retour à l’Atelier</CrGhost>
+                      {isSerialAct && completedNextSerial?.thread_id && (
+                        <CrGhost quiet onClick={startFreshMission} disabled={creating}>Nouveau courrier</CrGhost>
                       )}
                     </div>
                   </div>
@@ -890,7 +928,8 @@ export default function MissionsPage() {
                   <section className="cr-archive" aria-label="Courrier passé">
                     <span className="k">Courrier passé</span>
                     <ul>
-                      {recentCompleted.slice(0, 8).filter((past) => past.id !== mission?.id).map((past) => (
+                      {/* Filter before slicing, or the open courrier silently eats a row. */}
+                      {recentCompleted.filter((past) => past.id !== mission?.id).slice(0, 8).map((past) => (
                         <li key={past.id}>
                           <Link href={{ pathname: '/missions', query: { mission: past.id } }}>
                             <b>{missionTitle(past)}</b>
@@ -968,6 +1007,7 @@ function MissionsStageStyles() {
         justify-content: center;
         flex: 1 1 auto;
       }
+      .cr .cr-reason { margin: 8px var(--cr-pad, 18px) 18px; color: var(--app-ink-3); font: italic 12px/1.4 var(--app-serif); }
     `}</style>
   );
 }

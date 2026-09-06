@@ -1,15 +1,14 @@
 """NPC service for managing relationships and memories."""
 from __future__ import annotations
 
-import uuid
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Sequence
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
-from sqlalchemy import select, desc
+from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
 
-from app.db.models.npc import NPC, NPCRelationship, NPCMemory
+from app.db.models.npc import NPC, NPCMemory, NPCRelationship
 from app.db.models.user import User
 
 if TYPE_CHECKING:
@@ -139,7 +138,7 @@ class NPCService:
         if new_mood:
             relationship.mood = new_mood
         
-        relationship.last_interaction_at = datetime.now(timezone.utc)
+        relationship.last_interaction_at = datetime.now(UTC)
         self.db.commit()
         self.db.refresh(relationship)
         
@@ -270,9 +269,6 @@ class NPCService:
             return []
         
         relationship = self.get_or_create_relationship(user, npc_id)
-        
-        # Get all available secrets for current level
-        available = self._get_available_secrets(npc, relationship.level)
         
         # Check which secrets have already been shared
         shared_level = relationship.has_shared_secret or 0

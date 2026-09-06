@@ -1,7 +1,7 @@
 """Notification helpers for serial edition availability."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from loguru import logger
@@ -38,14 +38,14 @@ def enqueue_serial_edition_notification(db: Session, episode: SerialEpisode, *, 
 
     teaser = _compact(hook.get("teaser") or hook.get("text") or hook.get("unresolved_question"))
     if episode.kind == "feuilleton":
-        title = f"Episode {int(episode.episode_index) + 1} is ready"
-        message = teaser or "The next Feuilleton edition is ready to read."
+        title = f"Épisode {int(episode.episode_index) + 1} disponible"
+        message = teaser or "Votre nouvelle édition du Feuilleton est prête."
     else:
-        title = f"Episode {int(episode.episode_index) + 1} needs your reply"
-        message = teaser or "The next serial act is ready."
+        title = f"Épisode {int(episode.episode_index) + 1} · à vous"
+        message = teaser or "Romy attend votre réponse dans le prochain acte."
 
     hook["notification_queued_key"] = notification_key
-    hook["notification_queued_at"] = datetime.now(timezone.utc).isoformat()
+    hook["notification_queued_at"] = datetime.now(UTC).isoformat()
     episode.hook = hook
     db.add(episode)
     db.commit()

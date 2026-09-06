@@ -13,8 +13,8 @@ from app.db.models.user import User
 from app.services.atelier import (
     AtelierExerciseGenerator,
     AtelierExerciseQualityService,
-    AtelierSRSService,
     AtelierScheduler,
+    AtelierSRSService,
     session_exercise_set,
 )
 
@@ -191,3 +191,40 @@ def test_quality_threshold_retires_and_regenerates_exercise_set(db_session):
         fast_path=True,
     )
     assert assembled.id == replacement.id
+
+
+def test_quality_sweep_keeps_retirement_when_replacement_provider_fails(
+    db_session,
+    monkeypatch,
+):
+    concept = _concept(db_session)
+    user = _user(db_session)
+    exercise_set = AtelierExerciseGenerator(db_session).get_or_create(
+        concept,
+        reuse_shared_cache=True,
+        skip_llm=True,
+    )
+    for index in range(3):
+        db_session.add(
+            AtelierGenerationEvent(
+                user_id=user.id,
+                concept_id=concept.id,
+                exercise_set_id=exercise_set.id,
+                generator_version=exercise_set.generator_version,
+                event_type="user_report",
+                source="human",
+                passed=False,
+                payload={"reason": f"bad item {index}"},
+            )
+        )
+    db_session.commit()
+    monkeypatch.setattr(
+        "app.services.atelier.AtelierExerciseGenerator.get_or_create",
+        lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("provider unavailable")),
+    )
+
+    retired_ids = AtelierExerciseQualityService(db_session).run()
+
+    db_session.refresh(exercise_set)
+    assert retired_ids == [exercise_set.id]
+    assert exercise_set.retired_at is not None

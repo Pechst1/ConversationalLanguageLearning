@@ -6,10 +6,11 @@ import sys
 # Add current directory to path
 sys.path.append(os.getcwd())
 
+
+from app.db.models.story import Chapter, Scene, Story
 from app.db.session import SessionLocal
 from app.services.story_visualization import StoryVisualizationService
-from app.db.models.story import Story, Scene, Chapter
-from datetime import datetime
+
 
 async def main():
     db = SessionLocal()

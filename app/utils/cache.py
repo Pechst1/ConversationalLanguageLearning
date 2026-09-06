@@ -21,7 +21,7 @@ def _json_default(value: Any) -> Any:
         return value.isoformat()  # datetime and date objects
     if isinstance(value, set):
         return sorted(value)
-    if hasattr(value, "hex") and callable(getattr(value, "hex")):
+    if hasattr(value, "hex") and callable(value.hex):
         return value.hex()
     if hasattr(value, "__str__"):
         return str(value)
@@ -40,7 +40,10 @@ def build_cache_key(**components: Any) -> str:
 
     normalized = normalize_value(components)
     payload = json.dumps(normalized, sort_keys=True, default=_json_default)
-    return hashlib.sha1(payload.encode("utf-8")).hexdigest()
+    return hashlib.sha1(
+        payload.encode("utf-8"),
+        usedforsecurity=False,
+    ).hexdigest()
 
 
 _redis_module = None

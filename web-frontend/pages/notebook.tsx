@@ -3,8 +3,16 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 
-import EditorialMasthead from '@/components/layout/EditorialMasthead';
-import { NOTEBOOK_MODE_STORAGE_KEY, NotebookModeSwitch, type NotebookMode } from '@/components/mobile';
+import PhoneProductNav from '@/components/layout/PhoneProductNav';
+import {
+  CahiersStyles,
+  NcMasthead,
+  NcModeTabs,
+  NcFeuilleFile,
+  type NcMode,
+} from '@/components/cahiers/Cahiers';
+import { NOTEBOOK_MODE_STORAGE_KEY } from '@/components/mobile';
+import Releve from '@/components/releve/Releve';
 import { Button } from '@/components/ui/Button';
 import { ExerciseShell } from '@/components/ui/ExerciseShell';
 import { FeedbackSheet } from '@/components/ui/FeedbackSheet';
@@ -17,6 +25,10 @@ import { GrammarNotebookSurface } from './grammar';
 import VocabularyPage from './vocabulary';
 
 type NotebookQuery = Record<string, string | string[] | undefined>;
+/* The Cahier's own tab set. `NotebookMode` in components/mobile still describes
+   the retired mobile switch; Le Relevé is a Cahier tab, so the shell keeps its
+   own union rather than widening the legacy one. */
+type NotebookMode = 'grammar' | 'vocabulary' | 'releve' | 'library';
 type LibraryExerciseKind = 'comprehension' | 'vocabulary' | 'grammar' | 'production';
 type LibraryExerciseStep = {
   id: string;
@@ -47,6 +59,7 @@ function storedNotebookMode(): NotebookMode {
   try {
     const stored = window.localStorage.getItem(NOTEBOOK_MODE_STORAGE_KEY);
     if (stored === 'vocabulary') return 'vocabulary';
+    if (stored === 'releve') return 'releve';
     if (STORY_FEATURE_VISIBLE && stored === 'library') return 'library';
     return 'grammar';
   } catch {
@@ -65,7 +78,7 @@ function rememberNotebookMode(mode: NotebookMode) {
 
 function notebookModeFromQuery(query: NotebookQuery): NotebookMode | null {
   const explicitMode = firstQueryValue(query.mode);
-  if (explicitMode === 'grammar' || explicitMode === 'vocabulary') return explicitMode;
+  if (explicitMode === 'grammar' || explicitMode === 'vocabulary' || explicitMode === 'releve') return explicitMode;
   if (STORY_FEATURE_VISIBLE && explicitMode === 'library') return 'library';
   if (STORY_FEATURE_VISIBLE && firstQueryValue(query.book)) return 'library';
   if (firstQueryValue(query.word)) return 'vocabulary';
@@ -73,12 +86,18 @@ function notebookModeFromQuery(query: NotebookQuery): NotebookMode | null {
   return null;
 }
 
-function notebookModeFromHref(href: string | null): NotebookMode | null {
-  if (!href) return null;
-  if (STORY_FEATURE_VISIBLE && (href.includes('mode=library') || href.includes('/bibliotheque') || href.includes('/stories'))) return 'library';
-  if (href.includes('/vocabulary')) return 'vocabulary';
-  if (href.includes('/grammar')) return 'grammar';
-  return null;
+function notebookModeToNc(mode: NotebookMode): NcMode {
+  if (mode === 'vocabulary') return 'vocabulaire';
+  if (mode === 'releve') return 'releve';
+  if (mode === 'library') return 'bibliotheque';
+  return 'grammaire';
+}
+
+function ncModeToNotebook(mode: NcMode): NotebookMode {
+  if (mode === 'vocabulaire') return 'vocabulary';
+  if (mode === 'releve') return 'releve';
+  if (mode === 'bibliotheque') return 'library';
+  return 'grammar';
 }
 
 function queryForMode(query: NotebookQuery, requestedMode: NotebookMode): NotebookQuery {
@@ -90,6 +109,9 @@ function queryForMode(query: NotebookQuery, requestedMode: NotebookMode): Notebo
   if (mode === 'grammar') {
     const concept = firstQueryValue(query.concept) || firstQueryValue(query.review);
     if (concept) nextQuery.concept = concept;
+  } else if (mode === 'releve') {
+    // Le Relevé is a read-only ledger; it carries no deep-link parameters.
+    return nextQuery;
   } else {
     if (mode === 'library') {
       const book = firstQueryValue(query.book);
@@ -175,47 +197,44 @@ export default function NotebookEntryPage() {
     [mode, router]
   );
 
-  const handleModeSwitchClick = useCallback(
-    (event: React.MouseEvent<HTMLElement>) => {
-      const target = event.target instanceof Element ? event.target : null;
-      const anchor = target?.closest('a[href]');
-      const nextMode = notebookModeFromHref(anchor?.getAttribute('href') || null);
-      if (!nextMode) return;
-      event.preventDefault();
-      switchMode(nextMode);
-    },
-    [switchMode]
-  );
-
   const visibleMode = !STORY_FEATURE_VISIBLE && mode === 'library' ? 'grammar' : mode;
+
+  // The bound serial clipping at the top of the carnet — one line, or absent.
+  const notebookFeuilleton = React.useMemo(() => {
+    const scene = feuilletonToday?.active_scene
+      || feuilletonToday?.available_scene
+      || feuilletonToday?.recent_completed?.[0]
+      || null;
+    if (!scene) return null;
+    const ep = typeof scene.episode_index === 'number' ? scene.episode_index + 1 : undefined;
+    return {
+      ep,
+      title: scene.title || 'Reprendre le feuilleton',
+      href: `/graphic-novel?scene=${encodeURIComponent(scene.id)}`,
+    };
+  }, [feuilletonToday]);
 
   return (
     <>
       <Head>
-        <title>{`${visibleMode === 'grammar' ? 'Grammar Notebook' : visibleMode === 'vocabulary' ? 'Vocabulary Notebook' : 'Library Notebook'} · Atelier`}</title>
+        <title>{`${visibleMode === 'grammar' ? 'Le Cahier · Grammaire' : visibleMode === 'vocabulary' ? 'Le Cahier · Lexique' : visibleMode === 'releve' ? 'Le Cahier · Le Relevé' : 'Le Cahier · Bibliothèque'} · L’Atelier`}</title>
       </Head>
-      <EditorialMasthead active="notebook" />
-      <div className="notebook-shell-page">
-        <div className="notebook-shell-spread">
-          <header className="notebook-shell-title">
-            <div>
-              <div className="notebook-shell-eyebrow">Reference Layer</div>
-              <h1>Notebook</h1>
-            </div>
-          </header>
-
-          <NotebookProgression cefr={cefr} />
-          <NotebookArchiveLead feuilleton={feuilletonToday} />
-
-          <NotebookModeSwitch
-            active={visibleMode}
-            grammarMeta="Rules and weak spots"
-            vocabularyMeta="French 5000"
-            libraryMeta={STORY_FEATURE_VISIBLE ? 'Books and episodes' : undefined}
-            className="notebook-shell-switch"
-            onClickCapture={handleModeSwitchClick}
+      <CahiersStyles />
+      <div className="nc">
+        <div className="nc-page">
+          <NcMasthead cefr={cefr?.estimate ? `${cefr.estimate} en cours` : null} />
+          {notebookFeuilleton && (
+            <NcFeuilleFile
+              ep={notebookFeuilleton.ep}
+              title={notebookFeuilleton.title}
+              href={notebookFeuilleton.href}
+            />
+          )}
+          <NcModeTabs
+            active={notebookModeToNc(visibleMode)}
+            library={STORY_FEATURE_VISIBLE}
+            onSelect={(next) => switchMode(ncModeToNotebook(next))}
           />
-
           <section key={visibleMode} className="notebook-shell-content" data-mode={visibleMode}>
             {visibleMode === 'grammar' ? (
               <GrammarNotebookSurface embedded />
@@ -223,6 +242,8 @@ export default function NotebookEntryPage() {
               <div className="notebook-embedded-vocabulary">
                 <VocabularyPage embedded />
               </div>
+            ) : visibleMode === 'releve' ? (
+              <Releve />
             ) : (
               <LibraryNotebookSurface
                 bookId={firstQueryValue(queryBook)}
@@ -232,13 +253,14 @@ export default function NotebookEntryPage() {
           </section>
         </div>
       </div>
+      <PhoneProductNav active="notebook" placement="embedded" />
       <style jsx global>{`
         .notebook-shell-page {
-          --paper: #f1ece1;
-          --sheet: #f8f3e8;
-          --ink: #14110d;
-          --ink-2: #4a4538;
-          --ink-3: #8a826f;
+          --paper: var(--app-paper);
+          --sheet: var(--app-sheet);
+          --ink: var(--app-ink);
+          --ink-2: var(--app-ink-2);
+          --ink-3: var(--app-ink-3);
           min-height: 100vh;
           background: var(--paper);
           color: var(--ink);
@@ -316,7 +338,7 @@ export default function NotebookEntryPage() {
         .progression-row em {
           display: block;
           height: 100%;
-          background: #1d3a8a;
+          background: var(--app-blue);
         }
         .progression-row b {
           font-size: 12px;
@@ -363,18 +385,18 @@ export default function NotebookEntryPage() {
         .lead-imprint i {
           display: block;
           border: 1.5px solid var(--ink);
-          background: #1d3a8a;
+          background: var(--app-blue);
         }
         .lead-imprint i:nth-child(1) {
           height: 48px;
         }
         .lead-imprint i:nth-child(2) {
           height: 64px;
-          background: #e3341c;
+          background: var(--app-red);
         }
         .lead-imprint i:nth-child(3) {
           height: 36px;
-          background: #f3c318;
+          background: var(--app-yellow);
         }
         .lead-copy {
           min-width: 0;
@@ -439,7 +461,7 @@ export default function NotebookEntryPage() {
           .archive-quick-links a:hover,
           .library-book-row:hover {
             transform: translate(-2px, -2px);
-            box-shadow: 4px 4px 0 var(--ink);
+            box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--ink) 20%, transparent);
           }
         }
         @keyframes notebook-page-turn {
@@ -483,8 +505,8 @@ export default function NotebookEntryPage() {
           text-decoration: none;
         }
         .library-book-row.active {
-          box-shadow: 5px 5px 0 var(--ink);
-          background: #fffaf0;
+          box-shadow: inset 4px 0 0 var(--app-red);
+          background: var(--app-sheet);
         }
         .library-book-row span,
         .library-book-row b {
@@ -604,7 +626,7 @@ export default function NotebookEntryPage() {
         }
         .library-runner-stage blockquote {
           margin: 0;
-          border-left: 4px solid #1d3a8a;
+          border-left: 4px solid var(--app-blue);
           background: var(--paper);
           padding: 10px 12px;
           color: var(--ink-2);
@@ -624,7 +646,7 @@ export default function NotebookEntryPage() {
           border: 1px solid var(--ink) !important;
           background: var(--paper);
           padding: 12px 14px;
-          box-shadow: 4px 4px 0 var(--ink) !important;
+          box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--ink) 20%, transparent) !important;
           color: var(--ink);
           outline: none;
         }
@@ -676,7 +698,7 @@ export default function NotebookEntryPage() {
           color: var(--ink-2);
         }
         .library-empty a {
-          color: var(--blue, #1d3a8a);
+          color: var(--blue, var(--app-blue));
           font-weight: 900;
           text-transform: uppercase;
           text-decoration: none;
@@ -744,85 +766,6 @@ export default function NotebookEntryPage() {
   );
 }
 
-function NotebookProgression({ cefr }: { cefr: CEFRProgress | null }) {
-  if (!cefr) return null;
-  const breakdown = cefr.breakdown || {};
-  const forecast = cefr.forecast || null;
-  const forecastText = forecast?.status === 'available' && Array.isArray(forecast.range_days)
-    ? `${forecast.range_days[0]}-${forecast.range_days[1]} days`
-    : forecast?.message || 'Forecast unlocks after 7 active days';
-  return (
-    <section className="notebook-progression">
-      <div>
-        <span>Progression</span>
-        <strong>{cefr.estimate} → {cefr.target}</strong>
-        <small>{forecastText}</small>
-      </div>
-      <ProgressionRow label="Words" metric={breakdown.vocabulary} />
-      <ProgressionRow label="Concepts" metric={breakdown.grammar} />
-      <ProgressionRow label="Score" metric={breakdown.score} />
-    </section>
-  );
-}
-
-function ProgressionRow({ label, metric }: { label: string; metric: any }) {
-  const current = Number(metric?.current || 0);
-  const target = Number(metric?.target || 0);
-  const pct = target > 0 ? Math.max(0, Math.min(100, Math.round((current / target) * 100))) : 0;
-  return (
-    <div className="progression-row">
-      <span>{label}</span>
-      <i><em style={{ width: `${pct}%` }} /></i>
-      <b>{current}/{target}</b>
-    </div>
-  );
-}
-
-function NotebookArchiveLead({ feuilleton }: { feuilleton: GraphicNovelToday | null }) {
-  const scene = feuilleton?.active_scene || feuilleton?.available_scene || feuilleton?.recent_completed?.[0] || null;
-  const panelImage = scene?.panels?.find((panel) => panel.image_url)?.image_url || null;
-  const href = scene ? `/graphic-novel?scene=${encodeURIComponent(scene.id)}` : '/graphic-novel';
-  const eyebrow = scene?.status === 'completed'
-    ? 'Latest Feuilleton'
-    : scene?.status === 'in_progress'
-      ? 'Feuilleton in progress'
-      : 'Today in the serial';
-
-  return (
-    <section className="notebook-archive-lead" aria-label="Notebook archive lead">
-      <Link className="feuilleton-lead-card" href={href} onClick={() => pulseAppHaptic('selection')}>
-        {panelImage ? (
-          <span
-            className="lead-panel-image"
-            style={{ backgroundImage: `url("${panelImage.replace(/"/g, '%22')}")` }}
-            aria-hidden="true"
-          />
-        ) : (
-          <span className="lead-imprint" aria-hidden="true">
-            <i />
-            <i />
-            <i />
-          </span>
-        )}
-        <span className="lead-copy">
-          <em>{eyebrow}</em>
-          <strong>{scene?.title || 'Open the Feuilleton'}</strong>
-          <small>{scene?.brief || 'A fresh scene waits beside today’s notes.'}</small>
-        </span>
-        <b aria-hidden="true">→</b>
-      </Link>
-      <nav className="archive-quick-links" aria-label="Archive shortcuts">
-        <Link href="/serial">Serial archive</Link>
-        <Link href="/almanac" onClick={() => pulseAppHaptic('selection')}>Seals</Link>
-        <Link href="/missions">Past missions</Link>
-        {STORY_FEATURE_VISIBLE && (
-          <Link href="/bibliotheque" onClick={() => pulseAppHaptic('selection')}>Uploads</Link>
-        )}
-      </nav>
-    </section>
-  );
-}
-
 function normalizeLibraryAnswer(value: unknown) {
   return String(value || '')
     .normalize('NFD')
@@ -853,9 +796,9 @@ function libraryExerciseSteps(payload: Record<string, any> | null | undefined): 
     ...comprehension.slice(0, 2).map((item: any, index: number): LibraryExerciseStep => ({
       id: `comprehension-${index}`,
       kind: 'comprehension',
-      eyebrow: 'Comprehension',
-      title: `Find the proof ${index + 1}`,
-      prompt: String(item.question || 'Answer from the passage.'),
+      eyebrow: 'Compréhension',
+      title: `Retrouver la preuve ${index + 1}`,
+      prompt: String(item.question || 'Répondez à partir du passage.'),
       target: String(item.answer || ''),
       evidence: String(item.evidence || ''),
       inputMode: 'paragraph',
@@ -863,9 +806,9 @@ function libraryExerciseSteps(payload: Record<string, any> | null | undefined): 
     ...vocabulary.slice(0, 2).map((item: any, index: number): LibraryExerciseStep => ({
       id: `vocabulary-${index}`,
       kind: 'vocabulary',
-      eyebrow: 'Vocabulary',
-      title: String(item.word || `Word ${index + 1}`),
-      prompt: `Which passage word fits this cue? ${item.gloss_hint || 'Use the context sentence.'}`,
+      eyebrow: 'Lexique',
+      title: String(item.word || `Mot ${index + 1}`),
+      prompt: `Quel mot du passage convient ici ? ${item.gloss_hint || 'Appuyez-vous sur la phrase.'}`,
       target: String(item.word || ''),
       evidence: String(item.context_sentence || ''),
       inputMode: 'line',
@@ -873,9 +816,9 @@ function libraryExerciseSteps(payload: Record<string, any> | null | undefined): 
     ...grammar.slice(0, 1).map((item: any, index: number): LibraryExerciseStep => ({
       id: `grammar-${index}`,
       kind: 'grammar',
-      eyebrow: 'Grammar in the passage',
-      title: String(item.pattern || 'Pattern'),
-      prompt: String(item.prompt || 'Find the pattern in the passage.'),
+      eyebrow: 'Grammaire dans le passage',
+      title: String(item.pattern || 'Structure'),
+      prompt: String(item.prompt || 'Repérez la structure dans le passage.'),
       target: String(item.answer || ''),
       explanation: String(item.explanation || ''),
       inputMode: 'paragraph',
@@ -884,8 +827,8 @@ function libraryExerciseSteps(payload: Record<string, any> | null | undefined): 
       id: 'production-0',
       kind: 'production' as const,
       eyebrow: 'Production',
-      title: 'Write from the passage',
-      prompt: String(production.prompt || 'Write a short response grounded in the passage.'),
+      title: 'Écrire depuis le passage',
+      prompt: String(production.prompt || 'Écrivez une réponse courte appuyée sur le passage.'),
       target: String(production.example_answer || ''),
       criteria: Array.isArray(production.success_criteria) ? production.success_criteria.map((item: any) => String(item || '').trim()).filter(Boolean) : [],
       inputMode: 'paragraph' as const,
@@ -906,21 +849,21 @@ function libraryExerciseFeedback(step: LibraryExerciseStep, answer: string): Lib
   if (close || (step.kind === 'production' && enoughWriting)) {
     return {
       status: 'correct',
-      title: step.kind === 'production' ? 'Ready to file' : 'Grounded in the passage',
+      title: step.kind === 'production' ? 'Prêt à classer' : 'Vérifié dans le passage',
       explanation: step.kind === 'production'
-        ? 'The answer is long enough to carry the episode forward. Keep one detail from the passage visible.'
-        : 'Good. The answer connects to the generated passage evidence.',
-      rule: step.evidence ? `Evidence: ${excerpt(step.evidence)}` : undefined,
+        ? 'La réponse est assez développée pour faire avancer l’épisode. Gardez un détail du passage visible.'
+        : 'Bien. La réponse s’appuie sur un élément précis du passage.',
+      rule: step.evidence ? `Preuve : ${excerpt(step.evidence)}` : undefined,
     };
   }
   return {
     status: 'wrong',
-    title: 'Use the passage as proof',
+    title: 'Le passage fait foi',
     explanation: step.kind === 'vocabulary'
-      ? 'Look back at the context sentence and copy the word that matches the cue.'
-      : 'Add one concrete detail from the passage before moving on.',
-    repair: step.target ? `Target: ${excerpt(step.target)}` : undefined,
-    rule: step.evidence ? `Evidence: ${excerpt(step.evidence)}` : step.explanation || undefined,
+      ? 'Relisez la phrase de contexte et reprenez le mot correspondant à l’indice.'
+      : 'Ajoutez un détail concret du passage avant de continuer.',
+    repair: step.target ? `Réponse visée : ${excerpt(step.target)}` : undefined,
+    rule: step.evidence ? `Preuve : ${excerpt(step.evidence)}` : step.explanation || undefined,
   };
 }
 
@@ -957,7 +900,7 @@ function LibraryNotebookSurface({
         setBooks(rows || []);
       })
       .catch(() => {
-        if (!cancelled) setError('Could not load your library.');
+        if (!cancelled) setError('La bibliothèque n’a pas pu être chargée.');
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -1004,19 +947,19 @@ function LibraryNotebookSurface({
   return (
     <div className="library-notebook">
       {error && <div className="library-state">{error}</div>}
-      {loading && <div className="library-state">Loading library</div>}
+      {loading && <div className="library-state">Ouverture de la bibliothèque…</div>}
 
       {!loading && !books.length && (
         <section className="library-empty">
-          <h2>Library</h2>
-          <p>Your uploaded books will appear here as reading episodes.</p>
-          <Link href="/bibliotheque">Open uploads</Link>
+          <h2>Bibliothèque</h2>
+          <p>Vos livres importés paraîtront ici sous forme d’épisodes de lecture.</p>
+          <Link href="/bibliotheque">Ouvrir les imports</Link>
         </section>
       )}
 
       {!!books.length && (
         <div className="library-grid">
-          <section className="library-list" aria-label="Uploaded books">
+          <section className="library-list" aria-label="Livres importés">
             {books.map((book) => (
               <Link
                 key={book.id}
@@ -1026,20 +969,20 @@ function LibraryNotebookSurface({
               >
                 <span>{book.target_level}</span>
                 <strong>{book.title}</strong>
-                <em>{book.author || book.source_filename || 'Uploaded text'}</em>
+                <em>{book.author || book.source_filename || 'Texte importé'}</em>
                 <b>{book.completion_percentage}%</b>
               </Link>
             ))}
           </section>
 
-          <section className="library-reader" aria-label="Selected reading episode">
-            {episodeLoading && <div className="library-state">Loading episode</div>}
+          <section className="library-reader" aria-label="Épisode de lecture sélectionné">
+            {episodeLoading && <div className="library-state">Ouverture de l’épisode…</div>}
             {!episodeLoading && selectedBook && episode && (
               <>
                 <header>
                   <span>{selectedBook.title}</span>
                   <h2>{episode.title}</h2>
-                  <p>Episode {episode.order_index + 1} of {selectedBook.total_episodes || 1} · {episode.est_reading_minutes} min · {episode.word_count} words</p>
+                  <p>Épisode {episode.order_index + 1} sur {selectedBook.total_episodes || 1} · {episode.est_reading_minutes} min · {episode.word_count} mots</p>
                 </header>
                 <article className="library-passage">
                   {(episode.passage_text || '').split(/\n{2,}/).filter(Boolean).slice(0, 8).map((paragraph, index) => (
@@ -1099,22 +1042,22 @@ function LibraryEpisodeExerciseRunner({
 
   if (completed) {
     return (
-      <section className="library-runner library-runner-complete" aria-label="Episode exercises complete">
-        <span>Exercises filed</span>
-        <strong>Episode {episode.order_index + 1} is complete.</strong>
-        <p>The passage, vocabulary, and production prompt are saved in your library progress.</p>
+      <section className="library-runner library-runner-complete" aria-label="Exercices de l’épisode terminés">
+        <span>Exercices classés</span>
+        <strong>L’épisode {episode.order_index + 1} est terminé.</strong>
+        <p>Le passage, le lexique et la consigne de production sont classés dans votre progression.</p>
       </section>
     );
   }
 
   if (allChecked) {
     return (
-      <section className="library-runner library-runner-complete" aria-label="Episode ready to complete">
-        <span>Feedback moment</span>
-        <strong>Ready to continue {episode.title}</strong>
-        <p>You read the passage, checked the generated prompts, and wrote from the episode.</p>
+      <section className="library-runner library-runner-complete" aria-label="Épisode prêt à être classé">
+        <span>Moment de bilan</span>
+        <strong>Prêt à continuer {episode.title}</strong>
+        <p>Vous avez lu le passage, vérifié les consignes et écrit depuis l’épisode.</p>
         <Button loading={finishing} rightIcon={<span aria-hidden="true">→</span>} onClick={finishEpisode}>
-          Complete episode
+          Terminer l’épisode
         </Button>
       </section>
     );
@@ -1136,9 +1079,9 @@ function LibraryEpisodeExerciseRunner({
   return (
     <ExerciseShell
       className="library-runner library-do-mode"
-      eyebrow={`Episode exercise ${stepIndex + 1} of ${steps.length}`}
+      eyebrow={`Exercice ${stepIndex + 1} sur ${steps.length}`}
       title={activeStep.title}
-      action={<ProgressBar value={stepIndex} max={steps.length} label="Episode exercise progress" />}
+      action={<ProgressBar value={stepIndex} max={steps.length} label="Progression des exercices" />}
     >
       <div className="library-runner-stage">
         <span>{activeStep.eyebrow}</span>
@@ -1158,7 +1101,7 @@ function LibraryEpisodeExerciseRunner({
             setAnswers((current) => ({ ...current, [activeStep.id]: event.target.value }));
             setFeedback(null);
           }}
-          placeholder="Answer from the passage"
+          placeholder="Répondez à partir du passage"
         />
       ) : (
         <textarea
@@ -1168,7 +1111,7 @@ function LibraryEpisodeExerciseRunner({
             setAnswers((current) => ({ ...current, [activeStep.id]: event.target.value }));
             setFeedback(null);
           }}
-          placeholder="Write your answer in French"
+          placeholder="Écrivez votre réponse en français"
         />
       )}
       {feedback && (
@@ -1185,7 +1128,7 @@ function LibraryEpisodeExerciseRunner({
       {!feedback && (
         <div className="library-runner-action">
           <Button disabled={!answer.trim()} onClick={checkAnswer}>
-            Check
+            Vérifier
           </Button>
         </div>
       )}
@@ -1198,18 +1141,18 @@ function LibraryExercisePreview({ payload }: { payload: Record<string, any> }) {
   const vocabulary = Array.isArray(payload?.vocabulary) ? payload.vocabulary.slice(0, 5) : [];
   const production = payload?.production || null;
   return (
-    <section className="library-exercises" aria-label="Episode exercises">
-      <h3>Episode prompts</h3>
+    <section className="library-exercises" aria-label="Exercices de l’épisode">
+      <h3>Consignes de l’épisode</h3>
       <div>
         {comprehension.map((item: any, index: number) => (
           <article key={`comp-${index}`}>
-            <span>Comprehension</span>
+            <span>Compréhension</span>
             <p>{item.question}</p>
           </article>
         ))}
         {!!vocabulary.length && (
           <article>
-            <span>Vocabulary</span>
+            <span>Lexique</span>
             <p>{vocabulary.map((item: any) => item.word).filter(Boolean).join(', ')}</p>
           </article>
         )}

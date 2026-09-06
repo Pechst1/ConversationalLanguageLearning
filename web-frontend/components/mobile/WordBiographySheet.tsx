@@ -1,6 +1,7 @@
 import React from 'react';
 import type { VocabularyBiography, VocabularyBiographyEvent, VocabularyBiographyExample } from '@/services/api';
 import { cn } from '@/lib/utils';
+import { learnerGloss } from '@/lib/glosses';
 import { ContextAnchor } from './ContextAnchor';
 import { FragilityBadge } from './FragilityBadge';
 import { MobileBottomSheet } from './MobileBottomSheet';
@@ -16,10 +17,10 @@ export interface WordBiographySheetProps extends Omit<React.HTMLAttributes<HTMLD
 }
 
 function formatThreadDate(value?: string | null) {
-  if (!value) return 'Undated';
+  if (!value) return 'Sans date';
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'Undated';
-  return new Intl.DateTimeFormat(undefined, {
+  if (Number.isNaN(date.getTime())) return 'Sans date';
+  return new Intl.DateTimeFormat('fr-FR', {
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
@@ -32,25 +33,45 @@ function formatNumber(value?: number | null) {
   return new Intl.NumberFormat().format(value);
 }
 
+// The server resolves which gloss this learner reads (app/services/glosses.py)
+// and sends it as `translation`. Reading the German column first here was the
+// same bug that module exists to kill, so the raw columns are only a fallback
+// for a payload that predates the resolution.
 function translationFor(biography: VocabularyBiography) {
   return (
-    biography.word.german_translation ||
-    biography.word.english_translation ||
-    biography.word.french_translation ||
+    learnerGloss(biography.word) ||
     biography.word.definition ||
     biography.origin.label
   );
 }
 
+// `source_type` is a storage key ("anki_deck", "graphic_novel"). It used to be
+// printed with its underscores swapped for spaces — a machine key on a
+// publication surface. Unknown keys print nothing rather than their internals.
+const SOURCE_LABELS: Record<string, string> = {
+  anki_deck: 'Paquet importé',
+  atelier: 'L’Atelier',
+  atelier_attempt: 'L’Épreuve',
+  conversation: 'Le Studio',
+  deck: 'Paquet',
+  errata: 'Errata',
+  fsrs: 'Révision',
+  graphic_novel: 'Le Feuilleton',
+  lexicon: 'Le Lexique',
+  mission: 'Missions',
+  pilot_capture: 'Capture pilote',
+  srs: 'Révision',
+};
+
 function eventKicker(event: VocabularyBiographyEvent) {
-  return event.source_type.replace(/_/g, ' ');
+  return SOURCE_LABELS[event.source_type] || '';
 }
 
 function ExampleList({ examples }: { examples: VocabularyBiographyExample[] }) {
   if (!examples.length) return null;
   return (
     <section className="word-biography-section">
-      <h3>Examples</h3>
+      <h3>Exemples</h3>
       <div className="word-biography-examples">
         {examples.map((example, index) => (
           <ContextAnchor
@@ -90,15 +111,15 @@ const WordBiographySheet = React.forwardRef<HTMLDivElement, WordBiographySheetPr
   ({ open, biography, loading = false, error, onClose, action, className, ...props }, ref) => {
     if (!open) return null;
 
-    const title = biography?.word.word || 'Word thread';
+    const title = biography?.word.word || 'Le fil du mot';
     const description = biography
       ? `${translationFor(biography)} / ${biography.origin.label}`
-      : 'Loading thread';
+      : 'Ouverture…';
 
     return (
       <MobileBottomSheet
-        ariaLabel="Word biography"
-        eyebrow="Word biography"
+        ariaLabel="L’histoire du mot"
+        eyebrow="L’histoire du mot"
         title={title}
         description={description}
         onClose={onClose}
@@ -107,21 +128,21 @@ const WordBiographySheet = React.forwardRef<HTMLDivElement, WordBiographySheetPr
         bodyClassName="word-biography-body-shell"
       >
         <div ref={ref} className="word-biography" {...props}>
-          {loading && <p className="word-biography-empty">Loading thread...</p>}
+          {loading && <p className="word-biography-empty">Ouverture de l’histoire…</p>}
           {error && <div className="word-biography-error">{error}</div>}
           {biography && (
             <>
-              <section className="word-biography-ledger" aria-label="Word memory status">
+              <section className="word-biography-ledger" aria-label="État de la mémoire">
                 <div>
-                  <span>State</span>
+                  <span>État</span>
                   <strong>{biography.progress.fragility_label}</strong>
                 </div>
                 <div>
-                  <span>Seen</span>
+                  <span>Vu</span>
                   <strong>{formatNumber(biography.progress.times_seen)}</strong>
                 </div>
                 <div>
-                  <span>Used</span>
+                  <span>Employé</span>
                   <strong>{formatNumber(biography.progress.times_used_correctly)}</strong>
                 </div>
                 <div>
@@ -137,7 +158,7 @@ const WordBiographySheet = React.forwardRef<HTMLDivElement, WordBiographySheetPr
               <ExampleList examples={biography.examples} />
 
               <section className="word-biography-section">
-                <h3>Thread</h3>
+                <h3>Le fil</h3>
                 <div className="word-biography-thread">
                   {biography.timeline.map((event) => (
                     <MobileRow

@@ -4,9 +4,10 @@ from __future__ import annotations
 import csv
 import sys
 from pathlib import Path
+
 from sqlalchemy.orm import Session
 
-sys.path.append(str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.db.models.vocabulary import VocabularyWord
 from app.db.session import SessionLocal
@@ -42,7 +43,7 @@ def load_vocabulary_from_csv(csv_path: str, language: str = "fr") -> int:
     loaded = 0
 
     try:
-        with open(csv_path, "r", encoding="utf-8") as file:
+        with open(csv_path, encoding="utf-8") as file:
             reader = csv.DictReader(file)
 
             for row in reader:

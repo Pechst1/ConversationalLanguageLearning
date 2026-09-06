@@ -1,14 +1,14 @@
 """Regression tests for real-world scenario missions."""
 from __future__ import annotations
 
-import json
 import asyncio
-from datetime import datetime, timedelta, timezone
-from uuid import uuid4
-from uuid import UUID
+import json
+from datetime import UTC, datetime, timedelta
+from uuid import UUID, uuid4
 
 from fastapi.testclient import TestClient
 
+import app.services.missions as missions_module
 from app.core.security import decode_token
 from app.db.models.error import UserError
 from app.db.models.grammar import GrammarConcept
@@ -19,9 +19,13 @@ from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
 from app.services.atelier import AtelierScheduler
 from app.services.llm_service import LLMResult
-from app.services.missions import MissionConversationService, MissionCorrectionService, MissionGenerator, MissionScheduler
+from app.services.missions import (
+    MissionConversationService,
+    MissionCorrectionService,
+    MissionGenerator,
+    MissionScheduler,
+)
 from app.services.news_service import NewsService
-import app.services.missions as missions_module
 
 
 def _token(client: TestClient) -> str:
@@ -296,7 +300,7 @@ def test_create_mission_uses_concept_erratum_and_news(client: TestClient, db_ses
         why_wrong="You used present in the result clause.",
         repair_hint="Put the consequence in future simple.",
         source_type="atelier",
-        next_review_date=datetime.now(timezone.utc) - timedelta(days=1),
+        next_review_date=datetime.now(UTC) - timedelta(days=1),
     )
     vocab_word = VocabularyWord(
         language="fr",
@@ -327,9 +331,9 @@ def test_create_mission_uses_concept_erratum_and_news(client: TestClient, db_ses
             scheduler="anki",
             state="reviewing",
             phase="review",
-            due_at=datetime.now(timezone.utc) - timedelta(days=1),
-            due_date=(datetime.now(timezone.utc) - timedelta(days=1)).date(),
-            last_review_date=datetime.now(timezone.utc) - timedelta(days=5),
+            due_at=datetime.now(UTC) - timedelta(days=1),
+            due_date=(datetime.now(UTC) - timedelta(days=1)).date(),
+            last_review_date=datetime.now(UTC) - timedelta(days=5),
             stability=2.0,
             difficulty=7.0,
             interval_days=2,
@@ -614,6 +618,136 @@ def test_mission_correction_catches_obvious_vous_avet_when_llm_accepts(db_sessio
     assert any(item["learner_text"] == "probleme" and item["corrected_target"] == "problème" for item in correction["errata"])
 
 
+class _EchoMissionLLM:
+    """Reproduces the live bug: corrected_target merely repeats the learner's
+    sentence (curly apostrophe, extra period) and why_wrong leaks a corrector
+    meta-instruction instead of learner-facing feedback."""
+
+    def generate_error_detection(self, messages, **kwargs):  # type: ignore[no-untyped-def]
+        return LLMResult(
+            provider="stub",
+            model="stub-correction",
+            content=json.dumps(
+                {
+                    "verdict": "needs_revision",
+                    "score_0_4": 2,
+                    "corrected_answer": "J'ai reçu ta carte postale hier matin",
+                    "objective_progress": [],
+                    "concept_hits": [],
+                    "missing_targets": [],
+                    "errata": [
+                        {
+                            "display_label": "Repeated sentence",
+                            "learner_text": "J'ai reçu ta carte postale hier matin",
+                            "corrected_target": "J’ai reçu ta carte postale hier matin.",
+                            "why_wrong": "The message repeats the problem; only one short fragment should be corrected.",
+                            "repair_hint": "Only one short fragment should be corrected.",
+                            "severity": 2,
+                            "recurring": False,
+                            "task_error_type": "word_choice",
+                            "external_id": "",
+                        }
+                    ],
+                    "vocabulary_links": [],
+                }
+            ),
+            prompt_tokens=1,
+            completion_tokens=1,
+            total_tokens=2,
+            cost=0,
+            raw_response={},
+        )
+
+
+def test_mission_correction_drops_erratum_whose_corrected_text_repeats_the_learner(db_session):
+    user = User(id=uuid4(), email="mission-echo@example.com", hashed_password="x", proficiency_level="A2")
+    mission = _mission_for_correction()
+    service = MissionCorrectionService(db_session, llm_service=_EchoMissionLLM())
+
+    correction = service.correct_submission(
+        user=user,
+        mission=mission,
+        text="J'ai reçu ta carte postale hier matin",
+        mode="chat",
+    )
+
+    # The identical-text "correction" vanishes entirely: no card payload, no leaked meta note.
+    assert correction["errata"] == []
+    assert "repeats the problem" not in json.dumps(correction)
+
+    # And nothing is persisted, so the UI repair counter cannot increment.
+    persisted = service.persist_errata(
+        user=user,
+        mission=mission,
+        correction=correction,
+        mode="chat",
+        source_id="turn-echo",
+    )
+    assert persisted == []
+
+
+def test_mission_correction_keeps_real_fix_while_dropping_echo(db_session):
+    class _MixedMissionLLM:
+        def generate_error_detection(self, messages, **kwargs):  # type: ignore[no-untyped-def]
+            return LLMResult(
+                provider="stub",
+                model="stub-correction",
+                content=json.dumps(
+                    {
+                        "verdict": "needs_revision",
+                        "score_0_4": 2,
+                        "corrected_answer": "Ma carte est jolie et j'ai reçu ta lettre.",
+                        "objective_progress": [],
+                        "concept_hits": [],
+                        "missing_targets": [],
+                        "errata": [
+                            {
+                                "display_label": "Echoed fragment",
+                                "learner_text": "j'ai reçu ta lettre",
+                                "corrected_target": "J’ai reçu ta lettre",
+                                "why_wrong": "The message repeats the problem; only one short fragment should be corrected.",
+                                "repair_hint": "Only correct one fragment.",
+                                "severity": 1,
+                                "recurring": False,
+                                "task_error_type": "word_choice",
+                                "external_id": "",
+                            },
+                            {
+                                "display_label": "Gender agreement",
+                                "learner_text": "Mon carte",
+                                "corrected_target": "Ma carte",
+                                "why_wrong": "carte is feminine: ma carte.",
+                                "repair_hint": "Use ma before feminine nouns.",
+                                "severity": 2,
+                                "recurring": False,
+                                "task_error_type": "gender_agreement",
+                                "external_id": "",
+                            },
+                        ],
+                        "vocabulary_links": [],
+                    }
+                ),
+                prompt_tokens=1,
+                completion_tokens=1,
+                total_tokens=2,
+                cost=0,
+                raw_response={},
+            )
+
+    user = User(id=uuid4(), email="mission-mixed@example.com", hashed_password="x", proficiency_level="A2")
+    mission = _mission_for_correction()
+
+    correction = MissionCorrectionService(db_session, llm_service=_MixedMissionLLM()).correct_submission(
+        user=user,
+        mission=mission,
+        text="Mon carte est jolie et j'ai reçu ta lettre.",
+        mode="chat",
+    )
+
+    assert [item["corrected_target"] for item in correction["errata"]] == ["Ma carte"]
+    assert "repeats the problem" not in json.dumps(correction["errata"])
+
+
 def test_mission_near_realtime_correction_uses_local_rules_without_llm(db_session):
     user = User(id=uuid4(), email="mission-fast@example.com", hashed_password="x", proficiency_level="A2")
     mission = _mission_for_correction()
@@ -786,3 +920,539 @@ def test_mission_completion_returns_recap(client: TestClient, db_session, monkey
     )
     assert again.status_code == 200
     assert again.json()["recap"] == response.json()["recap"]
+
+
+class _StubMissionLLM:
+    """A correction LLM whose payload the test supplies verbatim."""
+
+    def __init__(self, payload: dict) -> None:
+        self.payload = payload
+        self.system_prompts: list[str] = []
+
+    def generate_error_detection(self, messages, **kwargs):  # type: ignore[no-untyped-def]
+        self.system_prompts.append(str(kwargs.get("system_prompt") or ""))
+        return LLMResult(
+            provider="stub",
+            model="stub-correction",
+            content=json.dumps(self.payload),
+            prompt_tokens=1,
+            completion_tokens=1,
+            total_tokens=2,
+            cost=0,
+            raw_response={},
+        )
+
+
+def _correction_payload(errata: list[dict], *, corrected_answer: str, **extra) -> dict:
+    return {
+        "verdict": "needs_revision",
+        "score_0_4": 2,
+        "corrected_answer": corrected_answer,
+        "objective_progress": [],
+        "concept_hits": [],
+        "missing_targets": [],
+        "errata": errata,
+        "vocabulary_links": [],
+        **extra,
+    }
+
+
+def test_mission_correction_drops_sentence_wide_rewrites_of_correct_french(db_session):
+    """Live regression: on a clean reply the corrector returned three "errata"
+    whose corrected_target was a rewritten sentence — content and style
+    preferences dressed up as language repairs."""
+    user = User(id=uuid4(), email="mission-rewrite@example.com", hashed_password="x", proficiency_level="A2")
+    mission = _mission_for_correction()
+    learner_text = (
+        "Bonjour, la photo ne correspond pas à mon immeuble : ma porte est verte, pas bleue. "
+        "Mon adresse est 14 rue des Lilas, 75011 Paris, troisième étage. "
+        "Si vous retrouvez le colis, pouvez-vous me le renvoyer cette semaine ?"
+    )
+    llm = _StubMissionLLM(
+        _correction_payload(
+            [
+                {
+                    "display_label": "Address form",
+                    "learner_text": "Mon adresse est 14 rue des Lilas, 75011 Paris, troisième étage.",
+                    "corrected_target": "Mon adresse est le 14 rue des Lilas, 75011 Paris, au troisième étage.",
+                    "why_wrong": "Missing article and preposition for address and floor",
+                    "repair_hint": "Use le/la/au with street and floor.",
+                    "severity": 1,
+                    "task_error_type": "grammar",
+                },
+                {
+                    "display_label": "Request",
+                    "learner_text": "Si vous retrouvez le colis, pouvez-vous me le renvoyer cette semaine ?",
+                    "corrected_target": "Pouvez-vous le renvoyer rapidement ?",
+                    "why_wrong": "Too vague timing; keep a concrete request",
+                    "repair_hint": "Add a concrete request and timeframe.",
+                    "severity": 1,
+                    "task_error_type": "grammar",
+                },
+            ],
+            corrected_answer=learner_text,
+        )
+    )
+
+    correction = MissionCorrectionService(db_session, llm_service=llm).correct_submission(
+        user=user, mission=mission, text=learner_text, mode="chat"
+    )
+
+    assert correction["errata"] == []
+    # Nothing changed, so the page shows no repair card at all.
+    assert correction["corrected_answer"] == learner_text
+
+
+def test_mission_correction_narrows_a_sentence_correction_to_the_changed_fragment(db_session):
+    user = User(id=uuid4(), email="mission-narrow@example.com", hashed_password="x", proficiency_level="A2")
+    mission = _mission_for_correction()
+    learner_text = "J adore le fromage et les chats."
+    llm = _StubMissionLLM(
+        _correction_payload(
+            [
+                {
+                    "display_label": "Apostrophe",
+                    "learner_text": "J adore le fromage et les chats.",
+                    "corrected_target": "J’adore le fromage et les chats.",
+                    "why_wrong": "Apostrophe manquante",
+                    "repair_hint": "Écrivez j’adore.",
+                    "severity": 1,
+                    "task_error_type": "orthography",
+                }
+            ],
+            corrected_answer="J’adore le fromage et les chats.",
+        )
+    )
+
+    correction = MissionCorrectionService(db_session, llm_service=llm).correct_submission(
+        user=user, mission=mission, text=learner_text, mode="chat"
+    )
+
+    assert len(correction["errata"]) == 1
+    erratum = correction["errata"][0]
+    assert erratum["learner_text"] == "J adore"
+    assert erratum["corrected_target"] == "J’adore"
+
+
+def test_mission_correction_refuses_an_invented_answer_for_a_one_word_reply(db_session):
+    """"Oui." came back "corrected" into a whole new message carrying a literal
+    "[votre adresse]" placeholder, which the repair card printed as the learner's
+    own polished reply."""
+    user = User(id=uuid4(), email="mission-invent@example.com", hashed_password="x", proficiency_level="A2")
+    mission = _mission_for_correction()
+    invented = (
+        "Bonjour, le colis a été livré à une mauvaise porte (bleue). Mon adresse est : [votre adresse]. "
+        "Pouvez-vous renvoyer le colis à la bonne porte ou le récupérer ? Merci."
+    )
+    llm = _StubMissionLLM(
+        _correction_payload(
+            [
+                {
+                    "display_label": "Too short",
+                    "learner_text": "Oui.",
+                    "corrected_target": invented,
+                    "why_wrong": "Too short and lacks content; needs address and action.",
+                    "repair_hint": "State the issue and a concrete next step.",
+                    "severity": 2,
+                    "task_error_type": "grammar",
+                }
+            ],
+            corrected_answer=invented,
+        )
+    )
+
+    correction = MissionCorrectionService(db_session, llm_service=llm).correct_submission(
+        user=user, mission=mission, text="Oui.", mode="chat"
+    )
+
+    assert correction["errata"] == []
+    assert "[votre adresse]" not in correction["corrected_answer"]
+    assert correction["corrected_answer"] == "Oui."
+
+
+def test_mission_correction_drops_meta_commentary_and_fabricated_quotes(db_session):
+    user = User(id=uuid4(), email="mission-meta@example.com", hashed_password="x", proficiency_level="A2")
+    mission = _mission_for_correction()
+    learner_text = "Le colis est chez le voisin."
+    llm = _StubMissionLLM(
+        _correction_payload(
+            [
+                {
+                    "display_label": "Note",
+                    "learner_text": "chez le voisin",
+                    "corrected_target": "chez la voisine",
+                    "why_wrong": "Only one short fragment should be corrected.",
+                    "repair_hint": "Keep it to one fragment.",
+                    "severity": 1,
+                    "task_error_type": "gender_agreement",
+                },
+                {
+                    "display_label": "Ghost quote",
+                    "learner_text": "je voudrais réclamer un remboursement",
+                    "corrected_target": "je voudrais un remboursement",
+                    "why_wrong": "Verbe superflu",
+                    "repair_hint": "Enlevez réclamer.",
+                    "severity": 1,
+                    "task_error_type": "word_choice",
+                },
+            ],
+            corrected_answer=learner_text,
+        )
+    )
+
+    correction = MissionCorrectionService(db_session, llm_service=llm).correct_submission(
+        user=user, mission=mission, text=learner_text, mode="chat"
+    )
+
+    # The meta note goes, and so does the fragment the learner never wrote.
+    assert correction["errata"] == []
+
+
+def test_mission_correction_strips_markdown_from_learner_facing_prose(db_session):
+    user = User(id=uuid4(), email="mission-markdown@example.com", hashed_password="x", proficiency_level="A2")
+    mission = _mission_for_correction()
+    llm = _StubMissionLLM(
+        _correction_payload(
+            [
+                {
+                    "display_label": "Gender",
+                    "learner_text": "un photo",
+                    "corrected_target": "une photo",
+                    "why_wrong": "**photo est féminin : `une photo`**",
+                    "repair_hint": "Use *une* before photo.",
+                    "severity": 2,
+                    "task_error_type": "gender_agreement",
+                }
+            ],
+            corrected_answer="Je vous ai envoyé une photo hier.",
+        )
+    )
+
+    correction = MissionCorrectionService(db_session, llm_service=llm).correct_submission(
+        user=user, mission=mission, text="Je vous ai envoyer un photo hier.", mode="chat"
+    )
+
+    erratum = correction["errata"][0]
+    assert "*" not in erratum["why_wrong"]
+    assert "`" not in erratum["why_wrong"]
+    assert "«" in erratum["why_wrong"]
+    assert "*" not in erratum["repair_hint"]
+
+
+def test_mission_correction_prompt_follows_the_learners_own_language(db_session):
+    user = User(
+        id=uuid4(),
+        email="mission-native@example.com",
+        hashed_password="x",
+        proficiency_level="A2",
+        native_language="de",
+    )
+    mission = _mission_for_correction()
+    llm = _StubMissionLLM(_correction_payload([], corrected_answer="Bonjour."))
+
+    MissionCorrectionService(db_session, llm_service=llm).correct_submission(
+        user=user, mission=mission, text="Bonjour.", mode="chat"
+    )
+
+    assert "German" in llm.system_prompts[0]
+    assert "in English" not in llm.system_prompts[0]
+
+
+def test_mission_task_compliance_note_is_not_filed_as_a_repair(db_session):
+    """A "too little context" note is a remark about the task, not French the
+    learner got wrong: filing it inflated "N réparations enregistrées" under a
+    card that showed no repair."""
+    user = User(id=uuid4(), email="mission-tasknote@example.com", hashed_password="x", proficiency_level="A2")
+    db_session.add(user)
+    db_session.commit()
+    mission = _mission_for_correction()
+    mission.user_id = user.id
+    service = MissionCorrectionService(db_session, llm_service=None)
+
+    correction = service.correct_submission(user=user, mission=mission, text="Oui merci.", mode="chat")
+    assert any(item["task_error_type"] == "task_compliance" for item in correction["errata"])
+
+    persisted = service.persist_errata(
+        user=user, mission=mission, correction=correction, mode="chat", source_id="turn-task"
+    )
+    assert persisted == []
+
+
+def test_mission_only_scores_the_vocabulary_the_page_prints(db_session):
+    """`target_vocabulary_ids` also collects words linked to the mission's
+    errata; those never reach the « À placer » ribbon, so penalising them
+    graded the learner on a word the Courrier never named."""
+    user = User(id=uuid4(), email="mission-hidden-vocab@example.com", hashed_password="x", proficiency_level="A2")
+    db_session.add(user)
+    shown = VocabularyWord(
+        language="fr", word="le créneau", normalized_word="le creneau", frequency_rank=90,
+        german_translation="das Zeitfenster", direction="fr_to_de", deck_name="French 5000", is_anki_card=True,
+    )
+    hidden = VocabularyWord(
+        language="fr", word="le radiateur", normalized_word="le radiateur", frequency_rank=91,
+        german_translation="der Heizkoerper", direction="fr_to_de", deck_name="French 5000", is_anki_card=True,
+    )
+    db_session.add_all([shown, hidden])
+    db_session.commit()
+
+    mission = _mission_for_correction()
+    mission.user_id = user.id
+    mission.target_vocabulary_ids = [shown.id, hidden.id]
+    mission.prompt_payload = {
+        "target_vocabulary": [{"word_id": shown.id, "word": "le créneau", "translation": "das Zeitfenster"}]
+    }
+
+    correction = MissionCorrectionService(db_session, llm_service=None).correct_submission(
+        user=user, mission=mission, text="Bonjour, je vous confirme le rendez-vous de demain matin.", mode="chat"
+    )
+
+    scored = {item["external_id"] for item in correction["missing_targets"]}
+    assert f"VOCAB_{shown.id}" in scored
+    assert f"VOCAB_{hidden.id}" not in scored
+    assert all(event["word_id"] != hidden.id for event in correction["vocabulary_events"])
+
+
+def test_mission_flags_an_unused_target_word_once_per_mission(client: TestClient, db_session, monkeypatch):
+    monkeypatch.setattr(NewsService, "fetch_france_context", _fake_france_context)
+    token = _token(client)
+    target_word = VocabularyWord(
+        language="fr", word="constater", normalized_word="constater", frequency_rank=80,
+        german_translation="feststellen", direction="fr_to_de", deck_name="French 5000", is_anki_card=True,
+    )
+    db_session.add(target_word)
+    db_session.commit()
+    headers = {"Authorization": f"Bearer {token}"}
+    mission_id = client.post(
+        "/api/v1/missions/",
+        json={
+            "mission_type": "message",
+            "cadence": "ad_hoc",
+            "preferred_vocabulary_ids": [target_word.id],
+            "use_news": False,
+        },
+        headers=headers,
+    ).json()["mission"]["id"]
+
+    def _missed(response):
+        return [
+            event for event in response.json()["correction"]["vocabulary_events"]
+            if event["word_id"] == target_word.id and event["event_type"] == "missed_target"
+        ]
+
+    first = client.post(
+        f"/api/v1/missions/{mission_id}/turns",
+        json={"text": "Bonjour, le chauffage ne fonctionne plus depuis hier soir chez moi.", "mode": "chat"},
+        headers=headers,
+    )
+    second = client.post(
+        f"/api/v1/missions/{mission_id}/turns",
+        json={"text": "Pourriez-vous envoyer quelqu'un demain matin pour la réparation ?", "mode": "chat"},
+        headers=headers,
+    )
+
+    assert len(_missed(first)) == 1
+    # A four-turn conversation used to charge the same unused word four times.
+    assert _missed(second) == []
+
+
+def test_mission_persistence_separates_repairs_from_vocabulary_credit(client: TestClient, db_session, monkeypatch):
+    monkeypatch.setattr(NewsService, "fetch_france_context", _fake_france_context)
+    token = _token(client)
+    target_word = VocabularyWord(
+        language="fr", word="constater", normalized_word="constater", frequency_rank=80,
+        german_translation="feststellen", direction="fr_to_de", deck_name="French 5000", is_anki_card=True,
+    )
+    db_session.add(target_word)
+    db_session.commit()
+    headers = {"Authorization": f"Bearer {token}"}
+    mission_id = client.post(
+        "/api/v1/missions/",
+        json={
+            "mission_type": "message",
+            "cadence": "ad_hoc",
+            "preferred_vocabulary_ids": [target_word.id],
+            "use_news": False,
+        },
+        headers=headers,
+    ).json()["mission"]["id"]
+
+    response = client.post(
+        f"/api/v1/missions/{mission_id}/submit",
+        json={"text": "Bonjour, je vous écris demain pour confirmer le rendez-vous avec votre équipe.", "mode": "writing"},
+        headers=headers,
+    )
+
+    persistence = response.json()["correction"]["persistence"]
+    # The unused target word is credited but is not a repair the card shows.
+    assert persistence["saved_count"] >= 1
+    assert persistence["repair_count"] == 0
+
+
+def test_mission_debrief_keeps_objectives_met_in_an_earlier_turn(db_session):
+    """Scoring only the LAST correction reported 0% task fit for a mission the
+    learner had completed in turn one and then closed with "Oui."."""
+    user = User(id=uuid4(), email="mission-debrief@example.com", hashed_password="x", proficiency_level="A2")
+    db_session.add(user)
+    db_session.flush()
+    mission = _mission_for_correction()
+    mission.user_id = user.id
+    turns = [
+        RealWorldMissionTurn(
+            mission_id=mission.id, user_id=user.id, turn_index=1, role="user", mode="chat",
+            text="Bonjour, la photo ne correspond pas à ma porte. Pouvez-vous relancer la livraison ?",
+            correction_payload={
+                "score_0_4": 4,
+                "objective_progress": [
+                    {"id": "real_world_task", "label": "…", "met": True, "note": "Clear."}
+                ],
+            },
+        ),
+        RealWorldMissionTurn(
+            mission_id=mission.id, user_id=user.id, turn_index=3, role="user", mode="chat",
+            text="Oui.",
+            correction_payload={"score_0_4": 0.5, "objective_progress": []},
+        ),
+    ]
+
+    debrief = missions_module.MissionDebriefService().build(
+        mission=mission, attempts=[], turns=turns, errata_count=0, srs_result={"saved_count": 0},
+    )
+
+    assert debrief["readiness"]["task_fit"] == 100
+    assert [item["met"] for item in debrief["objective_results"]] == [True]
+    # The dossier speaks the publication's French.
+    assert debrief["branch_outcome"]["next_best_move"].startswith(("Revoyez", "Ajoutez", "Refaites"))
+
+
+def test_mission_objective_labels_are_french_and_never_count_by_index(db_session):
+    user = User(id=uuid4(), email="mission-objectives@example.com", hashed_password="x", proficiency_level="A2")
+    db_session.add(user)
+    db_session.commit()
+    _concept(db_session)
+    concepts = db_session.query(GrammarConcept).filter(GrammarConcept.active.is_(True)).limit(3).all()
+
+    objectives = MissionGenerator(db_session)._objectives(
+        mission_type="message", concepts=concepts, errata=[], vocabulary=[], source_snapshot={}, stakes_level=1,
+    )
+    labels = [item["label"] for item in objectives]
+
+    assert all("clear instance" not in label for label in labels)
+    # Three objectives that each ask for one instance used to read "Use 1…",
+    # "Use 2…", "Use 3 clear instance of …" — the enumeration index as a quota.
+    assert all(item["target_count"] == 1 for item in objectives)
+    assert labels[0].startswith("Écrire un message")
+    assert all(label.startswith("Placer une fois : ") for label in labels[1:])
+
+
+def test_mission_correction_drops_add_more_content_suggestions(db_session):
+    """Live: "Oui," -> "Oui, bonsoir Madame Vidal." arrived typed as a grammar
+    error. Nothing was wrong; the corrector wanted more said. The marker list
+    cannot catch it (the prose came back in French), but the shape can."""
+    user = User(id=uuid4(), email="mission-append@example.com", hashed_password="x", proficiency_level="A2")
+    mission = _mission_for_correction()
+    llm = _StubMissionLLM(
+        _correction_payload(
+            [
+                {
+                    "display_label": "Salutation",
+                    "learner_text": "Oui,",
+                    "corrected_target": "Oui, bonsoir Madame Vidal.",
+                    "why_wrong": "Mot manquant: salutation et nom.",
+                    "repair_hint": "Ajoutez une salutation.",
+                    "severity": 1,
+                    "task_error_type": "grammar",
+                }
+            ],
+            corrected_answer="Oui, bonsoir Madame Vidal.",
+        )
+    )
+
+    correction = MissionCorrectionService(db_session, llm_service=llm).correct_submission(
+        user=user, mission=mission, text="Oui, merci beaucoup.", mode="chat"
+    )
+
+    assert correction["errata"] == []
+    # No repair survived, so nothing claims to be a correction.
+    assert correction["corrected_answer"] == "Oui, merci beaucoup."
+
+
+def test_mission_correction_refuses_a_spliced_fragment(db_session):
+    """Trimming a sentence pair with two separate changes could splice two
+    distant words into one nonsense card ("un porte" -> "une photo")."""
+    user = User(id=uuid4(), email="mission-splice@example.com", hashed_password="x", proficiency_level="A2")
+    mission = _mission_for_correction()
+    learner_text = "Je vous ai envoyer un photo de mon porte hier soir avant le repas."
+    llm = _StubMissionLLM(
+        _correction_payload(
+            [
+                {
+                    "display_label": "Genre",
+                    "learner_text": "un photo de mon porte hier soir",
+                    "corrected_target": "une photo de ma porte hier soir",
+                    "why_wrong": "Genre incorrect",
+                    "repair_hint": "une photo, ma porte",
+                    "severity": 2,
+                    "task_error_type": "gender_agreement",
+                }
+            ],
+            corrected_answer="Je vous ai envoyé une photo de ma porte hier soir avant le repas.",
+        )
+    )
+
+    correction = MissionCorrectionService(db_session, llm_service=llm).correct_submission(
+        user=user, mission=mission, text=learner_text, mode="chat"
+    )
+
+    for erratum in correction["errata"]:
+        # Whatever survives has to be readable back in the learner's own message.
+        assert MissionCorrectionService._fragment_is_contiguous(erratum["learner_text"], learner_text)
+
+
+def test_mission_correction_answer_stays_the_learners_when_no_repair_survives(db_session):
+    user = User(id=uuid4(), email="mission-nocard@example.com", hashed_password="x", proficiency_level="A2")
+    mission = _mission_for_correction()
+    learner_text = "Bonjour, ma porte est verte et la photo montre une porte bleue."
+    llm = _StubMissionLLM(
+        _correction_payload(
+            [],
+            corrected_answer="Bonjour, ma porte est verte alors que la photo montre clairement une porte bleue.",
+        )
+    )
+
+    correction = MissionCorrectionService(db_session, llm_service=llm).correct_submission(
+        user=user, mission=mission, text=learner_text, mode="chat"
+    )
+
+    assert correction["errata"] == []
+    assert correction["corrected_answer"] == learner_text
+
+
+def test_mission_correction_drops_write_more_notes_on_a_one_word_reply(db_session):
+    """Live: "Oui." came back as erratum "Oui." -> "Oui, c’est" with
+    corrected_answer "Oui, c’est correct mais pas assez d’information." — the
+    corrector talking about the reply instead of repairing it."""
+    user = User(id=uuid4(), email="mission-writemore@example.com", hashed_password="x", proficiency_level="A2")
+    mission = _mission_for_correction()
+    llm = _StubMissionLLM(
+        _correction_payload(
+            [
+                {
+                    "display_label": "Incomplet",
+                    "learner_text": "Oui.",
+                    "corrected_target": "Oui, c’est",
+                    "why_wrong": "Manque de genre et nombre accordés; phrase incomplète",
+                    "repair_hint": "Complétez la phrase.",
+                    "severity": 2,
+                    "task_error_type": "grammar",
+                }
+            ],
+            corrected_answer="Oui, c’est correct mais pas assez d’information.",
+        )
+    )
+
+    correction = MissionCorrectionService(db_session, llm_service=llm).correct_submission(
+        user=user, mission=mission, text="Oui.", mode="chat"
+    )
+
+    assert correction["errata"] == []
+    assert correction["corrected_answer"] == "Oui."

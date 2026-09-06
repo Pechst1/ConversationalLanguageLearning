@@ -3,15 +3,15 @@ from __future__ import annotations
 
 import random
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Literal
 
 from loguru import logger
 from sqlalchemy.orm import Session
 
-from app.db.models.user import User
 from app.db.models.error import UserError
 from app.db.models.session import LearningSession
+from app.db.models.user import User
 from app.services.news_service import NewsService  # [NEW]
 from app.services.progress import ProgressService
 
@@ -100,7 +100,7 @@ class AutoContextService:
         due_words = [item.word.word for item in queue_items]
                 
         # 2. Errors (Prioritize persistent errors)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         due_error_objs = (
             self.db.query(UserError)
             .filter(
@@ -185,19 +185,23 @@ class AutoContextService:
             candidate_styles = [style for style in styles if style != last_style]
 
         candidate_weights = [weights[style] for style in candidate_styles]
-        return random.choices(candidate_styles, weights=candidate_weights, k=1)[0]
+        return random.choices(  # noqa: S311 - content variety only
+            candidate_styles,
+            weights=candidate_weights,
+            k=1,
+        )[0]
 
     def _pick_topic(self, user: User, time_context: str) -> str:
         """Pick a lightweight personalized topic so quick-start sessions feel fresh."""
         interest_pool = [value.strip() for value in (user.interests or "").split(",") if value.strip()]
         if interest_pool:
-            interest = random.choice(interest_pool)
+            interest = random.choice(interest_pool)  # noqa: S311 - content variety only
             templates = [
                 f"Something new you learned recently about {interest}",
                 f"Your personal opinion on current trends in {interest}",
                 f"A practical real-life situation involving {interest}",
             ]
-            return random.choice(templates)
+            return random.choice(templates)  # noqa: S311 - content variety only
 
         default_by_time = {
             "morning": [
@@ -222,4 +226,4 @@ class AutoContextService:
             ],
         }
         options = default_by_time.get(time_context, default_by_time["evening"])
-        return random.choice(options)
+        return random.choice(options)  # noqa: S311 - content variety only

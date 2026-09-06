@@ -5,8 +5,9 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, UniqueConstraint
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 from sqlalchemy.types import JSON
@@ -38,8 +39,8 @@ class SerialThread(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )
 
-    user: Mapped["User"] = relationship("User")
-    episodes: Mapped[list["SerialEpisode"]] = relationship(
+    user: Mapped[User] = relationship("User")
+    episodes: Mapped[list[SerialEpisode]] = relationship(
         "SerialEpisode", back_populates="thread", cascade="all, delete-orphan"
     )
 
@@ -74,9 +75,9 @@ class SerialEpisode(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    thread: Mapped["SerialThread"] = relationship("SerialThread", back_populates="episodes")
-    mission: Mapped["RealWorldMission | None"] = relationship("RealWorldMission")
-    scene: Mapped["GraphicNovelScene | None"] = relationship("GraphicNovelScene")
+    thread: Mapped[SerialThread] = relationship("SerialThread", back_populates="episodes")
+    mission: Mapped[RealWorldMission | None] = relationship("RealWorldMission")
+    scene: Mapped[GraphicNovelScene | None] = relationship("GraphicNovelScene")
 
     __table_args__ = (
         UniqueConstraint("thread_id", "episode_index", name="uq_serial_episode_thread_index"),

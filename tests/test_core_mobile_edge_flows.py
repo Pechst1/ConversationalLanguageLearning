@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 WEB = ROOT / "web-frontend"
 
@@ -28,10 +27,14 @@ def test_atelier_recovers_from_offline_empty_and_unfinished_states() -> None:
     assert "setActiveSessionReady(true)" in atelier
     assert "const canStart = activeSessionReady && (hasActiveSession || concepts.length > 0)" in atelier
     assert "const seanceDisabled = loading || (!hasActiveSession && !canStart)" in atelier
-    assert "toast('This drill is already submitted.')" in atelier
-    # Finish gate now lives on the L'Épreuve topbar (EpTopbar finishDisabled prop).
-    assert "finishDisabled={submitting || completedDrills < total}" in atelier
-    assert "Could not complete the session." in atelier
+    assert "toast('Cet exercice est déjà classé.')" in atelier
+    # Finish gate lives on the L'Épreuve topbar (EpTopbar finishDisabled prop).
+    # It only blocks filing an *empty* edition: a session with classed drills can
+    # always be closed early, behind one confirm, because that work is already
+    # banked server-side (see tests/test_atelier_honest_edition.py).
+    assert "finishDisabled={submitting || completedDrills < 1}" in atelier
+    assert "partial={completedDrills < total}" in atelier
+    assert "La séance n’a pas pu être terminée." in atelier
 
 
 def test_lean_mission_blocks_empty_messages_and_requires_one_reply_before_finish() -> None:
@@ -39,7 +42,8 @@ def test_lean_mission_blocks_empty_messages_and_requires_one_reply_before_finish
 
     assert "const text = reply.trim()" in missions
     assert "if (!mission || !text || submitting || completed) return" in missions
-    assert "Message did not send." in missions
+    # Le Courrier is a French publication surface: the send-failure toast speaks it too.
+    assert "Le message n’est pas parti." in missions
     assert "const canSend = reply.trim().length > 0 && !submitting && !completed" in missions
     # "Le Courrier" composer: submit gated by canSend, Terminer gated by interaction.
     assert "canSubmit={canSend}" in missions
@@ -73,24 +77,28 @@ def test_feuilleton_locks_task_sheet_until_scene_and_requires_real_answers() -> 
 
     assert "setScene(next?.active_scene || next?.available_scene || null)" in feuilleton
     assert "autoCreateContextRef.current === contextSceneKey" in feuilleton
-    assert "Task sheet locked" in feuilleton
-    assert "Panel tasks unlock below the episode panels after the edition is generated." in feuilleton
-    assert "No scene on the stand." in feuilleton
+    assert "Feuille de tâches verrouillée" in feuilleton
+    assert "Les tâches se déplient sous les planches une fois l’édition composée." in feuilleton
+    assert "Aucune scène sur le pupitre." in feuilleton
     assert "disabled={creating || scene.status === 'writing'}" in feuilleton
 
     assert "const answer = (answers[taskId] || '').trim()" in feuilleton
     assert "if (!answer)" in feuilleton
-    assert "Write or choose an answer first." in feuilleton
-    assert "The correction could not be submitted. Try once more." in feuilleton
+    assert "Écrivez ou choisissez d’abord une réponse." in feuilleton
+    assert "La correction n’a pas pu être transmise. Réessayez." in feuilleton
     assert "setGenerationFailure(null)" in feuilleton
     assert "loaded.status === 'writing' && feuilletonGenerationIsStalled(loaded)" in feuilleton
     assert "scene.status === 'generating' && <EditionArtProgress scene={scene}" in feuilleton
     assert "L’histoire est prête." in feuilleton
-    assert "const hasPendingTask = Boolean(nextTaskId) && submittedCount < taskCount" in feuilleton
-    assert "disabled={!hasPendingTask}" in feuilleton
-    assert "const allTasksDone = taskCount === 0 || submittedCount >= taskCount" in feuilleton
-    assert "if (!panelCount || !allTasksDone) return null" in feuilleton
-    assert "The service did not return a complete Feuilleton." in feuilleton
+    # Reader rebuild: the sticky bar carries no counters — it exposes Quitter plus
+    # the single action still due (scrolls to it), so the pin follows that element id.
+    assert "nextTaskElementId: string | null" in feuilleton
+    assert "scrollToFeuilletonSection(nextTaskElementId)" in feuilleton
+    # Reader rebuild: the gated completion card is gone; the episode ends on one
+    # action that is only ever "Terminer l'épisode" or the next beat once filed.
+    assert "Terminer l’épisode" in feuilleton
+    assert "const filed = scene.status === 'completed'" in feuilleton
+    assert "La rédaction n’a pas livré un Feuilleton complet." in feuilleton
 
 
 def test_story_flow_handles_auth_fetch_locked_and_incomplete_chapter_edges() -> None:
@@ -136,18 +144,23 @@ def test_settings_safety_edges_for_account_and_device_actions() -> None:
     assert "persistVisualSettings(loadedTheme, loadedFontSize)" in settings
     assert "await api.updateSettings(payload)" in settings
     assert "settingsLoadError" in settings
-    assert "Reload settings before saving changes." in settings
-    assert "Could not load your saved settings" in settings
-    assert "setSaveMessage('Failed to save settings')" in settings
+    assert "Rechargez le dossier avant de classer les modifications." in settings
+    assert "Votre dossier n’a pas pu être chargé." in settings
+    # Superseded 2026-09-04: the save failure used to be one unconditional
+    # generic line, which is how a rejected default_vocab_direction (422 on
+    # every save for English natives) stayed invisible. The generic sentence is
+    # still the fallback; a 422 now names the fields the API refused.
+    assert "'Les modifications n’ont pas pu être classées.'," in settings
+    assert "Les modifications n’ont pas pu être classées : ${rejected.join(', ')}." in settings
 
-    assert "confirm('Are you ABSOLUTELY sure?" in settings
+    assert "confirm('Supprimer définitivement ce compte" in settings
     assert "await api.deleteAccount()" in settings
     assert "await appSignOut({ callbackUrl: '/' })" in settings
-    assert "setSaveMessage('Failed to delete account. Please try again.')" in settings
+    assert "setSaveMessage('Le compte n’a pas pu être supprimé. Réessayez.')" in settings
     assert "passwordForm.newPassword.length < 8" in settings
-    assert "Enter your current password and a new password with at least 8 characters." in settings
+    assert "Saisissez votre mot de passe actuel et un nouveau mot de passe d’au moins 8 caractères." in settings
     assert "await appSignOut({ callbackUrl: '/auth/signin' })" in settings
-    assert "confirm('Sign out from every device, including this one?')" in settings
+    assert "confirm('Fermer toutes les sessions, y compris celle-ci ?')" in settings
     assert "await api.signOutAllDevices()" in settings
     assert "await api.exportUserData()" in settings
 

@@ -23,7 +23,10 @@ from app.db.models.error import UserError
 from app.db.models.grammar import GrammarConcept
 from app.db.models.user import User
 from app.services.error_memory import ErrorMemoryService
-from app.services.exercise_generation import ExerciseGenerationService, ExerciseGenerationUnavailable
+from app.services.exercise_generation import (
+    ExerciseGenerationService,
+    ExerciseGenerationUnavailable,
+)
 from app.services.grammar_feedback import infer_grammar_profile, is_concept_demonstrated
 from app.services.llm_service import LLMService
 

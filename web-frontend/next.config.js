@@ -31,6 +31,12 @@ if (!isNativeStaticExport) {
       destination: `${process.env.API_URL || 'http://localhost:8000'}/api/v1/:path*`,
     },
     {
+      // Locally persisted Feuilleton panel images live on the API host
+      // (GRAPHIC_NOVEL_IMAGE_STORAGE=local mounts /media/graphic-novel there).
+      source: '/media/:path*',
+      destination: `${process.env.API_URL || 'http://localhost:8000'}/media/:path*`,
+    },
+    {
       source: '/anki-connect',
       destination: 'http://127.0.0.1:8765',
     },

@@ -1,7 +1,7 @@
 """Smoke tests for vocabulary endpoints using HTTPX."""
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 
@@ -195,7 +195,7 @@ async def test_vocabulary_due_context_returns_bucketed_words(async_client, db_se
             scheduler="anki",
             state="reviewing",
             phase="review",
-            due_at=datetime.now(timezone.utc) - timedelta(days=1),
+            due_at=datetime.now(UTC) - timedelta(days=1),
             due_date=date.today() - timedelta(days=1),
             reps=5,
             proficiency_score=70,
@@ -273,6 +273,55 @@ async def test_vocabulary_due_context_uses_demo_user_without_auth(
 
 
 @pytest.mark.asyncio
+async def test_vocabulary_due_context_serves_the_learner_resolved_gloss(
+    async_client, db_session
+):
+    """The deck must not have to guess which gloss a learner reads.
+
+    The response model used to drop `translation`/`translation_language`, so
+    the client fell back to the raw map with its own English-first order and
+    printed English to a German learner whenever both columns existed.
+    """
+
+    email = "vocab-context-gloss@example.com"
+    token = await _register_and_login(async_client, email)
+    headers = {"Authorization": f"Bearer {token}"}
+    user = db_session.query(User).filter(User.email == email).one()
+    user.native_language = "de"
+    word = VocabularyWord(
+        language="fr",
+        word="radiateur",
+        normalized_word="radiateur",
+        frequency_rank=800,
+        german_translation="der Heizkörper",
+        english_translation="the radiator",
+        direction="fr_to_de",
+        deck_name="French 5000",
+        is_anki_card=True,
+    )
+    db_session.add(word)
+    db_session.commit()
+
+    try:
+        response = await async_client.get(
+            "/api/v1/vocabulary/due-context",
+            headers=headers,
+            params={"limit": 1, "due_limit": 0, "fragile_limit": 0, "new_limit": 1},
+        )
+
+        assert response.status_code == 200
+        item = response.json()["new_words"][0]
+        assert item["translation"] == "der Heizkörper"
+        assert item["translation_language"] == "de"
+    finally:
+        db_session.query(UserVocabularyProgress).filter(
+            UserVocabularyProgress.user_id == user.id
+        ).delete()
+        db_session.query(VocabularyWord).filter(VocabularyWord.id == word.id).delete()
+        db_session.commit()
+
+
+@pytest.mark.asyncio
 async def test_vocabulary_due_context_rejects_invalid_direction(async_client):
     response = await async_client.get(
         "/api/v1/vocabulary/due-context",
@@ -302,7 +351,7 @@ async def test_vocabulary_biography_returns_origin_progress_and_context(async_cl
     token = await _register_and_login(async_client, email)
     headers = {"Authorization": f"Bearer {token}"}
     user = db_session.query(User).filter(User.email == email).one()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     word = VocabularyWord(
         language="fr",
         word="prévoir",
@@ -370,7 +419,9 @@ async def test_vocabulary_biography_returns_origin_progress_and_context(async_cl
         payload = response.json()
         assert payload["word"]["word"] == "prévoir"
         assert payload["origin"]["label"] == "French 5000"
-        assert payload["progress"]["fragility_label"] == "Due now"
+        # The memory scale is French publication copy now ("Due now" was the
+        # last English label on the word biography sheet).
+        assert payload["progress"]["fragility_label"] == "À revoir"
         assert payload["progress"]["times_seen"] == 3
         assert payload["examples"][0]["sentence"] == "Je dois prévoir assez de temps."
         assert payload["linked_errata_count"] == 1
@@ -447,7 +498,7 @@ async def test_vocabulary_biography_includes_atelier_and_feuilleton_thread(async
         prompt_version="test",
         image_model="none",
         image_quality="low",
-        completed_at=datetime.now(timezone.utc),
+        completed_at=datetime.now(UTC),
     )
     db_session.add_all([attempt, scene])
     db_session.commit()
@@ -459,8 +510,9 @@ async def test_vocabulary_biography_includes_atelier_and_feuilleton_thread(async
         payload = response.json()
         event_types = {event["event_type"] for event in payload["timeline"]}
         assert {"atelier", "atelier_attempt", "graphic_novel"}.issubset(event_types)
-        assert any(event["label"] == "Atelier context anchor" for event in payload["timeline"])
-        assert any(event["label"] == "Feuilleton thread: Le bureau reprend" for event in payload["timeline"])
+        # Timeline labels are French publication copy now.
+        assert any(event["label"] == "Ancre de l’Atelier" for event in payload["timeline"])
+        assert any(event["label"] == "Feuilleton : Le bureau reprend" for event in payload["timeline"])
         assert payload["context_event_count"] >= 3
     finally:
         db_session.query(GraphicNovelScene).filter(GraphicNovelScene.user_id == user.id).delete()

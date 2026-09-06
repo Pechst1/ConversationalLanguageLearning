@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Literal
+from datetime import UTC, datetime
+from typing import Any, Literal
 
 from sqlalchemy import and_, func
 from sqlalchemy.orm import Session
@@ -29,7 +29,7 @@ class AchievementDefinition:
     tier: str
     xp_reward: int
     icon_url: str | None = None
-    unlock_criteria: Dict[str, Any] | None = None
+    unlock_criteria: dict[str, Any] | None = None
 
 
 @dataclass
@@ -62,7 +62,7 @@ class AchievementService:
     # ------------------------------------------------------------------
     # Achievement definition helpers
     # ------------------------------------------------------------------
-    def seed_achievements(self, definitions: List[AchievementDefinition]) -> None:
+    def seed_achievements(self, definitions: list[AchievementDefinition]) -> None:
         """Seed achievement templates into the database."""
 
         for defn in definitions:
@@ -91,7 +91,7 @@ class AchievementService:
         cache_backend.invalidate("achievements:list", key="all")
         cache_backend.invalidate("achievements:user", prefix="")
 
-    def list_all_achievements(self) -> List[Achievement]:
+    def list_all_achievements(self) -> list[Achievement]:
         """Return all achievement templates."""
 
         cache_key = "all"
@@ -120,13 +120,13 @@ class AchievementService:
     # ------------------------------------------------------------------
     def get_user_achievements(
         self, user_id: uuid.UUID, *, include_locked: bool = False
-    ) -> List[AchievementProgress]:
+    ) -> list[AchievementProgress]:
         """Return user's achievement progress."""
 
         cache_key = build_cache_key(user_id=str(user_id), include_locked=include_locked)
         cached = cache_backend.get("achievements:user", cache_key)
         if cached is not None:
-            items: List[AchievementProgress] = []
+            items: list[AchievementProgress] = []
             for item in cached:
                 unlocked_at = (
                     datetime.fromisoformat(item["unlocked_at"])
@@ -161,7 +161,7 @@ class AchievementService:
 
         results = query.all()
 
-        progress_items: List[AchievementProgress] = []
+        progress_items: list[AchievementProgress] = []
         for user_achievement, achievement in results:
             target = self._calculate_target_progress(achievement.achievement_key)
             progress_items.append(
@@ -245,10 +245,10 @@ class AchievementService:
     # ------------------------------------------------------------------
     # Achievement unlock logic
     # ------------------------------------------------------------------
-    def check_and_unlock(self, *, user: User) -> List[Achievement]:
+    def check_and_unlock(self, *, user: User) -> list[Achievement]:
         """Check all unlockable achievements and grant them to the user."""
 
-        newly_unlocked: List[Achievement] = []
+        newly_unlocked: list[Achievement] = []
 
         checks = [
             self._check_streak_achievements,
@@ -267,10 +267,10 @@ class AchievementService:
 
         return newly_unlocked
 
-    def _check_streak_achievements(self, user: User) -> List[Achievement]:
+    def _check_streak_achievements(self, user: User) -> list[Achievement]:
         """Check streak-based achievements."""
 
-        unlocked: List[Achievement] = []
+        unlocked: list[Achievement] = []
         streak_checks = [
             ("session_streak_3", 3),
             ("session_streak_7", 7),
@@ -285,7 +285,7 @@ class AchievementService:
 
         return unlocked
 
-    def _check_vocabulary_achievements(self, user: User) -> List[Achievement]:
+    def _check_vocabulary_achievements(self, user: User) -> list[Achievement]:
         """Check vocabulary mastery achievements."""
 
         mastered_count = (
@@ -297,7 +297,7 @@ class AchievementService:
             .scalar()
         )
 
-        unlocked: List[Achievement] = []
+        unlocked: list[Achievement] = []
         vocab_checks = [
             ("vocabulary_learner", 50),
             ("vocabulary_expert", 200),
@@ -312,10 +312,10 @@ class AchievementService:
 
         return unlocked
 
-    def _check_xp_achievements(self, user: User) -> List[Achievement]:
+    def _check_xp_achievements(self, user: User) -> list[Achievement]:
         """Check XP milestone achievements."""
 
-        unlocked: List[Achievement] = []
+        unlocked: list[Achievement] = []
         xp_checks = [
             ("xp_bronze", 500),
             ("xp_silver", 2000),
@@ -330,7 +330,7 @@ class AchievementService:
 
         return unlocked
 
-    def _check_session_achievements(self, user: User) -> List[Achievement]:
+    def _check_session_achievements(self, user: User) -> list[Achievement]:
         """Check session completion achievements."""
 
         session_count = (
@@ -349,7 +349,7 @@ class AchievementService:
 
         return []
 
-    def _check_accuracy_achievements(self, user: User) -> List[Achievement]:
+    def _check_accuracy_achievements(self, user: User) -> list[Achievement]:
         """Check accuracy-based achievements."""
 
         perfect_sessions = (
@@ -417,13 +417,13 @@ class AchievementService:
                 achievement_id=achievement.id,
                 progress=current_progress,
                 completed=True,
-                unlocked_at=datetime.now(timezone.utc),
+                unlocked_at=datetime.now(UTC),
             )
             self.db.add(user_achievement)
         else:
             user_achievement.progress = current_progress
             user_achievement.completed = True
-            user_achievement.unlocked_at = datetime.now(timezone.utc)
+            user_achievement.unlocked_at = datetime.now(UTC)
 
         user = self.db.get(User, user_id)
         if user:

@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 MOBILE_INDEX = ROOT / "web-frontend" / "components" / "mobile" / "index.ts"
 REPAIR_SLIP = ROOT / "web-frontend" / "components" / "mobile" / "RedInkRepairSlip.tsx"
@@ -43,29 +42,34 @@ def test_mission_screen_removed_duplicate_repair_chrome_while_feuilleton_uses_sl
     assert "<CrRepair" in missions
     assert "correctedAnswer={correctedAnswer}" in missions
     assert "savedCount={savedCount}" in missions
-    assert "import { MobileBottomSheet, RedInkRepairSlip, VocabularyCreditBadge }" in feuilleton
-    assert "source=\"Feuilleton" in feuilleton
+    # Reader rebuild: the Feuilleton reply shows ONE short French response inline
+    # (audit §6), so the bottom-sheet duplicate and the shared repair slip are gone.
+    assert "MobileBottomSheet" not in feuilleton
+    assert "RedInkRepairSlip" not in feuilleton
+    assert "function correctionLine" in feuilleton
 
 
 def test_atelier_uses_repair_slip_for_due_errata_and_closure() -> None:
     atelier = read(ATELIER_PAGE)
     api_types = read(API_TYPES)
 
-    assert "function DueErrataList" in atelier
+    # DueErrataList/ErrataStack were unreferenced legacy components; the live
+    # repair path is the overlay reached from La Une and the review deck.
     assert "function ErrataReviewOverlay" in atelier
-    assert "function ErrataStack" in atelier
-    assert "ERRATA DUE" in atelier
-    assert "REMEMBERED SLIP" in atelier
-    assert "SUBMIT REPAIR" in atelier
-    assert "result.is_correct ? 'REPAIRED' : 'NOT YET'" in atelier
-    assert "Repair in mission" in atelier
+    assert "ERREUR MÉMORISÉE" in atelier
+    assert "ENVOYER LA REPRISE" in atelier
+    assert "result.is_correct ? 'REPRIS' : 'PAS ENCORE'" in atelier
     assert "export interface AtelierErrataAttemptResult" in api_types
 
 
 def test_grammar_notebook_uses_same_repair_slip() -> None:
     grammar = read(GRAMMAR_PAGE)
 
-    assert "NotebookModeSwitch, RedInkRepairSlip" in grammar
-    assert "function ErratumCard" in grammar
-    assert "className=\"notebook-erratum-card\"" in grammar
-    assert "Repair in mission" in grammar
+    # In the Cahiers fiche, a concept's errata are filed as proofreader-style
+    # ledger rows: the learner's slip struck through, the correction in the
+    # margin — split into "à revoir" (due) and "récents" (repaired) sections.
+    assert "grammarErrHtml" in grammar
+    assert "<s>${learner}</s>" in grammar
+    assert 'kick="Errata — à revoir"' in grammar
+    assert 'kick="Errata récents"' in grammar
+    assert "<NcErrRow" in grammar

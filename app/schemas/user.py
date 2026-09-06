@@ -3,13 +3,18 @@ from __future__ import annotations
 
 import uuid
 from datetime import date, datetime, time
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
 Theme = Literal["light", "dark", "system"]
 FontSize = Literal["small", "medium", "large"]
-VocabDirection = Literal["fr_to_de", "de_to_fr", "mixed"]
+# Registration derives the gloss direction from the learner's own language
+# (``_default_vocab_direction_for``), so ``fr_to_en`` is the default for every
+# English native — the majority. Leaving it out of this literal made the
+# settings page's save payload a guaranteed 422 for those accounts: they could
+# not change a single preference. Keep both language pairs in both directions.
+VocabDirection = Literal["fr_to_de", "de_to_fr", "fr_to_en", "en_to_fr", "mixed"]
 GrammarCorrectionLevel = Literal["strict", "moderate", "lenient"]
 ProficiencyLevel = Literal["beginner", "A1", "A2", "B1", "B2", "C1", "C2"]
 
@@ -18,7 +23,7 @@ class UserBase(BaseModel):
     """Shared properties of user representations."""
 
     email: EmailStr
-    full_name: Optional[str] = None
+    full_name: str | None = None
     native_language: str = Field(default="en", max_length=10)
     target_language: str = Field(default="fr", max_length=10)
     proficiency_level: str = Field(default="beginner", max_length=20)
@@ -30,10 +35,13 @@ class UserBase(BaseModel):
         max_length=500,
         description="Comma-separated interest topics for personalized content",
     )
+    learning_motivation: str = Field(default="", max_length=80)
+    speaking_comfort: str = Field(default="warming_up", max_length=20)
     daily_goal_minutes: int = Field(default=15, ge=0)
     daily_goal_xp: int = Field(default=50, ge=0)
     new_words_per_day: int = Field(default=10, ge=1)
-    default_vocab_direction: str = Field(default="fr_to_de", max_length=20)
+    # None = derive from native_language at registration (fr_to_de only for German natives).
+    default_vocab_direction: str | None = Field(default=None, max_length=20)
     
     # Notifications
     notifications_enabled: bool = True
@@ -43,7 +51,7 @@ class UserBase(BaseModel):
     weekly_email_summary: bool = True
     achievement_notifications: bool = True
     serial_edition_notifications: bool = True
-    preferred_session_time: Optional[time] = None
+    preferred_session_time: time | None = None
 
     # Appearance
     theme: str = Field(default="system", max_length=20)
@@ -83,8 +91,8 @@ class PasswordResetRequestResponse(BaseModel):
     """Enumeration-safe password reset request response."""
 
     message: str
-    reset_token: Optional[str] = None
-    reset_url: Optional[str] = None
+    reset_token: str | None = None
+    reset_url: str | None = None
 
 
 class PasswordResetConfirm(BaseModel):
@@ -101,13 +109,13 @@ class UserRead(UserBase):
     is_active: bool
     is_verified: bool
     subscription_tier: str
-    subscription_expires_at: Optional[datetime]
+    subscription_expires_at: datetime | None
     role: str = "user"
     total_xp: int
     level: int
     current_streak: int
     longest_streak: int
-    last_activity_date: Optional[date]
+    last_activity_date: date | None
     serial_onboarding_seen: bool = False
 
     model_config = ConfigDict(from_attributes=True)
@@ -116,41 +124,43 @@ class UserRead(UserBase):
 class UserUpdate(BaseModel):
     """Schema for partial updates to the current user profile."""
 
-    full_name: Optional[str] = Field(default=None, max_length=255)
-    native_language: Optional[str] = Field(default=None, max_length=10)
-    target_language: Optional[str] = Field(default=None, max_length=10)
-    proficiency_level: Optional[str] = Field(default=None, max_length=20)
-    cefr_target_level: Optional[str] = Field(default=None, max_length=10)
-    interests: Optional[str] = Field(default=None, max_length=500)
-    daily_goal_minutes: Optional[int] = Field(default=None, ge=0)
-    daily_goal_xp: Optional[int] = Field(default=None, ge=0)
-    new_words_per_day: Optional[int] = Field(default=None, ge=1)
-    default_vocab_direction: Optional[str] = Field(default=None, max_length=20)
+    full_name: str | None = Field(default=None, max_length=255)
+    native_language: str | None = Field(default=None, max_length=10)
+    target_language: str | None = Field(default=None, max_length=10)
+    proficiency_level: str | None = Field(default=None, max_length=20)
+    cefr_target_level: str | None = Field(default=None, max_length=10)
+    interests: str | None = Field(default=None, max_length=500)
+    learning_motivation: str | None = Field(default=None, max_length=80)
+    speaking_comfort: str | None = Field(default=None, max_length=20)
+    daily_goal_minutes: int | None = Field(default=None, ge=0)
+    daily_goal_xp: int | None = Field(default=None, ge=0)
+    new_words_per_day: int | None = Field(default=None, ge=1)
+    default_vocab_direction: str | None = Field(default=None, max_length=20)
     
-    notifications_enabled: Optional[bool] = None
-    practice_reminders: Optional[bool] = None
-    reminder_time: Optional[str] = Field(default=None, max_length=10)
-    streak_notifications: Optional[bool] = None
-    weekly_email_summary: Optional[bool] = None
-    achievement_notifications: Optional[bool] = None
-    serial_edition_notifications: Optional[bool] = None
-    preferred_session_time: Optional[time] = None
+    notifications_enabled: bool | None = None
+    practice_reminders: bool | None = None
+    reminder_time: str | None = Field(default=None, max_length=10)
+    streak_notifications: bool | None = None
+    weekly_email_summary: bool | None = None
+    achievement_notifications: bool | None = None
+    serial_edition_notifications: bool | None = None
+    preferred_session_time: time | None = None
 
-    theme: Optional[str] = Field(default=None, max_length=20)
-    font_size: Optional[str] = Field(default=None, max_length=20)
+    theme: str | None = Field(default=None, max_length=20)
+    font_size: str | None = Field(default=None, max_length=20)
 
-    voice_input_enabled: Optional[bool] = None
-    text_to_speech_enabled: Optional[bool] = None
-    tts_speed: Optional[str] = Field(default=None, max_length=10)
-    auto_play_pronunciation: Optional[bool] = None
+    voice_input_enabled: bool | None = None
+    text_to_speech_enabled: bool | None = None
+    tts_speed: str | None = Field(default=None, max_length=10)
+    auto_play_pronunciation: bool | None = None
 
-    grammar_correction_level: Optional[str] = Field(default=None, max_length=20)
-    show_grammar_explanations: Optional[bool] = None
+    grammar_correction_level: str | None = Field(default=None, max_length=20)
+    show_grammar_explanations: bool | None = None
 
     model_config = ConfigDict(extra="forbid")
 
     @model_validator(mode="after")
-    def ensure_payload_not_empty(self) -> "UserUpdate":
+    def ensure_payload_not_empty(self) -> UserUpdate:
         if not any(value is not None for value in self.model_dump().values()):
             raise ValueError("At least one field must be provided")
         return self
@@ -161,7 +171,7 @@ class UserSettingsRead(BaseModel):
 
     id: uuid.UUID
     email: EmailStr
-    full_name: Optional[str] = None
+    full_name: str | None = None
     native_language: str
     target_language: str
     proficiency_level: str
@@ -169,12 +179,14 @@ class UserSettingsRead(BaseModel):
     cefr_target_level: str = "A1.2"
     cefr_estimate_payload: dict[str, Any] | None = Field(default_factory=dict)
     interests: str
+    learning_motivation: str
+    speaking_comfort: str
 
     daily_goal_minutes: int
     daily_goal_xp: int
     new_words_per_day: int
     default_vocab_direction: str
-    preferred_session_time: Optional[time] = None
+    preferred_session_time: time | None = None
 
     notifications_enabled: bool
     practice_reminders: bool
@@ -198,7 +210,7 @@ class UserSettingsRead(BaseModel):
     role: str
     is_active: bool
     is_verified: bool
-    updated_at: Optional[datetime] = None
+    updated_at: datetime | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -206,37 +218,40 @@ class UserSettingsRead(BaseModel):
 class UserSettingsUpdate(BaseModel):
     """Partial settings update payload for the current user."""
 
-    full_name: Optional[str] = Field(default=None, max_length=255)
-    native_language: Optional[str] = Field(default=None, max_length=10)
-    target_language: Optional[str] = Field(default=None, max_length=10)
-    proficiency_level: Optional[ProficiencyLevel] = None
-    cefr_target_level: Optional[str] = Field(default=None, pattern=r"^(A1\.1|A1\.2|A2\.1|A2\.2|B1\.1|B1\.2|B2\.1|B2\.2)$")
-    interests: Optional[str] = Field(default=None, max_length=500)
+    full_name: str | None = Field(default=None, max_length=255)
+    native_language: str | None = Field(default=None, max_length=10)
+    target_language: str | None = Field(default=None, max_length=10)
+    proficiency_level: ProficiencyLevel | None = None
+    cefr_target_level: str | None = Field(default=None, pattern=r"^(A1\.1|A1\.2|A2\.1|A2\.2|B1\.1|B1\.2|B2\.1|B2\.2)$")
+    interests: str | None = Field(default=None, max_length=500)
+    learning_motivation: str | None = Field(default=None, max_length=80)
+    speaking_comfort: Literal["warming_up", "ready", "confident"] | None = None
 
-    daily_goal_minutes: Optional[int] = Field(default=None, ge=0, le=240)
-    daily_goal_xp: Optional[int] = Field(default=None, ge=0, le=2000)
-    new_words_per_day: Optional[int] = Field(default=None, ge=1, le=100)
-    default_vocab_direction: Optional[VocabDirection] = None
-    preferred_session_time: Optional[time] = None
+    daily_goal_minutes: int | None = Field(default=None, ge=0, le=240)
+    daily_goal_xp: int | None = Field(default=None, ge=0, le=2000)
+    new_words_per_day: int | None = Field(default=None, ge=1, le=100)
+    default_vocab_direction: VocabDirection | None = None
+    preferred_session_time: time | None = None
 
-    notifications_enabled: Optional[bool] = None
-    practice_reminders: Optional[bool] = None
-    reminder_time: Optional[str] = Field(default=None, pattern=r"^\d{2}:\d{2}$")
-    streak_notifications: Optional[bool] = None
-    weekly_email_summary: Optional[bool] = None
-    achievement_notifications: Optional[bool] = None
-    serial_edition_notifications: Optional[bool] = None
+    notifications_enabled: bool | None = None
+    practice_reminders: bool | None = None
+    # \d{2}:\d{2} accepted "25:99" and stored it as the daily reminder.
+    reminder_time: str | None = Field(default=None, pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+    streak_notifications: bool | None = None
+    weekly_email_summary: bool | None = None
+    achievement_notifications: bool | None = None
+    serial_edition_notifications: bool | None = None
 
-    theme: Optional[Theme] = None
-    font_size: Optional[FontSize] = None
+    theme: Theme | None = None
+    font_size: FontSize | None = None
 
-    voice_input_enabled: Optional[bool] = None
-    text_to_speech_enabled: Optional[bool] = None
-    tts_speed: Optional[str] = Field(default=None, pattern=r"^(0\.[5-9]|1(\.[0-5])?)$")
-    auto_play_pronunciation: Optional[bool] = None
+    voice_input_enabled: bool | None = None
+    text_to_speech_enabled: bool | None = None
+    tts_speed: str | None = Field(default=None, pattern=r"^(0\.[5-9]|1(\.[0-5])?)$")
+    auto_play_pronunciation: bool | None = None
 
-    grammar_correction_level: Optional[GrammarCorrectionLevel] = None
-    show_grammar_explanations: Optional[bool] = None
+    grammar_correction_level: GrammarCorrectionLevel | None = None
+    show_grammar_explanations: bool | None = None
 
     model_config = ConfigDict(extra="forbid")
 
@@ -246,7 +261,7 @@ class UserSettingsUpdate(BaseModel):
         return value.lower() if value else value
 
     @model_validator(mode="after")
-    def ensure_payload_not_empty(self) -> "UserSettingsUpdate":
+    def ensure_payload_not_empty(self) -> UserSettingsUpdate:
         if not any(value is not None for value in self.model_dump().values()):
             raise ValueError("At least one field must be provided")
         return self

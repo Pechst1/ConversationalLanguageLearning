@@ -1,15 +1,14 @@
 """Real-world scenario mission API."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from loguru import logger
 from sqlalchemy import func
 from sqlalchemy.orm import Session
-
-from loguru import logger
 
 from app.api.deps import get_db
 from app.api.v1.endpoints.atelier import get_atelier_user
@@ -27,9 +26,8 @@ from app.schemas.missions import (
     MissionTurnRequest,
     MissionTurnResponse,
 )
-from app.services.llm_service import LLMService
 from app.services.cefr_progress import CEFRProgressService
-from app.services.serial import SerialThreadService
+from app.services.llm_service import LLMProviderError, LLMService
 from app.services.missions import (
     MissionConversationService,
     MissionCorrectionService,
@@ -37,8 +35,10 @@ from app.services.missions import (
     SerialEpisodeNotReadyError,
     serialize_mission,
 )
+from app.services.serial import SerialThreadService
 
 router = APIRouter(prefix="/missions", tags=["missions"])
+MAX_AUDIO_UPLOAD_BYTES = 25 * 1024 * 1024
 
 
 def _mission_or_404(db: Session, mission_id: UUID, user: User) -> RealWorldMission:
@@ -57,7 +57,7 @@ def _mark_started(mission: RealWorldMission) -> None:
     if mission.status == "available":
         mission.status = "in_progress"
     if not mission.started_at:
-        mission.started_at = datetime.now(timezone.utc)
+        mission.started_at = datetime.now(UTC)
 
 
 def _attempt_read(attempt: RealWorldMissionAttempt) -> dict:
@@ -90,10 +90,19 @@ def _correction_with_persistence(
     persisted: list[dict],
 ) -> dict:
     saved = [item for item in persisted if item.get("id")]
+    # `saved_count` also counts the vocabulary credit rows, which the repair card
+    # never shows — printing it as "N réparations enregistrées" claimed repairs
+    # that were not on screen. `repair_count` is the honest one for that line.
+    repairs = [
+        item
+        for item in saved
+        if not item.get("linked_word_id") and str(item.get("error_category") or "") != "vocabulary"
+    ]
     return {
         **correction,
         "persistence": {
             "saved_count": len(saved),
+            "repair_count": len(repairs),
             "error_ids": [str(item["id"]) for item in saved],
             "records": saved,
         },
@@ -219,12 +228,38 @@ async def transcribe_mission_audio(
     if not file.content_type or not file.content_type.startswith("audio/"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid file type. Must be audio.")
     try:
-        content = await file.read()
-        return {"text": LLMService().transcribe_audio(content)}
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
+        content = await file.read(MAX_AUDIO_UPLOAD_BYTES + 1)
+        if not content:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Audio file is empty",
+            )
+        if len(content) > MAX_AUDIO_UPLOAD_BYTES:
+            raise HTTPException(
+                status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+                detail="Audio file exceeds the 25 MB limit",
+            )
+        return {
+            "text": LLMService().transcribe_audio(
+                content,
+                filename=file.filename,
+                content_type=file.content_type,
+            )
+        }
+    except HTTPException:
+        raise
+    except (LLMProviderError, ValueError) as exc:
+        logger.exception("Mission audio transcription is unavailable")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Audio transcription is temporarily unavailable",
+        ) from exc
     except Exception as exc:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
+        logger.exception("Mission audio transcription failed")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Audio transcription failed",
+        ) from exc
 
 
 @router.get("/{mission_id}", response_model=MissionResponse)

@@ -1,8 +1,10 @@
 from sqlalchemy.orm import Session
+
+from app.db.models.session import LearningSession
 from app.db.models.story import Story
 from app.db.models.user import User
 from app.services.session_service import SessionService
-from app.db.models.session import LearningSession
+
 
 class ArticleConversationService:
     def __init__(self, db: Session):

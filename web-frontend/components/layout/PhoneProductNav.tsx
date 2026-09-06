@@ -106,11 +106,15 @@ export default function PhoneProductNav({ active, placement = 'fixed' }: PhonePr
 
 function PhoneProductIcon({ kind }: { kind: 'mark' | 'mission' | 'feuilleton' | 'book' }) {
   if (kind === 'mark') {
+    // The brand's four-shape mark (EditorialMasthead's AtelierMark) in its
+    // original colours — the one full-colour spot in the otherwise monochrome
+    // nav, so the Atelier tab reads as the publication's emblem in both themes.
     return (
-      <svg viewBox="0 0 20 20" aria-hidden="true">
-        <rect x="0" y="0" width="8" height="8" fill="currentColor" />
-        <path d="M20 0 A 12 12 0 0 0 8 12 L 20 12 Z" fill="currentColor" />
-        <rect x="0" y="12" width="8" height="8" fill="currentColor" />
+      <svg viewBox="0 0 28 28" aria-hidden="true" className="nav-mark">
+        <rect x="0" y="0" width="11" height="11" fill="var(--app-ink)" />
+        <circle cx="22" cy="6" r="6" fill="var(--app-blue)" />
+        <rect x="0" y="17" width="11" height="11" fill="var(--app-yellow)" />
+        <path d="M17 28L23 16L28 28H17Z" fill="var(--app-red)" />
       </svg>
     );
   }

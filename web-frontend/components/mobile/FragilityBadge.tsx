@@ -29,9 +29,11 @@ function parseDate(value?: string | null) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+// The client mirror of _fragility_for_progress in app/api/v1/endpoints/vocabulary.py:
+// same six levels, same French copy. Keep the two in step.
 export function fragilityLabel(progress?: FragilityInput | null, now = new Date()): FragilityDescriptor {
   if (!progress) {
-    return { level: 'new', label: 'New thread', reason: 'No personal reviews yet.' };
+    return { level: 'new', label: 'Nouveau', reason: 'Pas encore révisé par vous.' };
   }
 
   if (progress.fragility_label) {
@@ -51,10 +53,10 @@ export function fragilityLabel(progress?: FragilityInput | null, now = new Date(
   const retrievability = progress.retrievability;
 
   if (due && reps > 0) {
-    return { level: 'due', label: 'Due now', reason: 'Ready for another touch.' };
+    return { level: 'due', label: 'À revoir', reason: 'Prêt pour une reprise.' };
   }
   if (lapses >= 3 || (typeof retrievability === 'number' && retrievability < 0.45)) {
-    return { level: 'fraying', label: 'Fraying memory', reason: 'Several misses or low recall estimate.' };
+    return { level: 'fraying', label: 'Mémoire qui s’effrite', reason: 'Plusieurs oublis, ou un rappel estimé faible.' };
   }
   if (
     phase === 'learn' ||
@@ -66,15 +68,15 @@ export function fragilityLabel(progress?: FragilityInput | null, now = new Date(
     lapses > 0 ||
     (typeof retrievability === 'number' && retrievability < 0.72)
   ) {
-    return { level: 'tender', label: 'Tender memory', reason: 'Useful, but still easy to lose.' };
+    return { level: 'tender', label: 'Mémoire fragile', reason: 'Utile, mais encore facile à perdre.' };
   }
   if (state === 'mastered' || (progress.proficiency_score || 0) >= 90) {
-    return { level: 'holding', label: 'Holding', reason: 'This thread is currently strong.' };
+    return { level: 'holding', label: 'Tient', reason: 'Ce fil tient bien pour l’instant.' };
   }
   if (state === 'new' && reps === 0) {
-    return { level: 'new', label: 'New thread', reason: 'Not reviewed yet.' };
+    return { level: 'new', label: 'Nouveau', reason: 'Pas encore révisé.' };
   }
-  return { level: 'forming', label: 'Forming', reason: 'The thread is taking shape.' };
+  return { level: 'forming', label: 'En formation', reason: 'Le fil se dessine.' };
 }
 
 export interface FragilityBadgeProps extends React.HTMLAttributes<HTMLElement> {
@@ -90,7 +92,7 @@ const FragilityBadge = React.forwardRef<HTMLElement, FragilityBadgeProps>(
   ({ progress, level, label, reason, compact = false, showReason = false, className, ...props }, ref) => {
     const descriptor = progress ? fragilityLabel(progress) : {
       level: level || 'forming',
-      label: 'Forming',
+      label: 'En formation',
       reason: typeof reason === 'string' ? reason : null,
     };
     const resolvedLevel = level || descriptor.level || 'forming';

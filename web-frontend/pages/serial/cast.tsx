@@ -5,6 +5,7 @@ import Link from 'next/link';
 import PhoneProductNav from '@/components/layout/PhoneProductNav';
 import {
   FeuilletonStyles,
+  FeMastheadBar,
   FeSectionNav,
   FeCastCard,
   FeMeCard,
@@ -12,7 +13,7 @@ import {
 } from '@/components/feuilleton/Feuilleton';
 import apiService, { SerialCastMember } from '@/services/api';
 
-const AVATAR_REFERENCE_ASSET = 'assets/serial/characters/user/model-sheet.png';
+const AVATAR_REFERENCE_ASSET = 'assets/serial/characters/user/model-sheet.webp';
 
 function initial(name?: string | null): string {
   if (!name) return '?';
@@ -75,10 +76,11 @@ export default function SerialCastPage() {
   return (
     <>
       <Head>
-        <title>Les personnages · Le Feuilleton</title>
+        <title>Les personnages · Le Feuilleton · L’Atelier</title>
       </Head>
       <main className="fe-stage">
         <div className="fe" aria-label="Le Feuilleton · les personnages">
+          <FeMastheadBar />
           <FeSectionNav active="cast" />
           <div className="fe-body fe-scroll">
             <div className="fe-cast-head">

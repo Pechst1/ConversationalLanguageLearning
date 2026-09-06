@@ -7,10 +7,40 @@ from app.config import settings
 from app.db.models.serial import SerialThread
 from app.schemas.serial import EpisodeBrief
 
-
 STRUCTURE_ROTATION = ("ensemble", "two_hander", "bottle", "callback_open", "news_edition")
 MISSION_FORMAT_ROTATION = ("chat_message", "email_formal", "admin_form", "voicemail_reply", "phone_call")
 SEASON_FINALE_ARC_ID = "__season_finale__"
+SEASON_INTERLUDE_ARC_ID = "__season_interlude__"
+
+# "Entre deux saisons": once the last authored season has been paid off and no next
+# world bible exists, the thread keeps publishing daily, but only quiet authored
+# slice-of-life beats. They advance no arc and are never a finale.
+INTERLUDE_BEATS: tuple[dict[str, Any], ...] = (
+    {
+        "id": "interlude_soir_ordinaire",
+        "summary": "An ordinary evening at Le Mistral: no crisis, only the group's small habits.",
+        "seed": "The regulars argue about the right way to close the bar and nobody wins.",
+        "structure": "ensemble",
+        "location_id": "le_mistral",
+        "hook_guidance": "End on a warm everyday detail from the evening. Promise no new crisis.",
+    },
+    {
+        "id": "interlude_course_du_quartier",
+        "summary": "A slow errand in the quartier turns into a two-person conversation.",
+        "seed": "A short walk through the market makes a small favour easy to ask for.",
+        "structure": "two_hander",
+        "location_id": "marche_canal",
+        "hook_guidance": "End with an everyday question the learner can answer in one short message.",
+    },
+    {
+        "id": "interlude_souvenir_partage",
+        "summary": "The cast retells an old story from the season and gets the details wrong.",
+        "seed": "Everyone remembers the same evening differently, and the learner is the tie-break.",
+        "structure": "callback_open",
+        "location_id": "le_mistral",
+        "hook_guidance": "End by inviting the learner's own version of the shared memory.",
+    },
+)
 
 CEFR_RAMP: dict[str, dict[str, Any]] = {
     "A1": {
@@ -99,7 +129,11 @@ class SerialArcPlanner:
     def plan_next_episode(self, beat: str) -> EpisodeBrief:
         normalized_beat = "see" if beat in {"see", "feuilleton"} else "act"
         episode_index = _int_or(self.thread.current_episode_index, 0)
+        if self.interlude_mode():
+            return self._interlude_brief(beat=normalized_beat, episode_index=episode_index)
         if self.season_complete():
+            if self._season_finale_already_played():
+                return self._interlude_brief(beat=normalized_beat, episode_index=episode_index)
             return self._season_finale_brief(beat=normalized_beat, episode_index=episode_index)
         arc, stage, stage_index, advance_on_completion = self._select_arc_stage(episode_index)
         required_cast = self._required_cast(
@@ -164,6 +198,74 @@ class SerialArcPlanner:
             if stage_index < len(stages) - 1:
                 return False
         return True
+
+    def interlude_mode(self) -> bool:
+        """True once the thread lives between seasons and must stop promising a finale."""
+        if self.state.get("interlude_mode") is True:
+            return True
+        # Legacy threads rolled over before the interlude existed only carry this flag.
+        return self.state.get("season_complete") is True
+
+    def _season_finale_already_played(self) -> bool:
+        for episode in self.thread.episodes or []:
+            if episode.status != "completed":
+                continue
+            brief = episode.brief_payload if isinstance(episode.brief_payload, dict) else {}
+            a_plot = brief.get("a_plot") if isinstance(brief.get("a_plot"), dict) else {}
+            if brief.get("season_finale") or a_plot.get("season_finale") or a_plot.get("arc_id") == SEASON_FINALE_ARC_ID:
+                return True
+        return False
+
+    def _interlude_brief(self, *, beat: str, episode_index: int) -> EpisodeBrief:
+        authored = INTERLUDE_BEATS[episode_index % len(INTERLUDE_BEATS)]
+        structure = str(authored.get("structure") or "ensemble")
+        required_cast = self._required_cast(arc_characters=[], episode_index=episode_index)
+        if structure == "two_hander":
+            required_cast = required_cast[:2] or required_cast
+        setting = self.world.get("setting") if isinstance(self.world.get("setting"), dict) else {}
+        locations = [item for item in setting.get("recurring_locations") or [] if isinstance(item, dict) and item.get("id")]
+        by_id = {str(item.get("id")): item for item in locations}
+        location = (
+            by_id.get(str(authored.get("location_id")))
+            or by_id.get("le_mistral")
+            or (locations[0] if locations else {"id": "le_mistral", "name": "Le Mistral"})
+        )
+        season_number = _int_or(self.state.get("season_number") or self.world.get("season_number"), 1)
+        return EpisodeBrief(
+            episode_index=episode_index,
+            beat=beat,
+            mission_format=self._mission_format_for(episode_index=episode_index, beat=beat),
+            a_plot={
+                "arc_id": SEASON_INTERLUDE_ARC_ID,
+                "stage_id": str(authored.get("id")),
+                "stage_index": 0,
+                "stage_summary": str(authored.get("summary") or ""),
+                "characters": required_cast,
+                "advance_on_completion": False,
+                "sets": {},
+                "interlude": True,
+            },
+            b_plot={"kind": "everyday", "seed": str(authored.get("seed") or "")},
+            required_cast=required_cast,
+            location_id=str(location.get("id") or "le_mistral"),
+            structure=structure,
+            include_news_panel=False,
+            include_choice_fork=False,
+            stakes_level=1,
+            hook_guidance=str(authored.get("hook_guidance") or ""),
+            tentpole_reference=None,
+            next_beat_kind="mission" if beat == "see" else "feuilleton",
+            location=location,
+            cefr_profile=cefr_generation_profile(getattr(self.thread.user, "proficiency_level", None)),
+            relationship_context=self._relationships_for(required_cast),
+            interlude=True,
+            interlude_beat_id=str(authored.get("id")),
+            season_number=season_number,
+            generation_notes=(
+                "Between seasons: a quiet standalone episode with the existing cast. "
+                "Open no new arc, resolve no old one, and never present this as a finale."
+            ),
+        )
 
     def _season_finale_brief(self, *, beat: str, episode_index: int) -> EpisodeBrief:
         required_cast = self._main_cast_ids() or ["margaux_barman"]

@@ -65,14 +65,14 @@ export function FeedbackSheet({
       </div>
       <div className="feedback-actions">
         {onReport && (
-          <button type="button" className="subtle" onClick={onReport}>Report</button>
+          <button type="button" className="subtle" onClick={onReport}>Signaler</button>
         )}
         {status === 'wrong' && onTryAgain && (
-          <button type="button" onClick={onTryAgain}>Try again</button>
+          <button type="button" onClick={onTryAgain}>Reprendre</button>
         )}
         {onNext && (
           <button type="button" className="primary" onClick={onNext}>
-            {nextLabel || (status === 'correct' ? 'Next' : 'Got it, next')}
+            {nextLabel || (status === 'correct' ? 'Suivant' : 'Compris, suivant')}
           </button>
         )}
       </div>

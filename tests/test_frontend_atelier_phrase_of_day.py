@@ -18,6 +18,8 @@ def test_la_une_prints_yesterdays_phrase_only_when_present() -> None:
     assert "{phraseOfDay && (" in page
     assert "<LuPhraseDuJour" in page
     assert 'aria-label="La phrase d’hier"' in component
-    assert 'className="paru">Paru' in component
+    # The block only ever renders for a phrase that was published, so the "Paru"
+    # badge restated its own precondition and was removed in the density pass.
+    assert 'className="paru"' not in component
     assert "font-family: var(--serif)" in component
     assert "phrase_of_day?:" in api

@@ -128,6 +128,8 @@ type ErrorListResponse = {
 };
 
 type ProgressPageProps = {
+  /** Rendered inside the Cahier, which supplies its own masthead. */
+  embedded?: boolean;
   summary?: AnkiProgressSummary;
   initialProgress?: AnkiWordProgress[];
   errorSummary?: ErrorSummary;
@@ -219,6 +221,7 @@ const AnkiStagePie = dynamic(() => import('@/components/learning/AnkiStagePie'),
 const ErrorCategoryPie = dynamic(() => import('@/components/learning/ErrorCategoryPie'), { ssr: false });
 
 export default function ProgressPage({
+  embedded = false,
   summary: initialSummary = EMPTY_ANKI_SUMMARY,
   initialProgress = [],
   errorSummary: initialErrorSummary = EMPTY_ERROR_SUMMARY,
@@ -336,11 +339,13 @@ export default function ProgressPage({
   }, []);
 
   return (
-    <div className="space-y-8 p-4">
-      <div className="mb-8 border-b border-[var(--app-ink)] pb-5">
-        <div className="text-xs font-black uppercase tracking-[0.16em] text-[var(--app-ink-3)]">
-          Learning Progress
-        </div>
+    <div className={embedded ? 'space-y-8' : 'space-y-8 p-4'}>
+      <div className={embedded ? 'mb-6' : 'mb-8 border-b border-[var(--app-ink)] pb-5'}>
+        {!embedded && (
+          <div className="text-xs font-black uppercase tracking-[0.16em] text-[var(--app-ink-3)]">
+            Learning Progress
+          </div>
+        )}
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mt-1">
           <h1 className="font-serif text-5xl italic leading-none text-[var(--app-ink)]">
             Progress
@@ -354,7 +359,7 @@ export default function ProgressPage({
                 key={option}
                 type="button"
                 onClick={() => setDirection(option)}
-                className={`border border-black px-4 py-2 text-xs font-black uppercase tracking-[0.13em] transition-all hover:bg-[var(--app-paper-2)] ${
+                className={`border border-[var(--app-ink)] px-4 py-2 text-xs font-black uppercase tracking-[0.13em] transition-all hover:bg-[var(--app-paper-2)] ${
                   direction === option
                     ? 'bg-[var(--app-ink)] text-[var(--app-paper)]'
                     : 'bg-[var(--app-sheet)] text-[var(--app-ink)]'
@@ -371,35 +376,35 @@ export default function ProgressPage({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
-        <StatCard label="Total" value={formatNumber(directionSummary.total)} color="bg-white" />
-        <StatCard label="New" value={formatNumber(directionSummary.stage_counts.new)} color="bg-bauhaus-blue" textColor="text-white" />
-        <StatCard label="In Progress" value={formatNumber(directionSummary.stage_counts.learning)} color="bg-bauhaus-yellow" />
-        <StatCard label="Review" value={formatNumber(directionSummary.stage_counts.review)} color="bg-bauhaus-red" textColor="text-white" />
-        <StatCard label="Due Today" value={formatNumber(directionSummary.due_today)} color="bg-black" textColor="text-white" />
+        <StatCard label="Total" value={formatNumber(directionSummary.total)} color="bg-[var(--app-sheet)]" />
+        <StatCard label="New" value={formatNumber(directionSummary.stage_counts.new)} color="bg-[var(--app-blue)]" textColor="text-[var(--app-sheet)]" />
+        <StatCard label="In Progress" value={formatNumber(directionSummary.stage_counts.learning)} color="bg-[var(--app-yellow)]" />
+        <StatCard label="Review" value={formatNumber(directionSummary.stage_counts.review)} color="bg-[var(--app-red)]" textColor="text-[var(--app-sheet)]" />
+        <StatCard label="Due Today" value={formatNumber(directionSummary.due_today)} color="bg-[var(--app-ink)]" textColor="text-[var(--app-sheet)]" />
       </div>
 
       {directionSummary.total === 0 ? (
-        <div className="bg-white border-4 border-black p-8 shadow-[8px_8px_0px_0px_#000] text-center">
+        <div className="bg-[var(--app-sheet)] border border-[var(--app-ink)] p-8 text-center">
           <p className="text-xl font-bold">
             No cards available for the currently selected direction.
           </p>
-          <p className="mt-2 text-gray-600">Import Anki cards or select a different direction.</p>
+          <p className="mt-2 text-[var(--app-ink-2)]">Import Anki cards or select a different direction.</p>
         </div>
       ) : (
         <>
-          <div className="bg-white border-4 border-black shadow-[8px_8px_0px_0px_#000]">
-            <div className="border-b-4 border-black p-4 bg-gray-50">
+          <div className="bg-[var(--app-sheet)] border border-[var(--app-ink)]">
+            <div className="border-b-4 border-[var(--app-ink)] p-4 bg-[var(--app-paper-2)]">
               <h2 className="text-xl font-black uppercase">Stage Distribution ({directionLabels[direction]})</h2>
             </div>
             <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
-              <div className="h-64 border-2 border-black p-4 shadow-[4px_4px_0px_0px_#000] bg-white rounded-none">
+              <div className="h-64 border border-[var(--app-ink)] p-4 bg-[var(--app-sheet)] rounded-none">
                 <AnkiStagePie data={chartData} />
               </div>
               <div className="space-y-4">
                 {stageOrder.map((stage) => (
-                  <div key={stage} className="flex items-center justify-between text-base border-b-2 border-black/10 pb-2 last:border-0 hover:pl-2 transition-all">
+                  <div key={stage} className="flex items-center justify-between text-base border-b-2 border-[var(--app-ink)]/10 pb-2 last:border-0 hover:pl-2 transition-all">
                     <span className="font-bold uppercase tracking-wide">{stageDisplay[stage]}</span>
-                    <span className="font-black text-xl tabular-nums bg-bauhaus-yellow px-2 border border-black shadow-[2px_2px_0px_0px_#000]">
+                    <span className="font-black text-xl tabular-nums bg-[var(--app-yellow)] px-2 border border-[var(--app-ink)]">
                       {formatNumber(directionSummary.stage_counts[stage])}
                     </span>
                   </div>
@@ -409,7 +414,7 @@ export default function ProgressPage({
           </div>
 
           {direction === 'all' ? (
-            <div className="bg-bauhaus-yellow border-4 border-black p-6 shadow-[8px_8px_0px_0px_#000] text-center">
+            <div className="bg-[var(--app-yellow)] border border-[var(--app-ink)] p-6 text-center">
               <p className="font-bold text-lg">
                 Select a specific direction above to view individual cards and their progress.
               </p>
@@ -417,8 +422,8 @@ export default function ProgressPage({
           ) : (
             <CollapsibleSection
               title="Vocabulary"
-              icon={<Languages className="w-6 h-6 text-white" />}
-              iconBgColor="bg-bauhaus-blue"
+              icon={<Languages className="w-6 h-6 text-[var(--app-sheet)]" />}
+              iconBgColor="bg-[var(--app-blue)]"
               defaultOpen={true}
               badge={entries.length}
             >
@@ -433,12 +438,12 @@ export default function ProgressPage({
       )}
 
       {/* Error Analytics Section */}
-      <div className="mt-12 pt-8 border-t-8 border-black">
+      <div className="mt-12 pt-8 border-t-8 border-[var(--app-ink)]">
         <div className="mb-8 flex items-center justify-between">
           <div>
             <h2 className="text-3xl font-black uppercase tracking-tight flex items-center gap-3">
-              <div className="bg-bauhaus-red border-2 border-black p-1 shadow-[4px_4px_0px_0px_#000]">
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+              <div className="bg-[var(--app-red)] border border-[var(--app-ink)] p-1">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-[var(--app-sheet)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                   <circle cx="12" cy="12" r="10" />
                   <line x1="12" y1="8" x2="12" y2="12" />
                   <line x1="12" y1="16" x2="12.01" y2="16" />
@@ -446,53 +451,53 @@ export default function ProgressPage({
               </div>
               Error Analysis
             </h2>
-            <p className="text-lg font-bold text-gray-600 mt-2">
+            <p className="text-lg font-bold text-[var(--app-ink-2)] mt-2">
               Overview of your errors with spaced repetition tracking.
             </p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
-          <StatCard label="Total" value={formatNumber(errorSummary.total_errors)} color="bg-white" />
-          <StatCard label="New" value={formatNumber(errorSummary.stage_counts.new)} color="bg-bauhaus-red" textColor="text-white" />
-          <StatCard label="In Progress" value={formatNumber(errorSummary.stage_counts.learning + errorSummary.stage_counts.relearning)} color="bg-bauhaus-yellow" />
-          <StatCard label="Review" value={formatNumber(errorSummary.stage_counts.review)} color="bg-bauhaus-blue" textColor="text-white" />
-          <StatCard label="Due Today" value={formatNumber(errorSummary.due_today)} color="bg-black" textColor="text-white" />
+          <StatCard label="Total" value={formatNumber(errorSummary.total_errors)} color="bg-[var(--app-sheet)]" />
+          <StatCard label="New" value={formatNumber(errorSummary.stage_counts.new)} color="bg-[var(--app-red)]" textColor="text-[var(--app-sheet)]" />
+          <StatCard label="In Progress" value={formatNumber(errorSummary.stage_counts.learning + errorSummary.stage_counts.relearning)} color="bg-[var(--app-yellow)]" />
+          <StatCard label="Review" value={formatNumber(errorSummary.stage_counts.review)} color="bg-[var(--app-blue)]" textColor="text-[var(--app-sheet)]" />
+          <StatCard label="Due Today" value={formatNumber(errorSummary.due_today)} color="bg-[var(--app-ink)]" textColor="text-[var(--app-sheet)]" />
         </div>
 
         {errorSummary.total_errors === 0 ? (
-          <div className="bg-green-100 border-4 border-black p-6 shadow-[8px_8px_0px_0px_#000]">
+          <div className="bg-[var(--app-paper-2)] border border-[var(--app-ink)] p-6">
             <div className="flex items-center gap-4">
-              <div className="bg-green-500 border-2 border-black p-2 shadow-[4px_4px_0px_0px_#000]">
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-8 h-8 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+              <div className="bg-[var(--app-green)] border border-[var(--app-ink)] p-2">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-8 h-8 text-[var(--app-sheet)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                   <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
                   <polyline points="22 4 12 14.01 9 11.01" />
                 </svg>
               </div>
-              <p className="text-lg font-bold text-black">
+              <p className="text-lg font-bold text-[var(--app-ink)]">
                 Excellent! You don&apos;t have any errors tracked yet. Keep it up!
               </p>
             </div>
           </div>
         ) : (
-          <div className="bg-white border-4 border-black shadow-[8px_8px_0px_0px_#000]">
-            <div className="border-b-4 border-black p-4 bg-gray-50">
+          <div className="bg-[var(--app-sheet)] border border-[var(--app-ink)]">
+            <div className="border-b-4 border-[var(--app-ink)] p-4 bg-[var(--app-paper-2)]">
               <h3 className="text-xl font-black uppercase">Error Distribution by Category</h3>
             </div>
             <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
-              <div className="h-64 border-2 border-black p-4 shadow-[4px_4px_0px_0px_#000] bg-white">
+              <div className="h-64 border border-[var(--app-ink)] p-4 bg-[var(--app-sheet)]">
                 <ErrorCategoryPie data={errorSummary.categories.map(c => ({ category: c.category, value: c.count }))} />
               </div>
               <div className="space-y-4">
                 {errorSummary.categories.length > 0 ? (
                   errorSummary.categories.map((cat) => (
-                    <div key={cat.category} className="flex items-center justify-between text-base border-b-2 border-black/10 pb-2 last:border-0">
+                    <div key={cat.category} className="flex items-center justify-between text-base border-b-2 border-[var(--app-ink)]/10 pb-2 last:border-0">
                       <span className="font-bold flex items-center gap-3">
-                        <span className={`w-4 h-4 border-2 border-black shadow-[2px_2px_0px_0px_#000] ${cat.category === 'grammar' ? 'bg-bauhaus-red' :
-                          cat.category === 'spelling' ? 'bg-orange-500' :
-                            cat.category === 'vocabulary' ? 'bg-bauhaus-blue' :
-                              cat.category === 'style' ? 'bg-purple-500' :
-                                'bg-gray-500'
+                        <span className={`w-4 h-4 border border-[var(--app-ink)] ${cat.category === 'grammar' ? 'bg-[var(--app-red)]' :
+                          cat.category === 'spelling' ? 'bg-[var(--app-alert)]' :
+                            cat.category === 'vocabulary' ? 'bg-[var(--app-blue)]' :
+                              cat.category === 'style' ? 'bg-[var(--app-blue)]' :
+                                'bg-[var(--app-paper-2)]0'
                           }`} />
                         <span className="uppercase tracking-wide">
                           {cat.category === 'grammar' ? 'Grammar' :
@@ -506,12 +511,12 @@ export default function ProgressPage({
                     </div>
                   ))
                 ) : (
-                  <p className="text-sm font-bold text-gray-500 italic">No categories available.</p>
+                  <p className="text-sm font-bold text-[var(--app-ink-3)] italic">No categories available.</p>
                 )}
-                <div className="pt-4 mt-4 border-t-4 border-black bg-green-50 p-4 -mx-2 shadow-[4px_4px_0px_0px_#000]">
+                <div className="pt-4 mt-4 border-t-4 border-[var(--app-ink)] bg-[var(--app-paper-2)] p-4 -mx-2">
                   <div className="flex items-center justify-between text-lg">
                     <span className="font-black uppercase">Mastered</span>
-                    <span className="tabular-nums text-green-700 font-black text-2xl">{formatNumber(errorSummary.stage_counts.mastered)}</span>
+                    <span className="tabular-nums text-[var(--app-green)] font-black text-2xl">{formatNumber(errorSummary.stage_counts.mastered)}</span>
                   </div>
                 </div>
               </div>
@@ -524,50 +529,50 @@ export default function ProgressPage({
           <div className="mt-8">
             <CollapsibleSection
               title="Saved Errors"
-              icon={<AlertCircle className="w-6 h-6 text-white" />}
-              iconBgColor="bg-orange-500"
+              icon={<AlertCircle className="w-6 h-6 text-[var(--app-sheet)]" />}
+              iconBgColor="bg-[var(--app-alert)]"
               defaultOpen={false}
               badge={errorList.total}
             >
               <div className="overflow-x-auto">
                 <table className="min-w-full text-left text-sm">
-                  <thead className="bg-black text-white font-bold uppercase tracking-wider text-xs border-b-4 border-black">
+                  <thead className="bg-[var(--app-ink)] text-[var(--app-sheet)] font-bold uppercase tracking-wider text-xs border-b-4 border-[var(--app-ink)]">
                     <tr>
-                      <th className="px-4 py-3 border-r border-gray-700">Error</th>
-                      <th className="px-4 py-3 border-r border-gray-700">Type</th>
-                      <th className="px-4 py-3 border-r border-gray-700">Correction</th>
-                      <th className="px-4 py-3 border-r border-gray-700">Occurrences</th>
-                      <th className="px-4 py-3 border-r border-gray-700">Lapses</th>
-                      <th className="px-4 py-3 border-r border-gray-700">Stage</th>
+                      <th className="px-4 py-3 border-r border-[var(--app-paper-3)]">Error</th>
+                      <th className="px-4 py-3 border-r border-[var(--app-paper-3)]">Type</th>
+                      <th className="px-4 py-3 border-r border-[var(--app-paper-3)]">Correction</th>
+                      <th className="px-4 py-3 border-r border-[var(--app-paper-3)]">Occurrences</th>
+                      <th className="px-4 py-3 border-r border-[var(--app-paper-3)]">Lapses</th>
+                      <th className="px-4 py-3 border-r border-[var(--app-paper-3)]">Stage</th>
                       <th className="px-4 py-3">Next Review</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y-2 divide-black">
                     {errorList.items.map((item) => (
-                      <tr key={item.id} className="hover:bg-bauhaus-yellow/20 transition-colors font-medium">
-                        <td className="px-4 py-3 border-r-2 border-gray-200 font-bold text-red-700 max-w-[200px] truncate" title={item.original_text}>
+                      <tr key={item.id} className="hover:bg-[var(--app-yellow)]/20 transition-colors font-medium">
+                        <td className="px-4 py-3 border-r-2 border-[var(--app-paper-3)] font-bold text-[var(--app-red)] max-w-[200px] truncate" title={item.original_text}>
                           {item.original_text}
                         </td>
-                        <td className="px-4 py-3 border-r-2 border-gray-200">
-                          <span className={`px-2 py-0.5 border border-black text-xs uppercase font-bold ${item.category === 'grammar' ? 'bg-red-100 text-red-800' :
-                            item.category === 'spelling' ? 'bg-orange-100 text-orange-800' :
-                              item.category === 'vocabulary' ? 'bg-blue-100 text-blue-800' :
-                                'bg-gray-100'
+                        <td className="px-4 py-3 border-r-2 border-[var(--app-paper-3)]">
+                          <span className={`px-2 py-0.5 border border-[var(--app-ink)] text-xs uppercase font-bold ${item.category === 'grammar' ? 'bg-[var(--app-paper-2)] text-[var(--app-ink)]' :
+                            item.category === 'spelling' ? 'bg-[var(--app-paper-2)] text-[var(--app-ink)]' :
+                              item.category === 'vocabulary' ? 'bg-[var(--app-paper-2)] text-[var(--app-ink)]' :
+                                'bg-[var(--app-paper-2)]'
                             }`}>
                             {subcategoryLabels[item.subcategory] || subcategoryLabels[item.category] || item.subcategory}
                           </span>
                         </td>
-                        <td className="px-4 py-3 border-r-2 border-gray-200 text-green-700 font-medium max-w-[200px] truncate" title={item.correction || ''}>
+                        <td className="px-4 py-3 border-r-2 border-[var(--app-paper-3)] text-[var(--app-green)] font-medium max-w-[200px] truncate" title={item.correction || ''}>
                           {item.correction || '—'}
                         </td>
-                        <td className="px-4 py-3 border-r-2 border-gray-200 tabular-nums text-center">{item.occurrences}</td>
-                        <td className="px-4 py-3 border-r-2 border-gray-200 tabular-nums text-red-600 font-bold text-center">{item.lapses}</td>
-                        <td className="px-4 py-3 border-r-2 border-gray-200">
-                          <span className={`px-2 py-0.5 border border-black text-xs uppercase font-bold ${item.learning_stage === 'new' ? 'bg-blue-100 text-blue-800' :
-                            item.learning_stage === 'learning' ? 'bg-yellow-100 text-yellow-800' :
-                              item.learning_stage === 'review' ? 'bg-green-100 text-green-800' :
-                                item.learning_stage === 'mastered' ? 'bg-green-500 text-white' :
-                                  'bg-gray-100'
+                        <td className="px-4 py-3 border-r-2 border-[var(--app-paper-3)] tabular-nums text-center">{item.occurrences}</td>
+                        <td className="px-4 py-3 border-r-2 border-[var(--app-paper-3)] tabular-nums text-[var(--app-red)] font-bold text-center">{item.lapses}</td>
+                        <td className="px-4 py-3 border-r-2 border-[var(--app-paper-3)]">
+                          <span className={`px-2 py-0.5 border border-[var(--app-ink)] text-xs uppercase font-bold ${item.learning_stage === 'new' ? 'bg-[var(--app-paper-2)] text-[var(--app-ink)]' :
+                            item.learning_stage === 'learning' ? 'bg-[var(--app-paper-2)] text-[var(--app-ink)]' :
+                              item.learning_stage === 'review' ? 'bg-[var(--app-paper-2)] text-[var(--app-ink)]' :
+                                item.learning_stage === 'mastered' ? 'bg-[var(--app-green)] text-[var(--app-sheet)]' :
+                                  'bg-[var(--app-paper-2)]'
                             }`}>
                             {item.learning_stage === 'new' ? 'New' :
                               item.learning_stage === 'learning' ? 'Learn' :
@@ -587,59 +592,59 @@ export default function ProgressPage({
       </div>
 
       {/* Grammar Overview Section */}
-      <div className="mt-12 pt-8 border-t-8 border-black">
+      <div className="mt-12 pt-8 border-t-8 border-[var(--app-ink)]">
         <div className="mb-8">
           <h2 className="text-3xl font-black uppercase tracking-tight flex items-center gap-3">
-            <div className="bg-purple-500 border-2 border-black p-1 shadow-[4px_4px_0px_0px_#000]">
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+            <div className="bg-[var(--app-blue)] border border-[var(--app-ink)] p-1">
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-[var(--app-sheet)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                 <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
               </svg>
             </div>
             Grammar
           </h2>
-          <p className="text-lg font-bold text-gray-600 mt-2">
+          <p className="text-lg font-bold text-[var(--app-ink-2)] mt-2">
             Your progress with grammar concepts.
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
-          <StatCard label="Total" value={formatNumber(grammarSummary.total)} color="bg-white" />
-          <StatCard label="Not Started" value={formatNumber(grammarSummary.not_started)} color="bg-gray-200" />
-          <StatCard label="In Progress" value={formatNumber(grammarSummary.in_progress)} color="bg-bauhaus-yellow" />
-          <StatCard label="Mastered" value={formatNumber(grammarSummary.mastered)} color="bg-bauhaus-green" />
-          <StatCard label="Due Today" value={formatNumber(grammarSummary.due_count)} color="bg-black" textColor="text-white" />
+          <StatCard label="Total" value={formatNumber(grammarSummary.total)} color="bg-[var(--app-sheet)]" />
+          <StatCard label="Not Started" value={formatNumber(grammarSummary.not_started)} color="bg-[var(--app-paper-3)]" />
+          <StatCard label="In Progress" value={formatNumber(grammarSummary.in_progress)} color="bg-[var(--app-yellow)]" />
+          <StatCard label="Mastered" value={formatNumber(grammarSummary.mastered)} color="bg-[var(--app-green)]" />
+          <StatCard label="Due Today" value={formatNumber(grammarSummary.due_count)} color="bg-[var(--app-ink)]" textColor="text-[var(--app-sheet)]" />
         </div>
 
         {grammarSummary.total === 0 ? (
-          <div className="bg-white border-4 border-black p-8 shadow-[8px_8px_0px_0px_#000] text-center">
+          <div className="bg-[var(--app-sheet)] border border-[var(--app-ink)] p-8 text-center">
             <p className="text-xl font-bold">
               No grammar concepts in the system yet.
             </p>
-            <p className="mt-2 text-gray-600 font-bold">Start your grammar training!</p>
+            <p className="mt-2 text-[var(--app-ink-2)] font-bold">Start your grammar training!</p>
           </div>
         ) : (
-          <div className="bg-white border-4 border-black shadow-[8px_8px_0px_0px_#000] p-6">
+          <div className="bg-[var(--app-sheet)] border border-[var(--app-ink)] p-6">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-black uppercase">Progress Overview</h3>
-              <Link href="/grammar" className="inline-block bg-bauhaus-blue text-white font-bold py-2 px-4 border-2 border-black shadow-[4px_4px_0px_0px_#000] hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all">
+              <Link href="/grammar" className="inline-block bg-[var(--app-blue)] text-[var(--app-sheet)] font-bold py-2 px-4 border border-[var(--app-ink)] hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all">
                 To Grammar Training →
               </Link>
             </div>
-            <div className="w-full bg-gray-100 border-4 border-black h-8 overflow-hidden relative">
+            <div className="w-full bg-[var(--app-paper-2)] border border-[var(--app-ink)] h-8 overflow-hidden relative">
               <div className="h-full flex">
                 <div
-                  className="bg-green-500 border-r-2 border-black h-full"
+                  className="bg-[var(--app-green)] border-r-2 border-[var(--app-ink)] h-full"
                   style={{ width: `${grammarSummary.total > 0 ? (grammarSummary.mastered / grammarSummary.total) * 100 : 0}%` }}
                   title="Mastered"
                 />
                 <div
-                  className="bg-bauhaus-yellow border-r-2 border-black h-full"
+                  className="bg-[var(--app-yellow)] border-r-2 border-[var(--app-ink)] h-full"
                   style={{ width: `${grammarSummary.total > 0 ? (grammarSummary.in_progress / grammarSummary.total) * 100 : 0}%` }}
                   title="In Progress"
                 />
               </div>
             </div>
-            <div className="flex justify-between text-xs font-bold uppercase mt-2 text-gray-600 tracking-wider">
+            <div className="flex justify-between text-xs font-bold uppercase mt-2 text-[var(--app-ink-2)] tracking-wider">
               <span>0%</span>
               <span>{grammarSummary.total > 0 ? Math.round((grammarSummary.mastered / grammarSummary.total) * 100) : 0}% mastered</span>
               <span>100%</span>
@@ -650,23 +655,23 @@ export default function ProgressPage({
 
       {/* Grammar↔Error Synergy Section */}
       {errorSummary.total_errors > 0 && (
-        <div className="mt-12 pt-8 border-t-8 border-black">
+        <div className="mt-12 pt-8 border-t-8 border-[var(--app-ink)]">
           <div className="mb-8">
             <h2 className="text-3xl font-black uppercase tracking-tight flex items-center gap-3">
-              <div className="bg-orange-500 border-2 border-black p-1 shadow-[4px_4px_0px_0px_#000]">
-                <Target className="w-6 h-6 text-white" />
+              <div className="bg-[var(--app-alert)] border border-[var(--app-ink)] p-1">
+                <Target className="w-6 h-6 text-[var(--app-sheet)]" />
               </div>
               Recommended Grammar Review
             </h2>
-            <p className="text-lg font-bold text-gray-600 mt-2">
+            <p className="text-lg font-bold text-[var(--app-ink-2)] mt-2">
               Based on your most frequent errors, we recommend these grammar topics.
             </p>
           </div>
 
           <CollapsibleSection
             title="Grammar for your Errors"
-            icon={<BookOpen className="w-6 h-6 text-white" />}
-            iconBgColor="bg-purple-500"
+            icon={<BookOpen className="w-6 h-6 text-[var(--app-sheet)]" />}
+            iconBgColor="bg-[var(--app-blue)]"
             defaultOpen={true}
           >
             <GrammarForErrors />
@@ -706,7 +711,7 @@ function GrammarForErrors() {
 
   if (concepts.length === 0) {
     return (
-      <div className="p-8 text-center bg-green-100 border-2 border-black">
+      <div className="p-8 text-center bg-[var(--app-paper-2)] border border-[var(--app-ink)]">
         <p className="text-lg font-bold">Great! No specific grammar topics need review.</p>
       </div>
     );
@@ -717,25 +722,25 @@ function GrammarForErrors() {
       {concepts.map((item: any) => (
         <div
           key={item.concept.id}
-          className="bg-white border-4 border-black p-6 shadow-[6px_6px_0px_0px_#000] hover:-translate-y-1 hover:shadow-[8px_8px_0px_0px_#000] transition-all"
+          className="bg-[var(--app-sheet)] border border-[var(--app-ink)] p-6 hover:-translate-y-1 transition-all"
         >
           <div className="flex items-start justify-between mb-4">
             <div className="flex-1">
               <h3 className="text-xl font-black uppercase mb-2">{item.concept.name}</h3>
-              <p className="text-sm text-gray-600 font-medium">{item.concept.description}</p>
+              <p className="text-sm text-[var(--app-ink-2)] font-medium">{item.concept.description}</p>
             </div>
-            <span className="ml-4 px-3 py-1 bg-bauhaus-blue text-white font-bold text-sm border-2 border-black shadow-[3px_3px_0px_0px_#000]">
+            <span className="ml-4 px-3 py-1 bg-[var(--app-blue)] text-[var(--app-sheet)] font-bold text-sm border border-[var(--app-ink)]">
               {item.concept.level}
             </span>
           </div>
 
           <div className="mb-4">
-            <p className="text-xs font-bold uppercase text-gray-500 mb-2">Your errors in this area:</p>
+            <p className="text-xs font-bold uppercase text-[var(--app-ink-3)] mb-2">Your errors in this area:</p>
             <div className="flex flex-wrap gap-2">
               {item.error_patterns.map((pattern: string, idx: number) => (
                 <span
                   key={idx}
-                  className="px-2 py-1 bg-red-100 text-red-800 text-xs font-bold border border-black"
+                  className="px-2 py-1 bg-[var(--app-paper-2)] text-[var(--app-ink)] text-xs font-bold border border-[var(--app-ink)]"
                 >
                   {subcategoryLabels[pattern] || pattern}
                 </span>
@@ -745,7 +750,7 @@ function GrammarForErrors() {
 
           <Link
             href={`/grammar`}
-            className="inline-block bg-purple-500 text-white font-bold py-2 px-4 border-2 border-black shadow-[4px_4px_0px_0px_#000] hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all uppercase text-sm"
+            className="inline-block bg-[var(--app-blue)] text-[var(--app-sheet)] font-bold py-2 px-4 border border-[var(--app-ink)] hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all uppercase text-sm"
           >
             Practice now →
           </Link>
@@ -769,57 +774,57 @@ function ProgressTable({ direction, entries, loading }: ProgressTableProps) {
   };
 
   return (
-    <div className="bg-white border-4 border-black shadow-[8px_8px_0px_0px_#000] overflow-hidden">
-      <div className="flex items-center justify-between p-4 border-b-4 border-black bg-gray-50">
+    <div className="bg-[var(--app-sheet)] border border-[var(--app-ink)] overflow-hidden">
+      <div className="flex items-center justify-between p-4 border-b-4 border-[var(--app-ink)] bg-[var(--app-paper-2)]">
         <h2 className="text-xl font-black uppercase">{directionLabels[direction]}</h2>
-        {loading && <span className="text-sm font-bold bg-bauhaus-yellow px-2 border border-black animate-pulse">UPDATING...</span>}
+        {loading && <span className="text-sm font-bold bg-[var(--app-yellow)] px-2 border border-[var(--app-ink)] animate-pulse">UPDATING...</span>}
       </div>
       <div className="overflow-x-auto">
         <table className="min-w-full text-left text-sm">
-          <thead className="bg-black text-white font-bold uppercase tracking-wider text-xs border-b-4 border-black">
+          <thead className="bg-[var(--app-ink)] text-[var(--app-sheet)] font-bold uppercase tracking-wider text-xs border-b-4 border-[var(--app-ink)]">
             <tr>
-              <th className="px-4 py-3 border-r border-gray-700">Word</th>
-              <th className="px-4 py-3 border-r border-gray-700">Translation</th>
-              <th className="px-4 py-3 border-r border-gray-700">Stage</th>
-              <th className="px-4 py-3 border-r border-gray-700">Level</th>
-              <th className="px-4 py-3 border-r border-gray-700">Ease</th>
-              <th className="px-4 py-3 border-r border-gray-700">Interval</th>
-              <th className="px-4 py-3 border-r border-gray-700">Due</th>
-              <th className="px-4 py-3 border-r border-gray-700">Reps</th>
-              <th className="px-4 py-3 border-r border-gray-700">Lapses</th>
-              <th className="px-4 py-3 border-r border-gray-700">Skill</th>
+              <th className="px-4 py-3 border-r border-[var(--app-paper-3)]">Word</th>
+              <th className="px-4 py-3 border-r border-[var(--app-paper-3)]">Translation</th>
+              <th className="px-4 py-3 border-r border-[var(--app-paper-3)]">Stage</th>
+              <th className="px-4 py-3 border-r border-[var(--app-paper-3)]">Level</th>
+              <th className="px-4 py-3 border-r border-[var(--app-paper-3)]">Ease</th>
+              <th className="px-4 py-3 border-r border-[var(--app-paper-3)]">Interval</th>
+              <th className="px-4 py-3 border-r border-[var(--app-paper-3)]">Due</th>
+              <th className="px-4 py-3 border-r border-[var(--app-paper-3)]">Reps</th>
+              <th className="px-4 py-3 border-r border-[var(--app-paper-3)]">Lapses</th>
+              <th className="px-4 py-3 border-r border-[var(--app-paper-3)]">Skill</th>
               <th className="px-4 py-3">Deck</th>
             </tr>
           </thead>
           <tbody className="divide-y-2 divide-black">
             {entries.length === 0 ? (
               <tr>
-                <td colSpan={11} className="px-4 py-8 text-center text-lg font-bold text-gray-500">
+                <td colSpan={11} className="px-4 py-8 text-center text-lg font-bold text-[var(--app-ink-3)]">
                   No cards available for this direction.
                 </td>
               </tr>
             ) : (
               entries.map((item) => (
-                <tr key={item.word_id} className="hover:bg-bauhaus-yellow/20 transition-colors font-medium text-black">
-                  <td className="px-4 py-3 border-r-2 border-gray-200 font-bold">{item.word}</td>
-                  <td className="px-4 py-3 border-r-2 border-gray-200 text-gray-700">{translationFor(item)}</td>
-                  <td className="px-4 py-3 border-r-2 border-gray-200">
-                    <span className={`px-2 py-0.5 border border-black text-xs uppercase font-bold ${item.learning_stage === 'new' ? 'bg-blue-100 text-blue-800' :
-                      item.learning_stage === 'learning' ? 'bg-yellow-100 text-yellow-800' :
-                        item.learning_stage === 'review' ? 'bg-green-100 text-green-800' :
-                          'bg-gray-100'
+                <tr key={item.word_id} className="hover:bg-[var(--app-yellow)]/20 transition-colors font-medium text-[var(--app-ink)]">
+                  <td className="px-4 py-3 border-r-2 border-[var(--app-paper-3)] font-bold">{item.word}</td>
+                  <td className="px-4 py-3 border-r-2 border-[var(--app-paper-3)] text-[var(--app-ink-2)]">{translationFor(item)}</td>
+                  <td className="px-4 py-3 border-r-2 border-[var(--app-paper-3)]">
+                    <span className={`px-2 py-0.5 border border-[var(--app-ink)] text-xs uppercase font-bold ${item.learning_stage === 'new' ? 'bg-[var(--app-paper-2)] text-[var(--app-ink)]' :
+                      item.learning_stage === 'learning' ? 'bg-[var(--app-paper-2)] text-[var(--app-ink)]' :
+                        item.learning_stage === 'review' ? 'bg-[var(--app-paper-2)] text-[var(--app-ink)]' :
+                          'bg-[var(--app-paper-2)]'
                       }`}>
                       {stageDisplay[item.learning_stage?.toLowerCase()] || item.learning_stage}
                     </span>
                   </td>
-                  <td className="px-4 py-3 border-r-2 border-gray-200 tabular-nums">{formatNumber(item.progress_difficulty)}</td>
-                  <td className="px-4 py-3 border-r-2 border-gray-200 tabular-nums">{formatNumber(item.ease_factor)}</td>
-                  <td className="px-4 py-3 border-r-2 border-gray-200 tabular-nums">{formatNumber(item.interval_days)}</td>
-                  <td className="px-4 py-3 border-r-2 border-gray-200 tabular-nums font-mono text-xs">{formatDate(item.due_at || item.next_review)}</td>
-                  <td className="px-4 py-3 border-r-2 border-gray-200 tabular-nums">{item.reps ?? 0}</td>
-                  <td className="px-4 py-3 border-r-2 border-gray-200 tabular-nums text-red-600 font-bold">{item.lapses ?? 0}</td>
-                  <td className="px-4 py-3 border-r-2 border-gray-200 tabular-nums">{item.proficiency_score ?? 0}</td>
-                  <td className="px-4 py-3 text-gray-500 italic truncate max-w-[150px]">{item.deck_name || '—'}</td>
+                  <td className="px-4 py-3 border-r-2 border-[var(--app-paper-3)] tabular-nums">{formatNumber(item.progress_difficulty)}</td>
+                  <td className="px-4 py-3 border-r-2 border-[var(--app-paper-3)] tabular-nums">{formatNumber(item.ease_factor)}</td>
+                  <td className="px-4 py-3 border-r-2 border-[var(--app-paper-3)] tabular-nums">{formatNumber(item.interval_days)}</td>
+                  <td className="px-4 py-3 border-r-2 border-[var(--app-paper-3)] tabular-nums font-mono text-xs">{formatDate(item.due_at || item.next_review)}</td>
+                  <td className="px-4 py-3 border-r-2 border-[var(--app-paper-3)] tabular-nums">{item.reps ?? 0}</td>
+                  <td className="px-4 py-3 border-r-2 border-[var(--app-paper-3)] tabular-nums text-[var(--app-red)] font-bold">{item.lapses ?? 0}</td>
+                  <td className="px-4 py-3 border-r-2 border-[var(--app-paper-3)] tabular-nums">{item.proficiency_score ?? 0}</td>
+                  <td className="px-4 py-3 text-[var(--app-ink-3)] italic truncate max-w-[150px]">{item.deck_name || '—'}</td>
                 </tr>
               ))
             )}
@@ -837,9 +842,9 @@ type StatCardProps = {
   textColor?: string;
 };
 
-function StatCard({ label, value, color = 'bg-white', textColor = 'text-black' }: StatCardProps) {
+function StatCard({ label, value, color = 'bg-[var(--app-sheet)]', textColor = 'text-[var(--app-ink)]' }: StatCardProps) {
   return (
-    <div className={`${color} ${textColor} border-4 border-black p-4 shadow-[8px_8px_0px_0px_#000] hover:-translate-y-2 hover:shadow-[12px_12px_0px_0px_#000] transition-all duration-200`}>
+    <div className={`${color} ${textColor} border border-[var(--app-ink)] p-4 hover:-translate-y-2 transition-all duration-200`}>
       <p className={`text-xs uppercase font-black tracking-widest opacity-80 mb-2`}>{label}</p>
       <p className="text-3xl font-black">{value}</p>
     </div>

@@ -1,6 +1,5 @@
 import json
 import sys
-from typing import List
 
 import pytest
 
@@ -18,7 +17,7 @@ from app.services.llm_service import LLMResult
 
 
 class StubLLMService:
-    def __init__(self, responses: List[LLMResult]):
+    def __init__(self, responses: list[LLMResult]):
         self._responses = responses
 
     def generate_chat_completion(self, *args, **kwargs):

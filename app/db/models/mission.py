@@ -6,7 +6,8 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 from sqlalchemy.types import JSON
@@ -57,13 +58,13 @@ class RealWorldMission(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )
 
-    user: Mapped["User"] = relationship("User")
-    atelier_session: Mapped["AtelierSession | None"] = relationship("AtelierSession")
-    serial_thread: Mapped["SerialThread | None"] = relationship("SerialThread")
-    attempts: Mapped[list["RealWorldMissionAttempt"]] = relationship(
+    user: Mapped[User] = relationship("User")
+    atelier_session: Mapped[AtelierSession | None] = relationship("AtelierSession")
+    serial_thread: Mapped[SerialThread | None] = relationship("SerialThread")
+    attempts: Mapped[list[RealWorldMissionAttempt]] = relationship(
         "RealWorldMissionAttempt", back_populates="mission", cascade="all, delete-orphan"
     )
-    turns: Mapped[list["RealWorldMissionTurn"]] = relationship(
+    turns: Mapped[list[RealWorldMissionTurn]] = relationship(
         "RealWorldMissionTurn", back_populates="mission", cascade="all, delete-orphan"
     )
 
@@ -93,7 +94,7 @@ class RealWorldMissionAttempt(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     mission: Mapped[RealWorldMission] = relationship("RealWorldMission", back_populates="attempts")
-    user: Mapped["User"] = relationship("User")
+    user: Mapped[User] = relationship("User")
 
 
 class RealWorldMissionTurn(Base):
@@ -117,7 +118,7 @@ class RealWorldMissionTurn(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     mission: Mapped[RealWorldMission] = relationship("RealWorldMission", back_populates="turns")
-    user: Mapped["User"] = relationship("User")
+    user: Mapped[User] = relationship("User")
 
     __table_args__ = (
         UniqueConstraint("mission_id", "turn_index", name="uq_real_world_mission_turn_index"),

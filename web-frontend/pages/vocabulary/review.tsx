@@ -29,22 +29,41 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+import { learnerGloss } from '@/lib/glosses';
+
 import EditorialMasthead from '@/components/layout/EditorialMasthead';
+import MotsDuJour from '@/components/lexique/MotsDuJour';
 import { WordBiographySheet } from '@/components/mobile';
+import { createAudioMediaRecorder, recordedAudioBlob } from '@/lib/audio-recording';
 import apiService, {
+  DailyWordSlate,
   VocabularyBiography,
   VocabularyDueContext,
   VocabularyRecommendationItem,
 } from '@/services/api';
 import { AnkiReviewResponse, ReviewResponse } from '@/types/reviews';
+import {
+  REVIEW_WORD_KEY,
+  clearReviewProgress,
+  readReviewContextCache,
+  saveResumeActivity,
+  writeReviewContextCache,
+} from '@/lib/pilot-resilience';
 
+// The four French labels carry the whole scale; the English FSRS hints
+// (Again/Hard/Good/Easy) were corrector internals printed on the buttons.
 const reviewOptions = [
-  { rating: 0, label: 'Encore', hint: 'Again', tone: 'red' },
-  { rating: 1, label: 'Dur', hint: 'Hard', tone: 'yellow' },
-  { rating: 2, label: 'Bien', hint: 'Good', tone: 'blue' },
-  { rating: 3, label: 'Facile', hint: 'Easy', tone: 'green' },
+  { rating: 0, label: 'Encore', tone: 'red' },
+  { rating: 1, label: 'Dur', tone: 'yellow' },
+  { rating: 2, label: 'Bien', tone: 'blue' },
+  { rating: 3, label: 'Facile', tone: 'green' },
 ] as const;
 
+// One card costs about twenty seconds at the deck's observed pace. The
+// estimate is the unit a learner plans with; the count is the one they verify.
+const SECONDS_PER_CARD = 20;
+
+// Direction is resolved server-side from the learner's stored preference.
 const reviewQueueParams = {
   limit: 50,
   due_limit: 30,
@@ -52,16 +71,15 @@ const reviewQueueParams = {
   new_limit: 8,
   topic_limit: 8,
   linked_limit: 8,
-  direction: 'fr_to_de',
 } as const;
 
 function reviewMessage(response: ReviewResponse | AnkiReviewResponse) {
   const next = 'due_at' in response ? response.due_at || response.next_review : response.next_review;
   const date = next ? new Date(next) : null;
   const label = date && !Number.isNaN(date.getTime())
-    ? date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+    ? date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })
     : '';
-  return label ? `Scheduled for ${label}` : 'Review saved';
+  return label ? `Reprogrammé pour le ${label}` : 'Révision classée';
 }
 
 function queueItems(context: VocabularyDueContext | null) {
@@ -80,18 +98,27 @@ function queueItems(context: VocabularyDueContext | null) {
   });
 }
 
+// A card direction reads "<asked side>_to_<answer side>". Only the first half
+// matters here: `de_to_fr`/`en_to_fr` ask from the learner's side, everything
+// else asks from the target language. The page used to name `de_to_fr`
+// explicitly, so an English learner's cards fell through to the wrong branch.
+function asksFromLearnerSide(item: VocabularyRecommendationItem) {
+  const [from, to] = String(item.direction || '').split('_to_');
+  return Boolean(from && to && from !== 'fr');
+}
+
 function queueWord(item: VocabularyRecommendationItem) {
-  if (item.direction === 'de_to_fr') {
-    return item.translations?.de || item.translations?.en || item.word;
+  if (asksFromLearnerSide(item)) {
+    return learnerGloss(item, item.word);
   }
   return item.word || item.translations?.fr || '';
 }
 
 function queueTranslation(item: VocabularyRecommendationItem) {
-  if (item.direction === 'de_to_fr') {
+  if (asksFromLearnerSide(item)) {
     return item.translations?.fr || item.word || '';
   }
-  return item.translations?.de || item.translations?.en || '';
+  return learnerGloss(item);
 }
 
 function queueFrench(item: VocabularyRecommendationItem) {
@@ -99,7 +126,7 @@ function queueFrench(item: VocabularyRecommendationItem) {
 }
 
 function queueMeaning(item: VocabularyRecommendationItem) {
-  return item.translations?.de || item.translations?.en || '';
+  return learnerGloss(item);
 }
 
 function queueExample(item: VocabularyRecommendationItem) {
@@ -110,19 +137,36 @@ function queueExampleTranslation(item: VocabularyRecommendationItem) {
   return item.example_translation?.trim() || '';
 }
 
+// Any `xx_to_yy` pair prints as the two codes with a typographic arrow. Cards
+// captured from the journal (missions, feuilleton, atelier) carry no direction
+// at all: they used to print "Registre", a word naming nothing the learner can
+// see. They now print no chip.
 function queueDirection(item: VocabularyRecommendationItem) {
-  if (item.direction === 'fr_to_de') return 'FR -> DE';
-  if (item.direction === 'de_to_fr') return 'DE -> FR';
-  return 'French 5000';
+  const [from, to] = String(item.direction || '').split('_to_');
+  if (!from || !to) return '';
+  return `${from.toUpperCase()} → ${to.toUpperCase()}`;
 }
+
+// Articles a learner may or may not type in front of a noun: the card asks for
+// the word, not for the determiner, so "radiateur" grades the same as
+// "le radiateur".
+const LEADING_ARTICLE = /^(?:l|le|la|les|un|une|des|du|de la|de l|d|au|aux|a l)\s+/;
 
 function normalizeAnswer(value: string) {
   return value
+    // Ligatures fold first: NFD leaves œ and æ intact and the character class
+    // below then eats them, so "cœur" and "coeur" used to compare unequal.
+    .toLowerCase()
+    .replace(/œ/g, 'oe')
+    .replace(/æ/g, 'ae')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
+    // Every apostrophe variant (straight, curly, the ‘ iOS inserts) collapses
+    // to a space here, so "l’ami" and "l'ami" fold to the same string.
     .replace(/[^A-Za-z0-9À-ÿ]+/g, ' ')
     .trim()
-    .toLowerCase();
+    .replace(LEADING_ARTICLE, '')
+    .trim();
 }
 
 function foldedSignal(value: string) {
@@ -134,8 +178,13 @@ function foldedSignal(value: string) {
     .replace(/[\u0300-\u036f]/g, '');
 }
 
+// Signals are matched on whole tokens. Substring matching used to fire the
+// "verb" rule on the tag `verbs` and on the word `adverbe`, which is how
+// "exemplaire" — a noun the Anki import had tagged as a verb — ended up
+// captioned as an action.
 function hasSignal(signal: string, words: string[]) {
-  return words.some((word) => signal.includes(word));
+  const tokens = new Set(signal.split(/[^a-z0-9]+/).filter(Boolean));
+  return words.some((word) => tokens.has(word));
 }
 
 type ReviewVisualCue = {
@@ -145,70 +194,64 @@ type ReviewVisualCue = {
   Icon: LucideIcon;
 };
 
+// The badge is a memory hook, not a dictionary entry: it names a scene the
+// word belongs to. Both lines are French publication copy — they used to read
+// "WORD / MEMORY CUE", "TIME / when", the last English left on the card. The
+// caption no longer echoes `part_of_speech` either: that column comes from a
+// heuristic import (scripts/enrich_vocabulary.py) and is wrong often enough
+// that printing it made the card assert something false.
 function wordVisualCue(item: VocabularyRecommendationItem): ReviewVisualCue {
   const signal = foldedSignal([
     queueFrench(item),
     queueWord(item),
     queueMeaning(item),
     queueTranslation(item),
-    item.part_of_speech || '',
     ...(item.topic_tags || []),
   ].filter(Boolean).join(' '));
 
   if (hasSignal(signal, ['abaisser', 'baisse', 'reduire', 'reduction', 'senken', 'lower', 'down'])) {
-    return { label: 'lower', caption: 'movement', tone: 'blue', Icon: ArrowDown };
+    return { label: 'Baisse', caption: 'mouvement', tone: 'blue', Icon: ArrowDown };
   }
   if (hasSignal(signal, ['famille', 'ami', 'soeur', 'frere', 'mere', 'pere', 'person', 'schwester', 'freund'])) {
-    return { label: 'people', caption: 'relation', tone: 'red', Icon: Users };
+    return { label: 'Gens', caption: 'relation', tone: 'red', Icon: Users };
   }
   if (hasSignal(signal, ['cafe', 'vin', 'restaurant', 'manger', 'boire', 'pain', 'food', 'essen', 'trinken'])) {
-    return { label: 'food', caption: 'table', tone: 'yellow', Icon: Utensils };
+    return { label: 'Table', caption: 'repas', tone: 'yellow', Icon: Utensils };
   }
   if (hasSignal(signal, ['heure', 'jour', 'semaine', 'temps', 'week', 'time', 'morgen', 'gestern'])) {
-    return { label: 'time', caption: 'when', tone: 'blue', Icon: CalendarDays };
+    return { label: 'Temps', caption: 'quand', tone: 'blue', Icon: CalendarDays };
   }
   if (hasSignal(signal, ['train', 'gare', 'metro', 'bus', 'voiture', 'voyage', 'reise', 'transport'])) {
-    return { label: 'travel', caption: 'movement', tone: 'green', Icon: Train };
+    return { label: 'Trajet', caption: 'mouvement', tone: 'green', Icon: Train };
   }
   if (hasSignal(signal, ['maison', 'appartement', 'porte', 'fenetre', 'home', 'haus', 'wohnung'])) {
-    return { label: 'home', caption: 'place', tone: 'yellow', Icon: Home };
+    return { label: 'Maison', caption: 'lieu', tone: 'yellow', Icon: Home };
   }
   if (hasSignal(signal, ['ville', 'rue', 'hotel', 'bureau', 'place', 'street', 'stadt', 'office'])) {
-    return { label: 'place', caption: 'where', tone: 'blue', Icon: MapPin };
+    return { label: 'Ville', caption: 'où', tone: 'blue', Icon: MapPin };
   }
   if (hasSignal(signal, ['travail', 'argent', 'prix', 'client', 'job', 'work', 'geld'])) {
-    return { label: 'work', caption: 'practical', tone: 'green', Icon: Briefcase };
+    return { label: 'Travail', caption: 'pratique', tone: 'green', Icon: Briefcase };
   }
   if (hasSignal(signal, ['sante', 'douleur', 'malade', 'corps', 'health', 'arzt', 'krank'])) {
-    return { label: 'body', caption: 'health', tone: 'red', Icon: HeartPulse };
+    return { label: 'Corps', caption: 'santé', tone: 'red', Icon: HeartPulse };
   }
   if (hasSignal(signal, ['ecole', 'cours', 'livre', 'apprendre', 'question', 'learn', 'schule'])) {
-    return { label: 'study', caption: 'knowledge', tone: 'blue', Icon: BookOpen };
+    return { label: 'Étude', caption: 'savoir', tone: 'blue', Icon: BookOpen };
   }
   if (hasSignal(signal, ['dire', 'parler', 'demander', 'message', 'lettre', 'sagen', 'sprechen'])) {
-    return { label: 'speech', caption: 'message', tone: 'green', Icon: MessageCircle };
+    return { label: 'Parole', caption: 'message', tone: 'green', Icon: MessageCircle };
   }
   if (hasSignal(signal, ['loi', 'etat', 'gouvernement', 'politique', 'law', 'recht'])) {
-    return { label: 'society', caption: 'systems', tone: 'red', Icon: Landmark };
+    return { label: 'Cité', caption: 'institutions', tone: 'red', Icon: Landmark };
   }
   if (hasSignal(signal, ['film', 'musique', 'jeu', 'art', 'danser', 'music'])) {
-    return { label: 'culture', caption: 'leisure', tone: 'yellow', Icon: Palette };
+    return { label: 'Culture', caption: 'loisir', tone: 'yellow', Icon: Palette };
   }
   if (hasSignal(signal, ['robe', 'chemise', 'pantalon', 'chaussure', 'kleid', 'schuh'])) {
-    return { label: 'clothing', caption: 'object', tone: 'green', Icon: Shirt };
+    return { label: 'Habits', caption: 'objet', tone: 'green', Icon: Shirt };
   }
-  if (hasSignal(signal, ['verb', 'verbe'])) {
-    return { label: 'action', caption: 'verb', tone: 'blue', Icon: Shapes };
-  }
-  return { label: 'word', caption: item.part_of_speech || 'memory cue', tone: 'neutral', Icon: Shapes };
-}
-
-function cardMode(item: VocabularyRecommendationItem | null): 'recognition' | 'production' | 'audio' | 'cloze' {
-  if (!item) return 'recognition';
-  if ((item.proficiency_score || 0) >= 90 && item.example_sentence) return 'cloze';
-  if ((item.proficiency_score || 0) >= 72 && item.bucket !== 'new') return 'audio';
-  if ((item.proficiency_score || 0) >= 55 && item.bucket !== 'new') return 'production';
-  return 'recognition';
+  return { label: 'Mot', caption: 'à retenir', tone: 'neutral', Icon: Shapes };
 }
 
 function escapeRegExp(value: string) {
@@ -224,20 +267,67 @@ function clozePrompt(item: VocabularyRecommendationItem) {
   return example.replace(pattern, '$1_____');
 }
 
+// True only when the sentence actually loses the word. The example is often
+// inflected ("final" against "la séance finale"), and the un-blanked sentence
+// was printed as the prompt with the answer still in it.
+function clozeIsBlanked(item: VocabularyRecommendationItem) {
+  const prompt = clozePrompt(item);
+  return Boolean(prompt) && prompt.includes('_____');
+}
+
+function cardMode(item: VocabularyRecommendationItem | null): 'recognition' | 'production' | 'audio' | 'cloze' {
+  if (!item) return 'recognition';
+  if ((item.proficiency_score || 0) >= 90 && item.example_sentence && clozeIsBlanked(item)) return 'cloze';
+  if ((item.proficiency_score || 0) >= 72 && item.bucket !== 'new') return 'audio';
+  if ((item.proficiency_score || 0) >= 55 && item.bucket !== 'new') return 'production';
+  return 'recognition';
+}
+
+// Bucket keys are corrector internals; the card prints their French name.
+const bucketLabels: Record<string, string> = {
+  due: 'À revoir',
+  fragile: 'Fragile',
+  new: 'La pioche du jour',
+  linked: 'Mot voisin',
+  topic: 'Du thème',
+  topic_compatible: 'Du thème',
+};
+
 function formatDueLabel(item: VocabularyRecommendationItem) {
+  const fallback = bucketLabels[item.bucket] || 'À revoir';
+  if (item.bucket === 'new') return bucketLabels.new;
   const raw = item.due_at || item.next_review;
-  if (!raw) return item.bucket === 'new' ? 'new pick' : item.bucket;
-  const date = new Date(raw);
-  if (Number.isNaN(date.getTime())) return item.bucket;
-  return `due ${date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`;
+  const date = raw ? new Date(raw) : null;
+  if (!date || Number.isNaN(date.getTime())) return fallback;
+  return `Échéance ${date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}`;
 }
 
 function ratingToneLabel(rating: number) {
-  return reviewOptions.find((item) => item.rating === rating)?.label || 'Review';
+  return reviewOptions.find((item) => item.rating === rating)?.label || 'Classée';
 }
 
 function decrementSummaryCount(value: number | undefined) {
   return Math.max(0, Number(value || 0) - 1);
+}
+
+function ReviewPortrait({ item }: { item: VocabularyRecommendationItem }) {
+  const [failed, setFailed] = useState(false);
+  const anchor = item.episodic_anchor;
+  if (!anchor) return null;
+  const name = anchor.character_name || 'Le Feuilleton';
+  return (
+    <span
+      className="review-cast-chip"
+      title={`Ancré dans votre histoire avec ${name}`}
+      style={anchor.accent_colour ? { '--cast-accent': anchor.accent_colour } as React.CSSProperties : undefined}
+    >
+      {anchor.portrait_url && !failed ? (
+        /* eslint-disable-next-line @next/next/no-img-element */
+        <img src={anchor.portrait_url} alt="" onError={() => setFailed(true)} />
+      ) : <span className="review-cast-initial">{name.slice(0, 1).toUpperCase()}</span>}
+      <em>{name}</em>
+    </span>
+  );
 }
 
 function optimisticallyDecrementSummary(
@@ -274,15 +364,20 @@ function optimisticallyDecrementSummary(
   return { ...context, summary };
 }
 
+// The end of the deck: what was just filed, and the day's slate showing how
+// far its three stamps have come. "Queue claire" was half English; the notebook
+// is called le Cahier everywhere else in the journal.
 function VocabularyReviewContinuation({
   lastItem,
   lastRating,
+  slate,
   onRefresh,
   onReturn,
   returning,
 }: {
   lastItem: VocabularyRecommendationItem | null;
   lastRating: number | null;
+  slate: DailyWordSlate | null;
   onRefresh: () => void;
   onReturn: () => void;
   returning: boolean;
@@ -292,27 +387,31 @@ function VocabularyReviewContinuation({
   const ratingCopy = lastRating !== null ? ratingToneLabel(lastRating) : '';
 
   return (
-    <section className="review-done">
-      <Check size={28} />
-      <div>
-        <span>Révision espacée</span>
-        <h2>Queue claire</h2>
-        {(word || ratingCopy) && <p>{[word, ratingCopy].filter(Boolean).join(' · ')}</p>}
-      </div>
-      <div className="review-done-actions">
-        <button type="button" onClick={onReturn} disabled={returning}>
-          {returning ? 'Retour...' : 'Atelier'}
-        </button>
-        <button type="button" onClick={onRefresh}>Actualiser</button>
-        {wordId && <Link href={`/vocabulary?word=${wordId}`}>Notebook</Link>}
-      </div>
-    </section>
+    <>
+      <section className="review-done">
+        <Check size={28} />
+        <div>
+          <span>Révision espacée</span>
+          <h2>Paquet vidé</h2>
+          {(word || ratingCopy) && <p>{[word, ratingCopy].filter(Boolean).join(' · ')}</p>}
+        </div>
+        <div className="review-done-actions">
+          <button type="button" onClick={onReturn} disabled={returning}>
+            {returning ? 'Retour…' : 'L’Atelier'}
+          </button>
+          <button type="button" onClick={onRefresh}>Actualiser</button>
+          {wordId && <Link href={`/vocabulary?word=${wordId}`}>Le Cahier</Link>}
+        </div>
+      </section>
+      <MotsDuJour slate={slate} href="/vocabulary" />
+    </>
   );
 }
 
 export default function VocabularyReviewPage() {
   const router = useRouter();
   const [context, setContext] = useState<VocabularyDueContext | null>(null);
+  const [wordSlate, setWordSlate] = useState<DailyWordSlate | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reviewing, setReviewing] = useState(false);
@@ -329,6 +428,9 @@ export default function VocabularyReviewPage() {
   const [biography, setBiography] = useState<VocabularyBiography | null>(null);
   const [biographyLoading, setBiographyLoading] = useState(false);
   const [biographyError, setBiographyError] = useState<string | null>(null);
+  const [resumeWordId, setResumeWordId] = useState<number | null>(null);
+  const [cachedContextAt, setCachedContextAt] = useState<string | null>(null);
+  const visibleCacheRef = useRef(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordingStreamRef = useRef<MediaStream | null>(null);
   const recordingWordIdRef = useRef<number | null>(null);
@@ -336,11 +438,18 @@ export default function VocabularyReviewPage() {
   const chunksRef = useRef<Blob[]>([]);
 
   const loadQueue = useCallback(async () => {
-    setLoading(true);
+    setLoading(!visibleCacheRef.current);
     setLoadError(null);
     try {
-      const next = await apiService.getVocabularyDueContext(reviewQueueParams);
+      const [next, slate] = await Promise.all([
+        apiService.getVocabularyDueContext(reviewQueueParams),
+        apiService.getWordsOfTheDay().catch(() => null),
+      ]);
+      setWordSlate(slate);
       setContext(next);
+      writeReviewContextCache(next, slate);
+      visibleCacheRef.current = false;
+      setCachedContextAt(null);
       setReviewedIds(new Set());
       setLastRating(null);
       setLastReviewedItem(null);
@@ -348,22 +457,51 @@ export default function VocabularyReviewPage() {
       setTypedAnswer('');
     } catch (error) {
       console.error(error);
-      setLoadError('Review unavailable');
+      if (!visibleCacheRef.current) setLoadError('La révision est indisponible.');
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
+    const cached = readReviewContextCache<VocabularyDueContext, DailyWordSlate>();
+    if (cached) {
+      visibleCacheRef.current = true;
+      setContext(cached.context);
+      setWordSlate(cached.wordSlate);
+      setCachedContextAt(cached.cachedAt);
+      setLoading(false);
+    }
+    const stored = Number(window.localStorage.getItem(REVIEW_WORD_KEY) || 0);
+    if (stored) setResumeWordId(stored);
     void loadQueue();
   }, [loadQueue]);
 
-  const allItems = useMemo(() => queueItems(context), [context]);
+  // "Les mots du jour" ride to the front of the deck: the day's slate words
+  // are the retrieval half of the read → retrieve → produce loop.
+  const slateById = useMemo(() => {
+    const map = new Map<number, NonNullable<DailyWordSlate['words']>[number]>();
+    for (const entry of wordSlate?.words || []) map.set(entry.word_id, entry);
+    return map;
+  }, [wordSlate]);
+  const allItems = useMemo(() => {
+    const items = queueItems(context);
+    const ordered = slateById.size === 0 ? items : [
+      ...items.filter((item) => slateById.has(item.word_id)),
+      ...items.filter((item) => !slateById.has(item.word_id)),
+    ];
+    if (!resumeWordId) return ordered;
+    return [
+      ...ordered.filter((item) => item.word_id === resumeWordId),
+      ...ordered.filter((item) => item.word_id !== resumeWordId),
+    ];
+  }, [context, resumeWordId, slateById]);
   const remainingItems = useMemo(
     () => allItems.filter((item) => !reviewedIds.has(item.word_id)),
     [allItems, reviewedIds],
   );
   const current = remainingItems[0] || null;
+  const currentSlateEntry = current ? slateById.get(current.word_id) || null : null;
   const completed = reviewedIds.size;
   const total = remainingItems.length + completed;
   const sessionRemaining = remainingItems.length;
@@ -373,6 +511,39 @@ export default function VocabularyReviewPage() {
     new: remainingItems.filter((item) => item.bucket === 'new').length,
   }), [remainingItems]);
   const progress = total ? Math.round((completed / total) * 100) : 0;
+  const minutesLeft = sessionRemaining
+    ? Math.max(1, Math.round((sessionRemaining * SECONDS_PER_CARD) / 60))
+    : 0;
+  // The bucket split used to be four stacked counters over a single card. It
+  // is one quiet sentence now, and only when it actually says something the
+  // headline count does not.
+  const deckComposition = useMemo(() => {
+    const parts: string[] = [];
+    if (remainingSummary.due) parts.push(`${remainingSummary.due} à revoir`);
+    if (remainingSummary.fragile) {
+      parts.push(`${remainingSummary.fragile} fragile${remainingSummary.fragile > 1 ? 's' : ''}`);
+    }
+    if (remainingSummary.new) {
+      parts.push(`${remainingSummary.new} nouveau${remainingSummary.new > 1 ? 'x' : ''}`);
+    }
+    if (parts.length < 2) return '';
+    return `Dont ${parts.slice(0, -1).join(', ')} et ${parts[parts.length - 1]}.`;
+  }, [remainingSummary]);
+
+  useEffect(() => {
+    if (current) {
+      window.localStorage.setItem(REVIEW_WORD_KEY, String(current.word_id));
+      setResumeWordId(current.word_id);
+      saveResumeActivity({ href: '/vocabulary/review', kind: 'review', entityId: current.word_id });
+    } else if (!loading && context) {
+      // The deck is done: drop the resume card *and* the cached queue, or the
+      // next visit paints the finished deck again from localStorage before the
+      // network can correct it.
+      clearReviewProgress();
+      setResumeWordId(null);
+      setCachedContextAt(null);
+    }
+  }, [context, current, loading]);
 
   const stopRecordingTracks = useCallback(() => {
     recordingStreamRef.current?.getTracks().forEach((track) => track.stop());
@@ -418,7 +589,7 @@ export default function VocabularyReviewPage() {
       setBiography(next);
     } catch (error) {
       console.error(error);
-      setBiographyError('Could not load this word thread.');
+      setBiographyError('L’histoire de ce mot est indisponible.');
     } finally {
       setBiographyLoading(false);
     }
@@ -455,7 +626,7 @@ export default function VocabularyReviewPage() {
         window.speechSynthesis.speak(utterance);
       } else {
         setAudioPlaying(false);
-        toast.error('Could not play the audio prompt.');
+        toast.error('La lecture audio a échoué.');
       }
     }
   };
@@ -471,11 +642,11 @@ export default function VocabularyReviewPage() {
       if (transcript.trim()) {
         setTypedAnswer(transcript.trim());
       } else {
-        toast('No speech detected.');
+        toast('Aucune parole détectée.');
       }
     } catch (error) {
       console.error(error);
-      toast.error('Could not transcribe the recording.');
+      toast.error('La transcription a échoué.');
     } finally {
       if (activeWordIdRef.current === wordId) {
         setTranscribing(false);
@@ -487,7 +658,7 @@ export default function VocabularyReviewPage() {
     event.stopPropagation();
     if (!current || recording || transcribing) return;
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
-      toast.error('Voice recording is not available in this browser.');
+      toast.error('L’enregistrement vocal n’est pas disponible dans ce navigateur.');
       return;
     }
     try {
@@ -497,7 +668,7 @@ export default function VocabularyReviewPage() {
         stream.getTracks().forEach((track) => track.stop());
         return;
       }
-      const recorder = new MediaRecorder(stream);
+      const recorder = createAudioMediaRecorder(stream);
       mediaRecorderRef.current = recorder;
       recordingStreamRef.current = stream;
       recordingWordIdRef.current = wordId;
@@ -510,7 +681,7 @@ export default function VocabularyReviewPage() {
       recorder.onstop = () => {
         const stoppedWordId = recordingWordIdRef.current;
         recordingWordIdRef.current = null;
-        const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' });
+        const audioBlob = recordedAudioBlob(chunksRef.current, recorder);
         stopRecordingTracks();
         setRecording(false);
         if (stoppedWordId === wordId && activeWordIdRef.current === wordId) {
@@ -521,7 +692,7 @@ export default function VocabularyReviewPage() {
       setRecording(true);
     } catch (error) {
       console.error(error);
-      toast.error('Microphone access failed.');
+      toast.error('Le micro n’a pas pu être ouvert.');
     }
   };
 
@@ -546,7 +717,7 @@ export default function VocabularyReviewPage() {
       setTypedAnswer('');
     } catch (error) {
       console.error(error);
-      toast.error('Could not save vocabulary review.');
+      toast.error('La révision n’a pas pu être classée.');
     } finally {
       setReviewing(false);
     }
@@ -566,12 +737,44 @@ export default function VocabularyReviewPage() {
     void submitRating(rating);
   };
 
+  // The deck was tap-only: nothing revealed a card or filed it from a
+  // keyboard. Space/Enter turns the card, 1-4 file it once turned — the same
+  // order as the four buttons, so the hand learns one scale.
+  useEffect(() => {
+    if (!current) return undefined;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target as HTMLElement | null;
+      const typing = Boolean(target?.closest('input, textarea, [contenteditable="true"]'));
+      if (typing) {
+        // Enter in the answer field turns the card; it never files it blind.
+        if (event.key === 'Enter' && !revealed) {
+          event.preventDefault();
+          setRevealed(true);
+        }
+        return;
+      }
+      if (event.key === ' ' || event.key === 'Enter') {
+        event.preventDefault();
+        setRevealed((value) => !value);
+        return;
+      }
+      const rating = ['1', '2', '3', '4'].indexOf(event.key);
+      if (rating >= 0 && revealed) {
+        event.preventDefault();
+        handleRatingClick(rating);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  });
+
   const mode = cardMode(current);
   const prompt = current
     ? mode === 'audio'
-      ? 'Listen to the French word'
+      ? 'Écoutez le mot français'
       : mode === 'production'
-      ? queueMeaning(current)
+      ? queueMeaning(current) || queueFrench(current)
       : mode === 'cloze'
         ? clozePrompt(current)
         : queueWord(current)
@@ -592,38 +795,54 @@ export default function VocabularyReviewPage() {
   return (
     <>
       <Head>
-        <title>Vocabulary Review</title>
+        <title>Le Lexique · Révision · L’Atelier</title>
       </Head>
       <EditorialMasthead
         active="studio"
       />
       <main className="vocab-review-page">
+        {/* One dateline, one count, one hairline of progress. Everything else
+            the deck knows about itself stays below the rule, in prose. */}
         <header className="review-hero">
-          <div className="review-title-row">
-            <div>
-              <div className="review-kicker">VOCABULAIRE</div>
-              <h1>Révision</h1>
-            </div>
-            <div className="review-due-mark">
-              <strong>{sessionRemaining}</strong>
-              <span>restantes</span>
-            </div>
+          <div className="review-kicker">Le Lexique</div>
+          <h1>Révision</h1>
+          <p className="review-tally">
+            {loading ? (
+              <em>Ouverture du paquet…</em>
+            ) : loadError ? (
+              <em>Paquet indisponible</em>
+            ) : sessionRemaining ? (
+              <>
+                <strong>{sessionRemaining}</strong>
+                <span>
+                  {sessionRemaining > 1 ? 'cartes' : 'carte'}
+                  {minutesLeft ? ` · environ ${minutesLeft} min` : ''}
+                </span>
+              </>
+            ) : completed ? (
+              <em>{completed} carte{completed > 1 ? 's' : ''} classée{completed > 1 ? 's' : ''}</em>
+            ) : (
+              <em>Rien à revoir aujourd’hui</em>
+            )}
+          </p>
+          <div
+            className="review-progress-bar"
+            role="progressbar"
+            aria-label="Progression de la révision"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={progress}
+          >
+            <span style={{ width: `${progress}%` }} />
           </div>
-          <div className="review-progress" aria-label="Vocabulary review progress">
-            <div>
-              <strong>{completed} / {total || 0}</strong>
-              <span>{sessionRemaining ? `${sessionRemaining} en attente` : 'clair'}</span>
-            </div>
-            <div className="review-progress-bar" aria-label={`${progress}% complete`}>
-              <span style={{ width: `${progress}%` }} />
-            </div>
-          </div>
-          <div className="review-stats">
-            <span>{remainingSummary.due} due</span>
-            <span>{remainingSummary.fragile} fragile</span>
-            <span>{remainingSummary.new} new</span>
-          </div>
+          {!loading && !loadError && deckComposition && (
+            <p className="review-composition">{deckComposition}</p>
+          )}
         </header>
+
+        {cachedContextAt && (
+          <p className="review-cache-note">Édition précédente · mise à jour en cours…</p>
+        )}
 
         {loading && (
           <section className="review-state">
@@ -635,7 +854,7 @@ export default function VocabularyReviewPage() {
         {!loading && loadError && (
           <section className="review-state error">
             <strong>{loadError}</strong>
-            <button type="button" onClick={loadQueue} aria-label="Retry vocabulary review"><RotateCcw size={14} /> Retry</button>
+            <button type="button" onClick={() => void loadQueue()} aria-label="Réessayer la révision"><RotateCcw size={14} /> Réessayer</button>
           </section>
         )}
 
@@ -643,6 +862,7 @@ export default function VocabularyReviewPage() {
           <VocabularyReviewContinuation
             lastItem={lastReviewedItem}
             lastRating={lastRating}
+            slate={wordSlate}
             onRefresh={loadQueue}
             onReturn={returnToAtelier}
             returning={returning}
@@ -653,16 +873,30 @@ export default function VocabularyReviewPage() {
           <div className="review-card-container">
             <div
               className="vocab-flashcard-perspective cursor-pointer select-none"
+              role="button"
+              tabIndex={0}
+              aria-pressed={revealed}
+              aria-label={revealed ? 'Masquer la réponse' : 'Révéler la réponse'}
               onClick={() => setRevealed((value) => !value)}
             >
               <div className={`vocab-flashcard-inner ${revealed ? 'flipped' : ''}`}>
 
                 {/* FRONT FACE */}
                 <div className="vocab-flashcard-front">
+                  {/* The direction chip belongs to the card, and prints once:
+                      one mark on the left, one on the right, never three. */}
                   <div className="review-card-head w-full">
                     <span>{queueDirection(current)}</span>
-                    <em>{formatDueLabel(current)}</em>
+                    {/* Empty when the card came from the journal rather than a
+                        directional deck; the due label keeps the right edge. */}
+                    {currentSlateEntry
+                      ? <span className="review-slate-tag">Mot du jour</span>
+                      : <em>{formatDueLabel(current)}</em>}
                   </div>
+                  {current.recommendation_reason?.text && (
+                    <p className="review-why">{current.recommendation_reason.text}</p>
+                  )}
+                  <ReviewPortrait item={current} />
 
                   <div className="review-prompt w-full flex-1 flex flex-col justify-center my-4">
                     {mode === 'audio' ? (
@@ -671,7 +905,7 @@ export default function VocabularyReviewPage() {
                         <div className="review-audio-actions" onClick={(event) => event.stopPropagation()}>
                           <button type="button" disabled={audioPlaying} onClick={playAudioPrompt}>
                             {audioPlaying ? <Loader2 className="spin" size={17} /> : <Volume2 size={17} />}
-                            {audioPlaying ? 'Playing' : 'Play'}
+                            {audioPlaying ? 'Lecture…' : 'Écouter'}
                           </button>
                           <button
                             type="button"
@@ -680,7 +914,7 @@ export default function VocabularyReviewPage() {
                             onClick={recording ? stopRecording : startRecording}
                           >
                             {transcribing ? <Loader2 className="spin" size={17} /> : recording ? <Square size={17} /> : <Mic size={17} />}
-                            {transcribing ? 'Transcribing' : recording ? 'Stop' : 'Record'}
+                            {transcribing ? 'Transcription…' : recording ? 'Arrêter' : 'Enregistrer'}
                           </button>
                         </div>
                         <span>Écouter · répondre</span>
@@ -688,7 +922,7 @@ export default function VocabularyReviewPage() {
                     ) : (
                       <>
                         {visualCue && (
-                          <div className={`review-visual-cue ${visualCue.tone}`} aria-label={`${visualCue.label} visual cue`}>
+                          <div className={`review-visual-cue ${visualCue.tone}`} aria-label={`Indice visuel : ${visualCue.label}`}>
                             <VisualIcon size={31} />
                             <span>{visualCue.label}</span>
                             <em>{visualCue.caption}</em>
@@ -703,8 +937,8 @@ export default function VocabularyReviewPage() {
                         value={typedAnswer}
                         onChange={(event) => setTypedAnswer(event.target.value)}
                         onClick={(event) => event.stopPropagation()}
-                        placeholder={mode === 'audio' ? 'Type what you heard' : 'Type the French answer'}
-                        aria-label="Type the French answer"
+                        placeholder={mode === 'audio' ? 'Écrivez ce que vous avez entendu' : 'Écrivez la réponse française'}
+                        aria-label="Écrire la réponse française"
                       />
                     )}
                   </div>
@@ -714,8 +948,9 @@ export default function VocabularyReviewPage() {
 
                 {/* BACK FACE */}
                 <div className="vocab-flashcard-back">
-                  <div className="review-card-head w-full relative flex justify-between items-center">
-                    <span>{queueDirection(current)}</span>
+                  {/* The back face inherits the direction from the front; only
+                      the word's own thread is offered here. */}
+                  <div className="review-card-head w-full relative flex justify-end items-center">
                     <button
                       type="button"
                       className="review-history-button"
@@ -723,8 +958,8 @@ export default function VocabularyReviewPage() {
                         e.stopPropagation();
                         openBiography();
                       }}
-                      aria-label={`Open word biography for ${prompt}`}
-                      title="History"
+                      aria-label={`Ouvrir l’histoire du mot ${french || prompt}`}
+                      title="L’histoire du mot"
                     >
                       <History size={13} />
                     </button>
@@ -734,7 +969,7 @@ export default function VocabularyReviewPage() {
                     <strong className="review-answer-word">{answer || meaning || french}</strong>
                     {mode !== 'recognition' && typedAnswer && (
                       <small className={typedMatches ? 'review-type-result match' : 'review-type-result miss'}>
-                        {typedMatches ? 'Typed answer matches' : `You typed: ${typedAnswer}`}
+                        {typedMatches ? 'Réponse exacte' : `Votre réponse : ${typedAnswer}`}
                       </small>
                     )}
                     {visibleExample && (
@@ -748,13 +983,18 @@ export default function VocabularyReviewPage() {
                         <p>&quot;{contextText}&quot;</p>
                       </div>
                     )}
+                    {currentSlateEntry?.anchor && (
+                      <div className="review-slate-anchor">
+                        <em>{currentSlateEntry.anchor}</em>
+                      </div>
+                    )}
                   </div>
                 </div>
 
               </div>
             </div>
 
-            <div className="review-ratings mt-6" aria-label="Vocabulary rating">
+            <div className="review-ratings mt-6" aria-label="Noter la carte">
               {reviewOptions.map((option) => (
                 <button
                   key={option.rating}
@@ -762,8 +1002,8 @@ export default function VocabularyReviewPage() {
                   className={option.tone}
                   disabled={reviewing}
                   onClick={() => handleRatingClick(option.rating)}
-                  title={revealed ? option.hint : 'Reveal answer'}
-                  aria-label={revealed ? `Rate ${option.hint}` : 'Reveal answer before rating'}
+                  title={revealed ? `Noter : ${option.label}` : 'Révéler la réponse'}
+                  aria-label={revealed ? `Noter : ${option.label}` : 'Révéler la réponse avant de noter'}
                 >
                   <strong>{option.label}</strong>
                 </button>
@@ -779,20 +1019,21 @@ export default function VocabularyReviewPage() {
         loading={biographyLoading}
         error={biographyError}
         onClose={() => setBiographyOpen(false)}
-        action={biography ? <Link href={`/vocabulary?word=${biography.word.id}`}>Notebook</Link> : undefined}
+        action={biography ? <Link href={`/vocabulary?word=${biography.word.id}`}>Cahier</Link> : undefined}
       />
 
       <style jsx>{`
         .vocab-review-page {
-          --paper: #f1ece1;
-          --paper-2: #e8e0cf;
-          --sheet: #f8f3e8;
-          --ink: #14110d;
-          --ink-2: #4a4538;
-          --ink-3: #8a826f;
-          --red: #d8321a;
-          --blue: #1d3a8a;
-          --yellow: #f3c318;
+          --paper: var(--app-paper);
+          --paper-2: var(--app-paper-2);
+          --paper-3: var(--app-paper-3);
+          --sheet: var(--app-sheet);
+          --ink: var(--app-ink);
+          --ink-2: var(--app-ink-2);
+          --ink-3: var(--app-ink-3);
+          --red: var(--app-red);
+          --blue: var(--app-blue);
+          --yellow: var(--app-yellow);
           min-height: 100vh;
           width: min(100%, 640px);
           margin: 0 auto;
@@ -800,9 +1041,14 @@ export default function VocabularyReviewPage() {
           background: var(--paper);
           color: var(--ink);
         }
+        .review-why { width: 100%; margin: 10px 0 0; color: var(--ink-3); font: italic 12px/1.35 var(--serif); }
+        .review-cache-note { margin: 10px 0 0; color: var(--ink-3); font: italic 12px/1.4 var(--serif); }
+        .review-cast-chip { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; margin-top: 8px; color: var(--ink-2); font: 11px/1 var(--serif); }
+        .review-cast-chip img, .review-cast-chip { --chip-size: 24px; }
+        .review-cast-chip > img { width: var(--chip-size); height: var(--chip-size); border: 1px solid var(--ink); background: var(--cast-accent, var(--paper-2)); object-fit: cover; object-position: top center; }
+        .review-cast-initial { width: var(--chip-size); height: var(--chip-size); display: grid; place-items: center; border: 1px solid var(--ink); background: var(--cast-accent, var(--paper-2)); font: 900 9px/1 var(--mono); }
+        .review-cast-chip em { font-style: italic; }
         .review-kicker,
-        .review-stats span,
-        .review-progress span,
         .review-card-head,
         .review-prompt span,
         .review-answer span {
@@ -811,12 +1057,6 @@ export default function VocabularyReviewPage() {
           font-weight: 900;
           letter-spacing: .1em;
           text-transform: uppercase;
-        }
-        .review-title-row {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 18px;
         }
         .review-hero {
           border-bottom: 1px solid var(--ink);
@@ -836,7 +1076,6 @@ export default function VocabularyReviewPage() {
           line-height: .94;
           letter-spacing: 0;
         }
-        .review-hero p,
         .review-done p {
           margin: 14px 0 0;
           max-width: 640px;
@@ -844,69 +1083,53 @@ export default function VocabularyReviewPage() {
           font-size: 18px;
           line-height: 1.35;
         }
-        .review-stats {
+        /* The single status line: how much is left, and what that costs.
+           No box, no second brand — it reads as a standfirst. */
+        .review-tally {
           display: flex;
-          flex-wrap: wrap;
-          gap: 10px 16px;
-          margin-top: 12px;
-          color: var(--ink-3);
+          align-items: baseline;
+          gap: 9px;
+          margin: 12px 0 0;
+          color: var(--ink-2);
+          font-family: var(--app-serif, "EB Garamond", Garamond, serif);
+          font-size: 16px;
+          line-height: 1.2;
         }
-        .review-stats span {
-          padding: 0;
-        }
-        .review-due-mark {
-          min-width: 76px;
-          border: 1px solid var(--ink);
-          background: var(--sheet);
-          padding: 8px 10px;
-          text-align: center;
-        }
-        .review-due-mark strong {
-          display: block;
-          font-size: 25px;
+        .review-tally strong {
+          color: var(--ink);
+          font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+          font-size: 21px;
+          font-weight: 900;
           line-height: 1;
         }
-        .review-due-mark span {
-          display: block;
-          margin-top: 3px;
+        .review-tally span {
+          color: var(--ink-2);
+          font-style: italic;
+        }
+        .review-tally em {
           color: var(--ink-3);
-          font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-          font-size: 9px;
-          font-weight: 900;
-          letter-spacing: .08em;
-          text-transform: uppercase;
+          font-style: italic;
         }
-        .review-progress {
-          display: grid;
-          gap: 7px;
-          margin-top: 16px;
-          border: 1px solid var(--ink);
-          background: var(--sheet);
-          padding: 10px 12px;
-        }
-        .review-progress div:first-child {
-          display: flex;
-          justify-content: space-between;
-          gap: 16px;
-          align-items: baseline;
-        }
-        .review-progress strong {
-          font-size: 17px;
-        }
-        .review-progress span {
-          color: var(--ink-3);
-          font-size: 10px;
-        }
+        /* A hairline, not a gauge: resume state without a second counter. */
         .review-progress-bar {
-          height: 8px;
-          border: 1px solid var(--ink);
-          background: var(--paper);
+          height: 2px;
+          margin-top: 14px;
+          background: var(--paper-3);
         }
         .review-progress-bar span {
           display: block;
           height: 100%;
-          background: var(--yellow);
+          background: var(--ink);
           transition: width 180ms ease;
+        }
+        /* The bucket split, once, as prose — never as a row of chips. */
+        .review-composition {
+          margin: 10px 0 0;
+          color: var(--ink-3);
+          font-family: var(--app-serif, "EB Garamond", Garamond, serif);
+          font-size: 13px;
+          font-style: italic;
+          line-height: 1.4;
         }
         .review-card-container {
           margin-top: 24px;
@@ -940,13 +1163,12 @@ export default function VocabularyReviewPage() {
           padding: 26px 28px;
           display: flex;
           flex-direction: column;
-          box-shadow: 8px 8px 0px 0px var(--ink);
         }
         .vocab-flashcard-front {
-          background: #fbfaf6;
+          background: var(--app-sheet);
         }
         .vocab-flashcard-back {
-          background: #fbfaf6;
+          background: var(--app-sheet);
           transform: rotateY(180deg);
           overflow: hidden;
         }
@@ -977,6 +1199,24 @@ export default function VocabularyReviewPage() {
           color: var(--ink-3);
           font-style: normal;
         }
+        .review-slate-tag {
+          border: 1px solid var(--app-blue);
+          color: var(--app-blue);
+          padding: 2px 6px 1px;
+          font-size: 9px;
+          font-weight: 900;
+          letter-spacing: .12em;
+          text-transform: uppercase;
+          white-space: nowrap;
+        }
+        .review-slate-anchor {
+          margin-top: 12px;
+          font-family: var(--app-serif);
+          font-style: italic;
+          font-size: 13px;
+          color: var(--ink-3);
+          text-align: left;
+        }
         .review-prompt {
           border-top: 1px solid var(--ink);
           padding-top: 20px;
@@ -1005,7 +1245,6 @@ export default function VocabularyReviewPage() {
           border: 1px solid var(--ink);
           background: var(--paper);
           padding: 10px 12px;
-          box-shadow: 4px 4px 0 var(--ink);
         }
         .review-visual-cue svg {
           color: var(--blue);
@@ -1032,7 +1271,7 @@ export default function VocabularyReviewPage() {
           color: var(--yellow);
         }
         .review-visual-cue.green svg {
-          color: #23845d;
+          color: var(--app-green);
         }
         .review-visual-cue.neutral svg {
           color: var(--ink-3);
@@ -1048,9 +1287,10 @@ export default function VocabularyReviewPage() {
           align-items: center;
         }
         .review-history-button {
+          /* 44px is the smallest reliable thumb target; it was 32. */
           display: inline-flex;
-          width: 32px;
-          height: 32px;
+          width: 44px;
+          height: 44px;
           align-items: center;
           justify-content: center;
           border: 1px solid var(--ink);
@@ -1114,8 +1354,8 @@ export default function VocabularyReviewPage() {
           max-height: 140px;
           overflow-y: auto;
           margin-top: 16px;
-          border: 1px solid rgba(20, 17, 13, .2);
-          background: rgba(248, 243, 232, .72);
+          border: 1px solid color-mix(in srgb, var(--app-ink) 20%, transparent);
+          background: color-mix(in srgb, var(--app-sheet) 72%, transparent);
           padding: 12px 14px;
           color: var(--ink);
           text-align: left;
@@ -1181,7 +1421,6 @@ export default function VocabularyReviewPage() {
           font-weight: 950;
           letter-spacing: .08em;
           text-transform: uppercase;
-          box-shadow: 3px 3px 0 var(--ink);
         }
         .review-audio-actions button.recording {
           background: var(--red);
@@ -1313,8 +1552,8 @@ export default function VocabularyReviewPage() {
           color: var(--blue);
         }
         .review-ratings .green {
-          border-color: #23845d;
-          color: #23845d;
+          border-color: var(--app-green);
+          color: var(--app-green);
         }
         .review-state,
         .review-done {
@@ -1375,9 +1614,6 @@ export default function VocabularyReviewPage() {
           .review-hero h1,
           .review-done h2 {
             font-size: clamp(34px, 10vw, 42px);
-          }
-          .review-title-row {
-            align-items: end;
           }
           .review-ratings {
             position: sticky;

@@ -68,7 +68,7 @@ export function CrTranslate({
       setText(await translate());
     } catch (error) {
       console.error(error);
-      setText('Translation unavailable.');
+      setText('Traduction indisponible.');
     } finally {
       setLoading(false);
     }
@@ -80,7 +80,7 @@ export function CrTranslate({
         <button type="button" onClick={reveal} aria-label={open ? 'Masquer la traduction' : 'Voir la traduction'}>
           {open ? 'Masquer' : label}
         </button>
-        {open && <p>{loading ? 'Traduction…' : text || 'Translation unavailable.'}</p>}
+        {open && <p>{loading ? 'Traduction…' : text || 'Traduction indisponible.'}</p>}
       </div>
     );
   }
@@ -89,7 +89,7 @@ export function CrTranslate({
       <button className="cr-trad" type="button" onClick={reveal} aria-label={open ? 'Masquer la traduction' : 'Voir la traduction'}>
         <IcoTrad />
       </button>
-      {open && <p className="cr-trad-reveal">{loading ? 'Traduction…' : text || 'Translation unavailable.'}</p>}
+      {open && <p className="cr-trad-reveal">{loading ? 'Traduction…' : text || 'Traduction indisponible.'}</p>}
     </>
   );
 }
@@ -126,7 +126,7 @@ export function CrDesk({
         <a className="cr-back" href={backHref} onClick={onBack}><IcoBack /> {backLabel}</a>
         {cadence && <span className="cr-cadence">{cadence}</span>}
       </div>
-      <div className={'kicker' + (blue ? ' blue' : '')}>{kicker}<span className="tail" /></div>
+      <div className={'kicker' + (blue ? ' blue' : '')}>{kicker}</div>
       <h1>{title}</h1>
       <div className="marge">
         <span className={'sq ' + (status === 'done' ? 'done' : 'open')} />
@@ -333,7 +333,7 @@ export function CrComposer({
           </button>
         )}
       </div>
-      {!hideFinish && !canFinish && <div className="cr-gate">Envoie d’abord.</div>}
+      {!hideFinish && !canFinish && <div className="cr-gate">Envoyez d’abord une réponse.</div>}
     </form>
   );
 }
@@ -412,8 +412,10 @@ export function CourrierStyles() {
         background-size: 7px 7px, 11px 11px;
       }
       .cr * { box-sizing: border-box; }
-      .cr a, .cr button { font: inherit; color: inherit; text-align: inherit; }
-      .cr button { border: 0; background: transparent; padding: 0; cursor: pointer; }
+      /* :where() keeps the reset at zero specificity; as plain element
+         selectors these outranked every component class. */
+      .cr :where(a, button) { font: inherit; color: inherit; text-align: inherit; }
+      .cr :where(button) { border: 0; background: transparent; padding: 0; cursor: pointer; }
       .cr-page { flex: 1 1 auto; padding: 0 18px 18px; }
 
       /* 1 · LE PUPITRE — desk header */
@@ -425,31 +427,31 @@ export function CourrierStyles() {
       .cr-back {
         display: inline-flex; align-items: center; gap: 7px;
         min-height: 44px; padding-right: 12px;
-        font-size: 9px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase;
+        font-size: var(--t-label); font-weight: 900; letter-spacing: .14em; text-transform: uppercase;
         color: var(--ink-2); text-decoration: none;
       }
       .cr-back svg { width: 14px; height: 14px; }
       .cr-cadence {
         flex: 0 0 auto;
         border: 1.5px solid var(--blue); color: var(--blue);
-        font-size: 8px; font-weight: 900; letter-spacing: .15em; text-transform: uppercase;
+        font-size: var(--t-label); font-weight: 900; letter-spacing: .15em; text-transform: uppercase;
         padding: 4px 8px 3px; transform: rotate(2deg); white-space: nowrap;
       }
       .cr-desk .kicker {
         display: flex; align-items: center; gap: 8px; white-space: nowrap;
-        font-size: 9.5px; font-weight: 900; letter-spacing: .18em;
+        font-size: var(--t-label); font-weight: 900; letter-spacing: .18em;
         text-transform: uppercase; color: var(--red);
       }
       .cr-desk .kicker.blue { color: var(--blue); }
       .cr-desk .kicker .tail { flex: 1 1 auto; min-width: 10px; height: 1px; background: var(--paper-3); }
       .cr-desk h1 {
         margin: 7px 0 0; font-family: var(--serif); font-style: italic;
-        font-weight: 600; font-size: 27px; line-height: 1.04; color: var(--ink);
+        font-weight: 600; font-size: var(--t-head); line-height: 1.04; color: var(--ink);
         text-wrap: pretty;
       }
       .cr-desk .marge {
         margin-top: 9px; display: flex; align-items: center; gap: 8px;
-        font-size: 8.5px; font-weight: 800; letter-spacing: .12em;
+        font-size: var(--t-label); font-weight: 800; letter-spacing: .12em;
         text-transform: uppercase; color: var(--ink-3);
       }
       .cr-desk .marge .sq { width: 7px; height: 7px; flex: 0 0 auto; border: 1px solid var(--ink); }
@@ -460,12 +462,12 @@ export function CourrierStyles() {
       .cr-sit { display: grid; grid-template-columns: minmax(0, 1fr) 44px; gap: 8px; padding: 14px 0 0; }
       .cr-sit .frame {
         margin: 0; font-family: var(--serif); font-style: italic;
-        font-size: 16.5px; line-height: 1.32; color: var(--ink); text-wrap: pretty;
+        font-size: var(--t-body); line-height: 1.32; color: var(--ink); text-wrap: pretty;
       }
-      .cr-sit .ask { margin: 8px 0 0; font-size: 11px; line-height: 1.45; color: var(--ink-2); }
+      .cr-sit .ask { margin: 8px 0 0; font-size: var(--t-small); line-height: 1.45; color: var(--ink-2); }
       .cr-sit .ask b {
         display: block; margin-bottom: 2px;
-        font-size: 8.5px; font-weight: 900; letter-spacing: .15em;
+        font-size: var(--t-label); font-weight: 900; letter-spacing: .15em;
         text-transform: uppercase; color: var(--red);
       }
       .cr-trad {
@@ -475,14 +477,14 @@ export function CourrierStyles() {
       }
       .cr-trad svg { width: 16px; height: 16px; }
       .cr-trad-reveal {
-        margin: 10px 0 0; font-size: 13px; line-height: 1.4; color: var(--ink-2);
+        margin: 10px 0 0; font-size: var(--t-small); line-height: 1.4; color: var(--ink-2);
       }
       .cr-trad-text { margin-top: 8px; }
       .cr-trad-text button {
-        font-size: 8.5px; font-weight: 900; letter-spacing: .13em; text-transform: uppercase;
+        font-size: var(--t-label); font-weight: 900; letter-spacing: .13em; text-transform: uppercase;
         color: var(--ink-3); border-bottom: 1px solid var(--paper-3); padding-bottom: 1px;
       }
-      .cr-trad-text p { margin: 7px 0 0; font-size: 12.5px; line-height: 1.4; color: var(--ink-2); }
+      .cr-trad-text p { margin: 7px 0 0; font-size: var(--t-small); line-height: 1.4; color: var(--ink-2); }
 
       /* word ribbon */
       .cr-ribbon {
@@ -491,11 +493,11 @@ export function CourrierStyles() {
         display: flex; align-items: baseline; gap: 6px 12px; flex-wrap: wrap;
       }
       .cr-ribbon .k {
-        font-size: 8.5px; font-weight: 900; letter-spacing: .15em;
+        font-size: var(--t-label); font-weight: 900; letter-spacing: .15em;
         text-transform: uppercase; color: var(--ink-3);
       }
       .cr-ribbon .w {
-        font-family: var(--serif); font-style: italic; font-size: 15px; line-height: 1;
+        font-family: var(--serif); font-style: italic; font-size: var(--t-body); line-height: 1;
         color: var(--ink); border-bottom: 1px dotted var(--ink-3); padding-bottom: 2px;
       }
       .cr-ribbon .w.used { border-bottom: 2px solid var(--ink); }
@@ -512,11 +514,11 @@ export function CourrierStyles() {
         display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
         padding-bottom: 6px; margin-bottom: 8px;
         border-bottom: 1px solid var(--paper-3);
-        font-size: 8.5px; font-weight: 900; letter-spacing: .13em;
+        font-size: var(--t-label); font-weight: 900; letter-spacing: .13em;
         text-transform: uppercase; color: var(--ink-2);
       }
       .cr-slip .head .t { font-weight: 800; letter-spacing: .06em; color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
-      .cr-slip .txt { font-family: var(--serif); font-size: 15.5px; line-height: 1.38; color: var(--ink); white-space: pre-wrap; }
+      .cr-slip .txt { font-family: var(--serif); font-size: var(--t-body); line-height: 1.38; color: var(--ink); white-space: pre-wrap; }
       .cr-slip.you { margin-left: auto; background: var(--sheet); }
       .cr-post {
         position: absolute; top: -10px; right: -7px; z-index: 2;
@@ -524,20 +526,20 @@ export function CourrierStyles() {
         border: 1.5px solid var(--red); color: var(--red); background: var(--sheet);
         box-shadow: inset 0 0 0 2.5px var(--sheet), inset 0 0 0 3.5px var(--red);
         display: grid; place-items: center;
-        font-family: var(--serif); font-style: italic; font-weight: 700; font-size: 12px;
+        font-family: var(--serif); font-style: italic; font-weight: 700; font-size: var(--t-small);
         pointer-events: none;
       }
       .cr-ps {
         width: 88%; margin-top: 12px; padding-left: 11px; border-left: 2px solid var(--yellow);
         font-family: var(--serif); font-style: italic;
-        font-size: 12.5px; line-height: 1.42; color: var(--ink-2);
+        font-size: var(--t-small); line-height: 1.42; color: var(--ink-2);
       }
       .cr-typing {
         width: fit-content; max-width: 88%;
         display: inline-flex; align-items: center; gap: 8px;
         border-left: 2px solid var(--blue); padding: 5px 9px;
         font-family: var(--serif); font-style: italic;
-        font-size: 12.5px; line-height: 1.3; color: var(--ink-2);
+        font-size: var(--t-small); line-height: 1.3; color: var(--ink-2);
       }
       .cr-typing .rollers { display: inline-flex; gap: 3px; }
       .cr-typing .rollers i { width: 4px; height: 4px; background: currentColor; }
@@ -553,34 +555,39 @@ export function CourrierStyles() {
         padding: 7px 11px 8px; border-left: 2px solid var(--ink-3);
       }
       .cr-repair .k {
-        font-size: 7.5px; font-weight: 900; letter-spacing: .17em;
+        font-size: var(--t-label); font-weight: 900; letter-spacing: .17em;
         text-transform: uppercase; color: var(--ink-3);
       }
       .cr-repair .answer {
         margin-top: 5px; font-family: var(--serif); font-style: italic;
-        font-size: 14px; line-height: 1.42; color: var(--ink);
+        font-size: var(--t-body); line-height: 1.42; color: var(--ink);
       }
       .cr-repair .edits {
         margin-top: 8px; padding-top: 7px; border-top: 1px solid var(--paper-3);
-        font-size: 7px; font-weight: 900; letter-spacing: .15em;
+        font-size: var(--t-label); font-weight: 900; letter-spacing: .15em;
         text-transform: uppercase; color: var(--ink-3);
       }
-      .cr-repair .fix { margin-top: 3px; font-family: var(--serif); font-style: italic; font-size: 13.5px; color: var(--ink); }
-      .cr-repair .why { margin-top: 3px; font-size: 10px; line-height: 1.42; color: var(--ink-2); }
-      .cr-repair .saved { margin-top: 5px; font-size: 7.5px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); }
+      .cr-repair .fix { margin-top: 3px; font-family: var(--serif); font-style: italic; font-size: var(--t-body); color: var(--ink); }
+      .cr-repair .why { margin-top: 3px; font-size: var(--t-label); line-height: 1.42; color: var(--ink-2); }
+      .cr-repair .saved { margin-top: 5px; font-size: var(--t-label); font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); }
+      .cr-reason {
+        margin: 10px 0 2px; padding-left: 10px; border-left: 1px solid var(--ink-3);
+        color: var(--ink-3); font-family: var(--serif); font-size: var(--t-small);
+        font-style: italic; line-height: 1.42;
+      }
 
       /* 6 · LE MESSAGE TÉLÉPHONIQUE — memo */
       .cr-memo { position: relative; margin-top: 14px; border: 1.5px solid var(--ink); background: var(--paper); }
       .cr-memo .mh { text-align: center; padding: 10px 10px 9px; border-bottom: 1.5px solid var(--ink); }
-      .cr-memo .mh b { display: block; font-size: 11px; font-weight: 900; letter-spacing: .22em; text-transform: uppercase; }
-      .cr-memo .mh span { display: block; margin-top: 3px; font-size: 7.5px; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; color: var(--ink-3); }
+      .cr-memo .mh b { display: block; font-size: var(--t-small); font-weight: 900; letter-spacing: .22em; text-transform: uppercase; }
+      .cr-memo .mh span { display: block; margin-top: 3px; font-size: var(--t-label); font-weight: 800; letter-spacing: .15em; text-transform: uppercase; color: var(--ink-3); }
       .cr-mrow { display: flex; align-items: baseline; gap: 10px; padding: 8px 12px 7px; border-bottom: 1px solid var(--paper-3); }
-      .cr-mrow .l { flex: 0 0 96px; font-size: 8px; font-weight: 900; letter-spacing: .13em; text-transform: uppercase; color: var(--ink-3); }
-      .cr-mrow .v { font-family: var(--serif); font-style: italic; font-size: 14.5px; color: var(--ink); }
+      .cr-mrow .l { flex: 0 0 96px; font-size: var(--t-label); font-weight: 900; letter-spacing: .13em; text-transform: uppercase; color: var(--ink-3); }
+      .cr-mrow .v { font-family: var(--serif); font-style: italic; font-size: var(--t-body); color: var(--ink); }
       .cr-mmsg { padding: 10px 12px 13px; }
-      .cr-mmsg .l { display: flex; align-items: center; gap: 8px; font-size: 8px; font-weight: 900; letter-spacing: .13em; text-transform: uppercase; color: var(--ink-3); }
+      .cr-mmsg .l { display: flex; align-items: center; gap: 8px; font-size: var(--t-label); font-weight: 900; letter-spacing: .13em; text-transform: uppercase; color: var(--ink-3); }
       .cr-mmsg .l .ln { flex: 1 1 auto; height: 1px; background: var(--paper-3); }
-      .cr-mmsg p { margin: 8px 0 0; font-family: var(--serif); font-size: 15px; line-height: 1.45; color: var(--ink); }
+      .cr-mmsg p { margin: 8px 0 0; font-family: var(--serif); font-size: var(--t-body); line-height: 1.45; color: var(--ink); }
 
       /* live call strip */
       .cr-call {
@@ -592,22 +599,26 @@ export function CourrierStyles() {
         .cr.motion .cr-call.live .dot { animation: lu-roll 1.2s ease-in-out infinite; }
       }
       .cr-call .tx { min-width: 0; }
-      .cr-call .tx b { display: block; font-size: 9px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; }
-      .cr-call .tx span { display: block; margin-top: 2px; font-size: 10px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+      .cr-call .tx b { display: block; font-size: var(--t-label); font-weight: 900; letter-spacing: .14em; text-transform: uppercase; }
+      .cr-call .tx span { display: block; margin-top: 2px; font-size: var(--t-label); color: var(--ink-2); font-variant-numeric: tabular-nums; }
 
       /* mic composer states */
       .cr-mic { margin-top: 12px; display: grid; gap: 10px; }
       .cr-mic .bar {
         display: flex; align-items: center; justify-content: center; gap: 12px;
-        width: 100%; min-height: 56px; padding: 0 18px;
-        border: 1.5px solid var(--ink); box-shadow: 5px 5px 0 var(--ink);
-        font-size: 13px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase;
+        width: 100%; min-height: 54px; padding: 0 22px; border-radius: 999px;
+        border: 1px solid var(--ink);
+        font-size: var(--t-body); font-weight: 600; letter-spacing: .01em; text-transform: none;
         cursor: pointer;
+        transition: background .16s ease, color .16s ease;
       }
-      .cr-mic .bar:disabled { cursor: progress; }
+      .cr-mic .bar:disabled { cursor: progress; opacity: .5; }
       .cr-mic .bar svg { width: 17px; height: 17px; flex: 0 0 auto; }
-      .cr-mic .bar.idle { background: var(--red); color: #fff; }
-      .cr-mic .bar.rec { background: var(--ink); color: var(--sheet); }
+      .cr-mic .bar.idle { background: var(--ink); color: var(--paper); }
+      .cr-mic .bar.idle:active { background: var(--paper-2); color: var(--ink); }
+      /* Live recording keeps the ink fill (contrast) and takes a red keyline —
+         the wave and timer inside carry the "we are rolling" signal. */
+      .cr-mic .bar.rec { background: var(--ink); color: var(--paper); border-color: var(--red); box-shadow: 0 0 0 2px color-mix(in srgb, var(--red) 40%, transparent); }
       .cr-mic .timer { font-variant-numeric: tabular-nums; letter-spacing: .08em; }
       .cr-mic .wave { display: flex; align-items: center; gap: 3px; height: 16px; }
       .cr-mic .wave i { width: 3px; height: 14px; background: currentColor; transform: scaleY(.35); }
@@ -622,14 +633,14 @@ export function CourrierStyles() {
       .cr-mic .fallback {
         justify-self: center; min-height: 44px; padding: 0 6px;
         display: inline-flex; align-items: center;
-        font-size: 9.5px; font-weight: 900; letter-spacing: .13em; text-transform: uppercase;
+        font-size: var(--t-label); font-weight: 900; letter-spacing: .13em; text-transform: uppercase;
         color: var(--ink-2); border-bottom: 1.5px solid var(--ink-3);
       }
       .cr-transcribe {
         display: flex; align-items: center; justify-content: center; gap: 12px;
         min-height: 56px; padding: 0 16px;
         border: 1.5px dashed var(--ink-3); background: var(--paper);
-        font-size: 9.5px; font-weight: 900; letter-spacing: .15em;
+        font-size: var(--t-label); font-weight: 900; letter-spacing: .15em;
         text-transform: uppercase; color: var(--ink-2);
       }
       .cr-transcribe .rollers { display: flex; gap: 4px; }
@@ -639,7 +650,7 @@ export function CourrierStyles() {
         .cr.motion .cr-transcribe .rollers i:nth-child(2) { animation-delay: .18s; }
         .cr.motion .cr-transcribe .rollers i:nth-child(3) { animation-delay: .36s; }
       }
-      .cr-mic-problem { font-size: 11px; line-height: 1.4; color: var(--red); }
+      .cr-mic-problem { font-size: var(--t-small); line-height: 1.4; color: var(--red); }
 
       /* 7 · LE COMPOSTEUR */
       .cr-composer { flex: 0 0 auto; border-top: 1px solid var(--ink); background: var(--paper); padding: 11px 16px 13px; }
@@ -647,75 +658,79 @@ export function CourrierStyles() {
       .cr-quick button {
         min-height: 44px; padding: 8px 12px;
         border: 1px solid var(--ink); background: var(--sheet);
-        font-family: var(--serif); font-style: italic; font-size: 13.5px; line-height: 1.15;
+        font-family: var(--serif); font-style: italic; font-size: var(--t-body); line-height: 1.15;
         color: var(--ink);
       }
       .cr-quick button:active { background: var(--paper-2); }
       .cr-label {
         display: block; margin-bottom: 6px;
-        font-size: 8.5px; font-weight: 900; letter-spacing: .15em; text-transform: uppercase; color: var(--ink-3);
+        font-size: var(--t-label); font-weight: 900; letter-spacing: .15em; text-transform: uppercase; color: var(--ink-3);
       }
-      .cr-instruction { margin: 0 0 8px; font-size: 12px; line-height: 1.4; color: var(--ink-2); }
+      .cr-instruction { margin: 0 0 8px; font-size: var(--t-small); line-height: 1.4; color: var(--ink-2); }
       .cr-draft {
         display: block; width: 100%; min-height: 54px; resize: none;
         border: 1px solid var(--ink); border-radius: 0; background: var(--sheet);
         outline: none; padding: 10px 12px;
-        font-family: var(--serif); font-size: 15px; line-height: 1.4; color: var(--ink);
+        font-family: var(--serif); font-size: var(--t-body); line-height: 1.4; color: var(--ink);
       }
       .cr-draft.tall { min-height: 148px; resize: vertical; }
       .cr-draft::placeholder { color: var(--ink-3); font-style: italic; }
       .cr-draft:focus { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
       .cr-actions { margin-top: 10px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: stretch; }
       .cr-actions.solo { grid-template-columns: 1fr; }
+      /* Primary action, soft: pill geometry, solid ink on paper, sentence case. */
       .cr-cta {
         display: flex; align-items: center; justify-content: center; gap: 11px;
-        min-height: 54px; padding: 0 18px;
-        background: var(--red); color: #fff; border: 1.5px solid var(--ink);
-        box-shadow: 5px 5px 0 var(--ink);
-        font-size: 13px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase;
+        min-height: 54px; padding: 0 22px; border-radius: 999px;
+        background: var(--ink); color: var(--paper); border: 1px solid var(--ink);
+        font-size: var(--t-body); font-weight: 600; letter-spacing: .01em; text-transform: none;
         text-decoration: none; cursor: pointer;
+        transition: background .16s ease, color .16s ease;
       }
-      .cr-cta.ink { background: var(--ink); color: var(--sheet); }
+      .cr-cta:active { background: var(--paper-2); color: var(--ink); }
       .cr-cta:disabled { opacity: .5; cursor: progress; }
       .cr-cta svg { width: 17px; height: 17px; }
+      /* Outlined sibling: same pill, transparent fill, ink keyline. */
       .cr-finish {
-        min-height: 54px; padding: 0 15px;
-        border: 1.5px solid var(--ink); background: transparent; color: var(--ink);
-        font-size: 10px; font-weight: 900; letter-spacing: .13em; text-transform: uppercase;
+        min-height: 54px; padding: 0 22px; border-radius: 999px;
+        border: 1px solid var(--ink); background: transparent; color: var(--ink);
+        font-size: var(--t-body); font-weight: 600; letter-spacing: .01em; text-transform: none;
         white-space: nowrap;
+        transition: background .16s ease, color .16s ease;
       }
-      .cr-finish:disabled { border-color: var(--paper-3); color: var(--ink-3); cursor: not-allowed; }
+      .cr-finish:active { background: var(--paper-2); color: var(--ink); }
+      .cr-finish:disabled { border-color: var(--ink-3); color: var(--ink-3); opacity: .5; cursor: not-allowed; }
       .cr-gate {
         margin-top: 6px; text-align: right;
-        font-size: 8px; font-weight: 800; letter-spacing: .13em;
+        font-size: var(--t-label); font-weight: 800; letter-spacing: .13em;
         text-transform: uppercase; color: var(--ink-3);
       }
 
       /* 8 · LA RÉSOLUTION */
       .cr-resolve { text-align: center; padding: 24px 0 6px; }
       .cr-resolve-kicker {
-        margin-bottom: 14px; font-size: 8.5px; font-weight: 900;
+        margin-bottom: 14px; font-size: var(--t-label); font-weight: 900;
         letter-spacing: .18em; text-transform: uppercase; color: var(--ink-3);
       }
       .cr-resolve .lu-stamp.big {
         position: static; display: inline-block; transform: rotate(var(--tilt, -5deg));
-        font-size: 23px; padding: 8px 18px 7px; border-width: 3px;
+        font-size: var(--t-head); padding: 8px 18px 7px; border-width: 3px;
         box-shadow: inset 0 0 0 1.5px var(--sheet), inset 0 0 0 3px currentColor;
       }
-      .cr-resolve .lu-stamp.big .d { font-size: 8px; }
+      .cr-resolve .lu-stamp.big .d { font-size: var(--t-label); }
       @media (prefers-reduced-motion: no-preference) {
         .cr.motion .cr-resolve .lu-stamp.big { animation: lu-strike .34s cubic-bezier(.18, 1.35, .3, 1) .15s both; }
         .cr.motion .cr-resolve .logo-token { animation: cr-token-pop .5s cubic-bezier(.2, 1.25, .3, 1) .55s both; }
       }
       @keyframes cr-token-pop { from { opacity: 0; transform: scale(.4); } to { opacity: 1; transform: scale(1); } }
-      .cr-resolve .sub { margin: 14px auto 0; max-width: 280px; font-family: var(--serif); font-style: italic; font-size: 16px; line-height: 1.3; color: var(--ink-2); }
+      .cr-resolve .sub { margin: 14px auto 0; max-width: 280px; font-family: var(--serif); font-style: italic; font-size: var(--t-body); line-height: 1.3; color: var(--ink-2); }
       .cr-resolve .tok-stage { margin: 22px 0 0; display: grid; place-items: center; }
-      .cr-resolve .earned { margin-top: 12px; font-size: 8.5px; font-weight: 900; letter-spacing: .15em; text-transform: uppercase; color: var(--ink-3); }
+      .cr-resolve .earned { margin-top: 12px; font-size: var(--t-label); font-weight: 900; letter-spacing: .15em; text-transform: uppercase; color: var(--ink-3); }
       .cr-resolve .earned b { color: var(--ink); }
       .cr-credit { margin: 20px auto 0; max-width: 300px; border-top: 1px solid var(--ink); text-align: left; }
       .cr-credit .row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 9px 2px; border-bottom: 1px solid var(--paper-3); }
-      .cr-credit .row span { font-size: 9.5px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); white-space: nowrap; }
-      .cr-credit .row b { font-family: var(--serif); font-style: italic; font-weight: 600; font-size: 15px; color: var(--ink); text-align: right; }
+      .cr-credit .row span { font-size: var(--t-label); font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); white-space: nowrap; }
+      .cr-credit .row b { font-family: var(--serif); font-style: italic; font-weight: 600; font-size: var(--t-body); color: var(--ink); text-align: right; }
       .cr-recap-grid {
         margin: 20px auto 0; max-width: 320px;
         display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -725,10 +740,10 @@ export function CourrierStyles() {
       .cr-recap-grid div + div { border-left: 1px solid var(--ink); }
       .cr-recap-grid strong {
         display: block; font-family: var(--serif); font-style: italic;
-        font-size: 22px; line-height: 1; color: var(--ink);
+        font-size: var(--t-head); line-height: 1; color: var(--ink);
       }
       .cr-recap-grid span {
-        display: block; margin-top: 5px; font-size: 7px; font-weight: 900;
+        display: block; margin-top: 5px; font-size: var(--t-label); font-weight: 900;
         line-height: 1.25; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3);
       }
       .cr-readiness {
@@ -737,47 +752,49 @@ export function CourrierStyles() {
         border-bottom: 3px double var(--ink); text-align: left;
       }
       .cr-readiness span {
-        font-size: 8px; font-weight: 900; letter-spacing: .13em;
+        font-size: var(--t-label); font-weight: 900; letter-spacing: .13em;
         text-transform: uppercase; color: var(--ink-3);
       }
-      .cr-readiness strong { font-family: var(--serif); font-style: italic; font-size: 20px; }
+      .cr-readiness strong { font-family: var(--serif); font-style: italic; font-size: var(--t-lead); }
       .cr-objectives {
         margin: 14px auto 0; max-width: 320px; display: grid;
         border-bottom: 1px solid var(--ink); text-align: left;
       }
       .cr-objectives > .k {
-        padding-bottom: 6px; font-size: 8px; font-weight: 900;
+        padding-bottom: 6px; font-size: var(--t-label); font-weight: 900;
         letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3);
       }
       .cr-objectives > div {
         display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 6px;
         align-items: start; padding: 8px 2px; border-top: 1px solid var(--paper-3);
       }
-      .cr-objectives > div > span { color: var(--red); font-size: 13px; line-height: 1.2; }
+      .cr-objectives > div > span { color: var(--red); font-size: var(--t-small); line-height: 1.2; }
       .cr-objectives > div.open > span { color: var(--ink-3); }
-      .cr-objectives b { font-size: 10.5px; line-height: 1.35; font-weight: 700; color: var(--ink-2); }
+      .cr-objectives b { font-size: var(--t-label); line-height: 1.35; font-weight: 700; color: var(--ink-2); }
       .cr-nexts { margin: 22px auto 0; max-width: 320px; display: grid; gap: 10px; text-align: center; }
-      .cr-nexts .cr-cta { box-shadow: 5px 5px 0 var(--ink); }
       .cr-ghost {
         display: flex; align-items: center; justify-content: center; gap: 10px;
-        min-height: 50px; border: 1.5px solid var(--ink); background: var(--paper);
-        font-size: 11px; font-weight: 900; letter-spacing: .13em; text-transform: uppercase;
+        min-height: 54px; padding: 0 22px; border-radius: 999px;
+        border: 1px solid var(--ink); background: transparent;
+        font-size: var(--t-body); font-weight: 600; letter-spacing: .01em; text-transform: none;
         text-decoration: none; color: var(--ink); cursor: pointer;
+        transition: background .16s ease, color .16s ease;
       }
+      .cr-ghost:active { background: var(--paper-2); color: var(--ink); }
       .cr-ghost:disabled { opacity: .5; cursor: progress; }
-      .cr-ghost.quiet { border-color: var(--paper-3); color: var(--ink-2); background: transparent; }
+      .cr-ghost.quiet { border-color: var(--ink-3); color: var(--ink-2); background: transparent; }
 
       /* 9 · SYSTEM — archive, skeleton, empty */
       .cr-archive { margin-top: 22px; border-top: 3px double var(--ink); padding-top: 12px; }
-      .cr-archive .k { font-size: 9px; font-weight: 900; letter-spacing: .18em; text-transform: uppercase; color: var(--ink-3); }
+      .cr-archive .k { font-size: var(--t-label); font-weight: 900; letter-spacing: .18em; text-transform: uppercase; color: var(--ink-3); }
       .cr-archive ul { list-style: none; margin: 8px 0 0; padding: 0; display: grid; }
       .cr-archive a {
         display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
         padding: 10px 0; border-bottom: 1px solid var(--paper-3);
         color: inherit; text-decoration: none;
       }
-      .cr-archive a b { font-family: var(--serif); font-style: italic; font-size: 15px; font-weight: 600; }
-      .cr-archive a span { font-size: 8px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); white-space: nowrap; }
+      .cr-archive a b { font-family: var(--serif); font-style: italic; font-size: var(--t-body); font-weight: 600; }
+      .cr-archive a span { font-size: var(--t-label); font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); white-space: nowrap; }
 
       .cr-skel { pointer-events: none; padding-top: 14px; display: grid; gap: 12px; }
       .cr-skel .slipph {
@@ -792,13 +809,13 @@ export function CourrierStyles() {
       }
 
       .cr-empty { text-align: center; padding: 52px 24px 40px; }
-      .cr-empty .rubric { font-size: 10px; font-weight: 900; letter-spacing: .18em; text-transform: uppercase; color: var(--ink-3); }
+      .cr-empty .rubric { font-size: var(--t-label); font-weight: 900; letter-spacing: .18em; text-transform: uppercase; color: var(--ink-3); }
       .cr-empty .endmark { width: 14px; height: 14px; background: var(--ink); margin: 18px auto 16px; }
-      .cr-empty h2 { margin: 0 auto; max-width: 270px; font-family: var(--serif); font-style: italic; font-weight: 600; font-size: 28px; line-height: 1.08; color: var(--ink); }
-      .cr-empty p { margin: 14px auto 0; max-width: 250px; font-size: 12px; line-height: 1.5; color: var(--ink-2); }
+      .cr-empty h2 { margin: 0 auto; max-width: 270px; font-family: var(--serif); font-style: italic; font-weight: 600; font-size: var(--t-head); line-height: 1.08; color: var(--ink); }
+      .cr-empty p { margin: 14px auto 0; max-width: 250px; font-size: var(--t-small); line-height: 1.5; color: var(--ink-2); }
       .cr-empty .free {
         margin-top: 26px; display: inline-flex; align-items: center; gap: 9px;
-        min-height: 44px; font-size: 11px; font-weight: 900; letter-spacing: .14em;
+        min-height: 44px; font-size: var(--t-small); font-weight: 900; letter-spacing: .14em;
         text-transform: uppercase; color: var(--ink); text-decoration: none;
         border-bottom: 1.5px solid var(--ink); padding-bottom: 2px;
       }

@@ -7,7 +7,7 @@ import hashlib
 import json
 import re
 import unicodedata
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote
@@ -32,7 +32,9 @@ from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
 from app.services.atelier_assets import AtelierAssetService
+from app.services.daily_words import DailyWordSlateService
 from app.services.error_memory import ErrorMemoryService, serialize_error_memory
+from app.services.glosses import gloss_payload
 from app.services.grammar_feedback import infer_grammar_profile
 from app.services.graphic_novel_image_storage import GraphicNovelImageStorage
 from app.services.llm_service import LLMProviderError, LLMService
@@ -40,16 +42,25 @@ from app.services.news_service import NewsService
 from app.services.progress import ProgressService
 from app.services.serial_costs import serial_generation_cost_event
 from app.services.serial_notifications import enqueue_serial_edition_notification
-from app.services.daily_words import DailyWordSlateService
 from app.services.vocabulary_credit import VocabularyCreditService
 
-
-GRAPHIC_NOVEL_PROMPT_VERSION = "feuilleton-visual-gag-v3"
+# Bump on any change to the story/exercise/image contract so incompatible pre-redesign
+# scenes are never resumed as a current edition (see GraphicNovelScheduler.today /
+# _scene_is_current). "mvp-v4" is the first version under the 2026-07 Feuilleton rebuild:
+# one fictional micro-story, one story decision, no news source card, and image prompts
+# with no bubble/overlay-zone wording.
+GRAPHIC_NOVEL_PROMPT_VERSION = "feuilleton-mvp-v4"
+# Versions whose persisted scenes remain safe to resume/serialize under the current
+# reader contract. Only the current version qualifies today.
+GRAPHIC_NOVEL_COMPATIBLE_PROMPT_VERSIONS = frozenset({GRAPHIC_NOVEL_PROMPT_VERSION})
 COMEDY_REFERENCE_PACK_VERSION = "french-visual-gag-pack-v2"
 GRAPHIC_NOVEL_PROMPT_ASSET_DIR = Path(__file__).resolve().parent.parent / "prompts" / "feuilleton"
 GRAPHIC_NOVEL_TASKS = ("cloze", "choice", "short_sentence")
 GRAPHIC_NOVEL_PANEL_COUNTS = (4, 6, 8)
-GRAPHIC_NOVEL_TASK_COUNTS = {4: 3, 6: 5, 8: 7}
+# One meaningful story decision per episode keeps the reading rhythm intact. Only the
+# longer eight-panel edition earns a second panel interaction. The optional end-of-story
+# reflection (final_prompt) is counted separately and is never required.
+GRAPHIC_NOVEL_TASK_COUNTS = {4: 1, 6: 1, 8: 2}
 GRAPHIC_NOVEL_STORY_QUALITIES = ("standard", "premium")
 GRAPHIC_NOVEL_HUMOR_STYLES = ("dry", "satirical", "absurd")
 GRAPHIC_NOVEL_EXPERIENCE_MODES = ("study", "reward")
@@ -99,6 +110,20 @@ def _cached_prompt_asset_text(filename: str) -> str:
     except OSError as exc:
         logger.warning("Feuilleton prompt asset missing", path=str(path), error=str(exc))
         return ""
+
+
+def scene_matches_current_contract(scene: GraphicNovelScene | None) -> bool:
+    """Whether a persisted scene may be resumed/served under the current reader contract.
+
+    Scenes generated before the 2026-07 Feuilleton rebuild carry an older prompt_version
+    and may contain live news, pre-redesign images, inline task crowding, or unrelated
+    concept assignments. Those are treated as incompatible so they are regenerated rather
+    than revived.
+    """
+    if scene is None:
+        return False
+    version = getattr(scene, "prompt_version", None)
+    return version in GRAPHIC_NOVEL_COMPATIBLE_PROMPT_VERSIONS
 
 
 def _panel_count(value: int | None) -> int:
@@ -345,8 +370,12 @@ def _concept_title(concept: GrammarConcept, asset_service: AtelierAssetService |
             title = (asset_service.approved_blueprint_payload(concept) or {}).get("display_title")
             if title:
                 return str(title)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug(
+                "Could not load approved concept title",
+                concept_id=concept.id,
+                error=str(exc),
+            )
     return concept.name
 
 
@@ -404,7 +433,7 @@ class GraphicNovelTargetVocabularyError(ValueError):
 class GraphicNovelScheduler:
     """Create and retrieve errata-led Feuilleton scenes."""
 
-    def __init__(self, db: Session, generator: "GraphicNovelStoryGenerator | None" = None) -> None:
+    def __init__(self, db: Session, generator: GraphicNovelStoryGenerator | None = None) -> None:
         self.db = db
         self.generator = generator or GraphicNovelStoryGenerator(db)
 
@@ -423,7 +452,7 @@ class GraphicNovelScheduler:
     ) -> GraphicNovelScene:
         """Persist a pollable shell before the slower story and art work starts."""
         if not force_new:
-            recent_cutoff = datetime.now(timezone.utc) - timedelta(minutes=10)
+            recent_cutoff = datetime.now(UTC) - timedelta(minutes=10)
             existing = (
                 self.db.query(GraphicNovelScene)
                 .filter(
@@ -461,7 +490,7 @@ class GraphicNovelScheduler:
             prompt_version=GRAPHIC_NOVEL_PROMPT_VERSION,
             image_model=settings.OPENAI_IMAGE_MODEL,
             image_quality=_image_quality(image_quality),
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.now(UTC),
         )
         self.db.add(scene)
         self.db.commit()
@@ -533,6 +562,13 @@ class GraphicNovelScheduler:
             .order_by(GraphicNovelScene.created_at.desc())
             .first()
         )
+        # A pre-redesign edition must never be resumed as the current one: drop stale
+        # active/available scenes so the reader offers a fresh edition under the new
+        # content contract instead of reviving old news/inline-task/wrong-concept scenes.
+        if active is not None and not scene_matches_current_contract(active):
+            active = None
+        if available is not None and not scene_matches_current_contract(available):
+            available = None
         recent = (
             self.db.query(GraphicNovelScene)
             .filter(GraphicNovelScene.user_id == user.id, GraphicNovelScene.status == "completed")
@@ -713,7 +749,7 @@ class GraphicNovelScheduler:
             scene.prompt_version = GRAPHIC_NOVEL_PROMPT_VERSION
             scene.image_model = settings.OPENAI_IMAGE_MODEL
             scene.image_quality = resolved_image_quality
-            scene.started_at = scene.started_at or datetime.now(timezone.utc)
+            scene.started_at = scene.started_at or datetime.now(UTC)
         else:
             scene = GraphicNovelScene(
                 user_id=user.id,
@@ -736,7 +772,7 @@ class GraphicNovelScheduler:
                 prompt_version=GRAPHIC_NOVEL_PROMPT_VERSION,
                 image_model=settings.OPENAI_IMAGE_MODEL,
                 image_quality=resolved_image_quality,
-                started_at=datetime.now(timezone.utc),
+                started_at=datetime.now(UTC),
             )
             self.db.add(scene)
         self.db.flush([scene])
@@ -987,7 +1023,7 @@ class GraphicNovelScheduler:
         if not panels:
             raise ValueError(f"Graphic novel scene {scene_id} has no panels")
         scene.status = "generating"
-        scene.started_at = scene.started_at or datetime.now(timezone.utc)
+        scene.started_at = scene.started_at or datetime.now(UTC)
         self.db.add(scene)
         self.db.commit()
         try:
@@ -1024,7 +1060,7 @@ class GraphicNovelScheduler:
                 self.db.add(panel)
             scene.script_payload = {**script, "generation_phase": "ready"}
             scene.status = "available"
-            scene.completed_at = datetime.now(timezone.utc)
+            scene.completed_at = datetime.now(UTC)
             if getattr(scene, "serial_thread_id", None):
                 episode = (
                     self.db.query(SerialEpisode)
@@ -1151,7 +1187,7 @@ class GraphicNovelScheduler:
             kind="lu",
         )
         scene.status = "completed"
-        scene.completed_at = datetime.now(timezone.utc)
+        scene.completed_at = datetime.now(UTC)
         scene.recap_payload = {
             "attempts": len(attempts),
             "panels": len(scene.panels or []),
@@ -1206,8 +1242,8 @@ class GraphicNovelScheduler:
             for task in (panel.overlay_payload or {}).get("tasks") or []:
                 if isinstance(task, dict):
                     add(task.get("id"))
-        final_prompt = script.get("final_prompt") if isinstance(script.get("final_prompt"), dict) else {}
-        add(final_prompt.get("id"))
+        # The end-of-story reflection is an optional language-production prompt, not a
+        # gate: the learner may finish the episode without answering it.
         return ordered
 
     @classmethod
@@ -1368,11 +1404,7 @@ class GraphicNovelScheduler:
                     {
                         "word_id": word.id,
                         "word": word.word,
-                        "translations": {
-                            "de": word.german_translation,
-                            "en": word.english_translation,
-                            "fr": word.french_translation,
-                        },
+                        **gloss_payload(word, user.native_language),
                         "bucket": "target",
                         "scheduler": preferred_vocabulary_source,
                         "priority_score": 1.0,
@@ -1393,14 +1425,38 @@ class GraphicNovelScheduler:
                     {
                         "word_id": word.id,
                         "word": word.word,
-                        "translations": {
-                            "de": word.german_translation,
-                            "en": word.english_translation,
-                            "fr": word.french_translation,
-                        },
+                        **gloss_payload(word, user.native_language),
                         "bucket": "erratum",
                         "scheduler": "linked_errata",
                         "priority_score": 1.0,
+                        "example_sentence": word.example_sentence,
+                        "example_translation": word.example_translation,
+                    }
+                )
+
+        # "Les mots du jour": today's slate words ride into the episode after
+        # explicit targets and errata repairs, so the read plants the same
+        # words the review deck and the mission will ask for later today.
+        slate_ids = [
+            word_id
+            for word_id in DailyWordSlateService(self.db).slate_word_ids(user=user)
+            if word_id not in seen_word_ids
+        ]
+        if slate_ids and len(selected) < limit:
+            rows = self.db.query(VocabularyWord).filter(VocabularyWord.id.in_(slate_ids)).all()
+            by_id = {row.id: row for row in rows}
+            for word_id in slate_ids:
+                word = by_id.get(word_id)
+                if not word:
+                    continue
+                add_item(
+                    {
+                        "word_id": word.id,
+                        "word": word.word,
+                        **gloss_payload(word, user.native_language),
+                        "bucket": "mot_du_jour",
+                        "scheduler": "slate",
+                        "priority_score": 0.9,
                         "example_sentence": word.example_sentence,
                         "example_translation": word.example_translation,
                     }
@@ -1499,7 +1555,12 @@ class GraphicNovelScheduler:
             }
         if use_news:
             interests = [item.strip() for item in (user.interests or "").split(",") if item.strip()]
-            return await NewsService().fetch_feuilleton_daily_seed(interests=interests, refresh=refresh_news)
+            snapshot = await NewsService().fetch_feuilleton_daily_seed(interests=interests, refresh=refresh_news)
+            if isinstance(snapshot, dict):
+                # Only a genuine, opted-in news edition may surface a learner-facing
+                # source card. Everything else is internal generation provenance.
+                snapshot["learner_visible"] = True
+            return snapshot
         return {
             "mode": "atelier_curated",
             "title": "A small Paris errand",
@@ -1629,7 +1690,6 @@ class GraphicNovelStoryGenerator:
         resolved_image_quality = _image_quality(image_quality)
         resolved_public_figure_mode = _public_figure_mode(public_figure_mode)
         resolved_task_count = _task_count(resolved_panel_count, resolved_experience_mode)
-        titles = [_concept_title(concept, self.asset_service) for concept in concepts]
         errata_labels = [error.display_label or error.error_pattern or "remembered mistake" for error in errata]
         target_summary = self._targets(concepts=concepts, errata=errata)
         source_title = (
@@ -2175,39 +2235,10 @@ class GraphicNovelStoryGenerator:
                 serial_thread=active_thread,
                 episode_index=active_thread.current_episode_index,
             ) or {}
-        else:
-            default_world_path = (
-                Path(__file__).resolve().parent.parent / "prompts" / "serial" / "world_bible_paris_v2.json"
-            )
-            try:
-                default_world = json.loads(default_world_path.read_text(encoding="utf-8"))
-            except (OSError, json.JSONDecodeError):
-                default_world = {}
-            if isinstance(default_world, dict) and default_world.get("cast"):
-                serial_context = {
-                    "thread_id": None,
-                    "episode_index": 0,
-                    "world_bible": default_world,
-                    "state": {
-                        "user": {"has_met_group": True, "default_register": "vous"},
-                        "relationships": {
-                            "romy_tremblay": {"register": "tu", "closeness": 1},
-                            "lila_bonnet": {"register": "tu", "closeness": 1},
-                            "marin_leveque": {"register": "tu", "closeness": 1},
-                        },
-                    },
-                    "news_seed": {},
-                    "previous_locations": [],
-                    "hook_from_previous": {},
-                    "episode_brief": {
-                        "required_cast": ["romy_tremblay", "lila_bonnet", "marin_leveque"],
-                        "location_id": "le_mistral",
-                        "a_plot": {
-                            "stage_summary": "Romy finds a small contradiction in the group's plan and asks the protagonist to choose a side."
-                        },
-                        "hook_guidance": "Pourquoi Romy garde-t-elle la dernière question pour vous ?",
-                    },
-                }
+        # A standalone edition (no active serial thread) must NOT borrow the default Paris
+        # serial world and invent a fake serial context — that produced a moody but
+        # causeless episode. Fall through to the deterministic, self-contained standalone
+        # fallback below instead.
         if serial_context:
             serial_context["force_local_plan"] = True
             serial_context["noncanonical_side_quest"] = True
@@ -2296,94 +2327,112 @@ class GraphicNovelStoryGenerator:
             "notes": ["Recovery tasks continue the counter scene."],
         }
 
-        concept_id = concepts[0].id if concepts else None
         target_word = (target_vocabulary or [{}])[0]
         target_word_id = target_word.get("word_id")
         target_word_text = str(target_word.get("word") or "dossier").strip()
         target_translation = str(target_word.get("translation") or "file").strip()
         panel_task_count = _task_count(panel_count, experience_mode)
-        task_templates = [
-            {
-                "task_type": "cloze",
-                "label": "La phrase du guichet",
-                "instruction": "Complétez la réplique avec la forme correcte.",
-                "prompt": "Tout le monde ___ le tampon depuis dix minutes.",
-                "prompt_translation": "Everyone has been waiting for the stamp for ten minutes.",
-                "expected_answer": "attend",
-                "accepted_answers": ["attend"],
-                "options": [],
-                "expected_features": ["présent", "accord avec tout le monde"],
-                "placeholder": "attend",
-                "scene_function": "The reply keeps the queue moving while the stamp delays the office.",
-                "feedback_context": "Use the present tense with a singular collective subject in this scene.",
+        # One meaningful story decision, authored as a branch (both directions valid, no
+        # graded answer). Setup and discovery panels stay pure reading; the decision lands
+        # on the third beat and its consequence plays out afterward.
+        decision_task = {
+            "id": "recovery_decision",
+            "task_type": "choice",
+            "grading_mode": "branch",
+            "concept_id": None,
+            "label": "Choisissez la suite",
+            "instruction": "Choisissez comment la scène continue.",
+            "prompt": "Le formulaire est prêt, mais le tampon hésite. Que faites-vous ?",
+            "prompt_translation": "The form is ready, but the stamp hesitates. What do you do?",
+            "expected_answer": "",
+            "accepted_answers": [],
+            "options": [
+                {"value": "A", "label": "A", "fr": "On avance sans le tampon.", "en": "We move on without the stamp.", "next_panel_beat": "Le guichet avance sans le tampon ; la file, surprise, approuve."},
+                {"value": "B", "label": "B", "fr": "On attend encore un peu.", "en": "We wait a little longer.", "next_panel_beat": "La file se rassoit ; le tampon savoure son petit pouvoir."},
+            ],
+            "branch_target": {
+                "A": {
+                    "next_panel_beat": "Le guichet avance sans le tampon ; la file, surprise, approuve.",
+                    "state_delta": {"set": {"user.choice_recovery_decision": "A"}, "reason": "Move on without the stamp."},
+                },
+                "B": {
+                    "next_panel_beat": "La file se rassoit ; le tampon savoure son petit pouvoir.",
+                    "state_delta": {"set": {"user.choice_recovery_decision": "B"}, "reason": "Wait a little longer."},
+                },
             },
-            {
-                "task_type": "choice",
-                "label": "Choisissez la réplique",
-                "instruction": "Choisissez la réponse la plus naturelle.",
-                "prompt": "Le formulaire est prêt, mais le tampon hésite. Que dites-vous ?",
-                "prompt_translation": "The form is ready, but the stamp is hesitating. What do you say?",
-                "expected_answer": "On pourrait peut-être avancer sans lui.",
-                "accepted_answers": ["On pourrait peut-être avancer sans lui."],
-                "options": [
-                    {
-                        "value": "On pourrait peut-être avancer sans lui.",
-                        "fr": "On pourrait peut-être avancer sans lui.",
-                        "en": "Perhaps we could move on without it.",
-                    },
-                    {
-                        "value": "Il faut attendre la prochaine réunion.",
-                        "fr": "Il faut attendre la prochaine réunion.",
-                        "en": "We have to wait for the next meeting.",
-                    },
-                ],
-                "expected_features": ["proposition naturelle"],
-                "placeholder": "A ou B",
-                "scene_function": "The choice decides whether the office challenges the stamp or keeps waiting.",
-                "feedback_context": "Both replies are valid French; choose the one that moves this scene forward.",
-            },
-            {
+            "expected_features": [],
+            "placeholder": "",
+            "scene_function": "Your choice decides whether the office defies the stamp or keeps waiting.",
+            "feedback_context": "Both replies are valid French; the scene reacts to the direction you pick.",
+        }
+        # An eight-panel edition may carry a second, quieter interaction.
+        production_task = {
+            "id": "recovery_production",
+            "task_type": "short_sentence",
+            "concept_id": None,
+            "label": f"Placez « {target_word_text} »",
+            "instruction": f"Écrivez une phrase courte avec « {target_word_text} ».",
+            "prompt": f"Le tampon bloque la file. Utilisez « {target_word_text} » pour faire avancer la scène.",
+            "prompt_translation": f"The stamp is blocking the queue. Use “{target_word_text}” to move the scene forward.",
+            "expected_answer": "",
+            "accepted_answers": [],
+            "options": [],
+            "expected_features": ["phrase complète", target_word_text],
+            "placeholder": "Écrivez votre réplique…",
+            "min_words": 4,
+            "max_words": 18,
+            "vocabulary_task": bool(target_word_id),
+            "target_word_id": target_word_id,
+            "target_word": target_word_text,
+            "target_translation": target_translation,
+            "scene_function": "Your line turns the target word into the scene’s next action.",
+            "feedback_context": "Keep the target word inside one complete, natural reply to the clerk.",
+        }
+        recovery_tasks = [decision_task, production_task]
+        panels_list = raw.get("panels") or []
+        # Place interactions on the decision/consequence beats so the opening panels read
+        # uninterrupted; at least two panels always stay interaction-free.
+        placement_indices = [idx for idx in (2, 4) if idx < len(panels_list)][:panel_task_count]
+        for panel in panels_list:
+            overlay = panel.setdefault("overlay_payload", {})
+            overlay["tasks"] = []
+        for slot, index in enumerate(placement_indices):
+            task = dict(recovery_tasks[slot % len(recovery_tasks)])
+            task["id"] = f"recovery_panel_{index + 1}"
+            panels_list[index]["overlay_payload"]["tasks"] = [task]
+
+        # Target-vocabulary practice is the optional end-of-story reflection.
+        if target_word_id:
+            raw["final_prompt"] = {
+                "id": "recovery_final",
                 "task_type": "short_sentence",
-                "label": f"Placez « {target_word_text} »",
-                "instruction": f"Écrivez une phrase courte avec « {target_word_text} ».",
-                "prompt": f"Le tampon bloque la file. Utilisez « {target_word_text} » pour faire avancer la scène.",
-                "prompt_translation": f"The stamp is blocking the queue. Use “{target_word_text}” to move the scene forward.",
-                "expected_answer": f"Je prends le {target_word_text} et j’avance.",
-                "accepted_answers": [],
+                "label": f"Une dernière phrase avec « {target_word_text} »",
+                "instruction": f"Écrivez une dernière phrase naturelle qui utilise « {target_word_text} ».",
+                "prompt_body": f"Le tampon vient de s’approuver lui-même. Réagissez en une phrase avec « {target_word_text} ».",
+                "prompt_translation": f"The stamp has just approved itself. React in one sentence using “{target_word_text}”.",
                 "expected_features": ["phrase complète", target_word_text],
-                "placeholder": "Écrivez votre réplique…",
+                "placeholder": "Votre dernière réplique…",
                 "min_words": 4,
-                "max_words": 18,
-                "vocabulary_task": bool(target_word_id),
+                "max_words": 20,
+                "vocabulary_task": True,
+                "production_goal": "use_target_vocabulary_in_context",
                 "target_word_id": target_word_id,
                 "target_word": target_word_text,
                 "target_translation": target_translation,
-                "scene_function": "Your line turns the target word into the scene’s next action.",
-                "feedback_context": "Keep the target word inside one complete, natural reply to the clerk.",
-            },
-        ]
-        for index, panel in enumerate(raw.get("panels") or []):
-            overlay = panel.setdefault("overlay_payload", {})
-            overlay["tasks"] = []
-            if index < panel_task_count:
-                template = dict(task_templates[index % len(task_templates)])
-                template["id"] = f"recovery_panel_{index + 1}"
-                template["concept_id"] = concept_id
-                overlay["tasks"] = [template]
-
-        raw["final_prompt"] = {
-            "id": "recovery_final",
-            "task_type": "short_sentence",
-            "label": "La dernière réplique",
-            "instruction": "Écrivez une dernière phrase qui débloque la situation.",
-            "prompt_body": "Le tampon vient de s’approuver lui-même. Que dites-vous au guichet ?",
-            "prompt_translation": "The stamp has just approved itself. What do you say at the counter?",
-            "expected_features": ["phrase complète", "réaction à la scène"],
-            "placeholder": "Votre dernière réplique…",
-            "min_words": 4,
-            "max_words": 20,
-            "concept_id": concept_id,
-        }
+            }
+        else:
+            raw["final_prompt"] = {
+                "id": "recovery_final",
+                "task_type": "short_sentence",
+                "label": "La dernière réplique",
+                "instruction": "Écrivez une dernière phrase qui débloque la situation.",
+                "prompt_body": "Le tampon vient de s’approuver lui-même. Que dites-vous au guichet ?",
+                "prompt_translation": "The stamp has just approved itself. What do you say at the counter?",
+                "expected_features": ["phrase complète", "réaction à la scène"],
+                "placeholder": "Votre dernière réplique…",
+                "min_words": 4,
+                "max_words": 20,
+            }
         script = self._normalize_script(
             script=raw,
             source_snapshot=source_snapshot,
@@ -3967,6 +4016,32 @@ class GraphicNovelStoryGenerator:
                     cloze_task["expected_answer"] = cloze_answer
                     cloze_task["accepted_answers"] = [cloze_answer]
                     cloze_task["placeholder"] = cloze_answer
+        # New contract: the single serial interaction is the story decision (a branch
+        # choice). Keep only that fork; every other panel is pure reading. Grammar drills
+        # and production practice no longer crowd the panels — the optional final
+        # reflection carries any end-of-story production.
+        decision_task: dict[str, Any] | None = None
+        decision_holder: dict[str, Any] | None = None
+        for template in panel_templates:
+            for candidate in template.get("tasks") or []:
+                if isinstance(candidate, dict) and candidate.get("task_type") == "choice":
+                    candidate["grading_mode"] = "branch"
+                    candidate["expected_answer"] = ""
+                    candidate["accepted_answers"] = []
+                    decision_task, decision_holder = candidate, template
+                    break
+            if decision_task is not None:
+                break
+        if decision_task is None:
+            # No authored fork (e.g. a planner beat without a choice): keep the first
+            # authored task as the sole interaction so the episode still has one decision.
+            for template in panel_templates:
+                if template.get("tasks"):
+                    decision_task, decision_holder = template["tasks"][0], template
+                    break
+        for template in panel_templates:
+            template["tasks"] = [decision_task] if (decision_task is not None and template is decision_holder) else []
+
         panels: list[dict[str, Any]] = []
         task_budget = task_count
         for index in range(1, panel_count + 1):
@@ -4528,8 +4603,11 @@ class GraphicNovelStoryGenerator:
             "errata": [self._erratum_prompt(error) for error in errata],
             "retry_errors": retry_errors,
             "rules": [
-                f"Generate exactly {task_count} overlay tasks across the panels.",
-                "At least one panel should remain pure visual/caption context with no exercise.",
+                f"Generate exactly {task_count} overlay task(s) across the panels; never more.",
+                "The panel task must be a meaningful story decision: use a choice task whose options are two narratively valid directions, each tied to a concrete visible fact in its panel.",
+                "A story-decision choice is authorship, not a grammar quiz: it has no single correct option and must not carry an expected grammar answer.",
+                "Set grading_mode to \"branch\" on a story-decision choice (leave expected_answer empty). Set grading_mode to \"graded\" only on a genuine grammar exercise that has a correct answer.",
+                "Most panels must remain pure visual/caption context with no exercise; at least two panels carry no interaction.",
                 "Every task prompt must advance the strip with a fresh line or action; it must not copy a caption sentence.",
                 "For cloze and choice tasks, provide a full French follow-up sentence or phrase and blank only the target form.",
                 "If an instruction mentions a verb in parentheses, the prompt must actually include that verb in parentheses; otherwise do not mention parentheses.",
@@ -4704,6 +4782,9 @@ class GraphicNovelStoryGenerator:
             "properties": {
                 "id": {"type": "string"},
                 "task_type": {"type": "string", "enum": list(GRAPHIC_NOVEL_TASKS)},
+                # "branch" marks a narrative story decision (authorship, never graded as
+                # grammar); "graded" marks a normal cloze/choice/production exercise.
+                "grading_mode": {"type": "string", "enum": ["graded", "branch"]},
                 "concept_id": {"type": ["integer", "null"]},
                 "label": {"type": "string"},
                 "instruction": {"type": "string"},
@@ -4725,6 +4806,7 @@ class GraphicNovelStoryGenerator:
             "required": [
                 "id",
                 "task_type",
+                "grading_mode",
                 "concept_id",
                 "label",
                 "instruction",
@@ -4965,11 +5047,6 @@ class GraphicNovelStoryGenerator:
         public_figure_mode: str,
         story_cost: float,
     ) -> dict[str, Any]:
-        source_title = (
-            source_snapshot.get("title")
-            or ((source_snapshot.get("items") or [{}])[0] or {}).get("title")
-            or "Atelier scene"
-        )
         visual_only_demo = bool(script.get("visual_only_demo"))
         visual_candidates = self._normalize_visual_premise_candidates(script)
         selected_visual = self._normalize_selected_visual_premise(script, visual_candidates)
@@ -5078,7 +5155,25 @@ class GraphicNovelStoryGenerator:
                 "placeholder": str(final_prompt.get("placeholder") or "").strip(),
                 "min_words": _nonnegative_int(final_prompt.get("min_words")),
                 "max_words": _nonnegative_int(final_prompt.get("max_words")),
+                # The reflection is an optional language-production coda, never a gate.
+                "optional": True,
             }
+            # Preserve target-vocabulary production metadata so the optional reflection can
+            # credit a target word (vocabulary practice now lives here, not in a panel task).
+            source_final = script.get("final_prompt") if isinstance(script.get("final_prompt"), dict) else {}
+            for key in (
+                "vocabulary_task",
+                "production_goal",
+                "target_word_id",
+                "target_word",
+                "target_translation",
+                "target_word_translation",
+                "example_sentence",
+                "example_translation",
+                "hints",
+            ):
+                if key in source_final:
+                    final_prompt[key] = source_final[key]
             final_prompt["instruction"] = _normalize_task_instruction(final_prompt)
             final_prompt["prompt"] = final_prompt["prompt_body"]
             if not (
@@ -5168,20 +5263,49 @@ class GraphicNovelStoryGenerator:
             overlay = {}
         tasks = [] if strip_tasks else (overlay.get("tasks") if isinstance(overlay.get("tasks"), list) else [])
         normalized_tasks: list[dict[str, Any]] = []
-        concept_id = next((target.get("concept_id") for target in targets if target.get("concept_id")), None)
+        # A task may only carry a concept_id when it was explicitly authored for that
+        # concept. Never inherit a fallback concept from the selected targets: doing so
+        # attaches an unrelated grammar concept to cloze/choice/production tasks and makes
+        # the feedback profiler lecture about a topic the task does not test.
+        target_concept_ids = {
+            int(target["concept_id"])
+            for target in targets
+            if isinstance(target, dict) and target.get("concept_id") is not None
+        }
         for task_index, task in enumerate(tasks, start=1):
             if not isinstance(task, dict) or task.get("task_type") not in GRAPHIC_NOVEL_TASKS:
                 continue
             task_type = task.get("task_type")
+            authored_concept_id: int | None = None
+            raw_concept_id = task.get("concept_id")
+            if raw_concept_id is not None:
+                try:
+                    authored_concept_id = int(raw_concept_id)
+                except (TypeError, ValueError):
+                    authored_concept_id = None
+            # Keep an authored concept only when it belongs to the selected targets;
+            # an authored id outside the target set is dropped rather than trusted so
+            # feedback can never reference an unrelated concept.
+            if authored_concept_id is not None and target_concept_ids and authored_concept_id not in target_concept_ids:
+                authored_concept_id = None
+            # A choice with a branch_target is a narrative decision, not a grammar
+            # question. Narrative branches are authorship (every branch valid) and must
+            # never require or be graded against an "expected" answer. An authored
+            # grading_mode:"branch" forces the same treatment.
+            raw_branch_target = task.get("branch_target") if isinstance(task.get("branch_target"), dict) else {}
+            is_branch = task_type == "choice" and (
+                bool(raw_branch_target) or task.get("grading_mode") == "branch"
+            )
             normalized = {
                 "id": str(task.get("id") or f"panel_{panel_index}_task_{task_index}"),
                 "task_type": task_type,
-                "concept_id": task.get("concept_id") if task.get("concept_id") is not None else concept_id,
+                "grading_mode": "branch" if is_branch else "graded",
+                "concept_id": None if is_branch else authored_concept_id,
                 "label": str(task.get("label") or ""),
                 "instruction": "",
                 "prompt": str(task.get("prompt") or ""),
                 "prompt_translation": str(task.get("prompt_translation") or task.get("translation") or task.get("prompt_en") or ""),
-                "expected_answer": str(task.get("expected_answer") or ""),
+                "expected_answer": "" if is_branch else str(task.get("expected_answer") or ""),
                 "accepted_answers": task.get("accepted_answers") if isinstance(task.get("accepted_answers"), list) else [],
                 "options": task.get("options") if isinstance(task.get("options"), list) else [],
                 "expected_features": task.get("expected_features") if isinstance(task.get("expected_features"), list) else [],
@@ -5189,18 +5313,19 @@ class GraphicNovelStoryGenerator:
                 "scene_function": str(task.get("scene_function") or ""),
                 "feedback_context": str(task.get("feedback_context") or ""),
             }
-            if task_type == "choice" and isinstance(task.get("branch_target"), dict):
-                normalized["branch_target"] = task["branch_target"]
+            if is_branch:
+                normalized["branch_target"] = raw_branch_target
             normalized["instruction"] = _normalize_task_instruction(task)
             if not normalized["instruction"] or not normalized["prompt"] or not normalized["prompt_translation"]:
                 continue
             if task_type == "short_sentence" and not normalized["expected_features"]:
                 continue
-            if task_type in {"cloze", "choice"} and not normalized["expected_answer"]:
+            # Graded closed tasks need an expected answer; branch decisions never do.
+            if not is_branch and task_type in {"cloze", "choice"} and not normalized["expected_answer"]:
                 continue
             if task_type == "choice" and len(normalized["options"]) < 2:
                 continue
-            if task_type in {"cloze", "choice"} and not normalized["accepted_answers"] and normalized["expected_answer"]:
+            if not is_branch and task_type in {"cloze", "choice"} and not normalized["accepted_answers"] and normalized["expected_answer"]:
                 normalized["accepted_answers"] = [normalized["expected_answer"]]
             for key in (
                 "vocabulary_task",
@@ -5568,7 +5693,9 @@ class GraphicNovelStoryGenerator:
                 if task.get("task_type") == "short_sentence" and not task.get("expected_features"):
                     errors.append("short_sentence_missing_expected_feature")
                     break
-                if task.get("task_type") in {"cloze", "choice"}:
+                # A narrative branch is authorship, not a graded closed task: skip the
+                # expected-answer / answer-leak checks that only apply to grammar exercises.
+                if task.get("task_type") in {"cloze", "choice"} and task.get("grading_mode") != "branch":
                     expected = _normalize_text(task.get("expected_answer") or "")
                     accepted = [_normalize_text(item) for item in task.get("accepted_answers") or [] if item]
                     prompt_text = _normalize_text(task.get("prompt") or "")
@@ -5605,8 +5732,13 @@ class GraphicNovelStoryGenerator:
                             errors.append("choice_task_has_implausible_distractor")
                             break
             prompt = str(panel.get("image_prompt") or "").lower()
-            if "do not draw readable text" not in prompt and "do not include readable text" not in prompt:
+            if "no readable text" not in prompt:
                 errors.append("image_prompt_missing_text_forbid")
+                break
+            # The redesigned image prompt must not prime the model with bubble/overlay
+            # wording; if any leaks in, quarantine the panel rather than ship balloons.
+            if any(token in prompt for token in ("speech bubble", "balloon", "overlay area", "reserve a", "blank shape")):
+                errors.append("image_prompt_contains_bubble_language")
                 break
             for forbidden in (
                 "story premise:",
@@ -5633,7 +5765,12 @@ class GraphicNovelStoryGenerator:
                 errors.append("image_prompt_missing_public_figure_policy")
                 break
         for task in all_tasks:
-            if task.get("task_type") in {"cloze", "choice"} and not task.get("expected_answer"):
+            # Branch decisions never carry an expected answer; only graded closed tasks must.
+            if (
+                task.get("task_type") in {"cloze", "choice"}
+                and task.get("grading_mode") != "branch"
+                and not task.get("expected_answer")
+            ):
                 errors.append("closed_task_missing_answer")
                 break
             if task.get("task_type") == "choice" and len(task.get("options") or []) < 2:
@@ -5684,8 +5821,6 @@ class GraphicNovelStoryGenerator:
         anchor = str(selected_visual_premise.get("anchor_object") or "one decisive recurring prop").strip()
         domain = str(selected_visual_premise.get("domain") or "a fictional French public space").strip()
         shot_hint = str(panel.get("serial_shot_hint") or "").strip()
-        overlay = panel.get("overlay_payload") if isinstance(panel.get("overlay_payload"), dict) else {}
-        has_bubbles = bool((overlay.get("bubbles") if isinstance(overlay, dict) else []) or [])
         protagonist_mode = str(panel.get("protagonist_mode") or "").strip()
         if public_figure_mode == "editorial_caricature":
             public_figure_policy = (
@@ -5715,8 +5850,8 @@ class GraphicNovelStoryGenerator:
             "If phones, laptops, televisions, or screens appear, show them angled, screen-down, silhouetted, or from behind; no visible screen contents, notifications, UI, messages, websites, or readable video frames. "
             f"Humour mode: {humor_style}; render mode: {render_mode}; funny through situation and composition, never cruelty. "
             f"{public_figure_policy} "
-            "The image is context only; no readable text should appear. Do not draw readable text, letters, captions, speech bubbles, UI, blanks, subtitles, signs, labels, or answer choices. "
-            f"{'Reserve a calm upper-third area for at most two HTML speech bubbles; keep faces and important hands out of that bubble zone. ' if has_bubbles else 'Leave calm negative space where HTML annotations can sit later. '}"
+            "The image is context only: no readable text of any kind. Do not draw letters, numbers, captions, signs, labels, subtitles, answer choices, or user-interface elements anywhere in the frame. "
+            "Compose with one strong foreground action and generous calm negative space so the panel reads clearly at small size. "
             "Keep the composition legible at small size, with one strong foreground action, generous negative space, no prop repetition, no date-grid wallpaper, no shopping-bag piles, no abstract grammar diagrams, and no decorative geometric motif clutter."
         )
 
@@ -5742,9 +5877,9 @@ class GraphicNovelStoryGenerator:
             f"Characters to keep consistent: {characters or 'fictional French characters with readable silhouettes'}. "
             f"Panel plan: {panel_lines}. "
             "Use fictionalized people unless editorial caricature is explicitly requested in metadata; never portray victims or private people. "
-            "Do not draw readable text, letters, captions, speech bubbles, UI, blanks, subtitles, signs, labels, or answer choices. "
+            "The page is context only: no readable text of any kind. Do not draw letters, numbers, captions, signs, labels, subtitles, answer choices, or user-interface elements. "
             "If screens or phones appear, keep them angled, screen-down, silhouetted, or from behind with no readable contents or UI. "
-            "Leave natural calm upper-third areas where HTML speech bubbles, captions, and grammar annotations can be overlaid later. Avoid foreground prop dominance, repeated props, and crowded object piles."
+            "Compose each panel with generous calm negative space and one clear focal action. Avoid foreground prop dominance, repeated props, and crowded object piles."
         )
 
     def _estimated_cost(self, *, panel_count: int, story_cost: float, render_mode: str, image_quality: str) -> dict[str, Any]:
@@ -5903,7 +6038,7 @@ class GraphicNovelImageService:
             "quality": image_quality,
             "size": image_size,
             "fallback_used": False,
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
         }
 
     def _fallback_svg(self, *, prompt: str, panel_index: int) -> dict[str, Any]:
@@ -5963,7 +6098,7 @@ class GraphicNovelImageService:
             "model": "atelier-svg-fallback",
             "quality": "local",
             "fallback_used": True,
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
         }
 
 
@@ -5988,7 +6123,7 @@ class GraphicNovelCorrectionService:
         if scene.status == "available":
             scene.status = "in_progress"
         if not scene.started_at:
-            scene.started_at = datetime.now(timezone.utc)
+            scene.started_at = datetime.now(UTC)
 
         existing_attempt = (
             self.db.query(GraphicNovelAttempt)
@@ -6210,9 +6345,66 @@ class GraphicNovelCorrectionService:
         answer_payload: dict[str, Any],
     ) -> dict[str, Any]:
         task_type = task.get("task_type")
+        # A narrative branch is authorship, not a right/wrong grammar answer: every
+        # offered branch is valid, it never produces an erratum, and its feedback simply
+        # describes the immediate story consequence.
+        if self._is_branch_task(task):
+            return self._correct_branch(task=task, panel=panel, answer_payload=answer_payload)
         if task_type in {"cloze", "choice"}:
             return self._correct_closed(task=task, panel=panel, answer_payload=answer_payload)
         return self._correct_short_sentence(task=task, answer_payload=answer_payload)
+
+    @staticmethod
+    def _is_branch_task(task: dict[str, Any]) -> bool:
+        if task.get("task_type") != "choice":
+            return False
+        if task.get("grading_mode") == "branch":
+            return True
+        return isinstance(task.get("branch_target"), dict) and bool(task.get("branch_target"))
+
+    def _correct_branch(
+        self,
+        *,
+        task: dict[str, Any],
+        panel: GraphicNovelPanel | None,
+        answer_payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        selected = str(
+            answer_payload.get("answer")
+            or answer_payload.get("selected")
+            or answer_payload.get("text")
+            or ""
+        ).strip()
+        branch_target = task.get("branch_target") if isinstance(task.get("branch_target"), dict) else {}
+        branch = branch_target.get(selected)
+        if not isinstance(branch, dict):
+            normalized_selected = _normalize_text(selected)
+            for key, value in branch_target.items():
+                if _normalize_text(key) == normalized_selected and isinstance(value, dict):
+                    branch = value
+                    selected = str(key)
+                    break
+        # Prefer the human-readable option line for the consequence message; fall back to
+        # the branch's next beat, then to a neutral French acknowledgement.
+        option_line = ""
+        for option in task.get("options") or []:
+            if isinstance(option, dict) and _normalize_text(str(option.get("value") or "")) == _normalize_text(selected):
+                option_line = _compact_text(option.get("fr") or option.get("text"), max_length=200)
+                break
+        consequence = ""
+        if isinstance(branch, dict):
+            consequence = _compact_text(branch.get("consequence") or branch.get("next_panel_beat"), max_length=200)
+        why = consequence or option_line or "Ton choix oriente la suite de l'histoire."
+        return {
+            "verdict": "branch",
+            "grading_mode": "branch",
+            "score_0_4": 4,
+            "corrected_answer": "",
+            "why": why,
+            "repair": "",
+            "errata": [],
+            "branch_selected": selected,
+        }
 
     def _correct_closed(
         self,
@@ -6725,6 +6917,26 @@ class GraphicNovelCorrectionService:
             return None
 
 def serialize_panel(panel: GraphicNovelPanel) -> dict[str, Any]:
+    from app.services.recommendation_reasons import recommendation_reason
+
+    overlay = dict(panel.overlay_payload or {})
+    tasks = overlay.get("tasks")
+    if isinstance(tasks, list):
+        overlay["tasks"] = [
+            {
+                **task,
+                "recommendation_reason": recommendation_reason(
+                    "panel_task",
+                    concept_id=task.get("concept_id"),
+                    target_errata_count=len(task.get("target_errata_ids") or []),
+                    target_vocabulary_count=len(task.get("target_vocabulary_ids") or task.get("vocabulary_ids") or []),
+                    panel_index=panel.panel_index,
+                ),
+            }
+            if isinstance(task, dict)
+            else task
+            for task in tasks
+        ]
     return {
         "id": str(panel.id),
         "panel_index": panel.panel_index,
@@ -6734,10 +6946,34 @@ def serialize_panel(panel: GraphicNovelPanel) -> dict[str, Any]:
         "image_url": panel.image_url,
         "image_payload": panel.image_payload or {},
         "audio_payload": panel.audio_payload or {},
-        "overlay_payload": panel.overlay_payload or {},
-        "generation_metadata": panel.generation_metadata or {},
+        "overlay_payload": overlay,
+        "generation_metadata": _public_generation_metadata(panel),
         "created_at": panel.created_at.isoformat() if panel.created_at else None,
     }
+
+
+_PUBLIC_METADATA_KEYS = ("image_status", "fallback_used", "frame", "model", "prompt_version", "public_figure_mode")
+
+
+def _public_generation_metadata(panel: GraphicNovelPanel) -> dict[str, Any]:
+    """The client needs a handful of flags, not the generator's working notes.
+
+    The full metadata carries the story prompt and a seal-crop copy of the panel
+    image; when that copy was an inline data URI it added ~3 MB per panel to every
+    scene payload (six panels ≈ 20 MB, re-fetched by the reader's polling).
+    """
+    metadata = panel.generation_metadata or {}
+    public: dict[str, Any] = {key: metadata[key] for key in _PUBLIC_METADATA_KEYS if key in metadata}
+    crop = metadata.get("seal_crop")
+    if isinstance(crop, dict) and crop:
+        slim = {key: value for key, value in crop.items() if key != "image_url"}
+        crop_url = crop.get("image_url")
+        if isinstance(crop_url, str) and crop_url and not crop_url.startswith("data:"):
+            slim["image_url"] = crop_url
+        elif panel.image_url and not str(panel.image_url).startswith("data:"):
+            slim["image_url"] = panel.image_url
+        public["seal_crop"] = slim
+    return public
 
 
 def serialize_attempt(attempt: GraphicNovelAttempt) -> dict[str, Any]:
@@ -6755,9 +6991,69 @@ def serialize_attempt(attempt: GraphicNovelAttempt) -> dict[str, Any]:
     }
 
 
+def _trim_source_summary(text: str, *, max_length: int = 220) -> str:
+    """Trim a source summary to a clean boundary so it never ends mid-word."""
+    cleaned = " ".join(str(text or "").split())
+    if len(cleaned) <= max_length:
+        return cleaned
+    window = cleaned[:max_length]
+    for boundary in (". ", "! ", "? "):
+        cut = window.rfind(boundary)
+        if cut >= max_length // 2:
+            return window[: cut + 1].strip()
+    cut = window.rfind(" ")
+    if cut > 0:
+        window = window[:cut]
+    return window.rstrip(" ,;:").strip() + "…"
+
+
+def learner_facing_source(snapshot: Any) -> dict[str, Any]:
+    """Return a learner-safe source card, or {} for internal/offstage provenance.
+
+    Only a genuine, opted-in news edition (tagged ``learner_visible``) surfaces a source
+    card. Curated stubs, personal-input provenance, and serial recovery seeds are internal
+    generation provenance and never reach the learner. The card is deduplicated and its
+    summary trimmed so RSS artifacts (mid-word truncation, repeated blocks) do not leak.
+    """
+    if not isinstance(snapshot, dict) or not snapshot.get("learner_visible"):
+        return {}
+    item = (snapshot.get("items") or [{}])
+    first = item[0] if item and isinstance(item[0], dict) else {}
+    title = str(snapshot.get("title") or first.get("title") or "").strip()
+    if not title:
+        return {}
+    summary = _trim_source_summary(snapshot.get("summary") or first.get("summary") or "")
+    source = str(snapshot.get("source") or first.get("source") or "").strip()
+    url = str(snapshot.get("url") or first.get("url") or "").strip()
+    card = {"title": title, "summary": summary, "source": source, "url": url}
+    return {key: value for key, value in card.items() if value}
+
+
 def serialize_scene(scene: GraphicNovelScene | None, *, include_children: bool = True) -> dict[str, Any] | None:
     if not scene:
         return None
+    from app.services.recommendation_reasons import recommendation_reason
+
+    script_payload = dict(scene.script_payload or {})
+    final_prompt = script_payload.get("final_prompt")
+    if isinstance(final_prompt, dict):
+        script_payload["final_prompt"] = {
+            **final_prompt,
+            "recommendation_reason": recommendation_reason(
+                "panel_task",
+                concept_id=final_prompt.get("concept_id"),
+                target_errata_count=len(
+                    final_prompt.get("target_errata_ids") or scene.target_errata_ids or []
+                ),
+                target_vocabulary_count=len(
+                    final_prompt.get("target_vocabulary_ids")
+                    or final_prompt.get("vocabulary_ids")
+                    or scene.target_vocabulary_ids
+                    or []
+                ),
+                task_scope="scene_finale",
+            ),
+        }
     payload = {
         "id": str(scene.id),
         "status": scene.status,
@@ -6772,10 +7068,12 @@ def serialize_scene(scene: GraphicNovelScene | None, *, include_children: bool =
         "selected_concept_ids": scene.selected_concept_ids or [],
         "target_errata_ids": scene.target_errata_ids or [],
         "target_vocabulary_ids": scene.target_vocabulary_ids or [],
-        "target_vocabulary": (scene.script_payload or {}).get("target_vocabulary") or [],
-        "source_snapshot": scene.source_snapshot or {},
-        "script_payload": scene.script_payload or {},
-        "hook": (scene.script_payload or {}).get("hook") or (scene.recap_payload or {}).get("hook") or {},
+        "target_vocabulary": script_payload.get("target_vocabulary") or [],
+        # Only genuine opted-in news editions expose a source card; internal/offstage
+        # provenance is stripped so it never reaches the learner (see learner_facing_source).
+        "source_snapshot": learner_facing_source(scene.source_snapshot),
+        "script_payload": script_payload,
+        "hook": script_payload.get("hook") or (scene.recap_payload or {}).get("hook") or {},
         "recap": scene.recap_payload or {},
         "cache_key": scene.cache_key,
         "prompt_version": scene.prompt_version,

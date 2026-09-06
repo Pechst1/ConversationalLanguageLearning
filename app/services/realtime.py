@@ -4,8 +4,8 @@ from __future__ import annotations
 import asyncio
 import uuid
 from collections import defaultdict
-from datetime import datetime, timezone
-from typing import Any, Dict
+from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import WebSocket
 from loguru import logger
@@ -26,9 +26,9 @@ class SessionConnectionManager:
         self.namespace = namespace
         self._redis: redis.Redis | None = None  # type: ignore[assignment]
         self._lock = asyncio.Lock()
-        self._connections: Dict[uuid.UUID, Dict[uuid.UUID, WebSocket]] = defaultdict(dict)
+        self._connections: dict[uuid.UUID, dict[uuid.UUID, WebSocket]] = defaultdict(dict)
 
-    async def _get_redis(self) -> "redis.Redis | None":  # type: ignore[name-defined]
+    async def _get_redis(self) -> redis.Redis | None:  # type: ignore[name-defined]
         if not self.redis_url or redis is None:  # type: ignore[name-defined]
             return None
         if self._redis is None:
@@ -55,7 +55,7 @@ class SessionConnectionManager:
                 await redis_client.hset(
                     self._session_key(session_id),
                     str(user_id),
-                    datetime.now(timezone.utc).isoformat(),
+                    datetime.now(UTC).isoformat(),
                 )
                 await redis_client.expire(self._session_key(session_id), 3600)
             except Exception as exc:  # pragma: no cover - redis optional
@@ -131,7 +131,7 @@ class SessionConnectionManager:
                 await redis_client.hset(
                     self._session_key(session_id),
                     str(user_id),
-                    datetime.now(timezone.utc).isoformat(),
+                    datetime.now(UTC).isoformat(),
                 )
             except Exception as exc:  # pragma: no cover - redis optional
                 logger.warning("Failed to record heartbeat", error=str(exc))

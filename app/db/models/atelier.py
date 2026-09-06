@@ -6,7 +6,8 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, String, Text, UniqueConstraint
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 from sqlalchemy.types import JSON
@@ -35,8 +36,8 @@ class AtelierSession(Base):
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
-    user: Mapped["User"] = relationship("User")
-    attempts: Mapped[list["AtelierAttempt"]] = relationship(
+    user: Mapped[User] = relationship("User")
+    attempts: Mapped[list[AtelierAttempt]] = relationship(
         "AtelierAttempt", back_populates="session", cascade="all, delete-orphan"
     )
 
@@ -64,11 +65,11 @@ class AtelierCollectible(Base):
         PG_UUID(as_uuid=True), ForeignKey("atelier_collectibles.id", ondelete="SET NULL"), nullable=True, index=True
     )
 
-    user: Mapped["User"] = relationship("User")
-    composed_into: Mapped["AtelierCollectible | None"] = relationship(
+    user: Mapped[User] = relationship("User")
+    composed_into: Mapped[AtelierCollectible | None] = relationship(
         "AtelierCollectible", remote_side=[id], back_populates="members"
     )
-    members: Mapped[list["AtelierCollectible"]] = relationship(
+    members: Mapped[list[AtelierCollectible]] = relationship(
         "AtelierCollectible", back_populates="composed_into"
     )
 
@@ -97,7 +98,7 @@ class AtelierExerciseSet(Base):
     retirement_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
-    concept: Mapped["GrammarConcept"] = relationship("GrammarConcept")
+    concept: Mapped[GrammarConcept] = relationship("GrammarConcept")
 
     __table_args__ = (
         UniqueConstraint("concept_id", "generator_version", "content_hash", name="uq_atelier_exercise_set_payload"),
@@ -131,10 +132,10 @@ class AtelierGenerationEvent(Base):
     payload = mapped_column(JSONB().with_variant(JSON(), "sqlite"), default=dict, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
-    user: Mapped["User | None"] = relationship("User")
-    concept: Mapped["GrammarConcept | None"] = relationship("GrammarConcept")
-    session: Mapped["AtelierSession | None"] = relationship("AtelierSession")
-    exercise_set: Mapped["AtelierExerciseSet | None"] = relationship("AtelierExerciseSet")
+    user: Mapped[User | None] = relationship("User")
+    concept: Mapped[GrammarConcept | None] = relationship("GrammarConcept")
+    session: Mapped[AtelierSession | None] = relationship("AtelierSession")
+    exercise_set: Mapped[AtelierExerciseSet | None] = relationship("AtelierExerciseSet")
 
     __table_args__ = (
         Index("ix_atelier_generation_events_concept_type", "concept_id", "event_type", "created_at"),
@@ -184,7 +185,7 @@ class AtelierConceptBlueprint(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )
 
-    concept: Mapped["GrammarConcept"] = relationship("GrammarConcept")
+    concept: Mapped[GrammarConcept] = relationship("GrammarConcept")
 
     __table_args__ = (
         UniqueConstraint(
@@ -223,8 +224,8 @@ class AtelierAttempt(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     session: Mapped[AtelierSession] = relationship("AtelierSession", back_populates="attempts")
-    user: Mapped["User"] = relationship("User")
-    concept: Mapped["GrammarConcept"] = relationship("GrammarConcept")
+    user: Mapped[User] = relationship("User")
+    concept: Mapped[GrammarConcept] = relationship("GrammarConcept")
 
     __table_args__ = (
         Index("ix_atelier_attempts_session_round", "atelier_session_id", "round", "mode"),

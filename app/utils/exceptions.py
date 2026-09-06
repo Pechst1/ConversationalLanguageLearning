@@ -1,5 +1,6 @@
 """Custom exception classes and error handling utilities."""
-from typing import Any, Dict, Optional
+from typing import Any
+
 from fastapi import HTTPException, status
 from loguru import logger
 
@@ -7,7 +8,7 @@ from loguru import logger
 class ConversationalLearningException(Exception):
     """Base exception for the application."""
     
-    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
+    def __init__(self, message: str, details: dict[str, Any] | None = None):
         self.message = message
         self.details = details or {}
         super().__init__(message)
@@ -56,7 +57,7 @@ def handle_validation_error(error: ValidationError) -> HTTPException:
     """Handle validation errors."""
     logger.warning(f"Validation error: {error.message}")
     return HTTPException(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         detail={
             "message": error.message,
             "details": error.details

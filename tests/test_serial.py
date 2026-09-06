@@ -3,28 +3,45 @@ from __future__ import annotations
 
 import asyncio
 import json
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
-from uuid import uuid4
-from uuid import UUID
 from typing import Any
+from uuid import UUID, uuid4
 
+from celery.schedules import crontab
 from fastapi.testclient import TestClient
 
 from app.config import settings
 from app.db.models.atelier import AtelierCollectible
 from app.db.models.graphic_novel import GraphicNovelPanel, GraphicNovelScene
 from app.db.models.mission import RealWorldMission, RealWorldMissionAttempt
+from app.db.models.pilot_event import PilotEvent
 from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.user import User
 from app.schemas.serial import EpisodeRead, SerialThreadRead
-from app.services.graphic_novel import GraphicNovelGenerationError, GraphicNovelScheduler
+from app.services.graphic_novel import (
+    GRAPHIC_NOVEL_PROMPT_VERSION,
+    GraphicNovelGenerationError,
+    GraphicNovelScheduler,
+)
 from app.services.missions import MissionScheduler, serialize_mission
 from app.services.news_service import NewsService
-from app.services.serial_arc_planner import SEASON_FINALE_ARC_ID, SerialArcPlanner, cefr_generation_profile
-from app.services.serial import SerialThreadService, WORLD_BIBLE_PATH
+from app.services.serial import WORLD_BIBLE_PATH, SerialThreadService
+from app.services.serial_arc_planner import (
+    INTERLUDE_BEATS,
+    SEASON_FINALE_ARC_ID,
+    SEASON_INTERLUDE_ARC_ID,
+    SerialArcPlanner,
+    cefr_generation_profile,
+)
 from app.services.serial_notifications import enqueue_serial_edition_notification
+from app.tasks.serial_generation import (
+    MAX_SERIAL_RETRIES_PER_WINDOW,
+    SERIAL_GIVE_UP_EVENT,
+    SERIAL_RETRY_EVENT,
+    retry_delayed_serial_episodes_sync,
+)
 
 
 def _run(coro):
@@ -79,33 +96,33 @@ def test_world_bible_world_reference_assets_exist():
     }
     expected_locations = {
         "le_mistral": [
-            "assets/serial/locations/le_mistral-booth.png",
-            "assets/serial/locations/le_mistral-counter.png",
+            "assets/serial/locations/le_mistral-booth.webp",
+            "assets/serial/locations/le_mistral-counter.webp",
         ],
-        "user_apartment": ["assets/serial/locations/user_apartment.png"],
-        "marin_lila_flat": ["assets/serial/locations/marin_lila_flat.png"],
-        "newsroom": ["assets/serial/locations/newsroom.png"],
-        "ngo_office": ["assets/serial/locations/ngo_office.png"],
-        "marche_canal": ["assets/serial/locations/marche_canal.png"],
-        "buttes_chaumont": ["assets/serial/locations/buttes_chaumont.png"],
-        "metro_platform": ["assets/serial/locations/metro_platform.png"],
-        "gus_loft": ["assets/serial/locations/gus_loft.png"],
-        "brocante": ["assets/serial/locations/brocante.png"],
-        "office_admin": ["assets/serial/locations/office_admin.png"],
+        "user_apartment": ["assets/serial/locations/user_apartment.webp"],
+        "marin_lila_flat": ["assets/serial/locations/marin_lila_flat.webp"],
+        "newsroom": ["assets/serial/locations/newsroom.webp"],
+        "ngo_office": ["assets/serial/locations/ngo_office.webp"],
+        "marche_canal": ["assets/serial/locations/marche_canal.webp"],
+        "buttes_chaumont": ["assets/serial/locations/buttes_chaumont.webp"],
+        "metro_platform": ["assets/serial/locations/metro_platform.webp"],
+        "gus_loft": ["assets/serial/locations/gus_loft.webp"],
+        "brocante": ["assets/serial/locations/brocante.webp"],
+        "office_admin": ["assets/serial/locations/office_admin.webp"],
     }
 
     assert visual_design["status"] == "assets-locked-v2"
     assert expected_characters.issubset(characters)
     for character_id in expected_characters:
         design = characters[character_id]
-        assert design["reference_images"] == [f"assets/serial/characters/{character_id}/model-sheet.png"]
-        assert design["style_ref"] == f"assets/serial/characters/{character_id}/model-sheet.png"
+        assert design["reference_images"] == [f"assets/serial/characters/{character_id}/model-sheet.webp"]
+        assert design["style_ref"] == f"assets/serial/characters/{character_id}/model-sheet.webp"
         assert (public_root / design["style_ref"]).is_file()
     for location_id, references in expected_locations.items():
         assert locations[location_id]["reference_images"] == references
         for reference in references:
             assert (public_root / reference).is_file()
-    assert props["le_mistral_booth"]["reference_images"] == ["assets/serial/props/le_mistral_booth.png"]
+    assert props["le_mistral_booth"]["reference_images"] == ["assets/serial/props/le_mistral_booth.webp"]
     assert (public_root / props["le_mistral_booth"]["reference_images"][0]).is_file()
 
 
@@ -149,6 +166,21 @@ def test_feuilleton_news_summary_strips_feed_artifacts():
     assert " I " not in summary
     assert "Personnes citées" not in digest
     assert "sacolère" not in digest
+
+
+def test_news_feed_parser_rejects_xml_entities():
+    service = NewsService.__new__(NewsService)
+    malicious_feed = """
+        <!DOCTYPE rss [<!ENTITY payload "expanded content">]>
+        <rss><channel><item><title>&payload;</title></item></channel></rss>
+    """
+
+    assert service._parse_rss_items(
+        malicious_feed,
+        source_hint="Untrusted feed",
+        language="fr",
+        limit=5,
+    ) == []
 
 
 def test_thread_episode_roundtrip(db_session):
@@ -231,8 +263,8 @@ def test_existing_thread_syncs_locked_character_assets(db_session):
                     },
                     "user": {
                         "canonical_descriptor": "custom learner avatar descriptor",
-                        "reference_images": ["assets/serial/characters/user/model-sheet.png"],
-                        "style_ref": "assets/serial/characters/user/model-sheet.png",
+                        "reference_images": ["assets/serial/characters/user/model-sheet.webp"],
+                        "style_ref": "assets/serial/characters/user/model-sheet.webp",
                         "avatar_builder": {"hair": "short", "jacket": "blue"},
                     }
                 },
@@ -258,15 +290,15 @@ def test_existing_thread_syncs_locked_character_assets(db_session):
     }
     assert existing.world_bible["visual_design"]["status"] == "assets-locked-v2"
     assert existing.world_bible["visual_design"]["characters"]["romy_tremblay"]["reference_images"] == [
-        "assets/serial/characters/romy_tremblay/model-sheet.png"
+        "assets/serial/characters/romy_tremblay/model-sheet.webp"
     ]
     assert existing.world_bible["visual_design"]["characters"]["user"]["reference_images"] == [
-        "assets/serial/characters/user/model-sheet.png"
+        "assets/serial/characters/user/model-sheet.webp"
     ]
     assert existing.world_bible["visual_design"]["characters"]["user"]["avatar_builder"]["jacket"] == "blue"
     assert existing.world_bible["visual_design"]["locations"]["le_mistral"]["reference_images"] == [
-        "assets/serial/locations/le_mistral-booth.png",
-        "assets/serial/locations/le_mistral-counter.png",
+        "assets/serial/locations/le_mistral-booth.webp",
+        "assets/serial/locations/le_mistral-counter.webp",
     ]
     assert set(existing.state["arcs"]) >= {"marin_proposal", "lila_berlin_secret", "gus_aristocracy"}
     assert existing.state["cast_last_seen"]["romy_tremblay"] == -1
@@ -332,7 +364,7 @@ def test_serial_arc_planner_rotates_arcs_cast_and_spacing(db_session):
         db_session.refresh(thread)
 
     assert len(advanced_arcs) >= 3
-    for previous, current in zip(plans, plans[1:]):
+    for previous, current in zip(plans, plans[1:], strict=False):
         assert current["structure"] != previous["structure"]
     for index, plan in enumerate(plans, start=1):
         if plan["include_news_panel"]:
@@ -489,7 +521,10 @@ def test_serial_arc_planner_rotates_mission_formats(db_session, monkeypatch):
     assert "phone_call" not in formats
     assert "voicemail_reply" in formats
     assert {"email_formal", "admin_form"}.issubset(set(formats))
-    assert all(current != previous for previous, current in zip(formats, formats[1:]))
+    assert all(
+        current != previous
+        for previous, current in zip(formats, formats[1:], strict=False)
+    )
 
 
 def test_serial_mission_contract_honors_relationship_register(db_session):
@@ -1027,7 +1062,7 @@ def test_stale_generating_scene_expires_to_retryable_delayed_episode(db_session)
     service = SerialThreadService(db_session)
     thread = _run(service.get_or_create_thread(user))
     thread.current_episode_index = 3
-    stale_at = datetime.now(timezone.utc) - timedelta(minutes=20)
+    stale_at = datetime.now(UTC) - timedelta(minutes=20)
     scene = GraphicNovelScene(
         user_id=user.id,
         serial_thread_id=thread.id,
@@ -1081,7 +1116,7 @@ def test_stale_generating_scene_with_readable_panels_is_published(db_session):
     service = SerialThreadService(db_session)
     thread = _run(service.get_or_create_thread(user))
     thread.current_episode_index = 3
-    stale_at = datetime.now(timezone.utc) - timedelta(minutes=20)
+    stale_at = datetime.now(UTC) - timedelta(minutes=20)
     panel_payload = {
         "panel_index": 1,
         "title": "The readable panel",
@@ -1351,7 +1386,7 @@ def test_serial_archive_and_cast_endpoints(client: TestClient, db_session, monke
         prompt_payload={},
         source_snapshot={},
         status="completed",
-        completed_at=datetime.now(timezone.utc),
+        completed_at=datetime.now(UTC),
     )
     db_session.add(mission)
     db_session.flush()
@@ -1373,7 +1408,7 @@ def test_serial_archive_and_cast_endpoints(client: TestClient, db_session, monke
     episode.hook = {"text": "Le café reste allumé."}
     episode.state_delta = {}
     episode.status = "completed"
-    episode.completed_at = datetime.now(timezone.utc)
+    episode.completed_at = datetime.now(UTC)
     episode.brief_payload = {"required_cast": ["marin_leveque"]}
     db_session.add(episode)
     db_session.add(thread)
@@ -1390,7 +1425,7 @@ def test_serial_archive_and_cast_endpoints(client: TestClient, db_session, monke
     assert cast.status_code == 200
     cast_rows = {row["id"]: row for row in cast.json()["cast"]}
     assert "marin_leveque" in cast_rows
-    assert cast_rows["marin_leveque"]["model_sheet_url"].endswith("/assets/serial/characters/marin_leveque/model-sheet.png")
+    assert cast_rows["marin_leveque"]["model_sheet_url"].endswith("/assets/serial/characters/marin_leveque/model-sheet.webp")
     assert cast_rows["marin_leveque"]["relationship"]["register"] == "tu"
     assert cast_rows["marin_leveque"]["relationship"]["callbacks"] == ["la clé sous la pluie"]
     assert cast_rows["marin_leveque"]["episodes"][0]["href"] == "/serial/episode/0"
@@ -1422,7 +1457,7 @@ def test_serial_edition_notification_is_idempotent(db_session, monkeypatch):
     assert enqueue_serial_edition_notification(db_session, episode, user=user) is True
     db_session.refresh(episode)
     assert episode.hook["notification_queued_key"].startswith("serial-edition:")
-    assert calls and calls[0][2] == "Episode 2 is ready"
+    assert calls and calls[0][2] == "Épisode 2 disponible"
     assert "Romy trouve" in calls[0][3]
 
     assert enqueue_serial_edition_notification(db_session, episode, user=user) is False
@@ -1570,3 +1605,479 @@ def test_serial_endpoints_return_disabled_when_flag_off(client: TestClient, monk
 
     assert response.status_code == 403
     assert response.json()["detail"]["code"] == "serial_world_disabled"
+
+
+def _seed_delayed_feuilleton(db_session, service, thread, *, episode_index: int) -> SerialEpisode:
+    thread.current_episode_index = episode_index
+    brief_payload = service._episode_brief(thread, "see").model_dump(mode="json")
+    episode = SerialEpisode(
+        thread_id=thread.id,
+        episode_index=episode_index,
+        kind="feuilleton",
+        hook={
+            "text": "L'édition de demain est retardée.",
+            "unresolved_question": "Quand l'imprimerie relancera-t-elle l'épisode ?",
+            "teaser": "Demain : l'édition reprend dès que la salle de rédaction revient.",
+            "next_beat_kind": "feuilleton",
+        },
+        hook_from_previous={},
+        state_delta={},
+        status="delayed",
+        brief_payload=brief_payload,
+    )
+    db_session.add_all([thread, episode])
+    db_session.commit()
+    db_session.refresh(episode)
+    return episode
+
+
+def _recovering_scene_factory(counter: dict[str, int]):
+    async def fake_create(self, **kwargs):  # type: ignore[no-untyped-def]
+        counter["calls"] += 1
+        scene = GraphicNovelScene(
+            user_id=kwargs["user"].id,
+            mission_id=kwargs.get("mission_id"),
+            serial_thread_id=kwargs["serial_thread_id"],
+            episode_index=kwargs["episode_index"],
+            status="available",
+            cadence="serial",
+            title="Beat task recovery",
+            brief="A scene regenerated by the retry beat task.",
+            selected_concept_ids=[],
+            target_errata_ids=[],
+            target_vocabulary_ids=[],
+            source_snapshot={},
+            script_payload={
+                "title": "Beat task recovery",
+                "location_id": "le_mistral",
+                "panels": [],
+                "hook": {
+                    "text": "L'édition repart.",
+                    "unresolved_question": "Qui a rallumé la presse ?",
+                    "next_beat_kind": "mission",
+                    "teaser": "Demain : répondre.",
+                },
+            },
+            recap_payload={},
+            cache_key=f"serial-beat-retry-{uuid4().hex}",
+            prompt_version="test",
+            image_model="test",
+            image_quality="medium",
+        )
+        self.db.add(scene)
+        self.db.commit()
+        self.db.refresh(scene)
+        return scene
+
+    return fake_create
+
+
+def test_delayed_retry_beat_task_recovers_episode(db_session, monkeypatch):
+    monkeypatch.setattr(NewsService, "fetch_feuilleton_daily_seed", _fake_seed)
+    user = _user(db_session, email="serial-beat-retry@example.com")
+    service = SerialThreadService(db_session)
+    thread = _run(service.get_or_create_thread(user))
+    episode = _seed_delayed_feuilleton(db_session, service, thread, episode_index=1)
+    counter = {"calls": 0}
+    monkeypatch.setattr(GraphicNovelScheduler, "create", _recovering_scene_factory(counter))
+
+    summary = retry_delayed_serial_episodes_sync(db_session, thread_id=thread.id)
+    db_session.expire_all()
+    refreshed = db_session.get(SerialEpisode, episode.id)
+
+    assert counter["calls"] == 1
+    assert summary["examined"] == 1
+    assert summary["retried"] == 1
+    assert summary["recovered"] == 1
+    assert refreshed.status == "available"
+    assert refreshed.scene_id
+    attempts = (
+        db_session.query(PilotEvent)
+        .filter(PilotEvent.event_type == SERIAL_RETRY_EVENT, PilotEvent.entity_id == str(episode.id))
+        .all()
+    )
+    assert len(attempts) == 1
+    assert attempts[0].payload["attempt"] == 1
+
+    # A second sweep finds nothing left to do and never regenerates a healthy episode.
+    second = retry_delayed_serial_episodes_sync(db_session, thread_id=thread.id)
+    assert second["examined"] == 0
+    assert counter["calls"] == 1
+
+
+def test_delayed_retry_beat_task_skips_generation_already_in_flight(db_session, monkeypatch):
+    monkeypatch.setattr(NewsService, "fetch_feuilleton_daily_seed", _fake_seed)
+    user = _user(db_session, email="serial-beat-inflight@example.com")
+    service = SerialThreadService(db_session)
+    thread = _run(service.get_or_create_thread(user))
+    episode = _seed_delayed_feuilleton(db_session, service, thread, episode_index=1)
+    episode.status = "generating"
+    db_session.add(episode)
+    db_session.commit()
+    counter = {"calls": 0}
+    monkeypatch.setattr(GraphicNovelScheduler, "create", _recovering_scene_factory(counter))
+
+    summary = retry_delayed_serial_episodes_sync(db_session, thread_id=thread.id)
+    db_session.expire_all()
+
+    assert summary["examined"] == 0
+    assert counter["calls"] == 0
+    assert db_session.get(SerialEpisode, episode.id).status == "generating"
+    assert (
+        db_session.query(PilotEvent)
+        .filter(PilotEvent.event_type == SERIAL_RETRY_EVENT, PilotEvent.entity_id == str(episode.id))
+        .count()
+        == 0
+    )
+
+
+def test_delayed_retry_beat_task_stops_after_daily_budget(db_session, monkeypatch):
+    monkeypatch.setattr(NewsService, "fetch_feuilleton_daily_seed", _fake_seed)
+    user = _user(db_session, email="serial-beat-budget@example.com")
+    service = SerialThreadService(db_session)
+    thread = _run(service.get_or_create_thread(user))
+    episode = _seed_delayed_feuilleton(db_session, service, thread, episode_index=1)
+    counter = {"calls": 0}
+    monkeypatch.setattr(GraphicNovelScheduler, "create", _recovering_scene_factory(counter))
+    for attempt in range(MAX_SERIAL_RETRIES_PER_WINDOW):
+        db_session.add(
+            PilotEvent(
+                user_id=user.id,
+                event_type=SERIAL_RETRY_EVENT,
+                entity_type="serial_episode",
+                entity_id=str(episode.id),
+                payload={"attempt": attempt + 1},
+            )
+        )
+    db_session.commit()
+
+    summary = retry_delayed_serial_episodes_sync(db_session, thread_id=thread.id)
+    db_session.expire_all()
+
+    assert counter["calls"] == 0
+    assert summary["exhausted"] == 1
+    assert summary["retried"] == 0
+    assert db_session.get(SerialEpisode, episode.id).status == "delayed"
+    give_up = (
+        db_session.query(PilotEvent)
+        .filter(PilotEvent.event_type == SERIAL_GIVE_UP_EVENT, PilotEvent.entity_id == str(episode.id))
+        .all()
+    )
+    assert len(give_up) == 1
+    assert give_up[0].payload["reason"] == "retry_budget_exhausted"
+
+    # The give-up event is recorded once, not on every subsequent sweep.
+    retry_delayed_serial_episodes_sync(db_session, thread_id=thread.id)
+    assert (
+        db_session.query(PilotEvent)
+        .filter(PilotEvent.event_type == SERIAL_GIVE_UP_EVENT, PilotEvent.entity_id == str(episode.id))
+        .count()
+        == 1
+    )
+
+
+def test_delayed_retry_beat_task_keeps_episode_retryable_after_failure(db_session, monkeypatch):
+    monkeypatch.setattr(NewsService, "fetch_feuilleton_daily_seed", _fake_seed)
+    user = _user(db_session, email="serial-beat-failure@example.com")
+    service = SerialThreadService(db_session)
+    thread = _run(service.get_or_create_thread(user))
+    episode = _seed_delayed_feuilleton(db_session, service, thread, episode_index=1)
+
+    async def exploding_create(self, **kwargs):  # type: ignore[no-untyped-def]
+        raise RuntimeError("image backend down")
+
+    monkeypatch.setattr(GraphicNovelScheduler, "create", exploding_create)
+
+    summary = retry_delayed_serial_episodes_sync(db_session, thread_id=thread.id)
+    db_session.expire_all()
+
+    assert summary["still_delayed"] == 1
+    assert db_session.get(SerialEpisode, episode.id).status == "delayed"
+
+
+def test_delayed_retry_beat_task_is_scheduled():
+    from app.celery_app import celery_app
+
+    entry = celery_app.conf.beat_schedule["retry-delayed-serial-episodes"]
+    assert entry["task"] == "app.tasks.serial_generation.retry_delayed_serial_episodes"
+    assert entry["schedule"].minute == crontab(minute="*/15").minute
+
+
+def test_season_finale_without_next_season_enters_interlude(db_session, monkeypatch):
+    monkeypatch.setattr(SerialThreadService, "_enqueue_next_beat", lambda self, thread_id: None)
+    user = _user(db_session, email="serial-interlude-rollover@example.com")
+    service = SerialThreadService(db_session)
+    thread = _run(service.get_or_create_thread(user))
+    thread.current_episode_index = 96
+    world = dict(thread.world_bible or {})
+    world["season_number"] = 2
+    thread.world_bible = world
+    _complete_season_arcs(thread, episode_index=95)
+    state = dict(thread.state or {})
+    state["season_number"] = 2
+    thread.state = state
+    finale_payload = SerialArcPlanner(thread).plan_next_episode("see").model_dump(mode="json")
+    assert finale_payload["season_finale"] is True
+    db_session.add(thread)
+    db_session.flush()
+    scene = GraphicNovelScene(
+        user_id=user.id,
+        serial_thread_id=thread.id,
+        episode_index=96,
+        status="completed",
+        cadence="serial",
+        title="Last authored finale",
+        brief="The final authored season closes.",
+        selected_concept_ids=[],
+        target_errata_ids=[],
+        target_vocabulary_ids=[],
+        source_snapshot={},
+        script_payload={
+            "title": "Last authored finale",
+            "location_id": "le_mistral",
+            "panels": [],
+            "hook": {
+                "text": "La table reste mise.",
+                "unresolved_question": "Et maintenant ?",
+                "next_beat_kind": "mission",
+                "teaser": "Demain : une soirée ordinaire.",
+            },
+        },
+        recap_payload={},
+        cache_key=f"serial-interlude-{uuid4().hex}",
+        prompt_version="test",
+        image_model="test",
+        image_quality="medium",
+    )
+    db_session.add(scene)
+    db_session.flush()
+    db_session.add(
+        SerialEpisode(
+            thread_id=thread.id,
+            episode_index=96,
+            kind="feuilleton",
+            scene_id=scene.id,
+            hook={},
+            hook_from_previous={},
+            state_delta={},
+            status="available",
+            brief_payload=finale_payload,
+        )
+    )
+    db_session.commit()
+
+    _run(service.apply_completion(thread, scene=scene))
+    db_session.refresh(thread)
+
+    assert thread.state["season_complete"] is True
+    assert thread.state["interlude_mode"] is True
+    assert thread.state["interlude_since_episode"] == 97
+    assert thread.world_bible.get("season_number") == 2
+
+    next_brief = SerialArcPlanner(thread).plan_next_episode("act").model_dump(mode="json")
+    assert next_brief["interlude"] is True
+    assert not next_brief.get("season_finale")
+    assert next_brief["a_plot"]["arc_id"] == SEASON_INTERLUDE_ARC_ID
+    assert next_brief["a_plot"]["advance_on_completion"] is False
+    assert next_brief["a_plot"]["sets"] == {}
+    assert next_brief["stakes_level"] == 1
+    assert next_brief["required_cast"]
+
+
+def test_interlude_briefs_rotate_and_never_repeat_a_finale(db_session):
+    user = _user(db_session, email="serial-interlude-rotation@example.com")
+    service = SerialThreadService(db_session)
+    thread = _run(service.get_or_create_thread(user))
+    state = dict(thread.state or {})
+    state["interlude_mode"] = True
+    thread.state = state
+
+    beat_ids = []
+    for index in range(97, 103):
+        thread.current_episode_index = index
+        brief = SerialArcPlanner(thread).plan_next_episode("see" if index % 2 else "act").model_dump(mode="json")
+        assert brief["interlude"] is True
+        assert not brief.get("season_finale")
+        assert brief["a_plot"]["arc_id"] == SEASON_INTERLUDE_ARC_ID
+        assert brief["tentpole_reference"] is None
+        assert brief["include_news_panel"] is False
+        beat_ids.append(brief["interlude_beat_id"])
+
+    assert len(set(beat_ids)) == len(INTERLUDE_BEATS)
+    assert beat_ids[0] != beat_ids[1]
+    assert beat_ids[: len(INTERLUDE_BEATS)] == beat_ids[len(INTERLUDE_BEATS) :]
+
+
+def test_legacy_season_complete_thread_plans_interlude_and_persists_mode(db_session):
+    user = _user(db_session, email="serial-interlude-legacy@example.com")
+    service = SerialThreadService(db_session)
+    thread = _run(service.get_or_create_thread(user))
+    thread.current_episode_index = 60
+    state = dict(thread.state or {})
+    state["season_complete"] = True
+    thread.state = state
+    db_session.add(thread)
+    db_session.commit()
+
+    brief = service._episode_brief(thread, "see").model_dump(mode="json")
+    db_session.commit()
+    db_session.expire_all()
+    reloaded = db_session.get(SerialThread, thread.id)
+
+    assert brief["interlude"] is True
+    assert reloaded.state["interlude_mode"] is True
+    assert reloaded.state["interlude_since_episode"] == 60
+
+
+def test_today_supersedes_incompatible_scene_on_unread_episode(db_session, monkeypatch):
+    """A pre-rebuild scene must never be handed out by today(): the reader answers
+    409 for it and the learner was left on a spinner. The unread episode drops the
+    stale scene and goes back to "available" so the next open recomposes it."""
+    monkeypatch.setattr(NewsService, "fetch_feuilleton_daily_seed", _fake_seed)
+    user = _user(db_session, email="serial-supersede@example.com")
+    service = SerialThreadService(db_session)
+    thread = _run(service.get_or_create_thread(user))
+    stale = GraphicNovelScene(
+        user_id=user.id,
+        serial_thread_id=thread.id,
+        episode_index=1,
+        status="available",
+        cadence="daily",
+        title="Vieille planche",
+        brief="Une planche d'avant la refonte.",
+        selected_concept_ids=[],
+        target_errata_ids=[],
+        target_vocabulary_ids=[],
+        source_snapshot={},
+        script_payload={"title": "Vieille planche", "panels": [], "hook": {}},
+        recap_payload={},
+        cache_key=f"serial-stale-{uuid4().hex}",
+        prompt_version="pilot-capture-v1",
+        image_model="test",
+        image_quality="medium",
+    )
+    db_session.add(stale)
+    db_session.flush()
+    episode = SerialEpisode(
+        thread_id=thread.id,
+        episode_index=thread.current_episode_index,
+        kind="feuilleton",
+        scene_id=stale.id,
+        hook={},
+        hook_from_previous={},
+        state_delta={},
+        status="available",
+        brief_payload={},
+    )
+    db_session.add(episode)
+    db_session.commit()
+
+    payload = _run(service.today(user))
+    db_session.expire_all()
+    refreshed = db_session.get(SerialEpisode, episode.id)
+
+    assert payload["scene_id"] is None
+    assert payload["status"] == "available"
+    assert refreshed.scene_id is None
+    assert refreshed.status == "available"
+
+
+def test_today_keeps_incompatible_scene_on_completed_episode(db_session, monkeypatch):
+    """History is history: a read episode keeps its old scene reference."""
+    monkeypatch.setattr(NewsService, "fetch_feuilleton_daily_seed", _fake_seed)
+    user = _user(db_session, email="serial-supersede-done@example.com")
+    service = SerialThreadService(db_session)
+    thread = _run(service.get_or_create_thread(user))
+    stale = GraphicNovelScene(
+        user_id=user.id,
+        serial_thread_id=thread.id,
+        episode_index=0,
+        status="completed",
+        cadence="daily",
+        title="Vieille planche lue",
+        brief="Lue avant la refonte.",
+        selected_concept_ids=[],
+        target_errata_ids=[],
+        target_vocabulary_ids=[],
+        source_snapshot={},
+        script_payload={"title": "Vieille planche lue", "panels": [], "hook": {}},
+        recap_payload={},
+        cache_key=f"serial-stale-done-{uuid4().hex}",
+        prompt_version="pilot-capture-v1",
+        image_model="test",
+        image_quality="medium",
+    )
+    db_session.add(stale)
+    db_session.flush()
+    done = SerialEpisode(
+        thread_id=thread.id,
+        episode_index=0,
+        kind="feuilleton",
+        scene_id=stale.id,
+        hook={},
+        hook_from_previous={},
+        state_delta={},
+        status="completed",
+        brief_payload={},
+    )
+    db_session.add(done)
+    db_session.commit()
+
+    assert service._supersede_incompatible_scene(done) is False
+    db_session.expire_all()
+    assert db_session.get(SerialEpisode, done.id).scene_id == stale.id
+
+
+def _legacy_scene(db_session, user, thread, *, episode_index: int, status: str, prompt_version: str = "legacy-v1"):
+    """A scene generated under a pre-rebuild prompt, linked to an episode."""
+    scene = GraphicNovelScene(
+        user_id=user.id,
+        serial_thread_id=thread.id,
+        episode_index=episode_index,
+        status="available",
+        cadence="daily",
+        title="Vieille planche",
+        brief="An episode composed under a retired prompt.",
+        selected_concept_ids=[],
+        target_errata_ids=[],
+        target_vocabulary_ids=[],
+        source_snapshot={},
+        script_payload={"title": "Vieille planche", "panels": [], "hook": {"text": "…", "next_beat_kind": "mission"}},
+        recap_payload={},
+        cache_key=f"serial-legacy-{uuid4().hex}",
+        prompt_version=prompt_version,
+        image_model="test",
+        image_quality="medium",
+    )
+    db_session.add(scene)
+    db_session.flush()
+    episode = SerialEpisode(
+        thread_id=thread.id,
+        episode_index=episode_index,
+        kind="feuilleton",
+        scene_id=scene.id,
+        hook={},
+        hook_from_previous={},
+        state_delta={},
+        status=status,
+        brief_payload={},
+    )
+    db_session.add(episode)
+    thread.current_episode_index = episode_index
+    db_session.add(thread)
+    db_session.commit()
+    return scene, episode
+
+
+def test_current_contract_scene_is_left_alone(db_session, monkeypatch):
+    monkeypatch.setattr(NewsService, "fetch_feuilleton_daily_seed", _fake_seed)
+    user = _user(db_session, email="serial-supersede-current@example.com")
+    service = SerialThreadService(db_session)
+    thread = _run(service.get_or_create_thread(user))
+    scene, episode = _legacy_scene(
+        db_session, user, thread, episode_index=3, status="available", prompt_version=GRAPHIC_NOVEL_PROMPT_VERSION
+    )
+
+    assert service._supersede_incompatible_scene(episode) is False
+    db_session.refresh(episode)
+    assert episode.scene_id == scene.id

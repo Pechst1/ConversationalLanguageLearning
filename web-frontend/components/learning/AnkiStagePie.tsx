@@ -12,7 +12,7 @@ type Props = {
 
 const COLORS = ['#2563eb', '#f97316', '#22c55e', '#eab308', '#9ca3af'];
 const stageLabel: Record<string, string> = {
-  new: 'Neu',
+  new: 'Nouveau',
   learning: 'In Bearbeitung',
   review: 'Review',
   relearn: 'Re-Learning',

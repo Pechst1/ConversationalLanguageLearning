@@ -8,7 +8,6 @@ from typing import Any
 
 from app.db.models.grammar import GrammarConcept
 
-
 _STOPWORDS = {
     "about",
     "after",

@@ -5,7 +5,7 @@ import re
 import unicodedata
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -17,7 +17,7 @@ from app.db.models.progress import UserVocabularyProgress
 from app.db.models.user import User
 from app.db.models.vocabulary import UserConjugationProgress, VerbConjugation, VocabularyWord
 from app.services.conjugation import CEFR_ORDER, CORE_TENSES, DISPLAY_TENSES
-
+from app.services.glosses import gloss_map, word_gloss
 
 NAILED_RETRIEVABILITY = 0.9
 NAILED_MIN_REVIEWS = 2
@@ -93,7 +93,7 @@ TAXONOMY_ALIASES = {
     "function": "function_words",
     "function words": "function_words",
 }
-VERB_GRAMMAR_CATEGORIES = {"tenses", "tense", "verbs", "verben", "conditionals", "conditionnel", "conditionals"}
+VERB_GRAMMAR_CATEGORIES = {"tenses", "tense", "verbs", "verben", "conditionals", "conditionnel"}
 FUNCTION_POS = {"adp", "det", "pron", "conj", "cconj", "sconj", "part", "aux", "interjection"}
 FUNCTION_WORDS = {
     "a",
@@ -544,7 +544,7 @@ def _retrievability(progress: UserVocabularyProgress | UserConjugationProgress, 
     if not stability or stability <= 0 or last_review is None:
         return None
     if last_review.tzinfo is None:
-        last_review = last_review.replace(tzinfo=timezone.utc)
+        last_review = last_review.replace(tzinfo=UTC)
     elapsed_days = max(0.0, (now - last_review).total_seconds() / 86_400)
     decay = -0.5
     factor = 0.9 ** (1 / decay) - 1
@@ -554,7 +554,7 @@ def _retrievability(progress: UserVocabularyProgress | UserConjugationProgress, 
 def is_vocab_nailed(progress: UserVocabularyProgress | None, *, now: datetime | None = None) -> bool:
     if progress is None:
         return False
-    now = now or datetime.now(timezone.utc)
+    now = now or datetime.now(UTC)
     state = (progress.state or "").lower()
     if progress.mastered_date or state in {"mastered", "gemeistert"}:
         return True
@@ -592,7 +592,7 @@ class VocabularyCoverageService:
         self.db = db
 
     def coverage(self, *, user: User) -> dict[str, Any]:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         words = self._word_items(user=user)
         categories = self._category_rollups(words=words, now=now)
         verb_lexicon = self._verb_lexicon_rollup(words=words, now=now)
@@ -624,7 +624,7 @@ class VocabularyCoverageService:
     ) -> list[dict[str, Any]]:
         """Return words the learner just nailed, plus a few due words if requested."""
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         target_language = (user.target_language or "fr").strip() or "fr"
         query = (
             self.db.query(UserVocabularyProgress, VocabularyWord)
@@ -650,7 +650,12 @@ class VocabularyCoverageService:
                 continue
             if word.id in seen:
                 continue
-            selected.append(self._serialize_word(word, progress, "recently_nailed" if is_vocab_nailed(progress, now=now) else "due"))
+            selected.append(self._serialize_word(
+                    word,
+                    progress,
+                    "recently_nailed" if is_vocab_nailed(progress, now=now) else "due",
+                    user.native_language,
+                ))
             seen.add(word.id)
             if len(selected) >= limit:
                 break
@@ -935,7 +940,7 @@ class VocabularyCoverageService:
             if value is None:
                 return None
             if value.tzinfo is None:
-                return value.replace(tzinfo=timezone.utc)
+                return value.replace(tzinfo=UTC)
             return value
 
         due_at = aware(progress.due_at)
@@ -947,12 +952,17 @@ class VocabularyCoverageService:
         return bool(progress.due_date and progress.due_date <= now.date())
 
     @staticmethod
-    def _serialize_word(word: VocabularyWord, progress: UserVocabularyProgress | None, bucket: str) -> dict[str, Any]:
+    def _serialize_word(
+        word: VocabularyWord,
+        progress: UserVocabularyProgress | None,
+        bucket: str,
+        native_language: str | None = None,
+    ) -> dict[str, Any]:
         return {
             "bucket": bucket,
             "word_id": word.id,
             "word": word.word,
-            "translation": word.german_translation or word.english_translation or word.french_translation,
+            "translation": word_gloss(word, native_language),
             "language": word.language,
             "direction": word.direction,
             "part_of_speech": word.part_of_speech,
@@ -966,11 +976,7 @@ class VocabularyCoverageService:
             "priority_score": 120 if bucket == "recently_nailed" else 80,
             "is_new": progress is None,
             "deck_name": word.deck_name,
-            "translations": {
-                "de": word.german_translation,
-                "en": word.english_translation,
-                "fr": word.french_translation,
-            },
+            "translations": gloss_map(word),
             "example_sentence": word.example_sentence,
             "example_translation": word.example_translation,
         }

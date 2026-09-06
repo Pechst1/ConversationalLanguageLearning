@@ -11,6 +11,7 @@ if sys.version_info >= (3, 14):
     )
 
 import spacy
+
 from app.core.conversation.generator import ConversationPlan, GeneratedTurn
 from app.core.error_detection import ErrorDetectionResult
 from app.core.error_detection.rules import DetectedError
@@ -42,7 +43,7 @@ class StubConversationGenerator:
 
     def generate_turn_with_context(self, **kwargs):  # type: ignore[no-untyped-def]
         self.calls += 1
-        plan = ConversationPlan(queue_items=tuple(), review_targets=[], new_targets=[])
+        plan = ConversationPlan(queue_items=(), review_targets=[], new_targets=[])
         return GeneratedTurn(
             text="Continuons à parler !",
             plan=plan,

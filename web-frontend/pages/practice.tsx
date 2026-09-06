@@ -314,7 +314,7 @@ export default function PracticePage({ queueWords = [], counters = EMPTY_COUNTER
     <div className="flex justify-end mb-4">
       <button
         onClick={toggleDirection}
-        className="flex items-center gap-2 bg-white px-4 py-2 border-2 border-black font-bold text-sm uppercase shadow-[4px_4px_0px_0px_#000] hover:-translate-y-1 hover:shadow-[6px_6px_0px_0px_#000] active:translate-y-0 active:shadow-[2px_2px_0px_0px_#000] transition-all"
+        className="flex items-center gap-2 bg-[var(--app-sheet)] px-4 py-2 border border-[var(--app-ink)] font-bold text-sm uppercase hover:-translate-y-1 active:translate-y-0 transition-all"
       >
         <RefreshCw className="w-4 h-4" />
         Switch to {direction === 'fr_to_de' ? 'DE → FR' : 'FR → DE'}
@@ -326,15 +326,15 @@ export default function PracticePage({ queueWords = [], counters = EMPTY_COUNTER
     return (
       <div className="max-w-2xl mx-auto p-4 space-y-8">
         <AnkiSync onSyncComplete={() => void handleRefreshQueue()} />
-        <div className="mt-8 text-center bg-white border-4 border-black p-12 shadow-[12px_12px_0px_0px_#000]">
+        <div className="mt-8 text-center bg-[var(--app-sheet)] border border-[var(--app-ink)] p-12">
           <h1 className="text-5xl font-black mb-4 uppercase tracking-tighter">No Words</h1>
-          <p className="text-xl font-bold mb-8 text-gray-600">
+          <p className="text-xl font-bold mb-8 text-[var(--app-ink-2)]">
             You&apos;re all caught up for now. Great job!
           </p>
           <button
             onClick={() => void handleRefreshQueue()}
             disabled={isLoadingDirection}
-            className="bg-bauhaus-yellow text-black border-4 border-black font-black text-xl px-8 py-4 uppercase tracking-widest hover:-translate-y-2 hover:shadow-[8px_8px_0px_0px_#000] transition-all disabled:opacity-50"
+            className="bg-[var(--app-yellow)] text-[var(--app-ink)] border border-[var(--app-ink)] font-black text-xl px-8 py-4 uppercase tracking-widest hover:-translate-y-2 transition-all disabled:opacity-50"
           >
             {isLoadingDirection ? 'Checking...' : 'Check Again'}
           </button>
@@ -346,18 +346,18 @@ export default function PracticePage({ queueWords = [], counters = EMPTY_COUNTER
   if (completed) {
     return (
       <div className="max-w-2xl mx-auto text-center p-4">
-        <div className="bg-white border-4 border-black p-12 shadow-[12px_12px_0px_0px_#000]">
-          <div className="bg-bauhaus-green w-24 h-24 mx-auto mb-6 flex items-center justify-center border-4 border-black shadow-[4px_4px_0px_0px_#000]">
-            <CheckCircle className="h-12 w-12 text-black" />
+        <div className="bg-[var(--app-sheet)] border border-[var(--app-ink)] p-12">
+          <div className="bg-[var(--app-green)] w-24 h-24 mx-auto mb-6 flex items-center justify-center border border-[var(--app-ink)]">
+            <CheckCircle className="h-12 w-12 text-[var(--app-ink)]" />
           </div>
           <h1 className="text-5xl font-black mb-4 uppercase tracking-tighter">Complete</h1>
-          <p className="text-3xl font-black mb-2 bg-bauhaus-yellow inline-block px-4 py-1 border-2 border-black rotate-2 shadow-[4px_4px_0px_0px_#000]">
+          <p className="text-3xl font-black mb-2 bg-[var(--app-yellow)] inline-block px-4 py-1 border border-[var(--app-ink)] rotate-2">
             Score: {score}/{finalTotal}
           </p>
-          <p className="text-gray-600 font-bold mt-6 mb-8">Session complete. See you next time!</p>
+          <p className="text-[var(--app-ink-2)] font-bold mt-6 mb-8">Session complete. See you next time!</p>
           <button
             onClick={() => window.location.href = '/learn'}
-            className="bg-bauhaus-blue text-white border-4 border-black font-black text-xl px-8 py-4 uppercase tracking-widest hover:-translate-y-2 hover:shadow-[8px_8px_0px_0px_#000] transition-all"
+            className="bg-[var(--app-blue)] text-[var(--app-paper)] border border-[var(--app-ink)] font-black text-xl px-8 py-4 uppercase tracking-widest hover:-translate-y-2 transition-all"
           >
             Back to Learning
           </button>
@@ -369,7 +369,7 @@ export default function PracticePage({ queueWords = [], counters = EMPTY_COUNTER
   if (!currentWord) {
     return (
       <div className="max-w-2xl mx-auto text-center p-4">
-        <div className="bg-white border-4 border-black p-8 shadow-[8px_8px_0px_0px_#000] animate-pulse">
+        <div className="bg-[var(--app-sheet)] border border-[var(--app-ink)] p-8 animate-pulse">
           <h1 className="text-2xl font-black uppercase">Loading...</h1>
         </div>
       </div>
@@ -404,9 +404,9 @@ export default function PracticePage({ queueWords = [], counters = EMPTY_COUNTER
           <span>Progress</span>
           <span>{Math.min(currentWordIndex + 1, localQueue.length)} / {localQueue.length || finalTotal}</span>
         </div>
-        <div className="w-full bg-gray-200 border-4 border-black h-6 p-0.5">
+        <div className="w-full bg-[var(--app-paper-3)] border border-[var(--app-ink)] h-6 p-0.5">
           <div
-            className="bg-bauhaus-blue h-full transition-all duration-300 border-r-2 border-black"
+            className="bg-[var(--app-blue)] h-full transition-all duration-300 border-r-2 border-[var(--app-ink)]"
             style={{
               width: `${localQueue.length
                 ? Math.min(((currentWordIndex + 1) / localQueue.length) * 100, 100)
@@ -418,17 +418,17 @@ export default function PracticePage({ queueWords = [], counters = EMPTY_COUNTER
       </div>
 
       <div className="relative group">
-        <div className="bg-white border-4 border-black p-8 min-h-[400px] flex flex-col justify-between shadow-[12px_12px_0px_0px_#000] transition-transform duration-300 group-hover:-translate-y-1 group-hover:shadow-[16px_16px_0px_0px_#000]">
+        <div className="bg-[var(--app-sheet)] border border-[var(--app-ink)] p-8 min-h-[400px] flex flex-col justify-between transition-transform duration-300 group-hover:-translate-y-1">
 
           <div className="space-y-6">
             <div className="flex justify-center gap-2">
               {cleanedState && (
-                <span className="px-3 py-1 bg-bauhaus-yellow border-2 border-black font-bold text-xs uppercase tracking-wider shadow-[2px_2px_0px_0px_#000]">
+                <span className="px-3 py-1 bg-[var(--app-yellow)] border border-[var(--app-ink)] font-bold text-xs uppercase tracking-wider">
                   {cleanedState}
                 </span>
               )}
               {currentWord.scheduler === 'anki' && (
-                <span className="px-3 py-1 bg-bauhaus-blue text-white border-2 border-black font-bold text-xs uppercase tracking-wider shadow-[2px_2px_0px_0px_#000]">
+                <span className="px-3 py-1 bg-[var(--app-blue)] text-[var(--app-paper)] border border-[var(--app-ink)] font-bold text-xs uppercase tracking-wider">
                   ANKI
                 </span>
               )}
@@ -439,7 +439,7 @@ export default function PracticePage({ queueWords = [], counters = EMPTY_COUNTER
             </h2>
 
             {!showAnswer && (
-              <p className="text-center text-gray-500 font-bold uppercase tracking-widest text-sm">
+              <p className="text-center text-[var(--app-ink-3)] font-bold uppercase tracking-widest text-sm">
                 How well do you know this word?
               </p>
             )}
@@ -450,15 +450,15 @@ export default function PracticePage({ queueWords = [], counters = EMPTY_COUNTER
               <div className="text-center">
                 <button
                   onClick={handleShowTranslation}
-                  className="w-full bg-black text-white hover:bg-bauhaus-red border-4 border-transparent hover:border-black transition-all font-black text-2xl py-6 uppercase tracking-widest shadow-[4px_4px_0px_0px_rgba(0,0,0,0)] hover:shadow-[8px_8px_0px_0px_#000]"
+                  className="w-full bg-[var(--app-ink)] text-[var(--app-paper)] hover:bg-[var(--app-red)] border-4 border-transparent hover:border-[var(--app-ink)] transition-all font-black text-2xl py-6 uppercase tracking-widest"
                 >
                   Reveal
                 </button>
               </div>
             ) : (
               <>
-                <div className="text-center p-6 bg-gray-100 border-4 border-black shadow-[4px_4px_0px_0px_#000]">
-                  <p className="text-3xl font-black text-black">
+                <div className="text-center p-6 bg-[var(--app-paper-2)] border border-[var(--app-ink)]">
+                  <p className="text-3xl font-black text-[var(--app-ink)]">
                     {currentWord.translation}
                   </p>
                 </div>
@@ -466,25 +466,25 @@ export default function PracticePage({ queueWords = [], counters = EMPTY_COUNTER
                 <div className="grid grid-cols-2 gap-4">
                   <button
                     onClick={() => handleRating(0)}
-                    className="p-4 bg-white border-4 border-black hover:bg-bauhaus-red hover:text-white transition-all font-black text-lg uppercase shadow-[4px_4px_0px_0px_#000] hover:shadow-[6px_6px_0px_0px_#000] hover:-translate-y-1 active:translate-y-0 active:shadow-[2px_2px_0px_0px_#000]"
+                    className="p-4 bg-[var(--app-sheet)] border border-[var(--app-ink)] hover:bg-[var(--app-red)] hover:text-[var(--app-paper)] transition-all font-black text-lg uppercase hover:-translate-y-1 active:translate-y-0"
                   >
                     Again
                   </button>
                   <button
                     onClick={() => handleRating(1)}
-                    className="p-4 bg-white border-4 border-black hover:bg-bauhaus-yellow hover:text-black transition-all font-black text-lg uppercase shadow-[4px_4px_0px_0px_#000] hover:shadow-[6px_6px_0px_0px_#000] hover:-translate-y-1 active:translate-y-0 active:shadow-[2px_2px_0px_0px_#000]"
+                    className="p-4 bg-[var(--app-sheet)] border border-[var(--app-ink)] hover:bg-[var(--app-yellow)] hover:text-[var(--app-ink)] transition-all font-black text-lg uppercase hover:-translate-y-1 active:translate-y-0"
                   >
                     Hard
                   </button>
                   <button
                     onClick={() => handleRating(2)}
-                    className="p-4 bg-white border-4 border-black hover:bg-bauhaus-blue hover:text-white transition-all font-black text-lg uppercase shadow-[4px_4px_0px_0px_#000] hover:shadow-[6px_6px_0px_0px_#000] hover:-translate-y-1 active:translate-y-0 active:shadow-[2px_2px_0px_0px_#000]"
+                    className="p-4 bg-[var(--app-sheet)] border border-[var(--app-ink)] hover:bg-[var(--app-blue)] hover:text-[var(--app-paper)] transition-all font-black text-lg uppercase hover:-translate-y-1 active:translate-y-0"
                   >
                     Good
                   </button>
                   <button
                     onClick={() => handleRating(3)}
-                    className="p-4 bg-white border-4 border-black hover:bg-green-500 hover:text-black transition-all font-black text-lg uppercase shadow-[4px_4px_0px_0px_#000] hover:shadow-[6px_6px_0px_0px_#000] hover:-translate-y-1 active:translate-y-0 active:shadow-[2px_2px_0px_0px_#000]"
+                    className="p-4 bg-[var(--app-sheet)] border border-[var(--app-ink)] hover:bg-green-500 hover:text-[var(--app-ink)] transition-all font-black text-lg uppercase hover:-translate-y-1 active:translate-y-0"
                   >
                     Easy
                   </button>
@@ -496,13 +496,13 @@ export default function PracticePage({ queueWords = [], counters = EMPTY_COUNTER
       </div>
 
       {lastReviewFeedback && (
-        <div className="border-4 border-black bg-bauhaus-yellow p-4 shadow-[8px_8px_0px_0px_#000]">
-          <p className="font-black uppercase tracking-widest text-xs mb-2 border-b-2 border-black pb-1 inline-block">
+        <div className="border border-[var(--app-ink)] bg-[var(--app-yellow)] p-4">
+          <p className="font-black uppercase tracking-widest text-xs mb-2 border-b-2 border-[var(--app-ink)] pb-1 inline-block">
             Last Review
           </p>
           <div className="flex flex-col gap-1">
             <p className="font-black text-xl">{lastReviewFeedback.word}</p>
-            <p className="font-medium text-sm border-l-4 border-black pl-3 py-1 bg-white/50">
+            <p className="font-medium text-sm border-l-4 border-[var(--app-ink)] pl-3 py-1 bg-[var(--app-sheet)]/50">
               {lastReviewFeedback.message}
             </p>
           </div>

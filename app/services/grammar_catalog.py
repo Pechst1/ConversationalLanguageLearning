@@ -5,11 +5,19 @@ import csv
 from pathlib import Path
 from typing import Any
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.db.models.grammar import GrammarConcept, GrammarConceptArchive, GrammarConceptLocalization
 
 FRENCH_CORE_CATALOG_VERSION = "french_core_grammar_v1"
+
+# Legacy rows spell the language every which way ("fr", "French", "Français").
+# Archival used to match "fr" exactly, so two pre-catalog rows stored as
+# "French" stayed active forever: /grammar/summary counted 56 concepts while the
+# Cahier index (which filters on the catalog version) listed 54, and Le Relevé
+# printed "N / 56" against an index of 54.
+FRENCH_LANGUAGE_ALIASES: tuple[str, ...] = ("fr", "fra", "fre", "french", "francais", "français")
 
 SOURCE_REFERENCE_URLS = {
     "cefr": "https://www.service-public.gouv.fr/particuliers/vosdroits/F34739?lang=en&successfulShare=true",
@@ -40,6 +48,22 @@ GERMAN_CATEGORY_LABELS = {
     "Syntax": "Satzbau",
     "Tenses": "Zeiten",
     "Verbs": "Verben",
+}
+
+FRENCH_CATEGORY_LABELS = {
+    "Agreement": "Accord",
+    "Articles": "Articles",
+    "Comparison": "Comparaison",
+    "Conditionals": "Conditionnelles",
+    "Connectors": "Connecteurs",
+    "Determiners": "Déterminants",
+    "Negation": "Négation",
+    "Prepositions": "Prépositions",
+    "Pronouns": "Pronoms",
+    "Relative clauses": "Relatives",
+    "Syntax": "Syntaxe",
+    "Tenses": "Temps",
+    "Verbs": "Verbes",
 }
 
 
@@ -113,7 +137,10 @@ class FrenchCoreGrammarCatalog:
             "urls": [SOURCE_REFERENCE_URLS[code] for code in source_codes if code in SOURCE_REFERENCE_URLS],
             "blueprint_seed": {
                 "display_title": row.get("name_en", "").strip(),
-                "localized_titles": {"de": row.get("name_de", "").strip()},
+                "localized_titles": {
+                    "de": row.get("name_de", "").strip(),
+                    "fr": row.get("name_fr", "").strip(),
+                },
                 "when_to_use": row.get("when_to_use", "").strip(),
                 "pattern": row.get("pattern", "").strip(),
                 "contrast_rules": _split(row.get("contrast_rules")),
@@ -136,6 +163,7 @@ class FrenchCoreGrammarCatalog:
             "subskill": row.get("subskill", "").strip() or None,
             "name": row.get("name_en", "").strip(),
             "title_de": row.get("name_de", "").strip(),
+            "title_fr": row.get("name_fr", "").strip(),
             "difficulty_order": int(row.get("teaching_order") or 0),
             "is_foundation": _parse_bool(row.get("is_foundation")),
             "core_rule": row.get("core_rule", "").strip(),
@@ -183,27 +211,54 @@ class FrenchCoreGrammarCatalog:
         return concepts
 
     def _upsert_localization(self, concept: GrammarConcept, row: dict[str, Any]) -> None:
+        self._upsert_locale_row(
+            concept,
+            locale="de",
+            title=row["title_de"] or row["name"],
+            category_label=GERMAN_CATEGORY_LABELS.get(row["category"] or ""),
+            subskill_label=row["title_de"] or row["subskill"],
+            short_description=row["core_rule"],
+        )
+        self._upsert_locale_row(
+            concept,
+            locale="fr",
+            title=row["title_fr"] or row["name"],
+            category_label=FRENCH_CATEGORY_LABELS.get(row["category"] or ""),
+            subskill_label=row["title_fr"] or row["subskill"],
+            short_description=row["core_rule"],
+        )
+
+    def _upsert_locale_row(
+        self,
+        concept: GrammarConcept,
+        *,
+        locale: str,
+        title: str,
+        category_label: str | None,
+        subskill_label: str | None,
+        short_description: str | None,
+    ) -> None:
         localization = (
             self.db.query(GrammarConceptLocalization)
             .filter(
                 GrammarConceptLocalization.concept_id == concept.id,
-                GrammarConceptLocalization.locale == "de",
+                GrammarConceptLocalization.locale == locale,
             )
             .first()
         )
         if not localization:
-            localization = GrammarConceptLocalization(concept_id=concept.id, locale="de", title=row["title_de"])
+            localization = GrammarConceptLocalization(concept_id=concept.id, locale=locale, title=title)
             self.db.add(localization)
-        localization.title = row["title_de"] or row["name"]
-        localization.category_label = GERMAN_CATEGORY_LABELS.get(row["category"] or "")
-        localization.subskill_label = row["title_de"] or row["subskill"]
-        localization.short_description = row["core_rule"]
+        localization.title = title
+        localization.category_label = category_label
+        localization.subskill_label = subskill_label
+        localization.short_description = short_description
 
     def _archive_legacy_concepts(self, active_external_ids: set[str]) -> None:
         legacy_rows = (
             self.db.query(GrammarConcept)
             .filter(
-                GrammarConcept.language == "fr",
+                func.lower(func.trim(GrammarConcept.language)).in_(FRENCH_LANGUAGE_ALIASES),
                 GrammarConcept.active.is_(True),
             )
             .all()

@@ -1,15 +1,20 @@
 """Tests for the explainable grammar notebook API."""
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
 from fastapi.testclient import TestClient
 
 from app.core.security import decode_token
-from app.db.models.error import UserError
 from app.db.models.atelier import AtelierConceptBlueprint
-from app.db.models.grammar import GrammarConcept, GrammarConceptArchive, GrammarConceptLocalization, UserGrammarProgress
+from app.db.models.error import UserError
+from app.db.models.grammar import (
+    GrammarConcept,
+    GrammarConceptArchive,
+    GrammarConceptLocalization,
+    UserGrammarProgress,
+)
 from app.db.models.user import User
 from app.services.atelier_assets import AtelierAssetService
 from app.services.grammar_catalog import FRENCH_CORE_CATALOG_VERSION, FrenchCoreGrammarCatalog
@@ -45,7 +50,7 @@ def test_grammar_notebook_list_and_detail_include_blueprint_progress_and_errata(
     token = _token(client)
     user = _user_from_token(db_session, token)
     concept = _notebook_concept(db_session)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     progress = UserGrammarProgress(
         user_id=user.id,
@@ -101,7 +106,7 @@ def test_grammar_notebook_list_and_detail_include_blueprint_progress_and_errata(
     items = list_response.json()
     item = next(row for row in items if row["id"] == concept.id)
     assert item["mastery"] == 6.0
-    assert item["state_label"] == "In Arbeit"
+    assert item["state_label"] == "En cours"
     assert item["due_errata_count"] == 1
     assert item["recent_errata_count"] == 1
     assert item["motif"]["style"] == "atelier_bauhaus_v1"
@@ -149,6 +154,13 @@ def test_grammar_notebook_catalog_is_curated_archives_legacy_and_localizes(clien
     first = next(item for item in items if item["external_id"] == "FR_B1_COND_001")
     assert first["display_title"] == "Si-Satz Typ 1: Präsens und Futur"
     assert first["localized_title"] == "Si-Satz Typ 1: Präsens und Futur"
+
+    fr_response = client.get("/api/v1/grammar/notebook", params={"locale": "fr", "limit": 100})
+    assert fr_response.status_code == 200
+    fr_first = next(item for item in fr_response.json() if item["external_id"] == "FR_B1_COND_001")
+    assert fr_first["display_title"] == "Si + présent → futur (condition réelle)"
+    assert fr_first["localized_title"] == "Si + présent → futur (condition réelle)"
+    assert fr_first["localized_category"] == "Conditionnelles"
     db_session.refresh(legacy)
     assert legacy.active is False
     archive = (
@@ -158,6 +170,7 @@ def test_grammar_notebook_catalog_is_curated_archives_legacy_and_localizes(clien
     )
     assert archive.archive_reason == "not_in_focused_french_core_catalog"
     assert db_session.query(GrammarConceptLocalization).filter(GrammarConceptLocalization.locale == "de").count() >= len(items)
+    assert db_session.query(GrammarConceptLocalization).filter(GrammarConceptLocalization.locale == "fr").count() >= len(items)
 
 
 def test_grammar_notebook_uses_local_demo_user_without_auth(client: TestClient):
@@ -170,7 +183,7 @@ def test_grammar_notebook_notes_patch_does_not_record_review(client: TestClient,
     token = _token(client)
     user = _user_from_token(db_session, token)
     concept = _notebook_concept(db_session)
-    next_review = datetime.now(timezone.utc) + timedelta(days=5)
+    next_review = datetime.now(UTC) + timedelta(days=5)
     progress = UserGrammarProgress(
         user_id=user.id,
         concept_id=concept.id,
@@ -192,7 +205,7 @@ def test_grammar_notebook_notes_patch_does_not_record_review(client: TestClient,
     db_session.refresh(progress)
     assert progress.notes == "Future after si is wrong."
     assert progress.reps == 3
-    assert progress.next_review.replace(tzinfo=timezone.utc) == next_review
+    assert progress.next_review.replace(tzinfo=UTC) == next_review
     assert response.json()["personal_notes"] == "Future after si is wrong."
 
 
@@ -287,3 +300,96 @@ def test_generated_blueprint_has_specific_content_and_unique_motif(db_session):
     assert len(first_payload["sentence_xray"]["marks"]) >= 2
     assert first_payload["visual_motif"]["signature"] != second_payload["visual_motif"]["signature"]
     assert db_session.query(AtelierConceptBlueprint).filter(AtelierConceptBlueprint.concept_id == first.id).count() == 1
+
+
+def test_grammar_summary_denominator_matches_the_notebook_index(client: TestClient, db_session) -> None:
+    """Le Relevé and the Cahier index must count the same catalog.
+
+    A legacy row stored with `language="French"` slipped past the archival sweep
+    (it matched `language == "fr"` exactly), so it stayed active forever:
+    /grammar/summary counted it and Le Relevé printed "N / 56" while the Cahier
+    index, which filters on the catalog version, listed 54 fiches.
+    """
+    stray = GrammarConcept(
+        external_id=f"FR_LEGACY_{uuid4().hex[:6]}",
+        language="French",  # the spelling that used to escape archival
+        name="Legacy partitive rule",
+        level="A1",
+        category="Articles",
+        subskill="legacy",
+        active=True,
+    )
+    db_session.add(stray)
+    db_session.commit()
+
+    token = _token(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    notebook = client.get("/api/v1/grammar/notebook?limit=500", headers=headers)
+    assert notebook.status_code == 200
+    summary = client.get("/api/v1/grammar/summary", headers=headers)
+    assert summary.status_code == 200
+
+    body = summary.json()
+    assert body["total_concepts"] == len(notebook.json())
+    assert sum(body["level_counts"].values()) == body["total_concepts"]
+
+    db_session.refresh(stray)
+    assert stray.active is False
+
+
+def test_notebook_notes_hide_review_provenance_and_survive_a_seance(client: TestClient, db_session) -> None:
+    """`UserGrammarProgress.notes` is shared by the learner and the recorders.
+
+    The Atelier stamps "Atelier session <uuid>" into the same column the Cahier
+    reads as "Notes en marge", so the fiche printed a session UUID as the
+    learner's own note and every séance silently overwrote whatever they wrote.
+    """
+    from app.services.grammar import GrammarService
+
+    token = _token(client)
+    headers = {"Authorization": f"Bearer {token}"}
+    user = _user_from_token(db_session, token)
+
+    concept = (
+        db_session.query(GrammarConcept)
+        .filter(GrammarConcept.catalog_version == FRENCH_CORE_CATALOG_VERSION)
+        .order_by(GrammarConcept.id)
+        .first()
+    )
+    assert concept is not None
+
+    service = GrammarService(db_session)
+    # A séance runs before the learner has written anything.
+    service.record_review(user=user, concept_id=concept.id, score=6.0, notes=f"Atelier session {uuid4()}")
+
+    fiche = client.get(f"/api/v1/grammar/notebook/{concept.id}", headers=headers).json()
+    assert fiche["personal_notes"] is None
+    assert fiche["progress"]["notes"] is None
+
+    saved = client.patch(
+        f"/api/v1/grammar/notebook/{concept.id}/notes",
+        headers=headers,
+        json={"notes": "Ma note perso : futur après si."},
+    )
+    assert saved.status_code == 200
+    assert saved.json()["personal_notes"] == "Ma note perso : futur après si."
+
+    # A later séance must not clobber it.
+    service.record_review(user=user, concept_id=concept.id, score=7.0, notes=f"Atelier session {uuid4()}")
+    after = client.get(f"/api/v1/grammar/notebook/{concept.id}", headers=headers).json()
+    assert after["personal_notes"] == "Ma note perso : futur après si."
+
+
+def test_notebook_rows_carry_french_titles_in_every_locale(client: TestClient) -> None:
+    """The Cahier index speaks French whatever the instructional locale is."""
+    token = _token(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    for locale in ("en", "fr"):
+        rows = client.get(f"/api/v1/grammar/notebook?locale={locale}&limit=500", headers=headers)
+        assert rows.status_code == 200
+        payload = rows.json()
+        assert payload
+        assert all(row["title_fr"] for row in payload), locale
+        assert all(row["category_label_fr"] for row in payload), locale

@@ -1,7 +1,7 @@
 """Tests for Celery background tasks."""
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
@@ -19,6 +19,7 @@ from app.tasks.analytics import (
     generate_daily_snapshots,
     generate_user_snapshot,
 )
+from app.tasks.notifications import send_streak_reminders
 from app.tasks.serial_generation import generate_scene_images
 
 
@@ -62,8 +63,8 @@ def active_user(db_session):
         accuracy_rate=0.85,
         xp_earned=120,
         status="completed",
-        started_at=datetime.now(timezone.utc) - timedelta(days=1, hours=1),
-        completed_at=datetime.now(timezone.utc) - timedelta(days=1),
+        started_at=datetime.now(UTC) - timedelta(days=1, hours=1),
+        completed_at=datetime.now(UTC) - timedelta(days=1),
         new_words_introduced=3,
         words_practiced=6,
     )
@@ -120,6 +121,25 @@ def test_cleanup_old_snapshots(db_session, task_session_factory, active_user):
     assert result["deleted"] >= 1
     remaining = db_session.query(AnalyticsSnapshot).filter_by(user_id=active_user.id).all()
     assert all(item.snapshot_date >= date.today() - timedelta(days=365) for item in remaining)
+
+
+def test_streak_reminder_task_delivers_instead_of_only_logging(
+    task_session_factory,
+    active_user,
+):
+    with patch(
+        "app.tasks.notifications.SessionLocal",
+        side_effect=task_session_factory,
+    ), patch(
+        "app.services.notification_service.NotificationService.send_notification",
+        return_value=1,
+    ) as send:
+        result = send_streak_reminders.run()
+
+    assert result["eligible_users"] >= 1
+    assert result["notifications_sent"] >= 1
+    assert send.call_args.kwargs["data"] == {"route": "/atelier"}
+    assert str(active_user.current_streak) in send.call_args.kwargs["message"]
 
 
 def test_generate_scene_images_task_renders_queued_panels(db_session, task_session_factory, active_user, monkeypatch):
@@ -231,6 +251,6 @@ def test_generate_scene_images_task_renders_queued_panels(db_session, task_sessi
     assert panel.image_url == "/assets/generated/panel-1.png"
     assert panel.audio_payload["status"] == "available"
     assert panel.audio_payload["url"].startswith("data:audio/mpeg;base64,")
-    assert notification_calls and notification_calls[0][2] == "Episode 2 is ready"
+    assert notification_calls and notification_calls[0][2] == "Épisode 2 disponible"
     assert panel.generation_metadata["image_status"] == "available"
     assert image_mock.await_count == 1

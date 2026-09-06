@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { STORY_FEATURE_VISIBLE } from '@/lib/launch-flags';
 import { cn } from '@/lib/utils';
 
-export type NotebookMode = 'grammar' | 'vocabulary' | 'library';
+export type NotebookMode = 'grammar' | 'vocabulary' | 'library' | 'progress';
 
 export interface NotebookModeSwitchProps extends React.HTMLAttributes<HTMLElement> {
   active: NotebookMode;

@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
+import { Capacitor } from '@capacitor/core';
 import toast from 'react-hot-toast';
 import {
     User,
@@ -29,6 +31,7 @@ import {
 } from '@/lib/app-preferences';
 import { apiService as api } from '@/services/api';
 import { appSignOut, useAppSession } from '@/lib/app-auth';
+import { nativePushIsAvailable, registerNativePushToken } from '@/lib/native-push';
 
 interface UserSettings {
     // Profile
@@ -45,7 +48,6 @@ interface UserSettings {
     dailyGoalXP: number;
     newWordsPerDay: number;
     defaultVocabDirection: string;
-    preferredSessionLength: number;
 
     // Notifications
     practiceReminders: boolean;
@@ -82,7 +84,6 @@ const defaultSettings: UserSettings = {
     dailyGoalXP: 50,
     newWordsPerDay: 10,
     defaultVocabDirection: 'fr_to_de',
-    preferredSessionLength: 10,
     practiceReminders: true,
     reminderTime: '09:00',
     streakNotifications: true,
@@ -100,35 +101,71 @@ const defaultSettings: UserSettings = {
 };
 
 const proficiencyLevels = [
-    { value: 'A1', label: 'A1 - Beginner', description: 'Basic phrases and expressions' },
-    { value: 'A2', label: 'A2 - Elementary', description: 'Simple everyday communication' },
-    { value: 'B1', label: 'B1 - Intermediate', description: 'Handle most travel situations' },
-    { value: 'B2', label: 'B2 - Upper Intermediate', description: 'Interact with native speakers' },
-    { value: 'C1', label: 'C1 - Advanced', description: 'Complex texts and discussions' },
-    { value: 'C2', label: 'C2 - Mastery', description: 'Near-native proficiency' },
+    { value: 'A1', label: 'A1 · Début', description: 'Phrases et expressions essentielles' },
+    { value: 'A2', label: 'A2 · Élémentaire', description: 'Échanges simples du quotidien' },
+    { value: 'B1', label: 'B1 · Intermédiaire', description: 'Se débrouiller dans la plupart des situations' },
+    { value: 'B2', label: 'B2 · Indépendant', description: 'Échanger avec spontanéité' },
+    { value: 'C1', label: 'C1 · Avancé', description: 'Textes et discussions complexes' },
+    { value: 'C2', label: 'C2 · Maîtrise', description: 'Aisance proche d’un locuteur natif' },
 ];
 
 const cefrSublevels = ['A1.1', 'A1.2', 'A2.1', 'A2.2', 'B1.1', 'B1.2', 'B2.1', 'B2.2'];
 
 const languages = [
-    { value: 'de', label: 'Deutsch (German)' },
-    { value: 'en', label: 'English' },
-    { value: 'fr', label: 'Français (French)' },
-    { value: 'es', label: 'Español (Spanish)' },
-    { value: 'it', label: 'Italiano (Italian)' },
+    { value: 'de', label: 'Allemand' },
+    { value: 'en', label: 'Anglais' },
+    { value: 'fr', label: 'Français' },
+    { value: 'es', label: 'Espagnol' },
+    { value: 'it', label: 'Italien' },
 ];
 
+// The vocabulary table only stores German, English and French glosses, so the
+// card direction can only ever pair French with German or English. This list
+// used to be hardcoded to the German pair: an English native (the signup
+// default) was shown "Français → allemand" and, worse, the save payload then
+// carried their stored `fr_to_en` into a schema that rejected it — every save
+// on this page returned 422. Options now follow the langue d'appui.
+const glossLanguages: Record<string, { label: string; lowercase: string }> = {
+    de: { label: 'Allemand', lowercase: 'allemand' },
+    en: { label: 'Anglais', lowercase: 'anglais' },
+};
+
+function glossLanguageFor(nativeLanguage: string) {
+    return nativeLanguage === 'de' ? 'de' : 'en';
+}
+
+function vocabDirectionOptions(nativeLanguage: string) {
+    const code = glossLanguageFor(nativeLanguage);
+    const { label, lowercase } = glossLanguages[code];
+    return [
+        { value: `fr_to_${code}`, label: `Français → ${lowercase}` },
+        { value: `${code}_to_fr`, label: `${label} → français` },
+        { value: 'mixed', label: 'Alterné' },
+    ];
+}
+
+// Keep a stored direction on the pair the langue d'appui actually supports,
+// preserving which way round the learner reads their cards.
+function normalizeVocabDirection(direction: string, nativeLanguage: string) {
+    const code = glossLanguageFor(nativeLanguage);
+    if (direction === 'mixed') return 'mixed';
+    if (vocabDirectionOptions(nativeLanguage).some((option) => option.value === direction)) {
+        return direction;
+    }
+    return direction.endsWith('_to_fr') ? `${code}_to_fr` : `fr_to_${code}`;
+}
+
 const interestTopicPresets = [
-    'technology',
-    'business',
-    'travel',
-    'sports',
-    'politics',
-    'science',
+    'technologie',
+    'travail',
+    'voyage',
+    'sport',
+    'politique',
+    'sciences',
     'culture',
-    'finance',
-    'health',
-    'food',
+    'économie',
+    'santé',
+    'cuisine',
 ];
 
 interface SettingsPageProps {
@@ -139,6 +176,7 @@ interface SettingsPageProps {
 type SettingsSection = 'profile' | 'learning' | 'practice' | 'notifications' | 'appearance' | 'audio' | 'privacy';
 
 export default function SettingsPage({ userEmail, userName }: SettingsPageProps) {
+    const router = useRouter();
     const { data: session } = useAppSession();
     const [settings, setSettings] = useState<UserSettings>({
         ...defaultSettings,
@@ -156,6 +194,15 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
     const [privacyAction, setPrivacyAction] = useState<'export' | 'signout' | 'delete' | null>(null);
     const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '' });
     const [emailForm, setEmailForm] = useState({ currentPassword: '', newEmail: '' });
+    const [isAdmin, setIsAdmin] = useState(false);
+
+    useEffect(() => {
+        if (!router.isReady) return;
+        const requested = String(router.query.section || '');
+        if (['profile', 'learning', 'practice', 'notifications', 'appearance', 'audio', 'privacy'].includes(requested)) {
+            setActiveSection(requested as SettingsSection);
+        }
+    }, [router.isReady, router.query.section]);
 
     useEffect(() => {
         setSettings((prev) => ({
@@ -172,6 +219,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
             setSettingsLoadError(null);
             try {
                 const user: any = await api.getSettings();
+                setIsAdmin(user.role === 'admin');
                 const loadedTheme = (user.theme || 'system') as AppTheme;
                 const loadedFontSize = (user.font_size || 'medium') as AppFontSize;
                 setSettings(prev => ({
@@ -190,8 +238,10 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                     dailyGoalMinutes: user.daily_goal_minutes || prev.dailyGoalMinutes,
                     dailyGoalXP: user.daily_goal_xp || prev.dailyGoalXP,
                     newWordsPerDay: user.new_words_per_day || prev.newWordsPerDay,
-                    defaultVocabDirection: user.default_vocab_direction || prev.defaultVocabDirection,
-                    preferredSessionLength: user.preferred_session_time ? 15 : prev.preferredSessionLength, // Approx mapping
+                    defaultVocabDirection: normalizeVocabDirection(
+                        user.default_vocab_direction || prev.defaultVocabDirection,
+                        user.native_language || prev.nativeLanguage,
+                    ),
 
                     practiceReminders: user.practice_reminders ?? prev.practiceReminders,
                     reminderTime: user.reminder_time || prev.reminderTime,
@@ -214,7 +264,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                 persistVisualSettings(loadedTheme, loadedFontSize);
             } catch (error) {
                 console.error('Failed to load user settings:', error);
-                setSettingsLoadError('Could not load your saved settings. Retry before editing so defaults are not saved over your preferences.');
+                setSettingsLoadError('Votre dossier n’a pas pu être chargé. Réessayez avant de modifier vos préférences.');
             } finally {
                 setIsLoading(false);
             }
@@ -232,9 +282,20 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
         setHasChanges(true);
     };
 
+    // Changing the langue d'appui changes which gloss pair exists, so carry the
+    // card direction across instead of leaving a value no option can match.
+    const updateNativeLanguage = (nativeLanguage: string) => {
+        setSettings(prev => ({
+            ...prev,
+            nativeLanguage,
+            defaultVocabDirection: normalizeVocabDirection(prev.defaultVocabDirection, nativeLanguage),
+        }));
+        setHasChanges(true);
+    };
+
     const saveSettings = async () => {
         if (settingsLoadError) {
-            toast.error('Reload settings before saving changes.');
+            toast.error('Rechargez le dossier avant de classer les modifications.');
             return;
         }
         setIsSaving(true);
@@ -276,19 +337,29 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
             await api.updateSettings(payload);
             persistVisualSettings(settings.theme, settings.fontSize);
 
-            setSaveMessage('Settings saved successfully!');
+            setSaveMessage('Modifications classées.');
             setHasChanges(false);
             setTimeout(() => setSaveMessage(null), 3000);
-        } catch (error) {
+        } catch (error: any) {
             console.error('Failed to save settings:', error);
-            setSaveMessage('Failed to save settings');
+            // A rejected field used to vanish behind one generic line, which is
+            // how an unsavable direction went unnoticed. Name the field.
+            const detail = error?.response?.data?.detail;
+            const rejected = Array.isArray(detail)
+                ? Array.from(new Set(detail.map((item: any) => String(item?.loc?.[1] || '')).filter(Boolean)))
+                : [];
+            setSaveMessage(
+                rejected.length
+                    ? `Les modifications n’ont pas pu être classées : ${rejected.join(', ')}.`
+                    : 'Les modifications n’ont pas pu être classées.',
+            );
         } finally {
             setIsSaving(false);
         }
     };
 
     const handleDeleteAccount = async () => {
-        if (!confirm('Are you ABSOLUTELY sure? This action cannot be undone and will permanently delete your account and all data.')) {
+        if (!confirm('Supprimer définitivement ce compte et toutes ses données ? Cette action est irréversible.')) {
             return;
         }
 
@@ -299,7 +370,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
             await appSignOut({ callbackUrl: '/' });
         } catch (error) {
             console.error('Failed to delete account:', error);
-            setSaveMessage('Failed to delete account. Please try again.');
+            setSaveMessage('Le compte n’a pas pu être supprimé. Réessayez.');
             setIsSaving(false);
             setPrivacyAction(null);
         }
@@ -307,7 +378,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
 
     const handlePasswordChange = async () => {
         if (!passwordForm.currentPassword || passwordForm.newPassword.length < 8) {
-            toast.error('Enter your current password and a new password with at least 8 characters.');
+            toast.error('Saisissez votre mot de passe actuel et un nouveau mot de passe d’au moins 8 caractères.');
             return;
         }
         setIsSaving(true);
@@ -317,11 +388,11 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                 new_password: passwordForm.newPassword,
             });
             setPasswordForm({ currentPassword: '', newPassword: '' });
-            toast.success('Password changed. Please sign in again.');
+            toast.success('Mot de passe modifié. Reconnectez-vous.');
             await appSignOut({ callbackUrl: '/auth/signin' });
         } catch (error) {
             console.error('Failed to change password:', error);
-            toast.error('Could not change password.');
+            toast.error('Le mot de passe n’a pas pu être modifié.');
         } finally {
             setIsSaving(false);
         }
@@ -329,7 +400,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
 
     const handleEmailChange = async () => {
         if (!emailForm.currentPassword || !emailForm.newEmail) {
-            toast.error('Enter a new email and your current password.');
+            toast.error('Saisissez la nouvelle adresse et votre mot de passe actuel.');
             return;
         }
         setIsSaving(true);
@@ -340,11 +411,11 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
             });
             setSettings((prev) => ({ ...prev, email: updated.email || emailForm.newEmail }));
             setEmailForm({ currentPassword: '', newEmail: '' });
-            toast.success('Email changed. Please sign in again.');
+            toast.success('Adresse modifiée. Reconnectez-vous.');
             await appSignOut({ callbackUrl: '/auth/signin' });
         } catch (error) {
             console.error('Failed to change email:', error);
-            toast.error('Could not change email.');
+            toast.error('L’adresse n’a pas pu être modifiée.');
         } finally {
             setIsSaving(false);
         }
@@ -363,67 +434,86 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
             link.click();
             document.body.removeChild(link);
             URL.revokeObjectURL(url);
-            toast.success('Export ready.');
+            toast.success('Archive prête.');
         } catch (error) {
             console.error('Failed to export user data:', error);
-            toast.error('Could not export your data.');
+            toast.error('L’archive n’a pas pu être préparée.');
         } finally {
             setPrivacyAction(null);
         }
     };
 
     const handleSignOutAllDevices = async () => {
-        if (!confirm('Sign out from every device, including this one?')) return;
+        if (!confirm('Fermer toutes les sessions, y compris celle-ci ?')) return;
         setPrivacyAction('signout');
         try {
             await api.signOutAllDevices();
-            toast.success('Signed out everywhere.');
+            toast.success('Toutes les sessions sont fermées.');
             await appSignOut({ callbackUrl: '/auth/signin' });
         } catch (error) {
             console.error('Failed to sign out all devices:', error);
-            toast.error('Could not sign out all devices.');
+            toast.error('Les sessions n’ont pas pu être fermées.');
             setPrivacyAction(null);
         }
     };
 
-    const handleNotificationToggle = async (key: keyof UserSettings, value: boolean) => {
-        if ((key === 'practiceReminders' || key === 'serialEditionNotifications') && value === true) {
-            // Request permission & subscribe
-            if ('serviceWorker' in navigator && 'PushManager' in window) {
-                try {
-                    const permission = await Notification.requestPermission();
-                    if (permission === 'granted') {
-                        const loadingToast = toast.loading('Enabling notifications...');
-
-                        const reg = await navigator.serviceWorker.register('/sw.js');
-                        // Wait for SW to be ready
-                        await navigator.serviceWorker.ready;
-
-                        const { publicKey } = await api.getVapidPublicKey();
-                        if (!publicKey?.trim()) {
-                            toast.error("Push notifications are not configured yet.", { id: loadingToast });
-                            return;
-                        }
-
-                        const sub = await reg.pushManager.subscribe({
-                            userVisibleOnly: true,
-                            applicationServerKey: urlBase64ToUint8Array(publicKey)
-                        });
-
-                        await api.subscribeToNotifications(sub.toJSON());
-                        toast.success("Notifications enabled!", { id: loadingToast });
-                    } else {
-                        toast.error("Permission denied. check browser settings.");
-                        return;
-                    }
-                } catch (e: any) {
-                    console.error(e);
-                    toast.error("Failed to enable notifications: " + e.message);
-                    return;
-                }
-            } else {
-                toast.error("Push notifications not supported in this browser.");
+    const enableDeviceNotifications = async (): Promise<boolean> => {
+        if (Capacitor.isNativePlatform()) {
+            if (!nativePushIsAvailable()) {
+                toast.error('Les notifications ne sont pas disponibles dans cette version iPhone.');
+                return false;
             }
+            const loadingToast = toast.loading('Connexion des notifications iPhone…');
+            try {
+                const token = await registerNativePushToken();
+                await api.subscribeToNativeNotifications(token);
+                toast.success('Notifications iPhone reliées.', { id: loadingToast });
+                return true;
+            } catch (error: any) {
+                console.error(error);
+                toast.error(error?.message || 'Les notifications iPhone n’ont pas pu être reliées.', { id: loadingToast });
+                return false;
+            }
+        }
+        if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+            toast.error('Ce navigateur ne prend pas en charge les notifications.');
+            return false;
+        }
+        const loadingToast = toast.loading('Connexion des notifications…');
+        try {
+            const permission = await Notification.requestPermission();
+            if (permission !== 'granted') {
+                toast.error('Permission refusée. Vérifiez les réglages de cet appareil.', { id: loadingToast });
+                return false;
+            }
+            const reg = await navigator.serviceWorker.register('/sw.js');
+            await navigator.serviceWorker.ready;
+            const { publicKey } = await api.getVapidPublicKey();
+            if (!publicKey?.trim()) {
+                toast.error('Les notifications ne sont pas encore configurées.', { id: loadingToast });
+                return false;
+            }
+            const sub = await reg.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(publicKey),
+            });
+            await api.subscribeToNotifications(sub.toJSON());
+            toast.success('Notifications reliées.', { id: loadingToast });
+            return true;
+        } catch (error: any) {
+            console.error(error);
+            toast.error(`Connexion impossible : ${error?.message || 'erreur inconnue'}`, { id: loadingToast });
+            return false;
+        }
+    };
+
+    const handleNotificationToggle = async (key: keyof UserSettings, value: boolean) => {
+        if (
+            (key === 'practiceReminders' || key === 'serialEditionNotifications')
+            && value === true
+            && !(await enableDeviceNotifications())
+        ) {
+            return;
         }
         updateSetting(key, value);
     };
@@ -449,21 +539,21 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
     };
 
     const sections = [
-        { id: 'profile' as const, label: 'Profile', icon: User },
-        { id: 'learning' as const, label: 'Learning', icon: Languages },
-        { id: 'practice' as const, label: 'Practice Goals', icon: Target },
+        { id: 'profile' as const, label: 'Dossier', icon: User },
+        { id: 'learning' as const, label: 'Langues', icon: Languages },
+        { id: 'practice' as const, label: 'Rythme', icon: Target },
         { id: 'notifications' as const, label: 'Notifications', icon: Bell },
-        { id: 'appearance' as const, label: 'Appearance', icon: Palette },
-        { id: 'audio' as const, label: 'Audio & Voice', icon: Volume2 },
-        { id: 'privacy' as const, label: 'Privacy & Data', icon: Shield },
+        { id: 'appearance' as const, label: 'Apparence', icon: Palette },
+        { id: 'audio' as const, label: 'Voix', icon: Volume2 },
+        { id: 'privacy' as const, label: 'Données', icon: Shield },
     ];
 
     if (isLoading) {
         return (
             <div className="settings-page min-h-screen bg-[var(--app-paper)] px-5 py-6 pb-24 sm:p-6">
                 <div className="mx-auto max-w-6xl border border-[var(--app-ink)] bg-[var(--app-sheet)] p-6">
-                    <div className="text-xs font-black uppercase tracking-[0.16em] text-[var(--app-ink-3)]">Settings</div>
-                    <h1 className="mt-2 font-serif text-3xl italic">Loading your account controls...</h1>
+                    <div className="text-xs font-black uppercase tracking-[0.16em] text-[var(--app-ink-3)]">L’administration</div>
+                    <h1 className="mt-2 font-serif text-3xl italic">Ouverture de votre dossier…</h1>
                 </div>
             </div>
         );
@@ -472,12 +562,12 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
     if (settingsLoadError) {
         return (
             <div className="settings-page min-h-screen bg-[var(--app-paper)] px-5 py-6 pb-24 sm:p-6">
-                <div className="mx-auto max-w-2xl border border-[var(--app-ink)] bg-[var(--app-sheet)] p-6 shadow-[8px_8px_0_var(--app-ink)]">
-                    <div className="text-xs font-black uppercase tracking-[0.16em] text-[var(--app-blue)]">Settings unavailable</div>
-                    <h1 className="mt-2 font-serif text-3xl italic leading-tight">Your saved settings did not load.</h1>
+                <div className="mx-auto max-w-2xl border border-[var(--app-ink)] bg-[var(--app-sheet)] p-6">
+                    <div className="text-xs font-black uppercase tracking-[0.16em] text-[var(--app-blue)]">Dossier indisponible</div>
+                    <h1 className="mt-2 font-serif text-3xl italic leading-tight">Vos réglages n’ont pas pu être chargés.</h1>
                     <p className="mt-3 text-sm font-semibold leading-6 text-[var(--app-ink-2)]">{settingsLoadError}</p>
                     <Button className="mt-5" onClick={() => setSettingsReloadKey((value) => value + 1)}>
-                        Retry
+                        Réessayer
                     </Button>
                 </div>
             </div>
@@ -489,9 +579,20 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
             <div className="max-w-6xl mx-auto">
                 {/* Header */}
                 <div className="mb-8 border-b border-[var(--app-ink)] pb-5">
-                    <div className="text-xs font-black uppercase tracking-[0.16em] text-[var(--app-ink-3)]">Administration Layer</div>
-                    <h1 className="mt-1 font-serif text-5xl italic leading-none">Settings</h1>
-                    <p className="mt-3 max-w-2xl text-[var(--app-ink-2)]">Customize your learning account, appearance, language preferences, notifications, and privacy controls.</p>
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="text-xs font-black uppercase tracking-[0.16em] text-[var(--app-ink-3)]">DOSSIER DU LECTEUR</div>
+                        {isAdmin && (
+                            <button
+                                type="button"
+                                onClick={() => void router.push('/pilot-ops')}
+                                className="border border-[var(--app-ink)] bg-[var(--app-sheet)] px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em]"
+                            >
+                                Pilotage · coût & qualité
+                            </button>
+                        )}
+                    </div>
+                    <h1 className="mt-1 font-serif text-5xl italic leading-none">L’administration</h1>
+                    <p className="mt-3 max-w-2xl text-[var(--app-ink-2)]">Votre langue, votre rythme, la livraison de l’édition et les archives du compte.</p>
                 </div>
 
                 <div className="flex flex-col gap-6 lg:flex-row lg:gap-8">
@@ -524,7 +625,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                 }`}>
                                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                     <span className="font-bold">
-                                        {saveMessage || 'You have unsaved changes'}
+                                        {saveMessage || 'Des modifications attendent d’être classées'}
                                     </span>
                                     {!saveMessage && (
                                         <Button
@@ -532,7 +633,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                             disabled={isSaving}
                                             leftIcon={isSaving ? undefined : <Save className="w-4 h-4" />}
                                         >
-                                            {isSaving ? 'Saving...' : 'Save Changes'}
+                                            {isSaving ? 'Classement…' : 'Classer les modifications'}
                                         </Button>
                                     )}
                                 </div>
@@ -541,53 +642,53 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
 
                         {/* Profile Section */}
                         {activeSection === 'profile' && (
-                            <Card className="border-4 border-black shadow-[6px_6px_0px_0px_#000]">
-                                <CardHeader className="bg-gray-100 border-b-4 border-black">
+                            <Card className="border border-[var(--app-ink)]">
+                                <CardHeader className="bg-[var(--app-paper-2)] border-b border-[var(--app-ink)]">
                                     <CardTitle className="flex items-center gap-2">
-                                        <User className="w-6 h-6" /> Profile Settings
+                                        <User className="w-6 h-6" /> Votre dossier
                                     </CardTitle>
-                                    <CardDescription>Manage your account information</CardDescription>
+                                    <CardDescription>Identité et accès à votre édition</CardDescription>
                                 </CardHeader>
                                 <CardContent className="p-6 space-y-6">
                                     <div>
-                                        <label className="block text-sm font-bold uppercase mb-2">Display Name</label>
+                                        <label className="block text-sm font-bold uppercase mb-2">Nom affiché</label>
                                         <input
                                             type="text"
                                             value={settings.displayName}
                                             onChange={(e) => updateSetting('displayName', e.target.value)}
-                                            className="w-full p-3 border-2 border-black shadow-[4px_4px_0px_0px_#000] focus:outline-none focus:shadow-[6px_6px_0px_0px_#000]"
-                                            placeholder="Your name"
+                                            className="w-full p-3 border border-[var(--app-ink)] bg-[var(--app-sheet)] focus:outline-none focus:border-[var(--app-blue)]"
+                                            placeholder="Votre nom"
                                         />
                                     </div>
 
                                     <div>
                                         <label className="block text-sm font-bold uppercase mb-2">Email</label>
                                         <div
-                                            className="w-full min-h-[52px] p-3 border-2 border-gray-300 bg-gray-100 text-gray-700 break-all"
+                                            className="w-full min-h-[52px] p-3 border border-[var(--app-paper-3)] bg-[var(--app-paper-2)] text-[var(--app-ink-2)] break-all"
                                             title={settings.email}
                                         >
                                             {settings.email}
                                         </div>
-                                        <p className="text-xs text-gray-500 mt-1">Use the secure form below to change your sign-in email.</p>
+                                        <p className="text-xs text-[var(--app-ink-3)] mt-1">Utilisez le formulaire sécurisé pour modifier votre adresse de connexion.</p>
                                     </div>
 
-                                    <div className="grid gap-4 border-2 border-black bg-white p-4">
+                                    <div className="grid gap-4 border border-[var(--app-ink)] bg-[var(--app-sheet)] p-4">
                                         <h3 className="flex items-center gap-2 font-black uppercase">
-                                            <Mail className="w-5 h-5" /> Change Email
+                                            <Mail className="w-5 h-5" /> Modifier l’adresse
                                         </h3>
                                         <input
                                             type="email"
                                             value={emailForm.newEmail}
                                             onChange={(event) => setEmailForm((prev) => ({ ...prev, newEmail: event.target.value }))}
-                                            className="w-full p-3 border-2 border-black shadow-[4px_4px_0px_0px_#000]"
+                                            className="w-full p-3 border border-[var(--app-ink)]"
                                             placeholder="new@email.com"
                                         />
                                         <input
                                             type="password"
                                             value={emailForm.currentPassword}
                                             onChange={(event) => setEmailForm((prev) => ({ ...prev, currentPassword: event.target.value }))}
-                                            className="w-full p-3 border-2 border-black shadow-[4px_4px_0px_0px_#000]"
-                                            placeholder="Current password"
+                                            className="w-full p-3 border border-[var(--app-ink)]"
+                                            placeholder="Mot de passe actuel"
                                         />
                                         <Button
                                             type="button"
@@ -596,27 +697,27 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                             onClick={handleEmailChange}
                                             disabled={isSaving || !emailForm.newEmail || !emailForm.currentPassword}
                                         >
-                                            Change Email
+                                            Enregistrer la nouvelle adresse
                                         </Button>
                                     </div>
 
-                                    <div className="grid gap-4 border-2 border-black bg-white p-4">
+                                    <div className="grid gap-4 border border-[var(--app-ink)] bg-[var(--app-sheet)] p-4">
                                         <h3 className="flex items-center gap-2 font-black uppercase">
-                                            <Lock className="w-5 h-5" /> Change Password
+                                            <Lock className="w-5 h-5" /> Modifier le mot de passe
                                         </h3>
                                         <input
                                             type="password"
                                             value={passwordForm.currentPassword}
                                             onChange={(event) => setPasswordForm((prev) => ({ ...prev, currentPassword: event.target.value }))}
-                                            className="w-full p-3 border-2 border-black shadow-[4px_4px_0px_0px_#000]"
-                                            placeholder="Current password"
+                                            className="w-full p-3 border border-[var(--app-ink)]"
+                                            placeholder="Mot de passe actuel"
                                         />
                                         <input
                                             type="password"
                                             value={passwordForm.newPassword}
                                             onChange={(event) => setPasswordForm((prev) => ({ ...prev, newPassword: event.target.value }))}
-                                            className="w-full p-3 border-2 border-black shadow-[4px_4px_0px_0px_#000]"
-                                            placeholder="New password"
+                                            className="w-full p-3 border border-[var(--app-ink)]"
+                                            placeholder="Nouveau mot de passe"
                                         />
                                         <Button
                                             type="button"
@@ -625,7 +726,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                             onClick={handlePasswordChange}
                                             disabled={isSaving || !passwordForm.currentPassword || passwordForm.newPassword.length < 8}
                                         >
-                                            Change Password
+                                            Enregistrer le nouveau mot de passe
                                         </Button>
                                     </div>
                                 </CardContent>
@@ -634,21 +735,21 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
 
                         {/* Learning Section */}
                         {activeSection === 'learning' && (
-                            <Card className="border-4 border-black shadow-[6px_6px_0px_0px_#000]">
-                                <CardHeader className="bg-bauhaus-blue text-white border-b-4 border-black">
+                            <Card className="border border-[var(--app-ink)]">
+                                <CardHeader className="bg-[var(--app-blue)] text-[var(--app-paper)] border-b border-[var(--app-ink)]">
                                     <CardTitle className="flex items-center gap-2">
-                                        <Languages className="w-6 h-6" /> Language Preferences
+                                        <Languages className="w-6 h-6" /> Langues de travail
                                     </CardTitle>
-                                    <CardDescription className="text-white/80">Configure your language learning settings</CardDescription>
+                                    <CardDescription>Le français appris et votre langue d’appui</CardDescription>
                                 </CardHeader>
                                 <CardContent className="p-6 space-y-6">
                                     <div className="grid grid-cols-2 gap-6">
                                         <div>
-                                            <label className="block text-sm font-bold uppercase mb-2">Native Language</label>
+                                            <label className="block text-sm font-bold uppercase mb-2">Langue d’appui</label>
                                             <select
                                                 value={settings.nativeLanguage}
-                                                onChange={(e) => updateSetting('nativeLanguage', e.target.value)}
-                                                className="w-full p-3 border-2 border-black shadow-[4px_4px_0px_0px_#000] bg-white"
+                                                onChange={(e) => updateNativeLanguage(e.target.value)}
+                                                className="w-full p-3 border border-[var(--app-ink)] bg-[var(--app-sheet)]"
                                             >
                                                 {languages.map(lang => (
                                                     <option key={lang.value} value={lang.value}>{lang.label}</option>
@@ -657,11 +758,11 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                         </div>
 
                                         <div>
-                                            <label className="block text-sm font-bold uppercase mb-2">Learning Language</label>
+                                            <label className="block text-sm font-bold uppercase mb-2">Langue apprise</label>
                                             <select
                                                 value={settings.targetLanguage}
                                                 onChange={(e) => updateSetting('targetLanguage', e.target.value)}
-                                                className="w-full p-3 border-2 border-black shadow-[4px_4px_0px_0px_#000] bg-white"
+                                                className="w-full p-3 border border-[var(--app-ink)] bg-[var(--app-sheet)]"
                                             >
                                                 {languages.map(lang => (
                                                     <option key={lang.value} value={lang.value}>{lang.label}</option>
@@ -671,19 +772,19 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-bold uppercase mb-3">Proficiency Level</label>
+                                        <label className="block text-sm font-bold uppercase mb-3">Niveau actuel</label>
                                         <div className="grid grid-cols-2 gap-3">
                                             {proficiencyLevels.map(level => (
                                                 <button
                                                     key={level.value}
                                                     onClick={() => updateSetting('proficiencyLevel', level.value)}
-                                                    className={`p-4 border-2 border-black text-left transition-all ${settings.proficiencyLevel === level.value
-                                                        ? 'bg-bauhaus-blue text-white shadow-[4px_4px_0px_0px_#000]'
-                                                        : 'bg-white hover:bg-gray-50'
+                                                    className={`p-4 border border-[var(--app-ink)] text-left transition-all ${settings.proficiencyLevel === level.value
+                                                        ? 'bg-[var(--app-blue)] text-[var(--app-paper)]'
+                                                        : 'bg-[var(--app-sheet)] hover:bg-[var(--app-paper-2)]'
                                                         }`}
                                                 >
                                                     <div className="font-bold">{level.label}</div>
-                                                    <div className={`text-xs mt-1 ${settings.proficiencyLevel === level.value ? 'text-white/80' : 'text-gray-500'}`}>
+                                                    <div className={`text-xs mt-1 ${settings.proficiencyLevel === level.value ? 'text-[var(--app-paper)]/80' : 'text-[var(--app-ink-3)]'}`}>
                                                         {level.description}
                                                     </div>
                                                 </button>
@@ -693,10 +794,10 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
 
                                     <div>
                                         <label className="block text-sm font-bold uppercase mb-2">
-                                            Live Article Topics
+                                            Sujets de la rédaction
                                         </label>
-                                        <p className="text-xs text-gray-500 mb-3">
-                                            These topics steer which live article seeds appear in your pre-session picker.
+                                        <p className="text-xs text-[var(--app-ink-3)] mb-3">
+                                            Ces sujets orientent les articles proposés avant une séance.
                                         </p>
                                         <div className="flex flex-wrap gap-2 mb-3">
                                             {interestTopicPresets.map((topic) => (
@@ -704,10 +805,10 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                                     key={topic}
                                                     type="button"
                                                     onClick={() => toggleInterestTopic(topic)}
-                                                    className={`px-3 py-1 border-2 border-black text-sm font-bold ${
+                                                    className={`px-3 py-1 border border-[var(--app-ink)] text-sm font-bold ${
                                                         settings.interests.includes(topic)
-                                                            ? 'bg-bauhaus-yellow shadow-[2px_2px_0px_0px_#000]'
-                                                            : 'bg-white'
+                                                            ? 'bg-[var(--app-yellow)]'
+                                                            : 'bg-[var(--app-sheet)]'
                                                     }`}
                                                 >
                                                     {topic}
@@ -719,59 +820,59 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                                 type="text"
                                                 value={customInterestTopic}
                                                 onChange={(event) => setCustomInterestTopic(event.target.value)}
-                                                placeholder="Add custom topic"
-                                                className="flex-1 p-3 border-2 border-black shadow-[4px_4px_0px_0px_#000]"
+                                                placeholder="Ajouter un sujet"
+                                                className="flex-1 p-3 border border-[var(--app-ink)]"
                                             />
                                             <Button
                                                 type="button"
                                                 variant="outline"
                                                 onClick={addCustomInterestTopic}
-                                                className="border-2 border-black"
+                                                className="border border-[var(--app-ink)]"
                                             >
-                                                Add
+                                                Ajouter
                                             </Button>
                                         </div>
                                         {settings.interests.length > 0 && (
-                                            <p className="text-xs text-gray-600 mt-2">
-                                                Selected: {settings.interests.join(', ')}
+                                            <p className="text-xs text-[var(--app-ink-2)] mt-2">
+                                                Retenus : {settings.interests.join(', ')}
                                             </p>
                                         )}
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-bold uppercase mb-2">Grammar Correction Level</label>
+                                        <label className="block text-sm font-bold uppercase mb-2">Intensité des corrections</label>
                                         <div className="flex gap-4">
                                             {(['lenient', 'moderate', 'strict'] as const).map(level => (
                                                 <button
                                                     key={level}
                                                     onClick={() => updateSetting('grammarCorrectionLevel', level)}
-                                                    className={`flex-1 p-3 border-2 border-black font-bold capitalize ${settings.grammarCorrectionLevel === level
-                                                        ? 'bg-bauhaus-yellow shadow-[4px_4px_0px_0px_#000]'
-                                                        : 'bg-white'
+                                                    className={`flex-1 p-3 border border-[var(--app-ink)] font-bold capitalize ${settings.grammarCorrectionLevel === level
+                                                        ? 'bg-[var(--app-yellow)]'
+                                                        : 'bg-[var(--app-sheet)]'
                                                         }`}
                                                 >
-                                                    {level}
+                                                    {{ lenient: 'Légère', moderate: 'Équilibrée', strict: 'Complète' }[level]}
                                                 </button>
                                             ))}
                                         </div>
-                                        <p className="text-xs text-gray-500 mt-2">
-                                            {settings.grammarCorrectionLevel === 'strict' && 'All errors will be corrected'}
-                                            {settings.grammarCorrectionLevel === 'moderate' && 'Major errors will be corrected'}
-                                            {settings.grammarCorrectionLevel === 'lenient' && 'Only critical errors will be corrected'}
+                                        <p className="text-xs text-[var(--app-ink-3)] mt-2">
+                                            {settings.grammarCorrectionLevel === 'strict' && 'Toutes les formes seront corrigées.'}
+                                            {settings.grammarCorrectionLevel === 'moderate' && 'Les erreurs importantes seront corrigées.'}
+                                            {settings.grammarCorrectionLevel === 'lenient' && 'Seules les erreurs qui gênent le sens seront corrigées.'}
                                         </p>
                                     </div>
 
-                                    <div className="flex items-center justify-between p-4 bg-gray-50 border-2 border-black">
+                                    <div className="flex items-center justify-between p-4 bg-[var(--app-paper-2)] border border-[var(--app-ink)]">
                                         <div>
-                                            <div className="font-bold">Show Grammar Explanations</div>
-                                            <div className="text-sm text-gray-500">Display detailed explanations for corrections</div>
+                                            <div className="font-bold">Afficher les explications</div>
+                                            <div className="text-sm text-[var(--app-ink-3)]">Joindre une note détaillée à chaque correction</div>
                                         </div>
                                         <button
                                             onClick={() => updateSetting('showGrammarExplanations', !settings.showGrammarExplanations)}
-                                            className={`w-14 h-8 rounded-full border-2 border-black transition-colors ${settings.showGrammarExplanations ? 'bg-green-500' : 'bg-gray-300'
+                                            className={`w-14 h-8 rounded-full border border-[var(--app-ink)] transition-colors ${settings.showGrammarExplanations ? 'bg-[var(--app-green)]' : 'bg-[var(--app-paper-3)]'
                                                 }`}
                                         >
-                                            <div className={`w-6 h-6 bg-white border-2 border-black rounded-full transition-transform ${settings.showGrammarExplanations ? 'translate-x-6' : 'translate-x-0'
+                                            <div className={`w-6 h-6 bg-[var(--app-sheet)] border border-[var(--app-ink)] rounded-full transition-transform ${settings.showGrammarExplanations ? 'translate-x-6' : 'translate-x-0'
                                                 }`} />
                                         </button>
                                     </div>
@@ -781,18 +882,18 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
 
                         {/* Practice Goals Section */}
                         {activeSection === 'practice' && (
-                            <Card className="border-4 border-black shadow-[6px_6px_0px_0px_#000]">
-                                <CardHeader className="bg-bauhaus-yellow border-b-4 border-black">
+                            <Card className="border border-[var(--app-ink)]">
+                                <CardHeader className="bg-[var(--app-yellow)] border-b border-[var(--app-ink)]">
                                     <CardTitle className="flex items-center gap-2">
-                                        <Target className="w-6 h-6" /> Practice Goals
+                                        <Target className="w-6 h-6" /> Rythme de l’édition
                                     </CardTitle>
-                                    <CardDescription>Set your daily learning targets</CardDescription>
+                                    <CardDescription>Réglez le format de votre rendez-vous quotidien</CardDescription>
                                 </CardHeader>
                                 <CardContent className="p-6 space-y-6">
                                     <div className="grid grid-cols-2 gap-6">
                                         <div>
                                             <label className="block text-sm font-bold uppercase mb-2">
-                                                Daily Goal (Minutes)
+                                                Temps quotidien
                                             </label>
                                             <input
                                                 type="number"
@@ -800,14 +901,14 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                                 max="120"
                                                 value={settings.dailyGoalMinutes}
                                                 onChange={(e) => updateSetting('dailyGoalMinutes', parseInt(e.target.value) || 15)}
-                                                className="w-full p-3 border-2 border-black shadow-[4px_4px_0px_0px_#000]"
+                                                className="w-full p-3 border border-[var(--app-ink)]"
                                             />
                                             <div className="flex gap-2 mt-2">
                                                 {[5, 10, 15, 30, 60].map(mins => (
                                                     <button
                                                         key={mins}
                                                         onClick={() => updateSetting('dailyGoalMinutes', mins)}
-                                                        className={`px-3 py-1 text-sm font-bold border-2 border-black ${settings.dailyGoalMinutes === mins ? 'bg-bauhaus-blue text-white' : 'bg-white'
+                                                        className={`px-3 py-1 text-sm font-bold border border-[var(--app-ink)] ${settings.dailyGoalMinutes === mins ? 'bg-[var(--app-blue)] text-[var(--app-paper)]' : 'bg-[var(--app-sheet)]'
                                                             }`}
                                                     >
                                                         {mins}m
@@ -818,19 +919,19 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
 
                                         <div>
                                             <label className="block text-sm font-bold uppercase mb-2">
-                                                CEFR Target
+                                                Objectif CECRL
                                             </label>
                                             <select
                                                 value={settings.cefrTargetLevel}
                                                 onChange={(e) => updateSetting('cefrTargetLevel', e.target.value)}
-                                                className="w-full p-3 border-2 border-black shadow-[4px_4px_0px_0px_#000] bg-white"
+                                                className="w-full p-3 border border-[var(--app-ink)] bg-[var(--app-sheet)]"
                                             >
                                                 {cefrSublevels.map((level) => (
                                                     <option key={level} value={level}>{level}</option>
                                                 ))}
                                             </select>
-                                            <p className="mt-2 text-sm text-gray-600">
-                                                The Atelier meter forecasts this target from your daily pace.
+                                            <p className="mt-2 text-sm text-[var(--app-ink-2)]">
+                                                L’Atelier estime l’échéance selon votre rythme réel.
                                             </p>
                                         </div>
                                     </div>
@@ -838,7 +939,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                     <div className="grid grid-cols-2 gap-6">
                                         <div>
                                             <label className="block text-sm font-bold uppercase mb-2">
-                                                Daily XP Goal
+                                                Repère XP quotidien
                                             </label>
                                             <input
                                                 type="number"
@@ -847,14 +948,14 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                                 step="10"
                                                 value={settings.dailyGoalXP}
                                                 onChange={(e) => updateSetting('dailyGoalXP', parseInt(e.target.value) || 50)}
-                                                className="w-full p-3 border-2 border-black shadow-[4px_4px_0px_0px_#000]"
+                                                className="w-full p-3 border border-[var(--app-ink)]"
                                             />
                                             <div className="flex gap-2 mt-2">
                                                 {[20, 50, 100, 150, 200].map(xp => (
                                                     <button
                                                         key={xp}
                                                         onClick={() => updateSetting('dailyGoalXP', xp)}
-                                                        className={`px-3 py-1 text-sm font-bold border-2 border-black ${settings.dailyGoalXP === xp ? 'bg-bauhaus-blue text-white' : 'bg-white'
+                                                        className={`px-3 py-1 text-sm font-bold border border-[var(--app-ink)] ${settings.dailyGoalXP === xp ? 'bg-[var(--app-blue)] text-[var(--app-paper)]' : 'bg-[var(--app-sheet)]'
                                                             }`}
                                                     >
                                                         {xp}
@@ -865,7 +966,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
 
                                         <div>
                                             <label className="block text-sm font-bold uppercase mb-2">
-                                                New Words Per Day
+                                                Nouveaux mots par jour
                                             </label>
                                             <input
                                                 type="number"
@@ -873,43 +974,29 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                                 max="50"
                                                 value={settings.newWordsPerDay}
                                                 onChange={(e) => updateSetting('newWordsPerDay', parseInt(e.target.value) || 10)}
-                                                className="w-full p-3 border-2 border-black shadow-[4px_4px_0px_0px_#000]"
+                                                className="w-full p-3 border border-[var(--app-ink)]"
                                             />
                                         </div>
 
                                         <div>
                                             <label className="block text-sm font-bold uppercase mb-2">
-                                                Default Vocabulary Direction
+                                                Sens des cartes
                                             </label>
                                             <select
                                                 value={settings.defaultVocabDirection}
                                                 onChange={(e) => updateSetting('defaultVocabDirection', e.target.value)}
-                                                className="w-full p-3 border-2 border-black shadow-[4px_4px_0px_0px_#000] bg-white"
+                                                className="w-full p-3 border border-[var(--app-ink)] bg-[var(--app-sheet)]"
                                             >
-                                                <option value="fr_to_de">French → German</option>
-                                                <option value="de_to_fr">German → French</option>
-                                                <option value="mixed">Mixed (Both)</option>
+                                                {vocabDirectionOptions(settings.nativeLanguage).map((option) => (
+                                                    <option key={option.value} value={option.value}>{option.label}</option>
+                                                ))}
                                             </select>
-                                        </div>
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-sm font-bold uppercase mb-2">
-                                            Preferred Session Length (Minutes)
-                                        </label>
-                                        <div className="flex items-center gap-4">
-                                            <input
-                                                type="range"
-                                                min="5"
-                                                max="30"
-                                                step="5"
-                                                value={settings.preferredSessionLength}
-                                                onChange={(e) => updateSetting('preferredSessionLength', parseInt(e.target.value))}
-                                                className="flex-1 h-3 bg-gray-200 rounded-full appearance-none cursor-pointer"
-                                            />
-                                            <span className="font-bold text-xl w-16 text-center">
-                                                {settings.preferredSessionLength}m
-                                            </span>
+                                            {!glossLanguages[settings.nativeLanguage] && (
+                                                <p className="mt-2 text-xs text-[var(--app-ink-3)]">
+                                                    Les traductions du lexique n’existent qu’en allemand et en anglais ;
+                                                    l’anglais sert d’appui pour les autres langues.
+                                                </p>
+                                            )}
                                         </div>
                                     </div>
                                 </CardContent>
@@ -918,45 +1005,59 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
 
                         {/* Notifications Section */}
                         {activeSection === 'notifications' && (
-                            <Card className="border-4 border-black shadow-[6px_6px_0px_0px_#000]">
-                                <CardHeader className="bg-bauhaus-red text-white border-b-4 border-black">
+                            <Card className="border border-[var(--app-ink)]">
+                                <CardHeader className="bg-[var(--app-red)] text-[var(--app-paper)] border-b border-[var(--app-ink)]">
                                     <CardTitle className="flex items-center gap-2">
-                                        <Bell className="w-6 h-6" /> Notifications
+                                        <Bell className="w-6 h-6" /> Livraison de l’édition
                                     </CardTitle>
-                                    <CardDescription className="text-white/80">Manage your notification preferences</CardDescription>
+                                    <CardDescription>Choisissez quand la rédaction peut vous prévenir</CardDescription>
                                 </CardHeader>
                                 <CardContent className="p-6 space-y-4">
+                                    <div className="border-2 border-[var(--app-ink)] bg-[var(--app-yellow)] p-4">
+                                        <div className="font-serif text-2xl italic">Recevoir l’édition sur cet appareil</div>
+                                        <p className="mt-1 text-sm text-[var(--app-ink-2)]">
+                                            Reliez cet iPhone ou ce navigateur une seule fois, même si vos préférences sont déjà actives.
+                                        </p>
+                                        <Button
+                                            type="button"
+                                            className="mt-4"
+                                            leftIcon={<Bell className="h-4 w-4" />}
+                                            onClick={() => void enableDeviceNotifications()}
+                                        >
+                                            Relier cet appareil
+                                        </Button>
+                                    </div>
                                     {[
-                                        { key: 'practiceReminders' as const, label: 'Practice Reminders', desc: 'Get reminded to practice daily' },
-                                        { key: 'streakNotifications' as const, label: 'Streak Alerts', desc: 'Notifications about your streak status' },
-                                        { key: 'weeklyEmailSummary' as const, label: 'Weekly Email Summary', desc: 'Receive weekly progress reports' },
-                                        { key: 'achievementNotifications' as const, label: 'Achievement Alerts', desc: 'Get notified when you earn achievements' },
-                                        { key: 'serialEditionNotifications' as const, label: 'Serial Edition Alerts', desc: 'Get tomorrow’s serial edition when it is ready' },
+                                        { key: 'practiceReminders' as const, label: 'Rappel de l’édition', desc: 'Un rappel quotidien à l’heure choisie' },
+                                        { key: 'streakNotifications' as const, label: 'Série en cours', desc: 'Un signal quand votre série peut être prolongée' },
+                                        { key: 'weeklyEmailSummary' as const, label: 'Relevé hebdomadaire', desc: 'Un bilan de progression chaque semaine' },
+                                        { key: 'achievementNotifications' as const, label: 'Distinctions', desc: 'Un avis lorsqu’une distinction est classée' },
+                                        { key: 'serialEditionNotifications' as const, label: 'Feuilleton', desc: 'La prochaine parution dès qu’elle est prête' },
                                     ].map(item => (
-                                        <div key={item.key} className="flex items-center justify-between p-4 bg-gray-50 border-2 border-black">
+                                        <div key={item.key} className="flex items-center justify-between p-4 bg-[var(--app-paper-2)] border border-[var(--app-ink)]">
                                             <div>
                                                 <div className="font-bold">{item.label}</div>
-                                                <div className="text-sm text-gray-500">{item.desc}</div>
+                                                <div className="text-sm text-[var(--app-ink-3)]">{item.desc}</div>
                                             </div>
                                             <button
                                                 onClick={() => handleNotificationToggle(item.key, !settings[item.key])}
-                                                className={`w-14 h-8 rounded-full border-2 border-black transition-colors ${settings[item.key] ? 'bg-green-500' : 'bg-gray-300'
+                                                className={`w-14 h-8 rounded-full border border-[var(--app-ink)] transition-colors ${settings[item.key] ? 'bg-[var(--app-green)]' : 'bg-[var(--app-paper-3)]'
                                                     }`}
                                             >
-                                                <div className={`w-6 h-6 bg-white border-2 border-black rounded-full transition-transform ${settings[item.key] ? 'translate-x-6' : 'translate-x-0'
+                                                <div className={`w-6 h-6 bg-[var(--app-sheet)] border border-[var(--app-ink)] rounded-full transition-transform ${settings[item.key] ? 'translate-x-6' : 'translate-x-0'
                                                     }`} />
                                             </button>
                                         </div>
                                     ))}
 
                                     {settings.practiceReminders && (
-                                        <div className="p-4 bg-white border-2 border-black">
-                                            <label className="block text-sm font-bold uppercase mb-2">Reminder Time</label>
+                                        <div className="p-4 bg-[var(--app-sheet)] border border-[var(--app-ink)]">
+                                            <label className="block text-sm font-bold uppercase mb-2">Heure de livraison</label>
                                             <input
                                                 type="time"
                                                 value={settings.reminderTime}
                                                 onChange={(e) => updateSetting('reminderTime', e.target.value)}
-                                                className="p-3 border-2 border-black"
+                                                className="p-3 border border-[var(--app-ink)]"
                                             />
                                         </div>
                                     )}
@@ -966,28 +1067,28 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
 
                         {/* Appearance Section */}
                         {activeSection === 'appearance' && (
-                            <Card className="border-4 border-black shadow-[6px_6px_0px_0px_#000]">
-                                <CardHeader className="bg-purple-600 text-white border-b-4 border-black">
+                            <Card className="border border-[var(--app-ink)]">
+                                <CardHeader className="bg-[var(--app-ink)] text-[var(--app-paper)] border-b border-[var(--app-ink)]">
                                     <CardTitle className="flex items-center gap-2">
-                                        <Palette className="w-6 h-6" /> Appearance
+                                        <Palette className="w-6 h-6" /> Apparence de la publication
                                     </CardTitle>
-                                    <CardDescription className="text-white/80">Customize how the app looks</CardDescription>
+                                    <CardDescription>Papier, encre et taille de lecture</CardDescription>
                                 </CardHeader>
                                 <CardContent className="p-6 space-y-6">
                                     <div>
-                                        <label className="block text-sm font-bold uppercase mb-3">Theme</label>
+                                        <label className="block text-sm font-bold uppercase mb-3">Papier</label>
                                         <div className="grid grid-cols-3 gap-4">
                                             {[
-                                                { value: 'light' as const, label: 'Light', icon: Sun },
-                                                { value: 'dark' as const, label: 'Dark', icon: Moon },
-                                                { value: 'system' as const, label: 'System', icon: Palette },
+                                                { value: 'light' as const, label: 'Clair', icon: Sun },
+                                                { value: 'dark' as const, label: 'Sombre', icon: Moon },
+                                                { value: 'system' as const, label: 'Système', icon: Palette },
                                             ].map(theme => (
                                                 <button
                                                     key={theme.value}
                                                     onClick={() => updateSetting('theme', theme.value)}
-                                                    className={`p-4 border-2 border-black flex flex-col items-center gap-2 ${settings.theme === theme.value
-                                                        ? 'bg-bauhaus-blue text-white shadow-[4px_4px_0px_0px_#000]'
-                                                        : 'bg-white'
+                                                    className={`p-4 border border-[var(--app-ink)] flex flex-col items-center gap-2 ${settings.theme === theme.value
+                                                        ? 'bg-[var(--app-blue)] text-[var(--app-paper)]'
+                                                        : 'bg-[var(--app-sheet)]'
                                                         }`}
                                                 >
                                                     <theme.icon className="w-8 h-8" />
@@ -998,19 +1099,19 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-bold uppercase mb-3">Font Size</label>
+                                        <label className="block text-sm font-bold uppercase mb-3">Corps du texte</label>
                                         <div className="grid grid-cols-3 gap-4">
                                             {[
-                                                { value: 'small' as const, label: 'Small', size: 'text-sm' },
-                                                { value: 'medium' as const, label: 'Medium', size: 'text-base' },
-                                                { value: 'large' as const, label: 'Large', size: 'text-lg' },
+                                                { value: 'small' as const, label: 'Petit', size: 'text-sm' },
+                                                { value: 'medium' as const, label: 'Moyen', size: 'text-base' },
+                                                { value: 'large' as const, label: 'Grand', size: 'text-lg' },
                                             ].map(size => (
                                                 <button
                                                     key={size.value}
                                                     onClick={() => updateSetting('fontSize', size.value)}
-                                                    className={`p-4 border-2 border-black ${size.size} ${settings.fontSize === size.value
-                                                        ? 'bg-bauhaus-yellow shadow-[4px_4px_0px_0px_#000]'
-                                                        : 'bg-white'
+                                                    className={`p-4 border border-[var(--app-ink)] ${size.size} ${settings.fontSize === size.value
+                                                        ? 'bg-[var(--app-yellow)]'
+                                                        : 'bg-[var(--app-sheet)]'
                                                         }`}
                                                 >
                                                     <span className="font-bold">{size.label}</span>
@@ -1024,42 +1125,42 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
 
                         {/* Audio Section */}
                         {activeSection === 'audio' && (
-                            <Card className="border-4 border-black shadow-[6px_6px_0px_0px_#000]">
-                                <CardHeader className="bg-green-600 text-white border-b-4 border-black">
+                            <Card className="border border-[var(--app-ink)]">
+                                <CardHeader className="bg-green-600 text-[var(--app-paper)] border-b border-[var(--app-ink)]">
                                     <CardTitle className="flex items-center gap-2">
-                                        <Volume2 className="w-6 h-6" /> Audio & Voice
+                                        <Volume2 className="w-6 h-6" /> Le Studio
                                     </CardTitle>
-                                    <CardDescription className="text-white/80">Configure voice and audio settings</CardDescription>
+                                    <CardDescription>Micro, lecture et vitesse de la voix</CardDescription>
                                 </CardHeader>
                                 <CardContent className="p-6 space-y-4">
                                     {[
-                                        { key: 'voiceInputEnabled' as const, label: 'Voice Input', desc: 'Enable microphone for speaking practice', icon: Mic },
-                                        { key: 'textToSpeechEnabled' as const, label: 'Text-to-Speech', desc: 'Hear pronunciations of words', icon: Volume2 },
-                                        { key: 'autoPlayPronunciation' as const, label: 'Auto-play Pronunciation', desc: 'Automatically play word audio' },
+                                        { key: 'voiceInputEnabled' as const, label: 'Micro', desc: 'Autoriser la pratique parlée', icon: Mic },
+                                        { key: 'textToSpeechEnabled' as const, label: 'Lecture à voix haute', desc: 'Écouter la prononciation des mots', icon: Volume2 },
+                                        { key: 'autoPlayPronunciation' as const, label: 'Lecture automatique', desc: 'Lancer le son du mot sans geste supplémentaire' },
                                     ].map(item => (
-                                        <div key={item.key} className="flex items-center justify-between p-4 bg-gray-50 border-2 border-black">
+                                        <div key={item.key} className="flex items-center justify-between p-4 bg-[var(--app-paper-2)] border border-[var(--app-ink)]">
                                             <div className="flex items-center gap-3">
-                                                {item.icon && <item.icon className="w-5 h-5 text-gray-600" />}
+                                                {item.icon && <item.icon className="w-5 h-5 text-[var(--app-ink-2)]" />}
                                                 <div>
                                                     <div className="font-bold">{item.label}</div>
-                                                    <div className="text-sm text-gray-500">{item.desc}</div>
+                                                    <div className="text-sm text-[var(--app-ink-3)]">{item.desc}</div>
                                                 </div>
                                             </div>
                                             <button
                                                 onClick={() => updateSetting(item.key, !settings[item.key])}
-                                                className={`w-14 h-8 rounded-full border-2 border-black transition-colors ${settings[item.key] ? 'bg-green-500' : 'bg-gray-300'
+                                                className={`w-14 h-8 rounded-full border border-[var(--app-ink)] transition-colors ${settings[item.key] ? 'bg-[var(--app-green)]' : 'bg-[var(--app-paper-3)]'
                                                     }`}
                                             >
-                                                <div className={`w-6 h-6 bg-white border-2 border-black rounded-full transition-transform ${settings[item.key] ? 'translate-x-6' : 'translate-x-0'
+                                                <div className={`w-6 h-6 bg-[var(--app-sheet)] border border-[var(--app-ink)] rounded-full transition-transform ${settings[item.key] ? 'translate-x-6' : 'translate-x-0'
                                                     }`} />
                                             </button>
                                         </div>
                                     ))}
 
-                                    <div className="p-4 bg-white border-2 border-black">
-                                        <label className="block text-sm font-bold uppercase mb-3">Speech Speed</label>
+                                    <div className="p-4 bg-[var(--app-sheet)] border border-[var(--app-ink)]">
+                                        <label className="block text-sm font-bold uppercase mb-3">Vitesse de lecture</label>
                                         <div className="flex items-center gap-4">
-                                            <span className="text-sm font-bold">Slow</span>
+                                            <span className="text-sm font-bold">Lente</span>
                                             <input
                                                 type="range"
                                                 min="0.5"
@@ -1067,9 +1168,9 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                                 step="0.1"
                                                 value={settings.ttsSpeed}
                                                 onChange={(e) => updateSetting('ttsSpeed', parseFloat(e.target.value))}
-                                                className="flex-1 h-3 bg-gray-200 rounded-full appearance-none cursor-pointer"
+                                                className="flex-1 h-3 bg-[var(--app-paper-3)] rounded-full appearance-none cursor-pointer"
                                             />
-                                            <span className="text-sm font-bold">Fast</span>
+                                            <span className="text-sm font-bold">Rapide</span>
                                             <span className="font-bold text-lg w-12 text-center">{settings.ttsSpeed}x</span>
                                         </div>
                                     </div>
@@ -1079,64 +1180,64 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
 
                         {/* Privacy Section */}
                         {activeSection === 'privacy' && (
-                            <Card className="border-4 border-black shadow-[6px_6px_0px_0px_#000]">
-                                <CardHeader className="bg-gray-800 text-white border-b-4 border-black">
+                            <Card className="border border-[var(--app-ink)]">
+                                <CardHeader className="bg-[var(--app-ink)] text-[var(--app-paper)] border-b border-[var(--app-ink)]">
                                     <CardTitle className="flex items-center gap-2">
-                                        <Shield className="w-6 h-6" /> Privacy & Data
+                                        <Shield className="w-6 h-6" /> Archives & données
                                     </CardTitle>
-                                    <CardDescription className="text-white/80">Manage your data and privacy settings</CardDescription>
+                                    <CardDescription>Exporter, fermer les sessions ou supprimer le dossier</CardDescription>
                                 </CardHeader>
                                 <CardContent className="p-6 space-y-6">
-                                    <div className="p-4 bg-blue-50 border-2 border-blue-300">
+                                    <div className="p-4 border-2 border-[var(--app-blue)]" style={{ background: 'rgb(var(--app-blue-rgb) / 0.10)' }}>
                                         <h3 className="font-bold mb-2 flex items-center gap-2">
-                                            <Download className="w-5 h-5" /> Export Your Data
+                                            <Download className="w-5 h-5" /> Exporter vos archives
                                         </h3>
-                                        <p className="text-sm text-gray-600 mb-4">
-                                            Download all your learning data including vocabulary, progress, and achievements.
+                                        <p className="text-sm text-[var(--app-ink-2)] mb-4">
+                                            Téléchargez votre vocabulaire, votre progression et vos distinctions.
                                         </p>
                                         <Button
                                             variant="outline"
                                             leftIcon={<Download className="w-4 h-4" />}
-                                            className="border-2 border-black"
+                                            className="border border-[var(--app-ink)]"
                                             onClick={handleExportData}
                                             loading={privacyAction === 'export'}
                                         >
-                                            Export Data (JSON)
+                                            Préparer l’archive JSON
                                         </Button>
                                     </div>
 
-                                    <div className="p-4 bg-yellow-50 border-2 border-yellow-400">
+                                    <div className="p-4 border-2 border-[var(--app-yellow)]" style={{ background: 'rgb(var(--app-yellow-rgb) / 0.15)' }}>
                                         <h3 className="font-bold mb-2 flex items-center gap-2">
-                                            <LogOut className="w-5 h-5" /> Sign Out Everywhere
+                                            <LogOut className="w-5 h-5" /> Fermer toutes les sessions
                                         </h3>
-                                        <p className="text-sm text-gray-600 mb-4">
-                                            Sign out from all devices and sessions.
+                                        <p className="text-sm text-[var(--app-ink-2)] mb-4">
+                                            Déconnectez tous les appareils reliés à votre dossier.
                                         </p>
                                         <Button
                                             variant="outline"
-                                            className="border-2 border-black"
+                                            className="border border-[var(--app-ink)]"
                                             onClick={handleSignOutAllDevices}
                                             loading={privacyAction === 'signout'}
                                         >
-                                            Sign Out All Devices
+                                            Tout déconnecter
                                         </Button>
                                     </div>
 
-                                    <div className="p-4 bg-red-50 border-2 border-red-400">
-                                        <h3 className="font-bold mb-2 text-red-700 flex items-center gap-2">
-                                            <Trash2 className="w-5 h-5" /> Danger Zone
+                                    <div className="p-4 border-2 border-[var(--app-red)]" style={{ background: 'rgb(var(--app-red-rgb) / 0.10)' }}>
+                                        <h3 className="font-bold mb-2 text-[var(--app-red)] flex items-center gap-2">
+                                            <Trash2 className="w-5 h-5" /> Suppression définitive
                                         </h3>
-                                        <p className="text-sm text-gray-600 mb-4">
-                                            Permanently delete your account and all associated data. This action cannot be undone.
+                                        <p className="text-sm text-[var(--app-ink-2)] mb-4">
+                                            Supprimez le compte et toutes ses données. Cette action est irréversible.
                                         </p>
                                         <Button
                                             variant="outline"
-                                            className="border-2 border-red-500 text-red-600 hover:bg-red-100"
+                                            className="border-2 border-[var(--app-red)] text-[var(--app-red)]"
                                             onClick={handleDeleteAccount}
                                             loading={privacyAction === 'delete'}
                                             disabled={isSaving && privacyAction !== 'delete'}
                                         >
-                                            Delete Account
+                                            Supprimer le compte
                                         </Button>
                                     </div>
                                 </CardContent>
@@ -1146,38 +1247,20 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                 </div>
             </div>
             <style jsx global>{`
-                .settings-page .learning-card {
-                    border-width: 1px !important;
-                    box-shadow: none !important;
-                    background: var(--app-sheet);
-                }
-                .settings-page .border-4,
-                .settings-page .border-2 {
-                    border-width: 1px !important;
-                }
-                .settings-page [class*="shadow-"] {
-                    box-shadow: none !important;
-                }
+                /* What survives of the old override block: everything else in
+                   it existed only to beat hardcoded neo-brutalist utilities
+                   (bg-white, border-black, #000 offset shadows) with
+                   !important. Those utilities are theme tokens now, so the
+                   overrides had nothing left to fight — and several of their
+                   selectors had become meaningless after the rename. */
                 .settings-page input,
                 .settings-page select,
                 .settings-page textarea {
-                    background: var(--app-sheet) !important;
+                    background: var(--app-sheet);
                     color: var(--app-ink);
                 }
-                .settings-page .bg-white,
-                .settings-page .bg-gray-50,
-                .settings-page .bg-gray-100 {
-                    background: var(--app-sheet) !important;
-                }
-                .settings-page .text-black,
-                .settings-page h1,
-                .settings-page h2,
-                .settings-page h3 {
-                    color: var(--app-ink) !important;
-                }
-                .settings-page .text-gray-500,
-                .settings-page .text-gray-600 {
-                    color: var(--app-ink-3) !important;
+                .settings-page .learning-card > div:first-child {
+                    font-family: var(--app-serif);
                 }
                 @media (max-width: 760px) {
                     .settings-page {

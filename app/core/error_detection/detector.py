@@ -2,13 +2,14 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
-from typing import Any, Dict, Iterable, List, Optional, Protocol, Sequence
+from typing import Any, Protocol
 
 from loguru import logger
 
 from app.config import settings
-from app.core.conversation import build_error_detection_prompt, build_error_detection_schema
+from app.core.conversation import build_error_detection_prompt
 from app.services.llm_service import LLMResult
 
 from .rules import DetectedError, ErrorRule, build_default_rules
@@ -18,10 +19,10 @@ from .rules import DetectedError, ErrorRule, build_default_rules
 class ErrorDetectionResult:
     """Structured result for an analyzed learner message."""
 
-    errors: List[DetectedError]
+    errors: list[DetectedError]
     summary: str
-    review_vocabulary: List[str] = field(default_factory=list)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    review_vocabulary: list[str] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class SupportsChatCompletion(Protocol):
@@ -29,12 +30,12 @@ class SupportsChatCompletion(Protocol):
 
     def generate_chat_completion(
         self,
-        messages: Sequence[Dict[str, str]],
+        messages: Sequence[dict[str, str]],
         *,
         temperature: float = ...,
         max_tokens: int = ...,
-        response_format: Optional[Dict[str, Any]] = ...,
-        system_prompt: Optional[str] = ...,
+        response_format: dict[str, Any] | None = ...,
+        system_prompt: str | None = ...,
     ) -> LLMResult:
         ...
 
@@ -45,11 +46,15 @@ class ErrorDetector:
     def __init__(
         self,
         *,
-        llm_service: Optional[SupportsChatCompletion] = None,
-        rules: Optional[Iterable[ErrorRule]] = None,
-        nlp: Optional[Any] = None,
+        llm_service: SupportsChatCompletion | None = None,
+        rules: Iterable[ErrorRule] | None = None,
+        nlp: Any | None = None,
+        explanation_language: str | None = None,
     ) -> None:
         self.llm_service = llm_service
+        # Explanations follow the learner's native language (contract: instruction
+        # in L1). The old prompt hardcoded German for every learner.
+        self.explanation_language = (explanation_language or "en").strip().lower()[:2] or "en"
         self.rules = list(rules) if rules is not None else build_default_rules()
         self._nlp = nlp or self._load_language_model()
 
@@ -78,23 +83,26 @@ class ErrorDetector:
         learner_message: str,
         *,
         learner_level: str = "B1",
-        target_vocabulary: Optional[Sequence[str]] = None,
+        target_vocabulary: Sequence[str] | None = None,
         use_llm: bool = True,
+        explanation_language: str | None = None,
     ) -> ErrorDetectionResult:
         """Analyze a learner message and return detected issues."""
 
         doc = self._nlp(learner_message)
-        errors: List[DetectedError] = []
+        errors: list[DetectedError] = []
         for rule in self.rules:
             rule_errors = rule.apply(doc)
             logger.debug("Rule executed", rule=rule.name, count=len(rule_errors))
             errors.extend(rule_errors)
 
         summary = "Automated heuristic review only."
-        review_vocabulary: List[str] = []
-        metadata: Dict[str, Any] = {"rule_error_count": len(errors)}
+        review_vocabulary: list[str] = []
+        metadata: dict[str, Any] = {"rule_error_count": len(errors)}
 
         if use_llm and self.llm_service:
+            if explanation_language:
+                self.explanation_language = explanation_language.strip().lower()[:2] or self.explanation_language
             llm_result = self._run_llm_analysis(
                 learner_message,
                 learner_level=learner_level,
@@ -106,13 +114,26 @@ class ErrorDetector:
                 metadata.update(provider_meta)
         return ErrorDetectionResult(errors=errors, summary=summary, review_vocabulary=review_vocabulary, metadata=metadata)
 
+    _EXPLANATION_LANGUAGE_NAMES = {
+        "en": "ENGLISH",
+        "de": "GERMAN (Deutsch)",
+        "fr": "FRENCH",
+        "es": "SPANISH",
+        "it": "ITALIAN",
+        "pt": "PORTUGUESE",
+        "nl": "DUTCH",
+    }
+
+    def _explanation_language_name(self) -> str:
+        return self._EXPLANATION_LANGUAGE_NAMES.get(self.explanation_language, "ENGLISH")
+
     def _run_llm_analysis(
         self,
         learner_message: str,
         *,
         learner_level: str,
         target_vocabulary: Sequence[str],
-    ) -> Optional[tuple[List[DetectedError], str, List[str], Dict[str, Any]]]:
+    ) -> tuple[list[DetectedError], str, list[str], dict[str, Any]] | None:
         if not self.llm_service:
             return None
         prompt = build_error_detection_prompt(
@@ -126,7 +147,8 @@ class ErrorDetector:
             "Your primary goal is to help learners improve by identifying ALL grammatical mistakes, "
             "especially gender agreement (le/la, un/une), verb conjugation, and article usage. "
             "These errors are critical for French learners even if the text is understandable. "
-            "IMPORTANT: Write all explanations in GERMAN (Deutsch) since the learner's native language is German. "
+            f"IMPORTANT: Write all explanations in {self._explanation_language_name()} since that is the "
+            "learner's native language. Quote the French fragments verbatim. "
             "Return valid JSON matching the provided schema. Do not include any text outside the JSON."
         )
         try:
@@ -166,7 +188,7 @@ class ErrorDetector:
 
     def _parse_llm_response(
         self, result: LLMResult
-    ) -> Optional[tuple[List[DetectedError], str, List[str]]]:
+    ) -> tuple[list[DetectedError], str, list[str]] | None:
         try:
             payload = json.loads(result.content)
         except json.JSONDecodeError:
@@ -174,7 +196,7 @@ class ErrorDetector:
             return None
         errors_payload = payload.get("errors", [])
         summary_payload = payload.get("summary", {})
-        parsed_errors: List[DetectedError] = []
+        parsed_errors: list[DetectedError] = []
         for item in errors_payload:
             try:
                 category = item.get("category", "grammar")

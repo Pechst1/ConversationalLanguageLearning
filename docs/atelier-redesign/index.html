@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Atelier — design preview</title>
+  <style>
+    @font-face{font-family:Manrope;src:url(assets/manrope-regular.ttf)}
+    @font-face{font-family:Manrope;src:url(assets/manrope-bold.ttf);font-weight:700}
+    *{box-sizing:border-box}body{margin:0;background:#e9e6e0;color:#302e29;font:13px Manrope,Arial,sans-serif}
+    .bar{height:64px;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 24px;background:#fffdf8;border-bottom:1px solid #dfdcd5}
+    .brand{display:flex;gap:12px;align-items:center}.brand strong{font-size:17px;letter-spacing:-.7px}.badge{font-size:11px;padding:5px 9px;border:1px solid #dcd9d1;border-radius:6px;color:#666259}
+    .tools{display:flex;gap:12px;align-items:center}.switch{padding:3px;background:#edeae3;border-radius:9px;display:flex;gap:3px}button,a{font:inherit;color:inherit}button{cursor:pointer;border:0;background:none;border-radius:7px;padding:8px 13px}button[aria-pressed=true]{background:#fffdf8;box-shadow:0 1px 3px #302e291a}a{text-decoration:none;padding:10px}.meta{color:#6c685e;font-size:11px}
+    .canvas{height:calc(100dvh - 64px);padding:22px;display:flex;justify-content:center;align-items:flex-start;overflow:auto}iframe{background:#faf8f2;border:1px solid #d9d5cc;width:100%;height:100%;border-radius:15px;box-shadow:0 12px 40px #302e2908;transition:width .3s ease}body.phone iframe{width:390px;height:844px;max-height:100%;border-radius:30px;border:7px solid #36362f;box-shadow:0 14px 45px #302e291a}button:focus-visible,a:focus-visible{outline:3px solid #355e98;outline-offset:3px}
+    @media(max-width:700px){.bar{height:58px;padding:0 12px;gap:8px}.meta,.desktop-tools{display:none}.tools{gap:0}.brand{gap:8px}.canvas{padding:0;height:calc(100dvh - 58px)}iframe,body.phone iframe{border:0;border-radius:0;width:100%;height:100%;max-height:none}.badge{font-size:10px;padding:4px 6px}a{padding:10px 4px}}
+    @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+  </style>
+</head>
+<body>
+  <header class="bar">
+    <div class="brand"><strong>Atelier</strong><span class="badge">Design preview</span><span class="meta">Sample learner · no account changes</span></div>
+    <div class="tools"><div class="switch desktop-tools" aria-label="Preview width"><button id="desktop" aria-pressed="true">Desktop</button><button id="mobile" aria-pressed="false">Mobile</button></div><a href="design-notes.html" target="_blank" rel="noopener">Design notes ↗</a></div>
+  </header>
+  <div class="canvas"><iframe src="app.html" title="Interactive Atelier redesign"></iframe></div>
+  <script>
+    for(const id of ['desktop','mobile']) document.getElementById(id).addEventListener('click',()=>{
+      document.body.classList.toggle('phone',id==='mobile');
+      for(const key of ['desktop','mobile'])document.getElementById(key).setAttribute('aria-pressed',String(id===key));
+    });
+  </script>
+</body>
+</html>

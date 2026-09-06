@@ -37,27 +37,41 @@ def test_serial_archive_cast_and_replay_pages_are_wired() -> None:
     assert "setSerialAvatar" in api
 
 
-def test_graphic_novel_serial_page_keeps_bubbles_and_panel_tasks_inline() -> None:
+def test_graphic_novel_panel_prints_art_dialogue_and_one_inline_action() -> None:
+    """Reader rebuild: the panel drawer, the source card and the vocabulary strip
+    are gone; a panel is art + one numeral + dialogue lines + one quiet action."""
     source = read_web("pages/graphic-novel.tsx")
 
-    assert "function PanelInlineTaskDisclosure" in source
-    assert "À toi —" in source
-    assert "data-panel-task-drawer" in source
-    assert "className=\"panel-task-drawer\"" in source
-    assert "className=\"source-card compact-source\"" in source
-    assert "<details className=\"feuilleton-vocabulary-strip\"" in source
-    assert "display: block;" in source[source.index(".feuilleton-page .bubble-layer") : source.index(".feuilleton-page .mobile-panel-dialogue")]
+    assert "function PanelTask" in source
+    assert "function panelDialogueLines" in source
+    assert "function additivePanelCaption" in source
+    assert "<FeDialogue" in source
     assert "choiceOptionView" in source
+    for dead in (
+        "function PanelInlineTaskDisclosure",
+        "data-panel-task-drawer",
+        "panel-task-drawer",
+        "source-card",
+        "feuilleton-vocabulary-strip",
+        "bubble-layer",
+        "mobile-panel-dialogue",
+        "function BubbleOverlay",
+        "function BubbleTranscript",
+    ):
+        assert dead not in source
 
 
-def test_graphic_novel_scene_leads_with_panels_before_brief() -> None:
+def test_graphic_novel_scene_leads_with_panels_and_has_no_scene_brief() -> None:
+    """Reader rebuild: SceneBrief (news-first synopsis + source card + edition
+    meta) is removed outright, so the read simply leads."""
     source = read_web("pages/graphic-novel.tsx")
 
-    assert source.index("<SerialSceneReader") < source.index("<SceneBrief scene={scene}")
-    assert "className=\"serial-reader s-feuil\"" in source
+    assert "function SceneBrief" not in source
+    assert "<SceneBrief" not in source
+    assert "className=\"serial-reader\"" in source
     assert "function SerialFinalAct" in source
-    assert source.index(") : scene.script_payload?.render_mode === 'page' ?") < source.index("<SceneBrief scene={scene}")
-    assert source.index('className="panel-grid" id="reading-panels"') < source.index("<SceneBrief scene={scene}")
+    assert source.index("<SerialSceneReader") < source.index("<SerialFinalAct")
+    assert source.index('className="panel-grid" id="reading-panels"') < source.index("<SerialFinalAct")
 
 
 def test_graphic_novel_completion_routes_to_returned_serial_beat() -> None:
@@ -75,8 +89,10 @@ def test_graphic_novel_completion_routes_to_returned_serial_beat() -> None:
     assert "const nextBeatIsMission = hook?.next_beat_kind === 'mission'" in source
     assert "routeWithQuery('/missions', missionPairs)" in source
     assert "routeWithQuery('/graphic-novel', readerPairs)" in source
-    assert "scene.status === 'completed' ? nextBeatLabel : 'Terminer l’édition'" in source
-    assert "scene.status === 'completed' ? nextBeatHref : '#reading-panels'" in source
+    # Reader rebuild: the end of the episode is one action — Terminer l’épisode
+    # while it is open, the declared next beat once it is filed.
+    assert "Terminer l’épisode" in source
+    assert "<Link className=\"btn solid lg\" href={nextBeatHref}>" in source
 
 
 def test_feuilleton_legacy_reader_rules_are_pruned_after_fe_panel_adoption() -> None:
@@ -85,9 +101,11 @@ def test_feuilleton_legacy_reader_rules_are_pruned_after_fe_panel_adoption() -> 
     for dead_selector in (".s-mast", ".s-prev", ".s-panel", ".s-art", ".s-cap"):
         assert dead_selector not in source
 
-    # Task and news selectors remain live.
-    assert 'className="s-news"' in source
-    assert 'className="s-fork serial-final-act"' in source
+    # Reader rebuild: the "cette semaine" news aside and the uppercase fork
+    # header are gone with the rest of the legacy .s-* era.
+    assert ".s-news" not in source
+    assert ".s-fork" not in source
+    assert 'className="fe-embed serial-final-act"' in source
 
 
 def test_graphic_novel_default_route_rejoins_canonical_story_beat() -> None:
@@ -98,16 +116,24 @@ def test_graphic_novel_default_route_rejoins_canonical_story_beat() -> None:
     assert "if (serial.kind === 'feuilleton' && serial.scene_id)" in source
     assert "canonicalBeat?.kind === 'mission'" in source
     assert "La suite se joue avant de se lire." in source
-    assert "OUVRIR LA MISSION DU JOUR" in source
+    # Soft-button pass: CTA labels are sentence case (text-transform removed).
+    assert "Ouvrir la mission du jour" in source
     assert "onClick={openCanonicalBeat}" in source
     assert "Aucun récit parallèle ne sera créé." in source
 
 
-def test_feuilleton_translation_toggle_and_tablet_reader_are_reading_first() -> None:
+def test_feuilleton_translations_stay_hidden_until_requested() -> None:
+    """Reader rebuild: the global "Afficher EN" toggle is replaced by a per-panel
+    and per-task Traduire affordance; nothing English renders unrequested."""
     source = read_web("pages/graphic-novel.tsx")
+    supplement = read_web("components/feuilleton/Feuilleton.tsx")
 
-    assert "en: showTranslations ? bubble.en : undefined" in source
-    assert "window.matchMedia('(max-width: 900px)')" in source
+    assert "showMobileTranslations" not in source
+    assert "Afficher EN" not in source
+    assert "translated={translated}" in source
+    assert "onTranslate={() => setTranslated((current) => !current)}" in source
+    assert "translateLabel = 'Traduire'" in supplement
+    assert "{translated && line.en && <em>{line.en}</em>}" in supplement
     assert "@media (max-width: 900px)" in source
     assert ".feuilleton-page .serial-act > .fe-task" in source
 
@@ -136,7 +162,10 @@ def test_product_direction_surfaces_are_wired() -> None:
     redirects = read_web("next.config.js")
     bibliotheque = read_web("pages/bibliotheque.tsx")
 
-    assert "<LuCours" in atelier
+    # Le cours is an En bref row since the manchette redesign; the full block
+    # lives in Le Relevé.
+    assert "<LuEnBref" in atelier
+    assert "href: '/notebook?mode=releve'" in atelier
     assert "estimatedRemainingMinutes" in atelier
     assert "CrTranslate" in missions or "translate={translateFrame}" in missions
     assert "className=\"cr motion\"" in missions

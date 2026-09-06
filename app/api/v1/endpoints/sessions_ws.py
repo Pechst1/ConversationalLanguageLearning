@@ -3,12 +3,12 @@ from __future__ import annotations
 
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
-from starlette.concurrency import run_in_threadpool
 from loguru import logger
 from pydantic import TypeAdapter, ValidationError
+from starlette.concurrency import run_in_threadpool
 
 from app.api.deps import get_connection_manager, get_session_service
 from app.api.v1.endpoints.session_utils import (
@@ -145,7 +145,7 @@ async def session_stream(
                     user_id=user.id,
                     message={
                         "type": "heartbeat",
-                        "data": {"server_time": datetime.now(timezone.utc).isoformat()},
+                        "data": {"server_time": datetime.now(UTC).isoformat()},
                     },
                 )
                 continue

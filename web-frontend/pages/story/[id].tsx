@@ -276,7 +276,7 @@ export default function StoryPage({ storyData = null, storyId: initialStoryId, e
                         const achievementMessage: Message = {
                             id: 'achievement-' + Date.now() + Math.random(),
                             type: 'system',
-                            content: `🎯 Ziel erreicht: ${description}`,
+                            content: `🎯 Objectif atteint : ${description}`,
                             timestamp: new Date().toISOString(),
                         };
                         setMessages(prev => [...prev, achievementMessage]);
@@ -305,12 +305,24 @@ export default function StoryPage({ storyData = null, storyId: initialStoryId, e
                 setMessages(prev => [...prev, xpMessage]);
             }
 
+            if (data.minted_collectibles?.length > 0) {
+                for (const collectible of data.minted_collectibles) {
+                    const rewardMessage: Message = {
+                        id: 'reward-' + Date.now() + Math.random(),
+                        type: 'system',
+                        content: `◆ ${collectible.metadata?.name || 'Jeton de courage'} — tu as osé t’exprimer.`,
+                        timestamp: new Date().toISOString(),
+                    };
+                    setMessages(prev => [...prev, rewardMessage]);
+                }
+            }
+
             // Handle scene transition
             if (data.scene_transition) {
                 const transitionMessage: Message = {
                     id: 'transition-' + Date.now(),
                     type: 'narration',
-                    content: data.scene_transition.transition_narration || 'Die Geschichte entwickelt sich weiter...',
+                    content: data.scene_transition.transition_narration || 'L’histoire continue…',
                     timestamp: new Date().toISOString(),
                 };
                 setMessages(prev => [...prev, transitionMessage]);
@@ -323,7 +335,7 @@ export default function StoryPage({ storyData = null, storyId: initialStoryId, e
             if (data.errors_detected?.length > 0) {
                 // Show ALL errors, not just the first one
                 data.errors_detected.forEach((error: any, index: number) => {
-                    const errorExplanation = error.message || error.correction || 'Grammatikfehler erkannt';
+                    const errorExplanation = error.message || error.correction || 'Point de langue à reprendre';
                     const prefix = data.errors_detected.length > 1 ? `(${index + 1}/${data.errors_detected.length}) ` : '';
 
                     const errorMessage: Message = {

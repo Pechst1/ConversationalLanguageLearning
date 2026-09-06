@@ -2,7 +2,8 @@
 from __future__ import annotations
 
 import uuid
-from sqlalchemy import Column, DateTime, Boolean, String, Text, ForeignKey
+
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 

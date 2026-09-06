@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 """Script to seed stories from YAML files into the database."""
-import os
 import sys
 from pathlib import Path
 
@@ -11,17 +10,16 @@ sys.path.insert(0, str(project_root))
 import yaml
 from sqlalchemy.orm import Session
 
-from app.db.session import SessionLocal
-from app.db.models.story import Story, Chapter, Scene, StoryProgress
 from app.db.models.npc import NPC
-
+from app.db.models.story import Chapter, Scene, Story
+from app.db.session import SessionLocal
 
 STORIES_DIR = project_root / "app" / "data" / "stories"
 
 
 def load_yaml(path: Path) -> dict:
     """Load a YAML file."""
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         return yaml.safe_load(f)
 
 

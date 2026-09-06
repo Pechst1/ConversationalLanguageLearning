@@ -10,7 +10,7 @@ import argparse
 import sys
 from pathlib import Path
 
-sys.path.append(str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.db.models.atelier import AtelierConceptBlueprint
 from app.db.models.grammar import GrammarConcept, GrammarConceptArchive, GrammarConceptLocalization
@@ -47,6 +47,7 @@ def main() -> None:
         )
         archived_count = db.query(GrammarConceptArchive).count()
         localized_count = db.query(GrammarConceptLocalization).filter(GrammarConceptLocalization.locale == "de").count()
+        localized_fr_count = db.query(GrammarConceptLocalization).filter(GrammarConceptLocalization.locale == "fr").count()
         blueprint_count = (
             db.query(AtelierConceptBlueprint)
             .join(GrammarConcept, GrammarConcept.id == AtelierConceptBlueprint.concept_id)
@@ -61,6 +62,7 @@ def main() -> None:
         print(f"Active French concepts: {active_count}")
         print(f"Archived legacy concepts: {archived_count}")
         print(f"German localizations: {localized_count}")
+        print(f"French localizations: {localized_fr_count}")
         print(f"Approved blueprints: {blueprint_count}")
         if invalid:
             print("Invalid blueprints:")

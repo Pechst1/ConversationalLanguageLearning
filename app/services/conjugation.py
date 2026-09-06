@@ -4,7 +4,7 @@ from __future__ import annotations
 import re
 import unicodedata
 from dataclasses import dataclass
-from datetime import datetime, time, timezone
+from datetime import UTC, datetime, time
 from typing import Any
 
 from sqlalchemy import func, or_, select
@@ -13,7 +13,6 @@ from sqlalchemy.orm import Session
 from app.db.models.user import User
 from app.db.models.vocabulary import UserConjugationProgress, VerbConjugation, VocabularyWord
 from app.services.srs import FSRSScheduler, SchedulerState
-
 
 CORE_TENSES = [
     "present",
@@ -414,7 +413,7 @@ def upsert_conjugation_rows(db: Session, rows: list[dict[str, Any]]) -> int:
     """Idempotently insert/update conjugation rows."""
 
     changed = 0
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     for row in rows:
         existing = (
             db.query(VerbConjugation)
@@ -486,7 +485,7 @@ class ConjugationService:
     ) -> list[dict[str, Any]]:
         """Return due irregular verb x tense prompts."""
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         allowed_bands = self._allowed_cefr_bands(cefr_band)
         due_query = (
             self.db.query(UserConjugationProgress)
@@ -586,7 +585,7 @@ class ConjugationService:
             self.db.add(progress)
             self.db.flush([progress])
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         outcome = self.scheduler.review(
             state=SchedulerState(
                 stability=progress.stability or 0.0,
@@ -652,7 +651,7 @@ class ConjugationService:
         answer = next((row["form"] for row in table if row["person"] == person), "")
         due_at = progress.next_review_date
         if due_at is None and progress.due_date:
-            due_at = datetime.combine(progress.due_date, time.min, tzinfo=timezone.utc)
+            due_at = datetime.combine(progress.due_date, time.min, tzinfo=UTC)
         return {
             "id": f"{progress.normalized_lemma}:{progress.tense}",
             "lemma": progress.verb_lemma,

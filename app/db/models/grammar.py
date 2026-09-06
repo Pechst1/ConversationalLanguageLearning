@@ -5,11 +5,22 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
-from sqlalchemy.types import JSON
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
+from sqlalchemy.types import JSON
 
 from app.db.base import Base
 
@@ -55,10 +66,10 @@ class GrammarConcept(Base):
     )
 
     # Relationships
-    user_progress: Mapped[list["UserGrammarProgress"]] = relationship(
+    user_progress: Mapped[list[UserGrammarProgress]] = relationship(
         "UserGrammarProgress", back_populates="concept", lazy="dynamic"
     )
-    localizations: Mapped[list["GrammarConceptLocalization"]] = relationship(
+    localizations: Mapped[list[GrammarConceptLocalization]] = relationship(
         "GrammarConceptLocalization", back_populates="concept", cascade="all, delete-orphan"
     )
 
@@ -101,8 +112,8 @@ class UserGrammarProgress(Base):
     )
 
     # Relationships
-    user: Mapped["User"] = relationship("User", back_populates="grammar_progress")
-    concept: Mapped["GrammarConcept"] = relationship("GrammarConcept", back_populates="user_progress")
+    user: Mapped[User] = relationship("User", back_populates="grammar_progress")
+    concept: Mapped[GrammarConcept] = relationship("GrammarConcept", back_populates="user_progress")
 
     __table_args__ = (
         Index("ix_user_grammar_progress_user_concept", "user_id", "concept_id", unique=True),
@@ -111,13 +122,13 @@ class UserGrammarProgress(Base):
 
     @property
     def state_label(self) -> str:
-        """Return German label for state."""
+        """Return the publication-language label while preserving the scheduler key."""
         labels = {
-            "neu": "Neu",
-            "ausbaufähig": "Ausbaufähig",
-            "in_arbeit": "In Arbeit",
-            "gefestigt": "Gefestigt",
-            "gemeistert": "Gemeistert",
+            "neu": "Nouveau",
+            "ausbaufähig": "À renforcer",
+            "in_arbeit": "En cours",
+            "gefestigt": "Solide",
+            "gemeistert": "Acquis",
         }
         return labels.get(self.state, self.state)
 

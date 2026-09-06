@@ -9,7 +9,13 @@ from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.core.security import InvalidTokenError, decode_token
+from app.core.conversation import ConversationGenerator
+from app.core.error_detection import ErrorDetector
+from app.core.security import (
+    InvalidTokenError,
+    decode_token,
+    get_unusable_password_hash,
+)
 from app.db.models.user import User
 from app.db.session import SessionLocal
 from app.schemas import TokenPayload
@@ -18,8 +24,6 @@ from app.services.llm_service import LLMService
 from app.services.progress import ProgressService
 from app.services.realtime import SessionConnectionManager, build_default_connection_manager
 from app.services.session_service import SessionService
-from app.core.conversation import ConversationGenerator
-from app.core.error_detection import ErrorDetector
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login")
 optional_oauth2_scheme = OAuth2PasswordBearer(
@@ -87,16 +91,25 @@ def get_current_user(
     return _resolve_authenticated_user(token, db)
 
 
+def harden_demo_user_password(db: Session, user: User) -> User:
+    """Replace legacy plaintext demo placeholders with an unusable hash."""
+    if not (user.hashed_password or "").startswith(("$2a$", "$2b$", "$2y$")):
+        user.hashed_password = get_unusable_password_hash()
+        db.commit()
+        db.refresh(user)
+    return user
+
+
 def get_or_create_local_demo_user(db: Session) -> User:
     """Return the shared local demo user used by unauthenticated mobile design flows."""
 
     user = db.query(User).filter(User.email == LOCAL_DEMO_USER_EMAIL).first()
     if user:
-        return user
+        return harden_demo_user_password(db, user)
 
     user = User(
         email=LOCAL_DEMO_USER_EMAIL,
-        hashed_password="atelier-demo",
+        hashed_password=get_unusable_password_hash(),
         full_name="Atelier Demo",
         native_language="en",
         target_language="fr",

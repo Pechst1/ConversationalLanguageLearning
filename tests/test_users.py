@@ -103,6 +103,90 @@ def test_user_settings_validation_rejects_invalid_payloads(client: TestClient) -
     )
     assert empty_payload_response.status_code == 422
 
+    # The pattern used to be \d{2}:\d{2}, which stored "25:99" as a reminder.
+    impossible_time_response = client.patch(
+        "/api/v1/users/me/settings",
+        json={"reminder_time": "25:99"},
+        headers=headers,
+    )
+    assert impossible_time_response.status_code == 422
+
+    valid_time_response = client.patch(
+        "/api/v1/users/me/settings",
+        json={"reminder_time": "23:59"},
+        headers=headers,
+    )
+    assert valid_time_response.status_code == 200
+    assert valid_time_response.json()["reminder_time"] == "23:59"
+
+
+def test_english_native_can_save_the_direction_registration_gave_them(client: TestClient) -> None:
+    """The settings page always posts the stored direction back.
+
+    Registration derives ``fr_to_en`` for English natives, but the settings
+    schema only listed the German pair, so that round trip was a guaranteed 422
+    and no preference on the page could be saved at all.
+    """
+
+    token = register_and_login(client, "direction-en@example.com", "verysecure")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    stored = client.get("/api/v1/users/me/settings", headers=headers).json()
+    assert stored["default_vocab_direction"] == "fr_to_en"
+
+    echo_response = client.patch(
+        "/api/v1/users/me/settings",
+        json={"default_vocab_direction": stored["default_vocab_direction"], "theme": "dark"},
+        headers=headers,
+    )
+    assert echo_response.status_code == 200
+    assert echo_response.json()["default_vocab_direction"] == "fr_to_en"
+
+    for direction in ("en_to_fr", "fr_to_de", "de_to_fr", "mixed"):
+        response = client.patch(
+            "/api/v1/users/me/settings",
+            json={"default_vocab_direction": direction},
+            headers=headers,
+        )
+        assert response.status_code == 200, direction
+        assert response.json()["default_vocab_direction"] == direction
+
+    rejected = client.patch(
+        "/api/v1/users/me/settings",
+        json={"default_vocab_direction": "fr_to_martian"},
+        headers=headers,
+    )
+    assert rejected.status_code == 422
+
+
+def test_data_export_returns_every_section(client: TestClient) -> None:
+    """The données panel's only download used to 500 on a bad model import."""
+
+    token = register_and_login(client, "export@example.com", "verysecure")
+
+    response = client.get("/api/v1/users/me/export", headers={"Authorization": f"Bearer {token}"})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["user"]["email"] == "export@example.com"
+    for section in (
+        "exported_at",
+        "vocabulary_progress",
+        "grammar_progress",
+        "errors",
+        "sessions",
+        "achievements",
+    ):
+        assert section in payload
+
+
+# Account deletion is not covered here: DELETE /users/me walks SQLAlchemy's ORM
+# cascade across every learner-owned relationship, and the sqlite schema this
+# suite builds does not create all of them (npc_relationships and friends).
+# Verified against the dev Postgres instead — the row and every cascading table
+# go, and pilot_events/atelier_generation_events keep their rows with a NULL
+# user_id (ON DELETE SET NULL), which is the intended anonymisation.
+
 
 def test_password_change_invalidates_existing_access_token(client: TestClient) -> None:
     token = register_and_login(client, "password@example.com", "verysecure")

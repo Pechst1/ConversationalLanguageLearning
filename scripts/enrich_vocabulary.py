@@ -27,7 +27,6 @@ from app.db.models.vocabulary import VocabularyWord  # noqa: E402
 from app.db.session import SessionLocal  # noqa: E402
 from app.services.vocabulary_coverage import TAXONOMY_LABELS, normalize_category  # noqa: E402
 
-
 CEFR_BY_RANK = [(500, 1), (1000, 2), (2000, 3), (3500, 4), (999999, 5)]
 POS_MAP = {
     "NOUN": "noun",

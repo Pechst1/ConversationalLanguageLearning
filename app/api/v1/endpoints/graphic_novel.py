@@ -15,8 +15,6 @@ from app.db.models.graphic_novel import GraphicNovelScene
 from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.user import User
 from app.db.session import SessionLocal
-from app.services.cefr_progress import CEFRProgressService
-from app.services.serial import SerialThreadService
 from app.schemas.graphic_novel import (
     GraphicNovelAttemptRequest,
     GraphicNovelAttemptResponse,
@@ -25,14 +23,17 @@ from app.schemas.graphic_novel import (
     GraphicNovelSceneResponse,
     GraphicNovelTodayResponse,
 )
+from app.services.cefr_progress import CEFRProgressService
 from app.services.graphic_novel import (
     GraphicNovelCorrectionService,
     GraphicNovelGenerationError,
     GraphicNovelScheduler,
     GraphicNovelTargetVocabularyError,
+    scene_matches_current_contract,
     serialize_attempt,
     serialize_scene,
 )
+from app.services.serial import SerialThreadService
 
 router = APIRouter(prefix="/graphic-novel", tags=["graphic-novel"])
 
@@ -190,6 +191,17 @@ def get_graphic_novel_scene(
     current_user: Annotated[User, Depends(get_atelier_user)],
 ) -> GraphicNovelSceneResponse:
     scene = _scene_or_404(db, scene_id, current_user)
+    # A direct resume link must not revive an incompatible pre-redesign edition. Completed
+    # scenes stay viewable as history; still-open stale scenes are reported as superseded so
+    # the client requests a fresh edition under the current contract.
+    if scene.status != "completed" and not scene_matches_current_contract(scene):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "feuilleton_scene_superseded",
+                "message": "This edition predates the current Feuilleton and can no longer be resumed.",
+            },
+        )
     return GraphicNovelSceneResponse(scene=serialize_scene(scene) or {})
 
 

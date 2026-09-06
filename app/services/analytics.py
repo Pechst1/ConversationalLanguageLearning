@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import func
@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from app.db.models.analytics import AnalyticsSnapshot
 from app.db.models.error import UserError
 from app.db.models.progress import ReviewLog, UserVocabularyProgress
-from app.db.models.session import LearningSession, WordInteraction
+from app.db.models.session import LearningSession
 from app.db.models.user import User
 from app.services.progress import ProgressService
 from app.utils.cache import cache_backend
@@ -101,7 +101,7 @@ class AnalyticsService:
             if state not in {"new", "mastered"}
         )
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         due_today = self.progress_service.count_due_reviews(user.id, now=now)
         upcoming = (
             self.db.query(func.count(UserVocabularyProgress.id))
@@ -143,7 +143,7 @@ class AnalyticsService:
         if cached is not None:
             return cached
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         window_start = now - timedelta(days=days - 1)
         duration = _duration_expr()
 
@@ -212,7 +212,7 @@ class AnalyticsService:
         if cached is not None:
             return cached
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         window_start = now - timedelta(days=window_days - 1)
 
         calendar_rows = (
@@ -314,7 +314,7 @@ class AnalyticsService:
         if cached is not None:
             return cached
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         # Total errors
         total = (
@@ -416,7 +416,7 @@ class AnalyticsService:
     def generate_daily_snapshot(self, *, user: User, snapshot_date: date | None = None) -> AnalyticsSnapshot:
         """Persist a daily analytics snapshot for offline analysis."""
 
-        snapshot_day = snapshot_date or datetime.now(timezone.utc).date()
+        snapshot_day = snapshot_date or datetime.now(UTC).date()
         summary = self.get_user_summary(user=user)
 
         calendar = self.get_streak_info(user=user)
@@ -471,7 +471,7 @@ class AnalyticsService:
         if not day_set:
             return StreakStats(current=0, longest=0)
 
-        today = datetime.now(timezone.utc).date()
+        today = datetime.now(UTC).date()
         current = 0
         check_day = today
         while check_day in day_set:
@@ -481,7 +481,7 @@ class AnalyticsService:
         sorted_days = sorted(day_set)
         longest = 1
         streak = 1
-        for previous, current_day in zip(sorted_days, sorted_days[1:]):
+        for previous, current_day in zip(sorted_days, sorted_days[1:], strict=False):
             if current_day - previous == timedelta(days=1):
                 streak += 1
             else:

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import and_, func, not_, or_, select
@@ -14,6 +14,7 @@ from app.db.models.progress import ReviewLog, UserVocabularyProgress
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
 from app.schemas.anki import AnkiCardUpdate
+from app.services.glosses import gloss_payload
 from app.services.srs import FSRSScheduler, ReviewOutcome, SchedulerState
 from app.utils.cache import cache_backend
 
@@ -22,7 +23,7 @@ def as_aware_datetime(value: datetime | None) -> datetime | None:
     if value is None:
         return None
     if value.tzinfo is None:
-        return value.replace(tzinfo=timezone.utc)
+        return value.replace(tzinfo=UTC)
     return value
 
 
@@ -33,11 +34,11 @@ def vocabulary_due_deadline(
 ) -> tuple[datetime, date]:
     """Return datetime/date due cutoffs with precise times taking precedence."""
 
-    now = as_aware_datetime(now or datetime.now(timezone.utc)) or datetime.now(timezone.utc)
+    now = as_aware_datetime(now or datetime.now(UTC)) or datetime.now(UTC)
     upcoming_limit = now.date() + timedelta(days=max(0, include_upcoming_days))
     if include_upcoming_days <= 0:
         return now, upcoming_limit
-    deadline = datetime.combine(upcoming_limit + timedelta(days=1), datetime.min.time(), tzinfo=timezone.utc)
+    deadline = datetime.combine(upcoming_limit + timedelta(days=1), datetime.min.time(), tzinfo=UTC)
     return deadline, upcoming_limit
 
 
@@ -81,7 +82,7 @@ def vocabulary_progress_due_at(progress: UserVocabularyProgress) -> datetime | N
     if next_review is not None:
         return next_review
     if progress.due_date is not None:
-        return datetime.combine(progress.due_date, datetime.min.time(), tzinfo=timezone.utc)
+        return datetime.combine(progress.due_date, datetime.min.time(), tzinfo=UTC)
     return None
 
 
@@ -219,7 +220,7 @@ class ProgressService:
     ) -> list[QueueItem]:
         """Return due and new words for a learner."""
 
-        now = now or datetime.now(timezone.utc)
+        now = now or datetime.now(UTC)
         today = now.date()
         exclude_ids = exclude_ids or set()
         stopwords = self._queue_stopwords()
@@ -391,6 +392,7 @@ class ProgressService:
         progress: UserVocabularyProgress | None,
         bucket: str,
         now: datetime,
+        native_language: str | None = None,
     ) -> dict[str, Any]:
         priority_score, retrievability = self._recommendation_priority(
             progress=progress,
@@ -424,11 +426,7 @@ class ProgressService:
             "deck_name": word.deck_name,
             "part_of_speech": word.part_of_speech,
             "topic_tags": word.topic_tags or [],
-            "translations": {
-                "de": word.german_translation,
-                "en": word.english_translation,
-                "fr": word.french_translation,
-            },
+            **gloss_payload(word, native_language),
             "example_sentence": word.example_sentence,
             "example_translation": word.example_translation,
         }
@@ -449,7 +447,7 @@ class ProgressService:
     ) -> dict[str, Any]:
         """Return due, fragile, and new words ranked by FSRS-style memory urgency."""
 
-        now = now or datetime.now(timezone.utc)
+        now = now or datetime.now(UTC)
         stopwords = self._queue_stopwords()
         target_language = (user.target_language or "fr").strip() or "fr"
         direction_filter = (
@@ -495,13 +493,20 @@ class ProgressService:
                 continue
             seen_keys.add(dedupe_key)
 
-            due_at = self._progress_due_at(progress)
             is_due = vocabulary_progress_is_due(
                 progress,
                 now,
                 include_upcoming_days=include_upcoming_days,
             )
-            fragile = (
+            # "Fragile" is the shaky-but-not-due shelf. It read no dates at
+            # all, so every card the learner had just rated matched it (a rated
+            # card is in a learning phase, or has a lapse) and the deck refilled
+            # with the words that had only now left it — the count went up while
+            # the learner worked. A card already reviewed today and not yet due
+            # has had its turn.
+            last_review = self._as_aware_datetime(progress.last_review_date)
+            reviewed_today = last_review is not None and last_review >= now - timedelta(hours=12)
+            fragile = not reviewed_today and (
                 (progress.lapses or 0) > 0
                 or (progress.proficiency_score or 0) < 50
                 or 0 < float(progress.stability or 0) < 3
@@ -515,6 +520,7 @@ class ProgressService:
                         progress=progress,
                         bucket="due",
                         now=now,
+                        native_language=user.native_language,
                     )
                 )
             elif fragile:
@@ -567,6 +573,7 @@ class ProgressService:
                 progress=None,
                 bucket="new",
                 now=now,
+                native_language=user.native_language,
             )
             for word in self.db.scalars(new_stmt)
         ]
@@ -597,6 +604,7 @@ class ProgressService:
             progress=progress,
             bucket=bucket,
             now=now,
+            native_language=user.native_language,
         )
 
     def _context_word_query(
@@ -715,7 +723,7 @@ class ProgressService:
     ) -> dict[str, Any]:
         """Return a bucketed vocabulary bundle for contextual mobile surfaces."""
 
-        now = now or datetime.now(timezone.utc)
+        now = now or datetime.now(UTC)
         recommendations = self.get_vocabulary_recommendations(
             user=user,
             limit=limit,
@@ -725,11 +733,26 @@ class ProgressService:
             direction=direction,
             now=now,
         )
-        due_words = [item for item in recommendations["items"] if item["bucket"] == "due"][:due_limit]
+        from app.services.recommendation_reasons import recommendation_reason
+
+        def with_reason(item: dict[str, Any]) -> dict[str, Any]:
+            return {
+                **item,
+                "recommendation_reason": recommendation_reason(
+                    "review",
+                    bucket=item.get("bucket"),
+                    due_at=item.get("due_at"),
+                    lapses=item.get("lapses"),
+                    retrievability=item.get("retrievability"),
+                    anchor=item.get("anchor"),
+                ),
+            }
+
+        due_words = [with_reason(item) for item in recommendations["items"] if item["bucket"] == "due"][:due_limit]
         fragile_words = [
-            item for item in recommendations["items"] if item["bucket"] == "fragile"
+            with_reason(item) for item in recommendations["items"] if item["bucket"] == "fragile"
         ][:fragile_limit]
-        new_words = [item for item in recommendations["items"] if item["bucket"] == "new"][:new_limit]
+        new_words = [with_reason(item) for item in recommendations["items"] if item["bucket"] == "new"][:new_limit]
         used_word_ids = {item["word_id"] for item in due_words + fragile_words + new_words}
 
         linked_words = self._linked_vocabulary(
@@ -739,6 +762,7 @@ class ProgressService:
             exclude_word_ids=used_word_ids,
             now=now,
         )
+        linked_words = [with_reason({**item, "bucket": item.get("bucket") or "linked"}) for item in linked_words]
         topic_compatible_words = self._topic_compatible_vocabulary(
             user=user,
             topic_tags=topic_tags or [],
@@ -747,6 +771,10 @@ class ProgressService:
             exclude_word_ids=used_word_ids,
             now=now,
         )
+        topic_compatible_words = [
+            with_reason({**item, "bucket": item.get("bucket") or "topic_compatible"})
+            for item in topic_compatible_words
+        ]
         total = (
             len(due_words)
             + len(fragile_words)
@@ -757,6 +785,9 @@ class ProgressService:
         return {
             "summary": {
                 "due": len(due_words),
+                # `due` is capped by due_limit (La Une asks for 1); the unsliced
+                # candidate count is what a "N mots à revoir" line must print.
+                "due_total": int((recommendations.get("summary") or {}).get("due", len(due_words))),
                 "fragile": len(fragile_words),
                 "new": len(new_words),
                 "topic_compatible": len(topic_compatible_words),
@@ -897,7 +928,7 @@ class ProgressService:
         """Aggregate progress statistics for Anki cards."""
 
         records = self.list_anki_progress(user=user)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         stage_map = {
             "new": {"labels": {"new"}},
@@ -997,7 +1028,7 @@ class ProgressService:
     ) -> int:
         """Return how many reviews are currently due for the learner."""
 
-        now = now or datetime.now(timezone.utc)
+        now = now or datetime.now(UTC)
         today = now.date()
         cache_key = (
             f"{user_id}:{direction or 'all'}:{deck_name or 'all'}:"
@@ -1058,7 +1089,7 @@ class ProgressService:
     ) -> float:
         """Calculate a learner's recent review performance score."""
 
-        now = now or datetime.now(timezone.utc)
+        now = now or datetime.now(UTC)
         cutoff_date = now - timedelta(days=lookback_days)
         query = (
             self.db.query(ReviewLog)
@@ -1124,7 +1155,7 @@ class ProgressService:
     ) -> tuple[UserVocabularyProgress, ReviewLog, ReviewOutcome]:
         """Persist a learner review and return the updated progress."""
 
-        now = now or datetime.now(timezone.utc)
+        now = now or datetime.now(UTC)
         progress = self.get_or_create_progress(user_id=user.id, word_id=word.id)
         previous_schedule = progress.scheduled_days
         state = self._state_from_progress(progress)
@@ -1166,7 +1197,7 @@ class ProgressService:
     ) -> UserVocabularyProgress:
         """Apply lightweight vocabulary credit from contextual use outside flashcards."""
 
-        now = now or datetime.now(timezone.utc)
+        now = now or datetime.now(UTC)
         progress = self.get_or_create_progress(user_id=user.id, word_id=word.id)
         event = str(event_type or "seen_context").lower()
 
@@ -1206,7 +1237,7 @@ class ProgressService:
     def sync_anki_progress(self, *, user: User, cards: list[AnkiCardUpdate]) -> dict[str, int]:
         """Sync progress from AnkiConnect updates."""
         stats = {"updated": 0, "created": 0, "skipped": 0, "errors": 0}
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         for card in cards:
             # Determine direction first to guide field extraction
             language = "fr" # Default target
@@ -1415,7 +1446,7 @@ class ProgressService:
             if card.due is not None:
                 if card.due > 100000000:
                     try:
-                        due_at = datetime.fromtimestamp(card.due, tz=timezone.utc)
+                        due_at = datetime.fromtimestamp(card.due, tz=UTC)
                     except (ValueError, OSError):
                         due_at = None
                 elif card.interval is not None:

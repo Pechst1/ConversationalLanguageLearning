@@ -76,7 +76,7 @@ export default function ForgotPasswordPage() {
   return (
     <>
       <Head>
-        <title>Password help - Atelier</title>
+        <title>Password help · L’Atelier</title>
       </Head>
 
       <main className="auth-page">
@@ -168,8 +168,8 @@ export default function ForgotPasswordPage() {
           place-items: center;
           padding: calc(max(18px, env(safe-area-inset-top)) + 12px) 16px calc(max(22px, env(safe-area-inset-bottom)) + 10px);
           background:
-            linear-gradient(rgba(20, 17, 13, .035) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(20, 17, 13, .025) 1px, transparent 1px),
+            linear-gradient(rgb(var(--app-ink-rgb) / .035) 1px, transparent 1px),
+            linear-gradient(90deg, rgb(var(--app-ink-rgb) / .025) 1px, transparent 1px),
             var(--app-paper);
           background-size: 100% 34px, 34px 100%, auto;
           color: var(--app-ink);
@@ -182,7 +182,6 @@ export default function ForgotPasswordPage() {
           border: 1px solid var(--app-ink);
           background: var(--app-sheet);
           padding: 24px 20px;
-          box-shadow: 7px 7px 0 var(--app-ink);
         }
 
         .auth-back,
@@ -206,7 +205,6 @@ export default function ForgotPasswordPage() {
           place-items: center;
           border: 1px solid var(--app-ink);
           background: var(--app-yellow);
-          box-shadow: 4px 4px 0 var(--app-ink);
         }
 
         .auth-kicker {
@@ -267,26 +265,33 @@ export default function ForgotPasswordPage() {
           border-color: var(--app-blue);
         }
 
+        /* Matches the .auth-submit pill on sign-in and sign-up: this was the
+           last hard red slab with an offset shadow, uppercase, and a hardcoded
+           white foreground that ignored the theme. */
         .support-link {
-          min-height: 44px;
+          min-height: 54px;
           display: inline-flex;
           align-items: center;
           justify-content: center;
           border: 1px solid var(--app-ink);
-          background: var(--accent-action);
-          color: white;
-          padding: 12px 18px;
+          border-radius: 999px;
+          background: var(--app-ink);
+          color: var(--app-paper);
+          padding: 12px 22px;
           text-decoration: none;
-          font-size: 12px;
-          font-weight: 900;
-          letter-spacing: .08em;
-          text-transform: uppercase;
-          box-shadow: var(--ink-block-shadow);
+          font-size: var(--t-body);
+          font-weight: 600;
+          letter-spacing: .01em;
+        }
+
+        .support-link:active {
+          background: var(--app-paper-2);
+          color: var(--app-ink);
         }
 
         .support-link:disabled {
           cursor: not-allowed;
-          opacity: .68;
+          opacity: .5;
           transform: none;
         }
 
@@ -299,17 +304,21 @@ export default function ForgotPasswordPage() {
           font-weight: 800;
         }
 
+        /* Were fixed rgba() literals off the Tailwind palette, so they stayed
+           light-mode tints under the dark theme. */
         .status-message {
-          background: rgba(59, 130, 246, .08);
+          background: rgb(var(--app-blue-rgb) / .1);
+          color: var(--app-ink);
         }
 
         .error-message {
-          background: rgba(239, 68, 68, .1);
+          background: rgb(var(--app-red-rgb) / .12);
           color: var(--app-ink);
         }
 
         .dev-note {
-          background: rgba(245, 158, 11, .12);
+          background: rgb(var(--app-yellow-rgb) / .15);
+          color: var(--app-ink);
         }
       `}</style>
     </>

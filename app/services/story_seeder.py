@@ -1,7 +1,7 @@
 """Seed sample stories for the story learning system."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
@@ -32,7 +32,7 @@ def seed_stories(db: Session) -> None:
         author="Claude Assistant",
         total_chapters=7,
         is_published=True,
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
     )
 
     db.add(story)
@@ -303,7 +303,7 @@ Monsieur Dubois vous sourit depuis le comptoir. 'Tout ça grâce à vous,' dit-i
     print(f"   - Story ID: {story.id}")
     print(f"   - Total chapters: {len(chapters)}")
     print(f"   - Difficulty: {story.difficulty_level}")
-    print(f"   - Branching at chapter 2: Cave or Metro investigation")
+    print("   - Branching at chapter 2: Cave or Metro investigation")
 
 
 if __name__ == "__main__":

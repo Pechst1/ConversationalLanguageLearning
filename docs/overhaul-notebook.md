@@ -113,6 +113,37 @@ to the fields named below.
 
 ## 5. Claude Design brief — "Les Cahiers"
 
+> **Design pass IMPLEMENTED (2026-07-20).** The package (`Atelier (6).zip` →
+> `docs/design-reference/cahiers{.css,-parts,-grammar,-vocab,-boards}.jsx`) was ported into
+> the app token system:
+> - **`web-frontend/components/cahiers/Cahiers.tsx`** — all `Nc*` primitives (NcMasthead,
+>   NcModeTabs, NcFilingSummary, NcFeuilleFile, NcSearch/NcChips/NcLiveSum, NcLedgerHead,
+>   NcIndexRow, NcWordRow, NcSec/NcExample/NcErrRow, NcMarginNotes, NcCoverageTrack,
+>   NcMasteryMap, NcNotice/NcSkeleton/NcEmpty, NcCrumb/NcCta/NcColophon) + `CahiersStyles`.
+>   **Tokens only** — the design doc's `.nc { --app-paper: … }` / `.nc.dark` palette mirror
+>   is dropped; `.nc` inherits the global `--app-*` tokens and defines only the derived
+>   `--nc-*` values. A `.nc-flow` variant lets the primitives nest inside the vocabulary
+>   page's own scope.
+> - **`/notebook`** — shell redrawn: NcMasthead (CEFR in the folio), NcFeuilleFile (bound
+>   serial clipping, absent when no scene), NcModeTabs file-dividers (Bibliothèque tab gated
+>   by `STORY_FEATURE_VISIBLE`). Embeds the grammar/vocabulary surfaces.
+> - **`/grammar`** — rules index (NcIndexRow drill-down with mastery pips + state stamps +
+>   due mark + errata dots; search/chips/live-summary; `dueOnly` filter) → fiche detail
+>   (NcSec rule/examples/traps/motif, NcErrRow proofreader errata split due/récent,
+>   NcMarginNotes 4-state editable notes, NcCta to the Atelier). Maps `display_title`,
+>   `level`, `localized_category`, `mastery`, `state`/`state_label`, `due_errata`,
+>   `recent_errata`, `core_rule`, `main_traps`, `anchor_examples`, `blueprint_quality`,
+>   `personal_notes`. Phone-first drill-down replaced the desktop two-column layout.
+> - **`/vocabulary`** — registre: NcFilingSummary, NcWordRow queue (bucket) + deck (rank +
+>   state), atlas fold (NcCoverageTrack CEFR/topic/verb + NcMasteryMap 280-cell) and
+>   nc-dossier. The **word detail sheet** (flashcard flip, examples, SRS, traces, review
+>   ratings, mission/feuilleton seed, biography) is kept working inside the new frame per
+>   the migration note.
+> Direct `/grammar` `/vocabulary` use the slim masthead + sibling cross-link; embedded
+> views inherit the shell's tabs. Verified: tsc/lint/`npm run build` green (62 routes);
+> static tests updated + green; **live-checked light + dark** via a temporary dev harness
+> (the auth gate blocks the real routes — same limitation as the other surfaces).
+
 > Owner: copy from here into Claude Design. Return the package before implementation.
 
 # Design brief: "Les Cahiers" — the journal's grammar and vocabulary back matter

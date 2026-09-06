@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import asyncio
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
+from app.core.conversation.generator import ConversationPlan
 from app.core.error_detection import ErrorDetectionResult
 from app.core.error_detection.rules import DetectedError
-from app.core.conversation.generator import ConversationPlan
 from app.db.models.error import UserError
 from app.db.models.grammar import GrammarConcept, UserGrammarProgress
 from app.db.models.session import LearningSession, SessionLearningMoment
@@ -191,7 +191,7 @@ def test_due_grammar_prioritizes_started_concepts_over_unseen_ones(db_session) -
             score=4.0,
             reps=1,
             state="in_arbeit",
-            next_review=datetime.now(timezone.utc) - timedelta(hours=2),
+            next_review=datetime.now(UTC) - timedelta(hours=2),
         )
     )
     db_session.commit()

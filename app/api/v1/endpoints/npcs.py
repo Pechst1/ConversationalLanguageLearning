@@ -6,12 +6,12 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
 from app.db.models.user import User
-from app.services.npc_service import NPCService
 from app.schemas.story import (
     NPCDetailRead,
-    NPCRelationshipRead,
     NPCMemoryRead,
+    NPCRelationshipRead,
 )
+from app.services.npc_service import NPCService
 
 router = APIRouter()
 

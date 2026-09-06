@@ -1,7 +1,7 @@
 """Endpoints for learner vocabulary progress."""
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, or_, select
@@ -15,9 +15,9 @@ from app.db.models.progress import ReviewLog, UserVocabularyProgress
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
 from app.schemas import (
+    AnkiConnectSyncRequest,
     AnkiProgressSummary,
     AnkiWordProgressRead,
-    AnkiConnectSyncRequest,
     CEFRProgressResponse,
     ProgressDetail,
     QueueWord,
@@ -34,10 +34,10 @@ from app.schemas import (
     WeeklyDossierStats,
     WeeklyDossierThread,
 )
-from app.services.progress import ProgressService, vocabulary_progress_is_due
 from app.services.cefr_progress import CEFRProgressService
+from app.services.daily_words import DailyWordSlateService
+from app.services.progress import ProgressService, vocabulary_progress_is_due
 from app.services.unified_srs import InterleavingMode, UnifiedSRSService
-
 
 router = APIRouter(prefix="/progress", tags=["progress"])
 
@@ -275,8 +275,8 @@ def get_vocabulary_mastery_map(
         .all()
     )
     progress_by_word = {progress.word_id: progress for progress in progress_rows}
-    now = datetime.now(timezone.utc)
-    counts = {key: 0 for key in ("new", "due", "fragile", "building", "solid", "mastered")}
+    now = datetime.now(UTC)
+    counts = dict.fromkeys(("new", "due", "fragile", "building", "solid", "mastered"), 0)
     cells: list[VocabularyMasteryMapCell] = []
     for word in words:
         progress = progress_by_word.get(word.id)
@@ -309,7 +309,7 @@ def get_weekly_dossier(
 ) -> WeeklyDossierResponse:
     """Return a deterministic editorial digest of this learner's recent work."""
 
-    period_end = datetime.now(timezone.utc)
+    period_end = datetime.now(UTC)
     period_start = period_end - timedelta(days=period_days)
 
     progress_ids = (
@@ -502,6 +502,8 @@ def submit_review(
     )
     if payload.response_time_ms is not None:
         review_log.response_time_ms = payload.response_time_ms
+
+    DailyWordSlateService(db).record_encounter(user=current_user, word_id=word.id, kind="retrouve")
 
     db.commit()
     db.refresh(progress)

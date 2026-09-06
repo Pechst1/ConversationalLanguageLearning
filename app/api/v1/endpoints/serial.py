@@ -14,7 +14,12 @@ from app.db.models.graphic_novel import GraphicNovelScene
 from app.db.models.mission import RealWorldMission
 from app.db.models.serial import SerialThread
 from app.db.models.user import User
-from app.schemas.serial import SerialAdvanceRequest, SerialAvatarRequest, SerialThreadCreateRequest, SerialThreadRead
+from app.schemas.serial import (
+    SerialAdvanceRequest,
+    SerialAvatarRequest,
+    SerialThreadCreateRequest,
+    SerialThreadRead,
+)
 from app.services.serial import SerialThreadService
 
 router = APIRouter(prefix="/serial", tags=["serial"])

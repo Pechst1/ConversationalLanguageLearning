@@ -60,10 +60,10 @@ class ArcStateEntry(BaseModel):
 
 
 class RelationshipEntry(BaseModel):
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="allow", populate_by_name=True, serialize_by_alias=True)
 
     closeness: int = Field(0, ge=0, le=5)
-    register: str = "vous"
+    register_value: str = Field("vous", alias="register")
     register_switch_episode: int | None = None
     last_summary: str = ""
     callbacks: list[str] = Field(default_factory=list, max_length=5)

@@ -8,8 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.models.user import User
-from app.schemas.user import UserUpdate
-from app.utils.cache import cache_backend, build_cache_key
+from app.utils.cache import build_cache_key, cache_backend
 
 
 class UserNotFoundError(ValueError):

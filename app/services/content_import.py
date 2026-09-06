@@ -1,10 +1,12 @@
 """Service for importing native content (YouTube, Articles) as Stories."""
 from __future__ import annotations
 
+import ipaddress
 import re
+import socket
 import uuid
 from typing import Any
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import parse_qs, urljoin, urlparse
 
 import requests
 from bs4 import BeautifulSoup
@@ -12,15 +14,22 @@ from loguru import logger
 from sqlalchemy.orm import Session
 from youtube_transcript_api import YouTubeTranscriptApi
 
-from app.db.models.story import Story, Chapter, Scene
+from app.db.models.story import Chapter, Scene, Story
 from app.services.llm_service import LLMService
+
 
 class ContentImportError(Exception):
     """Failed to import content."""
 
+
 class ContentImportService:
     """Service to import external content and convert to Lessons."""
-    
+
+    ARTICLE_MAX_BYTES = 2 * 1024 * 1024
+    ARTICLE_MAX_REDIRECTS = 5
+    ARTICLE_ALLOWED_PORTS = {80, 443}
+    ARTICLE_REDIRECT_STATUSES = {301, 302, 303, 307, 308}
+
     def __init__(self, db: Session, llm_service: LLMService | None = None) -> None:
         self.db = db
         self.llm = llm_service or LLMService()
@@ -29,7 +38,7 @@ class ContentImportService:
         """Main entry point: Import content from a URL."""
         
         # 1. Identify content type and extract text
-        if "youtube.com" in url or "youtu.be" in url:
+        if self._is_youtube_url(url):
             content_type = "youtube"
             text_content, metadata = self._extract_youtube(url)
         else:
@@ -54,13 +63,21 @@ class ContentImportService:
     def _extract_youtube(self, url: str) -> tuple[str, dict]:
         """Extract transcript from YouTube."""
         # Extract video ID
-        query = urlparse(url).query
+        parsed_url = urlparse(url)
+        query = parsed_url.query
         params = parse_qs(query)
         video_id = params.get("v", [None])[0]
-        if not video_id and "youtu.be" in url:
-            video_id = url.split("/")[-1]
+        if not video_id and parsed_url.hostname == "youtu.be":
+            video_id = parsed_url.path.strip("/").split("/", 1)[0]
+        if (
+            not video_id
+            and parsed_url.hostname in {"youtube.com", "www.youtube.com", "m.youtube.com"}
+        ):
+            path_parts = parsed_url.path.strip("/").split("/")
+            if len(path_parts) >= 2 and path_parts[0] in {"embed", "shorts"}:
+                video_id = path_parts[1]
             
-        if not video_id:
+        if not video_id or not re.fullmatch(r"[A-Za-z0-9_-]{6,20}", video_id):
             raise ContentImportError("Invalid YouTube URL")
 
         try:
@@ -68,13 +85,15 @@ class ContentImportService:
             transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
             try:
                 transcript = transcript_list.find_transcript(['fr'])
-            except:
+            except Exception:
                 # If no French, try auto-generated
                 try:
                     transcript = transcript_list.find_generated_transcript(['fr'])
-                except:
+                except Exception as exc:
                     # Fallback: Translate from English? For now, fail.
-                    raise ContentImportError("No French subtitles found for this video.")
+                    raise ContentImportError(
+                        "No French subtitles found for this video."
+                    ) from exc
 
             full_text = " ".join([t['text'] for t in transcript.fetch()])
             
@@ -84,14 +103,17 @@ class ContentImportService:
                 r = requests.get(f"https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v={video_id}&format=json", timeout=5)
                 if r.status_code == 200:
                     title = r.json().get("title", title)
-            except:
+            except (requests.RequestException, ValueError):
                 pass
 
             return full_text, {"title": title, "author": "YouTube Import"}
-            
-        except Exception as e:
-            logger.error(f"YouTube import failed: {e}")
-            raise ContentImportError(f"Could not fetch YouTube transcript: {str(e)}")
+        except ContentImportError:
+            raise
+        except Exception as exc:
+            logger.exception("YouTube import failed")
+            raise ContentImportError(
+                "Could not fetch the YouTube transcript."
+            ) from exc
 
     def _extract_article(self, url: str) -> tuple[str, dict]:
         """Extract text from a web article."""
@@ -104,10 +126,9 @@ class ContentImportService:
                 'Cache-Control': 'no-cache',
                 'Connection': 'keep-alive'
             }
-            response = requests.get(url, headers=headers, timeout=15)
-            response.raise_for_status()
-            
-            soup = BeautifulSoup(response.text, 'html.parser')
+            resolved_url, html_text = self._fetch_public_article(url, headers=headers)
+
+            soup = BeautifulSoup(html_text, 'html.parser')
             
             # Remove scripts and styles
             for script in soup(["script", "style", "nav", "footer", "header"]):
@@ -128,10 +149,130 @@ class ContentImportService:
             if len(text) > 20000:
                 text = text[:20000] + "..."
                 
-            return text, {"title": title, "author": urlparse(url).netloc}
-            
-        except Exception as e:
-            raise ContentImportError(f"Failed to fetch article: {str(e)}")
+            return text, {"title": title, "author": urlparse(resolved_url).netloc}
+        except ContentImportError:
+            raise
+        except Exception as exc:
+            logger.exception("Article import failed")
+            raise ContentImportError("Failed to fetch the article.") from exc
+
+    @staticmethod
+    def _is_youtube_url(url: str) -> bool:
+        parsed = urlparse(url)
+        return (
+            parsed.scheme in {"http", "https"}
+            and (parsed.hostname or "").lower().rstrip(".")
+            in {"youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be"}
+        )
+
+    @classmethod
+    def _validate_public_article_url(cls, url: str) -> None:
+        parsed = urlparse(url)
+        hostname = (parsed.hostname or "").lower().rstrip(".")
+        if (
+            parsed.scheme not in {"http", "https"}
+            or not hostname
+            or parsed.username is not None
+            or parsed.password is not None
+        ):
+            raise ContentImportError(
+                "Only public HTTP(S) article URLs are allowed."
+            )
+
+        try:
+            port = parsed.port
+        except ValueError as exc:
+            raise ContentImportError("The article URL has an invalid port.") from exc
+        if port is not None and port not in cls.ARTICLE_ALLOWED_PORTS:
+            raise ContentImportError(
+                "Only standard HTTP and HTTPS ports are allowed."
+            )
+
+        try:
+            literal_address = ipaddress.ip_address(hostname)
+            addresses = {literal_address}
+        except ValueError:
+            try:
+                addresses = {
+                    ipaddress.ip_address(result[4][0])
+                    for result in socket.getaddrinfo(
+                        hostname,
+                        port or (443 if parsed.scheme == "https" else 80),
+                        type=socket.SOCK_STREAM,
+                    )
+                }
+            except (OSError, ValueError) as exc:
+                raise ContentImportError(
+                    "The article hostname could not be resolved."
+                ) from exc
+
+        if not addresses or any(not address.is_global for address in addresses):
+            raise ContentImportError(
+                "Private or non-public article addresses are not allowed."
+            )
+
+    @classmethod
+    def _fetch_public_article(
+        cls,
+        url: str,
+        *,
+        headers: dict[str, str],
+    ) -> tuple[str, str]:
+        current_url = url
+        for redirect_count in range(cls.ARTICLE_MAX_REDIRECTS + 1):
+            cls._validate_public_article_url(current_url)
+            response = requests.get(
+                current_url,
+                headers=headers,
+                timeout=(5, 15),
+                allow_redirects=False,
+                stream=True,
+            )
+            try:
+                if response.status_code in cls.ARTICLE_REDIRECT_STATUSES:
+                    if redirect_count >= cls.ARTICLE_MAX_REDIRECTS:
+                        raise ContentImportError(
+                            "The article URL redirected too many times."
+                        )
+                    location = response.headers.get("Location")
+                    if not location:
+                        raise ContentImportError(
+                            "The article returned an invalid redirect."
+                        )
+                    current_url = urljoin(current_url, location)
+                    continue
+
+                response.raise_for_status()
+                content_type = response.headers.get("Content-Type", "").lower()
+                if content_type and not (
+                    content_type.startswith("text/")
+                    or "application/xhtml+xml" in content_type
+                ):
+                    raise ContentImportError(
+                        "The URL did not return an HTML article."
+                    )
+
+                chunks: list[bytes] = []
+                total_bytes = 0
+                for chunk in response.iter_content(chunk_size=64 * 1024):
+                    if not chunk:
+                        continue
+                    total_bytes += len(chunk)
+                    if total_bytes > cls.ARTICLE_MAX_BYTES:
+                        raise ContentImportError(
+                            "The article exceeds the 2 MB import limit."
+                        )
+                    chunks.append(chunk)
+
+                encoding = response.encoding or "utf-8"
+                return current_url, b"".join(chunks).decode(
+                    encoding,
+                    errors="replace",
+                )
+            finally:
+                response.close()
+
+        raise ContentImportError("The article URL redirected too many times.")
 
     def _generate_lesson_plan(self, text: str, metadata: dict) -> dict:
         """Use LLM to structure the content into a Lesson."""
@@ -179,9 +320,11 @@ Rules:
             # Parse JSON
             import json
             return json.loads(result.content)
-        except Exception as e:
-            logger.error(f"LLM Lesson generation failed: {e}")
-            raise ContentImportError("Failed to generate lesson from content.")
+        except Exception as exc:
+            logger.exception("LLM lesson generation failed")
+            raise ContentImportError(
+                "Failed to generate lesson from content."
+            ) from exc
 
     def _save_to_db(self, plan: dict, url: str, content_type: str, metadata: dict) -> Story:
         """Persist the lesson plan as a Story."""

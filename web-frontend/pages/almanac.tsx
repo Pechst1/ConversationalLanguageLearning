@@ -9,6 +9,7 @@ import apiService, {
   AtelierCollectible,
   AtelierWorkshopTarget,
 } from '@/services/api';
+import { resolveMediaUrl } from '@/lib/media-url';
 
 const TARGET_ORDER: AtelierWorkshopTarget[] = ['plate_semaine', 'plate_chapter', 'colophon'];
 const TARGET_LABEL: Record<string, string> = {
@@ -61,7 +62,7 @@ function storySealCrop(item: AtelierCollectible): StorySealCrop | null {
 
 function storySealImageUrl(item: AtelierCollectible): string | null {
   const crop = storySealCrop(item);
-  const url = crop?.image_url;
+  const url = resolveMediaUrl(crop?.image_url);
   return !crop?.fallback && typeof url === 'string' && url.trim() ? url : null;
 }
 

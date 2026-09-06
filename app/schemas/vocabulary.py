@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, List, Optional
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -14,18 +14,25 @@ class VocabularyWordRead(BaseModel):
     language: str = Field(max_length=10)
     word: str
     normalized_word: str
-    part_of_speech: Optional[str] = None
-    gender: Optional[str] = None
-    frequency_rank: Optional[int] = None
-    english_translation: Optional[str] = None
-    definition: Optional[str] = None
-    example_sentence: Optional[str] = None
-    example_translation: Optional[str] = None
-    usage_notes: Optional[str] = None
-    difficulty_level: Optional[int] = None
-    german_translation: Optional[str] = None
-    french_translation: Optional[str] = None
-    topic_tags: List[str] = Field(default_factory=list)
+    part_of_speech: str | None = None
+    gender: str | None = None
+    frequency_rank: int | None = None
+    english_translation: str | None = None
+    definition: str | None = None
+    example_sentence: str | None = None
+    example_translation: str | None = None
+    usage_notes: str | None = None
+    difficulty_level: int | None = None
+    german_translation: str | None = None
+    french_translation: str | None = None
+    topic_tags: list[str] = Field(default_factory=list)
+    # The three raw columns above are storage, not a rendering order. Clients
+    # that picked one themselves ended up reading `german or english or french`
+    # and served German to learners who never asked for it, so the resolved
+    # gloss travels with the row: `translation` is what a surface renders and
+    # `translation_language` says which language it actually came from.
+    translation: str | None = None
+    translation_language: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -106,6 +113,29 @@ class VocabularyBiographyResponse(BaseModel):
     linked_errata_count: int = 0
     context_event_count: int = 0
     timeline: list[VocabularyBiographyEvent] = Field(default_factory=list)
+
+
+class DailyWordEntry(BaseModel):
+    """One word on today's slate with its triple-stamp state."""
+
+    word_id: int
+    word: str
+    translation: str | None = None
+    bucket: str = "due"
+    example_sentence: str | None = None
+    example_translation: str | None = None
+    anchor: str | None = None
+    stamps: dict[str, str | None] = Field(default_factory=dict)
+    triple: bool = False
+
+
+class DailyWordSlateResponse(BaseModel):
+    """Les mots du jour — the day's coordinated vocabulary slate."""
+
+    date: str
+    words: list[DailyWordEntry] = Field(default_factory=list)
+    triples: int = 0
+    version: str = "mots-du-jour-v1"
 
 
 class ConjugationReviewRequest(BaseModel):

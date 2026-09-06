@@ -1,7 +1,7 @@
 """Tests for the cross-mode unified SRS service."""
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
@@ -29,7 +29,7 @@ def _user(db_session, *, email: str | None = None) -> User:
 
 
 def _seed_due_memory(db_session, user: User) -> tuple[GrammarConcept, VocabularyWord, UserError]:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     concept = GrammarConcept(
         external_id=f"FR_B1_TEST_{uuid4().hex[:8]}",
         language="fr",
@@ -156,7 +156,7 @@ def test_unified_queue_surfaces_cross_mode_due_items_and_filters_noise(db_sessio
 
 def test_unified_queue_labels_mission_phrases(db_session) -> None:
     user = _user(db_session)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     phrase = VocabularyWord(
         language="fr",
         word="Est-ce que vous pourriez me confirmer ?",
@@ -184,7 +184,9 @@ def test_unified_queue_labels_mission_phrases(db_session) -> None:
     assert item.display_subtitle == "Mission phrase from Missions"
     assert item.level == "Mission phrase"
     assert item.metadata["review_mode"] == "mission_phrase"
-    assert item.metadata["route"] == "/daily-practice?focus=mission"
+    # The route must land on a page that exists in the current product shell
+    # (/daily-practice is a retired home screen with no nav entry).
+    assert item.metadata["route"] == "/vocabulary/review?focus=mission"
 
 
 def test_completing_error_item_credits_linked_grammar_and_vocabulary(db_session) -> None:

@@ -6,6 +6,11 @@ const config: CapacitorConfig = {
   appId: 'com.pixellab.feuilleton',
   appName: 'Feuilleton',
   webDir: process.env.CAPACITOR_WEB_DIR || 'out',
+  plugins: {
+    PushNotifications: {
+      presentationOptions: ['badge', 'sound', 'banner', 'list'],
+    },
+  },
 };
 
 if (serverUrl) {

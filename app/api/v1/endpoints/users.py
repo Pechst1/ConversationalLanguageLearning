@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
@@ -21,7 +21,7 @@ from app.schemas import (
 )
 from app.services.auth import AuthService
 from app.services.users import UserNotFoundError, UserService
-from app.utils.cache import cache_backend, build_cache_key
+from app.utils.cache import build_cache_key, cache_backend
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -105,7 +105,7 @@ def change_current_user_password(
     if not verify_password(payload.current_password, current_user.hashed_password):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Current password is incorrect.")
     current_user.hashed_password = get_password_hash(payload.new_password)
-    current_user.password_updated_at = datetime.now(timezone.utc)
+    current_user.password_updated_at = datetime.now(UTC)
     current_user.auth_version = int(current_user.auth_version or 0) + 1
     db.add(current_user)
     db.commit()
@@ -128,7 +128,7 @@ def change_current_user_email(
     if existing:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="A user with this email already exists.")
     current_user.email = new_email
-    current_user.email_updated_at = datetime.now(timezone.utc)
+    current_user.email_updated_at = datetime.now(UTC)
     current_user.is_verified = False
     current_user.auth_version = int(current_user.auth_version or 0) + 1
     db.add(current_user)
@@ -205,11 +205,11 @@ def export_user_data(
     - Session history
     - Achievements
     """
-    from app.db.models.vocabulary import UserVocabularyProgress
-    from app.db.models.grammar import UserGrammarProgress
+    from app.db.models.achievement import Achievement, UserAchievement
     from app.db.models.error import UserError
+    from app.db.models.grammar import UserGrammarProgress
+    from app.db.models.progress import UserVocabularyProgress
     from app.db.models.session import LearningSession
-    from app.db.models.achievement import UserAchievement
     
     # Get all progress
     vocab_progress = db.query(UserVocabularyProgress).filter(
@@ -228,12 +228,16 @@ def export_user_data(
         LearningSession.user_id == current_user.id
     ).order_by(LearningSession.created_at.desc()).limit(100).all()
     
-    achievements = db.query(UserAchievement).filter(
-        UserAchievement.user_id == current_user.id
-    ).all()
-    
+    achievements = (
+        db.query(UserAchievement, Achievement)
+        .join(Achievement, Achievement.id == UserAchievement.achievement_id)
+        .filter(UserAchievement.user_id == current_user.id)
+        .all()
+    )
+
+
     return {
-        "exported_at": datetime.now(timezone.utc).isoformat(),
+        "exported_at": datetime.now(UTC).isoformat(),
         "user": {
             "id": str(current_user.id),
             "email": current_user.email,
@@ -253,8 +257,8 @@ def export_user_data(
                 "difficulty": p.difficulty,
                 "reps": p.reps,
                 "lapses": p.lapses,
-                "last_review": p.last_review.isoformat() if p.last_review else None,
-                "next_review": p.next_review.isoformat() if p.next_review else None,
+                "last_review": p.last_review_date.isoformat() if p.last_review_date else None,
+                "next_review": p.next_review_date.isoformat() if p.next_review_date else None,
             }
             for p in vocab_progress
         ],
@@ -292,11 +296,13 @@ def export_user_data(
         ],
         "achievements": [
             {
-                "achievement_key": a.achievement_key,
-                "unlocked_at": a.unlocked_at.isoformat() if a.unlocked_at else None,
-                "xp_rewarded": a.xp_rewarded,
+                "achievement_key": definition.achievement_key,
+                "name": definition.name,
+                "unlocked_at": unlocked.unlocked_at.isoformat() if unlocked.unlocked_at else None,
+                "completed": bool(unlocked.completed),
+                "xp_rewarded": definition.xp_reward,
             }
-            for a in achievements
+            for unlocked, definition in achievements
         ],
     }
 

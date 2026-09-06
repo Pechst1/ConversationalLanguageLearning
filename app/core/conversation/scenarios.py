@@ -1,6 +1,6 @@
 """Scenario registry and definitions for roleplay sessions."""
-from dataclasses import dataclass, field
-from typing import Dict, List
+from dataclasses import dataclass
+
 
 @dataclass(slots=True)
 class Scenario:
@@ -8,9 +8,9 @@ class Scenario:
     id: str
     title: str
     description: str
-    roles: Dict[str, str]  # e.g., {"user": "Customer", "assistant": "Baker"}
+    roles: dict[str, str]  # e.g., {"user": "Customer", "assistant": "Baker"}
     initial_prompt: str
-    goals: List[str]
+    goals: list[str]
     difficulty_level: str = "A2"
 
 # Default Scenarios
@@ -44,7 +44,7 @@ MYSTERY_SCENARIO = Scenario(
     difficulty_level="B1"
 )
 
-SCENARIO_REGISTRY: Dict[str, Scenario] = {
+SCENARIO_REGISTRY: dict[str, Scenario] = {
     s.id: s for s in [BAKERY_SCENARIO, JOB_INTERVIEW_SCENARIO, MYSTERY_SCENARIO]
 }
 
@@ -52,6 +52,6 @@ def get_scenario(scenario_id: str) -> Scenario | None:
     """Retrieve a scenario by ID."""
     return SCENARIO_REGISTRY.get(scenario_id)
 
-def list_scenarios() -> List[Scenario]:
+def list_scenarios() -> list[Scenario]:
     """List all available scenarios."""
     return list(SCENARIO_REGISTRY.values())

@@ -1,8 +1,9 @@
 """Rule-based error detection heuristics for French learner text."""
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Iterable, List, Protocol, TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
     from spacy.tokens import Doc, Token
@@ -27,7 +28,7 @@ class ErrorRule(Protocol):
 
     name: str
 
-    def apply(self, doc: Doc) -> List[DetectedError]:  # pragma: no cover - interface definition
+    def apply(self, doc: Doc) -> list[DetectedError]:  # pragma: no cover - interface definition
         """Inspect the document and return any detected errors."""
 
 
@@ -59,8 +60,8 @@ class ArticleNounAgreementRule:
     feminine_articles: Iterable[str] = ("la", "une", "cette", "sa")
     masculine_articles: Iterable[str] = ("le", "un", "ce", "son")
 
-    def apply(self, doc: Doc) -> List[DetectedError]:
-        errors: List[DetectedError] = []
+    def apply(self, doc: Doc) -> list[DetectedError]:
+        errors: list[DetectedError] = []
         tokens = list(doc)
         for index, token in enumerate(tokens[:-1]):
             article = token.text.lower()
@@ -115,8 +116,8 @@ class VerbConjugationRule:
         "elles": ("ent",),
     }
 
-    def apply(self, doc: Doc) -> List[DetectedError]:
-        errors: List[DetectedError] = []
+    def apply(self, doc: Doc) -> list[DetectedError]:
+        errors: list[DetectedError] = []
         tokens = list(doc)
         for index, token in enumerate(tokens[:-1]):
             pronoun = token.text.lower()
@@ -181,8 +182,8 @@ class FalseFriendRule:
                 "déception": "Means 'disappointment'; use 'tromperie' for 'deception'.",
             }
 
-    def apply(self, doc: Doc) -> List[DetectedError]:
-        errors: List[DetectedError] = []
+    def apply(self, doc: Doc) -> list[DetectedError]:
+        errors: list[DetectedError] = []
         for token in doc:
             explanation = self.false_friends.get(token.text.lower())
             if not explanation:
@@ -206,7 +207,7 @@ class FalseFriendRule:
         return errors
 
 
-def build_default_rules() -> List[ErrorRule]:
+def build_default_rules() -> list[ErrorRule]:
     """Return the default rule set for the detector."""
 
     return [

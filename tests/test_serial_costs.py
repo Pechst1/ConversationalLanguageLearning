@@ -1,13 +1,17 @@
 """Cost rollup tests for Serial Feuilleton generation."""
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from uuid import uuid4
 
 from app.db.models.graphic_novel import GraphicNovelScene
 from app.db.models.serial import SerialThread
 from app.db.models.user import User
-from app.services.serial_costs import SerialGenerationCostService, format_rollup_table, serial_generation_cost_event
+from app.services.serial_costs import (
+    SerialGenerationCostService,
+    format_rollup_table,
+    serial_generation_cost_event,
+)
 
 
 def _user(db_session, *, email: str) -> User:
@@ -86,7 +90,7 @@ def test_serial_generation_cost_event_reads_persisted_estimate(db_session):
         user=user,
         thread=thread,
         episode_index=3,
-        created_at=datetime(2026, 5, 1, 12, 0, tzinfo=timezone.utc),
+        created_at=datetime(2026, 5, 1, 12, 0, tzinfo=UTC),
         cost={
             "currency": "USD",
             "panel_count": 6,
@@ -116,7 +120,7 @@ def test_weekly_rollup_groups_serial_generation_costs_by_learner(db_session):
     second_user = _user(db_session, email="serial-cost-second@example.com")
     first_thread = _thread(db_session, first_user)
     second_thread = _thread(db_session, second_user)
-    week_start = datetime(2026, 1, 5, 9, 0, tzinfo=timezone.utc)
+    week_start = datetime(2026, 1, 5, 9, 0, tzinfo=UTC)
     _scene(
         db_session,
         user=first_user,
@@ -137,7 +141,7 @@ def test_weekly_rollup_groups_serial_generation_costs_by_learner(db_session):
         user=first_user,
         thread=first_thread,
         episode_index=4,
-        created_at=datetime(2026, 1, 7, 9, 0, tzinfo=timezone.utc),
+        created_at=datetime(2026, 1, 7, 9, 0, tzinfo=UTC),
         cost={
             "panel_count": 6,
             "image_units": 1,
@@ -152,7 +156,7 @@ def test_weekly_rollup_groups_serial_generation_costs_by_learner(db_session):
         user=second_user,
         thread=second_thread,
         episode_index=1,
-        created_at=datetime(2026, 1, 8, 9, 0, tzinfo=timezone.utc),
+        created_at=datetime(2026, 1, 8, 9, 0, tzinfo=UTC),
         cost={
             "panel_count": 4,
             "image_units": 4,

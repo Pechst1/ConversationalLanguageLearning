@@ -1,17 +1,16 @@
 """Grammar review service with SRS scheduling."""
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-from typing import Sequence
+import re
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from loguru import logger
 from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
-from app.db.models.grammar import GrammarConcept, UserGrammarProgress
+from app.db.models.grammar import GrammarConcept, GrammarConceptLocalization, UserGrammarProgress
 from app.db.models.user import User
-
 
 # SRS Interval Logic (from Excel tracker)
 # Score 9-10: +30 days
@@ -32,6 +31,35 @@ def calculate_next_review(score: float) -> timedelta:
         return timedelta(days=3)
     else:
         return timedelta(days=1)
+
+
+# `UserGrammarProgress.notes` is written from two very different places: the
+# learner types into "Notes en marge" on the Cahier fiche, and the review
+# recorders stamp provenance ("Atelier session <uuid>", "[conversation] …").
+# They shared one column, so the Cahier printed a session UUID as the learner's
+# own note and every séance silently overwrote whatever they had written.
+# Provenance is recognised here so it can be kept out of the learner's page and
+# stopped from clobbering a real note.
+_MACHINE_NOTE_PATTERNS = (
+    re.compile(r"^atelier session\b", re.IGNORECASE),
+    re.compile(r"^\[[a-z0-9_\- ]+\]", re.IGNORECASE),
+)
+
+
+def is_machine_note(value: str | None) -> bool:
+    """True when a stored note is review provenance rather than learner writing."""
+    text = str(value or "").strip()
+    if not text:
+        return False
+    return any(pattern.match(text) for pattern in _MACHINE_NOTE_PATTERNS)
+
+
+def personal_note(value: str | None) -> str | None:
+    """The learner's own note, or None when the column only holds provenance."""
+    text = str(value or "").strip()
+    if not text or is_machine_note(text):
+        return None
+    return text
 
 
 def determine_state(score: float, reps: int) -> str:
@@ -206,7 +234,7 @@ class GrammarService:
         level: str | None = None,
     ) -> list[tuple[GrammarConcept, UserGrammarProgress | None]]:
         """Get concepts due for review, prioritizing overdue and new."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         # First, get concepts with progress that are due
         due_query = (
@@ -259,7 +287,7 @@ class GrammarService:
         interval_multiplier = max(0.25, min(2.0, float(interval_multiplier)))
         progress = self.get_or_create_progress(user_id=user.id, concept_id=concept_id)
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         interval = calculate_next_review(score) * interval_multiplier
 
         progress.score = score
@@ -268,7 +296,10 @@ class GrammarService:
         progress.next_review = now + interval
         progress.state = determine_state(score, progress.reps)
         if notes:
-            progress.notes = notes
+            # Provenance never overwrites something the learner wrote in the
+            # Cahier; it only fills a column that is empty or already machine.
+            if not is_machine_note(notes) or not personal_note(progress.notes):
+                progress.notes = notes
         progress.updated_at = now
 
         self.db.commit()
@@ -315,8 +346,14 @@ class GrammarService:
 
     def get_summary(self, *, user: User) -> dict:
         """Get grammar progress summary for dashboard."""
-        # Total concepts
-        total_concepts = self.db.query(func.count(GrammarConcept.id)).scalar() or 0
+        # Total concepts — the archived legacy catalogs stay in the table
+        # (inactive); the learner-facing denominator is the active catalog.
+        total_concepts = (
+            self.db.query(func.count(GrammarConcept.id))
+            .filter(GrammarConcept.active.is_(True))
+            .scalar()
+            or 0
+        )
 
         # Progress counts by state
         state_counts = dict(
@@ -329,12 +366,13 @@ class GrammarService:
         # Level breakdown
         level_counts = dict(
             self.db.query(GrammarConcept.level, func.count(GrammarConcept.id))
+            .filter(GrammarConcept.active.is_(True))
             .group_by(GrammarConcept.level)
             .all()
         )
 
         # Due today
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         due_today = (
             self.db.query(func.count(UserGrammarProgress.id))
             .filter(
@@ -354,7 +392,7 @@ class GrammarService:
         )
         new_available = (
             self.db.query(func.count(GrammarConcept.id))
-            .filter(~GrammarConcept.id.in_(started_ids))
+            .filter(GrammarConcept.active.is_(True), ~GrammarConcept.id.in_(started_ids))
             .scalar()
             or 0
         )
@@ -383,6 +421,7 @@ class GrammarService:
             .filter(UserGrammarProgress.user_id == user.id)
             .all()
         }
+        fr_localizations = self._fr_localizations([concept.id for concept in concepts])
 
         result: dict[str, list[dict]] = {}
         for concept in concepts:
@@ -391,10 +430,13 @@ class GrammarService:
                 result[level] = []
 
             progress = progress_map.get(concept.id)
+            localization = fr_localizations.get(concept.id)
             result[level].append({
                 "id": concept.id,
                 "name": concept.name,
+                "title_fr": (localization.title if localization else None) or concept.name,
                 "category": concept.category,
+                "category_label_fr": (localization.category_label if localization else None) or concept.category,
                 "description": concept.description,
                 "score": progress.score if progress else None,
                 "state": progress.state if progress else "neu",
@@ -403,6 +445,20 @@ class GrammarService:
             })
 
         return result
+
+    def _fr_localizations(self, concept_ids: list[int]) -> dict[int, GrammarConceptLocalization]:
+        """Bulk-fetch 'fr' localization rows (publication-language titles)."""
+        if not concept_ids:
+            return {}
+        rows = (
+            self.db.query(GrammarConceptLocalization)
+            .filter(
+                GrammarConceptLocalization.concept_id.in_(concept_ids),
+                GrammarConceptLocalization.locale == "fr",
+            )
+            .all()
+        )
+        return {row.concept_id: row for row in rows}
 
     def get_concepts_for_user_errors(
         self,
@@ -421,8 +477,8 @@ class GrammarService:
         """
         from app.core.error_concepts import (
             ERROR_CONCEPT_REGISTRY,
-            get_concept_for_pattern,
             get_concept_for_category,
+            get_concept_for_pattern,
         )
         from app.db.models.error import UserError
         
@@ -647,7 +703,7 @@ class GrammarService:
                 "reps": progress.reps if progress else 0,
                 "is_due": (
                     progress.next_review is not None
-                    and progress.next_review <= datetime.now(timezone.utc)
+                    and progress.next_review <= datetime.now(UTC)
                 ) if progress else True,
             })
 
@@ -665,7 +721,7 @@ class GrammarService:
         This gives a small boost to the user's progress for practicing
         grammar in an immersive context rather than isolated exercises.
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         for concept_id in concept_ids:
             progress = self.get_or_create_progress(user_id=user.id, concept_id=concept_id)

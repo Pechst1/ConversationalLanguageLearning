@@ -5,11 +5,13 @@ import Link from 'next/link';
 import PhoneProductNav from '@/components/layout/PhoneProductNav';
 import {
   FeuilletonStyles,
+  FeMastheadBar,
   FeSectionNav,
   FeArchivePlate,
   FeIco,
 } from '@/components/feuilleton/Feuilleton';
 import apiService, { SerialArchiveEpisode } from '@/services/api';
+import { resolveMediaUrl } from '@/lib/media-url';
 
 const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
 const FRENCH_MONTHS = ['janv.', 'févr.', 'mars', 'avril', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
@@ -80,10 +82,11 @@ export default function SerialArchivePage() {
   return (
     <>
       <Head>
-        <title>La saison reliée · Le Feuilleton</title>
+        <title>La saison reliée · Le Feuilleton · L’Atelier</title>
       </Head>
       <main className="fe-stage">
         <div className="fe" aria-label="Le Feuilleton · la saison reliée">
+          <FeMastheadBar />
           <FeSectionNav active="season" />
           <div className="fe-body fe-scroll">
             <div className="fe-arc-head">
@@ -135,7 +138,7 @@ export default function SerialArchivePage() {
                         char={who}
                         ini={initial(who)}
                         slug={episode.thumbnail_url ? undefined : plate}
-                        thumbnailUrl={episode.thumbnail_url}
+                        thumbnailUrl={resolveMediaUrl(episode.thumbnail_url)}
                         choice={choice}
                         outcome={outcome}
                         state={state}

@@ -1,10 +1,10 @@
 """Add user settings columns and refresh token sessions."""
 from __future__ import annotations
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "d7e8f9a0b1c2"

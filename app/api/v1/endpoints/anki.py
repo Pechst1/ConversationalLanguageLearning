@@ -2,24 +2,24 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_current_user_or_demo, get_db
+from app.db.models.anki_import_record import AnkiImportRecord
 from app.db.models.user import User
 from app.schemas.anki import (
     AnkiImportRequest,
     AnkiImportResponse,
-    AnkiStatisticsResponse,
     AnkiReviewRequest,
     AnkiReviewResponse,
+    AnkiStatisticsResponse,
 )
-from app.services.anki_import import AnkiImportService, AnkiImportError
-from app.db.models.anki_import_record import AnkiImportRecord
+from app.services.anki_import import AnkiImportError, AnkiImportService
+from app.services.daily_words import DailyWordSlateService
 from app.services.enhanced_srs import EnhancedSRSService
-
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/anki", tags=["anki"])
@@ -31,7 +31,7 @@ async def import_anki_cards(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     file: UploadFile = File(..., description="Anki CSV export file"),
-    deck_name: Optional[str] = Form(None, description="Override deck name"),
+    deck_name: str | None = Form(None, description="Override deck name"),
     preserve_scheduling: bool = Form(True, description="Preserve Anki scheduling data"),
 ) -> AnkiImportResponse:
     """Import Anki cards from a CSV file.
@@ -89,23 +89,23 @@ async def import_anki_cards(
             statistics=result
         )
         
-    except UnicodeDecodeError:
+    except UnicodeDecodeError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="File encoding not supported. Please ensure your CSV is UTF-8 encoded."
-        )
-    except AnkiImportError as e:
-        logger.error(f"Anki import error for user {current_user.id}: {e}")
+        ) from exc
+    except AnkiImportError as exc:
+        logger.error(f"Anki import error for user {current_user.id}: {exc}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
-    except Exception as e:
-        logger.error(f"Unexpected error during Anki import for user {current_user.id}: {e}")
+            detail=str(exc)
+        ) from exc
+    except Exception as exc:
+        logger.error(f"Unexpected error during Anki import for user {current_user.id}: {exc}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An unexpected error occurred during import"
-        )
+        ) from exc
 
 
 @router.post("/import/text", response_model=AnkiImportResponse)
@@ -155,18 +155,18 @@ async def import_anki_cards_text(
             statistics=result
         )
         
-    except AnkiImportError as e:
-        logger.error(f"Anki import error for user {current_user.id}: {e}")
+    except AnkiImportError as exc:
+        logger.error(f"Anki import error for user {current_user.id}: {exc}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
-    except Exception as e:
-        logger.error(f"Unexpected error during text-based Anki import for user {current_user.id}: {e}")
+            detail=str(exc)
+        ) from exc
+    except Exception as exc:
+        logger.error(f"Unexpected error during text-based Anki import for user {current_user.id}: {exc}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An unexpected error occurred during import"
-        )
+        ) from exc
 
 
 @router.get("/statistics", response_model=AnkiStatisticsResponse)
@@ -208,12 +208,12 @@ async def get_anki_statistics(
             }
         )
 
-    except Exception as e:
-        logger.error(f"Error getting Anki statistics for user {current_user.id}: {e}")
+    except Exception as exc:
+        logger.error(f"Error getting Anki statistics for user {current_user.id}: {exc}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred while retrieving statistics"
-        )
+        ) from exc
 
 
 @router.get("/due-cards")
@@ -222,8 +222,8 @@ async def get_due_cards(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user_or_demo),
     limit: int = 20,
-    scheduler_type: Optional[str] = None,
-) -> Dict[str, Any]:
+    scheduler_type: str | None = None,
+) -> dict[str, Any]:
     """Get vocabulary cards that are due for review.
     
     Args:
@@ -276,12 +276,12 @@ async def get_due_cards(
             'scheduler_type': scheduler_type,
         }
         
-    except Exception as e:
-        logger.error(f"Error getting due cards for user {current_user.id}: {e}")
+    except Exception as exc:
+        logger.error(f"Error getting due cards for user {current_user.id}: {exc}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred while retrieving due cards"
-        )
+        ) from exc
 
 
 @router.post("/rehydrate", response_model=AnkiImportResponse)
@@ -289,7 +289,7 @@ async def rehydrate_from_last_import(
     *,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    deck_name: Optional[str] = None,
+    deck_name: str | None = None,
     preserve_scheduling: bool = True,
 ) -> AnkiImportResponse:
     """Re-import the most recent saved Anki CSV for the current user.
@@ -298,8 +298,8 @@ async def rehydrate_from_last_import(
     """
 
     try:
-        from sqlalchemy import select
-        from sqlalchemy import func
+        from sqlalchemy import func, select
+
         from app.db.models.vocabulary import VocabularyWord
 
         # Quick short-circuit: if Anki vocabulary exists already, skip
@@ -323,9 +323,12 @@ async def rehydrate_from_last_import(
         return AnkiImportResponse(success=True, message=f"Rehydrated {stats.get('imported', 0)} cards", statistics=stats)
     except HTTPException:
         raise
-    except Exception as e:
-        logger.error(f"Error during Anki rehydrate for user {current_user.id}: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to rehydrate Anki import")
+    except Exception as exc:
+        logger.error(f"Error during Anki rehydrate for user {current_user.id}: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to rehydrate Anki import",
+        ) from exc
 
 
 @router.post("/review", response_model=AnkiReviewResponse)
@@ -339,8 +342,9 @@ async def submit_anki_review(
 
     try:
         from sqlalchemy import select
-        from app.db.models.vocabulary import VocabularyWord
+
         from app.db.models.progress import UserVocabularyProgress
+        from app.db.models.vocabulary import VocabularyWord
 
         word = db.get(VocabularyWord, payload.word_id)
         if not word:
@@ -364,6 +368,7 @@ async def submit_anki_review(
 
         srs = EnhancedSRSService(db)
         srs.process_review(progress=progress, rating=payload.rating, response_time_ms=payload.response_time_ms)
+        DailyWordSlateService(db).record_encounter(user=current_user, word_id=word.id, kind="retrouve")
         db.commit()
         db.refresh(progress)
 
@@ -378,9 +383,9 @@ async def submit_anki_review(
         )
     except HTTPException:
         raise
-    except Exception as e:
-        logger.error(f"Error submitting Anki review for user {current_user.id}: {e}")
+    except Exception as exc:
+        logger.error(f"Error submitting Anki review for user {current_user.id}: {exc}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An unexpected error occurred while recording the review",
-        )
+        ) from exc

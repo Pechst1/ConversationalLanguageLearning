@@ -6,7 +6,10 @@ import uuid
 import pytest
 from fastapi.testclient import TestClient
 
+from app.api.deps import LOCAL_DEMO_USER_EMAIL, get_or_create_local_demo_user
 from app.config import settings
+from app.core.security import verify_password
+from app.db.models.user import User
 from app.main import create_app
 
 
@@ -28,6 +31,81 @@ def test_user_registration_success(client: TestClient) -> None:
     assert data["target_language"] == "es"
     assert data["native_language"] == "en"
     assert data["is_active"] is True
+
+
+def test_registration_persists_every_onboarding_answer(client: TestClient) -> None:
+    """The four signup questions and the derived gloss direction must survive.
+
+    ``default_vocab_direction`` follows the learner's own language: an English
+    native gets ``fr_to_en``, never the old hardcoded German import default.
+    """
+
+    payload = {
+        "email": "onboarding@example.com",
+        "password": "securepassword",
+        "full_name": "Onboarding One",
+        "native_language": "en",
+        "learning_motivation": "travel",
+        "speaking_comfort": "confident",
+        "grammar_correction_level": "strict",
+        "daily_goal_minutes": 20,
+    }
+
+    response = client.post("/api/v1/auth/register", json=payload)
+
+    assert response.status_code == 201
+    created = response.json()
+    assert created["learning_motivation"] == "travel"
+    assert created["speaking_comfort"] == "confident"
+    assert created["grammar_correction_level"] == "strict"
+    assert created["daily_goal_minutes"] == 20
+    assert created["default_vocab_direction"] == "fr_to_en"
+
+    token = client.post(
+        "/api/v1/auth/login",
+        json={"email": payload["email"], "password": payload["password"]},
+    ).json()["access_token"]
+    settings_bundle = client.get(
+        "/api/v1/users/me/settings", headers={"Authorization": f"Bearer {token}"}
+    ).json()
+    for field in (
+        "learning_motivation",
+        "speaking_comfort",
+        "grammar_correction_level",
+        "daily_goal_minutes",
+        "default_vocab_direction",
+    ):
+        assert settings_bundle[field] == created[field], field
+
+
+def test_registration_derives_the_german_pair_for_german_natives(client: TestClient) -> None:
+    response = client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "onboarding-de@example.com",
+            "password": "securepassword",
+            "native_language": "de",
+        },
+    )
+
+    assert response.status_code == 201
+    assert response.json()["default_vocab_direction"] == "fr_to_de"
+
+
+def test_local_demo_user_has_no_shared_password(db_session) -> None:
+    db_session.add(
+        User(
+            email=LOCAL_DEMO_USER_EMAIL,
+            hashed_password="atelier-demo",
+            target_language="fr",
+        )
+    )
+    db_session.commit()
+
+    user = get_or_create_local_demo_user(db_session)
+
+    assert user.hashed_password.startswith("$2")
+    assert verify_password("atelier-demo", user.hashed_password) is False
 
 
 def test_user_registration_duplicate_email(client: TestClient) -> None:

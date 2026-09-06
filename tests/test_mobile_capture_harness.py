@@ -58,7 +58,8 @@ def test_polish_fixes_keep_confusing_surfaces_hidden() -> None:
     assert "MessageSquarePlus" in feedback
     assert ">{'!'}</button>" not in feedback
     assert "scene && !scene.serial_thread_id" in feuilleton
-    assert "CREATE FIRST SCENE" in feuilleton
+    # Soft-button pass: CTA labels are sentence case (text-transform removed).
+    assert "Composer la première scène" in feuilleton
     assert "break-all" in settings
     assert "Private model sheet" in cast
     assert "Model sheet asset" not in cast

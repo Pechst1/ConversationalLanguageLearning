@@ -8,6 +8,37 @@
 import Link from 'next/link';
 import React from 'react';
 
+import { pulseAppHaptic } from '@/lib/haptics';
+
+function LuPortraitChip({
+  name,
+  url,
+  accentColour,
+  className,
+}: {
+  name: string;
+  url?: string | null;
+  accentColour?: string | null;
+  className: string;
+}) {
+  const [failed, setFailed] = React.useState(false);
+  return (
+    <span
+      className={className}
+      style={accentColour ? { '--cast-accent': accentColour } as React.CSSProperties : undefined}
+    >
+      {url && !failed ? (
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={url} alt="" onError={() => setFailed(true)} />
+        </>
+      ) : (
+        (name.trim()[0] || 'M').toUpperCase()
+      )}
+    </span>
+  );
+}
+
 /* ---------- tiny icons ---------- */
 export function IcoGear() {
   return (
@@ -48,6 +79,10 @@ export function LuStamp({
   date?: string | null;
   style?: React.CSSProperties;
 }) {
+  React.useEffect(() => {
+    pulseAppHaptic('complete');
+  }, []);
+
   return (
     <span
       className={'lu-stamp ' + tone + (sm ? ' sm' : '')}
@@ -67,6 +102,7 @@ export function LuMasthead({
   date,
   edition,
   streak = 0,
+  niveau = '',
   boucle = false,
   boucleDate = '',
 }: {
@@ -74,30 +110,22 @@ export function LuMasthead({
   date: string;
   edition: string;
   streak?: number;
+  niveau?: string;
   boucle?: boolean;
   boucleDate?: string;
 }) {
-  const long = name.length > 12;
+  /* The app masthead already carries the brand, the mark and the gear. Repeating
+     them here cost three rows of chrome before any content, so the front page
+     keeps only what the app header cannot say: which day this edition is, and
+     whether it is filed. Edition number and level moved to Le Cours, which is
+     where a level belongs. */
   return (
     <header className="lu-mast-wrap">
-      <div className="lu-ears">
-        <span className="ear-badge">{edition}</span>
-        <Link className="ear-gear" href="/settings" aria-label="Settings"><IcoGear /></Link>
-      </div>
-      <div className="lu-masthead">
-        {boucle && (
-          <div className="lu-boucle">
-            <span className="box"><b>Bouclé</b><span>{boucleDate}</span></span>
-          </div>
-        )}
-        <h1 className={'name' + (long ? ' long' : '')}>{name}</h1>
-        <div className="folio">
-          <b>{date}</b>
-          <span className="dot" />
-          {streak > 0
-            ? <span>{streak}<sup>e</sup> jour de suite</span>
-            : <span className="first">Première édition</span>}
-        </div>
+      <div className="folio">
+        <b>{date}</b>
+        {/* Idiomatic French: the ordinal stands alone; runs use the cardinal. */}
+        {streak > 0 && <span>{streak === 1 ? '1ᵉʳ jour' : `${streak} jours de suite`}</span>}
+        {boucle && <span className="filed">Bouclé{boucleDate ? ` · ${boucleDate}` : ''}</span>}
       </div>
     </header>
   );
@@ -107,210 +135,11 @@ export function LuMasthead({
 /* artMode: 'art' | 'press' (generating) | 'late' (delayed) | 'none' (no
    illustration for this beat — e.g. a letter mission; text leads).
    headline: hook.teaser / previously; ep 1 → honest first-scene copy. */
-export function LuLead({
-  ep = 1,
-  mission = false,
-  artMode = 'none',
-  artUrl = null,
-  headline,
-  byline = 'Monsieur Marchand',
-  done = false,
-  onOpen,
-}: {
-  ep?: number;
-  mission?: boolean;
-  artMode?: 'art' | 'press' | 'late' | 'none';
-  artUrl?: string | null;
-  headline: string;
-  byline?: string;
-  done?: boolean;
-  onOpen?: (() => void) | null;
-}) {
-  const kicker = mission ? `Courrier attendu · Épisode ${ep}` : `Le Feuilleton · Épisode ${ep}`;
-  const showFrame = artMode === 'art' || artMode === 'press';
-  const body = (
-    <React.Fragment>
-      <div className={'lu-kicker' + (mission ? ' blue' : '')}>{kicker}<span className="tail" /></div>
-      {showFrame && (
-        <div className="lu-art-frame colorable">
-          <div className="ratio">
-            {artMode === 'art' && artUrl && (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img className="lu-art-img" src={artUrl} alt={'Illustration — épisode ' + ep} />
-            )}
-            {artMode === 'press' && (
-              <div className="lu-art-press">
-                <div className="plate">
-                  <b>Sous presses</b>
-                  <span>L’illustration de l’épisode {ep} est en cours d’impression.</span>
-                  <div className="rollers"><i /><i /><i /></div>
-                </div>
-              </div>
-            )}
-          </div>
-          <div className="credit">
-            <span>Illustration · Le Feuilleton</span>
-            <span>Éd. Nº {ep}</span>
-          </div>
-        </div>
-      )}
-      <h2 className="lu-head lg">{headline}</h2>
-      {artMode === 'late' && (
-        <div className="lu-art-late">
-          <b>Illustration retardée</b>
-          L’image de cet épisode paraîtra dans une édition ultérieure. Le texte, lui, n’attend pas.
-        </div>
-      )}
-      <div className="lu-byline">
-        <span className="chip">{(byline.trim()[0] || 'M').toUpperCase()}</span>
-        par <em>{byline}</em>
-      </div>
-    </React.Fragment>
-  );
-  return (
-    <article className={'lu-art-sec lu-lead' + (done ? ' done' : ' undone')}>
-      {done && <LuStamp word={mission ? 'Envoyé' : 'Lu'} tilt={-8} />}
-      {onOpen ? (
-        <button
-          type="button"
-          className="lu-tap"
-          onClick={onOpen}
-          aria-label={(mission ? 'Répondre à la mission — ' : 'Lire l’épisode — ') + headline}
-        >
-          {body}
-        </button>
-      ) : (
-        <div className="lu-tap static">{body}</div>
-      )}
-    </article>
-  );
-}
 
-/* ---------- la séance du jour ---------- */
-/* concepts: [{ t, cefr, role: 'new'|'fragile'|'contrast' }]
-   status: 'fresh' | 'resume' | 'done' — resume shows SOUS PRESSE + progress */
-export type LuSeanceConcept = { t: string; cefr: string; role: 'new' | 'fragile' | 'contrast' };
-const LU_ROLES: Record<LuSeanceConcept['role'], string> = {
-  new: 'Nouveau',
-  fragile: 'Fragile',
-  contrast: 'Contraste',
-};
-export function LuSeance({
-  concepts = [],
-  mins = 8,
-  drills = 22,
-  status = 'fresh',
-  progress = null,
-  disabled = false,
-  onCta,
-}: {
-  concepts?: LuSeanceConcept[];
-  mins?: number;
-  drills?: number;
-  status?: 'fresh' | 'resume' | 'done';
-  progress?: [number, number] | null;
-  disabled?: boolean;
-  onCta?: () => void;
-}) {
-  const done = status === 'done';
-  return (
-    <article className={'lu-art-sec lu-seance' + (done ? ' done' : ' undone')}>
-      {done && <LuStamp word="Fait" tilt={6} />}
-      <div className="lu-kicker">La Séance du jour<span className="tail" /></div>
-      <h2 className="lu-head">{concepts.length === 1 ? 'Une règle, bien posée' : 'Trois règles, une page'}</h2>
-      <div className="lu-concepts">
-        {concepts.map((c) => (
-          <div className="lu-concept" key={c.t}>
-            <span className="t">{c.t}</span>
-            <span className="colorable">
-              <span className={'lu-tag ' + c.role}><i />{LU_ROLES[c.role]} <span className="lv">{c.cefr}</span></span>
-            </span>
-          </div>
-        ))}
-      </div>
-      {done ? (
-        <div className="lu-record"><IcoCheck /> Séance bouclée · {drills} exercices</div>
-      ) : (
-        <React.Fragment>
-          <div className="meta-line">
-            {status === 'resume' && <span className="sous">Sous presse</span>}
-            <span>~{mins} min · {drills} exercices</span>
-            {status === 'resume' && progress && <span>· {progress[0]}/{progress[1]}</span>}
-          </div>
-          {status === 'resume' && progress && (
-            <div className="lu-progress"><i style={{ width: (100 * progress[0] / Math.max(1, progress[1])) + '%' }} /></div>
-          )}
-          <button className="lu-cta" type="button" onClick={onCta} disabled={disabled} aria-busy={disabled || undefined}>
-            {status === 'resume' ? 'Reprendre la séance' : 'Commencer la séance'} <IcoArrow />
-          </button>
-        </React.Fragment>
-      )}
-    </article>
-  );
-}
 
-/* ---------- secondary articles ---------- */
-/* Le Lexique — due count is the story; due=0 renders the brief instead. */
-export function LuLexique({
-  due = 0,
-  briefText = 'Rien à revoir — la mémoire tient.',
-  href = '/vocabulary/review',
-}: {
-  due?: number;
-  briefText?: string;
-  href?: string;
-}) {
-  if (due === 0) {
-    return (
-      <div className="lu-brief">
-        <span className="k">Le Lexique</span><span className="sep" />
-        <em>{briefText}</em>
-      </div>
-    );
-  }
-  return (
-    <article className="lu-art-sec undone">
-      <Link className="lu-tap" href={href} aria-label={'Réviser ' + due + ' mots'}>
-        <div className="lu-kicker blue">Le Lexique<span className="tail" /></div>
-        <div className="count colorable" style={{ color: 'var(--blue)' }}>{due}</div>
-        <h3 className="lu-head">mots à revoir</h3>
-        <p className="lu-deck">La mémoire s’use si l’on ne s’en sert.</p>
-      </Link>
-    </article>
-  );
-}
+
 
 /* Errata — the repair queue, printed exactly like a newspaper's errata box. */
-export function LuErrata({
-  due = 0,
-  done = false,
-  briefText = 'Aucun erratum — l’édition d’hier était impeccable.',
-  onOpen,
-}: {
-  due?: number;
-  done?: boolean;
-  briefText?: string;
-  onOpen?: () => void;
-}) {
-  if (due === 0) {
-    return (
-      <div className="lu-brief">
-        <span className="k">Errata</span><span className="sep" />
-        <em>{briefText}</em>
-      </div>
-    );
-  }
-  return (
-    <article className={'lu-art-sec' + (done ? ' done' : ' undone')}>
-      <button className="lu-tap" type="button" onClick={onOpen} aria-label={due + ' corrections à apporter'}>
-        <div className="lu-kicker">Errata<span className="tail" /></div>
-        <div className="count colorable" style={{ color: 'var(--red)' }}>{due}</div>
-        <h3 className="lu-head">correction{due > 1 ? 's' : ''} à apporter</h3>
-        <p className="lu-deck">La rédaction corrige ses fautes d’hier.</p>
-      </button>
-    </article>
-  );
-}
 
 /* La Bibliothèque — feature-flagged book episode. Marked optional. */
 export function LuBiblio({
@@ -325,7 +154,7 @@ export function LuBiblio({
   return (
     <article className="lu-art-sec undone">
       <Link className="lu-tap" href={href} aria-label={'Lire ' + title + ', chapitre ' + chapter}>
-        <div className="lu-kicker mut">La Bibliothèque<span className="tail" /></div>
+        <div className="lu-kicker mut">La Bibliothèque</div>
         <h3 className="lu-head" style={{ fontSize: 20 }}>{title}</h3>
         <p className="lu-deck">Chapitre {chapter} · lecture du soir, sans exercice.</p>
       </Link>
@@ -355,10 +184,7 @@ export function LuPhraseDuJour({
 }) {
   return (
     <aside className="lu-phrase-du-jour" aria-label="La phrase d’hier">
-      <div className="head">
-        <span>La phrase d’hier</span>
-        {paru && <span className="paru">Paru</span>}
-      </div>
+      <div className="head"><span>La phrase d’hier</span></div>
       <blockquote>« {text} »</blockquote>
       <p>par <em>{byline}</em></p>
     </aside>
@@ -366,79 +192,223 @@ export function LuPhraseDuJour({
 }
 
 /* ---------- le cours du français (CEFR ticker) ---------- */
-export function LuCours({
-  from = 'A1.1',
-  to = 'A1.2',
-  days = null,
-  words = [0, 300],
-  grammar = [0, 20],
-  delta = null,
-  forecast = true,
+
+
+/* ---------- la manchette : the day is one story ---------- */
+/* The lead episode and the day's ask were two stacked articles with two
+   CTAs; the front page now carries ONE story and ONE action. Every prop maps
+   to a /atelier/today field; `ask` follows the recommendation kind. */
+export type LuAskKind = 'mission' | 'session' | 'review' | 'read' | 'rest';
+export function LuManchette({
+  ep = 1,
+  mission = false,
+  artMode = 'none',
+  artUrl = null,
+  headline,
+  byline = 'Monsieur Marchand',
+  portraitUrl = null,
+  accentColour = null,
+  minutes = 8,
+  budgetMinutes = null,
+  replyMode = 'write',
+  ask = 'mission',
+  concept = 'une règle à consolider',
+  because = null,
+  recap = null,
+  read = false,
+  done = false,
+  disabled = false,
+  onOpen,
+  onCta,
 }: {
-  from?: string;
-  to?: string;
-  days?: number | null;
-  words?: [number, number];
-  grammar?: [number, number];
-  delta?: string | null;
-  forecast?: boolean;
+  ep?: number;
+  mission?: boolean;
+  artMode?: 'art' | 'press' | 'late' | 'none';
+  artUrl?: string | null;
+  headline: string;
+  byline?: string;
+  portraitUrl?: string | null;
+  accentColour?: string | null;
+  minutes?: number;
+  /** The learner's stated budget, passed ONLY when the honest estimate overruns it. */
+  budgetMinutes?: number | null;
+  /** Whether the reply to the character is written or spoken. */
+  replyMode?: 'write' | 'speak';
+  ask?: LuAskKind;
+  concept?: string;
+  /** One quiet explaining clause; null hides the line entirely. */
+  because?: string | null;
+  recap?: string | null;
+  /** The episode itself has been read/answered (stamp on the lead). */
+  read?: boolean;
+  /** The whole edition is filed — no ask, no CTA. */
+  done?: boolean;
+  disabled?: boolean;
+  onOpen?: (() => void) | null;
+  onCta?: () => void;
 }) {
-  return (
-    <section className="lu-cours">
-      <div className="row1"><span>Le cours du français</span><span>CECR</span></div>
-      {forecast ? (
-        <div className="quote">
-          <b>{from} → {to}</b>
-          <span>~{days} jours à ce rythme</span>
-        </div>
-      ) : (
-        <div className="quote">
-          <b>{from}</b>
-          <span>Prévisions après 7 jours actifs.</span>
+  const kicker = mission ? `Courrier attendu · Épisode ${ep}` : `Le Feuilleton · Épisode ${ep}`;
+  const showFrame = artMode === 'art' || artMode === 'press';
+  const askLine = ask === 'rest' || done
+    ? null
+    : ask === 'mission'
+      ? (replyMode === 'speak' ? `À vous de parler : cinq minutes de voix avec ${byline}.` : `À vous d’écrire : une réponse à ${byline}.`)
+      : ask === 'session'
+        ? 'À vous de jouer : la séance du jour.'
+        : ask === 'review'
+          ? 'À vous de réviser : le lexique du jour.'
+          : 'À vous de lire : l’épisode du jour.';
+  const lead = (
+    <React.Fragment>
+      {showFrame && (
+        <div className="lu-art-frame colorable">
+          <div className="ratio">
+            {artMode === 'art' && artUrl && (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img className="lu-art-img" src={artUrl} alt={'Illustration — épisode ' + ep} />
+            )}
+            {artMode === 'press' && (
+              <div className="lu-art-press">
+                <div className="plate">
+                  <b>Sous presses</b>
+                  <span>L’illustration de l’épisode {ep} est en cours d’impression.</span>
+                  <div className="rollers"><i /><i /><i /></div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
-      <div className="gauges">
-        <div className="g">
-          <span className="lab">Mots</span>
-          <span className="bar"><i style={{ width: Math.min(100, 100 * words[0] / Math.max(1, words[1])) + '%' }} /></span>
-          <span className="num">{words[0]} / {words[1]}</span>
+      <h2 className="lu-head lg">{headline}</h2>
+      {artMode === 'late' && (
+        <div className="lu-art-late">
+          <b>Illustration retardée</b>
+          L’image de cet épisode paraîtra dans une édition ultérieure. Le texte, lui, n’attend pas.
         </div>
-        <div className="g">
-          <span className="lab">Structures</span>
-          <span className="bar"><i style={{ width: Math.min(100, 100 * grammar[0] / Math.max(1, grammar[1])) + '%' }} /></span>
-          <span className="num">{grammar[0]} / {grammar[1]}</span>
-        </div>
+      )}
+      <div className="lu-byline">
+        <LuPortraitChip className="chip" name={byline} url={portraitUrl} accentColour={accentColour} />
+        par <em>{byline}</em>
       </div>
-      {delta && <div className="delta">Aujourd’hui : {delta}</div>}
+    </React.Fragment>
+  );
+  return (
+    <article className={'lu-art-sec lu-manchette' + (read ? ' done' : ' undone')}>
+      {done ? <LuStamp word="Bouclé" tone="blue" tilt={-5} /> : read ? <LuStamp word={mission ? 'Envoyé' : 'Lu'} tilt={-8} /> : null}
+      <div className={'lu-kicker' + (mission ? ' blue' : '')}>{kicker}</div>
+      {onOpen ? (
+        <button
+          type="button"
+          className="lu-tap"
+          onClick={onOpen}
+          aria-label={(mission ? 'Répondre à la mission — ' : 'Lire l’épisode — ') + headline}
+        >
+          {lead}
+        </button>
+      ) : (
+        <div className="lu-tap static">{lead}</div>
+      )}
+      {(askLine || recap) && <div className="lu-manchette-rule" />}
+      {askLine && (
+        <div className="lu-ask">
+          <p className="lu-ask-line">{askLine}</p>
+          <p className="lu-ask-meta">{concept} · ~{minutes} min</p>
+          {because && <p className="lu-prescription-because">{because}</p>}
+          {budgetMinutes != null && (
+            <p className="lu-prescription-overrun">
+              Plus long que les {budgetMinutes} minutes demandées — vous pouvez vous arrêter
+              quand vous voulez.
+            </p>
+          )}
+        </div>
+      )}
+      {recap && (
+        <p className="lu-cast-recap">
+          <LuPortraitChip className="lu-character-chip" name={byline} url={portraitUrl} accentColour={accentColour} />
+          {recap}
+        </p>
+      )}
+      {!done && (
+        <button className="lu-cta" type="button" onClick={onCta} disabled={disabled} aria-busy={disabled || undefined}>
+          Continuer <IcoArrow />
+        </button>
+      )}
+      {!done && (
+        <Link className="lu-prescription-adjust" href="/settings?section=practice">Ajuster le temps de l’édition</Link>
+      )}
+    </article>
+  );
+}
+
+/* ---------- en bref : three hairline rows ---------- */
+/* Séance, lexique and cours used to be three articles with their own
+   headlines, counters and buttons. On a front page they are briefs. */
+export type LuBrefRow = {
+  id: string;
+  label: string;
+  value: string;
+  href?: string;
+  onClick?: () => void;
+  done?: boolean;
+  disabled?: boolean;
+};
+export function LuEnBref({ rows }: { rows: LuBrefRow[] }) {
+  return (
+    <section className="lu-enbref" aria-label="En bref">
+      <div className="lu-kicker">En bref</div>
+      <div className="lu-enbref-rule" />
+      {rows.map((row) => {
+        const inner = (
+          <React.Fragment>
+            <span className="l">{row.label}</span>
+            <span className="v">
+              {row.done && <IcoCheck />}
+              {row.value}
+              {!row.done && <span className="go">→</span>}
+            </span>
+          </React.Fragment>
+        );
+        if (row.href && !row.onClick) {
+          return <Link key={row.id} className={'lu-bref' + (row.done ? ' done' : '')} href={row.href}>{inner}</Link>;
+        }
+        return (
+          <button
+            key={row.id}
+            type="button"
+            className={'lu-bref' + (row.done ? ' done' : '')}
+            onClick={row.onClick}
+            disabled={row.disabled}
+          >
+            {inner}
+          </button>
+        );
+      })}
     </section>
   );
 }
 
-/* ---------- demain dans votre édition ---------- */
+/* ---------- demain : the colophon ---------- */
 export function LuDemain({
   focus,
   focusHref = '/notebook',
   ep = null,
   epTease = null,
-  words = null,
   grand = false,
 }: {
   focus: string;
   focusHref?: string;
   ep?: number | null;
   epTease?: string | null;
-  words?: number | null;
   grand?: boolean;
 }) {
+  /* One centred italic line under a double rule — a colophon, not a section. */
   return (
     <section className={'lu-demain' + (grand ? ' grand' : '')}>
-      <div className="k">Demain dans votre édition</div>
       {grand && epTease && <p className="tease">Épisode {ep} : {epTease}</p>}
-      <ul>
-        <li><span className="h">Grammaire</span><span><Link href={focusHref}><em>{focus}</em></Link></span></li>
-        {!grand && ep && <li><span className="h">Feuilleton</span><span>Épisode {ep}{epTease ? ' : ' + epTease : ''}</span></li>}
-        {words != null && <li><span className="h">Lexique</span><span>{words} mots nouveaux au marbre</span></li>}
-      </ul>
+      <p className="line">
+        Demain — {ep ? <span>épisode {ep} · </span> : null}<Link href={focusHref}><em>{focus}</em></Link>
+        {!grand && epTease ? <span> · {epTease}</span> : null}.
+      </p>
     </section>
   );
 }
@@ -461,7 +431,7 @@ export function LuNotice({
     <div className="lu-notice" role="alert">
       <span className={'sq ' + tone} />
       <span className="body"><b>{label}</b><p>{message}</p></span>
-      {retry && <button className="retry" type="button" onClick={onRetry}>Retry</button>}
+      {retry && <button className="retry" type="button" onClick={onRetry}>Réessayer</button>}
     </div>
   );
 }
@@ -514,8 +484,12 @@ export function LaUneStyles() {
         --yellow: var(--app-yellow);
         --serif: var(--app-serif);
         --grotesk: 'Inter', 'Helvetica Neue', Arial, sans-serif;
-        --news-ink: #5d574a;
-        --news-wash: #ece5d5;
+        /* The "not yet printed" ink and wash. These were literal light-theme
+           values, so in dark mode the withdrawn kickers landed at 2.34:1 —
+           a dark grey on dark paper. Both now follow the theme tokens, which
+           keeps the withdrawn feel while staying readable in either. */
+        --news-ink: var(--app-ink-3);
+        --news-wash: var(--app-paper-2);
         position: relative;
         width: min(var(--app-viewport-width), var(--phone-shell-max));
         min-height: var(--app-viewport-height);
@@ -532,91 +506,57 @@ export function LaUneStyles() {
         background-size: 7px 7px, 11px 11px;
       }
       .lu * { box-sizing: border-box; }
-      .lu a, .lu button { font: inherit; color: inherit; text-align: inherit; }
-      .lu button { border: 0; background: transparent; padding: 0; cursor: pointer; }
+      /* Zero-specificity reset: the old .lu a (class + type) outranked every
+         component class, which is why styled links rendered at inherited size
+         and full ink instead of their own quiet type. */
+      .lu :where(a, button) { font: inherit; color: inherit; text-align: inherit; }
+      .lu :where(button) { border: 0; background: transparent; padding: 0; cursor: pointer; }
 
       .lu-page { flex: 1 1 auto; padding: 0 18px calc(18px + 12px); }
 
-      /* ---- ears + masthead ---- */
-      .lu-ears {
-        display: flex; align-items: center; justify-content: space-between;
-        padding: 12px 0 0; min-height: 44px;
+      /* ---- folio: one quiet line, no second brand ---- */
+      .lu-mast-wrap { padding: 14px 0 0; }
+      .lu-mast-wrap .folio {
+        display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+        font-size: var(--t-small); color: var(--ink-3);
       }
-      .lu-ears .ear-badge {
-        border: 1px solid var(--ink); background: var(--paper);
-        padding: 5px 8px 4px; font-size: 9px; font-weight: 900;
-        letter-spacing: .14em; text-transform: uppercase; white-space: nowrap;
-      }
-      .lu-ears .ear-gear {
-        width: 44px; height: 44px; margin: -6px -8px 0 0;
-        display: grid; place-items: center; color: var(--ink-2);
-        text-decoration: none;
-      }
-      .lu-ears .ear-gear svg { width: 18px; height: 18px; }
+      .lu-mast-wrap .folio b { color: var(--ink-2); font-weight: 600; }
+      .lu-mast-wrap .folio .filed { color: var(--red); font-weight: 800; }
 
-      .lu-masthead { position: relative; text-align: center; padding: 2px 0 0; }
-      .lu-masthead .name {
-        font-family: var(--serif); font-style: italic; font-weight: 600;
-        font-size: 44px; line-height: .95; letter-spacing: -.01em; margin: 0;
-      }
-      .lu-masthead .name.long { font-size: 31px; }
-      .lu-masthead .folio {
-        margin-top: 9px; padding: 6px 0;
-        border-top: 1px solid var(--ink); border-bottom: 3px double var(--ink);
-        display: flex; align-items: center; justify-content: center; gap: 4px 8px;
-        font-size: 9px; font-weight: 800; letter-spacing: .08em;
-        text-transform: uppercase; color: var(--ink-2); flex-wrap: wrap;
-      }
-      .lu-masthead .folio b, .lu-masthead .folio span { white-space: nowrap; }
-      .lu-masthead .folio b { color: var(--ink); font-weight: 900; }
-      .lu-masthead .folio .dot { width: 3px; height: 3px; background: var(--ink-3); border-radius: 50%; }
-      .lu-masthead .folio .first { color: var(--red); font-weight: 900; }
-
-      /* BOUCLÉ — the put-to-bed stamp across the masthead */
-      .lu-boucle {
-        position: absolute; inset: -6px -10px auto; top: 50%;
-        transform: translateY(-58%) rotate(-6deg);
-        display: grid; place-items: center; pointer-events: none; z-index: 3;
-        mix-blend-mode: multiply;
-      }
-      .lu-boucle .box {
-        border: 3px solid var(--red); color: var(--red);
-        padding: 7px 18px 6px; background: transparent;
-        box-shadow: inset 0 0 0 1.5px var(--sheet), inset 0 0 0 3px var(--red);
-        text-align: center; opacity: .88;
-      }
-      .lu-boucle .box b { display: block; font-size: 26px; font-weight: 900; letter-spacing: .3em; text-indent: .3em; text-transform: uppercase; }
-      .lu-boucle .box span { display: block; margin-top: 2px; font-size: 8.5px; font-weight: 900; letter-spacing: .2em; text-transform: uppercase; }
-
-      /* ---- generic article ---- */
-      .lu-art-sec { position: relative; padding: 16px 0 18px; border-bottom: 1px solid var(--ink); }
-      .lu-art-sec.no-rule { border-bottom: 0; }
+      /* ---- generic article ----
+         Sections are separated by space, not boxes. One hairline between them
+         at most; a section that already reads as a unit gets none. */
+      .lu-art-sec { position: relative; padding: 26px 0 0; }
+      .lu-art-sec + .lu-art-sec { border-top: 1px solid var(--paper-3); }
+      .lu-art-sec.no-rule { border-top: 0; }
       .lu-kicker {
         display: flex; align-items: center; gap: 8px; white-space: nowrap;
-        font-size: 9.5px; font-weight: 900; letter-spacing: .16em;
-        text-transform: uppercase; color: var(--red);
+        font-size: var(--t-label); font-weight: 700; letter-spacing: .12em;
+        text-transform: uppercase; color: var(--ink-3);
       }
       .lu-kicker.blue { color: var(--blue); }
       .lu-kicker.mut { color: var(--ink-3); }
-      .lu-kicker .tail { flex: 1 1 auto; min-width: 10px; height: 1px; background: var(--paper-3); }
       .lu-head {
-        margin: 7px 0 0; font-family: var(--serif); font-style: italic;
-        font-weight: 600; font-size: 25px; line-height: 1.04; color: var(--ink);
+        margin: 8px 0 0; font-family: var(--serif); font-style: italic;
+        font-weight: 600; font-size: var(--t-head); line-height: 1.06; color: var(--ink);
         text-wrap: pretty;
       }
-      .lu-head.lg { font-size: 28px; }
-      .lu-deck { margin: 7px 0 0; font-size: 12.5px; line-height: 1.42; color: var(--ink-2); }
+      .lu-head.lg { font-size: var(--t-head); }
+      .lu-deck { margin: 8px 0 0; font-size: var(--t-small); line-height: 1.45; color: var(--ink-2); }
       .lu-byline {
-        margin-top: 9px; display: flex; align-items: center; gap: 7px;
-        font-size: 10.5px; font-weight: 700; color: var(--ink-2);
+        margin-top: 10px; display: flex; align-items: center; gap: 7px;
+        font-size: var(--t-label); font-weight: 600; color: var(--ink-3);
       }
       .lu-byline .chip {
         width: 22px; height: 22px; border: 1px solid var(--ink); border-radius: 50%;
-        background: var(--paper-2); display: grid; place-items: center;
-        font-family: var(--serif); font-style: italic; font-weight: 700; font-size: 11px;
+        background: var(--cast-accent, var(--paper-2)); display: grid; place-items: center;
+        font-family: var(--serif); font-style: italic; font-weight: 700; font-size: var(--t-label);
         flex: 0 0 auto;
       }
-      .lu-byline em { font-style: italic; font-family: var(--serif); font-size: 12.5px; }
+      .lu-byline .chip img, .lu-character-chip img { width: 100%; height: 100%; display: block; object-fit: cover; object-position: top center; }
+      .lu-character-target { display: inline-flex; align-items: center; gap: 5px; }
+      .lu-character-chip { width: 22px; height: 22px; display: inline-grid; place-items: center; overflow: hidden; border: 1px solid var(--ink); background: var(--cast-accent, var(--news-wash)); font: 700 var(--t-label)/1 var(--mono); }
+      .lu-byline em { font-style: italic; font-family: var(--serif); font-size: var(--t-small); }
 
       /* whole-article tap target */
       .lu-tap { display: block; width: 100%; text-decoration: none; }
@@ -637,37 +577,28 @@ export function LaUneStyles() {
         mix-blend-mode: multiply; color: var(--red);
         border: 2.5px solid currentColor; padding: 4px 10px 3px;
         box-shadow: inset 0 0 0 1.5px var(--sheet), inset 0 0 0 2.5px currentColor;
-        font-size: 15px; font-weight: 900; letter-spacing: .24em; text-indent: .24em;
+        font-size: var(--t-body); font-weight: 800; letter-spacing: .24em; text-indent: .24em;
         text-transform: uppercase; opacity: .9; background: transparent;
       }
       .lu-stamp.ink { color: var(--ink); }
       .lu-stamp.blue { color: var(--blue); }
-      .lu-stamp.sm { font-size: 11px; border-width: 2px; padding: 3px 8px 2px; box-shadow: inset 0 0 0 1px var(--sheet), inset 0 0 0 2px currentColor; }
-      .lu-stamp .d { display: block; font-size: 7.5px; letter-spacing: .16em; text-indent: .16em; margin-top: 1px; }
+      .lu-stamp.sm { font-size: var(--t-label); border-width: 2px; padding: 3px 8px 2px; box-shadow: inset 0 0 0 1px var(--sheet), inset 0 0 0 2px currentColor; }
+      .lu-stamp .d { display: block; font-size: var(--t-label); letter-spacing: .16em; text-indent: .16em; margin-top: 1px; }
       @media (prefers-reduced-motion: no-preference) {
         .lu.motion .lu-art-sec.done .lu-stamp { animation: lu-strike .32s cubic-bezier(.18, 1.35, .3, 1) .18s both; }
-        .lu.motion .lu-boucle .box { animation: lu-strike .38s cubic-bezier(.18, 1.35, .3, 1) .25s both; }
       }
       @keyframes lu-strike {
         from { opacity: 0; transform: scale(1.55) rotate(var(--tilt, -7deg)); }
         60% { opacity: .95; }
         to { opacity: .9; transform: scale(1) rotate(var(--tilt, -7deg)); }
       }
-      .lu-boucle .box { --tilt: 0deg; }
 
-      /* ---- lead story (Le Feuilleton) ---- */
-      .lu-lead { padding-top: 14px; }
-      .lu-lead .lu-stamp { top: 26px; right: 4px; }
+      /* ---- la manchette (the one story) ---- */
+      .lu-manchette { padding-top: 14px; }
+      .lu-manchette .lu-stamp { top: 26px; right: 4px; }
       .lu-art-frame { position: relative; margin-top: 10px; border: 1px solid var(--ink); background: var(--paper-2); }
       .lu-art-frame .ratio { position: relative; width: 100%; aspect-ratio: 16 / 10; overflow: hidden; }
       .lu-art-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
-      .lu-art-frame .credit {
-        display: flex; justify-content: space-between; gap: 10px;
-        padding: 5px 8px; border-top: 1px solid var(--ink);
-        font-size: 8px; font-weight: 800; letter-spacing: .06em;
-        text-transform: uppercase; color: var(--ink-3); background: var(--sheet);
-      }
-      .lu-art-frame .credit span { white-space: nowrap; }
 
       /* presses-running (art generating) — same composition, setting plates */
       .lu-art-press {
@@ -679,8 +610,8 @@ export function LaUneStyles() {
         text-align: center; background: var(--sheet); border: 1px solid var(--ink);
         padding: 10px 14px; max-width: 84%;
       }
-      .lu-art-press .plate b { display: block; font-size: 9.5px; font-weight: 900; letter-spacing: .18em; text-transform: uppercase; }
-      .lu-art-press .plate span { display: block; margin-top: 3px; font-size: 9px; color: var(--ink-2); letter-spacing: .04em; }
+      .lu-art-press .plate b { display: block; font-size: var(--t-label); font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+      .lu-art-press .plate span { display: block; margin-top: 4px; font-size: var(--t-small); color: var(--ink-2); }
       .lu-art-press .rollers { display: flex; gap: 4px; justify-content: center; margin-top: 7px; }
       .lu-art-press .rollers i { width: 5px; height: 5px; background: var(--ink); }
       @media (prefers-reduced-motion: no-preference) {
@@ -692,177 +623,95 @@ export function LaUneStyles() {
 
       /* delayed notice — a printed apology, text leads */
       .lu-art-late {
-        margin-top: 10px; border: 1px dashed var(--ink-3); background: var(--paper);
-        padding: 9px 12px; font-size: 10.5px; line-height: 1.45; color: var(--ink-2);
+        margin-top: 10px; font-size: var(--t-small); line-height: 1.5; color: var(--ink-2);
       }
-      .lu-art-late b { font-weight: 900; letter-spacing: .12em; text-transform: uppercase; font-size: 8.5px; color: var(--ink); display: block; margin-bottom: 2px; }
+      .lu-art-late b { font-weight: 700; color: var(--ink); display: block; }
 
-      /* ---- la séance (primary article) ---- */
-      .lu-seance { position: relative; }
-      .lu-seance .lu-stamp { top: 20px; right: 2px; }
-      .lu-concepts { margin-top: 12px; display: grid; }
-      .lu-concept {
-        display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px;
-        align-items: center; padding: 9px 0; border-top: 1px solid var(--paper-3);
+      .lu-manchette-rule { height: 1px; background: var(--paper-3); margin-top: 16px; }
+      .lu-ask { margin-top: 14px; display: grid; gap: 4px; }
+      .lu-ask-line { margin: 0; font-size: var(--t-small); line-height: 1.5; color: var(--ink-2); }
+      .lu-ask-meta { margin: 0; font-size: var(--t-small); line-height: 1.5; color: var(--ink-3); }
+      .lu-prescription-because,
+      .lu-prescription-overrun {
+        margin: 6px 0 0; font-size: var(--t-small); line-height: 1.5; color: var(--ink-3);
       }
-      .lu-concept:last-child { border-bottom: 1px solid var(--paper-3); }
-      .lu-concept .t { font-family: var(--serif); font-style: italic; font-size: 17.5px; line-height: 1.1; }
-      .lu-concept .colorable { display: inline-flex; }
-      .lu-tag {
-        display: inline-flex; align-items: center; gap: 6px;
-        border: 1px solid var(--ink); background: var(--sheet);
-        padding: 3px 7px 2px; font-size: 8px; font-weight: 900;
-        letter-spacing: .13em; text-transform: uppercase; white-space: nowrap;
+      .lu-prescription-adjust {
+        display: inline-flex; align-items: center; min-height: 44px; margin-top: 2px; color: var(--ink-3);
+        font-size: var(--t-small); font-weight: 400; letter-spacing: 0;
+        text-decoration-thickness: 1px; text-underline-offset: 3px;
       }
-      .lu-tag i { width: 8px; height: 8px; flex: 0 0 auto; }
-      .lu-tag.new i { background: var(--yellow); }
-      .lu-tag.fragile i { background: var(--red); }
-      .lu-tag.contrast i { background: var(--blue); }
-      .lu-tag .lv { color: var(--ink-3); font-weight: 800; }
+      .lu-cast-recap { display: flex; align-items: center; gap: 7px; margin: 12px 0 0; color: var(--ink-2); font: italic var(--t-small)/1.4 var(--serif); }
 
-      .lu-seance .meta-line {
-        margin-top: 10px; font-size: 10px; font-weight: 800; letter-spacing: .12em;
-        text-transform: uppercase; color: var(--ink-3);
-        display: flex; align-items: center; gap: 8px;
-      }
-      .lu-seance .meta-line .sous {
-        color: var(--red); border: 1.5px solid var(--red); padding: 2px 6px 1px;
-        transform: rotate(-2deg); letter-spacing: .16em;
-      }
-      .lu-progress { margin-top: 8px; height: 4px; background: var(--paper-3); position: relative; }
-      .lu-progress i { position: absolute; inset: 0 auto 0 0; background: var(--red); }
-
-      /* Primary action, set as a printed press bar: solid ink on paper,
-         framed by hairline keylines above and below (no toy drop-shadow),
-         inverts on press. Reads as newspaper furniture, not an app button. */
+      /* Primary action, softened per the owner: a pill of solid ink, sentence
+         case, no wide tracking. Still one action per page. */
       .lu .lu-cta {
-        margin-top: 15px;
-        display: flex; align-items: center; justify-content: center; gap: 12px;
-        width: 100%; min-height: 52px; padding: 0 18px;
+        margin-top: 16px;
+        display: flex; align-items: center; justify-content: center; gap: 10px;
+        width: 100%; min-height: 54px; padding: 0 22px;
         background: var(--ink); color: var(--paper);
-        border: 1px solid var(--ink);
-        box-shadow: inset 0 0 0 3px var(--sheet), inset 0 0 0 4px var(--ink);
-        font-size: 12.5px; font-weight: 700; letter-spacing: .16em; text-indent: .16em;
-        text-transform: uppercase; text-decoration: none; cursor: pointer;
-        transition: background .16s ease, color .16s ease;
+        border: 0; border-radius: 999px;
+        font-size: var(--t-body); font-weight: 600; letter-spacing: .01em;
+        text-decoration: none; cursor: pointer;
+        transition: background .16s ease, color .16s ease, transform .12s ease;
       }
-      .lu-cta:hover { background: var(--paper); color: var(--ink); }
-      .lu-cta:active { background: var(--paper-2); color: var(--ink); }
+      .lu-cta:hover { background: var(--ink-2); color: var(--paper); }
+      .lu-cta:active { background: var(--paper-2); color: var(--ink); transform: translateY(1px); }
       .lu-cta:disabled { opacity: .5; cursor: progress; }
       .lu-cta:disabled:hover { background: var(--ink); color: var(--paper); }
       .lu-cta svg { width: 16px; height: 16px; }
       .lu-art-sec.done .lu-cta { display: none; }
 
-      /* the done séance folds to a settled record line */
-      .lu-record {
-        margin-top: 12px; display: flex; align-items: center; gap: 9px;
-        font-size: 10.5px; font-weight: 800; letter-spacing: .1em;
-        text-transform: uppercase; color: var(--ink-2); white-space: nowrap;
+      /* ---- en bref ---- */
+      .lu-enbref { padding: 26px 0 0; display: flex; flex-direction: column; }
+      .lu-enbref .lu-kicker { margin-bottom: 10px; }
+      .lu-enbref-rule { height: 1px; background: var(--ink); }
+      .lu .lu-bref {
+        display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+        width: 100%; min-height: 52px; padding: 15px 0;
+        background: none; border: 0; border-bottom: 1px solid var(--paper-3);
+        color: var(--ink); text-align: left; text-decoration: none; cursor: pointer;
       }
-      .lu-record svg { width: 14px; height: 14px; flex: 0 0 auto; }
-
-      /* ---- secondary column grid ---- */
-      .lu-duo { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid var(--ink); }
-      .lu-duo .lu-art-sec { border-bottom: 0; }
-      .lu-duo .lu-art-sec:first-child { border-right: 1px solid var(--ink); padding-right: 14px; }
-      .lu-duo .lu-art-sec:last-child { padding-left: 14px; }
-      .lu-duo .lu-brief { border-bottom: 0; }
-      .lu-duo .lu-head { font-size: 20px; }
-      .lu-duo .count {
-        font-family: var(--serif); font-style: italic; font-weight: 700;
-        font-size: 34px; line-height: .9; margin: 8px 0 0;
-      }
-      .lu-duo .lu-stamp { top: 14px; right: 8px; }
-
-      /* one-line brief (empty / done reductions) */
-      .lu-brief {
-        display: flex; align-items: center; gap: 9px; padding: 10px 0;
-        border-bottom: 1px solid var(--ink);
-        font-size: 11px; color: var(--ink-2);
-      }
-      .lu-brief .k { font-size: 8.5px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); flex: 0 0 auto; }
-      .lu-brief .sep { width: 12px; height: 1px; background: var(--ink-3); flex: 0 0 auto; }
-      .lu-brief em { font-family: var(--serif); font-style: italic; font-size: 12.5px; }
+      .lu .lu-bref:last-child { border-bottom: 0; }
+      .lu-bref .l { font-family: var(--serif); font-size: var(--t-lead); line-height: 1.2; }
+      .lu-bref .v { display: inline-flex; align-items: baseline; gap: 6px; font-size: var(--t-small); color: var(--ink-2); text-align: right; }
+      .lu-bref .v .go { color: var(--ink-3); }
+      .lu-bref .v svg { width: 12px; height: 12px; align-self: center; }
+      .lu-bref.done .l, .lu-bref.done .v { color: var(--ink-3); }
+      .lu-bref:disabled { opacity: .5; cursor: progress; }
+      .lu-bref:hover .v .go { color: var(--ink); }
 
       /* ---- citation du jour ---- */
-      .lu-citation { text-align: center; padding: 18px 20px; border-bottom: 1px solid var(--ink); }
-      .lu-citation .q { margin: 0; font-family: var(--serif); font-style: italic; font-size: 17px; line-height: 1.3; }
-      .lu-citation .src { margin: 6px 0 0; font-size: 8.5px; font-weight: 900; letter-spacing: .18em; text-transform: uppercase; color: var(--ink-3); }
+      .lu-citation { text-align: center; padding: 26px 20px 0; }
+      .lu-citation .q { margin: 0; font-family: var(--serif); font-style: italic; font-size: var(--t-lead); line-height: 1.35; }
+      .lu-citation .src { margin: 8px 0 0; font-size: var(--t-label); font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); }
 
       /* ---- la phrase d'hier ---- */
-      .lu-phrase-du-jour {
-        margin: 16px 0; padding: 14px 16px 15px;
-        border: 1.5px solid var(--ink); background: var(--paper);
-        box-shadow: inset 0 0 0 3px var(--sheet), inset 0 0 0 4px var(--paper-3);
-      }
+      .lu-phrase-du-jour { padding: 26px 0 0; border-top: 1px solid var(--paper-3); }
       .lu-phrase-du-jour .head {
-        display: flex; align-items: center; justify-content: space-between; gap: 12px;
-        font-size: 8.5px; font-weight: 900; letter-spacing: .17em;
+        font-size: var(--t-label); font-weight: 700; letter-spacing: .12em;
         text-transform: uppercase; color: var(--ink-3);
-      }
-      .lu-phrase-du-jour .paru {
-        border: 1px solid var(--red); color: var(--red); padding: 2px 6px 1px;
-        letter-spacing: .14em; transform: rotate(-2deg);
       }
       .lu-phrase-du-jour blockquote {
-        margin: 12px 0 0; font-family: var(--serif); font-style: italic;
-        font-size: 21px; line-height: 1.3; color: var(--ink);
+        margin: 10px 0 0; font-family: var(--serif); font-style: italic;
+        font-size: var(--t-head); line-height: 1.2; color: var(--ink);
       }
       .lu-phrase-du-jour p {
-        margin: 8px 0 0; font-size: 9px; font-weight: 800; letter-spacing: .1em;
+        margin: 8px 0 0; font-size: var(--t-label); font-weight: 600; letter-spacing: .08em;
         text-transform: uppercase; color: var(--ink-3);
       }
-      .lu-phrase-du-jour p em { font-family: var(--serif); font-size: 11px; text-transform: none; color: var(--ink); }
+      .lu-phrase-du-jour p em { font-family: var(--serif); font-size: var(--t-small); text-transform: none; color: var(--ink); }
 
-      /* ---- le cours du français (ticker) ---- */
-      .lu-cours {
-        margin-top: 16px; border: 1px solid var(--ink); background: var(--paper);
-        padding: 10px 12px 12px;
+      /* ---- demain : the colophon ---- */
+      .lu-demain { margin-top: 10px; padding: 14px 0 6px; border-top: 3px double var(--ink); text-align: center; }
+      .lu-demain .line {
+        margin: 0; font-family: var(--serif); font-style: italic; font-size: var(--t-small); line-height: 1.5; color: var(--ink-3);
       }
-      .lu-cours .row1 {
-        display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
-        font-size: 9px; font-weight: 900; letter-spacing: .15em; text-transform: uppercase; color: var(--ink-3);
-      }
-      .lu-cours .row1 span { white-space: nowrap; }
-      .lu-cours .quote { margin-top: 5px; display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; }
-      .lu-cours .quote b { font-family: var(--serif); font-style: italic; font-weight: 700; font-size: 19px; white-space: nowrap; }
-      .lu-cours .quote span { font-size: 10px; font-weight: 800; letter-spacing: .06em; color: var(--ink-2); }
-      .lu-cours .gauges { margin-top: 9px; display: grid; gap: 6px; }
-      .lu-cours .g { display: grid; grid-template-columns: 62px 1fr 52px; align-items: center; gap: 8px; }
-      .lu-cours .g .lab { font-size: 8px; font-weight: 900; letter-spacing: .13em; text-transform: uppercase; color: var(--ink-3); }
-      .lu-cours .g .bar { height: 3px; background: var(--paper-3); position: relative; }
-      .lu-cours .g .bar i { position: absolute; inset: 0 auto 0 0; background: var(--blue); }
-      .lu-cours .g .num { font-size: 9px; font-weight: 800; color: var(--ink-2); text-align: right; font-variant-numeric: tabular-nums; }
-      .lu-cours .delta { margin-top: 8px; padding-top: 7px; border-top: 1px solid var(--paper-3); font-size: 9.5px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--blue); }
-
-      /* ---- demain dans votre édition ---- */
-      .lu-demain { margin-top: 16px; border-top: 3px double var(--ink); padding-top: 10px; }
-      .lu-demain .k { font-size: 9px; font-weight: 900; letter-spacing: .18em; text-transform: uppercase; color: var(--ink-3); text-align: center; }
-      .lu-demain ul { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 5px; }
-      .lu-demain li {
-        display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; align-items: baseline;
-        font-size: 10.5px; line-height: 1.4; color: var(--ink-2);
-      }
-      .lu-demain li .h { font-size: 8px; font-weight: 900; letter-spacing: .13em; text-transform: uppercase; color: var(--ink); white-space: nowrap; }
-      .lu-demain li em { font-family: var(--serif); font-style: italic; font-size: 12px; color: var(--ink); }
+      .lu-demain .line em { font-style: italic; color: var(--ink-2); }
       .lu-demain a { text-decoration: none; border-bottom: 1px solid var(--paper-3); }
-
-      /* grown closing variant (édition complète) */
-      .lu-demain.grand { border: 1.5px solid var(--ink); border-top: 1.5px solid var(--ink); background: var(--paper); padding: 16px 16px 18px; margin-top: 20px; }
-      .lu-demain.grand .k { color: var(--red); }
       .lu-demain.grand .tease {
-        margin: 10px 0 0; text-align: center; font-family: var(--serif); font-style: italic;
-        font-weight: 600; font-size: 21px; line-height: 1.12;
+        margin: 0 0 8px; font-family: var(--serif); font-style: italic;
+        font-weight: 600; font-size: var(--t-head); line-height: 1.15; color: var(--ink);
       }
-      .lu-demain.grand ul { margin-top: 12px; border-top: 1px solid var(--paper-3); padding-top: 10px; }
-
-      /* end-of-page colophon */
-      .lu-colophon {
-        margin-top: 18px; text-align: center;
-        font-size: 8px; font-weight: 800; letter-spacing: .2em; text-transform: uppercase; color: var(--ink-3);
-        display: flex; align-items: center; gap: 10px; justify-content: center;
-      }
-      .lu-colophon::before, .lu-colophon::after { content: ''; flex: 1; height: 1px; background: var(--paper-3); }
 
       /* ---- press notice (load errors) ---- */
       .lu-notice {
@@ -873,12 +722,12 @@ export function LaUneStyles() {
       .lu-notice .sq { width: 12px; height: 12px; background: var(--red); border: 1px solid var(--ink); }
       .lu-notice .sq.blue { background: var(--blue); }
       .lu-notice .sq.yellow { background: var(--yellow); }
-      .lu-notice .body b { display: block; font-size: 9px; font-weight: 900; letter-spacing: .15em; text-transform: uppercase; }
-      .lu-notice .body p { margin: 3px 0 0; font-size: 11px; line-height: 1.4; color: var(--ink-2); }
+      .lu-notice .body b { display: block; font-size: var(--t-label); font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+      .lu-notice .body p { margin: 4px 0 0; font-size: var(--t-small); line-height: 1.45; color: var(--ink-2); }
       .lu-notice .retry {
         min-height: 44px; padding: 0 14px; border: 1.5px solid var(--ink);
         background: var(--ink); color: var(--paper);
-        font-size: 10px; font-weight: 900; letter-spacing: .13em; text-transform: uppercase;
+        font-size: var(--t-label); font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
         text-align: center;
       }
 
@@ -902,12 +751,10 @@ export function LaUneStyles() {
       @media (min-width: 1100px) {
         .lu { width: 1024px; }
         .lu-page { padding: 0 44px 44px; }
-        .lu-masthead .name { font-size: 62px; }
         .lu-grid { display: grid; grid-template-columns: 1.35fr 1px 1fr; gap: 0 26px; }
         .lu-grid .lu-col { display: block; }
         .lu-grid .vrule { display: block; background: var(--ink); }
-        .lu-head.lg { font-size: 34px; }
-        .lu-duo { border-bottom: 0; }
+        .lu-head.lg { font-size: var(--t-display); }
       }
     `}</style>
   );

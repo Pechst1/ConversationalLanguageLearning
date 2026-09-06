@@ -20,6 +20,10 @@ const schema = yup.object({
   nativeLanguage: yup.string().required('Native language is required'),
   targetLanguage: yup.string().required('Target language is required'),
   proficiencyLevel: yup.string().required('Current level is required'),
+  learningMotivation: yup.string().required('Choose what brings you to French'),
+  correctionStyle: yup.string().oneOf(['strict', 'moderate', 'lenient']).required(),
+  speakingComfort: yup.string().oneOf(['warming_up', 'ready', 'confident']).required(),
+  dailyGoalMinutes: yup.number().oneOf([5, 10, 15, 20]).required(),
 });
 
 type FormData = yup.InferType<typeof schema>;
@@ -27,10 +31,10 @@ type FormData = yup.InferType<typeof schema>;
 const languageOptions = [
   { value: 'en', label: 'English' },
   { value: 'de', label: 'Deutsch' },
-  { value: 'fr', label: 'Francais' },
-  { value: 'es', label: 'Espanol' },
+  { value: 'fr', label: 'Français' },
+  { value: 'es', label: 'Español' },
   { value: 'it', label: 'Italiano' },
-  { value: 'pt', label: 'Portugues' },
+  { value: 'pt', label: 'Português' },
 ];
 
 const proficiencyOptions = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
@@ -83,6 +87,10 @@ export default function SignUpPage() {
       nativeLanguage: 'en',
       targetLanguage: 'fr',
       proficiencyLevel: 'A1',
+      learningMotivation: 'travel',
+      correctionStyle: 'moderate',
+      speakingComfort: 'warming_up',
+      dailyGoalMinutes: 10,
     },
   });
 
@@ -117,6 +125,10 @@ export default function SignUpPage() {
         target_language: data.targetLanguage,
         proficiency_level: data.proficiencyLevel,
         interests: selectedTopics.join(','),
+        learning_motivation: data.learningMotivation,
+        speaking_comfort: data.speakingComfort as 'warming_up' | 'ready' | 'confident',
+        grammar_correction_level: data.correctionStyle as 'strict' | 'moderate' | 'lenient',
+        daily_goal_minutes: data.dailyGoalMinutes,
       });
 
       toast.success('Account created successfully! Please sign in.');
@@ -131,15 +143,15 @@ export default function SignUpPage() {
   return (
     <>
       <Head>
-        <title>Create account - Atelier</title>
+        <title>Create account · L’Atelier</title>
       </Head>
 
       <main className="auth-page">
         <section className="auth-shell" aria-labelledby="signup-title">
           <div className="auth-brand-panel">
-            <Link className="auth-brand" href="/" aria-label="Open Atelier home">
+            <Link className="auth-brand" href="/" aria-label="Open L’Atelier home">
               <AtelierMark />
-              <span>Atelier</span>
+              <span>L’Atelier</span>
             </Link>
 
             <div className="auth-copy">
@@ -180,6 +192,50 @@ export default function SignUpPage() {
                 autoComplete="name"
                 className={authInputClass}
               />
+
+              {/* Instructional chrome, so it speaks the learner's language, not
+                  the publication's. This block was the one French island in an
+                  otherwise English form — legend, four labels and every option
+                  — which read as a half-translated page. French is earned
+                  inside the app, once there is an edition to name. */}
+              <fieldset className="onboarding-lite">
+                <legend>Your first edition</legend>
+                <div className="select-grid">
+                  <div className="field-group">
+                    <label htmlFor="learningMotivation">Why French?</label>
+                    <select id="learningMotivation" {...register('learningMotivation')} className={selectClass}>
+                      <option value="travel">To travel and get by</option>
+                      <option value="work">To work in French</option>
+                      <option value="relationships">To talk with people close to me</option>
+                      <option value="culture">To read, watch and listen</option>
+                    </select>
+                  </div>
+                  <div className="field-group">
+                    <label htmlFor="dailyGoalMinutes">Minutes a day</label>
+                    <select id="dailyGoalMinutes" {...register('dailyGoalMinutes')} className={selectClass}>
+                      {[5, 10, 15, 20].map((minutes) => <option key={minutes} value={minutes}>{minutes} minutes</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div className="select-grid">
+                  <div className="field-group">
+                    <label htmlFor="correctionStyle">Correction style</label>
+                    <select id="correctionStyle" {...register('correctionStyle')} className={selectClass}>
+                      <option value="lenient">Light — keep the thread going</option>
+                      <option value="moderate">Balanced</option>
+                      <option value="strict">Exact — flag everything</option>
+                    </select>
+                  </div>
+                  <div className="field-group">
+                    <label htmlFor="speakingComfort">Speaking out loud</label>
+                    <select id="speakingComfort" {...register('speakingComfort')} className={selectClass}>
+                      <option value="warming_up">Still warming up</option>
+                      <option value="ready">I can answer</option>
+                      <option value="confident">Push me</option>
+                    </select>
+                  </div>
+                </div>
+              </fieldset>
 
               <Input
                 {...register('email')}
@@ -332,8 +388,8 @@ export default function SignUpPage() {
             justify-items: center;
             padding: calc(max(18px, env(safe-area-inset-top)) + 12px) 16px calc(max(22px, env(safe-area-inset-bottom)) + 10px);
             background:
-              linear-gradient(rgba(20, 17, 13, .035) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(20, 17, 13, .025) 1px, transparent 1px),
+              linear-gradient(rgb(var(--app-ink-rgb) / .035) 1px, transparent 1px),
+              linear-gradient(90deg, rgb(var(--app-ink-rgb) / .025) 1px, transparent 1px),
               var(--app-paper);
             background-size: 100% 34px, 34px 100%, auto;
             color: var(--app-ink);
@@ -345,7 +401,6 @@ export default function SignUpPage() {
             overflow: hidden;
             border: 1px solid var(--app-ink);
             background: var(--app-sheet);
-            box-shadow: 7px 7px 0 var(--app-ink);
           }
 
           .auth-brand-panel,
@@ -475,6 +530,8 @@ export default function SignUpPage() {
             border: 1px solid var(--app-ink);
             background: var(--app-paper);
           }
+          .onboarding-lite { display: grid; gap: 14px; margin: 0; padding: 16px; border: 1px solid var(--app-ink); background: var(--app-paper-2); }
+          .onboarding-lite legend { padding: 0 7px; color: var(--app-ink-2); font: 900 10px/1 var(--app-mono); letter-spacing: .12em; text-transform: uppercase; }
 
           .profile-details summary {
             display: grid;
@@ -607,8 +664,29 @@ export default function SignUpPage() {
             line-height: 1.35;
           }
 
+          /* Soft journal action: pill geometry, solid ink on paper, sentence
+             case. !important beats the shared Button's Tailwind utilities. */
           :global(.auth-submit) {
             min-height: 54px;
+            padding-left: 22px !important;
+            padding-right: 22px !important;
+            border-radius: 999px !important;
+            border-color: var(--app-ink) !important;
+            background: var(--app-ink) !important;
+            color: var(--app-paper) !important;
+            font-size: var(--t-body) !important;
+            font-weight: 600 !important;
+            letter-spacing: .01em !important;
+            text-transform: none !important;
+          }
+
+          :global(.auth-submit:active) {
+            background: var(--app-paper-2) !important;
+            color: var(--app-ink) !important;
+          }
+
+          :global(.auth-submit:disabled) {
+            opacity: .5 !important;
           }
 
           @media (min-width: 560px) {
@@ -629,7 +707,6 @@ export default function SignUpPage() {
 
             .auth-shell {
               grid-template-columns: minmax(320px, .78fr) minmax(460px, 1fr);
-              box-shadow: 10px 10px 0 var(--app-ink);
             }
 
             .auth-brand-panel {

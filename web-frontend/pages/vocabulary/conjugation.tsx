@@ -8,10 +8,10 @@ import EditorialMasthead from '@/components/layout/EditorialMasthead';
 import apiService, { ConjugationReviewItem } from '@/services/api';
 
 const ratingOptions = [
-  { rating: 0, label: 'Again', hint: 'Soon', tone: 'red' },
-  { rating: 1, label: 'Hard', hint: 'Keep close', tone: 'yellow' },
-  { rating: 2, label: 'Good', hint: 'Schedule', tone: 'blue' },
-  { rating: 3, label: 'Easy', hint: 'Stretch', tone: 'black' },
+  { rating: 0, label: 'À revoir', hint: 'Très bientôt', tone: 'red' },
+  { rating: 1, label: 'Difficile', hint: 'Garder près', tone: 'yellow' },
+  { rating: 2, label: 'Correct', hint: 'Rythme normal', tone: 'blue' },
+  { rating: 3, label: 'Facile', hint: 'Espacer', tone: 'black' },
 ] as const;
 
 function normalizeAnswer(value: string) {
@@ -24,10 +24,10 @@ function normalizeAnswer(value: string) {
 }
 
 function nextReviewLabel(value?: string | null) {
-  if (!value) return 'Review saved';
+  if (!value) return 'Reprise classée';
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'Review saved';
-  return `Next touch ${date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`;
+  if (Number.isNaN(date.getTime())) return 'Reprise classée';
+  return `Reprise le ${date.toLocaleDateString('fr-FR', { month: 'long', day: 'numeric' })}`;
 }
 
 export default function ConjugationReviewPage() {
@@ -50,7 +50,7 @@ export default function ConjugationReviewPage() {
       setCompleted(0);
     } catch (nextError) {
       console.error(nextError);
-      setError('Conjugation drill is unavailable right now.');
+      setError('L’exercice de conjugaison ne répond pas pour l’instant.');
     } finally {
       setLoading(false);
     }
@@ -83,7 +83,7 @@ export default function ConjugationReviewPage() {
       setRevealed(false);
     } catch (nextError) {
       console.error(nextError);
-      toast.error('Could not save conjugation review.');
+      toast.error('La reprise n’a pas pu être classée.');
     } finally {
       setSaving(false);
     }
@@ -92,40 +92,40 @@ export default function ConjugationReviewPage() {
   return (
     <>
       <Head>
-        <title>Conjugation Drill</title>
+        <title>Le Cahier · Conjugaison · L’Atelier</title>
       </Head>
-      <EditorialMasthead active="notebook" mobileAction={<Link className="conj-mobile-action" href="/vocabulary">Map</Link>} />
+      <EditorialMasthead active="notebook" mobileAction={<Link className="conj-mobile-action" href="/vocabulary">Le registre</Link>} />
       <main className="conj-page">
         <header className="conj-hero">
-          <Link href="/vocabulary" className="conj-back"><ArrowLeft size={15} /> Coverage map</Link>
-          <span>Verbs & conjugation</span>
-          <h1>Irregular forms</h1>
+          <Link href="/vocabulary" className="conj-back"><ArrowLeft size={15} /> Le registre</Link>
+          <span>Verbes & conjugaison</span>
+          <h1>Les formes irrégulières</h1>
           <div className="conj-progress">
-            <strong>{completed} reviewed</strong>
-            <div aria-label={`${progress}% complete`}><i style={{ width: `${progress}%` }} /></div>
-            <em>{items.length} waiting</em>
+            <strong>{completed} {completed === 1 ? 'forme reprise' : 'formes reprises'}</strong>
+            <div aria-label={`${progress}% du tour`}><i style={{ width: `${progress}%` }} /></div>
+            <em>{items.length} en attente</em>
           </div>
         </header>
 
         {loading && (
           <section className="conj-state">
             <Loader2 className="spin" size={20} />
-            <strong>Loading conjugation drill.</strong>
+            <strong>L’exercice se prépare.</strong>
           </section>
         )}
 
         {!loading && error && (
           <section className="conj-state error">
             <strong>{error}</strong>
-            <button type="button" onClick={loadQueue}><RotateCcw size={14} /> Retry</button>
+            <button type="button" onClick={loadQueue}><RotateCcw size={14} /> Réessayer</button>
           </section>
         )}
 
         {!loading && !error && !current && (
           <section className="conj-state done">
             <Check size={24} />
-            <strong>No irregular forms waiting.</strong>
-            <Link href="/vocabulary/review">Review vocabulary</Link>
+            <strong>Aucune forme irrégulière en attente.</strong>
+            <Link href="/vocabulary/review">Reprendre le vocabulaire</Link>
           </section>
         )}
 
@@ -136,16 +136,16 @@ export default function ConjugationReviewPage() {
               <em>{current.state}</em>
             </div>
             <div className="conj-prompt">
-              <span>Prompt</span>
+              <span>La consigne</span>
               <h2>{current.lemma} · {current.tense_label} · {current.person}</h2>
               <input
                 value={typed}
                 onChange={(event) => setTyped(event.target.value)}
-                placeholder="Type the form"
-                aria-label="Type the conjugated form"
+                placeholder="Écrivez la forme"
+                aria-label="Écrivez la forme conjuguée"
               />
               <button type="button" onClick={() => setRevealed(true)} disabled={!typed.trim()}>
-                Reveal table
+                Voir le tableau
               </button>
             </div>
 
@@ -153,7 +153,7 @@ export default function ConjugationReviewPage() {
               <div className="conj-answer">
                 <div className={typedMatches ? 'conj-verdict match' : 'conj-verdict miss'}>
                   <strong>{current.answer}</strong>
-                  <span>{typedMatches ? 'Matched' : `You typed: ${typed}`}</span>
+                  <span>{typedMatches ? 'Juste' : `Vous avez écrit : ${typed}`}</span>
                 </div>
                 <table>
                   <tbody>
@@ -168,7 +168,7 @@ export default function ConjugationReviewPage() {
               </div>
             )}
 
-            <div className="conj-ratings" aria-label="Conjugation rating">
+            <div className="conj-ratings" aria-label="Classement de la forme">
               {ratingOptions.map((option) => (
                 <button
                   key={option.rating}
@@ -187,17 +187,17 @@ export default function ConjugationReviewPage() {
       </main>
       <style jsx>{`
         .conj-page {
-          --paper: #f1ece1;
-          --paper-2: #e8e0cf;
-          --sheet: #f8f3e8;
-          --ink: #14110d;
-          --ink-2: #4a4538;
-          --ink-3: #8a826f;
-          --red: #d8321a;
-          --blue: #1d3a8a;
-          --yellow: #f3c318;
-          --disabled-bg: #98958c;
-          --disabled-ink: #f8f3e8;
+          --paper: var(--app-paper);
+          --paper-2: var(--app-paper-2);
+          --sheet: var(--app-sheet);
+          --ink: var(--app-ink);
+          --ink-2: var(--app-ink-2);
+          --ink-3: var(--app-ink-3);
+          --red: var(--app-red);
+          --blue: var(--app-blue);
+          --yellow: var(--app-yellow);
+          --disabled-bg: var(--app-ink-3);
+          --disabled-ink: var(--app-sheet);
           min-height: 100vh;
           background: var(--paper);
           color: var(--ink);

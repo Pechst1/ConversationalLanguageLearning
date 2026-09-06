@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from loguru import logger
@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.db.models.user import User
 from app.services.analytics import AnalyticsService
 from app.services.grammar import GrammarService
-from app.services.llm_service import LLMService, LLMResult
+from app.services.llm_service import LLMResult, LLMService
 from app.utils.cache import cache_backend
 
 if TYPE_CHECKING:
@@ -194,7 +194,7 @@ class InsightsService:
             insight_data = self._parse_llm_response(result.content)
             
             return LearningInsight(
-                generated_at=datetime.now(timezone.utc),
+                generated_at=datetime.now(UTC),
                 period_days=period_days,
                 headline=insight_data.get("headline", "Keep up the great work!"),
                 progress_summary=insight_data.get("progress_summary", ""),
@@ -288,7 +288,7 @@ class InsightsService:
         streak = data.get("streak", {})
         
         return LearningInsight(
-            generated_at=datetime.now(timezone.utc),
+            generated_at=datetime.now(UTC),
             period_days=period_days,
             headline="Keep Learning Every Day!",
             progress_summary=f"Over the past {period_days} days, you've completed {summary.get('total_sessions', 0)} sessions and practiced for {summary.get('total_minutes', 0)} minutes. Great effort!",

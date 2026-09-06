@@ -1,10 +1,19 @@
 import { spawnSync } from 'node:child_process';
 
-await import('./ensure-native-api-env.mjs');
+import { resolveNativeApiEnvironment } from './native-api-env.mjs';
+
+let resolved;
+try {
+  resolved = resolveNativeApiEnvironment();
+} catch (error) {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exit(1);
+}
 
 const skipBuild = process.argv.includes('--skip-build');
 const nativeEnv = {
   ...process.env,
+  ...resolved,
   NATIVE_STATIC_EXPORT: process.env.NATIVE_STATIC_EXPORT || 'true',
   CAPACITOR_WEB_DIR: process.env.CAPACITOR_WEB_DIR || 'out',
 };

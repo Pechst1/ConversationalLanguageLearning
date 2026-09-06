@@ -1,9 +1,10 @@
 """Pydantic schemas for Story RPG feature."""
+from __future__ import annotations
+
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, Field
-
+from pydantic import BaseModel, ConfigDict, Field
 
 # ============================================================================
 # Story Schemas
@@ -11,6 +12,9 @@ from pydantic import BaseModel, Field
 
 class StoryRead(BaseModel):
     """Schema for story list and detail views."""
+
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
     title: str
     subtitle: str | None = None
@@ -22,12 +26,11 @@ class StoryRead(BaseModel):
     cover_image_url: str | None = None
     is_unlocked: bool = True
     
-    class Config:
-        from_attributes = True
-
-
 class StoryProgressRead(BaseModel):
     """Schema for user's story progress."""
+
+    model_config = ConfigDict(from_attributes=True)
+
     story_id: str
     current_chapter_id: str | None = None
     current_chapter_title: str | None = None
@@ -40,10 +43,6 @@ class StoryProgressRead(BaseModel):
     started_at: datetime | None = None
     last_played_at: datetime | None = None
     
-    class Config:
-        from_attributes = True
-
-
 class StoryWithProgressRead(StoryRead):
     """Story with optional progress information."""
     progress: StoryProgressRead | None = None
@@ -70,49 +69,46 @@ class ChoiceOptionRead(BaseModel):
     
 class SceneRead(BaseModel):
     """Schema for scene rendering."""
+
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
     chapter_id: str
     location: str | None = None
     atmosphere: str | None = None
     narration: str  # Level-appropriate narration
     objectives: list[ObjectiveRead] = Field(default_factory=list)
-    npcs_present: list["NPCInSceneRead"] = Field(default_factory=list)
+    npcs_present: list[NPCInSceneRead] = Field(default_factory=list)
     interaction_type: str = "free_input"  # "free_input", "choice", "drawing"
     choices: list[ChoiceOptionRead] = Field(default_factory=list)
     estimated_duration_minutes: int = 10
     
-    class Config:
-        from_attributes = True
-
-
 class ChapterRead(BaseModel):
     """Schema for chapter information."""
+
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
     story_id: str
     order_index: int
     title: str
     target_level: str | None = None
     
-    class Config:
-        from_attributes = True
-
-
 # ============================================================================
 # NPC Schemas
 # ============================================================================
 
 class NPCRead(BaseModel):
     """Schema for basic NPC information."""
+
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
     name: str
     display_name: str | None = None
     role: str | None = None
     avatar_url: str | None = None
     
-    class Config:
-        from_attributes = True
-
-
 class NPCInSceneRead(NPCRead):
     """NPC with relationship context for scene display."""
     relationship_level: int = 1
@@ -130,6 +126,9 @@ class NPCDetailRead(NPCRead):
 
 class NPCRelationshipRead(BaseModel):
     """Schema for NPC relationship status."""
+
+    model_config = ConfigDict(from_attributes=True)
+
     npc_id: str
     npc_name: str
     npc_avatar_url: str | None = None
@@ -142,12 +141,11 @@ class NPCRelationshipRead(BaseModel):
     first_interaction_at: datetime | None = None
     last_interaction_at: datetime | None = None
     
-    class Config:
-        from_attributes = True
-
-
 class NPCMemoryRead(BaseModel):
     """Schema for NPC memory items."""
+
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
     memory_type: str
     content: str
@@ -156,10 +154,6 @@ class NPCMemoryRead(BaseModel):
     player_quote: str | None = None
     created_at: datetime
     
-    class Config:
-        from_attributes = True
-
-
 # ============================================================================
 # Input Schemas
 # ============================================================================
@@ -206,7 +200,7 @@ class NPCResponseRead(BaseModel):
     new_relationship_level: int = 1
     new_mood: str | None = None
     memory_added: str | None = None
-    infobox: "InfoboxRead | None" = None
+    infobox: InfoboxRead | None = None
 
 
 class InfoboxRead(BaseModel):
@@ -224,7 +218,8 @@ class StoryInputResponse(BaseModel):
     consequences: list[ConsequenceRead] = Field(default_factory=list)
     xp_earned: int = 0
     xp_breakdown: list[dict] = Field(default_factory=list)  # XP breakdown for display
-    scene_transition: "SceneTransitionRead | None" = None
+    minted_collectibles: list[dict] = Field(default_factory=list)
+    scene_transition: SceneTransitionRead | None = None
     achievements_unlocked: list[str] = Field(default_factory=list)
     errors_detected: list[dict] = Field(default_factory=list)
     updated_flags: list[str] = Field(default_factory=list)
@@ -295,6 +290,9 @@ class NarrativeChoiceResponse(BaseModel):
 
 class ChapterWithStatusRead(BaseModel):
     """Chapter with user completion status for chapter timeline."""
+
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
     story_id: str
     order_index: int
@@ -305,10 +303,6 @@ class ChapterWithStatusRead(BaseModel):
     was_perfect: bool = False
     completion_xp: int = 75
     perfect_completion_xp: int = 150
-
-    class Config:
-        from_attributes = True
-
 
 class StoryDetailResponse(BaseModel):
     """Complete story information with chapters and progress."""
