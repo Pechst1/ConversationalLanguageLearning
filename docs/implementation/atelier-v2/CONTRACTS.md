@@ -1,8 +1,10 @@
 # Atelier V2 — shared implementation contracts
 
-These are proposed new contracts, not descriptions of APIs that already exist. WP-00 freezes fixtures against this document. WP-02 owns schema changes. If inspection reveals an incompatibility, record the concrete reason and coordinated revision before consumers proceed; do not invent a different private contract per package.
+This document originated as the V1 proposal; implementation and ratified changes are recorded in CONTRACT-FREEZE.md and STATUS.md. Inspect the code before assuming any proposed field is implemented. WP-00 freezes fixtures against this document. WP-02 owns schema changes. If inspection reveals an incompatibility, record the concrete reason and coordinated revision before consumers proceed; do not invent a different private contract per package.
 
 Specification revision 2: the functional contracts remain. Claude Design replaces the rejected Codex visual reference. Follow DELIVERY-PHASES.md; visual migration is not a prerequisite for implementing the domain APIs or testing the connected flow with existing components. The wire `contract_version: 1` below remains unchanged because this planning revision does not change the wire schema.
+
+**2026-09-06 extension:** CONTINUOUS-STORY.md requires generated situation identities, semantic rubrics, provenance-bearing story context, and coordinated episode completion. WP-14A must freeze the compatible contract evolution before implementation. This requirement alone does not change the implemented wire version or invalidate active V1 journeys.
 
 ## 1. Architecture
 

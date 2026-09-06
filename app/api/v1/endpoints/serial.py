@@ -63,7 +63,7 @@ async def create_serial_thread(
         state=request.state,
         news_seed=request.news_seed,
     )
-    return SerialThreadRead.model_validate(thread)
+    return SerialThreadRead.model_validate(SerialThreadService(db).serialize_thread(thread))
 
 
 @router.get("/threads/current/episodes")

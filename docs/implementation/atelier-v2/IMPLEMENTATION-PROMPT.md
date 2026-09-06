@@ -13,6 +13,8 @@ Read applicable repository instructions and these files before editing:
 - `docs/implementation/atelier-v2/WORK-PACKAGES.md`
 - `docs/implementation/atelier-v2/DELIVERY-PHASES.md`
 - `docs/implementation/atelier-v2/STATUS.md`
+- `docs/implementation/atelier-v2/NEXT-STEPS-REVIEW.md`
+- `docs/implementation/atelier-v2/CONTINUOUS-STORY.md`
 
 Inspect actual code and current status; the specifications describe proposed contracts, not already implemented APIs. Resume verified completed work rather than repeating it. Resolve genuine code/spec incompatibilities through one documented contract revision, coordinated with all affected agents.
 
@@ -24,7 +26,9 @@ This link previously redirected to sign-in; its content has not been inspected. 
 
 ## Scope and implementation order
 
-Your immediate objective is the complete **functional milestone through WP-12 functional**, behind the default-off feature flag, using existing UI components. Final Claude visual implementation is a subsequent milestone. Keep controllers, state transitions, and API calls separate from presentation so the design can be integrated without rewriting behavior.
+Your objective is to finish the functional foundation, close the independent review findings, and implement **WP-14A–F: generated new situations within one coherent continuing story**, behind the default-off feature flag, using existing UI components. Final Claude visual implementation is a subsequent milestone. Keep controllers, state transitions, and API calls separate from presentation so the design can be integrated without rewriting behavior.
+
+The original foundation was committed as `b0f3602`. Verify current status and reuse completed work. Steps 1–5 below describe prerequisites, not instructions to redo completed packages. Continue with the R-1/R-2 fixes, then the WP-14 contract freeze and its dependency-ordered implementation. The existing callback fix R-3 is part of this larger requirement.
 
 1. Complete WP-00 first: preserve the current working state, establish a reproducible baseline, inspect migrations and existing failures, freeze contract fixtures, and allocate file ownership. The worktree contains substantial uncommitted work; never reset, clean, overwrite, or silently omit it. Exclude credentials, databases, and caches from baseline artifacts.
 2. Implement WP-02 and WP-03 concurrently where independent.
@@ -32,7 +36,7 @@ Your immediate objective is the complete **functional milestone through WP-12 fu
 4. After WP-03/05, implement WP-04 and WP-06. Integrate WP-07 functional and prove **one café journey end to end** before expanding the remaining scenario families.
 5. Complete the three scenario families, WP-09 functional, WP-10, WP-11, and WP-12 functional. Follow the exact acceptance criteria and tests in the package documents.
 
-The café flow must use real authenticated APIs: start → contextual recall → purposeful text/voice response → grounded consequence → completion → persisted evidence, including refresh/retry recovery. Keep final visual work (WP-01, WP-07 visual, WP-08, WP-09 visual) pending in this implementation pass. Record accessible Claude design information for the later handoff. WP-13 rollout readiness requires final QA; do not enable production.
+The café flow must use real authenticated APIs: start → contextual recall → purposeful text/voice response → grounded consequence → completion → persisted evidence, including refresh/retry recovery. Keep final visual work (WP-01, WP-07 visual, WP-08, WP-09 visual) pending in this implementation pass. Record accessible Claude design information for the later handoff. WP-13 rollout readiness requires WP-14 and final QA; do not enable production.
 
 ## Subagent execution
 
@@ -54,4 +58,4 @@ Use targeted behavioral tests while developing, then the documented assembled fu
 
 Make routine implementation decisions autonomously. If one task is blocked, continue independent authorized work and report the specific blocker. Keep updates concise. Do not deploy, publish, contact others, remove live data, or mark unexecuted gates passed.
 
-Start with repository/status inspection and WP-00. Finish with a concise report of integrated milestones, actual verification, unresolved blockers, and the next visual milestone.
+Start with repository/status inspection and verification of the preserved baseline; resume from actual completed milestones. WP-14 uses the same exclusive file ownership and integration rules. The story and content agents may develop against frozen interfaces concurrently, while conversation/evidence has one owner. Finish with a concise report of integrated milestones, actual verification, unresolved blockers, and the next visual milestone.

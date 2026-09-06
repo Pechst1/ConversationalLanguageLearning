@@ -64,7 +64,7 @@ class TargetRef(JourneyModel):
 
 
 class ScenarioDescriptor(JourneyModel):
-    scenario_key: CapabilityKey
+    scenario_key: str
     content_version: str
     title_fr: str
     objective_key: str

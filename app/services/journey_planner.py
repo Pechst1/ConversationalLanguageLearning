@@ -334,6 +334,8 @@ def default_outcome_key(scenario: ScenarioBrief) -> str | None:
     shows a real, authored ending rather than an invented one.
     """
 
+    if scenario.story_context:
+        return "pending"
     for key in scenario.response_task.allowed_outcomes:
         if scenario.resolution_lines.get(key):
             return key

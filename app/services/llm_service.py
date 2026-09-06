@@ -504,11 +504,13 @@ class LLMService:
         request_timeout: float | None = None,
         disable_retries: bool = False,
         reasoning_effort: str | None = None,
+        max_provider_attempts: int | None = None,
     ) -> LLMResult:
         """Generate a chat completion using the configured providers."""
 
         errors: list[str] = []
-        for provider in self._provider_order:
+        providers = self._provider_order if max_provider_attempts is None else self._provider_order[:max(1, max_provider_attempts)]
+        for provider in providers:
             if not hasattr(provider, "generate"):
                 continue
             payload_kwargs: dict[str, Any] = {

@@ -46,6 +46,8 @@ def _scene_or_404(db: Session, scene_id: UUID, user: User) -> GraphicNovelScene:
 
 
 def _ensure_open(scene: GraphicNovelScene) -> None:
+    if scene.prompt_version == "living-story-v1":
+        raise HTTPException(status_code=409, detail={"code": "story_journey_required", "message": "Respond through the linked daily journey. Reading does not complete this scene."})
     if scene.status == "completed":
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Feuilleton scene already completed")
 
@@ -55,6 +57,12 @@ async def get_graphic_novel_today(
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_atelier_user)],
 ) -> GraphicNovelTodayResponse:
+    from app.services.living_story import manages_story
+    if manages_story(db, current_user):
+        return GraphicNovelTodayResponse(recommendation={
+            "story_engine": "living-story-v1", "continue_href": "/atelier",
+            "episodes_href": "/api/v1/story-engine/episodes",
+        })
     return GraphicNovelTodayResponse(**(await GraphicNovelScheduler(db).today(current_user)))
 
 
@@ -66,6 +74,12 @@ async def create_graphic_novel_scene(
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_atelier_user)],
 ) -> GraphicNovelSceneResponse:
+    from app.services.living_story import manages_story
+    if manages_story(db, current_user):
+        raise HTTPException(status_code=409, detail={
+            "code": "story_journey_required", "continue_href": "/atelier",
+            "message": "Create the next story scene through your daily journey.",
+        })
     if request.experience_mode == "reward":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -191,6 +205,11 @@ def get_graphic_novel_scene(
     current_user: Annotated[User, Depends(get_atelier_user)],
 ) -> GraphicNovelSceneResponse:
     scene = _scene_or_404(db, scene_id, current_user)
+    if scene.prompt_version == "living-story-v1":
+        raise HTTPException(status_code=409, detail={
+            "code": "story_episode_route", "episode_href": f"/api/v1/story-engine/episodes/{scene.id}",
+            "message": "Read this episode through the shared story reader.",
+        })
     # A direct resume link must not revive an incompatible pre-redesign edition. Completed
     # scenes stay viewable as history; still-open stale scenes are reported as superseded so
     # the client requests a fresh edition under the current contract.
@@ -239,6 +258,8 @@ async def complete_graphic_novel_scene(
     current_user: Annotated[User, Depends(get_atelier_user)],
 ) -> GraphicNovelCompleteResponse:
     scene = _scene_or_404(db, scene_id, current_user)
+    if scene.prompt_version == "living-story-v1":
+        _ensure_open(scene)
     scheduler = GraphicNovelScheduler(db)
     missing_task_ids = scheduler.missing_required_task_ids(scene)
     if scene.status != "completed" and missing_task_ids:

@@ -9,6 +9,9 @@ if TYPE_CHECKING:  # pragma: no cover - import only for static analysis
     import httpx
 
 os.environ.setdefault("SECRET_KEY", "test-secret-key")
+# Existing authored fixtures explicitly test the legacy compatibility path.
+# Story-engine tests enable the new engine with an injected fake model.
+os.environ.setdefault("ATELIER_STORY_ENGINE_ENABLED", "false")
 os.environ.setdefault("ATELIER_LLM_ENABLED", "false")
 os.environ.setdefault("GRAPHIC_NOVEL_IMAGE_GENERATION_ENABLED", "false")
 

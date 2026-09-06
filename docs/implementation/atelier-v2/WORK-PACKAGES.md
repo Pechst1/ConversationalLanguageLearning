@@ -1,5 +1,7 @@
 # Atelier V2 — exact work packages
 
+**2026-09-06 scope extension:** WP-14 is required for generated situations within a coherent continuing story. The original three authored families remain useful fallback/test content, not the final limit of the product. See [CONTINUOUS-STORY.md](CONTINUOUS-STORY.md). Prior package completion does not imply WP-14 is implemented.
+
 Revision 2: functionality first, Claude Design for final UI. All packages inherit [README.md](README.md), [CONTRACTS.md](CONTRACTS.md), and [DELIVERY-PHASES.md](DELIVERY-PHASES.md). The rejected Codex preview is not a visual implementation reference. Functional and visual milestones retain the same package owner; passing only a functional milestone does not close the entire package. Paths are repository-relative. New filenames below are **proposed deliverables**, not claims that those files exist. Record execution in [STATUS.md](STATUS.md).
 
 ## WP-00 — Preserve the baseline and freeze the integration contract
@@ -297,7 +299,7 @@ Revision 2: functionality first, Claude Design for final UI. All packages inheri
 
 ## WP-13 — Controlled enablement, rollback, and migration cleanup
 
-**Owner:** integration owner from WP-00. **Dependencies:** WP-12 final evidence; no unresolved release-blocking engineering failures. Default-off wiring/runbook preparation may happen earlier, but final enablement readiness cannot be declared from functional QA alone.
+**Owner:** integration owner from WP-00. **Dependencies:** WP-12 final and WP-14 evidence; no unresolved release-blocking engineering failures. Default-off wiring/runbook preparation may happen earlier, but final enablement readiness cannot be declared from functional QA alone.
 
 **Own:** final flag/cohort configuration lease, rollout runbook, final integration changes, and a proved-unused legacy UI cleanup list. No automatic production deployment or deletion of live data.
 
@@ -313,3 +315,13 @@ Revision 2: functionality first, Claude Design for final UI. All packages inheri
 **Acceptance:** a staged cohort can use the real flow; disabling the flag preserves their active work; legacy learners still start/resume successfully; each capability/metric/reward is based on real data. Production enablement is a separate explicit action, not part of an agent’s interpretation of “implementation complete”.
 
 **Handoff:** final release candidate, test report links, migration/config checklist, drain demonstration, and concise list of remaining externally required actions. Update STATUS with actual results and leave unexecuted gates pending.
+
+## WP-14 — Generated situations and one continuing story
+
+**Owner:** integration lead coordinating story, content, conversation, frontend, and independent QA agents. **Dependencies:** existing functional foundation; review R-1/R-2 fixes before final integration; freeze 14A contracts before downstream changes.
+
+**Implement:** all milestones 14A–F in [CONTINUOUS-STORY.md](CONTINUOUS-STORY.md), reusing the canonical serial engine, decoupling situation identity from fixed capabilities, generating new causal situations, detecting validated learner proposals, and integrating grounded outcomes across days and surfaces.
+
+**Acceptance:** longitudinal integration and reviewed generation demonstrate coherent new situations beyond the three templates, learner choices influencing future scenes, an arc resolving and a new one starting, accurate evidence, and durable shared state. Callback insertion or prose variation alone is insufficient. Final product readiness and WP-13 now additionally depend on WP-14 evidence.
+
+**Handoff:** contract migration/compatibility record, file ownership, implemented milestones, real API traces, longitudinal tests and actual model-review results, cost/latency evidence, unresolved limitations. No deployment is included.

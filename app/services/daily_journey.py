@@ -83,7 +83,6 @@ from app.services.journey_contracts import (
     AppliedEvidence,
     AssistanceLevel,
     AttemptAnswer,
-    CapabilityKey,
     ContentUnavailable,
     ControlLanguage,
     Correction,
@@ -339,12 +338,13 @@ def _brief_to_json(brief: ScenarioBrief) -> dict[str, Any]:
         "estimated_seconds": brief.estimated_seconds,
         "is_authored_fallback": brief.is_authored_fallback,
         "control_language": brief.control_language,
+        "story_context": dict(brief.story_context),
     }
 
 
 def _brief_from_json(payload: dict[str, Any]) -> ScenarioBrief:
     return ScenarioBrief(
-        scenario_key=CapabilityKey(payload["scenario_key"]),
+        scenario_key=payload["scenario_key"],
         content_version=payload.get("content_version", ""),
         title_fr=payload.get("title_fr", ""),
         objective_key=payload.get("objective_key", ""),
@@ -359,6 +359,7 @@ def _brief_from_json(payload: dict[str, Any]) -> ScenarioBrief:
         setup_native=payload.get("setup_native", ""),
         opening_line_fr=payload.get("opening_line_fr"),
         response_task=_response_task_from_json(payload.get("response_task", {})),
+        story_context=dict(payload.get("story_context") or {}),
         resolution_lines=dict(payload.get("resolution_lines", {})),
         resolution_summaries=dict(payload.get("resolution_summaries", {})),
         serial_thread_id=payload.get("serial_thread_id"),
@@ -1163,6 +1164,11 @@ class DailyJourneyService:
         without a catalogue keeps the previous single-offer behaviour.
         """
 
+        describe = getattr(self.adapters.content, "describe_available_scenario", None)
+        if callable(describe):
+            offer = describe(self.db, user=user, input_mode=InputMode.TEXT)
+            if offer is not None:
+                return offer
         catalog = getattr(self.adapters.content, "list_available_scenarios", None)
         if callable(catalog):
             offered = list(catalog(self.db, user=user, input_mode=InputMode.TEXT))
@@ -1602,7 +1608,7 @@ class DailyJourneyService:
         session = None
         try:
             session = self.adapters.learning.ensure_journey_learning_session(
-                self.db, user=user, journey_id=fresh.id, scenario_key=str(result.scenario_key)
+                self.db, user=user, journey_id=fresh.id, scenario_key=str((result.story_context.get("draft") or {}).get("capability_key") or result.scenario_key)
             )
             # WP-05 adds and flushes but never commits; the id exists after flush.
             self.db.flush()
@@ -1621,6 +1627,12 @@ class DailyJourneyService:
         except Exception:  # pragma: no cover - defensive
             logger.exception("daily_journey: learning session bootstrap failed")
 
+        if result.story_context:
+            from app.services.living_story import StoryUnavailable, bind_journey
+            try:
+                result = bind_journey(self.db, user=user, journey=fresh, brief=result)
+            except StoryUnavailable as exc:
+                return self._mark_unavailable(fresh, str(exc))
         self._persist_plan(fresh, result, plan, input_mode)
         fresh.learning_session_id = getattr(session, "id", None)
         fresh.status = str(JourneyStatus.ACTIVE)
@@ -2062,6 +2074,14 @@ class DailyJourneyService:
         )
         if resolution is None:
             return
+        if brief.story_context:
+            from app.services.living_story import StoryUnavailable, settle_resolution
+            try:
+                settle_resolution(self.db, user=user, journey=journey, brief=brief, resolution=resolution, proposal=proposal)
+            except StoryUnavailable as exc:
+                raise journey_error(409, JourneyErrorCode.VERSION_CONFLICT, "The story changed. Refresh and retry your answer.", current_revision=journey.revision, refresh_href=refresh_href_for(journey.id)) from exc
+            return
+
         private = dict(resolution.private_task or {})
         allowed = list(private.get("allowed_outcomes", []))
         scenario_key = str(brief.scenario_key)

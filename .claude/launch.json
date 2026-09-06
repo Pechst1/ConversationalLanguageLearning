@@ -4,14 +4,34 @@
     {
       "name": "web-frontend",
       "runtimeExecutable": "bash",
-      "runtimeArgs": ["-lc", "API_URL=http://localhost:8010 NEXT_PUBLIC_API_URL=http://localhost:8010/api/v1 npm run dev --prefix web-frontend"],
+      "runtimeArgs": [
+        "-lc",
+        "API_URL=http://localhost:8010 NEXT_PUBLIC_API_URL=http://localhost:8010/api/v1 npm run dev --prefix web-frontend"
+      ],
       "port": 3000,
       "autoPort": true
     },
     {
       "name": "backend",
       "runtimeExecutable": "venv/bin/uvicorn",
-      "runtimeArgs": ["app.main:app", "--host", "127.0.0.1", "--port", "8010", "--timeout-keep-alive", "75"],
+      "runtimeArgs": [
+        "app.main:app",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8010",
+        "--timeout-keep-alive",
+        "75"
+      ],
+      "port": 8010
+    },
+    {
+      "name": "backend-story-fake",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-lc",
+        "BACKEND_CORS_ORIGINS='[\"http://localhost:3000\",\"http://127.0.0.1:3000\",\"http://localhost:61632\"]' DATABASE_URL=postgresql://localhost/atelier_story_pg_1788716642 venv/bin/python scripts/dev_story_engine_server.py --port 8010"
+      ],
       "port": 8010
     }
   ]

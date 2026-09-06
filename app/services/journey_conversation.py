@@ -1562,6 +1562,10 @@ def evaluate_response(
     reply is produced first; the correction is an addition to it.
     """
 
+    if scenario.story_context:
+        from app.services.living_story import evaluate_turn
+        return evaluate_turn(db, user=user, scenario=scenario, task=task, answer=answer, turn_index=turn_index, assistance=assistance, history=history)
+
     scenario_key = str(scenario.scenario_key)
 
     if is_infrastructure_failure(answer):
@@ -1645,10 +1649,10 @@ def evaluate_response(
         outcome_key=resolved_key,
     )
     if generated is not None:
-        reply, proposed = generated
-        provenance = REPLY_SOURCE_MODEL
-        if resolved_key is not None and proposed:
-            resolved_key = coerce_outcome_key(proposed, task=task, scenario_key=scenario_key)
+        generated_reply, proposed = generated
+        if proposed is None or proposed == resolved_key:
+            reply = generated_reply
+            provenance = REPLY_SOURCE_MODEL
 
     consequence: StoryOutcomeProposal | None = None
     if resolved_key is not None:

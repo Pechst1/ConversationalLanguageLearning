@@ -9,6 +9,7 @@ from typing import Any
 from uuid import UUID
 
 from loguru import logger
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -79,10 +80,13 @@ class SerialThreadService:
         state: dict[str, Any] | None = None,
         news_seed: dict[str, Any] | None = None,
     ) -> SerialThread:
+        self.db.execute(select(User.id).where(User.id == user.id).with_for_update())
         existing = (
             self.db.query(SerialThread)
             .filter(SerialThread.user_id == user.id, SerialThread.status == "active")
             .order_by(SerialThread.created_at.desc())
+            .populate_existing()
+            .with_for_update()
             .first()
         )
         if existing:
@@ -168,12 +172,24 @@ class SerialThreadService:
         return next_visual
 
     async def today(self, user: User) -> dict[str, Any]:
+        from app.services.living_story import _active_thread, manages_story
+        if manages_story(self.db, user):
+            thread = _active_thread(self.db, user)
+            episode = self._current_episode(thread) if thread else None
+            return {
+                **(self.serialize_episode(episode) if episode else {"status": "journey_required", "kind": "feuilleton", "scene_id": None}),
+                "story_engine": "living-story-v1", "continue_href": "/atelier",
+                "episodes_href": "/api/v1/story-engine/episodes",
+                "thread": self.serialize_thread(thread) if thread else None,
+                "cast": self.cast_payload(thread) if thread else [],
+                "active_cast_member": None,
+            }
         thread = await self.get_or_create_thread(user)
         self.expire_stale_generations(thread)
         episode = self._current_episode(thread)
         if not episode:
             episode = await self.start_next_beat(thread)
-        else:
+        elif not (episode.brief_payload or {}).get("story_engine"):
             self._ensure_episode_contract(episode)
             self._supersede_incompatible_scene(episode)
         cast = self.cast_payload(thread)
@@ -718,9 +734,14 @@ class SerialThreadService:
         state_delta: dict[str, Any] | None = None,
         hook: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
+        thread = self._lock_story_thread(thread)
         episode = self._episode_for_completion(thread=thread, mission=mission, scene=scene)
         if not episode:
             raise ValueError("No serial episode found for completion")
+        if (episode.brief_payload or {}).get("story_engine"):
+            raise ValueError("Continue this story through its daily journey; reading does not complete it")
+        if episode.status == "completed":
+            return self.serialize_episode(episode)
         emitted_delta = state_delta or self._completion_state_delta(mission=mission, scene=scene)
         emitted_hook = hook or self._completion_hook(mission=mission, scene=scene)
         self._merge_state(thread, emitted_delta)
@@ -775,6 +796,9 @@ class SerialThreadService:
 
     def serialize_episode(self, episode: SerialEpisode) -> dict[str, Any]:
         previously = (episode.hook_from_previous or {}).get("text") if isinstance(episode.hook_from_previous, dict) else None
+        brief = episode.brief_payload or {}
+        if brief.get("story_engine"):
+            brief = {"story_engine": brief["story_engine"], "journey_id": brief.get("journey_id"), "required_cast": brief.get("required_cast", [])}
         return {
             "id": str(episode.id),
             "thread_id": str(episode.thread_id),
@@ -789,7 +813,7 @@ class SerialThreadService:
             "previously": previously,
             "hook": episode.hook or {},
             "state_delta": episode.state_delta or {},
-            "brief_payload": episode.brief_payload or {},
+            "brief_payload": brief,
             "status": episode.status,
             "location_id": episode.location_id,
             "created_at": episode.created_at.isoformat() if episode.created_at else None,
@@ -800,9 +824,10 @@ class SerialThreadService:
         episodes = sorted(thread.episodes or [], key=lambda item: item.episode_index)
         return {
             "id": str(thread.id),
+            "user_id": str(thread.user_id),
             "status": thread.status,
             "world_bible": thread.world_bible or {},
-            "state": thread.state or {},
+            "state": {key: value for key, value in (thread.state or {}).items() if key != "living_story"},
             "news_seed": thread.news_seed or {},
             "current_episode_index": thread.current_episode_index,
             "episodes": [self.serialize_episode(episode) for episode in episodes],
@@ -845,7 +870,7 @@ class SerialThreadService:
             "completed_at": episode.completed_at.isoformat() if episode.completed_at else None,
             "status": episode.status,
             "required_cast": self._episode_required_cast(episode),
-            "brief_payload": episode.brief_payload or {},
+            "brief_payload": self.serialize_episode(episode)["brief_payload"],
         }
 
     def cast_payload(self, thread: SerialThread) -> list[dict[str, Any]]:
@@ -1113,6 +1138,8 @@ class SerialThreadService:
         return self._current_episode(thread)
 
     async def start_next_beat(self, thread: SerialThread) -> SerialEpisode:
+        if (thread.state or {}).get("living_story"):
+            raise ValueError("New story scenes are created through the daily journey")
         hook = self._previous_hook(thread)
         next_kind = str((hook or {}).get("next_beat_kind") or ("mission" if thread.current_episode_index % 2 == 0 else "feuilleton"))
         if next_kind == "feuilleton":
@@ -1636,6 +1663,7 @@ class SerialThreadService:
         completes an episode, advances ``current_episode_index``, moves an arc
         stage, or rolls a season over.
         """
+        thread = self._lock_story_thread(thread)
         state = json.loads(json.dumps(thread.state or {}))
         ledger = dict(state.get(self.JOURNEY_OUTCOME_STATE_KEY) or {})
         existing = self.journey_outcome_record(thread, source_key=source_key)
@@ -1934,12 +1962,24 @@ class SerialThreadService:
         return None
 
     def _enqueue_next_beat(self, thread_id: UUID) -> None:
+        thread = self.db.get(SerialThread, thread_id)
+        if thread and (thread.state or {}).get("living_story"):
+            return
         try:
             from app.tasks.serial_generation import create_next_serial_beat
 
             create_next_serial_beat.delay(str(thread_id))
         except Exception as exc:  # pragma: no cover - broker-less dev/test fallback
             logger.info("Serial next beat queued for lazy generation", thread_id=str(thread_id), error=str(exc))
+
+    def _lock_story_thread(self, thread: SerialThread) -> SerialThread:
+        """Use the same owner → thread lock order as the living-story writer."""
+        self.db.execute(select(User.id).where(User.id == thread.user_id).with_for_update())
+        # A caller can apply several outcomes within one transaction. Persist those
+        # pending changes before populate_existing refreshes the identity-map row.
+        self.db.flush()
+        return self.db.scalars(select(SerialThread).where(SerialThread.id == thread.id)
+                               .with_for_update().execution_options(populate_existing=True)).one()
 
 
 __all__ = ["SerialThreadService"]

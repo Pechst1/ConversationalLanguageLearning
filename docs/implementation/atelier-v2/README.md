@@ -1,6 +1,8 @@
 # Atelier V2 — implementation handoff
 
-Date: 2026-09-05. Specification revision: 2. Status: implementation specification; packages have not been executed.
+Updated 2026-09-06. Delivery specification revision: 3. The original functional implementation has been committed; see STATUS and NEXT-STEPS-REVIEW for verified results and gaps. Wire contracts retain their implemented version until a coordinated migration.
+
+**New required scope:** the owner requires generated new situations within one continuing story, including opportunities that emerge from learner conversations. [WP-14 — Continuous story](CONTINUOUS-STORY.md) extends the original three-scenario foundation. The original functional pass alone no longer satisfies the intended product. Complete the correctness fixes in [NEXT-STEPS-REVIEW.md](NEXT-STEPS-REVIEW.md) and WP-14; final Claude UI and release gates remain required.
 
 This handoff covers the functional redesign discussed with the owner. **The owner rejected the Codex visual proposal and selected their Claude Design direction for the UI.** The earlier `docs/atelier-redesign/` prototype is archived context and must not be implemented as the visual specification. The owner supplied the exact Claude link, recorded in DELIVERY-PHASES.md. It redirects to sign-in in the available browser; the design remains uninspected, and no substitute has been approved.
 
@@ -22,8 +24,9 @@ The existing API, SRS, error memory, serial thread, account data, and old in-pro
 
 1. This file: decisions, dispatch order, ownership, release scope.
 2. [CONTRACTS.md](CONTRACTS.md): shared API, state, evidence, timing, and interface contracts.
-3. [WORK-PACKAGES.md](WORK-PACKAGES.md): exact task boundaries and acceptance criteria for WP-00 through WP-13.
+3. [WORK-PACKAGES.md](WORK-PACKAGES.md): exact task boundaries and acceptance criteria for WP-00 through WP-14.
 4. [DELIVERY-PHASES.md](DELIVERY-PHASES.md): functional-first sequence and Claude Design source-of-truth record.
+5. [CONTINUOUS-STORY.md](CONTINUOUS-STORY.md): required WP-14 extension, current architectural gaps, ownership, and longitudinal acceptance criteria.
 
 Historical design documents remain context, not authority over the owner’s latest choice. The functional decisions remain: story-first daily practice, clear localized controls, short bounded sessions, contextual review, and preserved optional/legacy functionality. Typography, colors, shapes, artwork treatment, screen composition, animations, navigation arrangement, and reward appearance must come from the Claude Design artifact. Do not carry over the rejected prototype’s Manrope/palette/flower/button system or assume its four-tab arrangement is approved.
 
@@ -64,11 +67,14 @@ The worktree already contains extensive uncommitted work. No agent may reset, cl
 | WP-10 | Resume, network recovery, and native integration | 02,07 functional | Recovery on the functional flow; recheck final UI |
 | WP-11 | Events, duration measurement, and pilot digest | 02; functional integration 04–07,09 functional,10 | Evidence independent of final visual design |
 | WP-12 | Functional QA, then final UI/learner validation | Functional: 02–07 functional,09 functional,10,11; final: 01,07 visual,08,09 visual | Separate functional and visual evidence gates |
-| WP-13 | Controlled rollout and compatibility cleanup | 00,12 final | Default-off wiring may be prepared earlier; release gate stays closed |
+| WP-13 | Controlled rollout and compatibility cleanup | 00,12 final,14 | Default-off wiring may be prepared earlier; release gate stays closed |
+| WP-14 | Generated situations and one continuing story | Functional foundation; 14A contract freeze; R-1/R-2 before final integration | Causal new situations, emerging learner proposals, shared story progression, longitudinal QA |
 
 “Functional” and “visual” are separate milestones inside a package, not new competing owners. Record both in STATUS. A package with pending visual work is not fully complete. Agents may build against WP-00 fixtures earlier; mocks are not shipping completion.
 
 ## Dispatch order
+
+For the current continuation, preserve verified completed work, close the review findings, and follow WP-14A–F in CONTINUOUS-STORY.md. The sequence below records the original foundation and visual integration order; final WP-13 now also requires WP-14.
 
 Use one integration owner throughout. The same agent may own WP-00 and WP-13, but they are separate tasks.
 
@@ -106,9 +112,9 @@ A dependency on another owner’s file is a handoff, not permission for simultan
 
 ## Release boundaries
 
-**Functional milestone:** real five-minute journey, three scenario families, speech/text, review credit, grounded outcomes, evidence summaries, recovery and telemetry, exercised through existing UI components. No new visual system or navigation reorganisation is required for this milestone.
+**Original functional foundation:** real five-minute journey, three scenario families, speech/text, review credit, grounded outcomes, evidence summaries, recovery and telemetry, exercised through existing UI components. No new visual system or navigation reorganisation is required for this milestone.
 
-**Pilot MVP:** all packages complete, the above functionality presented through the Claude Design UI, learner-language controls (en/de/fr), existing light/dark/system and text-size behavior preserved, and working legacy fallback.
+**Pilot MVP:** all packages complete, including WP-14 generated situations and causal story progression; the above functionality presented through the Claude Design UI, learner-language controls (en/de/fr), existing light/dark/system and text-size behavior preserved, and working legacy fallback.
 
 **Explicitly deferred:** social/leaderboards, a new currency or reward economy, a new SRS algorithm, large branching story trees, automatic microphone activation, rewriting all optional grammar content, adaptive ten/fifteen-minute modes, and deleting old APIs. Existing longer sessions stay available as optional practice.
 

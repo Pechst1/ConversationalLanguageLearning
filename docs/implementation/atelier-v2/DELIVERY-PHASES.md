@@ -1,5 +1,7 @@
 # Functional foundation first; Claude Design for the UI
 
+**Scope update — 2026-09-06:** the owner requires new generated situations within one coherent continuing story. [WP-14](CONTINUOUS-STORY.md) extends the initial functional foundation and is a prerequisite for final product/rollout readiness, alongside the visual and QA gates below. R-1/R-2 correctness fixes precede its final integration. Design mapping can proceed independently; three rotating templates or a single callback fix do not complete this extension.
+
 ## Owner decision — 2026-09-05
 
 The owner likes the conceptual direction and implementation packages, rejects the earlier Codex visual vision, and wants to use their promising Claude Design version for the UI.

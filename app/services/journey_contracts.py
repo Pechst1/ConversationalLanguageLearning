@@ -308,7 +308,7 @@ class ResponseTask:
 class ScenarioBrief:
     """WP-03 result. Bounded, validated, and pinned by ``content_version``."""
 
-    scenario_key: CapabilityKey
+    scenario_key: CapabilityKey | str
     content_version: str
     title_fr: str
     objective_key: str
@@ -330,6 +330,8 @@ class ScenarioBrief:
     estimated_seconds: int = 264
     is_authored_fallback: bool = False
     control_language: ControlLanguage = FALLBACK_CONTROL_LANGUAGE
+
+    story_context: dict[str, Any] = field(default_factory=dict)
 
     def public_descriptor(self) -> dict[str, Any]:
         return {
@@ -464,6 +466,7 @@ class StoryOutcomeProposal:
     outcome_key: str
     callback_fr: str | None = None
     character_id: str | None = None
+    details: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)

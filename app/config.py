@@ -309,6 +309,11 @@ class Settings(BaseSettings):
             "response is authoritative and already-created journeys keep draining when off."
         ),
     )
+    ATELIER_STORY_ENGINE_ENABLED: bool = Field(
+        True, description="Generate new daily situations and semantic responses from shared serial state."
+    )
+    ATELIER_STORY_MAX_ATTEMPTS: int = Field(2, ge=1, le=3)
+
     ATELIER_DAILY_JOURNEY_COHORT: str = Field(
         "",
         description="Comma-separated user emails or ids allowed into the V2 pilot.",

@@ -1018,6 +1018,10 @@ class GraphicNovelScheduler:
         scene = self.db.get(GraphicNovelScene, scene_uuid)
         if not scene:
             raise ValueError(f"Graphic novel scene {scene_id} not found")
+        if scene.prompt_version == "living-story-v1":
+            # The legacy renderer changes narrative status while rendering. It must
+            # not reopen a completed engine scene or invalidate an active response.
+            return scene
         script = dict(scene.script_payload or {})
         panels = sorted(scene.panels or [], key=lambda item: item.panel_index)
         if not panels:
@@ -1175,6 +1179,8 @@ class GraphicNovelScheduler:
         return "seen_context"
 
     def complete(self, *, user: User, scene: GraphicNovelScene) -> GraphicNovelScene:
+        if scene.prompt_version == "living-story-v1":
+            raise ValueError("Story scenes complete through their daily journey")
         if scene.status == "completed":
             return scene
 
@@ -6117,6 +6123,8 @@ class GraphicNovelCorrectionService:
         task_id: str,
         answer_payload: dict[str, Any],
     ) -> tuple[GraphicNovelAttempt, list[dict[str, Any]]]:
+        if scene.prompt_version == "living-story-v1":
+            raise ValueError("Story responses belong to their daily journey")
         task, panel = self._find_task(scene, task_id)
         if not task:
             raise ValueError("Unknown Feuilleton task")

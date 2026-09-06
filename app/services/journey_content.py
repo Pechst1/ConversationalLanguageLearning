@@ -1306,6 +1306,10 @@ def build_scenario_context(
     cannot silently swap the scene under an in-flight journey.
     """
 
+    if settings.ATELIER_STORY_ENGINE_ENABLED:
+        from app.services.living_story import generate_scene
+        return generate_scene(db, user=user, input_mode=input_mode)
+
     keys: tuple[CapabilityKey, ...] = (
         (scenario_key,) if scenario_key is not None else SCENARIO_PRIORITY
     )
@@ -1403,3 +1407,11 @@ __all__ = [
     "validate_scenario_brief",
     "world_bible_version",
 ]
+
+
+def describe_available_scenario(db: Session, *, user: User, input_mode: InputMode):
+    """A UI invitation, never fabricated story prose or a billable GET."""
+    if not settings.ATELIER_STORY_ENGINE_ENABLED:
+        return None
+    from app.services.living_story import describe_next
+    return describe_next(db, user=user, input_mode=input_mode)

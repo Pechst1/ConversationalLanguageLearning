@@ -71,6 +71,16 @@ def test_llm_service_falls_back_on_error(sample_result):
     assert fallback.recorded_kwargs["temperature"] == 0.2
 
 
+def test_bounded_call_does_not_cascade_to_fallback(sample_result):
+    primary = StubProvider("openai", should_fail=True)
+    fallback = StubProvider("anthropic", response=sample_result)
+    service = LLMService(providers=[primary, fallback], primary="openai")
+    with pytest.raises(LLMProviderError):
+        service.generate_chat_completion([{"role": "user", "content": "Bonjour"}], max_provider_attempts=1)
+    assert primary.recorded_messages is not None
+    assert fallback.recorded_messages is None
+
+
 def test_llm_service_forwards_request_timeout(sample_result):
     primary = StubProvider("openai", response=sample_result)
 
