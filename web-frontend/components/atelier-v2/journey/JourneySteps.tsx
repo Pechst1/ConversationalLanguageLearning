@@ -1,22 +1,49 @@
 /**
- * Step renderers for the daily journey (WP-07 functional milestone).
+ * Step renderers for the daily journey — WP-07 **visual** milestone.
  *
- * Presentation only: every one of these takes state and callbacks as props and
- * performs no request of its own, so the Claude-Design renderer can replace
- * them without touching `useDailyJourney`.
+ * Presentation only. Every one of these takes state and callbacks as props and
+ * performs no request of its own, so `useDailyJourney`, `journey-state.ts` and
+ * `journey-requests.ts` are reused byte-for-byte from the functional milestone.
+ * The functional pass rendered these through the legacy `ExerciseShell`; this
+ * pass swaps that for the Atelier V2 design system and changes nothing else.
  *
- * Existing app primitives only — `ExerciseShell`, `Button`, `FeedbackSheet` —
- * plus component-scoped `styled-jsx`. No global CSS reset, no new fonts, no
- * second design system.
+ * ---------------------------------------------------------------------------
+ * Design mapping — `docs/design-reference/claude/Atelier App.dc.html`, Séance
+ * ---------------------------------------------------------------------------
+ * Taken verbatim: the blue step label, the "La règle" pill that discloses a
+ * rounded rule card, the Garamond-italic prompt, the 2px-edge option cards with
+ * their `0 3px 0` press and their selected/correct/wrong colouring, the footer
+ * feedback band with its round icon badge and tinted ground, and the single
+ * 3D-press primary whose label cycles check → continue.
+ *
+ * Deliberately NOT taken: the design's Séance is a three-exercise grammar drill
+ * with a "12 jours de suite" streak counter. Our product is the 3–5 step
+ * journey, and CONTRACTS forbids a fabricated streak. The chrome is reused; the
+ * numbers come from the real plan, and the streak is simply absent. Recorded in
+ * FRONTEND-ENGINE-HANDOFF §4.
  */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Loader2, Mic, Square } from 'lucide-react';
 
-import { Button } from '@/components/ui/Button';
-import { ExerciseShell } from '@/components/ui/ExerciseShell';
-import { FeedbackSheet } from '@/components/ui/FeedbackSheet';
-import { resolveMediaUrl } from '@/lib/media-url';
+import {
+  Action,
+  Artwork,
+  Byline,
+  ChoiceList,
+  Chip,
+  Correction,
+  FeedbackBand,
+  IconAction,
+  MicIcon,
+  Notice,
+  ShapeToken,
+  StopIcon,
+  Surface,
+  WordTiles,
+  textAnswerField,
+  type ChoiceOption,
+} from '@/components/atelier-v2/ui';
+import { atelierCopy, type AtelierCopy } from '@/lib/atelier-v2-copy';
 import type {
   AttemptInput,
   HelpKind,
@@ -36,6 +63,27 @@ import {
   type ReplyProvenance,
 } from './journey-state';
 import type { VoiceState } from './useDailyJourney';
+
+/**
+ * The renderers take the copy table as a prop, exactly as they did in the
+ * functional milestone, so they stay drop-in replacements: `pages/atelier.tsx`
+ * and `journey.test.js` call them unchanged.
+ *
+ * `JourneySession` and `JourneyTodayCard` merge the V2 chrome keys (action
+ * names, status words) into that table in the learner's own language before
+ * passing it down, so the common path is a plain object read. A caller that
+ * passes a bare `journeyCopy(...)` table — which is what the node test harness
+ * does — gets the English chrome filled in rather than raw keys on screen.
+ *
+ * Deliberately a plain function rather than a context hook: these renderers are
+ * exercised outside a React tree by the test harness, and presentation should
+ * not require a provider to produce correct output.
+ */
+function widenCopy(copy: JourneyCopy): AtelierCopy {
+  return (copy as Partial<AtelierCopy>).action_check
+    ? (copy as AtelierCopy)
+    : { ...atelierCopy('en'), ...copy };
+}
 
 export type StepViewCommonProps = {
   copy: JourneyCopy;
@@ -63,7 +111,47 @@ const HELP_LABEL: Record<HelpKind, keyof JourneyCopy> = {
   suggested_response: 'help_suggested_response',
 };
 
-/** Help is on demand and never in front of the prompt. */
+// ---------------------------------------------------------------------------
+// Shared frame
+// ---------------------------------------------------------------------------
+
+/**
+ * The Séance chrome every step shares: a blue step label, one Garamond-italic
+ * headline, the body, and one primary action.
+ *
+ * `label` is the design's blue "Reconnaître · 1/3" line. Ours never carries an
+ * exercise count, because the plan has steps, not drills.
+ */
+function StepFrame({
+  label,
+  headline,
+  headlineLang,
+  children,
+}: {
+  label: React.ReactNode;
+  headline: React.ReactNode;
+  headlineLang?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="av2-stack av2-step">
+      <p className="av2-label av2-label--story">{label}</p>
+      <h2 className="av2-headline" lang={headlineLang}>
+        {headline}
+      </h2>
+      {children}
+    </section>
+  );
+}
+
+/**
+ * Help — on demand, never in front of the prompt.
+ *
+ * The design's "La règle" pill and the rounded card it discloses. Each help
+ * kind gets its own pill; whatever the server returns renders in the card. The
+ * assistance already spent is stated plainly, because it is what turns a
+ * correct answer into a supported one.
+ */
 export function HelpRow({
   available,
   used,
@@ -80,81 +168,41 @@ export function HelpRow({
   onHelp: (kind: HelpKind) => void;
 }) {
   if (!available.length) return null;
+  const wide = widenCopy(copy);
+
   return (
-    <div className="journey-help">
-      <div className="journey-help-actions">
+    <div className="av2-stack av2-help">
+      <div className="av2-help__actions">
         {available.map((kind) => (
-          <Button
+          <Chip
             key={kind}
-            type="button"
-            variant="ghost"
-            size="sm"
+            icon={<ShapeToken kind="reward" size="sm" />}
             disabled={busy}
             onClick={() => onHelp(kind)}
           >
             {copy[HELP_LABEL[kind]]}
-          </Button>
+          </Chip>
         ))}
       </div>
+
       {used.length > 0 && (
-        <p className="journey-help-used">
+        <p className="av2-label">
           {copy.assistance_used}: {used.join(', ')}
         </p>
       )}
-      {help && (
-        <div className="journey-help-content" role="status">
-          <b>{copy[HELP_LABEL[help.help_kind]]}</b>
-          {help.content_fr && <p lang="fr">{help.content_fr}</p>}
-          {help.content_native && <p>{help.content_native}</p>}
-        </div>
-      )}
-      <style jsx>{`
-        .journey-help {
-          display: grid;
-          gap: 8px;
-        }
-        .journey-help-actions {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 6px;
-        }
-        .journey-help-used,
-        .journey-help-content p {
-          margin: 0;
-          font-size: 13px;
-          line-height: 1.4;
-          color: var(--app-ink-2);
-        }
-        .journey-help-content {
-          border: 1px dashed var(--app-ink);
-          padding: 10px 12px;
-          display: grid;
-          gap: 4px;
-          background: var(--app-paper-2);
-        }
-        .journey-help-content b {
-          font-size: 11px;
-          letter-spacing: 0.1em;
-          text-transform: uppercase;
-        }
-      `}</style>
-    </div>
-  );
-}
 
-/** Artwork is decoration: a missing image never blocks reading or answering. */
-function StepArt({ url, alt }: { url: string | null; alt: string }) {
-  const [failed, setFailed] = useState(false);
-  if (!url || failed) return null;
-  return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      className="journey-art"
-      src={resolveMediaUrl(url) || url}
-      alt={alt}
-      onError={() => setFailed(true)}
-      style={{ width: '100%', height: 'auto', border: '1px solid var(--app-ink)' }}
-    />
+      {help && (
+        <Surface role="status" aria-label={wide.rule_card}>
+          <p className="av2-label">{copy[HELP_LABEL[help.help_kind]]}</p>
+          {help.content_fr && (
+            <p className="av2-fr av2-headline av2-headline--rule" lang="fr">
+              {help.content_fr}
+            </p>
+          )}
+          {help.content_native && <p className="av2-body av2-body--lg">{help.content_native}</p>}
+        </Surface>
+      )}
+    </div>
   );
 }
 
@@ -168,25 +216,43 @@ export function SceneStepView({
   busy,
   onContinue,
 }: { step: SceneStep } & Pick<StepViewCommonProps, 'copy' | 'busy' | 'onContinue'>) {
+  const wide = widenCopy(copy);
   return (
-    <ExerciseShell eyebrow={copy.today_eyebrow} title={step.prompt.objective_native}>
-      <div className="journey-step">
-        <StepArt url={step.prompt.image_url} alt={step.prompt.setup_native} />
-        <p lang="fr" className="journey-lead">
-          {step.prompt.setup_fr}
-        </p>
-        <p className="journey-native">{step.prompt.setup_native}</p>
-        {step.prompt.character_line_fr && (
-          <blockquote lang="fr" className="journey-line">
+    <StepFrame label={copy.today_eyebrow} headline={step.prompt.setup_fr} headlineLang="fr">
+      {step.prompt.image_url && (
+        <Surface shape="hero" aria-hidden={false}>
+          <Artwork
+            url={step.prompt.image_url}
+            // The scene's own gloss is the honest description of its art.
+            alt={step.prompt.setup_native}
+            fallbackLabel={wide.artwork_unavailable}
+          />
+        </Surface>
+      )}
+
+      <p className="av2-body av2-body--lg">{step.prompt.setup_native}</p>
+
+      {step.prompt.character_line_fr && (
+        <Surface>
+          <p className="av2-fr av2-headline av2-headline--rule" lang="fr">
             {step.prompt.character_line_fr}
-          </blockquote>
-        )}
-        <Button type="button" onClick={onContinue} disabled={busy} className="journey-primary">
-          {busy ? copy.sending : copy.scene_continue}
-        </Button>
-      </div>
-      <StepStyles />
-    </ExerciseShell>
+          </p>
+        </Surface>
+      )}
+
+      <p className="av2-label">
+        {copy.objective}: {step.prompt.objective_native}
+      </p>
+
+      <Action
+        tone="primary"
+        pending={busy}
+        pendingLabel={copy.sending}
+        onClick={onContinue}
+      >
+        {copy.scene_continue}
+      </Action>
+    </StepFrame>
   );
 }
 
@@ -204,6 +270,7 @@ export function RecallStepView({
   onSubmit,
   draft,
 }: { step: RecallStep } & StepViewCommonProps) {
+  const wide = widenCopy(copy);
   const [choice, setChoice] = useState<string | null>(null);
   const [tiles, setTiles] = useState<string[]>([]);
   // A recall draft is keyed by the step: one step, one written answer.
@@ -219,9 +286,13 @@ export function RecallStepView({
     setText(draft?.get(draftKey) ?? '');
   }, [draft, draftKey, step.id]);
 
-  const remainingTiles = useMemo(
-    () => step.prompt.options.filter((option) => !tiles.includes(option.id)),
-    [step.prompt.options, tiles],
+  const options = useMemo<ChoiceOption[]>(
+    () =>
+      step.prompt.options.map((option) => ({
+        id: option.id,
+        textFr: option.text_fr,
+      })),
+    [step.prompt.options],
   );
 
   const ready =
@@ -244,107 +315,80 @@ export function RecallStepView({
   };
 
   return (
-    <ExerciseShell eyebrow={copy.today_eyebrow} title={step.prompt.instruction_native}>
-      <div className="journey-step">
-        {step.prompt.prompt_fr && (
-          <p lang="fr" className="journey-lead">
-            {step.prompt.prompt_fr}
-          </p>
-        )}
+    <StepFrame
+      label={copy.today_eyebrow}
+      headline={step.prompt.prompt_fr || step.prompt.instruction_native}
+      headlineLang={step.prompt.prompt_fr ? 'fr' : undefined}
+    >
+      {step.prompt.prompt_fr && (
+        <p className="av2-body av2-body--lg">{step.prompt.instruction_native}</p>
+      )}
 
-        {step.prompt.task_type === 'choice' && (
-          <ul className="journey-options" role="radiogroup" aria-label={step.prompt.instruction_native}>
-            {step.prompt.options.map((option) => {
-              const selected = choice === option.id;
-              return (
-                <li key={option.id}>
-                  <button
-                    type="button"
-                    role="radio"
-                    aria-checked={selected}
-                    className={selected ? 'journey-option selected' : 'journey-option'}
-                    disabled={locked}
-                    onClick={() => setChoice(option.id)}
-                  >
-                    <span lang="fr">{option.text_fr}</span>
-                    {selected && <b aria-hidden="true">✓</b>}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-
-        {step.prompt.task_type === 'tiles' && (
-          <div className="journey-tiles">
-            <p className="journey-tile-line" lang="fr" aria-live="polite">
-              {tiles
-                .map((id) => step.prompt.options.find((option) => option.id === id)?.text_fr || '')
-                .join(' ') || '—'}
-            </p>
-            <div className="journey-tile-bank">
-              {remainingTiles.map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  className="journey-option"
-                  disabled={locked}
-                  onClick={() => setTiles((current) => [...current, option.id])}
-                >
-                  <span lang="fr">{option.text_fr}</span>
-                </button>
-              ))}
-            </div>
-            {tiles.length > 0 && !locked && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setTiles((current) => current.slice(0, -1))}
-              >
-                ←
-              </Button>
-            )}
-          </div>
-        )}
-
-        {step.prompt.task_type === 'short_answer' && (
-          <label className="journey-field">
-            <span>{copy.answer_label}</span>
-            <textarea
-              lang="fr"
-              rows={2}
-              value={text}
-              disabled={locked}
-              placeholder={copy.answer_placeholder}
-              onChange={(event) => {
-                setText(event.target.value);
-                draft?.set(draftKey, event.target.value);
-              }}
-            />
-          </label>
-        )}
-
-        <Button
-          type="button"
-          onClick={submit}
-          disabled={locked || !ready}
-          className="journey-primary"
-        >
-          {feedback.kind === 'submitting' ? copy.sending : copy.check}
-        </Button>
-
-        <HelpRow
-          available={step.prompt.help_available}
-          used={step.assistance_used.filter((level) => level !== 'none')}
-          copy={copy}
-          busy={busy}
-          help={help}
-          onHelp={onHelp}
+      {step.prompt.task_type === 'choice' && (
+        <ChoiceList
+          options={options}
+          selectedId={choice}
+          label={step.prompt.instruction_native}
+          disabled={locked}
+          onSelect={setChoice}
+          statusLabels={{
+            selected: wide.status_selected,
+            correct: wide.status_correct,
+            wrong: wide.status_wrong,
+          }}
         />
-      </div>
-      <StepStyles />
-    </ExerciseShell>
+      )}
+
+      {step.prompt.task_type === 'tiles' && (
+        <WordTiles
+          options={options}
+          placed={tiles}
+          label={step.prompt.instruction_native}
+          emptyHint={wide.tiles_empty}
+          removeLabel={wide.remove_last}
+          disabled={locked}
+          onPlace={(id) => setTiles((current) => [...current, id])}
+          onRemoveLast={() => setTiles((current) => current.slice(0, -1))}
+        />
+      )}
+
+      {step.prompt.task_type === 'short_answer' && (
+        // Called as a factory, not rendered as a child component, so the
+        // field lives in this step's own element tree — that is the surface
+        // the WP-10 draft-recovery tests drive.
+        textAnswerField({
+          label: copy.answer_label,
+          value: text,
+          rows: 2,
+          disabled: locked,
+          placeholder: copy.answer_placeholder,
+          invalid: feedback.kind === 'empty',
+          onChange: (next) => {
+            setText(next);
+            draft?.set(draftKey, next);
+          },
+        })
+      )}
+
+      <Action
+        tone="primary"
+        disabled={locked || !ready}
+        pending={feedback.kind === 'submitting'}
+        pendingLabel={copy.sending}
+        onClick={submit}
+      >
+        {copy.check}
+      </Action>
+
+      <HelpRow
+        available={step.prompt.help_available}
+        used={step.assistance_used.filter((level) => level !== 'none')}
+        copy={copy}
+        busy={busy}
+        help={help}
+        onHelp={onHelp}
+      />
+    </StepFrame>
   );
 }
 
@@ -370,6 +414,7 @@ export function RespondStepView({
     onStopRecording: () => void;
     onResetVoice: () => void;
   }) {
+  const wide = widenCopy(copy);
   // A respond step can hold more than one turn, and each turn is its own
   // answer, so the turn is part of the key: a new turn starts clean rather
   // than reopening with the sentence the learner already sent.
@@ -400,117 +445,111 @@ export function RespondStepView({
   }, [canSpeak, mode]);
 
   return (
-    <ExerciseShell eyebrow={step.prompt.character_name} title={step.prompt.objective_native}>
-      <div className="journey-step">
-        <blockquote lang="fr" className="journey-line">
-          {step.prompt.character_line_fr}
-        </blockquote>
+    <StepFrame
+      label={<Byline name={step.prompt.character_name} />}
+      headline={step.prompt.character_line_fr}
+      headlineLang="fr"
+    >
+      <p className="av2-body av2-body--lg">{step.prompt.objective_native}</p>
 
-        {step.prompt.targets.length > 0 && (
-          <div className="journey-targets">
-            {step.prompt.targets.map((target) => (
-              <span className="journey-target" key={`${target.kind}:${target.id}`} lang="fr">
-                {target.label_fr}
-              </span>
-            ))}
-          </div>
-        )}
-
-        {canSpeak && canType && (
-          <div className="journey-modes" role="group">
-            <Button
-              type="button"
-              size="sm"
-              variant={mode === 'text' ? 'default' : 'outline'}
-              aria-pressed={mode === 'text'}
-              onClick={() => {
-                setMode('text');
-                onResetVoice();
-              }}
-            >
-              {copy.use_text}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant={mode === 'voice' ? 'default' : 'outline'}
-              aria-pressed={mode === 'voice'}
-              onClick={() => setMode('voice')}
-            >
-              {copy.use_voice}
-            </Button>
-          </div>
-        )}
-
-        {/* Text is always a full path, whatever the microphone is doing. */}
-        <label className="journey-field">
-          <span>{copy.answer_label}</span>
-          <textarea
-            ref={inputRef}
-            lang="fr"
-            rows={3}
-            value={text}
-            disabled={locked}
-            placeholder={copy.answer_placeholder}
-            onChange={(event) => {
-              setText(event.target.value);
-              draft?.set(draftKey, event.target.value);
-            }}
-          />
-        </label>
-
-        <div className="journey-actions">
-          <Button
-            type="button"
-            className="journey-primary"
-            disabled={locked || answerIsBlank(text)}
-            onClick={() => onSubmit({ mode: 'text', text })}
-          >
-            {feedback.kind === 'submitting' ? copy.sending : copy.send}
-          </Button>
-
-          {canSpeak && mode === 'voice' && (
-            <Button
-              type="button"
-              variant="outline"
-              disabled={busy || voice.kind === 'transcribing'}
-              leftIcon={
-                voice.kind === 'recording' ? (
-                  <Square size={16} />
-                ) : voice.kind === 'transcribing' ? (
-                  <Loader2 size={16} className="animate-spin" />
-                ) : (
-                  <Mic size={16} />
-                )
-              }
-              onClick={() => (voice.kind === 'recording' ? onStopRecording() : onStartRecording())}
-            >
-              {voice.kind === 'recording'
-                ? copy.stop_recording
-                : voice.kind === 'transcribing'
-                  ? copy.transcribing
-                  : copy.record}
-            </Button>
-          )}
+      {step.prompt.targets.length > 0 && (
+        <div className="av2-help__actions">
+          {step.prompt.targets.map((target) => (
+            <Chip key={`${target.kind}:${target.id}`} icon={<ShapeToken kind="reward" size="sm" />}>
+              <span lang="fr">{target.label_fr}</span>
+            </Chip>
+          ))}
         </div>
+      )}
 
-        {(voice.kind === 'failed' || voice.kind === 'unsupported') && (
-          <p className="journey-notice" role="status">
-            {copy.voice_failed}
-          </p>
+      {canSpeak && canType && (
+        <div className="av2-help__actions" role="group" aria-label={copy.answer_label}>
+          <Chip
+            tone={mode === 'text' ? 'story' : 'plain'}
+            aria-pressed={mode === 'text'}
+            onClick={() => {
+              setMode('text');
+              onResetVoice();
+            }}
+          >
+            {copy.use_text}
+          </Chip>
+          <Chip
+            tone={mode === 'voice' ? 'story' : 'plain'}
+            aria-pressed={mode === 'voice'}
+            onClick={() => setMode('voice')}
+          >
+            {copy.use_voice}
+          </Chip>
+        </div>
+      )}
+
+      {/* Text is always a full path, whatever the microphone is doing. */}
+      {textAnswerField({
+        label: copy.answer_label,
+        value: text,
+        rows: 3,
+        disabled: locked,
+        placeholder: copy.answer_placeholder,
+        invalid: feedback.kind === 'empty',
+        inputRef,
+        onChange: (next) => {
+          setText(next);
+          draft?.set(draftKey, next);
+        },
+      })}
+
+      <div className="av2-respond__actions">
+        <Action
+          tone="primary"
+          disabled={locked || answerIsBlank(text)}
+          pending={feedback.kind === 'submitting'}
+          pendingLabel={copy.sending}
+          onClick={() => onSubmit({ mode: 'text', text })}
+        >
+          {copy.send}
+        </Action>
+
+        {canSpeak && mode === 'voice' && (
+          <IconAction
+            label={voice.kind === 'recording' ? copy.stop_recording : copy.record}
+            tone={voice.kind === 'recording' ? 'recording' : 'action'}
+            pressable
+            pending={voice.kind === 'transcribing'}
+            onClick={() => (voice.kind === 'recording' ? onStopRecording() : onStartRecording())}
+          >
+            {voice.kind === 'recording' ? <StopIcon size={18} /> : <MicIcon size={18} />}
+          </IconAction>
         )}
-
-        <HelpRow
-          available={step.prompt.help_available}
-          used={step.assistance_used.filter((level) => level !== 'none')}
-          copy={copy}
-          busy={busy}
-          help={help}
-          onHelp={onHelp}
-        />
       </div>
-      <StepStyles />
-    </ExerciseShell>
+
+      {voice.kind === 'recording' && (
+        <Notice shape="action">
+          <p>{copy.record}</p>
+        </Notice>
+      )}
+
+      {voice.kind === 'transcribing' && (
+        <Notice shape="story">
+          <p>{copy.transcribing}</p>
+        </Notice>
+      )}
+
+      {(voice.kind === 'failed' || voice.kind === 'unsupported') && (
+        <Notice shape="action">
+          <p>{copy.voice_failed}</p>
+        </Notice>
+      )}
+
+      <HelpRow
+        available={step.prompt.help_available}
+        used={step.assistance_used.filter((level) => level !== 'none')}
+        copy={copy}
+        busy={busy}
+        help={help}
+        onHelp={onHelp}
+      />
+    </StepFrame>
   );
 }
 
@@ -524,19 +563,29 @@ export function ResolutionStepView({
   busy,
   onContinue,
 }: { step: ResolutionStep } & Pick<StepViewCommonProps, 'copy' | 'busy' | 'onContinue'>) {
+  const wide = widenCopy(copy);
   return (
-    <ExerciseShell eyebrow={copy.today_eyebrow} title={step.prompt.summary_native}>
-      <div className="journey-step">
-        <StepArt url={step.prompt.image_url} alt={step.prompt.summary_native} />
-        <blockquote lang="fr" className="journey-line">
-          {step.prompt.character_line_fr}
-        </blockquote>
-        <Button type="button" onClick={onContinue} disabled={busy} className="journey-primary">
-          {busy ? copy.sending : copy.continue}
-        </Button>
-      </div>
-      <StepStyles />
-    </ExerciseShell>
+    <StepFrame
+      label={copy.today_eyebrow}
+      headline={step.prompt.character_line_fr}
+      headlineLang="fr"
+    >
+      {step.prompt.image_url && (
+        <Surface shape="hero">
+          <Artwork
+            url={step.prompt.image_url}
+            alt={step.prompt.summary_native}
+            fallbackLabel={wide.artwork_unavailable}
+          />
+        </Surface>
+      )}
+
+      <p className="av2-body av2-body--lg">{step.prompt.summary_native}</p>
+
+      <Action tone="primary" pending={busy} pendingLabel={copy.sending} onClick={onContinue}>
+        {copy.continue}
+      </Action>
+    </StepFrame>
   );
 }
 
@@ -550,6 +599,17 @@ function replyNote(source: ReplyProvenance, copy: JourneyCopy): string | undefin
   return source === 'authored' ? copy.reply_authored_note : undefined;
 }
 
+/**
+ * Every non-idle feedback state, each visually distinct.
+ *
+ * The design has exactly one of these — the graded band. The other six are
+ * extended from its own primitives, and the extension is deliberate rather
+ * than decorative: **only a graded verdict gets the feedback band and its
+ * tint.** Retrying, empty, unscored, reconciled and transport failure all
+ * render as a `Notice` — no tint, no tick, no celebration — because none of
+ * them is something the learner got wrong. `journey-state.ts` guarantees that
+ * separation in the data; this keeps it true in the pixels.
+ */
 export function JourneyFeedbackView({
   feedback,
   copy,
@@ -563,59 +623,67 @@ export function JourneyFeedbackView({
   onRetry: () => void;
   onDismiss: () => void;
 }) {
+  const wide = widenCopy(copy);
+
   switch (feedback.kind) {
     case 'idle':
     case 'submitting':
+      // In-flight is shown on the button, not as a verdict.
       return null;
 
     case 'retrying':
       return (
-        <p className="journey-notice" role="status" data-state="retrying">
-          {copy.retrying}
-          <StepStyles />
-        </p>
+        <div data-state="retrying">
+          <Notice shape="story">
+            <p>{copy.retrying}</p>
+          </Notice>
+        </div>
       );
 
     case 'empty':
       return (
-        <p className="journey-notice" role="alert" data-state="empty">
-          {copy.empty_answer}
-          <StepStyles />
-        </p>
+        <div data-state="empty">
+          <Notice tone="alert" live="alert" shape="action">
+            <p>{copy.empty_answer}</p>
+          </Notice>
+        </div>
       );
 
     case 'unscored':
       return (
-        <div className="journey-notice" role="status" data-state="unscored">
-          <p>{copy.still_grading}</p>
-          <Button type="button" size="sm" variant="outline" onClick={onRetry}>
-            {copy.try_grading_again}
-          </Button>
-          <StepStyles />
+        <div data-state="unscored">
+          <Notice shape="story">
+            <p>{copy.still_grading}</p>
+            <Action tone="secondary" inline onClick={onRetry}>
+              {copy.try_grading_again}
+            </Action>
+          </Notice>
         </div>
       );
 
     case 'reconciled':
       return (
-        <div className="journey-notice" role="status" data-state="reconciled">
-          <p>{copy.reconciled}</p>
-          <Button type="button" size="sm" variant="outline" onClick={onDismiss}>
-            {copy.continue}
-          </Button>
-          <StepStyles />
+        <div data-state="reconciled">
+          <Notice shape="story">
+            <p>{copy.reconciled}</p>
+            <Action tone="secondary" inline onClick={onDismiss}>
+              {copy.continue}
+            </Action>
+          </Notice>
         </div>
       );
 
     case 'error':
       return (
-        <div className="journey-notice" role="alert" data-state="error">
-          <p>{copy.transport_error}</p>
-          {feedback.retryable && (
-            <Button type="button" size="sm" variant="outline" onClick={onRetry}>
-              {copy.retry}
-            </Button>
-          )}
-          <StepStyles />
+        <div data-state="error">
+          <Notice tone="alert" live="alert" shape="action">
+            <p>{copy.transport_error}</p>
+            {feedback.retryable && (
+              <Action tone="secondary" inline onClick={onRetry}>
+                {copy.retry}
+              </Action>
+            )}
+          </Notice>
         </div>
       );
 
@@ -624,30 +692,24 @@ export function JourneyFeedbackView({
       const title =
         verdict === 'correct' ? copy.correct : verdict === 'supported' ? copy.supported : copy.wrong;
       const note = replyNote(replySource, copy);
+
       return (
-        // `.atelier-feedback-sheet` is a fixed bottom-right slip in the legacy
-        // flow. Inside the journey it belongs in normal flow, directly under the
-        // answer, so it cannot cover the input or sit behind the bottom nav.
-        <div className="journey-feedback" data-state={verdict}>
-          <FeedbackSheet
-            status={verdict === 'wrong' ? 'wrong' : 'correct'}
-            title={title}
-            explanation={result.character_reply_fr || undefined}
-            rule={note}
-            correctionItems={
-              result.correction
-                ? [
-                    {
-                      title: copy.correction,
-                      explanation: `${result.correction.span_fr} → ${result.correction.corrected_fr}`,
-                      repair: result.correction.note_native,
-                    },
-                  ]
-                : undefined
-            }
-            onNext={onContinue}
-            nextLabel={copy.continue}
-          />
+        <div className="av2-graded" data-state={verdict}>
+          <FeedbackBand tone={verdict} title={title} detail={result.character_reply_fr || undefined}>
+            {note && <p className="av2-label">{note}</p>}
+            {result.correction && (
+              <Correction
+                label={copy.correction}
+                spanFr={result.correction.span_fr}
+                correctedFr={result.correction.corrected_fr}
+                noteNative={result.correction.note_native}
+              />
+            )}
+          </FeedbackBand>
+
+          <Action tone="primary" onClick={onContinue}>
+            {wide.action_continue}
+          </Action>
         </div>
       );
     }
@@ -655,233 +717,4 @@ export function JourneyFeedbackView({
     default:
       return null;
   }
-}
-
-// ---------------------------------------------------------------------------
-// Scoped styles — component-local, no global selectors
-// ---------------------------------------------------------------------------
-
-export function StepStyles() {
-  return (
-    <style jsx global>{`
-      .journey-step {
-        display: grid;
-        gap: 14px;
-        min-width: 0;
-      }
-      .journey-step .journey-lead {
-        margin: 0;
-        font-size: 17px;
-        line-height: 1.45;
-      }
-      .journey-step .journey-native {
-        margin: 0;
-        font-size: 14px;
-        line-height: 1.45;
-        color: var(--app-ink-2);
-      }
-      .journey-step .journey-line {
-        margin: 0;
-        border-left: 3px solid var(--app-ink);
-        padding: 6px 0 6px 12px;
-        font-size: 17px;
-        line-height: 1.45;
-      }
-      .journey-step .journey-options {
-        list-style: none;
-        margin: 0;
-        padding: 0;
-        display: grid;
-        gap: 8px;
-      }
-      .journey-step .journey-option {
-        width: 100%;
-        min-height: 44px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 10px;
-        border: 1px solid var(--app-ink);
-        background: var(--app-sheet);
-        color: var(--app-ink);
-        padding: 10px 12px;
-        text-align: left;
-        font-size: 16px;
-        line-height: 1.35;
-        overflow-wrap: anywhere;
-      }
-      .journey-step .journey-option.selected {
-        background: var(--app-yellow, var(--app-paper-2));
-        border-width: 2px;
-        font-weight: 600;
-      }
-      /* A disabled option must stay readable: dim the border, never the text. */
-      .journey-step .journey-option:disabled {
-        opacity: 1;
-        cursor: default;
-        border-color: var(--app-ink-3);
-        color: var(--app-ink);
-      }
-      .journey-step .journey-option.selected:disabled {
-        border-color: var(--app-ink);
-      }
-      .journey-step .journey-option:focus-visible {
-        outline: 2px solid var(--app-ink);
-        outline-offset: 2px;
-      }
-      .journey-step .journey-tiles {
-        display: grid;
-        gap: 8px;
-      }
-      .journey-step .journey-tile-line {
-        margin: 0;
-        min-height: 44px;
-        border-bottom: 1px solid var(--app-ink);
-        font-size: 17px;
-        line-height: 1.4;
-        overflow-wrap: anywhere;
-      }
-      .journey-step .journey-tile-bank {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
-      }
-      .journey-step .journey-tile-bank .journey-option {
-        width: auto;
-      }
-      .journey-step .journey-field {
-        display: grid;
-        gap: 6px;
-      }
-      .journey-step .journey-field > span {
-        font-size: 11px;
-        letter-spacing: 0.1em;
-        text-transform: uppercase;
-        color: var(--app-ink-3);
-      }
-      .journey-step .journey-field textarea {
-        width: 100%;
-        min-height: 88px;
-        border: 1px solid var(--app-ink);
-        background: var(--app-sheet);
-        color: var(--app-ink);
-        padding: 10px 12px;
-        font: inherit;
-        font-size: 16px; /* keeps iOS from zooming the viewport on focus */
-        line-height: 1.4;
-        resize: vertical;
-      }
-      .journey-step .journey-field textarea:disabled {
-        opacity: 1;
-        color: var(--app-ink-2);
-      }
-      .journey-step .journey-actions,
-      .journey-step .journey-modes {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-      }
-      .journey-step .journey-actions .journey-primary {
-        flex: 1 1 12rem;
-      }
-      .journey-step .journey-targets {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
-      }
-      .journey-step .journey-target {
-        display: inline-flex;
-        align-items: center;
-        min-height: 28px;
-        border: 1px solid var(--app-ink-3);
-        background: var(--app-paper-2);
-        padding: 2px 8px;
-        font-size: 13px;
-        line-height: 1.3;
-      }
-      .journey-feedback {
-        min-width: 0;
-      }
-      .journey-feedback .atelier-feedback-sheet {
-        position: static;
-        width: 100%;
-        max-width: none;
-        right: auto;
-        bottom: auto;
-        z-index: auto;
-        animation: none;
-      }
-      .journey-feedback .atelier-feedback-sheet .feedback-actions {
-        flex-wrap: wrap;
-      }
-      .journey-notice {
-        margin: 12px 0 0;
-        display: grid;
-        gap: 8px;
-        justify-items: start;
-        border: 1px solid var(--app-ink);
-        background: var(--app-paper-2);
-        padding: 10px 12px;
-        font-size: 14px;
-        line-height: 1.4;
-      }
-      .journey-notice[data-state='empty'],
-      .journey-notice[data-state='error'] {
-        border-left-width: 4px;
-      }
-      .journey-notice p {
-        margin: 0;
-      }
-      @media (max-width: 360px) {
-        .journey-step .journey-actions .journey-primary {
-          flex-basis: 100%;
-        }
-      }
-
-      /* -------------------------------------------------------------------
-         Reachability at 320 CSS px with 200% text.
-
-         Every size in this screen is rem-based, so at 200% text a single
-         uppercase word ("TRANSLATION") is wider than the whole column. Left
-         alone the shared exercise shell grows past the viewport; the document
-         does not scroll horizontally, so the answer field and the primary
-         action are clipped out of reach rather than merely off-screen.
-
-         Three rules, every selector scoped under .journey-shell so nothing
-         here can reach a legacy page:
-           1. the shell and its body may not impose a minimum width wider than
-              the grid track they sit in;
-           2. long words break instead of pushing the layout outwards;
-           3. a control label wraps rather than setting the row's width.
-         ------------------------------------------------------------------- */
-      .journey-shell .atelier-exercise-shell,
-      .journey-shell .atelier-exercise-shell > header,
-      .journey-shell .atelier-exercise-shell > header > div,
-      .journey-shell .atelier-exercise-shell-body {
-        min-width: 0;
-        max-width: 100%;
-      }
-      .journey-shell .atelier-exercise-shell > header h2,
-      .journey-shell .atelier-exercise-shell > header span {
-        overflow-wrap: anywhere;
-      }
-
-      /* -------------------------------------------------------------------
-         Touch targets. The shared Button 'sm' size is 40px tall, which is
-         under the 44px minimum on every one of these secondary controls
-         (hint / translation / show the answer / suggest a reply / stop here /
-         pause). Raising the minimum height rather than the font size keeps
-         the visual weight and makes the target reachable; height:auto is
-         required alongside it so a label that now wraps is not clipped.
-         ------------------------------------------------------------------- */
-      .journey-shell button {
-        height: auto;
-        min-height: 44px;
-        min-width: 0;
-        max-width: 100%;
-        white-space: normal;
-        overflow-wrap: anywhere;
-      }
-    `}</style>
-  );
 }

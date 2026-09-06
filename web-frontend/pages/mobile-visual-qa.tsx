@@ -53,6 +53,9 @@ import {
   LuMasthead,
   LuPhraseDuJour,
 } from '@/components/laune/LaUne';
+// Feuilleton V2 reader harness (subagent B). Dev-only, like this page; drive it
+// with ?reader=ready|printing|missing|stale|filed|answered.
+import ReaderHarness from '@/components/feuilleton/reader/__fixtures__/ReaderHarness';
 
 const positiveCorrection = {
   vocabulary_credit: {
@@ -191,6 +194,7 @@ export default function MobileVisualQA() {
         <title>Mobile Visual QA</title>
         <meta name="robots" content="noindex" />
       </Head>
+      <ReaderHarness />
       <main className="mobile-qa-page" data-mobile-visual-qa>
         <header className="qa-topbar" aria-label="Mobile QA header">
           <div>

@@ -9,6 +9,10 @@ const PUBLIC_PATHNAMES = new Set([
   '/auth/signup',
   '/auth/forgot-password',
   '/mobile-visual-qa',
+  // Both of these are development-only: their `getStaticProps` returns
+  // `notFound` when NODE_ENV is production, so the route does not exist in a
+  // production build and listing it here widens nothing.
+  '/atelier-v2-gallery',
 ]);
 
 const GUEST_ONLY_PATHNAMES = new Set([

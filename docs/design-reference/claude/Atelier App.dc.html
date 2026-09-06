@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500;1,600&amp;family=Instrument+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;display=swap" rel="stylesheet"><style>body{margin:0;background:#e9e4d8;font-family:"Instrument Sans",system-ui,sans-serif;color:#14110d}a{color:#1d3a8a}a:hover{color:#d8321a}@keyframes at-pop{0%{transform:scale(.6);opacity:0}60%{transform:scale(1.08);opacity:1}100%{transform:scale(1)}}@keyframes at-rise{from{transform:translateY(100%)}to{transform:translateY(0)}}@keyframes at-fade{from{opacity:0}to{opacity:1}}</style></helmet>
+
+<div style="display:flex;flex-direction:column;align-items:center;gap:20px;padding:36px 20px 48px">
+<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;max-width:402px">
+  <sc-for list="{{ screens }}" as="s" hint-placeholder-count="7">
+    <button type="button" onClick="{{ s.go }}" style="height:32px;padding:0 13px;border:0;border-radius:999px;font:600 12px 'Instrument Sans',system-ui,sans-serif;cursor:pointer;background:{{ s.bg }};color:{{ s.fg }}">{{ s.label }}</button>
+  </sc-for>
+</div>
+
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px">
+<div style="position:relative;min-height:100%;height:100%;background:#f1ece1;display:flex;flex-direction:column;font-family:'Instrument Sans',system-ui,sans-serif;color:#14110d;box-sizing:border-box;overflow:hidden">
+
+<!-- ================= HOME ================= -->
+<sc-if value="{{ isHome }}" hint-placeholder-val="{{ true }}">
+<div data-screen-label="Home" style="flex:1;display:flex;flex-direction:column;min-height:0">
+  <div style="flex:1;overflow:auto;padding-bottom:16px">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;padding:64px 20px 0">
+      <div>
+        <svg width="26" height="26" viewBox="0 0 28 28" aria-hidden="true"><rect x="0" y="0" width="11" height="11" rx="2" fill="#14110d"></rect><circle cx="22" cy="6" r="6" fill="#1d3a8a"></circle><rect x="0" y="17" width="11" height="11" rx="2" fill="#f3c318"></rect><path d="M17 28L23 16L28 28H17Z" fill="#d8321a"></path></svg>
+        <div style="font-size:13px;font-weight:600;color:#6f6857;margin-top:14px">Édition Nº 12 · A2</div>
+        <div style="font-family:'EB Garamond',Georgia,serif;font-style:italic;font-weight:500;font-size:32px;line-height:1;margin-top:3px">Samedi 5 sept.</div>
+      </div>
+      <button type="button" onClick="{{ goSettings }}" style="border:0;background:transparent;padding:0;text-align:right;cursor:pointer;font-family:inherit;color:#14110d"><div style="font-family:'EB Garamond',Georgia,serif;font-weight:600;font-size:46px;line-height:.9">12</div><div style="font-size:12px;font-weight:700;color:#6f6857;margin-top:2px">jours de suite</div></button>
+    </div>
+    <button type="button" onClick="{{ goFeuilleton }}" style="display:block;width:calc(100% - 40px);text-align:left;margin:20px 20px 0;padding:0;border:0;background:#f8f3e8;border-radius:22px;overflow:hidden;cursor:pointer;font-family:inherit;color:#14110d" style-active="transform:scale(.985)">
+      <div style="aspect-ratio:16/9;background:repeating-linear-gradient(135deg,#e8e0cf 0 8px,#ece5d6 8px 16px);display:grid;place-items:center;color:#6f6857;font:500 11px ui-monospace,Menlo,monospace">episode illustration · 16:9</div>
+      <div style="padding:16px 18px 18px">
+        <div style="font-size:12px;font-weight:700;color:#1d3a8a">Feuilleton · Épisode 3</div>
+        <div style="font-family:'EB Garamond',Georgia,serif;font-style:italic;font-weight:600;font-size:24px;line-height:1.1;margin-top:6px;text-wrap:pretty">Une lettre attend ta réponse.</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px;color:#4a4538"><span style="width:22px;height:22px;border-radius:999px;background:#2c6a5d;color:#f8f3e8;display:grid;place-items:center;font:italic 600 12px 'EB Garamond',serif">M</span>Monsieur Marchand · Si + présent → futur · 8 min</div>
+      </div>
+    </button>
+    <div style="padding:14px 20px 0">
+      <button type="button" onClick="{{ goSession }}" style="width:100%;height:58px;border:0;border-radius:16px;background:#d8321a;color:#fff;font:700 17px 'Instrument Sans',system-ui,sans-serif;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 5px 0 #9c2411;cursor:pointer;transition:transform .08s,box-shadow .08s" style-active="transform:translateY(5px);box-shadow:0 0 0 #9c2411">Continuer<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M4 12h15M13 6l6 6-6 6"></path></svg></button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:18px 20px 0">
+      <button type="button" onClick="{{ goSession }}" style="border:0;text-align:left;font-family:inherit;color:#14110d;cursor:pointer;background:#f8f3e8;border-radius:18px;padding:14px 12px 12px;display:flex;flex-direction:column;gap:8px;transition:transform .08s" style-active="transform:scale(.96)"><span style="width:26px;height:26px;border-radius:999px;background:#1d3a8a"></span><div><div style="font-family:'EB Garamond',Georgia,serif;font-style:italic;font-size:17px;line-height:1">Séance</div><div style="font-size:12px;color:#6f6857;margin-top:4px">3 règles · 8 min</div></div><div style="display:flex;gap:3px;width:100%"><i style="flex:1;height:4px;border-radius:2px;background:#1d3a8a"></i><i style="flex:1;height:4px;border-radius:2px;background:#e8e0cf"></i><i style="flex:1;height:4px;border-radius:2px;background:#e8e0cf"></i></div></button>
+      <button type="button" onClick="{{ goVocab }}" style="border:0;text-align:left;font-family:inherit;color:#14110d;cursor:pointer;background:#f8f3e8;border-radius:18px;padding:14px 12px 12px;display:flex;flex-direction:column;gap:8px;transition:transform .08s" style-active="transform:scale(.96)"><span style="width:26px;height:26px;border-radius:6px;background:#f3c318"></span><div><div style="font-family:'EB Garamond',Georgia,serif;font-style:italic;font-size:17px;line-height:1">Lexique</div><div style="font-size:12px;color:#6f6857;margin-top:4px">4 mots du jour</div></div><div style="display:flex;gap:3px;width:100%"><i style="flex:1;height:4px;border-radius:2px;background:#e8e0cf"></i><i style="flex:1;height:4px;border-radius:2px;background:#e8e0cf"></i><i style="flex:1;height:4px;border-radius:2px;background:#e8e0cf"></i></div></button>
+      <button type="button" onClick="{{ goNotebook }}" style="border:0;text-align:left;font-family:inherit;cursor:pointer;background:#f8f3e8;border-radius:18px;padding:14px 12px 12px;display:flex;flex-direction:column;gap:8px;color:#6f6857;transition:transform .08s" style-active="transform:scale(.96)"><span style="width:26px;height:26px;border-radius:6px;background:#14110d;display:grid;place-items:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f8f3e8" stroke-width="3"><path d="M4.5 12.5l5 5 10-11"></path></svg></span><div><div style="font-family:'EB Garamond',Georgia,serif;font-style:italic;font-size:17px;line-height:1;color:#14110d">Errata</div><div style="font-size:12px;margin-top:4px">Rien à reprendre</div></div><div style="display:flex;gap:3px;width:100%"><i style="flex:1;height:4px;border-radius:2px;background:#14110d"></i><i style="flex:1;height:4px;border-radius:2px;background:#14110d"></i><i style="flex:1;height:4px;border-radius:2px;background:#14110d"></i></div></button>
+    </div>
+    <div style="margin:22px 20px 0;padding-top:14px;border-top:1px solid #d8cdb6;text-align:center;font:italic 14px 'EB Garamond',Georgia,serif;color:#6f6857">Demain — l’imparfait, épisode 4.</div>
+  </div>
+</div>
+</sc-if>
+
+<!-- ================= SESSION ================= -->
+<sc-if value="{{ isSession }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Session" style="flex:1;display:flex;flex-direction:column;min-height:0">
+  <div style="display:flex;align-items:center;gap:14px;padding:62px 20px 0">
+    <button type="button" onClick="{{ goHome }}" style="width:36px;height:36px;border:0;border-radius:999px;background:#f8f3e8;display:grid;place-items:center;cursor:pointer;color:#14110d"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M6 6l12 12M18 6L6 18"></path></svg></button>
+    <div style="flex:1;height:14px;border-radius:7px;background:#e8e0cf;overflow:hidden"><div style="height:100%;border-radius:7px;background:#1d3a8a;transition:width .35s cubic-bezier(.2,.8,.2,1);width:{{ progressPct }}"></div></div>
+    <div style="display:flex;align-items:center;gap:5px;font-size:14px;font-weight:700;color:#d8321a"><span style="width:12px;height:12px;background:#d8321a;border-radius:999px;display:inline-block"></span>{{ streakRun }}</div>
+  </div>
+  <div style="flex:1;overflow:auto;padding:26px 20px 0;display:flex;flex-direction:column">
+    <div style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:#1d3a8a"><span>Reconnaître · {{ exNumber }}/3</span>
+      <button type="button" onClick="{{ toggleRule }}" style="margin-left:auto;height:30px;padding:0 12px;border:0;border-radius:999px;background:#f8f3e8;color:#14110d;font:600 12px 'Instrument Sans',system-ui,sans-serif;cursor:pointer;display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;background:#f3c318;border-radius:2px"></span>La règle</button>
+    </div>
+    <sc-if value="{{ ruleOpen }}" hint-placeholder-val="{{ false }}">
+      <div style="margin-top:12px;background:#f8f3e8;border-radius:16px;padding:14px 16px;animation:at-fade .2s">
+        <div style="font-family:'EB Garamond',Georgia,serif;font-style:italic;font-size:19px;line-height:1.15">Si + présent → futur simple</div>
+        <div style="font-size:13px;line-height:1.45;color:#4a4538;margin-top:6px">Une condition possible dans le futur : le « si » reste au présent, la conséquence passe au futur. Jamais de futur juste après « si ».</div>
+        <div style="font:italic 15px 'EB Garamond',serif;color:#1d3a8a;margin-top:8px">Si tu viens, on ira.</div>
+      </div>
+    </sc-if>
+    <div style="font-family:'EB Garamond',Georgia,serif;font-style:italic;font-weight:500;font-size:30px;line-height:1.15;margin-top:22px;text-wrap:pretty">{{ exPrompt }}<span style="display:inline-block;min-width:150px;border-bottom:2.5px solid #14110d;margin:0 6px;vertical-align:baseline;text-align:center;color:#1d3a8a;font-style:italic">{{ chosenText }}</span>.</div>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-top:auto;padding-bottom:16px">
+      <sc-for list="{{ exOptions }}" as="o" hint-placeholder-count="3">
+        <button type="button" onClick="{{ o.pick }}" style="min-height:56px;padding:0 18px;border:2px solid {{ o.border }};border-radius:16px;background:{{ o.bg }};color:{{ o.fg }};font:italic 500 20px 'EB Garamond',Georgia,serif;text-align:left;cursor:pointer;box-shadow:0 3px 0 {{ o.border }};transition:transform .08s,box-shadow .08s,background .15s;display:flex;align-items:center;justify-content:space-between" style-active="transform:translateY(3px);box-shadow:0 0 0 #d8cdb6"><span>{{ o.text }}</span><span style="width:22px;height:22px;border-radius:999px;background:{{ o.dot }};display:inline-block"></span></button>
+      </sc-for>
+    </div>
+  </div>
+  <div style="padding:14px 20px 34px;border-top:1px solid #e8e0cf;background:{{ feedbackBg }};transition:background .2s">
+    <sc-if value="{{ showFeedback }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;animation:at-pop .3s">
+        <span style="width:30px;height:30px;border-radius:999px;display:grid;place-items:center;background:{{ feedbackIconBg }};color:#f8f3e8"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="{{ feedbackIconPath }}"></path></svg></span>
+        <div><div style="font-family:'EB Garamond',Georgia,serif;font-style:italic;font-size:20px;line-height:1;color:{{ feedbackFg }}">{{ feedbackTitle }}</div><div style="font-size:13px;color:#4a4538;margin-top:3px">{{ feedbackSub }}</div></div>
+      </div>
+    </sc-if>
+    <button type="button" onClick="{{ primary }}" style="width:100%;height:56px;border:0;border-radius:16px;background:{{ primaryBg }};color:{{ primaryFg }};font:700 17px 'Instrument Sans',system-ui,sans-serif;cursor:pointer;box-shadow:0 5px 0 {{ primaryShadow }};transition:transform .08s,box-shadow .08s,background .2s" style-active="transform:translateY(5px);box-shadow:0 0 0 transparent">{{ primaryLabel }}</button>
+  </div>
+</div>
+</sc-if>
+
+<!-- ================= VOCAB ================= -->
+<sc-if value="{{ isVocab }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Lexique" style="flex:1;display:flex;flex-direction:column;min-height:0">
+  <div style="display:flex;align-items:center;gap:14px;padding:62px 20px 0">
+    <button type="button" onClick="{{ goHome }}" style="width:36px;height:36px;border:0;border-radius:999px;background:#f8f3e8;display:grid;place-items:center;cursor:pointer;color:#14110d"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M6 6l12 12M18 6L6 18"></path></svg></button>
+    <div style="flex:1;display:flex;gap:5px">
+      <sc-for list="{{ vocabDots }}" as="d" hint-placeholder-count="4"><i style="flex:1;height:14px;border-radius:7px;background:{{ d }};transition:background .3s"></i></sc-for>
+    </div>
+    <div style="font-size:13px;font-weight:700;color:#6f6857">{{ vocabCount }}</div>
+  </div>
+  <div style="flex:1;padding:24px 20px 0;display:flex;flex-direction:column;min-height:0">
+    <div style="font-size:12px;font-weight:700;color:#6f6857">Mot du jour · {{ vocabTag }}</div>
+    <button type="button" onClick="{{ flip }}" style="margin-top:12px;flex:1;min-height:0;border:0;border-radius:28px;background:{{ cardBg }};color:{{ cardFg }};padding:26px 24px;display:flex;flex-direction:column;justify-content:space-between;text-align:left;cursor:pointer;font-family:inherit;box-shadow:0 8px 0 {{ cardShadow }};transition:background .25s,color .25s" style-active="transform:translateY(4px);box-shadow:0 4px 0 {{ cardShadow }}">
+      <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:700;opacity:.85"><span>{{ cardSideLabel }}</span><svg width="14" height="14" viewBox="0 0 14 14"><path d="M7 0L14 14H0Z" fill="currentColor"></path></svg></div>
+      <div>
+        <div style="font-family:'EB Garamond',Georgia,serif;font-style:italic;font-weight:500;font-size:46px;line-height:1;text-wrap:pretty">{{ cardWord }}</div>
+        <div style="font-size:15px;line-height:1.4;margin-top:14px;opacity:.9">{{ cardHint }}</div>
+      </div>
+      <div style="font:italic 17px/1.35 'EB Garamond',Georgia,serif;opacity:.9;text-wrap:pretty">{{ cardExample }}</div>
+    </button>
+    <div style="display:flex;gap:10px;padding:16px 0 34px">
+      <button type="button" onClick="{{ rateAgain }}" style="flex:1;height:56px;border:0;border-radius:16px;background:#f8f3e8;color:#14110d;font:700 16px 'Instrument Sans',system-ui,sans-serif;cursor:pointer;box-shadow:0 5px 0 #d8cdb6;display:flex;align-items:center;justify-content:center;gap:8px;transition:transform .08s,box-shadow .08s" style-active="transform:translateY(5px);box-shadow:0 0 0 transparent"><span style="width:12px;height:12px;border-radius:999px;background:#d8321a"></span>Encore</button>
+      <button type="button" onClick="{{ rateGood }}" style="flex:1;height:56px;border:0;border-radius:16px;background:#14110d;color:#f8f3e8;font:700 16px 'Instrument Sans',system-ui,sans-serif;cursor:pointer;box-shadow:0 5px 0 #000;display:flex;align-items:center;justify-content:center;gap:8px;transition:transform .08s,box-shadow .08s" style-active="transform:translateY(5px);box-shadow:0 0 0 transparent"><span style="width:12px;height:12px;border-radius:3px;background:#f3c318"></span>Je sais</button>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<!-- ================= NOTEBOOK ================= -->
+<sc-if value="{{ isNotebook }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Cahier" style="flex:1;display:flex;flex-direction:column;min-height:0">
+  <div style="flex:1;overflow:auto">
+    <div style="padding:64px 20px 0;display:flex;align-items:flex-end;justify-content:space-between">
+      <div><div style="font-size:13px;font-weight:600;color:#6f6857">54 concepts · 12 vus</div><div style="font-family:'EB Garamond',Georgia,serif;font-style:italic;font-weight:500;font-size:32px;line-height:1;margin-top:3px">Le cahier</div></div>
+      <div style="display:flex;background:#e8e0cf;border-radius:999px;padding:3px">
+        <button type="button" onClick="{{ nbGrammar }}" style="height:30px;padding:0 13px;border:0;border-radius:999px;font:700 12px 'Instrument Sans',system-ui,sans-serif;cursor:pointer;background:{{ nbTabG.bg }};color:{{ nbTabG.fg }}">Règles</button>
+        <button type="button" onClick="{{ nbVocab }}" style="height:30px;padding:0 13px;border:0;border-radius:999px;font:700 12px 'Instrument Sans',system-ui,sans-serif;cursor:pointer;background:{{ nbTabV.bg }};color:{{ nbTabV.fg }}">Mots</button>
+      </div>
+    </div>
+    <div style="margin:18px 20px 0;height:44px;border-radius:14px;background:#f8f3e8;display:flex;align-items:center;gap:10px;padding:0 14px;color:#6f6857;font-size:14px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>Chercher une règle, un piège…</div>
+    <div style="display:flex;gap:6px;padding:12px 20px 0;overflow:auto">
+      <sc-for list="{{ levels }}" as="l" hint-placeholder-count="7"><button type="button" onClick="{{ l.pick }}" style="flex:none;height:30px;padding:0 13px;border:0;border-radius:999px;font:700 12px 'Instrument Sans',system-ui,sans-serif;cursor:pointer;background:{{ l.bg }};color:{{ l.fg }}">{{ l.label }}</button></sc-for>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;padding:16px 20px 20px">
+      <sc-for list="{{ concepts }}" as="c" hint-placeholder-count="6">
+        <div style="display:flex;align-items:center;gap:14px;background:#f8f3e8;border-radius:16px;padding:14px 16px" style-active="transform:scale(.985)">
+          <span style="flex:none;width:36px;height:36px;border-radius:{{ c.radius }};background:{{ c.color }};display:grid;place-items:center;color:#f8f3e8;font:italic 600 16px 'EB Garamond',serif">{{ c.glyph }}</span>
+          <div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:600;line-height:1.2">{{ c.title }}</div><div style="font-size:12px;color:#6f6857;margin-top:3px">{{ c.meta }}</div></div>
+          <div style="display:flex;gap:3px;width:34px"><i style="flex:1;height:5px;border-radius:3px;background:{{ c.p1 }}"></i><i style="flex:1;height:5px;border-radius:3px;background:{{ c.p2 }}"></i><i style="flex:1;height:5px;border-radius:3px;background:{{ c.p3 }}"></i></div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<!-- ================= MISSIONS ================= -->
+<sc-if value="{{ isMissions }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Missions" style="flex:1;display:flex;flex-direction:column;min-height:0">
+  <div style="padding:64px 20px 0;display:flex;align-items:center;gap:12px">
+    <span style="width:40px;height:40px;border-radius:999px;background:#2c6a5d;color:#f8f3e8;display:grid;place-items:center;font:italic 600 19px 'EB Garamond',serif">M</span>
+    <div style="flex:1;min-width:0"><div style="font-family:'EB Garamond',Georgia,serif;font-style:italic;font-size:22px;line-height:1">Monsieur Marchand</div><div style="font-size:12px;color:#6f6857;margin-top:3px">Mission de la semaine · résumer un titre</div></div>
+    <div style="display:flex;align-items:center;gap:5px;height:30px;padding:0 10px;border-radius:999px;background:#f3c318;font-size:12px;font-weight:700"><span style="width:8px;height:8px;background:#14110d;border-radius:2px"></span>2/3</div>
+  </div>
+  <div style="flex:1;overflow:auto;padding:22px 20px 0;display:flex;flex-direction:column;gap:12px">
+    <div style="align-self:flex-start;max-width:86%;background:#f8f3e8;border-radius:20px 20px 20px 6px;padding:14px 16px;font-size:15px;line-height:1.45">J’ai vu ce titre : « PSG-Arsenal : les “deux extraterrestres” de Paris en finale ». Tu peux me résumer l’idée principale ?</div>
+    <div style="align-self:flex-end;max-width:86%;background:#1d3a8a;color:#f8f3e8;border-radius:20px 20px 6px 20px;padding:14px 16px;font-size:15px;line-height:1.45">Deux joueurs du PSG ont été excellents et l’équipe est en finale.</div>
+    <div style="align-self:flex-end;display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#2c6a5d"><span style="width:8px;height:8px;border-radius:999px;background:#2c6a5d"></span>Bien dit · une petite remarque</div>
+    <div style="align-self:flex-start;max-width:86%;background:#f8f3e8;border-radius:20px 20px 20px 6px;padding:14px 16px;font-size:15px;line-height:1.45">Exactement ! Et si tu devais donner ton avis : ce sera un match facile ?</div>
+    <div style="align-self:flex-start;background:#f8f3e8;border-radius:14px;padding:10px 14px;font:italic 15px 'EB Garamond',serif;color:#1d3a8a;display:flex;gap:8px;align-items:center"><span style="width:8px;height:8px;background:#f3c318;border-radius:2px"></span>Indice : si + présent → futur</div>
+  </div>
+  <div style="padding:12px 20px 34px;display:flex;gap:8px;align-items:center;background:#f1ece1">
+    <div style="flex:1;height:50px;border-radius:999px;background:#f8f3e8;display:flex;align-items:center;padding:0 18px;color:#6f6857;font-size:15px">Réponds en français…</div>
+    <button type="button" style="width:50px;height:50px;border:0;border-radius:999px;background:#d8321a;color:#fff;display:grid;place-items:center;cursor:pointer;box-shadow:0 4px 0 #9c2411;transition:transform .08s,box-shadow .08s" style-active="transform:translateY(4px);box-shadow:0 0 0 #9c2411"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v3"></path></svg></button>
+  </div>
+</div>
+</sc-if>
+
+<!-- ================= FEUILLETON ================= -->
+<sc-if value="{{ isFeuilleton }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Feuilleton" style="flex:1;display:flex;flex-direction:column;min-height:0">
+  <div style="flex:1;overflow:auto">
+    <div style="padding:64px 20px 0"><div style="font-size:13px;font-weight:600;color:#6f6857">Saison 1 · 3 épisodes parus</div><div style="font-family:'EB Garamond',Georgia,serif;font-style:italic;font-weight:500;font-size:32px;line-height:1;margin-top:3px">Le feuilleton</div></div>
+    <div style="margin:18px 20px 0;background:#1d3a8a;color:#f8f3e8;border-radius:24px;overflow:hidden">
+      <div style="aspect-ratio:16/9;background:repeating-linear-gradient(135deg,#27479a 0 8px,#2b4da4 8px 16px);display:grid;place-items:center;font:500 11px ui-monospace,Menlo,monospace;opacity:.9">episode 3 illustration</div>
+      <div style="padding:16px 18px 18px">
+        <div style="font-size:12px;font-weight:700;opacity:.85">Épisode 3 · aujourd’hui</div>
+        <div style="font-family:'EB Garamond',Georgia,serif;font-style:italic;font-weight:600;font-size:24px;line-height:1.1;margin-top:6px">Une lettre attend ta réponse.</div>
+        <button type="button" onClick="{{ goMissions }}" style="margin-top:14px;height:48px;width:100%;border:0;border-radius:14px;background:#f8f3e8;color:#1d3a8a;font:700 15px 'Instrument Sans',system-ui,sans-serif;cursor:pointer;box-shadow:0 4px 0 #cfc4ad;display:flex;align-items:center;justify-content:center;gap:8px;transition:transform .08s,box-shadow .08s" style-active="transform:translateY(4px);box-shadow:0 0 0 transparent">Lire et répondre · 8 min</button>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;padding:18px 20px 20px">
+      <div style="display:flex;align-items:center;gap:14px;background:#f8f3e8;border-radius:16px;padding:12px 14px"><span style="width:56px;height:56px;border-radius:12px;background:#e8e0cf;flex:none"></span><div style="flex:1"><div style="font-size:12px;font-weight:700;color:#6f6857">Épisode 2 · lu</div><div style="font-family:'EB Garamond',serif;font-style:italic;font-size:18px;line-height:1.1;margin-top:2px">Le marché du samedi</div></div><span style="width:26px;height:26px;border-radius:6px;background:#14110d;display:grid;place-items:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f8f3e8" stroke-width="3"><path d="M4.5 12.5l5 5 10-11"></path></svg></span></div>
+      <div style="display:flex;align-items:center;gap:14px;background:#f8f3e8;border-radius:16px;padding:12px 14px"><span style="width:56px;height:56px;border-radius:12px;background:#e8e0cf;flex:none"></span><div style="flex:1"><div style="font-size:12px;font-weight:700;color:#6f6857">Épisode 1 · lu</div><div style="font-family:'EB Garamond',serif;font-style:italic;font-size:18px;line-height:1.1;margin-top:2px">L’arrivée à Lyon</div></div><span style="width:26px;height:26px;border-radius:6px;background:#14110d;display:grid;place-items:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f8f3e8" stroke-width="3"><path d="M4.5 12.5l5 5 10-11"></path></svg></span></div>
+      <div style="display:flex;align-items:center;gap:14px;border-radius:16px;padding:12px 14px;border:2px dashed #d8cdb6;color:#6f6857"><span style="width:56px;height:56px;border-radius:12px;background:transparent;flex:none;display:grid;place-items:center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="10" width="16" height="11" rx="3"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg></span><div><div style="font-size:12px;font-weight:700">Épisode 4 · demain</div><div style="font-family:'EB Garamond',serif;font-style:italic;font-size:18px;line-height:1.1;margin-top:2px">L’imparfait</div></div></div>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<!-- ================= TAB BAR ================= -->
+<sc-if value="{{ showTabs }}" hint-placeholder-val="{{ true }}">
+<div style="display:grid;grid-template-columns:repeat(4,1fr);padding:8px 12px 30px;background:#f8f3e8;border-top:1px solid #e8e0cf">
+  <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="4">
+    <button type="button" onClick="{{ t.go }}" style="border:0;background:transparent;display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0 4px;font:{{ t.font }};color:{{ t.color }};cursor:pointer"><span style="width:44px;height:28px;border-radius:999px;background:{{ t.pill }};display:grid;place-items:center"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="{{ t.icon }}" fill="{{ t.fill }}"></path></svg></span>{{ t.label }}</button>
+  </sc-for>
+</div>
+</sc-if>
+
+<!-- ================= SETTINGS SHEET ================= -->
+<sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;inset:0;display:flex;flex-direction:column;justify-content:flex-end;z-index:5">
+  <button type="button" onClick="{{ closeSettings }}" aria-label="Fermer" style="position:absolute;inset:0;border:0;background:rgba(20,17,13,.35);cursor:pointer;animation:at-fade .2s"></button>
+  <div data-screen-label="Réglages" style="position:relative;background:#f1ece1;border-radius:28px 28px 0 0;padding:10px 20px 40px;animation:at-rise .3s cubic-bezier(.2,.8,.2,1)">
+    <div style="width:40px;height:5px;border-radius:3px;background:#d8cdb6;margin:0 auto 18px"></div>
+    <div style="display:flex;align-items:flex-end;justify-content:space-between"><div><div style="font-size:13px;font-weight:600;color:#6f6857">Vincent · A2</div><div style="font-family:'EB Garamond',Georgia,serif;font-style:italic;font-weight:500;font-size:30px;line-height:1;margin-top:3px">12 jours de suite</div></div><div style="display:flex;gap:4px"><i style="width:16px;height:16px;border-radius:4px;background:#f3c318"></i><i style="width:16px;height:16px;border-radius:4px;background:#f3c318"></i><i style="width:16px;height:16px;border-radius:4px;background:#f3c318"></i><i style="width:16px;height:16px;border-radius:4px;background:#f3c318"></i><i style="width:16px;height:16px;border-radius:4px;background:#f3c318"></i><i style="width:16px;height:16px;border-radius:4px;background:#f3c318"></i><i style="width:16px;height:16px;border-radius:4px;background:#e8e0cf"></i></div></div>
+    <div style="margin-top:20px;background:#f8f3e8;border-radius:18px;padding:14px 16px">
+      <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:600"><span>Temps par édition</span><span style="color:#6f6857">{{ budgetLabel }}</span></div>
+      <div style="display:flex;gap:6px;margin-top:10px">
+        <sc-for list="{{ budgets }}" as="b" hint-placeholder-count="3"><button type="button" onClick="{{ b.pick }}" style="flex:1;height:40px;border:0;border-radius:12px;font:700 14px 'Instrument Sans',system-ui,sans-serif;cursor:pointer;background:{{ b.bg }};color:{{ b.fg }};box-shadow:0 3px 0 {{ b.shadow }}">{{ b.label }}</button></sc-for>
+      </div>
+    </div>
+    <div style="margin-top:10px;background:#f8f3e8;border-radius:18px;overflow:hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;font-size:14px;font-weight:600;border-bottom:1px solid #e8e0cf"><span>Réponses à l’oral</span><button type="button" onClick="{{ toggleSpeak }}" style="width:48px;height:28px;border:0;border-radius:999px;background:{{ speakBg }};position:relative;cursor:pointer;transition:background .2s"><span style="position:absolute;top:3px;left:{{ speakKnob }};width:22px;height:22px;border-radius:999px;background:#f8f3e8;transition:left .2s"></span></button></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;font-size:14px;font-weight:600;border-bottom:1px solid #e8e0cf"><span>Rappel du soir</span><span style="color:#6f6857;font-weight:500">19:30</span></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;font-size:14px;font-weight:600"><span>Compte</span><span style="color:#6f6857;font-weight:500">vincent@…</span></div>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+</div>
+</x-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { screen: 'home', settings: false, ruleOpen: false, ex: 0, chosen: null, checked: false, streak: 0, vIdx: 0, flipped: false, vDone: [], nbTab: 'g', level: 'Tous', budget: 8, speak: false };
+  EX = [
+    { prompt: 'Si elle étudie,', options: ['elle réussira', 'elle a réussi', 'elle réussit'], answer: 0 },
+    { prompt: 'Si nous allons au cinéma,', options: ['nous verrons un film', 'nous avons vu un film', 'nous voyons un film'], answer: 0 },
+    { prompt: "S'il pleut demain,", options: ['je prendrai le bus', 'je prends le bus', "j'ai pris le bus"], answer: 0 },
+  ];
+  VOC = [
+    { w: 'abaisser', tr: 'senken, herabsetzen', hint: 'verbe · 1er groupe · rang 2 140', ex: 'Les prix ne sont pas abaissés proportionnellement aux coûts.' },
+    { w: 'abandon', tr: 'Aufgabe, Verlassen', hint: 'nom masculin · rang 1 980', ex: 'L’abandon du projet a surpris tout le monde.' },
+    { w: 'abandonner', tr: 'aufgeben, verlassen', hint: 'verbe · 1er groupe · rang 960', ex: 'Si tu abandonnes maintenant, tu le regretteras.' },
+    { w: 'aborder', tr: 'ansprechen, angehen', hint: 'verbe · 1er groupe · rang 1 520', ex: 'Nous aborderons ce sujet demain.' },
+  ];
+  CONCEPTS = [
+    { title: 'Si + présent → futur', meta: 'A2 · Conditions · en cours', color: '#1d3a8a', radius: '999px', glyph: 'Si', p: [1, 0, 0] },
+    { title: 'Passé composé vs imparfait', meta: 'A2 · Temps du passé', color: '#d8321a', radius: '8px', glyph: 'Pc', p: [1, 1, 0] },
+    { title: 'Genre et nombre', meta: 'A1 · Accord · maîtrisé', color: '#14110d', radius: '8px', glyph: 'Ge', p: [1, 1, 1] },
+    { title: 'Articles définis : le, la, les', meta: 'A1 · Articles · maîtrisé', color: '#14110d', radius: '8px', glyph: 'Le', p: [1, 1, 1] },
+    { title: 'Possessifs : mon, ma, mes', meta: 'A1 · Déterminants · maîtrisé', color: '#14110d', radius: '8px', glyph: 'Mo', p: [1, 1, 1] },
+    { title: 'Pronoms COD : le, la, les', meta: 'B1 · Pronoms · à venir', color: '#e8e0cf', radius: '999px', glyph: '', p: [0, 0, 0] },
+  ];
+  go(screen) { this.setState({ screen, settings: false }); }
+  renderVals() {
+    const s = this.state, go = (n) => () => this.go(n);
+    const ex = this.EX[s.ex], correct = s.checked && s.chosen === ex.answer, wrong = s.checked && s.chosen !== ex.answer;
+    const exOptions = ex.options.map((text, i) => {
+      const sel = s.chosen === i, isAns = i === ex.answer;
+      let bg = '#f8f3e8', border = '#d8cdb6', fg = '#14110d', dot = 'transparent';
+      if (!s.checked && sel) { bg = '#f8f3e8'; border = '#1d3a8a'; dot = '#1d3a8a'; }
+      if (s.checked && isAns) { bg = '#2c6a5d'; border = '#1f4f45'; fg = '#f8f3e8'; dot = '#f8f3e8'; }
+      if (wrong && sel) { bg = '#d8321a'; border = '#9c2411'; fg = '#fff'; dot = '#fff'; }
+      return { text, bg, border, fg, dot, pick: () => { if (!s.checked) this.setState({ chosen: i }); } };
+    });
+    const primary = () => {
+      if (!s.checked) { if (s.chosen == null) return; this.setState({ checked: true, streak: s.chosen === ex.answer ? s.streak + 1 : 0 }); return; }
+      if (s.ex + 1 >= this.EX.length) { this.setState({ screen: 'home', ex: 0, chosen: null, checked: false }); return; }
+      this.setState({ ex: s.ex + 1, chosen: null, checked: false });
+    };
+    const v = this.VOC[s.vIdx];
+    const rate = () => this.setState({ vDone: [...s.vDone, s.vIdx], vIdx: (s.vIdx + 1) % this.VOC.length, flipped: false });
+    const LV = ['Tous', 'A1', 'A2', 'B1', 'B2', 'C1'];
+    const tabDefs = [
+      { k: 'home', label: 'Atelier', icon: 'M3 3h6v6H3zM11 3h6v6h-6zM3 11h6v6H3zM11 17l3-6 3 6z' },
+      { k: 'missions', label: 'Missions', icon: 'M10 2.5 18 17.5H2L10 2.5Z' },
+      { k: 'feuilleton', label: 'Feuilleton', icon: 'M3 3h14v14H3zM10 3v14M3 10h14' },
+      { k: 'notebook', label: 'Cahier', icon: 'M3.5 2.5h13v15h-13zM11 2.5v8l-2-2-2 2v-8' },
+    ];
+    const bud = [5, 8, 15];
+    return {
+      screens: ['home', 'session', 'vocab', 'notebook', 'missions', 'feuilleton', 'settings'].map((k) => ({ label: { home: 'Home', session: 'Séance', vocab: 'Lexique', notebook: 'Cahier', missions: 'Missions', feuilleton: 'Feuilleton', settings: 'Réglages' }[k], bg: (k === 'settings' ? s.settings : s.screen === k && !s.settings) ? '#14110d' : '#f8f3e8', fg: (k === 'settings' ? s.settings : s.screen === k && !s.settings) ? '#f8f3e8' : '#14110d', go: k === 'settings' ? () => this.setState({ screen: 'home', settings: true }) : go(k) })),
+      isHome: s.screen === 'home', isSession: s.screen === 'session', isVocab: s.screen === 'vocab', isNotebook: s.screen === 'notebook', isMissions: s.screen === 'missions', isFeuilleton: s.screen === 'feuilleton',
+      showTabs: ['home', 'notebook', 'missions', 'feuilleton'].includes(s.screen),
+      isSettings: s.settings,
+      goHome: go('home'), goSession: go('session'), goVocab: go('vocab'), goNotebook: go('notebook'), goMissions: go('missions'), goFeuilleton: go('feuilleton'),
+      goSettings: () => this.setState({ settings: true }), closeSettings: () => this.setState({ settings: false }),
+      tabs: tabDefs.map((t) => { const on = s.screen === t.k; return { ...t, go: go(t.k), color: on ? '#14110d' : '#6f6857', pill: on ? '#e8e0cf' : 'transparent', fill: on ? '#14110d' : 'none', font: (on ? '700' : '600') + " 11px 'Instrument Sans',system-ui,sans-serif" }; }),
+      // session
+      progressPct: Math.round(((s.ex + (s.checked ? 1 : 0)) / this.EX.length) * 100) + '%',
+      streakRun: s.streak, exNumber: s.ex + 1, exPrompt: ex.prompt + ' ', chosenText: s.chosen == null ? '\u00a0' : ex.options[s.chosen], exOptions,
+      ruleOpen: s.ruleOpen, toggleRule: () => this.setState({ ruleOpen: !s.ruleOpen }),
+      showFeedback: s.checked, feedbackBg: correct ? '#e3efe9' : wrong ? '#f7e1dc' : '#f1ece1', feedbackIconBg: correct ? '#2c6a5d' : '#d8321a', feedbackFg: correct ? '#2c6a5d' : '#9c2411',
+      feedbackIconPath: correct ? 'M4.5 12.5l5 5 10-11' : 'M6 6l12 12M18 6L6 18', feedbackTitle: correct ? 'Bien joué !' : 'Presque.', feedbackSub: correct ? 'Si + présent, la suite au futur.' : 'Réponse : ' + ex.options[ex.answer] + ' — le futur suit la condition.',
+      primary, primaryLabel: !s.checked ? 'Vérifier' : s.ex + 1 >= this.EX.length ? 'Terminer' : 'Continuer',
+      primaryBg: !s.checked ? (s.chosen == null ? '#e8e0cf' : '#d8321a') : correct ? '#2c6a5d' : '#d8321a', primaryFg: !s.checked && s.chosen == null ? '#a89f8a' : '#fff', primaryShadow: !s.checked ? (s.chosen == null ? '#d8cdb6' : '#9c2411') : correct ? '#1f4f45' : '#9c2411',
+      // vocab
+      vocabDots: this.VOC.map((_, i) => s.vDone.includes(i) ? '#f3c318' : i === s.vIdx ? '#14110d' : '#e8e0cf'), vocabCount: s.vDone.length + '/' + this.VOC.length, vocabTag: 'French 5000',
+      flip: () => this.setState({ flipped: !s.flipped }), cardBg: s.flipped ? '#f3c318' : '#f8f3e8', cardFg: '#14110d', cardShadow: s.flipped ? '#c49a0a' : '#d8cdb6',
+      cardSideLabel: s.flipped ? 'Sens · touche pour revenir' : 'Touche pour retourner', cardWord: s.flipped ? v.tr : v.w, cardHint: v.hint, cardExample: s.flipped ? '« ' + v.ex + ' »' : '', rateAgain: rate, rateGood: rate,
+      // notebook
+      nbGrammar: () => this.setState({ nbTab: 'g' }), nbVocab: () => this.setState({ nbTab: 'v' }),
+      nbTabG: { bg: s.nbTab === 'g' ? '#14110d' : 'transparent', fg: s.nbTab === 'g' ? '#f8f3e8' : '#14110d' }, nbTabV: { bg: s.nbTab === 'v' ? '#14110d' : 'transparent', fg: s.nbTab === 'v' ? '#f8f3e8' : '#14110d' },
+      levels: LV.map((l) => ({ label: l, bg: s.level === l ? '#1d3a8a' : '#f8f3e8', fg: s.level === l ? '#f8f3e8' : '#14110d', pick: () => this.setState({ level: l }) })),
+      concepts: this.CONCEPTS.filter((c) => s.level === 'Tous' || c.meta.startsWith(s.level)).map((c) => ({ ...c, p1: c.p[0] ? c.color : '#e8e0cf', p2: c.p[1] ? c.color : '#e8e0cf', p3: c.p[2] ? c.color : '#e8e0cf', color: c.color === '#e8e0cf' ? '#e8e0cf' : c.color })),
+      // settings
+      budgetLabel: s.budget + ' min', budgets: bud.map((b) => ({ label: b + ' min', bg: s.budget === b ? '#14110d' : '#f1ece1', fg: s.budget === b ? '#f8f3e8' : '#14110d', shadow: s.budget === b ? '#000' : '#d8cdb6', pick: () => this.setState({ budget: b }) })),
+      toggleSpeak: () => this.setState({ speak: !s.speak }), speakBg: s.speak ? '#1d3a8a' : '#d8cdb6', speakKnob: s.speak ? '23px' : '3px',
+    };
+  }
+}
+</script>
+</body>
+</html>

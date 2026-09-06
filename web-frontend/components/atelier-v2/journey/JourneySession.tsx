@@ -1,10 +1,28 @@
 /**
- * The one connected daily-journey shell (WP-07 functional milestone).
+ * The one connected daily-journey shell — WP-07 **visual** milestone.
  *
  * Scene, recall, response, resolution and completion all render inside this
  * single component, so finishing the daily loop needs no tab switch and no
  * second screen. It receives the `useDailyJourney` controller and renders it —
- * it issues no request itself.
+ * it issues no request itself, and the controller is unchanged from the
+ * functional milestone.
+ *
+ * ---------------------------------------------------------------------------
+ * Design mapping — `Atelier App.dc.html`, the Séance screen
+ * ---------------------------------------------------------------------------
+ * Header: the round close control, then the blue progress rule, exactly as the
+ * design draws them. Body: the step. Footer: the tinted feedback band above one
+ * 3D-press primary.
+ *
+ * Two deliberate divergences, both recorded in FRONTEND-ENGINE-HANDOFF §4:
+ *
+ *  1. **No streak.** The design's header carries "12 jours de suite". Nothing
+ *     in the contract exposes a real streak, and CONTRACTS forbids inventing
+ *     one, so that slot is simply empty. It is not filled with a placeholder.
+ *  2. **Progress is segmented, not a percentage of drills.** The design's bar
+ *     is `exercise / 3`. Ours has one segment per real planned step, so it
+ *     cannot claim a number the plan does not contain, and it renders nothing
+ *     at all when there is no plan yet.
  *
  * Layout rules that are load-bearing rather than decorative:
  *   * one prompt, one answer area, one primary action, in that order;
@@ -16,23 +34,30 @@
 
 import React from 'react';
 
-import { Button } from '@/components/ui/Button';
-import { ProgressBar } from '@/components/ui/ProgressBar';
-import type { ConnectionView } from '@/lib/journey-recovery';
-
-import { journeyCopy, type JourneyCopy } from './journey-copy';
 import {
-  formatDuration,
-  recapView,
-  type JourneyPhase,
-} from './journey-state';
+  Action,
+  AtelierV2Root,
+  CrossIcon,
+  IconAction,
+  Notice,
+  ShapeToken,
+  StateBlock,
+  StepProgress,
+  Surface,
+  type StepSegment,
+} from '@/components/atelier-v2/ui';
+import { atelierCopy, stepOfLabel, type AtelierCopy } from '@/lib/atelier-v2-copy';
+import type { ConnectionView } from '@/lib/journey-recovery';
+import type { PublicStep } from '@/types/daily-journey';
+
+import { journeyCopy } from './journey-copy';
+import { formatDuration, recapView, type JourneyPhase } from './journey-state';
 import {
   JourneyFeedbackView,
   RecallStepView,
   RespondStepView,
   ResolutionStepView,
   SceneStepView,
-  StepStyles,
 } from './JourneySteps';
 import type { DailyJourneyController } from './useDailyJourney';
 
@@ -44,9 +69,27 @@ export type JourneySessionProps = {
   morePractice?: { label: string; onSelect: () => void } | null;
 };
 
+/** One progress segment per real planned step — never a demo value. */
+function segmentsOf(steps: PublicStep[], currentId: string | null): StepSegment[] {
+  return steps.map((step) => ({
+    id: step.id,
+    state:
+      step.status === 'completed'
+        ? 'done'
+        : step.status === 'skipped'
+          ? 'skipped'
+          : step.id === currentId
+            ? 'active'
+            : 'pending',
+  }));
+}
+
 export function JourneySession({ controller, onExit, morePractice }: JourneySessionProps) {
   const { phase, feedback, step, progress, busy, help, voice, actions } = controller;
-  const copy = journeyCopy(controller.controlLanguage);
+  const copy: AtelierCopy = {
+    ...atelierCopy(controller.controlLanguage),
+    ...journeyCopy(controller.controlLanguage),
+  };
   const journey = controller.journey;
   const recovery = controller.recovery;
 
@@ -61,178 +104,127 @@ export function JourneySession({ controller, onExit, morePractice }: JourneySess
     [draftGet, draftSet],
   );
 
+  const segments = journey ? segmentsOf(journey.steps, journey.current_step_id) : [];
+  const caption =
+    progress.total > 0
+      ? `${stepOfLabel(copy, Math.min(progress.done + 1, progress.total), progress.total)}${
+          remaining ? ` · ${remaining} ${copy.time_left}` : ''
+        }`
+      : undefined;
+
   return (
-    <main className="journey-shell">
-      <ConnectionNotice connection={recovery ? recovery.connection : null} copy={copy} />
-
-      {journey && (
-        <header className="journey-head">
-          <p className="journey-eyebrow">
-            {copy.today_eyebrow} · {journey.scenario.location_name}
-          </p>
-          <h1 lang="fr">{journey.scenario.title_fr}</h1>
-          <p className="journey-objective">
-            <b>{copy.objective}:</b> {journey.scenario.objective_native}
-          </p>
-          {progress.total > 0 && (
-            <div className="journey-progress">
-              <ProgressBar
-                value={progress.done}
-                max={progress.total}
-                label={copy.progress_label}
-              />
-              <p>
-                {progress.done}/{progress.total}
-                {remaining ? ` · ${remaining} ${copy.time_left}` : ''}
-              </p>
-            </div>
-          )}
-        </header>
-      )}
-
-      <div className="journey-body">
-        <JourneyPhaseView
-          phase={phase}
-          controller={controller}
-          onExit={onExit}
-          morePractice={morePractice}
-        />
-
-        {/* A paused journey shows its resume prompt alone, so the learner has
-            exactly one action rather than a half-live step behind a notice. */}
-        {phase.kind === 'session' && step && (
-          <>
-            {step.kind === 'scene' && (
-              <SceneStepView
-                step={step}
-                copy={copy}
-                busy={busy}
-                onContinue={actions.continueJourney}
-              />
+    <AtelierV2Root as="main" language={controller.controlLanguage} className="journey-shell">
+      <div className="av2-screen">
+        {/* The design's session header: close, then the progress rule. The
+            streak slot the design puts on the right is deliberately empty. */}
+        {journey && (
+          <header className="av2-session__head">
+            {onExit && (
+              <IconAction label={copy.pause} onClick={onExit}>
+                <CrossIcon size={16} />
+              </IconAction>
             )}
-            {step.kind === 'recall' && (
-              <RecallStepView
-                step={step}
-                copy={copy}
-                busy={busy}
-                feedback={feedback}
-                help={help}
-                onHelp={actions.requestHelp}
-                onSubmit={actions.submitAnswer}
-                onContinue={actions.continueJourney}
-                draft={draft}
-              />
+            {segments.length > 0 ? (
+              <StepProgress steps={segments} label={copy.progress_label} caption={caption} />
+            ) : (
+              <span className="av2-label">{copy.progress_none}</span>
             )}
-            {step.kind === 'respond' && (
-              <RespondStepView
-                step={step}
-                copy={copy}
-                busy={busy}
-                feedback={feedback}
-                help={help}
-                voice={voice}
-                onHelp={actions.requestHelp}
-                onSubmit={actions.submitAnswer}
-                onContinue={actions.continueJourney}
-                onStartRecording={() => void actions.startRecording()}
-                onStopRecording={actions.stopRecording}
-                onResetVoice={actions.resetVoice}
-                draft={draft}
-              />
-            )}
-            {step.kind === 'resolution' && (
-              <ResolutionStepView
-                step={step}
-                copy={copy}
-                busy={busy}
-                onContinue={actions.continueJourney}
-              />
-            )}
-
-            <JourneyFeedbackView
-              feedback={feedback}
-              copy={copy}
-              onContinue={actions.continueJourney}
-              onRetry={actions.retryLastAnswer}
-              onDismiss={actions.clearFeedback}
-            />
-
-            <div className="journey-secondary">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                disabled={busy}
-                onClick={() => void actions.finish('early')}
-              >
-                {copy.finish_early}
-              </Button>
-              {onExit && (
-                <Button type="button" variant="ghost" size="sm" onClick={onExit}>
-                  {copy.pause}
-                </Button>
-              )}
-            </div>
-          </>
+          </header>
         )}
-      </div>
 
-      <StepStyles />
-      <style jsx>{`
-        .journey-shell {
-          max-width: 720px;
-          margin: 0 auto;
-          padding: 16px 16px calc(24px + var(--phone-bottom-nav-space, 0px));
-          display: grid;
-          gap: 16px;
-          min-width: 0;
-        }
-        .journey-head {
-          display: grid;
-          gap: 6px;
-          min-width: 0;
-        }
-        .journey-eyebrow {
-          margin: 0;
-          font-size: 11px;
-          letter-spacing: 0.12em;
-          text-transform: uppercase;
-          color: var(--app-ink-3);
-        }
-        .journey-head h1 {
-          margin: 0;
-          font-size: 22px;
-          line-height: 1.2;
-          overflow-wrap: anywhere;
-        }
-        .journey-objective {
-          margin: 0;
-          font-size: 14px;
-          line-height: 1.4;
-          color: var(--app-ink-2);
-        }
-        .journey-progress {
-          display: grid;
-          gap: 4px;
-          margin-top: 4px;
-        }
-        .journey-progress p {
-          margin: 0;
-          font-size: 12px;
-          color: var(--app-ink-3);
-        }
-        .journey-body {
-          display: grid;
-          gap: 14px;
-          min-width: 0;
-        }
-        .journey-secondary {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
-        }
-      `}</style>
-    </main>
+        <div className="av2-screen__body">
+          <ConnectionNotice connection={recovery ? recovery.connection : null} copy={copy} />
+
+          {journey && phase.kind === 'session' && (
+            <p className="av2-label">
+              {journey.scenario.location_name} · {journey.scenario.objective_native}
+            </p>
+          )}
+
+          <JourneyPhaseView
+            phase={phase}
+            controller={controller}
+            copy={copy}
+            onExit={onExit}
+            morePractice={morePractice}
+          />
+
+          {/* A paused journey shows its resume prompt alone, so the learner has
+              exactly one action rather than a half-live step behind a notice. */}
+          {phase.kind === 'session' && step && (
+            <>
+              {step.kind === 'scene' && (
+                <SceneStepView
+                  step={step}
+                  copy={copy}
+                  busy={busy}
+                  onContinue={actions.continueJourney}
+                />
+              )}
+              {step.kind === 'recall' && (
+                <RecallStepView
+                  step={step}
+                  copy={copy}
+                  busy={busy}
+                  feedback={feedback}
+                  help={help}
+                  onHelp={actions.requestHelp}
+                  onSubmit={actions.submitAnswer}
+                  onContinue={actions.continueJourney}
+                  draft={draft}
+                />
+              )}
+              {step.kind === 'respond' && (
+                <RespondStepView
+                  step={step}
+                  copy={copy}
+                  busy={busy}
+                  feedback={feedback}
+                  help={help}
+                  voice={voice}
+                  onHelp={actions.requestHelp}
+                  onSubmit={actions.submitAnswer}
+                  onContinue={actions.continueJourney}
+                  onStartRecording={() => void actions.startRecording()}
+                  onStopRecording={actions.stopRecording}
+                  onResetVoice={actions.resetVoice}
+                  draft={draft}
+                />
+              )}
+              {step.kind === 'resolution' && (
+                <ResolutionStepView
+                  step={step}
+                  copy={copy}
+                  busy={busy}
+                  onContinue={actions.continueJourney}
+                />
+              )}
+
+              <JourneyFeedbackView
+                feedback={feedback}
+                copy={copy}
+                onContinue={actions.continueJourney}
+                onRetry={actions.retryLastAnswer}
+                onDismiss={actions.clearFeedback}
+              />
+
+              {/* Third tier. Quiet by construction, so the step's own primary
+                  stays the only primary in the composition. */}
+              <div className="av2-session__secondary">
+                <Action
+                  tone="quiet"
+                  inline
+                  disabled={busy}
+                  onClick={() => void actions.finish('early')}
+                >
+                  {copy.finish_early}
+                </Action>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </AtelierV2Root>
   );
 }
 
@@ -240,7 +232,7 @@ export function JourneySession({ controller, onExit, morePractice }: JourneySess
 // Connection state — stated plainly, never dressed as a result
 // ---------------------------------------------------------------------------
 
-const CONNECTION_COPY: Record<ConnectionView['state'], keyof JourneyCopy | null> = {
+const CONNECTION_COPY: Record<ConnectionView['state'], keyof AtelierCopy | null> = {
   live: null,
   syncing: 'syncing',
   offline_cached: 'offline_cached',
@@ -251,16 +243,17 @@ const CONNECTION_COPY: Record<ConnectionView['state'], keyof JourneyCopy | null>
 /**
  * What the learner is actually looking at when it is not a live server answer.
  *
- * Deliberately a plain line of text with `role="status"`: it must never read as
- * a verdict or a finished day. It carries no score, no tick, no celebration —
- * being offline is a fact about the connection, not about the learner's work.
+ * Deliberately a quiet `Notice` rather than the feedback band: it must never
+ * read as a verdict or a finished day. It carries no tint, no tick and no
+ * celebration — being offline is a fact about the connection, not about the
+ * learner's work.
  */
 export function ConnectionNotice({
   connection,
   copy,
 }: {
   connection: ConnectionView | null;
-  copy: JourneyCopy;
+  copy: AtelierCopy;
 }) {
   if (!connection) return null;
   const key = CONNECTION_COPY[connection.state];
@@ -268,26 +261,19 @@ export function ConnectionNotice({
   if (!key && !connection.stale) return null;
 
   return (
-    <p className="journey-connection" role="status" data-state={connection.state}>
-      {key ? copy[key] : null}
-      {connection.stale && (
-        <>
-          {key ? ' ' : null}
-          {copy.stale_from_earlier_day}
-        </>
-      )}
-      <style jsx>{`
-        .journey-connection {
-          margin: 0;
-          padding: 8px 10px;
-          border: 1px dashed var(--app-ink);
-          background: var(--app-paper-2);
-          color: var(--app-ink-2);
-          font-size: 13px;
-          line-height: 1.4;
-        }
-      `}</style>
-    </p>
+    <div className="journey-connection" data-state={connection.state}>
+      <Notice tone="quiet" shape="story">
+        <p>
+          {key ? copy[key] : null}
+          {connection.stale && (
+            <>
+              {key ? ' ' : null}
+              {copy.stale_from_earlier_day}
+            </>
+          )}
+        </p>
+      </Notice>
+    </div>
   );
 }
 
@@ -298,100 +284,77 @@ export function ConnectionNotice({
 function JourneyPhaseView({
   phase,
   controller,
+  copy,
   onExit,
   morePractice,
 }: {
   phase: JourneyPhase;
   controller: DailyJourneyController;
+  copy: AtelierCopy;
   onExit?: () => void;
   morePractice?: { label: string; onSelect: () => void } | null;
 }) {
-  const copy = journeyCopy(controller.controlLanguage);
   const { actions, busy } = controller;
 
   switch (phase.kind) {
     case 'loading':
-      return (
-        <p className="journey-notice" role="status">
-          {copy.preparing_body}
-          <StepStyles />
-        </p>
-      );
+      return <StateBlock tone="loading" title={copy.loading} body={copy.preparing_body} />;
 
     case 'load_failed':
       return (
-        <div className="journey-notice" role="alert">
-          <p>{copy.transport_error}</p>
-          <Button type="button" size="sm" variant="outline" onClick={() => void actions.refresh()}>
-            {copy.retry}
-          </Button>
-          <StepStyles />
-        </div>
+        <StateBlock
+          tone="error"
+          title={copy.error_title}
+          body={copy.transport_error}
+          action={{ label: copy.retry, onSelect: () => void actions.refresh() }}
+        />
       );
 
     case 'preparing':
       return (
-        <div className="journey-notice" role="status" data-state="preparing">
-          <p>
-            <b>{copy.preparing_title}</b>
-          </p>
-          <p>{copy.preparing_body}</p>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={busy}
-            onClick={() => void actions.refresh()}
-          >
-            {copy.preparing_retry}
-          </Button>
-          <StepStyles />
+        <div data-state="preparing">
+          <StateBlock
+            tone="loading"
+            title={copy.preparing_title}
+            body={copy.preparing_body}
+            action={{ label: copy.preparing_retry, onSelect: () => void actions.refresh() }}
+          />
         </div>
       );
 
     case 'unavailable':
       return (
-        <div className="journey-notice" role="alert" data-state="unavailable">
-          <p>
-            <b>{copy.unavailable_title}</b>
-          </p>
-          <p>{copy.unavailable_body}</p>
-          {phase.retryAllowed && (
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={busy}
-              onClick={() => void actions.retryGeneration()}
-            >
-              {copy.unavailable_retry}
-            </Button>
-          )}
-          {onExit && (
-            <Button type="button" size="sm" variant="ghost" onClick={onExit}>
-              {copy.continue}
-            </Button>
-          )}
-          <StepStyles />
+        <div data-state="unavailable">
+          <StateBlock
+            tone="error"
+            title={copy.unavailable_title}
+            body={copy.unavailable_body}
+            action={
+              phase.retryAllowed
+                ? { label: copy.unavailable_retry, onSelect: () => void actions.retryGeneration() }
+                : onExit
+                  ? { label: copy.continue, onSelect: onExit }
+                  : undefined
+            }
+          />
         </div>
       );
 
     case 'paused':
       return (
-        <div className="journey-notice" role="status" data-state="paused">
-          <p>
-            <b>{copy.paused_title}</b>
-          </p>
-          <p>{copy.paused_body}</p>
-          <Button
-            type="button"
-            size="sm"
-            disabled={busy}
-            onClick={() => void actions.resume()}
-          >
-            {copy.resume}
-          </Button>
-          <StepStyles />
+        <div data-state="paused">
+          <StateBlock
+            tone="empty"
+            title={copy.paused_title}
+            body={copy.paused_body}
+            action={{
+              label: copy.resume,
+              tone: 'primary',
+              onSelect: () => {
+                if (!busy) void actions.resume();
+              },
+            }}
+          />
         </div>
       );
 
@@ -425,136 +388,108 @@ export function JourneyRecapView({
   onExit?: () => void;
   morePractice?: { label: string; onSelect: () => void } | null;
 }) {
-  const copy = journeyCopy(controller.controlLanguage);
+  const copy: AtelierCopy = {
+    ...atelierCopy(controller.controlLanguage),
+    ...journeyCopy(controller.controlLanguage),
+  };
   const view = recapView(phase.recap);
   const partial = view?.partial ?? phase.journey.status === 'ended_early';
   const duration = formatDuration(view?.activeSeconds ?? null, controller.controlLanguage);
 
   return (
-    <section className="journey-recap" data-state={partial ? 'partial' : 'complete'}>
-      <h2>{partial ? copy.finished_partial_title : copy.finished_title}</h2>
-      {partial && <p className="journey-recap-note">{copy.finished_partial_body}</p>}
+    <section className="journey-recap av2-stack" data-state={partial ? 'partial' : 'complete'}>
+      <Surface tone={partial ? 'outline' : 'paper'} shape="hero">
+        <p className="av2-label">{copy.today_eyebrow}</p>
+        <h2 className="av2-headline">
+          {partial ? copy.finished_partial_title : copy.finished_title}
+        </h2>
+        {partial && <p className="av2-body av2-body--lg">{copy.finished_partial_body}</p>}
 
-      {/* `recap.active_seconds` is null by design until WP-11 measures it. Say
-          so rather than printing an invented duration. */}
-      <p className="journey-recap-note">
-        {duration ? `${duration}` : copy.duration_not_measured}
-      </p>
+        {/* `recap.active_seconds` is null by design until WP-11 measures it.
+            Say so rather than printing an invented duration. */}
+        <p className="av2-label" style={{ marginTop: 8 }}>
+          {duration ? duration : copy.duration_not_measured}
+        </p>
+      </Surface>
 
       {view && view.practiced.length > 0 && (
-        <div className="journey-recap-block">
-          <h3>{copy.practiced}</h3>
-          <ul>
+        <Surface>
+          <p className="av2-label">{copy.practiced}</p>
+          <ul className="av2-recap__list">
             {view.practiced.map((item) => (
               <li key={`${item.target.kind}:${item.target.id}`}>
-                <span lang="fr">{item.target.label_fr}</span>
-                {item.target.label_native ? ` — ${item.target.label_native}` : ''}
-                <small> · {copy[`evidence_${item.evidence_kind}` as const]}</small>
+                <ShapeToken kind="reward" size="sm" />
+                <span>
+                  <span className="av2-fr" lang="fr">
+                    {item.target.label_fr}
+                  </span>
+                  {item.target.label_native ? ` — ${item.target.label_native}` : ''}{' '}
+                  <span className="av2-label" style={{ display: 'inline' }}>
+                    · {copy[`evidence_${item.evidence_kind}` as const]}
+                  </span>
+                </span>
               </li>
             ))}
           </ul>
-        </div>
+        </Surface>
       )}
 
       {/* Server-recorded capability evidence. Not a second headline: it is what
           the learner actually did, in the server's own words. */}
       {view && view.capabilities.length > 0 && (
-        <div className="journey-recap-block">
-          <h3>{copy.capability_shown}</h3>
-          <ul>
+        <Surface>
+          <p className="av2-label">{copy.capability_shown}</p>
+          <ul className="av2-recap__list">
             {view.capabilities.map((item, index) => (
               <li key={`${item.capability_key}-${index}`}>
-                {item.context_native}
-                <small> · {copy[`capability_state_${item.state}` as const]}</small>
+                <ShapeToken kind="done" size="sm" />
+                <span>
+                  {item.context_native}{' '}
+                  <span className="av2-label" style={{ display: 'inline' }}>
+                    · {copy[`capability_state_${item.state}` as const]}
+                  </span>
+                </span>
               </li>
             ))}
           </ul>
-        </div>
+        </Surface>
       )}
 
       {/* At most ONE headline. */}
       {view?.headline && (
-        <div className="journey-recap-block">
-          <h3>{copy.next_focus}</h3>
-          <p>
-            <span lang="fr">{view.headline.labelFr}</span> — {view.headline.reasonNative}
+        <Surface tone="blue">
+          <p className="av2-label">{copy.next_focus}</p>
+          <p className="av2-headline av2-headline--rule" lang="fr">
+            {view.headline.labelFr}
           </p>
-        </div>
+          <p className="av2-body av2-body--lg">{view.headline.reasonNative}</p>
+        </Surface>
       )}
 
       {/* The callback is a character's line, so it is attributed rather than
           left as a bare French fragment with no speaker. */}
       {view?.storyCallbackFr && (
-        <p className="journey-recap-note">
-          {phase.journey.scenario.character_name} ·{' '}
-          <span lang="fr">{view.storyCallbackFr}</span>
-        </p>
+        <Surface>
+          <p className="av2-label">{phase.journey.scenario.character_name}</p>
+          <p className="av2-fr av2-headline av2-headline--rule" lang="fr">
+            {view.storyCallbackFr}
+          </p>
+        </Surface>
       )}
 
-      <div className="journey-recap-actions">
+      <div className="av2-recap__actions">
         {onExit && (
-          <Button type="button" onClick={onExit}>
+          <Action tone="primary" onClick={onExit}>
             {copy.continue}
-          </Button>
+          </Action>
         )}
         {morePractice && (
-          <Button type="button" variant="outline" onClick={morePractice.onSelect}>
+          <Action tone="secondary" onClick={morePractice.onSelect}>
             {morePractice.label || copy.more_practice}
-          </Button>
+          </Action>
         )}
       </div>
-      {morePractice && <p className="journey-recap-note">{copy.more_practice_note}</p>}
-
-      <style jsx>{`
-        .journey-recap {
-          border: 1px solid var(--app-ink);
-          background: var(--app-sheet);
-          padding: 16px;
-          display: grid;
-          gap: 10px;
-          min-width: 0;
-        }
-        .journey-recap[data-state='partial'] {
-          border-left-width: 5px;
-          border-left-style: dashed;
-        }
-        .journey-recap h2 {
-          margin: 0;
-          font-size: 20px;
-          line-height: 1.2;
-        }
-        .journey-recap h3 {
-          margin: 0 0 4px;
-          font-size: 11px;
-          letter-spacing: 0.1em;
-          text-transform: uppercase;
-          color: var(--app-ink-3);
-        }
-        .journey-recap-note {
-          margin: 0;
-          font-size: 13px;
-          line-height: 1.4;
-          color: var(--app-ink-2);
-        }
-        .journey-recap-block ul {
-          margin: 0;
-          padding-left: 18px;
-          display: grid;
-          gap: 4px;
-          font-size: 14px;
-          line-height: 1.4;
-        }
-        .journey-recap-block p {
-          margin: 0;
-          font-size: 14px;
-          line-height: 1.4;
-        }
-        .journey-recap-actions {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
-        }
-      `}</style>
+      {morePractice && <p className="av2-label">{copy.more_practice_note}</p>}
     </section>
   );
 }

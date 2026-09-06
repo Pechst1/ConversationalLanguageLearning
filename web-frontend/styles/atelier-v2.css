@@ -1,0 +1,1511 @@
+/**
+ * Atelier V2 design system — WP-01.
+ *
+ * Translated from `docs/design-reference/claude/Atelier App.dc.html` (the
+ * resolved design; it implements home direction 1a "La Une, allégée"). Every
+ * hex, radius, press depth and duration below is read from that file's inline
+ * styles, not invented. The bundled `claude/ref/*.png` are board 0 of the
+ * canvas — "Current build, recreated from source" — i.e. the BEFORE. Nothing
+ * here is derived from them.
+ *
+ * The design's own system statement, verbatim:
+ *
+ *   "two fonts only — Garamond italic for the one headline per screen,
+ *    Instrument Sans for everything else, sentence case, no tracked caps.
+ *    Rounded 16–24px surfaces instead of ruled boxes. The Bauhaus mark's four
+ *    shapes become the app's playful vocabulary: progress tokens, path nodes,
+ *    tab icons. One tactile 3D-press button per screen. Red = action, blue =
+ *    story/info, yellow = reward, ink = done."
+ *
+ * ---------------------------------------------------------------------------
+ * SCOPING — this file must not change a single legacy pixel while V2 is off.
+ * ---------------------------------------------------------------------------
+ * Every declaration is either an `@font-face` (see the family-name note in
+ * `public/fonts/LICENSE.md`), a `@keyframes`, or scoped under `.av2`. There is
+ * no bare element selector, no `:root` token, and no `*` reset. A page that
+ * never renders `<AtelierV2Root>` is byte-identical to before.
+ *
+ * Sizes are in `rem` so the existing Apparence text-size setting
+ * (`:root[data-font-size]` in globals.css, 14.5 / 16 / 19px) actually moves
+ * this screen. The design's px values are quoted in comments as the source.
+ */
+
+/* ===========================================================================
+   Fonts — vendored, self-hosted, variable, latin + latin-ext.
+   Registered under CSS-local names so legacy surfaces (which ask for
+   "EB Garamond" and get Times today) are untouched. See fonts/LICENSE.md.
+   =========================================================================== */
+
+@font-face {
+  font-family: 'AtelierSerif';
+  font-style: italic;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url('/fonts/eb-garamond-italic-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'AtelierSerif';
+  font-style: italic;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url('/fonts/eb-garamond-italic-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+    U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
+    U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: 'AtelierSans';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('/fonts/instrument-sans-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'AtelierSans';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('/fonts/instrument-sans-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+    U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
+    U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* ===========================================================================
+   Motion — the design's three keyframes.
+   =========================================================================== */
+
+@keyframes av2-pop {
+  0% { transform: scale(0.6); opacity: 0; }
+  60% { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes av2-rise {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+@keyframes av2-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ===========================================================================
+   Tokens — light. Read from the design's inline styles.
+   =========================================================================== */
+
+.av2 {
+  /* -- Ground ------------------------------------------------------------ */
+  --av2-paper: #f1ece1;    /* screen ground, sheet ground */
+  --av2-card: #f8f3e8;     /* cards, tiles, chips, input wells */
+  --av2-line: #e8e0cf;     /* hairlines, inactive progress track */
+  --av2-line-2: #d8cdb6;   /* pressed shadow on paper, sheet handle, dashed lock */
+
+  /* -- Ink --------------------------------------------------------------- */
+  --av2-ink: #14110d;      /* text, and the "done" semantic */
+  --av2-ink-2: #4a4538;    /* secondary body */
+  --av2-muted: #6f6857;    /* labels, meta */
+
+  /* Label colour ON each saturated face. Declared per theme rather than
+     patched with extra selectors later: in dark mode the accents become the
+     LIGHT end of the scale, so their labels must flip to dark ink. */
+  --av2-on-dark: #f8f3e8;  /* generic: text on any saturated or ink surface */
+  /* Pure white, not paper-white: the design uses #fff on red in all four of
+     its red surfaces, and paper-white measures 4.32:1 there — under AA for the
+     17px action label. #fff is 4.78:1. */
+  --av2-on-red: #ffffff;
+  --av2-on-blue: #f8f3e8;
+  --av2-on-green: #f8f3e8;
+  --av2-on-yellow: #14110d;
+  --av2-on-ink: #f8f3e8;
+
+  /* -- Semantic colour. red = action · blue = story/info · yellow = reward ·
+        ink = done · green = correct. Each carries its own press shadow. --- */
+  --av2-red: #d8321a;
+  --av2-red-deep: #9c2411;
+  --av2-blue: #1d3a8a;
+  --av2-blue-deep: #14285f;
+  --av2-yellow: #f3c318;
+  --av2-yellow-deep: #c49a0a;
+  --av2-green: #2c6a5d;
+  --av2-green-deep: #1f4f45;
+  --av2-ink-deep: #000000;
+
+  /* Feedback band tints, straight from the design's `feedbackBg`. */
+  --av2-tint-correct: #e3efe9;
+  --av2-tint-wrong: #f7e1dc;
+  --av2-tint-neutral: var(--av2-paper);
+
+  /* -- Geometry ---------------------------------------------------------- */
+  --av2-r-pill: 999px;
+  --av2-r-button: 16px;
+  --av2-r-card: 16px;
+  --av2-r-tile: 18px;
+  --av2-r-episode: 22px;
+  --av2-r-hero: 24px;
+  --av2-r-vocab: 28px;
+  --av2-r-sheet: 28px;
+
+  /* -- The 3D press. One primary per composition. ------------------------ */
+  --av2-press: 5px;        /* primary action */
+  --av2-press-sm: 3px;     /* choice options */
+  --av2-press-md: 4px;     /* icon actions, secondary rows */
+  --av2-press-lg: 8px;     /* the vocabulary card */
+  --av2-press-dur: 0.08s;
+
+  /* -- Type. Design px in comments; rem so the text-size setting moves it. */
+  --av2-serif: 'AtelierSerif', 'EB Garamond', Georgia, 'Times New Roman', serif;
+  --av2-sans: 'AtelierSans', 'Instrument Sans', system-ui, -apple-system,
+    'Segoe UI', Roboto, sans-serif;
+
+  --av2-t-meta: 0.75rem;      /* 12px — labels, meta, tab labels */
+  --av2-t-label: 0.8125rem;   /* 13px — chip and tile labels */
+  --av2-t-body: 0.9375rem;    /* 15px — chat, card body */
+  --av2-t-body-lg: 1rem;      /* 16px — form fields (never below: iOS zoom) */
+  --av2-t-action: 1.0625rem;  /* 17px — the primary action label */
+  --av2-t-rule: 1.1875rem;    /* 19px — rule-card headline (serif) */
+  --av2-t-option: 1.25rem;    /* 20px — choice option (serif) */
+  --av2-t-title: 1.5rem;      /* 24px — card headline (serif) */
+  --av2-t-head: 1.875rem;     /* 30px — the one headline per screen (serif) */
+  --av2-t-display: 2.125rem;  /* 34px — date / masthead display (serif) */
+
+  /* -- Layout ------------------------------------------------------------ */
+  --av2-gutter: 20px;
+  --av2-gap: 12px;
+  --av2-tap: 44px;            /* the accessibility floor, never a design value */
+  --av2-safe-bottom: max(20px, env(safe-area-inset-bottom));
+  --av2-focus: var(--av2-ink);
+
+  /* -- Character accents. The design's `M` avatar uses #2c6a5d, which is the
+        serial world bible's --char-marin. Reuse the existing tokens rather
+        than opening a parallel set; fall back if globals.css is absent. --- */
+  --av2-char-default: var(--char-marchand, #5b5346);
+}
+
+/* ---------------------------------------------------------------------------
+   Tokens — dark.
+
+   Derived from the design's own hues rather than inverted: the paper darkens
+   toward its warm brown rather than to neutral grey, and every accent is
+   lifted only until it clears 4.5:1 on the new ground. The *roles* are
+   preserved exactly (red = action, blue = story/info, yellow = reward, ink =
+   done, green = correct); "ink" simply becomes the light end of the scale, so
+   a "done" ink chip stays the highest-contrast thing on the screen.
+
+   Applied by CSS alone — no JS, so there is no hydration mismatch and no
+   flash — from the theme attribute `lib/app-preferences.ts` already writes on
+   `<html>`, honouring light / dark / system exactly as globals.css does.
+
+   `.av2--dark` forces dark; `.av2--light` opts out of the contextual dark via
+   the `:not()` guards below, so it needs no declarations of its own and cannot
+   drift from the light block. Both exist for the dev gallery, which has to show
+   the two themes side by side on one page whatever the OS is set to.
+
+   ⚠ The two blocks below MUST hold identical declarations. globals.css has
+   this same shape and drifted once (its `[data-theme=dark]` block redefined
+   tokens the `prefers-color-scheme` block did not, so "system" on a dark OS
+   kept light channels). `atelier-v2-ui.test.js` parses this file and fails if
+   the two ever diverge.
+   --------------------------------------------------------------------------- */
+
+:root[data-theme='dark'] .av2:not(.av2--light),
+.av2--dark {
+  --av2-paper: #17140f;
+  --av2-card: #221e17;
+  --av2-line: #332d22;
+  --av2-line-2: #4a4234;
+
+  --av2-ink: #f5efe1;
+  --av2-ink-2: #d3c8b5;
+  --av2-muted: #a2957e;
+
+  --av2-on-dark: #17140f;
+  --av2-on-red: #17140f;
+  --av2-on-blue: #17140f;
+  --av2-on-green: #17140f;
+  --av2-on-yellow: #17140f;
+  --av2-on-ink: #17140f;
+
+  /* Each accent is the design's hue lifted until it clears 4.5:1 on the new
+     ground; each press shadow stays DARKER than its face, so the 3D press
+     still reads as depth rather than as a second colour. */
+  --av2-red: #ff6a4d;
+  --av2-red-deep: #a8321c;
+  --av2-blue: #7fa0ff;
+  --av2-blue-deep: #3f5cb8;
+  --av2-yellow: #f5cc3c;
+  --av2-yellow-deep: #b08f16;
+  --av2-green: #52b892;
+  --av2-green-deep: #2f7a5f;
+  /* "ink = done" survives the flip: ink is now the light end of the scale, so
+     its press shadow must be a mid tone rather than black. */
+  --av2-ink-deep: #6a6152;
+
+  --av2-tint-correct: #1b2d27;
+  --av2-tint-wrong: #33201c;
+  --av2-tint-neutral: var(--av2-paper);
+
+  --av2-focus: var(--av2-ink);
+  --av2-char-default: #8d8371;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme='system'] .av2:not(.av2--light),
+  :root:not([data-theme]) .av2:not(.av2--light) {
+    --av2-paper: #17140f;
+    --av2-card: #221e17;
+    --av2-line: #332d22;
+    --av2-line-2: #4a4234;
+
+    --av2-ink: #f5efe1;
+    --av2-ink-2: #d3c8b5;
+    --av2-muted: #a2957e;
+
+    --av2-on-dark: #17140f;
+    --av2-on-red: #17140f;
+    --av2-on-blue: #17140f;
+    --av2-on-green: #17140f;
+    --av2-on-yellow: #17140f;
+    --av2-on-ink: #17140f;
+
+    /* Each accent is the design's hue lifted until it clears 4.5:1 on the new
+       ground; each press shadow stays DARKER than its face, so the 3D press
+       still reads as depth rather than as a second colour. */
+    --av2-red: #ff6a4d;
+    --av2-red-deep: #a8321c;
+    --av2-blue: #7fa0ff;
+    --av2-blue-deep: #3f5cb8;
+    --av2-yellow: #f5cc3c;
+    --av2-yellow-deep: #b08f16;
+    --av2-green: #52b892;
+    --av2-green-deep: #2f7a5f;
+    /* "ink = done" survives the flip: ink is now the light end of the scale, so
+       its press shadow must be a mid tone rather than black. */
+    --av2-ink-deep: #6a6152;
+
+    --av2-tint-correct: #1b2d27;
+    --av2-tint-wrong: #33201c;
+    --av2-tint-neutral: var(--av2-paper);
+
+    --av2-focus: var(--av2-ink);
+    --av2-char-default: #8d8371;
+  }
+}
+
+/* ===========================================================================
+   Root
+   =========================================================================== */
+
+.av2 {
+  font-family: var(--av2-sans);
+  font-weight: 500;
+  color: var(--av2-ink);
+  background: var(--av2-paper);
+  min-width: 0;
+  /* Sentence case is a design rule, not a default: undo any inherited
+     transform without imposing one on descendants. */
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.av2 *,
+.av2 *::before,
+.av2 *::after {
+  box-sizing: border-box;
+}
+
+/* D-6. Every flex/grid child defaults to `min-width:auto`, which is what let a
+   long uppercase word push the primary action off a 320px viewport at 200%
+   text. Zero it once, here, for everything this system owns. */
+.av2 :where(div, section, header, footer, main, li, p, label, button, a, span) {
+  min-width: 0;
+}
+
+.av2 :focus-visible {
+  outline: 3px solid var(--av2-focus);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* A focus ring must not vanish on a saturated face. Offset 2px puts it on the
+   paper, so ink reads against every accent; inside an inverted surface the
+   ring flips to paper instead. */
+.av2 .av2-surface--blue :focus-visible,
+.av2 .av2-surface--ink :focus-visible,
+.av2 .av2-surface--red :focus-visible {
+  --av2-focus: var(--av2-on-dark);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .av2 *,
+  .av2 *::before,
+  .av2 *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ===========================================================================
+   Screen scaffold
+   =========================================================================== */
+
+.av2-screen {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  min-width: 0;
+  background: var(--av2-paper);
+}
+
+.av2-screen__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--av2-gap);
+  padding: 0 var(--av2-gutter);
+}
+
+.av2-screen__foot {
+  flex: none;
+  padding: 14px var(--av2-gutter) calc(14px + var(--av2-safe-bottom));
+  border-top: 1px solid var(--av2-line);
+  background: var(--av2-tint-neutral);
+  transition: background 0.2s;
+}
+
+.av2-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--av2-gap);
+  min-width: 0;
+}
+
+/* ===========================================================================
+   Type
+   =========================================================================== */
+
+/* The one Garamond-italic headline per screen. */
+.av2-headline {
+  margin: 0;
+  font-family: var(--av2-serif);
+  font-style: italic;
+  font-weight: 500;
+  font-size: var(--av2-t-head);
+  line-height: 1.15;
+  color: var(--av2-ink);
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+}
+
+.av2-headline--display { font-size: var(--av2-t-display); line-height: 1.05; }
+.av2-headline--title { font-size: var(--av2-t-title); line-height: 1.1; font-weight: 600; }
+.av2-headline--rule { font-size: var(--av2-t-rule); line-height: 1.15; }
+
+/* French content is Garamond italic too — that is the second half of "two
+   fonts only", not a third voice. */
+.av2-fr {
+  font-family: var(--av2-serif);
+  font-style: italic;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.av2-label {
+  margin: 0;
+  font-size: var(--av2-t-meta);
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--av2-muted);
+  overflow-wrap: anywhere;
+}
+
+.av2-label--story { color: var(--av2-blue); }
+.av2-label--action { color: var(--av2-red); }
+
+.av2-body {
+  margin: 0;
+  font-size: var(--av2-t-label);
+  font-weight: 500;
+  line-height: 1.45;
+  color: var(--av2-ink-2);
+  overflow-wrap: anywhere;
+}
+
+.av2-body--lg { font-size: var(--av2-t-body); }
+
+/* ===========================================================================
+   Surfaces
+   =========================================================================== */
+
+.av2-surface {
+  background: var(--av2-card);
+  border-radius: var(--av2-r-card);
+  padding: 16px 18px;
+  min-width: 0;
+  color: var(--av2-ink);
+}
+
+.av2-surface--tile { border-radius: var(--av2-r-tile); padding: 12px 14px; }
+.av2-surface--episode { border-radius: var(--av2-r-episode); padding: 0; overflow: hidden; }
+.av2-surface--hero { border-radius: var(--av2-r-hero); padding: 0; overflow: hidden; }
+.av2-surface--flush { padding: 0; overflow: hidden; }
+
+.av2-surface--blue { background: var(--av2-blue); color: var(--av2-on-blue); }
+.av2-surface--ink { background: var(--av2-ink); color: var(--av2-on-ink); }
+.av2-surface--red { background: var(--av2-red); color: var(--av2-on-red); }
+.av2-surface--reward { background: var(--av2-yellow); color: var(--av2-on-yellow); }
+
+.av2-surface--blue .av2-headline,
+.av2-surface--ink .av2-headline,
+.av2-surface--red .av2-headline,
+.av2-surface--blue .av2-label,
+.av2-surface--ink .av2-label,
+.av2-surface--red .av2-label,
+.av2-surface--blue .av2-body,
+.av2-surface--ink .av2-body,
+.av2-surface--red .av2-body {
+  color: inherit;
+}
+
+/* An outlined surface is the "nothing here yet / locked" state. Dashed rather
+   than tinted, so it never reads as an available action. */
+.av2-surface--outline {
+  background: transparent;
+  border: 2px dashed var(--av2-line-2);
+  color: var(--av2-muted);
+}
+
+/* ===========================================================================
+   The Bauhaus shape vocabulary — progress tokens, path nodes, tab icons.
+   =========================================================================== */
+
+.av2-shape {
+  display: inline-block;
+  flex: none;
+  width: 12px;
+  height: 12px;
+  background: currentColor;
+}
+
+.av2-shape--square { border-radius: 2px; color: var(--av2-ink); }
+.av2-shape--circle { border-radius: 999px; color: var(--av2-blue); }
+.av2-shape--reward { border-radius: 3px; color: var(--av2-yellow); }
+.av2-shape--triangle {
+  border-radius: 0;
+  color: var(--av2-red);
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+.av2-shape--dot { border-radius: 999px; }
+.av2-shape--sm { width: 8px; height: 8px; }
+.av2-shape--lg { width: 16px; height: 16px; border-radius: 4px; }
+
+.av2-mark { display: block; flex: none; }
+
+/* ===========================================================================
+   Chips / pills
+   =========================================================================== */
+
+.av2-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 4px 12px;
+  border: 0;
+  border-radius: var(--av2-r-pill);
+  background: var(--av2-card);
+  color: var(--av2-ink);
+  font-family: inherit;
+  font-size: var(--av2-t-label);
+  font-weight: 700;
+  line-height: 1.3;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.av2-chip--reward { background: var(--av2-yellow); color: var(--av2-on-yellow); }
+.av2-chip--story { background: var(--av2-blue); color: var(--av2-on-blue); }
+.av2-chip--quiet { background: transparent; color: var(--av2-muted); }
+
+/* An interactive chip is still a control: it gets the tap floor. */
+button.av2-chip,
+a.av2-chip {
+  min-height: var(--av2-tap);
+  cursor: pointer;
+}
+
+/* ===========================================================================
+   Buttons — the tactile 3D press
+   =========================================================================== */
+
+.av2-btn {
+  --av2-btn-face: var(--av2-card);
+  --av2-btn-fg: var(--av2-ink);
+  --av2-btn-shadow: var(--av2-line-2);
+  --av2-btn-depth: var(--av2-press);
+
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: max(var(--av2-tap), 3.5rem); /* design 56px */
+  padding: 0.75rem 1.25rem;
+  border: 0;
+  border-radius: var(--av2-r-button);
+  background: var(--av2-btn-face);
+  color: var(--av2-btn-fg);
+  box-shadow: 0 var(--av2-btn-depth) 0 var(--av2-btn-shadow);
+  font-family: inherit;
+  font-size: var(--av2-t-action);
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform var(--av2-press-dur), box-shadow var(--av2-press-dur),
+    background 0.2s;
+  /* The label wraps rather than widening the row — this is the 320px/200% rule. */
+  white-space: normal;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+}
+
+.av2-btn:not(:disabled):not([aria-disabled='true']):active {
+  transform: translateY(var(--av2-btn-depth));
+  box-shadow: 0 0 0 transparent;
+}
+
+.av2-btn--primary {
+  --av2-btn-face: var(--av2-red);
+  --av2-btn-fg: var(--av2-on-red);
+  --av2-btn-shadow: var(--av2-red-deep);
+}
+
+.av2-btn--done {
+  --av2-btn-face: var(--av2-ink);
+  --av2-btn-fg: var(--av2-on-ink);
+  --av2-btn-shadow: var(--av2-ink-deep);
+}
+
+.av2-btn--story {
+  --av2-btn-face: var(--av2-blue);
+  --av2-btn-fg: var(--av2-on-blue);
+  --av2-btn-shadow: var(--av2-blue-deep);
+}
+
+.av2-btn--reward {
+  --av2-btn-face: var(--av2-yellow);
+  --av2-btn-fg: var(--av2-on-yellow);
+  --av2-btn-shadow: var(--av2-yellow-deep);
+}
+
+/* Secondary = paper face on the paper ground, shallower press. */
+.av2-btn--secondary {
+  --av2-btn-face: var(--av2-card);
+  --av2-btn-fg: var(--av2-ink);
+  --av2-btn-shadow: var(--av2-line-2);
+  --av2-btn-depth: var(--av2-press-md);
+  font-size: var(--av2-t-body-lg);
+}
+
+/* Quiet = no face, no press. For the third-tier actions (help, stop here) that
+   must exist but must never compete with the one primary. */
+.av2-btn--quiet {
+  --av2-btn-face: transparent;
+  --av2-btn-fg: var(--av2-ink-2);
+  --av2-btn-shadow: transparent;
+  --av2-btn-depth: 0px;
+  min-height: var(--av2-tap);
+  padding: 0.5rem 0.75rem;
+  font-size: var(--av2-t-label);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.av2-btn--inline { width: auto; }
+
+/* A disabled control keeps its label fully legible — dim the *face*, never the
+   text. `opacity` on the whole button is what makes disabled states unreadable. */
+.av2-btn:disabled,
+.av2-btn[aria-disabled='true'] {
+  cursor: not-allowed;
+  box-shadow: 0 var(--av2-btn-depth) 0 var(--av2-line);
+  background: var(--av2-line);
+  color: var(--av2-ink-2);
+}
+
+.av2-btn--quiet:disabled,
+.av2-btn--quiet[aria-disabled='true'] {
+  background: transparent;
+  box-shadow: none;
+  color: var(--av2-muted);
+}
+
+/* Pending: the press is spent, the label says so, and a shape token spins only
+   when motion is allowed. Status is never colour alone. */
+.av2-btn[data-pending='true'] {
+  cursor: progress;
+  transform: translateY(var(--av2-btn-depth));
+  box-shadow: 0 0 0 transparent;
+}
+
+.av2-btn__spinner {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  background: currentColor;
+  animation: av2-pop 0.9s ease-in-out infinite;
+}
+
+/* Icon-only action. 44px floor, round, same press. */
+.av2-icon-btn {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: var(--av2-tap);
+  height: var(--av2-tap);
+  padding: 0;
+  border: 0;
+  border-radius: var(--av2-r-pill);
+  background: var(--av2-card);
+  color: var(--av2-ink);
+  cursor: pointer;
+  transition: transform var(--av2-press-dur), box-shadow var(--av2-press-dur);
+}
+
+.av2-icon-btn--pressable { box-shadow: 0 var(--av2-press-md) 0 var(--av2-line-2); }
+.av2-icon-btn--pressable:not(:disabled):active {
+  transform: translateY(var(--av2-press-md));
+  box-shadow: 0 0 0 transparent;
+}
+
+.av2-icon-btn--action {
+  background: var(--av2-red);
+  color: #fff;
+  box-shadow: 0 var(--av2-press-md) 0 var(--av2-red-deep);
+}
+
+.av2-icon-btn--recording {
+  background: var(--av2-ink);
+  color: var(--av2-on-dark);
+  box-shadow: 0 var(--av2-press-md) 0 var(--av2-ink-deep);
+}
+
+.av2-icon-btn:disabled {
+  cursor: not-allowed;
+  background: var(--av2-line);
+  color: var(--av2-ink-2);
+  box-shadow: none;
+}
+
+/* ===========================================================================
+   Progress — blue fill on a line track (design: 14px tall, radius 7)
+   =========================================================================== */
+
+.av2-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.av2-progress__track {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 14px;
+  border-radius: 7px;
+  background: var(--av2-line);
+  overflow: hidden;
+}
+
+.av2-progress__fill {
+  height: 100%;
+  border-radius: 7px;
+  background: var(--av2-blue);
+  transition: width 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* The segmented variant — one shape token per planned step. This is the
+   design's `vocabDots` row, and it is what carries "3 of 5" without a
+   fabricated counter: there are exactly as many segments as real plan steps. */
+.av2-progress__segments {
+  display: flex;
+  flex: 1 1 auto;
+  gap: 5px;
+  min-width: 0;
+}
+
+.av2-progress__segment {
+  flex: 1 1 0;
+  min-width: 4px;
+  height: 14px;
+  border-radius: 7px;
+  background: var(--av2-line);
+  transition: background 0.3s;
+}
+
+.av2-progress__segment[data-state='done'] { background: var(--av2-ink); }
+.av2-progress__segment[data-state='active'] { background: var(--av2-blue); }
+.av2-progress__segment[data-state='skipped'] { background: var(--av2-line-2); }
+
+.av2-progress__count {
+  flex: none;
+  font-size: var(--av2-t-label);
+  font-weight: 700;
+  color: var(--av2-muted);
+}
+
+/* ===========================================================================
+   Choice cards — the design's option buttons, with every real state
+   =========================================================================== */
+
+.av2-choices {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.av2-choice {
+  --av2-choice-face: var(--av2-card);
+  --av2-choice-edge: var(--av2-line-2);
+  --av2-choice-fg: var(--av2-ink);
+  --av2-choice-dot: transparent;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: max(var(--av2-tap), 3.5rem); /* design 56px */
+  padding: 0.75rem 1.125rem;
+  border: 2px solid var(--av2-choice-edge);
+  border-radius: var(--av2-r-button);
+  background: var(--av2-choice-face);
+  color: var(--av2-choice-fg);
+  box-shadow: 0 var(--av2-press-sm) 0 var(--av2-choice-edge);
+  font-family: var(--av2-serif);
+  font-style: italic;
+  font-weight: 500;
+  font-size: var(--av2-t-option);
+  line-height: 1.3;
+  text-align: left;
+  cursor: pointer;
+  transition: transform var(--av2-press-dur), box-shadow var(--av2-press-dur),
+    background 0.15s, border-color 0.15s;
+  overflow-wrap: anywhere;
+}
+
+.av2-choice:not(:disabled):active {
+  transform: translateY(var(--av2-press-sm));
+  box-shadow: 0 0 0 transparent;
+}
+
+.av2-choice[data-state='selected'] {
+  --av2-choice-edge: var(--av2-blue);
+  --av2-choice-dot: var(--av2-blue);
+}
+
+.av2-choice[data-state='correct'] {
+  --av2-choice-face: var(--av2-green);
+  --av2-choice-edge: var(--av2-green-deep);
+  --av2-choice-fg: var(--av2-on-green);
+  --av2-choice-dot: var(--av2-on-green);
+}
+
+.av2-choice[data-state='wrong'] {
+  --av2-choice-face: var(--av2-red);
+  --av2-choice-edge: var(--av2-red-deep);
+  --av2-choice-fg: var(--av2-on-red);
+  --av2-choice-dot: var(--av2-on-red);
+}
+
+/* Answered options must stay readable after they are disabled. No opacity. */
+.av2-choice:disabled {
+  cursor: default;
+  color: var(--av2-choice-fg);
+  opacity: 1;
+}
+
+.av2-choice__dot {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--av2-r-pill);
+  background: var(--av2-choice-dot);
+  display: grid;
+  place-items: center;
+  color: var(--av2-choice-face);
+}
+
+/* ===========================================================================
+   Word tiles — the word-bank recall task
+   =========================================================================== */
+
+.av2-tiles { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+
+.av2-tiles__line {
+  margin: 0;
+  min-height: max(var(--av2-tap), 3.25rem);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: var(--av2-r-card);
+  background: var(--av2-card);
+  font-family: var(--av2-serif);
+  font-style: italic;
+  font-size: var(--av2-t-option);
+  line-height: 1.3;
+  color: var(--av2-ink);
+  overflow-wrap: anywhere;
+}
+
+.av2-tiles__line[data-empty='true'] { color: var(--av2-muted); }
+
+.av2-tiles__bank { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; }
+
+.av2-tile {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--av2-tap);
+  padding: 0.5rem 1rem;
+  border: 2px solid var(--av2-line-2);
+  border-radius: var(--av2-r-pill);
+  background: var(--av2-card);
+  color: var(--av2-ink);
+  box-shadow: 0 var(--av2-press-sm) 0 var(--av2-line-2);
+  font-family: var(--av2-serif);
+  font-style: italic;
+  font-size: var(--av2-t-body);
+  line-height: 1.3;
+  cursor: pointer;
+  transition: transform var(--av2-press-dur), box-shadow var(--av2-press-dur);
+  overflow-wrap: anywhere;
+  max-width: 100%;
+}
+
+.av2-tile:not(:disabled):active {
+  transform: translateY(var(--av2-press-sm));
+  box-shadow: 0 0 0 transparent;
+}
+
+.av2-tile[data-state='placed'] {
+  border-color: var(--av2-blue);
+  box-shadow: 0 var(--av2-press-sm) 0 var(--av2-blue);
+}
+
+.av2-tile:disabled { cursor: default; opacity: 1; color: var(--av2-ink); }
+
+/* ===========================================================================
+   Fields
+   =========================================================================== */
+
+.av2-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+
+.av2-field__label {
+  font-size: var(--av2-t-meta);
+  font-weight: 700;
+  color: var(--av2-muted);
+}
+
+.av2-field__control {
+  width: 100%;
+  min-height: 3rem;
+  padding: 0.75rem 1rem;
+  border: 2px solid transparent;
+  border-radius: var(--av2-r-card);
+  background: var(--av2-card);
+  color: var(--av2-ink);
+  font-family: inherit;
+  font-size: var(--av2-t-body-lg); /* never below 16px: iOS zooms the viewport */
+  line-height: 1.45;
+  resize: vertical;
+}
+
+.av2-field__control::placeholder { color: var(--av2-muted); }
+.av2-field__control:focus { border-color: var(--av2-blue); }
+.av2-field__control:disabled { opacity: 1; color: var(--av2-ink-2); }
+.av2-field__control[aria-invalid='true'] { border-color: var(--av2-red); }
+
+/* The chat-style composer well (Missions). */
+.av2-composer { display: flex; align-items: flex-end; gap: 8px; min-width: 0; }
+.av2-composer .av2-field { flex: 1 1 auto; }
+
+/* ===========================================================================
+   Feedback band
+   =========================================================================== */
+
+.av2-feedback {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+  animation: av2-pop 0.3s;
+}
+
+.av2-feedback__icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--av2-r-pill);
+  background: var(--av2-muted);
+  color: var(--av2-on-dark);
+}
+
+.av2-feedback__title {
+  margin: 0;
+  font-family: var(--av2-serif);
+  font-style: italic;
+  font-size: var(--av2-t-option);
+  line-height: 1.15;
+  color: var(--av2-ink);
+  overflow-wrap: anywhere;
+}
+
+.av2-feedback__sub {
+  margin: 3px 0 0;
+  font-size: var(--av2-t-label);
+  line-height: 1.4;
+  color: var(--av2-ink-2);
+  overflow-wrap: anywhere;
+}
+
+.av2-feedback[data-tone='correct'] .av2-feedback__icon { background: var(--av2-green); }
+.av2-feedback[data-tone='correct'] .av2-feedback__title { color: var(--av2-green); }
+.av2-feedback[data-tone='supported'] .av2-feedback__icon { background: var(--av2-blue); }
+.av2-feedback[data-tone='supported'] .av2-feedback__title { color: var(--av2-blue); }
+.av2-feedback[data-tone='wrong'] .av2-feedback__icon { background: var(--av2-red); }
+.av2-feedback[data-tone='wrong'] .av2-feedback__title { color: var(--av2-red-deep); }
+
+.av2-screen__foot[data-tone='correct'] { background: var(--av2-tint-correct); }
+.av2-screen__foot[data-tone='wrong'] { background: var(--av2-tint-wrong); }
+
+/* A correction is one line, under the verdict, never a second headline. */
+.av2-correction {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border-radius: var(--av2-r-card);
+  background: var(--av2-card);
+  font-size: var(--av2-t-label);
+  line-height: 1.45;
+  color: var(--av2-ink-2);
+  min-width: 0;
+}
+
+.av2-correction__span { text-decoration: line-through; }
+.av2-correction__fix { font-family: var(--av2-serif); font-style: italic; color: var(--av2-green); }
+
+/* ===========================================================================
+   Notices — connection, retry, reconciled, unscored, error.
+   Never a verdict: no tint, no tick, always a shape + text.
+   =========================================================================== */
+
+.av2-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px 14px;
+  border-radius: var(--av2-r-card);
+  background: var(--av2-card);
+  color: var(--av2-ink-2);
+  font-size: var(--av2-t-label);
+  line-height: 1.45;
+}
+
+.av2-notice__body { min-width: 0; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.av2-notice p { margin: 0; }
+.av2-notice__mark { flex: none; margin-top: 3px; }
+
+.av2-notice[data-tone='alert'] { background: var(--av2-tint-wrong); color: var(--av2-ink); }
+.av2-notice[data-tone='quiet'] { background: transparent; border: 2px dashed var(--av2-line-2); }
+
+/* ===========================================================================
+   Artwork — decoration that degrades to a shape, never to a broken icon
+   =========================================================================== */
+
+.av2-art {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  background: var(--av2-line);
+  min-width: 0;
+}
+
+.av2-art__fallback {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: repeating-linear-gradient(
+    135deg,
+    var(--av2-line) 0 8px,
+    var(--av2-card) 8px 16px
+  );
+  color: var(--av2-muted);
+}
+
+/* ===========================================================================
+   Character portrait — keyed to the serial world bible's --char-* tokens
+   =========================================================================== */
+
+.av2-portrait {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--av2-r-pill);
+  background: var(--av2-char, var(--av2-char-default));
+  color: var(--av2-on-dark);
+  font-family: var(--av2-serif);
+  font-style: italic;
+  font-weight: 600;
+  font-size: var(--av2-t-rule);
+  line-height: 1;
+}
+
+.av2-portrait--sm { width: 22px; height: 22px; font-size: var(--av2-t-meta); }
+
+.av2-byline { display: flex; align-items: center; gap: 8px; min-width: 0; }
+
+/* ===========================================================================
+   Chat bubbles (Missions)
+   =========================================================================== */
+
+.av2-bubble {
+  align-self: flex-start;
+  max-width: 86%;
+  padding: 14px 16px;
+  border-radius: 20px 20px 20px 6px;
+  background: var(--av2-card);
+  color: var(--av2-ink);
+  font-size: var(--av2-t-body);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.av2-bubble--mine {
+  align-self: flex-end;
+  border-radius: 20px 20px 6px 20px;
+  background: var(--av2-blue);
+  color: var(--av2-on-blue);
+}
+
+/* ===========================================================================
+   Bottom sheet — one handle, scrim, title scale and safe-area rhythm
+   =========================================================================== */
+
+.av2-sheet-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.av2-sheet__scrim {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  padding: 0;
+  background: rgba(20, 17, 13, 0.35);
+  cursor: pointer;
+  animation: av2-fade 0.2s;
+}
+
+.av2-sheet {
+  position: relative;
+  max-height: 88vh;
+  overflow: auto;
+  padding: 10px var(--av2-gutter) calc(24px + var(--av2-safe-bottom));
+  border-radius: var(--av2-r-sheet) var(--av2-r-sheet) 0 0;
+  background: var(--av2-paper);
+  color: var(--av2-ink);
+  animation: av2-rise 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.av2-sheet__handle {
+  width: 40px;
+  height: 5px;
+  margin: 0 auto 18px;
+  border-radius: 3px;
+  background: var(--av2-line-2);
+}
+
+.av2-sheet__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  min-width: 0;
+}
+
+/* A dialog is the same sheet, centred, for a decision that must be answered. */
+.av2-dialog-layer { justify-content: center; padding: var(--av2-gutter); }
+
+.av2-dialog {
+  position: relative;
+  width: 100%;
+  max-width: 26rem;
+  margin: 0 auto;
+  padding: 20px;
+  border-radius: var(--av2-r-vocab);
+  background: var(--av2-paper);
+  animation: av2-pop 0.2s;
+}
+
+.av2-dialog__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+  min-width: 0;
+}
+
+.av2-dialog__actions > * { flex: 1 1 10rem; }
+
+/* ===========================================================================
+   Tab bar — four French tabs. Hidden on the immersive screens.
+   =========================================================================== */
+
+.av2-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  padding: 8px 12px calc(8px + var(--av2-safe-bottom));
+  border-top: 1px solid var(--av2-line);
+  background: var(--av2-card);
+}
+
+.av2-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  min-height: var(--av2-tap);
+  padding: 8px 0 4px;
+  border: 0;
+  background: transparent;
+  color: var(--av2-muted);
+  font-family: inherit;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.av2-tab__pill {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 28px;
+  border-radius: var(--av2-r-pill);
+  background: transparent;
+}
+
+.av2-tab[aria-current='page'] { color: var(--av2-ink); font-weight: 700; }
+.av2-tab[aria-current='page'] .av2-tab__pill { background: var(--av2-line); }
+
+/* ===========================================================================
+   Rows / lists (Feuilleton, Cahier)
+   =========================================================================== */
+
+.av2-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  width: 100%;
+  padding: 12px 14px;
+  border: 0;
+  border-radius: var(--av2-r-card);
+  background: var(--av2-card);
+  color: var(--av2-ink);
+  font-family: inherit;
+  text-align: left;
+  min-height: var(--av2-tap);
+}
+
+button.av2-row, a.av2-row { cursor: pointer; }
+.av2-row__main { flex: 1 1 auto; min-width: 0; }
+
+.av2-row__badge {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  background: var(--av2-ink);
+  color: var(--av2-on-dark);
+}
+
+/* ===========================================================================
+   Empty / loading / error blocks
+   =========================================================================== */
+
+.av2-state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+  padding: 24px 18px;
+  border-radius: var(--av2-r-hero);
+  background: var(--av2-card);
+}
+
+.av2-state__shapes { display: flex; gap: 6px; }
+
+.av2-state[data-tone='error'] { background: var(--av2-tint-wrong); }
+.av2-state[data-tone='empty'] { background: transparent; border: 2px dashed var(--av2-line-2); }
+
+.av2-skeleton {
+  border-radius: var(--av2-r-card);
+  background: linear-gradient(
+    90deg,
+    var(--av2-line) 25%,
+    var(--av2-card) 37%,
+    var(--av2-line) 63%
+  );
+  background-size: 400% 100%;
+  animation: av2-shimmer 1.4s ease infinite;
+}
+
+@keyframes av2-shimmer {
+  from { background-position: 100% 50%; }
+  to { background-position: 0 50%; }
+}
+
+/* ===========================================================================
+   Visually hidden — for the text half of "never colour alone"
+   =========================================================================== */
+
+.av2-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ===========================================================================
+   Narrow viewport. At 320px the gutter and the gap tighten; nothing is
+   allowed to grow a horizontal scrollbar.
+   =========================================================================== */
+
+@media (max-width: 360px) {
+  .av2 {
+    --av2-gutter: 14px;
+    --av2-gap: 10px;
+  }
+  .av2-dialog__actions > * { flex-basis: 100%; }
+}
+
+.av2,
+.av2 * { max-width: 100%; }
+
+.av2 img,
+.av2 svg { max-width: 100%; }
+
+/* ===========================================================================
+   Daily-journey compositions (WP-07 visual).
+
+   Layout only — every colour, radius and press above is already a token. These
+   selectors are all inside `.av2`, so they cannot reach a legacy page.
+   =========================================================================== */
+
+/* The session shell. `--phone-bottom-nav-space` is the existing app shell's
+   own reservation, so the primary action is never behind the tab bar. */
+.av2.journey-shell {
+  display: block;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 0 calc(24px + var(--phone-bottom-nav-space, 0px));
+}
+
+.av2 .av2-screen__body {
+  padding-top: 16px;
+  padding-bottom: 16px;
+  gap: 16px;
+}
+
+/* Session header: close control, then the progress rule. The design's streak
+   slot on the right is deliberately empty — see the note in JourneySession. */
+.av2 .av2-session__head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  padding: 12px var(--av2-gutter) 0;
+}
+
+.av2 .av2-session__head > .av2-progress {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.av2 .av2-step {
+  gap: 14px;
+}
+
+/* Help pills, target chips and the text/voice switch all share one wrapping
+   row. `flex-wrap` plus the global `min-width:0` is what keeps a long
+   translated label from widening the column at 320px / 200% text. */
+.av2 .av2-help__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.av2 .av2-help {
+  gap: 10px;
+}
+
+/* The respond row: the primary fills the line, the microphone sits beside it
+   and drops below rather than squeezing the action when there is no room. */
+.av2 .av2-respond__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.av2 .av2-respond__actions > .av2-btn {
+  flex: 1 1 12rem;
+  width: auto;
+}
+
+.av2 .av2-session__secondary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* The graded card: verdict band, then the one forward action. */
+.av2 .av2-graded {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  padding: 14px 16px;
+  border-radius: var(--av2-r-hero);
+  background: var(--av2-tint-neutral);
+}
+
+.av2 .av2-graded[data-state='correct'],
+.av2 .av2-graded[data-state='supported'] {
+  background: var(--av2-tint-correct);
+}
+
+.av2 .av2-graded[data-state='wrong'] {
+  background: var(--av2-tint-wrong);
+}
+
+/* Recap */
+.av2 .journey-recap {
+  gap: 12px;
+}
+
+.av2 .av2-recap__list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  font-size: var(--av2-t-body);
+  line-height: 1.45;
+}
+
+.av2 .av2-recap__list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.av2 .av2-recap__list .av2-shape {
+  margin-top: 5px;
+}
+
+.av2 .av2-recap__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-width: 0;
+}
+
+.av2 .av2-recap__actions > .av2-btn {
+  flex: 1 1 12rem;
+  width: auto;
+}
+
+/* Today card — the design's episode surface: art flush to the radius, body
+   inset below it. */
+.av2 .journey-today-card__body {
+  padding: 16px 18px 18px;
+  gap: 10px;
+}
+
+.av2 .journey-today-card .av2-btn {
+  margin-top: 4px;
+}
+
+.av2 .journey-legacy {
+  gap: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.av2 .journey-connection {
+  min-width: 0;
+}
+
+@media (max-width: 360px) {
+  .av2 .av2-respond__actions > .av2-btn,
+  .av2 .av2-recap__actions > .av2-btn {
+    flex-basis: 100%;
+  }
+}

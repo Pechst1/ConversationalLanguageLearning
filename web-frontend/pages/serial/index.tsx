@@ -1,71 +1,87 @@
+/* "Le feuilleton" — the season list.
+ *
+ * This screen exists verbatim in the Claude design (Atelier App.dc.html, the
+ * FEUILLETON artboard): kicker, one Garamond italic headline, a blue story hero
+ * for the current episode with a paper-on-blue 3D press, then read episodes as
+ * paper rows with an ink "done" badge.
+ *
+ * Every row is a real server episode. The design also shows a locked "Épisode 4
+ * · demain" row; the API publishes no future episode, so none is drawn — a
+ * padlock for a chapter that may not exist would be a promise the product
+ * cannot keep. */
+
 import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
+import { ArrowRight, Check } from 'lucide-react';
 
 import PhoneProductNav from '@/components/layout/PhoneProductNav';
-import {
-  FeuilletonStyles,
-  FeMastheadBar,
-  FeSectionNav,
-  FeArchivePlate,
-  FeIco,
-} from '@/components/feuilleton/Feuilleton';
-import apiService, { SerialArchiveEpisode } from '@/services/api';
+import { FeuilletonReaderStyles } from '@/components/feuilleton/reader';
+import apiService, { SerialArchiveEpisode, SerialToday } from '@/services/api';
 import { resolveMediaUrl } from '@/lib/media-url';
 
-const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
-const FRENCH_MONTHS = ['janv.', 'févr.', 'mars', 'avril', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+type CurrentEpisode = (SerialToday & Record<string, any>) | null;
 
-function roman(index: number): string {
-  return ROMAN[index] || String(index + 1);
+function episodeNumber(index: number | null | undefined): string {
+  return typeof index === 'number' ? `Épisode ${index + 1}` : 'Épisode';
 }
 
-function frenchDate(iso?: string | null): string {
-  if (!iso) return 'à suivre';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return 'à suivre';
-  return `${d.getDate()} ${FRENCH_MONTHS[d.getMonth()]}`;
-}
-
-function leadChar(episode: SerialArchiveEpisode): string | undefined {
-  const cast = episode.required_cast;
-  if (Array.isArray(cast) && cast.length) return String(cast[0]).toLowerCase();
-  return undefined;
-}
-
-function initial(slug?: string): string {
-  if (!slug) return '·';
-  return slug.charAt(0).toUpperCase();
-}
-
-function pick(payload: Record<string, any> | undefined, keys: string[]): string | undefined {
-  if (!payload) return undefined;
-  for (const key of keys) {
-    const value = payload[key];
+function firstText(...values: unknown[]): string {
+  for (const value of values) {
     if (typeof value === 'string' && value.trim()) return value.trim();
   }
-  return undefined;
+  return '';
 }
 
-export default function SerialArchivePage() {
+/* The route that actually continues the story, built from the server's own
+   thread/episode references. Never a guess. */
+function continueHref(episode: CurrentEpisode): string | null {
+  if (!episode?.thread_id || typeof episode.episode_index !== 'number') return null;
+  const params = new URLSearchParams({
+    serial_thread_id: episode.thread_id,
+    episode_index: String(episode.episode_index),
+  });
+  if (episode.kind === 'mission') {
+    if (episode.mission_id) params.set('mission', episode.mission_id);
+    return `/missions?${params.toString()}`;
+  }
+  if (episode.scene_id) params.set('scene', episode.scene_id);
+  return `/graphic-novel?${params.toString()}`;
+}
+
+function archiveHref(episode: SerialArchiveEpisode): string {
+  if (episode.kind === 'mission' && episode.mission_id) {
+    return `/missions?mission=${encodeURIComponent(episode.mission_id)}`;
+  }
+  if (episode.scene_id) return `/graphic-novel?scene=${encodeURIComponent(episode.scene_id)}`;
+  return `/serial/episode?index=${episode.episode_index}`;
+}
+
+export default function SerialSeasonPage() {
   const [episodes, setEpisodes] = useState<SerialArchiveEpisode[]>([]);
+  const [current, setCurrent] = useState<CurrentEpisode>(null);
+  const [threadId, setThreadId] = useState<string>('');
   const [seasonNumber, setSeasonNumber] = useState(1);
-  const [currentEpisodeIndex, setCurrentEpisodeIndex] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     let alive = true;
     apiService.getSerialEpisodes()
       .then((payload) => {
-        if (alive) {
-          setEpisodes(payload.episodes || []);
-          setSeasonNumber(Number(payload.season_number || 1));
-          setCurrentEpisodeIndex(Number(payload.current_episode_index || 0));
-        }
+        if (!alive) return;
+        setEpisodes(payload.episodes || []);
+        setSeasonNumber(Number(payload.season_number || 1));
+        setCurrent((payload.current_episode as CurrentEpisode) || null);
+        setThreadId(String(payload.thread_id || ''));
       })
       .catch((error) => {
         console.error(error);
-        if (alive) setEpisodes([]);
+        if (alive) {
+          setEpisodes([]);
+          setCurrent(null);
+          setFailed(true);
+        }
       })
       .finally(() => {
         if (alive) setLoading(false);
@@ -75,116 +91,150 @@ export default function SerialArchivePage() {
     };
   }, []);
 
-  const filed = episodes.filter((episode) => episode.completed_at || episode.status === 'completed').length;
-  const total = Math.max(episodes.length, filed);
-  const seasonPct = total ? Math.round((filed / total) * 100) : 0;
+  const filed = episodes.length;
+  // The hero is the current episode only while it is genuinely still open.
+  const heroEpisode: CurrentEpisode =
+    current && current.status !== 'completed'
+      ? { ...current, thread_id: current.thread_id || threadId }
+      : null;
+  const heroHref = continueHref(heroEpisode);
+  const heroArt = resolveMediaUrl(
+    firstText(
+      (heroEpisode as any)?.lead_image_url,
+      (heroEpisode as any)?.thumbnail_url,
+    ),
+  );
+  const heroTitle = firstText(
+    heroEpisode?.hook?.text,
+    heroEpisode?.hook?.teaser,
+    heroEpisode?.brief_payload?.title,
+    heroEpisode?.previously,
+    'La suite de votre histoire vous attend.',
+  );
+  const heroCta = heroEpisode?.kind === 'mission' ? 'Répondre dans Le Courrier' : 'Lire et répondre';
 
   return (
     <>
       <Head>
-        <title>La saison reliée · Le Feuilleton · L’Atelier</title>
+        <title>Le feuilleton · L’Atelier</title>
       </Head>
-      <main className="fe-stage">
-        <div className="fe" aria-label="Le Feuilleton · la saison reliée">
-          <FeMastheadBar />
-          <FeSectionNav active="season" />
-          <div className="fe-body fe-scroll">
-            <div className="fe-arc-head">
-              <div className="kicker">Le Feuilleton · La saison reliée</div>
-              <h2>La saison reliée</h2>
-              <div className="sub">
-                {filed > 0
-                  ? `Saison ${seasonNumber} — ${filed} planche${filed === 1 ? '' : 's'} classée${filed === 1 ? '' : 's'}`
-                  : `Saison ${seasonNumber} · le premier cahier, à peine relié`}
-              </div>
-            </div>
+      <FeuilletonReaderStyles />
+      <main className="fr-page" aria-label="Le feuilleton">
+        <header className="fr-page-head">
+          <div className="k">
+            {loading
+              ? 'Ouverture de la saison…'
+              : `Saison ${seasonNumber} · ${filed} épisode${filed === 1 ? '' : 's'} paru${filed === 1 ? '' : 's'}`}
+          </div>
+          {/* the one Garamond italic headline on this screen */}
+          <h1>Le feuilleton</h1>
+        </header>
 
-            {loading ? (
-              <FeSkelList />
-            ) : episodes.length ? (
-              <>
-                <div className="fe-season-line" aria-hidden="true">
-                  <div className="cap">
-                    <span>Reliure de la saison</span>
-                    <span>{filed} / {total}</span>
-                  </div>
-                  <div className="bar">
-                    <i style={{ width: `${seasonPct}%` }} />
-                  </div>
+        {loading ? (
+          <div className="fr-skeleton" aria-live="polite" aria-busy="true">
+            <span className="fr-sr">Chargement de la saison</span>
+            <i />
+            <i />
+            <i />
+          </div>
+        ) : failed ? (
+          <div className="fr-empty" role="status">
+            <h2>La saison n’a pas pu être ouverte.</h2>
+            <p>La liaison avec la rédaction a échoué. Rien n’est perdu ; réessayez dans un instant.</p>
+            <button
+              type="button"
+              className="fr-btn is-action"
+              data-press="3d"
+              onClick={() => window.location.reload()}
+            >
+              Réessayer <ArrowRight size={16} aria-hidden="true" />
+            </button>
+          </div>
+        ) : (
+          <>
+            {heroEpisode && heroHref && (
+              <section className="fr-hero" aria-label="Épisode en cours">
+                <div className="art">
+                  {heroArt ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={heroArt} alt="" />
+                  ) : (
+                    <span>L’illustration de cet épisode n’est pas encore parue.</span>
+                  )}
                 </div>
+                <div className="body">
+                  <div className="k">
+                    {episodeNumber(heroEpisode.episode_index)} ·{' '}
+                    {heroEpisode.status === 'delayed' ? 'retardé' : "aujourd’hui"}
+                  </div>
+                  <h2>{heroTitle}</h2>
+                  {/* the one tactile 3D press on this screen */}
+                  <Link className="cta" href={heroHref}>
+                    {heroCta} <ArrowRight size={16} aria-hidden="true" />
+                  </Link>
+                </div>
+              </section>
+            )}
 
-                <div className="fe-season">
-                  {episodes.map((episode) => {
-                    const done = Boolean(episode.completed_at) || episode.status === 'completed';
-                    const who = leadChar(episode);
-                    const loc = pick(episode.brief_payload, ['location', 'setting', 'place', 'scene_label'])
-                      || (episode.kind === 'mission' ? 'un acte' : 'une planche');
-                    const choice = pick(episode.brief_payload, ['choice', 'user_choice', 'decision']);
-                    const outcome = pick(episode.brief_payload, ['outcome', 'consequence', 'result']);
-                    const plate = pick(episode.brief_payload, ['plate', 'shot', 'scene_label', 'setting']);
-                    const state: 'filed' | 'current' | 'up' = done
-                      ? 'filed'
-                      : episode.episode_index === currentEpisodeIndex
-                        ? 'current'
-                        : 'up';
+            {episodes.length > 0 ? (
+              <div className="fr-rows">
+                {[...episodes]
+                  .sort((left, right) => right.episode_index - left.episode_index)
+                  .map((episode) => {
+                    const thumb = resolveMediaUrl(episode.thumbnail_url);
+                    const title = firstText(episode.hook_text, episode.title, 'Épisode classé');
                     return (
-                      <FeArchivePlate
-                        key={episode.id}
-                        href={`/serial/episode?index=${episode.episode_index}`}
-                        roman={roman(episode.episode_index)}
-                        title={episode.hook_text || episode.title}
-                        date={frenchDate(episode.completed_at)}
-                        location={loc}
-                        char={who}
-                        ini={initial(who)}
-                        slug={episode.thumbnail_url ? undefined : plate}
-                        thumbnailUrl={resolveMediaUrl(episode.thumbnail_url)}
-                        choice={choice}
-                        outcome={outcome}
-                        state={state}
-                      />
+                      <Link className="fr-row" href={archiveHref(episode)} key={episode.id}>
+                        <span className="thumb">
+                          {thumb ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={thumb} alt="" />
+                          ) : null}
+                        </span>
+                        <span className="meta">
+                          <span className="k">{episodeNumber(episode.episode_index)} · lu</span>
+                          <span className="t">{title}</span>
+                        </span>
+                        <span className="done" aria-hidden="true">
+                          <Check size={14} color="#f8f3e8" strokeWidth={3} />
+                        </span>
+                      </Link>
                     );
                   })}
-                </div>
-
-                <Link className="fe-cast-entry" href="/serial/cast">
-                  <div className="l">
-                    <div className="k">Le registre du théâtre</div>
-                    <div className="t">Les personnages</div>
-                  </div>
-                  {FeIco.arrow}
-                </Link>
-              </>
-            ) : (
-              <div className="fe-arc-empty">
-                <div className="mark" />
-                <h3>Le premier numéro n’est pas encore paru.</h3>
-                <p>Une fois un épisode lu ou un acte joué, il se relie ici — planche par planche, avec votre réplique.</p>
-                <Link className="cta" href="/graphic-novel">
-                  Ouvrir l’épisode 1 {FeIco.arrow}
-                </Link>
               </div>
+            ) : (
+              !heroEpisode && (
+                <div className="fr-empty">
+                  <h2>Le premier numéro n’est pas encore paru.</h2>
+                  <p>
+                    Dès qu’un épisode est lu ou qu’un acte est joué, il se range ici, planche par
+                    planche, avec votre réplique.
+                  </p>
+                  <Link className="fr-btn is-action" data-press="3d" href="/graphic-novel">
+                    Ouvrir le premier épisode <ArrowRight size={16} aria-hidden="true" />
+                  </Link>
+                </div>
+              )
             )}
-          </div>
-        </div>
+
+            <div className="fr-rows">
+              <Link className="fr-row" href="/serial/cast">
+                <span className="thumb" aria-hidden="true" />
+                <span className="meta">
+                  <span className="k">Le registre du théâtre</span>
+                  <span className="t">Les personnages</span>
+                </span>
+                <ArrowRight size={18} aria-hidden="true" />
+              </Link>
+            </div>
+          </>
+        )}
       </main>
       <PhoneProductNav active="feuilleton" />
-      <FeuilletonStyles />
       <style jsx global>{`
-        .fe-stage { min-height: 100vh; background: var(--app-paper); color: var(--app-ink); }
+        body { background: var(--app-paper); }
+        .fr-page { min-height: 100vh; padding-bottom: calc(var(--phone-bottom-nav-space, 88px)); }
       `}</style>
     </>
-  );
-}
-
-function FeSkelList() {
-  return (
-    <div className="fe-skel" aria-hidden="true">
-      <div className="l" style={{ width: '55%', margin: '0 0 12px' }} />
-      <div className="l" style={{ width: '80%', height: 40, marginBottom: 12 }} />
-      <div className="l" style={{ width: '75%', height: 40, marginBottom: 12 }} />
-      <div className="l" style={{ width: '70%', height: 40 }} />
-      <div className="press">— on relie la saison —</div>
-    </div>
   );
 }

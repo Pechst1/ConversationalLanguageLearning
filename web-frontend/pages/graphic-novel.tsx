@@ -24,6 +24,23 @@ import {
   FeFiled,
   type FeDialogueLine,
 } from '@/components/feuilleton/Feuilleton';
+import {
+  FeuilletonReader,
+  FeuilletonReaderStyles,
+  attemptsByTaskId,
+  buildReaderStages,
+  clampStageIndex,
+  emptyReaderPosition,
+  liveTaskId as resolveLiveTaskId,
+  normalizeReaderPosition,
+  readerEpisodeLabel,
+  readerLocation,
+  readerPreviously,
+  readerStorageKey,
+  resolveFurthest,
+  resolveStartIndex,
+  type ReaderStage,
+} from '@/components/feuilleton/reader';
 import { writeLocalDayProgressFlag } from '@/lib/atelier-next';
 import { glossFromMap } from '@/lib/glosses';
 import { panelImageUrl } from '@/lib/graphic-novel-images';
@@ -145,6 +162,15 @@ export default function GraphicNovelPage() {
   const [renderMode, setRenderMode] = useState<RenderMode>('panels');
   const [serialReaderMode, setSerialReaderMode] = useState<'vertical' | 'page'>('vertical');
   const [imageQuality, setImageQuality] = useState<ImageQuality>('medium');
+  // Paged reader position. `stageIndex` is where the learner is; `furthest` is
+  // the deepest point they have reached, which is what lets a revisit be shown
+  // as a revisit instead of guessed at.
+  const [stageIndex, setStageIndex] = useState(0);
+  const [furthestStage, setFurthestStage] = useState(0);
+  const [positionRestoredFor, setPositionRestoredFor] = useState<string | null>(null);
+  // The API answers 409 when the scene the learner is holding has been
+  // superseded by a rebuild. That is a real state, not a failure to hide.
+  const [sceneSuperseded, setSceneSuperseded] = useState(false);
   const autoCreateContextRef = useRef<string | null>(null);
   const routeQuery = useMemo(
     () => (router.isReady ? mergedRouteQuery(router.query, router.asPath) : {}),
@@ -188,6 +214,21 @@ export default function GraphicNovelPage() {
     if (!nextPendingTask?.id) return null;
     return findMobileTaskStop(mobileTaskStops, String(nextPendingTask.id))?.elementId || null;
   }, [mobileTaskStops, nextPendingTask]);
+
+  /* ---- paged reader model -------------------------------------------------
+     Derived from the scene the server sent and nothing else: no fixture, no
+     placeholder panel, no synthesised beat. */
+  const readerStages: ReaderStage[] = useMemo(() => buildReaderStages(scene as any), [scene]);
+  const readerStageKeys = useMemo(() => readerStages.map((entry) => entry.key), [readerStages]);
+  const readerAttempts = useMemo(() => attemptsByTaskId(scene as any), [scene]);
+  const readerLiveTaskId = useMemo(
+    () => resolveLiveTaskId(readerStages, readerAttempts),
+    [readerAttempts, readerStages],
+  );
+  // The illustrated-page render mode composes one printed page; it keeps its own
+  // presentation. Everything else reads as paged panels.
+  const usesPagedReader = readerStages.length > 0 && scene?.script_payload?.render_mode !== 'page';
+  const readerIndex = clampStageIndex(stageIndex, readerStages.length);
 
   const loadInitial = useCallback(async () => {
     setLoading(true);
@@ -288,24 +329,51 @@ export default function GraphicNovelPage() {
     setThreadContext(incomingThreadContext);
   }, [incomingThreadContext, router.isReady]);
 
+  /* Restore the saved draft AND the saved place, once per scene, as soon as the
+     server has told us what the stages are. Identity-first (stage key), so a
+     panel whose art lands late cannot move the learner somewhere else. */
   useEffect(() => {
-    if (!scene?.id || scene.status === 'completed') return;
-    const key = `pilot:reader:${scene.id}`;
-    const saved = readLocalJson<{ answers?: Record<string, string>; scrollY?: number }>(key, {});
-    if (saved.answers) setAnswers((current) => ({ ...saved.answers, ...current }));
-    saveResumeActivity({
-      href: `/graphic-novel?scene=${scene.id}`,
-      kind: 'reader',
-      entityId: scene.id,
-    });
-    window.requestAnimationFrame(() => window.scrollTo({ top: Number(saved.scrollY || 0) }));
-  }, [scene?.id, scene?.status]);
+    if (!scene?.id) return;
+    if (positionRestoredFor === scene.id) return;
+    if (scene.status !== 'completed' && !readerStageKeys.length) return;
+    const saved = scene.status === 'completed'
+      ? emptyReaderPosition()
+      : normalizeReaderPosition(readLocalJson(readerStorageKey(scene.id), {}));
+    if (Object.keys(saved.answers).length) {
+      setAnswers((current) => ({ ...saved.answers, ...current }));
+    }
+    const start = resolveStartIndex(saved, readerStageKeys);
+    setStageIndex(start);
+    setFurthestStage(resolveFurthest(saved, readerStageKeys, start));
+    setPositionRestoredFor(scene.id);
+    if (scene.status !== 'completed') {
+      saveResumeActivity({
+        href: `/graphic-novel?scene=${scene.id}`,
+        kind: 'reader',
+        entityId: scene.id,
+      });
+      window.requestAnimationFrame(() => window.scrollTo({ top: Number(saved.scrollY || 0) }));
+    }
+  }, [positionRestoredFor, readerStageKeys, scene?.id, scene?.status]);
 
   useEffect(() => {
+    if (!scene?.id) return;
+    setPositionRestoredFor((current) => (current === scene.id ? current : null));
+    setSceneSuperseded(false);
+  }, [scene?.id]);
+
+  /* Persist draft + place. Writing on every stage change is what makes the
+     position survive a reload and a round trip into the word-help sheet. */
+  useEffect(() => {
     if (!scene?.id || scene.status === 'completed') return;
-    const persist = () => writeLocalJson(`pilot:reader:${scene.id}`, {
+    if (positionRestoredFor !== scene.id) return;
+    const key = readerStorageKey(scene.id);
+    const persist = () => writeLocalJson(key, {
       answers,
       scrollY: window.scrollY,
+      stageIndex: readerIndex,
+      stageKey: readerStageKeys[readerIndex] ?? null,
+      furthest: furthestStage,
     });
     const onScroll = () => window.requestAnimationFrame(persist);
     persist();
@@ -314,7 +382,12 @@ export default function GraphicNovelPage() {
       window.removeEventListener('scroll', onScroll);
       persist();
     };
-  }, [answers, scene?.id, scene?.status]);
+  }, [answers, furthestStage, positionRestoredFor, readerIndex, readerStageKeys, scene?.id, scene?.status]);
+
+  const onReaderIndexChange = useCallback((next: number) => {
+    setStageIndex(next);
+    setFurthestStage((current) => Math.max(current, next));
+  }, []);
 
   useEffect(() => {
     if (!scene?.id || !sceneNeedsGenerationPolling) return;
@@ -337,11 +410,23 @@ export default function GraphicNovelPage() {
           setGenerationFailure(null);
         }
         setScene(loaded);
-      } catch (error) {
+      } catch (error: any) {
+        // 409 = this scene has been superseded by a rebuild. Say so and stop
+        // polling; never keep spinning on a load that can never succeed, and
+        // never silently swap the learner onto a different episode.
+        if (Number(error?.response?.status || 0) === 409) {
+          cancelled = true;
+          setSceneSuperseded(true);
+          return;
+        }
         console.error(error);
       }
     };
     const timer = window.setInterval(() => {
+      if (cancelled) {
+        window.clearInterval(timer);
+        return;
+      }
       void poll();
     }, scene?.status === 'writing' ? 1500 : 3500);
     return () => {
@@ -531,7 +616,18 @@ export default function GraphicNovelPage() {
       });
       setScene(result.scene);
       setTaskSubmitError(null);
-    } catch {
+    } catch (error: any) {
+      // 409 here means the episode is already closed or has been superseded.
+      // The learner's draft stays on screen; nothing is retried into a second
+      // attempt on a beat that no longer accepts one.
+      if (Number(error?.response?.status || 0) === 409) {
+        setSceneSuperseded(true);
+        setTaskSubmitError({
+          taskId,
+          message: 'Cet épisode a été remplacé ou déjà classé. Votre texte est conservé ; rouvrez l’épisode courant.',
+        });
+        return;
+      }
       setTaskSubmitError({ taskId, message: 'La correction n’a pas pu être transmise. Réessayez.' });
       toast.error('La correction du Feuilleton n’a pas pu être transmise.');
     } finally {
@@ -541,6 +637,9 @@ export default function GraphicNovelPage() {
 
   async function completeScene() {
     if (!scene) return false;
+    // Completion is a mutation, and it happens exactly once. Revisiting a filed
+    // episode reads it; it never files it again.
+    if (scene.status === 'completed' || completing) return false;
     setCompleting(true);
     try {
       const result: GraphicNovelCompleteResult = await apiService.completeGraphicNovelScene(scene.id);
@@ -564,6 +663,7 @@ export default function GraphicNovelPage() {
     <>
       <FeuilletonStyles />
       <SupplementStyles />
+      <FeuilletonReaderStyles />
       <main aria-label="Mode Feuilleton" className={`feuilleton-page ${scene ? 'has-scene' : ''} ${serialReadFirst ? 'is-serial' : ''}`}>
         <div className="fn-spread fn-grid">
           <section className="fn-main">
@@ -637,6 +737,56 @@ export default function GraphicNovelPage() {
               <EditionPreparing failure={generationFailure} onRetry={canonicalBeat ? openCanonicalBeat : () => createScene()} creating={creating} />
             ) : scene && (scene.status === 'writing' || (scene.status === 'generating' && !(scene.panels || []).length)) ? (
               <EditionWriting scene={scene} />
+            ) : scene && usesPagedReader ? (
+              <>
+                <FeuilletonReader
+                  episodeLabel={readerEpisodeLabel(scene as any)}
+                  title={scene.title || 'Le feuilleton'}
+                  location={readerLocation(scene as any)}
+                  previously={readerPreviously(scene as any)}
+                  stages={readerStages}
+                  index={readerIndex}
+                  furthest={furthestStage}
+                  onIndexChange={onReaderIndexChange}
+                  answers={answers}
+                  setAnswer={(taskId, value) => setAnswers((current) => ({ ...current, [taskId]: value }))}
+                  onSubmit={(task) => void submitTask(task as OverlayTask)}
+                  submittingTask={submittingTask}
+                  attemptsByTask={readerAttempts}
+                  submitError={taskSubmitError}
+                  liveTaskId={readerLiveTaskId}
+                  onExit={() => { void router.push('/atelier'); }}
+                  onComplete={scene.status === 'completed' ? null : () => { void completeScene(); }}
+                  completing={completing}
+                  filed={scene.status === 'completed'}
+                  nextHref={feuilletonNextBeat(scene).href}
+                  nextLabel={feuilletonNextBeat(scene).label}
+                  banner={(
+                    <>
+                      {sceneSuperseded && (
+                        <div className="fr-notice is-stale" role="status">
+                          <h2>Cette édition a été remplacée.</h2>
+                          <p>
+                            Votre lecture et vos réponses restent ici. L’épisode courant du feuilleton
+                            peut être rouvert quand vous voulez.
+                          </p>
+                          <button
+                            type="button"
+                            className="fr-btn is-action"
+                            disabled={creating}
+                            onClick={() => void openCanonicalBeat()}
+                          >
+                            {creating ? 'Recherche…' : 'Rouvrir l’épisode courant'}
+                          </button>
+                        </div>
+                      )}
+                      {scene.status === 'generating' && <ReaderArtProgress scene={scene} />}
+                      <ReaderCastLink scene={scene} />
+                    </>
+                  )}
+                />
+                <EpisodeAudioControls scene={scene} />
+              </>
             ) : scene ? (
               <>
                 {scene.status === 'generating' && <EditionArtProgress scene={scene} />}
@@ -724,6 +874,81 @@ export default function GraphicNovelPage() {
       </main>
       <PhoneProductNav active="feuilleton" />
     </>
+  );
+}
+
+/* Where the story goes after this episode — read from the server's own hook, in
+   the reader's visual system. When the payload names no next beat, the reader
+   offers nothing rather than promising a chapter that does not exist. */
+function feuilletonNextBeat(scene: GraphicNovelScene): { href: string | null; label: string } {
+  const hook = scene.hook || scene.script_payload?.hook || scene.recap?.hook || {};
+  const nextIsMission = hook?.next_beat_kind === 'mission';
+  const nextEpisode = typeof scene.episode_index === 'number' ? scene.episode_index + 1 : undefined;
+  if (nextIsMission) {
+    return {
+      href: routeWithQuery('/missions', [
+        ['mission', scene.mission_id || undefined],
+        ['atelier_session_id', scene.atelier_session_id || undefined],
+        ['serial_thread_id', scene.serial_thread_id || undefined],
+        ['episode_index', nextEpisode],
+      ]),
+      label: 'Agir dans Le Courrier',
+    };
+  }
+  if (!scene.serial_thread_id) return { href: null, label: '' };
+  return {
+    href: routeWithQuery('/graphic-novel', [
+      ['serial_thread_id', scene.serial_thread_id],
+      ['episode_index', nextEpisode],
+    ]),
+    label: 'Lire le prochain épisode',
+  };
+}
+
+/* The same real numbers as the legacy notice, in the reader's own surface. */
+function ReaderArtProgress({ scene }: { scene: GraphicNovelScene }) {
+  const panels = scene.panels || [];
+  const ready = panels.filter((panel) => Boolean(panelImageUrl(panel))).length;
+  return (
+    <div className="fr-notice" role="status" aria-live="polite">
+      <p>
+        L’histoire est complète et lisible. Les illustrations s’impriment en arrière-plan —{' '}
+        {ready} sur {panels.length}.
+      </p>
+    </div>
+  );
+}
+
+/* The relationship the learner has actually built with the character in this
+   episode. Best effort: the read never blocks on it, and nothing is shown when
+   the server has no cast for this thread. */
+function ReaderCastLink({ scene }: { scene: GraphicNovelScene }) {
+  const [member, setMember] = useState<SerialCastMember | null>(null);
+  const episodeIndex = typeof scene.episode_index === 'number' ? scene.episode_index : null;
+  useEffect(() => {
+    if (episodeIndex === null) return undefined;
+    let alive = true;
+    apiService.getSerialCast()
+      .then((data) => {
+        if (!alive) return;
+        const inEpisode = (data.cast || []).filter((candidate) =>
+          (candidate.episodes || []).some((episode) => episode.episode_index === episodeIndex));
+        setMember([...inEpisode].sort(
+          (a, b) => Number(b.relationship?.closeness || 0) - Number(a.relationship?.closeness || 0),
+        )[0] || null);
+      })
+      .catch(() => { /* best effort */ });
+    return () => { alive = false; };
+  }, [episodeIndex]);
+  if (!member) return null;
+  const register = String(member.relationship?.register || 'vous').toLowerCase() === 'tu' ? 'tu' : 'vous';
+  return (
+    <div className="fr-tools">
+      <Link className="fr-chip" href="/serial/cast">
+        <span className="sq" aria-hidden="true" />
+        {member.name} · vous vous dites « {register} »
+      </Link>
+    </div>
   );
 }
 

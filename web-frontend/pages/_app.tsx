@@ -18,6 +18,11 @@ import {
 import { installKeyboardFocusGuard, installKeyboardInsets } from '@/lib/journey-lifecycle';
 import { isNativePlatform } from '@/lib/native-platform';
 import '@/styles/globals.css';
+// Atelier V2 design system (WP-01). Next only permits a global stylesheet to be
+// imported from _app, so it is loaded here rather than from the components that
+// use it. Everything in the file is scoped under `.av2` or is an @font-face, so
+// a page that never renders <AtelierV2Root> is unaffected by its presence.
+import '@/styles/atelier-v2.css';
 
 // Create a client
 const queryClient = new QueryClient({
