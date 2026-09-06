@@ -57,8 +57,8 @@ import {
   RecallStepView,
   RespondStepView,
   ResolutionStepView,
-  SceneStepView,
 } from './JourneySteps';
+import { StoryEpisodeStep } from './StoryEpisodeStep';
 import type { DailyJourneyController } from './useDailyJourney';
 
 export type JourneySessionProps = {
@@ -154,11 +154,15 @@ export function JourneySession({ controller, onExit, morePractice }: JourneySess
           {phase.kind === 'session' && step && (
             <>
               {step.kind === 'scene' && (
-                <SceneStepView
+                // Story-engine panels when the engine published them for this
+                // journey; the plain scene prompt otherwise (WP-14E).
+                <StoryEpisodeStep
+                  journeyId={journey?.id ?? ''}
                   step={step}
                   copy={copy}
                   busy={busy}
                   onContinue={actions.continueJourney}
+                  onExit={onExit}
                 />
               )}
               {step.kind === 'recall' && (

@@ -20,6 +20,7 @@
     "test:recovery": "node lib/journey-recovery.test.js",
     "verify:recovery": "node scripts/verify-journey-recovery.js",
     "test:reader": "node --test components/feuilleton/reader/reader.test.js components/feuilleton/reader/reader-render.test.js",
+    "test:story-model": "node --test components/atelier-v2/journey/story-episode-model.test.js",
     "test:api-host": "node --test lib/api-host.test.js"
   },
   "dependencies": {

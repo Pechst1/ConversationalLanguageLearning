@@ -68,8 +68,9 @@ def test_grammar_notebook_uses_same_repair_slip() -> None:
     # In the Cahiers fiche, a concept's errata are filed as proofreader-style
     # ledger rows: the learner's slip struck through, the correction in the
     # margin — split into "à revoir" (due) and "récents" (repaired) sections.
-    assert "grammarErrHtml" in grammar
-    assert "<s>${learner}</s>" in grammar
-    assert 'kick="Errata — à revoir"' in grammar
-    assert 'kick="Errata récents"' in grammar
-    assert "<NcErrRow" in grammar
+    # Claude-design fiche: the same ledger rows on the av2 surface.
+    assert "function ErratumLine" in grammar
+    assert "<s>{learner}</s>" in grammar
+    assert 't="Errata à revoir"' in grammar
+    assert 't="Errata récents"' in grammar
+    assert "<ErratumLine" in grammar

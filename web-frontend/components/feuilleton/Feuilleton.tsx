@@ -789,27 +789,36 @@ export function FeuilletonStyles() {
         display: flex; align-items: center; justify-content: space-between;
         padding: 12px 18px 0; min-height: 44px;
       }
+      /* Ears and section nav in the Claude design's language: sentence case,
+         the settings gear as a round paper disc, and the cross-route nav as the
+         design's segmented pill (the Cahier's "Règles · Mots" control). */
       .fe-ears .ear-badge {
-        border: 1px solid var(--app-ink); background: var(--app-sheet);
-        padding: 5px 8px 4px; font-size: var(--t-label); font-weight: 900;
-        letter-spacing: .14em; text-transform: uppercase; white-space: nowrap;
-        color: var(--app-ink);
+        display: inline-flex; align-items: center; min-height: 32px; padding: 0 12px;
+        border: 0; border-radius: 999px; background: var(--app-sheet);
+        font-family: 'AtelierSans', 'Instrument Sans', system-ui, sans-serif;
+        font-size: var(--t-label); font-weight: 700; letter-spacing: normal; text-transform: none;
+        white-space: nowrap; color: var(--app-ink);
       }
       .fe-ears .ear-gear {
-        width: 44px; height: 44px; margin: -6px -8px 0 0;
+        width: 36px; height: 36px; margin: 0;
+        border-radius: 999px; background: var(--app-sheet);
         display: grid; place-items: center; color: var(--app-ink-2);
       }
       .fe-ears .ear-gear svg { width: 18px; height: 18px; }
 
       /* SECTION NAV — cross-route IA */
       .fe-secnav {
-        display: flex; gap: 18px; padding: 11px 18px; border-bottom: 1px solid var(--app-ink);
-        background: var(--app-sheet);
-        font-size: var(--t-label); font-weight: 900; letter-spacing: .14em; text-transform: uppercase;
+        display: inline-flex; gap: 0; margin: 10px 18px 0; padding: 3px;
+        border: 0; border-radius: 999px; background: var(--app-paper-2);
+        font-family: 'AtelierSans', 'Instrument Sans', system-ui, sans-serif;
+        font-size: var(--t-small); font-weight: 700; letter-spacing: normal; text-transform: none;
       }
-      .fe-secnav a { color: var(--app-ink-3); text-decoration: none; padding-bottom: 2px; border-bottom: 2px solid transparent; }
+      .fe-secnav a {
+        display: inline-flex; align-items: center; height: 30px; padding: 0 13px;
+        border: 0; border-radius: 999px; color: var(--app-ink); text-decoration: none;
+      }
       .fe-secnav a:hover { color: var(--app-ink-2); }
-      .fe-secnav a.active { color: var(--app-ink); border-bottom-color: var(--app-red); }
+      .fe-secnav a.active { color: var(--app-sheet); background: var(--app-ink); }
 
       /* accent scope */
       .fe [data-char='romy'], .fe-embed [data-char='romy'] { --accent: var(--char-romy); }

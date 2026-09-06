@@ -15,16 +15,16 @@ def read_atelier() -> str:
 def test_atelier_renders_today_practice_thread() -> None:
     source = read_atelier()
 
-    # Home screen is the "La Une" front page (components/laune/LaUne.tsx).
+    # Home screen is the Claude-design Home (components/atelier-v2/home).
     assert "function TodayView" in source
-    assert "from '@/components/laune/LaUne'" in source
-    assert "<LaUneStyles" in source
-    assert "<LuMasthead" in source
-    # 2026-08-31 manchette redesign: the lead episode and the séance are the
-    # one-story manchette plus the En bref rows.
-    assert "<LuManchette" in source
-    assert "<LuEnBref" in source
-    assert 'aria-label="Atelier · La Une"' in source
+    assert "from '@/components/atelier-v2/home/HomeScreen'" in source
+    assert "<HomeScreen" in source
+    # 2026-09-06 design 1a: one episode card, one action, three tiles.
+    assert "id: 'seance'" in source
+    assert "id: 'lexique'" in source
+    assert "id: 'errata'" in source
+    home = (ROOT / "web-frontend" / "components" / "atelier-v2" / "home" / "HomeScreen.tsx").read_text(encoding="utf-8")
+    assert 'aria-label="Atelier · La Une"' in home
     assert "STORY_FEATURE_VISIBLE" in source
 
 
@@ -36,7 +36,7 @@ def test_today_thread_hands_context_to_mission_feuilleton_and_hides_story_librar
     assert "serialActionFromToday(today, activeSession)" in source
     assert "const serialKind = serialAction?.episodeKind" in source
     assert "const openStory = storyHref ? () => { void router.push(storyHref); } : null" in source
-    assert "mission={isMissionBeat}" in source
+    assert "isMissionBeat ? `Courrier" in source
     assert "libraryEpisode = STORY_FEATURE_VISIBLE ? (today as any)?.library_episode || null : null" in source
     assert "STORY_FEATURE_VISIBLE && libraryEpisode && (" in source
 

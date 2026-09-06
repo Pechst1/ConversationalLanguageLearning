@@ -55,6 +55,8 @@ export type ActionProps = {
   inline?: boolean;
   /** Leading shape or icon. Decorative — never the only carrier of meaning. */
   icon?: React.ReactNode;
+  /** Trailing icon — the design's "Continuer →" arrow sits after the label. */
+  iconAfter?: React.ReactNode;
   children: React.ReactNode;
 } & Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'children'>;
 
@@ -66,6 +68,7 @@ export const Action = forwardRef<HTMLButtonElement, ActionProps>(function Action
     disabled = false,
     inline = false,
     icon,
+    iconAfter,
     children,
     className,
     type = 'button',
@@ -102,6 +105,7 @@ export const Action = forwardRef<HTMLButtonElement, ActionProps>(function Action
         icon ?? null
       )}
       <span>{pending ? pendingLabel ?? children : children}</span>
+      {!pending && iconAfter ? iconAfter : null}
     </button>
   );
 });

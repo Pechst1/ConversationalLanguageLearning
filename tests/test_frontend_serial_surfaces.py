@@ -18,15 +18,18 @@ def test_serial_archive_cast_and_replay_pages_are_wired() -> None:
     api = read_web("services/api.ts")
 
     assert "apiService.getSerialEpisodes()" in archive
-    # "Le Feuilleton" supplement reskin: the archive is the bound season.
-    assert "La saison reliée" in archive
-    assert "FeArchivePlate" in archive
-    assert "FeSectionNav" in archive
+    # Claude-design Feuilleton index: one headline, a story hero, paper rows,
+    # the generated (story-engine) episodes, and the cast register row.
+    assert "Le feuilleton" in archive
+    assert "fr-row" in archive
+    assert "getStoryEpisodes()" in archive
+    assert "Les personnages" in archive
     assert "href=\"/serial/cast\"" in archive
     assert "apiService.getSerialCast()" in cast
     assert "apiService.setSerialAvatar" in cast
     assert "Rester en POV" in cast
-    assert "FeCastCard" in cast
+    # Claude-design cast register: one card per member on the av2 surface.
+    assert "CastCard" in cast
     assert "model_sheet_url" in cast
     assert "relationship.closeness" in cast
     assert "apiService.getGraphicNovelScene" in replay
@@ -162,9 +165,8 @@ def test_product_direction_surfaces_are_wired() -> None:
     redirects = read_web("next.config.js")
     bibliotheque = read_web("pages/bibliotheque.tsx")
 
-    # Le cours is an En bref row since the manchette redesign; the full block
-    # lives in Le Relevé.
-    assert "<LuEnBref" in atelier
+    # The Errata tile leads to Le Relevé; the full block lives there.
+    assert "<HomeScreen" in atelier
     assert "href: '/notebook?mode=releve'" in atelier
     assert "estimatedRemainingMinutes" in atelier
     assert "CrTranslate" in missions or "translate={translateFrame}" in missions

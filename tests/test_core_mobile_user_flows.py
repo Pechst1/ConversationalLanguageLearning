@@ -91,7 +91,7 @@ def test_phone_shell_keeps_the_primary_product_modes_simple_and_reachable() -> N
     assert "storedNotebookMode" in notebook
     assert "notebookModeFromQuery" in notebook
     assert "router.push(" in notebook
-    assert "<NcModeTabs" in notebook
+    assert "<NotebookModeTabs" in notebook
     assert "<GrammarNotebookSurface embedded />" in notebook
     assert "<VocabularyPage embedded />" in notebook
     assert "api.getCefrProgress()" in notebook

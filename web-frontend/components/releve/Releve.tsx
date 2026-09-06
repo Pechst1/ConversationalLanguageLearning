@@ -13,20 +13,24 @@
  *   La Collection  GET /achievements/my          (unlocked only)
  *                  GET /atelier/almanac          (minted collectibles for THIS user)
  *
- * Primitives, tokens and phone-shell scoping come from components/cahiers/Cahiers.tsx;
- * the styles below only add the `--rv-*`-free derived rules the ledger needs, all
- * built on `--app-*` / `--nc-*` custom properties (no hex, both themes).
+ * Presentation is the Atelier V2 design system: the design has no artboard for
+ * this ledger, so it is extended from the Cahier's primitives — section heads,
+ * rounded card surfaces, the blue progress rule, the four shape tokens — and
+ * every rule lives in components/cahiers/CahierV2.tsx as `.av2 .nb-*`. Tokens
+ * only, both themes.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
-  NcColophon,
-  NcCoverageTrack,
-  NcEmpty,
-  NcLedgerHead,
-  NcNotice,
-  NcSkeleton,
-} from '@/components/cahiers/Cahiers';
+  Action,
+  Notice,
+  ProgressRule,
+  ShapeToken,
+  Skeleton,
+  StateBlock,
+  Surface,
+} from '@/components/atelier-v2/ui';
+import { NbSectionHead } from '@/components/cahiers/CahierV2';
 import api, {
   type AtelierAlmanac,
   type CEFRProgress,
@@ -82,7 +86,8 @@ const ACHIEVEMENT_COPY: Record<string, { title: string; note: string }> = {
   review_champion: { title: 'Mille reprises', note: 'Mille reprises de vocabulaire classées.' },
 };
 
-const TIER_CLASS: Record<string, string> = { gold: 'or', silver: 'argent', bronze: 'bronze' };
+/* The tier is printed as a word beside the reward token — never colour alone. */
+const TIER_LABEL: Record<string, string> = { gold: 'or', silver: 'argent', bronze: 'bronze' };
 
 /* ---------- helpers ---------- */
 
@@ -112,11 +117,19 @@ function frenchDate(value: string | null | undefined) {
 
 function Line({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rv-line">
-      <span className="l">{label}</span>
-      <span className="lead" aria-hidden="true" />
-      <span className={'n' + (value === '0' ? ' zero' : '')}>{value}</span>
+    <div className="nb-line">
+      <span className="nb-line__l">{label}</span>
+      <span className="nb-line__n" data-zero={value === '0' ? 'true' : undefined}>{value}</span>
     </div>
+  );
+}
+
+function ArchiveNotice({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <Notice tone="alert" live="alert" shape="action">
+      <p><strong>Avis du bureau des archives</strong> — {message}</p>
+      <Action tone="secondary" inline onClick={onRetry}>Réessayer</Action>
+    </Notice>
   );
 }
 
@@ -236,47 +249,45 @@ export default function Releve() {
 
   if (loading) {
     return (
-      <div className="rv">
-        <div className="rv-skel" role="status" aria-label="Le relevé sort de presse">
-          <NcSkeleton rows={4} />
-        </div>
+      <div className="nb-rv" aria-busy="true">
+        <Skeleton height={120} radius={16} />
+        <Skeleton height={160} radius={16} />
+        <Skeleton height={120} radius={16} />
+        <span className="av2-sr" role="status">Le relevé sort de presse</span>
       </div>
     );
   }
 
   if (everythingFailed) {
     return (
-      <div className="rv">
-        <NcNotice
-          label="Avis du bureau des archives"
-          message="Le relevé n’a pas pu être tiré. Vos chiffres restent au bureau, rien n’est perdu."
-          onRetry={() => void load()}
+      <div className="nb-rv">
+        <StateBlock
+          tone="error"
+          title="Le relevé n’a pas pu être tiré"
+          body="Vos chiffres restent au bureau, rien n’est perdu."
+          action={{ label: 'Réessayer', onSelect: () => void load() }}
         />
       </div>
     );
   }
 
   return (
-    <div className="rv">
+    <div className="nb-rv">
       {/* ---- Le Cours ---- */}
-      <section className="rv-sec" aria-label="Le cours">
+      <section className="nb-rv__sec" aria-label="Le cours">
         {/* The level is the headline below; repeating it in the head would be
             the same number printed twice. */}
-        <NcLedgerHead t="Le cours" n={null} />
+        <NbSectionHead t="Le cours" n={null} />
         {failed.cefr || !cefr ? (
-          <NcNotice
-            label="Avis du bureau des archives"
-            message="Le niveau n’a pas pu être relevé."
-            onRetry={() => void load()}
-          />
+          <ArchiveNotice message="Le niveau n’a pas pu être relevé." onRetry={() => void load()} />
         ) : (
-          <div className="rv-cours">
-            <p className="rv-level">
+          <Surface>
+            <p className="av2-headline av2-headline--display">
               {declared || !forecastAvailable || !nextLevel
                 ? cefr.estimate
                 : `${cefr.estimate} → ${nextLevel}`}
             </p>
-            <p className="rv-status">
+            <p className="av2-body nb-rv__status">
               {declared
                 ? 'Niveau que vous avez indiqué. L’Atelier le vérifie au fil des séances.'
                 : forecastAvailable && forecastDays
@@ -286,29 +297,33 @@ export default function Releve() {
             {/* Gauges count what the Atelier has verified. Against a level it has
                 not tested they would read as "vous savez 0 mot", so they wait. */}
             {!declared && (coursWords[1] > 0 || coursRules[1] > 0) && (
-              <div className="rv-tracks">
-                {coursWords[1] > 0 && <NcCoverageTrack lab="Mots" val={coursWords[0]} max={coursWords[1]} />}
+              <div className="nb-rv__tracks">
+                {coursWords[1] > 0 && (
+                  <div className="nb-rv__track">
+                    <span>Mots</span>
+                    <ProgressRule value={coursWords[0]} max={coursWords[1]} label="Mots vérifiés" caption={`${coursWords[0]} / ${coursWords[1]}`} />
+                  </div>
+                )}
                 {coursRules[1] > 0 && (
-                  <NcCoverageTrack lab="Règles" val={coursRules[0]} max={coursRules[1]} tone="ink" />
+                  <div className="nb-rv__track">
+                    <span>Règles</span>
+                    <ProgressRule value={coursRules[0]} max={coursRules[1]} label="Règles vérifiées" caption={`${coursRules[0]} / ${coursRules[1]}`} />
+                  </div>
                 )}
               </div>
             )}
-          </div>
+          </Surface>
         )}
       </section>
 
       {/* ---- Le Registre ---- */}
-      <section className="rv-sec" aria-label="Le registre">
-        <NcLedgerHead t="Le registre" n={null} />
+      <section className="nb-rv__sec" aria-label="Le registre">
+        <NbSectionHead t="Le registre" n={null} />
         {failed.stats && failed.grammar ? (
-          <NcNotice
-            label="Avis du bureau des archives"
-            message="Le registre n’a pas pu être ouvert."
-            onRetry={() => void load()}
-          />
+          <ArchiveNotice message="Le registre n’a pas pu être ouvert." onRetry={() => void load()} />
         ) : (
-          <>
-            <div className="rv-lines">
+          <Surface className="nb-sec">
+            <div className="nb-lines">
               {stats ? (
                 <>
                   <Line label="Mots acquis" value={String(stats.words_mastered)} />
@@ -316,7 +331,7 @@ export default function Releve() {
                   <Line label="Mots à revoir aujourd’hui" value={String(stats.reviews_due_today)} />
                 </>
               ) : (
-                <p className="rv-gap">Le compte des mots n’a pas suivi cette fois-ci.</p>
+                <p className="nb-gap">Le compte des mots n’a pas suivi cette fois-ci.</p>
               )}
               {grammar ? (
                 <>
@@ -327,13 +342,13 @@ export default function Releve() {
                   <Line label="Règles à revoir aujourd’hui" value={String(grammar.due_today)} />
                 </>
               ) : (
-                <p className="rv-gap">Le compte des règles n’a pas suivi cette fois-ci.</p>
+                <p className="nb-gap">Le compte des règles n’a pas suivi cette fois-ci.</p>
               )}
             </div>
             {grammarBar.length > 0 && (
               <>
                 <div
-                  className="rv-bar"
+                  className="nb-bar"
                   role="img"
                   aria-label={
                     'Règles : ' + grammarBar.map((state) => `${state.n} ${state.label}`).join(', ')
@@ -342,67 +357,64 @@ export default function Releve() {
                   {grammarBar.map((state) => (
                     <i
                       key={state.key}
-                      className={state.tone}
+                      data-tone={state.tone}
                       style={{ width: (100 * state.n) / Math.max(1, grammarStarted) + '%' }}
                     />
                   ))}
                 </div>
-                <div className="rv-legend">
+                <div className="nb-legend">
                   {grammarBar.map((state) => (
                     <span key={state.key}>
-                      <i className={state.tone} aria-hidden="true" />
+                      <i data-tone={state.tone} aria-hidden="true" />
                       {state.n} {state.label}
                     </span>
                   ))}
                 </div>
               </>
             )}
-          </>
+          </Surface>
         )}
       </section>
 
       {/* ---- La Collection ---- */}
-      <section className="rv-sec" aria-label="La collection">
-        <NcLedgerHead
+      <section className="nb-rv__sec" aria-label="La collection">
+        <NbSectionHead
           t="La collection"
           n={collectionPieces > 0 ? `${collectionPieces} pièce${collectionPieces > 1 ? 's' : ''}` : null}
         />
         {failed.collection ? (
-          <NcNotice
-            label="Avis du bureau des archives"
-            message="La collection n’a pas pu être sortie de sa boîte."
-            onRetry={() => void load()}
-          />
+          <ArchiveNotice message="La collection n’a pas pu être sortie de sa boîte." onRetry={() => void load()} />
         ) : collectionPieces === 0 ? (
-          <NcEmpty
+          <StateBlock
+            tone="empty"
             title="Rien d’accroché encore"
             body="La collection commence avec la première édition bouclée."
           />
         ) : (
-          <>
+          <Surface className="nb-sec">
             {unlocked.length > 0 && (
-              <div className="rv-pieces">
+              <div className="nb-lines">
                 {unlocked.map((item) => {
                   const copy = ACHIEVEMENT_COPY[item.achievement_key];
                   const date = frenchDate(item.unlocked_at);
+                  const tier = TIER_LABEL[item.tier] || null;
                   return (
-                    <div className="rv-piece" key={item.achievement_id}>
-                      <span
-                        className={'rv-seal ' + (TIER_CLASS[item.tier] || '')}
-                        aria-hidden="true"
-                      />
-                      <span>
-                        <b>{copy?.title || 'Distinction de l’Atelier'}</b>
-                        <em>{copy?.note || 'Décernée au fil des séances.'}</em>
+                    <div className="nb-piece" key={item.achievement_id}>
+                      <ShapeToken kind="reward" size="sm" />
+                      <span className="nb-piece__main">
+                        <span className="nb-piece__t">{copy?.title || 'Distinction de l’Atelier'}</span>
+                        <span className="nb-piece__m">
+                          {copy?.note || 'Décernée au fil des séances.'}{tier ? ` · ${tier}` : ''}
+                        </span>
                       </span>
-                      {date && <span className="d">{date}</span>}
+                      {date && <span className="nb-piece__d">{date}</span>}
                     </div>
                   );
                 })}
               </div>
             )}
             {collectibleLines.length > 0 && (
-              <div className="rv-lines">
+              <div className="nb-lines">
                 {collectibleLines.map((row) => (
                   <Line
                     key={row.kind}
@@ -412,71 +424,11 @@ export default function Releve() {
                 ))}
               </div>
             )}
-          </>
+          </Surface>
         )}
       </section>
 
-      <NcColophon text={stamp ? `Le Relevé · arrêté au ${stamp}` : 'Le Relevé · vos chiffres, rien d’autre'} />
-      <ReleveStyles />
+      <p className="nb-foot">{stamp ? `Le Relevé · arrêté au ${stamp}` : 'Le Relevé · vos chiffres, rien d’autre'}</p>
     </div>
-  );
-}
-
-/* ============================================================
-   Styles — `.rv` lives inside the Cahier's `.nc` shell, so it
-   inherits both the global --app-* tokens and the derived
-   --nc-hair / --nc-fragile values. No hex, no local palette.
-   ============================================================ */
-export function ReleveStyles() {
-  return (
-    <style jsx global>{`
-      .nc .rv { min-width: 0; }
-      .nc .rv-skel { min-height: 240px; }
-      .nc .rv-sec { margin-top: 2px; }
-
-      /* ---- Le Cours ---- */
-      .nc .rv-cours { margin-top: 12px; border: 1.5px solid var(--app-ink); background: var(--app-sheet); padding: 13px 14px 14px; }
-      .nc .rv-level { margin: 0; font-family: var(--app-serif); font-style: italic; font-weight: 600; font-size: var(--t-display); line-height: .95; color: var(--app-ink); overflow-wrap: anywhere; }
-      .nc .rv-status { margin: 7px 0 0; font-size: var(--t-small); line-height: 1.4; color: var(--app-ink-2); }
-      .nc .rv-tracks { margin-top: 11px; padding-top: 5px; border-top: 1px solid var(--nc-hair); }
-      /* Density: the section heads are the only kicker-level labels on this
-         surface (three, one per viewport band). The gauge labels drop to plain
-         sentence case so they stop competing with them. */
-      .nc .rv-tracks .nc-track .lab { text-transform: none; letter-spacing: .01em; font-weight: 600; font-size: var(--t-small); color: var(--app-ink-2); }
-
-      /* ---- ledger lines (dotted leaders, tabular figures) ---- */
-      .nc .rv-lines { margin-top: 10px; }
-      .nc .rv-line { display: grid; grid-template-columns: auto minmax(10px, 1fr) auto; gap: 9px; align-items: baseline; padding: 9px 0; border-bottom: 1px solid var(--nc-hair); }
-      .nc .rv-line:last-child { border-bottom: 0; }
-      .nc .rv-line .l { font-size: var(--t-small); line-height: 1.3; color: var(--app-ink-2); }
-      .nc .rv-line .lead { height: 1px; align-self: center; background-image: radial-gradient(circle, var(--app-ink-3) 34%, transparent 40%); background-size: 5px 2px; background-repeat: repeat-x; background-position: 0 50%; }
-      .nc .rv-line .n { font-family: var(--app-serif); font-style: italic; font-weight: 700; font-size: var(--t-lead); line-height: 1; color: var(--app-ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
-      .nc .rv-line .n.zero { color: var(--app-ink-3); }
-      .nc .rv-gap { margin: 9px 0 0; font-family: var(--app-serif); font-style: italic; font-size: var(--t-small); line-height: 1.4; color: var(--app-ink-3); }
-
-      /* ---- one token-coloured bar for the rule states ---- */
-      .nc .rv-bar { margin-top: 13px; display: flex; height: 9px; border: 1px solid var(--app-ink); background: var(--app-paper-2); overflow: hidden; }
-      .nc .rv-bar i { display: block; height: 100%; min-width: 2px; }
-      .nc .rv-bar i.new, .nc .rv-legend i.new { background: var(--app-paper-3); }
-      .nc .rv-bar i.fragile, .nc .rv-legend i.fragile { background: var(--nc-fragile); }
-      .nc .rv-bar i.building, .nc .rv-legend i.building { background: var(--app-yellow); }
-      .nc .rv-bar i.solid, .nc .rv-legend i.solid { background: var(--app-blue); }
-      .nc .rv-bar i.mastered, .nc .rv-legend i.mastered { background: var(--app-ink); }
-      .nc .rv-legend { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 5px 13px; font-size: var(--t-small); color: var(--app-ink-3); }
-      .nc .rv-legend span { display: inline-flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
-      .nc .rv-legend i { width: 9px; height: 9px; border: 1px solid var(--app-ink); background: var(--app-paper-2); flex: 0 0 auto; }
-
-      /* ---- La Collection ---- */
-      .nc .rv-pieces { margin-top: 10px; }
-      .nc .rv-piece { display: grid; grid-template-columns: 12px minmax(0, 1fr) auto; gap: 11px; align-items: baseline; padding: 10px 0; border-bottom: 1px solid var(--nc-hair); }
-      .nc .rv-piece:last-child { border-bottom: 0; }
-      .nc .rv-seal { width: 11px; height: 11px; align-self: center; border: 1px solid var(--app-ink); background: var(--app-paper-2); }
-      .nc .rv-seal.or { background: var(--app-yellow); }
-      .nc .rv-seal.argent { background: var(--app-paper-3); }
-      .nc .rv-seal.bronze { background: var(--app-red); }
-      .nc .rv-piece b { display: block; font-family: var(--app-serif); font-style: italic; font-weight: 600; font-size: var(--t-body); line-height: 1.15; color: var(--app-ink); overflow-wrap: anywhere; }
-      .nc .rv-piece em { display: block; margin-top: 3px; font-style: normal; font-size: var(--t-small); line-height: 1.35; color: var(--app-ink-3); }
-      .nc .rv-piece .d { font-size: var(--t-small); color: var(--app-ink-3); white-space: nowrap; font-variant-numeric: tabular-nums; }
-    `}</style>
   );
 }

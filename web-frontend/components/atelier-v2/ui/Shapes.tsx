@@ -137,6 +137,27 @@ export const ArrowRightIcon = (p: IconProps) => (
   </Icon>
 );
 
+export const ArrowLeftIcon = (p: IconProps) => (
+  <Icon {...p} stroke={2.8}>
+    <path d="M20 12H5M11 6l-6 6 6 6" />
+  </Icon>
+);
+
+/** The settings affordance: the design's thin 1.8px gear. */
+export const GearIcon = (p: IconProps) => (
+  <Icon {...p} stroke={1.8}>
+    <circle cx="12" cy="12" r="3.2" />
+    <path d="M12 2.8v3M12 18.2v3M2.8 12h3M18.2 12h3M5.5 5.5l2.1 2.1M16.4 16.4l2.1 2.1M18.5 5.5l-2.1 2.1M7.6 16.4l-2.1 2.1" />
+  </Icon>
+);
+
+/**
+ * The in-flight token: a small square that pops while a request runs. The
+ * same mark `Action` uses, exposed so a composition outside `Action` (the
+ * reader's own buttons) shows the same thing.
+ */
+export const SpinnerToken = () => <span className="av2-btn__spinner" aria-hidden="true" />;
+
 export const MicIcon = (p: IconProps) => (
   <Icon {...p}>
     <rect x="9" y="3" width="6" height="11" rx="3" />

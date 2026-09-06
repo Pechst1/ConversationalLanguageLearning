@@ -34,7 +34,7 @@ def test_mots_du_jour_component_uses_tokens_and_triple_stamps() -> None:
         assert stamp in source
     assert "Le Lexique" in source
     assert "Triplé" in source
-    assert "var(--app-serif)" in source
+    assert "var(--av2-serif)" in source
     assert "if (words.length === 0) return null" in source
 
 

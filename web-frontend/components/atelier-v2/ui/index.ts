@@ -12,10 +12,13 @@ export type { AtelierV2RootProps } from './AtelierV2Root';
 export {
   AtelierMark,
   ShapeToken,
+  ArrowLeftIcon,
   ArrowRightIcon,
   CheckIcon,
   CrossIcon,
+  GearIcon,
   LockIcon,
+  SpinnerToken,
   MicIcon,
   PendingIcon,
   RepairIcon,

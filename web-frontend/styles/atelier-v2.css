@@ -176,7 +176,8 @@
   --av2-t-rule: 1.1875rem;    /* 19px — rule-card headline (serif) */
   --av2-t-option: 1.25rem;    /* 20px — choice option (serif) */
   --av2-t-title: 1.5rem;      /* 24px — card headline (serif) */
-  --av2-t-head: 1.875rem;     /* 30px — the one headline per screen (serif) */
+  --av2-t-head: 1.875rem;     /* 30px — the Séance prompt (serif) */
+  --av2-t-screen: 2rem;       /* 32px — the one headline per screen (serif) */
   --av2-t-display: 2.125rem;  /* 34px — date / masthead display (serif) */
 
   /* -- Layout ------------------------------------------------------------ */
@@ -308,7 +309,7 @@
 
 .av2 {
   font-family: var(--av2-sans);
-  font-weight: 500;
+  font-weight: 400;
   color: var(--av2-ink);
   background: var(--av2-paper);
   min-width: 0;
@@ -361,7 +362,7 @@
    Screen scaffold
    =========================================================================== */
 
-.av2-screen {
+.av2 .av2-screen {
   display: flex;
   flex-direction: column;
   min-height: 100%;
@@ -369,7 +370,7 @@
   background: var(--av2-paper);
 }
 
-.av2-screen__body {
+.av2 .av2-screen__body {
   flex: 1 1 auto;
   min-height: 0;
   min-width: 0;
@@ -379,7 +380,7 @@
   padding: 0 var(--av2-gutter);
 }
 
-.av2-screen__foot {
+.av2 .av2-screen__foot {
   flex: none;
   padding: 14px var(--av2-gutter) calc(14px + var(--av2-safe-bottom));
   border-top: 1px solid var(--av2-line);
@@ -387,7 +388,7 @@
   transition: background 0.2s;
 }
 
-.av2-stack {
+.av2 .av2-stack {
   display: flex;
   flex-direction: column;
   gap: var(--av2-gap);
@@ -399,7 +400,7 @@
    =========================================================================== */
 
 /* The one Garamond-italic headline per screen. */
-.av2-headline {
+.av2 .av2-headline {
   margin: 0;
   font-family: var(--av2-serif);
   font-style: italic;
@@ -411,20 +412,21 @@
   overflow-wrap: anywhere;
 }
 
-.av2-headline--display { font-size: var(--av2-t-display); line-height: 1.05; }
-.av2-headline--title { font-size: var(--av2-t-title); line-height: 1.1; font-weight: 600; }
-.av2-headline--rule { font-size: var(--av2-t-rule); line-height: 1.15; }
+.av2 .av2-headline--screen { font-size: var(--av2-t-screen); line-height: 1; }
+.av2 .av2-headline--display { font-size: var(--av2-t-display); line-height: 1.05; }
+.av2 .av2-headline--title { font-size: var(--av2-t-title); line-height: 1.1; font-weight: 600; }
+.av2 .av2-headline--rule { font-size: var(--av2-t-rule); line-height: 1.15; }
 
 /* French content is Garamond italic too — that is the second half of "two
    fonts only", not a third voice. */
-.av2-fr {
+.av2 .av2-fr {
   font-family: var(--av2-serif);
   font-style: italic;
   line-height: 1.35;
   overflow-wrap: anywhere;
 }
 
-.av2-label {
+.av2 .av2-label {
   margin: 0;
   font-size: var(--av2-t-meta);
   font-weight: 700;
@@ -433,25 +435,25 @@
   overflow-wrap: anywhere;
 }
 
-.av2-label--story { color: var(--av2-blue); }
-.av2-label--action { color: var(--av2-red); }
+.av2 .av2-label--story { color: var(--av2-blue); }
+.av2 .av2-label--action { color: var(--av2-red); }
 
-.av2-body {
+.av2 .av2-body {
   margin: 0;
   font-size: var(--av2-t-label);
-  font-weight: 500;
+  font-weight: 400;
   line-height: 1.45;
   color: var(--av2-ink-2);
   overflow-wrap: anywhere;
 }
 
-.av2-body--lg { font-size: var(--av2-t-body); }
+.av2 .av2-body--lg { font-size: var(--av2-t-body); }
 
 /* ===========================================================================
    Surfaces
    =========================================================================== */
 
-.av2-surface {
+.av2 .av2-surface {
   background: var(--av2-card);
   border-radius: var(--av2-r-card);
   padding: 16px 18px;
@@ -459,31 +461,31 @@
   color: var(--av2-ink);
 }
 
-.av2-surface--tile { border-radius: var(--av2-r-tile); padding: 12px 14px; }
-.av2-surface--episode { border-radius: var(--av2-r-episode); padding: 0; overflow: hidden; }
-.av2-surface--hero { border-radius: var(--av2-r-hero); padding: 0; overflow: hidden; }
-.av2-surface--flush { padding: 0; overflow: hidden; }
+.av2 .av2-surface--tile { border-radius: var(--av2-r-tile); padding: 12px 14px; }
+.av2 .av2-surface--episode { border-radius: var(--av2-r-episode); padding: 0; overflow: hidden; }
+.av2 .av2-surface--hero { border-radius: var(--av2-r-hero); padding: 0; overflow: hidden; }
+.av2 .av2-surface--flush { padding: 0; overflow: hidden; }
 
-.av2-surface--blue { background: var(--av2-blue); color: var(--av2-on-blue); }
-.av2-surface--ink { background: var(--av2-ink); color: var(--av2-on-ink); }
-.av2-surface--red { background: var(--av2-red); color: var(--av2-on-red); }
-.av2-surface--reward { background: var(--av2-yellow); color: var(--av2-on-yellow); }
+.av2 .av2-surface--blue { background: var(--av2-blue); color: var(--av2-on-blue); }
+.av2 .av2-surface--ink { background: var(--av2-ink); color: var(--av2-on-ink); }
+.av2 .av2-surface--red { background: var(--av2-red); color: var(--av2-on-red); }
+.av2 .av2-surface--reward { background: var(--av2-yellow); color: var(--av2-on-yellow); }
 
-.av2-surface--blue .av2-headline,
-.av2-surface--ink .av2-headline,
-.av2-surface--red .av2-headline,
-.av2-surface--blue .av2-label,
-.av2-surface--ink .av2-label,
-.av2-surface--red .av2-label,
-.av2-surface--blue .av2-body,
-.av2-surface--ink .av2-body,
-.av2-surface--red .av2-body {
+.av2 .av2-surface--blue .av2-headline,
+.av2 .av2-surface--ink .av2-headline,
+.av2 .av2-surface--red .av2-headline,
+.av2 .av2-surface--blue .av2-label,
+.av2 .av2-surface--ink .av2-label,
+.av2 .av2-surface--red .av2-label,
+.av2 .av2-surface--blue .av2-body,
+.av2 .av2-surface--ink .av2-body,
+.av2 .av2-surface--red .av2-body {
   color: inherit;
 }
 
 /* An outlined surface is the "nothing here yet / locked" state. Dashed rather
    than tinted, so it never reads as an available action. */
-.av2-surface--outline {
+.av2 .av2-surface--outline {
   background: transparent;
   border: 2px dashed var(--av2-line-2);
   color: var(--av2-muted);
@@ -493,7 +495,7 @@
    The Bauhaus shape vocabulary — progress tokens, path nodes, tab icons.
    =========================================================================== */
 
-.av2-shape {
+.av2 .av2-shape {
   display: inline-block;
   flex: none;
   width: 12px;
@@ -501,25 +503,25 @@
   background: currentColor;
 }
 
-.av2-shape--square { border-radius: 2px; color: var(--av2-ink); }
-.av2-shape--circle { border-radius: 999px; color: var(--av2-blue); }
-.av2-shape--reward { border-radius: 3px; color: var(--av2-yellow); }
-.av2-shape--triangle {
+.av2 .av2-shape--square { border-radius: 2px; color: var(--av2-ink); }
+.av2 .av2-shape--circle { border-radius: 999px; color: var(--av2-blue); }
+.av2 .av2-shape--reward { border-radius: 3px; color: var(--av2-yellow); }
+.av2 .av2-shape--triangle {
   border-radius: 0;
   color: var(--av2-red);
   clip-path: polygon(50% 0, 100% 100%, 0 100%);
 }
-.av2-shape--dot { border-radius: 999px; }
-.av2-shape--sm { width: 8px; height: 8px; }
-.av2-shape--lg { width: 16px; height: 16px; border-radius: 4px; }
+.av2 .av2-shape--dot { border-radius: 999px; }
+.av2 .av2-shape--sm { width: 8px; height: 8px; }
+.av2 .av2-shape--lg { width: 16px; height: 16px; border-radius: 4px; }
 
-.av2-mark { display: block; flex: none; }
+.av2 .av2-mark { display: block; flex: none; }
 
 /* ===========================================================================
    Chips / pills
    =========================================================================== */
 
-.av2-chip {
+.av2 .av2-chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -537,13 +539,13 @@
   overflow-wrap: anywhere;
 }
 
-.av2-chip--reward { background: var(--av2-yellow); color: var(--av2-on-yellow); }
-.av2-chip--story { background: var(--av2-blue); color: var(--av2-on-blue); }
-.av2-chip--quiet { background: transparent; color: var(--av2-muted); }
+.av2 .av2-chip--reward { background: var(--av2-yellow); color: var(--av2-on-yellow); }
+.av2 .av2-chip--story { background: var(--av2-blue); color: var(--av2-on-blue); }
+.av2 .av2-chip--quiet { background: transparent; color: var(--av2-muted); }
 
 /* An interactive chip is still a control: it gets the tap floor. */
-button.av2-chip,
-a.av2-chip {
+.av2 button.av2-chip,
+.av2 a.av2-chip {
   min-height: var(--av2-tap);
   cursor: pointer;
 }
@@ -552,7 +554,7 @@ a.av2-chip {
    Buttons — the tactile 3D press
    =========================================================================== */
 
-.av2-btn {
+.av2 .av2-btn {
   --av2-btn-face: var(--av2-card);
   --av2-btn-fg: var(--av2-ink);
   --av2-btn-shadow: var(--av2-line-2);
@@ -586,37 +588,37 @@ a.av2-chip {
   max-width: 100%;
 }
 
-.av2-btn:not(:disabled):not([aria-disabled='true']):active {
+.av2 .av2-btn:not(:disabled):not([aria-disabled='true']):active {
   transform: translateY(var(--av2-btn-depth));
   box-shadow: 0 0 0 transparent;
 }
 
-.av2-btn--primary {
+.av2 .av2-btn--primary {
   --av2-btn-face: var(--av2-red);
   --av2-btn-fg: var(--av2-on-red);
   --av2-btn-shadow: var(--av2-red-deep);
 }
 
-.av2-btn--done {
+.av2 .av2-btn--done {
   --av2-btn-face: var(--av2-ink);
   --av2-btn-fg: var(--av2-on-ink);
   --av2-btn-shadow: var(--av2-ink-deep);
 }
 
-.av2-btn--story {
+.av2 .av2-btn--story {
   --av2-btn-face: var(--av2-blue);
   --av2-btn-fg: var(--av2-on-blue);
   --av2-btn-shadow: var(--av2-blue-deep);
 }
 
-.av2-btn--reward {
+.av2 .av2-btn--reward {
   --av2-btn-face: var(--av2-yellow);
   --av2-btn-fg: var(--av2-on-yellow);
   --av2-btn-shadow: var(--av2-yellow-deep);
 }
 
 /* Secondary = paper face on the paper ground, shallower press. */
-.av2-btn--secondary {
+.av2 .av2-btn--secondary {
   --av2-btn-face: var(--av2-card);
   --av2-btn-fg: var(--av2-ink);
   --av2-btn-shadow: var(--av2-line-2);
@@ -626,7 +628,7 @@ a.av2-chip {
 
 /* Quiet = no face, no press. For the third-tier actions (help, stop here) that
    must exist but must never compete with the one primary. */
-.av2-btn--quiet {
+.av2 .av2-btn--quiet {
   --av2-btn-face: transparent;
   --av2-btn-fg: var(--av2-ink-2);
   --av2-btn-shadow: transparent;
@@ -639,20 +641,20 @@ a.av2-chip {
   text-underline-offset: 3px;
 }
 
-.av2-btn--inline { width: auto; }
+.av2 .av2-btn--inline { width: auto; }
 
 /* A disabled control keeps its label fully legible — dim the *face*, never the
    text. `opacity` on the whole button is what makes disabled states unreadable. */
-.av2-btn:disabled,
-.av2-btn[aria-disabled='true'] {
+.av2 .av2-btn:disabled,
+.av2 .av2-btn[aria-disabled='true'] {
   cursor: not-allowed;
   box-shadow: 0 var(--av2-btn-depth) 0 var(--av2-line);
   background: var(--av2-line);
   color: var(--av2-ink-2);
 }
 
-.av2-btn--quiet:disabled,
-.av2-btn--quiet[aria-disabled='true'] {
+.av2 .av2-btn--quiet:disabled,
+.av2 .av2-btn--quiet[aria-disabled='true'] {
   background: transparent;
   box-shadow: none;
   color: var(--av2-muted);
@@ -660,13 +662,13 @@ a.av2-chip {
 
 /* Pending: the press is spent, the label says so, and a shape token spins only
    when motion is allowed. Status is never colour alone. */
-.av2-btn[data-pending='true'] {
+.av2 .av2-btn[data-pending='true'] {
   cursor: progress;
   transform: translateY(var(--av2-btn-depth));
   box-shadow: 0 0 0 transparent;
 }
 
-.av2-btn__spinner {
+.av2 .av2-btn__spinner {
   flex: none;
   width: 14px;
   height: 14px;
@@ -676,7 +678,7 @@ a.av2-chip {
 }
 
 /* Icon-only action. 44px floor, round, same press. */
-.av2-icon-btn {
+.av2 .av2-icon-btn {
   display: inline-grid;
   place-items: center;
   flex: none;
@@ -691,25 +693,25 @@ a.av2-chip {
   transition: transform var(--av2-press-dur), box-shadow var(--av2-press-dur);
 }
 
-.av2-icon-btn--pressable { box-shadow: 0 var(--av2-press-md) 0 var(--av2-line-2); }
-.av2-icon-btn--pressable:not(:disabled):active {
+.av2 .av2-icon-btn--pressable { box-shadow: 0 var(--av2-press-md) 0 var(--av2-line-2); }
+.av2 .av2-icon-btn--pressable:not(:disabled):active {
   transform: translateY(var(--av2-press-md));
   box-shadow: 0 0 0 transparent;
 }
 
-.av2-icon-btn--action {
+.av2 .av2-icon-btn--action {
   background: var(--av2-red);
   color: #fff;
   box-shadow: 0 var(--av2-press-md) 0 var(--av2-red-deep);
 }
 
-.av2-icon-btn--recording {
+.av2 .av2-icon-btn--recording {
   background: var(--av2-ink);
   color: var(--av2-on-dark);
   box-shadow: 0 var(--av2-press-md) 0 var(--av2-ink-deep);
 }
 
-.av2-icon-btn:disabled {
+.av2 .av2-icon-btn:disabled {
   cursor: not-allowed;
   background: var(--av2-line);
   color: var(--av2-ink-2);
@@ -720,14 +722,14 @@ a.av2-chip {
    Progress — blue fill on a line track (design: 14px tall, radius 7)
    =========================================================================== */
 
-.av2-progress {
+.av2 .av2-progress {
   display: flex;
   align-items: center;
   gap: 10px;
   min-width: 0;
 }
 
-.av2-progress__track {
+.av2 .av2-progress__track {
   flex: 1 1 auto;
   min-width: 0;
   height: 14px;
@@ -736,7 +738,7 @@ a.av2-chip {
   overflow: hidden;
 }
 
-.av2-progress__fill {
+.av2 .av2-progress__fill {
   height: 100%;
   border-radius: 7px;
   background: var(--av2-blue);
@@ -746,14 +748,14 @@ a.av2-chip {
 /* The segmented variant — one shape token per planned step. This is the
    design's `vocabDots` row, and it is what carries "3 of 5" without a
    fabricated counter: there are exactly as many segments as real plan steps. */
-.av2-progress__segments {
+.av2 .av2-progress__segments {
   display: flex;
   flex: 1 1 auto;
   gap: 5px;
   min-width: 0;
 }
 
-.av2-progress__segment {
+.av2 .av2-progress__segment {
   flex: 1 1 0;
   min-width: 4px;
   height: 14px;
@@ -762,11 +764,11 @@ a.av2-chip {
   transition: background 0.3s;
 }
 
-.av2-progress__segment[data-state='done'] { background: var(--av2-ink); }
-.av2-progress__segment[data-state='active'] { background: var(--av2-blue); }
-.av2-progress__segment[data-state='skipped'] { background: var(--av2-line-2); }
+.av2 .av2-progress__segment[data-state='done'] { background: var(--av2-ink); }
+.av2 .av2-progress__segment[data-state='active'] { background: var(--av2-blue); }
+.av2 .av2-progress__segment[data-state='skipped'] { background: var(--av2-line-2); }
 
-.av2-progress__count {
+.av2 .av2-progress__count {
   flex: none;
   font-size: var(--av2-t-label);
   font-weight: 700;
@@ -777,7 +779,7 @@ a.av2-chip {
    Choice cards — the design's option buttons, with every real state
    =========================================================================== */
 
-.av2-choices {
+.av2 .av2-choices {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -787,7 +789,7 @@ a.av2-chip {
   min-width: 0;
 }
 
-.av2-choice {
+.av2 .av2-choice {
   --av2-choice-face: var(--av2-card);
   --av2-choice-edge: var(--av2-line-2);
   --av2-choice-fg: var(--av2-ink);
@@ -817,24 +819,24 @@ a.av2-chip {
   overflow-wrap: anywhere;
 }
 
-.av2-choice:not(:disabled):active {
+.av2 .av2-choice:not(:disabled):active {
   transform: translateY(var(--av2-press-sm));
   box-shadow: 0 0 0 transparent;
 }
 
-.av2-choice[data-state='selected'] {
+.av2 .av2-choice[data-state='selected'] {
   --av2-choice-edge: var(--av2-blue);
   --av2-choice-dot: var(--av2-blue);
 }
 
-.av2-choice[data-state='correct'] {
+.av2 .av2-choice[data-state='correct'] {
   --av2-choice-face: var(--av2-green);
   --av2-choice-edge: var(--av2-green-deep);
   --av2-choice-fg: var(--av2-on-green);
   --av2-choice-dot: var(--av2-on-green);
 }
 
-.av2-choice[data-state='wrong'] {
+.av2 .av2-choice[data-state='wrong'] {
   --av2-choice-face: var(--av2-red);
   --av2-choice-edge: var(--av2-red-deep);
   --av2-choice-fg: var(--av2-on-red);
@@ -842,13 +844,13 @@ a.av2-chip {
 }
 
 /* Answered options must stay readable after they are disabled. No opacity. */
-.av2-choice:disabled {
+.av2 .av2-choice:disabled {
   cursor: default;
   color: var(--av2-choice-fg);
   opacity: 1;
 }
 
-.av2-choice__dot {
+.av2 .av2-choice__dot {
   flex: none;
   width: 22px;
   height: 22px;
@@ -863,9 +865,9 @@ a.av2-chip {
    Word tiles — the word-bank recall task
    =========================================================================== */
 
-.av2-tiles { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.av2 .av2-tiles { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 
-.av2-tiles__line {
+.av2 .av2-tiles__line {
   margin: 0;
   min-height: max(var(--av2-tap), 3.25rem);
   display: flex;
@@ -883,11 +885,11 @@ a.av2-chip {
   overflow-wrap: anywhere;
 }
 
-.av2-tiles__line[data-empty='true'] { color: var(--av2-muted); }
+.av2 .av2-tiles__line[data-empty='true'] { color: var(--av2-muted); }
 
-.av2-tiles__bank { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; }
+.av2 .av2-tiles__bank { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; }
 
-.av2-tile {
+.av2 .av2-tile {
   display: inline-flex;
   align-items: center;
   min-height: var(--av2-tap);
@@ -907,31 +909,31 @@ a.av2-chip {
   max-width: 100%;
 }
 
-.av2-tile:not(:disabled):active {
+.av2 .av2-tile:not(:disabled):active {
   transform: translateY(var(--av2-press-sm));
   box-shadow: 0 0 0 transparent;
 }
 
-.av2-tile[data-state='placed'] {
+.av2 .av2-tile[data-state='placed'] {
   border-color: var(--av2-blue);
   box-shadow: 0 var(--av2-press-sm) 0 var(--av2-blue);
 }
 
-.av2-tile:disabled { cursor: default; opacity: 1; color: var(--av2-ink); }
+.av2 .av2-tile:disabled { cursor: default; opacity: 1; color: var(--av2-ink); }
 
 /* ===========================================================================
    Fields
    =========================================================================== */
 
-.av2-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.av2 .av2-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 
-.av2-field__label {
+.av2 .av2-field__label {
   font-size: var(--av2-t-meta);
   font-weight: 700;
   color: var(--av2-muted);
 }
 
-.av2-field__control {
+.av2 .av2-field__control {
   width: 100%;
   min-height: 3rem;
   padding: 0.75rem 1rem;
@@ -945,20 +947,20 @@ a.av2-chip {
   resize: vertical;
 }
 
-.av2-field__control::placeholder { color: var(--av2-muted); }
-.av2-field__control:focus { border-color: var(--av2-blue); }
-.av2-field__control:disabled { opacity: 1; color: var(--av2-ink-2); }
-.av2-field__control[aria-invalid='true'] { border-color: var(--av2-red); }
+.av2 .av2-field__control::placeholder { color: var(--av2-muted); }
+.av2 .av2-field__control:focus { border-color: var(--av2-blue); }
+.av2 .av2-field__control:disabled { opacity: 1; color: var(--av2-ink-2); }
+.av2 .av2-field__control[aria-invalid='true'] { border-color: var(--av2-red); }
 
 /* The chat-style composer well (Missions). */
-.av2-composer { display: flex; align-items: flex-end; gap: 8px; min-width: 0; }
-.av2-composer .av2-field { flex: 1 1 auto; }
+.av2 .av2-composer { display: flex; align-items: flex-end; gap: 8px; min-width: 0; }
+.av2 .av2-composer .av2-field { flex: 1 1 auto; }
 
 /* ===========================================================================
    Feedback band
    =========================================================================== */
 
-.av2-feedback {
+.av2 .av2-feedback {
   display: flex;
   align-items: flex-start;
   gap: 10px;
@@ -966,7 +968,7 @@ a.av2-chip {
   animation: av2-pop 0.3s;
 }
 
-.av2-feedback__icon {
+.av2 .av2-feedback__icon {
   flex: none;
   display: grid;
   place-items: center;
@@ -977,7 +979,7 @@ a.av2-chip {
   color: var(--av2-on-dark);
 }
 
-.av2-feedback__title {
+.av2 .av2-feedback__title {
   margin: 0;
   font-family: var(--av2-serif);
   font-style: italic;
@@ -987,7 +989,7 @@ a.av2-chip {
   overflow-wrap: anywhere;
 }
 
-.av2-feedback__sub {
+.av2 .av2-feedback__sub {
   margin: 3px 0 0;
   font-size: var(--av2-t-label);
   line-height: 1.4;
@@ -995,18 +997,18 @@ a.av2-chip {
   overflow-wrap: anywhere;
 }
 
-.av2-feedback[data-tone='correct'] .av2-feedback__icon { background: var(--av2-green); }
-.av2-feedback[data-tone='correct'] .av2-feedback__title { color: var(--av2-green); }
-.av2-feedback[data-tone='supported'] .av2-feedback__icon { background: var(--av2-blue); }
-.av2-feedback[data-tone='supported'] .av2-feedback__title { color: var(--av2-blue); }
-.av2-feedback[data-tone='wrong'] .av2-feedback__icon { background: var(--av2-red); }
-.av2-feedback[data-tone='wrong'] .av2-feedback__title { color: var(--av2-red-deep); }
+.av2 .av2-feedback[data-tone='correct'] .av2-feedback__icon { background: var(--av2-green); }
+.av2 .av2-feedback[data-tone='correct'] .av2-feedback__title { color: var(--av2-green); }
+.av2 .av2-feedback[data-tone='supported'] .av2-feedback__icon { background: var(--av2-blue); }
+.av2 .av2-feedback[data-tone='supported'] .av2-feedback__title { color: var(--av2-blue); }
+.av2 .av2-feedback[data-tone='wrong'] .av2-feedback__icon { background: var(--av2-red); }
+.av2 .av2-feedback[data-tone='wrong'] .av2-feedback__title { color: var(--av2-red-deep); }
 
-.av2-screen__foot[data-tone='correct'] { background: var(--av2-tint-correct); }
-.av2-screen__foot[data-tone='wrong'] { background: var(--av2-tint-wrong); }
+.av2 .av2-screen__foot[data-tone='correct'] { background: var(--av2-tint-correct); }
+.av2 .av2-screen__foot[data-tone='wrong'] { background: var(--av2-tint-wrong); }
 
 /* A correction is one line, under the verdict, never a second headline. */
-.av2-correction {
+.av2 .av2-correction {
   margin: 10px 0 0;
   padding: 10px 12px;
   border-radius: var(--av2-r-card);
@@ -1017,15 +1019,15 @@ a.av2-chip {
   min-width: 0;
 }
 
-.av2-correction__span { text-decoration: line-through; }
-.av2-correction__fix { font-family: var(--av2-serif); font-style: italic; color: var(--av2-green); }
+.av2 .av2-correction__span { text-decoration: line-through; }
+.av2 .av2-correction__fix { font-family: var(--av2-serif); font-style: italic; color: var(--av2-green); }
 
 /* ===========================================================================
    Notices — connection, retry, reconciled, unscored, error.
    Never a verdict: no tint, no tick, always a shape + text.
    =========================================================================== */
 
-.av2-notice {
+.av2 .av2-notice {
   display: flex;
   align-items: flex-start;
   gap: 10px;
@@ -1038,18 +1040,18 @@ a.av2-chip {
   line-height: 1.45;
 }
 
-.av2-notice__body { min-width: 0; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
-.av2-notice p { margin: 0; }
-.av2-notice__mark { flex: none; margin-top: 3px; }
+.av2 .av2-notice__body { min-width: 0; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.av2 .av2-notice p { margin: 0; }
+.av2 .av2-notice__mark { flex: none; margin-top: 3px; }
 
-.av2-notice[data-tone='alert'] { background: var(--av2-tint-wrong); color: var(--av2-ink); }
-.av2-notice[data-tone='quiet'] { background: transparent; border: 2px dashed var(--av2-line-2); }
+.av2 .av2-notice[data-tone='alert'] { background: var(--av2-tint-wrong); color: var(--av2-ink); }
+.av2 .av2-notice[data-tone='quiet'] { background: transparent; border: 2px dashed var(--av2-line-2); }
 
 /* ===========================================================================
    Artwork — decoration that degrades to a shape, never to a broken icon
    =========================================================================== */
 
-.av2-art {
+.av2 .av2-art {
   display: block;
   width: 100%;
   aspect-ratio: 16 / 9;
@@ -1058,7 +1060,7 @@ a.av2-chip {
   min-width: 0;
 }
 
-.av2-art__fallback {
+.av2 .av2-art__fallback {
   display: grid;
   place-items: center;
   width: 100%;
@@ -1075,7 +1077,7 @@ a.av2-chip {
    Character portrait — keyed to the serial world bible's --char-* tokens
    =========================================================================== */
 
-.av2-portrait {
+.av2 .av2-portrait {
   flex: none;
   display: grid;
   place-items: center;
@@ -1091,15 +1093,15 @@ a.av2-chip {
   line-height: 1;
 }
 
-.av2-portrait--sm { width: 22px; height: 22px; font-size: var(--av2-t-meta); }
+.av2 .av2-portrait--sm { width: 22px; height: 22px; font-size: var(--av2-t-meta); }
 
-.av2-byline { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.av2 .av2-byline { display: flex; align-items: center; gap: 8px; min-width: 0; }
 
 /* ===========================================================================
    Chat bubbles (Missions)
    =========================================================================== */
 
-.av2-bubble {
+.av2 .av2-bubble {
   align-self: flex-start;
   max-width: 86%;
   padding: 14px 16px;
@@ -1111,7 +1113,7 @@ a.av2-chip {
   overflow-wrap: anywhere;
 }
 
-.av2-bubble--mine {
+.av2 .av2-bubble--mine {
   align-self: flex-end;
   border-radius: 20px 20px 6px 20px;
   background: var(--av2-blue);
@@ -1122,7 +1124,7 @@ a.av2-chip {
    Bottom sheet — one handle, scrim, title scale and safe-area rhythm
    =========================================================================== */
 
-.av2-sheet-layer {
+.av2 .av2-sheet-layer {
   position: fixed;
   inset: 0;
   z-index: 60;
@@ -1131,7 +1133,7 @@ a.av2-chip {
   justify-content: flex-end;
 }
 
-.av2-sheet__scrim {
+.av2 .av2-sheet__scrim {
   position: absolute;
   inset: 0;
   border: 0;
@@ -1141,7 +1143,7 @@ a.av2-chip {
   animation: av2-fade 0.2s;
 }
 
-.av2-sheet {
+.av2 .av2-sheet {
   position: relative;
   max-height: 88vh;
   overflow: auto;
@@ -1152,7 +1154,7 @@ a.av2-chip {
   animation: av2-rise 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-.av2-sheet__handle {
+.av2 .av2-sheet__handle {
   width: 40px;
   height: 5px;
   margin: 0 auto 18px;
@@ -1160,7 +1162,7 @@ a.av2-chip {
   background: var(--av2-line-2);
 }
 
-.av2-sheet__head {
+.av2 .av2-sheet__head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -1170,9 +1172,9 @@ a.av2-chip {
 }
 
 /* A dialog is the same sheet, centred, for a decision that must be answered. */
-.av2-dialog-layer { justify-content: center; padding: var(--av2-gutter); }
+.av2 .av2-dialog-layer { justify-content: center; padding: var(--av2-gutter); }
 
-.av2-dialog {
+.av2 .av2-dialog {
   position: relative;
   width: 100%;
   max-width: 26rem;
@@ -1183,7 +1185,7 @@ a.av2-chip {
   animation: av2-pop 0.2s;
 }
 
-.av2-dialog__actions {
+.av2 .av2-dialog__actions {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
@@ -1191,13 +1193,13 @@ a.av2-chip {
   min-width: 0;
 }
 
-.av2-dialog__actions > * { flex: 1 1 10rem; }
+.av2 .av2-dialog__actions > * { flex: 1 1 10rem; }
 
 /* ===========================================================================
    Tab bar — four French tabs. Hidden on the immersive screens.
    =========================================================================== */
 
-.av2-tabs {
+.av2 .av2-tabs {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   padding: 8px 12px calc(8px + var(--av2-safe-bottom));
@@ -1205,7 +1207,7 @@ a.av2-chip {
   background: var(--av2-card);
 }
 
-.av2-tab {
+.av2 .av2-tab {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1224,7 +1226,7 @@ a.av2-chip {
   overflow-wrap: anywhere;
 }
 
-.av2-tab__pill {
+.av2 .av2-tab__pill {
   display: grid;
   place-items: center;
   width: 44px;
@@ -1233,14 +1235,14 @@ a.av2-chip {
   background: transparent;
 }
 
-.av2-tab[aria-current='page'] { color: var(--av2-ink); font-weight: 700; }
-.av2-tab[aria-current='page'] .av2-tab__pill { background: var(--av2-line); }
+.av2 .av2-tab[aria-current='page'] { color: var(--av2-ink); font-weight: 700; }
+.av2 .av2-tab[aria-current='page'] .av2-tab__pill { background: var(--av2-line); }
 
 /* ===========================================================================
    Rows / lists (Feuilleton, Cahier)
    =========================================================================== */
 
-.av2-row {
+.av2 .av2-row {
   display: flex;
   align-items: center;
   gap: 14px;
@@ -1256,10 +1258,10 @@ a.av2-chip {
   min-height: var(--av2-tap);
 }
 
-button.av2-row, a.av2-row { cursor: pointer; }
-.av2-row__main { flex: 1 1 auto; min-width: 0; }
+.av2 button.av2-row, .av2 a.av2-row { cursor: pointer; }
+.av2 .av2-row__main { flex: 1 1 auto; min-width: 0; }
 
-.av2-row__badge {
+.av2 .av2-row__badge {
   flex: none;
   display: grid;
   place-items: center;
@@ -1274,7 +1276,7 @@ button.av2-row, a.av2-row { cursor: pointer; }
    Empty / loading / error blocks
    =========================================================================== */
 
-.av2-state {
+.av2 .av2-state {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -1285,12 +1287,12 @@ button.av2-row, a.av2-row { cursor: pointer; }
   background: var(--av2-card);
 }
 
-.av2-state__shapes { display: flex; gap: 6px; }
+.av2 .av2-state__shapes { display: flex; gap: 6px; }
 
-.av2-state[data-tone='error'] { background: var(--av2-tint-wrong); }
-.av2-state[data-tone='empty'] { background: transparent; border: 2px dashed var(--av2-line-2); }
+.av2 .av2-state[data-tone='error'] { background: var(--av2-tint-wrong); }
+.av2 .av2-state[data-tone='empty'] { background: transparent; border: 2px dashed var(--av2-line-2); }
 
-.av2-skeleton {
+.av2 .av2-skeleton {
   border-radius: var(--av2-r-card);
   background: linear-gradient(
     90deg,
@@ -1311,7 +1313,7 @@ button.av2-row, a.av2-row { cursor: pointer; }
    Visually hidden — for the text half of "never colour alone"
    =========================================================================== */
 
-.av2-sr {
+.av2 .av2-sr {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -1334,7 +1336,7 @@ button.av2-row, a.av2-row { cursor: pointer; }
     --av2-gutter: 14px;
     --av2-gap: 10px;
   }
-  .av2-dialog__actions > * { flex-basis: 100%; }
+  .av2 .av2-dialog__actions > * { flex-basis: 100%; }
 }
 
 .av2,
@@ -1509,3 +1511,246 @@ button.av2-row, a.av2-row { cursor: pointer; }
     flex-basis: 100%;
   }
 }
+
+/* ===========================================================================
+   Home — the design's HOME artboard (direction 1a, "La Une, allégée").
+   Masthead row, one episode card, one 3D-press action, three tiles, one
+   italic colophon line. Every value is read from the artboard.
+   =========================================================================== */
+
+.av2.av2-home {
+  display: block;
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 0 calc(16px + var(--phone-bottom-nav-space, 0px));
+}
+
+.av2 .av2-home__mast {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  padding: calc(18px + env(safe-area-inset-top, 0px)) var(--av2-gutter) 0;
+}
+
+.av2 .av2-home__mast-main { min-width: 0; }
+.av2 .av2-home__kicker { margin: 14px 0 0; font-size: var(--av2-t-label); font-weight: 600; color: var(--av2-muted); }
+.av2 .av2-home__date { margin: 3px 0 0; }
+
+/* The streak slot. Rendered only from a real count; otherwise the gear alone. */
+.av2 .av2-home__streak {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  min-height: var(--av2-tap);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--av2-ink);
+  font-family: inherit;
+  text-align: right;
+  cursor: pointer;
+}
+.av2 .av2-home__streak-n {
+  font-family: var(--av2-serif);
+  font-style: italic;
+  font-weight: 600;
+  font-size: 2.875rem; /* 46px */
+  line-height: 0.9;
+}
+.av2 .av2-home__streak-l { font-size: var(--av2-t-meta); font-weight: 700; color: var(--av2-muted); }
+
+.av2 .av2-home__section { padding: 14px var(--av2-gutter) 0; min-width: 0; }
+.av2 .av2-home__section--first { padding-top: 20px; }
+
+/* The episode card is one tap target. */
+.av2 .av2-home__episode {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--av2-r-episode);
+  background: var(--av2-card);
+  color: var(--av2-ink);
+  font-family: inherit;
+  text-align: left;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform var(--av2-press-dur);
+}
+.av2 button.av2-home__episode:not(:disabled):active { transform: scale(0.985); }
+.av2 .av2-home__episode-body { padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.av2 .av2-home__episode-body .av2-byline { margin-top: 4px; }
+.av2 .av2-home__episode-body .av2-byline .av2-label { color: var(--av2-ink-2); font-weight: 400; font-size: var(--av2-t-label); }
+
+/* Three tiles: Séance · Lexique · Errata */
+.av2 .av2-home__tiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  padding: 18px var(--av2-gutter) 0;
+  min-width: 0;
+}
+
+.av2 .av2-day-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  min-height: var(--av2-tap);
+  padding: 14px 12px 12px;
+  border: 0;
+  border-radius: var(--av2-r-tile);
+  background: var(--av2-card);
+  color: var(--av2-ink);
+  font-family: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform var(--av2-press-dur);
+}
+.av2 .av2-day-tile:not(:disabled):active { transform: scale(0.96); }
+.av2 .av2-day-tile:disabled { cursor: not-allowed; }
+.av2 .av2-day-tile[data-state='done'] { color: var(--av2-muted); }
+
+.av2 .av2-day-tile__mark {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  background: var(--av2-yellow);
+  color: var(--av2-on-ink);
+}
+.av2 .av2-day-tile__mark--story { border-radius: 999px; background: var(--av2-blue); }
+.av2 .av2-day-tile__mark--done { background: var(--av2-ink); }
+
+.av2 .av2-day-tile__title {
+  margin: 0;
+  font-family: var(--av2-serif);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 1.0625rem; /* 17px */
+  line-height: 1;
+  color: var(--av2-ink);
+}
+.av2 .av2-day-tile__meta { margin: 4px 0 0; font-size: var(--av2-t-meta); font-weight: 400; color: var(--av2-muted); line-height: 1.3; }
+.av2 .av2-day-tile__bars { display: flex; gap: 3px; width: 100%; margin-top: auto; }
+.av2 .av2-day-tile__bars i { flex: 1 1 0; height: 4px; border-radius: 2px; background: var(--av2-line); }
+.av2 .av2-day-tile__bars i[data-on='story'] { background: var(--av2-blue); }
+.av2 .av2-day-tile__bars i[data-on='reward'] { background: var(--av2-yellow); }
+.av2 .av2-day-tile__bars i[data-on='done'] { background: var(--av2-ink); }
+
+/* Colophon: "Demain — l’imparfait, épisode 4." */
+.av2 .av2-home__foot {
+  margin: 22px var(--av2-gutter) 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--av2-line-2);
+  text-align: center;
+  font-family: var(--av2-serif);
+  font-style: italic;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  color: var(--av2-muted);
+}
+.av2 .av2-home__foot a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+
+@media (max-width: 360px) {
+  .av2 .av2-home__tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .av2 .av2-day-tile { padding: 12px 10px 10px; }
+}
+
+/* ===========================================================================
+   App shell — the tab bar as the design draws it. `PhoneProductNav` carries
+   the `av2` class itself so the tokens resolve on every page, legacy or not.
+   =========================================================================== */
+
+.av2.av2-tabbar {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  min-height: var(--phone-bottom-nav-space, 0px);
+  padding: 8px 12px calc(8px + var(--phone-safe-bottom-space, env(safe-area-inset-bottom, 0px)));
+  border-top: 1px solid var(--av2-line);
+  background: var(--av2-card);
+}
+.av2.av2-tabbar.fixed {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 70;
+  display: none;
+}
+.av2.av2-tabbar.embedded { display: grid; flex: 0 0 auto; }
+@media (max-width: 760px) {
+  .av2.av2-tabbar.fixed { display: grid; }
+}
+
+.av2 .av2-tabbar__tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  min-width: 0;
+  min-height: var(--av2-tap);
+  padding: 8px 0 4px;
+  color: var(--av2-muted);
+  font-family: var(--av2-sans);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: normal;
+  text-transform: none;
+  text-decoration: none;
+}
+.av2 .av2-tabbar__tab span:last-child { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.av2 .av2-tabbar__tab[aria-current='page'] { color: var(--av2-ink); font-weight: 700; }
+.av2 .av2-tabbar__tab .av2-tab__pill { color: inherit; }
+.av2 .av2-tabbar__tab[aria-current='page'] .av2-tab__pill { background: var(--av2-line); }
+
+.av2 .av2-day-tile__mark--action {
+  border-radius: 0;
+  background: var(--av2-red);
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+.av2 .av2-home__mast-main > .av2-mark { display: block; }
+.av2 a.av2-icon-btn { text-decoration: none; }
+.av2 .av2-home__note { margin: 10px 0 0; }
+.av2 .av2-home__section > a.av2-btn--quiet { margin-top: 2px; }
+.av2 .av2-home__quote { margin: 6px 0; }
+
+/* ===========================================================================
+   Form controls under the system. globals.css forces every input/select/
+   textarea into a square 1px ink box with `!important`; inside `.av2` the
+   design's rounded card well wins, with the blue focus edge and no glow.
+   =========================================================================== */
+.av2 input,
+.av2 select,
+.av2 textarea {
+  border-radius: var(--av2-r-card) !important;
+  border: 2px solid transparent !important;
+  box-shadow: none !important;
+  background-color: var(--av2-card);
+}
+.av2 input:focus,
+.av2 select:focus,
+.av2 textarea:focus,
+.av2 input:focus-visible,
+.av2 select:focus-visible,
+.av2 textarea:focus-visible {
+  box-shadow: none !important;
+  outline: 0;
+  border-color: var(--av2-blue) !important;
+}
+.av2 input[aria-invalid='true'],
+.av2 textarea[aria-invalid='true'] { border-color: var(--av2-red) !important; }
+.av2 input[type='checkbox'],
+.av2 input[type='radio'],
+.av2 input[type='range'] { border: 0 !important; border-radius: 0 !important; background-color: transparent; }

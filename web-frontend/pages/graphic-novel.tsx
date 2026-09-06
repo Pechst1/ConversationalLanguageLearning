@@ -6,6 +6,8 @@ import { ArrowRight, Check, Loader2, Pause, Send, Volume2, X } from 'lucide-reac
 import { motion, AnimatePresence } from 'framer-motion';
 
 import PhoneProductNav from '@/components/layout/PhoneProductNav';
+import { StoryEpisodeReader } from '@/components/atelier-v2/journey/StoryEpisodeReader';
+import type { StoryEpisode } from '@/types/daily-journey';
 import {
   FeuilletonStyles as SupplementStyles,
   FeMastheadBar,
@@ -148,6 +150,9 @@ export default function GraphicNovelPage() {
   const [today, setToday] = useState<GraphicNovelToday | null>(null);
   const [canonicalBeat, setCanonicalBeat] = useState<SerialToday | null>(null);
   const [scene, setScene] = useState<GraphicNovelScene | null>(null);
+  // A story-engine episode opened by its scene id. Replay-only here: reading
+  // never completes it, and responding goes through the daily journey.
+  const [storyEpisode, setStoryEpisode] = useState<StoryEpisode | null>(null);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [submittingTask, setSubmittingTask] = useState<string | null>(null);
@@ -234,7 +239,24 @@ export default function GraphicNovelPage() {
     setLoading(true);
     try {
       if (routeSceneId) {
-        const loaded = await apiService.getGraphicNovelScene(routeSceneId);
+        let loaded: GraphicNovelScene;
+        try {
+          loaded = await apiService.getGraphicNovelScene(routeSceneId);
+        } catch (sceneError: any) {
+          // An engine-managed scene answers 409 `story_episode_route`: this is
+          // a route transition to the read-only projection, not a superseded
+          // scene to regenerate (ENGINE-FRONTEND-CONTRACT §6).
+          const detail = sceneError?.response?.data?.detail;
+          if (Number(sceneError?.response?.status || 0) === 409 && detail?.code === 'story_episode_route') {
+            const episode = await apiService.getStoryEpisode(routeSceneId);
+            setStoryEpisode(episode);
+            setScene(null);
+            setGenerationFailure(null);
+            return;
+          }
+          throw sceneError;
+        }
+        setStoryEpisode(null);
         setScene(loaded);
         setGenerationFailure(loaded.status === 'failed' ? {
           code: 'feuilleton_generation_failed',
@@ -441,6 +463,12 @@ export default function GraphicNovelPage() {
     try {
       const serial = await apiService.getSerialToday();
       setCanonicalBeat(serial);
+      if (String(serial.status || '') === 'journey_required') {
+        // Engine-managed learner: the story is today's journey (contract §5).
+        toast.success('La suite se joue dans la journée du jour.', { id: toastId });
+        await router.push(String((serial as any).continue_href || '/atelier'));
+        return;
+      }
       if (serial.kind === 'feuilleton' && serial.scene_id) {
         const loaded = await apiService.getGraphicNovelScene(serial.scene_id);
         setScene(loaded);
@@ -532,6 +560,13 @@ export default function GraphicNovelPage() {
       );
     } catch (error: any) {
       const detail = error?.response?.data?.detail;
+      if (Number(error?.response?.status || 0) === 409 && detail?.code === 'story_journey_required') {
+        // The story continues through today's journey; there is no scene to
+        // compose here and nothing to retry (ENGINE-FRONTEND-CONTRACT §6).
+        toast.success('La suite se joue dans la journée du jour.', { id: toastId });
+        await router.push(String(detail.continue_href || '/atelier'));
+        return;
+      }
       if (detail?.code === 'feuilleton_generation_failed') {
         if (scene) {
           setGenerationFailure(null);
@@ -737,6 +772,14 @@ export default function GraphicNovelPage() {
               <EditionPreparing failure={generationFailure} onRetry={canonicalBeat ? openCanonicalBeat : () => createScene()} creating={creating} />
             ) : scene && (scene.status === 'writing' || (scene.status === 'generating' && !(scene.panels || []).length)) ? (
               <EditionWriting scene={scene} />
+            ) : storyEpisode ? (
+              <StoryEpisodeReader
+                episode={storyEpisode}
+                mode="replay"
+                onExit={() => { void router.push('/serial'); }}
+                nextHref="/serial"
+                nextLabel="Retour à la saison"
+              />
             ) : scene && usesPagedReader ? (
               <>
                 <FeuilletonReader

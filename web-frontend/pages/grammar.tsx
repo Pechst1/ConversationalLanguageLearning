@@ -1,38 +1,43 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Head from 'next/head';
+import Link from 'next/link';
 import { useRouter } from 'next/router';
 import useSWR from 'swr';
 import toast from 'react-hot-toast';
 
 import PhoneProductNav from '@/components/layout/PhoneProductNav';
 import {
-  CahiersStyles,
-  NcMasthead,
-  NcFilingSummary,
-  NcSearch,
-  NcChips,
-  NcLiveSum,
-  NcLedgerHead,
-  NcIndexRow,
-  NcSkeleton,
-  NcEmpty,
-  NcNotice,
-  NcColophon,
-  NcCrumb,
-  NcDueMark,
-  NcSec,
-  NcExample,
-  NcErrRow,
-  NcMarginNotes,
-  NcCta,
-  type NcState,
-  type NcChip,
-} from '@/components/cahiers/Cahiers';
+  Action,
+  ArrowRightIcon,
+  AtelierV2Root,
+  Chip,
+  Notice,
+  ProgressRule,
+  ShapeToken,
+  Skeleton,
+  StateBlock,
+  Surface,
+} from '@/components/atelier-v2/ui';
+import {
+  CahierChips,
+  CahierHead,
+  CahierLiveLine,
+  CahierSearch,
+  CahierStyles,
+  ConceptRow,
+  NbBack,
+  NbSectionHead,
+  NotebookModeTabs,
+  type CahierChip,
+  type CahierMode,
+  type ConceptTone,
+} from '@/components/cahiers/CahierV2';
 import api, { AtelierErratum, GrammarNotebookDetail, GrammarNotebookItem } from '@/services/api';
 
 /* Map the backend grammar state (German keys from determine_state, or already
- * localized variants) to the Cahiers stamp palette; fall back to mastery. */
-function ncGrammarState(state: string | null | undefined, mastery: number): NcState {
+ * localized variants) to one of five learner states; fall back to mastery. */
+type GrammarState = 'new' | 'building' | 'fragile' | 'solid' | 'mastered';
+function grammarState(state: string | null | undefined, mastery: number): GrammarState {
   const s = String(state || '').toLowerCase();
   if (['mastered', 'gemeistert', 'acquis'].includes(s)) return 'mastered';
   if (['solid', 'gefestigt', 'solide'].includes(s)) return 'solid';
@@ -44,6 +49,35 @@ function ncGrammarState(state: string | null | undefined, mastery: number): NcSt
   if (mastery >= 5) return 'building';
   if (mastery > 0) return 'fragile';
   return 'new';
+}
+
+/* The design's glyph token: blue circle = en cours, ink square = maîtrisé,
+ * red square = fragile or with an erratum due, line circle = à venir. */
+function conceptTone(state: GrammarState, due: boolean): ConceptTone {
+  if (due || state === 'fragile') return 'fragile';
+  if (state === 'mastered') return 'done';
+  if (state === 'solid' || state === 'building') return 'progress';
+  return 'new';
+}
+
+/* Three bars from the real 0–10 mastery, on the same thresholds as the state
+ * fallback above: 1–4 → one bar, 5–8 → two, 9–10 → three. 0 stays on the track. */
+function masteryBars(mastery: number): number {
+  if (mastery >= 9) return 3;
+  if (mastery >= 5) return 2;
+  if (mastery >= 1) return 1;
+  return 0;
+}
+
+function conceptGlyph(title: string, tone: ConceptTone): string {
+  if (tone === 'new') return '';
+  const letters = title.replace(/[^A-Za-z\u00C0-\u024F]+/g, '');
+  if (!letters) return '·';
+  return letters.charAt(0).toUpperCase() + letters.slice(1, 2).toLowerCase();
+}
+
+function lowerFirst(value: string) {
+  return value ? value.charAt(0).toLowerCase() + value.slice(1) : value;
 }
 
 const GRAMMAR_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
@@ -58,6 +92,14 @@ function firstQueryValue(value: string | string[] | undefined) {
 
 export default function GrammarNotebookPage() {
   return <GrammarNotebookSurface />;
+}
+
+/* The direct /grammar and /vocabulary routes carry the same head as the
+ * /notebook shell; their pill tabs are links to the sibling registers. */
+function standaloneHref(mode: CahierMode) {
+  if (mode === 'grammar') return '/grammar';
+  if (mode === 'vocabulary') return '/vocabulary';
+  return `/notebook?mode=${mode}`;
 }
 
 export function GrammarNotebookSurface({ embedded = false }: GrammarNotebookSurfaceProps) {
@@ -154,7 +196,6 @@ export function GrammarNotebookSurface({ embedded = false }: GrammarNotebookSurf
     );
   }, [concepts]);
   const activeSearch = query.trim();
-  const hasActiveFilters = level !== 'all' || activeSearch.length > 0;
 
   function clearFilters() {
     setLevel('all');
@@ -187,75 +228,87 @@ export function GrammarNotebookSurface({ embedded = false }: GrammarNotebookSurf
   );
   const filtersActive = level !== 'all' || activeSearch.length > 0 || dueOnly;
 
-  const chips: NcChip[] = [
-    { l: 'Toutes', n: level === 'all' && !dueOnly ? concepts.length : null },
-    { l: 'À revoir', n: dueCount },
-    ...GRAMMAR_LEVELS.map((lv) => ({ l: lv } as NcChip)),
+  const chips: CahierChip[] = [
+    { id: 'all', label: 'Tous' },
+    { id: 'due', label: 'À revoir', count: dueCount },
+    ...GRAMMAR_LEVELS.map((lv): CahierChip => ({ id: lv, label: lv })),
   ];
-  const activeChip = dueOnly ? 1 : level === 'all' ? 0 : 2 + GRAMMAR_LEVELS.indexOf(level);
-  function onChip(i: number) {
-    if (i === 0) { setLevel('all'); setDueOnly(false); }
-    else if (i === 1) { setDueOnly(true); }
-    else { setLevel(GRAMMAR_LEVELS[i - 2] || 'all'); setDueOnly(false); }
+  const activeChip = dueOnly ? 'due' : level === 'all' ? 'all' : level;
+  function onChip(id: string) {
+    if (id === 'all') { setLevel('all'); setDueOnly(false); }
+    else if (id === 'due') { setDueOnly(true); }
+    else { setLevel(GRAMMAR_LEVELS.includes(id) ? id : 'all'); setDueOnly(false); }
   }
 
   const selectedIndex = selected ? concepts.findIndex((c) => c.id === selected.id) : -1;
+  const liveText = isLoading
+    ? 'Classement en cours…'
+    : `${shownConcepts.length} ${shownConcepts.length === 1 ? 'fiche' : 'fiches'}${dueOnly ? ' à revoir' : ''}${totals.recent > 0 ? ` · ${totals.recent} errata ${totals.recent === 1 ? 'récent' : 'récents'}` : ''}`;
 
   const indexView = (
     <>
-      <NcFilingSummary
-        items={[
-          { n: concepts.length, label: 'fiches' },
-          { n: dueCount, label: 'à revoir', tone: 'due' },
-          { n: totals.recent, label: 'errata récents', tone: 'era' },
-        ]}
-      />
-      <NcSearch placeholder="Chercher une règle…" value={query} onChange={setQuery} />
-      <NcChips chips={chips} active={activeChip} onSelect={onChip} />
-      <NcLiveSum
-        text={isLoading ? 'Classement en cours…' : `${shownConcepts.length} ${shownConcepts.length === 1 ? 'fiche' : 'fiches'}${dueOnly ? ' à revoir' : ' dans ce classement'}`}
-        clearable={filtersActive}
-        onClear={clearFilters}
-      />
+      <CahierSearch placeholder="Chercher une règle, un piège…" value={query} onChange={setQuery} />
+      <CahierChips chips={chips} active={activeChip} onSelect={onChip} label="Filtrer les règles" />
+      <CahierLiveLine text={liveText} clearable={filtersActive} onClear={clearFilters} />
       {notebookError ? (
-        <NcNotice message="L’index des règles n’a pas pu être ouvert. Vos fiches sont en sûreté au bureau des archives." onRetry={() => mutateNotebook()} />
+        <StateBlock
+          tone="error"
+          title="L’index des règles n’a pas pu être ouvert"
+          body="Vos fiches sont en sûreté ; réessayez dans un instant."
+          action={{ label: 'Réessayer', onSelect: () => void mutateNotebook() }}
+        />
       ) : isLoading ? (
-        <NcSkeleton rows={6} />
+        <div className="nb-list" aria-busy="true">
+          {Array.from({ length: 6 }, (_, i) => <Skeleton key={i} height={68} radius={16} />)}
+          <span className="av2-sr" role="status">Classement en cours</span>
+        </div>
       ) : shownConcepts.length ? (
-        <>
-          <NcLedgerHead t="Index des règles" n={`${shownConcepts.length} de ${concepts.length}`} />
-          <div className="nc-index" role="list">
-            {shownConcepts.map((concept, i) => {
-              const errata = (concept.due_errata_count || 0) > 0 ? concept.due_errata_count : concept.recent_errata_count;
-              return (
-                <NcIndexRow
-                  key={concept.id}
-                  no={i + 1}
-                  title={concept.title_fr || concept.display_title || concept.name}
-                  level={concept.level}
-                  cat={concept.category_label_fr || concept.localized_category || formatCategory(concept.category)}
-                  mastery={Math.round(concept.mastery || 0)}
-                  state={ncGrammarState(concept.state, concept.mastery || 0)}
-                  stateLabel={concept.state_label}
-                  due={(concept.due_errata_count || 0) > 0}
-                  errata={errata || 0}
-                  onClick={() => selectConcept(concept.id)}
+        <div className="nb-list" role="list" aria-label="Index des règles">
+          {shownConcepts.map((concept) => {
+            const mastery = Math.round(concept.mastery || 0);
+            const due = (concept.due_errata_count || 0) > 0;
+            const errata = due ? concept.due_errata_count : concept.recent_errata_count;
+            const state = grammarState(concept.state, concept.mastery || 0);
+            const tone = conceptTone(state, due);
+            const title = concept.title_fr || concept.display_title || concept.name;
+            const cat = concept.category_label_fr || concept.localized_category || formatCategory(concept.category);
+            const stateLabel = lowerFirst(concept.state_label || '');
+            const meta = [
+              concept.level,
+              cat,
+              stateLabel || null,
+              due ? 'à revoir' : null,
+              !due && errata > 0 ? `${errata} errata` : null,
+            ].filter(Boolean).join(' · ');
+            return (
+              <div key={concept.id} role="listitem">
+                <ConceptRow
+                  title={title}
+                  meta={meta}
+                  glyph={conceptGlyph(title, tone)}
+                  tone={tone}
+                  bars={masteryBars(mastery)}
+                  ariaLabel={`${title}, ${concept.level} ${cat}, maîtrise ${mastery} sur 10${due ? ', à revoir' : ''}`}
+                  onSelect={() => selectConcept(concept.id)}
                 />
-              );
-            })}
-          </div>
-        </>
+              </div>
+            );
+          })}
+        </div>
       ) : filtersActive ? (
-        <NcEmpty body="Aucune fiche ne correspond à ce filtre." action="Effacer les filtres" onAction={clearFilters} />
+        <StateBlock
+          tone="empty"
+          title="Aucune fiche ne correspond à ce filtre"
+          action={{ label: 'Effacer les filtres', onSelect: clearFilters }}
+        />
       ) : (
-        <NcEmpty
+        <StateBlock
+          tone="empty"
           title="Le cahier s’ouvre à la première séance"
           body="Vos fiches de grammaire se classent ici dès que l’Atelier compose votre première page."
-          action="Ouvrir l’Atelier"
-          onAction={() => router.push('/atelier')}
+          action={{ label: 'Ouvrir l’Atelier', onSelect: () => router.push('/atelier') }}
         />
       )}
-      <NcColophon />
     </>
   );
 
@@ -275,15 +328,23 @@ export function GrammarNotebookSurface({ embedded = false }: GrammarNotebookSurf
       onNotesSave={saveNotes}
     />
   ) : selectedError ? (
-    <>
-      <NcCrumb label="Index des règles" onBack={deselectConcept} />
-      <NcNotice message="Cette fiche n’a pas pu être ouverte. Votre index reste consultable." onRetry={() => mutateSelected()} />
-    </>
+    <div className="nb-fiche">
+      <NbBack label="Index des règles" onBack={deselectConcept} />
+      <StateBlock
+        tone="error"
+        title="Cette fiche n’a pas pu être ouverte"
+        body="Votre index reste consultable."
+        action={{ label: 'Réessayer', onSelect: () => void mutateSelected() }}
+      />
+    </div>
   ) : (
-    <>
-      <NcCrumb label="Index des règles" onBack={deselectConcept} />
-      <NcSkeleton rows={4} />
-    </>
+    <div className="nb-fiche" aria-busy={detailLoading || undefined}>
+      <NbBack label="Index des règles" onBack={deselectConcept} />
+      <Skeleton height={96} radius={16} />
+      <Skeleton height={140} radius={16} />
+      <Skeleton height={140} radius={16} />
+      <span className="av2-sr" role="status">Ouverture de la fiche</span>
+    </div>
   );
 
   const pageContent = selectedId ? ficheView : indexView;
@@ -297,24 +358,30 @@ export function GrammarNotebookSurface({ embedded = false }: GrammarNotebookSurf
       <Head>
         <title>Le Cahier · Grammaire · L’Atelier</title>
       </Head>
-      <CahiersStyles />
-      <div className="nc">
-        <div className="nc-page">
-          <NcMasthead slim route="Grammaire" xlink="Vocabulaire" xlinkHref="/vocabulary" />
-          {pageContent}
-        </div>
-      </div>
+      <CahierStyles />
+      <AtelierV2Root as="main" className="nb-page" aria-label="Le cahier · Règles">
+        <CahierHead kicker={isLoading ? 'Les règles' : `${concepts.length} ${concepts.length === 1 ? 'concept' : 'concepts'} · ${totals.started} ${totals.started === 1 ? 'vu' : 'vus'}`}>
+          <NotebookModeTabs active="grammar" hrefFor={standaloneHref} />
+        </CahierHead>
+        <div className="nb-body">{pageContent}</div>
+      </AtelierV2Root>
       <PhoneProductNav active="notebook" placement="embedded" />
     </>
   );
 }
 
 /* ---------- La fiche de grammaire ---------- */
-function grammarErrHtml(erratum: AtelierErratum): string {
-  const learner = escapeHtml(erratum.learner_text || '');
-  const target = escapeHtml(erratum.corrected_target || erratum.display_label || 'corrigé');
-  if (learner) return `« <s>${learner}</s> » → <b>${target}</b>`;
-  return `<b>${target}</b>`;
+function ErratumLine({ erratum }: { erratum: AtelierErratum }) {
+  const learner = erratum.learner_text || '';
+  const target = erratum.corrected_target || erratum.display_label || 'corrigé';
+  if (learner) {
+    return (
+      <>
+        « <s>{learner}</s> » <span aria-hidden="true">→</span> <b>{target}</b>
+      </>
+    );
+  }
+  return <b>{target}</b>;
 }
 
 function GrammarFiche({
@@ -356,103 +423,161 @@ function GrammarFiche({
   const mastery = Math.round(concept.mastery || 0);
   const nextReview = formatDate(concept.next_review);
   const qualityScore = Number(quality.score ?? quality.quality_score);
+  const due = (concept.due_errata_count || 0) > 0;
+  const state = grammarState(concept.state, concept.mastery || 0);
+  const tone = conceptTone(state, due);
+  const tokenKind = tone === 'fragile' ? 'action' : tone === 'done' ? 'done' : 'story';
+  const cat = concept.category_label_fr || concept.localized_category || formatCategory(concept.category);
 
   return (
-    <>
-      <NcCrumb label="Index des règles" index={index ? `Fiche Nº ${String(index).padStart(2, '0')}` : null} onBack={onBack} />
-      <header className="nc-entryhead">
-        <div className="tags">
-          <span className="nc-tagchip lvl"><i />{concept.level}</span>
-          <span className="nc-tagchip cat"><i />{concept.category_label_fr || concept.localized_category || formatCategory(concept.category)}</span>
-          {(concept.due_errata_count || 0) > 0 && <NcDueMark />}
+    <article className="nb-fiche" aria-label="Fiche de grammaire">
+      <NbBack label={index ? `Index des règles · fiche ${index}` : 'Index des règles'} onBack={onBack} />
+      <header className="nb-fiche__head">
+        <div className="nb-fiche__tags">
+          <Chip>{concept.level}</Chip>
+          <Chip>{cat}</Chip>
+          {due && (
+            <Chip icon={<ShapeToken kind="action" size="sm" />}>À revoir</Chip>
+          )}
         </div>
-        <h2>{concept.title_fr || concept.display_title || concept.name}</h2>
-        <div className="row2">
-          <span className="bigpips" aria-label={`Maîtrise ${mastery} sur 10`}>
-            {Array.from({ length: 10 }, (_, i) => <i key={i} className={i < mastery ? 'on' : ''} />)}
+        <h2 className="av2-headline av2-headline--title" lang="fr">
+          {concept.title_fr || concept.display_title || concept.name}
+        </h2>
+        <div className="nb-fiche__status">
+          <ProgressRule value={mastery} max={10} label="Maîtrise" caption={`${mastery} / 10`} />
+          <span className="av2-byline">
+            <ShapeToken kind={tokenKind} size="sm" />
+            <span className="av2-label">{concept.state_label}</span>
           </span>
-          <span>{concept.state_label}</span>
-          {nextReview && <span className="nxt">Prochaine révision · {nextReview}</span>}
+          {nextReview && <span className="av2-label">Prochaine révision · {nextReview}</span>}
         </div>
       </header>
 
       {rule && (
-        <NcSec kick="La règle">
-          <p className="nc-rulebox">{rule}</p>
-        </NcSec>
+        <Surface as="section" className="nb-sec" aria-label="La règle">
+          <NbSectionHead t="La règle" />
+          <p className="av2-fr nb-rule" lang="fr">{rule}</p>
+        </Surface>
       )}
 
       {examples.length > 0 && (
-        <NcSec kick="Exemples d’ancrage" tone="blue" ct={`${examples.length} ${examples.length === 1 ? 'fiche' : 'fiches'}`}>
-          {examples.map((ex, i) => <NcExample key={i} fr={escapeHtml(ex)} />)}
-        </NcSec>
+        <Surface as="section" className="nb-sec" aria-label="Exemples d’ancrage">
+          <NbSectionHead t="Exemples d’ancrage" n={`${examples.length} ${examples.length === 1 ? 'exemple' : 'exemples'}`} />
+          {examples.map((ex, i) => <p key={i} className="av2-fr nb-ex" lang="fr">{ex}</p>)}
+        </Surface>
       )}
 
       {traps.length > 0 && (
-        <NcSec kick="Pièges principaux" ct={`${traps.length} ${traps.length === 1 ? 'relevé' : 'relevés'}`}>
+        <Surface as="section" className="nb-sec" aria-label="Pièges principaux">
+          <NbSectionHead t="Pièges principaux" n={`${traps.length} ${traps.length === 1 ? 'relevé' : 'relevés'}`} />
           {traps.map((t, i) => (
-            <div className="nc-trap" key={i}><i /><span>{t}</span></div>
+            <div className="nb-trap" key={i}><ShapeToken kind="action" size="sm" /><span>{t}</span></div>
           ))}
-        </NcSec>
+        </Surface>
       )}
 
       {pattern && (
-        <NcSec kick="Motif" tone="mut">
-          <div className="nc-motif">
-            {pattern}
-            {Number.isFinite(qualityScore) && qualityScore > 0 && (
-              <div className="bp"><span>Gabarit d’exercice</span><b>Vérifié · qualité {qualityScore}/5</b></div>
-            )}
-          </div>
-        </NcSec>
+        <Surface as="section" className="nb-sec" aria-label="Motif">
+          <NbSectionHead t="Motif" n={Number.isFinite(qualityScore) && qualityScore > 0 ? `gabarit vérifié · qualité ${qualityScore}/5` : null} />
+          <p className="nb-motif">{pattern}</p>
+        </Surface>
       )}
 
       {dueErrata.length > 0 && (
-        <NcSec kick="Errata — à revoir" ct={`${dueErrata.length} ${dueErrata.length === 1 ? 'du' : 'dus'}`}>
-          {dueErrata.map((e, i) => <NcErrRow key={e.id || i} q={grammarErrHtml(e)} d={formatDate(e.next_review_date || e.last_review_date)} />)}
-        </NcSec>
+        <Surface as="section" className="nb-sec" aria-label="Errata à revoir">
+          <NbSectionHead t="Errata à revoir" n={`${dueErrata.length} ${dueErrata.length === 1 ? 'dû' : 'dus'}`} />
+          <div className="nb-err">
+            {dueErrata.map((e, i) => (
+              <div className="nb-err__row" key={e.id || i}>
+                <ShapeToken kind="action" size="sm" />
+                <span className="nb-err__q" lang="fr"><ErratumLine erratum={e} /></span>
+                {formatDate(e.next_review_date || e.last_review_date) && (
+                  <span className="nb-err__d">{formatDate(e.next_review_date || e.last_review_date)}</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </Surface>
       )}
 
       {recentErrata.length > 0 && (
-        <NcSec kick="Errata récents" tone="mut" ct={`${recentErrata.length} ${recentErrata.length === 1 ? 'réparé' : 'réparés'}`}>
-          {recentErrata.map((e, i) => <NcErrRow key={e.id || i} recent q={grammarErrHtml(e)} d={formatDate(e.last_review_date)} />)}
-        </NcSec>
+        <Surface as="section" className="nb-sec" aria-label="Errata récents">
+          <NbSectionHead t="Errata récents" n={`${recentErrata.length} ${recentErrata.length === 1 ? 'réparé' : 'réparés'}`} />
+          <div className="nb-err">
+            {recentErrata.map((e, i) => (
+              <div className="nb-err__row" key={e.id || i}>
+                <ShapeToken kind="done" size="sm" />
+                <span className="nb-err__q" lang="fr"><ErratumLine erratum={e} /></span>
+                {formatDate(e.last_review_date) && <span className="nb-err__d">{formatDate(e.last_review_date)}</span>}
+              </div>
+            ))}
+          </div>
+        </Surface>
       )}
 
-      <NcSec kick="Notes en marge" tone="blue">
-        <NcMarginNotes
-          editing={notesEditing}
-          value={draftNotes}
-          dirty={notesDirty}
-          saving={savingNotes}
-          error={notesError}
-          onValueChange={onNotesChange}
-          onEdit={onNotesEdit}
-          onCancel={onNotesCancel}
-          onSave={onNotesSave}
-          onRetry={onNotesSave}
-        />
-      </NcSec>
+      <Surface as="section" className="nb-sec" aria-label="Notes en marge">
+        <NbSectionHead t="Notes en marge" />
+        {notesEditing ? (
+          <>
+            <textarea
+              className="nb-field"
+              value={draftNotes}
+              onChange={(event) => onNotesChange(event.target.value)}
+              aria-label="Notes en marge"
+              readOnly={savingNotes}
+            />
+            <div className="nb-notes__bar">
+              <Action tone="secondary" inline pending={savingNotes} pendingLabel="Envoi…" onClick={onNotesSave}>
+                Enregistrer
+              </Action>
+              <Action tone="quiet" inline disabled={savingNotes} onClick={onNotesCancel}>
+                Annuler
+              </Action>
+              {notesError ? (
+                <span className="nb-notes__state" data-tone="alert">Échec — note conservée ici</span>
+              ) : savingNotes ? (
+                <span className="nb-notes__state" data-tone="story">Classement en cours</span>
+              ) : notesDirty ? (
+                <span className="nb-notes__state" data-tone="story">Non enregistrée</span>
+              ) : (
+                <span className="nb-notes__state">Brouillon</span>
+              )}
+            </div>
+            {notesError && (
+              <Notice tone="alert" live="alert" shape="action">
+                <p>La note n’a pas pu être classée. Elle reste dans la marge.</p>
+                <Action tone="secondary" inline onClick={onNotesSave}>Réessayer</Action>
+              </Notice>
+            )}
+          </>
+        ) : (
+          <>
+            <p className="nb-notes__text" data-empty={draftNotes ? undefined : 'true'}>
+              {draftNotes || 'Aucune note pour l’instant — la marge vous attend.'}
+            </p>
+            <div className="nb-notes__bar">
+              <Action tone="secondary" inline onClick={onNotesEdit}>{draftNotes ? 'Modifier' : 'Annoter'}</Action>
+              {draftNotes && <span className="nb-notes__state">Enregistrée</span>}
+            </div>
+          </>
+        )}
+      </Surface>
 
       {/* The handoff has to carry the rule you are reading. Without
         * `concept_id` the Atelier composes the generic séance from the
         * scheduler, so "travailler cette règle" opened a page about something
         * else; /atelier reads this query and posts it as
-        * `preferred_concept_id`, which seats the concept as the fragile one. */}
-      <NcCta href={`/atelier?concept_id=${concept.id}`}>Travailler cette règle à l’Atelier</NcCta>
+        * `preferred_concept_id`, which seats the concept as the fragile one.
+        * This is the screen's one 3D-press action. */}
+      <Link className="av2-btn av2-btn--primary nb-cta" href={`/atelier?concept_id=${concept.id}`}>
+        <span>Travailler cette règle à l’Atelier</span>
+        <ArrowRightIcon size={18} />
+      </Link>
       {/* `exercise_tags` are generator keys ("si", "future", "imperative") —
         * internal inventory, and in English. They steer generation; they are
         * not something to print on the learner's fiche. */}
-      <NcColophon />
-    </>
+    </article>
   );
-}
-
-function escapeHtml(value: string): string {
-  return String(value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
 }
 
 function arrayFrom(value: any): string[] {

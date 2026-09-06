@@ -31,9 +31,9 @@ def test_notebook_entry_remembers_last_mode() -> None:
     assert "window.localStorage.getItem" in entry
     assert "router.push(" in entry
     assert "queryForMode(router.query, resolvedMode)" in entry
-    # The mode switch is now the Cahiers file-divider tabs.
-    assert "<NcModeTabs" in entry
-    assert "switchMode(ncModeToNotebook(next))" in entry
+    # The mode switch is the Atelier V2 segmented pill (Règles · Mots · Relevé).
+    assert "<NotebookModeTabs" in entry
+    assert "onSelect={switchMode}" in entry
     assert "rememberNotebookMode(nextMode)" in entry
 
 
@@ -47,8 +47,10 @@ def test_notebook_switch_links_grammar_and_vocabulary_while_story_library_is_hid
     assert 'href="/vocabulary"' in switch
     assert "{STORY_FEATURE_VISIBLE && (" in switch
     assert 'href="/notebook?mode=library"' in switch
-    assert "grid-template-columns: repeat(2, minmax(0, 1fr))" in switch
-    assert ".notebook-mode-switch.with-library" in switch
+    # Drawn as the design's segmented pill on the V2 tokens, no hex.
+    assert ".av2.notebook-mode-switch" in switch
+    assert "background: var(--av2-line);" in switch
+    assert not re.findall(r"#[0-9a-fA-F]{3,8}\b", switch)
     assert "rememberNotebookMode('grammar')" in switch
     assert "rememberNotebookMode('vocabulary')" in switch
     assert "rememberNotebookMode('library')" in switch
@@ -82,11 +84,11 @@ def test_grammar_and_vocabulary_pages_share_notebook_switch() -> None:
     grammar = read_web("pages/grammar.tsx")
     vocabulary = read_web("pages/vocabulary.tsx")
 
-    # Direct routes carry the slim Cahiers masthead with a cross-link to the
-    # sibling register; the embedded views inherit the shell's mode tabs.
-    assert 'route="Grammaire"' in grammar
-    assert 'xlink="Vocabulaire"' in grammar
-    assert 'xlinkHref="/vocabulary"' in grammar
+    # The direct /grammar route carries the same Cahier head as /notebook, with
+    # the pill tabs as links to the sibling registers; the embedded view
+    # inherits the shell's tabs.
+    assert '<NotebookModeTabs active="grammar" hrefFor={standaloneHref} />' in grammar
+    assert "if (mode === 'vocabulary') return '/vocabulary';" in grammar
     assert "embedded" in grammar
 
     assert 'route="Vocabulaire"' in vocabulary
@@ -129,7 +131,7 @@ def test_cahier_word_detail_sheet_speaks_french() -> None:
     ):
         assert gone not in page, gone
 
-    for present in ("LE MOT", "LA RÉPONSE", "Le suivi", "Traces récentes", "La biographie du mot"):
+    for present in ("Touche pour retourner", "Sens · touche pour revenir", "Le suivi", "Traces récentes", "La biographie du mot"):
         assert present in page, present
 
 

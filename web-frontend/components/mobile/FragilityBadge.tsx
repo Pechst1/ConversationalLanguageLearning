@@ -1,5 +1,16 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
+import { ShapeToken, type ShapeKind } from '@/components/atelier-v2/ui';
+
+/* The fragility badge, on the Claude design system (Atelier V2).
+ *
+ * The descriptor logic below is unchanged: it is the client mirror of
+ * `_fragility_for_progress` in app/api/v1/endpoints/vocabulary.py — same six
+ * levels, same French copy. Only the presentation moved: the ruled 1px box and
+ * the tracked mono caps became a paper chip carrying one Bauhaus shape token
+ * next to the label. The label is always printed, so the shape never carries
+ * the state alone. The chip is only styled inside an `.av2` scope; every
+ * consumer (the Cahier's word sheet, the word biography) renders under one. */
 
 export type FragilityLevel = 'new' | 'forming' | 'holding' | 'tender' | 'fraying' | 'due' | string;
 
@@ -79,6 +90,24 @@ export function fragilityLabel(progress?: FragilityInput | null, now = new Date(
   return { level: 'forming', label: 'En formation', reason: 'Le fil se dessine.' };
 }
 
+/* The design's four shapes, by what the state asks of the learner:
+ * red triangle = action (due / fraying), yellow square = still being earned
+ * (forming / tender), ink square = done (holding), blue circle = information
+ * (new — nothing is known yet). */
+function shapeFor(level: FragilityLevel): ShapeKind {
+  switch (level) {
+    case 'due':
+    case 'fraying':
+      return 'action';
+    case 'holding':
+      return 'done';
+    case 'new':
+      return 'story';
+    default:
+      return 'reward';
+  }
+}
+
 export interface FragilityBadgeProps extends React.HTMLAttributes<HTMLElement> {
   progress?: FragilityInput | null;
   level?: FragilityLevel;
@@ -102,72 +131,50 @@ const FragilityBadge = React.forwardRef<HTMLElement, FragilityBadgeProps>(
     return (
       <small
         ref={ref as React.Ref<HTMLElement>}
-        className={cn('fragility-badge', `fragility-badge-${resolvedLevel}`, compact && 'compact', className)}
+        className={cn('fragility-badge lx-fragility', compact && 'lx-fragility--compact', className)}
+        data-level={resolvedLevel}
         {...props}
       >
-        <span className="fragility-badge-mark" aria-hidden="true" />
-        <strong>{resolvedLabel}</strong>
-        {showReason && resolvedReason && <em>{resolvedReason}</em>}
-        <style jsx>{`
-          .fragility-badge {
-            --fragility-paper: var(--app-paper, var(--paper, #f1ece1));
-            --fragility-sheet: var(--app-sheet, var(--paper-2, #f8f3e8));
-            --fragility-ink: var(--app-ink, var(--ink, #14110d));
-            --fragility-ink-2: var(--app-ink-2, var(--ink-2, #4a4538));
-            --fragility-blue: var(--app-blue, var(--blue, #1d3a8a));
-            --fragility-red: var(--app-red, var(--red, #d8321a));
-            --fragility-yellow: var(--app-yellow, var(--yellow, #f3c318));
-            --fragility-green: var(--app-green, var(--green, #2e7d32));
+        <ShapeToken kind={shapeFor(resolvedLevel)} size="sm" className="lx-fragility__mark" />
+        <strong className="lx-fragility__label">{resolvedLabel}</strong>
+        {showReason && resolvedReason && <em className="lx-fragility__reason">{resolvedReason}</em>}
+        <style jsx global>{`
+          .av2 .lx-fragility {
             display: inline-grid;
             grid-template-columns: auto minmax(0, 1fr);
-            gap: 3px 7px;
+            gap: 3px 8px;
             align-items: center;
             max-width: 100%;
-            border: 1px solid var(--fragility-ink);
-            background: var(--fragility-sheet);
-            padding: 7px 9px;
-            color: var(--fragility-ink);
+            min-height: 2rem;
+            padding: 0.375rem 0.75rem;
+            border: 0;
+            border-radius: var(--av2-r-pill);
+            background: var(--av2-card);
+            color: var(--av2-ink);
+            font-family: var(--av2-sans);
             font-style: normal;
-            line-height: 1.15;
+            font-size: var(--av2-t-label);
+            line-height: 1.3;
           }
-          .fragility-badge.compact {
-            padding: 6px 8px;
+          .av2 .lx-fragility--compact {
+            padding: 0.25rem 0.625rem;
           }
-          .fragility-badge-mark {
-            width: 10px;
-            height: 10px;
-            background: var(--fragility-accent, var(--fragility-blue));
+          .av2 .lx-fragility__mark {
+            margin-top: 1px;
           }
-          .fragility-badge strong {
+          .av2 .lx-fragility__label {
             min-width: 0;
             overflow-wrap: anywhere;
-            font: 900 10px/1 var(--app-mono, "Inter", "Helvetica Neue", Arial, sans-serif);
-            letter-spacing: .1em;
-            text-transform: uppercase;
+            font-weight: 700;
           }
-          .fragility-badge em {
+          .av2 .lx-fragility__reason {
             grid-column: 2;
-            color: var(--fragility-ink-2);
-            font-size: 11px;
+            color: var(--av2-ink-2);
+            font-size: var(--av2-t-meta);
             font-style: normal;
-            font-weight: 650;
-            line-height: 1.28;
-          }
-          .fragility-badge-new {
-            --fragility-accent: var(--fragility-blue);
-          }
-          .fragility-badge-forming {
-            --fragility-accent: var(--fragility-yellow);
-          }
-          .fragility-badge-holding {
-            --fragility-accent: var(--fragility-green);
-          }
-          .fragility-badge-tender {
-            --fragility-accent: var(--fragility-yellow);
-          }
-          .fragility-badge-fraying,
-          .fragility-badge-due {
-            --fragility-accent: var(--fragility-red);
+            font-weight: 400;
+            line-height: 1.35;
+            overflow-wrap: anywhere;
           }
         `}</style>
       </small>

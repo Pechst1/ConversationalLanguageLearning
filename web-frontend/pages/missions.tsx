@@ -6,7 +6,16 @@ import { useRouter } from 'next/router';
 
 import PhoneProductNav from '@/components/layout/PhoneProductNav';
 import { LogoToken } from '@/components/ui/Seal';
-import { LaUneStyles, LuNotice } from '@/components/laune/LaUne';
+import {
+  AtelierV2Root,
+  Chip,
+  IconAction,
+  MicIcon,
+  ShapeToken,
+  Skeleton,
+  StateBlock,
+  StopIcon,
+} from '@/components/atelier-v2/ui';
 import {
   CourrierStyles,
   CrComposer,
@@ -18,9 +27,6 @@ import {
   CrRibbon,
   CrSituation,
   CrSlip,
-  IcoBack,
-  IcoMic,
-  IcoStop,
 } from '@/components/courrier/Courrier';
 import apiService, { MissionToday, RealWorldMission, SerialToday } from '@/services/api';
 import { createAudioMediaRecorder, recordedAudioBlob } from '@/lib/audio-recording';
@@ -412,9 +418,21 @@ function resolutionCredit(mission: RealWorldMission | null, isSerialAct: boolean
 
 // Records a spoken reply and transcribes it via /missions/audio/transcribe,
 // then hands the text back to the composer. Used for voicemail/phone formats.
-// Styled as the design's "cr-mic" bar (idle / recording / transcribing).
-function CourrierMic({ onTranscript, disabled }: { onTranscript: (text: string) => void; disabled?: boolean }) {
-  const [state, setState] = useState<'idle' | 'recording' | 'transcribing'>('idle');
+// It is the design's round red press (mic → ink "recording" → pending) and
+// stands in the composer where the send press would otherwise be, so the
+// screen keeps exactly one 3D press. The state is also said in words.
+type MicState = 'idle' | 'recording' | 'transcribing';
+
+function CourrierMic({
+  onTranscript,
+  onStateChange,
+  disabled,
+}: {
+  onTranscript: (text: string) => void;
+  onStateChange?: (state: MicState) => void;
+  disabled?: boolean;
+}) {
+  const [state, setState] = useState<MicState>('idle');
   const [problem, setProblem] = useState<string | null>(null);
   const [seconds, setSeconds] = useState(0);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -425,11 +443,12 @@ function CourrierMic({ onTranscript, disabled }: { onTranscript: (text: string) 
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
   };
   useEffect(() => () => clearTimer(), []);
+  useEffect(() => { onStateChange?.(state); }, [onStateChange, state]);
 
   const start = async () => {
     setProblem(null);
     if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
-      setProblem('Le micro n’est pas disponible ici.');
+      setProblem('Le micro n’est pas disponible ici — écrivez votre réponse.');
       return;
     }
     try {
@@ -472,33 +491,32 @@ function CourrierMic({ onTranscript, disabled }: { onTranscript: (text: string) 
   const timer = `${Math.floor(seconds / 60)} : ${String(seconds % 60).padStart(2, '0')}`;
 
   return (
-    <div className="cr-mic">
-      {state === 'transcribing' ? (
-        <div className="cr-transcribe">
-          Transcription en cours
-          <span className="rollers" aria-hidden="true"><i /><i /><i /></span>
-        </div>
-      ) : (
-        <button
-          type="button"
-          className={`bar ${state === 'recording' ? 'rec' : 'idle'}`}
-          onClick={state === 'recording' ? stop : start}
-          disabled={disabled}
-          aria-label={state === 'recording' ? 'Arrêter l’enregistrement' : 'Enregistrer une réponse vocale'}
-        >
-          {state === 'recording' ? (
-            <>
-              <span className="wave" aria-hidden="true"><i /><i /><i /><i /><i /></span>
-              <span className="timer">{timer}</span>
-              <IcoStop />
-            </>
-          ) : (
-            <><IcoMic /> Parler</>
-          )}
-        </button>
+    <>
+      <IconAction
+        label={state === 'recording' ? 'Arrêter l’enregistrement' : 'Enregistrer une réponse vocale'}
+        tone={state === 'recording' ? 'recording' : 'action'}
+        pressable
+        className="cr-send"
+        pending={state === 'transcribing'}
+        disabled={disabled}
+        onClick={state === 'recording' ? stop : start}
+      >
+        {state === 'recording' ? <StopIcon size={20} /> : <MicIcon size={20} />}
+      </IconAction>
+      {state === 'recording' && (
+        <p className="cr-mic-state cr-mic-state--rec" role="status" aria-live="polite">
+          <ShapeToken kind="action" size="sm" />
+          <span>Enregistrement · {timer}</span>
+        </p>
       )}
-      {problem && <span className="cr-mic-problem" role="status">{problem}</span>}
-    </div>
+      {state === 'transcribing' && (
+        <p className="cr-mic-state" role="status" aria-live="polite">
+          <ShapeToken kind="story" size="sm" />
+          <span>Transcription en cours</span>
+        </p>
+      )}
+      {problem && <p className="cr-mic-problem" role="status">{problem}</p>}
+    </>
   );
 }
 
@@ -512,6 +530,7 @@ export default function MissionsPage() {
   const [completing, setCompleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reply, setReply] = useState('');
+  const [micState, setMicState] = useState<MicState>('idle');
   const [completedNextSerial, setCompletedNextSerial] = useState<SerialToday | null>(null);
   const loadRequestRef = useRef(0);
   const replyRef = useRef<HTMLTextAreaElement | null>(null);
@@ -716,8 +735,8 @@ export default function MissionsPage() {
     }
   };
 
-  const returnToAtelierHome = useCallback((event: React.MouseEvent) => {
-    event.preventDefault();
+  const returnToAtelierHome = useCallback((event?: React.MouseEvent) => {
+    event?.preventDefault();
     loadRequestRef.current += 1;
     void router.push('/atelier').catch(() => {
       window.location.assign('/atelier');
@@ -740,274 +759,296 @@ export default function MissionsPage() {
     window.requestAnimationFrame(() => replyRef.current?.focus());
   };
 
+  // Header line: "<cadence or act> · <mission title>" — the design's
+  // "Mission de la semaine · résumer un titre".
+  const deskLine = `${cadenceLabel || kicker} · ${missionTitle(mission)}`;
+  const placedCount = ribbon.filter((word) => word.used).length;
+  const deskChip = completed ? (
+    <Chip icon={<ShapeToken kind="done" size="sm" />}>Bouclé</Chip>
+  ) : ribbon.length > 0 ? (
+    <Chip tone="reward" icon={<ShapeToken kind="done" size="sm" />}>
+      {placedCount}/{ribbon.length}
+      <span className="av2-sr"> mots placés</span>
+    </Chip>
+  ) : (
+    <Chip tone="quiet" icon={<ShapeToken kind="story" size="sm" />}>{statusLine}</Chip>
+  );
+  // The mic stands where the send press would be while there is nothing to
+  // send (or while it is busy); with a draft the round red press becomes send.
+  const showMic = isVoiceFormat && (reply.trim().length === 0 || micState !== 'idle');
+  // The situation card already prints the ask; the composer only repeats an
+  // instruction when it says something new (a format scaffold, a follow-up).
+  const composerInstruction = turnComposerCopy.instruction && turnComposerCopy.instruction !== frame.ask
+    ? turnComposerCopy.instruction
+    : '';
+  const recapTurns = Number(mission?.recap?.turns || 0);
+  const recapErrata = Number(mission?.recap?.errata_logged || 0);
+  const recapSaved = Number(mission?.recap?.saved_to_srs?.saved_count || 0);
+
   return (
     <>
       <Head>
         <title>{isSerialAct ? 'Le Feuilleton · Acte' : 'Le Courrier'} · L’Atelier</title>
       </Head>
-      <main className="cr-stage">
-        <div className="cr motion" aria-label={isSerialAct ? 'Le Feuilleton · acte' : 'Le Courrier'}>
-          {loading && !mission ? (
-            <div className="cr-page">
-              <div className="cr-skel" aria-hidden="true">
-                <div className="slipph" />
-                <div className="slipph you" />
-                <div className="slipph" />
-                <div className="barph" />
-              </div>
+      <AtelierV2Root as="main" className="cr motion" aria-label={isSerialAct ? 'Le Feuilleton · acte' : 'Le Courrier'}>
+        {loading && !mission ? (
+          <div className="cr-page" aria-busy="true" aria-live="polite">
+            <span className="av2-sr">Chargement du courrier</span>
+            <div className="cr-skel">
+              <Skeleton height={44} radius={999} />
+              <Skeleton height={72} />
+              <Skeleton height={56} />
+              <Skeleton height={72} />
+              <Skeleton height={50} />
             </div>
-          ) : error ? (
+          </div>
+        ) : error ? (
+          <div className="cr-page cr-page--centre">
+            <StateBlock
+              tone="error"
+              title="Courrier égaré"
+              body={error}
+              action={{ label: 'Réessayer', onSelect: () => { void loadMission(); }, tone: 'primary' }}
+            />
+            <CrGhost href="/atelier" onClick={returnToAtelierHome}>Retour à la Une</CrGhost>
+          </div>
+        ) : !mission ? (
+          <div className="cr-page cr-page--centre">
+            <StateBlock
+              tone="empty"
+              title="Aucun courrier — la Une vous attend."
+              body="Le facteur repassera avec l’édition de demain."
+              action={{ label: 'Retour à la Une', onSelect: () => returnToAtelierHome(), tone: 'primary' }}
+            />
+          </div>
+        ) : (
+          <>
             <div className="cr-page">
               <CrDesk
-                kicker="Le Courrier"
-                title="Le courrier du jour"
-                statusLine="Distribution interrompue"
+                name={String(formatPayload.caller || messenger.contact_name)}
+                line={deskLine}
+                chip={deskChip}
                 onBack={returnToAtelierHome}
               />
-              <LuNotice tone="red" label="Courrier égaré" message={error} onRetry={loadMission} />
-            </div>
-          ) : !mission ? (
-            <div className="cr-page cr-empty-page">
-              <div className="cr-empty">
-                <div className="rubric">Le Courrier</div>
-                <div className="endmark" />
-                <h2>Aucun courrier — la Une vous attend.</h2>
-                <p>Le facteur repassera avec l’édition de demain.</p>
-                <div>
-                  <Link className="free" href="/atelier" onClick={returnToAtelierHome}><IcoBack /> Retour à la Une</Link>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <>
-              <div className="cr-page">
-                <CrDesk
-                  kicker={kicker}
-                  blue={isSerialAct}
-                  title={missionTitle(mission)}
-                  cadence={cadenceLabel}
-                  status={completed ? 'done' : 'open'}
-                  statusLine={statusLine}
-                  onBack={returnToAtelierHome}
-                />
-                {mission.recommendation_reason?.text && (
-                  <p className="cr-reason">{mission.recommendation_reason.text}</p>
-                )}
-
-                {!completed && (
-                  <>
-                    <CrSituation frame={frame.frame} ask={frame.ask} translate={translateFrame} />
-                    <CrPS text={messenger.twist} />
-                    <CrRibbon words={ribbon} />
-                  </>
-                )}
-
-                <div className="cr-thread">
-                  {isVoiceFormat ? (
-                    <CrMemo
-                      rows={memoRows}
-                      transcript={openingMessage}
-                      stamp={interactionReady ? 'Répondu' : null}
-                      translate={() => apiService.translateToEnglish(openingMessage)}
-                    />
-                  ) : (
-                    <CrSlip who={messenger.contact_name} translate={() => apiService.translateToEnglish(openingMessage)}>
-                      {openingMessage}
-                    </CrSlip>
-                  )}
-
-                  {visibleTurns.map((turn) => {
-                    const isUser = turn.role === 'user';
-                    const correction = isUser ? (turn as Record<string, any>).correction : undefined;
-                    const lines = repairLines(correction);
-                    const correctedAnswer = correctedReply(correction, turn.text);
-                    const savedCount = correctionPersistence(correction);
-                    return (
-                      <React.Fragment key={turn.id || `${turn.turn_index}-${turn.role}`}>
-                        <CrSlip
-                          who={isUser ? 'Vous' : messenger.contact_name}
-                          time={slipTime(turn)}
-                          you={isUser}
-                          sent={isUser}
-                          translate={isUser ? undefined : () => apiService.translateToEnglish(String(turn.text || ''))}
-                        >
-                          {turn.text}
-                        </CrSlip>
-                        {isUser && (lines.length > 0 || correctedAnswer) && (
-                          <CrRepair
-                            correctedAnswer={correctedAnswer}
-                            lines={lines}
-                            savedCount={savedCount}
-                          />
-                        )}
-                      </React.Fragment>
-                    );
-                  })}
-                  {submitting && (
-                    <div className="cr-typing" role="status" aria-live="polite">
-                      <span className="rollers" aria-hidden="true"><i /><i /><i /></span>
-                      <span>{messenger.contact_name} rédige sa réponse</span>
-                    </div>
-                  )}
-                </div>
-
-                {completed && (
-                  <div className="cr-resolve" aria-label="Dossier résolu">
-                    <div className="cr-resolve-kicker">Compte rendu de mission</div>
-                    <span className="lu-stamp big" style={{ '--tilt': '-5deg' } as React.CSSProperties}>
-                      {isSerialAct ? 'Acte bouclé' : 'Résolu'}
-                      <span className="d">{frenchDate(mission?.completed_at)}</span>
-                    </span>
-                    <p className="sub">{messenger.success_signal}</p>
-                    {mintedToken && (
-                      <>
-                        <div className="tok-stage"><LogoToken pop /></div>
-                        <div className="earned">Jeton frappé</div>
-                      </>
-                    )}
-                    {creditRows.length > 0 && (
-                      <div className="cr-credit">
-                        {creditRows.map((row) => (
-                          <div className="row" key={row.label}>
-                            <span>{row.label}</span>
-                            <b>{row.value}</b>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    <div className="cr-recap-grid">
-                      <div>
-                        <strong>{Number(mission.recap?.turns || 0)}</strong>
-                        <span>réponse{Number(mission.recap?.turns || 0) === 1 ? '' : 's'}</span>
-                      </div>
-                      <div>
-                        <strong>{Number(mission.recap?.errata_logged || 0)}</strong>
-                        <span>erreur{Number(mission.recap?.errata_logged || 0) === 1 ? '' : 's'} repérée{Number(mission.recap?.errata_logged || 0) === 1 ? '' : 's'}</span>
-                      </div>
-                      <div>
-                        <strong>{Number(mission.recap?.saved_to_srs?.saved_count || 0)}</strong>
-                        <span>phrase{Number(mission.recap?.saved_to_srs?.saved_count || 0) === 1 ? '' : 's'} sauvegardée{Number(mission.recap?.saved_to_srs?.saved_count || 0) === 1 ? '' : 's'}</span>
-                      </div>
-                    </div>
-                    {mission.recap?.readiness && (
-                      <div className="cr-readiness">
-                        <span>Prêt pour la vraie vie</span>
-                        <strong>{Number(mission.recap.readiness.overall || 0)}%</strong>
-                      </div>
-                    )}
-                    {Array.isArray(mission.recap?.objective_results) && mission.recap.objective_results.length > 0 && (
-                      <div className="cr-objectives" aria-label="Objectifs de mission">
-                        <span className="k">Objectifs</span>
-                        {mission.recap.objective_results.map((objective: Record<string, any>, index: number) => (
-                          <div className={objective.met ? 'met' : 'open'} key={String(objective.id || index)}>
-                            <span aria-hidden="true">{objective.met ? '✓' : '○'}</span>
-                            <b>{String(objective.label || 'Objectif de mission')}</b>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    {nextBest && <p className="sub" style={{ maxWidth: 300 }}>{nextBest}</p>}
-                    {/* One primary action per screen: the forward move. When the act
-                        continues, that is the next act; otherwise it is the next
-                        courrier. Everything else stays a quiet ghost. */}
-                    <div className="cr-nexts">
-                      {isSerialAct && completedNextSerial?.thread_id ? (
-                        <CrGhost primary href={routeForMissionSerialBeat(completedNextSerial)}>Lire l’acte suivant</CrGhost>
-                      ) : (
-                        <CrGhost primary onClick={startFreshMission} disabled={creating}>Nouveau courrier</CrGhost>
-                      )}
-                      <CrGhost href="/atelier" onClick={returnToAtelierHome}>Retour à l’Atelier</CrGhost>
-                      {isSerialAct && completedNextSerial?.thread_id && (
-                        <CrGhost quiet onClick={startFreshMission} disabled={creating}>Nouveau courrier</CrGhost>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {recentCompleted.length > 0 && (
-                  <section className="cr-archive" aria-label="Courrier passé">
-                    <span className="k">Courrier passé</span>
-                    <ul>
-                      {/* Filter before slicing, or the open courrier silently eats a row. */}
-                      {recentCompleted.filter((past) => past.id !== mission?.id).slice(0, 8).map((past) => (
-                        <li key={past.id}>
-                          <Link href={{ pathname: '/missions', query: { mission: past.id } }}>
-                            <b>{missionTitle(past)}</b>
-                            <span>{archiveStatus(past)}</span>
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  </section>
-                )}
-              </div>
+              {mission.recommendation_reason?.text && (
+                <p className="cr-reason">{mission.recommendation_reason.text}</p>
+              )}
 
               {!completed && (
-                <CrComposer
-                  quick={messenger.quick_replies}
-                  onQuick={useQuickReply}
-                  cta={submitLabel(format)}
-                  onSubmit={sendReply}
-                  sending={submitting}
-                  canSubmit={canSend}
-                  canFinish={interactionReady}
-                  finishing={completing}
-                  onFinish={finishMission}
-                  finishLabel="Terminer"
-                >
-                  {(turnComposerCopy.label || turnComposerCopy.instruction) && (
-                    <>
-                      <span className="cr-label">{turnComposerCopy.label}</span>
-                      {turnComposerCopy.instruction && <p className="cr-instruction">{turnComposerCopy.instruction}</p>}
-                    </>
+                <>
+                  <CrSituation frame={frame.frame} ask={frame.ask} translate={translateFrame} />
+                  <CrRibbon words={ribbon} />
+                </>
+              )}
+
+              <div className="cr-thread">
+                {isVoiceFormat ? (
+                  <CrMemo
+                    rows={memoRows}
+                    transcript={openingMessage}
+                    stamp={interactionReady ? 'Répondu' : null}
+                    translate={() => apiService.translateToEnglish(openingMessage)}
+                  />
+                ) : (
+                  <CrSlip who={messenger.contact_name} translate={() => apiService.translateToEnglish(openingMessage)}>
+                    {openingMessage}
+                  </CrSlip>
+                )}
+                {!completed && <CrPS text={messenger.twist} />}
+
+                {visibleTurns.map((turn) => {
+                  const isUser = turn.role === 'user';
+                  const correction = isUser ? (turn as Record<string, any>).correction : undefined;
+                  const lines = repairLines(correction);
+                  const correctedAnswer = correctedReply(correction, turn.text);
+                  const savedCount = correctionPersistence(correction);
+                  return (
+                    <React.Fragment key={turn.id || `${turn.turn_index}-${turn.role}`}>
+                      <CrSlip
+                        who={isUser ? 'Vous' : messenger.contact_name}
+                        time={slipTime(turn)}
+                        you={isUser}
+                        sent={isUser}
+                        translate={isUser ? undefined : () => apiService.translateToEnglish(String(turn.text || ''))}
+                      >
+                        {turn.text}
+                      </CrSlip>
+                      {isUser && (lines.length > 0 || correctedAnswer) && (
+                        <CrRepair
+                          correctedAnswer={correctedAnswer}
+                          lines={lines}
+                          savedCount={savedCount}
+                        />
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+                {submitting && (
+                  <div className="cr-typing" role="status" aria-live="polite">
+                    <span className="rollers" aria-hidden="true"><i /><i /><i /></span>
+                    <span>{messenger.contact_name} rédige sa réponse</span>
+                  </div>
+                )}
+              </div>
+
+              {completed && (
+                <section className="cr-resolve" aria-label="Dossier résolu">
+                  <p className="cr-resolve-kicker">Compte rendu de mission</p>
+                  <div className="cr-seal">
+                    <span className="cr-seal-word">
+                      <ShapeToken kind="done" size="lg" />
+                      {isSerialAct ? 'Acte bouclé' : 'Résolu'}
+                    </span>
+                    <span className="cr-seal-date">{frenchDate(mission?.completed_at)}</span>
+                    <p className="cr-seal-sub" lang="fr">{messenger.success_signal}</p>
+                  </div>
+                  {mintedToken && (
+                    <div className="cr-token" role="status">
+                      <LogoToken pop />
+                      <span className="cr-token-earned">Jeton frappé</span>
+                    </div>
                   )}
-                  {isVoiceFormat && (
-                    <CourrierMic
-                      disabled={submitting}
-                      onTranscript={(text) => setReply((current) => (current.trim() ? `${current.trim()} ${text}` : text))}
-                    />
+                  {creditRows.length > 0 && (
+                    <div className="cr-credit">
+                      {creditRows.map((row) => (
+                        <div className="cr-credit-row" key={row.label}>
+                          <span>
+                            <ShapeToken kind={row.label === 'Feuilleton' ? 'story' : 'reward'} size="sm" />
+                            {row.label}
+                          </span>
+                          <b>{row.value}</b>
+                        </div>
+                      ))}
+                    </div>
                   )}
+                  <div className="cr-recap-grid">
+                    <div>
+                      <strong>{recapTurns}</strong>
+                      <span>réponse{recapTurns === 1 ? '' : 's'}</span>
+                    </div>
+                    <div>
+                      <strong>{recapErrata}</strong>
+                      <span>erreur{recapErrata === 1 ? '' : 's'} repérée{recapErrata === 1 ? '' : 's'}</span>
+                    </div>
+                    <div>
+                      <strong>{recapSaved}</strong>
+                      <span>phrase{recapSaved === 1 ? '' : 's'} sauvegardée{recapSaved === 1 ? '' : 's'}</span>
+                    </div>
+                  </div>
+                  {mission.recap?.readiness && (
+                    <div className="cr-readiness">
+                      <span>Prêt pour la vraie vie</span>
+                      <strong>{Number(mission.recap.readiness.overall || 0)}%</strong>
+                    </div>
+                  )}
+                  {Array.isArray(mission.recap?.objective_results) && mission.recap.objective_results.length > 0 && (
+                    <div className="cr-objectives" aria-label="Objectifs de mission">
+                      <span className="cr-objectives-k">Objectifs</span>
+                      {mission.recap.objective_results.map((objective: Record<string, any>, index: number) => (
+                        <div className={'cr-objective' + (objective.met ? ' cr-objective--met' : '')} key={String(objective.id || index)}>
+                          <ShapeToken kind={objective.met ? 'done' : 'action'} size="sm" />
+                          <span>
+                            {String(objective.label || 'Objectif de mission')}
+                            <span className="av2-sr">{objective.met ? ' · atteint' : ' · à revoir'}</span>
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {nextBest && <p className="cr-next" lang="fr">{nextBest}</p>}
+                  {/* One 3D press per screen: the forward move. When the act
+                      continues, that is the next act; otherwise the next
+                      courrier. Everything else stays quiet. */}
+                  <div className="cr-nexts">
+                    {isSerialAct && completedNextSerial?.thread_id ? (
+                      <CrGhost primary href={routeForMissionSerialBeat(completedNextSerial)}>Lire l’acte suivant</CrGhost>
+                    ) : (
+                      <CrGhost primary onClick={startFreshMission} disabled={creating}>Nouveau courrier</CrGhost>
+                    )}
+                    <CrGhost href="/atelier" onClick={returnToAtelierHome}>Retour à l’Atelier</CrGhost>
+                    {isSerialAct && completedNextSerial?.thread_id && (
+                      <CrGhost quiet onClick={startFreshMission} disabled={creating}>Nouveau courrier</CrGhost>
+                    )}
+                  </div>
+                </section>
+              )}
+
+              {recentCompleted.length > 0 && (
+                <section className="cr-archive" aria-label="Courrier passé">
+                  <p className="cr-archive-k">Courrier passé</p>
+                  <ul>
+                    {/* Filter before slicing, or the open courrier silently eats a row. */}
+                    {recentCompleted.filter((past) => past.id !== mission?.id).slice(0, 8).map((past) => (
+                      <li key={past.id}>
+                        <Link className="cr-archive-row" href={{ pathname: '/missions', query: { mission: past.id } }}>
+                          <b>{missionTitle(past)}</b>
+                          <span>
+                            <ShapeToken kind={past.status === 'completed' ? 'done' : 'story'} size="sm" />
+                            {archiveStatus(past)}
+                          </span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+            </div>
+
+            {!completed && (
+              <CrComposer
+                quick={messenger.quick_replies}
+                onQuick={useQuickReply}
+                cta={submitLabel(format)}
+                onSubmit={sendReply}
+                sending={submitting}
+                canSubmit={canSend}
+                canFinish={interactionReady}
+                finishing={completing}
+                onFinish={finishMission}
+                finishLabel="Terminer"
+                voice={showMic ? (
+                  <CourrierMic
+                    disabled={submitting}
+                    onStateChange={setMicState}
+                    onTranscript={(text) => setReply((current) => (current.trim() ? `${current.trim()} ${text}` : text))}
+                  />
+                ) : undefined}
+              >
+                <label className="av2-field">
+                  <span className={format === 'chat_message' && !composerInstruction ? 'av2-sr' : 'av2-field__label'}>
+                    {turnComposerCopy.label}
+                  </span>
+                  {composerInstruction && <p className="cr-instruction">{composerInstruction}</p>}
                   <textarea
                     ref={replyRef}
-                    className={'cr-draft' + (format === 'email_formal' || format === 'admin_form' ? ' tall' : '')}
+                    className={'av2-field__control cr-draft' + (format === 'email_formal' || format === 'admin_form' ? ' cr-draft--tall' : '')}
+                    lang="fr"
+                    rows={1}
                     value={reply}
                     onChange={(event) => setReply(event.target.value)}
                     placeholder={turnComposerCopy.placeholder || composerCopy.placeholder}
                     aria-label={turnComposerCopy.label}
                   />
-                </CrComposer>
-              )}
-            </>
-          )}
-        </div>
-      </main>
+                </label>
+              </CrComposer>
+            )}
+          </>
+        )}
+      </AtelierV2Root>
       <PhoneProductNav active="missions" />
-      <LaUneStyles />
       <CourrierStyles />
       <MissionsStageStyles />
     </>
   );
 }
 
-// The stage centres the phone-shell `.cr` and paints the theme-aware paper
-// behind it. Bottom nav clearance is handled inside `.cr` (see CourrierStyles).
+// The page ground behind the phone-shell `.av2.cr`; bottom-nav clearance is
+// handled inside `.av2.cr` (see CourrierStyles).
 function MissionsStageStyles() {
   return (
     <style jsx global>{`
-      .cr-stage {
-        min-height: 100svh;
-        display: grid;
-        justify-items: center;
-        align-items: start;
-        background: var(--app-paper);
-      }
-      .cr .cr-empty-page {
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        flex: 1 1 auto;
-      }
-      .cr .cr-reason { margin: 8px var(--cr-pad, 18px) 18px; color: var(--app-ink-3); font: italic 12px/1.4 var(--app-serif); }
+      body { background: var(--app-paper); }
+      .av2.cr { margin: 0 auto; }
     `}</style>
   );
 }

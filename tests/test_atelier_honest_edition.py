@@ -68,9 +68,9 @@ def test_prescription_quotes_the_estimate_not_the_budget():
     page = _source("pages/atelier.tsx")
     # The headline minutes must not be the learner's daily-goal setting.
     assert "const prescribedMinutes = Math.max(1, Number(remainingMinutes || sessionMins || 8));" in page
-    assert "budgetMinutes={overBudgetMinutes}" in page
-    laune = _source("components/laune/LaUne.tsx")
-    assert "Plus long que les {budgetMinutes} minutes" in laune
+    assert "overrunMinutes={overBudgetMinutes}" in page
+    home = _source("components/atelier-v2/home/HomeScreen.tsx")
+    assert "Plus long que les {overrunMinutes} minutes" in home
 
 
 def test_planned_drills_come_from_the_server_plan():
@@ -99,7 +99,8 @@ def test_studio_is_reachable_from_the_day_plan():
     assert "void router.push('/audio-session');" in page
     # It also has to be offered where the learner just finished speaking practice.
     assert "Ouvrir le studio" in page
-    assert "replyMode={studioIsPrescribed ? 'speak' : 'write'}" in page
+    # The day's one action names speaking when the studio is prescribed.
+    assert "studioIsPrescribed ? 'Parler'" in page
 
 
 def test_a_read_episode_no_longer_outranks_the_rest_of_the_plan():
@@ -257,7 +258,9 @@ def test_le_releve_is_french_and_learner_scoped():
     # Tokens only, both themes, and every state designed.
     assert not re.findall(r"#[0-9a-fA-F]{3,8}\b", releve)
     assert not re.findall(r"font-size: *[0-9.]+px", releve)
-    assert "font-size: var(--t-" in releve
-    assert "NcSkeleton" in releve  # loading — "coming off the press"
-    assert "NcNotice" in releve  # error — press notice with Retry
-    assert "NcEmpty" in releve  # empty collection
+    # Le Relevé is on the Claude design system: its type comes from the
+    # `--av2-t-*` tokens in CahierV2.tsx, and every state uses the primitives.
+    assert "from '@/components/atelier-v2/ui'" in releve
+    assert "<Skeleton" in releve  # loading
+    assert "<Notice" in releve or "ArchiveNotice" in releve  # error — notice with Retry
+    assert 'tone="empty"' in releve  # empty collection

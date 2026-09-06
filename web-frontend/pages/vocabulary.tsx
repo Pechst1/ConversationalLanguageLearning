@@ -2,35 +2,23 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { ArrowRight, Loader2, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import PhoneProductNav from '@/components/layout/PhoneProductNav';
 import { learnerGloss } from '@/lib/glosses';
 import {
-  CahiersStyles,
-  NcMasthead,
-  NcFilingSummary,
-  NcSearch,
-  NcChips,
-  NcLiveSum,
-  NcLedgerHead,
-  NcWordRow,
-  NcSkeleton,
-  NcEmpty,
-  NcNotice,
-  NcColophon,
-  NcCoverageTrack,
-  NcMasteryMap,
-  NcIcoFold,
-  type NcBucket,
-  type NcState,
-  type NcChip,
-  type NcMapTotal,
-} from '@/components/cahiers/Cahiers';
-import { ContextAnchor, FragilityBadge, MobileBottomSheet, WordBiographySheet } from '@/components/mobile';
+  Action,
+  AtelierV2Root,
+  BottomSheet,
+  Chip,
+  ShapeToken,
+  Skeleton,
+  StateBlock,
+  Surface,
+  type ShapeKind,
+} from '@/components/atelier-v2/ui';
+import { FragilityBadge, WordBiographySheet } from '@/components/mobile';
 import apiService, {
-  CoverageTrack,
   GraphicNovelScene,
   MissionTargetVocabulary,
   RealWorldMission,
@@ -46,6 +34,26 @@ import apiService, {
   WeeklyDossier,
 } from '@/services/api';
 import { AnkiReviewResponse, ReviewResponse } from '@/types/reviews';
+
+/* "Le lexique" — the registre, on the Claude design system (Atelier V2).
+ *
+ * The design has no artboard for the word list. It is extended from the
+ * CAHIER artboard, which is the same shape of screen: a muted count line over
+ * one Garamond-italic headline, the Règles / Mots pill switch, a 44px paper
+ * search well, a row of pill filters (the active one on ink), then paper rows
+ * (radius 16, padding 14/16) each with a 36px shape glyph, a 15px title, a 12px
+ * muted meta line and three 5px progress bars on the right. Word rows reuse
+ * that row exactly: the glyph is the Bauhaus shape of the word's state, the
+ * meta line prints rank · nature · state, the three bars are the mastery
+ * ladder (never colour alone — the state is also printed in the meta line).
+ *
+ * Secondary tools — the atlas of coverage tracks, the Français 5000 mastery
+ * map, the weekly dossier, the way into the conjugation drill — fold under
+ * the rows as the design's paper surfaces. The word sheet is the system's
+ * bottom sheet; the flip card inside it is the Lexique card at small size.
+ * Every fetch, query param, filter and handoff is unchanged. The page also
+ * renders embedded inside the Cahier shell (`embedded`), where it drops its
+ * own masthead and tab bar. Gaps are recorded in the report. */
 
 type VocabularyDetail =
   | { kind: 'queue'; item: VocabularyRecommendationItem }
@@ -107,12 +115,16 @@ const emptyDetailSupport: DetailSupport = {
   loading: false,
 };
 
+// The sheet's four FSRS grades keep their exact ratings (0–3). Each carries
+// one of the design's shapes beside its label.
 const reviewOptions = [
-  { rating: 0, label: 'À revoir', hint: 'Très bientôt', tone: 'red' },
-  { rating: 1, label: 'Difficile', hint: 'Garder près', tone: 'yellow' },
-  { rating: 2, label: 'Correct', hint: 'Rythme normal', tone: 'blue' },
-  { rating: 3, label: 'Facile', hint: 'Espacer', tone: 'black' },
+  { rating: 0, label: 'À revoir', hint: 'Très bientôt', shape: 'action' },
+  { rating: 1, label: 'Difficile', hint: 'Garder près', shape: 'reward' },
+  { rating: 2, label: 'Correct', hint: 'Rythme normal', shape: 'story' },
+  { rating: 3, label: 'Facile', hint: 'Espacer', shape: 'done' },
 ] as const;
+
+type MasteryState = 'new' | 'due' | 'fragile' | 'building' | 'solid' | 'mastered';
 
 function reviewMessage(response: ReviewResponse | AnkiReviewResponse) {
   const next = 'due_at' in response ? response.due_at || response.next_review : response.next_review;
@@ -139,21 +151,55 @@ function queueItems(context: VocabularyDueContext | null) {
   });
 }
 
-function ncQueueBucket(bucket?: string | null): NcBucket | null {
-  if (bucket === 'due') return { id: 'due', label: 'À revoir' };
-  if (bucket === 'fragile') return { id: 'fragile', label: 'Fragile' };
-  if (bucket === 'new') return { id: 'new', label: 'Nouveau' };
-  return null;
+function queueBucketLabel(bucket?: string | null) {
+  if (bucket === 'due') return 'À revoir';
+  if (bucket === 'fragile') return 'Fragile';
+  if (bucket === 'new') return 'Nouveau';
+  if (bucket === 'linked') return 'Mot voisin';
+  if (bucket === 'topic' || bucket === 'topic_compatible') return 'Du thème';
+  return '';
 }
 
-function ncDeckState(masteryState?: string | null): { state: NcState; label: string } {
+function queueBucketState(bucket?: string | null): MasteryState {
+  if (bucket === 'due') return 'due';
+  if (bucket === 'fragile') return 'fragile';
+  if (bucket === 'new') return 'new';
+  return 'building';
+}
+
+function deckState(masteryState?: string | null): { state: MasteryState; label: string } {
   switch (masteryState) {
     case 'mastered': return { state: 'mastered', label: 'Acquis' };
     case 'solid': return { state: 'solid', label: 'Solide' };
     case 'building': return { state: 'building', label: 'En cours' };
     case 'fragile': return { state: 'fragile', label: 'Fragile' };
-    case 'due': return { state: 'fragile', label: 'À revoir' };
+    case 'due': return { state: 'due', label: 'À revoir' };
     default: return { state: 'new', label: 'Nouveau' };
+  }
+}
+
+/* The design's four shapes, by what the state asks of the learner: ink square
+   = done (mastered), blue circle = in progress (solid / building), yellow
+   square = reward still being earned (new), red triangle = action (due /
+   fragile). The three bars beside a row climb the same ladder. */
+function stateShape(state: MasteryState): ShapeKind {
+  switch (state) {
+    case 'mastered': return 'done';
+    case 'solid':
+    case 'building': return 'story';
+    case 'new': return 'reward';
+    default: return 'action';
+  }
+}
+
+function stateBars(state: MasteryState): number {
+  switch (state) {
+    case 'mastered': return 3;
+    case 'solid': return 2;
+    case 'building': return 1;
+    case 'due':
+    case 'fragile': return 1;
+    default: return 0;
   }
 }
 
@@ -169,12 +215,6 @@ function queueTranslation(item: VocabularyRecommendationItem) {
     return item.translations?.fr || item.word || '';
   }
   return learnerGloss(item);
-}
-
-function queueDirection(item: VocabularyRecommendationItem) {
-  if (item.direction === 'fr_to_de') return 'FR → DE';
-  if (item.direction === 'de_to_fr') return 'DE → FR';
-  return 'Français 5000';
 }
 
 /* The registre used to read `german_translation` first and so served German to
@@ -215,7 +255,7 @@ function detailFrench(detail: VocabularyDetail) {
 
 function detailMeaningForPractice(detail: VocabularyDetail) {
   if (detail.kind === 'queue') return queueTranslation(detail.item);
-  return detail.item.german_translation || detail.item.english_translation || detail.item.definition || '';
+  return learnerGloss(detail.item) || detail.item.definition || '';
 }
 
 function parseWordQuery(value: string | string[] | undefined) {
@@ -239,30 +279,23 @@ function formatDateLabel(value?: string | null) {
   if (!value) return '';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  return date.toLocaleDateString('fr-FR', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 function formatShortDate(value?: string | null) {
   if (!value) return '';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  return date.toLocaleDateString('fr-FR', { month: 'short', day: 'numeric' });
 }
 
 function formatDays(value?: number | null) {
   if (value === null || value === undefined) return '';
-  return `${value} ${value === 1 ? 'day' : 'days'}`;
+  return `${value} ${value === 1 ? 'jour' : 'jours'}`;
 }
 
-function formatDecimal(value?: number | null, digits = 1) {
-  if (value === null || value === undefined || Number.isNaN(value)) return '';
-  return value.toFixed(digits);
-}
-
-function formatPercent(value?: number | null) {
-  if (value === null || value === undefined || Number.isNaN(value)) return '';
-  const normalized = value > 1 ? value : value * 100;
-  return `${Math.round(normalized)}%`;
+function formatRank(rank: number) {
+  return new Intl.NumberFormat('fr-FR').format(rank);
 }
 
 function trimSnippet(value?: string | null, max = 140) {
@@ -355,8 +388,8 @@ function detailFrequencyRank(detail: VocabularyDetail, supportWord?: VocabularyW
 
 function detailPartOfSpeech(detail: VocabularyDetail, supportWord?: VocabularyWord | null) {
   const word = detailDeckWord(detail, supportWord);
-  // Was `|| 'French'`, which printed "French" under the heading "part of
-  // speech". An unknown value gets the same em dash as every other blank.
+  // An unknown value gets the same em dash as every other blank; nothing is
+  // printed as a part of speech that the whitelist does not recognise.
   return partOfSpeechLabel(word?.part_of_speech);
 }
 
@@ -438,7 +471,7 @@ function groupExamples(detail: VocabularyDetail, support: DetailSupport) {
     source: 'Français 5000',
     label: 'Définition',
     text: word?.definition || '',
-    meta: word?.part_of_speech || null,
+    meta: partOfSpeechLabel(word?.part_of_speech) || null,
   });
   addUniqueExample(examples, {
     source: 'Français 5000',
@@ -462,12 +495,9 @@ function srsRows(detail: VocabularyDetail, support: DetailSupport) {
   const dueAt = queueItem?.due_at || progress?.next_review || queueItem?.next_review || null;
   const lastReview = optionalStringField(queueItem, 'last_review') || progress?.last_review || null;
   const interval = queueItem?.interval_days ?? queueItem?.scheduled_days ?? progress?.scheduled_days;
-  // The scheduler's own working numbers — stability, difficulty,
-  // retrievability, priority score, the scheduler's name — are corrector
-  // internals. They told the learner nothing they could act on and read as a
-  // debug panel bolted to the bottom of a notebook page. What stays is the part
-  // of the record a learner can actually recognise: where the word stands, when
-  // it comes back, and how often they have met it.
+  // The scheduler's own working numbers are corrector internals. What stays is
+  // the part of the record a learner can actually recognise: where the word
+  // stands, when it comes back, and how often they have met it.
   return [
     { label: 'État', value: srsStateLabel(progress?.state || queueItem?.state) },
     { label: 'Prochaine reprise', value: formatDateLabel(dueAt) || 'Non programmée' },
@@ -507,7 +537,7 @@ async function fetchVocabularyUsageSupport(wordId: number) {
         traces.push({
           source: 'Mission',
           label: mission.title || 'Mission',
-          description: `Targeted in ${humanBucket(mission.status)} mission`,
+          description: `Visé dans une mission ${humanBucket(mission.status)}`,
           date: entityDate(mission),
           href: `/missions?mission=${mission.id}`,
         });
@@ -550,7 +580,7 @@ async function fetchVocabularyUsageSupport(wordId: number) {
         traces.push({
           source: 'Feuilleton',
           label: scene.title || 'Feuilleton',
-          description: `Targeted in ${humanBucket(scene.status)} scene`,
+          description: `Visé dans une scène ${humanBucket(scene.status)}`,
           date: entityDate(scene),
           href: `/graphic-novel?scene=${scene.id}`,
         });
@@ -636,6 +666,174 @@ function sumCoverage(items: Array<{ nailed?: number; total?: number }>): Coverag
     { nailed: 0, total: 0 }
   );
 }
+
+// ---------------------------------------------------------------------------
+// Presentation primitives, extended from the design's Cahier artboard.
+// ---------------------------------------------------------------------------
+
+/* The Cahier masthead: count line, the one headline, and the Règles / Mots
+   pill switch. `route` is the current register; `xlink` the sibling. */
+function LxMasthead({
+  count,
+  route,
+  xlink,
+  xlinkHref,
+}: {
+  count: string;
+  route: string;
+  xlink: string;
+  xlinkHref: string;
+}) {
+  return (
+    <header className="lx-mast">
+      <div className="lx-mast__main">
+        <p className="lx-mast__count">{count}</p>
+        {/* the one Garamond-italic headline on this screen */}
+        <h1 className="av2-headline av2-headline--screen">Le lexique</h1>
+      </div>
+      <nav className="lx-switch" aria-label="Le cahier">
+        <Link className="lx-switch__tab" href={xlinkHref}>{xlink}</Link>
+        <span className="lx-switch__tab" aria-current="page">{route}</span>
+      </nav>
+    </header>
+  );
+}
+
+function LxSearch({ value, onChange }: { value: string; onChange: (next: string) => void }) {
+  return (
+    <label className="lx-search">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true">
+        <circle cx="11" cy="11" r="7" />
+        <path d="M20 20l-3.5-3.5" />
+      </svg>
+      <span className="av2-sr">Chercher un mot</span>
+      <input
+        className="lx-search__input lx-input"
+        type="search"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder="Chercher un mot…"
+        autoComplete="off"
+        autoCapitalize="off"
+      />
+      {value && (
+        <button type="button" className="lx-search__clear" onClick={() => onChange('')} aria-label="Effacer la recherche">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" aria-hidden="true">
+            <path d="M6 6l12 12M18 6L6 18" />
+          </svg>
+        </button>
+      )}
+    </label>
+  );
+}
+
+function LxSectionHead({ title, note, tone }: { title: string; note?: string; tone?: 'story' }) {
+  return (
+    <div className="lx-section-head">
+      <p className={['av2-label', tone === 'story' ? 'av2-label--story' : null].filter(Boolean).join(' ')}>{title}</p>
+      {note && <span className="av2-label lx-section-head__note">{note}</span>}
+    </div>
+  );
+}
+
+/* One design row: shape glyph, title, meta, three bars. */
+function LxWordRow({
+  word,
+  meta,
+  state,
+  stateLabel,
+  onSelect,
+}: {
+  word: string;
+  meta: string;
+  state: MasteryState;
+  stateLabel: string;
+  onSelect: () => void;
+}) {
+  const bars = stateBars(state);
+  const shape = stateShape(state);
+  return (
+    <button type="button" className="lx-row" onClick={onSelect} role="listitem">
+      <span className="lx-row__glyph" data-shape={shape} aria-hidden="true">
+        <span className="av2-fr">{word.trim().charAt(0).toUpperCase() || '·'}</span>
+      </span>
+      <span className="lx-row__main">
+        <span className="lx-row__title">{word}</span>
+        <span className="lx-row__meta">{meta}</span>
+      </span>
+      <span className="lx-row__bars" role="img" aria-label={stateLabel}>
+        {[1, 2, 3].map((step) => (
+          <i key={step} data-on={step <= bars ? shape : undefined} />
+        ))}
+      </span>
+    </button>
+  );
+}
+
+function LxSkeleton({ rows = 4 }: { rows?: number }) {
+  return (
+    <div className="lx-rows" aria-hidden="true">
+      {Array.from({ length: rows }).map((_, index) => (
+        <Skeleton key={index} height={64} radius={16} />
+      ))}
+    </div>
+  );
+}
+
+/* A coverage track: label, count, and the design's progress rule. Ink for the
+   whole-deck line, blue (information) for every other track. */
+function LxTrack({ label, value, max, tone }: { label: string; value: number; max: number; tone?: 'ink' }) {
+  const safeMax = Math.max(1, max);
+  const percent = Math.min(100, Math.round((Math.max(0, value) / safeMax) * 100));
+  return (
+    <div className="lx-track">
+      <div className="lx-track__head">
+        <span className="lx-track__label">{label}</span>
+        <span className="av2-label">{formatRank(value)} / {formatRank(max)}</span>
+      </div>
+      <div
+        className="av2-progress__track"
+        role="progressbar"
+        aria-label={label}
+        aria-valuemin={0}
+        aria-valuemax={safeMax}
+        aria-valuenow={Math.min(value, safeMax)}
+      >
+        <div className="av2-progress__fill lx-track__fill" data-tone={tone} style={{ width: `${percent}%` }} />
+      </div>
+    </div>
+  );
+}
+
+type MapTotal = { id: MasteryState; label: string; n: number };
+
+/* The Français 5000 mastery map: one cell per word by frequency rank, coloured
+   by the state's shape token; the totals beneath print every state in words. */
+function LxMasteryMap({ cells, totals, note }: { cells: MasteryState[]; totals: MapTotal[]; note: string }) {
+  return (
+    <Surface className="lx-map" aria-label="Carte de maîtrise">
+      <div className="lx-map__grid" aria-hidden="true">
+        {cells.map((state, index) => (
+          <i key={index} data-state={state} />
+        ))}
+      </div>
+      <ul className="lx-map__totals">
+        {totals.map((total) => (
+          <li key={total.id}>
+            <ShapeToken kind={stateShape(total.id)} size="sm" className={`lx-map__token lx-map__token--${total.id}`} />
+            <span>{total.label}</span>
+            <strong>{formatRank(total.n)}</strong>
+          </li>
+        ))}
+      </ul>
+      <p className="av2-body lx-map__note">{note}</p>
+    </Surface>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Page
+// ---------------------------------------------------------------------------
 
 interface VocabularyPageProps {
   embedded?: boolean;
@@ -999,31 +1197,30 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
     .filter((track) => !['uncategorized', 'adjectives_adverbs', 'function_words'].includes(track.id))
     .slice(0, 6);
   const verbSummary = sumCoverage(coverage?.verb_tracks || []);
+  const dueCount = Number(summary?.due_total ?? summary?.due ?? 0);
 
   function clearVocabularyFilters() {
     setFilter('all');
     setQuery('');
   }
 
-  const vocabChipFilters: VocabularyFilter[] = ['all', 'due', 'fragile', 'new', 'mastered'];
-  const vocabChips: NcChip[] = [
-    { l: 'Tous', n: null },
-    { l: 'À revoir', n: summary?.due ?? null },
-    { l: 'Fragiles', n: summary?.fragile ?? null },
-    { l: 'Nouveaux', n: summary?.new ?? null },
-    { l: 'Acquis', n: null },
+  const vocabChips: Array<{ id: VocabularyFilter; label: string; n: number | null }> = [
+    { id: 'all', label: 'Tous', n: null },
+    { id: 'due', label: 'À revoir', n: summary?.due ?? null },
+    { id: 'fragile', label: 'Fragiles', n: summary?.fragile ?? null },
+    { id: 'new', label: 'Nouveaux', n: summary?.new ?? null },
+    { id: 'mastered', label: 'Acquis', n: null },
   ];
-  const activeVocabChip = Math.max(0, vocabChipFilters.indexOf(filter));
 
-  const ncMapCellClasses = masteryCells.slice(0, 280).map((cell) => (cell.mastery_state === 'new' ? '' : cell.mastery_state));
-  const ncMapTotals: NcMapTotal[] = masteryMap
+  const mapCells: MasteryState[] = masteryCells.slice(0, 280).map((cell) => deckState(cell.mastery_state).state);
+  const mapTotals: MapTotal[] = masteryMap
     ? [
         { id: 'due', label: 'À revoir', n: masteryMap.summary.due || 0 },
         { id: 'fragile', label: 'Fragiles', n: masteryMap.summary.fragile || 0 },
         { id: 'building', label: 'En cours', n: masteryMap.summary.building || 0 },
         { id: 'solid', label: 'Solides', n: masteryMap.summary.solid || 0 },
         { id: 'mastered', label: 'Acquis', n: masteryMap.summary.mastered || 0 },
-        { id: '', label: 'Nouveaux', n: masteryMap.summary.new || 0 },
+        { id: 'new', label: 'Nouveaux', n: masteryMap.summary.new || 0 },
       ]
     : [];
 
@@ -1039,85 +1236,135 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
     }
   };
 
+  const countLine = loading
+    ? 'Ouverture du registre…'
+    : [
+        plural(summary?.due ?? 0, 'mot à revoir', 'mots à revoir'),
+        plural(summary?.fragile ?? 0, 'fragile', 'fragiles'),
+        plural(summary?.new ?? 0, 'nouveau', 'nouveaux'),
+      ].join(' · ');
+
+  const liveSummary = loading || deckLoading
+    ? 'Registre en cours…'
+    : `${todayItems.length} ${todayItems.length === 1 ? 'carte' : 'cartes'} en file · ${filteredDeck.length} au registre (${filterFr(filter)})`;
+
+  const thread = weeklyDossier?.fragile_threads?.[0] || weeklyDossier?.next_actions?.[0] || null;
+
   const landing = (
     <>
-      <NcFilingSummary
-        items={[
-          { n: summary?.due ?? 0, label: 'à revoir', tone: 'due' },
-          { n: summary?.fragile ?? 0, label: 'fragiles', tone: 'due' },
-          { n: summary?.new ?? 0, label: 'nouveaux' },
-        ]}
-      />
-      <NcSearch placeholder="Chercher un mot…" value={query} onChange={setQuery} />
-      <NcChips
-        chips={vocabChips}
-        active={activeVocabChip}
-        onSelect={(i) => setFilter(vocabChipFilters[i] || 'all')}
-      />
-      <NcLiveSum
-        text={loading || deckLoading
-          ? 'Registre en cours…'
-          : `${todayItems.length} ${todayItems.length === 1 ? 'carte' : 'cartes'} en file · ${filteredDeck.length} au registre (${filterFr(filter)})`}
-        clearable={hasVocabularyFilters}
-        onClear={clearVocabularyFilters}
-      />
+      {embedded && <p className="lx-mast__count">{countLine}</p>}
 
-      <NcLedgerHead t="File du jour — à revoir" n={`${todayItems.length} ${todayItems.length === 1 ? 'carte' : 'cartes'}`} />
+      {/* the one tactile 3D press on this screen: the way into the review */}
+      <Link className="av2-btn av2-btn--primary lx-cta" href="/vocabulary/review">
+        <ShapeToken kind="action" size="sm" />
+        {dueCount > 0 ? `Réviser · ${plural(dueCount, 'mot', 'mots')}` : 'Ouvrir la révision'}
+      </Link>
+
+      <LxSearch value={query} onChange={setQuery} />
+
+      <div className="lx-chips" role="group" aria-label="Filtrer le registre">
+        {vocabChips.map((chip) => (
+          <button
+            key={chip.id}
+            type="button"
+            className="lx-chip"
+            aria-pressed={filter === chip.id}
+            onClick={() => setFilter(chip.id)}
+          >
+            {chip.label}
+            {chip.n !== null && chip.n > 0 ? <span className="lx-chip__n">{chip.n}</span> : null}
+          </button>
+        ))}
+      </div>
+
+      <div className="lx-livesum" aria-live="polite">
+        <span className="av2-label">{liveSummary}</span>
+        {hasVocabularyFilters && (
+          <Action tone="quiet" inline onClick={clearVocabularyFilters}>Effacer</Action>
+        )}
+      </div>
+
+      <LxSectionHead
+        title="File du jour — à revoir"
+        note={`${todayItems.length} ${todayItems.length === 1 ? 'carte' : 'cartes'}`}
+      />
       {loading ? (
-        <NcSkeleton rows={4} />
+        <LxSkeleton rows={4} />
       ) : contextError ? (
-        <NcNotice message="Le registre des mots n’a pas pu être ouvert. La grammaire reste consultable." onRetry={() => setContextRetry((v) => v + 1)} />
+        <StateBlock
+          tone="error"
+          title="Le registre des mots n’a pas pu être ouvert."
+          body="La grammaire reste consultable."
+          action={{ label: 'Réessayer', onSelect: () => setContextRetry((v) => v + 1) }}
+        />
       ) : todayItems.length === 0 ? (
-        <NcEmpty
+        <StateBlock
+          tone="empty"
           title="Aucune carte en file"
           body={hasVocabularyFilters ? 'Aucun mot ne correspond à ce filtre.' : 'La file du jour est vide — le registre vous attend plus bas.'}
-          action={hasVocabularyFilters ? 'Effacer les filtres' : undefined}
-          onAction={hasVocabularyFilters ? clearVocabularyFilters : undefined}
+          action={hasVocabularyFilters ? { label: 'Effacer les filtres', onSelect: clearVocabularyFilters } : undefined}
         />
       ) : (
-        <div className="nc-index" role="list">
-          {todayItems.map((item) => (
-            <NcWordRow
-              key={`${item.word_id}-${item.bucket}`}
-              word={queueWord(item)}
-              tr={queueTranslation(item)}
-              bucket={ncQueueBucket(item.bucket)}
-              onClick={() => openDetail({ kind: 'queue', item })}
-            />
-          ))}
+        <div className="lx-rows" role="list">
+          {todayItems.map((item) => {
+            const state = queueBucketState(item.bucket);
+            const label = queueBucketLabel(item.bucket) || 'À revoir';
+            return (
+              <LxWordRow
+                key={`${item.word_id}-${item.bucket}`}
+                word={queueWord(item)}
+                meta={[queueTranslation(item), label].filter(Boolean).join(' · ')}
+                state={state}
+                stateLabel={label}
+                onSelect={() => openDetail({ kind: 'queue', item })}
+              />
+            );
+          })}
         </div>
       )}
 
-      <NcLedgerHead t="Registre des mots — Français 5000" tone="blue" n={deckLoading ? 'recherche…' : `${filteredDeck.length} affichés`} />
+      <LxSectionHead
+        title="Registre des mots — Français 5000"
+        tone="story"
+        note={deckLoading ? 'recherche…' : `${filteredDeck.length} affichés`}
+      />
       {deckLoading ? (
-        <NcSkeleton rows={4} file={false} />
+        <LxSkeleton rows={4} />
       ) : deckError ? (
-        <NcNotice tone="blue" message="Le registre des mots ne répond pas. Réessayez dans un instant." onRetry={() => setDeckRetry((v) => v + 1)} />
+        <StateBlock
+          tone="error"
+          title="Le registre des mots ne répond pas."
+          body="Réessayez dans un instant."
+          action={{ label: 'Réessayer', onSelect: () => setDeckRetry((v) => v + 1) }}
+        />
       ) : filteredDeck.length === 0 ? (
-        <NcEmpty
+        <StateBlock
+          tone="empty"
           title="Aucun mot au registre"
           body="Essayez un autre terme de recherche."
-          action={activeVocabularySearch ? 'Effacer la recherche' : undefined}
-          onAction={activeVocabularySearch ? () => setQuery('') : undefined}
+          action={activeVocabularySearch ? { label: 'Effacer la recherche', onSelect: () => setQuery('') } : undefined}
         />
       ) : (
-        <div className="nc-index" role="list">
+        <div className="lx-rows" role="list">
           {filteredDeck.map((item) => {
             const cell = masteryByWordId.get(item.id);
-            const st = ncDeckState(cell?.mastery_state);
+            const st = deckState(cell?.mastery_state);
+            // A word with no gloss on file simply shows none; nothing promises
+            // a translation nobody is going to write.
+            const meta = [
+              deckTranslation(item) || '—',
+              item.frequency_rank ? `rang ${formatRank(item.frequency_rank)}` : '',
+              partOfSpeechLabel(item.part_of_speech),
+              st.label,
+            ].filter(Boolean).join(' · ');
             return (
-              <NcWordRow
+              <LxWordRow
                 key={item.id}
-                rank={item.frequency_rank || null}
                 word={item.word}
-                // "traduction à venir" promised a translation nothing was
-                // going to write. A word with no gloss on file simply shows
-                // none.
-                tr={deckTranslation(item) || '—'}
-                pos={partOfSpeechLabel(item.part_of_speech) || null}
+                meta={meta}
                 state={st.state}
                 stateLabel={st.label}
-                onClick={() => openDetail({ kind: 'deck', item })}
+                onSelect={() => openDetail({ kind: 'deck', item })}
               />
             );
           })}
@@ -1125,86 +1372,291 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
       )}
 
       {coverage && (
-        <>
-          <button type="button" className="nc-fold" aria-expanded={atlasOpen} onClick={() => setAtlasOpen((open) => !open)}>
-            <span>
-              <span className="t">Atlas des acquis</span>
-              <span className="s" style={{ display: 'block' }}>
-                {cefrTotals.nailed} mots tenus sur {cefrTotals.total || 5000} · carte {atlasOpen ? 'dépliée' : 'pliée'}
+        <section className="lx-atlas" aria-label="Atlas des acquis">
+          <button
+            type="button"
+            className="lx-fold"
+            aria-expanded={atlasOpen}
+            onClick={() => setAtlasOpen((open) => !open)}
+          >
+            <span className="lx-fold__main">
+              <span className="lx-row__title">Atlas des acquis</span>
+              <span className="lx-row__meta">
+                {formatRank(cefrTotals.nailed)} mots tenus sur {formatRank(cefrTotals.total || 5000)} · carte {atlasOpen ? 'dépliée' : 'pliée'}
               </span>
             </span>
-            <span className="chev">{atlasOpen ? 'Replier' : 'Déplier'} <NcIcoFold open={atlasOpen} /></span>
+            <span className="av2-label">{atlasOpen ? 'Replier' : 'Déplier'}</span>
           </button>
           {atlasOpen && (
-            <>
-              <NcLedgerHead t="Couverture CECR" n="mots tenus / bande" />
-              {(coverage.cefr_bar || []).map((band, i) => (
-                <NcCoverageTrack
-                  key={band.band}
-                  lab={band.band}
-                  val={band.nailed || 0}
-                  max={band.total || Math.max(1, Math.round((band.nailed || 0) / Math.max(0.01, (band.percent || 0) / 100)))}
-                  tone={i === 0 ? 'ink' : ''}
-                />
-              ))}
+            <div className="av2-stack lx-atlas__body">
+              <LxSectionHead title="Couverture CECR" note="mots tenus / bande" />
+              <Surface className="av2-stack">
+                {(coverage.cefr_bar || []).map((band, i) => (
+                  <LxTrack
+                    key={band.band}
+                    label={band.band}
+                    value={band.nailed || 0}
+                    max={band.total || Math.max(1, Math.round((band.nailed || 0) / Math.max(0.01, (band.percent || 0) / 100)))}
+                    tone={i === 0 ? 'ink' : undefined}
+                  />
+                ))}
+              </Surface>
               {topicCats.length > 0 && (
                 <>
-                  <NcLedgerHead t="Pistes par domaine" tone="blue" n={`${topicCats.length} en cours`} />
-                  {topicCats.map((track) => (
-                    <NcCoverageTrack key={track.id} lab={track.label} val={track.nailed || 0} max={track.total || 1} />
-                  ))}
+                  <LxSectionHead title="Pistes par domaine" tone="story" note={`${topicCats.length} en cours`} />
+                  <Surface className="av2-stack">
+                    {topicCats.map((track) => (
+                      <LxTrack key={track.id} label={track.label} value={track.nailed || 0} max={track.total || 1} />
+                    ))}
+                  </Surface>
                 </>
               )}
               {(coverage.verb_tracks || []).length > 0 && (
                 <>
-                  <NcLedgerHead t="Verbes & structures" tone="blue" n="conjugaison" />
-                  <NcCoverageTrack lab="Verbes" val={verbSummary.nailed || 0} max={verbSummary.total || 1} tone="ink" />
-                  {/* /vocabulary/conjugation had no inbound link anywhere in the
-                    * app: the drill ran, scheduled itself and was unreachable.
-                    * The verbs block is where a learner is already looking at
-                    * their conjugation standing, so the way in belongs here. */}
-                  <Link className="vocab-review-link" href="/vocabulary/conjugation">
-                    Reprendre les formes irrégulières →
-                  </Link>
+                  <LxSectionHead title="Verbes & structures" tone="story" note="conjugaison" />
+                  <Surface className="av2-stack">
+                    <LxTrack label="Verbes" value={verbSummary.nailed || 0} max={verbSummary.total || 1} tone="ink" />
+                    {/* The verbs block is where a learner is already looking
+                        at their conjugation standing, so the way into the
+                        drill belongs here. */}
+                    <Link className="av2-btn av2-btn--secondary" href="/vocabulary/conjugation">
+                      Reprendre les formes irrégulières
+                    </Link>
+                  </Surface>
                 </>
               )}
-              {masteryMap && ncMapCellClasses.length > 0 && (
+              {masteryMap && mapCells.length > 0 && (
                 <>
-                  <NcLedgerHead t="Carte de maîtrise — Français 5000" n="1 case = 1 mot" />
-                  <NcMasteryMap
-                    cells={ncMapCellClasses}
-                    totals={ncMapTotals}
-                    note={`Les ${ncMapCellClasses.length} premières cases par rang de fréquence — la carte entière se parcourt par bandes, jamais imposée à la lecture.`}
+                  <LxSectionHead title="Carte de maîtrise — Français 5000" note="1 case = 1 mot" />
+                  <LxMasteryMap
+                    cells={mapCells}
+                    totals={mapTotals}
+                    note={`Les ${mapCells.length} premières cases par rang de fréquence — la carte entière se parcourt par bandes, jamais imposée à la lecture.`}
                   />
                 </>
               )}
-            </>
+            </div>
           )}
-        </>
+        </section>
       )}
 
       {weeklyDossier && (
-        <div className="nc-dossier">
-          <div className="k">Dossier de la semaine</div>
-          <h3>{weeklyDossier.headline || 'Le registre s’épaissit.'}</h3>
-          <dl>
-            <div><dt>Réparations</dt><dd>{weeklyDossier.stats.repairs_filed ?? 0}</dd></div>
-            <div><dt>Révisions</dt><dd>{weeklyDossier.stats.vocabulary_reviews ?? 0}</dd></div>
-            <div><dt>Vus</dt><dd>{weeklyDossier.stats.words_seen ?? 0}</dd></div>
-            <div><dt>Employés</dt><dd>{weeklyDossier.stats.words_produced ?? 0}</dd></div>
+        <Surface as="section" shape="hero" className="lx-dossier" aria-label="Dossier de la semaine">
+          <p className="av2-label">Dossier de la semaine</p>
+          <h2 className="av2-headline av2-headline--title">{weeklyDossier.headline || 'Le registre s’épaissit.'}</h2>
+          <dl className="lx-dossier__stats">
+            <div><dt className="av2-label">Réparations</dt><dd>{weeklyDossier.stats.repairs_filed ?? 0}</dd></div>
+            <div><dt className="av2-label">Révisions</dt><dd>{weeklyDossier.stats.vocabulary_reviews ?? 0}</dd></div>
+            <div><dt className="av2-label">Vus</dt><dd>{weeklyDossier.stats.words_seen ?? 0}</dd></div>
+            <div><dt className="av2-label">Employés</dt><dd>{weeklyDossier.stats.words_produced ?? 0}</dd></div>
           </dl>
-          {(weeklyDossier.fragile_threads?.[0] || weeklyDossier.next_actions?.[0]) && (
-            <div className="thread">
-              <b>{(weeklyDossier.fragile_threads?.[0] || weeklyDossier.next_actions?.[0])!.title}</b>
-              {(weeklyDossier.fragile_threads?.[0] || weeklyDossier.next_actions?.[0])!.subtitle && (
-                <em>{(weeklyDossier.fragile_threads?.[0] || weeklyDossier.next_actions?.[0])!.subtitle}</em>
-              )}
+          {thread && (
+            <div className="lx-dossier__thread">
+              <ShapeToken kind="action" size="sm" />
+              <span>
+                <b>{thread.title}</b>
+                {thread.subtitle && <em className="av2-body">{thread.subtitle}</em>}
+              </span>
             </div>
           )}
-        </div>
+        </Surface>
+      )}
+    </>
+  );
+
+  /* The two faces used to be stamped "LE MOT" / "LA RÉPONSE" in tracked caps;
+     the design's sentence-case side labels replace them. */
+  const practiceCard = detail && (
+    <div
+      className="lx-card lx-card--mini"
+      data-face={practiceRevealed ? 'back' : 'front'}
+      role="button"
+      tabIndex={0}
+      aria-pressed={practiceRevealed}
+      aria-label={practiceRevealed ? 'Sens · touche pour revenir' : 'Touche pour retourner'}
+      onClick={() => setPracticeRevealed((current) => !current)}
+      onKeyDown={(event) => {
+        if (event.key === ' ' || event.key === 'Enter') {
+          event.preventDefault();
+          setPracticeRevealed((current) => !current);
+        }
+      }}
+    >
+      <div className="lx-card__top">
+        <span>{practiceRevealed ? 'Sens · touche pour revenir' : 'Touche pour retourner'}</span>
+        <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M7 0L14 14H0Z" fill="currentColor" /></svg>
+      </div>
+      <p className="av2-headline lx-card__word">
+        {practiceRevealed
+          ? detailTranslation(detail) || detailMeaningForPractice(detail) || detailFrench(detail)
+          : detailWord(detail)}
+      </p>
+      {practiceRevealed && detailExample(detail) && (
+        <p className="av2-fr lx-card__example">« {detailExample(detail)} »</p>
+      )}
+    </div>
+  );
+
+  const content = (
+    <>
+      {!embedded && (
+        <LxMasthead count={countLine} route="Vocabulaire" xlink="Grammaire" xlinkHref="/grammar" />
+      )}
+      <div className="lx-body">{landing}</div>
+
+      {detail && (
+        <BottomSheet open={Boolean(detail)} title={detailWord(detail)} eyebrow="Français 5000" onClose={closeDetail}>
+          <div className="av2-stack lx-sheet">
+            <div className="lx-meta" aria-label="Détails du mot">
+              <Surface shape="tile"><span className="av2-label">Rang de fréquence</span><strong>{detailRank ? `#${formatRank(detailRank)}` : '—'}</strong></Surface>
+              <Surface shape="tile"><span className="av2-label">Nature</span><strong>{detailSpeech || '—'}</strong></Surface>
+              <Surface shape="tile"><span className="av2-label">Difficulté</span><strong>{detailLevel ? `N${detailLevel}` : '—'}</strong></Surface>
+              <Surface shape="tile"><span className="av2-label">Provenance</span><strong>{detail.kind === 'queue' ? humanBucket(detail.item.bucket) : 'registre'}</strong></Surface>
+            </div>
+            <FragilityBadge
+              progress={detail.kind === 'queue' ? detail.item : detailSupport.progress}
+              showReason
+            />
+
+            {practiceCard}
+
+            <Surface className="lx-anchor">
+              <p className="av2-label">Phrase d’ancrage</p>
+              <p className="av2-fr lx-anchor__text">
+                « {detailExample(detail) || [detailFrench(detail), detailTranslation(detail)].filter(Boolean).join(' — ')} »
+              </p>
+            </Surface>
+
+            <section className="lx-block" aria-label="Exemples par source">
+              <LxSectionHead
+                title="Exemples par source"
+                note={detailSupport.loading
+                  ? 'en cours'
+                  : plural(detailExampleGroups.reduce((count, group) => count + group.entries.length, 0), 'relevé', 'relevés')}
+              />
+              {detailExampleGroups.length > 0 ? (
+                <div className="av2-stack">
+                  {detailExampleGroups.map((group) => (
+                    <Surface as="article" key={group.source} className="lx-group">
+                      <div className="lx-group__head">
+                        <strong>{group.source}</strong>
+                        <Chip tone="quiet">{group.entries.length}</Chip>
+                      </div>
+                      {group.entries.map((entry) => (
+                        <div key={`${group.source}-${entry.label}-${entry.text}`} className="lx-entry">
+                          <span className="av2-label av2-label--story">{entry.label}</span>
+                          <p className="av2-fr lx-entry__text">{entry.text}</p>
+                          {entry.translation && <p className="av2-body">{entry.translation}</p>}
+                          {entry.meta && <p className="av2-label">{entry.meta}</p>}
+                        </div>
+                      ))}
+                    </Surface>
+                  ))}
+                </div>
+              ) : (
+                <p className="av2-body lx-placeholder">Aucun exemple au dossier pour l’instant.</p>
+              )}
+            </section>
+
+            <section className="lx-block" aria-label="Le suivi">
+              <LxSectionHead
+                title="Le suivi"
+                note={detailSupport.loading ? 'en cours' : detailSupport.progress ? 'à jour' : 'jamais revu'}
+              />
+              <div className="lx-meta lx-meta--srs">
+                {detailSrsRows.map((row) => (
+                  <Surface shape="tile" key={row.label}>
+                    <span className="av2-label">{row.label}</span>
+                    <strong>{row.value}</strong>
+                  </Surface>
+                ))}
+              </div>
+            </section>
+
+            <section className="lx-block" aria-label="Traces récentes">
+              <LxSectionHead
+                title="Traces récentes"
+                note={detailSupport.loading ? 'en cours' : plural(detailSupport.traces.length, 'trace', 'traces')}
+              />
+              {detailSupport.traces.length > 0 ? (
+                <div className="lx-rows">
+                  {detailSupport.traces.map((trace) => {
+                    const body = (
+                      <>
+                        <span className="lx-row__main">
+                          <span className="av2-label av2-label--story">{trace.source}</span>
+                          <span className="lx-row__title">{trace.label}</span>
+                          <span className="lx-row__meta">{[trace.description, formatShortDate(trace.date)].filter(Boolean).join(' · ')}</span>
+                        </span>
+                      </>
+                    );
+                    return trace.href ? (
+                      <Link key={traceKey(trace)} href={trace.href} className="lx-row">{body}</Link>
+                    ) : (
+                      <div key={traceKey(trace)} className="lx-row">{body}</div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="av2-body lx-placeholder">Ce mot n’a pas encore laissé de trace.</p>
+              )}
+            </section>
+
+            <div className="lx-actions">
+              <Action tone="secondary" onClick={openBiography} icon={<ShapeToken kind="story" size="sm" />}>
+                La biographie du mot
+              </Action>
+              <Action
+                tone="secondary"
+                pending={action === 'mission'}
+                pendingLabel="Composition…"
+                disabled={action !== null}
+                onClick={createMission}
+                icon={<ShapeToken kind="action" size="sm" />}
+              >
+                Le mettre en mission
+              </Action>
+              <Action
+                tone="secondary"
+                pending={action === 'feuilleton'}
+                pendingLabel="Composition…"
+                disabled={action !== null}
+                onClick={createFeuilleton}
+                icon={<ShapeToken kind="story" size="sm" />}
+              >
+                Le lire au Feuilleton
+              </Action>
+            </div>
+
+            <div className="lx-ratings" role="group" aria-label="Classer la carte">
+              {!practiceRevealed && <p className="av2-label lx-ratings__note">Retournez la carte avant de la classer.</p>}
+              {reviewOptions.map((option) => (
+                <Action
+                  key={option.rating}
+                  tone="secondary"
+                  pending={reviewing}
+                  pendingLabel={option.label}
+                  disabled={!practiceRevealed}
+                  onClick={() => review(option.rating)}
+                  icon={<ShapeToken kind={option.shape} size="sm" />}
+                  title={option.hint}
+                >
+                  {option.label}
+                  <span className="av2-sr"> · {option.hint}</span>
+                </Action>
+              ))}
+            </div>
+          </div>
+        </BottomSheet>
       )}
 
-      <NcColophon />
+      <WordBiographySheet
+        open={Boolean(biographyWordId)}
+        biography={biography}
+        loading={biographyLoading}
+        error={biographyError}
+        onClose={() => setBiographyWordId(null)}
+      />
     </>
   );
 
@@ -1215,1591 +1667,291 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
           <title>Le Cahier · Lexique · L’Atelier</title>
         </Head>
       )}
-      <CahiersStyles />
-      <main className={`vocab-page ${embedded ? 'embedded' : ''}`}>
-        <div className="nc nc-flow">
-          <div className="nc-page">
-            {!embedded && <NcMasthead slim route="Vocabulaire" xlink="Grammaire" xlinkHref="/grammar" />}
-            {landing}
-          </div>
-        </div>
-      </main>
+      {embedded ? (
+        <AtelierV2Root as="div" className="lx-page lx-page--embedded" aria-label="Le lexique">
+          {content}
+        </AtelierV2Root>
+      ) : (
+        <AtelierV2Root as="main" className="lx-page" aria-label="Le lexique">
+          {content}
+        </AtelierV2Root>
+      )}
       {!embedded && <PhoneProductNav active="notebook" placement="embedded" />}
 
-      {detail && (
-        <MobileBottomSheet
-          ariaLabel={`Fiche du mot ${detailWord(detail)}`}
-          onClose={closeDetail}
-          eyebrow="Français 5000"
-          title={detailWord(detail)}
-          closeLabel="Fermer la fiche du mot"
-          closeContent={<X size={18} />}
-          sheetClassName="vocab-detail-sheet"
-        >
-            <div className="vocab-detail-meta" aria-label="Détails du mot">
-              <span>
-                <strong>{detailRank ? `#${detailRank}` : '—'}</strong>
-                <em>rang de fréquence</em>
-              </span>
-              <span>
-                <strong>{detailSpeech || '—'}</strong>
-                <em>nature</em>
-              </span>
-              <span>
-                <strong>{detailLevel ? `N${detailLevel}` : '—'}</strong>
-                <em>difficulté</em>
-              </span>
-              <span>
-                <strong>{detail.kind === 'queue' ? humanBucket(detail.item.bucket) : 'registre'}</strong>
-                <em>provenance</em>
-              </span>
-            </div>
-            <div className="vocab-fragility-strip">
-              <FragilityBadge
-                progress={detail.kind === 'queue' ? detail.item : detailSupport.progress}
-                showReason
-              />
-            </div>
-            <div 
-              className="vocab-flashcard-perspective cursor-pointer select-none"
-              onClick={() => setPracticeRevealed((current) => !current)}
-            >
-              <div className={`vocab-flashcard-inner ${practiceRevealed ? 'flipped' : ''}`}>
-                
-                {/* FRONT FACE */}
-                <div className="vocab-flashcard-front">
-                  <span className="vocab-card-face-label">LE MOT</span>
-                  <p className="vocab-card-face-word">{detailWord(detail)}</p>
-                  <div className="vocab-card-hint-text">Touchez la carte pour retourner</div>
-                </div>
-
-                {/* BACK FACE */}
-                <div className="vocab-flashcard-back">
-                  <span className="vocab-card-face-label">LA RÉPONSE</span>
-                  <p className="vocab-card-face-word">
-                    {detailTranslation(detail) || detailMeaningForPractice(detail) || detailFrench(detail)}
-                  </p>
-                  <div className="vocab-card-hint-text">Touchez pour revenir au mot</div>
-                </div>
-                
-              </div>
-            </div>
-            <ContextAnchor
-              className="vocab-answer"
-              label="Phrase d’ancrage"
-              text={detailExample(detail) || [detailFrench(detail), detailTranslation(detail)].filter(Boolean).join(' — ')}
-              quote
-            />
-            <section className="vocab-detail-block">
-              <div className="vocab-detail-block-head">
-                <span>Exemples par source</span>
-                <em>
-                  {detailSupport.loading
-                    ? 'en cours'
-                    : plural(detailExampleGroups.reduce((count, group) => count + group.entries.length, 0), 'relevé', 'relevés')}
-                </em>
-              </div>
-              {detailExampleGroups.length > 0 ? (
-                <div className="vocab-source-groups">
-                  {detailExampleGroups.map((group) => (
-                    <article key={group.source} className="vocab-source-group">
-                      <div className="vocab-source-title">
-                        <strong>{group.source}</strong>
-                        <span>{group.entries.length}</span>
-                      </div>
-                      {group.entries.map((entry) => (
-                        <div key={`${group.source}-${entry.label}-${entry.text}`} className="vocab-context-entry">
-                          <b>{entry.label}</b>
-                          <p>{entry.text}</p>
-                          {entry.translation && <em>{entry.translation}</em>}
-                          {entry.meta && <small>{entry.meta}</small>}
-                        </div>
-                      ))}
-                    </article>
-                  ))}
-                </div>
-              ) : (
-                <p className="vocab-placeholder">Aucun exemple au dossier pour l’instant.</p>
-              )}
-            </section>
-            <section className="vocab-detail-block">
-              <div className="vocab-detail-block-head">
-                <span>Le suivi</span>
-                <em>{detailSupport.loading ? 'en cours' : detailSupport.progress ? 'à jour' : 'jamais revu'}</em>
-              </div>
-              <div className="vocab-srs-grid">
-                {detailSrsRows.map((row) => (
-                  <div key={row.label}>
-                    <span>{row.label}</span>
-                    <strong>{row.value}</strong>
-                  </div>
-                ))}
-              </div>
-            </section>
-            <section className="vocab-detail-block">
-              <div className="vocab-detail-block-head">
-                <span>Traces récentes</span>
-                <em>
-                  {detailSupport.loading
-                    ? 'en cours'
-                    : plural(detailSupport.traces.length, 'trace', 'traces')}
-                </em>
-              </div>
-              {detailSupport.traces.length > 0 ? (
-                <div className="vocab-trace-list">
-                  {detailSupport.traces.map((trace) => (
-                    <Link key={traceKey(trace)} href={trace.href || '#'} className={!trace.href ? 'disabled' : ''}>
-                      <span>{trace.source}</span>
-                      <strong>{trace.label}</strong>
-                      <em>{[trace.description, formatShortDate(trace.date)].filter(Boolean).join(' · ')}</em>
-                    </Link>
-                  ))}
-                </div>
-              ) : (
-                <p className="vocab-placeholder">Ce mot n’a pas encore laissé de trace.</p>
-              )}
-            </section>
-            <div className="vocab-context-actions">
-              <button type="button" onClick={openBiography}>
-                La biographie du mot
-              </button>
-              <button type="button" disabled={action !== null} onClick={createMission}>
-                {action === 'mission' ? <Loader2 size={14} className="spin" /> : null}
-                Le mettre en mission
-              </button>
-              <button type="button" disabled={action !== null} onClick={createFeuilleton}>
-                {action === 'feuilleton' ? <Loader2 size={14} className="spin" /> : null}
-                Le lire au Feuilleton <ArrowRight size={13} />
-              </button>
-            </div>
-            <div className="vocab-ratings">
-              {reviewOptions.map((option) => (
-                <button key={option.rating} type="button" className={option.tone} disabled={reviewing || !practiceRevealed} onClick={() => review(option.rating)}>
-                  <strong>{option.label}</strong>
-                  <span>{option.hint}</span>
-                </button>
-              ))}
-            </div>
-        </MobileBottomSheet>
-      )}
-
-      <WordBiographySheet
-        open={Boolean(biographyWordId)}
-        biography={biography}
-        loading={biographyLoading}
-        error={biographyError}
-        onClose={() => setBiographyWordId(null)}
-      />
-
-      <style jsx>{`
-        .vocab-page {
-          --paper: var(--app-paper);
-          --paper-2: var(--app-paper-2);
-          --sheet: var(--app-sheet);
-          --ink: var(--app-ink);
-          --ink-2: var(--app-ink-2);
-          --ink-3: var(--app-ink-3);
-          --red: var(--app-red);
-          --blue: var(--app-blue);
-          --yellow: var(--app-yellow);
-          min-height: 100vh;
-          padding: 24px clamp(20px, 4vw, 48px) 112px;
-          background: var(--paper);
-          color: var(--ink);
-        }
-        .vocab-page.embedded {
-          min-height: auto;
-          padding: 0;
-          background: transparent;
-        }
-        .vocab-hero {
-          border-bottom: 1px solid var(--ink);
-          padding-bottom: 20px;
-        }
-        .vocab-kicker,
-        .coverage-atlas-head span,
-        .coverage-axis-title span,
-        .coverage-axis-title a,
-        .coverage-tile em,
-        .coverage-cefr-band span,
-        .coverage-cefr-band em,
-        .vocab-weekly-dossier span,
-        .vocab-weekly-dossier dt,
-        .vocab-map-legend,
-        .vocab-section-head span,
-        .vocab-tabs button,
-        .vocab-answer span,
-        .vocab-detail-sheet header span,
-        .vocab-detail-meta em,
-        .vocab-detail-block-head span,
-        .vocab-source-title span,
-        .vocab-context-entry b,
-        .vocab-srs-grid span,
-        .vocab-trace-list span {
-          font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-          font-size: 11px;
-          font-weight: 900;
-          letter-spacing: .12em;
-          text-transform: uppercase;
-        }
-        h1,
-        .vocab-detail-sheet h2 {
-          margin: 8px 0 0;
-          font-family: "EB Garamond", Garamond, serif;
-          font-size: clamp(46px, 10vw, 82px);
-          font-style: italic;
-          line-height: .95;
-          letter-spacing: 0;
-        }
-        .vocab-stats {
-          display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 24px;
-          margin-top: 22px;
-        }
-        .vocab-review-link {
-          display: inline-flex;
-          min-height: 28px;
-          align-items: center;
-          justify-content: center;
-          margin-top: 14px;
-          border: 0;
-          border-bottom: 1px solid currentColor;
-          background: transparent;
-          padding: 0;
-          color: var(--ink-3);
-          font-size: 12px;
-          font-weight: 850;
-          letter-spacing: 0;
-          text-decoration: none;
-          text-transform: none;
-        }
-        .vocab-review-link:hover {
-          color: var(--blue);
-        }
-        .vocab-stats span {
-          border-top: 1px solid var(--ink);
-          padding-top: 8px;
-          color: var(--ink);
-          font-weight: 900;
-          text-transform: uppercase;
-        }
-        .vocab-stats strong {
+      <style jsx global>{`
+        .av2.lx-page {
           display: block;
-          font-size: 32px;
-          line-height: 1;
+          width: 100%;
+          max-width: 720px;
+          margin: 0 auto;
+          min-height: 100vh;
+          padding: 0 0 calc(24px + var(--av2-safe-bottom));
         }
-        .vocab-mode-switch {
-          margin-top: 18px;
-        }
-        .vocab-coverage-atlas {
-          display: grid;
-          gap: 16px;
-          margin-top: 18px;
-          border: 1px solid var(--ink);
-          background: var(--sheet);
-          padding: 18px 16px;
-        }
-        .atlas-hero {
+        .av2.lx-page--embedded { min-height: auto; background: transparent; padding-bottom: 8px; }
+        .av2 .lx-body { display: flex; flex-direction: column; gap: 12px; min-width: 0; padding: 16px var(--av2-gutter) 0; }
+        .av2.lx-page--embedded .lx-body { padding: 8px 0 0; }
+
+        /* Masthead — the Cahier artboard: count over headline, pill switch. */
+        .av2 .lx-mast {
           display: flex;
-          align-items: center;
-          gap: 16px;
-        }
-        .atlas-hero-body {
-          display: grid;
-          gap: 1px;
-        }
-        .atlas-hero-body span {
-          font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-          font-size: 10px;
-          font-weight: 900;
-          letter-spacing: .12em;
-          text-transform: uppercase;
-          color: var(--ink-3);
-        }
-        .atlas-hero-body strong {
-          font-family: "EB Garamond", Garamond, serif;
-          font-style: italic;
-          font-size: 32px;
-          line-height: 1;
-          font-weight: 650;
-        }
-        .atlas-hero-body em {
-          font-size: 12px;
-          color: var(--ink-2);
-          font-style: normal;
-        }
-        .atlas-momentum {
-          margin-left: auto;
-          align-self: flex-start;
-          font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-          font-size: 10px;
-          font-weight: 900;
-          letter-spacing: .08em;
-          text-transform: uppercase;
-          color: var(--blue);
-        }
-        .atlas-block {
-          display: grid;
-          gap: 9px;
-        }
-        .atlas-axis-title {
-          font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-          font-size: 10px;
-          font-weight: 900;
-          letter-spacing: .12em;
-          text-transform: uppercase;
-          color: var(--ink-3);
-        }
-        .atlas-active {
-          display: flex;
-          align-items: center;
-          gap: 14px;
-          border: 1px solid var(--ink);
-          background: var(--paper);
-          padding: 14px;
-          text-decoration: none;
-          color: var(--ink);
-        }
-        .atlas-active-body {
-          flex: 1;
-          display: grid;
-          gap: 2px;
-        }
-        .atlas-active-body strong {
-          font-family: "EB Garamond", Garamond, serif;
-          font-style: italic;
-          font-size: 19px;
-          font-weight: 650;
-        }
-        .atlas-active-body em {
-          font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-          font-size: 10px;
-          font-weight: 900;
-          letter-spacing: .08em;
-          text-transform: uppercase;
-          color: var(--ink-3);
-          font-style: normal;
-        }
-        .atlas-next {
-          display: grid;
-          gap: 0;
-          border: 1px solid var(--paper-2);
-        }
-        .atlas-next-row {
-          display: flex;
-          align-items: baseline;
+          align-items: flex-end;
           justify-content: space-between;
-          padding: 11px 12px;
-          border-bottom: 1px solid var(--paper-2);
-          text-decoration: none;
-          color: var(--ink);
-          background: var(--paper);
+          gap: 12px;
+          min-width: 0;
+          padding: calc(18px + env(safe-area-inset-top, 0px)) var(--av2-gutter) 0;
         }
-        .atlas-next-row:last-child { border-bottom: 0; }
-        .atlas-next-row span {
-          font-family: "EB Garamond", Garamond, serif;
-          font-style: italic;
-          font-size: 16px;
-        }
-        .atlas-next-row em {
-          font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-          font-size: 10px;
-          font-weight: 900;
-          color: var(--ink-3);
-          font-style: normal;
-        }
-        .atlas-fulltoggle {
+        .av2 .lx-mast__main { min-width: 0; }
+        .av2 .lx-mast__count { margin: 0 0 3px; font-size: var(--av2-t-label); font-weight: 600; color: var(--av2-muted); overflow-wrap: anywhere; }
+        .av2 .lx-switch { display: flex; flex: none; padding: 3px; border-radius: var(--av2-r-pill); background: var(--av2-line); }
+        .av2 .lx-switch__tab {
           display: inline-flex;
           align-items: center;
-          gap: 8px;
-          justify-self: start;
-          min-height: 38px;
-          padding: 0 14px;
-          border: 1px solid var(--ink);
+          min-height: 30px;
+          padding: 0 13px;
+          border: 0;
+          border-radius: var(--av2-r-pill);
           background: transparent;
-          color: var(--ink);
-          font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-          font-size: 10px;
-          font-weight: 900;
-          letter-spacing: .1em;
-          text-transform: uppercase;
+          color: var(--av2-muted);
+          font-size: var(--av2-t-meta);
+          font-weight: 700;
+          text-decoration: none;
+        }
+        .av2 .lx-switch__tab[aria-current='page'] { background: var(--av2-ink); color: var(--av2-on-ink); }
+        .av2 .lx-cta { margin-top: 2px; }
+
+        /* Search well: 44px, radius 14, card face. */
+        .av2 .lx-search {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          min-height: var(--av2-tap);
+          padding: 0 14px;
+          border-radius: 14px;
+          background: var(--av2-card);
+          color: var(--av2-muted);
+          cursor: text;
+        }
+        .av2 .lx-search svg { flex: none; }
+        .av2 .lx-search__input { flex: 1 1 auto; min-width: 0; padding: 0; background: transparent; color: var(--av2-ink); font-family: inherit; font-size: var(--av2-t-body-lg); }
+        .av2 .lx-search__input::placeholder { color: var(--av2-muted); opacity: 1; }
+        .av2 .lx-search__input::-webkit-search-cancel-button { display: none; }
+        .av2 .lx-search__clear {
+          display: grid;
+          place-items: center;
+          flex: none;
+          width: 32px;
+          height: 32px;
+          margin-right: -6px;
+          border: 0;
+          border-radius: var(--av2-r-pill);
+          background: var(--av2-line);
+          color: var(--av2-ink);
           cursor: pointer;
         }
-        .atlas-full {
-          display: grid;
-          gap: 10px;
-          border-top: 1px solid var(--paper-2);
-          padding-top: 14px;
+        /* globals.css puts an !important 1px ruled border on every input. */
+        .av2 .lx-input {
+          border: 0 !important;
+          border-radius: 0 !important;
+          box-shadow: none !important;
+          background-color: transparent;
+          min-height: var(--av2-tap);
+          outline: 0;
         }
-        .coverage-atlas-head,
-        .coverage-axis-title {
-          display: flex;
-          align-items: flex-start;
-          justify-content: space-between;
-          gap: 16px;
-        }
-        .coverage-atlas-head h2 {
-          margin: 5px 0 0;
-          font-family: "EB Garamond", Garamond, serif;
-          font-size: clamp(24px, 6vw, 36px);
-          font-style: italic;
-          font-weight: 650;
-          line-height: 1;
-          letter-spacing: 0;
-        }
-        .coverage-atlas-head p {
-          margin: 5px 0 0;
-          color: var(--ink-2);
-          font-size: 13px;
-          line-height: 1.25;
-        }
-        .coverage-cta {
+        .av2 .lx-input:focus { box-shadow: none !important; }
+        .av2 .lx-search:focus-within { outline: 2px solid var(--av2-blue); outline-offset: 0; }
+
+        /* Filter pills: 30px, the active one on ink. */
+        .av2 .lx-chips { display: flex; gap: 6px; min-width: 0; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+        .av2 .lx-chips::-webkit-scrollbar { display: none; }
+        .av2 .lx-chip {
           display: inline-flex;
-          min-height: 38px;
+          flex: none;
           align-items: center;
-          justify-content: center;
-          gap: 8px;
-          border: 1px solid var(--ink);
-          background: var(--ink);
-          padding: 0 14px;
-          color: var(--sheet);
-          font-size: 13px;
-          font-weight: 900;
-          text-decoration: none;
-          white-space: nowrap;
-        }
-        .coverage-summary-grid {
-          display: grid;
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-          gap: 8px;
-        }
-        .coverage-summary-card {
-          display: grid;
-          gap: 5px;
-          min-height: 82px;
-          border: 1px solid var(--ink);
-          background: var(--paper);
-          padding: 10px;
-          color: var(--ink);
-          text-decoration: none;
-        }
-        .coverage-summary-card span,
-        .coverage-summary-card em {
-          color: var(--ink-3);
-          font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-          font-size: 10px;
-          font-style: normal;
-          font-weight: 900;
-          letter-spacing: .08em;
-          text-transform: uppercase;
-        }
-        .coverage-summary-card strong {
-          font-size: 19px;
-          line-height: 1;
-        }
-        .coverage-cefr-strip {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(76px, 1fr));
-          gap: 8px;
-        }
-        .coverage-cefr-band,
-        .coverage-tile {
-          display: grid;
-          min-height: 74px;
-          align-content: space-between;
           gap: 6px;
-          border: 1px solid var(--ink);
-          background: var(--paper);
-          padding: 10px;
+          min-height: var(--av2-tap);
+          padding: 0 13px;
+          border: 0;
+          border-radius: var(--av2-r-pill);
+          background: var(--av2-card);
+          color: var(--av2-ink);
+          font-family: inherit;
+          font-size: var(--av2-t-meta);
+          font-weight: 700;
+          cursor: pointer;
         }
-        .coverage-cefr-band strong,
-        .coverage-tile strong {
-          font-size: 20px;
-          line-height: 1;
-        }
-        .coverage-tile strong {
+        .av2 .lx-chip[aria-pressed='true'] { background: var(--av2-ink); color: var(--av2-on-ink); }
+        .av2 .lx-chip__n { font-weight: 400; opacity: 0.85; }
+        .av2 .lx-livesum { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 0; min-height: 1.5rem; }
+        .av2 .lx-section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; min-width: 0; margin-top: 8px; }
+        .av2 .lx-section-head__note { font-weight: 400; flex: none; }
+
+        /* Rows — the Cahier artboard's concept row, verbatim. */
+        .av2 .lx-rows { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+        .av2 .lx-row {
           display: flex;
-          gap: 4px;
-          align-items: baseline;
-        }
-        .coverage-tile strong span {
-          color: var(--ink-3);
-          font-size: 14px;
-        }
-        .coverage-bar {
-          height: 7px;
-          overflow: hidden;
-          border: 1px solid var(--ink);
-          background: var(--paper-2);
-        }
-        .coverage-bar i {
-          display: block;
-          height: 100%;
-          background: var(--blue);
-        }
-        .coverage-topic-panel {
-          display: grid;
-          gap: 8px;
-        }
-        .coverage-tile-grid {
-          display: grid;
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-          gap: 8px;
-        }
-        .coverage-tile {
-          color: inherit;
-          text-decoration: none;
-        }
-        .coverage-tile.compact {
-          min-height: 86px;
-        }
-        .coverage-tile-label {
-          font-weight: 900;
-          line-height: 1.1;
-        }
-        .coverage-tile small {
-          min-width: 0;
-          overflow: hidden;
-          color: var(--ink-3);
-          font-size: 11px;
-          line-height: 1.2;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-        .coverage-topic-empty {
-          border: 1px dashed var(--ink-3);
-          padding: 10px;
-          color: var(--ink-2);
-          font-size: 13px;
-          line-height: 1.3;
-        }
-        .vocab-weekly-dossier,
-        .vocab-mastery-map {
-          margin-top: 18px;
-          border: 1px solid var(--ink);
-          background: var(--sheet);
-          padding: 14px;
-        }
-        .vocab-weekly-dossier {
-          display: grid;
+          align-items: center;
           gap: 14px;
-        }
-        .vocab-weekly-dossier span {
-          color: var(--ink-3);
-        }
-        .vocab-weekly-dossier h2 {
-          margin: 5px 0 0;
-          font-family: "EB Garamond", Garamond, serif;
-          font-size: clamp(25px, 7vw, 40px);
-          font-style: italic;
-          font-weight: 650;
-          line-height: 1.03;
-          letter-spacing: 0;
-        }
-        .vocab-weekly-dossier dl {
-          display: grid;
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-          margin: 0;
-          border: 1px solid var(--ink);
-          background: var(--paper);
-        }
-        .vocab-weekly-dossier dl div {
+          width: 100%;
           min-width: 0;
-          border-right: 1px solid var(--ink);
-          padding: 9px 10px;
+          min-height: var(--av2-tap);
+          padding: 14px 16px;
+          border: 0;
+          border-radius: var(--av2-r-card);
+          background: var(--av2-card);
+          color: var(--av2-ink);
+          font-family: inherit;
+          text-align: left;
+          text-decoration: none;
+          cursor: pointer;
+          transition: transform var(--av2-press-dur);
         }
-        .vocab-weekly-dossier dl div:last-child {
-          border-right: 0;
-        }
-        .vocab-weekly-dossier dt {
-          color: var(--ink-3);
-        }
-        .vocab-weekly-dossier dd {
-          margin: 4px 0 0;
-          font-size: 24px;
-          font-weight: 950;
-          line-height: 1;
-        }
-        .vocab-weekly-threads {
+        .av2 .lx-row:active { transform: scale(0.985); }
+        .av2 .lx-row__glyph {
           display: grid;
-          gap: 8px;
+          place-items: center;
+          flex: none;
+          width: 36px;
+          height: 36px;
+          border-radius: 8px;
+          background: var(--av2-line-2);
+          color: var(--av2-on-dark);
+          font-size: var(--av2-t-body-lg);
+          font-weight: 600;
         }
-        .vocab-weekly-threads article {
-          border-left: 4px solid var(--red);
-          background: var(--paper);
-          padding: 9px 11px;
+        .av2 .lx-row__glyph[data-shape='done'] { background: var(--av2-ink); color: var(--av2-on-ink); }
+        .av2 .lx-row__glyph[data-shape='story'] { background: var(--av2-blue); color: var(--av2-on-blue); border-radius: var(--av2-r-pill); }
+        .av2 .lx-row__glyph[data-shape='reward'] { background: var(--av2-yellow); color: var(--av2-on-yellow); }
+        .av2 .lx-row__glyph[data-shape='action'] { background: var(--av2-red); color: var(--av2-on-red); }
+        .av2 .lx-row__main { display: flex; flex-direction: column; gap: 3px; flex: 1 1 auto; min-width: 0; }
+        .av2 .lx-row__title { font-size: var(--av2-t-body); font-weight: 600; line-height: 1.2; overflow-wrap: anywhere; }
+        .av2 .lx-row__meta { font-size: var(--av2-t-meta); color: var(--av2-muted); line-height: 1.3; overflow-wrap: anywhere; }
+        .av2 .lx-row__bars { display: flex; flex: none; gap: 3px; width: 34px; }
+        .av2 .lx-row__bars i { flex: 1 1 0; height: 5px; border-radius: 3px; background: var(--av2-line); }
+        .av2 .lx-row__bars i[data-on='done'] { background: var(--av2-ink); }
+        .av2 .lx-row__bars i[data-on='story'] { background: var(--av2-blue); }
+        .av2 .lx-row__bars i[data-on='reward'] { background: var(--av2-yellow); }
+        .av2 .lx-row__bars i[data-on='action'] { background: var(--av2-red); }
+
+        /* Atlas fold and tracks. */
+        .av2 .lx-atlas { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; min-width: 0; }
+        .av2 .lx-fold {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          width: 100%;
+          min-height: var(--av2-tap);
+          padding: 14px 16px;
+          border: 0;
+          border-radius: var(--av2-r-tile);
+          background: var(--av2-card);
+          color: var(--av2-ink);
+          font-family: inherit;
+          text-align: left;
+          cursor: pointer;
         }
-        .vocab-weekly-threads strong,
-        .vocab-weekly-threads em {
-          display: block;
-        }
-        .vocab-weekly-threads em {
-          margin-top: 3px;
-          color: var(--ink-3);
-          font-style: normal;
-          font-weight: 750;
-          line-height: 1.25;
-        }
-        .vocab-section-head.compact {
-          margin: 0 0 10px;
-        }
-        .vocab-map-grid {
+        .av2 .lx-fold__main { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+        .av2 .lx-atlas__body { gap: 10px; }
+        .av2 .lx-track { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+        .av2 .lx-track__head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+        .av2 .lx-track__label { font-size: var(--av2-t-label); font-weight: 600; }
+        .av2 .lx-track__fill { background: var(--av2-blue); }
+        .av2 .lx-track__fill[data-tone='ink'] { background: var(--av2-ink); }
+        .av2 .lx-map { display: flex; flex-direction: column; gap: 12px; }
+        .av2 .lx-map__grid {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(6px, 1fr));
+          grid-template-columns: repeat(auto-fill, minmax(8px, 1fr));
           gap: 3px;
           max-height: 140px;
           overflow: hidden;
-          border: 1px solid var(--ink);
-          background: var(--paper);
-          padding: 8px;
         }
-        .vocab-map-cell {
-          display: block;
-          aspect-ratio: 1;
-          min-width: 6px;
-          background: var(--paper-2);
-        }
-        .vocab-map-cell.due {
-          background: var(--red);
-        }
-        .vocab-map-cell.fragile {
-          background: color-mix(in srgb, var(--app-red) 45%, var(--app-paper));
-        }
-        .vocab-map-cell.building {
-          background: var(--yellow);
-        }
-        .vocab-map-cell.solid {
-          background: var(--blue);
-        }
-        .vocab-map-cell.mastered {
-          background: var(--ink);
-        }
-        .vocab-map-legend {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 7px 12px;
-          margin-top: 10px;
-          color: var(--ink-3);
-          font-size: 10px;
-        }
-        .vocab-map-legend span {
-          display: inline-flex;
-          align-items: center;
-          gap: 5px;
-        }
-        .vocab-map-legend i {
-          width: 9px;
-          height: 9px;
-          border: 1px solid var(--ink);
-          background: var(--paper-2);
-        }
-        .vocab-map-legend i.due {
-          background: var(--red);
-        }
-        .vocab-map-legend i.fragile {
-          background: color-mix(in srgb, var(--app-red) 45%, var(--app-paper));
-        }
-        .vocab-map-legend i.building {
-          background: var(--yellow);
-        }
-        .vocab-map-legend i.solid {
-          background: var(--blue);
-        }
-        .vocab-map-legend i.mastered {
-          background: var(--ink);
-        }
-        .vocab-controls {
-          margin-top: 18px;
-        }
-        .vocab-search {
-          display: grid;
-          grid-template-columns: 28px minmax(0, 1fr) auto;
-          align-items: center;
-          gap: 12px;
-          border: 1px solid var(--ink);
-          background: var(--paper-2);
-          padding: 10px 14px;
-        }
-        .vocab-search input {
-          min-width: 0;
-          border: 1px solid var(--ink);
-          background: var(--paper);
-          padding: 8px 10px;
-          color: var(--ink);
-          font: inherit;
-          font-size: 18px;
-          outline: 0;
-        }
-        .vocab-search-clear {
-          display: inline-flex;
-          width: 34px;
-          height: 34px;
-          flex: 0 0 auto;
-          align-items: center;
-          justify-content: center;
-          border: 1px solid var(--ink);
-          background: var(--paper);
-          color: var(--ink);
-        }
-        .vocab-tabs {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 10px;
-          margin-top: 12px;
-        }
-        .vocab-tabs button {
-          min-height: 44px;
-          border: 1px solid var(--ink);
-          background: var(--paper);
-          padding: 0 18px;
-          color: var(--ink);
-        }
-        .vocab-tabs button.active {
-          background: var(--ink);
-          color: var(--paper);
-        }
-        .vocab-filter-summary {
-          display: flex;
-          min-height: 32px;
-          align-items: center;
-          justify-content: space-between;
-          gap: 12px;
-          margin-top: 8px;
-          color: var(--ink-2);
-          font-size: 12px;
-          font-weight: 850;
-        }
-        .vocab-filter-summary button,
-        :global(.vocab-state button) {
-          min-height: 30px;
-          border: 1px solid var(--ink);
-          background: transparent;
-          padding: 0 10px;
-          color: var(--ink);
-          font: inherit;
-          font-size: 11px;
-          font-weight: 900;
-        }
-        .vocab-section-head {
-          display: flex;
-          justify-content: space-between;
-          align-items: baseline;
-          gap: 16px;
-          margin-top: 26px;
-          margin-bottom: 10px;
-        }
-        .vocab-section-head em {
-          color: var(--ink-3);
-          font-size: 13px;
-          font-style: normal;
-          font-weight: 850;
-        }
-        .vocab-card-stack {
-          border: 1px solid var(--ink);
-          background: var(--sheet);
-        }
-        .vocab-row {
-          display: grid;
-          width: 100%;
-          align-items: center;
-          gap: 12px;
-          min-height: 68px;
-          border: 0;
-          border-bottom: 1px solid var(--ink);
-          background: transparent;
-          padding: 12px 16px;
-          color: var(--ink);
-          text-align: left;
-        }
-        .queue-row {
-          grid-template-columns: 16px minmax(0, 1fr) auto;
-        }
-        .deck-row {
-          grid-template-columns: 42px minmax(0, 1fr) auto;
-        }
-        .queue-row :global(.fragility-badge) {
-          grid-column: 3;
-          grid-row: 1 / span 2;
-          justify-self: end;
-          max-width: 126px;
-        }
-        .queue-row b {
-          grid-column: 2;
-          justify-self: start;
-          margin-top: -6px;
-        }
-        .vocab-row:last-child {
-          border-bottom: 0;
-        }
-        .vocab-row strong {
-          display: block;
-          font-size: 18px;
-          font-weight: 900;
-          line-height: 1.2;
-          overflow-wrap: anywhere;
-        }
-        .vocab-row em {
-          display: block;
-          margin-top: 3px;
-          color: var(--ink-3);
-          font-size: 13px;
-          font-style: normal;
-          font-weight: 700;
-          line-height: 1.3;
-          overflow-wrap: anywhere;
-        }
-        .vocab-row b {
-          color: var(--blue);
-          font-size: 12px;
-          line-height: 1.1;
-          text-align: right;
-        }
-        .queue-row b {
-          text-align: left;
-        }
-        .vocab-dot {
-          width: 9px;
-          height: 9px;
-          border-radius: 50%;
-          background: var(--red);
-        }
-        .vocab-dot.fragile {
-          background: var(--blue);
-        }
-        .vocab-dot.new {
-          background: var(--yellow);
-          border: 1px solid var(--ink);
-        }
-        .vocab-rank {
-          display: inline-grid;
-          min-width: 26px;
-          min-height: 22px;
-          place-items: center;
-          border: 1px solid var(--ink);
-          font-size: 11px;
-          font-weight: 900;
-        }
-        :global(.vocab-empty) {
-          padding: 18px 16px;
-          color: var(--ink-3);
-          font-weight: 800;
-        }
-        :global(.vocab-state) {
-          display: grid;
-          grid-column: 1 / -1;
-          gap: 8px;
-          min-height: 128px;
-          align-content: center;
-          border: 1px dashed color-mix(in srgb, var(--app-ink) 42%, transparent);
-          background: var(--paper-2);
-        }
-        :global(.vocab-state.error) {
-          border-style: solid;
-          border-left: 4px solid var(--red);
-          background: var(--app-sheet);
-        }
-        :global(.vocab-state-head) {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          color: var(--ink);
-          font-size: 11px;
-          font-weight: 900;
-          letter-spacing: .12em;
-          text-transform: uppercase;
-        }
-        :global(.vocab-state p) {
-          margin: 0;
-          color: var(--ink-2);
-          font-size: 14px;
-          font-weight: 750;
-          line-height: 1.35;
-        }
-        :global(.vocab-state-skeleton) {
-          display: grid;
-          gap: 8px;
-          margin-top: 4px;
-        }
-        :global(.vocab-state-skeleton span) {
-          display: block;
-          height: 12px;
-          border: 1px solid color-mix(in srgb, var(--app-ink) 18%, transparent);
-          background: linear-gradient(90deg, var(--app-paper-2), var(--app-sheet), var(--app-paper-2));
-          background-size: 220% 100%;
-          animation: vocab-shimmer 1.2s ease-in-out infinite;
-        }
-        :global(.vocab-state-skeleton span:nth-child(2)) {
-          width: 78%;
-        }
-        :global(.vocab-state-skeleton span:nth-child(3)) {
-          width: 58%;
-        }
-        .vocab-detail-layer {
-          --paper: var(--app-paper);
-          --paper-2: var(--app-paper-2);
-          --sheet: var(--app-sheet);
-          --ink: var(--app-ink);
-          --ink-2: var(--app-ink-2);
-          --ink-3: var(--app-ink-3);
-          --red: var(--app-red);
-          --blue: var(--app-blue);
-          --yellow: var(--app-yellow);
-          position: fixed;
-          inset: 0;
-          z-index: 120;
-        }
-        .vocab-detail-scrim {
-          position: absolute;
-          inset: 0;
-          border: 0;
-          background: color-mix(in srgb, var(--app-ink) 42%, transparent);
-        }
-        .vocab-detail-sheet {
-          position: absolute;
-          right: 0;
-          bottom: 0;
-          left: 0;
-          max-height: 86vh;
-          overflow: auto;
-          border-top: 1px solid var(--ink);
-          background: var(--paper);
-          padding: 12px 20px calc(20px + env(safe-area-inset-bottom));
-          box-shadow: 0 -20px 40px color-mix(in srgb, var(--app-ink) 18%, transparent);
-        }
-        .vocab-grabber {
-          width: 48px;
-          height: 4px;
-          margin: 0 auto 16px;
-          border-radius: 999px;
-          background: var(--ink-3);
-        }
-        .vocab-detail-sheet header {
-          display: flex;
-          justify-content: space-between;
-          gap: 18px;
-          border-bottom: 1px solid var(--ink);
-          padding-bottom: 14px;
-        }
-        .vocab-detail-sheet h2 {
-          font-size: clamp(40px, 11vw, 70px);
-          overflow-wrap: anywhere;
-        }
-        .vocab-detail-meta {
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 1px;
-          margin-top: 12px;
-          border: 1px solid var(--ink);
-          background: var(--ink);
-        }
-        .vocab-detail-meta span {
-          display: grid;
-          gap: 4px;
-          min-width: 0;
-          background: var(--sheet);
-          padding: 10px 12px;
-        }
-        .vocab-detail-meta strong {
-          min-width: 0;
-          font-size: 18px;
-          line-height: 1.1;
-          overflow-wrap: anywhere;
-        }
-        .vocab-detail-meta em {
-          color: var(--ink-3);
-          font-size: 9px;
-          font-style: normal;
-          letter-spacing: .08em;
-        }
-        .vocab-fragility-strip {
-          border: 1px solid var(--ink);
-          border-top: 0;
-          background: var(--paper);
-          padding: 10px 12px;
-        }
-        .vocab-fragility-strip :global(.fragility-badge) {
-          width: 100%;
-        }
-        .vocab-detail-sheet header button {
-          display: inline-grid;
-          width: 44px;
-          height: 44px;
-          place-items: center;
-          border: 1px solid var(--ink);
-          background: var(--sheet);
-          color: var(--ink);
-        }
-        .vocab-practice-tabs {
-          display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-          margin-top: 14px;
-          border: 1px solid var(--ink);
-        }
-        .vocab-practice-tabs button {
-          min-height: 42px;
-          border: 0;
-          border-right: 1px solid var(--ink);
-          background: var(--sheet);
-          color: var(--ink);
-          font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-          font-size: 10px;
-          font-weight: 900;
-          letter-spacing: .08em;
-          text-transform: uppercase;
-        }
-        .vocab-practice-tabs button:last-child {
-          border-right: 0;
-        }
-        .vocab-practice-tabs button.active {
-          background: var(--ink);
-          color: var(--paper);
-        }
-        .vocab-flashcard-perspective {
-          perspective: 1000px;
-          width: 100%;
-          height: 190px;
-          margin-top: 14px;
-        }
-        .vocab-flashcard-inner {
-          position: relative;
-          width: 100%;
-          height: 100%;
-          transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-          transform-style: preserve-3d;
-        }
-        .vocab-flashcard-inner.flipped {
-          transform: rotateY(180deg);
-        }
-        .vocab-flashcard-front,
-        .vocab-flashcard-back {
-          position: absolute;
-          width: 100%;
-          height: 100%;
-          backface-visibility: hidden;
-          border: 4px solid var(--ink);
-          padding: 20px;
+        .av2 .lx-map__grid i { display: block; aspect-ratio: 1; min-width: 8px; border-radius: 2px; background: var(--av2-line); }
+        .av2 .lx-map__grid i[data-state='due'], .av2 .lx-map__grid i[data-state='fragile'] { background: var(--av2-red); }
+        .av2 .lx-map__grid i[data-state='fragile'] { opacity: 0.55; }
+        .av2 .lx-map__grid i[data-state='building'] { background: var(--av2-blue); opacity: 0.55; }
+        .av2 .lx-map__grid i[data-state='solid'] { background: var(--av2-blue); }
+        .av2 .lx-map__grid i[data-state='mastered'] { background: var(--av2-ink); }
+        .av2 .lx-map__grid i[data-state='new'] { background: var(--av2-yellow); opacity: 0.6; }
+        .av2 .lx-map__totals { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 14px; }
+        .av2 .lx-map__totals li { display: inline-flex; align-items: center; gap: 6px; font-size: var(--av2-t-meta); color: var(--av2-muted); }
+        .av2 .lx-map__totals strong { color: var(--av2-ink); }
+        .av2 .lx-map__token--fragile, .av2 .lx-map__token--building, .av2 .lx-map__token--new { opacity: 0.6; }
+        .av2 .lx-map__note { font-size: var(--av2-t-meta); color: var(--av2-muted); }
+
+        /* Weekly dossier. */
+        .av2 .lx-dossier { display: flex; flex-direction: column; gap: 10px; padding: 18px; margin-top: 8px; }
+        .av2 .lx-dossier__stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 4px 0 0; }
+        .av2 .lx-dossier__stats div { min-width: 0; padding: 10px 12px; border-radius: var(--av2-r-tile); background: var(--av2-paper); }
+        .av2 .lx-dossier__stats dd { margin: 4px 0 0; font-size: var(--av2-t-title); font-weight: 700; line-height: 1; }
+        .av2 .lx-dossier__thread { display: flex; align-items: flex-start; gap: 8px; min-width: 0; }
+        .av2 .lx-dossier__thread .av2-shape { margin-top: 5px; }
+        .av2 .lx-dossier__thread span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+        .av2 .lx-dossier__thread b { font-size: var(--av2-t-body); font-weight: 600; }
+        .av2 .lx-dossier__thread em { font-style: normal; }
+
+        /* Word sheet. */
+        .av2 .lx-sheet { gap: 14px; }
+        .av2 .lx-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; min-width: 0; }
+        .av2 .lx-meta strong { display: block; margin-top: 4px; font-size: var(--av2-t-body-lg); font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
+        .av2 .lx-anchor { display: flex; flex-direction: column; gap: 6px; }
+        .av2 .lx-anchor__text { margin: 0; font-size: var(--av2-t-option); color: var(--av2-ink); }
+        .av2 .lx-block { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+        .av2 .lx-block .lx-section-head { margin-top: 0; }
+        .av2 .lx-group { display: flex; flex-direction: column; gap: 10px; }
+        .av2 .lx-group__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+        .av2 .lx-group__head strong { font-size: var(--av2-t-body); }
+        .av2 .lx-entry { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+        .av2 .lx-entry + .lx-entry { padding-top: 10px; border-top: 1px solid var(--av2-line); }
+        .av2 .lx-entry__text { margin: 0; font-size: var(--av2-t-action); color: var(--av2-ink); }
+        .av2 .lx-placeholder { margin: 0; color: var(--av2-muted); }
+        .av2 .lx-actions { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+        .av2 .lx-ratings { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; min-width: 0; }
+        .av2 .lx-ratings__note { grid-column: 1 / -1; }
+        .av2 .lx-ratings .av2-btn { width: auto; }
+
+        /* The Lexique card at small size, inside the sheet. */
+        .av2 .lx-card {
+          --lx-card-face: var(--av2-card);
+          --lx-card-fg: var(--av2-ink);
+          --lx-card-shadow: var(--av2-line-2);
           display: flex;
           flex-direction: column;
-          justify-content: center;
-          align-items: center;
-          text-align: center;
-        }
-        .vocab-flashcard-front {
-          background: var(--sheet);
-        }
-        .vocab-flashcard-back {
-          background: var(--yellow);
-          transform: rotateY(180deg);
-        }
-        .vocab-card-face-label {
-          position: absolute;
-          top: 10px;
-          left: 12px;
-          font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-          font-size: 10px;
-          font-weight: 900;
-          letter-spacing: .1em;
-          text-transform: uppercase;
-          color: var(--ink-3);
-        }
-        .vocab-card-face-word {
-          font-family: "EB Garamond", Garamond, serif;
-          font-size: 28px;
-          font-style: italic;
-          font-weight: 700;
-          line-height: 1.1;
-          color: var(--ink);
-          max-width: 90%;
-          overflow-wrap: anywhere;
-        }
-        .vocab-card-hint-text {
-          position: absolute;
-          bottom: 10px;
-          font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-          font-size: 9px;
-          font-weight: 800;
-          letter-spacing: .05em;
-          text-transform: uppercase;
-          color: var(--ink-3);
-          opacity: 0.8;
-        }
-        .vocab-detail-sheet blockquote {
-          margin-top: 14px;
-          border-left: 4px solid var(--blue);
-          background: var(--sheet);
-          padding: 12px 14px;
-        }
-        .vocab-detail-sheet blockquote {
-          margin-bottom: 0;
-          font-family: "EB Garamond", Garamond, serif;
-          font-size: 22px;
-          font-style: italic;
-          line-height: 1.3;
-        }
-        .vocab-detail-block {
-          margin-top: 14px;
-          border: 1px solid var(--ink);
-          background: var(--sheet);
-        }
-        .vocab-detail-block-head {
-          display: flex;
-          align-items: baseline;
           justify-content: space-between;
-          gap: 12px;
-          border-bottom: 1px solid var(--ink);
-          padding: 10px 12px;
-        }
-        .vocab-detail-block-head em {
-          color: var(--ink-3);
-          font-size: 12px;
-          font-style: normal;
-          font-weight: 850;
-        }
-        .vocab-source-groups,
-        .vocab-trace-list {
-          display: grid;
-          gap: 1px;
-          background: var(--ink);
-        }
-        .vocab-source-group,
-        .vocab-trace-list a {
+          gap: 14px;
+          min-height: 11rem;
           min-width: 0;
-          background: var(--sheet);
-        }
-        .vocab-source-title {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 12px;
-          padding: 10px 12px 0;
-        }
-        .vocab-source-title strong {
-          font-size: 15px;
-          overflow-wrap: anywhere;
-        }
-        .vocab-source-title span {
-          display: inline-grid;
-          min-width: 24px;
-          height: 24px;
-          place-items: center;
-          border: 1px solid var(--ink);
-          font-size: 10px;
-          letter-spacing: 0;
-        }
-        .vocab-context-entry {
-          padding: 10px 12px 12px;
-        }
-        .vocab-context-entry + .vocab-context-entry {
-          border-top: 1px solid color-mix(in srgb, var(--app-ink) 18%, transparent);
-        }
-        .vocab-context-entry b {
-          display: block;
-          color: var(--blue);
-          font-size: 10px;
-          letter-spacing: .08em;
-        }
-        .vocab-context-entry p {
-          margin: 5px 0 0;
-          color: var(--ink);
-          font-size: 17px;
-          font-weight: 800;
-          line-height: 1.28;
-          overflow-wrap: anywhere;
-        }
-        .vocab-context-entry em,
-        .vocab-context-entry small {
-          display: block;
-          margin-top: 5px;
-          color: var(--ink-3);
-          font-size: 13px;
-          font-style: normal;
-          font-weight: 750;
-          line-height: 1.25;
-          overflow-wrap: anywhere;
-        }
-        .vocab-srs-grid {
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 1px;
-          background: var(--ink);
-        }
-        .vocab-srs-grid div {
-          min-width: 0;
-          background: var(--sheet);
-          padding: 10px 12px;
-        }
-        .vocab-srs-grid span {
-          display: block;
-          color: var(--ink-3);
-          font-size: 9px;
-          letter-spacing: .08em;
-        }
-        .vocab-srs-grid strong {
-          display: block;
-          margin-top: 5px;
-          font-size: 15px;
-          line-height: 1.2;
-          overflow-wrap: anywhere;
-        }
-        .vocab-trace-list a {
-          display: grid;
-          gap: 3px;
-          padding: 10px 12px;
-          color: var(--ink);
-          text-decoration: none;
-        }
-        .vocab-trace-list a.disabled {
-          pointer-events: none;
-        }
-        .vocab-trace-list span {
-          color: var(--blue);
-          font-size: 9px;
-          letter-spacing: .08em;
-        }
-        .vocab-trace-list strong {
-          font-size: 15px;
-          line-height: 1.2;
-          overflow-wrap: anywhere;
-        }
-        .vocab-trace-list em,
-        .vocab-placeholder {
-          color: var(--ink-3);
-          font-size: 13px;
-          font-style: normal;
-          font-weight: 750;
-          line-height: 1.3;
-        }
-        .vocab-placeholder {
-          margin: 0;
-          padding: 12px;
-        }
-        .vocab-context-actions,
-        .vocab-ratings {
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 8px;
-          margin-top: 14px;
-        }
-        .vocab-context-actions button,
-        .vocab-ratings button {
-          display: inline-flex;
-          min-height: 56px;
-          align-items: center;
-          justify-content: center;
-          gap: 6px;
-          border: 1px solid var(--ink);
-          background: var(--sheet);
-          color: var(--ink);
-          padding: 8px;
+          padding: 20px 20px 22px;
+          border: 0;
+          border-radius: var(--av2-r-vocab);
+          background: var(--lx-card-face);
+          color: var(--lx-card-fg);
+          box-shadow: 0 var(--av2-press-lg) 0 var(--lx-card-shadow);
+          margin-bottom: var(--av2-press-lg);
           text-align: left;
-          font-weight: 900;
+          cursor: pointer;
+          user-select: none;
+          -webkit-user-select: none;
+          transition: background 0.25s, color 0.25s, transform var(--av2-press-dur), box-shadow var(--av2-press-dur);
         }
-        .vocab-ratings button {
-          display: block;
-          text-align: left;
+        .av2 .lx-card:active { transform: translateY(4px); box-shadow: 0 4px 0 var(--lx-card-shadow); }
+        .av2 .lx-card[data-face='back'] {
+          --lx-card-face: var(--av2-yellow);
+          --lx-card-fg: var(--av2-on-yellow);
+          --lx-card-shadow: var(--av2-yellow-deep);
         }
-        .vocab-ratings strong,
-        .vocab-ratings span {
-          display: block;
+        .av2 .lx-card__top { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: var(--av2-t-label); font-weight: 700; opacity: 0.85; }
+        .av2 .lx-card__word { font-size: var(--av2-t-screen); line-height: 1; color: inherit; }
+        .av2 .lx-card__example { margin: 0; font-size: var(--av2-t-action); line-height: 1.35; opacity: 0.9; color: inherit; }
+
+        @media (min-width: 560px) {
+          .av2 .lx-meta { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+          .av2 .lx-actions { flex-direction: row; }
+          .av2 .lx-actions .av2-btn { flex: 1 1 0; width: auto; }
         }
-        .vocab-ratings span {
-          margin-top: 4px;
-          color: var(--ink-3);
-          font-size: 12px;
-        }
-        .vocab-ratings .red {
-          border-color: var(--red);
-          box-shadow: inset 4px 0 0 var(--red);
-        }
-        .vocab-ratings .yellow {
-          box-shadow: inset 4px 0 0 var(--yellow);
-        }
-        .vocab-ratings .blue {
-          border-color: var(--blue);
-          box-shadow: inset 4px 0 0 var(--blue);
-        }
-        .vocab-ratings .black {
-          background: var(--ink);
-          color: var(--paper);
-        }
-        .vocab-ratings button:disabled {
-          cursor: not-allowed;
-          opacity: .45;
-        }
-        .spin {
-          animation: spin .7s linear infinite;
-        }
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-        @keyframes vocab-shimmer {
-          0% { background-position: 120% 0; }
-          100% { background-position: -120% 0; }
-        }
-        @media (max-width: 640px) {
-          .vocab-page {
-            overflow-x: hidden;
-            padding: 0 0 calc(134px + env(safe-area-inset-bottom));
-          }
-          .vocab-hero {
-            border-bottom: 0;
-            padding: 16px 16px 0;
-          }
-          .vocab-kicker {
-            letter-spacing: .1em;
-          }
-          h1,
-          .vocab-detail-sheet h2 {
-            margin-top: 4px;
-            font-size: 34px;
-            line-height: .95;
-          }
-          .vocab-mode-switch {
-            width: calc(100% - 32px);
-            margin: 14px 16px;
-          }
-          .vocab-stats {
-            grid-template-columns: repeat(3, minmax(92px, 1fr));
-            gap: 18px;
-            margin: 12px -16px 0;
-            overflow-x: auto;
-            overscroll-behavior-x: contain;
-            border-bottom: 1px solid var(--ink);
-            padding: 12px 16px 14px;
-            scrollbar-width: none;
-          }
-          .vocab-stats::-webkit-scrollbar {
-            display: none;
-          }
-          .vocab-stats span {
-            min-width: 92px;
-            padding-top: 7px;
-            font-size: 9px;
-            letter-spacing: .1em;
-            line-height: 1.2;
-          }
-          .vocab-stats strong {
-            font-size: 25px;
-          }
-          .vocab-review-link {
-            margin-top: 10px;
-            min-height: 30px;
-            padding: 0;
-            border: 0;
-            color: var(--ink-3);
-            letter-spacing: 0;
-            text-transform: none;
-          }
-          .vocab-coverage-atlas {
-            margin: 12px 16px 16px;
-            padding: 12px;
-          }
-          .coverage-atlas-head {
-            display: grid;
-            gap: 12px;
-          }
-          .coverage-atlas-head h2 {
-            font-size: 28px;
-          }
-          .coverage-cta {
-            width: 100%;
-          }
-          .coverage-summary-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-          }
-          .coverage-summary-card {
-            min-height: 72px;
-            padding: 9px;
-          }
-          .coverage-cefr-strip {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-          }
-          .coverage-tile-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-          }
-          .coverage-cefr-band,
-          .coverage-tile {
-            min-height: 72px;
-          }
-          .vocab-weekly-dossier,
-          .vocab-mastery-map {
-            display: none;
-          }
-          .vocab-controls {
-            position: sticky;
-            top: 0;
-            z-index: 5;
-            margin-top: 0;
-            border-bottom: 1px solid var(--ink);
-            background: var(--paper);
-            padding: 10px 16px 12px;
-            box-shadow: 0 8px 18px color-mix(in srgb, var(--app-ink) 8%, transparent);
-          }
-          .vocab-search {
-            min-height: 44px;
-            grid-template-columns: 16px minmax(0, 1fr) auto;
-            gap: 10px;
-            margin: 0 0 9px;
-            background: var(--app-paper-2);
-            padding: 6px 10px;
-            transition: border-color .16s ease, background .16s ease, box-shadow .16s ease;
-          }
-          .vocab-search:focus-within {
-            border-color: var(--blue);
-            background: var(--app-sheet);
-            box-shadow: inset 3px 0 0 var(--blue);
-          }
-          .vocab-search input {
-            min-height: 30px;
-            border: 0;
-            background: transparent;
-            padding: 0;
-            font-size: 16px;
-          }
-          .vocab-search-clear {
-            width: 30px;
-            height: 30px;
-          }
-          .vocab-tabs {
-            flex-wrap: nowrap;
-            gap: 8px;
-            margin: 0 -16px;
-            overflow-x: auto;
-            padding: 0 16px 2px;
-            scrollbar-width: none;
-          }
-          .vocab-tabs::-webkit-scrollbar {
-            display: none;
-          }
-          .vocab-tabs button {
-            flex: 0 0 auto;
-            min-height: 36px;
-            padding: 0 13px;
-            letter-spacing: 0;
-            text-transform: none;
-          }
-          .vocab-filter-summary {
-            min-height: 28px;
-            margin-top: 0;
-            padding-top: 8px;
-            font-size: 11px;
-          }
-          .vocab-filter-summary button,
-          :global(.vocab-state button) {
-            flex: 0 0 auto;
-            min-height: 30px;
-            font-size: 11px;
-            letter-spacing: 0;
-            text-transform: none;
-          }
-          .vocab-section-head {
-            margin: 14px 16px 8px;
-          }
-          .vocab-section-head.deck {
-            margin-top: 22px;
-          }
-          .vocab-card-stack {
-            border: 0;
-            background: transparent;
-          }
-          .vocab-row {
-            min-height: 60px;
-            gap: 10px;
-            border-bottom: 1px solid var(--ink);
-            padding: 12px 16px;
-            background: transparent;
-          }
-          .queue-row {
-            grid-template-columns: minmax(0, 1fr) auto;
-          }
-          .deck-row {
-            grid-template-columns: 42px minmax(0, 1fr) auto;
-          }
-          .queue-row .vocab-dot {
-            display: none;
-          }
-          .queue-row :global(.fragility-badge) {
-            grid-column: 2;
-            grid-row: 1;
-            max-width: 112px;
-          }
-          .queue-row b {
-            display: none;
-          }
-          .vocab-row strong {
-            font-size: 15px;
-            line-height: 1.3;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-          }
-          .vocab-row em {
-            font-size: 12px;
-            line-height: 1.25;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-          }
-          .vocab-row b {
-            font-size: 11px;
-          }
-          .vocab-rank {
-            min-width: 30px;
-            min-height: 24px;
-          }
-          :global(.vocab-state) {
-            margin: 12px 16px;
-            min-height: 126px;
-            padding: 16px;
-          }
-          :global(.vocab-state-head) {
-            font-size: 10px;
-            letter-spacing: .1em;
-          }
-        }
-        @media (min-width: 761px) {
-          .vocab-page {
-            max-width: 1180px;
-            margin: 0 auto;
-            padding-bottom: 64px;
-          }
-          .vocab-card-stack {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-          }
-          .vocab-row:nth-child(odd) {
-            border-right: 1px solid var(--ink);
-          }
-          .vocab-detail-sheet {
-            left: auto;
-            width: min(560px, 100vw);
-            max-height: 100vh;
-            border-top: 0;
-            border-left: 1px solid var(--ink);
-            padding: 16px 22px 22px;
-          }
-          .vocab-grabber {
-            display: none;
-          }
-          .vocab-detail-meta,
-          .vocab-srs-grid {
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-          }
-        }
-      `}</style>
-      <style jsx global>{`
-        .vocab-mobile-action {
-          display: inline-grid;
-          min-width: 58px;
-          height: 58px;
-          place-items: center;
-          border: 1px solid var(--app-ink);
-          color: var(--app-ink);
-          text-decoration: none;
-          font-size: 12px;
-          font-weight: 900;
-          text-transform: uppercase;
+        @media (max-width: 360px) {
+          .av2 .lx-dossier__stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+          .av2 .lx-ratings { grid-template-columns: minmax(0, 1fr); }
+          .av2 .lx-mast { flex-direction: column; align-items: flex-start; }
         }
       `}</style>
     </>

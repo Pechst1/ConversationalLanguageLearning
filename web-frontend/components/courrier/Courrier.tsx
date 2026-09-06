@@ -1,54 +1,38 @@
-/* Atelier — LE COURRIER · Missions as the journal's correspondence desk.
-   1:1 port of the design package (courrier-parts.jsx / courrier.css, the
-   "Atelier Le Courrier" canvas) into the app's token system. Every component
-   maps onto a real API field; the migration note lives in
-   docs/overhaul-missions.md §5. The shared "press" primitives (LuStamp,
-   LuNotice, the stamp/skeleton keyframes) are reused from LaUne so the two
-   surfaces stay one publication; only the correspondence-desk parts (cr-*)
-   are defined here. Bottom tab bar (PhoneProductNav) is untouched. */
+/* Atelier V2 — LE COURRIER · Missions on the Claude design system.
+   Source of truth: the MISSIONS artboard in
+   docs/design-reference/claude/Atelier App.dc.html — a 40px round portrait,
+   the character's name as the one Garamond-italic headline, a 12px muted
+   mission line, a yellow reward chip, a column of chat bubbles (character:
+   card colour, 20/20/20/6; learner: blue, 20/20/6/20), a green feedback line,
+   a Garamond-italic blue hint pill with a yellow square, and a footer composer
+   (50px pill well + one round red 3D-press button).
+
+   Everything the artboard does not draw (the brief, the word ribbon, the
+   repair note, the voicemail memo, the recap, the archive, empty / error /
+   loading) is extended from the same primitives in styles/atelier-v2.css —
+   rounded 16–24px surfaces, the four Bauhaus tokens, sentence case, two fonts.
+   Every component still maps onto a real API field. All rules here are written
+   `.av2 .cr-…` so they outrank the legacy element resets. */
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { IcoArrow, IcoCheck, LuStamp } from '@/components/laune/LaUne';
 
-/* ---------- icons ---------- */
-export function IcoBack() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true">
-      <path d="M20 12H5M11 6l-6 6 6 6" />
-    </svg>
-  );
-}
-export function IcoMic() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
-      <rect x="9" y="3" width="6" height="11" rx="3" />
-      <path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3.2" />
-    </svg>
-  );
-}
-export function IcoTrad() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-      <path d="M4 9h9M8.5 5.5V9M6 9c0 3.4 3 6 6.5 6M11 9c-.6 2.6-2.8 5-6 6" />
-      <path d="M14.5 19l3.2-8 3.3 8M15.6 16.6h4.3" />
-    </svg>
-  );
-}
-export function IcoStop() {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-      <rect x="7.5" y="7.5" width="9" height="9" />
-    </svg>
-  );
-}
+import {
+  Action,
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  Chip,
+  IconAction,
+  Portrait,
+  SendIcon,
+  ShapeToken,
+} from '@/components/atelier-v2/ui';
 
-/* ---------- lazy translate glyph (frame + character voice) ----------
+/* ---------- lazy translate (frame + character voice) ----------
    Wraps apiService.translateToEnglish; English is out-of-fiction chrome, so
-   the reveal is plain graphite text, never set as the character's line. */
+   the reveal is plain muted text, never set as the character's line. */
 export function CrTranslate({
   translate,
-  variant = 'glyph',
   label = 'Traduire',
 }: {
   translate: () => Promise<string>;
@@ -74,70 +58,62 @@ export function CrTranslate({
     }
   };
 
-  if (variant === 'text') {
-    return (
-      <div className="cr-trad-text">
-        <button type="button" onClick={reveal} aria-label={open ? 'Masquer la traduction' : 'Voir la traduction'}>
-          {open ? 'Masquer' : label}
-        </button>
-        {open && <p>{loading ? 'Traduction…' : text || 'Traduction indisponible.'}</p>}
-      </div>
-    );
-  }
   return (
-    <>
-      <button className="cr-trad" type="button" onClick={reveal} aria-label={open ? 'Masquer la traduction' : 'Voir la traduction'}>
-        <IcoTrad />
+    <div className="cr-trad">
+      <button
+        type="button"
+        className="cr-trad-btn"
+        onClick={reveal}
+        aria-expanded={open}
+        aria-label={open ? 'Masquer la traduction' : 'Voir la traduction'}
+      >
+        {open ? 'Masquer' : label}
       </button>
-      {open && <p className="cr-trad-reveal">{loading ? 'Traduction…' : text || 'Traduction indisponible.'}</p>}
-    </>
+      {open && (
+        <p className="cr-trad-reveal" lang="en">
+          {loading ? 'Traduction…' : text || 'Traduction indisponible.'}
+        </p>
+      )}
+    </div>
   );
 }
 
-/* ---------- desk header ----------
-   kicker  ← mission_format / serial_thread_id ("Le Feuilleton · Acte N")
-   title   ← mission title (serif italic headline)
-   cadence ← cadence === 'weekly' → "Courrier de la semaine"
-   status  ← mission status → printed marginalia, never a pill */
+/* ---------- header row (the design's Missions header) ----------
+   name    ← messenger.contact_name (portrait initial + the one headline)
+   line    ← cadence / act kicker · mission title (12px muted)
+   chip    ← reward chip "■ used/total" from target_vocabulary, or "done" */
 export function CrDesk({
-  kicker = 'Le Courrier',
-  blue = false,
-  title,
-  cadence = null,
-  status = 'open',
-  statusLine,
+  name,
+  line,
+  chip,
   onBack,
   backHref = '/atelier',
-  backLabel = 'La Une',
+  backLabel = 'Retour à la Une',
 }: {
-  kicker?: string;
-  blue?: boolean;
-  title: string;
-  cadence?: string | null;
-  status?: 'open' | 'done';
-  statusLine: string;
+  name: string;
+  line: string;
+  chip?: React.ReactNode;
   onBack?: (event: React.MouseEvent<HTMLAnchorElement>) => void;
   backHref?: string;
   backLabel?: string;
 }) {
   return (
     <header className="cr-desk">
-      <div className="backrow">
-        <a className="cr-back" href={backHref} onClick={onBack}><IcoBack /> {backLabel}</a>
-        {cadence && <span className="cr-cadence">{cadence}</span>}
+      <Link className="av2-icon-btn cr-back" href={backHref} onClick={onBack} aria-label={backLabel} title={backLabel}>
+        <ArrowLeftIcon size={20} />
+      </Link>
+      <Portrait name={name} />
+      <div className="cr-desk-main">
+        <h1 className="cr-name" lang="fr">{name}</h1>
+        <p className="cr-line">{line}</p>
       </div>
-      <div className={'kicker' + (blue ? ' blue' : '')}>{kicker}</div>
-      <h1>{title}</h1>
-      <div className="marge">
-        <span className={'sq ' + (status === 'done' ? 'done' : 'open')} />
-        <span>{statusLine}</span>
-      </div>
+      {chip}
     </header>
   );
 }
 
-/* ---------- the situation ----------
-   frame ← slim_payload.frame · ask ← slim_payload.ask · translate = glyph */
+/* ---------- the situation (no artboard: extended as a card surface) ----------
+   frame ← slim_payload.frame · ask ← slim_payload.ask (red triangle = action) */
 export function CrSituation({
   frame,
   ask,
@@ -148,43 +124,57 @@ export function CrSituation({
   translate?: () => Promise<string>;
 }) {
   return (
-    <section className="cr-sit-wrap">
-      <div className="cr-sit">
-        <div>
-          <p className="frame">{frame}</p>
-          {ask && <p className="ask"><b>On attend de vous</b>{ask}</p>}
-        </div>
-        {translate && <CrTranslate translate={translate} />}
-      </div>
+    <section className="cr-sit" aria-label="La situation">
+      <p className="cr-sit-frame" lang="fr">{frame}</p>
+      {ask && (
+        <p className="cr-sit-ask">
+          <ShapeToken kind="action" size="sm" />
+          <span><b>À faire ·</b> <span lang="fr">{ask}</span></span>
+        </p>
+      )}
+      {translate && <CrTranslate translate={translate} />}
     </section>
   );
 }
 
-/* ---------- P.S. ← slim_payload.twist (optional — omit when absent) ---------- */
+/* ---------- P.S. ← slim_payload.twist → the design's hint pill ---------- */
 export function CrPS({ text }: { text?: string | null }) {
   if (!text) return null;
-  return <p className="cr-ps">P.S. — {text}</p>;
+  return (
+    <p className="cr-hint" lang="fr">
+      <ShapeToken kind="reward" size="sm" />
+      <span>P.S. — {text}</span>
+    </p>
+  );
 }
 
-/* ---------- word ribbon ← target_vocabulary (≤3) ---------- */
+/* ---------- word ribbon ← target_vocabulary (≤3) as reward chips ----------
+   A word already placed flips to the ink square (= done), with the word said
+   out loud so the state is never colour alone. */
 export function CrRibbon({ words = [] }: { words?: { t: string; used?: boolean }[] }) {
   if (!words.length) return null;
   return (
-    <div className="cr-ribbon">
-      <span className="k">À placer :</span>
+    <div className="cr-ribbon" role="list" aria-label="Mots à placer">
+      <span className="cr-ribbon-k">À placer</span>
       {words.map((w) => (
-        <span key={w.t} className={'w' + (w.used ? ' used' : '')}>{w.t}</span>
+        <span role="listitem" key={w.t}>
+          <Chip tone={w.used ? 'plain' : 'reward'} icon={<ShapeToken kind={w.used ? 'done' : 'reward'} size="sm" />}>
+            <span lang="fr">{w.t}</span>
+            {w.used && <span className="av2-sr"> · placé</span>}
+          </Chip>
+        </span>
       ))}
     </div>
   );
 }
 
-/* ---------- dépêche slip ← a conversation turn (name, time, text) ---------- */
+/* ---------- bubble ← a conversation turn ----------
+   Character: card colour, 20/20/20/6. Learner: blue, 20/20/6/20. The speaker
+   is announced to assistive tech; the time prints only when the turn has one. */
 export function CrSlip({
   who,
   time,
   you = false,
-  sent = false,
   translate,
   children,
 }: {
@@ -196,16 +186,19 @@ export function CrSlip({
   children: React.ReactNode;
 }) {
   return (
-    <div className={'cr-slip' + (you ? ' you' : '')}>
-      {you && sent && <span className="cr-post" aria-hidden="true">P</span>}
-      <div className="head"><b>{who}</b>{time && <span className="t">{time}</span>}</div>
-      <div className="txt">{children}</div>
-      {translate && <CrTranslate translate={translate} variant="text" />}
+    <div className={'cr-turn' + (you ? ' cr-turn--mine' : '')}>
+      <div className={'av2-bubble' + (you ? ' av2-bubble--mine' : '')} lang="fr">
+        <span className="av2-sr">{who} · </span>
+        {children}
+      </div>
+      {time && <span className="cr-turn-time">{time}</span>}
+      {translate && <CrTranslate translate={translate} />}
     </div>
   );
 }
 
-/* ---------- repair note ← turn.correction (full rewrite, edits, persistence) ---------- */
+/* ---------- repair note ← turn.correction ----------
+   The design's green "● Bien dit · une petite remarque" line, then the fix. */
 export function CrRepair({
   correctedAnswer,
   lines,
@@ -216,28 +209,37 @@ export function CrRepair({
   savedCount?: number;
 }) {
   if (!correctedAnswer && !lines.length) return null;
+  const count = Math.max(lines.length, correctedAnswer ? 1 : 0);
   return (
-    <aside className="cr-repair">
-      <div className="k">Correction</div>
-      {correctedAnswer && <div className="answer">{correctedAnswer}</div>}
-      {lines.length > 0 && <div className="edits">À retenir</div>}
-      {lines.map((line, index) => (
-        <React.Fragment key={index}>
-          {line.fixed && <div className="fix">{line.fixed}</div>}
-          {line.why && <div className="why">{line.why}</div>}
-        </React.Fragment>
-      ))}
-      {savedCount > 0 && (
-        <div className="saved">
-          {savedCount} réparation{savedCount === 1 ? '' : 's'} enregistrée{savedCount === 1 ? '' : 's'}
-        </div>
-      )}
+    <aside className="cr-repair" aria-label="Correction">
+      <p className="cr-feedback">
+        <span className="cr-feedback-dot" aria-hidden="true" />
+        Bien dit · {count === 1 ? 'une petite remarque' : `${count} petites remarques`}
+      </p>
+      <div className="cr-repair-card">
+        {correctedAnswer && (
+          <p className="cr-repair-answer" lang="fr">{correctedAnswer}</p>
+        )}
+        {lines.map((line, index) => (
+          <React.Fragment key={index}>
+            {line.fixed && <p className="cr-repair-fix" lang="fr">{line.fixed}</p>}
+            {line.why && <p className="cr-repair-why">{line.why}</p>}
+          </React.Fragment>
+        ))}
+        {savedCount > 0 && (
+          <p className="cr-repair-saved">
+            <ShapeToken kind="done" size="sm" />
+            <span>{savedCount} réparation{savedCount === 1 ? '' : 's'} enregistrée{savedCount === 1 ? '' : 's'}</span>
+          </p>
+        )}
+      </div>
     </aside>
   );
 }
 
 /* ---------- phone memo ← voicemail / phone_call payload ----------
-   "pendant votre absence" slip carrying the transcribed voicemail. */
+   No artboard: the transcript is the character's voice, so it is drawn as a
+   character bubble under a small "pendant votre absence" card. */
 export function CrMemo({
   rows = [],
   transcript,
@@ -251,15 +253,24 @@ export function CrMemo({
 }) {
   return (
     <div className="cr-memo">
-      {stamp && <LuStamp word={stamp} tone="red" sm tilt={5} style={{ top: 8, right: 8 }} />}
-      <div className="mh"><b>Pendant votre absence</b><span>Message téléphonique</span></div>
-      {rows.map((r) => (
-        <div className="cr-mrow" key={r[0]}><span className="l">{r[0]}</span><span className="v">{r[1]}</span></div>
-      ))}
-      <div className="cr-mmsg">
-        <div className="l">Transcription automatique<span className="ln" /></div>
-        <p>« {transcript} »</p>
-        {translate && <CrTranslate translate={translate} variant="text" />}
+      <div className="cr-memo-card">
+        <p className="cr-memo-head">
+          <ShapeToken kind="story" size="sm" />
+          <span>Pendant votre absence · message téléphonique</span>
+          {stamp && (
+            <Chip icon={<ShapeToken kind="done" size="sm" />} className="cr-memo-stamp">{stamp}</Chip>
+          )}
+        </p>
+        {rows.map((r) => (
+          <p className="cr-memo-row" key={r[0]}><span>{r[0]}</span><b>{r[1]}</b></p>
+        ))}
+      </div>
+      <div className="cr-turn">
+        <div className="av2-bubble" lang="fr">
+          <span className="av2-sr">Transcription automatique · </span>
+          {transcript}
+        </div>
+        {translate && <CrTranslate translate={translate} />}
       </div>
     </div>
   );
@@ -276,16 +287,18 @@ export function CrCallStrip({
   sub: string;
 }) {
   return (
-    <div className={'cr-call' + (live ? ' live' : '')}>
-      <span className="dot" aria-hidden="true" />
-      <span className="tx"><b>{who}</b><span>{sub}</span></span>
+    <div className={'cr-call' + (live ? ' cr-call--live' : '')} role="status">
+      <ShapeToken kind="action" size="sm" />
+      <span className="cr-call-tx"><b>{who}</b><span>{sub}</span></span>
     </div>
   );
 }
 
-/* ---------- composer bar (per-format) ----------
-   quick ← quick_replies · cta ← "Envoyer" / "Déposer" / "Parler"
-   finish gate: "Envoie d'abord." until ≥1 learner turn sent */
+/* ---------- composer (the design's footer) ----------
+   quick ← quick_replies (paper chips) · the well ← the learner's draft ·
+   `send` ← the ONE 3D press on the screen: a round red icon action, unless the
+   page hands in a voice control to stand in its place while the draft is
+   empty. Finish stays a quiet action gated on ≥1 learner turn. */
 export function CrComposer({
   quick = [],
   onQuick,
@@ -298,6 +311,7 @@ export function CrComposer({
   finishing = false,
   hideFinish = false,
   finishLabel = 'Terminer',
+  voice,
   children,
 }: {
   quick?: string[];
@@ -311,34 +325,59 @@ export function CrComposer({
   finishing?: boolean;
   hideFinish?: boolean;
   finishLabel?: string;
+  /** A control that replaces the send press (the mic) while there is no draft. */
+  voice?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
     <form className="cr-composer" onSubmit={onSubmit}>
       {quick.length > 0 && (
-        <div className="cr-quick">
+        <div className="cr-quick" role="group" aria-label="Réponses rapides">
           {quick.map((q) => (
-            <button type="button" key={q} onClick={() => onQuick?.(q)}>{q}</button>
+            <Chip key={q} onClick={() => onQuick?.(q)} className="cr-quick-chip">
+              <span lang="fr">{q}</span>
+            </Chip>
           ))}
         </div>
       )}
-      {children}
-      <div className={'cr-actions' + (hideFinish ? ' solo' : '')}>
-        <button type="submit" className="cr-cta" disabled={!canSubmit || sending} aria-busy={sending || undefined}>
-          {cta} <IcoArrow />
-        </button>
-        {!hideFinish && (
-          <button type="button" className="cr-finish" disabled={!canFinish || finishing} onClick={onFinish} aria-busy={finishing || undefined}>
-            {finishLabel}
-          </button>
+      <div className="av2-composer cr-well">
+        {children}
+        {voice ?? (
+          <IconAction
+            label={cta}
+            tone="action"
+            pressable
+            type="submit"
+            className="cr-send"
+            disabled={!canSubmit}
+            pending={sending}
+          >
+            <SendIcon size={20} />
+          </IconAction>
         )}
       </div>
-      {!hideFinish && !canFinish && <div className="cr-gate">Envoyez d’abord une réponse.</div>}
+      {!hideFinish && (
+        <div className="cr-finish-row">
+          <Action
+            tone="quiet"
+            inline
+            disabled={!canFinish}
+            pending={finishing}
+            pendingLabel="Clôture…"
+            onClick={onFinish}
+            className="cr-finish"
+          >
+            {finishLabel}
+          </Action>
+          {!canFinish && <span className="cr-gate">Envoyez d’abord une réponse.</span>}
+        </div>
+      )}
     </form>
   );
 }
 
-/* ---------- resolution ghost link/button ---------- */
+/* ---------- resolution link/button ----------
+   `primary` is the one 3D press of the resolved screen; the rest are quiet. */
 export function CrGhost({
   children,
   href,
@@ -354,472 +393,228 @@ export function CrGhost({
   primary?: boolean;
   disabled?: boolean;
 }) {
-  const cls = primary ? 'cr-cta' : 'cr-ghost' + (quiet ? ' quiet' : '');
   if (href) {
-    return <Link className={cls} href={href} onClick={onClick}>{children}{primary && <IcoArrow />}</Link>;
+    return (
+      <Link
+        className={'av2-btn ' + (primary ? 'av2-btn--primary' : 'av2-btn--quiet') + (quiet ? ' cr-ghost--quiet' : '')}
+        href={href}
+        onClick={onClick}
+      >
+        <span>{children}</span>
+        {primary && <ArrowRightIcon size={18} />}
+      </Link>
+    );
   }
   return (
-    <button type="button" className={cls} onClick={onClick} disabled={disabled}>
-      {children}{primary && <IcoArrow />}
-    </button>
+    <Action
+      tone={primary ? 'primary' : 'quiet'}
+      className={quiet ? 'cr-ghost--quiet' : undefined}
+      onClick={onClick}
+      disabled={disabled}
+      iconAfter={primary ? <ArrowRightIcon size={18} /> : undefined}
+    >
+      {children}
+    </Action>
   );
 }
 
-export { IcoArrow, IcoCheck };
-
 /* ============================================================
-   Styles — courrier.css ported into the app token system.
-   The fixed 390px artboard becomes the phone-shell sizing; the
-   design's `.cr.dark` remap is dropped because the `--app-*`
-   tokens are already theme-aware (globals.css data-theme). The
-   shared stamp/skeleton primitives + keyframes come from
-   <LaUneStyles/>, mounted alongside this on the page.
+   Styles — written `.av2 .cr-…` (0,2,0) on purpose: legacy page resets such
+   as `.x-page button { background: transparent }` are (0,1,1). Only --av2-*
+   tokens; sizes in rem; two faces (AtelierSerif / AtelierSans) behind the
+   tokens. The journal's old `font-size: var(--t-…)` scale is retired here.
    ============================================================ */
 export function CourrierStyles() {
   return (
     <style jsx global>{`
-      .cr {
-        --paper: var(--app-paper);
-        --paper-2: var(--app-paper-2);
-        --paper-3: var(--app-paper-3);
-        --sheet: var(--app-sheet);
-        --ink: var(--app-ink);
-        --ink-2: var(--app-ink-2);
-        --ink-3: var(--app-ink-3);
-        --blue: var(--app-blue);
-        --red: var(--app-red);
-        --yellow: var(--app-yellow);
-        --serif: var(--app-serif);
-        --grotesk: 'Inter', 'Helvetica Neue', Arial, sans-serif;
-        --news-ink: #5d574a;
-        --news-wash: #ece5d5;
+      .av2.cr {
         position: relative;
-        width: min(var(--app-viewport-width), var(--phone-shell-max));
-        min-height: var(--app-viewport-height);
-        background: var(--sheet);
-        color: var(--ink);
-        font-family: var(--grotesk);
-        -webkit-font-smoothing: antialiased;
+        width: min(var(--app-viewport-width, 100vw), var(--phone-shell-max, 430px));
+        min-height: 100svh;
         display: flex;
         flex-direction: column;
-        padding-top: var(--phone-safe-top);
-        /* clear the fixed PhoneProductNav so the composer / resolution never
-           hides behind it (matches the old page's bottom-nav reservation). */
-        padding-bottom: var(--phone-bottom-nav-space);
-        background-image:
-          radial-gradient(circle at 18% 22%, rgba(20, 17, 13, 0.03) 0, transparent 0.7px),
-          radial-gradient(circle at 71% 56%, rgba(20, 17, 13, 0.03) 0, transparent 0.7px);
-        background-size: 7px 7px, 11px 11px;
+        padding-top: var(--phone-safe-top, 0px);
+        /* clears the fixed PhoneProductNav so the composer never hides behind it */
+        padding-bottom: var(--phone-bottom-nav-space, 88px);
       }
-      .cr * { box-sizing: border-box; }
-      /* :where() keeps the reset at zero specificity; as plain element
-         selectors these outranked every component class. */
-      .cr :where(a, button) { font: inherit; color: inherit; text-align: inherit; }
-      .cr :where(button) { border: 0; background: transparent; padding: 0; cursor: pointer; }
-      .cr-page { flex: 1 1 auto; padding: 0 18px 18px; }
+      /* :where() keeps the reset at zero specificity so no component class is outranked. */
+      .av2.cr :where(a, button) { font: inherit; color: inherit; text-align: inherit; }
+      .av2 .cr-page { flex: 1 1 auto; display: flex; flex-direction: column; gap: 12px; padding: 0 var(--av2-gutter) 16px; }
+      .av2 .cr-page--centre { justify-content: center; }
 
-      /* 1 · LE PUPITRE — desk header */
-      .cr-desk { padding: 6px 0 14px; border-bottom: 3px double var(--ink); }
-      .cr-desk .backrow {
-        display: flex; align-items: center; justify-content: space-between;
-        min-height: 44px; margin-bottom: 2px;
+      /* header row */
+      .av2 .cr-desk { display: flex; align-items: center; gap: 12px; padding: 14px 0 6px; }
+      .av2 .cr-back { flex: none; margin-left: -6px; text-decoration: none; background: transparent; }
+      .av2 .cr-desk-main { flex: 1 1 auto; min-width: 0; }
+      .av2 .cr-name {
+        margin: 0; font-family: var(--av2-serif); font-style: italic; font-weight: 400;
+        font-size: 1.375rem; line-height: 1; color: var(--av2-ink);
+        overflow-wrap: anywhere;
       }
-      .cr-back {
-        display: inline-flex; align-items: center; gap: 7px;
-        min-height: 44px; padding-right: 12px;
-        font-size: var(--t-label); font-weight: 900; letter-spacing: .14em; text-transform: uppercase;
-        color: var(--ink-2); text-decoration: none;
-      }
-      .cr-back svg { width: 14px; height: 14px; }
-      .cr-cadence {
-        flex: 0 0 auto;
-        border: 1.5px solid var(--blue); color: var(--blue);
-        font-size: var(--t-label); font-weight: 900; letter-spacing: .15em; text-transform: uppercase;
-        padding: 4px 8px 3px; transform: rotate(2deg); white-space: nowrap;
-      }
-      .cr-desk .kicker {
-        display: flex; align-items: center; gap: 8px; white-space: nowrap;
-        font-size: var(--t-label); font-weight: 900; letter-spacing: .18em;
-        text-transform: uppercase; color: var(--red);
-      }
-      .cr-desk .kicker.blue { color: var(--blue); }
-      .cr-desk .kicker .tail { flex: 1 1 auto; min-width: 10px; height: 1px; background: var(--paper-3); }
-      .cr-desk h1 {
-        margin: 7px 0 0; font-family: var(--serif); font-style: italic;
-        font-weight: 600; font-size: var(--t-head); line-height: 1.04; color: var(--ink);
-        text-wrap: pretty;
-      }
-      .cr-desk .marge {
-        margin-top: 9px; display: flex; align-items: center; gap: 8px;
-        font-size: var(--t-label); font-weight: 800; letter-spacing: .12em;
-        text-transform: uppercase; color: var(--ink-3);
-      }
-      .cr-desk .marge .sq { width: 7px; height: 7px; flex: 0 0 auto; border: 1px solid var(--ink); }
-      .cr-desk .marge .sq.open { background: var(--yellow); }
-      .cr-desk .marge .sq.done { background: var(--ink); }
+      .av2 .cr-line { margin: 3px 0 0; font-size: var(--av2-t-meta); line-height: 1.3; color: var(--av2-muted); }
+      .av2 .cr-desk .av2-chip { flex: none; min-height: 30px; padding: 0 10px; font-size: var(--av2-t-meta); }
+      .av2 .cr-reason { margin: 0; font-size: var(--av2-t-label); line-height: 1.4; color: var(--av2-ink-2); }
 
-      /* 2 · LA SITUATION */
-      .cr-sit { display: grid; grid-template-columns: minmax(0, 1fr) 44px; gap: 8px; padding: 14px 0 0; }
-      .cr-sit .frame {
-        margin: 0; font-family: var(--serif); font-style: italic;
-        font-size: var(--t-body); line-height: 1.32; color: var(--ink); text-wrap: pretty;
+      /* the situation */
+      .av2 .cr-sit {
+        display: flex; flex-direction: column; gap: 8px;
+        padding: 14px 16px; border-radius: var(--av2-r-tile); background: var(--av2-card);
       }
-      .cr-sit .ask { margin: 8px 0 0; font-size: var(--t-small); line-height: 1.45; color: var(--ink-2); }
-      .cr-sit .ask b {
-        display: block; margin-bottom: 2px;
-        font-size: var(--t-label); font-weight: 900; letter-spacing: .15em;
-        text-transform: uppercase; color: var(--red);
+      .av2 .cr-sit-frame { margin: 0; font-size: var(--av2-t-body); line-height: 1.45; color: var(--av2-ink); }
+      .av2 .cr-sit-ask { margin: 0; display: flex; align-items: flex-start; gap: 8px; font-size: var(--av2-t-label); line-height: 1.45; color: var(--av2-ink-2); }
+      .av2 .cr-sit-ask .av2-shape { margin-top: 5px; }
+      .av2 .cr-sit-ask b { font-weight: 700; color: var(--av2-red); }
+
+      /* translate: a quiet text control, muted reveal */
+      .av2 .cr-trad { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+      .av2 .cr-trad-btn {
+        min-height: var(--av2-tap); padding: 0 4px; border: 0; background: transparent; cursor: pointer;
+        font-size: var(--av2-t-meta); font-weight: 700; color: var(--av2-muted);
+        text-decoration: underline; text-underline-offset: 3px;
       }
-      .cr-trad {
-        align-self: start; width: 44px; height: 44px;
-        border: 1px solid var(--paper-3); background: var(--paper); color: var(--ink-2);
-        display: grid; place-items: center;
+      .av2 .cr-trad-reveal { margin: 0 0 4px; font-size: var(--av2-t-label); line-height: 1.45; color: var(--av2-ink-2); }
+      .av2 .cr-turn .cr-trad { margin-top: -6px; }
+      .av2 .cr-turn .cr-trad-btn { min-height: 36px; }
+
+      /* hint pill — Garamond italic, blue, yellow square */
+      .av2 .cr-hint {
+        align-self: flex-start; margin: 0; display: flex; align-items: center; gap: 8px;
+        padding: 10px 14px; border-radius: 14px; background: var(--av2-card);
+        font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-body); line-height: 1.3;
+        color: var(--av2-blue);
       }
-      .cr-trad svg { width: 16px; height: 16px; }
-      .cr-trad-reveal {
-        margin: 10px 0 0; font-size: var(--t-small); line-height: 1.4; color: var(--ink-2);
-      }
-      .cr-trad-text { margin-top: 8px; }
-      .cr-trad-text button {
-        font-size: var(--t-label); font-weight: 900; letter-spacing: .13em; text-transform: uppercase;
-        color: var(--ink-3); border-bottom: 1px solid var(--paper-3); padding-bottom: 1px;
-      }
-      .cr-trad-text p { margin: 7px 0 0; font-size: var(--t-small); line-height: 1.4; color: var(--ink-2); }
+      .av2 .cr-hint .av2-shape { flex: none; }
 
       /* word ribbon */
-      .cr-ribbon {
-        margin-top: 12px; padding: 9px 0;
-        border-top: 1px solid var(--paper-3); border-bottom: 1px solid var(--paper-3);
-        display: flex; align-items: baseline; gap: 6px 12px; flex-wrap: wrap;
-      }
-      .cr-ribbon .k {
-        font-size: var(--t-label); font-weight: 900; letter-spacing: .15em;
-        text-transform: uppercase; color: var(--ink-3);
-      }
-      .cr-ribbon .w {
-        font-family: var(--serif); font-style: italic; font-size: var(--t-body); line-height: 1;
-        color: var(--ink); border-bottom: 1px dotted var(--ink-3); padding-bottom: 2px;
-      }
-      .cr-ribbon .w.used { border-bottom: 2px solid var(--ink); }
-      .cr-ribbon .w.used::after { content: " ·"; color: var(--red); font-weight: 700; }
+      .av2 .cr-ribbon { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+      .av2 .cr-ribbon-k { font-size: var(--av2-t-meta); font-weight: 700; color: var(--av2-muted); margin-right: 2px; }
 
-      /* 3 · LA DÉPÊCHE — message slips */
-      .cr-thread { padding: 14px 0 4px; display: grid; gap: 12px; }
-      .cr-slip {
-        position: relative; width: 88%;
-        border: 1px solid var(--ink); background: var(--paper);
-        padding: 10px 12px 12px;
-      }
-      .cr-slip .head {
-        display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
-        padding-bottom: 6px; margin-bottom: 8px;
-        border-bottom: 1px solid var(--paper-3);
-        font-size: var(--t-label); font-weight: 900; letter-spacing: .13em;
-        text-transform: uppercase; color: var(--ink-2);
-      }
-      .cr-slip .head .t { font-weight: 800; letter-spacing: .06em; color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
-      .cr-slip .txt { font-family: var(--serif); font-size: var(--t-body); line-height: 1.38; color: var(--ink); white-space: pre-wrap; }
-      .cr-slip.you { margin-left: auto; background: var(--sheet); }
-      .cr-post {
-        position: absolute; top: -10px; right: -7px; z-index: 2;
-        width: 26px; height: 30px; transform: rotate(4deg);
-        border: 1.5px solid var(--red); color: var(--red); background: var(--sheet);
-        box-shadow: inset 0 0 0 2.5px var(--sheet), inset 0 0 0 3.5px var(--red);
-        display: grid; place-items: center;
-        font-family: var(--serif); font-style: italic; font-weight: 700; font-size: var(--t-small);
-        pointer-events: none;
-      }
-      .cr-ps {
-        width: 88%; margin-top: 12px; padding-left: 11px; border-left: 2px solid var(--yellow);
-        font-family: var(--serif); font-style: italic;
-        font-size: var(--t-small); line-height: 1.42; color: var(--ink-2);
-      }
-      .cr-typing {
-        width: fit-content; max-width: 88%;
+      /* thread of bubbles */
+      .av2 .cr-thread { display: flex; flex-direction: column; gap: 12px; padding: 10px 0 4px; }
+      .av2 .cr-turn { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+      .av2 .cr-turn--mine { align-items: flex-end; }
+      .av2 .cr-turn .av2-bubble { white-space: pre-wrap; }
+      .av2 .cr-turn-time { font-size: var(--av2-t-meta); color: var(--av2-muted); font-variant-numeric: tabular-nums; padding: 0 6px; }
+      .av2 .cr-typing {
         display: inline-flex; align-items: center; gap: 8px;
-        border-left: 2px solid var(--blue); padding: 5px 9px;
-        font-family: var(--serif); font-style: italic;
-        font-size: var(--t-small); line-height: 1.3; color: var(--ink-2);
+        font-size: var(--av2-t-meta); font-weight: 600; color: var(--av2-blue);
       }
-      .cr-typing .rollers { display: inline-flex; gap: 3px; }
-      .cr-typing .rollers i { width: 4px; height: 4px; background: currentColor; }
+      .av2 .cr-typing .rollers { display: inline-flex; gap: 3px; }
+      .av2 .cr-typing .rollers i { width: 6px; height: 6px; border-radius: 999px; background: currentColor; }
       @media (prefers-reduced-motion: no-preference) {
-        .cr.motion .cr-typing .rollers i { animation: lu-roll 1.1s ease-in-out infinite; }
-        .cr.motion .cr-typing .rollers i:nth-child(2) { animation-delay: .18s; }
-        .cr.motion .cr-typing .rollers i:nth-child(3) { animation-delay: .36s; }
+        .av2.motion .cr-typing .rollers i { animation: cr-roll 1.1s ease-in-out infinite; }
+        .av2.motion .cr-typing .rollers i:nth-child(2) { animation-delay: .18s; }
+        .av2.motion .cr-typing .rollers i:nth-child(3) { animation-delay: .36s; }
       }
+      @keyframes cr-roll { 0%, 100% { opacity: .25; } 50% { opacity: 1; } }
 
-      /* repair note — graphite pencil */
-      .cr-repair {
-        width: 88%; margin: -4px 0 0 auto;
-        padding: 7px 11px 8px; border-left: 2px solid var(--ink-3);
+      /* feedback line + repair note */
+      .av2 .cr-repair { align-self: flex-end; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; max-width: 86%; margin-top: -4px; }
+      .av2 .cr-feedback { margin: 0; display: flex; align-items: center; gap: 6px; font-size: var(--av2-t-meta); font-weight: 600; color: var(--av2-green); }
+      .av2 .cr-feedback-dot { width: 8px; height: 8px; border-radius: 999px; background: var(--av2-green); flex: none; }
+      .av2 .cr-repair-card {
+        display: flex; flex-direction: column; gap: 6px; width: 100%;
+        padding: 12px 14px; border-radius: 20px 20px 6px 20px; background: var(--av2-card);
+        font-size: var(--av2-t-label); line-height: 1.45; color: var(--av2-ink-2);
       }
-      .cr-repair .k {
-        font-size: var(--t-label); font-weight: 900; letter-spacing: .17em;
-        text-transform: uppercase; color: var(--ink-3);
-      }
-      .cr-repair .answer {
-        margin-top: 5px; font-family: var(--serif); font-style: italic;
-        font-size: var(--t-body); line-height: 1.42; color: var(--ink);
-      }
-      .cr-repair .edits {
-        margin-top: 8px; padding-top: 7px; border-top: 1px solid var(--paper-3);
-        font-size: var(--t-label); font-weight: 900; letter-spacing: .15em;
-        text-transform: uppercase; color: var(--ink-3);
-      }
-      .cr-repair .fix { margin-top: 3px; font-family: var(--serif); font-style: italic; font-size: var(--t-body); color: var(--ink); }
-      .cr-repair .why { margin-top: 3px; font-size: var(--t-label); line-height: 1.42; color: var(--ink-2); }
-      .cr-repair .saved { margin-top: 5px; font-size: var(--t-label); font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); }
-      .cr-reason {
-        margin: 10px 0 2px; padding-left: 10px; border-left: 1px solid var(--ink-3);
-        color: var(--ink-3); font-family: var(--serif); font-size: var(--t-small);
-        font-style: italic; line-height: 1.42;
-      }
+      .av2 .cr-repair-card p { margin: 0; }
+      .av2 .cr-repair-answer,
+      .av2 .cr-repair-fix { font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-body); line-height: 1.35; color: var(--av2-green); }
+      .av2 .cr-repair-saved { display: flex; align-items: center; gap: 6px; font-size: var(--av2-t-meta); font-weight: 700; color: var(--av2-muted); }
 
-      /* 6 · LE MESSAGE TÉLÉPHONIQUE — memo */
-      .cr-memo { position: relative; margin-top: 14px; border: 1.5px solid var(--ink); background: var(--paper); }
-      .cr-memo .mh { text-align: center; padding: 10px 10px 9px; border-bottom: 1.5px solid var(--ink); }
-      .cr-memo .mh b { display: block; font-size: var(--t-small); font-weight: 900; letter-spacing: .22em; text-transform: uppercase; }
-      .cr-memo .mh span { display: block; margin-top: 3px; font-size: var(--t-label); font-weight: 800; letter-spacing: .15em; text-transform: uppercase; color: var(--ink-3); }
-      .cr-mrow { display: flex; align-items: baseline; gap: 10px; padding: 8px 12px 7px; border-bottom: 1px solid var(--paper-3); }
-      .cr-mrow .l { flex: 0 0 96px; font-size: var(--t-label); font-weight: 900; letter-spacing: .13em; text-transform: uppercase; color: var(--ink-3); }
-      .cr-mrow .v { font-family: var(--serif); font-style: italic; font-size: var(--t-body); color: var(--ink); }
-      .cr-mmsg { padding: 10px 12px 13px; }
-      .cr-mmsg .l { display: flex; align-items: center; gap: 8px; font-size: var(--t-label); font-weight: 900; letter-spacing: .13em; text-transform: uppercase; color: var(--ink-3); }
-      .cr-mmsg .l .ln { flex: 1 1 auto; height: 1px; background: var(--paper-3); }
-      .cr-mmsg p { margin: 8px 0 0; font-family: var(--serif); font-size: var(--t-body); line-height: 1.45; color: var(--ink); }
-
-      /* live call strip */
-      .cr-call {
-        margin-top: 12px; display: flex; align-items: center; gap: 12px;
-        border: 1.5px solid var(--ink); background: var(--paper); padding: 11px 13px;
-      }
-      .cr-call .dot { flex: 0 0 auto; width: 9px; height: 9px; border-radius: 50%; background: var(--red); }
+      /* voicemail memo */
+      .av2 .cr-memo { display: flex; flex-direction: column; gap: 10px; }
+      .av2 .cr-memo-card { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border-radius: var(--av2-r-tile); background: var(--av2-card); }
+      .av2 .cr-memo-head { margin: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: var(--av2-t-meta); font-weight: 700; color: var(--av2-muted); }
+      .av2 .cr-memo-stamp { margin-left: auto; }
+      .av2 .cr-memo-row { margin: 0; display: flex; gap: 10px; align-items: baseline; font-size: var(--av2-t-label); line-height: 1.4; }
+      .av2 .cr-memo-row span { flex: 0 0 6.5rem; color: var(--av2-muted); }
+      .av2 .cr-memo-row b { font-weight: 600; color: var(--av2-ink); }
+      .av2 .cr-call { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: var(--av2-r-tile); background: var(--av2-card); }
       @media (prefers-reduced-motion: no-preference) {
-        .cr.motion .cr-call.live .dot { animation: lu-roll 1.2s ease-in-out infinite; }
+        .av2.motion .cr-call--live .av2-shape { animation: cr-roll 1.2s ease-in-out infinite; }
       }
-      .cr-call .tx { min-width: 0; }
-      .cr-call .tx b { display: block; font-size: var(--t-label); font-weight: 900; letter-spacing: .14em; text-transform: uppercase; }
-      .cr-call .tx span { display: block; margin-top: 2px; font-size: var(--t-label); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+      .av2 .cr-call-tx b { display: block; font-size: var(--av2-t-label); font-weight: 700; }
+      .av2 .cr-call-tx span { display: block; font-size: var(--av2-t-meta); color: var(--av2-muted); font-variant-numeric: tabular-nums; }
 
-      /* mic composer states */
-      .cr-mic { margin-top: 12px; display: grid; gap: 10px; }
-      .cr-mic .bar {
-        display: flex; align-items: center; justify-content: center; gap: 12px;
-        width: 100%; min-height: 54px; padding: 0 22px; border-radius: 999px;
-        border: 1px solid var(--ink);
-        font-size: var(--t-body); font-weight: 600; letter-spacing: .01em; text-transform: none;
-        cursor: pointer;
-        transition: background .16s ease, color .16s ease;
+      /* composer footer */
+      .av2 .cr-composer {
+        position: sticky; bottom: var(--phone-bottom-nav-space, 88px); z-index: 2;
+        flex: none; display: flex; flex-direction: column; gap: 10px;
+        padding: 12px var(--av2-gutter) 14px; background: var(--av2-paper);
       }
-      .cr-mic .bar:disabled { cursor: progress; opacity: .5; }
-      .cr-mic .bar svg { width: 17px; height: 17px; flex: 0 0 auto; }
-      .cr-mic .bar.idle { background: var(--ink); color: var(--paper); }
-      .cr-mic .bar.idle:active { background: var(--paper-2); color: var(--ink); }
-      /* Live recording keeps the ink fill (contrast) and takes a red keyline —
-         the wave and timer inside carry the "we are rolling" signal. */
-      .cr-mic .bar.rec { background: var(--ink); color: var(--paper); border-color: var(--red); box-shadow: 0 0 0 2px color-mix(in srgb, var(--red) 40%, transparent); }
-      .cr-mic .timer { font-variant-numeric: tabular-nums; letter-spacing: .08em; }
-      .cr-mic .wave { display: flex; align-items: center; gap: 3px; height: 16px; }
-      .cr-mic .wave i { width: 3px; height: 14px; background: currentColor; transform: scaleY(.35); }
+      .av2 .cr-quick { display: flex; flex-wrap: wrap; gap: 8px; }
+      .av2 .cr-quick-chip { font-weight: 600; }
+      .av2 .cr-well { align-items: flex-end; flex-wrap: wrap; }
+      .av2 .cr-well .cr-mic-state, .av2 .cr-well .cr-mic-problem { flex: 1 1 100%; }
+      .av2 .cr-well .av2-field { flex: 1 1 auto; gap: 4px; }
+      .av2 .cr-well .av2-field__label { font-weight: 600; }
+      .av2 .cr-instruction { margin: 0; font-size: var(--av2-t-label); line-height: 1.4; color: var(--av2-ink-2); }
+      .av2 .cr-draft {
+        min-height: 50px; padding: 0.8125rem 1.125rem; border-radius: 25px; resize: none;
+        font-size: var(--av2-t-body-lg); line-height: 1.45;
+      }
+      .av2 .cr-draft--tall { min-height: 9.25rem; border-radius: 20px; resize: vertical; }
+      .av2 .cr-send { width: 50px; height: 50px; margin-bottom: 0; }
+      .av2 .cr-finish-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+      .av2 .cr-gate { font-size: var(--av2-t-meta); color: var(--av2-muted); }
+      .av2 .cr-mic-state { display: flex; align-items: center; gap: 8px; font-size: var(--av2-t-meta); font-weight: 600; color: var(--av2-ink-2); }
+      .av2 .cr-mic-state .av2-shape { flex: none; }
+      .av2 .cr-mic-problem { margin: 0; font-size: var(--av2-t-label); line-height: 1.4; color: var(--av2-red-deep); }
       @media (prefers-reduced-motion: no-preference) {
-        .cr.motion .cr-mic .bar.rec .wave i { animation: cr-wave .9s ease-in-out infinite; }
-        .cr.motion .cr-mic .bar.rec .wave i:nth-child(2) { animation-delay: .12s; }
-        .cr.motion .cr-mic .bar.rec .wave i:nth-child(3) { animation-delay: .24s; }
-        .cr.motion .cr-mic .bar.rec .wave i:nth-child(4) { animation-delay: .36s; }
-        .cr.motion .cr-mic .bar.rec .wave i:nth-child(5) { animation-delay: .48s; }
-      }
-      @keyframes cr-wave { 0%, 100% { transform: scaleY(.3); } 50% { transform: scaleY(1); } }
-      .cr-mic .fallback {
-        justify-self: center; min-height: 44px; padding: 0 6px;
-        display: inline-flex; align-items: center;
-        font-size: var(--t-label); font-weight: 900; letter-spacing: .13em; text-transform: uppercase;
-        color: var(--ink-2); border-bottom: 1.5px solid var(--ink-3);
-      }
-      .cr-transcribe {
-        display: flex; align-items: center; justify-content: center; gap: 12px;
-        min-height: 56px; padding: 0 16px;
-        border: 1.5px dashed var(--ink-3); background: var(--paper);
-        font-size: var(--t-label); font-weight: 900; letter-spacing: .15em;
-        text-transform: uppercase; color: var(--ink-2);
-      }
-      .cr-transcribe .rollers { display: flex; gap: 4px; }
-      .cr-transcribe .rollers i { width: 5px; height: 5px; background: var(--ink); }
-      @media (prefers-reduced-motion: no-preference) {
-        .cr.motion .cr-transcribe .rollers i { animation: lu-roll 1.1s ease-in-out infinite; }
-        .cr.motion .cr-transcribe .rollers i:nth-child(2) { animation-delay: .18s; }
-        .cr.motion .cr-transcribe .rollers i:nth-child(3) { animation-delay: .36s; }
-      }
-      .cr-mic-problem { font-size: var(--t-small); line-height: 1.4; color: var(--red); }
-
-      /* 7 · LE COMPOSTEUR */
-      .cr-composer { flex: 0 0 auto; border-top: 1px solid var(--ink); background: var(--paper); padding: 11px 16px 13px; }
-      .cr-quick { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
-      .cr-quick button {
-        min-height: 44px; padding: 8px 12px;
-        border: 1px solid var(--ink); background: var(--sheet);
-        font-family: var(--serif); font-style: italic; font-size: var(--t-body); line-height: 1.15;
-        color: var(--ink);
-      }
-      .cr-quick button:active { background: var(--paper-2); }
-      .cr-label {
-        display: block; margin-bottom: 6px;
-        font-size: var(--t-label); font-weight: 900; letter-spacing: .15em; text-transform: uppercase; color: var(--ink-3);
-      }
-      .cr-instruction { margin: 0 0 8px; font-size: var(--t-small); line-height: 1.4; color: var(--ink-2); }
-      .cr-draft {
-        display: block; width: 100%; min-height: 54px; resize: none;
-        border: 1px solid var(--ink); border-radius: 0; background: var(--sheet);
-        outline: none; padding: 10px 12px;
-        font-family: var(--serif); font-size: var(--t-body); line-height: 1.4; color: var(--ink);
-      }
-      .cr-draft.tall { min-height: 148px; resize: vertical; }
-      .cr-draft::placeholder { color: var(--ink-3); font-style: italic; }
-      .cr-draft:focus { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
-      .cr-actions { margin-top: 10px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: stretch; }
-      .cr-actions.solo { grid-template-columns: 1fr; }
-      /* Primary action, soft: pill geometry, solid ink on paper, sentence case. */
-      .cr-cta {
-        display: flex; align-items: center; justify-content: center; gap: 11px;
-        min-height: 54px; padding: 0 22px; border-radius: 999px;
-        background: var(--ink); color: var(--paper); border: 1px solid var(--ink);
-        font-size: var(--t-body); font-weight: 600; letter-spacing: .01em; text-transform: none;
-        text-decoration: none; cursor: pointer;
-        transition: background .16s ease, color .16s ease;
-      }
-      .cr-cta:active { background: var(--paper-2); color: var(--ink); }
-      .cr-cta:disabled { opacity: .5; cursor: progress; }
-      .cr-cta svg { width: 17px; height: 17px; }
-      /* Outlined sibling: same pill, transparent fill, ink keyline. */
-      .cr-finish {
-        min-height: 54px; padding: 0 22px; border-radius: 999px;
-        border: 1px solid var(--ink); background: transparent; color: var(--ink);
-        font-size: var(--t-body); font-weight: 600; letter-spacing: .01em; text-transform: none;
-        white-space: nowrap;
-        transition: background .16s ease, color .16s ease;
-      }
-      .cr-finish:active { background: var(--paper-2); color: var(--ink); }
-      .cr-finish:disabled { border-color: var(--ink-3); color: var(--ink-3); opacity: .5; cursor: not-allowed; }
-      .cr-gate {
-        margin-top: 6px; text-align: right;
-        font-size: var(--t-label); font-weight: 800; letter-spacing: .13em;
-        text-transform: uppercase; color: var(--ink-3);
+        .av2.motion .cr-mic-state--rec .av2-shape { animation: cr-roll .9s ease-in-out infinite; }
       }
 
-      /* 8 · LA RÉSOLUTION */
-      .cr-resolve { text-align: center; padding: 24px 0 6px; }
-      .cr-resolve-kicker {
-        margin-bottom: 14px; font-size: var(--t-label); font-weight: 900;
-        letter-spacing: .18em; text-transform: uppercase; color: var(--ink-3);
-      }
-      .cr-resolve .lu-stamp.big {
-        position: static; display: inline-block; transform: rotate(var(--tilt, -5deg));
-        font-size: var(--t-head); padding: 8px 18px 7px; border-width: 3px;
-        box-shadow: inset 0 0 0 1.5px var(--sheet), inset 0 0 0 3px currentColor;
-      }
-      .cr-resolve .lu-stamp.big .d { font-size: var(--t-label); }
-      @media (prefers-reduced-motion: no-preference) {
-        .cr.motion .cr-resolve .lu-stamp.big { animation: lu-strike .34s cubic-bezier(.18, 1.35, .3, 1) .15s both; }
-        .cr.motion .cr-resolve .logo-token { animation: cr-token-pop .5s cubic-bezier(.2, 1.25, .3, 1) .55s both; }
-      }
-      @keyframes cr-token-pop { from { opacity: 0; transform: scale(.4); } to { opacity: 1; transform: scale(1); } }
-      .cr-resolve .sub { margin: 14px auto 0; max-width: 280px; font-family: var(--serif); font-style: italic; font-size: var(--t-body); line-height: 1.3; color: var(--ink-2); }
-      .cr-resolve .tok-stage { margin: 22px 0 0; display: grid; place-items: center; }
-      .cr-resolve .earned { margin-top: 12px; font-size: var(--t-label); font-weight: 900; letter-spacing: .15em; text-transform: uppercase; color: var(--ink-3); }
-      .cr-resolve .earned b { color: var(--ink); }
-      .cr-credit { margin: 20px auto 0; max-width: 300px; border-top: 1px solid var(--ink); text-align: left; }
-      .cr-credit .row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 9px 2px; border-bottom: 1px solid var(--paper-3); }
-      .cr-credit .row span { font-size: var(--t-label); font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); white-space: nowrap; }
-      .cr-credit .row b { font-family: var(--serif); font-style: italic; font-weight: 600; font-size: var(--t-body); color: var(--ink); text-align: right; }
-      .cr-recap-grid {
-        margin: 20px auto 0; max-width: 320px;
-        display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
-        border: 1px solid var(--ink); text-align: center;
-      }
-      .cr-recap-grid div { min-width: 0; padding: 11px 6px 10px; }
-      .cr-recap-grid div + div { border-left: 1px solid var(--ink); }
-      .cr-recap-grid strong {
-        display: block; font-family: var(--serif); font-style: italic;
-        font-size: var(--t-head); line-height: 1; color: var(--ink);
-      }
-      .cr-recap-grid span {
-        display: block; margin-top: 5px; font-size: var(--t-label); font-weight: 900;
-        line-height: 1.25; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3);
-      }
-      .cr-readiness {
-        margin: 12px auto 0; max-width: 320px; padding: 10px 2px;
-        display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
-        border-bottom: 3px double var(--ink); text-align: left;
-      }
-      .cr-readiness span {
-        font-size: var(--t-label); font-weight: 900; letter-spacing: .13em;
-        text-transform: uppercase; color: var(--ink-3);
-      }
-      .cr-readiness strong { font-family: var(--serif); font-style: italic; font-size: var(--t-lead); }
-      .cr-objectives {
-        margin: 14px auto 0; max-width: 320px; display: grid;
-        border-bottom: 1px solid var(--ink); text-align: left;
-      }
-      .cr-objectives > .k {
-        padding-bottom: 6px; font-size: var(--t-label); font-weight: 900;
-        letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3);
-      }
-      .cr-objectives > div {
-        display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 6px;
-        align-items: start; padding: 8px 2px; border-top: 1px solid var(--paper-3);
-      }
-      .cr-objectives > div > span { color: var(--red); font-size: var(--t-small); line-height: 1.2; }
-      .cr-objectives > div.open > span { color: var(--ink-3); }
-      .cr-objectives b { font-size: var(--t-label); line-height: 1.35; font-weight: 700; color: var(--ink-2); }
-      .cr-nexts { margin: 22px auto 0; max-width: 320px; display: grid; gap: 10px; text-align: center; }
-      .cr-ghost {
-        display: flex; align-items: center; justify-content: center; gap: 10px;
-        min-height: 54px; padding: 0 22px; border-radius: 999px;
-        border: 1px solid var(--ink); background: transparent;
-        font-size: var(--t-body); font-weight: 600; letter-spacing: .01em; text-transform: none;
-        text-decoration: none; color: var(--ink); cursor: pointer;
-        transition: background .16s ease, color .16s ease;
-      }
-      .cr-ghost:active { background: var(--paper-2); color: var(--ink); }
-      .cr-ghost:disabled { opacity: .5; cursor: progress; }
-      .cr-ghost.quiet { border-color: var(--ink-3); color: var(--ink-2); background: transparent; }
+      /* resolution — extended from the ink (done) and yellow (reward) surfaces */
+      .av2 .cr-resolve { display: flex; flex-direction: column; gap: 12px; padding-top: 6px; }
+      .av2 .cr-resolve-kicker { margin: 0; font-size: var(--av2-t-meta); font-weight: 700; color: var(--av2-muted); }
+      .av2 .cr-seal { display: flex; flex-direction: column; gap: 6px; padding: 18px 20px; border-radius: var(--av2-r-hero); background: var(--av2-ink); color: var(--av2-on-ink); }
+      .av2 .cr-seal-word { display: flex; align-items: center; gap: 10px; font-size: var(--av2-t-title); font-weight: 700; line-height: 1.1; }
+      .av2 .cr-seal-word .av2-shape { color: var(--av2-yellow); }
+      .av2 .cr-seal-date { font-size: var(--av2-t-meta); opacity: .8; }
+      .av2 .cr-seal-sub { margin: 4px 0 0; font-size: var(--av2-t-body); line-height: 1.45; }
+      .av2 .cr-token { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: var(--av2-r-episode); background: var(--av2-yellow); color: var(--av2-on-yellow); }
+      /* the minted collectible keeps its artwork but drops the legacy ink box + offset shadow */
+      .av2 .cr-token .logo-token { width: 64px; height: 64px; border: 0; border-radius: var(--av2-r-card); background: var(--av2-card); box-shadow: none; }
+      .av2 .cr-token .logo-token .lt { width: 40px; height: 40px; }
+      .av2 .cr-token-earned { font-size: var(--av2-t-body); font-weight: 700; }
+      .av2 .cr-credit { display: flex; flex-direction: column; gap: 2px; padding: 6px 16px; border-radius: var(--av2-r-tile); background: var(--av2-card); }
+      .av2 .cr-credit-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 40px; font-size: var(--av2-t-label); }
+      .av2 .cr-credit-row span { display: flex; align-items: center; gap: 8px; color: var(--av2-muted); }
+      .av2 .cr-credit-row b { font-weight: 700; color: var(--av2-ink); text-align: right; }
+      .av2 .cr-recap-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+      .av2 .cr-recap-grid div { display: flex; flex-direction: column; gap: 4px; padding: 12px 10px; border-radius: var(--av2-r-tile); background: var(--av2-card); text-align: center; }
+      .av2 .cr-recap-grid strong { font-family: var(--av2-serif); font-style: italic; font-weight: 400; font-size: var(--av2-t-head); line-height: 1; color: var(--av2-ink); }
+      .av2 .cr-recap-grid span { font-size: var(--av2-t-meta); line-height: 1.25; color: var(--av2-muted); }
+      .av2 .cr-readiness { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-radius: var(--av2-r-tile); background: var(--av2-card); font-size: var(--av2-t-label); color: var(--av2-muted); }
+      .av2 .cr-readiness strong { font-size: var(--av2-t-action); color: var(--av2-ink); }
+      .av2 .cr-objectives { display: flex; flex-direction: column; gap: 6px; padding: 12px 16px; border-radius: var(--av2-r-tile); background: var(--av2-card); }
+      .av2 .cr-objectives-k { font-size: var(--av2-t-meta); font-weight: 700; color: var(--av2-muted); }
+      .av2 .cr-objective { display: flex; align-items: flex-start; gap: 8px; font-size: var(--av2-t-label); line-height: 1.4; color: var(--av2-ink-2); }
+      .av2 .cr-objective .av2-shape { margin-top: 5px; }
+      .av2 .cr-objective--met { color: var(--av2-ink); }
+      .av2 .cr-next { margin: 0; font-size: var(--av2-t-body); line-height: 1.45; color: var(--av2-ink-2); }
+      .av2 .cr-nexts { display: flex; flex-direction: column; gap: 8px; padding-top: 4px; }
+      .av2 .cr-nexts .av2-btn { text-decoration: none; }
+      .av2 .cr-ghost--quiet { color: var(--av2-muted); }
 
-      /* 9 · SYSTEM — archive, skeleton, empty */
-      .cr-archive { margin-top: 22px; border-top: 3px double var(--ink); padding-top: 12px; }
-      .cr-archive .k { font-size: var(--t-label); font-weight: 900; letter-spacing: .18em; text-transform: uppercase; color: var(--ink-3); }
-      .cr-archive ul { list-style: none; margin: 8px 0 0; padding: 0; display: grid; }
-      .cr-archive a {
-        display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
-        padding: 10px 0; border-bottom: 1px solid var(--paper-3);
-        color: inherit; text-decoration: none;
+      /* archive */
+      .av2 .cr-archive { display: flex; flex-direction: column; gap: 8px; padding-top: 10px; }
+      .av2 .cr-archive-k { margin: 0; font-size: var(--av2-t-meta); font-weight: 700; color: var(--av2-muted); }
+      .av2 .cr-archive ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+      .av2 .cr-archive-row {
+        display: flex; align-items: center; gap: 12px; min-height: var(--av2-tap);
+        padding: 12px 14px; border-radius: var(--av2-r-card); background: var(--av2-card);
+        color: var(--av2-ink); text-decoration: none;
       }
-      .cr-archive a b { font-family: var(--serif); font-style: italic; font-size: var(--t-body); font-weight: 600; }
-      .cr-archive a span { font-size: var(--t-label); font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); white-space: nowrap; }
+      .av2 .cr-archive-row b { flex: 1 1 auto; font-size: var(--av2-t-body); font-weight: 600; line-height: 1.3; }
+      .av2 .cr-archive-row span { display: flex; align-items: center; gap: 6px; font-size: var(--av2-t-meta); color: var(--av2-muted); white-space: nowrap; }
 
-      .cr-skel { pointer-events: none; padding-top: 14px; display: grid; gap: 12px; }
-      .cr-skel .slipph {
-        width: 88%; height: 68px;
-        border: 1px solid var(--paper-3);
-        background: repeating-linear-gradient(0deg, var(--news-wash) 0 6px, var(--paper-2) 6px 12px);
-      }
-      .cr-skel .slipph.you { margin-left: auto; }
-      .cr-skel .barph { height: 54px; border: 1.5px solid var(--paper-3); background: var(--news-wash); margin-top: 4px; }
-      @media (prefers-reduced-motion: no-preference) {
-        .cr.motion .cr-skel .slipph, .cr.motion .cr-skel .barph { animation: lu-set 1.4s ease-in-out infinite; }
-      }
-
-      .cr-empty { text-align: center; padding: 52px 24px 40px; }
-      .cr-empty .rubric { font-size: var(--t-label); font-weight: 900; letter-spacing: .18em; text-transform: uppercase; color: var(--ink-3); }
-      .cr-empty .endmark { width: 14px; height: 14px; background: var(--ink); margin: 18px auto 16px; }
-      .cr-empty h2 { margin: 0 auto; max-width: 270px; font-family: var(--serif); font-style: italic; font-weight: 600; font-size: var(--t-head); line-height: 1.08; color: var(--ink); }
-      .cr-empty p { margin: 14px auto 0; max-width: 250px; font-size: var(--t-small); line-height: 1.5; color: var(--ink-2); }
-      .cr-empty .free {
-        margin-top: 26px; display: inline-flex; align-items: center; gap: 9px;
-        min-height: 44px; font-size: var(--t-small); font-weight: 900; letter-spacing: .14em;
-        text-transform: uppercase; color: var(--ink); text-decoration: none;
-        border-bottom: 1.5px solid var(--ink); padding-bottom: 2px;
-      }
-      .cr-empty .free svg { width: 14px; height: 14px; }
+      /* loading */
+      .av2 .cr-skel { display: flex; flex-direction: column; gap: 12px; padding-top: 14px; }
+      .av2 .cr-skel .av2-skeleton { width: 78%; border-radius: 20px 20px 20px 6px; }
+      .av2 .cr-skel .av2-skeleton.cr-skel--mine { align-self: flex-end; border-radius: 20px 20px 6px 20px; }
+      .av2 .cr-skel .av2-skeleton.cr-skel--bar { width: 100%; border-radius: var(--av2-r-pill); margin-top: 8px; }
     `}</style>
   );
 }

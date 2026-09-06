@@ -28,20 +28,8 @@ import {
   readCachedAtelierEdition,
   saveResumeActivity,
 } from '@/lib/pilot-resilience';
-import {
-  LaUneStyles,
-  LuMasthead,
-  LuBiblio,
-  LuPhraseDuJour,
-  LuCitation,
-  LuDemain,
-  LuNotice,
-  LuSkeleton,
-  LuManchette,
-  LuEnBref,
-  type LuBrefRow,
-  type LuAskKind,
-} from '@/components/laune/LaUne';
+import { type LuAskKind } from '@/components/laune/LaUne';
+import { HomeScreen, HomeSkeleton, type HomeTile } from '@/components/atelier-v2/home/HomeScreen';
 import {
   LEpreuveStyles,
   EpShell,
@@ -1549,13 +1537,9 @@ export default function AtelierPage() {
           </div>
         )}
         {loading ? (
-          <main className="atelier-edition-stage">
-            <div className="lu motion" aria-label="Atelier · La Une">
-              <LaUneStyles />
-              <div className="lu-page"><LuSkeleton /></div>
-              <AtelierEditionNav active="atelier" />
-            </div>
-          </main>
+          <HomeSkeleton>
+            <AtelierEditionNav active="atelier" />
+          </HomeSkeleton>
         ) : view === 'journey' && journeyEnabled ? (
           // One connected shell: scene, recall, response, resolution and the
           // recap all live here, so finishing the day needs no second screen.
@@ -1941,7 +1925,6 @@ function TodayView({
 
   // ---- La Une (front page) mapping: every field below maps onto real API data. ----
   const isRest = recommendation.kind === 'rest';
-  const editionDateFull = `${formatAtelierEditionDate()} ${new Date().getFullYear()}`;
   const episodeNumber = (() => {
     const idx = Number(serialEpisode?.episode_index);
     return Number.isFinite(idx) ? idx + 1 : 1;
@@ -2004,10 +1987,6 @@ function TodayView({
   // the voice studio, so the prescription has to name speaking rather than a
   // written reply that is not being asked for.
   const studioIsPrescribed = Boolean(dayProgress.studioSuggested) && !dayProgress.studioDone;
-  const prescribedWordCount = Math.max(
-    0,
-    Number(wordSlate?.words?.length || Math.min(4, vocabularyReviewDue)),
-  );
   const onboardingMotivation = String(today?.summary?.learning_motivation || '').trim();
   const onboardingMotivationLabel = (
     {
@@ -2018,29 +1997,11 @@ function TodayView({
     } as Record<string, string>
   )[onboardingMotivation] || onboardingMotivation;
   /* One quiet explaining clause on the first edition only — the onboarding
-     motivation earns it. Every other day the manchette states the ask and the
-     rule; the daily "parce que …" variants were text the page did not need. */
+     motivation earns it. */
   const prescriptionBecause = today?.summary?.first_session && onboardingMotivation
     ? `parce que votre objectif « ${onboardingMotivationLabel} » commence par une seule règle bien posée.`
     : null;
-
-  const forecastAvailable = cefr?.forecast?.status === 'available';
-  // The level came from the learner's own statement and the Atelier has not
-  // tested it yet, so it must not be drawn as a measurement.
-  const levelIsDeclared = cefr?.estimate_source === 'declared';
-  const forecastRange = Array.isArray(cefr?.forecast?.range_days) ? cefr?.forecast?.range_days : null;
-  const forecastDays = forecastRange
-    ? Math.round((Number(forecastRange[0]) + Number(forecastRange[1])) / 2)
-    : null;
-  const coursWords: [number, number] = [
-    Number(cefr?.breakdown?.vocabulary?.current || 0),
-    Number(cefr?.breakdown?.vocabulary?.target || 0),
-  ];
-  const coursGrammar: [number, number] = [
-    Number(cefr?.breakdown?.grammar?.current || 0),
-    Number(cefr?.breakdown?.grammar?.target || 0),
-  ];
-
+  const phraseOfDay = today?.phrase_of_day || null;
   const nextEpisodeNumber = episodeNumber + 1;
   const rawEpisodeTease = firstNonEmptyString(serialEpisode?.hook?.teaser, serialEpisode?.hook?.text) || null;
   // A hook that merely repeats tonight's headline is no tease — let LuDemain
@@ -2048,8 +2009,6 @@ function TodayView({
   const nextEpisodeTease = rawEpisodeTease && rawEpisodeTease.trim() !== String(leadHeadline || '').trim()
     ? rawEpisodeTease
     : null;
-  const quote = today?.quote || null;
-  const phraseOfDay = today?.phrase_of_day || null;
   /* The manchette's ask follows the recommendation; the because-line is kept
      only for the first edition, where the onboarding motivation earns it. */
   const askKind: LuAskKind = isRest
@@ -2068,134 +2027,122 @@ function TodayView({
     slateCount > 0 ? `${slateCount} mot${slateCount === 1 ? '' : 's'} du jour` : null,
     repairDue > 0 ? `${repairDue} correction${repairDue === 1 ? '' : 's'}` : null,
   ].filter(Boolean) as string[];
-  const coursValue = levelIsDeclared
-    ? `${cefr?.estimate || 'A1.1'} · à vérifier`
-    : forecastAvailable && forecastDays
-      ? `${cefr?.estimate || 'A1.1'} → ${cefr?.target || cefr?.next_level || ''} · ~${forecastDays} j`
-      : (cefr?.estimate || 'A1.1');
-  const enBrefRows: LuBrefRow[] = [
-    {
-      id: 'seance',
-      label: 'La séance',
-      // A fresh séance quotes the server's estimate (the same number the
-      // manchette prints); the client-side node only knows the resume state.
-      value: seanceStatus === 'done'
-        ? 'Bouclée'
-        : `${ruleCount} règle${ruleCount === 1 ? '' : 's'} · ~${seanceStatus === 'resume' ? sessionMins : Math.max(1, Number(remainingMinutes || sessionMins || 8))} min`,
-      done: seanceStatus === 'done',
-      disabled: seanceDisabled,
-      onClick: () => onRecommendedAction(seanceAction),
-    },
-    {
-      id: 'lexique',
-      label: 'Le lexique',
-      value: lexiqueParts.length ? lexiqueParts.join(' · ') : 'Rien à revoir — la mémoire tient.',
-      done: lexiqueParts.length === 0,
-      href: '/vocabulary/review',
-      onClick: vocabularyReviewDue === 0 && slateCount === 0 && repairDue > 0 ? onOpenReview : undefined,
-    },
-    {
-      id: 'cours',
-      label: 'Le cours',
-      value: coursValue,
-      href: '/notebook?mode=releve',
-    },
-  ];
-  const boucleDate = (() => {
-    const now = new Date();
-    const pad = (value: number) => String(value).padStart(2, '0');
-    return `${pad(now.getDate())} · ${pad(now.getMonth() + 1)} · ${String(now.getFullYear()).slice(-2)}`;
-  })();
-
   const errorOnlyPage = loadError && !today && !hasActiveSession;
 
+  // ---- Home (design direction 1a): one story, one action, three tiles. ----
+  const levelLabel = cefr?.estimate ? ` · ${cefr.estimate}` : '';
+  const editionLabel = `Édition Nº ${episodeNumber}${levelLabel}`;
+  // For engine-managed learners `/serial/today` answers `journey_required`
+  // with no scene: the story is today's journey (its card is above), so the
+  // page does not draw an episode it cannot open.
+  const storyIsJourney = String(serialEpisode?.status || '') === 'journey_required';
+  const homeEpisode = errorOnlyPage || storyIsJourney
+    ? null
+    : {
+        kicker: isMissionBeat ? `Courrier · Épisode ${episodeNumber}` : `Feuilleton · Épisode ${episodeNumber}`,
+        headline: leadHeadline,
+        artUrl: leadArtUrl,
+        artState: leadArtMode,
+        byline: leadByline,
+        bylineMeta: dayProgress.missionDone
+          ? `${leadByline} a lu votre lettre`
+          : [prescribedConcept?.t, `~${prescribedMinutes} min`].filter(Boolean).join(' · '),
+        read: serialDone,
+        onOpen: openStory,
+        ariaLabel: (isMissionBeat ? 'Répondre à la mission — ' : 'Lire l’épisode — ') + leadHeadline,
+      };
+  const homeAction = errorOnlyPage || isRest
+    ? null
+    : {
+        label: askKind === 'mission'
+          ? (studioIsPrescribed ? 'Parler' : 'Répondre')
+          : askKind === 'review'
+            ? 'Réviser'
+            : askKind === 'read'
+              ? 'Lire'
+              : 'Continuer',
+        onSelect: () => onRecommendedAction(recommendation),
+        disabled: loading || (recommendation.kind === 'start_session' && !canStart),
+        pending: loading,
+      };
+  const seanceBarsOn = seanceStatus === 'done'
+    ? 3
+    : seanceProgress
+      ? Math.min(3, Math.round((seanceProgress[0] / seanceProgress[1]) * 3))
+      : 0;
+  const lexiqueDone = lexiqueParts.length === 0;
+  const homeTiles: HomeTile[] = errorOnlyPage
+    ? []
+    : [
+        {
+          id: 'seance',
+          title: 'Séance',
+          meta: seanceStatus === 'done'
+            ? 'Bouclée'
+            : seanceStatus === 'resume' && seanceProgress
+              ? `${seanceProgress[0]}/${seanceProgress[1]} · reprendre`
+              : `${ruleCount} règle${ruleCount === 1 ? '' : 's'} · ~${Math.max(1, Number(remainingMinutes || sessionMins || 8))} min`,
+          mark: seanceStatus === 'done' ? 'done' : 'story',
+          bars: [0, 1, 2].map((index) => (index < seanceBarsOn ? (seanceStatus === 'done' ? 'done' : 'story') : null)),
+          onSelect: () => onRecommendedAction(seanceAction),
+          disabled: seanceDisabled,
+          done: seanceStatus === 'done',
+        },
+        {
+          id: 'lexique',
+          title: 'Lexique',
+          meta: lexiqueDone ? 'Rien à revoir' : lexiqueParts.slice(0, 2).join(' · '),
+          mark: lexiqueDone ? 'done' : 'reward',
+          bars: lexiqueDone ? ['done', 'done', 'done'] : [null, null, null],
+          href: '/vocabulary/review',
+          done: lexiqueDone,
+        },
+        {
+          id: 'errata',
+          title: 'Errata',
+          meta: repairDue > 0 ? `${repairDue} à reprendre` : 'Rien à reprendre',
+          mark: repairDue > 0 ? 'action' : 'done',
+          bars: repairDue > 0 ? [null, null, null] : ['done', 'done', 'done'],
+          // With repairs due the tile opens the review; otherwise it reads Le Relevé.
+          onSelect: repairDue > 0 ? onOpenReview : undefined,
+          href: '/notebook?mode=releve',
+          done: repairDue === 0,
+        },
+      ];
+
   return (
-    <main className="atelier-edition-stage">
-      <div className="lu motion" aria-label="Atelier · La Une">
-        <LaUneStyles />
-        <div className="lu-page">
-          <LuMasthead
-            name="L’Atelier"
-            date={editionDateFull}
-            edition={`Éd. Nº ${episodeNumber}`}
-            streak={streak}
-            niveau={cefr?.estimate || ''}
-            boucle={isRest}
-            boucleDate={boucleDate}
-          />
-
-          {loadError && (
-            <LuNotice
-              tone={loadError.label === 'HORS LIGNE' ? 'red' : loadError.label.includes('SOUS PRESSE') || loadError.label.includes('CHARGEMENT') ? 'yellow' : 'blue'}
-              label={loadError.label}
-              message={loadError.message}
-              onRetry={onRetry}
-            />
-          )}
-
-          {errorOnlyPage ? null : (
-            <>
-              <LuManchette
-                ep={episodeNumber}
-                mission={isMissionBeat}
-                artMode={leadArtMode}
-                artUrl={leadArtUrl}
-                headline={leadHeadline}
-                byline={leadByline}
-                portraitUrl={leadPortraitUrl}
-                accentColour={leadAccentColour}
-                minutes={prescribedMinutes}
-                budgetMinutes={overBudgetMinutes}
-                replyMode={studioIsPrescribed ? 'speak' : 'write'}
-                ask={askKind}
-                concept={prescribedConcept?.t || 'une règle à consolider'}
-                because={prescriptionBecause}
-                recap={dayProgress.missionDone ? `${leadByline} a lu votre lettre.` : null}
-                read={serialDone}
-                done={isRest}
-                disabled={loading || (recommendation.kind === 'start_session' && !canStart)}
-                onOpen={openStory}
-                onCta={() => onRecommendedAction(recommendation)}
-              />
-
-              <LuEnBref rows={enBrefRows} />
-
-              {STORY_FEATURE_VISIBLE && libraryEpisode && (
-                <LuBiblio
-                  title={libraryEpisode.book_title || libraryEpisode.title || 'La Bibliothèque'}
-                  chapter={Number(libraryEpisode.episode_index ?? libraryEpisode.order_index ?? 0) + 1}
-                  href={libraryHref}
-                />
-              )}
-
-              {phraseOfDay && (
-                <LuPhraseDuJour
-                  text={phraseOfDay.text}
-                  byline={phraseOfDay.byline}
-                  paru={phraseOfDay.paru}
-                />
-              )}
-
-              {/* The daily quote is decoration, not learning signal — reserve
-                  it for rest days, where the sparse page has room to breathe. */}
-              {quote && isRest && (
-                <LuCitation text={quote.text} source={quote.source} detail={quote.source_detail} />
-              )}
-
-              <LuDemain
-                focus={upcomingFocus.topic}
-                focusHref={upcomingFocus.href}
-                ep={nextEpisodeNumber}
-                epTease={nextEpisodeTease}
-                grand={isRest}
-              />
-
-            </>
-          )}
-        </div>
-        <AtelierEditionNav active="atelier" />
-      </div>
-    </main>
+    <HomeScreen
+      dateLabel={formatAtelierEditionDate()}
+      editionLabel={editionLabel}
+      streak={streak}
+      settingsHref="/settings"
+      notice={loadError ? { label: loadError.label, message: loadError.message, onRetry: onRetry } : null}
+      episode={homeEpisode}
+      action={homeAction}
+      filedLabel={isRest && !errorOnlyPage ? 'Édition bouclée — à demain.' : null}
+      note={prescriptionBecause}
+      overrunMinutes={overBudgetMinutes}
+      adjustHref={errorOnlyPage || isRest ? null : '/settings?section=practice'}
+      phrase={phraseOfDay ? { text: phraseOfDay.text, byline: phraseOfDay.byline } : null}
+      library={
+        STORY_FEATURE_VISIBLE && libraryEpisode && (
+          {
+            title: libraryEpisode.book_title || libraryEpisode.title || 'La Bibliothèque',
+            chapter: Number(libraryEpisode.episode_index ?? libraryEpisode.order_index ?? 0) + 1,
+            href: libraryHref,
+          }
+        )
+      }
+      tiles={homeTiles}
+      colophon={errorOnlyPage ? null : {
+        lead: 'Demain — ',
+        focus: upcomingFocus.topic,
+        focusHref: upcomingFocus.href,
+        tail: nextEpisodeTease ? `, épisode ${nextEpisodeNumber} · ${nextEpisodeTease}.` : `, épisode ${nextEpisodeNumber}.`,
+      }}
+    >
+      <AtelierEditionNav active="atelier" />
+    </HomeScreen>
   );
 }
 

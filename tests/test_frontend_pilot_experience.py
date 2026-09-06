@@ -12,13 +12,14 @@ def _source(relative_path: str) -> str:
 
 def test_la_une_leads_with_explained_prescription_without_hiding_edition():
     page = _source("pages/atelier.tsx")
-    component = _source("components/laune/LaUne.tsx")
+    component = _source("components/atelier-v2/home/HomeScreen.tsx")
 
-    # 2026-08-31: lead episode + prescription merged into one manchette with a
-    # single CTA; the because-line survives as one quiet clause.
-    assert "<LuManchette" in page
-    assert "lu-prescription-because" in component
-    assert "{because}" in component
+    # 2026-09-06: the Claude-design Home keeps one story and one action; the
+    # because-line survives as one quiet clause under the action.
+    assert "<HomeScreen" in page
+    assert "note={prescriptionBecause}" in page
+    assert "av2-home__note" in component
+    assert "{note}" in component
     assert "Ajuster le temps de l’édition" in component
     # The day's word count moved to the En bref lexique row.
     assert "mots' du jour" not in page

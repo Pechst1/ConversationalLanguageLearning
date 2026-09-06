@@ -123,6 +123,12 @@ export function serialActionFromToday(
   if (!serialEpisode?.thread_id || (serialEpisode.kind !== 'mission' && serialEpisode.kind !== 'feuilleton')) {
     return null;
   }
+  // Engine-managed learners: `/serial/today` answers `journey_required` with no
+  // scene id. The story continues through today's journey, so there is no
+  // scene to send the learner to (ENGINE-FRONTEND-CONTRACT §5).
+  if (String(serialEpisode.status || '') === 'journey_required') {
+    return null;
+  }
   return {
     kind: 'serial',
     threadId: serialEpisode.thread_id,

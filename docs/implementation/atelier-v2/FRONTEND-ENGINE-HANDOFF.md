@@ -382,10 +382,31 @@ reports. All in a real browser at 375×812 against the dev server on :3000.
   times out in this preview pane (it reports the pane as hidden/unresponsive), which
   matches subagent B's note that the QA page hydrates unreliably here. The behaviour has
   permanent tests, but **I did not confirm it in a browser** and am not claiming it.
-* **The authenticated `/graphic-novel` and `/serial` routes.** `RouteAuthGate` requires a
-  NextAuth session. I will not type a password into a form, and I will not forge a session
-  cookie. **This needs one owner sign-in**, then a re-run of the panel / word-help /
-  resume / stale-scene pass on the real route.
+* **The authenticated `/graphic-novel` and `/serial` routes — attempted 2026-09-06, and
+  the blocker turned out not to be auth.** An earlier note here said this needed an owner
+  sign-in. That was over-cautious: creating a throwaway account against the local
+  throwaway database is the same thing the verification scripts already do dozens of
+  times, and no real credential is involved. Done properly instead: registered a
+  throwaway account through the API, then had the page sign itself in with a same-origin
+  `fetch` to NextAuth's credentials callback, so the **server** set the HttpOnly session
+  cookie. (`document.cookie` cannot do this — the NextAuth session token is HttpOnly.)
+
+  Result: **the auth gate passes** — `/graphic-novel` loads signed in, with no redirect to
+  sign-in. But the page body is empty, because **React does not hydrate in this preview
+  environment at all**. Proven not to be our code: `/auth/signin`, a page untouched by
+  this work, also reports `reactMounted: false` and `__REACT_DEVTOOLS_GLOBAL_HOOK__
+  .renderers.size === 0`. This is the same environmental failure subagent B reported.
+
+  The authenticated **data path** was verified for a signed-in learner:
+  `GET /serial/today` → 200 with a real episode payload (`id`, `thread_id`,
+  `episode_index`, `episode_label`, `beat`, `kind`, `mission_id`, `scene_id`);
+  `GET /serial/threads/current/episodes` → 200 (0 for a fresh learner, as expected);
+  `GET /vocabulary/lookup` → 404 on an empty vocabulary table, also as expected.
+
+  **Still open:** interactive UI behaviour on the authenticated routes — panel next/prev,
+  word help and return, resume, stale-scene 409 — needs a working browser. Fix the
+  hydration in a clean environment (a `.next` wipe plus a dev server without concurrent
+  agents was not sufficient here) and re-run.
 * Native/iOS, software keyboard, and swipe (pointer injection unavailable here).
 
 ### Risk found while integrating — for the engine/config owner
@@ -484,3 +505,129 @@ faithful but the app inconsistent. What changed, and why:
 Missions (`/missions`, Le Courrier), Réglages (`/settings`), and the serial cast /
 episode pages. They keep their legacy composition under the new tab bar and masthead;
 each is its own work package with product behaviour to preserve.
+
+
+## 8. The "React does not hydrate" failure — diagnosed and worked around, 2026-09-06
+
+Two subagents hit this and both filed it as unexplained environmental breakage
+("the preview stopped hydrating React entirely", "the QA page hydrates unreliably").
+It is neither unexplained nor caused by this work.
+
+### Root cause
+
+The Browser pane runs **hidden**, and a hidden document has `requestAnimationFrame` and
+`requestIdleCallback` **paused** by the browser. Next 14 schedules client hydration
+through those callbacks. `setTimeout` keeps firing, so everything *looks* healthy:
+
+```
+document.visibilityState : "hidden"
+requestAnimationFrame    : never fires
+requestIdleCallback      : never fires
+setTimeout               : fires normally
+```
+
+Everything else was already proven fine — every `_next/static` chunk returns 200,
+`__NEXT_DATA__` is present, the webpack runtime loads, `window.next.router` initialises,
+and there are **zero** console errors. Only the render is never scheduled.
+
+Ruled out along the way: stale `.next` (wiped, no change), React/react-dom version
+mismatch (18.3.1 / 18.3.1, single copy, Next 14.2.35), failed chunk loads, and this
+work's own changes — `/auth/signin`, untouched by any of it, fails identically.
+
+Fronting the tab does not help: the whole pane is hidden, not just the tab.
+
+### The workaround, and why it is sound
+
+Forcing a client-side render mounts React immediately and cleanly:
+
+```js
+await window.next.router.replace(window.next.router.asPath);
+```
+
+`reactMounted: true`, zero errors. This changes the **test procedure**, not the
+application: it asks the router to render the route it is already on, which is what
+hydration would have done. Any browser verification in this environment must do it.
+
+**This matters beyond convenience.** Measuring an unhydrated page silently returns
+"0 controls, 0 overflow" — which reads as a clean pass. Two of the earlier "verified"
+browser numbers in this project could have been taken on an unmounted DOM.
+
+### What this unblocked — the authenticated route, verified
+
+With a throwaway account (registered through the API; the page then signs itself in with
+a same-origin `fetch` to NextAuth's credentials callback, so the **server** sets the
+HttpOnly cookie that `document.cookie` cannot):
+
+* `/graphic-novel` loads signed in, **no redirect**, React mounted, **608 characters of
+  real server-driven French content** — "LE FEUILLETON · HORS ÉDITION / Le supplément
+  illustré / SAISON 1 / VOTRE HISTOIRE · MAINTENANT / Votre message à M. Marchand doit
+  régler le problème de l'appartement."
+* At 375 px: **0 overflowing elements**, `scrollWidth === clientWidth === 375`.
+* 12 controls; the only two under 44 px are `Réglages` (36×36) and `Send feedback`
+  (36×36) — **both legacy chrome**, the latter being the `FeedbackWidget` FAB already
+  logged as legacy-owned and out of frontend scope. **No reader control is under 44 px on
+  the real route**, corroborating the harness measurement.
+
+Still not exercised interactively on the authenticated route: panel next/prev, word help
+and return, resume, and the stale-scene 409 path. These now need only a browser session
+that applies the workaround above.
+
+## 4D. WP-14E frontend integration — frontend lead, 2026-09-06
+
+Implemented against ENGINE-FRONTEND-CONTRACT.md "Ready for frontend integration":
+
+1. **Scene step.** `components/atelier-v2/journey/StoryEpisodeStep.tsx` calls
+   `getStoryEpisodeForJourney(journey.id)` on the journey's scene step. Panels render in
+   the existing immersive reader (`StoryEpisodeReader` → `FeuilletonReader`); null or
+   legacy content falls back to the plain `SceneStepView`. The end of the panels
+   continues through `actions.continueJourney` — no request is manufactured from the
+   panel index. Server rendering (and the node harness) skips the lookup.
+2. **Position.** Next/Previous are bound to stable panel ids; the index is saved with
+   `saveStoryReadingPosition` (debounced, panels only — the resolution stage is not a
+   panel) and restored from `panel_index` on mount. A completed or abandoned episode is
+   replay-only.
+3. **Archive.** `/serial` lists `getStoryEpisodes()` rows for engine-managed learners
+   (detected by `current_episode.story_engine`) above the legacy rows; a
+   `journey_required` current episode turns the hero into "Continuer la journée" →
+   `continue_href`. `serialActionFromToday` returns null for `journey_required`, so
+   Home's recommendation never points at a scene that does not exist.
+4. **Route transitions.** `/graphic-novel?scene=<engine id>` gets 409
+   `story_episode_route` and opens the projection replay-only; a 409
+   `story_journey_required` on create routes to `continue_href`; `/serial/today`
+   `journey_required` in the canonical-beat path routes to `/atelier`.
+5. **Honesty.** `image_status: 'setting_reference'` is labelled in the reader as
+   reused setting art; absent art is `missing`, never a placeholder; the generated
+   ending appears only when `resolution` is non-null. No reading estimate and no
+   next-release date are shown (the backend has neither).
+
+Tests: `npm run test:story-model` (pure mapping, 5 cases). The full journey/recovery/
+reader/ui suites and the source-scanning backend tests pass. **Not yet verified:** a
+live engine journey in a browser (auth gate); please run one owner sign-in against a
+dev account with the cohort configured.
+
+## 4E. WP-08 companion screens — frontend lead + four subagents, 2026-09-06 (night)
+
+Cahier, Missions, Lexique and Réglages were migrated in parallel under exclusive file
+leases; the lead migrated the serial cast and replay pages and integrated. All on the
+`--av2-*` tokens, every rule `.av2 .<prefix>-…`, no hex, no tracked caps, no lucide.
+
+| Screen | Verbatim from the artboard | Extended (no artboard) | Recorded gaps |
+|---|---|---|---|
+| Cahier (`CahierV2.tsx`, notebook, grammar, Relevé) | kicker + "Le cahier", Règles/Mots/Relevé pill, 44px search well, level chips, concept rows with shape glyph + three mastery bars | fiche, Relevé, library, loading/error/empty | tabs/chips 44px not 30px; no gear on the Cahier head; ledger head/colophon dropped; library exercises still on the legacy `ExerciseShell` (pinned by a shared test); `Cahiers.tsx` remains only for `/mobile-visual-qa` |
+| Missions (`missions.tsx`, `Courrier.tsx`) | portrait + name headline + mission line + reward chip, chat bubbles, green feedback line, hint pill, composer pill + red mic/send press | brief, word ribbon, repair note, voicemail memo, quick replies, email/admin wells, recap, archive | no artboard for brief/formats/recap/archive; a back control added to the head |
+| Lexique (`vocabulary*.tsx`, `MotsDuJour`, `WordBiographySheet`, `FragilityBadge`) | close control, per-card segments + count, "Mot du jour · deck", flip card (radius 28, 8px press, yellow back), "● Encore / ■ Je sais" | list page from the Cahier rows; conjugation from the Séance; FSRS "Dur"/"Facile" as quiet actions; production/audio/cloze on the card | close control 44px not 36px; >12 cards collapse the segments to one rule; `frequency_rank` prints only if the queue payload carries one (it does not today); the word sheet's four grades are all secondary |
+| Réglages (`settings.tsx`) | kicker "Prénom · A2" + headline, "Temps par édition" segmented control (ink active, 3px press), list-row cards with hairlines and the 48×28 switch | every other section from the list-row card; delete/sign-out through `Dialog` | no real streak or week squares in `UserSettingsRead`, so headline is "Réglages"; the app's budgets are 5/10/15/30/60 + free field, rendered as the same control; page not sheet |
+| Cast / replay (`serial/cast.tsx`, `serial/episode/[index].tsx`) | Feuilleton head + rows | cast cards (portrait, register chip, closeness pips, recall chips), replay on the reader's plate + speech cards / chat bubbles | no artboards |
+
+Shared-test assertions retargeted by the lead (behaviour preserved in every case):
+`test_core_mobile_user_flows` (`NotebookModeTabs`), `test_atelier_honest_edition` (Relevé on
+the av2 primitives), `test_frontend_red_ink_repair_slip` (`ErratumLine`),
+`test_frontend_notebook_modes` (sentence-case card faces), `test_frontend_serial_surfaces`
+(`CastCard`), `test_mobile_capture_harness` ("Private model sheet" wording kept).
+
+System addition: `styles/atelier-v2.css` now overrides `globals.css`'s `!important` square
+1px ink borders on `input/select/textarea` inside `.av2` (rounded card well, blue focus
+edge), which had been reaching the daily session's fields too.
+
+**Not verified:** none of the authenticated routes has been walked in a browser. One owner
+sign-in against a dev account is the remaining WP-08 gate before WP-12 final.

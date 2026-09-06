@@ -14,15 +14,15 @@ def read(path: Path) -> str:
 def test_atelier_recovers_from_offline_empty_and_unfinished_states() -> None:
     atelier = read(WEB / "pages" / "atelier.tsx")
 
-    # The home screen is the "La Une" front page (components/laune/LaUne.tsx);
-    # load errors surface as a press-notice with a Retry, and the start CTA
-    # stays disabled until the active session is confirmed.
+    # The home screen is the Claude-design Home (components/atelier-v2/home);
+    # load errors surface as a notice with a Retry, and the start CTA stays
+    # disabled until the active session is confirmed.
     assert "function describeAtelierError" in atelier
     assert "setLoadError(describeAtelierError(error, 'load'))" in atelier
     assert "setLoadError(describeAtelierError(error, 'session'))" in atelier
-    assert "from '@/components/laune/LaUne'" in atelier
-    assert "<LuNotice" in atelier
-    assert "onRetry={onRetry}" in atelier
+    assert "from '@/components/atelier-v2/home/HomeScreen'" in atelier
+    assert "notice={loadError ?" in atelier
+    assert "onRetry: onRetry" in atelier
     assert "const [activeSessionReady, setActiveSessionReady] = useState(false)" in atelier
     assert "setActiveSessionReady(true)" in atelier
     assert "const canStart = activeSessionReady && (hasActiveSession || concepts.length > 0)" in atelier

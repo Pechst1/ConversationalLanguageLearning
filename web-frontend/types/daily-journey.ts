@@ -24,7 +24,8 @@ export type TaskOutcome = 'met' | 'partially_met' | 'not_yet' | 'unscored';
 export type CapabilityKey = 'order_at_cafe' | 'arrange_meeting' | 'explain_delay';
 export type CapabilityState =
   | 'not_tried' | 'with_support' | 'independent_once' | 'used_again_later';
-export type ScenarioKey = CapabilityKey;
+/** Opaque generated situation identity, separate from assessed capabilities. */
+export type ScenarioKey = string;
 export type EvidenceKind =
   | 'recognized' | 'produced_supported' | 'produced_independent' | 'not_yet' | 'unscored';
 
@@ -306,3 +307,31 @@ export type RetryBody = { mutation_id: string };
 
 /** A journey POST whose HTTP status is part of the contract (201/200/202). */
 export type JourneyHttpResult<T> = { data: T; status: number };
+
+/** Published graphic-novel view of the same canonical daily story. */
+export interface StoryPanel {
+  id: string;
+  index: number;
+  narration_fr: string;
+  dialogue: Array<{ character_id: string; text_fr: string }>;
+  image_url: string | null;
+  image_status: 'setting_reference' | 'unavailable';
+}
+export interface StoryEpisode {
+  /** The immutable scene id used by /story-engine/episodes/{id}. */
+  id: string;
+  scene_id: string;
+  serial_thread_id: string;
+  serial_episode_id: string | null;
+  journey_id: string;
+  title_fr: string;
+  status: 'available' | 'completed' | 'abandoned';
+  chapter: { id: string; title_fr: string } | null;
+  panel_index: number;
+  panels: StoryPanel[];
+  resolution: { text_fr: string | null; summary_native: string | null } | null;
+}
+export interface StoryEpisodePage {
+  episodes: StoryEpisode[];
+  next_cursor: string | null;
+}

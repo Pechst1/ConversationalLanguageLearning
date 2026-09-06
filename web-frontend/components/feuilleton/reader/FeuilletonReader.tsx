@@ -19,8 +19,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, ArrowRight, Check, Loader2, X } from 'lucide-react';
-
+import {
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  AtelierV2Root,
+  CheckIcon,
+  CrossIcon,
+  SpinnerToken,
+} from '@/components/atelier-v2/ui';
 import { resolveMediaUrl } from '@/lib/media-url';
 
 import { TappableFrench } from './TappableFrench';
@@ -67,6 +73,8 @@ export type FeuilletonReaderProps = {
   /** absent while the episode is still being generated, or when already filed */
   onComplete?: (() => void) | null;
   completing?: boolean;
+  /** Label of the closing primary. The daily journey says "Continuer". */
+  completeLabel?: string;
   filed?: boolean;
   nextHref?: string | null;
   nextLabel?: string;
@@ -100,6 +108,7 @@ export function FeuilletonReader({
   onExit,
   onComplete,
   completing = false,
+  completeLabel = 'Terminer l’épisode',
   filed = false,
   nextHref,
   nextLabel,
@@ -237,10 +246,13 @@ export function FeuilletonReader({
       : `Planche ${safeIndex + 1} sur ${count}`;
 
   return (
+    /* The av2 root supplies the tokens and the `.av2` ancestor every reader
+       rule is written against; the reader itself stays the section. */
+    <AtelierV2Root as="div" className="fr-scope">
     <section className="fr-reader" aria-label="Lecteur du feuilleton" ref={rootRef}>
       <div className="fr-bar">
         <button type="button" className="fr-icon-btn" onClick={onExit} aria-label="Quitter la lecture">
-          <X size={18} aria-hidden="true" />
+          <CrossIcon size={16} />
         </button>
         <div
           className="fr-rail"
@@ -288,7 +300,7 @@ export function FeuilletonReader({
         {readState === 'read' && (
           <p className="fr-state">
             <span className="tok" aria-hidden="true">
-              <Check size={11} color="#f8f3e8" strokeWidth={3} />
+              <CheckIcon size={11} />
             </span>
             Déjà lu · vous relisez cette planche
           </p>
@@ -357,7 +369,7 @@ export function FeuilletonReader({
         {stage.kind === 'resolution' && filed && (
           <p className="fr-state">
             <span className="tok" aria-hidden="true">
-              <Check size={11} color="#f8f3e8" strokeWidth={3} />
+              <CheckIcon size={11} />
             </span>
             Épisode classé
           </p>
@@ -399,14 +411,14 @@ export function FeuilletonReader({
             disabled={isFirst}
             aria-label="Planche précédente"
           >
-            <ArrowLeft size={16} aria-hidden="true" />
+            <ArrowLeftIcon size={18} />
             <span className="fr-sr">Précédent</span>
           </button>
 
           {isLast ? (
           filed && nextHref ? (
             <Link className="fr-btn fr-next is-action" data-press="3d" href={nextHref}>
-              {nextLabel || 'Lire la suite'} <ArrowRight size={16} aria-hidden="true" />
+              {nextLabel || 'Lire la suite'} <ArrowRightIcon size={18} />
             </Link>
           ) : onComplete ? (
             <button
@@ -416,8 +428,8 @@ export function FeuilletonReader({
               disabled={completing}
               onClick={onComplete}
             >
-              {completing ? <Loader2 className="spin" size={16} aria-hidden="true" /> : <Check size={16} aria-hidden="true" />}
-              {completing ? 'Classement…' : 'Terminer l’épisode'}
+              {completing ? <SpinnerToken /> : <CheckIcon size={16} />}
+              {completing ? 'Classement…' : completeLabel}
             </button>
           ) : (
             <button type="button" className="fr-btn fr-next" disabled>
@@ -431,7 +443,7 @@ export function FeuilletonReader({
             data-press={primary === 'next' ? '3d' : undefined}
             onClick={() => go(safeIndex + 1)}
           >
-            Suivant <ArrowRight size={16} aria-hidden="true" />
+            Suivant <ArrowRightIcon size={18} />
           </button>
           )}
         </div>
@@ -439,6 +451,7 @@ export function FeuilletonReader({
 
       <WordHelpSheet request={help} onClose={() => setHelp(null)} />
     </section>
+    </AtelierV2Root>
   );
 }
 
@@ -583,7 +596,7 @@ function TaskCard({
           {correction && (
             <p className={`fr-feedback ${branch ? 'is-branch' : positive ? '' : 'is-wrong'}`} role="status">
               <span className="tok" aria-hidden="true">
-                {positive ? <Check size={14} strokeWidth={3} /> : <X size={14} strokeWidth={3} />}
+                {positive ? <CheckIcon size={15} /> : <CrossIcon size={15} />}
               </span>
               <span>
                 <b>{branch ? 'Choix pris en compte' : positive ? 'Acceptée' : 'Reprise classée'}</b>
@@ -636,13 +649,13 @@ function TaskCard({
             disabled={submitting}
             onClick={onSubmit}
           >
-            {submitting ? <Loader2 className="spin" size={16} aria-hidden="true" /> : null}
+            {submitting ? <SpinnerToken /> : null}
             {submitting ? 'Relecture…' : 'Envoyer'}
           </button>
           {errored && (
             <p className="fr-feedback is-wrong" role="status">
               <span className="tok" aria-hidden="true">
-                <X size={14} strokeWidth={3} />
+                <CrossIcon size={15} />
               </span>
               <span>{submitError?.message}</span>
             </p>

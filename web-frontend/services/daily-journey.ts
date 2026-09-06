@@ -267,3 +267,11 @@ export const dailyJourneyService = {
 };
 
 export default dailyJourneyService;
+
+
+/** Reader navigation is separate from the journey mutation/reward authority. */
+export const getStoryEpisodes = (before?: string) => apiService.getStoryEpisodes(before);
+export const getStoryEpisode = (sceneId: string) => apiService.getStoryEpisode(sceneId);
+export const getStoryEpisodeForJourney = (journeyId: string) => apiService.getStoryEpisodeForJourney(journeyId);
+export const saveStoryReadingPosition = (sceneId: string, panelIndex: number) =>
+  apiService.saveStoryReadingPosition(sceneId, panelIndex);

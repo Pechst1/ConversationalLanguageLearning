@@ -13,11 +13,12 @@
 import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
-import { ArrowRight, Check } from 'lucide-react';
-
 import PhoneProductNav from '@/components/layout/PhoneProductNav';
 import { FeuilletonReaderStyles } from '@/components/feuilleton/reader';
+import { ArrowRightIcon, AtelierV2Root, CheckIcon } from '@/components/atelier-v2/ui';
 import apiService, { SerialArchiveEpisode, SerialToday } from '@/services/api';
+import { getStoryEpisodes } from '@/services/daily-journey';
+import type { StoryEpisode } from '@/types/daily-journey';
 import { resolveMediaUrl } from '@/lib/media-url';
 
 type CurrentEpisode = (SerialToday & Record<string, any>) | null;
@@ -36,6 +37,11 @@ function firstText(...values: unknown[]): string {
 /* The route that actually continues the story, built from the server's own
    thread/episode references. Never a guess. */
 function continueHref(episode: CurrentEpisode): string | null {
+  // Engine-managed learners continue through today's journey, never through a
+  // scene route the engine has not published (ENGINE-FRONTEND-CONTRACT §5).
+  if (episode && String(episode.status || '') === 'journey_required') {
+    return String((episode as any).continue_href || '/atelier');
+  }
   if (!episode?.thread_id || typeof episode.episode_index !== 'number') return null;
   const params = new URLSearchParams({
     serial_thread_id: episode.thread_id,
@@ -62,18 +68,29 @@ export default function SerialSeasonPage() {
   const [current, setCurrent] = useState<CurrentEpisode>(null);
   const [threadId, setThreadId] = useState<string>('');
   const [seasonNumber, setSeasonNumber] = useState(1);
+  const [storyEpisodes, setStoryEpisodes] = useState<StoryEpisode[]>([]);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     let alive = true;
     apiService.getSerialEpisodes()
-      .then((payload) => {
+      .then(async (payload) => {
         if (!alive) return;
         setEpisodes(payload.episodes || []);
         setSeasonNumber(Number(payload.season_number || 1));
         setCurrent((payload.current_episode as CurrentEpisode) || null);
         setThreadId(String(payload.thread_id || ''));
+        // Generated episodes live in the story-engine projection. A GET only:
+        // it neither generates nor completes anything.
+        if ((payload.current_episode as any)?.story_engine) {
+          try {
+            const page = await getStoryEpisodes();
+            if (alive) setStoryEpisodes(page.episodes || []);
+          } catch {
+            /* the legacy rows still render; the generated list is additive */
+          }
+        }
       })
       .catch((error) => {
         console.error(error);
@@ -91,7 +108,7 @@ export default function SerialSeasonPage() {
     };
   }, []);
 
-  const filed = episodes.length;
+  const filed = episodes.length + storyEpisodes.filter((entry) => entry.status !== 'available').length;
   // The hero is the current episode only while it is genuinely still open.
   const heroEpisode: CurrentEpisode =
     current && current.status !== 'completed'
@@ -111,7 +128,12 @@ export default function SerialSeasonPage() {
     heroEpisode?.previously,
     'La suite de votre histoire vous attend.',
   );
-  const heroCta = heroEpisode?.kind === 'mission' ? 'Répondre dans Le Courrier' : 'Lire et répondre';
+  const heroIsJourney = String(heroEpisode?.status || '') === 'journey_required';
+  const heroCta = heroIsJourney
+    ? 'Continuer la journée'
+    : heroEpisode?.kind === 'mission'
+      ? 'Répondre dans Le Courrier'
+      : 'Lire et répondre';
 
   return (
     <>
@@ -119,7 +141,7 @@ export default function SerialSeasonPage() {
         <title>Le feuilleton · L’Atelier</title>
       </Head>
       <FeuilletonReaderStyles />
-      <main className="fr-page" aria-label="Le feuilleton">
+      <AtelierV2Root as="main" className="fr-page" aria-label="Le feuilleton">
         <header className="fr-page-head">
           <div className="k">
             {loading
@@ -147,7 +169,7 @@ export default function SerialSeasonPage() {
               data-press="3d"
               onClick={() => window.location.reload()}
             >
-              Réessayer <ArrowRight size={16} aria-hidden="true" />
+              Réessayer <ArrowRightIcon size={18} />
             </button>
           </div>
         ) : (
@@ -164,16 +186,48 @@ export default function SerialSeasonPage() {
                 </div>
                 <div className="body">
                   <div className="k">
-                    {episodeNumber(heroEpisode.episode_index)} ·{' '}
-                    {heroEpisode.status === 'delayed' ? 'retardé' : "aujourd’hui"}
+                    {heroIsJourney
+                      ? 'Le feuilleton · aujourd’hui'
+                      : `${episodeNumber(heroEpisode.episode_index)} · ${heroEpisode.status === 'delayed' ? 'retardé' : 'aujourd’hui'}`}
                   </div>
-                  <h2>{heroTitle}</h2>
+                  <h2>{heroIsJourney ? 'La suite se joue dans la journée du jour.' : heroTitle}</h2>
                   {/* the one tactile 3D press on this screen */}
                   <Link className="cta" href={heroHref}>
-                    {heroCta} <ArrowRight size={16} aria-hidden="true" />
+                    {heroCta} <ArrowRightIcon size={18} />
                   </Link>
                 </div>
               </section>
+            )}
+
+            {storyEpisodes.length > 0 && (
+              <div className="fr-rows" aria-label="Épisodes générés">
+                {storyEpisodes.map((entry) => {
+                  const settled = entry.status !== 'available';
+                  return (
+                    <Link
+                      className="fr-row"
+                      href={`/graphic-novel?scene=${encodeURIComponent(entry.id)}`}
+                      key={entry.id}
+                    >
+                      <span className="thumb" aria-hidden="true" />
+                      <span className="meta">
+                        <span className="k">
+                          {entry.chapter?.title_fr || 'Le feuilleton'} ·{' '}
+                          {settled ? (entry.status === 'completed' ? 'lu' : 'abandonné') : 'en cours'}
+                        </span>
+                        <span className="t">{entry.title_fr || 'Épisode'}</span>
+                      </span>
+                      {settled ? (
+                        <span className="done" aria-hidden="true">
+                          <CheckIcon size={14} />
+                        </span>
+                      ) : (
+                        <span className="go" aria-hidden="true"><ArrowRightIcon size={18} /></span>
+                      )}
+                    </Link>
+                  );
+                })}
+              </div>
             )}
 
             {episodes.length > 0 ? (
@@ -196,14 +250,14 @@ export default function SerialSeasonPage() {
                           <span className="t">{title}</span>
                         </span>
                         <span className="done" aria-hidden="true">
-                          <Check size={14} color="#f8f3e8" strokeWidth={3} />
+                          <CheckIcon size={14} />
                         </span>
                       </Link>
                     );
                   })}
               </div>
             ) : (
-              !heroEpisode && (
+              !heroEpisode && storyEpisodes.length === 0 && (
                 <div className="fr-empty">
                   <h2>Le premier numéro n’est pas encore paru.</h2>
                   <p>
@@ -211,7 +265,7 @@ export default function SerialSeasonPage() {
                     planche, avec votre réplique.
                   </p>
                   <Link className="fr-btn is-action" data-press="3d" href="/graphic-novel">
-                    Ouvrir le premier épisode <ArrowRight size={16} aria-hidden="true" />
+                    Ouvrir le premier épisode <ArrowRightIcon size={18} />
                   </Link>
                 </div>
               )
@@ -224,16 +278,16 @@ export default function SerialSeasonPage() {
                   <span className="k">Le registre du théâtre</span>
                   <span className="t">Les personnages</span>
                 </span>
-                <ArrowRight size={18} aria-hidden="true" />
+                <span className="go" aria-hidden="true"><ArrowRightIcon size={18} /></span>
               </Link>
             </div>
           </>
         )}
-      </main>
+      </AtelierV2Root>
       <PhoneProductNav active="feuilleton" />
       <style jsx global>{`
         body { background: var(--app-paper); }
-        .fr-page { min-height: 100vh; padding-bottom: calc(var(--phone-bottom-nav-space, 88px)); }
+        .av2.fr-page { min-height: 100vh; padding-bottom: calc(var(--phone-bottom-nav-space, 88px)); }
       `}</style>
     </>
   );

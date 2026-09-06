@@ -1,28 +1,30 @@
 # Atelier V2 — execution status and file leases
 
 Revision 2, functionality first, Claude UI.
+**Scope extended 2026-09-06:** delivery revision 3 adds required [WP-14](CONTINUOUS-STORY.md). Original completion entries below are historical implementation reports; independent findings are in [NEXT-STEPS-REVIEW.md](NEXT-STEPS-REVIEW.md). Continuous new situations and integrated story progression are not implemented by those completion entries.
 **Execution started 2026-09-05.** Integration owner: lead implementation agent.
 Baseline: [BASELINE.md](BASELINE.md). Frozen wire contract: [CONTRACT-FREEZE.md](CONTRACT-FREEZE.md).
 
 | Package | Status | Owner | Baseline / revision | Evidence / blockers |
 |---|---|---|---|---|
 | WP-00 | **Complete** | Integration owner | worktree @ `367082` + uncommitted work | BASELINE.md, CONTRACT-FREEZE.md, `app/services/journey_contracts.py`, 26 public + 9 private fixtures. Baseline: pytest 593 passed / 1 pre-existing failure; tsc, lint, atelier-next pass |
-| WP-01 | Blocked | Unassigned | — | Claude artifact still redirects to sign-in; not inspected. Does not block functional work |
+| WP-01 | **Complete** | frontend lead (subagent A) | `d83ebb0` + 2026-09-06 consistency pass | Owner's local export `docs/design-reference/claude/Atelier App.dc.html` inspected and mapped; `styles/atelier-v2.css`, `components/atelier-v2/ui`, dev gallery `/atelier-v2-gallery`. Consistency pass fixed the legacy-reset cascade and the reader fonts; see FRONTEND-ENGINE-HANDOFF §4, §4B, §4C |
 | WP-02 | **Complete (functional)**, patches in flight | agent `wp02` | WP-00 baseline | 137 own tests; café journey proven end-to-end 44/44 vs real API; PG invariants verified by integration owner. Applying 8 review patches |
 | WP-03 | **Complete (functional)** | agent `wp03` | WP-00 baseline | 50 tests pass; café/de/fr descriptors match frozen fixtures byte-for-byte (verified independently by `tests/test_journey_contract_parity.py`). Authored ceiling is A2 |
 | WP-04 | **Complete (functional)** | agent `wp04` | WP-00 baseline | 62 tests; verified independently via the parity gate (100-due-word case, purity, determinism) |
 | WP-05 | **Complete (functional)**, patch in flight | agent `wp05` | WP-00 baseline | 71 tests; SRS/audio regressions pass; canonical credit proven against PostgreSQL. Adding candidate evidence metadata for WP-04 |
 | WP-06 | **Complete (functional)** | agent `wp06` | WP-00 baseline | 78 own tests; serial/audio/missions regressions 90 pass; outcome-schema escape and neutral-default verified by the parity gate |
 | WP-07 functional | **Complete** | agent `wp07` + wiring agent | WP-00 baseline | Controller/renderer + WP-10 recovery wired; D-5/D-6/D-7 fixed and measured |
-| WP-07 visual | Waiting for 01 | Unassigned | — | Pending in this pass |
-| WP-08 | Waiting for 01 | Unassigned | — | Pending in this pass |
+| WP-07 visual | **Complete** | frontend lead (subagent A) | `d83ebb0` | `JourneySession`/`JourneySteps`/`JourneyTodayCard` on the design's Séance chrome; streak omitted (no real count); verified by build, tests and cascade reproduction — not yet walked on the authed route |
+| WP-08 | **Complete (visual)** — browser walk pending | frontend lead + 4 subagents | working tree, 2026-09-06 | Tab bar, masthead, Home (design 1a), Feuilleton index, reader, cast, replay, Missions (Le Courrier), Réglages, Lexique (list / review / conjugation) and Cahier (notebook, grammar fiche, Relevé) all on the av2 system; story-engine reader/archive/409 transitions (WP-14E). Verified by tsc, lint, all node suites, every source-scanning backend test and a production build; the authenticated routes have not been walked in a browser (auth gate) |
 | WP-09 functional | **Complete** | agent `wp09` | WP-00 baseline | Rubric unified with the recap; keepsake source-unique |
-| WP-09 visual | Waiting for 01 | Unassigned | — | Pending in this pass |
+| WP-09 visual | **Complete (visual)** with WP-08 — browser walk pending | Cahier subagent | working tree, 2026-09-06 | Notebook, grammar fiche and Le Relevé on the av2 system (`components/cahiers/CahierV2.tsx`); capability/keepsake data unchanged; Home's Errata and Lexique tiles lead there |
 | WP-10 | **Complete** | agent `wp10` + wiring agent | WP-00 baseline | 35/35 live; wired into the real render path; respond-draft prune bug fixed |
 | WP-11 | **Complete** | agent `wp11` | WP-00 baseline | Ten events, payload allow-list verified hostile; `active_seconds` now measured |
 | WP-12 functional | **Complete — conditional GO met** | agent `wp12` | WP-00 baseline | NO-GO on 10 defects; D-1..D-7 fixed and re-verified. D-1b, live-model review, device/learner gates remain open |
 | WP-12 final | Waiting for visual milestones | Unassigned | — | Not started; visual gates stay pending |
-| WP-13 | Waiting for 12 final | Unassigned | — | No rollout authorized or executed |
+| WP-13 | Waiting for 12 final and 14 | Unassigned | — | No rollout authorized or executed |
+| WP-14 | Backend implemented; **frontend connected (14E)**; **PG lock races 33/33 and browser walk done 2026-09-06 evening**; live prose review and one frontend finish defect open | Codex engine owner + frontend lead | working tree, 2026-09-06 | [Engine implementation](ENGINE-IMPLEMENTATION.md), [reader contract](ENGINE-FRONTEND-CONTRACT.md). Frontend: scene step reads `GET /story-engine/episodes?journey_id` into the immersive reader, saves position by panel id, continues through the journey controller; archive lists generated episodes; 409 `story_episode_route` / `story_journey_required` handled as route transitions. Driven end to end in a browser on the authenticated route (`scripts/dev_story_engine_server.py`, fake provider) and under PostgreSQL concurrency (`scripts/verify_story_engine_pg.py`, 33/33); see ENGINE-IMPLEMENTATION.md. Open: stale-revision auto-finish in `useDailyJourney.ts` (frontend owner), real-provider prose review (needs paid-call consent), production stays off |
 
 ## File leases
 

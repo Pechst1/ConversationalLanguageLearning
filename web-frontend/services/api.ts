@@ -1,3 +1,4 @@
+import type { StoryEpisode, StoryEpisodePage } from "@/types/daily-journey";
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import toast from 'react-hot-toast';
 
@@ -2118,6 +2119,24 @@ class ApiService {
   private async journeyPost<T>(url: string, data: unknown): Promise<JourneyHttpResult<T>> {
     const response = await this.api.post<T>(url, data, this.journeyConfig());
     return { data: response.data, status: response.status };
+  }
+
+  async getStoryEpisodes(before?: string): Promise<StoryEpisodePage> {
+    return this.get<StoryEpisodePage>(`/story-engine/episodes${before ? `?before=${encodeURIComponent(before)}` : ''}`, this.journeyConfig());
+  }
+
+  async getStoryEpisode(sceneId: string): Promise<StoryEpisode> {
+    return this.get<StoryEpisode>(`/story-engine/episodes/${encodeURIComponent(sceneId)}`, this.journeyConfig());
+  }
+
+  async getStoryEpisodeForJourney(journeyId: string): Promise<StoryEpisode | null> {
+    const page = await this.get<StoryEpisodePage>(`/story-engine/episodes?journey_id=${encodeURIComponent(journeyId)}`, this.journeyConfig());
+    return page.episodes[0] ?? null;
+  }
+
+  async saveStoryReadingPosition(sceneId: string, panelIndex: number): Promise<{ scene_id: string; panel_index: number }> {
+    const response = await this.api.put<{ scene_id: string; panel_index: number }>(`/story-engine/episodes/${encodeURIComponent(sceneId)}/position`, { panel_index: panelIndex }, this.journeyConfig());
+    return response.data;
   }
 
   async getDailyJourneyToday(timezone?: string): Promise<TodayEnvelope> {

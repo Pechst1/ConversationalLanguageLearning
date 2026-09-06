@@ -49,10 +49,12 @@ def test_vocabulary_review_keeps_anki_flow_and_exposes_history() -> None:
     assert "WordBiographySheet" in source
     assert "const [biographyOpen, setBiographyOpen]" in source
     assert "apiService.getVocabularyBiography(current.word_id)" in source
-    assert "History" in source
+    assert "L’histoire du mot" in source
     assert "queueExample(current)" in source
     assert "exampleTranslation" in source
-    assert "Taper pour révéler" in source
+    # The design's side labels: "Touche pour retourner" / "Sens · touche pour revenir".
+    assert "Touche pour retourner" in source
+    assert "Sens · touche pour revenir" in source
     assert "setRevealed((value) => !value)" in source
     assert "reviewOptions.map" in source
 
@@ -71,10 +73,13 @@ def test_vocabulary_review_cloze_and_audio_guards_are_unicode_safe() -> None:
 def test_vocabulary_review_uses_visible_card_text_classes() -> None:
     source = read_page(VOCABULARY_REVIEW_PAGE)
 
-    assert 'className="review-prompt-term"' in source
-    assert "color: var(--ink);" in source
-    assert ".review-answer-word" in source
-    assert ".review-context-anchor" in source
+    # The word is the one Garamond-italic headline; every card colour comes
+    # from the --av2 tokens (card face front, yellow back).
+    assert "review-prompt-term" in source
+    assert ".av2 .lx-card__word" in source
+    assert "--lx-card-face: var(--av2-yellow);" in source
+    assert "review-answer-word" in source
+    assert "review-context-anchor" in source
 
 
 def test_vocabulary_review_retries_stale_auth_as_local_flow() -> None:
@@ -99,9 +104,10 @@ def test_vocabulary_review_keeps_header_and_rating_controls_compact() -> None:
     assert "review-topline" not in source
     assert "review-deck-link" not in source
     assert "mobileAction=" not in source
-    assert "font-size: clamp(34px, 10vw, 42px);" in source
+    # Design: the word at 46px, in rem so the text-size setting moves it.
+    assert "font-size: 2.875rem; /* design 46px */" in source
     assert "const sessionRemaining = remainingItems.length" in source
-    assert "<strong>{sessionRemaining}</strong>" in source
+    assert "${sessionRemaining} ${sessionRemaining > 1 ? 'cartes' : 'carte'}" in source
     assert "remainingSummary.due" in source
     assert "refreshQueueSummary" not in source
     assert "const handleRatingClick" in source
@@ -115,7 +121,9 @@ def test_vocabulary_review_uses_local_visual_cues_before_generated_images() -> N
     source = read_page(VOCABULARY_REVIEW_PAGE)
 
     assert "function wordVisualCue" in source
-    assert "type LucideIcon" in source
+    # Icon sets are gone: the cue carries one of the four Bauhaus shapes.
+    assert "lucide-react" not in source
+    assert "shape: ShapeKind" in source
     assert "abaisser" in source
     assert "review-visual-cue" in source
     # The badge is French publication copy now: the labels were the last
@@ -124,17 +132,20 @@ def test_vocabulary_review_uses_local_visual_cues_before_generated_images() -> N
     # and printed "exemplaire" (a noun) as a verb.
     assert "aria-label={`Indice visuel : ${visualCue.label}`}" in source
     assert "label: 'Temps', caption: 'quand'" in source
-    assert "item.part_of_speech" not in source
+    # The hint line prints the column only through the French whitelist.
+    assert "partOfSpeechLabel(item.part_of_speech)" in source
+    assert "PART_OF_SPEECH_LABELS" in source
 
 
 def test_vocabulary_review_back_face_keeps_answer_content_visible() -> None:
     source = read_page(VOCABULARY_REVIEW_PAGE)
 
     assert "FSRS · {current.bucket}" not in source
-    assert 'className="review-answer-container w-full flex-1 flex flex-col"' in source
-    assert ".vocab-flashcard-back {\n          background: var(--app-sheet);\n          transform: rotateY(180deg);\n          overflow: hidden;" in source
-    assert ".review-answer-container {\n          min-height: 0;" in source
-    assert "overflow-y: auto;" in source
+    assert 'className="lx-card__middle review-answer-container"' in source
+    # The back face is the yellow reward surface; the example sits on it.
+    assert ".av2 .lx-card[data-face='back'] {" in source
+    assert "{revealed && visibleExample && (" in source
+    assert "overflow-wrap: anywhere;" in source
 
 
 def test_vocabulary_notebook_uses_compact_coverage_snapshot() -> None:
@@ -146,8 +157,8 @@ def test_vocabulary_notebook_uses_compact_coverage_snapshot() -> None:
     assert "Atlas des acquis" in source
     assert "setAtlasOpen((open) => !open)" in source
     assert "Couverture CECR" in source
-    assert "<NcCoverageTrack" in source
-    assert "<NcMasteryMap" in source
+    assert "<LxTrack" in source
+    assert "<LxMasteryMap" in source
     assert "Carte de maîtrise — Français 5000" in source
     assert "Registre des mots — Français 5000" in source
     # The old English dashboard labels are gone.
@@ -171,8 +182,8 @@ def test_atelier_today_surfaces_vocabulary_training_step() -> None:
     # On the La Une front page the vocabulary review path is the "Le Lexique"
     # article, which routes to /vocabulary/review when words are due.
     assert "vocabularyReviewDue" in source
-    # The lexique is an En bref row since the manchette redesign.
-    assert "<LuEnBref" in source
+    # The lexique is one of the three Home tiles since the Claude design.
+    assert "<HomeScreen" in source
     assert "id: 'lexique'" in source
     assert "href: '/vocabulary/review'" in source
 
