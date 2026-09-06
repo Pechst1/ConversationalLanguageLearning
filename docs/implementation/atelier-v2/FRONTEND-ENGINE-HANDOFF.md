@@ -402,3 +402,85 @@ anyone running `npm run dev` without it would POST credentials to another applic
 This is the same class of defect as WP-12's D-8 (`capture:mobile` defaulting to 8000).
 Raised rather than changed here: `lib/auth.ts` is auth code and belongs to the engine
 owner. Recommendation: fail fast on a missing `API_URL` instead of guessing a port.
+
+
+## 7. Backend host is no longer guessed — fixed 2026-09-06 at the owner's request
+
+`lib/auth.ts` defaulted to `http://localhost:8000`, a port that belongs to a different
+project on this machine, on the code path that submits a learner's email, password and
+tokens.
+
+**Fixing `auth.ts` alone would have been dead code.** `next.config.js` was *manufacturing*
+the same default into `env.API_URL`, so `process.env.API_URL` was never undefined inside
+the app and a fail-fast there could never fire. Both had to change.
+
+| File | Change |
+|---|---|
+| NEW `lib/api-host.ts` | `requireApiHost(context)` throws a clear configuration error when `API_URL` is unset or blank, and strips trailing slashes. Throws at **call** time, never at module load |
+| `lib/auth.ts` | login / refresh / logout / `users/me` now use it — no fallback |
+| `lib/learning-entry.ts` | same shape, also sends a bearer token — no fallback |
+| `next.config.js` | `env.API_URL` is passed through **only when set**; the `/api/backend/*` and `/media/*` proxies are **omitted entirely** when it is not, so nothing silently forwards to another service. Warns at build, does not throw |
+| NEW `lib/api-host.test.js` | 5 guards, wired into CI as `test:api-host` |
+
+**CI safety was the constraint.** CI runs `npm run build` and `npm run build:native`
+**without** `API_URL`. A naive throw would have turned the pipeline permanently red — the
+same mistake as the earlier provider guard that forced feature flags off and broke seven
+tests. Verified with the exact CI environment (no `API_URL`): type-check, lint, all eight
+test scripts, `build` **and** `build:native` all pass. Config behaviour verified both ways:
+unset → 0 backend proxies and `env.API_URL` undefined; set → 2 proxies pointing at 8010.
+
+One guard asserts `next.config.js` can never reintroduce an `API_URL || 'http…'` fallback,
+because that is what made the original bug invisible.
+
+### Still guessing port 8000 — not mine to change
+
+| Location | Owner |
+|---|---|
+| `pages/api/proxy/stories/[...params].ts:35` | API routes are excluded from frontend scope; **server-side proxy**, same risk class |
+| `services/api.ts:1179`, `services/websocket.ts:209,224` | engine-owned |
+| `scripts/capture-mobile-states.mjs:15` | WP-12 defect D-8, already logged |
+| `lib/native-auth.ts:35` | native path; `native-api-env.mjs` already refuses a placeholder at build |
+
+The `pages/api/proxy` one is worth the engine owner's attention: it is a server-side proxy
+with the same guessed default.
+
+---
+
+## 4C. Design-consistency pass — frontend lead, 2026-09-06 (evening)
+
+An audit of the shipped frontend against `Atelier App.dc.html` found the system
+faithful but the app inconsistent. What changed, and why:
+
+1. **Legacy page resets were stripping the new controls.** `.atelier-page button`
+   and `.feuilleton-page button` (`border:0; background:transparent; font:inherit`)
+   are (0,1,1) and outranked every `.av2-*` / `.fr-*` class (0,1,0): on the real
+   routes the primary action and every option card rendered face-less. Every rule
+   in `styles/atelier-v2.css` and `reader-styles.tsx` is now written under the
+   `.av2` ancestor (0,2,0). The legacy resets are untouched, so no legacy surface moved.
+2. **The Feuilleton screens rendered in Times and Inter.** `reader-styles.tsx` asked
+   for `"EB Garamond"` / `"Instrument Sans"`, which are not registered (the vendored
+   faces are `AtelierSerif` / `AtelierSans`). The reader and the season index now
+   read every colour, font, radius and press from the `--av2-*` tokens; the `--fr-*`
+   names survive only as aliases so the markup and tests were unchanged. This also
+   removes the second dark palette: session and reader now agree in dark mode.
+3. **Reader drift closed:** option face is the card colour, the primary is 56px/17px,
+   secondary press is 4px, disabled dims the face never the label, the focus ring is
+   ink, the sheet is 88vh, icons are the system's own 2.6–3px strokes (no lucide).
+4. **App shell.** `PhoneProductNav` is the design's tab bar (paper over a 1px line,
+   44×28 pill, 11px sentence case) and carries `av2` itself so it is consistent under
+   every page. `EditorialMasthead` and the Feuilleton section nav lost their tracked
+   uppercase and 1px ink boxes: sentence case, pill nav, round paper gear.
+5. **Home is direction 1a.** `components/atelier-v2/home/HomeScreen.tsx` replaces the
+   `LaUne` front page inside `TodayView`: mark + "Édition Nº n · level" + the date as
+   the one headline, streak only when real (else the gear), one episode card, one
+   3D-press action, Séance · Lexique · Errata tiles with shape marks and bars, one
+   colophon line. Every value still comes from `/atelier/today`. Dropped, as the
+   design cuts them: the phrase of the day, the rest-day quote, the library brief
+   (the library remains reachable from the Cahier).
+6. **Small av2 corrections:** screen headline token 32px (`--av2-t-screen`), running
+   text 400, "Continuer" carries the design's trailing arrow (`Action iconAfter`).
+
+**Not migrated in this pass:** Lexique (`/vocabulary/*`), Cahier (`/notebook`),
+Missions (`/missions`, Le Courrier), Réglages (`/settings`), and the serial cast /
+episode pages. They keep their legacy composition under the new tab bar and masthead;
+each is its own work package with product behaviour to preserve.

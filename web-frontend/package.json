@@ -19,7 +19,8 @@
     "test:atelier-ui": "node components/atelier-v2/ui/atelier-v2-ui.test.js",
     "test:recovery": "node lib/journey-recovery.test.js",
     "verify:recovery": "node scripts/verify-journey-recovery.js",
-    "test:reader": "node --test components/feuilleton/reader/reader.test.js components/feuilleton/reader/reader-render.test.js"
+    "test:reader": "node --test components/feuilleton/reader/reader.test.js components/feuilleton/reader/reader-render.test.js",
+    "test:api-host": "node --test lib/api-host.test.js"
   },
   "dependencies": {
     "@capacitor/cli": "^8.4.0",

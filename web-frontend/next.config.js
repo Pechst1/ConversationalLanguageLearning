@@ -1,4 +1,17 @@
 const isNativeStaticExport = process.env.NATIVE_STATIC_EXPORT === 'true';
+
+// Never defaulted. An unset API_URL means "not configured", which the app
+// reports as a configuration error at call time (lib/api-host.ts), rather than
+// guessing a port that may belong to a different application on this machine.
+const apiUrl = (process.env.API_URL || '').trim().replace(/\/+$/, '');
+if (!apiUrl && !isNativeStaticExport) {
+  // A build does not need the backend; a running server does. Warn, do not throw,
+  // so CI (which builds without API_URL) stays green.
+  console.warn(
+    '[next.config] API_URL is not set. Backend proxies are disabled and any ' +
+      'server-side call that needs the API will fail with a clear error.',
+  );
+}
 const launchFlags = require('./launch-flags.json');
 const isStoryFeatureVisible = Boolean(launchFlags.storyFeatureVisible);
 
@@ -12,8 +25,12 @@ const nextConfig = {
     domains: ['localhost', 'api.example.com'],
     unoptimized: isNativeStaticExport,
   },
+  // API_URL is passed through only when it is actually set. It used to be
+  // defaulted to http://localhost:8000 here, which meant the fail-fast in
+  // lib/api-host.ts could never fire: the app always saw a value, and on a
+  // machine where another project owns port 8000 that value was wrong.
   env: {
-    API_URL: process.env.API_URL || 'http://localhost:8000',
+    ...(apiUrl ? { API_URL: apiUrl } : {}),
   },
   webpack: (config) => {
     config.resolve.fallback = {
@@ -26,16 +43,23 @@ const nextConfig = {
 
 if (!isNativeStaticExport) {
   nextConfig.rewrites = async () => [
-    {
-      source: '/api/backend/:path*',
-      destination: `${process.env.API_URL || 'http://localhost:8000'}/api/v1/:path*`,
-    },
-    {
-      // Locally persisted Feuilleton panel images live on the API host
-      // (GRAPHIC_NOVEL_IMAGE_STORAGE=local mounts /media/graphic-novel there).
-      source: '/media/:path*',
-      destination: `${process.env.API_URL || 'http://localhost:8000'}/media/:path*`,
-    },
+    // The backend proxies exist only when a host was configured. Pointing them
+    // at a guessed port would silently forward requests — including
+    // credentials — to an unrelated local service.
+    ...(apiUrl
+      ? [
+          {
+            source: '/api/backend/:path*',
+            destination: `${apiUrl}/api/v1/:path*`,
+          },
+          {
+            // Locally persisted Feuilleton panel images live on the API host
+            // (GRAPHIC_NOVEL_IMAGE_STORAGE=local mounts /media/graphic-novel there).
+            source: '/media/:path*',
+            destination: `${apiUrl}/media/:path*`,
+          },
+        ]
+      : []),
     {
       source: '/anki-connect',
       destination: 'http://127.0.0.1:8765',

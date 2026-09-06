@@ -2,6 +2,8 @@ import { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { JWT } from 'next-auth/jwt';
 
+import { requireApiHost } from '@/lib/api-host';
+
 interface User {
   id: string;
   email: string;
@@ -17,7 +19,9 @@ interface TokenResponse {
 }
 
 function apiBaseUrl() {
-  return process.env.API_URL || 'http://localhost:8000';
+  // No fallback: see lib/api-host.ts. These calls carry the learner's email,
+  // password and tokens, so a guessed host is a credential-disclosure risk.
+  return requireApiHost('authentication');
 }
 
 function getJwtExpiry(token?: string): number {
