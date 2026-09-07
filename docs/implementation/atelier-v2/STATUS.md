@@ -725,3 +725,67 @@ Frontend: `web-frontend/lib/visual-cues.ts` (new), `web-frontend/lib/learner-lan
 Tests: `tests/test_learner_copy_localization.py` (new), `tests/test_pos_overrides.py` (new),
 `tests/test_backfill_anki_glosses.py` (new), `tests/test_frontend_vocabulary_biography.py`,
 `tests/test_inline_moments.py`.
+
+## 2026-09-07 — WP-18 preparation
+
+The enablement half of WP-18: runbook, drain proof, health tooling. **No flag was
+flipped, no server on 8010/8000 was touched, nothing was deployed, `.env` and
+`render.yaml` were not edited.** All work ran against a throwaway PostgreSQL 15
+database (`atelier_wp18_1788800834`, migrated to head `a3b4c5d6e7f8`, dropped
+at the end) with `scripts/dev_story_engine_server.py`'s fake provider, so no
+paid call was possible.
+
+### What exists now
+
+| File | What it is |
+|---|---|
+| `docs/implementation/atelier-v2/ROLLOUT.md` | The WP-13 §6 runbook: prerequisites, the eleven env keys with safe defaults and pilot values, the cohort procedure (owner first, then the five study accounts), health and cost queries, the weekly guardrail, the drain, the kill-switch order, who flips what, and the gates that cannot close here |
+| `scripts/verify_journey_drain.py` | Drives the whole flag cycle over real HTTP: it starts, stops and restarts the dev server with `ATELIER_DAILY_JOURNEY_ENABLED` on → off → on (a settings object is built once per process, exactly like a Render env-var change), and reads the canonical rows back. Prints a table, exits non-zero on any failure, refuses the owner's database and ports 8000/8010 |
+| `scripts/rollout_health.py` | The seven runbook queries (`journeys`, `states`, `conflicts`, `engine_cost`, `engine_ledger`, `correction_cost`, `weekly_guardrail`) against an explicit `--database-url` with `--since`, `--user`, `--guardrail`, `--json`. Read-only; refuses a local `language_learning` and requires `--allow-production-name` for the remote pilot database, which carries the same name |
+| `tests/test_rollout_scripts.py` | 19 tests: the database guards (local always refused, remote needs the opt-in), the query set (every query bounded by `:since`, narrowable by `:email`, free of write verbs, reading the same cost source as the guardrail), table rendering, the drain driver's port and database refusals through the real CLI, and its report/exit-code behaviour |
+
+### Commands actually run
+
+| Command | Result |
+|---|---|
+| `createdb atelier_wp18_1788800834` + `alembic upgrade head` | head `a3b4c5d6e7f8` |
+| `.venv/bin/python scripts/verify_journey_drain.py --database-url postgresql://localhost/atelier_wp18_1788800834` | **34/34 checks passed**, exit 0 (full table in ROLLOUT.md §7) |
+| `.venv/bin/python scripts/rollout_health.py --database-url … --since 2026-09-01` | all seven sections printed, exit 0 (output in ROLLOUT.md §4) |
+| `WP18_HEALTH_DATABASE_URL=… .venv/bin/pytest tests/test_rollout_scripts.py` | `19 passed in 0.66s` — including the opt-in section that executes every health query against real PostgreSQL |
+| `.venv/bin/ruff check scripts tests/test_rollout_scripts.py` | `All checks passed!` |
+| `dropdb atelier_wp18_1788800834` | done |
+
+The drain run was made on the working tree, which at that moment contained the
+in-flight WP-16 and WP-21 edits of the two concurrent agents.
+
+### What the drain proves
+
+Flag on, cohort of one: the cohort learner starts a journey and advances a step;
+a learner outside the cohort gets `enabled: false` and a 403 `journey_disabled`.
+Flag off: that learner still reads the journey and its engine scene, saves a
+reading position, answers the respond step, finishes with a story outcome and one
+completed learning session, while a new create **and** a retry are refused 403
+`journey_disabled` with the documented message, and no row is deleted or
+downgraded; the outside-cohort learner's `/atelier/today`,
+`POST /atelier/sessions` and `/atelier/sessions/active` return the identical
+session, concepts and exercise sets as before the flip. Flag back on, next
+learner-local day (simulated by dating day 1's rows one day back): the same
+serial thread, episode 2 of the same thread with day 1 completed, and the new
+scene's `source_event_ids` pointing at day 1's story event.
+
+It does not prove model behaviour (fake provider), the frontend, or concurrency —
+the lock races remain `scripts/verify_story_engine_pg.py` (33/33, 2026-09-06).
+
+### Owner-only steps that remain
+
+1. **Render deploy.** The backend has still never been deployed. Owner runs the
+   blueprint; an agent can then check `/health`, `/ready`, that migrations
+   reached `a3b4c5d6e7f8`, and the first `scripts/pilot_digest.py --day …`.
+2. **The cohort flip**, in the ROLLOUT.md §3 order: `ATELIER_DAILY_JOURNEY_ENABLED=true`
+   with `ATELIER_DAILY_JOURNEY_COHORT` = the owner's account **alone** on both
+   Render services; the five study accounts only after one clean day. Never blank
+   the cohort while the master switch is on — that opens the pilot to everyone.
+3. **WP-16 must land first**, or a cohort learner is offered two daily Séances.
+4. Still blocked elsewhere: Apple enrolment for the archive (WP-19 §8), the four
+   fourteen-day paid engine runs (≈ US$0.60, owner consent), the five-learner
+   study (WP-22), and WP-20's browser walk.
