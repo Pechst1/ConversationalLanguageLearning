@@ -215,7 +215,10 @@ def main() -> int:
                     system_prompt=SYSTEM_PROMPT,
                     response_format={"type": "json_object"},
                     temperature=0.0,
-                    max_tokens=1200,
+                    # gpt-5 reasoning models return empty content when the output
+                    # budget is small and no reasoning_effort is set (starvation).
+                    max_tokens=4000,
+                    reasoning_effort="low",
                     model=args.model,
                 )
             except Exception as exc:  # provider outage must not lose earlier work
