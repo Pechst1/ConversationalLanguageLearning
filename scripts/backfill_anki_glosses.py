@@ -70,9 +70,17 @@ def _missing_english_filter():
     )
 
 
-def select_rows(db, *, limit: int | None, anki_only: bool) -> list[VocabularyWord]:
-    """Rows that have no English gloss, most-frequent first."""
+def select_rows(
+    db, *, limit: int | None, anki_only: bool, language: str | None = "fr"
+) -> list[VocabularyWord]:
+    """Rows that have no English gloss, most-frequent first.
+
+    Scoped to one deck language (French by default): the table also holds a
+    5,000-row German deck whose English glosses nobody reads.
+    """
     query = select(VocabularyWord).where(_missing_english_filter())
+    if language:
+        query = query.where(VocabularyWord.language == language)
     if anki_only:
         query = query.where(VocabularyWord.is_anki_card.is_(True))
     query = query.order_by(
@@ -140,6 +148,9 @@ def main() -> int:
     mode.add_argument("--dry-run", action="store_true", default=True, help="Default. Costs nothing.")
     mode.add_argument("--live", action="store_true", help="Call the provider and write rows")
     parser.add_argument("--max-rows", type=int, default=None, help="Required with --live")
+    parser.add_argument(
+        "--language", type=str, default="fr", help="Deck language to gloss (default fr; 'all' for every deck)"
+    )
     parser.add_argument("--max-cost-usd", type=float, default=None, help="Required with --live")
     parser.add_argument("--batch-size", type=int, default=DEFAULT_BATCH_SIZE)
     parser.add_argument("--model", type=str, default=None, help="Override the configured model")
@@ -180,7 +191,8 @@ def main() -> int:
         print(f"  of those, Anki-imported        : {anki_missing}")
         print(f"  of those, with a German gloss  : {with_german}")
 
-        rows = select_rows(db, limit=args.max_rows, anki_only=not args.all_rows)
+        language = None if args.language == "all" else args.language
+        rows = select_rows(db, limit=args.max_rows, anki_only=not args.all_rows, language=language)
         print(f"rows this run would translate    : {len(rows)}")
 
         if not live:
