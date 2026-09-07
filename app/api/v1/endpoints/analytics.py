@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -25,7 +26,6 @@ from app.schemas.analytics import ErrorSummary
 from app.services.analytics import AnalyticsService
 from app.services.pilot_events import PilotEventService
 from app.services.serial_costs import SerialGenerationCostService
-from pydantic import BaseModel, Field
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 

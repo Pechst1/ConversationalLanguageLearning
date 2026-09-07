@@ -77,6 +77,10 @@ class User(Base):
     learning_motivation = Column(String(80), default="")
     speaking_comfort = Column(String(20), default="warming_up")
 
+    # How the story engine addresses this learner: "feminine", "masculine" or
+    # "neutral" (avoid gendered forms and endearments entirely).
+    address_preference = Column(String(20), default="neutral", server_default="neutral")
+
     # Settings - Grammar
     grammar_correction_level = Column(String(20), default="moderate")
     show_grammar_explanations = Column(Boolean, default=True)

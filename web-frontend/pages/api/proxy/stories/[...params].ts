@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
+import { requireApiHost } from '@/lib/api-host';
 import { authOptions } from '@/lib/auth';
 import axios from 'axios';
 
@@ -32,7 +33,17 @@ export default async function handler(
     // Join all path segments
     const pathSegments = params.join('/');
 
-    const baseUrl = process.env.API_URL || 'http://localhost:8000';
+    // Never guessed. This proxy forwards the learner's bearer token, so an
+    // unset API_URL must be a configuration error rather than a default of
+    // http://localhost:8000 — a port that belongs to a different application
+    // on some developer machines.
+    let baseUrl: string;
+    try {
+        baseUrl = requireApiHost('the stories proxy');
+    } catch (error: any) {
+        console.error('[Proxy]', error.message);
+        return res.status(500).json({ message: error.message });
+    }
 
     // Build full URL including query parameters
     const queryString = Object.entries(req.query)

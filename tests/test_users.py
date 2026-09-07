@@ -337,3 +337,61 @@ def test_list_users_requires_admin(client: TestClient, db_session) -> None:
     )
     assert list_response.status_code == 200
     assert len(list_response.json()) >= 1
+
+
+def test_address_preference_defaults_to_neutral_and_survives_a_profile_patch(
+    client: TestClient,
+) -> None:
+    """The story engine addresses nobody by guesswork: the learner sets this."""
+
+    token = register_and_login(client, "address-profile@example.com", "verysecure")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    assert client.get("/api/v1/users/me", headers=headers).json()["address_preference"] == (
+        "neutral"
+    )
+
+    patched = client.patch(
+        "/api/v1/users/me", json={"address_preference": "feminine"}, headers=headers
+    )
+    assert patched.status_code == 200
+    assert patched.json()["address_preference"] == "feminine"
+
+    # A cached profile read must not serve the stale preference back.
+    assert client.get("/api/v1/users/me", headers=headers).json()["address_preference"] == (
+        "feminine"
+    )
+
+
+def test_address_preference_round_trips_through_the_settings_bundle(client: TestClient) -> None:
+    token = register_and_login(client, "address-settings@example.com", "verysecure")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    assert client.get("/api/v1/users/me/settings", headers=headers).json()[
+        "address_preference"
+    ] == "neutral"
+
+    for value in ("masculine", "feminine", "neutral"):
+        saved = client.patch(
+            "/api/v1/users/me/settings", json={"address_preference": value}, headers=headers
+        )
+        assert saved.status_code == 200, saved.text
+        assert saved.json()["address_preference"] == value
+        assert client.get("/api/v1/users/me/settings", headers=headers).json()[
+            "address_preference"
+        ] == value
+        assert client.get("/api/v1/users/me", headers=headers).json()["address_preference"] == value
+
+
+def test_invalid_address_preference_is_rejected(client: TestClient) -> None:
+    token = register_and_login(client, "address-invalid@example.com", "verysecure")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    for payload in ({"address_preference": "ma puce"}, {"address_preference": None}):
+        for endpoint in ("/api/v1/users/me", "/api/v1/users/me/settings"):
+            response = client.patch(endpoint, json=payload, headers=headers)
+            assert response.status_code == 422, (endpoint, payload, response.text)
+
+    assert client.get("/api/v1/users/me", headers=headers).json()["address_preference"] == (
+        "neutral"
+    )

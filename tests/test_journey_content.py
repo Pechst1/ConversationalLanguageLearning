@@ -950,3 +950,277 @@ def test_serial_adapter_defaults_its_locations_from_the_authored_scenario(db_ses
         ).reason
         == "serial_location_mismatch"
     )
+
+
+# --------------------------------------------------------------------------
+# Next-day continuity (D-1b / R-3)
+#
+# The consequence of a finished journey is already persisted on the resolution
+# step. These pin what may be read back out of it, and what must never be.
+# --------------------------------------------------------------------------
+
+
+def _finished_journey(
+    db_session,
+    user: User,
+    *,
+    scenario_key: str = "order_at_cafe",
+    outcome_key: str = "served_at_terrace",
+    callback_fr: str | None = "un café en terrasse",
+    local_date=None,
+    content_version: str | None = None,
+    serial_thread_id: str | None = None,
+    status: str = "completed",
+):
+    """A learner's own finished journey, exactly as WP-02 persists one."""
+
+    from datetime import date, timedelta
+
+    from app.db.models.daily_journey import DailyJourney, DailyJourneyStep
+
+    journey = DailyJourney(
+        id=uuid4(),
+        user_id=user.id,
+        local_date=local_date or (date(2026, 3, 10) - timedelta(days=1)),
+        timezone="Europe/Paris",
+        content_version=content_version or jc.CURRENT_CONTENT_VERSION,
+        level_band="A1",
+        status=status,
+        scenario_snapshot={"scenario_key": scenario_key},
+    )
+    db_session.add(journey)
+    db_session.flush()
+    story = {
+        "serial_thread_id": serial_thread_id,
+        "serial_episode_id": None,
+        "outcome_key": outcome_key,
+        "callback_fr": callback_fr,
+    }
+    db_session.add(
+        DailyJourneyStep(
+            id=uuid4(),
+            journey_id=journey.id,
+            ordinal=3,
+            kind="resolution",
+            status="completed",
+            public_prompt={},
+            private_task={"story_outcome": story, "resolution_settled": True},
+        )
+    )
+    db_session.commit()
+    return journey
+
+
+def test_a_finished_cafe_day_grounds_the_next_scene(db_session):
+    user = _user(db_session)
+    journey = _finished_journey(db_session, user)
+
+    prior = jc.learner_prior_consequence(
+        db_session, user=user, content_version=jc.CURRENT_CONTENT_VERSION
+    )
+    assert prior is not None
+    assert prior.journey_id == journey.id
+    assert prior.callback_fr == "un café en terrasse"
+    assert prior.character_id == "margaux_barman"
+    assert prior.provenance == (
+        f"daily_journey:{journey.id}:order_at_cafe:served_at_terrace"
+    )
+
+    brief = jc.resolve_scenario_brief(
+        db_session, user=user, scenario_key=CapabilityKey.ARRANGE_MEETING
+    )
+    assert isinstance(brief, ScenarioBrief)
+    assert brief.setup_fr.startswith("Hier, chez Margaux : un café en terrasse.")
+    assert "un café en terrasse" in brief.setup_native
+    # Lila was not at the Mistral: the narrator recalls it, she does not.
+    assert "café" not in (brief.opening_line_fr or "").lower()
+    assert jc.validate_scenario_brief(
+        brief,
+        rules=jc.scenario_content_rules(
+            CapabilityKey.ARRANGE_MEETING, level_band=brief.level_band
+        ),
+    ) == []
+
+
+def test_the_character_who_was_there_may_bring_it_up_herself(db_session):
+    user = _user(db_session)
+    _finished_journey(db_session, user)
+
+    brief = jc.resolve_scenario_brief(
+        db_session, user=user, scenario_key=CapabilityKey.ORDER_AT_CAFE
+    )
+    assert isinstance(brief, ScenarioBrief)
+    assert "un café en terrasse" in (brief.opening_line_fr or "")
+    assert "tu" not in (brief.opening_line_fr or "").lower().split()
+
+
+def test_another_learners_history_never_reaches_this_learners_scene(db_session):
+    yesterday = _user(db_session)
+    _finished_journey(db_session, yesterday)
+    newcomer = _user(db_session)
+
+    assert (
+        jc.learner_prior_consequence(
+            db_session, user=newcomer, content_version=jc.CURRENT_CONTENT_VERSION
+        )
+        is None
+    )
+    brief = jc.resolve_scenario_brief(
+        db_session, user=newcomer, scenario_key=CapabilityKey.ARRANGE_MEETING
+    )
+    assert isinstance(brief, ScenarioBrief)
+    assert "café" not in brief.setup_fr.lower()
+
+
+@pytest.mark.parametrize(
+    ("scenario_key", "outcome_key"),
+    [
+        ("order_at_cafe", "not_ordered"),
+        ("arrange_meeting", "meeting_postponed"),
+        ("explain_delay", "romy_reschedules"),
+    ],
+)
+def test_an_ending_with_nothing_to_recall_grounds_nothing(
+    db_session, scenario_key: str, outcome_key: str
+):
+    """Neutral endings are declared endings, not events to bring up tomorrow."""
+
+    user = _user(db_session)
+    _finished_journey(
+        db_session,
+        user,
+        scenario_key=scenario_key,
+        outcome_key=outcome_key,
+        callback_fr="rendez-vous reporté",
+    )
+
+    assert (
+        jc.learner_prior_consequence(
+            db_session, user=user, content_version=jc.CURRENT_CONTENT_VERSION
+        )
+        is None
+    )
+
+
+def test_a_journey_that_recorded_no_callback_grounds_nothing(db_session):
+    """An unbound authored side scene that produced no fact simply has none."""
+
+    user = _user(db_session)
+    _finished_journey(db_session, user, callback_fr=None)
+
+    assert (
+        jc.learner_prior_consequence(
+            db_session, user=user, content_version=jc.CURRENT_CONTENT_VERSION
+        )
+        is None
+    )
+
+
+def test_an_unbound_authored_scene_still_grounds_from_its_own_record(db_session):
+    """``applied=False`` means no serial ledger entry, not no memory."""
+
+    user = _user(db_session)
+    journey = _finished_journey(db_session, user, serial_thread_id=None)
+
+    prior = jc.learner_prior_consequence(
+        db_session, user=user, content_version=jc.CURRENT_CONTENT_VERSION
+    )
+    assert prior is not None
+    assert prior.journey_id == journey.id
+    assert prior.serial_thread_id is None
+
+
+def test_a_consequence_from_superseded_content_is_not_quoted(db_session):
+    user = _user(db_session)
+    _finished_journey(db_session, user, content_version="journey-content-v0")
+
+    assert (
+        jc.learner_prior_consequence(
+            db_session, user=user, content_version=jc.CURRENT_CONTENT_VERSION
+        )
+        is None
+    )
+
+
+def test_a_serial_bound_consequence_whose_thread_is_gone_is_not_quoted(db_session):
+    """Superseded state: the ledger it claims to live in must still hold it."""
+
+    user = _user(db_session)
+    thread, _episode = _serial_thread(db_session, user)
+    _finished_journey(db_session, user, serial_thread_id=str(thread.id))
+
+    # The thread exists but never recorded this journey's outcome.
+    assert (
+        jc.learner_prior_consequence(
+            db_session, user=user, content_version=jc.CURRENT_CONTENT_VERSION
+        )
+        is None
+    )
+
+
+def test_a_serial_bound_consequence_in_the_ledger_is_quoted(db_session):
+    from app.services.journey_conversation import story_outcome_source_key
+
+    user = _user(db_session)
+    thread, _episode = _serial_thread(db_session, user)
+    journey = _finished_journey(db_session, user, serial_thread_id=str(thread.id))
+    thread.state = {
+        "journey_outcomes": {
+            story_outcome_source_key(journey.id): {
+                "source_key": story_outcome_source_key(journey.id),
+                "outcome_key": "served_at_terrace",
+                "character_id": "margaux_barman",
+                "callback": "un café en terrasse",
+            }
+        }
+    }
+    db_session.add(thread)
+    db_session.commit()
+
+    prior = jc.learner_prior_consequence(
+        db_session, user=user, content_version=jc.CURRENT_CONTENT_VERSION
+    )
+    assert prior is not None
+    assert prior.serial_thread_id == str(thread.id)
+
+
+def test_an_unfinished_journey_is_not_a_consequence_yet(db_session):
+    user = _user(db_session)
+    _finished_journey(db_session, user, status="active")
+
+    assert (
+        jc.learner_prior_consequence(
+            db_session, user=user, content_version=jc.CURRENT_CONTENT_VERSION
+        )
+        is None
+    )
+
+
+def test_the_catalogue_listing_is_never_grounded(db_session):
+    """A "what could I do" listing is not the learner's day; it stays authored."""
+
+    user = _user(db_session)
+    _finished_journey(db_session, user)
+
+    for brief in jc.list_available_scenarios(db_session, user=user):
+        assert "un café en terrasse" not in brief.setup_fr
+
+
+def test_a_pinned_re_read_of_an_existing_journey_is_never_re_grounded(db_session):
+    """WP-02 re-reads a planned brief with ``bind_serial=False``.
+
+    It must get back what was planned, not today's fresher continuity.
+    """
+
+    user = _user(db_session)
+    _finished_journey(db_session, user)
+
+    brief = jc.resolve_scenario_brief(
+        db_session,
+        user=user,
+        scenario_key=CapabilityKey.ARRANGE_MEETING,
+        allow_generation=False,
+        bind_serial=False,
+    )
+    assert isinstance(brief, ScenarioBrief)
+    assert "un café en terrasse" not in brief.setup_fr

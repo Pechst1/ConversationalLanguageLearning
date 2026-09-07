@@ -124,6 +124,11 @@ def downgrade() -> None:
     op.drop_column("users", "default_vocab_direction")
     op.drop_column("users", "new_words_per_day")
     op.drop_column("users", "daily_goal_xp")
-    op.drop_column("users", "grammar_longest_streak")
-    op.drop_column("users", "grammar_last_review_date")
-    op.drop_column("users", "grammar_streak_days")
+    # The three ``grammar_*`` streak columns are NOT dropped here. They are owned
+    # by the earlier ``grammar_enhancements`` revision; this migration only adds
+    # them defensively, for legacy databases where that revision's conditional
+    # add was skipped. Dropping them here made two revisions drop the same
+    # column, so ``alembic downgrade base`` aborted in ``grammar_enhancements``
+    # with ``UndefinedColumn: column "grammar_longest_streak" ... does not
+    # exist``, and a plain ``downgrade -1`` off this revision silently deleted
+    # streak data that the revision below it still requires.

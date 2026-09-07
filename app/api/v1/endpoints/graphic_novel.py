@@ -35,6 +35,19 @@ from app.services.graphic_novel import (
 )
 from app.services.serial import SerialThreadService
 
+
+def _is_engine_version(value) -> bool:
+    from app.services.living_story import is_engine_version
+
+    return is_engine_version(value)
+
+
+def _engine_version() -> str:
+    from app.services.living_story import VERSION
+
+    return VERSION
+
+
 router = APIRouter(prefix="/graphic-novel", tags=["graphic-novel"])
 
 
@@ -46,7 +59,7 @@ def _scene_or_404(db: Session, scene_id: UUID, user: User) -> GraphicNovelScene:
 
 
 def _ensure_open(scene: GraphicNovelScene) -> None:
-    if scene.prompt_version == "living-story-v1":
+    if _is_engine_version(scene.prompt_version):
         raise HTTPException(status_code=409, detail={"code": "story_journey_required", "message": "Respond through the linked daily journey. Reading does not complete this scene."})
     if scene.status == "completed":
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Feuilleton scene already completed")
@@ -60,7 +73,7 @@ async def get_graphic_novel_today(
     from app.services.living_story import manages_story
     if manages_story(db, current_user):
         return GraphicNovelTodayResponse(recommendation={
-            "story_engine": "living-story-v1", "continue_href": "/atelier",
+            "story_engine": _engine_version(), "continue_href": "/atelier",
             "episodes_href": "/api/v1/story-engine/episodes",
         })
     return GraphicNovelTodayResponse(**(await GraphicNovelScheduler(db).today(current_user)))
@@ -205,7 +218,7 @@ def get_graphic_novel_scene(
     current_user: Annotated[User, Depends(get_atelier_user)],
 ) -> GraphicNovelSceneResponse:
     scene = _scene_or_404(db, scene_id, current_user)
-    if scene.prompt_version == "living-story-v1":
+    if _is_engine_version(scene.prompt_version):
         raise HTTPException(status_code=409, detail={
             "code": "story_episode_route", "episode_href": f"/api/v1/story-engine/episodes/{scene.id}",
             "message": "Read this episode through the shared story reader.",
@@ -258,7 +271,7 @@ async def complete_graphic_novel_scene(
     current_user: Annotated[User, Depends(get_atelier_user)],
 ) -> GraphicNovelCompleteResponse:
     scene = _scene_or_404(db, scene_id, current_user)
-    if scene.prompt_version == "living-story-v1":
+    if _is_engine_version(scene.prompt_version):
         _ensure_open(scene)
     scheduler = GraphicNovelScheduler(db)
     missing_task_ids = scheduler.missing_required_task_ids(scene)

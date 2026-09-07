@@ -198,6 +198,32 @@ function JourneyTodayBody({
       );
     }
 
+    /**
+     * Every step is done and the day is not recorded as finished. Offering
+     * "Continue today" here would promise a scene that has nothing left to
+     * answer, so the entry says what is actually left: finishing it. The card
+     * opens the session, where the finishing action lives.
+     */
+    case 'awaiting_finish': {
+      const scenario = phase.journey.scenario;
+      return (
+        <Card
+          copy={copy}
+          eyebrow={`${copy.today_eyebrow} · ${scenario.location_name}`}
+          title={scenario.title_fr}
+          lang="fr"
+          imageUrl={scenario.image_url}
+          imageAlt={scenario.objective_native}
+          byline={scenario.character_name ? <Byline name={scenario.character_name} /> : null}
+        >
+          <p className="av2-body av2-body--lg">{copy.awaiting_finish_body}</p>
+          <Action tone="primary" disabled={busy} onClick={onOpen}>
+            {copy.awaiting_finish_action}
+          </Action>
+        </Card>
+      );
+    }
+
     case 'preparing':
       return (
         <Card copy={copy} eyebrow={copy.today_eyebrow} title={copy.preparing_title}>

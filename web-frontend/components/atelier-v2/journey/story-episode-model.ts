@@ -22,6 +22,20 @@ import {
   type ReaderStage,
 } from '@/components/feuilleton/reader/panel-model';
 
+/**
+ * One dialogue line as the engine actually sends it.
+ *
+ * `character_name` was ratified additively on 2026-09-06 (ENGINE-FRONTEND-
+ * CONTRACT.md, "Verified in a browser"): it is the display name from the
+ * owning thread's world bible, or `null` when the thread has none. The shared
+ * `StoryPanel` type in `@/types/daily-journey` is owned by the engine side and
+ * does not carry the field yet, so it is read structurally here — which is also
+ * what an older server, sending no such field, needs.
+ */
+type StoryDialogueLine = StoryPanel['dialogue'][number] & {
+  character_name?: string | null;
+};
+
 const CHARACTER_NAMES: Record<string, string> = {
   romy: 'Romy',
   marin: 'Marin',
@@ -34,8 +48,21 @@ const CHARACTER_NAMES: Record<string, string> = {
   you: 'Vous',
 };
 
-/** A display name for a `character_id`. Unknown ids keep their own spelling. */
-export function storyCharacterName(characterId: string | null | undefined): string {
+/**
+ * The name to print above a line.
+ *
+ * The server's own `character_name` wins whenever it sent one: it comes from
+ * the thread's world bible and is the only source that knows a generated cast.
+ * Only when the field is absent or null does the local table stand in, and an
+ * id it does not know keeps its own spelling — which is how a generated id such
+ * as `marin_leveque` used to reach the reader as "Marin_leveque".
+ */
+export function storyCharacterName(
+  characterId: string | null | undefined,
+  characterName?: string | null,
+): string {
+  const given = String(characterName ?? '').trim();
+  if (given) return given;
   const id = String(characterId || '').trim();
   if (!id) return '';
   const key = id.toLowerCase();
@@ -44,14 +71,16 @@ export function storyCharacterName(characterId: string | null | undefined): stri
 }
 
 function panelLines(panel: StoryPanel): ReaderLine[] {
-  return (panel.dialogue || [])
+  return ((panel.dialogue || []) as StoryDialogueLine[])
     .filter((line) => line && String(line.text_fr || '').trim())
     .map((line, index) => ({
       key: `${panel.id}-l${index}`,
-      who: storyCharacterName(line.character_id),
+      who: storyCharacterName(line.character_id, line.character_name),
       fr: String(line.text_fr).trim(),
       en: '',
-      character: readerCharacterKey(line.character_id) || '',
+      // The visual accent stays keyed to the canonical id, so a renamed
+      // character keeps its colour; the display name is only a fallback seed.
+      character: readerCharacterKey(line.character_id) || readerCharacterKey(line.character_name) || '',
     }));
 }
 

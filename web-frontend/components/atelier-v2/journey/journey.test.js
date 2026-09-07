@@ -133,6 +133,7 @@ const KNOWN_PHASES = new Set([
   'preparing',
   'unavailable',
   'session',
+  'awaiting_finish',
   'paused',
   'finished',
 ]);
@@ -170,6 +171,46 @@ assert.equal(
 );
 
 // The preparing/unavailable retry hints come from the server, not a default.
+// --- every step done, the day not finished --------------------------------
+//
+// The server leaves a journey `active` with `current_step_id: null` between the
+// last `advance` and an accepted `finish`. There is no step to render and no
+// recap to read, so it is its own state rather than a `session` with a null
+// step, which renders an empty screen with no action.
+const allStepsDone = (() => {
+  const base = fixture('returning_due').response;
+  return {
+    ...base,
+    revision: base.revision + 1,
+    current_step_id: null,
+    steps: base.steps.map((step) => ({ ...step, status: 'completed' })),
+    recap: null,
+  };
+})();
+assert.equal(state.phaseFromJourney(allStepsDone).kind, 'awaiting_finish');
+assert.equal(state.journeyAwaitsFinish(allStepsDone), true);
+assert.equal(state.journeyOfPhase(state.phaseFromJourney(allStepsDone)), allStepsDone);
+// It is NOT a finished day: only a `completed`/`ended_early` journey is.
+assert.equal(state.phaseFromJourney(allStepsDone).kind !== 'finished', true);
+assert.equal(state.journeyAwaitsFinish(fixture('returning_due').response), false);
+assert.equal(state.journeyAwaitsFinish(fixture('completed').response), false);
+assert.equal(state.journeyAwaitsFinish(null), false);
+// A `current_step_id` that simply names no known step still says a step is
+// open; that is a different problem and must not be dressed as "all done".
+assert.equal(
+  state.phaseFromJourney({ ...fixture('returning_due').response, current_step_id: 'nope' }).kind,
+  'session',
+);
+// The capability being off still wins.
+assert.equal(
+  state.phaseFromEnvelope({
+    ...fixture('midnight_resume').response,
+    enabled: false,
+    journey: allStepsDone,
+  }).kind,
+  'disabled',
+);
+
 assert.equal(state.phaseFromJourney(fixture('preparing').response).retryAfterSeconds, 3);
 assert.equal(state.phaseFromJourney(fixture('generation_unavailable').response).retryAfterSeconds, 30);
 assert.equal(state.phaseFromJourney(fixture('generation_unavailable').response).retryAllowed, true);
@@ -797,6 +838,49 @@ const noSleep = () => Promise.resolve();
   assert.ok(htmlHas(partialHtml, EN.finished_partial_title));
   assert.ok(htmlHas(partialHtml, EN.finished_partial_body));
 
+  // --- every step done, the day not finished: an offer, never a blank screen
+  //
+  // This is the state a refused finish leaves behind. It used to render as a
+  // header reading "Step 3 of 3" with an empty body and no control at all.
+  const awaitingPhase = state.phaseFromJourney(allStepsDone);
+  const awaitingHtml = renderToStaticMarkup(
+    React.createElement(JourneySession, {
+      controller: controller({
+        phase: awaitingPhase,
+        journey: allStepsDone,
+        progress: state.journeyProgress(allStepsDone),
+      }),
+    }),
+  );
+  assert.ok(awaitingHtml.includes('data-state="awaiting_finish"'));
+  assert.ok(htmlHas(awaitingHtml, EN.awaiting_finish_title));
+  assert.ok(htmlHas(awaitingHtml, EN.awaiting_finish_body));
+  assert.ok(htmlHas(awaitingHtml, EN.awaiting_finish_action), 'the one way out is offered');
+  assert.ok(awaitingHtml.includes('<button'), 'and it is a real control, not a sentence');
+  // It must not claim the day is done, and it is not a verdict on the learner.
+  for (const forbidden of [EN.finished_title, EN.done_today, EN.correct, EN.wrong, EN.supported]) {
+    assert.ok(!htmlHas(awaitingHtml, forbidden), `awaiting_finish never reads as "${forbidden}"`);
+  }
+
+  // Home says what is left to do, rather than offering to continue a day that
+  // has nothing left to answer.
+  const awaitingTodayHtml = renderToStaticMarkup(
+    React.createElement(JourneyTodayCard, {
+      controller: controller({
+        phase: awaitingPhase,
+        journey: allStepsDone,
+        progress: state.journeyProgress(allStepsDone),
+      }),
+      onOpen: () => {},
+    }),
+  );
+  assert.ok(htmlHas(awaitingTodayHtml, EN.awaiting_finish_action));
+  assert.ok(
+    !htmlHas(awaitingTodayHtml, EN.resume),
+    'Home never offers to continue a day that cannot continue',
+  );
+  assert.ok(!htmlHas(awaitingTodayHtml, EN.done_today), 'nor does it claim the day is done');
+
   // =========================================================================
   // 8. Today entry — one action, and a separately labelled legacy resume
   // =========================================================================
@@ -1406,6 +1490,133 @@ const noSleep = () => Promise.resolve();
   for (const forbidden of ['blob:', 'data:audio', 'access_token', 'refresh_token', 'Bearer ', 'transcript_ref']) {
     assert.ok(!persisted.includes(forbidden), `the cache never holds "${forbidden}"`);
   }
+
+  // --- the last step: the finish carries the revision `advance` returned ----
+  //
+  // `continueJourney` makes two requests in a row. Reading the PRE-advance
+  // snapshot for the second one sent a stale `expected_revision`; the server
+  // answered 409 `journey_version_conflict` and the day was left `active` with
+  // no step and no recap — an empty "Step 3 of 3" the learner could not leave,
+  // while Home went on offering "Continue today". The fake server below refuses
+  // a stale revision exactly as the real one does, so this reproduces it.
+
+  const lastStepJourney = fixture('returning_due').response;
+  const lastStep = lastStepJourney.steps.find((entry) => entry.id === lastStepJourney.current_step_id);
+  assert.ok(lastStep, 'the fixture really has a current step');
+  const advancedJourney = {
+    ...lastStepJourney,
+    revision: lastStepJourney.revision + 1,
+    current_step_id: null,
+    steps: lastStepJourney.steps.map((entry) => ({ ...entry, status: 'completed' })),
+    recap: null,
+  };
+  const completedJourney = {
+    ...fixture('completed').response,
+    id: lastStepJourney.id,
+    local_date: lastStepJourney.local_date,
+    revision: advancedJourney.revision + 1,
+  };
+  const dayEnvelope = {
+    ...replayEnvelope,
+    local_date: lastStepJourney.local_date,
+    timezone: lastStepJourney.timezone,
+    journey: lastStepJourney,
+  };
+  const staleFinish = () =>
+    asError(409, {
+      code: 'journey_version_conflict',
+      message: 'This journey moved on. Refresh to continue.',
+    });
+
+  apiCalls.length = 0;
+  apiHandler = (method, args) => {
+    if (method === 'getDailyJourneyToday') return Promise.resolve(dayEnvelope);
+    // Only a conflict makes the controller read the journey back.
+    if (method === 'getDailyJourney') return Promise.resolve(advancedJourney);
+    if (method === 'advanceDailyJourney') {
+      assert.equal(args[1].expected_revision, lastStepJourney.revision);
+      assert.equal(args[1].current_step_id, lastStep.id);
+      return Promise.resolve(advancedJourney);
+    }
+    if (method === 'finishDailyJourney') {
+      if (args[1].expected_revision !== advancedJourney.revision) throw staleFinish();
+      return Promise.resolve(completedJourney);
+    }
+    throw new Error(`unexpected request: ${method}`);
+  };
+
+  let day = null;
+  const dayHost = mountView(() => {
+    day = useDailyJourney({});
+    return null;
+  }, {});
+  await dayHost.settle();
+  assert.equal(day.phase.kind, 'session', 'the day opens on its last step');
+
+  await day.actions.continueJourney();
+  await dayHost.settle();
+
+  const advances = apiCalls.filter((entry) => entry.method === 'advanceDailyJourney');
+  const finishes = apiCalls.filter((entry) => entry.method === 'finishDailyJourney');
+  assert.equal(advances.length, 1, 'one acknowledgement');
+  assert.equal(finishes.length, 1, 'one finish — not a refusal followed by nothing');
+  assert.equal(
+    finishes[0].args[1].expected_revision,
+    advancedJourney.revision,
+    'the finish carries the revision `advance` returned, not the one before it',
+  );
+  assert.equal(finishes[0].args[1].finish_kind, 'complete');
+  assert.equal(typeof finishes[0].args[1].mutation_id, 'string');
+  assert.ok(finishes[0].args[1].mutation_id.length > 0, 'the finish still carries its own key');
+  assert.notEqual(
+    finishes[0].args[1].mutation_id,
+    advances[0].args[1].mutation_id,
+    'and it is its own intent, not a replay of the advance',
+  );
+  assert.equal(
+    apiCalls.filter((entry) => entry.method === 'getDailyJourney').length,
+    0,
+    'nothing conflicted, so nothing had to be reconciled',
+  );
+  assert.equal(day.phase.kind, 'finished', 'the day ends on its recap');
+  assert.ok(day.phase.recap, 'and the recap is the server own record');
+
+  // --- a day already left in that state is not a dead end ------------------
+  //
+  // Whatever put it there — the old defect, an interrupted finish, a finish
+  // that never reached the server — the controller offers to finish it, with
+  // the revision the journey actually has.
+  apiCalls.length = 0;
+  apiHandler = (method, args) => {
+    if (method === 'getDailyJourneyToday') {
+      return Promise.resolve({ ...dayEnvelope, journey: advancedJourney });
+    }
+    if (method === 'getDailyJourney') return Promise.resolve(advancedJourney);
+    if (method === 'finishDailyJourney') {
+      if (args[1].expected_revision !== advancedJourney.revision) throw staleFinish();
+      return Promise.resolve(completedJourney);
+    }
+    throw new Error(`unexpected request: ${method}`);
+  };
+
+  let stuck = null;
+  const stuckHost = mountView(() => {
+    stuck = useDailyJourney({});
+    return null;
+  }, {});
+  await stuckHost.settle();
+  assert.equal(stuck.phase.kind, 'awaiting_finish', 'all steps done, nothing finished');
+  assert.equal(stuck.step, null, 'there is no step to answer');
+
+  await stuck.actions.finish('complete');
+  await stuckHost.settle();
+  assert.equal(apiCalls.filter((entry) => entry.method === 'finishDailyJourney').length, 1);
+  assert.equal(
+    apiCalls.find((entry) => entry.method === 'finishDailyJourney').args[1].expected_revision,
+    advancedJourney.revision,
+    'the retry reads the journey it actually has, not a render-old closure',
+  );
+  assert.equal(stuck.phase.kind, 'finished');
 
   apiHandler = () => {
     throw new Error('no api handler installed');

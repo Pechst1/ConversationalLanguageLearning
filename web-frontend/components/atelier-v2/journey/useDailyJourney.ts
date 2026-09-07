@@ -62,6 +62,7 @@ import {
   answerIsBlank,
   currentStepOf,
   feedbackFromAttempt,
+  journeyAwaitsFinish,
   journeyProgress,
   phaseFromEnvelope,
   phaseFromJourney,
@@ -228,6 +229,19 @@ export function useDailyJourney(
     expectedRevision: number;
     input: AttemptInput;
   } | null>(null);
+  /**
+   * The freshest snapshot this controller has applied.
+   *
+   * Every mutation carries an `expected_revision`, and a callback that closed
+   * over `journey` still sees the revision from the render it was built in.
+   * That is fine while one tap makes one request, but `continueJourney` makes
+   * two: the `finish` it issues immediately after an `advance` would otherwise
+   * send the PRE-advance revision, be refused with 409
+   * `journey_version_conflict`, and leave the day active with no step and no
+   * recap. Actions therefore read the current snapshot here, not through the
+   * closure, and `continueJourney` passes the snapshot `advance` returned.
+   */
+  const journeyRef = useRef<JourneySnapshot | null>(null);
   const preparingPollsRef = useRef(0);
   const finishedNotifiedRef = useRef<string | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -314,6 +328,7 @@ export function useDailyJourney(
 
   const applySnapshot = useCallback((next: JourneySnapshot) => {
     if (!mountedRef.current) return;
+    journeyRef.current = next;
     setJourney(next);
     setPhase(phaseFromJourney(next));
     setEnvelope((current) => (current ? { ...current, journey: next } : current));
@@ -326,6 +341,7 @@ export function useDailyJourney(
       capabilityReadRef.current = true;
       if (!mountedRef.current) return;
       setEnvelope(next);
+      journeyRef.current = next.journey;
       setJourney(next.journey);
       setPhase(phaseFromEnvelope(next));
       if (!next.enabled) onDisabled?.();
@@ -635,10 +651,18 @@ export function useDailyJourney(
     void replayPending(replayPlan);
   }, [clearReplayPlan, replayPending, replayPlan]);
 
-  const finish = useCallback(
-    async (kind: 'complete' | 'early') => {
-      const target = journey;
-      if (!target) return;
+  /**
+   * Finish a KNOWN snapshot.
+   *
+   * The snapshot is an argument rather than a closure read, because the caller
+   * that matters — `continueJourney`, one statement after `advance` — holds a
+   * newer snapshot than any closure this render could have captured. The
+   * idempotency key still contains that snapshot's revision, so a replay of the
+   * same logical finish reuses one key and a finish of a genuinely different
+   * revision is a different intent.
+   */
+  const finishSnapshot = useCallback(
+    async (target: JourneySnapshot, kind: 'complete' | 'early') => {
       const intent = `finish:${target.id}:${kind}:${target.revision}`;
       await once(intent, async () => {
         setBusy(true);
@@ -661,11 +685,26 @@ export function useDailyJourney(
         }
       });
     },
-    [applySnapshot, handleFailure, journey, once, unwrap],
+    [applySnapshot, handleFailure, once, unwrap],
+  );
+
+  /**
+   * The public finish action, for the learner's own "stop here" and for the
+   * retry offered by the `awaiting_finish` state. It reads the ref rather than
+   * the closure so that a finish issued right after another mutation carries
+   * the revision the server just handed back.
+   */
+  const finish = useCallback(
+    async (kind: 'complete' | 'early') => {
+      const target = journeyRef.current;
+      if (!target) return;
+      await finishSnapshot(target, kind);
+    },
+    [finishSnapshot],
   );
 
   const advance = useCallback(async (): Promise<JourneySnapshot | null> => {
-    const target = journey;
+    const target = journeyRef.current;
     const step = currentStepOf(target);
     if (!target || !step) return null;
     const intent = `advance:${target.id}:${step.id}:${target.revision}`;
@@ -695,12 +734,17 @@ export function useDailyJourney(
       }
     });
     return advanced;
-  }, [applySnapshot, handleFailure, journey, once, unwrap]);
+  }, [applySnapshot, handleFailure, once, unwrap]);
 
   /**
    * The single forward action. In order: stay on the same respond step when the
    * server handed back another turn, otherwise acknowledge the step, and finish
    * the day once the plan has no step left.
+   *
+   * The finish is issued against the snapshot `advance` just returned. Reading
+   * the closure's `journey` here sent the pre-advance `expected_revision`, the
+   * server refused it with 409 `journey_version_conflict`, and the day was left
+   * active with no step and no recap.
    */
   const continueJourney = useCallback(async () => {
     if (feedback.kind === 'graded' && feedback.result.next_turn) {
@@ -709,10 +753,10 @@ export function useDailyJourney(
       return;
     }
     const advanced = await advance();
-    if (advanced && advanced.status === 'active' && advanced.current_step_id === null) {
-      await finish('complete');
+    if (advanced && journeyAwaitsFinish(advanced)) {
+      await finishSnapshot(advanced, 'complete');
     }
-  }, [advance, feedback, finish]);
+  }, [advance, feedback, finishSnapshot]);
 
   const pause = useCallback(async () => {
     const target = journey;

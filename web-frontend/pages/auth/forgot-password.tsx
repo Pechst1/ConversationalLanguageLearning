@@ -96,7 +96,12 @@ export default function ForgotPasswordPage() {
           </p>
 
           {resetMode ? (
-            <form className="auth-form" onSubmit={confirmReset}>
+            <form
+              method="post"
+              action="/api/auth/pre-hydration"
+              className="auth-form"
+              onSubmit={confirmReset}
+            >
               <label>
                 <span>New password</span>
                 <input
@@ -124,7 +129,12 @@ export default function ForgotPasswordPage() {
               </button>
             </form>
           ) : (
-            <form className="auth-form" onSubmit={requestReset}>
+            <form
+              method="post"
+              action="/api/auth/pre-hydration"
+              className="auth-form"
+              onSubmit={requestReset}
+            >
               <label>
                 <span>Email</span>
                 <input

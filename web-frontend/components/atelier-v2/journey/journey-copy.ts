@@ -73,6 +73,9 @@ export type JourneyCopyKey =
   | 'pause'
   | 'paused_title'
   | 'paused_body'
+  | 'awaiting_finish_title'
+  | 'awaiting_finish_body'
+  | 'awaiting_finish_action'
   | 'finished_title'
   | 'finished_partial_title'
   | 'finished_partial_body'
@@ -155,6 +158,10 @@ const EN: CopyTable = {
   pause: 'Pause',
   paused_title: 'Paused',
   paused_body: 'Everything you finished is saved. Pick up where you left off.',
+  awaiting_finish_title: 'Every step is done',
+  awaiting_finish_body:
+    'Today’s scene is not saved as finished yet. Finishing it records what you did.',
+  awaiting_finish_action: 'Finish today',
   finished_title: 'Scene finished',
   finished_partial_title: 'Stopped part-way',
   finished_partial_body: 'Only the part you finished was recorded.',
@@ -236,6 +243,10 @@ const DE: CopyTable = {
   pause: 'Pause',
   paused_title: 'Pausiert',
   paused_body: 'Alles Erledigte ist gespeichert. Mach dort weiter, wo du aufgehört hast.',
+  awaiting_finish_title: 'Alle Schritte sind erledigt',
+  awaiting_finish_body:
+    'Die heutige Szene ist noch nicht als beendet gespeichert. Beim Beenden wird erfasst, was du gemacht hast.',
+  awaiting_finish_action: 'Heute abschließen',
   finished_title: 'Szene beendet',
   finished_partial_title: 'Vorzeitig beendet',
   finished_partial_body: 'Nur der erledigte Teil wurde erfasst.',
@@ -317,6 +328,10 @@ const FR: CopyTable = {
   pause: 'Pause',
   paused_title: 'En pause',
   paused_body: 'Tout ce qui est terminé est enregistré. Reprenez où vous en étiez.',
+  awaiting_finish_title: 'Toutes les étapes sont faites',
+  awaiting_finish_body:
+    'La scène du jour n’est pas encore enregistrée comme terminée. La terminer enregistre ce que vous avez fait.',
+  awaiting_finish_action: 'Terminer la journée',
   finished_title: 'Scène terminée',
   finished_partial_title: 'Arrêtée en cours',
   finished_partial_body: 'Seule la partie terminée a été enregistrée.',

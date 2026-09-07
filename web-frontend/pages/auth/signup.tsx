@@ -182,7 +182,12 @@ export default function SignUpPage() {
               </p>
             </div>
 
-            <form onSubmit={handleSubmit(onSubmit)} className="auth-form">
+            <form
+              method="post"
+              action="/api/auth/pre-hydration"
+              onSubmit={handleSubmit(onSubmit)}
+              className="auth-form"
+            >
               <Input
                 {...register('name')}
                 type="text"

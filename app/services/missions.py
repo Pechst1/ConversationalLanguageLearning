@@ -2988,7 +2988,6 @@ class MissionDebriefService:
         # scored a whole conversation on its closing "Oui." and reported 0%
         # task fit for a mission the learner had actually completed.
         progress_by_id = self._merged_objective_progress(attempts=attempts, turns=turns)
-        objective_progress = list(progress_by_id.values())
         objectives = mission.objectives or []
         objective_results = [
             {

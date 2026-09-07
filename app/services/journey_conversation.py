@@ -58,7 +58,7 @@ from __future__ import annotations
 
 import json
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 from uuid import UUID
 
@@ -499,6 +499,226 @@ _ALTERNATIVE_CUES: tuple[str, ...] = (
 )
 
 
+# --------------------------------------------------------------------------
+# Polarity: negation scope, correction and refusal (R-1)
+# --------------------------------------------------------------------------
+#
+# A learner who says « je ne veux pas de café » has communicated something
+# real, and the exact opposite of what a bare keyword scan reads. Three things
+# must be separated before any cue is believed:
+#
+# * **scope** — French negation opens at ``ne`` / ``n'`` / ``pas`` / ``sans`` …
+#   and runs to the end of its clause, so a cue inside that scope is a *rejected*
+#   option, never a chosen one;
+# * **correction** — « non, finalement… », « pas X, plutôt Y » retracts what was
+#   named before the pivot and promotes what follows it;
+# * **refusal** — declining the whole objective is a coherent answer. It must
+#   never mint a success, and it must never be answered with "I did not catch
+#   that".
+#
+# Three cue families are deliberately *not* polarity-scoped, because the cue
+# itself carries the negation or is polarity-neutral: the postpone/reschedule
+# vocabulary (« je ne peux pas », « pas ce soir », « laisse tomber »), the
+# politeness/greeting/apology markers, and the delay **reasons** — « il n\'y a
+# pas de métro » is a reason given, not a métro refused.
+
+_SENTENCE_SPLIT_RE = re.compile(r"[.!?;:\n]+")
+_CLAUSE_SPLIT_RE = re.compile(r",")
+
+#: ``sans doute`` means "probably", not "without": it never opens a scope.
+_NEGATION_TRIGGER_RE = re.compile(
+    r"(?<![\w\'\u2019])(?:"
+    r"n[\'\u2019]"
+    r"|sans(?!\s+doute)(?![\w\'\u2019])"
+    r"|(?:ne|pas|non|rien|jamais|aucune?|ni|nulle?)(?![\w\'\u2019])"
+    r")",
+    re.IGNORECASE,
+)
+_PIVOT_RE = re.compile(
+    r"(?<![\w\'\u2019])(?:mais|plut[o\u00f4]t|finalement|en fait|par contre"
+    r"|en revanche|au final)(?![\w\'\u2019])",
+    re.IGNORECASE,
+)
+
+#: A comma closes a negative scope unless the next clause is an elliptical
+#: continuation of it (« pas de café, ni de thé »).
+_NEGATION_CONTINUATION = frozenset(
+    {"ni", "de", "d", "du", "des", "ou", "aucun", "aucune", "pas", "ne", "non",
+     "plus", "rien", "jamais"}
+)
+
+#: Declining the objective outright. Only consulted when nothing positive was
+#: named, so « je ne veux pas de café, je prends un thé » is not a refusal.
+_REFUSAL_CUES: tuple[str, ...] = (
+    "je ne veux rien",
+    "je veux rien",
+    "je n en veux pas",
+    "je ne veux pas",
+    "je veux pas",
+    "je ne prends rien",
+    "je prends rien",
+    "je ne prends pas",
+    "rien merci",
+    "rien pour moi",
+    "non merci",
+    "non rien",
+    "pas envie",
+    "je n ai pas envie",
+    "pas aujourd hui",
+    "pas maintenant",
+    "pas cette fois",
+    "je ne peux pas venir",
+    "je ne viens pas",
+    "je viens pas",
+    "laisse tomber",
+    "sans moi",
+)
+
+#: An alternative offered on a *later* turn adds to the earlier choice instead
+#: of replacing it, so "un café" then "ou alors un thé ?" reads as the
+#: ambiguity it is. Bare « ou » is excluded: it folds together with « où ».
+_CROSS_TURN_ALTERNATIVE_CUES: tuple[str, ...] = (
+    "sinon",
+    "ou alors",
+    "ou bien",
+    "ou sinon",
+    "au pire",
+    "si tu preferes",
+    "si vous preferez",
+)
+
+
+@dataclass(frozen=True, slots=True)
+class _Span:
+    """One run of text with a settled polarity."""
+
+    raw: str
+    folded: str
+    positive: bool
+    corrective: bool
+
+
+def _span(raw: str, *, positive: bool, corrective: bool) -> _Span:
+    return _Span(
+        raw=raw, folded=fold_for_comparison(raw), positive=positive, corrective=corrective
+    )
+
+
+def _continues_negation(chunk: str) -> bool:
+    tokens = fold_for_comparison(chunk).split()
+    return bool(tokens) and tokens[0] in _NEGATION_CONTINUATION
+
+
+def _split_on_pivots(chunk: str) -> list[tuple[str, bool]]:
+    """Split one clause at its correction pivots, flagging what follows one."""
+
+    pieces: list[tuple[str, bool]] = []
+    cursor = 0
+    follows = False
+    for match in _PIVOT_RE.finditer(chunk):
+        pieces.append((chunk[cursor : match.start()], follows))
+        cursor = match.end()
+        follows = True
+    pieces.append((chunk[cursor:], follows))
+    return [(text, flag) for text, flag in pieces if text.strip()]
+
+
+def _polarity_spans(text: str) -> list[_Span]:
+    """Cut one utterance into positive / negative / corrective runs."""
+
+    spans: list[_Span] = []
+    negation_seen = False
+    for sentence in _SENTENCE_SPLIT_RE.split(text):
+        if not sentence.strip():
+            continue
+        negative = False
+        for index, chunk in enumerate(_CLAUSE_SPLIT_RE.split(sentence)):
+            if not chunk.strip():
+                continue
+            if negative and not (index > 0 and _continues_negation(chunk)):
+                negative = False
+            for piece, follows_pivot in _split_on_pivots(chunk):
+                corrective = False
+                if follows_pivot and negation_seen:
+                    # « …non, finalement X » / « pas Y, plutôt X »: X wins and
+                    # whatever filled the same slot before the pivot is dropped.
+                    negative = False
+                    corrective = True
+                match = _NEGATION_TRIGGER_RE.search(piece)
+                if match is None:
+                    spans.append(
+                        _span(piece, positive=not negative, corrective=corrective)
+                    )
+                    continue
+                negation_seen = True
+                head = piece[: match.start()]
+                if head.strip():
+                    spans.append(
+                        _span(head, positive=not negative, corrective=corrective)
+                    )
+                spans.append(
+                    _span(piece[match.start() :], positive=False, corrective=False)
+                )
+                negative = True
+    return [span for span in spans if span.folded]
+
+
+def _scan_polarized(
+    spans: list[_Span], cues: dict[str, str | None]
+) -> tuple[list[str], list[str]]:
+    """``(chosen, rejected)`` for one cue family across an utterance."""
+
+    chosen: list[tuple[int, bool, list[str]]] = []
+    rejected: list[str] = []
+
+    def _reject(labels: list[str]) -> None:
+        for label in labels:
+            if label not in rejected:
+                rejected.append(label)
+
+    for index, span in enumerate(spans):
+        found = _scan(span.folded, cues)
+        if not found:
+            continue
+        if span.positive:
+            chosen.append((index, span.corrective, found))
+        else:
+            _reject(found)
+    corrective_index = max(
+        (index for index, corrective, _ in chosen if corrective), default=None
+    )
+    if corrective_index is not None:
+        for index, _corrective, found in chosen:
+            if index < corrective_index:
+                _reject(found)
+        chosen = [item for item in chosen if item[0] >= corrective_index]
+    labels: list[str] = []
+    for _index, _corrective, found in chosen:
+        for label in found:
+            if label not in labels:
+                labels.append(label)
+    return [label for label in labels if label not in rejected], rejected
+
+
+def _flag_polarized(spans: list[_Span], cues: tuple[str, ...]) -> tuple[bool, bool]:
+    """``(asserted, rejected)`` for one boolean cue family."""
+
+    asserted = any(_has_any(span.folded, cues) for span in spans if span.positive)
+    denied = any(_has_any(span.folded, cues) for span in spans if not span.positive)
+    return asserted, (denied and not asserted)
+
+
+def _time_in(spans: list[_Span], *, positive: bool):
+    for span in spans:
+        if span.positive is not positive:
+            continue
+        clock = _CLOCK_RE.search(span.raw)
+        duration = _DURATION_RE.search(span.raw)
+        if clock or duration:
+            return clock, (duration or clock)
+    return None, None
+
+
 @dataclass(frozen=True, slots=True)
 class _Signals:
     """Everything the deterministic grader reads out of one utterance."""
@@ -530,31 +750,111 @@ class _Signals:
     enthusiasm: bool
     checks: bool
     alternative: bool
+    #: Options the learner explicitly ruled out, in this utterance or an
+    #: earlier one. They drive the reply and are never chosen as a consequence.
+    rejected_drinks: list[str] = field(default_factory=list)
+    rejected_cafe_places: list[str] = field(default_factory=list)
+    rejected_days: list[str] = field(default_factory=list)
+    rejected_meeting_places: list[str] = field(default_factory=list)
+    rejected_delay_options: tuple[str, ...] = ()
+    rejected_late: bool = False
+    rejected_time: bool = False
+    #: A clear "no" rather than a garbled attempt: every option this utterance
+    #: touched was ruled out and none was chosen. Drives the *reply*.
+    refusal: bool = False
+    #: The learner said no in words (« je ne veux rien », « pas envie »), not
+    #: merely by ruling one option out. Only this may settle a neutral ending,
+    #: so "not the terrace" never becomes "so, nothing then".
+    explicit_refusal: bool = False
+    #: This turn corrected an earlier choice (« finalement… »).
+    corrected: bool = False
+    #: This turn offers an alternative rather than settling one.
+    offers_alternative: bool = False
 
     @property
     def is_substantive(self) -> bool:
         return self.content_tokens >= 2
 
+    @property
+    def has_positive_choice(self) -> bool:
+        return bool(
+            self.drinks
+            or self.cafe_places
+            or self.cafe_extra
+            or self.days
+            or self.meeting_places
+            or self.station
+            or self.wait
+            or self.late
+            or self.arrival_time
+            or self.reasons
+        )
+
 
 def _signals(value: str | None) -> _Signals:
     text = _normalized(value)
     folded = fold_for_comparison(text)
-    lowered = text.lower()
+    spans = _polarity_spans(text)
+    positive_spans = [span for span in spans if span.positive]
 
-    drinks = _scan(folded, _DRINK_CUES)
-    if "thé" in lowered and "un thé" not in drinks and "un thé vert" not in drinks:
-        if "un thé noir" not in drinks:
+    drinks, rejected_drinks = _scan_polarized(spans, _DRINK_CUES)
+    # « thé » carries an accent the cue table cannot spell every way round. It is
+    # added on the side of the span it was actually written in, so « ni café ni
+    # thé » rejects both rather than quietly losing one.
+    if not any(item.startswith("un thé") for item in drinks + rejected_drinks):
+        if any("thé" in span.raw.lower() for span in positive_spans):
             drinks.append("un thé")
+        elif any("thé" in span.raw.lower() for span in spans if not span.positive):
+            rejected_drinks.append("un thé")
     english_drinks: list[str] = []
     for cue in sorted(_ENGLISH_DRINK_CUES, key=lambda item: (-len(item), item)):
         label = _ENGLISH_DRINK_CUES[cue]
-        if label not in english_drinks and f" {cue} " in _padded(folded):
+        if label in english_drinks:
+            continue
+        if any(f" {cue} " in _padded(span.folded) for span in positive_spans):
             english_drinks.append(label)
 
-    days = _scan(folded, _DAY_CUES)
-    clock = _CLOCK_RE.search(text)
-    duration = _DURATION_RE.search(text)
-    time_match = duration or clock
+    cafe_places, rejected_places = _scan_polarized(spans, _CAFE_PLACE_CUES)
+    days, rejected_days = _scan_polarized(spans, _DAY_CUES)
+    meeting_places, rejected_meeting = _scan_polarized(spans, _MEETING_PLACE_CUES)
+    # Reasons stay unscoped on purpose: « il n\'y a pas de métro » explains the
+    # delay, it does not decline one.
+    reasons = _scan(folded, _REASON_CUES)
+
+    cafe_extra, _ = _flag_polarized(spans, _CAFE_EXTRA_CUES)
+    late, rejected_late = _flag_polarized(spans, _LATE_CUES)
+    station, rejected_station = _flag_polarized(spans, _DELAY_STATION_CUES)
+    wait, rejected_wait = _flag_polarized(spans, _DELAY_WAIT_CUES)
+    clock, time_match = _time_in(spans, positive=True)
+    _, negated_time = _time_in(spans, positive=False)
+
+    rejected_delay = tuple(
+        name
+        for name, flag in (("station", rejected_station), ("wait", rejected_wait))
+        if flag
+    )
+    rejected_any = bool(
+        rejected_drinks
+        or rejected_places
+        or rejected_days
+        or rejected_meeting
+        or rejected_delay
+        or rejected_late
+    )
+    positives_any = bool(
+        drinks
+        or cafe_places
+        or cafe_extra
+        or days
+        or meeting_places
+        or station
+        or wait
+        or late
+        or time_match
+        or reasons
+    )
+    said_no = _has_any(folded, _REFUSAL_CUES)
+    refusal = (rejected_any or said_no) and not positives_any
 
     return _Signals(
         text=text,
@@ -562,21 +862,23 @@ def _signals(value: str | None) -> _Signals:
         content_tokens=len([token for token in folded.split() if len(token) >= 2]),
         drinks=drinks,
         english_drinks=english_drinks,
-        cafe_places=_scan(folded, _CAFE_PLACE_CUES),
-        cafe_extra=_has_any(folded, _CAFE_EXTRA_CUES),
+        cafe_places=cafe_places,
+        cafe_extra=cafe_extra,
         days=days,
         weekend_day=any(day in _WEEKEND_DAYS for day in days),
         weekday_day=any(day not in _WEEKEND_DAYS for day in days),
-        meeting_places=_scan(folded, _MEETING_PLACE_CUES),
+        meeting_places=meeting_places,
+        # Postpone/reschedule cues *are* negations; scoping them would delete
+        # exactly the phrase that carries the meaning.
         postpone=_has_any(folded, _MEETING_POSTPONE_CUES),
         clock_time=bool(clock),
         arrival_time=bool(time_match),
         time_phrase=time_match.group(0).strip() if time_match else None,
-        late=_has_any(folded, _LATE_CUES),
-        reasons=_scan(folded, _REASON_CUES),
-        station=_has_any(folded, _DELAY_STATION_CUES),
+        late=late,
+        reasons=reasons,
+        station=station,
         reschedule=_has_any(folded, _DELAY_RESCHEDULE_CUES),
-        wait=_has_any(folded, _DELAY_WAIT_CUES),
+        wait=wait,
         greeting=_has_any(folded, _GREETING_CUES),
         polite=_has_any(folded, _POLITE_CUES),
         apology=_has_any(folded, _APOLOGY_CUES),
@@ -584,56 +886,118 @@ def _signals(value: str | None) -> _Signals:
         enthusiasm=_has_any(folded, _ENTHUSIASM_CUES),
         checks=_has_any(folded, _CHECK_CUES),
         alternative=_has_any(folded, _ALTERNATIVE_CUES),
+        rejected_drinks=rejected_drinks,
+        rejected_cafe_places=rejected_places,
+        rejected_days=rejected_days,
+        rejected_meeting_places=rejected_meeting,
+        rejected_delay_options=rejected_delay,
+        rejected_late=rejected_late,
+        rejected_time=bool(negated_time) and not time_match,
+        refusal=refusal,
+        explicit_refusal=said_no and not positives_any,
+        corrected=any(span.corrective for span in spans),
+        offers_alternative=_has_any(folded, _CROSS_TURN_ALTERNATIVE_CUES),
     )
 
 
+#: ``(slot, rejected slot)`` pairs folded across turns.
+_CHOICE_SLOTS: tuple[tuple[str, str | None], ...] = (
+    ("drinks", "rejected_drinks"),
+    ("cafe_places", "rejected_cafe_places"),
+    ("days", "rejected_days"),
+    ("meeting_places", "rejected_meeting_places"),
+    ("english_drinks", None),
+    ("reasons", None),
+)
+
+
 def _merge_signals(current: _Signals, previous: list[_Signals]) -> _Signals:
-    """Accumulate signals across the learner's turns, newest first for choices.
+    """Accumulate signals across the learner\'s turns as a running choice.
 
     A two-turn exchange ("un café" then "en terrasse") is one met objective, so
-    intents accumulate. Outcome-selecting cues prefer the *latest* turn that
-    carried one, because the learner's last word is the choice they made.
+    intents accumulate. Each turn then *settles* the slots it names and *clears*
+    the ones it rejects, so "finalement, pas en terrasse" removes yesterday\'s
+    terrace instead of leaving it standing. A turn that offers an alternative
+    ("ou alors un thé ?") adds to the standing choice rather than replacing it,
+    which is how a cross-turn ambiguity stays visible to the grader.
     """
 
     if not previous:
         return current
-    ordered = [current, *reversed(previous)]
+    ordered = [*previous, current]
 
-    def first_list(attr: str) -> list[str]:
-        for item in ordered:
-            value = getattr(item, attr)
-            if value:
-                return list(value)
-        return []
+    slots: dict[str, list[str]] = {name: [] for name, _ in _CHOICE_SLOTS}
+    rejected: dict[str, list[str]] = {name: [] for name, _ in _CHOICE_SLOTS}
+    late = station = wait = arrival = clock = False
+    time_phrase: str | None = None
+
+    for item in ordered:
+        for name, rejected_name in _CHOICE_SLOTS:
+            chosen = list(getattr(item, name))
+            if chosen:
+                slots[name] = (
+                    list(dict.fromkeys(slots[name] + chosen))
+                    if item.offers_alternative
+                    else chosen
+                )
+            denied = list(getattr(item, rejected_name)) if rejected_name else []
+            if denied:
+                rejected[name] = list(dict.fromkeys(rejected[name] + denied))
+                slots[name] = [value for value in slots[name] if value not in denied]
+        if item.late:
+            late = True
+        elif item.rejected_late:
+            late = False
+        if item.station:
+            station = True
+        elif "station" in item.rejected_delay_options:
+            station = False
+        if item.wait:
+            wait = True
+        elif "wait" in item.rejected_delay_options:
+            wait = False
+        if item.arrival_time:
+            arrival, clock, time_phrase = True, item.clock_time, item.time_phrase
+        elif item.rejected_time:
+            arrival, clock, time_phrase = False, False, None
 
     def any_flag(attr: str) -> bool:
         return any(bool(getattr(item, attr)) for item in ordered)
 
-    time_phrase = next(
-        (item.time_phrase for item in ordered if item.time_phrase), None
+    days = slots["days"]
+    merged_positive = bool(
+        slots["drinks"]
+        or slots["cafe_places"]
+        or days
+        or slots["meeting_places"]
+        or slots["reasons"]
+        or station
+        or wait
+        or late
+        or arrival
+        or any_flag("cafe_extra")
     )
-    days = first_list("days")
     return _Signals(
         text=current.text,
         folded=current.folded,
         content_tokens=max(item.content_tokens for item in ordered),
-        drinks=first_list("drinks"),
-        english_drinks=first_list("english_drinks"),
-        cafe_places=first_list("cafe_places"),
+        drinks=slots["drinks"],
+        english_drinks=slots["english_drinks"],
+        cafe_places=slots["cafe_places"],
         cafe_extra=any_flag("cafe_extra"),
         days=days,
         weekend_day=any(day in _WEEKEND_DAYS for day in days),
         weekday_day=any(day not in _WEEKEND_DAYS for day in days),
-        meeting_places=first_list("meeting_places"),
+        meeting_places=slots["meeting_places"],
         postpone=any_flag("postpone"),
-        clock_time=any_flag("clock_time"),
-        arrival_time=any_flag("arrival_time"),
+        clock_time=clock,
+        arrival_time=arrival,
         time_phrase=time_phrase,
-        late=any_flag("late"),
-        reasons=first_list("reasons"),
-        station=any_flag("station"),
+        late=late,
+        reasons=slots["reasons"],
+        station=station,
         reschedule=any_flag("reschedule"),
-        wait=any_flag("wait"),
+        wait=wait,
         greeting=any_flag("greeting"),
         polite=any_flag("polite"),
         apology=any_flag("apology"),
@@ -641,6 +1005,25 @@ def _merge_signals(current: _Signals, previous: list[_Signals]) -> _Signals:
         enthusiasm=any_flag("enthusiasm"),
         checks=any_flag("checks"),
         alternative=any_flag("alternative"),
+        rejected_drinks=rejected["drinks"],
+        rejected_cafe_places=rejected["cafe_places"],
+        rejected_days=rejected["days"],
+        rejected_meeting_places=rejected["meeting_places"],
+        rejected_delay_options=tuple(
+            dict.fromkeys(
+                option
+                for item in ordered
+                for option in item.rejected_delay_options
+                if not (option == "station" and station)
+                and not (option == "wait" and wait)
+            )
+        ),
+        rejected_late=not late and any_flag("rejected_late"),
+        rejected_time=not arrival and any_flag("rejected_time"),
+        refusal=current.refusal and not merged_positive,
+        explicit_refusal=current.explicit_refusal and not merged_positive,
+        corrected=any_flag("corrected"),
+        offers_alternative=current.offers_alternative,
     )
 
 
@@ -721,6 +1104,11 @@ def _cafe_outcome(signals: _Signals) -> _OutcomeChoice:
     categories = tuple(dict.fromkeys(signals.cafe_places))
     if len(categories) >= 2 or len(dict.fromkeys(signals.drinks)) >= 2:
         return _OutcomeChoice(key=None, categories=categories, conflict="ambiguous_choice")
+    if signals.explicit_refusal:
+        # A learner who declines is not a learner who failed to speak: the
+        # honest, declared ending is "nothing was ordered". It is NEUTRAL, so
+        # it warms nothing and claims no success.
+        return _OutcomeChoice(key="not_ordered", categories=())
     if categories:
         return _OutcomeChoice(
             key=_CAFE_OUTCOME_BY_PLACE.get(categories[0]), categories=categories
@@ -730,6 +1118,8 @@ def _cafe_outcome(signals: _Signals) -> _OutcomeChoice:
 
 def _meeting_outcome(signals: _Signals) -> _OutcomeChoice:
     categories = tuple(dict.fromkeys(signals.meeting_places))
+    if signals.explicit_refusal and not (signals.days or categories):
+        return _OutcomeChoice(key="meeting_postponed", categories=())
     if signals.postpone and not (signals.days or categories):
         return _OutcomeChoice(key="meeting_postponed", categories=categories)
     if len(categories) >= 2:
@@ -758,6 +1148,13 @@ def _delay_outcome(signals: _Signals) -> _OutcomeChoice:
     chosen = [name for name, value in flags if value]
     if len(chosen) >= 2:
         return _OutcomeChoice(key=None, categories=tuple(chosen), conflict="ambiguous_choice")
+    if signals.explicit_refusal and not chosen:
+        # "Je n'ai pas envie de venir": Romy reschedules. NEUTRAL, so the
+        # evening is not booked as a success.
+        return _OutcomeChoice(key="romy_reschedules", categories=("reschedule",))
+    if signals.rejected_delay_options and not chosen:
+        # One option ruled out and none chosen. Romy asks; nothing is settled.
+        return _OutcomeChoice(key=None, categories=())
     if signals.station:
         return _OutcomeChoice(key="romy_meets_at_station", categories=("station",))
     if signals.reschedule:
@@ -824,6 +1221,51 @@ def _capitalize(value: str) -> str:
     return value[:1].upper() + value[1:] if value else value
 
 
+#: The three drinks and the three places Margaux can actually offer. Used to
+#: answer a rejection with the options that are *left* instead of repeating the
+#: one the learner just turned down.
+_CAFE_DRINK_MENU: tuple[str, ...] = ("un café", "un thé", "un chocolat chaud")
+_CAFE_PLACE_MENU: tuple[str, ...] = ("au comptoir", "en terrasse", "à emporter")
+_MEETING_PLACE_MENU: tuple[str, ...] = ("au marché", "au Mistral")
+
+
+def _without_article(label: str) -> str:
+    for article in ("un ", "une ", "du ", "de la ", "le ", "la "):
+        if label.startswith(article):
+            return label[len(article) :]
+    return label
+
+
+def _remaining(menu: tuple[str, ...], rejected: list[str]) -> list[str]:
+    ruled_out = set(rejected)
+    return [item for item in menu if item not in ruled_out]
+
+
+def _rejected_place_labels(signals: _Signals) -> list[str]:
+    """Café place *categories* the learner ruled out, as spoken labels."""
+
+    return [
+        _CAFE_PLACE_LABEL[category]
+        for category in signals.rejected_cafe_places
+        if category in _CAFE_PLACE_LABEL
+    ]
+
+
+def _cafe_rejection_head(signals: _Signals) -> str | None:
+    """« pas de café », « pas en terrasse » — what the learner ruled out."""
+
+    bits: list[str] = []
+    if signals.rejected_drinks and not signals.drinks:
+        bits.append(f"pas de {_without_article(signals.rejected_drinks[0])}")
+    if signals.rejected_cafe_places and not signals.cafe_places:
+        label = _CAFE_PLACE_LABEL.get(signals.rejected_cafe_places[0])
+        if label:
+            bits.append(f"pas {label}")
+    if not bits:
+        return None
+    return f"D'accord, {' et '.join(bits)}."
+
+
 def _cafe_reply(signals: _Signals, choice: _OutcomeChoice, met: bool) -> str:
     drink = _capitalize(signals.drinks[0]) if signals.drinks else None
     if choice.conflict == "ambiguous_choice":
@@ -843,10 +1285,26 @@ def _cafe_reply(signals: _Signals, choice: _OutcomeChoice, met: bool) -> str:
         return f"{drink} {place}, très bien. {tail}{extra}"
     if drink and place:
         return f"{drink} {place}, c'est noté. Il vous faut autre chose avec ?"
+    head = _cafe_rejection_head(signals)
     if drink:
+        options = _remaining(_CAFE_PLACE_MENU, _rejected_place_labels(signals))
+        if head and len(options) >= 2:
+            return f"{drink}, très bien. {head} C'est {options[0]} ou {options[1]} ?"
         return f"{drink}, très bien. Vous vous installez au comptoir, en terrasse, ou c'est à emporter ?"
     if place:
+        options = _remaining(_CAFE_DRINK_MENU, signals.rejected_drinks)
+        if head and len(options) >= 2:
+            return f"{head} {_capitalize(place)}, donc. {_capitalize(options[0])} ou {options[1]} ?"
         return f"D'accord, {place}. Et je vous sers quoi ? Un café, un thé, un chocolat chaud ?"
+    if head:
+        # The learner said no to something specific. Offering it back would be
+        # contradicting them; offer what is left instead.
+        options = _remaining(_CAFE_DRINK_MENU, signals.rejected_drinks)
+        if len(options) >= 2:
+            return f"{head} Je vous sers {options[0]} ou {options[1]} ?"
+        return f"{head} Qu'est-ce que je vous sers, alors ?"
+    if signals.refusal:
+        return "Très bien, pas de souci. Je suis là si vous changez d'avis."
     if signals.english_drinks:
         return (
             "Ah, en français s'il vous plaît. Un café, un thé, un chocolat chaud ?"
@@ -872,9 +1330,26 @@ def _meeting_reply(signals: _Signals, choice: _OutcomeChoice, met: bool) -> str:
     if day and place:
         return f"{_capitalize(day)} {place}, ok. Vers quelle heure ?"
     if day:
+        options = _remaining(_MEETING_PLACE_MENU, [
+            _MEETING_PLACE_LABEL[category]
+            for category in signals.rejected_meeting_places
+            if category in _MEETING_PLACE_LABEL
+        ])
+        if len(options) == 1:
+            return f"{_capitalize(day)}, d'accord. {_capitalize(options[0])}, alors ?"
         return f"{_capitalize(day)}, d'accord. Et on se retrouve où ? Au marché ou au Mistral ?"
     if place:
         return f"{_capitalize(place)}, ça me va. Et quel jour ? Le marché n'ouvre que le week-end."
+    if signals.rejected_days:
+        return f"Pas {signals.rejected_days[0]}, ok. Tu peux quel jour, alors ?"
+    if signals.rejected_meeting_places:
+        options = _remaining(_MEETING_PLACE_MENU, [
+            _MEETING_PLACE_LABEL[category]
+            for category in signals.rejected_meeting_places
+            if category in _MEETING_PLACE_LABEL
+        ])
+        if len(options) == 1:
+            return f"Bon, pas là-bas. {_capitalize(options[0])} alors, et quel jour ?"
     return "Attends, j'ai pas suivi. Tu peux quel jour, et on se retrouve où ?"
 
 
@@ -882,6 +1357,10 @@ def _delay_reply(signals: _Signals, choice: _OutcomeChoice, met: bool) -> str:
     reason = signals.reasons[0] if signals.reasons else None
     if choice.conflict == "ambiguous_choice":
         return "Alors je t'attends ou je viens à la station ? Choisis."
+    if signals.rejected_delay_options and not (
+        signals.station or signals.wait or signals.reschedule
+    ):
+        return "Bon, alors je fais quoi ? Je t'attends ou je viens te chercher ?"
     if met or choice.key:
         if choice.key == "romy_meets_at_station":
             return "Bouge pas, je viens te chercher à la station."
@@ -892,6 +1371,8 @@ def _delay_reply(signals: _Signals, choice: _OutcomeChoice, met: bool) -> str:
             return f"{head} {_capitalize(signals.time_phrase)}, ça va. Je t'attends au bar."
         head = f"{_capitalize(reason)}, encore." if reason else "Bon."
         return f"{head} Je commande un truc et je t'attends au bar."
+    if signals.rejected_late and not signals.late:
+        return "Ah, tu n'es pas en retard ? Alors tu arrives quand ?"
     if signals.late and not reason:
         return "En retard, ok. Mais qu'est-ce qui se passe ?"
     if reason and not signals.late:
@@ -1238,8 +1719,37 @@ def _model_reply(
         parsed = _parse_model_reply(
             result.content, task=task, scenario_key=str(scenario.scenario_key), register=register
         )
-        if parsed is not None:
-            return parsed
+        if parsed is None:
+            continue
+        _reply, proposed = parsed
+        if proposed is not None and outcome_key is not None and proposed != outcome_key:
+            # R-2: the key is declared, but it is not the one the learner's own
+            # words grounded. Reply and consequence are validated *together* —
+            # keeping the right key while showing the reply that belongs to the
+            # wrong one would still tell the learner they got something they
+            # never asked for. Retry once inside the same bounded budget, then
+            # fall back to the authored line.
+            _record_event(
+                db,
+                JourneyEventName.GENERATION_FALLBACK,
+                user_id=user.id,
+                scenario_key=str(scenario.scenario_key),
+                payload={
+                    "attempt": attempt,
+                    "stage": "conversation_reply",
+                    "reason": "outcome_conflicts_with_learner_choice",
+                    "grounded": outcome_key,
+                    "proposed": proposed,
+                },
+            )
+            logger.warning(
+                "journey_conversation_model_conflicting_outcome",
+                scenario_key=str(scenario.scenario_key),
+                grounded=outcome_key,
+                proposed=proposed,
+            )
+            continue
+        return parsed
     _record_event(
         db,
         JourneyEventName.GENERATION_FALLBACK,

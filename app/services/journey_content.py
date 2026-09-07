@@ -38,6 +38,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass, replace
+from datetime import date
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Literal
@@ -47,10 +48,12 @@ from loguru import logger
 from sqlalchemy.orm import Session
 
 from app.config import settings
+from app.db.models.daily_journey import DailyJourney
 from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.user import User
 from app.services.journey_contracts import (
     DEFAULT_BUDGET_SECONDS,
+    FALLBACK_CONTROL_LANGUAGE,
     JOURNEY_CONTENT_VERSION,
     MAX_RESPOND_TURNS,
     CapabilityKey,
@@ -860,6 +863,241 @@ def derive_serial_side_scene(
     )
 
 
+
+# --------------------------------------------------------------------------
+# Next-day continuity (D-1b / R-3)
+# --------------------------------------------------------------------------
+#
+# CONTRACTS §8: "the next eligible day uses a grounded callback". The
+# consequence of a finished journey is already persisted — the resolution
+# step's ``private_task["story_outcome"]`` holds ``outcome_key`` and the bounded
+# ``callback_fr`` fact, and, when the scene was bound to the serial, the same
+# record is in the thread's own journey-outcome ledger. Nothing new is stored
+# here: this reads those records back and grounds the *next* scene in them.
+#
+# What is deliberately refused:
+#
+# * another learner's history — every query is filtered on ``user.id``;
+# * a consequence written at a different ``content_version`` — superseded text;
+# * a serial-bound consequence whose thread is gone, archived or no longer
+#   carries the ledger entry — superseded state;
+# * an outcome with no appropriate callback (« tu n'as rien commandé », a
+#   postponed meeting): those are declared endings, not events to bring up;
+# * putting the fact in the *wrong mouth*. The narration (``setup_fr``) may
+#   always recall what the learner did, because it is the narrator speaking to
+#   the learner. A **character** line may only refer to it when that same
+#   character, in that same place, was there.
+
+#: How many finished journeys back to look for a usable consequence.
+CONTINUITY_LOOKBACK = 5
+
+
+@dataclass(frozen=True, slots=True)
+class PriorConsequence:
+    """One eligible consequence of a learner\'s own earlier journey."""
+
+    journey_id: UUID
+    local_date: date
+    scenario_key: str
+    outcome_key: str
+    callback_fr: str
+    character_id: str
+    character_name: str
+    location_id: str
+    content_version: str
+    serial_thread_id: str | None = None
+
+    @property
+    def provenance(self) -> str:
+        """Where the fact came from, for logs and tests."""
+
+        return (
+            f"daily_journey:{self.journey_id}:{self.scenario_key}:{self.outcome_key}"
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class _Continuity:
+    """How one family\'s consequence may be brought up the next day."""
+
+    outcomes: tuple[str, ...]
+    narration_fr: str
+    narration_native: dict[str, str]
+    #: Only used when the *same* character witnessed it in the same place.
+    character_line_fr: str | None = None
+    #: The callback must start with one of these to be a complete fragment.
+    callback_prefixes: tuple[str, ...] = ()
+
+
+_CONTINUITY: dict[str, _Continuity] = {
+    CapabilityKey.ORDER_AT_CAFE.value: _Continuity(
+        # "not_ordered" is missing on purpose: nothing happened, so there is
+        # nothing to bring up.
+        outcomes=("served_at_counter", "served_at_terrace", "takeaway"),
+        narration_fr="Hier, chez {character} : {callback}.",
+        narration_native={
+            "en": "Yesterday, at {character}\'s: {callback}.",
+            "de": "Gestern, bei {character}: {callback}.",
+            "fr": "Hier, chez {character} : {callback}.",
+        },
+        character_line_fr="Rebonjour ! Comme hier, {callback} ?",
+        callback_prefixes=("un ", "une ", "du ", "de la "),
+    ),
+    CapabilityKey.ARRANGE_MEETING.value: _Continuity(
+        # "meeting_postponed" is missing on purpose: a meeting that was put off
+        # is not a plan to refer back to.
+        outcomes=("meeting_saturday_market", "meeting_weekday_cafe"),
+        narration_fr="Hier, avec {character} : {callback}.",
+        narration_native={
+            "en": "Yesterday, with {character}: {callback}.",
+            "de": "Gestern, mit {character}: {callback}.",
+            "fr": "Hier, avec {character} : {callback}.",
+        },
+        character_line_fr="Alors, {callback}, ça tient toujours ?",
+    ),
+    CapabilityKey.EXPLAIN_DELAY.value: _Continuity(
+        # "romy_reschedules" is missing on purpose: the evening was called off.
+        outcomes=("romy_waits_at_bar", "romy_meets_at_station"),
+        narration_fr="Hier soir : {callback}.",
+        narration_native={
+            "en": "Last night: {callback}.",
+            "de": "Gestern Abend: {callback}.",
+            "fr": "Hier soir : {callback}.",
+        },
+        # No character line: the delay callback already names Romy, so putting
+        # it back in her mouth would read as her quoting herself.
+    ),
+}
+
+
+def _story_outcome_record(journey: DailyJourney) -> dict[str, Any] | None:
+    for step in journey.steps:
+        if str(step.kind) != "resolution":
+            continue
+        record = (step.private_task or {}).get("story_outcome")
+        if isinstance(record, dict):
+            return record
+    return None
+
+
+def _serial_record_still_stands(
+    db: Session, *, user: User, journey_id: UUID, thread_id: str
+) -> bool:
+    """A serial-bound consequence must still exist in the learner\'s own ledger."""
+
+    from app.services.journey_conversation import story_outcome_source_key
+
+    try:
+        thread = db.get(SerialThread, UUID(str(thread_id)))
+    except (TypeError, ValueError):
+        return False
+    if thread is None or thread.user_id != user.id or thread.status != "active":
+        return False
+    record = SerialThreadService(db).journey_outcome_record(
+        thread, source_key=story_outcome_source_key(journey_id)
+    )
+    return isinstance(record, dict)
+
+
+def learner_prior_consequence(
+    db: Session,
+    *,
+    user: User,
+    content_version: str,
+    before_local_date: date | None = None,
+) -> PriorConsequence | None:
+    """The most recent consequence of *this* learner\'s own finished journeys.
+
+    Read-only. Returns ``None`` — never a guess — when the learner has no
+    history, when the last thing that happened has no callback worth bringing
+    up, or when the record has been superseded.
+    """
+
+    query = (
+        db.query(DailyJourney)
+        .filter(
+            DailyJourney.user_id == user.id,
+            DailyJourney.status == "completed",
+        )
+        .order_by(DailyJourney.local_date.desc(), DailyJourney.created_at.desc())
+    )
+    if before_local_date is not None:
+        query = query.filter(DailyJourney.local_date < before_local_date)
+    for journey in query.limit(CONTINUITY_LOOKBACK).all():
+        if str(journey.content_version or "") != str(content_version):
+            # Written against superseded text: its wording is not this
+            # version\'s wording, so it is not quoted as if it were.
+            continue
+        record = _story_outcome_record(journey)
+        if not record:
+            continue
+        callback = " ".join(str(record.get("callback_fr") or "").split())
+        outcome_key = str(record.get("outcome_key") or "")
+        scenario_key = str((journey.scenario_snapshot or {}).get("scenario_key") or "")
+        continuity = _CONTINUITY.get(scenario_key)
+        if not callback or continuity is None:
+            continue
+        if outcome_key not in continuity.outcomes:
+            continue
+        if continuity.callback_prefixes and not callback.lower().startswith(
+            continuity.callback_prefixes
+        ):
+            continue
+        thread_id = record.get("serial_thread_id")
+        if thread_id and not _serial_record_still_stands(
+            db, user=user, journey_id=journey.id, thread_id=str(thread_id)
+        ):
+            continue
+        spec = _load_scenario_spec(scenario_key, str(journey.content_version))
+        if spec is None:
+            continue
+        return PriorConsequence(
+            journey_id=journey.id,
+            local_date=journey.local_date,
+            scenario_key=scenario_key,
+            outcome_key=outcome_key,
+            callback_fr=callback,
+            character_id=str(spec.get("character_id") or ""),
+            character_name=str(spec.get("character_name") or ""),
+            location_id=str(spec.get("location_id") or ""),
+            content_version=str(journey.content_version),
+            serial_thread_id=str(thread_id) if thread_id else None,
+        )
+    return None
+
+
+def ground_brief_in_prior_day(
+    brief: ScenarioBrief, prior: PriorConsequence
+) -> ScenarioBrief:
+    """Open today\'s scene on what the learner actually did last time.
+
+    The narration always may. The character line may only when that character
+    was the one who was there — Lila cannot open with the coffee Margaux served.
+    """
+
+    continuity = _CONTINUITY.get(prior.scenario_key)
+    if continuity is None:
+        return brief
+    language = str(brief.control_language or FALLBACK_CONTROL_LANGUAGE)
+    fields = {"character": prior.character_name, "callback": prior.callback_fr}
+    narration_native = continuity.narration_native.get(
+        language, continuity.narration_native["en"]
+    )
+    setup_fr = f"{continuity.narration_fr.format(**fields)} {brief.setup_fr}".strip()
+    setup_native = f"{narration_native.format(**fields)} {brief.setup_native}".strip()
+
+    opening = brief.opening_line_fr
+    witnessed = (
+        prior.character_id == brief.character_id
+        and prior.location_id == brief.location_id
+    )
+    if witnessed and continuity.character_line_fr:
+        opening = continuity.character_line_fr.format(**fields)
+    return replace(
+        brief, setup_fr=setup_fr, setup_native=setup_native, opening_line_fr=opening
+    )
+
+
 # --------------------------------------------------------------------------
 # Authored brief assembly
 # --------------------------------------------------------------------------
@@ -1216,12 +1454,18 @@ def resolve_scenario_brief(
     input_mode: InputMode = InputMode.TEXT,
     allow_generation: bool = True,
     bind_serial: bool = True,
+    ground_in_prior_day: bool = True,
 ) -> ScenarioContextResult:
     """Resolve one scenario family into a validated brief.
 
     ``content_version`` and ``level_band`` are the pinning arguments: WP-02
     stores both on the journey row and passes them back on every reopen, so a
     shipped content bump can never rewrite or strand an active journey.
+
+    ``ground_in_prior_day`` opens the scene on the learner\'s own last
+    consequence when there is an eligible one (CONTRACTS §8). It is off for a
+    catalogue listing and for WP-02\'s pinned re-read of an existing journey,
+    which must reproduce the brief that was planned, not a fresher one.
     """
 
     version = content_version or CURRENT_CONTENT_VERSION
@@ -1265,6 +1509,26 @@ def resolve_scenario_brief(
         image_url=resolve_media_url(spec.get("image_asset")),
         serial=serial,
     )
+
+    # ``bind_serial=False`` is WP-02's pinned re-read of a journey that already
+    # exists: it must reproduce the brief that was planned, so it is never
+    # re-grounded in a consequence that landed after that journey started.
+    if ground_in_prior_day and bind_serial:
+        prior = learner_prior_consequence(db, user=user, content_version=version)
+        if prior is not None:
+            grounded = ground_brief_in_prior_day(brief, prior)
+            # A callback that pushes the scene over its own band limits is a
+            # content problem, not a reason to fail the learner\'s day: keep the
+            # ungrounded scene rather than serving nothing.
+            if validate_scenario_brief(grounded, rules=rules):
+                logger.warning(
+                    "journey continuity callback {} did not fit {} @ {}",
+                    prior.provenance,
+                    spec.get("scenario_key"),
+                    version,
+                )
+            else:
+                brief = grounded
 
     problems = validate_scenario_brief(brief, rules=rules)
     if problems:
@@ -1347,6 +1611,7 @@ def list_available_scenarios(
             content_version=content_version,
             input_mode=input_mode,
             allow_generation=False,
+            ground_in_prior_day=False,
         )
         if isinstance(result, ScenarioBrief):
             briefs.append(result)
@@ -1381,6 +1646,7 @@ def resolve_level_fit(*, user: User, brief: ScenarioBrief) -> LevelFit:
 
 __all__ = [
     "BAND_LIMITS",
+    "CONTINUITY_LOOKBACK",
     "CONTENT_CACHE_NAMESPACE",
     "CURRENT_CONTENT_VERSION",
     "JOURNEY_PROMPT_VERSION",
@@ -1391,11 +1657,14 @@ __all__ = [
     "SCENARIO_PRIORITY",
     "ContentRules",
     "LevelFit",
+    "PriorConsequence",
     "SerialSideScene",
     "available_content_versions",
     "build_scenario_context",
     "derive_serial_side_scene",
+    "ground_brief_in_prior_day",
     "learner_level_band",
+    "learner_prior_consequence",
     "list_available_scenarios",
     "reset_content_cache",
     "resolve_level_fit",

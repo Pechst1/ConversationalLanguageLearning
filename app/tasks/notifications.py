@@ -3,16 +3,16 @@ from __future__ import annotations
 
 from datetime import UTC, date, datetime, timedelta
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from loguru import logger
 from sqlalchemy import select
-from zoneinfo import ZoneInfo
 
 from app.celery_app import celery_app
-from app.db.models.user import User
 from app.db.models.pilot_event import PilotEvent
 from app.db.models.push_subscription import PushSubscription
 from app.db.models.serial import SerialThread
+from app.db.models.user import User
 from app.db.session import SessionLocal
 
 PARIS_TZ = ZoneInfo("Europe/Paris")

@@ -344,6 +344,31 @@ function JourneyPhaseView({
         </div>
       );
 
+    /**
+     * Every step is resolved and the server has not recorded the day as
+     * finished — usually because the finishing request has not been made or was
+     * refused. There is no step to render and no recap to read, so the screen
+     * says exactly that and offers the one action that resolves it. It never
+     * claims the day is done: only a `finished` journey may show the recap.
+     */
+    case 'awaiting_finish':
+      return (
+        <div data-state="awaiting_finish">
+          <StateBlock
+            tone="empty"
+            title={copy.awaiting_finish_title}
+            body={copy.awaiting_finish_body}
+            action={{
+              label: copy.awaiting_finish_action,
+              tone: 'primary',
+              onSelect: () => {
+                if (!busy) void actions.finish('complete');
+              },
+            }}
+          />
+        </div>
+      );
+
     case 'paused':
       return (
         <div data-state="paused">
@@ -402,7 +427,7 @@ export function JourneyRecapView({
 
   return (
     <section className="journey-recap av2-stack" data-state={partial ? 'partial' : 'complete'}>
-      <Surface tone={partial ? 'outline' : 'paper'} shape="hero">
+      <Surface tone={partial ? 'outline' : 'paper'} shape="hero" className="av2-recap__header">
         <p className="av2-label">{copy.today_eyebrow}</p>
         <h2 className="av2-headline">
           {partial ? copy.finished_partial_title : copy.finished_title}

@@ -1001,3 +1001,334 @@ def test_the_ending_remembers_a_drink_named_in_an_earlier_turn(db_session) -> No
     assert "un thé" in line.lower(), line
     assert "café" not in line.lower(), line
     assert "tea" in summary.lower() and "coffee" not in summary.lower(), summary
+
+
+# --------------------------------------------------------------------------
+# R-1 — negation, refusal, correction and cross-turn ambiguity
+#
+# The defect these pin: the deterministic grader read any mention of a drink,
+# a place, a day or an option as *choosing* it, so "je ne veux pas de café,
+# je ne veux pas rester en terrasse" was graded ``met`` with the consequence
+# ``served_at_terrace`` and the callback "un café en terrasse". A learner was
+# contradicted and a false success was handed to the evidence and reward logic.
+# --------------------------------------------------------------------------
+
+
+def test_a_negated_cafe_order_is_not_a_successful_order(db_session) -> None:
+    """The exact review reproduction: two refusals must not serve a terrace café."""
+
+    user = _user(db_session)
+    brief = _brief(db_session, user, CapabilityKey.ORDER_AT_CAFE)
+    result = _evaluate(
+        db_session,
+        user,
+        brief,
+        "Je ne veux pas de café. Je ne veux pas rester en terrasse.",
+    )
+
+    assert result.outcome is TaskOutcome.NOT_YET
+    assert result.consequence is None
+    reply = result.character_reply_fr or ""
+    # Coherent: Margaux registers the refusal and offers what is left. She must
+    # not serve, and must not claim she failed to understand a clear sentence.
+    assert "pas de café" in reply
+    assert "je vous apporte" not in reply.lower()
+    assert "n'ai pas bien saisi" not in reply.lower()
+
+
+def test_a_refusal_of_one_drink_promotes_the_drink_that_was_asked_for(db_session) -> None:
+    """« Non merci, pas de café. Un thé » is a tea order, not an ambiguity."""
+
+    user = _user(db_session)
+    brief = _brief(db_session, user, CapabilityKey.ORDER_AT_CAFE)
+    result = _evaluate(
+        db_session, user, brief, "Non merci, pas de café. Un thé, s'il vous plaît."
+    )
+
+    # One of the two required intents (the place) is still missing, so this is
+    # partially met — but on the tea, and with no café anywhere in the reply.
+    assert result.outcome is TaskOutcome.PARTIALLY_MET
+    assert "un thé" in (result.character_reply_fr or "").lower()
+    assert "café" not in (result.character_reply_fr or "").lower()
+    follow_up = _evaluate(
+        db_session,
+        user,
+        brief,
+        "Au comptoir.",
+        turn_index=1,
+        history=[{"learner": "Non merci, pas de café. Un thé, s'il vous plaît."}],
+    )
+    assert follow_up.outcome is TaskOutcome.MET
+    assert follow_up.consequence is not None
+    assert follow_up.consequence.outcome_key == "served_at_counter"
+    assert follow_up.consequence.callback_fr == "un thé au comptoir"
+
+
+def test_a_mid_sentence_correction_keeps_only_the_corrected_choice(db_session) -> None:
+    user = _user(db_session)
+    brief = _brief(db_session, user, CapabilityKey.ORDER_AT_CAFE)
+    result = _evaluate(
+        db_session, user, brief, "Un café, non finalement un thé, au comptoir."
+    )
+
+    assert result.outcome is TaskOutcome.MET
+    assert result.consequence is not None
+    assert result.consequence.outcome_key == "served_at_counter"
+    assert result.consequence.callback_fr == "un thé au comptoir"
+
+
+def test_a_later_turn_can_take_back_the_place_it_chose(db_session) -> None:
+    """« finalement, pas en terrasse » clears yesterday's terrace, not the drink."""
+
+    user = _user(db_session)
+    brief = _brief(db_session, user, CapabilityKey.ORDER_AT_CAFE)
+    result = _evaluate(
+        db_session,
+        user,
+        brief,
+        "Finalement, pas en terrasse.",
+        turn_index=1,
+        history=[{"learner": "Un café en terrasse, s'il vous plaît."}],
+    )
+
+    assert result.outcome is TaskOutcome.PARTIALLY_MET
+    assert result.consequence is None, "a withdrawn place must not still be served"
+    reply = (result.character_reply_fr or "").lower()
+    # The drink survives; the terrace is only ever named as the thing ruled out.
+    assert "un café" in reply
+    assert "pas en terrasse" in reply
+    assert reply.count("terrasse") == 1, reply
+
+
+def test_an_alternative_offered_on_a_later_turn_reads_as_an_ambiguity(db_session) -> None:
+    user = _user(db_session)
+    brief = _brief(db_session, user, CapabilityKey.ORDER_AT_CAFE)
+    result = _evaluate(
+        db_session,
+        user,
+        brief,
+        "Ou alors un thé ?",
+        turn_index=1,
+        history=[{"learner": "Un café au comptoir."}],
+    )
+
+    assert result.outcome is TaskOutcome.PARTIALLY_MET
+    assert result.consequence is None
+    assert "ou" in (result.character_reply_fr or "").lower()
+
+
+def test_a_total_refusal_at_the_cafe_settles_the_honest_ending(db_session) -> None:
+    """A clear "no" is communication: it resolves, but never as a success."""
+
+    user = _user(db_session)
+    brief = _brief(db_session, user, CapabilityKey.ORDER_AT_CAFE)
+    last_turn = jc.turn_budget(brief.response_task) - 1
+    result = _evaluate(
+        db_session, user, brief, "Je ne veux rien, merci.", turn_index=last_turn
+    )
+
+    assert result.outcome is TaskOutcome.NOT_YET
+    assert result.consequence is not None
+    assert result.consequence.outcome_key == "not_ordered"
+    assert result.consequence.outcome_key in jc.NEUTRAL_OUTCOMES
+    assert result.consequence.callback_fr is None
+    assert "pas de souci" in (result.character_reply_fr or "").lower()
+
+
+def test_a_declined_meeting_is_postponed_not_booked(db_session) -> None:
+    user = _user(db_session)
+    brief = _brief(db_session, user, CapabilityKey.ARRANGE_MEETING)
+    result = _evaluate(db_session, user, brief, "Je ne peux pas samedi au marché.")
+
+    assert result.outcome is not TaskOutcome.MET
+    assert result.consequence is None, "no consequence while a repair turn is owed"
+    last_turn = jc.turn_budget(brief.response_task) - 1
+    settled = _evaluate(
+        db_session,
+        user,
+        brief,
+        "Je ne peux pas samedi au marché.",
+        turn_index=last_turn,
+    )
+    assert settled.consequence is not None
+    assert settled.consequence.outcome_key == "meeting_postponed"
+    assert settled.consequence.outcome_key in jc.NEUTRAL_OUTCOMES
+
+
+def test_a_corrected_meeting_day_books_the_second_day(db_session) -> None:
+    user = _user(db_session)
+    brief = _brief(db_session, user, CapabilityKey.ARRANGE_MEETING)
+    result = _evaluate(db_session, user, brief, "Pas mardi, plutôt mercredi au Mistral.")
+
+    assert result.outcome is TaskOutcome.MET
+    assert result.consequence is not None
+    assert result.consequence.outcome_key == "meeting_weekday_cafe"
+    callback = result.consequence.callback_fr or ""
+    assert "mercredi" in callback and "mardi" not in callback
+    assert "mardi" not in (result.character_reply_fr or "").lower()
+
+
+def test_a_refused_evening_does_not_book_romy_at_the_bar(db_session) -> None:
+    user = _user(db_session)
+    brief = _brief(db_session, user, CapabilityKey.EXPLAIN_DELAY)
+    result = _evaluate(
+        db_session, user, brief, "Je ne suis pas en retard, ne m'attends pas au bar."
+    )
+
+    assert result.outcome is TaskOutcome.NOT_YET
+    assert result.consequence is None
+    reply = (result.character_reply_fr or "").lower()
+    assert "je t'attends au bar" not in reply
+    assert "?" in reply, "Romy asks rather than assuming an option that was refused"
+
+
+def test_declining_the_evening_reschedules_and_claims_no_success(db_session) -> None:
+    user = _user(db_session)
+    brief = _brief(db_session, user, CapabilityKey.EXPLAIN_DELAY)
+    last_turn = jc.turn_budget(brief.response_task) - 1
+    result = _evaluate(
+        db_session,
+        user,
+        brief,
+        "Je n'ai pas envie de venir ce soir.",
+        turn_index=last_turn,
+    )
+
+    assert result.outcome is not TaskOutcome.MET
+    assert result.consequence is not None
+    assert result.consequence.outcome_key == "romy_reschedules"
+    assert result.consequence.outcome_key in jc.NEUTRAL_OUTCOMES
+
+
+def test_a_negated_reason_is_still_a_reason_for_the_delay(db_session) -> None:
+    """« il n'y a pas de métro » explains the delay; it does not decline it."""
+
+    user = _user(db_session)
+    brief = _brief(db_session, user, CapabilityKey.EXPLAIN_DELAY)
+    result = _evaluate(
+        db_session,
+        user,
+        brief,
+        "Je suis en retard, il n'y a pas de métro. Attends-moi au bar.",
+    )
+
+    assert result.outcome is TaskOutcome.MET
+    assert result.consequence is not None
+    assert result.consequence.outcome_key == "romy_waits_at_bar"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "un cafe",
+        "Un thé, s'il vous plaît, au comptoir.",
+        "Je voudrais un chocolat chaud à emporter.",
+        "Bonjour, un café en terrasse.",
+    ],
+)
+def test_short_beginner_answers_are_still_accepted(db_session, text: str) -> None:
+    """The negation layer must not make the grader stricter about real orders."""
+
+    user = _user(db_session)
+    brief = _brief(db_session, user, CapabilityKey.ORDER_AT_CAFE)
+    result = _evaluate(db_session, user, brief, text)
+
+    assert result.outcome is not TaskOutcome.NOT_YET
+    assert not jc._signals(text).refusal
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Un café sans sucre, en terrasse.",
+        "Un café en terrasse, mais pas trop chaud.",
+    ],
+)
+def test_a_sentence_containing_pas_is_not_automatically_a_refusal(
+    db_session, text: str
+) -> None:
+    """The fix is scope, not a blanket rejection of every negative sentence."""
+
+    user = _user(db_session)
+    brief = _brief(db_session, user, CapabilityKey.ORDER_AT_CAFE)
+    result = _evaluate(db_session, user, brief, text)
+
+    assert result.outcome is TaskOutcome.MET
+    assert result.consequence is not None
+    assert result.consequence.outcome_key == "served_at_terrace"
+
+
+# --------------------------------------------------------------------------
+# R-2 — a model may re-dress the reply, never reverse the learner's choice
+# --------------------------------------------------------------------------
+
+
+def test_a_model_outcome_that_conflicts_with_the_learner_choice_is_refused(
+    db_session, _model_enabled
+) -> None:
+    """The review's reproduction: an *allowed* key that is not the grounded one.
+
+    Both halves must be refused together. Keeping ``served_at_terrace`` while
+    showing "je vous le prépare à emporter" would still tell the learner they
+    are getting something they did not order.
+    """
+
+    user = _user(db_session)
+    brief = _brief(db_session, user, CapabilityKey.ORDER_AT_CAFE)
+    payload = (
+        '{"reply_fr": "Très bien, je vous le prépare à emporter.", '
+        '"outcome_key": "takeaway"}'
+    )
+    stub = _model_enabled([payload, payload])
+
+    result = _evaluate(db_session, user, brief, "Un thé en terrasse, s'il vous plaît.")
+
+    assert result.consequence is not None
+    assert result.consequence.outcome_key == "served_at_terrace"
+    assert jc.reply_source(result) == "authored"
+    assert "emporter" not in (result.character_reply_fr or "")
+    assert "terrasse" in (result.character_reply_fr or "")
+    assert stub.calls == jc.MAX_MODEL_ATTEMPTS, "the retry budget is bounded, and used"
+
+
+def test_a_model_may_still_redress_the_reply_it_agrees_with(db_session, _model_enabled) -> None:
+    """The guard rejects conflicts, not the model layer itself."""
+
+    user = _user(db_session)
+    brief = _brief(db_session, user, CapabilityKey.ORDER_AT_CAFE)
+    stub = _model_enabled(
+        [
+            '{"reply_fr": "Très bien, je vous le prépare à emporter.", "outcome_key": "takeaway"}',
+            '{"reply_fr": "Un thé en terrasse, je vous apporte ça.", '
+            '"outcome_key": "served_at_terrace"}',
+        ]
+    )
+
+    result = _evaluate(db_session, user, brief, "Un thé en terrasse, s'il vous plaît.")
+
+    assert stub.calls == 2
+    assert jc.reply_source(result) == "model"
+    assert result.character_reply_fr == "Un thé en terrasse, je vous apporte ça."
+    assert result.consequence.outcome_key == "served_at_terrace"
+
+
+def test_a_model_cannot_reverse_a_choice_made_on_an_earlier_turn(
+    db_session, _model_enabled
+) -> None:
+    user = _user(db_session)
+    brief = _brief(db_session, user, CapabilityKey.ARRANGE_MEETING)
+    payload = '{"reply_fr": "Ok, on remet ça.", "outcome_key": "meeting_postponed"}'
+    _model_enabled([payload, payload])
+
+    result = _evaluate(
+        db_session,
+        user,
+        brief,
+        "Au marché.",
+        turn_index=1,
+        history=[{"learner": "Samedi ?"}],
+    )
+
+    assert result.consequence is not None
+    assert result.consequence.outcome_key == "meeting_saturday_market"
+    assert jc.reply_source(result) == "authored"

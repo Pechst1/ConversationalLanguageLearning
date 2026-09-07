@@ -39,6 +39,7 @@ from app.config import settings
 from app.db.models.daily_journey import DailyJourney, DailyJourneyStep
 from app.db.models.progress import UserVocabularyProgress
 from app.db.models.session import LearningSession, SessionLearningMoment
+from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
 from app.main import create_app
 from app.services import daily_journey as daily_journey_service
@@ -649,15 +650,6 @@ def test_every_authored_scenario_family_is_reachable_from_the_real_create_path(
     )
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "WP-12 defect D-1b: the next eligible day repeats the identical scene and "
-        "never surfaces yesterday's grounded callback. The recap stores "
-        "story_outcome.callback_fr, but no later journey reads it, so CONTRACTS' "
-        "'next eligible day uses a grounded callback' is unimplemented."
-    ),
-)
 def test_the_next_eligible_day_is_grounded_in_yesterday(
     assembled_client: TestClient, journey_enabled: None, clock: Clock, db_session: Session
 ) -> None:
@@ -669,9 +661,9 @@ def test_the_next_eligible_day_is_grounded_in_yesterday(
     day1.create(expect=(201,))
     day1.play(answer="Bonjour, je voudrais un café en terrasse, s'il vous plaît.")
     day1.finish("complete")
-    callback = (day1.journey["recap"]["story_outcome"] or {}).get("callback_fr")
+    story = day1.journey["recap"]["story_outcome"] or {}
+    callback = story.get("callback_fr")
     assert callback, "day 1 must produce a grounded callback to carry forward"
-    day1_scene = step_of(day1.journey, "scene")["prompt"]
 
     clock.advance(days=1)
     day2 = Driver(assembled_client, headers, db=db_session)
@@ -693,6 +685,34 @@ def test_the_next_eligible_day_is_grounded_in_yesterday(
         "day 2 referenced nothing the learner did yesterday: recap.story_outcome"
         f".callback_fr ({callback!r}) is stored but never read back"
     )
+
+    # Provenance, not coincidence: the fact day 2 opens on is the record day 1
+    # actually wrote, for this learner, from this journey.
+    user = db_session.get(User, learner_id(db_session, email))
+    day1_row = db_session.get(DailyJourney, uuid.UUID(day1.journey["id"]))
+    prior = journey_content.learner_prior_consequence(
+        db_session, user=user, content_version=day1_row.content_version
+    )
+    assert prior is not None
+    assert str(prior.journey_id) == day1.journey["id"]
+    assert prior.outcome_key == story["outcome_key"] == "served_at_terrace"
+    assert prior.callback_fr == callback
+    assert prior.provenance.startswith(f"daily_journey:{day1.journey['id']}:")
+
+    # Character knowledge: day 2 is Lila's scene, and Lila was not at the
+    # Mistral yesterday. The narrator may recall it; she may not.
+    assert callback.lower() in day2_scene["setup_fr"].lower()
+    assert prior.character_id != day2.journey["scenario"]["character_id"]
+    assert callback.lower() not in (day2_scene.get("character_line_fr") or "").lower()
+
+    # Isolation: a second learner's own first day is untouched by this history.
+    other_email = f"wp12-day2-other-{uuid.uuid4().hex[:8]}@example.com"
+    other_headers = register(assembled_client, other_email)
+    seed_due_vocabulary(db_session, learner_id(db_session, other_email), CAFE_WORDS)
+    other = Driver(assembled_client, other_headers, db=db_session)
+    other.create(expect=(201,))
+    other_scene = step_of(other.journey, "scene")["prompt"]
+    assert callback.lower() not in other_scene["setup_fr"].lower()
 
 
 # ---------------------------------------------------------------------------

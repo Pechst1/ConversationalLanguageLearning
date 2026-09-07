@@ -12,7 +12,8 @@ const { encode } = require('next-auth/jwt');
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const defaultCaptureDate = process.env.CAPTURE_DATE || new Date().toISOString().slice(0, 10);
 const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-const backendUrl = process.env.API_URL || 'http://localhost:8000';
+const configuredBackendUrl = (process.env.API_URL || '').trim().replace(/\/+$/, '');
+const captureDatabaseUrl = (process.env.CAPTURE_DATABASE_URL || '').trim();
 const nextAuthSecret = process.env.NEXTAUTH_SECRET || 'your-secret-here-make-it-long-and-random';
 const chromePath = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const captureDir = process.env.CAPTURE_DIR
@@ -239,6 +240,36 @@ if (requestedFrames.length > 0 && frames.length === 0) {
   throw new Error(`No capture frames matched CAPTURE_FRAMES=${requestedFrames.join(',')}`);
 }
 
+// QA defect D-8. An authenticated capture registers a learner, logs in and seeds a
+// database. Both targets must be named explicitly.
+//
+// (a) The backend host used to default to http://localhost:8000, which belongs to a
+//     different application on some machines: a capture run without API_URL posted
+//     /api/v1/auth/register at whatever was listening there.
+// (b) The seeder does not go through API_URL at all; it opens its own session from
+//     DATABASE_URL. Left implicit that resolves to .env — normally the owner's live
+//     database — while the HTTP client registers somewhere else entirely.
+//
+// The public, no-auth static capture mode CI uses (CAPTURE_SKIP_AUTH=true, or a
+// CAPTURE_FRAMES list made only of public frames) needs neither and stays unaffected.
+if (!skipAuth && !configuredBackendUrl) {
+  throw new Error(
+    'API_URL is not set. An authenticated capture signs a real learner in over HTTP, '
+    + 'so this harness refuses to guess a backend. Set API_URL (for example '
+    + 'http://localhost:8010), or capture the public frames with CAPTURE_SKIP_AUTH=true.',
+  );
+}
+if (!skipAuth && shouldSeedPilotAccount && !captureDatabaseUrl) {
+  throw new Error(
+    'CAPTURE_DATABASE_URL is not set. scripts/seed_pilot_capture_account.py connects to '
+    + 'the database directly rather than through API_URL, so without an explicit target '
+    + 'it falls back to .env and can seed a different database from the one '
+    + `${configuredBackendUrl} is backed by. Set CAPTURE_DATABASE_URL to that same `
+    + 'database, or run with CAPTURE_SEED_PILOT=false.',
+  );
+}
+const backendUrl = configuredBackendUrl;
+
 function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -299,6 +330,17 @@ async function createPreviewSession() {
 
   if (shouldSeedPilotAccount) {
     previewSeedPayload = await seedPilotCaptureAccount(previewEmail);
+    // The seeder resolves the learner by email in its own database. A different id
+    // means API_URL and CAPTURE_DATABASE_URL are pointed at different databases, and
+    // every authenticated frame would photograph an unseeded account while the run
+    // still reported success.
+    if (previewSeedPayload?.user_id && String(previewSeedPayload.user_id) !== String(user.id)) {
+      throw new Error(
+        `Capture targets disagree: ${backendUrl} registered ${previewEmail} as `
+        + `${user.id}, but the seeder resolved that address to ${previewSeedPayload.user_id} `
+        + 'in CAPTURE_DATABASE_URL. Point both at the same database.',
+      );
+    }
     if (!previewFeuilletonSceneId && previewSeedPayload?.feuilleton_scene_id) {
       previewFeuilletonSceneId = previewSeedPayload.feuilleton_scene_id;
     }
@@ -540,7 +582,10 @@ function seedPilotCaptureAccount(email) {
   return new Promise((resolve, reject) => {
     const child = spawn(python, [scriptPath, '--email', email], {
       cwd: repoRoot,
-      env: process.env,
+      env: {
+        ...process.env,
+        ...(captureDatabaseUrl ? { DATABASE_URL: captureDatabaseUrl } : {}),
+      },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     let stdout = '';
@@ -931,7 +976,9 @@ const chrome = spawn(chromePath, [
 const manifest = {
   capturedAt: new Date().toISOString(),
   frontendUrl,
-  backendUrl,
+  backendUrl: backendUrl || null,
+  authenticated: !skipAuth,
+  seedDatabaseDeclared: Boolean(captureDatabaseUrl),
   captureScope: requestedFrames.length ? 'partial' : 'full',
   requestedFrames,
   pilotSeed: null,

@@ -52,6 +52,15 @@ export type JourneyPhase =
       retryAfterSeconds: number;
     }
   | { kind: 'session'; journey: JourneySnapshot; step: PublicStep | null }
+  /**
+   * Every planned step is resolved, the server has not been told to finish, and
+   * there is therefore no step to render and no recap to read. It is a real
+   * server state — an `advance` that returned `current_step_id: null` and a
+   * `finish` that has not succeeded yet (or was refused with a stale revision) —
+   * so it gets its own kind rather than a `session` with a null step, which
+   * renders as an empty screen with no action.
+   */
+  | { kind: 'awaiting_finish'; journey: JourneySnapshot }
   | { kind: 'paused'; journey: JourneySnapshot; step: PublicStep | null }
   | { kind: 'finished'; journey: JourneySnapshot; recap: JourneyRecap | null };
 
@@ -138,10 +147,28 @@ export function phaseFromJourney(
       return { kind: 'finished', journey, recap: journey.recap ?? null };
     case 'active':
     default:
-      return envelope && !envelope.enabled
-        ? { kind: 'disabled', envelope }
-        : { kind: 'session', journey, step };
+      if (envelope && !envelope.enabled) return { kind: 'disabled', envelope };
+      if (journeyAwaitsFinish(journey)) return { kind: 'awaiting_finish', journey };
+      return { kind: 'session', journey, step };
   }
+}
+
+/**
+ * "Every step is done, the day is not finished yet."
+ *
+ * The server answers an `advance` off the last step with an `active` journey
+ * whose `current_step_id` is `null`; it stays in that state until a `finish`
+ * succeeds. There is nothing to answer and no recap to show, so the only
+ * honest offer is to finish — which is exactly what a `finish` refused with a
+ * stale `expected_revision` leaves behind, and what used to render as an empty
+ * "Step 3 of 3" with no button.
+ *
+ * A malformed `current_step_id` that simply points at no known step is NOT this
+ * state: the plan still says a step is open, and that is a different problem.
+ */
+export function journeyAwaitsFinish(journey: JourneySnapshot | null): boolean {
+  if (!journey || journey.status !== 'active') return false;
+  return journey.current_step_id === null && journey.steps.length > 0;
 }
 
 export function currentStepOf(journey: JourneySnapshot | null): PublicStep | null {
@@ -155,6 +182,7 @@ export function journeyOfPhase(phase: JourneyPhase): JourneySnapshot | null {
     case 'preparing':
     case 'unavailable':
     case 'session':
+    case 'awaiting_finish':
     case 'paused':
     case 'finished':
       return phase.journey;

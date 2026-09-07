@@ -51,3 +51,44 @@ test('rejects placeholder hosts unless an explicit rehearsal flag is set', () =>
     },
   );
 });
+
+test('an unset API host is a configuration error, never a guessed port', () => {
+  assert.throws(
+    () => resolveNativeApiEnvironment({}),
+    (error) => {
+      assert.match(error.message, /missing NEXT_PUBLIC_API_BASE_URL/);
+      // Port 8000 belongs to a different application; the native client
+      // (lib/native-auth.ts) refuses it too rather than defaulting.
+      assert.doesNotMatch(error.message, /localhost:8000/);
+      return true;
+    },
+  );
+});
+
+test('the native runtime client agrees with this build-time guard', async () => {
+  const { createRequire } = await import('node:module');
+  const path = await import('node:path');
+  const { fileURLToPath } = await import('node:url');
+
+  const webRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
+  const require = createRequire(import.meta.url);
+  require(path.join(webRoot, 'node_modules/sucrase/register/ts'));
+
+  const previous = {
+    base: process.env.NEXT_PUBLIC_API_BASE_URL,
+    url: process.env.NEXT_PUBLIC_API_URL,
+  };
+  delete process.env.NEXT_PUBLIC_API_BASE_URL;
+  delete process.env.NEXT_PUBLIC_API_URL;
+  try {
+    const nativeAuthPath = path.join(webRoot, 'lib/native-auth.ts');
+    delete require.cache[require.resolve(nativeAuthPath)];
+    const { nativeApiBaseUrl } = require(nativeAuthPath);
+    assert.throws(() => nativeApiBaseUrl(), /NEXT_PUBLIC_API_BASE_URL is not set/);
+  } finally {
+    if (previous.base === undefined) delete process.env.NEXT_PUBLIC_API_BASE_URL;
+    else process.env.NEXT_PUBLIC_API_BASE_URL = previous.base;
+    if (previous.url === undefined) delete process.env.NEXT_PUBLIC_API_URL;
+    else process.env.NEXT_PUBLIC_API_URL = previous.url;
+  }
+});

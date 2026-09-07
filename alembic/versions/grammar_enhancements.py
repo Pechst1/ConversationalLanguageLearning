@@ -34,6 +34,20 @@ def column_exists(table_name, column_name):
     return result.fetchone() is not None
 
 
+def drop_column_if_exists(table_name, column_name):
+    """Drop a column only when it is actually there.
+
+    ``upgrade()`` adds every one of these columns *conditionally*, so the
+    symmetric downgrade has to be conditional too. Without this, a database in
+    which a later revision already removed one of the columns -- ``d7e8f9a0b1c2``
+    used to drop the three ``grammar_*`` streak columns it never owned -- made
+    ``alembic downgrade base`` abort here with ``UndefinedColumn``.
+    """
+    if not column_exists(table_name, column_name):
+        return
+    op.drop_column(table_name, column_name)
+
+
 def upgrade() -> None:
     # Add trigger fields to achievements table
     if not column_exists('achievements', 'category'):
@@ -82,21 +96,21 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     # Remove grammar_focus from chapters
-    op.drop_column('chapters', 'grammar_focus')
+    drop_column_if_exists('chapters', 'grammar_focus')
 
     # Remove prerequisites and visualization_type from grammar_concepts
-    op.drop_column('grammar_concepts', 'visualization_type')
-    op.drop_column('grammar_concepts', 'prerequisites')
+    drop_column_if_exists('grammar_concepts', 'visualization_type')
+    drop_column_if_exists('grammar_concepts', 'prerequisites')
 
     # Remove grammar streak fields from users
-    op.drop_column('users', 'grammar_longest_streak')
-    op.drop_column('users', 'grammar_last_review_date')
-    op.drop_column('users', 'grammar_streak_days')
+    drop_column_if_exists('users', 'grammar_longest_streak')
+    drop_column_if_exists('users', 'grammar_last_review_date')
+    drop_column_if_exists('users', 'grammar_streak_days')
 
     # Remove trigger fields from achievements
-    op.drop_column('achievements', 'trigger_value')
-    op.drop_column('achievements', 'trigger_type')
-    op.drop_column('achievements', 'category')
+    drop_column_if_exists('achievements', 'trigger_value')
+    drop_column_if_exists('achievements', 'trigger_type')
+    drop_column_if_exists('achievements', 'category')
 
     # Remove seeded achievements
     op.execute("""

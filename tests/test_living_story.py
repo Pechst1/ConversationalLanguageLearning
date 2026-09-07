@@ -34,14 +34,26 @@ PREMISES = [
 ]
 
 
+OBJECTIVES = [
+    "Suggest how you can help, or explain that you cannot.",
+    "Propose an alternative for the market morning, or decline.",
+    "Negotiate a price or say the bike does not interest you.",
+    "Explain what happened to the parcel.",
+    "Say whether you come on Friday and what you bring.",
+    "Ask a neighbour for help, or offer yours.",
+    "Accept or decline cat-sitting, and say when you are free.",
+]
+
+
 def draft(context, n=0):
     chapter = context.get("chapter") or {}
     return {
         "title_fr": f"Les affiches {n}",
-        # Seven distinct premises: the engine rejects a premise overlapping the last five.
+        # Seven distinct premises and objectives: the engine rejects either one
+        # overlapping any of the last five situations.
         "premise_fr": PREMISES[n % len(PREMISES)],
         "setup_native": "Romy is arranging a neighborhood exhibition.",
-        "objective_native": "Suggest how you can help, or explain that you cannot.",
+        "objective_native": OBJECTIVES[n % len(OBJECTIVES)],
         "objective_semantics": "Clearly express an offer or a refusal of help with the exhibition.",
         "character_id": "romy_tremblay",
         "location_id": "le_mistral",
@@ -443,7 +455,7 @@ def test_existing_callbacks_feed_director_but_only_witnessed_facts_feed_actor(
     "field,value,reason",
     [
         ("character_id", "invented_character", "unknown_character_or_location"),
-        ("source_event_ids", ["invented_past"], "unknown_story_source"),
+        ("location_id", "invented_place", "unknown_character_or_location"),
     ],
 )
 def test_scene_validation_rejects_invented_canon(field, value, reason):
@@ -540,3 +552,77 @@ def test_a_reworded_repeat_of_a_recent_premise_is_rejected():
         engine._validate_scene(proposal, _scene_context(recent_situations=recent))
     fresh = [{"novelty_key": "other", "premise_fr": "Le facteur a livré un colis pour quelqu'un d'autre."}]
     engine._validate_scene(proposal, _scene_context(recent_situations=fresh))
+
+
+def test_unknown_source_ids_are_dropped_not_fatal():
+    """WP-14F L-1: the director cited situation ids as sources and lost thirteen days."""
+    context = _scene_context(events=[{"id": "journey:1:story", "witnesses": []}])
+    proposal = engine.SceneDraft.model_validate(
+        {**draft(context, 0), "source_event_ids": ["journey:1:story", "story_abc", "day:1"]}
+    )
+    engine._validate_scene(proposal, context)
+    assert proposal.source_event_ids == ["journey:1:story"]
+
+
+def test_recent_situations_reach_the_director_without_ids(assembled_client, db_session, journey_enabled, clock, provider):
+    d = driver(assembled_client, db_session)
+    d.create()
+    d.play(answer="Je peux apporter les affiches samedi.")
+    d.finish("complete")
+    clock.advance(days=1)
+    d.create()
+    contexts = [p for schema, p in provider.calls if schema == "SceneDraft"]
+    recent = contexts[-1]["recent_situations"]
+    assert recent and all("id" not in item and item["objective_native"] for item in recent)
+
+
+def test_a_reworded_repeat_of_a_recent_objective_is_rejected():
+    proposal = engine.SceneDraft.model_validate(draft(_scene_context(), 0))
+    recent = [{"novelty_key": "x", "premise_fr": "Tout autre chose ce matin.", "objective_native": "Suggest how you could help, or explain you cannot."}]
+    with pytest.raises(engine.StoryUnavailable, match="repeated_situation"):
+        engine._validate_scene(proposal, _scene_context(recent_situations=recent))
+
+
+@pytest.mark.parametrize(
+    ("address", "text", "reason"),
+    [
+        ("neutral", "Tu es trempé·e, viens.", "inclusive_dot_form"),
+        ("feminine", "Bienvenue au·à la nouvel·le arrivé·e.", "inclusive_dot_form"),
+        ("neutral", "Allez, commande, mon grand.", "gendered_address"),
+        ("neutral", "Fais-nous rêver, ma puce.", "gendered_address"),
+        ("feminine", "Tu gères, mon grand.", "gendered_address"),
+        ("masculine", "Tu gères, ma puce.", "gendered_address"),
+        ("feminine", "Tu gères, ma puce.", None),
+        ("masculine", "Tu gères, mon grand.", None),
+        ("neutral", "Tu gères, bravo.", None),
+    ],
+)
+def test_learner_address_is_enforced_deterministically(address, text, reason):
+    """WP-14F L-6: prompt-only address rules were violated live; now a rule."""
+    context = _scene_context(learner={"address": address})
+    proposal = engine.SceneDraft.model_validate({**draft(context, 0), "opening_line_fr": text})
+    if reason:
+        with pytest.raises(engine.StoryUnavailable, match=reason):
+            engine._validate_scene(proposal, context)
+    else:
+        engine._validate_scene(proposal, context)
+
+
+def test_a_reply_that_recites_the_suggested_answer_is_rejected():
+    """WP-14F L-3: the character handed over the answer key with no assistance recorded."""
+    learner = "Je suis d'accord, je vais au marché demain."
+    turn = engine.SemanticTurn.model_validate({**turn_fixture(learner), "reply_fr": "D'accord. Dis par exemple : « Je peux apporter les affiches samedi ! »"})
+    payload = {"learner_text": learner, "history": [], "targets": [], "story": {"commitments": [], "level": "A1", "learner": {"address": "neutral"}}, "scene": {"suggested_response_fr": "Je peux apporter les affiches samedi."}}
+    with pytest.raises(engine.StoryUnavailable, match="reply_leaks_suggestion"):
+        engine._validate_turn(turn, payload)
+
+
+def test_an_a1_reply_far_above_level_or_gendered_is_rejected():
+    learner = "Oui, je viens."
+    long_reply = " ".join(["mot"] * 41)
+    payload = {"learner_text": learner, "history": [], "targets": [], "story": {"commitments": [], "level": "A1", "learner": {"address": "neutral"}}, "scene": {}}
+    with pytest.raises(engine.StoryUnavailable, match="reply_above_level"):
+        engine._validate_turn(engine.SemanticTurn.model_validate({**turn_fixture(learner), "reply_fr": long_reply}), payload)
+    with pytest.raises(engine.StoryUnavailable, match="gendered_address"):
+        engine._validate_turn(engine.SemanticTurn.model_validate({**turn_fixture(learner), "reply_fr": "Parfait, mon grand !"}), payload)
+    engine._validate_turn(engine.SemanticTurn.model_validate({**turn_fixture(learner), "reply_fr": "Parfait, à samedi !"}), payload)

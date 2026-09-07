@@ -35,6 +35,19 @@ from app.services.serial_arc_planner import (
 )
 from app.services.serial_notifications import enqueue_serial_edition_notification
 
+
+def _is_engine_version(value) -> bool:
+    from app.services.living_story import is_engine_version
+
+    return is_engine_version(value)
+
+
+def _engine_version() -> str:
+    from app.services.living_story import VERSION
+
+    return VERSION
+
+
 WORLD_BIBLE_PATH = Path(__file__).resolve().parent.parent / "prompts" / "serial" / "world_bible_paris_v2.json"
 WORLD_BIBLE_V1_PATH = Path(__file__).resolve().parent.parent / "prompts" / "serial" / "world_bible_paris_v1.json"
 WORLD_BIBLE_S2_PATH = Path(__file__).resolve().parent.parent / "prompts" / "serial" / "world_bible_paris_s2.json"
@@ -178,7 +191,7 @@ class SerialThreadService:
             episode = self._current_episode(thread) if thread else None
             return {
                 **(self.serialize_episode(episode) if episode else {"status": "journey_required", "kind": "feuilleton", "scene_id": None}),
-                "story_engine": "living-story-v1", "continue_href": "/atelier",
+                "story_engine": _engine_version(), "continue_href": "/atelier",
                 "episodes_href": "/api/v1/story-engine/episodes",
                 "thread": self.serialize_thread(thread) if thread else None,
                 "cast": self.cast_payload(thread) if thread else [],

@@ -39,7 +39,7 @@ import {
     type AppFontSize,
     type AppTheme,
 } from '@/lib/app-preferences';
-import { apiService as api } from '@/services/api';
+import { apiService as api, type AddressPreference } from '@/services/api';
 import { appSignOut, useAppSession } from '@/lib/app-auth';
 import { nativePushIsAvailable, registerNativePushToken } from '@/lib/native-push';
 
@@ -80,6 +80,9 @@ interface UserSettings {
     // Grammar
     grammarCorrectionLevel: 'strict' | 'moderate' | 'lenient';
     showGrammarExplanations: boolean;
+
+    // How the feuilleton addresses the reader
+    addressPreference: AddressPreference;
 }
 
 const defaultSettings: UserSettings = {
@@ -108,6 +111,21 @@ const defaultSettings: UserSettings = {
     autoPlayPronunciation: true,
     grammarCorrectionLevel: 'moderate',
     showGrammarExplanations: true,
+    addressPreference: 'neutral',
+};
+
+// The récit has to agree with the reader in French. Rather than guess, the reader
+// says so once here; 'neutral' asks the story to avoid gendered forms entirely.
+const addressOptions: { value: AddressPreference; label: string }[] = [
+    { value: 'feminine', label: 'Féminin' },
+    { value: 'masculine', label: 'Masculin' },
+    { value: 'neutral', label: 'Neutre' },
+];
+
+const addressHints: Record<AddressPreference, string> = {
+    feminine: 'Les personnages vous parleront au féminin.',
+    masculine: 'Les personnages vous parleront au masculin.',
+    neutral: 'Les personnages éviteront les formes genrées et les petits noms.',
 };
 
 const proficiencyLevels = [
@@ -470,6 +488,8 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
 
                     grammarCorrectionLevel: (user.grammar_correction_level as any) || prev.grammarCorrectionLevel,
                     showGrammarExplanations: user.show_grammar_explanations ?? prev.showGrammarExplanations,
+
+                    addressPreference: (user.address_preference as AddressPreference) || prev.addressPreference,
                 }));
                 persistVisualSettings(loadedTheme, loadedFontSize);
             } catch (error) {
@@ -542,6 +562,8 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
 
                 grammar_correction_level: settings.grammarCorrectionLevel,
                 show_grammar_explanations: settings.showGrammarExplanations,
+
+                address_preference: settings.addressPreference,
             };
 
             await api.updateSettings(payload);
@@ -1049,6 +1071,21 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                     labelledBy="st-explanations-label"
                                     checked={settings.showGrammarExplanations}
                                     onChange={(next) => updateSetting('showGrammarExplanations', next)}
+                                />
+                            </Row>
+                        </div>
+
+                        <div className="st-card">
+                            <Row
+                                label="Comment le récit s’adresse à vous"
+                                hint={addressHints[settings.addressPreference]}
+                                stacked
+                            >
+                                <Segmented
+                                    label="Comment le récit s’adresse à vous"
+                                    options={addressOptions}
+                                    value={settings.addressPreference}
+                                    onChange={(value) => updateSetting('addressPreference', value)}
                                 />
                             </Row>
                         </div>

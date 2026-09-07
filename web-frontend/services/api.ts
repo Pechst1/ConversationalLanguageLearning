@@ -23,6 +23,12 @@ import type {
 } from '@/types/daily-journey';
 import { AnkiReviewResponse, ReviewResponse } from '@/types/reviews';
 
+/**
+ * How the story engine addresses the reader in French. 'neutral' is the default
+ * and asks the récit to avoid gendered forms and endearments altogether.
+ */
+export type AddressPreference = 'feminine' | 'masculine' | 'neutral';
+
 export interface LiveStory {
   id: string;
   title: string;
@@ -1175,10 +1181,19 @@ function isUnauthorized(error: any): boolean {
   return error?.response?.status === 401;
 }
 
+/**
+ * Same-origin route to the backend, rewritten by next.config.js when API_URL is
+ * set. It is the fallback for an unconfigured browser bundle: the old default,
+ * http://localhost:8000/api/v1, sent credentialed requests to whatever owned
+ * that port on the developer's machine.
+ */
+const SAME_ORIGIN_API_PROXY = '/api/backend';
+
 export function resolveBrowserApiBaseUrl() {
   const configured = normalizeApiBaseUrl(
-    process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1',
+    process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || '',
   );
+  if (!configured) return SAME_ORIGIN_API_PROXY;
   if (typeof window === 'undefined') return configured;
   if (isNativePlatform()) return configured;
 
@@ -1186,7 +1201,7 @@ export function resolveBrowserApiBaseUrl() {
     const url = new URL(configured);
     const localApiHost = (url.hostname === 'localhost' || url.hostname === '127.0.0.1') && url.port === '8000';
     if (localApiHost && url.pathname.replace(/\/$/, '') === '/api/v1') {
-      return '/api/backend';
+      return SAME_ORIGIN_API_PROXY;
     }
   } catch {
     // Relative or otherwise non-URL values should pass through unchanged.
@@ -1417,7 +1432,7 @@ class ApiService {
     return this.get('/users/me/settings');
   }
 
-  async updateSettings(data: any) {
+  async updateSettings(data: Record<string, unknown> & { address_preference?: AddressPreference }) {
     return this.patch('/users/me/settings', data);
   }
 

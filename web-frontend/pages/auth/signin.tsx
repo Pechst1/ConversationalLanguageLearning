@@ -96,7 +96,12 @@ export default function SignInPage() {
               </p>
             </div>
 
-            <form onSubmit={handleSubmit(onSubmit)} className="auth-form">
+            <form
+              method="post"
+              action="/api/auth/pre-hydration"
+              onSubmit={handleSubmit(onSubmit)}
+              className="auth-form"
+            >
               <Input
                 {...register('email')}
                 type="email"

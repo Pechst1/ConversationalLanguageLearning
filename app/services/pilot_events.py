@@ -14,9 +14,7 @@ from app.db.models.atelier import AtelierGenerationEvent
 from app.db.models.graphic_novel import GraphicNovelScene
 from app.db.models.pilot_event import PilotEvent
 from app.db.models.serial import SerialEpisode, SerialThread
-from app.db.models.user import User
 from app.services.serial_costs import serial_generation_cost_event
-
 
 #: Events that mean "something went wrong", counted in the ``failures`` total.
 #: The two journey entries are infrastructure failures (WP-11), never learner

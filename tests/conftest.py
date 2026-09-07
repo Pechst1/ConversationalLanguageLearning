@@ -69,8 +69,8 @@ from app.db.models.graphic_novel import (
 )
 from app.db.models.library import BookEpisode, UserBook
 from app.db.models.mission import RealWorldMission, RealWorldMissionAttempt, RealWorldMissionTurn
-from app.db.models.progress import ReviewLog, UserVocabularyProgress
 from app.db.models.pilot_event import PilotEvent
+from app.db.models.progress import ReviewLog, UserVocabularyProgress
 from app.db.models.push_subscription import PushSubscription
 from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.session import (

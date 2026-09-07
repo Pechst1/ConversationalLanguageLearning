@@ -13,7 +13,7 @@ from uuid import uuid4
 from app.db.models.progress import UserVocabularyProgress
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
-from app.services.enhanced_srs import AnkiState, AnkiSM2Scheduler, EnhancedSRSService
+from app.services.enhanced_srs import AnkiSM2Scheduler, AnkiState, EnhancedSRSService
 from app.services.progress import vocabulary_due_deadline
 
 

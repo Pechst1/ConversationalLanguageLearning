@@ -15,7 +15,7 @@ from app.api.deps import get_current_user, get_db
 from app.db.models.graphic_novel import GraphicNovelScene
 from app.db.models.serial import SerialThread
 from app.db.models.user import User
-from app.services.living_story import VERSION
+from app.services.living_story import ENGINE_VERSION_PREFIX
 
 router = APIRouter(prefix="/story-engine", tags=["story-engine"])
 
@@ -29,7 +29,7 @@ def owned_scene(db, user, scene_id, *, lock=False):
     query = select(GraphicNovelScene).where(
         GraphicNovelScene.id == scene_id,
         GraphicNovelScene.user_id == user.id,
-        GraphicNovelScene.prompt_version == VERSION,
+        GraphicNovelScene.prompt_version.like(f"{ENGINE_VERSION_PREFIX}%"),
     )
     if lock:
         query = query.with_for_update().execution_options(populate_existing=True)
@@ -103,7 +103,7 @@ def episodes(
     journey_id: UUID | None = None,
 ):
     query = select(GraphicNovelScene).where(
-        GraphicNovelScene.user_id == user.id, GraphicNovelScene.prompt_version == VERSION
+        GraphicNovelScene.user_id == user.id, GraphicNovelScene.prompt_version.like(f"{ENGINE_VERSION_PREFIX}%")
     )
     if journey_id:
         query = query.where(

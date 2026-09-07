@@ -17,6 +17,9 @@ FontSize = Literal["small", "medium", "large"]
 VocabDirection = Literal["fr_to_de", "de_to_fr", "fr_to_en", "en_to_fr", "mixed"]
 GrammarCorrectionLevel = Literal["strict", "moderate", "lenient"]
 ProficiencyLevel = Literal["beginner", "A1", "A2", "B1", "B2", "C1", "C2"]
+# How the story engine addresses the learner. "neutral" is the default and means
+# gender-neutral phrasing with no gendered endearments and never an inclusive dot.
+AddressPreference = Literal["feminine", "masculine", "neutral"]
 
 
 class UserBase(BaseModel):
@@ -117,8 +120,16 @@ class UserRead(UserBase):
     longest_streak: int
     last_activity_date: date | None
     serial_onboarding_seen: bool = False
+    address_preference: AddressPreference = "neutral"
 
     model_config = ConfigDict(from_attributes=True)
+
+    # Rows written before the column existed can still read back NULL; a profile
+    # read must never 500 over an unset preference.
+    @field_validator("address_preference", mode="before")
+    @classmethod
+    def default_address_preference(cls, value: Any) -> Any:
+        return value or "neutral"
 
 
 class UserUpdate(BaseModel):
@@ -156,6 +167,8 @@ class UserUpdate(BaseModel):
 
     grammar_correction_level: str | None = Field(default=None, max_length=20)
     show_grammar_explanations: bool | None = None
+
+    address_preference: AddressPreference | None = None
 
     model_config = ConfigDict(extra="forbid")
 
@@ -207,12 +220,19 @@ class UserSettingsRead(BaseModel):
     grammar_correction_level: str
     show_grammar_explanations: bool
 
+    address_preference: AddressPreference = "neutral"
+
     role: str
     is_active: bool
     is_verified: bool
     updated_at: datetime | None = None
 
     model_config = ConfigDict(from_attributes=True)
+
+    @field_validator("address_preference", mode="before")
+    @classmethod
+    def default_address_preference(cls, value: Any) -> Any:
+        return value or "neutral"
 
 
 class UserSettingsUpdate(BaseModel):
@@ -252,6 +272,8 @@ class UserSettingsUpdate(BaseModel):
 
     grammar_correction_level: GrammarCorrectionLevel | None = None
     show_grammar_explanations: bool | None = None
+
+    address_preference: AddressPreference | None = None
 
     model_config = ConfigDict(extra="forbid")
 

@@ -91,3 +91,24 @@ Engine tests updated for 2, 10 (`tests/test_living_story.py`).
 - **Narration says *vous*, dialogue says *tu*** in several premises. Cosmetic; a director rule could align them.
 - The critic is a second call to the same model. It caught nothing on its own in these runs that the deterministic rules did not; its value is unproven, its cost is ~25% of each scene.
 - This sample validates prompts and guards, not fourteen days of real prose; the 14-session run with a real provider remains WP-14F's job.
+
+## WP-14F follow-up — 2026-09-07 (living-story-v2)
+
+[WP14F-REPORT.md](WP14F-REPORT.md) (independent QA, 23 deterministic tests in `tests/test_living_story_longitudinal.py`, five live runs ≈ US$0.42) judged the generation obligation unmet: 34 of 47 simulated days produced no usable scene. Fixes applied the same day in `living_story.py`, prompt revision bumped to **living-story-v2** (reader and legacy guards now match on the `living-story-` prefix, so v1 scenes stay readable):
+
+| Finding | Fix |
+|---|---|
+| L-1 director cites situation ids as sources, whole day lost | recent situations reach the director without ids; unknown source ids are dropped, not fatal |
+| L-2 same task reworded for five days | objectives are part of the repetition check (Jaccard ≥ 0.6 on the last five); director asked for a new development per scene and to vary character and location |
+| L-3 reply recites the private suggested answer | deterministic `reply_leaks_suggestion` guard |
+| L-4 no commitments recorded | actor prompt names when a learner promise becomes a commitment |
+| L-5 learner's proposal credited to a character | critic rejects authorship inversion |
+| L-6 gendered address violated | deterministic `inclusive_dot_form` / `gendered_address` guards on every learner-facing text, keyed to the Settings preference |
+| L-6b/L-7 B1 served A1 drills; replies above level | director level guidance per band; `reply_above_level` bound (A1 40 words, A2 60) |
+| L-8 "Désolé" from Margaux | cast projection carries `gender` from the world bible |
+| L-9 wrong error corrected | correction priority: structural before cosmetic |
+| L-10 a mismatched refusal became an outage | critic: the learner's own turn is evidence; time/place mismatch is clarification; a clarifying turn drops state changes instead of failing |
+
+Verbatim-quote check now ignores punctuation and case (day 3 of the confirmation run had failed on "19h" vs "19 h").
+
+**Confirmation run** (`scripts/longitudinal_story_review.py --level A1 --address neutral --days 14 --attempts 2`, 59 requests, US$0.14): **9 of 13 non-skipped days accepted** (before the fixes: 1 of 13 in the comparable A1 run), 9 distinct premises, 5 commitments recorded from the learner's words, outcomes 5 met / 4 not_yet, median request 9 s, max 16 s, no request errors. The four lost days were one proposal during a clarification (since made non-fatal), one punctuation-only quote mismatch (since relaxed), one off-topic answer where the reply leaked the suggestion twice (guard working as intended), and one critic rejection of a refusal (critic prompt since clarified). Still narrow: all 14 days at Le Mistral with Lila only, one chapter. Real 14-day variety with the v2 prompts is not yet demonstrated; that is the next paid run.

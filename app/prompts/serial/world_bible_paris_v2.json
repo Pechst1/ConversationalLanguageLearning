@@ -35,6 +35,7 @@
   "cast": [
     {
       "id": "marin_leveque",
+      "gender": "m",
       "name": "Marin Lévêque",
       "archetype_ref": "the Marshall — half of the couple, the loyal heart",
       "role": "Half of the anchor couple. Works at an environmental NGO; secretly writes a fantasy novel no one is allowed to read.",
@@ -53,6 +54,7 @@
     },
     {
       "id": "lila_bonnet",
+      "gender": "f",
       "name": "Lila Bonnet",
       "archetype_ref": "the Lily — the other half of the couple, the ringleader",
       "role": "Primary-school teacher and painter. The social engine and emotional referee of the group.",
@@ -71,6 +73,7 @@
     },
     {
       "id": "augustin_de_roncourt",
+      "gender": "m",
       "name": "Augustin « Gus » de Roncourt",
       "archetype_ref": "the Barney — the womanizer, the showman",
       "role": "Wears impeccable suits, has a lucrative job he refuses to fully explain ('du conseil'), and lives by an elaborate seduction philosophy he calls « La Méthode ».",
@@ -89,6 +92,7 @@
     },
     {
       "id": "romy_tremblay",
+      "gender": "f",
       "name": "Romane « Romy » Tremblay",
       "archetype_ref": "the Robin — the independent one, the romance tension",
       "role": "Québécoise TV/online news journalist, recently posted to Paris. Fiercely independent, commitment-shy, hockey-and-whisky kind of cool.",
@@ -108,6 +112,7 @@
     },
     {
       "id": "margaux_barman",
+      "gender": "f",
       "name": "Margaux",
       "archetype_ref": "the Carl — the bartender oracle",
       "role": "Owner-bartender of Le Mistral. Recurring minor character. Has seen every version of every drama unfold at her counter.",

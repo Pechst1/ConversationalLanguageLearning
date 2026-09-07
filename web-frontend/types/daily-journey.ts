@@ -313,7 +313,7 @@ export interface StoryPanel {
   id: string;
   index: number;
   narration_fr: string;
-  dialogue: Array<{ character_id: string; text_fr: string }>;
+  dialogue: Array<{ character_id: string; character_name?: string | null; text_fr: string }>;
   image_url: string | null;
   image_status: 'setting_reference' | 'unavailable';
 }

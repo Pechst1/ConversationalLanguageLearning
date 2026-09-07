@@ -98,3 +98,54 @@ test('labels come from the engine, with plain fallbacks', () => {
   assert.equal(model.storyCharacterName('Clerk'), 'Clerk');
   assert.equal(model.storyCharacterName(''), '');
 });
+
+// --- `character_name` (additive, 2026-09-06) --------------------------------
+
+test('the server’s character_name is what the reader prints', () => {
+  // A generated id the local table cannot know. Before the field existed this
+  // reached the reader as "Marin_leveque".
+  const generated = {
+    ...episode,
+    panels: [
+      {
+        id: 'p1', index: 0, narration_fr: 'Au comptoir.',
+        dialogue: [
+          { character_id: 'marin_leveque', character_name: 'Marin Lévêque', text_fr: 'Tu veux quoi ?' },
+          { character_id: 'unknown_47', character_name: 'La voisine', text_fr: 'Bonsoir.' },
+        ],
+        image_url: null, image_status: 'unavailable',
+      },
+    ],
+  };
+  const [stage] = model.buildStoryStages(generated);
+  assert.equal(stage.lines[0].who, 'Marin Lévêque');
+  assert.equal(stage.lines[1].who, 'La voisine');
+  // The canonical id still drives the visual accent, so a display name never
+  // silently re-colours a known character.
+  assert.equal(stage.lines[0].character, 'marin');
+  assert.equal(model.storyCharacterName('marin_leveque', 'Marin Lévêque'), 'Marin Lévêque');
+});
+
+test('a null, blank or absent character_name falls back to the existing table', () => {
+  const mixed = {
+    ...episode,
+    panels: [
+      {
+        id: 'p1', index: 0, narration_fr: '',
+        dialogue: [
+          { character_id: 'marchand', character_name: null, text_fr: 'Bonjour !' },
+          { character_id: 'romy', character_name: '   ', text_fr: 'Tu viens ?' },
+          // A server built before the field sends no `character_name` at all.
+          { character_id: 'gus', text_fr: 'Salut.' },
+        ],
+        image_url: null, image_status: 'unavailable',
+      },
+    ],
+  };
+  const [stage] = model.buildStoryStages(mixed);
+  assert.deepEqual(stage.lines.map((line) => line.who), ['Monsieur Marchand', 'Romy', 'Gus']);
+  assert.equal(model.storyCharacterName('gus', null), 'Gus');
+  assert.equal(model.storyCharacterName('gus', undefined), 'Gus');
+  // A name with no id at all is still a name.
+  assert.equal(model.storyCharacterName('', 'Lila Bernard'), 'Lila Bernard');
+});

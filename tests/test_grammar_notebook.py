@@ -319,20 +319,43 @@ def test_grammar_summary_denominator_matches_the_notebook_index(client: TestClie
         subskill="legacy",
         active=True,
     )
-    db_session.add(stray)
+    other_language = GrammarConcept(
+        external_id=f"ES_LEGACY_{uuid4().hex[:6]}",
+        language="es",
+        name="Spanish articles",
+        level="A1",
+        active=True,
+    )
+    db_session.add_all([stray, other_language])
     db_session.commit()
 
     token = _token(client)
     headers = {"Authorization": f"Bearer {token}"}
+    user = _user_from_token(db_session, token)
+    for concept in (stray, other_language):
+        db_session.add(UserGrammarProgress(
+            user_id=user.id,
+            concept_id=concept.id,
+            state="in_arbeit",
+            next_review=datetime.now(UTC) - timedelta(days=1),
+        ))
+    db_session.commit()
 
-    notebook = client.get("/api/v1/grammar/notebook?limit=500", headers=headers)
-    assert notebook.status_code == 200
+    # The summary must also be right before the notebook initializes its catalog.
     summary = client.get("/api/v1/grammar/summary", headers=headers)
     assert summary.status_code == 200
+    notebook = client.get("/api/v1/grammar/notebook?limit=500", headers=headers)
+    assert notebook.status_code == 200
 
     body = summary.json()
     assert body["total_concepts"] == len(notebook.json())
     assert sum(body["level_counts"].values()) == body["total_concepts"]
+    assert body["started"] == 0
+    assert body["due_today"] == 0
+    assert sum(body["state_counts"].values()) == 0
+    assert body["new_available"] == body["total_concepts"]
+    db_session.refresh(other_language)
+    assert other_language.active is True, "other languages must be preserved"
 
     db_session.refresh(stray)
     assert stray.active is False

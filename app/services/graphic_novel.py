@@ -44,6 +44,19 @@ from app.services.serial_costs import serial_generation_cost_event
 from app.services.serial_notifications import enqueue_serial_edition_notification
 from app.services.vocabulary_credit import VocabularyCreditService
 
+
+def _is_engine_version(value) -> bool:
+    from app.services.living_story import is_engine_version
+
+    return is_engine_version(value)
+
+
+def _engine_version() -> str:
+    from app.services.living_story import VERSION
+
+    return VERSION
+
+
 # Bump on any change to the story/exercise/image contract so incompatible pre-redesign
 # scenes are never resumed as a current edition (see GraphicNovelScheduler.today /
 # _scene_is_current). "mvp-v4" is the first version under the 2026-07 Feuilleton rebuild:
@@ -1018,7 +1031,7 @@ class GraphicNovelScheduler:
         scene = self.db.get(GraphicNovelScene, scene_uuid)
         if not scene:
             raise ValueError(f"Graphic novel scene {scene_id} not found")
-        if scene.prompt_version == "living-story-v1":
+        if _is_engine_version(scene.prompt_version):
             # The legacy renderer changes narrative status while rendering. It must
             # not reopen a completed engine scene or invalidate an active response.
             return scene
@@ -1179,7 +1192,7 @@ class GraphicNovelScheduler:
         return "seen_context"
 
     def complete(self, *, user: User, scene: GraphicNovelScene) -> GraphicNovelScene:
-        if scene.prompt_version == "living-story-v1":
+        if _is_engine_version(scene.prompt_version):
             raise ValueError("Story scenes complete through their daily journey")
         if scene.status == "completed":
             return scene
@@ -6123,7 +6136,7 @@ class GraphicNovelCorrectionService:
         task_id: str,
         answer_payload: dict[str, Any],
     ) -> tuple[GraphicNovelAttempt, list[dict[str, Any]]]:
-        if scene.prompt_version == "living-story-v1":
+        if _is_engine_version(scene.prompt_version):
             raise ValueError("Story responses belong to their daily journey")
         task, panel = self._find_task(scene, task_id)
         if not task:

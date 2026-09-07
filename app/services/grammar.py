@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models.grammar import GrammarConcept, GrammarConceptLocalization, UserGrammarProgress
 from app.db.models.user import User
+from app.services.grammar_catalog import FRENCH_CORE_CATALOG_VERSION, FrenchCoreGrammarCatalog
 
 # SRS Interval Logic (from Excel tracker)
 # Score 9-10: +30 days
@@ -346,11 +347,17 @@ class GrammarService:
 
     def get_summary(self, *, user: User) -> dict:
         """Get grammar progress summary for dashboard."""
-        # Total concepts — the archived legacy catalogs stay in the table
-        # (inactive); the learner-facing denominator is the active catalog.
+        # Le Relevé describes the same catalog as the Cahier index, including
+        # when the summary is opened first. Other languages and archived progress
+        # remain stored, but must not inflate its denominator or progress counts.
+        FrenchCoreGrammarCatalog(self.db).ensure_catalog(archive_legacy=True)
+        catalog_filters = (
+            GrammarConcept.active.is_(True),
+            GrammarConcept.catalog_version == FRENCH_CORE_CATALOG_VERSION,
+        )
         total_concepts = (
             self.db.query(func.count(GrammarConcept.id))
-            .filter(GrammarConcept.active.is_(True))
+            .filter(*catalog_filters)
             .scalar()
             or 0
         )
@@ -358,7 +365,8 @@ class GrammarService:
         # Progress counts by state
         state_counts = dict(
             self.db.query(UserGrammarProgress.state, func.count(UserGrammarProgress.id))
-            .filter(UserGrammarProgress.user_id == user.id)
+            .join(GrammarConcept, UserGrammarProgress.concept_id == GrammarConcept.id)
+            .filter(UserGrammarProgress.user_id == user.id, *catalog_filters)
             .group_by(UserGrammarProgress.state)
             .all()
         )
@@ -366,7 +374,7 @@ class GrammarService:
         # Level breakdown
         level_counts = dict(
             self.db.query(GrammarConcept.level, func.count(GrammarConcept.id))
-            .filter(GrammarConcept.active.is_(True))
+            .filter(*catalog_filters)
             .group_by(GrammarConcept.level)
             .all()
         )
@@ -375,8 +383,10 @@ class GrammarService:
         now = datetime.now(UTC)
         due_today = (
             self.db.query(func.count(UserGrammarProgress.id))
+            .join(GrammarConcept, UserGrammarProgress.concept_id == GrammarConcept.id)
             .filter(
                 UserGrammarProgress.user_id == user.id,
+                *catalog_filters,
                 UserGrammarProgress.next_review <= now,
                 UserGrammarProgress.state != "gemeistert",
             )
@@ -388,11 +398,10 @@ class GrammarService:
         started_ids = (
             self.db.query(UserGrammarProgress.concept_id)
             .filter(UserGrammarProgress.user_id == user.id)
-            .subquery()
         )
         new_available = (
             self.db.query(func.count(GrammarConcept.id))
-            .filter(GrammarConcept.active.is_(True), ~GrammarConcept.id.in_(started_ids))
+            .filter(*catalog_filters, ~GrammarConcept.id.in_(started_ids))
             .scalar()
             or 0
         )
