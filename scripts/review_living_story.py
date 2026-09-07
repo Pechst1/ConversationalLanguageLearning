@@ -83,28 +83,36 @@ def main():
         "revision": "synthetic",
         "control_language": "en",
         "level": "A1",
+        # Below B1 the cast projection carries no coarse vocabulary (WP-17 register).
+        "level_register": "no coarse or vulgar vocabulary",
         "world": {
             "logline": world.get("logline"),
-            "cast": [
-                {
-                    k: c.get(k)
-                    for k in (
-                        "id",
-                        "name",
-                        "role",
-                        "personality",
-                        "wants",
-                        "speech_pattern",
-                        "register_with_user",
-                    )
-                }
-                for c in world["cast"]
-            ],
+            "cast": engine._cast_for_level(
+                [
+                    {
+                        k: c.get(k)
+                        for k in (
+                            "id",
+                            "name",
+                            "role",
+                            "personality",
+                            "wants",
+                            "speech_pattern",
+                            "register_with_user",
+                            "gender",
+                        )
+                    }
+                    for c in world["cast"]
+                ],
+                "A1",
+            ),
             "locations": engine._locations(world),
         },
         "story_so_far": [],
         "relationships": {},
         "chapter": None,
+        "resolved_chapter_questions": [],
+        "variety": {},
         "events": [],
         "commitments": [],
         "recent_situations": [],
@@ -176,9 +184,22 @@ def main():
             )
             context["story_so_far"].append(result.callback_fr)
             context["recent_situations"].append(
-                {"novelty_key": scene.novelty_key, "premise_fr": scene.premise_fr}
+                {
+                    "novelty_key": scene.novelty_key,
+                    "premise_fr": scene.premise_fr,
+                    "objective_native": scene.objective_native,
+                    "character_id": scene.character_id,
+                    "location_id": scene.location_id,
+                }
             )
+            if result.chapter_resolved:
+                context["resolved_chapter_questions"].append(scene.chapter.dramatic_question)
             context["chapter"] = {**scene.chapter.model_dump(), "resolved": result.chapter_resolved}
+            context["variety"] = engine._variety(
+                context["recent_situations"],
+                context["world"]["cast"],
+                context["world"]["locations"],
+            )
             for i, commitment in enumerate(result.commitments):
                 context["commitments"].append(
                     {

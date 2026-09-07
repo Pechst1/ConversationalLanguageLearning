@@ -81,6 +81,15 @@ def parse_args():
     parser.add_argument(
         "--max-requests", type=int, default=60, help="Hard cap on paid requests for this run."
     )
+    parser.add_argument(
+        "--no-critic",
+        action="store_true",
+        help=(
+            "Skip the independent review call (living_story.CRITIC_ENABLED = False) for "
+            "this process only. Use it for the A/B that decides whether the critic earns "
+            "its ~25%% of each scene's cost; the deterministic guards still run."
+        ),
+    )
     parser.add_argument("--output", type=Path, default=None)
     return parser.parse_args()
 
@@ -130,15 +139,26 @@ def actor_payload(context: dict, scene, text: str, assistance: str) -> dict:
 
 
 def open_chapter(context: dict, scene) -> dict:
-    """Mirror of ``living_story.bind_journey``'s chapter identity rule."""
+    """Mirror of ``living_story.bind_journey``'s chapter identity and rotation rules."""
     chapter = context.get("chapter") or {}
-    if not chapter or chapter.get("resolved"):
+    if not chapter or chapter.get("resolved") or chapter.get("exhausted"):
+        if chapter.get("dramatic_question"):
+            context["resolved_chapter_questions"] = [
+                *[
+                    question
+                    for question in context.get("resolved_chapter_questions") or []
+                    if question != chapter["dramatic_question"]
+                ],
+                chapter["dramatic_question"],
+            ][-12:]
         chapter = {
             **scene.chapter.model_dump(),
             "id": str(uuid4()),
             "scene_count": 0,
+            "resolved_commitments": 0,
             "resolved": False,
         }
+    chapter.pop("exhausted", None)
     context["chapter"] = chapter
     context["recent_situations"] = [
         *context["recent_situations"],
@@ -146,6 +166,9 @@ def open_chapter(context: dict, scene) -> dict:
             "id": f"story_{uuid4().hex}",
             "novelty_key": scene.novelty_key,
             "premise_fr": scene.premise_fr,
+            "objective_native": scene.objective_native,
+            "character_id": scene.character_id,
+            "location_id": scene.location_id,
             "causal_reason": scene.causal_reason,
         },
     ][-14:]
@@ -192,6 +215,9 @@ def settle(engine, context: dict, scene, turn, event_id: str, when: date) -> dic
     ][-20:]
     chapter = dict(context["chapter"])
     chapter["scene_count"] = int(chapter.get("scene_count", 0)) + 1
+    chapter["resolved_commitments"] = int(chapter.get("resolved_commitments", 0)) + len(
+        [c for c in commitments if c.get("resolved_by") == event_id]
+    )
     if turn.chapter_resolved and turn.outcome == "met":
         chapter.update(resolved=True, resolved_by=event_id)
     context["chapter"] = chapter
@@ -223,7 +249,8 @@ def main():
         print(
             f"No requests made. --live simulates {args.days} days for a {args.level} learner "
             f"using at most --max-requests ({args.max_requests}) model requests "
-            "(draft + review + turn + review per day). No application database is used."
+            f"({'draft + review + turn + review' if not args.no_critic else 'draft + turn'} "
+            "per day). No application database is used."
         )
         return
 
@@ -235,6 +262,7 @@ def main():
     report = {
         "version": engine.VERSION,
         "level": args.level,
+        "critic": not args.no_critic,
         "address": args.address,
         "attempts": args.attempts,
         "synthetic_only": True,
@@ -286,6 +314,7 @@ def main():
 
     settings.ATELIER_LLM_ENABLED = True  # This process only; no persisted flag changes.
     settings.ATELIER_STORY_MAX_ATTEMPTS = args.attempts
+    engine.CRITIC_ENABLED = not args.no_critic
     engine._client = lambda: BoundedClient()
 
     world = SerialThreadService._load_world_bible()
@@ -298,28 +327,40 @@ def main():
             "grammatical_gender_note": engine.ADDRESS_NOTES[args.address],
         },
         "level": args.level,
+        "level_register": (
+            "no coarse or vulgar vocabulary"
+            if args.level in engine.CLEAN_REGISTER_LEVELS
+            else "the cast's own register"
+        ),
         "world": {
             "logline": world.get("logline"),
-            "cast": [
-                {
-                    key: member.get(key)
-                    for key in (
-                        "id",
-                        "name",
-                        "role",
-                        "personality",
-                        "wants",
-                        "speech_pattern",
-                        "register_with_user",
-                    )
-                }
-                for member in world["cast"]
-            ],
+            # Same projection and same level register filter as ``story_context``.
+            "cast": engine._cast_for_level(
+                [
+                    {
+                        key: member.get(key)
+                        for key in (
+                            "id",
+                            "name",
+                            "role",
+                            "personality",
+                            "wants",
+                            "speech_pattern",
+                            "register_with_user",
+                            "gender",
+                        )
+                    }
+                    for member in world["cast"]
+                ],
+                args.level,
+            ),
             "locations": engine._locations(world),
         },
         "story_so_far": [],
         "relationships": {},
         "chapter": None,
+        "resolved_chapter_questions": [],
+        "variety": {},
         "events": [],
         "commitments": [],
         "recent_situations": [],
@@ -342,6 +383,15 @@ def main():
             continue
         before = state["calls"]
         started = time.monotonic()
+        # Same derived director inputs as ``living_story.story_context``.
+        context["variety"] = engine._variety(
+            [{k: v for k, v in item.items() if k != "id"} for item in context["recent_situations"]],
+            context["world"]["cast"],
+            context["world"]["locations"],
+        )
+        context["chapter"] = engine.chapter_state(
+            {"chapter": context.get("chapter")} if context.get("chapter") else {}
+        )
         try:
             state["stage"] = "director"
             scene, _ = engine._approved(

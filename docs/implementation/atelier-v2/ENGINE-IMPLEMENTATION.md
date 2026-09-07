@@ -112,3 +112,113 @@ Engine tests updated for 2, 10 (`tests/test_living_story.py`).
 Verbatim-quote check now ignores punctuation and case (day 3 of the confirmation run had failed on "19h" vs "19 h").
 
 **Confirmation run** (`scripts/longitudinal_story_review.py --level A1 --address neutral --days 14 --attempts 2`, 59 requests, US$0.14): **9 of 13 non-skipped days accepted** (before the fixes: 1 of 13 in the comparable A1 run), 9 distinct premises, 5 commitments recorded from the learner's words, outcomes 5 met / 4 not_yet, median request 9 s, max 16 s, no request errors. The four lost days were one proposal during a clarification (since made non-fatal), one punctuation-only quote mismatch (since relaxed), one off-topic answer where the reply leaked the suggestion twice (guard working as intended), and one critic rejection of a refusal (critic prompt since clarified). Still narrow: all 14 days at Le Mistral with Lila only, one chapter. Real 14-day variety with the v2 prompts is not yet demonstrated; that is the next paid run.
+
+## WP-17 (14G) — 2026-09-07 deterministic pass
+
+Story-engine agent, **no paid calls in this pass**. Everything below is deterministic
+work that had to exist before the fourteen-day paid runs are worth buying. Prompt
+revision stays `living-story-v2` (no reader/guard change); the director and actor system
+prompts gained rules, the guards behind them are new.
+
+### What changed
+
+| # | Change | Where |
+|---|---|---|
+| 1 | **Location and character rotation, data-driven from the world bible.** `story_context` now carries `variety`: every cast id and location id from the bible, the ones unused in the last six situations, the last five (character, location) pairs, and `must_change` when the last `PAIR_REPEAT_LIMIT` (3) situations all used one pair. The director prompt is told to rotate and to obey `must_change`; `_validate_scene` rejects a fourth scene on the same pair with `setting_not_rotated`. | `living_story._variety`, `story_context`, `DIRECTOR` |
+| 2 | **Chapter turnover.** A chapter now also ends when the learner has resolved `CHAPTER_RESOLVED_COMMITMENT_LIMIT` (3) commitments inside it (`chapter_state()` exposes `exhausted`), not only when the model says `chapter_resolved`. `bind_journey` retires the closing chapter's question into `living_story.resolved_chapter_questions` and mints a new chapter. `chapter_not_advanced` now rejects any draft whose dramatic question repeats — or is a 0.6-Jaccard rewording of — *any* retired question, not just the last one. | `living_story.chapter_state`, `_validate_scene`, `bind_journey`, `settle_resolution` |
+| 3 | **Premise overlap on the triple.** In addition to the content-word Jaccard on premise and objective (≥ 0.6), a draft is rejected as `repeated_premise_triple` when a situation in the last five had the *same character in the same location* with an objective overlapping ≥ 0.4. Same person, same place, same ask is one situation however it is reworded. | `living_story._validate_scene` |
+| 4 | **Register.** Below B1 the cast projection is stripped of coarse vocabulary (`_cast_for_level`, `VULGAR_TERMS`): Lila keeps her *putain* in the bible, an A1/A2 learner never sees it, and `vulgar_register` rejects any learner-facing scene or reply text that carries one at those levels. Narration and the addressed character must use one register: `mixed_address_register` rejects narration in *vous* with dialogue in *tu* (and the reverse); an ambiguous passage with both markers — a plural *vous* to a group — is not a signal and is never rejected. A director rule and an actor rule state both. | `living_story._check_register`, `_check_scene_address_register`, `DIRECTOR`, `ACTOR` |
+| 5 | **Cost ledger.** Per-call `journey_story_model_call` rows are now zero-cost diagnostics carrying `call_cost_usd`; each accepted artifact gets exactly one cost-bearing row — `journey_story_scene_cost` (draft + critic, all attempts) in `bind_journey`, `journey_story_turn_cost` in `settle_resolution` — and a failed generation writes `journey_story_generation_failed` with what it spent, so no attempt's spend is lost or counted twice. Both rows are written inside the transaction that publishes the artifact, so a rollback (late canonical conflict) takes the row with it: **no phantom rows**. The same amounts are written to `scene.script_payload.estimated_cost`, which is what `SerialGenerationCostService.weekly_rollup` and `PILOT_SERIAL_WEEKLY_COST_GUARDRAIL_USD` read — the weekly guardrail now covers engine scenes. `pilot_events.daily_rollup` skips the two scene-attributed event types when summing so the daily report does not count the same dollar twice. | `living_story._approved`, `_record_cost`, `bind_journey`, `settle_resolution`, `pilot_events` |
+| 6 | **Critic A/B preparation.** `living_story.CRITIC_ENABLED` (module flag, never a persisted setting) and `scripts/longitudinal_story_review.py --no-critic` run the whole loop with the deterministic guards and no review call — two requests per day instead of four. Not run live in this pass. | `living_story._approved`, `scripts/longitudinal_story_review.py` |
+
+`scripts/longitudinal_story_review.py` also now mirrors the real context exactly: the
+level-filtered cast with `gender`, `level_register`, `variety` recomputed per day, the
+chapter's `exhausted` view, retired chapter questions, and situations that record
+`objective_native`, `character_id` and `location_id` (without them the rotation and
+triple checks were blind in the review harness).
+
+### Tests
+
+New deterministic tests with the fake provider — 7 in `tests/test_living_story.py`
+(world-bible variety in the director context; three-scene rotation and both ways out of
+it; the (character, location, objective) triple; chapter exhaustion by resolved
+commitments; retired questions never returning; Lila's *putain* stripped below B1 and
+rejected in generated text while B1 keeps it; narration/dialogue register alignment
+including the ambiguous plural case) plus 3 for the ledger (one row per accepted
+scene/turn with the amounts the weekly rollup reads; no phantom row after a 409
+rollback; a rejected generation still recorded) and 1 for `--no-critic`. 2 new tests in
+`tests/test_living_story_longitudinal.py` drive the assembled API for fourteen days and
+assert ≥ 3 locations, ≥ 3 characters, ≥ 2 chapters, no three consecutive scenes on one
+pair, and a chapter closing on resolved commitments alone.
+
+```
+.venv/bin/python -m pytest tests/test_living_story.py tests/test_living_story_longitudinal.py \
+    tests/test_journey_story_outcomes.py tests/test_daily_journey_api.py
+117 passed in 36.68s
+
+.venv/bin/python -m pytest tests/test_pilot_work_packages.py tests/test_journey_events.py \
+    tests/test_journey_content.py tests/test_serial_costs.py tests/test_analytics.py
+116 passed in 1.84s
+
+.venv/bin/ruff check app/services/living_story.py scripts tests/test_living_story*.py
+All checks passed!
+```
+
+A wider regression selection also passes — `pytest tests -k "journey or serial or story
+or pilot or graphic"` → **1032 passed, 546 deselected in 130.44s**. The repository as a
+whole is still not green for the reasons recorded in the earlier passes, none of them
+engine-related.
+
+The review script itself was exercised end to end with the scripted fake provider
+(6 days, 20 requests with the critic, 10 without) — no live request was made anywhere in
+this pass.
+
+### The paid runs the owner should now buy
+
+Four runs, all from the repository root with the repo `.venv`. `--max-requests` is a hard
+stop inside the script, so each run's ceiling is exact. At the measured `gpt-5-mini`
+rate (≈ US$0.0035 per request, ≈ US$0.014 per full day with the critic) the four runs
+together are **≈ US$0.60, ceiling US$0.85** at 240 requests total.
+
+```bash
+# A1, with the critic (baseline; 14 days, 4 requests/day + retries)
+.venv/bin/python scripts/longitudinal_story_review.py --live --level A1 --address neutral \
+    --days 14 --attempts 2 --max-requests 70 \
+    --output var/reviews/atelier-longitudinal-A1-critic.json
+
+# A2, with the critic
+.venv/bin/python scripts/longitudinal_story_review.py --live --level A2 --address neutral \
+    --days 14 --attempts 2 --max-requests 70 \
+    --output var/reviews/atelier-longitudinal-A2-critic.json
+
+# A1, without the critic (the A/B half; 2 requests/day)
+.venv/bin/python scripts/longitudinal_story_review.py --live --level A1 --address neutral \
+    --days 14 --attempts 2 --no-critic --max-requests 50 \
+    --output var/reviews/atelier-longitudinal-A1-nocritic.json
+
+# A2, without the critic
+.venv/bin/python scripts/longitudinal_story_review.py --live --level A2 --address neutral \
+    --days 14 --attempts 2 --no-critic --max-requests 50 \
+    --output var/reviews/atelier-longitudinal-A2-nocritic.json
+```
+
+Each run writes its own report; `summary.estimated_cost_usd` is the actual spend. Stop
+and report rather than re-running if a run ends with `stopped_early:
+review_request_limit`.
+
+### Acceptance thresholds (WP-17)
+
+Read them off `summary` in each report:
+
+- ≥ **11 of 14** accepted days at each level (`days_accepted`, with `days_skipped` = 1 by
+  the scripted behaviour, so ≥ 11 of the 13 non-skipped days);
+- ≥ **3 distinct locations** and ≥ **3 distinct characters** across the run
+  (`distinct_locations`, `distinct_characters`);
+- ≥ **2 chapters** (`chapters`);
+- **median request < 12 s** (`median_request_seconds`);
+- cost per learner-day recorded in the ledger — in production this is now the
+  `journey_story_scene_cost` / `journey_story_turn_cost` rows and the scene's
+  `estimated_cost`; in the review harness it is `estimated_cost_usd / days_accepted`;
+- the critic keeps its ~25 % of each scene's cost **only** if the with-critic runs reject
+  something the deterministic guards missed. Compare `days_failed` and the rejection
+  reasons in `requests[]` between the two halves and record the answer either way.

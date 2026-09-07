@@ -30,6 +30,15 @@ _FAILURE_EVENT_TYPES = frozenset(
 )
 
 
+#: Cost rows the engine writes per accepted scene/turn (WP-17). Their amount is also
+#: persisted on the scene's ``script_payload.estimated_cost``, where the serial cost
+#: service and the weekly guardrail read it, so the daily rollup must not add it a
+#: second time from the event row. The rows themselves stay the queryable ledger.
+_SCENE_ATTRIBUTED_COST_EVENT_TYPES = frozenset(
+    {"journey_story_scene_cost", "journey_story_turn_cost"}
+)
+
+
 def _day_bounds(day: date) -> tuple[datetime, datetime]:
     local_tz = ZoneInfo("Europe/Berlin")
     start_local = datetime.combine(day, time.min, tzinfo=local_tz)
@@ -122,8 +131,9 @@ class PilotEventService:
             row = bucket(uid, getattr(event.user, "email", None) if event.user else None)
             row["events"][event.event_type] += 1
             row["event_count"] += 1
-            row["other_llm_usd"] += float(event.cost_usd or 0.0)
-            row["total_usd"] += float(event.cost_usd or 0.0)
+            if event.event_type not in _SCENE_ATTRIBUTED_COST_EVENT_TYPES:
+                row["other_llm_usd"] += float(event.cost_usd or 0.0)
+                row["total_usd"] += float(event.cost_usd or 0.0)
             if event.event_type in _FAILURE_EVENT_TYPES:
                 row["failures"] += 1
 

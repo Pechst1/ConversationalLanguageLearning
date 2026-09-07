@@ -45,6 +45,30 @@ OBJECTIVES = [
 ]
 
 
+# The engine rotates location and character (WP-17): the same pair may not carry three
+# consecutive situations, and the same pair may not repeat an objective.
+LOCATIONS = [
+    "le_mistral",
+    "marche_canal",
+    "buttes_chaumont",
+    "user_apartment",
+    "newsroom",
+    "metro_platform",
+    "brocante",
+]
+
+# A resolved chapter's question may never come back, and a reworded twin is a repeat.
+QUESTIONS = [
+    "Comment organiser cette exposition ?",
+    "Qui gardera le chat pendant le week-end ?",
+    "Faut-il vendre le vieux vélo du voisin ?",
+    "Le colis perdu arrivera-t-il chez son destinataire ?",
+    "Qui viendra à la soirée jeux de vendredi ?",
+    "Comment vider la cave inondée avant lundi ?",
+    "Les poubelles seront-elles descendues à temps ?",
+]
+
+
 def draft(context, n=0):
     chapter = context.get("chapter") or {}
     return {
@@ -56,7 +80,7 @@ def draft(context, n=0):
         "objective_native": OBJECTIVES[n % len(OBJECTIVES)],
         "objective_semantics": "Clearly express an offer or a refusal of help with the exhibition.",
         "character_id": "romy_tremblay",
-        "location_id": "le_mistral",
+        "location_id": LOCATIONS[n % len(LOCATIONS)],
         "causal_reason": "Continue the actual proposal from the previous exchange."
         if context.get("events")
         else "Romy invites the newcomer to help.",
@@ -68,7 +92,7 @@ def draft(context, n=0):
         if chapter and not chapter.get("resolved")
         else {
             "title_fr": f"Une exposition {n}",
-            "dramatic_question": f"Comment organiser cette exposition {n} ?",
+            "dramatic_question": QUESTIONS[n % len(QUESTIONS)],
             "possible_developments": [
                 "Trouver une salle.",
                 "Inviter les voisins.",
@@ -126,6 +150,8 @@ class FakeProvider:
         self.scenes = 0
         self.turns = 0
         self.reject = False
+        # Per-call estimated cost, as the provider reports it in usage metadata.
+        self.cost_usd = 0.0
         self.transform = lambda schema, output: output
 
     def generate_chat_completion(self, messages, **kwargs):
@@ -149,7 +175,7 @@ class FakeProvider:
             model="fake-review",
             provider="test",
             total_tokens=30,
-            cost=0.0,
+            cost=self.cost_usd,
         )
 
 
@@ -521,7 +547,10 @@ def test_a_reply_that_only_echoes_the_learner_is_rejected(reply, learner, echo):
 
 
 def _scene_context(**overrides):
-    world = {"cast": [{"id": "romy_tremblay"}], "locations": [{"id": "le_mistral"}]}
+    world = {
+        "cast": [{"id": "romy_tremblay"}, {"id": "lila_bonnet"}],
+        "locations": [{"id": location} for location in LOCATIONS],
+    }
     context = {"world": world, "events": [], "chapter": None, "recent_situations": [], "level": "A1"}
     context.update(overrides)
     return context
@@ -626,3 +655,345 @@ def test_an_a1_reply_far_above_level_or_gendered_is_rejected():
     with pytest.raises(engine.StoryUnavailable, match="gendered_address"):
         engine._validate_turn(engine.SemanticTurn.model_validate({**turn_fixture(learner), "reply_fr": "Parfait, mon grand !"}), payload)
     engine._validate_turn(engine.SemanticTurn.model_validate({**turn_fixture(learner), "reply_fr": "Parfait, à samedi !"}), payload)
+
+
+# ---------------------------------------------------------------------------
+# WP-17 — variety, chapter turnover, register and the cost ledger
+# ---------------------------------------------------------------------------
+
+
+def test_director_sees_the_whole_world_bible_not_one_cafe(
+    assembled_client, db_session, journey_enabled, clock, provider
+):
+    """1. Location/character rotation is data-driven from the bible, not hard-coded."""
+
+    d = driver(assembled_client, db_session)
+    d.create()
+    context = next(payload for schema, payload in provider.calls if schema == "SceneDraft")
+    variety = context["variety"]
+    assert len(variety["all_locations"]) >= 5 and "le_mistral" in variety["all_locations"]
+    assert len(variety["all_characters"]) >= 4 and "lila_bonnet" in variety["all_characters"]
+    # Day one has used nothing yet, so everything is offered as a rotation target.
+    assert set(variety["unused_locations"]) == set(variety["all_locations"])
+    assert set(variety["unused_characters"]) == set(variety["all_characters"])
+    assert variety["must_change"] is None
+    assert {loc["id"] for loc in context["world"]["locations"]} >= set(variety["all_locations"])
+
+
+def test_three_scenes_with_one_pair_force_a_rotation():
+    """1. After PAIR_REPEAT_LIMIT identical pairs the director must move."""
+
+    recent = [
+        {"character_id": "romy_tremblay", "location_id": "le_mistral", "objective_native": f"O{i}"}
+        for i in range(engine.PAIR_REPEAT_LIMIT)
+    ]
+    cast = [{"id": "romy_tremblay"}, {"id": "lila_bonnet"}]
+    locations = [{"id": "le_mistral"}, {"id": "marche_canal"}]
+    variety = engine._variety(recent, cast, locations)
+    assert variety["must_change"] == {
+        "character_id": "romy_tremblay",
+        "location_id": "le_mistral",
+    }
+    assert variety["unused_characters"] == ["lila_bonnet"]
+    assert variety["unused_locations"] == ["marche_canal"]
+
+    context = _scene_context(recent_situations=recent, variety=variety)
+    stuck = engine.SceneDraft.model_validate(
+        {**draft(context, 5), "character_id": "romy_tremblay", "location_id": "le_mistral"}
+    )
+    with pytest.raises(engine.StoryUnavailable, match="setting_not_rotated"):
+        engine._validate_scene(stuck, context)
+    # Changing either half of the pair is enough.
+    engine._validate_scene(
+        engine.SceneDraft.model_validate(
+            {**draft(context, 5), "character_id": "lila_bonnet", "location_id": "le_mistral"}
+        ),
+        context,
+    )
+    engine._validate_scene(
+        engine.SceneDraft.model_validate(
+            {**draft(context, 5), "character_id": "romy_tremblay", "location_id": "marche_canal"}
+        ),
+        context,
+    )
+    # Two scenes at the counter are still allowed; the third must move.
+    assert engine._variety(recent[:2], cast, locations)["must_change"] is None
+
+
+def test_same_character_same_place_same_objective_is_a_repeat():
+    """3. Premise overlap on (location, character, objective), not only content words."""
+
+    recent = [
+        {
+            "character_id": "romy_tremblay",
+            "location_id": "le_mistral",
+            "premise_fr": "Une histoire tout à fait différente ce matin.",
+            # Overlaps the new objective enough to be the same ask (>= 0.4) but not
+            # enough for the plain content-word rule (0.6) to catch it.
+            "objective_native": "Suggest help, or explain the week.",
+            "novelty_key": "other",
+        }
+    ]
+    proposal = engine.SceneDraft.model_validate(draft(_scene_context(), 0))
+    context = _scene_context(recent_situations=recent)
+    with pytest.raises(engine.StoryUnavailable, match="repeated_premise_triple"):
+        engine._validate_scene(proposal, context)
+    # The same objective elsewhere, or with someone else, is a different situation.
+    moved = proposal.model_copy(update={"location_id": "marche_canal"})
+    engine._validate_scene(moved, context)
+    other = proposal.model_copy(update={"character_id": "lila_bonnet"})
+    engine._validate_scene(other, context)
+
+
+def test_a_chapter_exhausted_by_resolved_commitments_must_be_replaced():
+    """2. Turnover after N resolved commitments, not only after an answered question."""
+
+    live = {
+        "chapter": {
+            "id": "c1",
+            "title_fr": "Une exposition",
+            "dramatic_question": "Comment organiser cette exposition ?",
+            "possible_developments": ["Trouver une salle.", "Inviter les voisins."],
+            "resolved": False,
+            "resolved_commitments": engine.CHAPTER_RESOLVED_COMMITMENT_LIMIT,
+        }
+    }
+    chapter = engine.chapter_state(live)
+    assert chapter["exhausted"] is True
+    context = _scene_context(chapter=chapter)
+    replay = engine.SceneDraft.model_validate(draft(_scene_context(), 0))
+    replay = replay.model_copy(
+        update={
+            "chapter": engine.Chapter(
+                title_fr="Une exposition",
+                dramatic_question="Comment organiser cette exposition ?",
+                possible_developments=["Trouver une salle.", "Inviter les voisins."],
+            )
+        }
+    )
+    with pytest.raises(engine.StoryUnavailable, match="chapter_not_advanced"):
+        engine._validate_scene(replay, context)
+    # One below the limit the chapter is still open, and abandoning it is the error.
+    live["chapter"]["resolved_commitments"] = engine.CHAPTER_RESOLVED_COMMITMENT_LIMIT - 1
+    open_context = _scene_context(chapter=engine.chapter_state(live))
+    engine._validate_scene(replay, open_context)
+    with pytest.raises(engine.StoryUnavailable, match="abandoned_chapter"):
+        engine._validate_scene(
+            engine.SceneDraft.model_validate(draft(_scene_context(), 1)), open_context
+        )
+    # A new question closes it out.
+    engine._validate_scene(engine.SceneDraft.model_validate(draft(_scene_context(), 1)), context)
+
+
+def test_a_retired_chapter_question_never_comes_back():
+    """2. Every resolved chapter is retired, not only the most recent one."""
+
+    retired = ["Comment organiser cette exposition ?"]
+    context = _scene_context(resolved_chapter_questions=retired, chapter=None)
+    replay = engine.SceneDraft.model_validate(draft(_scene_context(), 0))
+    with pytest.raises(engine.StoryUnavailable, match="chapter_not_advanced"):
+        engine._validate_scene(replay, context)
+    # A reworded twin of a retired question is the same question.
+    reworded = replay.model_copy(
+        update={
+            "chapter": replay.chapter.model_copy(
+                update={"dramatic_question": "Comment organiser vraiment cette exposition ?"}
+            )
+        }
+    )
+    with pytest.raises(engine.StoryUnavailable, match="chapter_not_advanced"):
+        engine._validate_scene(reworded, context)
+    engine._validate_scene(engine.SceneDraft.model_validate(draft(_scene_context(), 1)), context)
+
+
+def test_lilas_putain_is_stripped_below_b1_and_rejected_in_generated_text():
+    """4. Register: the bible keeps Lila's voice; an A1/A2 learner never sees it."""
+
+    from app.services.serial import SerialThreadService
+
+    world = SerialThreadService._load_world_bible()
+    lila = next(c for c in world["cast"] if c["id"] == "lila_bonnet")
+    assert "putain" in json.dumps(lila, ensure_ascii=False).casefold(), (
+        "fixture guard: the bible is expected to carry the coarse register"
+    )
+    cast = [
+        {key: member.get(key) for key in ("id", "name", "speech_pattern", "personality")}
+        for member in world["cast"]
+    ]
+    for level in ("A1", "A2"):
+        cleaned = engine._cast_for_level(deepcopy(cast), level)
+        assert "putain" not in json.dumps(cleaned, ensure_ascii=False).casefold()
+        assert all(member["register_note"] for member in cleaned)
+        assert next(c for c in cleaned if c["id"] == "lila_bonnet")["name"] == lila["name"]
+    assert "putain" in json.dumps(
+        engine._cast_for_level(deepcopy(cast), "B1"), ensure_ascii=False
+    ).casefold()
+
+    coarse = {**draft(_scene_context(), 0), "opening_line_fr": "Putain, tu peux nous aider ?"}
+    coarse["panels"][1]["dialogue"] = [
+        {"character_id": "romy_tremblay", "text_fr": "Putain, tu as une idée ?"}
+    ]
+    proposal = engine.SceneDraft.model_validate(coarse)
+    with pytest.raises(engine.StoryUnavailable, match="vulgar_register"):
+        engine._validate_scene(proposal, _scene_context(level="A1"))
+    engine._validate_scene(proposal, _scene_context(level="B1"))
+
+    payload = {
+        "learner_text": "Je peux venir samedi.",
+        "history": [],
+        "targets": [],
+        "story": {"commitments": [], "level": "A1"},
+        "scene": {},
+    }
+    reply = engine.SemanticTurn.model_validate(
+        {**turn_fixture("Je peux venir samedi."), "reply_fr": "Putain, merci beaucoup !"}
+    )
+    with pytest.raises(engine.StoryUnavailable, match="vulgar_register"):
+        engine._validate_turn(reply, payload)
+    payload["story"]["level"] = "B1"
+    engine._validate_turn(reply, payload)
+
+
+def test_narration_and_dialogue_must_address_the_learner_the_same_way():
+    """4. Narration vous with dialogue tu was the live review's cosmetic defect."""
+
+    mixed = deepcopy(draft(_scene_context(), 0))
+    mixed["panels"][0]["narration_fr"] = "Vous poussez la porte du café."
+    mixed["premise_fr"] = "Vous arrivez au marché avec votre parapluie."
+    mixed["opening_line_fr"] = "Tu peux nous aider ?"
+    mixed["panels"][1]["dialogue"] = [
+        {"character_id": "romy_tremblay", "text_fr": "Tu as une idée ?"}
+    ]
+    with pytest.raises(engine.StoryUnavailable, match="mixed_address_register"):
+        engine._validate_scene(engine.SceneDraft.model_validate(mixed), _scene_context())
+    aligned = deepcopy(mixed)
+    aligned["panels"][0]["narration_fr"] = "Tu pousses la porte du café."
+    aligned["premise_fr"] = "Tu arrives au marché avec ton parapluie."
+    engine._validate_scene(engine.SceneDraft.model_validate(aligned), _scene_context())
+    # A plural "vous" in a group scene is not a register signal, so nothing is rejected.
+    ambiguous = deepcopy(mixed)
+    ambiguous["panels"][1]["dialogue"] = [
+        {"character_id": "romy_tremblay", "text_fr": "Tu as une idée ? Vous venez tous ?"}
+    ]
+    engine._validate_scene(engine.SceneDraft.model_validate(ambiguous), _scene_context())
+
+
+def test_every_accepted_scene_and_turn_writes_one_cost_row(
+    assembled_client, db_session, journey_enabled, clock, provider
+):
+    """5. The pilot ledger and the weekly guardrail both see engine spend, once."""
+
+    from app.db.models.pilot_event import PilotEvent
+    from app.services.serial_costs import SerialGenerationCostService
+
+    provider.cost_usd = 0.004
+    d = driver(assembled_client, db_session)
+    d.create()
+    d.play(answer="Je peux apporter les affiches samedi.")
+    d.finish("complete")
+    db_session.expire_all()
+
+    rows = list(
+        db_session.scalars(select(PilotEvent).where(PilotEvent.user_id == d.user_id))
+    )
+    by_type = {}
+    for row in rows:
+        by_type.setdefault(row.event_type, []).append(row)
+    assert len(by_type["journey_story_scene_cost"]) == 1
+    assert len(by_type["journey_story_turn_cost"]) == 1
+    # Draft + critic, then turn + critic: four calls, all four billed exactly once.
+    assert by_type["journey_story_scene_cost"][0].cost_usd == pytest.approx(0.008)
+    assert by_type["journey_story_turn_cost"][0].cost_usd == pytest.approx(0.008)
+    assert all(row.cost_usd == 0.0 for row in by_type["journey_story_model_call"]), (
+        "per-call rows stay diagnostics so nothing is counted twice"
+    )
+    assert by_type["journey_story_model_call"][0].payload["call_cost_usd"] == pytest.approx(0.004)
+
+    scene = db_session.scalar(
+        select(GraphicNovelScene).where(GraphicNovelScene.user_id == d.user_id)
+    )
+    assert by_type["journey_story_scene_cost"][0].entity_id == str(scene.id)
+    assert scene.script_payload["estimated_cost"]["total_estimated_usd"] == pytest.approx(0.016)
+    weekly = SerialGenerationCostService(db_session).weekly_rollup(user_id=d.user_id)
+    assert len(weekly) == 1
+    assert weekly[0]["total_usd"] == pytest.approx(0.016), (
+        "PILOT_SERIAL_WEEKLY_COST_GUARDRAIL_USD reads this rollup"
+    )
+
+
+def test_a_rolled_back_scene_leaves_no_phantom_cost_row(
+    assembled_client, db_session, journey_enabled, clock, provider, monkeypatch
+):
+    """5. Cost rows live in the same transaction as the artifact they pay for."""
+
+    from app.db.models.pilot_event import PilotEvent
+
+    provider.cost_usd = 0.004
+    d = driver(assembled_client, db_session)
+    d.create()
+    d.advance()
+    step = next(s for s in d.journey["steps"] if s["kind"] == "respond")
+    revision = d.journey["revision"]
+
+    def conflict(*args, **kwargs):
+        raise engine.StoryUnavailable("story_revision_conflict")
+
+    monkeypatch.setattr(engine, "settle_resolution", conflict)
+    response = assembled_client.post(
+        f"/api/v1/daily-journeys/{d.journey['id']}/steps/{step['id']}/attempts",
+        headers=d.headers,
+        json={
+            "mutation_id": str(uuid4()),
+            "expected_revision": revision,
+            "input": {"mode": "text", "text": "Je peux apporter les affiches samedi."},
+        },
+    )
+    assert response.status_code == 409
+    db_session.expire_all()
+    types = [
+        row.event_type
+        for row in db_session.scalars(select(PilotEvent).where(PilotEvent.user_id == d.user_id))
+    ]
+    assert "journey_story_turn_cost" not in types, "a rolled-back turn must not be billed"
+    # The published scene is still there, and so is its single cost row.
+    assert types.count("journey_story_scene_cost") == 1
+
+
+def test_spend_on_a_scene_nobody_can_use_is_still_recorded(
+    assembled_client, db_session, journey_enabled, clock, provider
+):
+    """5. A rejected generation is real spend; the ledger keeps it."""
+
+    from app.db.models.pilot_event import PilotEvent
+
+    provider.cost_usd = 0.004
+    provider.reject = True
+    d = driver(assembled_client, db_session)
+    d.create(expect=(200,))
+    assert d.journey["status"] == "unavailable"
+    db_session.expire_all()
+    rows = [
+        row
+        for row in db_session.scalars(select(PilotEvent).where(PilotEvent.user_id == d.user_id))
+        if row.event_type == "journey_story_generation_failed"
+    ]
+    assert len(rows) == 1
+    assert rows[0].cost_usd == pytest.approx(0.004 * rows[0].payload["calls"])
+    assert rows[0].payload["reason"]
+
+
+def test_the_critic_call_can_be_switched_off_for_the_owners_ab_run(
+    assembled_client, db_session, journey_enabled, clock, provider, monkeypatch
+):
+    """6. --no-critic drops the review call and nothing else."""
+
+    monkeypatch.setattr(engine, "CRITIC_ENABLED", False)
+    d = driver(assembled_client, db_session)
+    d.create()
+    assert d.journey["status"] == "active"
+    schemas = [schema for schema, _ in provider.calls]
+    assert schemas == ["SceneDraft"], schemas
+    # The deterministic guards still run: an invented location is still refused.
+    d.play(answer="Je peux apporter les affiches samedi.")
+    d.finish("complete")
+    assert "Review" not in [schema for schema, _ in provider.calls]

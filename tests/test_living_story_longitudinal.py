@@ -79,6 +79,33 @@ OBJECTIVES = [
     "Describe the dog and decide who should be called.",
 ]
 
+# WP-17: the engine rejects a third consecutive scene with the same (character,
+# location) pair, and a repeated objective for a pair it has already used.
+LOCATIONS = [
+    "le_mistral",
+    "marche_canal",
+    "buttes_chaumont",
+    "user_apartment",
+    "newsroom",
+    "metro_platform",
+    "brocante",
+    "ngo_office",
+    "marin_lila_flat",
+]
+
+# A resolved chapter's question never returns, and a reworded twin counts as the same.
+QUESTIONS = [
+    "Comment organiser cette exposition ?",
+    "Qui gardera le chat pendant le week-end ?",
+    "Faut-il vendre le vieux vélo du voisin ?",
+    "Le colis perdu arrivera-t-il chez son destinataire ?",
+    "Qui viendra à la soirée jeux de vendredi ?",
+    "Comment vider la cave inondée avant lundi ?",
+    "Les poubelles seront-elles descendues à temps ?",
+    "Que devient le chien perdu de la boulangerie ?",
+    "Le four du café sera-t-il réparé pour dimanche ?",
+]
+
 CAST = {
     "romy": "romy_tremblay",
     "margaux": "margaux_barman",
@@ -93,6 +120,7 @@ class SceneScript:
     character_id: str = CAST["romy"]
     extra_speaker: str | None = None
     premise_index: int | None = None
+    location_id: str | None = None
 
 
 @dataclass
@@ -159,7 +187,11 @@ class ScriptedProvider:
     def _draft(self, context: dict) -> dict:
         n = self.scene_index if self.scene.premise_index is None else self.scene.premise_index
         chapter = context.get("chapter") or {}
-        keeps_chapter = bool(chapter) and not chapter.get("resolved")
+        # A compliant director opens a new chapter when the current one is answered or
+        # exhausted by resolved commitments (WP-17).
+        keeps_chapter = bool(chapter) and not (
+            chapter.get("resolved") or chapter.get("exhausted")
+        )
         speaker = self.scene.character_id
         dialogue = [{"character_id": speaker, "text_fr": "Vous avez une idée ?"}]
         if self.scene.extra_speaker:
@@ -173,7 +205,7 @@ class ScriptedProvider:
             "objective_native": OBJECTIVES[n % len(OBJECTIVES)],
             "objective_semantics": "Express an offer, a refusal or a changed plan.",
             "character_id": speaker,
-            "location_id": "le_mistral",
+            "location_id": self.scene.location_id or LOCATIONS[n % len(LOCATIONS)],
             "causal_reason": (
                 "Follow up on what the learner actually said last time."
                 if context.get("events")
@@ -188,7 +220,7 @@ class ScriptedProvider:
             if keeps_chapter
             else {
                 "title_fr": f"Chapitre {n}",
-                "dramatic_question": f"Que devient le quartier, épisode {n} ?",
+                "dramatic_question": QUESTIONS[n % len(QUESTIONS)],
                 "possible_developments": ["Demander de l'aide.", "Changer de plan."],
             },
             "panels": [
@@ -985,3 +1017,112 @@ def test_a_scene_that_repeats_a_recent_situation_is_refused(provider):
     draft = engine.SceneDraft.model_validate(fake._draft(context))
     with pytest.raises(engine.StoryUnavailable, match="repeated_situation"):
         engine._validate_scene(draft, context)
+
+
+# ---------------------------------------------------------------------------
+# WP-17 — rotation and chapter turnover across a real fourteen-day run
+# ---------------------------------------------------------------------------
+
+
+def test_fourteen_days_rotate_locations_characters_and_chapters(
+    assembled_client, db_session, journey_enabled, clock, provider
+):
+    """WP-17 acceptance, deterministically: >= 3 locations, >= 3 characters, >= 2 chapters.
+
+    The assertion reads the durable situations the engine itself recorded, and the
+    contexts the director actually received, not the fake's intentions.
+    """
+
+    d = driver(assembled_client, db_session)
+    speakers = [CAST["romy"], CAST["margaux"], CAST["lila"]]
+    for day in range(14):
+        play_day(
+            d,
+            provider,
+            answer=f"Je peux passer samedi, jour {day}.",
+            scene=SceneScript(character_id=speakers[day % len(speakers)]),
+            turn=TurnScript(close_chapter=day % 5 == 4),
+        )
+        clock.advance(days=1)
+
+    situations = live_state(db_session, d)["recent_situations"]
+    assert len(situations) == 14
+    assert len({item["location_id"] for item in situations}) >= 3
+    assert len({item["character_id"] for item in situations}) >= 3
+    scenes = scenes_of(db_session, d)
+    assert len({scene.source_snapshot["chapter"]["id"] for scene in scenes}) >= 2
+
+    contexts = provider.director_contexts()
+    assert len(contexts) == 14
+    # Every director call after the first sees what was used and what is free.
+    for context in contexts[1:]:
+        variety = context["variety"]
+        assert variety["all_locations"] and variety["all_characters"]
+        assert variety["recent_pairs"], "the director must see the pairs it just used"
+        assert set(variety["unused_locations"]) <= set(variety["all_locations"])
+    # No three consecutive scenes share one (character, location) pair.
+    pairs = [(item["character_id"], item["location_id"]) for item in situations]
+    triples = [pairs[i : i + 3] for i in range(len(pairs) - 2)]
+    assert all(len(set(window)) > 1 for window in triples), pairs
+
+
+def test_a_chapter_closes_after_three_resolved_commitments_without_the_model_saying_so(
+    assembled_client, db_session, journey_enabled, clock, provider
+):
+    """WP-17 §2: turnover is deterministic, not a favour the model has to remember."""
+
+    d = driver(assembled_client, db_session)
+    questions = []
+    # One day to open the first commitment, LIMIT days to resolve one each, and one more
+    # whose draft is the first that must carry a new chapter.
+    for day in range(engine.CHAPTER_RESOLVED_COMMITMENT_LIMIT + 2):
+        play_day(
+            d,
+            provider,
+            answer=f"Je peux m'en occuper, jour {day}.",
+            turn=TurnScript(
+                commitment_text=f"Aider le voisin, jour {day}.",
+                # Each day closes what the previous day promised; the model never sets
+                # chapter_resolved.
+                resolve_open_commitments=day > 0,
+            ),
+        )
+        questions.append(live_state(db_session, d)["chapter"]["dramatic_question"])
+        clock.advance(days=1)
+
+    state = live_state(db_session, d)
+    assert questions[0] == questions[1], "the chapter stays open while it is being answered"
+    assert questions[-1] != questions[0], "the exhausted chapter must be replaced"
+    assert questions[0] in state["resolved_chapter_questions"]
+    assert state["chapter"]["resolved_commitments"] < engine.CHAPTER_RESOLVED_COMMITMENT_LIMIT, (
+        "the new chapter starts its own count"
+    )
+    # The last director call was told the chapter was exhausted; the question is retired
+    # when that scene is published, so no later draft can bring it back.
+    context = provider.director_contexts()[-1]
+    assert context["chapter"]["exhausted"] is True
+    assert context["chapter"]["dramatic_question"] == questions[0]
+    with pytest.raises(engine.StoryUnavailable, match="chapter_not_advanced"):
+        engine._validate_scene(
+            engine.SceneDraft.model_validate(
+                {
+                    **provider.drafts[0],
+                    "chapter": {
+                        "title_fr": "Retour en arrière",
+                        "dramatic_question": questions[0],
+                        "possible_developments": ["Recommencer.", "Abandonner."],
+                    },
+                }
+            ),
+            {
+                "world": {
+                    "cast": [{"id": CAST["romy"]}],
+                    "locations": [{"id": provider.drafts[0]["location_id"]}],
+                },
+                "events": [],
+                "chapter": None,
+                "recent_situations": [],
+                "resolved_chapter_questions": state["resolved_chapter_questions"],
+                "level": "A1",
+            },
+        )
