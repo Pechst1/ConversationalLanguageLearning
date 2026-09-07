@@ -139,17 +139,24 @@ def test_backend_never_hands_out_a_retired_frontend_route():
 def test_reachable_surfaces_carry_no_neo_brutalist_styling():
     """The offset-shadow layer was a second visual language, and it broke dark mode.
 
-    Only surfaces a learner can actually open are asserted here; the unreachable
-    /stories, /learn and /sessions cluster is documented in
+    Only surfaces a learner can actually open are asserted here. WP-20 deleted
+    /progress, /achievements and /practice outright, so their entries moved to
+    ``test_the_off_system_legacy_pages_are_gone``; the list grew instead by every
+    page WP-20 either migrated (Studio, the serial replay) or confirmed already
+    migrated, so the rule now covers more of the product than it did before, not
+    less. The remaining /learn cluster is documented in
     docs/design-audit-2026-07-30.md rather than reskinned.
     """
     import re
 
     reachable = [
-        "pages/settings.tsx", "pages/progress.tsx", "pages/achievements.tsx",
-        "pages/practice.tsx", "pages/vocabulary.tsx", "pages/vocabulary/review.tsx",
+        "pages/settings.tsx", "pages/vocabulary.tsx", "pages/vocabulary/review.tsx",
+        "pages/vocabulary/conjugation.tsx",
         "pages/auth/signin.tsx", "pages/auth/signup.tsx", "pages/auth/forgot-password.tsx",
-        "pages/atelier.tsx", "pages/notebook.tsx",
+        "pages/atelier.tsx", "pages/notebook.tsx", "pages/grammar.tsx",
+        "pages/audio-session.tsx", "pages/graphic-novel.tsx", "pages/missions.tsx",
+        "pages/serial/index.tsx", "pages/serial/cast.tsx",
+        "pages/serial/episode.tsx", "pages/serial/episode/[index].tsx",
     ]
     offenders = {}
     for relative in reachable:
@@ -161,6 +168,53 @@ def test_reachable_surfaces_carry_no_neo_brutalist_styling():
         if hits:
             offenders[relative] = sorted(set(hits))
     assert offenders == {}
+
+
+def test_the_off_system_legacy_pages_are_gone():
+    """WP-20 disposition: eight off-system pages were deleted, not reskinned.
+
+    They are asserted absent rather than asserted clean, because "no page here"
+    is the only version of this promise that cannot rot. The APIs they used are
+    deliberately untouched; only the screens went.
+    """
+    for relative in (
+        "pages/practice.tsx",
+        "pages/daily-practice.tsx",
+        "pages/sessions.tsx",
+        "pages/dashboard.tsx",
+        "pages/stories.tsx",
+        "pages/achievements.tsx",
+        "pages/almanac.tsx",
+        "pages/progress.tsx",
+        "pages/stories/[storyId].tsx",
+        "pages/story/[id].tsx",
+        "components/AnkiSync.tsx",
+        "components/ui/CollapsibleSection.tsx",
+    ):
+        assert not (FRONTEND / relative).exists(), f"{relative} came back"
+
+
+def test_no_frontend_surface_links_to_a_deleted_page():
+    """A dead link is worse than a deleted page: it promises a screen.
+
+    `next.config.js` keeps redirect stubs so an old bookmark or push payload
+    still lands somewhere real, which is why the redirect table is skipped here.
+    """
+    import re
+
+    dead = ("/practice", "/daily-practice", "/sessions", "/dashboard",
+            "/achievements", "/almanac", "/progress")
+    offenders = []
+    for folder in ("pages", "components", "lib", "hooks"):
+        for path in (FRONTEND / folder).rglob("*.ts*"):
+            text = path.read_text(encoding="utf-8")
+            for route in dead:
+                # `router.push('/x')` / `href="/x"` — a navigation, not an API path
+                # (`apiService.get('/progress/...')` talks to the backend).
+                pattern = rf"""(?:href|push|replace)\(?\s*[=:]?\s*['"\`]{route}['"\`]"""
+                if re.search(pattern, text):
+                    offenders.append(f"{path.relative_to(FRONTEND)}:{route}")
+    assert offenders == []
 
 
 def test_journal_surfaces_use_only_the_type_scale():

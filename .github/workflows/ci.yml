@@ -86,6 +86,7 @@ jobs:
           npm run test:atelier-next
           npm run test:journey
           npm run test:recovery
+          npm run test:resume-target
           npm run test:reader
           npm run test:atelier-ui
           npm run test:api-host

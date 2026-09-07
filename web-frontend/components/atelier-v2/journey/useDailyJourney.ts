@@ -56,6 +56,11 @@ import { createAudioMediaRecorder, recordedAudioBlob } from '@/lib/audio-recordi
 import useJourneyRecovery, {
   type JourneyRecoveryController,
 } from '@/lib/useJourneyRecovery';
+import {
+  clearJourneyResume,
+  journeyIsOpen,
+  markJourneyResume,
+} from '@/lib/journey-resume';
 import type { PendingPlan, ReplayableKind } from '@/lib/journey-recovery';
 
 import {
@@ -215,6 +220,27 @@ export function useDailyJourney(
   // journey knowledge and the dependency graph stays acyclic.
   const recovery = useJourneyRecovery({ envelope, journey, busy });
   const { clearReplayPlan, replayPlan } = recovery;
+
+  // WP-20 (WP-19 defect D-1): a cold start after a kill used to land on the
+  // legacy Séance, because `pilot:resume:v1` was the only resume candidate and
+  // nothing ever wrote a journey into it. The mark below is what makes the
+  // journey outrank it, and it is written from the controller rather than the
+  // page so it cannot drift out of step with the envelope the server sent.
+  // A journey that is finished, ended early, unavailable or gated off clears
+  // the mark instead of writing one: "resume your scene" after the scene is
+  // over is exactly the lie CONTRACTS forbids.
+  useEffect(() => {
+    if (!envelope) return;
+    if (envelope.enabled && journey && journeyIsOpen(journey.status)) {
+      markJourneyResume({
+        journeyId: journey.id ?? null,
+        localDate: journey.local_date ?? envelope.local_date ?? null,
+        status: journey.status,
+      });
+      return;
+    }
+    clearJourneyResume();
+  }, [envelope, journey]);
 
   const mountedRef = useRef(true);
   /** Has the capability read ever produced an answer? Silence is not a refusal. */

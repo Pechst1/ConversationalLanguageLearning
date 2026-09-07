@@ -1374,7 +1374,10 @@
   align-items: center;
   gap: 14px;
   min-width: 0;
-  padding: 12px var(--av2-gutter) 0;
+  /* WP-19 D-3: this is the topmost element of the journey shell, so on a
+     notched device it drew under the status bar and overlapped the clock.
+     Same treatment the Épreuve top bar already had (`.ep-top`). */
+  padding: calc(12px + env(safe-area-inset-top, 0px)) var(--av2-gutter) 0;
 }
 
 .av2 .av2-session__head > .av2-progress {
@@ -1813,3 +1816,170 @@
   cursor: pointer;
 }
 .av2 .av2-recap__practice:hover { color: var(--av2-blue); }
+
+/* ===========================================================================
+   Bibliothèque (WP-20) — the imported-books shelf, its texts and its chapter
+   sessions, migrated off the legacy `/stories` chrome.
+
+   These are the rules shared by the Bibliothèque components
+   (`components/stories/**`, `components/story/UploadBookModal`); the per-screen
+   layout lives in each page's own `<style jsx global>` block, the idiom
+   `pages/graphic-novel.tsx` uses. Everything below is scoped under `.av2` and
+   built only from `--av2-*` tokens.
+   =========================================================================== */
+
+.av2 .bib-block { display: flex; flex-direction: column; gap: 10px; }
+
+.av2 .bib-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* -- Figure tiles. Real server figures only; never a filled-in placeholder. -- */
+.av2 .bib-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.av2 .bib-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: var(--av2-r-tile);
+  background: var(--av2-card);
+}
+
+/* -- Chapter timeline ------------------------------------------------------
+   One node per real chapter. The node's shape and its label carry the state
+   together, so colour is never alone. */
+.av2 .bib-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.av2 .bib-timeline__item { display: flex; gap: 12px; align-items: flex-start; }
+
+.av2 .bib-timeline__node {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.875rem;
+  background: var(--av2-line);
+  color: var(--av2-ink);
+}
+
+.av2 .bib-timeline__item[data-state='done'] .bib-timeline__node {
+  background: var(--av2-ink);
+  color: var(--av2-on-ink);
+}
+
+.av2 .bib-timeline__item[data-state='current'] .bib-timeline__node {
+  background: var(--av2-blue);
+  color: var(--av2-on-blue);
+}
+
+.av2 .bib-timeline__item[data-state='locked'] .bib-timeline__node {
+  background: transparent;
+  border: 2px dashed var(--av2-line-2);
+  color: var(--av2-muted);
+}
+
+.av2 .bib-timeline__body { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+
+.av2 .bib-timeline__item[data-state='locked'] .bib-timeline__body .av2-headline {
+  color: var(--av2-muted);
+}
+
+/* -- Narrative goals ------------------------------------------------------- */
+.av2 .bib-goals {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.av2 .bib-goal { display: flex; gap: 10px; align-items: flex-start; }
+
+.av2 .bib-goal__mark {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  border-radius: 999px;
+  border: 2px solid var(--av2-line-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.av2 .bib-goal[data-state='done'] .bib-goal__mark {
+  background: var(--av2-ink);
+  border-color: var(--av2-ink);
+  color: var(--av2-on-ink);
+}
+
+.av2 .bib-goal__body { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+
+/* -- Chapter opening narration --------------------------------------------- */
+.av2 .bib-narrative { display: flex; flex-direction: column; gap: 6px; }
+.av2 .bib-narrative__text { white-space: pre-line; }
+
+/* -- Grammar point --------------------------------------------------------- */
+.av2 .bib-grammar__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.av2 .bib-grammar__headings { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+
+.av2 .bib-grammar__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.av2 .bib-grammar__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--av2-r-tile);
+  background: var(--av2-card);
+}
+
+.av2 .bib-grammar__body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+
+/* -- End of a chapter ------------------------------------------------------ */
+.av2 .bib-done { display: flex; flex-direction: column; gap: 12px; margin-top: 4px; }
+
+.av2 .bib-done__xp {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  text-align: center;
+}
+
+.av2 .bib-done__actions { display: flex; flex-direction: column; gap: 8px; }

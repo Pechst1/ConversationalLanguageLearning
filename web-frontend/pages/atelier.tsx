@@ -1313,6 +1313,21 @@ export default function AtelierPage() {
     toast('La file de révision est vide.');
   };
 
+  // --- WP-20 (WP-19 defect D-1): land inside the journey, not on Home -------
+  // `/atelier?view=journey` is the destination `lib/journey-resume.ts` hands to
+  // the cold-start redirect in `_app.tsx` while a journey for today is still
+  // open. It is a *view* switch, never a start: if the flag is off, or the
+  // server sent no open journey, the parameter does nothing and Home renders
+  // exactly as it did before.
+  const journeyViewEnteredRef = useRef(false);
+  useEffect(() => {
+    if (!router.isReady || journeyViewEnteredRef.current) return;
+    if (String(router.query.view || '') !== 'journey') return;
+    if (!journeyEnabled) return;
+    journeyViewEnteredRef.current = true;
+    setView('journey');
+  }, [router.isReady, router.query.view, journeyEnabled]);
+
   // --- WP-16 / D-0: enter the drill loop from a concept or the errata queue --
   // `/atelier?mode=practice&concept=<id>` starts the legacy exercise Séance on
   // that concept; `&queue=errata` opens the errata review instead. Neither is

@@ -1,21 +1,36 @@
+/* Le Studio — the spoken call, on the Claude design (Atelier V2).
+ *
+ * WP-20: the page keeps its data flow, its state machine and every honest
+ * failure state exactly as they were; only the chrome moved. It now sits
+ * inside `AtelierV2Root` and is drawn with the system's own primitives —
+ * `Action`, `IconAction`, `Chip`, `Surface`, `Stack`, `Notice`, `Dialog`,
+ * `BottomSheet`, the Bauhaus shape icons — and the rules it still owns are
+ * written `.av2 .studio-…`, in `--av2-*` tokens only.
+ */
+
 import Head from 'next/head';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useEffect, useRef, useState } from 'react';
-import {
-  ArrowLeft,
-  Eye,
-  EyeOff,
-  HelpCircle,
-  Mic,
-  Square,
-  Volume2,
-  VolumeX,
-  X,
-} from 'lucide-react';
+import { Eye, EyeOff, HelpCircle, Volume2, VolumeX } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+import {
+  Action,
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  AtelierV2Root,
+  BottomSheet,
+  Chip,
+  Dialog,
+  IconAction,
+  MicIcon,
+  Notice,
+  SpinnerToken,
+  StopIcon,
+  Surface,
+} from '@/components/atelier-v2/ui';
 import { atelierChrome } from '@/lib/atelier-v2-copy';
 import { createAudioMediaRecorder, recordedAudioBlob } from '@/lib/audio-recording';
 import { useLearnerLanguage } from '@/lib/learner-language';
@@ -119,7 +134,8 @@ export default function AudioSessionPage() {
   const [micError, setMicError] = useState<string | null>(null);
   // Le Studio's fiction is French; the microphone failures explain a fault and
   // follow the learner's own language (WP-21).
-  const chrome = atelierChrome(useLearnerLanguage());
+  const learnerLanguage = useLearnerLanguage();
+  const chrome = atelierChrome(learnerLanguage);
   const pendingTurnRef = useRef<Promise<void> | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -401,177 +417,271 @@ export default function AudioSessionPage() {
   );
 
   if (authStatus === 'loading' || !authSession) {
-    return <div className="studio-loading" aria-label="Chargement du Studio"><span /></div>;
+    return (
+      <>
+        <AtelierV2Root
+          as="main"
+          language={learnerLanguage}
+          className="studio studio-loading"
+          aria-label="Chargement du Studio"
+          aria-busy="true"
+        >
+          <span className="studio-spinner" />
+        </AtelierV2Root>
+        <StudioStyles />
+      </>
+    );
   }
+
+  const inCall = ['listening', 'processing', 'speaking'].includes(state.status);
 
   return (
     <>
       <Head><title>Le Studio · L’Atelier</title></Head>
-      <main className="studio">
-        <header className="studio-masthead">
-          <Link href="/atelier" aria-label="Retour à La Une"><ArrowLeft size={17} /></Link>
-          <div>
+      <AtelierV2Root as="main" language={learnerLanguage} className="av2-screen studio">
+        <header className="av2-session__head studio-head">
+          <Link href="/atelier" aria-label="Retour à La Une" className="av2-icon-btn studio-back">
+            <ArrowLeftIcon size={18} />
+          </Link>
+          <div className="studio-head__main">
             {/* No call number exists in this flow — "N°" only ever appears before an actual number.
                 The kicker states the call's real stage: a classed call is not "en cours". */}
-            <span>LE STUDIO · {KICKER_BY_STATUS[state.status]}</span>
-            <h1>Le Studio</h1>
+            <p className="av2-label">LE STUDIO · {KICKER_BY_STATUS[state.status]}</p>
+            <h1 className="av2-headline av2-headline--display">Le Studio</h1>
           </div>
-          <span className="studio-time">{formatTime(state.elapsedSeconds)}</span>
+          <Chip className="studio-time">{formatTime(state.elapsedSeconds)}</Chip>
         </header>
 
-        {state.status === 'idle' && (
-          <section className="studio-intro print-in">
-            <div className="studio-rule">CONVERSATION · 5 MINUTES</div>
-            <h2>Une voix, une vraie réponse.</h2>
-            <p>
-              La conversation reprend votre histoire et vos mots du jour. Les corrections
-              restent discrètes : vous gardez le fil.
-            </p>
-            <button className="studio-primary press" onClick={() => void startSession()}>
-              <Mic size={22} /> Commencer à parler
-            </button>
-            <button className="studio-secondary" onClick={() => setState((current) => ({ ...current, status: 'selecting' }))}>
-              Choisir une scène
-            </button>
-          </section>
-        )}
-
-        {state.status === 'selecting' && (
-          <section className="studio-scenes print-in">
-            <div className="studio-rule">SCÈNES DE RECHANGE</div>
-            <h2>Un décor précis</h2>
-            {SCENES.map((scene) => (
-              <button key={scene.id} onClick={() => void startSession(scene.id)}>
-                <strong>{scene.title}</strong><span>{scene.note}</span>
-              </button>
-            ))}
-            <button className="studio-text-button" onClick={() => setState(INITIAL_STATE)}>Retour</button>
-          </section>
-        )}
-
-        {state.status === 'starting' && (
-          <section className="studio-wait" aria-live="polite">
-            <span className="studio-spinner" />
-            <strong>La ligne se prépare…</strong>
-          </section>
-        )}
-
-        {['listening', 'processing', 'speaking'].includes(state.status) && (
-          <section className="studio-call print-in">
-            <CastHeader cast={state.castMember} />
-            <div
-              className={`studio-meter ${state.status}`}
-              aria-label={METER_LABEL_BY_STATUS[state.status] || 'Appel en cours'}
-            >
-              {Array.from({ length: 11 }, (_, index) => <i key={index} />)}
-              <div className="studio-seal">
-                {state.status === 'listening' ? <Mic size={35} /> : <Volume2 size={35} />}
+        <div className="av2-screen__body studio-body">
+          {state.status === 'idle' && (
+            <section className="studio-panel studio-intro">
+              <p className="av2-label">CONVERSATION · 5 MINUTES</p>
+              <h2 className="av2-headline av2-headline--screen">Une voix, une vraie réponse.</h2>
+              <p className="av2-body av2-body--lg studio-lede">
+                La conversation reprend votre histoire et vos mots du jour. Les corrections
+                restent discrètes : vous gardez le fil.
+              </p>
+              <div className="studio-actions">
+                <Action tone="primary" icon={<MicIcon size={18} />} onClick={() => void startSession()}>
+                  Commencer à parler
+                </Action>
+                <Action
+                  tone="secondary"
+                  onClick={() => setState((current) => ({ ...current, status: 'selecting' }))}
+                >
+                  Choisir une scène
+                </Action>
               </div>
-            </div>
-            <p className="studio-status" aria-live="polite">
-              {state.status === 'speaking' && `${state.castMember?.name || 'Votre interlocuteur'} parle`}
-              {state.status === 'listening' && 'À vous de parler'}
-              {state.status === 'processing' && 'La réponse se compose'}
-            </p>
-            {(state.showText || isMuted) && state.aiResponse && (
-              <blockquote>{state.aiResponse}</blockquote>
-            )}
-            <div className="studio-controls">
-              {/* Muting must not silence the character outright: the reply stays
-                  readable for as long as the sound is off. */}
-              <button
-                aria-label={isMuted ? 'Rétablir le son' : 'Couper le son'}
-                onClick={() => setIsMuted((value) => !value)}
-              >
-                {isMuted ? <VolumeX /> : <Volume2 />}
-              </button>
-              <button
-                className="studio-mic press"
-                disabled={state.status === 'processing' || state.status === 'speaking'}
-                onClick={toggleRecording}
-                aria-label={isRecording ? 'Arrêter l’enregistrement' : 'Commencer à parler'}
-              >
-                {state.status === 'processing' || isRecording ? <Square /> : <Mic />}
-              </button>
-              <button aria-label={state.showText ? 'Masquer le texte' : 'Afficher le texte'} onClick={() => setState((current) => ({ ...current, showText: !current.showText }))}>
-                {state.showText ? <EyeOff /> : <Eye />}
-              </button>
-            </div>
-            {micError && <p className="studio-mic-error" role="status">{micError}</p>}
-            <button className="studio-end" onClick={() => setShowEndConfirm(true)}>Terminer l’appel</button>
-          </section>
-        )}
+            </section>
+          )}
 
-        {state.status === 'ended' && (
-          <section className="studio-summary print-in">
-            <div className="studio-filed">BON À TIRER</div>
-            <h2>Conversation transmise.</h2>
-            {/* Counts are what really happened, so they have to read as French:
-                one tour, one mot, and "malgré 0 fautes" is not a sentence. */}
-            <p className="studio-honest">
-              {state.turns === 0 ? (
-                'Aucun tour parlé : l’appel s’est arrêté avant votre première phrase.'
-              ) : (
-                <>
-                  {plural(state.turns, 'tour parlé', 'tours parlés')} · réponse la plus longue{' '}
-                  {plural(state.longestAnswerWords, 'mot', 'mots')} ·{' '}
-                  {plural(
-                    state.dueWordsReused.length,
-                    'mot du jour réemployé',
-                    'mots du jour réemployés',
-                  )}
-                  {state.errors.length > 0
-                    ? ` · communiqué malgré ${plural(state.errors.length, 'faute de forme', 'fautes de forme')}.`
-                    : ' · communiqué sans faute de forme relevée.'}
-                </>
-              )}
-            </p>
-            <dl>
-              <div><dt>Durée</dt><dd>{formatTime(state.elapsedSeconds)}</dd></div>
-              <div><dt>Tours</dt><dd>{state.turns}</dd></div>
-              <div><dt>Mots produits</dt><dd>{state.producedWords}</dd></div>
-              <div><dt>Mots repris</dt><dd>{state.dueWordsReused.join(' · ') || '—'}</dd></div>
-            </dl>
-            {state.longestAnswer && (
-              <aside><span>VOTRE PLUS LONGUE RÉPONSE</span><p>« {state.longestAnswer} »</p></aside>
-            )}
-            {state.errors.length > 0 && (
-              <div className="studio-corrections">
-                <span>CORRECTIONS DISCRÈTES</span>
-                {state.errors.map((error, index) => (
-                  <div key={`${error.original}-${index}`}>
-                    <s>{error.original}</s><strong>{error.correction}</strong><p>{error.explanation}</p>
-                  </div>
+          {state.status === 'selecting' && (
+            <section className="studio-panel studio-scenes">
+              <p className="av2-label">SCÈNES DE RECHANGE</p>
+              <h2 className="av2-headline av2-headline--screen">Un décor précis</h2>
+              <div className="studio-scene-list">
+                {SCENES.map((scene) => (
+                  <button
+                    key={scene.id}
+                    type="button"
+                    className="av2-row studio-scene"
+                    onClick={() => void startSession(scene.id)}
+                  >
+                    <span className="av2-row__main">
+                      <strong className="av2-headline av2-headline--rule studio-scene__title">
+                        {scene.title}
+                      </strong>
+                      <span className="av2-body studio-scene__note">{scene.note}</span>
+                    </span>
+                    <ArrowRightIcon size={16} />
+                  </button>
                 ))}
               </div>
-            )}
-            <aside className="studio-tomorrow"><span>POUR DEMAIN</span><p>{state.tomorrowFocus}</p></aside>
-            <button className="studio-primary press" onClick={() => setState(INITIAL_STATE)}>Nouvel appel</button>
-            <Link className="studio-secondary" href="/atelier">Retour à La Une</Link>
-          </section>
-        )}
-      </main>
+              <div className="studio-actions">
+                <Action tone="quiet" onClick={() => setState(INITIAL_STATE)}>Retour</Action>
+              </div>
+            </section>
+          )}
 
-      {showHelp && (
-        <div className="studio-modal" role="dialog" aria-modal="true" aria-label="Mode d’emploi">
-          <div><button aria-label="Fermer" onClick={() => setShowHelp(false)}><X /></button><h2>Le geste</h2>
-            <p>Touchez le micro, parlez, puis touchez le carré. L’œil révèle la dernière phrase si nécessaire.</p>
-          </div>
+          {state.status === 'starting' && (
+            <section className="studio-wait" role="status" aria-live="polite" aria-busy="true">
+              <SpinnerToken />
+              <strong className="av2-headline av2-headline--rule">La ligne se prépare…</strong>
+            </section>
+          )}
+
+          {inCall && (
+            <section className="studio-panel studio-call">
+              <CastHeader cast={state.castMember} />
+              <div
+                className="studio-meter"
+                data-status={state.status}
+                role="img"
+                aria-label={METER_LABEL_BY_STATUS[state.status] || 'Appel en cours'}
+              >
+                {Array.from({ length: 11 }, (_, index) => <i key={index} />)}
+                <span className="studio-seal" aria-hidden="true">
+                  {state.status === 'listening' ? <MicIcon size={30} /> : <Volume2 size={30} />}
+                </span>
+              </div>
+              <p className="studio-status" aria-live="polite">
+                {state.status === 'speaking' && `${state.castMember?.name || 'Votre interlocuteur'} parle`}
+                {state.status === 'listening' && 'À vous de parler'}
+                {state.status === 'processing' && 'La réponse se compose'}
+              </p>
+              {(state.showText || isMuted) && state.aiResponse && (
+                <blockquote className="av2-surface studio-quote" lang="fr">
+                  {state.aiResponse}
+                </blockquote>
+              )}
+              <div className="studio-controls">
+                {/* Muting must not silence the character outright: the reply stays
+                    readable for as long as the sound is off. */}
+                <IconAction
+                  label={isMuted ? 'Rétablir le son' : 'Couper le son'}
+                  pressable
+                  onClick={() => setIsMuted((value) => !value)}
+                >
+                  {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                </IconAction>
+                <IconAction
+                  label={isRecording ? 'Arrêter l’enregistrement' : 'Commencer à parler'}
+                  tone={isRecording || state.status === 'processing' ? 'recording' : 'action'}
+                  pressable
+                  className="studio-mic"
+                  disabled={state.status === 'processing' || state.status === 'speaking'}
+                  onClick={toggleRecording}
+                >
+                  {state.status === 'processing' || isRecording ? <StopIcon size={26} /> : <MicIcon size={26} />}
+                </IconAction>
+                <IconAction
+                  label={state.showText ? 'Masquer le texte' : 'Afficher le texte'}
+                  pressable
+                  onClick={() => setState((current) => ({ ...current, showText: !current.showText }))}
+                >
+                  {state.showText ? <EyeOff size={18} /> : <Eye size={18} />}
+                </IconAction>
+              </div>
+              {micError && (
+                <div className="studio-mic-error">
+                  <Notice tone="alert" live="status" shape="action">
+                    <p>{micError}</p>
+                  </Notice>
+                </div>
+              )}
+              <div className="studio-actions studio-actions--end">
+                <Action tone="quiet" onClick={() => setShowEndConfirm(true)}>Terminer l’appel</Action>
+              </div>
+            </section>
+          )}
+
+          {state.status === 'ended' && (
+            <section className="studio-panel studio-summary">
+              <Chip tone="story" className="studio-filed">BON À TIRER</Chip>
+              <h2 className="av2-headline av2-headline--screen">Conversation transmise.</h2>
+              {/* Counts are what really happened, so they have to read as French:
+                  one tour, one mot, and "malgré 0 fautes" is not a sentence. */}
+              <p className="av2-body av2-body--lg studio-honest">
+                {state.turns === 0 ? (
+                  'Aucun tour parlé : l’appel s’est arrêté avant votre première phrase.'
+                ) : (
+                  <>
+                    {plural(state.turns, 'tour parlé', 'tours parlés')} · réponse la plus longue{' '}
+                    {plural(state.longestAnswerWords, 'mot', 'mots')} ·{' '}
+                    {plural(
+                      state.dueWordsReused.length,
+                      'mot du jour réemployé',
+                      'mots du jour réemployés',
+                    )}
+                    {state.errors.length > 0
+                      ? ` · communiqué malgré ${plural(state.errors.length, 'faute de forme', 'fautes de forme')}.`
+                      : ' · communiqué sans faute de forme relevée.'}
+                  </>
+                )}
+              </p>
+              <dl className="studio-stats">
+                <Surface shape="tile" className="studio-stat">
+                  <dt className="av2-label">Durée</dt>
+                  <dd className="av2-headline av2-headline--rule">{formatTime(state.elapsedSeconds)}</dd>
+                </Surface>
+                <Surface shape="tile" className="studio-stat">
+                  <dt className="av2-label">Tours</dt>
+                  <dd className="av2-headline av2-headline--rule">{state.turns}</dd>
+                </Surface>
+                <Surface shape="tile" className="studio-stat">
+                  <dt className="av2-label">Mots produits</dt>
+                  <dd className="av2-headline av2-headline--rule">{state.producedWords}</dd>
+                </Surface>
+                <Surface shape="tile" className="studio-stat">
+                  <dt className="av2-label">Mots repris</dt>
+                  <dd className="av2-headline av2-headline--rule">{state.dueWordsReused.join(' · ') || '—'}</dd>
+                </Surface>
+              </dl>
+              {state.longestAnswer && (
+                <Surface as="section" shape="tile" className="studio-aside">
+                  <p className="av2-label">VOTRE PLUS LONGUE RÉPONSE</p>
+                  <p className="av2-fr studio-aside__body">« {state.longestAnswer} »</p>
+                </Surface>
+              )}
+              {state.errors.length > 0 && (
+                <section className="studio-corrections">
+                  <p className="av2-label">CORRECTIONS DISCRÈTES</p>
+                  {state.errors.map((error, index) => (
+                    <div className="studio-correction" key={`${error.original}-${index}`}>
+                      <s className="av2-correction__span">{error.original}</s>
+                      <strong className="av2-correction__fix">{error.correction}</strong>
+                      <p className="studio-correction__note">{error.explanation}</p>
+                    </div>
+                  ))}
+                </section>
+              )}
+              <Surface as="section" shape="tile" className="studio-aside studio-tomorrow">
+                <p className="av2-label">POUR DEMAIN</p>
+                <p className="av2-fr studio-aside__body">{state.tomorrowFocus}</p>
+              </Surface>
+              <div className="studio-actions">
+                <Action tone="primary" onClick={() => setState(INITIAL_STATE)}>Nouvel appel</Action>
+                <Link className="av2-btn av2-btn--secondary" href="/atelier">Retour à La Une</Link>
+              </div>
+            </section>
+          )}
         </div>
-      )}
-      {showEndConfirm && (
-        <div className="studio-modal" role="dialog" aria-modal="true" aria-label="Terminer l’appel">
-          <div><h2>Classer cet appel ?</h2><p>Votre conversation sera ajoutée au dossier du jour.</p>
-            <div className="studio-modal-actions">
-              <button onClick={() => setShowEndConfirm(false)}>Continuer</button>
-              <button className="press" onClick={() => void endSession()}>Classer</button>
-            </div>
-          </div>
-        </div>
-      )}
-      {['listening', 'processing', 'speaking'].includes(state.status) && (
-        <button className="studio-help" aria-label="Aide" onClick={() => setShowHelp(true)}><HelpCircle /></button>
-      )}
+
+        <BottomSheet
+          open={showHelp}
+          eyebrow="Mode d’emploi"
+          title="Le geste"
+          onClose={() => setShowHelp(false)}
+        >
+          <p className="av2-body av2-body--lg">
+            Touchez le micro, parlez, puis touchez le carré. L’œil révèle la dernière phrase si nécessaire.
+          </p>
+        </BottomSheet>
+
+        <Dialog
+          open={showEndConfirm}
+          title="Classer cet appel ?"
+          body="Votre conversation sera ajoutée au dossier du jour."
+          onClose={() => setShowEndConfirm(false)}
+          actions={(
+            <>
+              <Action tone="secondary" onClick={() => setShowEndConfirm(false)}>Continuer</Action>
+              <Action tone="done" onClick={() => void endSession()}>Classer</Action>
+            </>
+          )}
+        />
+
+        {inCall && (
+          <IconAction
+            label="Aide"
+            pressable
+            className="studio-help"
+            onClick={() => setShowHelp(true)}
+          >
+            <HelpCircle size={18} />
+          </IconAction>
+        )}
+      </AtelierV2Root>
       <StudioStyles />
     </>
   );
@@ -585,98 +695,211 @@ function CastHeader({ cast }: { cast: CastMember | null }) {
       <div className="studio-portrait">
         {cast?.model_sheet_url && !imageFailed
           ? <Image src={cast.model_sheet_url} alt="" fill sizes="56px" onError={() => setImageFailed(true)} />
-          : <span>{initials}</span>}
+          : <span aria-hidden="true">{initials}</span>}
       </div>
-      <div><span>EN LIGNE</span><strong>{cast?.name || 'Conversation libre'}</strong><em>{cast?.role || 'Le Studio'}</em></div>
+      <div className="studio-cast__id">
+        <span className="av2-label">EN LIGNE</span>
+        <strong className="av2-headline av2-headline--rule">{cast?.name || 'Conversation libre'}</strong>
+        <em className="av2-body studio-cast__role">{cast?.role || 'Le Studio'}</em>
+      </div>
     </div>
   );
 }
 
+/* ---- the page's own rules — `.av2 .studio-…`, `--av2-*` tokens only -------- */
 function StudioStyles() {
   return <style jsx global>{`
-    .studio { --studio-accent: var(--app-blue); min-height: 100svh; color: var(--app-ink); background: var(--app-paper); padding-bottom: calc(40px + env(safe-area-inset-bottom)); font-family: var(--app-sans); }
-    .studio button, .studio a { color: inherit; font: inherit; }
-    .studio-masthead { display: grid; grid-template-columns: 42px 1fr auto; align-items: center; gap: 12px; max-width: 480px; margin: auto; padding: calc(12px + env(safe-area-inset-top)) 18px 12px; border-bottom: 2px solid var(--app-ink); }
-    .studio-masthead > a { width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid var(--app-ink); background: var(--app-sheet); }
-    .studio-masthead span { font: 800 9px/1.2 var(--app-mono); letter-spacing: .14em; }
-    .studio-masthead h1 { margin: 2px 0 0; font: italic 700 28px/1 var(--app-serif); }
-    .studio-time { padding: 6px 8px; border: 1px solid var(--app-ink); background: var(--app-sheet); }
-    .studio-intro, .studio-scenes, .studio-call, .studio-summary, .studio-wait { max-width: 430px; margin: 0 auto; padding: 44px 24px; }
-    .studio-rule, .studio-scenes > div:first-child { color: var(--app-ink-3); font: 800 10px/1 var(--app-mono); letter-spacing: .16em; }
-    .studio h2 { max-width: 360px; margin: 14px auto 12px; font: italic 700 42px/.98 var(--app-serif); }
-    .studio-intro { text-align: center; }
-    .studio-intro > p { max-width: 350px; margin: 0 auto 30px; color: var(--app-ink-2); font: 16px/1.6 var(--app-serif); }
-    /* Soft journal action pair: pill geometry, sentence case, ink / outline. */
-    .studio-primary { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; min-height: 54px; padding: 0 22px; border-radius: 999px; border: 1px solid var(--app-ink); background: var(--app-ink); color: var(--app-paper) !important; font-size: var(--t-body) !important; font-weight: 600 !important; letter-spacing: .01em; text-transform: none; transition: background .16s ease, color .16s ease; }
-    .studio-primary:active { background: var(--app-paper-2); color: var(--app-ink) !important; }
-    .studio-primary:disabled { opacity: .5; }
-    .studio-secondary { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 54px; margin-top: 12px; padding: 0 22px; border-radius: 999px; border: 1px solid var(--app-ink); background: transparent; color: var(--app-ink); text-decoration: none; font-size: var(--t-body) !important; font-weight: 600 !important; letter-spacing: .01em; text-transform: none; transition: background .16s ease, color .16s ease; }
-    .studio-secondary:active { background: var(--app-paper-2); color: var(--app-ink); }
-    .press { transition: transform 120ms ease, opacity 120ms ease; }
-    .press:active { transform: translateY(2px) scale(.99); opacity: .84; }
-    .studio-scenes h2 { margin-left: 0; }
-    .studio-scenes > button:not(.studio-text-button) { display: grid; gap: 5px; width: 100%; padding: 16px 4px; border: 0; border-top: 1px solid var(--app-paper-3); background: transparent; text-align: left; }
-    .studio-scenes button strong { font: italic 700 21px/1.1 var(--app-serif); }
-    .studio-scenes button span { color: var(--app-ink-3); font-size: 12px; }
-    .studio-text-button, .studio-end { display: block; margin: 20px auto 0; border: 0; background: transparent; color: var(--app-ink-3) !important; text-decoration: underline; }
-    .studio-wait { min-height: 60svh; display: grid; place-items: center; align-content: center; gap: 18px; }
-    .studio-spinner { width: 48px; height: 48px; border: 2px solid var(--app-paper-3); border-top-color: var(--app-ink); border-radius: 50%; animation: studio-spin .7s linear infinite; }
-    .studio-cast { display: flex; align-items: center; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid var(--app-paper-3); }
-    .studio-portrait { position: relative; width: 58px; height: 58px; overflow: hidden; border: 1px solid var(--app-ink); background: var(--app-yellow); }
-    .studio-portrait img { object-fit: cover; object-position: top center; }
-    .studio-portrait span { width: 100%; height: 100%; display: grid; place-items: center; font: 900 16px/1 var(--app-mono); }
-    .studio-cast > div:last-child { display: grid; }
-    .studio-cast span, .studio-summary aside span, .studio-corrections > span { color: var(--app-ink-3); font: 800 9px/1.2 var(--app-mono); letter-spacing: .14em; }
-    .studio-cast strong { margin-top: 3px; font: italic 700 22px/1 var(--app-serif); }
-    .studio-cast em { margin-top: 3px; color: var(--app-ink-2); font: 12px/1.2 var(--app-serif); }
-    .studio-meter { position: relative; height: 250px; margin: 24px 0 14px; display: flex; align-items: center; justify-content: center; gap: 6px; overflow: hidden; border: 1px solid var(--app-ink); background: var(--app-sheet); }
-    .studio-meter i { width: 7px; height: 20%; background: var(--studio-accent); opacity: .55; transform: scaleY(.3); }
-    .studio-meter.speaking i, .studio-meter.listening i { animation: studio-wave .9s ease-in-out infinite alternate; }
-    .studio-meter i:nth-child(2n) { animation-delay: -180ms; }
-    .studio-meter i:nth-child(3n) { animation-delay: -360ms; }
-    .studio-seal { position: absolute; width: 94px; height: 94px; display: grid; place-items: center; border: 2px solid var(--app-ink); border-radius: 50%; background: var(--app-paper); }
-    .studio-meter.processing .studio-seal { animation: studio-pulse .6s ease-in-out infinite alternate; }
-    .studio-status { margin: 0 0 20px; text-align: center; color: var(--app-ink-2); font: italic 17px/1.2 var(--app-serif); }
-    .studio-call blockquote { margin: 0 0 20px; padding: 14px 16px; border-left: 3px solid var(--studio-accent); background: var(--app-paper-2); font: italic 18px/1.4 var(--app-serif); }
-    .studio-controls { display: flex; align-items: center; justify-content: center; gap: 24px; }
-    .studio-controls button { width: 48px; height: 48px; display: grid; place-items: center; border: 1px solid var(--app-ink); background: var(--app-sheet); }
-    .studio-controls .studio-mic { width: 76px; height: 76px; border: 2px solid var(--app-ink); border-radius: 50%; background: var(--app-yellow); }
-    .studio-controls button:disabled { opacity: .42; }
-    .studio-mic-error { max-width: 340px; margin: 16px auto 0; padding: 10px 12px; border-left: 3px solid var(--app-red); background: var(--app-paper-2); color: var(--app-ink-2); font: 14px/1.45 var(--app-serif); text-align: left; }
-    .studio-filed { display: inline-block; padding: 7px 10px; border: 2px solid var(--app-blue); color: var(--app-blue); transform: rotate(-2deg); font: 900 11px/1 var(--app-mono); letter-spacing: .12em; animation: studio-thud 120ms ease-out both; }
-    .studio-summary h2 { margin-left: 0; }
-    .studio-honest { color: var(--app-ink-2); font: italic 17px/1.5 var(--app-serif); }
-    .studio-summary dl { display: grid; grid-template-columns: 1fr 1fr; margin: 24px 0; border-top: 1px solid var(--app-ink); border-left: 1px solid var(--app-ink); }
-    .studio-summary dl div { min-height: 78px; padding: 12px; border-right: 1px solid var(--app-ink); border-bottom: 1px solid var(--app-ink); background: var(--app-sheet); }
-    .studio-summary dt { color: var(--app-ink-3); font: 800 9px/1 var(--app-mono); letter-spacing: .1em; text-transform: uppercase; }
-    .studio-summary dd { margin: 8px 0 0; font: italic 700 22px/1.1 var(--app-serif); }
-    .studio-summary aside { margin: 18px 0; padding: 14px 16px; border-left: 3px solid var(--app-blue); background: var(--app-paper-2); }
-    .studio-summary aside p { margin: 7px 0 0; color: var(--app-ink-2); font: italic 16px/1.4 var(--app-serif); }
-    .studio-corrections { margin: 18px 0; }
-    .studio-corrections > div { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; padding: 12px 0; border-top: 1px solid var(--app-paper-3); }
-    .studio-corrections s { color: var(--app-ink-2); text-decoration-color: var(--app-red); text-decoration-thickness: 2px; }
-    .studio-corrections strong { color: var(--app-ink); }
-    .studio-corrections p { grid-column: 1/-1; margin: 0; color: var(--app-ink-3); font: italic 13px/1.4 var(--app-serif); }
-    .studio-tomorrow { border-left-color: var(--app-yellow) !important; }
-    .studio-modal { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; padding: 20px; background: color-mix(in srgb, var(--app-ink) 64%, transparent); }
-    .studio-modal > div { position: relative; width: min(100%, 360px); padding: 24px; border: 1.5px solid var(--app-ink); background: var(--app-paper); }
-    .studio-modal > div > button:first-child { position: absolute; top: 10px; right: 10px; border: 0; background: transparent; }
-    .studio-modal h2 { margin: 0 0 10px; font-size: 30px; }
-    .studio-modal p { color: var(--app-ink-2); font: 15px/1.5 var(--app-serif); }
-    .studio-modal-actions { display: flex; gap: 10px; }
-    .studio-modal-actions button { flex: 1; padding: 12px; border: 1px solid var(--app-ink); background: var(--app-sheet); }
-    .studio-modal-actions button:last-child { background: var(--app-ink); color: var(--app-paper); }
-    .studio-help { position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); width: 42px; height: 42px; display: grid; place-items: center; border: 1px solid var(--app-ink); border-radius: 50%; background: var(--app-sheet); color: var(--app-ink); }
-    .studio-loading { min-height: 100svh; display: grid; place-items: center; background: var(--app-paper); }
-    .studio-loading span { width: 40px; height: 40px; border: 2px solid var(--app-paper-3); border-top-color: var(--app-ink); border-radius: 50%; animation: studio-spin .7s linear infinite; }
-    .print-in { animation: studio-print 180ms ease-out both; }
+    .av2.studio {
+      min-height: 100svh;
+      padding-bottom: calc(28px + var(--av2-safe-bottom));
+    }
+    .av2.studio-loading {
+      display: grid;
+      place-items: center;
+      background: var(--av2-paper);
+    }
+    .av2 .studio-spinner {
+      width: 40px;
+      height: 40px;
+      border: 2px solid var(--av2-line);
+      border-top-color: var(--av2-ink);
+      border-radius: 999px;
+      animation: studio-spin 0.7s linear infinite;
+    }
+
+    /* masthead */
+    .av2 .studio-head { gap: 12px; padding-top: calc(12px + env(safe-area-inset-top)); }
+    .av2 .studio-head__main { flex: 1 1 auto; min-width: 0; }
+    .av2 .studio-head__main p { margin: 0; }
+    .av2 .studio-head__main h1 { margin: 2px 0 0; }
+    .av2 a.studio-back { display: inline-grid; text-decoration: none; }
+    .av2 .studio-time { flex: none; font-variant-numeric: tabular-nums; }
+
+    /* the single column */
+    .av2 .studio-body { max-width: 32rem; width: 100%; margin: 0 auto; }
+    .av2 .studio-panel { display: flex; flex-direction: column; gap: 12px; min-width: 0; padding-top: 12px; }
+    .av2 .studio-panel > p:first-child { margin: 0; }
+    .av2 .studio-panel h2 { margin: 0; }
+    .av2 .studio-lede { margin: 0; }
+    .av2 .studio-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; min-width: 0; }
+    .av2 .studio-actions--end { margin-top: 4px; }
+
+    /* scenes */
+    .av2 .studio-scene-list { display: flex; flex-direction: column; gap: 8px; }
+    .av2 .studio-scene {
+      border: 0;
+      background: var(--av2-card);
+      border-radius: var(--av2-r-tile);
+      box-shadow: 0 var(--av2-press-md) 0 var(--av2-line-2);
+      font: inherit;
+      text-align: left;
+      cursor: pointer;
+      transition: transform var(--av2-press-dur), box-shadow var(--av2-press-dur);
+    }
+    .av2 .studio-scene:active { transform: translateY(var(--av2-press-md)); box-shadow: 0 0 0 transparent; }
+    .av2 .studio-scene .av2-row__main { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+    .av2 .studio-scene__title { display: block; font-weight: 600; }
+    .av2 .studio-scene__note { color: var(--av2-muted); }
+
+    /* the line preparing */
+    .av2 .studio-wait {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      min-height: 50svh;
+    }
+
+    /* the live call */
+    .av2 .studio-cast {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--av2-line);
+    }
+    .av2 .studio-portrait {
+      position: relative;
+      flex: none;
+      width: 56px;
+      height: 56px;
+      overflow: hidden;
+      border-radius: var(--av2-r-pill);
+      background: var(--av2-yellow);
+      color: var(--av2-on-yellow);
+    }
+    .av2 .studio-portrait img { object-fit: cover; object-position: top center; }
+    .av2 .studio-portrait span {
+      width: 100%;
+      height: 100%;
+      display: grid;
+      place-items: center;
+      font-size: var(--av2-t-body);
+      font-weight: 700;
+    }
+    .av2 .studio-cast__id { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .av2 .studio-cast__role { font-style: italic; color: var(--av2-muted); }
+
+    .av2 .studio-meter {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      height: 220px;
+      margin: 4px 0;
+      overflow: hidden;
+      border-radius: var(--av2-r-hero);
+      background: var(--av2-card);
+    }
+    .av2 .studio-meter i { width: 7px; height: 20%; border-radius: 4px; background: var(--av2-blue); opacity: 0.55; transform: scaleY(0.3); }
+    .av2 .studio-meter[data-status='listening'] i,
+    .av2 .studio-meter[data-status='speaking'] i { animation: studio-wave 0.9s ease-in-out infinite alternate; }
+    .av2 .studio-meter i:nth-child(2n) { animation-delay: -180ms; }
+    .av2 .studio-meter i:nth-child(3n) { animation-delay: -360ms; }
+    .av2 .studio-seal {
+      position: absolute;
+      width: 92px;
+      height: 92px;
+      display: grid;
+      place-items: center;
+      border-radius: 999px;
+      background: var(--av2-paper);
+      color: var(--av2-ink);
+    }
+    .av2 .studio-meter[data-status='processing'] .studio-seal { animation: studio-pulse 0.6s ease-in-out infinite alternate; }
+    .av2 .studio-status {
+      margin: 0;
+      text-align: center;
+      font-family: var(--av2-serif);
+      font-style: italic;
+      font-size: var(--av2-t-rule);
+      color: var(--av2-ink-2);
+    }
+    .av2 blockquote.studio-quote {
+      margin: 0;
+      padding: 14px 16px;
+      font-family: var(--av2-serif);
+      font-style: italic;
+      font-size: var(--av2-t-option);
+      line-height: 1.4;
+      color: var(--av2-ink);
+    }
+    .av2 .studio-controls { display: flex; align-items: center; justify-content: center; gap: 22px; }
+    .av2 .studio-controls .studio-mic { width: 76px; height: 76px; border-radius: 999px; }
+    .av2 .studio-mic-error { min-width: 0; }
+
+    /* the recap */
+    .av2 .studio-filed { align-self: flex-start; font-weight: 700; letter-spacing: 0.08em; }
+    .av2 .studio-honest { margin: 0; font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-body); }
+    .av2 .studio-stats {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin: 6px 0 0;
+    }
+    .av2 .studio-stat { min-height: 76px; }
+    .av2 .studio-stat dd { margin: 6px 0 0; overflow-wrap: anywhere; }
+    .av2 .studio-aside { border-left: 3px solid var(--av2-blue); }
+    .av2 .studio-aside p { margin: 0; }
+    .av2 .studio-aside__body { margin-top: 6px !important; font-style: italic; color: var(--av2-ink-2); }
+    .av2 .studio-tomorrow { border-left-color: var(--av2-yellow); }
+    .av2 .studio-corrections { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+    .av2 .studio-corrections > p { margin: 0; }
+    .av2 .studio-correction {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px 12px;
+      padding: 12px 14px;
+      border-radius: var(--av2-r-card);
+      background: var(--av2-card);
+      min-width: 0;
+    }
+    .av2 .studio-correction s { text-decoration-color: var(--av2-red); text-decoration-thickness: 2px; }
+    .av2 .studio-correction__note {
+      grid-column: 1 / -1;
+      margin: 0;
+      font-size: var(--av2-t-meta);
+      line-height: 1.45;
+      font-style: italic;
+      color: var(--av2-muted);
+    }
+
+    /* the floating help affordance */
+    .av2 .studio-help {
+      position: fixed;
+      right: 16px;
+      bottom: calc(16px + var(--av2-safe-bottom));
+      z-index: 40;
+    }
+
     @keyframes studio-spin { to { transform: rotate(360deg); } }
-    @keyframes studio-print { from { opacity: 0; transform: translateY(4px); } }
-    @keyframes studio-wave { to { transform: scaleY(3.5); opacity: .9; } }
-    @keyframes studio-pulse { to { transform: scale(.94); } }
-    @keyframes studio-thud { from { transform: rotate(-2deg) scale(1.18); opacity: .4; } }
+    @keyframes studio-wave { to { transform: scaleY(3.5); opacity: 0.9; } }
+    @keyframes studio-pulse { to { transform: scale(0.94); } }
     @media (prefers-reduced-motion: reduce) {
-      .studio *, .studio-loading span { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+      .av2.studio *, .av2 .studio-spinner { animation: none !important; transition: none !important; }
     }
   `}</style>;
 }

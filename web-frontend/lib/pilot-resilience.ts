@@ -145,8 +145,8 @@ export function saveResumeActivity(activity: Omit<ResumeActivity, 'updatedAt'>) 
   });
 }
 
-export function readResumeActivity(): ResumeActivity | null {
-  const value = safeReadJson<ResumeActivity | null>(RESUME_KEY, null);
+export function readResumeActivity(storage?: StorageLike | null): ResumeActivity | null {
+  const value = safeReadJson<ResumeActivity | null>(RESUME_KEY, null, storage);
   if (!value?.href || !String(value.href).startsWith('/')) return null;
   return value;
 }

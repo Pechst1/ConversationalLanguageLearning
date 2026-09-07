@@ -11,10 +11,10 @@ import apiService from '@/services/api';
 import {
   accountScopeKey,
   consumeResumeSuppression,
-  readResumeActivity,
   suppressResumeRedirectOnce,
   syncAccountScope,
 } from '@/lib/pilot-resilience';
+import { resolveResumeHref } from '@/lib/journey-resume';
 import { installKeyboardFocusGuard, installKeyboardInsets } from '@/lib/journey-lifecycle';
 import { isNativePlatform } from '@/lib/native-platform';
 import '@/styles/globals.css';
@@ -112,8 +112,12 @@ export default function App({
     if (!['/', '/atelier'].includes(router.pathname)) return;
     // A deep link that just claimed this navigation outranks the stored guess.
     if (consumeResumeSuppression()) return;
-    const activity = readResumeActivity();
-    if (activity && activity.href !== router.asPath) void router.replace(activity.href);
+    // WP-20 (WP-19 defect D-1): an open V2 journey outranks the stored legacy
+    // practice session, which is what used to win here and land a cold start in
+    // the wrong Séance. `resolveResumeHref` falls back to the stored activity
+    // unchanged whenever no journey is open.
+    const href = resolveResumeHref();
+    if (href && href !== router.asPath) void router.replace(href);
   }, [router]);
 
   useEffect(() => {

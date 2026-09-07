@@ -1,5 +1,5 @@
 const assert = require('node:assert/strict');
-require('../node_modules/sucrase/register/ts');
+require('sucrase/register/ts');
 const { seanceAssessment } = require('./seance-feedback.ts');
 assert.equal(seanceAssessment({ verdict: 'incorrect', errata: [] }), 'needs_work');
 assert.equal(seanceAssessment({ verdict: 'partial', errata: [] }), 'needs_work');

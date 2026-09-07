@@ -942,3 +942,177 @@ produced the bare `/atelier?mode=practice`. Fixed, with a regression test.
   answer (CONTRACTS §5); the two vocabularies have not been unified.
 * The walk used the fake provider: it proves routing, the envelope, the recap
   pointer and the evidence path, never prose quality.
+
+## Codex handoff resolution — 2026-09-07
+
+The four WP-16 handoff items have been reviewed.
+
+### Page split decision: agreed, with a controller-lifetime boundary
+
+Proceed with the proposed three-file split, in this order: extract
+`components/atelier/JourneyShell.tsx`, then
+`components/atelier/TodayView.tsx` and its La Une mapping helpers; leave the
+legacy SessionView state machine and all attempt handlers in
+`pages/atelier.tsx`. The proposed ownership remains unchanged.
+
+One refinement: keep `useDailyJourney` and the shared `practiceEntry` resolution
+mounted unconditionally in the page, passing the controller and navigation
+callbacks into JourneyShell and the entry card. Moving that hook into a
+conditionally mounted journey branch would reset its lifecycle when returning
+to Today. Extract shared types into a neutral module when needed; extracted
+components must not import the page. Repoint the source-scanning tests listed
+in the proposal to the appropriate owning component, preserving their behavior
+assertions. No behavior change or routing change belongs in the extraction.
+
+This closes the request for Codex's agreement. The extraction itself is a
+separate implementation task for the proposed owners; it is not claimed as done.
+
+### Classification distribution: fixed
+
+Curated lessons alternate correct and incorrect authored sentences by stable
+catalog position, giving 27 of each across 54 lessons. The teaching-order
+number is no longer treated as a probability. The label always matches the
+authored sentence/foil; repeat generation remains deterministic. Generator
+version is now `atelier-v11`, invalidating the previously skewed cached sets.
+
+### Drill-first credit: fixed
+
+Successful vocabulary credit from the Atelier service and successful grammar
+credit at legacy completion now record a claim in the canonical
+LearningSession/SessionLearningMoment ledger. A single completed
+`atelier_credit` learning session groups the day's drill claims, with zero
+planned duration and no invented XP. Claim creation shares the credit
+transaction, uses a deterministic user/day session identifier, and is
+idempotent per target. No schema migration or separate ledger is introduced.
+
+The journey retains its answer evidence but reports
+`credited_in_drill_today` and does not advance SRS again for an already-claimed
+target. Failed/unassessed drill work does not claim success; real failures in
+either direction still reach SRS. Cross-surface schedule checks and writes take
+the same user-row lock. Drill claims use UTC days, matching the legacy guard's
+default clock; this does not introduce learner-timezone scheduling for legacy
+practice. The guard no longer silently forgets credit after 200 newer moments.
+
+### Sucrase: declared
+
+`sucrase: ^3.35.0` is now a direct devDependency in both package manifests.
+The existing lockfile already contains version 3.35.0 and its integrity hash;
+that resolved dependency was preserved. The test loads
+`sucrase/register/ts` by package name. An offline npm metadata refresh was
+unavailable, so only the root dependency declaration was added to the existing
+lockfile; `npm ls sucrase --depth=0` verifies the direct installed dependency.
+
+### Verification
+
+- 237 tests pass across Atelier, séance contract, journey learning, and WP-16
+  evidence, including new reverse-order, expiry, idempotency, failure, and
+  balanced-label regressions.
+- Another 70 tests pass across vocabulary credit, grammar notebook, daily journey
+  state, and WP-16 frontend contracts.
+- Frontend `test:seance`, TypeScript checking, and ESLint pass.
+- No paid provider call or deployment was needed for these fixes.
+
+## 2026-09-07 — WP-20
+
+Assembled V2 browser QA and the legacy-page disposition, run by the independent
+QA agent (WP-12 final). Full report:
+[QA-REPORT-WP20-2026-09-07.md](QA-REPORT-WP20-2026-09-07.md). No production flag
+was changed, no paid call was made, and ports 8000 / 8010 and the owner's
+`language_learning` database were not touched: the walk ran against
+`scripts/dev_story_engine_server.py` (fake provider) on port 8031 over a
+throwaway `atelier_wp20_*` PostgreSQL, with a dev frontend on 3031.
+
+### The three WP-19 defects handed over
+
+| | Status | What was done |
+|---|---|---|
+| **D-1** — a cold start after a kill resumed the legacy Séance, not the open journey | **Fixed** | New `web-frontend/lib/journey-resume.ts`: `useDailyJourney` writes a `pilot:journey-resume:v1` mark while the envelope is enabled and the journey is `preparing`/`active`/`paused`, and clears it otherwise; `resolveResumeHref()` prefers that mark and otherwise falls through to `readResumeActivity()` unchanged; `pages/_app.tsx` calls the resolver; `pages/atelier.tsx` gained a `?view=journey` entry (guarded on `journeyEnabled`, outside Codex's `SessionView` branch) so the redirect lands *inside* the scene. A finished, abandoned, foreign or >48 h-old journey never wins. `lib/journey-resume.test.js` — 11 cases — is wired into `package.json` and CI as `test:resume-target` |
+| **D-2** — the WKWebView ignores iOS Dynamic Type | **Answered; no setting exists** | Capacitor 8.4.0's iOS config surface was read from `@capacitor/cli/dist/declarations.d.ts` and carries no text-size key; the only web mechanism is CSS, and `globals.css` pins the rem base (`:root[data-font-size]` 14.5/16/19 px, `-webkit-text-size-adjust: 100%`). The remediation WP-19 asked for already ships as Réglages → Apparence → «Corps du texte», exercised in this walk. Recorded, not invented. Recommendation for the native owner, **not applied**: `ios: { zoomEnabled: true }` — pinch-zoom is off by default, so with Dynamic Type ignored the in-app control is a learner's only text-size channel |
+| **D-3** — the V2 sticky progress header drew under the status bar | **Fixed** | `.av2 .av2-session__head` now uses `padding: calc(12px + env(safe-area-inset-top, 0px)) …`, matching `Epreuve.tsx`'s `.ep-top`. Source parity only — the inset is `0px` in a browser, so the visual proof needs the WP-19 simulator run again |
+
+### Legacy-page disposition
+
+Deleted, with every inbound link, in one change: `pages/practice.tsx`,
+`daily-practice.tsx`, `sessions.tsx`, `dashboard.tsx`, `stories.tsx`,
+`pages/stories/**`, `pages/story/[id].tsx`, `achievements.tsx`, `almanac.tsx`,
+`progress.tsx`, plus `components/AnkiSync.tsx`,
+`components/ui/CollapsibleSection.tsx` and nine now-orphaned story components.
+Links removed from `lib/product-shell.ts`, `components/layout/Layout.tsx` and
+`pages/learn/session/[id].tsx`; `/progress`, `/achievements` and `/almanac`
+gained redirect stubs in `next.config.js` so old bookmarks and push payloads do
+not 404. **Every API was kept.**
+
+Migrated onto the av2 system: the **Studio** (`pages/audio-session.tsx`, real
+recap and correction states preserved) and the **Bibliothèque** (the three
+`/bibliotheque/**` routes were one-line re-exports of the deleted `/stories`
+reader and are now real pages, with eight `components/stories/**` components and
+`UploadBookModal` rewritten). The **serial episode replay and cast** were found
+already on the system (`047ae8e`) and verified rather than assumed.
+
+`next build` route count: **44 → 33** (45 → 34 table rows including `/_app`) —
+exactly the eleven deleted routes, nothing else moved.
+
+One capability went with a deleted page and has no successor: the almanac's
+panel-crop **story seals**. Le Relevé keeps the collectible ledger, not the art;
+`test_frontend_serial_surfaces.py` now pins the ledger and says so.
+
+### Browser walk
+
+147 screenshots in `docs/mobile-visual-checks/2026-09-07-wp20/`: 105 route
+captures (15 authenticated routes × 320/390/768 px, light and dark, large text at
+390 and 320, reduced motion) and 42 flow captures playing the whole V2 journey —
+scene reader, recall, respond, graded feedback, resolution, recap — plus the
+Feuilleton page, its unknown-scene state and the Cahier, at three combinations.
+
+**No horizontal overflow on 104 of 105 route captures**; QA-REPORT §D-6 (the
+respond field clipped at 320 px with large text) did not reproduce. Keyboard
+order follows DOM order and every av2 control draws the design's focus ring under
+real key events.
+
+Eleven new defects, D-4 … D-15 (D-8 filed then **withdrawn** — the missing focus
+ring was a measurement artifact of `element.focus()`, which does not match
+`:focus-visible`; anyone measuring focus rings here must dispatch real key
+events). The substantive ones: two identical ✕ controls and two progress bars
+stacked in the journey scene reader (D-4); the step header advancing to "Step 3
+of 3" while step 2's feedback is still on screen (D-5); the answer field and its
+three helpers staying live after the answer is graded (D-6); `Today · ` rendering
+with a dangling separator on the day's primary card, because the engine's
+`available` descriptor ships an empty `location_name` (D-7); the 36 × 36
+neo-brutal feedback FAB now being the only off-system element left, and sitting
+over the reader's action bar (D-9); 24 sub-44 px controls in Réglages from one
+class, plus Cahier, Lexique, Missions and Home (D-10); and the grammar fiche
+overflowing horizontally at 320 px with large text — the single overflow in the
+whole matrix (D-15). All are handed to the daily-experience and frontend leads;
+none were fixed here beyond the three WP-19 defects this package owned.
+
+### Commands and actual results
+
+| Command | Result |
+|---|---|
+| `npm run type-check` | exit 0, no diagnostics |
+| `npm run lint` | `✔ No ESLint warnings or errors` |
+| `npm run build` | exit 0; route table 45 → 34 rows |
+| Eleven node suites (`atelier-next`, `journey`, `recovery`, `resume-target`, `atelier-ui`, `graphic-novel-images`, `reader`, `story-model`, `api-host`, `native-env`, `seance`) | all pass — `journey resume tests passed (11)`, `# pass 37 # fail 0`, `# pass 13 # fail 0`, `# pass 7 # fail 0`, `# pass 6 # fail 0`, `# pass 1 # fail 0` |
+| `.venv/bin/python -m pytest tests/ -p no:randomly` | `1748 passed, 1 skipped in 253.70s (0:04:13)` |
+| `.venv/bin/python -m pytest tests/` (random order) | `1750 passed, 1 skipped in 250.39s (0:04:10)` |
+| `.venv/bin/ruff check .` | `All checks passed!` |
+
+Source-scanning tests re-pinned rather than weakened:
+`test_reachable_surfaces_carry_no_neo_brutalist_styling` now covers 17 surfaces
+instead of 11; `test_achievements_have_no_manual_progress_gate` asserts the
+promise across the whole frontend instead of one deleted file;
+`test_story_reading_flow_is_parked_behind_launch_flag_without_deleting_contracts`
+and `test_story_flow_handles_auth_fetch_locked_and_incomplete_chapter_edges` were
+re-pointed at the migrated Bibliothèque with the new strings; two new tests
+(`test_the_off_system_legacy_pages_are_gone`,
+`test_no_frontend_surface_links_to_a_deleted_page`) keep the deletion honest.
+
+### Still open
+
+The WP-19 simulator walk must be re-run to prove D-1 and D-3 on a notched device
+(the D-1 redirect only fires on `isNativePlatform()`, so the browser proof stops
+at the mark and the `?view=journey` landing, both verified live). D-4 … D-15 are
+unowned by this package. The learner gates are unchanged: WP-22's five-learner
+study and the journey conversation's live-model review are still the last things
+between the pilot and a real answer, and nothing in this walk says anything about
+prose — it ran entirely on the fake provider.

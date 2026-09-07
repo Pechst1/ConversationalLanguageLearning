@@ -242,15 +242,6 @@ const SessionPageContent: React.FC = () => {
                 onStartNewSession={handleContinueLearning}
                 onReturnToLearning={handleReturnToLearningStream}
               />
-              <div className="mt-6 flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => router.push('/sessions')}
-                  className="inline-flex items-center justify-center rounded-none border-2 border-black bg-black px-5 py-2.5 text-sm font-bold text-white transition-all hover:-translate-y-0.5 hover:shadow-[3px_3px_0px_0px_#000]"
-                >
-                  Back to sessions
-                </button>
-              </div>
             </div>
           ) : (
             <div className="flex h-full flex-col">

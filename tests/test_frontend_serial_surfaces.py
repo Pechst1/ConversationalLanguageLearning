@@ -139,21 +139,30 @@ def test_feuilleton_translations_stay_hidden_until_requested() -> None:
     assert "{open ? 'Masquer la traduction' : 'Traduire'}" in reader
 
 
-def test_almanac_story_seals_render_panel_crop_art() -> None:
-    source = read_web("pages/almanac.tsx")
+def test_the_minted_collection_survives_the_almanac_page() -> None:
+    """WP-20 deleted `/almanac`; the collection it showed is Le Relevé's now.
 
-    assert "function StorySealCard" in source
-    assert "function PlateCard" in source
-    assert "metadata?.seal_crop" in source
-    assert "storySealImageUrl(seal)" in source
-    assert "objectPosition" in source
-    assert "className=\"story-seal-grid\"" in source
-    assert "className=\"story-seal-ring\"" in source
-    assert "loadError" in source
-    assert "composeError" in source
-    assert "The originals stay nested in your almanac" in source
-    assert "className=\"plate-members\"" in source
-    assert "setAlmanac(null)" not in source
+    This test used to pin the almanac page's `StorySealCard` / `PlateCard`
+    panel-crop art. That page is gone, and with it the seal-crop rendering — a
+    real, recorded loss (QA-REPORT-WP20 §"What the deletion cost"). What must
+    not be lost is the *ledger*: the minted collectibles still reach a learner,
+    they are still counted honestly (a piece already set into a plate is not
+    counted twice), and a failed read is still declared instead of being drawn
+    as an empty shelf. Those are asserted here, on the surface that kept them.
+    """
+    releve = read_web("components/releve/Releve.tsx")
+    api = read_web("services/api.ts")
+
+    assert not (WEB / "pages" / "almanac.tsx").exists()
+    assert "async getAtelierAlmanac" in api
+    assert "'/atelier/almanac'" in api
+
+    assert "getAtelierAlmanac" in releve
+    assert "almanac?.collectibles" in releve
+    # The double-count guard the almanac's plate view used to carry.
+    assert ".filter((piece) => !piece.composed).length" in releve
+    # A failed read is a declared failure, never a silently empty collection.
+    assert "collection: achievementsResult.status === 'rejected' && almanacResult.status === 'rejected'" in releve
 
 
 def test_product_direction_surfaces_are_wired() -> None:
@@ -177,4 +186,8 @@ def test_product_direction_surfaces_are_wired() -> None:
     assert "destination: '/atelier'" in redirects
     assert "source: '/stories/:path*'" in redirects
     assert "source: '/bibliotheque/:path*'" in redirects
-    assert "from './stories'" in bibliotheque
+    # WP-20: `/bibliotheque` is a real Atelier V2 page, not a re-export of the
+    # deleted `/stories` reader.
+    assert "from './stories'" not in bibliotheque
+    assert "AtelierV2Root" in bibliotheque
+    assert "STORY_FEATURE_VISIBLE" in bibliotheque

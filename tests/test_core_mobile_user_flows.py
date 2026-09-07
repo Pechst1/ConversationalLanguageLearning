@@ -197,36 +197,54 @@ def test_feuilleton_scene_flow_has_creation_tasks_completion_and_context_returns
 
 
 def test_story_reading_flow_is_parked_behind_launch_flag_without_deleting_contracts() -> None:
-    stories_page = read(WEB / "pages" / "stories.tsx")
-    story_runtime = read(WEB / "pages" / "story" / "[id].tsx")
-    story_detail = read(WEB / "pages" / "stories" / "[storyId].tsx")
-    chapter_page = read(WEB / "pages" / "stories" / "[storyId]" / "chapter" / "[chapterId].tsx")
+    """The Bibliothèque, not /stories, is where the parked reading flow lives.
+
+    WP-20 migrated the three `/bibliotheque/**` routes onto the Atelier V2 system
+    and deleted `pages/stories.tsx`, `pages/stories/**` and `pages/story/[id].tsx`
+    — the pages these assertions used to read. Every contract below is the same
+    contract, re-pointed at the surviving page: the launch-flag park, the redirect
+    table, the hooks, the session layout and the chapter-start payload are
+    untouched, and the two navigation pins now assert the `/bibliotheque` route
+    the migration moved them to. The `/story/[id]` immersive reader has no
+    successor and is asserted absent instead of asserted parked.
+    """
+    stories_page = read(WEB / "pages" / "bibliotheque.tsx")
+    story_detail = read(WEB / "pages" / "bibliotheque" / "[storyId].tsx")
+    chapter_page = read(WEB / "pages" / "bibliotheque" / "[storyId]" / "chapter" / "[chapterId].tsx")
     learn_new = read(WEB / "pages" / "learn" / "new.tsx")
     redirects = read(WEB / "next.config.js")
     story_hooks = read(WEB / "hooks" / "useStories.ts")
     session_layout = read(WEB / "components" / "stories" / "StorySessionLayout.tsx")
+
+    # The retired readers stay retired.
+    assert not (WEB / "pages" / "stories.tsx").exists()
+    assert not (WEB / "pages" / "stories").exists()
+    assert not (WEB / "pages" / "story").exists()
 
     assert "STORY_FEATURE_VISIBLE" in stories_page
     assert "void router.replace('/atelier')" in stories_page
     assert "if (!STORY_FEATURE_VISIBLE) return null" in stories_page
     assert "source: '/stories/:path*', destination: '/atelier'" in redirects
     assert "source: '/bibliotheque/:path*', destination: '/atelier'" in redirects
-    assert "<EditorialMasthead />" in stories_page
+    assert "source: '/story/:id', destination: '/atelier'" in redirects
+    # The index still leads with one text and lists the rest, and still owns the
+    # import affordance — now on the av2 system rather than the legacy cards.
+    assert "AtelierV2Root" in stories_page
     assert "UploadBookModal" in stories_page
-    assert "<FeaturedStoryCard story={storyList[0]} />" in stories_page
-    assert "StoryCard key={story.id} story={story}" in stories_page
-
-    assert "STORY_FEATURE_VISIBLE" in story_runtime
-    assert "void router.replace('/atelier')" in story_runtime
-    assert "if (!STORY_FEATURE_VISIBLE) return null" in story_runtime
+    assert "storyList[0]" in stories_page
+    assert "storyList.slice(1)" in stories_page
+    assert "/bibliotheque/${" in stories_page
 
     assert "STORY_FEATURE_VISIBLE" in story_detail
     assert "void router.replace('/atelier')" in story_detail
     assert "if (!STORY_FEATURE_VISIBLE) return null" in story_detail
     assert "useStoryDetail(resolvedStoryId)" in story_detail
     assert "useStartStory()" in story_detail
-    assert "router.push(`/stories/${resolvedStoryId}/chapter/${result.chapter.id}`)" in story_detail
-    assert "router.push(`/stories/${resolvedStoryId}/chapter/${storyDetail.user_progress.current_chapter_id}`)" in story_detail
+    assert "router.push(`/bibliotheque/${resolvedStoryId}/chapter/${result.chapter.id}`)" in story_detail
+    assert (
+        "router.push(`/bibliotheque/${resolvedStoryId}/chapter/${storyDetail.user_progress.current_chapter_id}`)"
+        in story_detail
+    )
 
     assert "STORY_FEATURE_VISIBLE" in chapter_page
     assert "void router.replace('/atelier')" in chapter_page

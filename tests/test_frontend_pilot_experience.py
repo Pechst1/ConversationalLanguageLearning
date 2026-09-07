@@ -74,10 +74,24 @@ def test_audio_call_states_never_lie_or_dead_end():
 
 
 def test_achievements_have_no_manual_progress_gate():
-    page = _source("pages/achievements.tsx")
+    """Achievements unlock on their own; no screen may ask a learner to check.
 
-    assert "Check Progress" not in page
-    assert "Unlocked automatically" in page
+    The `/achievements` page carried this promise until WP-20 deleted it as one
+    of the eight off-system legacy screens. The promise outlived the page, so it
+    is now asserted against the whole frontend instead of one file: the API call
+    survives (`apiService.checkAchievements`, kept per WP-20 "keep every API"),
+    but nothing a learner can see may invoke it or offer a manual gate.
+    """
+    frontend_root = FRONTEND
+    assert not (frontend_root / "pages" / "achievements.tsx").exists()
+
+    offenders = []
+    for folder in ("pages", "components"):
+        for path in (frontend_root / folder).rglob("*.tsx"):
+            text = path.read_text(encoding="utf-8")
+            if "Check Progress" in text or "checkAchievements" in text:
+                offenders.append(str(path.relative_to(frontend_root)))
+    assert offenders == []
 
 
 def test_native_push_routes_taps_back_into_the_product():

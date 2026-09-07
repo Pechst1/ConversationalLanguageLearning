@@ -1,0 +1,256 @@
+[
+  {
+    "name": "01-home-journey-primary-390-dark",
+    "path": "/atelier",
+    "hOverflow": false,
+    "overflowing": [],
+    "smallTargets": [
+      "A:Plus de pratique 110x32",
+      "A:après la séance 75x18",
+      "BUTTON:Send feedback 36x36"
+    ],
+    "controlCount": 12,
+    "text": "Today · Your next chapter Continue your story in French. 5 min Start today Édition Nº 1 · A1.1 Lundi 7 septembre Séance 1 règle · exercices Plus de pratique Lexique Rien à revoir Errata Rien à reprendre Demain — après la séance, épisode 2. Atelier Missions Feuilleton Cahier"
+  },
+  {
+    "name": "02-journey-scene-reader-390-dark",
+    "path": "/atelier",
+    "hOverflow": false,
+    "overflowing": [],
+    "smallTargets": [
+      "BUTTON:Panneau 57x22",
+      "BUTTON:La 15x22",
+      "BUTTON:pluie 31x22",
+      "BUTTON:a 7x22",
+      "BUTTON:inondé 45x22",
+      "BUTTON:la 11x22",
+      "BUTTON:cave 30x22",
+      "BUTTON:de 16x22",
+      "BUTTON:immeuble 65x22",
+      "BUTTON:Send feedback 36x36"
+    ],
+    "controlCount": 18,
+    "text": "Step 1 of 3 · 3 min left The Canal market · Ask a neighbour for help, or offer yours. 1 / 3 Chapitre 6 Scène 6 — flooded-cellar Décor de référence : l’illustration montre le lieu, elle n’est pas une planche inédite. Planche 1 sur 3 Panneau 1 : La pluie a inondé la cave de l'immeuble. Précédent Suivant Stop here"
+  },
+  {
+    "name": "03-journey-reader-last-panel-390-dark",
+    "path": "/atelier",
+    "hOverflow": false,
+    "overflowing": [],
+    "smallTargets": [
+      "BUTTON:Dites-moi 74x25",
+      "BUTTON:Panneau 57x22",
+      "BUTTON:un 17x22",
+      "BUTTON:silence 45x22",
+      "BUTTON:puis 27x22",
+      "BUTTON:un 17x22",
+      "BUTTON:sourire 45x22",
+      "BUTTON:Send feedback 36x36"
+    ],
+    "controlCount": 16,
+    "text": "Step 1 of 3 · 3 min left The Canal market · Ask a neighbour for help, or offer yours. 3 / 3 Chapitre 6 Scène 6 — flooded-cellar Décor de référence : l’illustration montre le lieu, elle n’est pas une planche inédite. Planche 3 sur 3 Marin Lévêque Dites-moi. Panneau 3 : un silence, puis un sourire. Précédent Continue Stop here"
+  },
+  {
+    "name": "04-journey-step-2-390-dark",
+    "path": "/atelier",
+    "hOverflow": false,
+    "overflowing": [],
+    "smallTargets": [
+      "BUTTON:Send feedback 36x36"
+    ],
+    "controlCount": 8,
+    "text": "Step 2 of 3 · 3 min left The Canal market · Ask a neighbour for help, or offer yours. M Marin Lévêque Vous pouvez m'aider ? Ask a neighbour for help, or offer yours. Your answer Send Hint Translation Suggest a reply Stop here"
+  },
+  {
+    "name": "05-journey-graded-feedback-390-dark",
+    "path": "/atelier",
+    "hOverflow": false,
+    "overflowing": [],
+    "smallTargets": [
+      "BUTTON:Send feedback 36x36"
+    ],
+    "controlCount": 9,
+    "text": "Step 3 of 3 · 45 s left The Canal market · Ask a neighbour for help, or offer yours. M Marin Lévêque Vous pouvez m'aider ? Ask a neighbour for help, or offer yours. Your answer Send Hint Translation Suggest a reply Correct Merci ! On fait ça ensemble. Continue Stop here"
+  },
+  {
+    "name": "submit-control-390-dark",
+    "submitted": "Send"
+  },
+  {
+    "name": "06-1-journey-step-390-dark",
+    "path": "/atelier",
+    "hOverflow": false,
+    "overflowing": [],
+    "smallTargets": [
+      "BUTTON:Send feedback 36x36"
+    ],
+    "controlCount": 4,
+    "text": "Step 3 of 3 · 45 s left The Canal market · Ask a neighbour for help, or offer yours. Today Vous promettez de venir aider. You offered to help. Continue Stop here"
+  },
+  {
+    "name": "06-2-journey-step-390-dark",
+    "path": "/atelier",
+    "hOverflow": false,
+    "overflowing": [],
+    "smallTargets": [
+      "BUTTON:Send feedback 36x36"
+    ],
+    "controlCount": 4,
+    "text": "Step 3 of 3 Today Scene finished 51 s Marin Lévêque Vous avez promis d'aider samedi. Continue Plus de pratique Optional. It does not reopen today’s scene."
+  },
+  {
+    "name": "07-journey-recap-390-dark",
+    "path": "/atelier",
+    "hOverflow": false,
+    "overflowing": [],
+    "smallTargets": [
+      "BUTTON:Send feedback 36x36"
+    ],
+    "controlCount": 4,
+    "text": "Step 3 of 3 Today Scene finished 51 s Marin Lévêque Vous avez promis d'aider samedi. Continue Plus de pratique Optional. It does not reopen today’s scene."
+  },
+  {
+    "name": "keyboard-recap-390-dark",
+    "keyboard": [
+      {
+        "label": "Pause",
+        "focused": true,
+        "outline": "none 3px",
+        "boxShadow": "none"
+      },
+      {
+        "label": "Continue",
+        "focused": true,
+        "outline": "none 3px",
+        "boxShadow": "rgb(168, 50, 28) 0px 5px 0px 0px"
+      },
+      {
+        "label": "Plus de pratique",
+        "focused": true,
+        "outline": "none 3px",
+        "boxShadow": "rgb(74, 66, 52) 0px 4px 0px 0px"
+      },
+      {
+        "label": "Send feedback",
+        "focused": true,
+        "outline": "none 3px",
+        "boxShadow": "none"
+      }
+    ]
+  },
+  {
+    "name": "08-feuilleton-page-390-dark",
+    "path": "/graphic-novel",
+    "hOverflow": false,
+    "overflowing": [],
+    "smallTargets": [
+      "BUTTON:Send feedback 36x36"
+    ],
+    "controlCount": 11,
+    "text": "Le feuilleton · Saison 1 L’épisode du jour L’épisode La saison Les personnages Retour à La Une L’illustration de cet épisode n’est pas encore parue. Épisode 1 · aujourd’hui L’épisode du jour vous attend. Une réponse réelle doit faire avancer la situation. Le prochain épisode montrera exactement ce qu’elle a changé. Ouvrir l’épisode du jour C’est l’épisode annoncé à La Une. Il continue votre saison ; il n’en ouvre pas une autre. En marge Le supplément illustré Une scène composée à la demande, en marge du feuilleton. Elle ne change rien à la saison. Atelier Missions Feuilleton Cahier"
+  },
+  {
+    "name": "09-feuilleton-reader-or-state-390-dark",
+    "path": "/atelier",
+    "hOverflow": false,
+    "overflowing": [],
+    "smallTargets": [
+      "A:11ᵉʳ jour 37x61",
+      "A:Plus de pratique 110x32",
+      "A:après la séance 75x18",
+      "BUTTON:Send feedback 36x36"
+    ],
+    "controlCount": 12,
+    "text": " Today Today’s scene is done. Continue Édition Nº 1 · A1.1 Lundi 7 septembre 1 1ᵉʳ jour Séance 1 règle · exercices Plus de pratique Lexique Rien à revoir Errata Rien à reprendre Demain — après la séance, épisode 2. Atelier Missions Feuilleton Cahier L’épisode du jour"
+  },
+  {
+    "name": "10-feuilleton-unknown-scene-409-state-390-dark",
+    "path": "/graphic-novel?scene=00000000-0000-0000-0000-000000000000",
+    "hOverflow": false,
+    "overflowing": [],
+    "smallTargets": [
+      "BUTTON:Send feedback 36x36"
+    ],
+    "controlCount": 10,
+    "text": "Le feuilleton · hors édition Le supplément illustré L’épisode La saison Les personnages Retour à La Une Lecture facultative Aucune scène sur le pupitre. Composez une édition pour une courte pause de lecture. La feuille de tâches n’apparaît qu’avec les planches. Feuille de tâches verrouillée — Les tâches se déplient sous les planches une fois l’édition composée. Composer la première scène Atelier Missions Feuilleton Cahier"
+  },
+  {
+    "name": "11-cahier-regles-390-dark",
+    "path": "/notebook",
+    "hOverflow": false,
+    "overflowing": [
+      "BUTTON.av2-chip",
+      "SPAN.",
+      "BUTTON.av2-chip",
+      "SPAN."
+    ],
+    "smallTargets": [
+      "BUTTON:A1 40x44",
+      "BUTTON:A2 43x44",
+      "BUTTON:B1 39x44",
+      "BUTTON:B2 42x44",
+      "BUTTON:C1 41x44",
+      "BUTTON:C2 43x44",
+      "BUTTON:Send feedback 36x36"
+    ],
+    "controlCount": 71,
+    "text": "54 concepts · 0 vus · A1.1 en cours Le cahier Règles Mots Relevé Tous À revoir · 0 A1 A2 B1 B2 C1 C2 54 fiches Genre et nombre : les bases A1 · Accord · nouveau Les articles définis : le, la, l', les A1 · Articles · nouveau Les articles indéfinis : un, une, des A1 · Articles · nouveau Les articles partitifs : du, de la, de l' A1 · Articles · nouveau Les possessifs : mon, ma, mes A1 · Déterminants · nouveau Les démonstratifs : ce, cet, cette, ces A1 · Déterminants · nouveau Les pronoms sujets et on A1 · Pronoms · nouveau Le présent : verbes essentiels A1 · Verbes · nouveau La négation simple : "
+  },
+  {
+    "name": "12-cahier-releve-390-dark",
+    "path": "/notebook?tab=releve",
+    "hOverflow": false,
+    "overflowing": [
+      "BUTTON.av2-chip",
+      "SPAN.",
+      "BUTTON.av2-chip",
+      "SPAN."
+    ],
+    "smallTargets": [
+      "BUTTON:A1 40x44",
+      "BUTTON:A2 43x44",
+      "BUTTON:B1 39x44",
+      "BUTTON:B2 42x44",
+      "BUTTON:C1 41x44",
+      "BUTTON:C2 43x44",
+      "BUTTON:Send feedback 36x36"
+    ],
+    "controlCount": 71,
+    "text": "54 concepts · 0 vus · A1.1 en cours Le cahier Règles Mots Relevé Tous À revoir · 0 A1 A2 B1 B2 C1 C2 54 fiches Genre et nombre : les bases A1 · Accord · nouveau Les articles définis : le, la, l', les A1 · Articles · nouveau Les articles indéfinis : un, une, des A1 · Articles · nouveau Les articles partitifs : du, de la, de l' A1 · Articles · nouveau Les possessifs : mon, ma, mes A1 · Déterminants · nouveau Les démonstratifs : ce, cet, cette, ces A1 · Déterminants · nouveau Les pronoms sujets et on A1 · Pronoms · nouveau Le présent : verbes essentiels A1 · Verbes · nouveau La négation simple : "
+  },
+  {
+    "name": "13-reglages-390-dark",
+    "path": "/settings",
+    "hOverflow": false,
+    "overflowing": [],
+    "smallTargets": [
+      "A:L’Atelier 56x26",
+      "A:Settings 36x36",
+      "BUTTON:Légère 91x40",
+      "BUTTON:Équilibrée 91x40",
+      "BUTTON:Complète 91x40",
+      "BUTTON:Féminin 91x40",
+      "BUTTON:Masculin 91x40",
+      "BUTTON:Neutre 91x40",
+      "BUTTON:5 min 91x40",
+      "BUTTON:10 min 91x40",
+      "BUTTON:15 min 91x40",
+      "BUTTON:30 min 140x40",
+      "BUTTON:60 min 140x40",
+      "BUTTON:20 91x40",
+      "BUTTON:50 91x40",
+      "BUTTON:100 91x40",
+      "BUTTON:150 140x40",
+      "BUTTON:200 140x40",
+      "BUTTON:Clair 91x40",
+      "BUTTON:Sombre 91x40",
+      "BUTTON:Système 91x40",
+      "BUTTON:Petit 91x40",
+      "BUTTON:Moyen 91x40",
+      "BUTTON:Grand 91x40",
+      "BUTTON:Send feedback 36x36"
+    ],
+    "controlCount": 83,
+    "text": "Settings Atelier Missions Feuilleton Cahier Lecteur · beginner Réglages Dossier Langues Rythme Notifications Apparence Voix Données Dossier Compte wp20.flowB@example.com Nom affiché Modifier l’adresse Utilisez ce formulaire sécurisé pour changer votre adresse de connexion. Nouvelle adresse Mot de passe actuel Enregistrer la nouvelle adresse Modifier le mot de passe Huit caractères au moins ; vous serez reconnecté ensuite. Mot de passe actuel Nouveau mot de passe Enregistrer le nouveau mot de passe Langues Langue d’appui Allemand Anglais Français Espagnol Italien Langue apprise Allemand Anglais"
+  }
+]

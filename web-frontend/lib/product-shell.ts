@@ -10,14 +10,12 @@ export type ProductTab = {
   activeRoutes: string[];
 };
 
+// WP-20 deleted the `/stories` and `/story/[id]` readers; the Bibliothèque is
+// the whole of the reading flow now, and it is still parked behind the flag.
 const STORY_ROUTES: string[] = [
   '/bibliotheque',
   '/bibliotheque/[storyId]',
   '/bibliotheque/[storyId]/chapter/[chapterId]',
-  '/stories',
-  '/stories/[storyId]',
-  '/stories/[storyId]/chapter/[chapterId]',
-  '/story/[id]',
 ];
 
 export const PHONE_PRODUCT_TABS: ProductTab[] = [
@@ -28,13 +26,9 @@ export const PHONE_PRODUCT_TABS: ProductTab[] = [
     icon: 'mark',
     activeRoutes: [
       '/atelier',
-      '/dashboard',
-      '/daily-practice',
       '/learn',
       '/learn/new',
       '/learn/session/[id]',
-      '/sessions',
-      '/practice',
       '/audio-session',
       ...(STORY_FEATURE_VISIBLE ? STORY_ROUTES : []),
       '/vocabulary/review',
@@ -71,9 +65,6 @@ export const PHONE_PRODUCT_TABS: ProductTab[] = [
       '/notebook',
       '/grammar',
       '/vocabulary',
-      '/progress',
-      '/achievements',
-      '/almanac',
       '/vocabulary/conjugation',
     ],
   },
@@ -89,7 +80,6 @@ const OWN_SHELL_ROUTES = new Set([
   '/serial/episode/[index]',
   '/grammar',
   '/notebook',
-  '/almanac',
   '/vocabulary',
   '/vocabulary/review',
   '/vocabulary/conjugation',
@@ -109,7 +99,7 @@ export function resolveProductSection(pathname: string): ProductSection | undefi
 }
 
 export function resolveProductTitle(section: ProductSection | undefined, pathname: string) {
-  if (pathname === '/learn/session/[id]' || pathname === '/sessions' || pathname === '/practice') {
+  if (pathname === '/learn/session/[id]') {
     return 'Session';
   }
   if (STORY_FEATURE_VISIBLE && STORY_ROUTES.includes(pathname)) {

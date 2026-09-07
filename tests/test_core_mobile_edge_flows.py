@@ -101,9 +101,20 @@ def test_feuilleton_locks_task_sheet_until_scene_and_requires_real_answers() -> 
 
 
 def test_story_flow_handles_auth_fetch_locked_and_incomplete_chapter_edges() -> None:
-    stories = read(WEB / "pages" / "stories.tsx")
-    story_detail = read(WEB / "pages" / "stories" / "[storyId].tsx")
-    chapter_page = read(WEB / "pages" / "stories" / "[storyId]" / "chapter" / "[chapterId].tsx")
+    """Every honest edge of the parked reading flow, on the migrated pages.
+
+    WP-20 replaced the `/stories` cluster with the `/bibliotheque` one on the
+    Atelier V2 system, which moved these strings from English to French and from
+    hand-rolled markup to the design system's own states. Every edge asserted
+    here is the same edge — empty shelf, locked text, "loading", "not found",
+    "starting", the completion gate and the locked-chapter mark — pinned at its
+    new wording. Nothing was dropped: the locked row's disabled state and the
+    completion gate are asserted more precisely than before, because the av2
+    `Action` separates `disabled` (cannot) from `pending` (in flight).
+    """
+    stories = read(WEB / "pages" / "bibliotheque.tsx")
+    story_detail = read(WEB / "pages" / "bibliotheque" / "[storyId].tsx")
+    chapter_page = read(WEB / "pages" / "bibliotheque" / "[storyId]" / "chapter" / "[chapterId].tsx")
     chapter_progress = read(WEB / "components" / "stories" / "ChapterProgressCard.tsx")
     chapter_timeline = read(WEB / "components" / "stories" / "ChapterTimeline.tsx")
 
@@ -112,27 +123,30 @@ def test_story_flow_handles_auth_fetch_locked_and_incomplete_chapter_edges() -> 
     assert "useChapter(resolvedStoryId, resolvedChapterId)" in chapter_page
     assert "const [storyList, setStoryList] = useState(stories)" in stories
     assert "setStoryList([])" in stories
-    assert "No Library Texts Available" in stories
-    assert "Upload First Book" in stories
-    assert "href={isLocked ? '#' : `/story/${story.id}`}" in stories
+    # An empty shelf says so and offers the import, rather than showing nothing.
+    assert "L’étagère est encore vide." in stories
+    assert "Importer un premier livre" in stories
+    # A locked text is inert and reads as locked; it is no longer an <a href="#">.
     assert "disabled={isLocked}" in stories
+    assert "/bibliotheque/${story.id}" in stories
 
-    assert "Loading story..." in story_detail
-    assert "Story not found" in story_detail
+    assert "Ouverture du texte…" in story_detail
+    assert "Ce texte est introuvable." in story_detail
     assert "disabled={!user_progress?.current_chapter_id}" in story_detail
-    assert "Starting..." in story_detail
-    assert "Loading chapter..." in chapter_page
-    assert "Starting session..." in chapter_page
+    assert "Ouverture…" in story_detail
+    assert "Ouverture du chapitre…" in chapter_page
+    assert "Ouverture de la séance…" in chapter_page
     assert "throw new Error('Failed to create session')" in chapter_page
-    assert "Chapter not found" in chapter_page
-    assert "Back to Story" in chapter_page
+    assert "Ce chapitre est introuvable." in chapter_page
+    assert "Retour au texte" in chapter_page
 
-    assert "disabled={!canComplete || loading}" in chapter_progress
-    assert "Complete more goals to finish" in chapter_progress
-    assert "Complete at least" in chapter_progress
+    assert "disabled={!canComplete}" in chapter_progress
+    assert "pending={loading}" in chapter_progress
+    assert "Encore quelques objectifs à atteindre" in chapter_progress
+    assert "Atteignez au moins" in chapter_progress
     assert "is_locked" in chapter_timeline
-    assert "Lock className" in chapter_timeline
-    assert "Current Chapter" in chapter_timeline
+    assert "<LockIcon size={14} />" in chapter_timeline
+    assert "Chapitre en cours" in chapter_timeline
 
 
 def test_settings_safety_edges_for_account_and_device_actions() -> None:

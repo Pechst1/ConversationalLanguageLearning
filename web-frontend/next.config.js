@@ -71,6 +71,11 @@ if (!isNativeStaticExport) {
     { source: '/sessions', destination: '/atelier', permanent: false },
     { source: '/practice', destination: '/atelier', permanent: false },
     { source: '/daily-practice', destination: '/atelier', permanent: false },
+    // WP-20 deleted these pages outright. The redirects stay so an old bookmark,
+    // a push payload or a native deep link lands somewhere real instead of a 404.
+    { source: '/progress', destination: '/notebook', permanent: false },
+    { source: '/achievements', destination: '/notebook', permanent: false },
+    { source: '/almanac', destination: '/graphic-novel', permanent: false },
     { source: '/learn', destination: '/atelier', permanent: false },
     { source: '/index', destination: '/atelier', permanent: false },
     ...(isStoryFeatureVisible

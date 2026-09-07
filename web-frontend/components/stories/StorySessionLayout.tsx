@@ -1,8 +1,27 @@
-import React, { useState, useEffect } from 'react';
+/* One chapter of a Bibliothèque text, played as a conversation — on the Claude
+ * design (Atelier V2).
+ *
+ * The data flow is exactly what it was before the WP-20 migration: one learning
+ * session over the chapter, goals re-checked against the server after every
+ * turn, grammar concepts marked as practised in context on completion. What
+ * changed is the chrome and the routes, which now lead to `/bibliotheque/…`.
+ *
+ * The screen owns its own `AtelierV2Root` because it is rendered directly by
+ * the chapter route, not inside another av2 surface.
+ */
+
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import useSWR from 'swr';
-import { ArrowLeft, BookOpen, AlertCircle, CheckCircle, Sparkles } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
+
+import {
+  Action,
+  ArrowLeftIcon,
+  AtelierV2Root,
+  Chip,
+  IconAction,
+  SendIcon,
+} from '@/components/atelier-v2/ui';
 import { useLearningSession } from '@/hooks/useLearningSession';
 import { ChapterBase, useCompleteChapter, useCheckGoals } from '@/hooks/useStories';
 import NarrativeGoalsPanel from './NarrativeGoalsPanel';
@@ -36,6 +55,7 @@ export default function StorySessionLayout({
   const [showCompletionModal, setShowCompletionModal] = useState(false);
   const [completionResult, setCompletionResult] = useState<any>(null);
   const [totalXpEarned, setTotalXpEarned] = useState(0);
+  const feedEndRef = useRef<HTMLDivElement>(null);
   const grammarKey = chapterId ? `/grammar/for-chapter/${chapterId}` : null;
   const fetchGrammarForChapter = async (key: string): Promise<ChapterGrammarConcept[]> => {
     const chapterIdFromKey = key.split('/').pop() || '';
@@ -53,6 +73,11 @@ export default function StorySessionLayout({
     const xp = messages.reduce((sum, msg) => sum + (msg.xp || 0), 0);
     setTotalXpEarned(xp);
   }, [messages]);
+
+  // Keep the newest turn in view, the way a conversation is read.
+  useEffect(() => {
+    feedEndRef.current?.scrollIntoView({ block: 'end' });
+  }, [messages.length]);
 
   // Check goal completion after each message using backend
   useEffect(() => {
@@ -124,216 +149,200 @@ export default function StorySessionLayout({
     router.push(`/grammar?review=${conceptId}`);
   };
 
+  const chapterNumber = chapter.sequence_order ?? chapter.order_index + 1;
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => router.push(`/stories/${storyId}`)}
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Exit Chapter
-            </Button>
-            <div className="flex items-center gap-3">
-              <BookOpen className="h-5 w-5 text-primary-600" />
-              <div>
-                <h2 className="font-bold text-gray-900">{chapter.title}</h2>
-                <p className="text-xs text-gray-500">Chapter {chapter.sequence_order ?? chapter.order_index + 1}</p>
-              </div>
-            </div>
-            <div className="w-24"></div> {/* Spacer for centering */}
+    <>
+      <AtelierV2Root as="main" className="bib-session" aria-label={chapter.title}>
+        <header className="bib-session__head">
+          <IconAction
+            label="Quitter le chapitre"
+            onClick={() => router.push(`/bibliotheque/${storyId}`)}
+          >
+            <ArrowLeftIcon size={18} />
+          </IconAction>
+          <div className="bib-session__title">
+            <p className="av2-label">Chapitre {chapterNumber}</p>
+            <h1 className="av2-headline av2-headline--title">{chapter.title}</h1>
           </div>
-        </div>
-      </div>
+        </header>
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Main Conversation Area */}
-          <div className="lg:col-span-2 space-y-4">
-            {/* Opening Narrative (shown once) */}
-            {messages.length <= 1 && chapter.opening_narrative && (
-              <NarrativeCard narrative={chapter.opening_narrative} />
-            )}
+        {messages.length <= 1 && chapter.opening_narrative && (
+          <NarrativeCard narrative={chapter.opening_narrative} />
+        )}
 
-            {/* Conversation */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 min-h-[500px] flex flex-col">
-              {/* Messages */}
-              <div className="flex-1 overflow-y-auto space-y-4 mb-4">
-                {messages.map((message) => (
-                  <div key={message.id} className="space-y-2">
-                    <div
-                      className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                    >
-                      <div
-                        className={`max-w-[80%] rounded-lg p-4 ${
-                          message.role === 'user'
-                            ? 'bg-primary-600 text-white'
-                            : 'bg-gray-100 text-gray-900'
-                        }`}
-                      >
-                        <p className="whitespace-pre-wrap">{message.content}</p>
-                        {message.xp && message.xp > 0 && (
-                          <p className="text-xs mt-2 opacity-75 flex items-center gap-1">
-                            <Sparkles className="h-3 w-3" />
-                            +{message.xp} XP
-                          </p>
-                        )}
-                      </div>
-                    </div>
+        <section className="bib-chat" aria-label="La conversation">
+          <div className="bib-chat__feed" aria-live="polite">
+            {messages.map((message) => (
+              <div className="bib-turn" key={message.id} data-role={message.role}>
+                <div className="bib-bubble" data-role={message.role}>
+                  <p className="av2-body av2-body--lg bib-bubble__text">{message.content}</p>
+                  {message.xp && message.xp > 0 ? (
+                    <p className="av2-label">+{message.xp} XP</p>
+                  ) : null}
+                </div>
 
-                    {/* Error Feedback for user messages */}
-                    {message.role === 'user' && message.errors && message.errors.errors.length > 0 && (
-                      <div className="flex justify-end">
-                        <div className="max-w-[85%] bg-amber-50 border border-amber-200 rounded-lg p-3">
-                          <div className="flex items-center gap-2 mb-2">
-                            <AlertCircle className="h-4 w-4 text-amber-600" />
-                            <span className="text-sm font-medium text-amber-800">Grammar Feedback</span>
-                          </div>
-                          <div className="space-y-2">
-                            {message.errors.errors.map((error, idx) => (
-                              <div key={idx} className="text-sm">
-                                <p className="text-amber-900">{error.message}</p>
-                                {error.suggestion && (
-                                  <p className="text-amber-700 mt-1">
-                                    <span className="font-medium">Suggestion:</span> {error.suggestion}
-                                  </p>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                          {message.errors.summary && (
-                            <p className="text-xs text-amber-600 mt-2 pt-2 border-t border-amber-200">
-                              {message.errors.summary}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Positive feedback when no errors */}
-                    {message.role === 'user' && message.errors && message.errors.errors.length === 0 && message.xp && message.xp > 0 && (
-                      <div className="flex justify-end">
-                        <div className="max-w-[85%] bg-green-50 border border-green-200 rounded-lg p-2 flex items-center gap-2">
-                          <CheckCircle className="h-4 w-4 text-green-600" />
-                          <span className="text-sm text-green-800">Great job! No errors detected.</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-
-                {loading && (
-                  <div className="flex justify-start">
-                    <div className="bg-gray-100 rounded-lg p-4">
-                      <div className="flex gap-2">
-                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
-                      </div>
-                    </div>
+                {message.role === 'user' && message.errors && message.errors.errors.length > 0 && (
+                  <div className="bib-note" data-tone="repair">
+                    <p className="av2-label">À reprendre</p>
+                    {message.errors.errors.map((error, idx) => (
+                      <p className="av2-body" key={idx}>
+                        {error.message}
+                        {error.suggestion ? ` — ${error.suggestion}` : ''}
+                      </p>
+                    ))}
+                    {message.errors.summary && <p className="av2-label">{message.errors.summary}</p>}
                   </div>
                 )}
+
+                {message.role === 'user'
+                  && message.errors
+                  && message.errors.errors.length === 0
+                  && message.xp
+                  && message.xp > 0 ? (
+                  <div className="bib-note" data-tone="correct">
+                    <p className="av2-label">Rien à reprendre.</p>
+                  </div>
+                ) : null}
               </div>
+            ))}
 
-              {/* Input */}
-              <div className="border-t border-gray-200 pt-4">
-                <div className="flex gap-2">
-                  <textarea
-                    value={draft}
-                    onChange={(e) => setDraft(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSend();
-                      }
-                    }}
-                    placeholder="Type your message in French..."
-                    className="flex-1 resize-none rounded-lg border border-gray-300 p-3 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    rows={3}
-                    disabled={!isConnected || loading}
-                  />
-                  <Button
-                    onClick={handleSend}
-                    disabled={!draft.trim() || !isConnected || loading}
-                    className="self-end"
-                  >
-                    Send
-                  </Button>
-                </div>
-                <p className="text-xs text-gray-500 mt-2">
-                  {isConnected ? 'Connected' : 'Connecting...'}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-4">
-            {/* Grammar Focus for Chapter */}
-            {(grammarConcepts && grammarConcepts.length > 0) || loadingGrammar ? (
-              <ChapterGrammarPreview
-                concepts={grammarConcepts || []}
-                onReviewClick={handleGrammarReviewClick}
-                loading={loadingGrammar}
-              />
-            ) : null}
-
-            {/* Narrative Goals */}
-            <NarrativeGoalsPanel
-              goals={chapter.narrative_goals || []}
-              completedGoals={completedGoals}
-            />
-
-            {/* Vocabulary Helper */}
-            {suggested.length > 0 && (
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-                <h3 className="font-bold mb-3 text-sm text-gray-900">Suggested Vocabulary</h3>
-                <div className="space-y-2">
-                  {suggested.map((word) => (
-                    <div
-                      key={word.id}
-                      className="p-2 bg-gray-50 rounded cursor-pointer hover:bg-gray-100"
-                      onClick={() => setDraft(draft + (draft ? ' ' : '') + word.word)}
-                    >
-                      <p className="font-medium text-sm">{word.word}</p>
-                      {word.translation && (
-                        <p className="text-xs text-gray-600">{word.translation}</p>
-                      )}
-                    </div>
-                  ))}
+            {loading && (
+              <div className="bib-turn" data-role="assistant">
+                <div className="bib-bubble" data-role="assistant" aria-busy="true">
+                  <p className="av2-label">En train d’écrire…</p>
                 </div>
               </div>
             )}
-
-            {/* Chapter Progress */}
-            <ChapterProgressCard
-              goalsCompleted={completedGoals.length}
-              totalGoals={chapter.narrative_goals?.length || 0}
-              vocabularyUsed={session?.stats.reviewedCards || 0}
-              xpEarned={totalXpEarned}
-              canComplete={canCompleteChapter()}
-              onComplete={handleCompleteChapter}
-              loading={completingChapter}
-            />
+            <div ref={feedEndRef} />
           </div>
-        </div>
-      </div>
 
-      {/* Completion Modal */}
-      {showCompletionModal && completionResult && (
-        <ChapterCompletionModal
-          isOpen={showCompletionModal}
-          onClose={() => setShowCompletionModal(false)}
-          result={completionResult}
-          storyId={storyId}
-          storyTitle={chapter.title}
-        />
-      )}
-    </div>
+          {suggested.length > 0 && (
+            <div className="bib-chips" aria-label="Mots suggérés">
+              {suggested.map((word) => (
+                <Chip
+                  key={word.id}
+                  onClick={() => setDraft(draft + (draft ? ' ' : '') + word.word)}
+                  title={word.translation || undefined}
+                >
+                  {word.word}
+                </Chip>
+              ))}
+            </div>
+          )}
+
+          <div className="av2-composer bib-composer">
+            <label className="av2-field">
+              <span className="av2-field__label">Votre réponse, en français</span>
+              <textarea
+                className="av2-field__control"
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
+                placeholder="Écrivez en français…"
+                rows={3}
+                disabled={!isConnected || loading}
+              />
+            </label>
+            <IconAction
+              label="Envoyer"
+              tone="action"
+              pressable
+              onClick={handleSend}
+              disabled={!draft.trim() || !isConnected || loading}
+            >
+              <SendIcon size={18} />
+            </IconAction>
+          </div>
+          <p className="av2-label">{isConnected ? 'En liaison' : 'Liaison en cours…'}</p>
+        </section>
+
+        <aside className="bib-session__aside" aria-label="Le suivi du chapitre">
+          {(grammarConcepts && grammarConcepts.length > 0) || loadingGrammar ? (
+            <ChapterGrammarPreview
+              concepts={grammarConcepts || []}
+              onReviewClick={handleGrammarReviewClick}
+              loading={loadingGrammar}
+            />
+          ) : null}
+
+          <NarrativeGoalsPanel
+            goals={chapter.narrative_goals || []}
+            completedGoals={completedGoals}
+          />
+
+          <ChapterProgressCard
+            goalsCompleted={completedGoals.length}
+            totalGoals={chapter.narrative_goals?.length || 0}
+            vocabularyUsed={session?.stats.reviewedCards || 0}
+            xpEarned={totalXpEarned}
+            canComplete={canCompleteChapter()}
+            onComplete={handleCompleteChapter}
+            loading={completingChapter}
+          />
+        </aside>
+
+        {showCompletionModal && completionResult && (
+          <ChapterCompletionModal
+            isOpen={showCompletionModal}
+            onClose={() => setShowCompletionModal(false)}
+            result={completionResult}
+            storyId={storyId}
+            storyTitle={chapter.title}
+          />
+        )}
+      </AtelierV2Root>
+      <style jsx global>{`
+        body { background: var(--app-paper); }
+        .av2.bib-session {
+          min-height: 100vh;
+          max-width: 560px;
+          margin: 0 auto;
+          padding: 16px 18px 28px;
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+        }
+        .av2 .bib-session__head { display: flex; align-items: flex-start; gap: 10px; }
+        .av2 .bib-session__title { min-width: 0; }
+        .av2 .bib-chat { display: flex; flex-direction: column; gap: 12px; }
+        .av2 .bib-chat__feed {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          max-height: 58vh;
+          overflow-y: auto;
+        }
+        .av2 .bib-turn { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+        .av2 .bib-turn[data-role='user'] { align-items: flex-end; }
+        .av2 .bib-bubble {
+          max-width: 86%;
+          border-radius: var(--av2-r-card, 16px);
+          padding: 12px 14px;
+          background: var(--av2-card);
+        }
+        .av2 .bib-bubble[data-role='user'] {
+          background: var(--av2-blue);
+          color: var(--av2-on-blue);
+        }
+        .av2 .bib-bubble[data-role='user'] .av2-body,
+        .av2 .bib-bubble[data-role='user'] .av2-label { color: inherit; }
+        .av2 .bib-bubble__text { white-space: pre-wrap; }
+        .av2 .bib-note {
+          max-width: 86%;
+          border-radius: 14px;
+          padding: 10px 12px;
+          background: var(--av2-tint-wrong, var(--av2-line));
+        }
+        .av2 .bib-note[data-tone='correct'] { background: var(--av2-tint-correct, var(--av2-line)); }
+        .av2 .bib-composer { align-items: flex-end; }
+        .av2 .bib-session__aside { display: flex; flex-direction: column; gap: 12px; }
+      `}</style>
+    </>
   );
 }
