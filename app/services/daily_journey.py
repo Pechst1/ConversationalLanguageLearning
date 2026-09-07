@@ -236,8 +236,14 @@ def journey_enabled_for(user: User) -> bool:
     if not settings.ATELIER_DAILY_JOURNEY_ENABLED:
         return False
     raw_cohort = (settings.ATELIER_DAILY_JOURNEY_COHORT or "").strip()
-    if not raw_cohort:
+    if raw_cohort == "*":
         return True
+    if not raw_cohort:
+        # An empty allowlist opens the journey to everyone in development so
+        # tests and local harnesses need no cohort. In production that would
+        # turn "shrink the pilot by blanking the list" into "enable every
+        # learner", so production requires an explicit "*" (WP-18 finding).
+        return settings.APP_ENV.strip().lower() != "production"
     allowed = {entry.strip().lower() for entry in raw_cohort.split(",") if entry.strip()}
     identities = {str(user.id).lower(), (user.email or "").strip().lower()}
     return bool(allowed & identities)

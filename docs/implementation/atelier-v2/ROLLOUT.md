@@ -35,7 +35,7 @@ process-wide settings object.
 | Key | Safe default (today) | Pilot value | What it does |
 |---|---|---|---|
 | `ATELIER_DAILY_JOURNEY_ENABLED` | `false` | `true` | Master switch. `false` stops *creation* only; open journeys keep draining (§6) |
-| `ATELIER_DAILY_JOURNEY_COHORT` | `""` | `owner@email,five@study,…` | Comma-separated emails **or** user ids. **An empty value with the master switch on means every learner** — never blank it as a way to shrink the pilot |
+| `ATELIER_DAILY_JOURNEY_COHORT` | `""` | `owner@email,five@study,…` | Comma-separated emails **or** user ids. In `APP_ENV=production` an empty value enables **nobody**; only the literal `*` enables every learner (development keeps empty = everyone for tests and harnesses). Shrink the pilot by removing entries, never by blanking |
 | `ATELIER_STORY_ENGINE_ENABLED` | `true` (unreachable while the master switch is off) | `true` | Living-story generation. `false` sends *new* journeys to the authored scenario path; learners who already have an engine thread keep reading theirs (`living_story.manages_story`) |
 | `ATELIER_STORY_MAX_ATTEMPTS` | `2` | `2` | Generation attempts per scene. `3` roughly doubles the worst-case cost of a bad day; `1` turns one bad draft into a lost day |
 | `ATELIER_CORRECTION_LLM_ENABLED` | `true` | `true` | AI assessment of open answers. `false` = deterministic checking, open answers saved unassessed |

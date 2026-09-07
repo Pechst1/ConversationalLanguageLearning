@@ -1018,3 +1018,24 @@ def test_completing_with_unanswered_mandatory_work_is_refused(
     )
     assert refused.status_code == 409
     assert refused.json()["detail"]["code"] == "step_not_active"
+
+
+def test_empty_cohort_enables_nobody_in_production(monkeypatch):
+    """WP-18 finding: a blanked allowlist must not enable every learner in production."""
+    from types import SimpleNamespace
+
+    from app.services.daily_journey import journey_enabled_for
+
+    user = SimpleNamespace(id="u-1", email="someone@example.com")
+    monkeypatch.setattr(settings, "ATELIER_DAILY_JOURNEY_ENABLED", True)
+    monkeypatch.setattr(settings, "ATELIER_DAILY_JOURNEY_COHORT", "")
+    monkeypatch.setattr(settings, "APP_ENV", "development")
+    assert journey_enabled_for(user) is True
+    monkeypatch.setattr(settings, "APP_ENV", "production")
+    assert journey_enabled_for(user) is False
+    monkeypatch.setattr(settings, "ATELIER_DAILY_JOURNEY_COHORT", "*")
+    assert journey_enabled_for(user) is True
+    monkeypatch.setattr(settings, "ATELIER_DAILY_JOURNEY_COHORT", "someone@example.com")
+    assert journey_enabled_for(user) is True
+    monkeypatch.setattr(settings, "ATELIER_DAILY_JOURNEY_COHORT", "other@example.com")
+    assert journey_enabled_for(user) is False
