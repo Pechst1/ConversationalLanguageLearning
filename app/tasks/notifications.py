@@ -39,6 +39,14 @@ def _morning_copy(db, user: User, today: date) -> tuple[str, str]:
     from app.services.atelier import AtelierScheduler
     from app.services.daily_words import DailyWordSlateService
     from app.services.serial import SerialThreadService
+    from app.services.serial_notifications import daily_journey_morning_copy
+
+    # WP-19: cohort learners live in the V2 daily journey, so their morning push
+    # points at today's scene instead of the legacy prescription. Everyone else
+    # keeps the edition copy below.
+    journey_copy = daily_journey_morning_copy(db, user, today=today)
+    if journey_copy is not None:
+        return journey_copy
 
     selections = AtelierScheduler(db).select_today(user)
     slate = DailyWordSlateService(db).get_or_create(user=user)

@@ -1,0 +1,14 @@
+// Template for App/Signing.xcconfig, which is gitignored and never committed.
+//
+// Create the real file either by hand:
+//     cp App/Signing.example.xcconfig App/Signing.xcconfig
+//     # then set DEVELOPMENT_TEAM to your ten-character Apple team id
+// or from the environment, which is what CI and `fastlane ios archive` do:
+//     APPLE_TEAM_ID=ABCDE12345 bundle exec fastlane ios archive
+//
+// App/Debug.xcconfig and App/Release.xcconfig pull this file in with an
+// optional include, so a checkout without it still builds for the simulator
+// (unsigned) and only device/archive builds need a real team id.
+
+DEVELOPMENT_TEAM = ABCDE12345
+CODE_SIGN_STYLE = Automatic

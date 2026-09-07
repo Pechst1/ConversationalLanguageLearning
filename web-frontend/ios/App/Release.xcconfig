@@ -1,0 +1,4 @@
+// Release configuration for the App target.
+// DEVELOPMENT_TEAM comes from App/Signing.xcconfig, which is gitignored;
+// see App/Signing.example.xcconfig.
+#include? "Signing.xcconfig"

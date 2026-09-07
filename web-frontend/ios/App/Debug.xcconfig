@@ -1,0 +1,4 @@
+// Debug configuration for the App target.
+// Keeps Capacitor's generated debug flag and adds env-driven signing.
+#include "../debug.xcconfig"
+#include? "Signing.xcconfig"

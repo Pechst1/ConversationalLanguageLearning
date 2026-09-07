@@ -309,3 +309,240 @@ usage metadata already returned by the correction call, price it, and write one
 Set `TTS_PROVIDER=openai` in `.env` and restart the backend on **port 8010**.
 The agent did not edit `.env` and did not restart any server. Port 8000 belongs
 to a different project and must not be touched.
+| WP-16 | daily-experience (Opus) | `lib/atelier-next.ts`, `HomeScreen.tsx`, `daily_journey.py`/schemas (additive `practice_href`, `practice_targets`), journey recap components, WP-05 adapters for dedup, `pages/atelier.tsx` today-view query handling; narrow `# WP-16 additive` edits in `app/services/atelier.py` (correction cost event, answer bound) | 2026-09-07 evening, after WP-15 landed (`3cc56b5`, `904e856`, `ed8404f`) |
+| WP-21 | content (Opus) | corrector/erratum/toast/badge copy via the native_language resolver, POS override file + audit script, Anki gloss backfill script (dry-run only) | 2026-09-07 evening, after WP-17 landed (`d6aa974`) |
+
+## 2026-09-07 — WP-19
+
+Native release readiness and the WP-10 lifecycle recheck, run by the
+resilience/native agent. Everything below was executed on this machine today;
+where a gate could not run, the concrete blocker is named instead of a claim.
+
+### 1. Privacy manifest (ITMS-91053)
+
+`web-frontend/ios/App/App/PrivacyInfo.xcprivacy`, registered in the Xcode project
+(file reference + `Copy Bundle Resources`). Declares `NSPrivacyTracking=false`,
+an empty `NSPrivacyTrackingDomains`, two required-reason API categories and five
+collected data types.
+
+The API categories were **audited, not guessed**. Capacitor 8.4.0 ships its own
+`PrivacyInfo.xcprivacy` in `Capacitor.framework` and `Cordova.framework`, and
+both declare `NSPrivacyAccessedAPITypes` as an empty array. A grep of the iOS
+sources of the three linked plugins (`@capacitor/haptics` 8.0.2,
+`@capacitor/push-notifications` 8.1.2, `capacitor-secure-storage-plugin` 0.13.0)
+plus `nm` over the built `Capacitor.framework`, `Cordova.framework`,
+`CapApp-SPM.o`, `SecureStoragePlugin.o` and `SwiftKeychainWrapper.o` found **no**
+`UserDefaults`, `systemUptime`, `mach_absolute_time`, `getattrlist`, `statfs`,
+`volumeAvailableCapacity*` or `NSFileModificationDate` symbols. So:
+
+- Declared `NSPrivacyAccessedAPICategoryFileTimestamp` (C617.1) — Capacitor's
+  `WebViewAssetHandler.swift:61` reads `resourceValues(forKeys: [.fileSizeKey])`
+  on the bundled web assets, which goes through the file-metadata syscalls Apple
+  groups under this category.
+- Declared `NSPrivacyAccessedAPICategoryUserDefaults` (CA92.1) — the bridge and
+  WKWebView shell read preferences belonging to this app only.
+- **Not** declared: system boot time (35F9.1), disk space (E174.1), active
+  keyboards (54BD.1). Nothing this app links uses them. The manifest carries the
+  audit as a comment so a future ITMS-91053 bounce can add the named category
+  with its reason instead of re-guessing.
+
+Collected data types match what the backend actually stores: email address,
+other user content (written French), audio data (uploaded for transcription, not
+retained), other usage data (SRS/streaks/journey evidence/pilot events,
+`AppFunctionality` + `Analytics`) and crash data (`client_crash`). All linked to
+identity, none used for tracking.
+
+**Verified in a real bundle**, not just on disk: a simulator build produced
+`App.app/PrivacyInfo.xcprivacy` (947 bytes after plist compilation) and
+`plutil -p` on the shipped copy shows all seven entries.
+
+### 2. Signing without a committed team id
+
+- `web-frontend/ios/App/Debug.xcconfig` — `#include "../debug.xcconfig"` (keeps
+  Capacitor's `CAPACITOR_DEBUG`) + `#include? "Signing.xcconfig"`.
+- `web-frontend/ios/App/Release.xcconfig` — `#include? "Signing.xcconfig"`.
+- `web-frontend/ios/App/Signing.example.xcconfig` — committed template.
+- `web-frontend/ios/App/Signing.xcconfig` — **gitignored**
+  (`web-frontend/ios/.gitignore`), written by `fastlane ios archive` from
+  `FEUILLETON_DEVELOPMENT_TEAM` / `APPLE_TEAM_ID` / `DEVELOPMENT_TEAM`.
+- The App target's Debug and Release configurations now use these as their
+  `baseConfigurationReference`.
+
+Verified with `xcodebuild -showBuildSettings`:
+
+| State | `DEVELOPMENT_TEAM` | `CAPACITOR_DEBUG` (Debug) |
+|---|---|---|
+| no `Signing.xcconfig` | absent | `true` |
+| placeholder `Signing.xcconfig` | `ABCDE12345` | `true` |
+
+`git status` never reports `ios/App/Signing.xcconfig`. With no team id at all the
+lane refuses with a named message rather than producing an unsigned archive:
+`No signing team. Export APPLE_TEAM_ID (or FEUILLETON_DEVELOPMENT_TEAM)…`.
+
+Two bugs in the existing archive lane were fixed while proving this out:
+
+1. `write_signing_xcconfig` first failed with `Errno::ENOENT … ios/App/Signing.xcconfig`
+   because fastlane runs lanes with `fastlane/` as the working directory. Now
+   resolved from `__dir__`.
+2. `increment_build_number` uses `agvtool`, which also rewrites
+   `App/Info.plist`, replacing `$(CURRENT_PROJECT_VERSION)` with a literal and
+   leaving a dirty working tree after every archive (it did exactly that here;
+   the file was restored by hand, since this checkout is shared with Codex and
+   `git checkout` is forbidden). The lane now passes
+   `xcargs: "CURRENT_PROJECT_VERSION=#{build_number}"` to `build_app` instead. A
+   second archive run afterwards left `Info.plist` and `project.pbxproj` clean.
+
+### 3. AppIcon set
+
+Seventeen sizes generated with `sips` from the existing
+`AppIcon-512@2x.png` (1024×1024, RGB, no alpha), plus the marketing icon:
+20/29/40/60 pt at @2x/@3x for iPhone, 20/29/40/76 pt at @1x/@2x and 83.5 pt @2x
+for iPad, 1024 for `ios-marketing`. `Contents.json` rewritten to the per-idiom
+form; every referenced file exists and every output is alpha-free. The compiled
+bundle carries `Assets.car` plus the extracted `AppIcon60x60@2x.png` /
+`AppIcon76x76@2x~ipad.png`, and `Info.plist` in the bundle now has
+`CFBundleIcons` and `CFBundleIcons~ipad` with `CFBundleIconName = AppIcon`.
+
+### 4. Crash reporting — first-party, and now proven by a test
+
+The path is `pages/_app.tsx` (`window.addEventListener('error' | 'unhandledrejection')`
+→ `apiService.recordClientError`) → `POST /api/v1/analytics/client-error`
+(`app/api/v1/endpoints/analytics.py:128`) → `PilotEventService.record("client_crash")`,
+counted in `_FAILURE_EVENT_TYPES` and surfaced by `daily_rollup`. Nothing tested
+the endpoint end to end before; `tests/test_wp19_notifications.py` now asserts
+401 without auth, 204 with auth, and that the event appears as
+`client_crash: 1` in the pilot daily ledger for that learner with
+`totals.failures >= 1`.
+
+**Recommendation: keep first-party, do not add Sentry yet.** The pilot has zero
+learners. Sentry would add a third-party SDK to the privacy manifest and the App
+Store data disclosure, a paid dependency, and a second place to look for the
+same information, in exchange for symbolication and breadcrumbs that only matter
+once real crashes arrive from devices we do not hold. The one thing the
+first-party path cannot see is a native crash that kills the WebView before the
+JS handler runs; that is a real gap, and the honest trigger for revisiting is the
+first WP-22 learner reporting a hang or silent quit that no `client_crash` row
+explains.
+
+### 5. Daily-journey morning push
+
+`app/services/serial_notifications.py` gains `DAILY_JOURNEY_MORNING_TITLE`
+(`"Votre scène du jour est prête"`) and `daily_journey_morning_copy(db, user, today=…)`.
+It returns `None` for anyone `journey_enabled_for()` rejects — so the flag and
+the cohort list stay the single gate — and also for a learner whose journey for
+that local date is already `completed`/`ended_early`, because "your scene is
+ready" after the fact would be a lie. When a `preparing`/`active`/`paused`
+journey exists, the body offers to resume with the journey's real budget.
+
+Scheduling reuses the existing serial scheduler rather than adding one:
+`app/tasks/notifications.py::_morning_copy` (called by the celery-beat task
+`send_morning_editions`, which already dedupes per learner-day through the
+`morning_edition_sent` pilot event and already sends
+`data={"route": "/atelier", …}`) delegates to the new helper first and falls
+through to the legacy edition copy for everyone else. That is a four-line call
+site in a file outside the WP-19 lease; it is the only edit made there and it is
+flagged here.
+
+`tests/test_wp19_notifications.py` — 10 tests, all passing: flag off, outside
+cohort, in cohort, resume copy carries the real budget ("5 minutes"), silence
+after today's scene is finished, yesterday's finished scene does not silence
+today, the scheduler picks the journey title for a cohort learner, and the
+legacy "édition" title survives for everyone else.
+
+### 6. Simulator lifecycle walk (WP-10 recheck)
+
+Setup: throwaway fake-provider backend (`scripts/dev_story_engine_server.py`) on
+**port 8011** against the throwaway Postgres `atelier_story_pg_1788716642`, with
+`ATELIER_DAILY_JOURNEY_ENABLED=true` for that process only; nothing in `.env`,
+`render.yaml` or port 8010/8000 was touched. Native bundle built with
+`ALLOW_LOCAL_NATIVE_API=true NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8011/api/v1
+NEXT_PUBLIC_NATIVE_PUSH_ENABLED=true npm run cap:sync:ios`, then
+`xcodebuild … -destination id=<iPhone 16> CODE_SIGN_IDENTITY="-"`. Device:
+**iPhone 16, iOS 26.0.1, 393 × 852 pt** (the 390 pt iPhone 13/14 profile is not
+installed; 393 pt is the nearest available and is recorded as such).
+
+Screenshots in `docs/mobile-visual-checks/2026-09-07-wp19/`:
+
+| # | File | What it shows |
+|---|---|---|
+| 01 | `01-signed-in-journey-home.png` | signed in, V2 journey offered ("Your next chapter", 5 min) |
+| 02 | `02-resume-exact-activity-after-kill.png` | kill + relaunch → exact activity, session persisted |
+| 03 | `03-offline-cold-start-cached-edition.png` | backend down, cold start → cached edition renders |
+| 04 | `04-offline-honest-state-and-retry.png` | "HORS LIGNE … Vérifiez la connexion puis réessayez" + Réessayer |
+| 05 | `05-large-text-accessibility-large-no-effect.png` | Dynamic Type at `accessibility-large` |
+| 06 | `06-kill-after-attempt-no-duplicate-credit.png` | kill after an accepted attempt → still 1/8, same step |
+| 07 | `07-home-honest-resume-state.png` | home shows journey + "Unfinished practice session … kept separately" |
+| 08 | `08-v2-journey-scene-reader.png` | V2 living-story scene, step 1 of 3 |
+| 09 | `09-draft-typed-and-pending-banner.png` | draft typed; "Something you did has not reached the server yet" |
+| 10 | `10-draft-preserved-after-kill-mid-draft.png` | after kill, the draft comes back verbatim at step 2 of 3 |
+| 11 | `11-software-keyboard-does-not-cover-response-or-send.png` | software keyboard open, field **and** Send both visible |
+| 12 | `12-mic-denied-respond-step-text-only.png` | microphone denied, respond step fully usable |
+
+WP-10 acceptance lines:
+
+| Acceptance line | Result |
+|---|---|
+| Kill after an accepted attempt, before receipt → correct step, no duplicate credit | **PASS** (06: 1/8 before and after, same "Classer" step) |
+| Kill mid-draft preserves text | **PASS** (10: draft returned verbatim, step 2 of 3) |
+| Airplane-mode cold start shows an owned cached scene | **PASS in substance** (03/04). Exercised by taking the backend down, not by toggling iOS airplane mode, which `simctl` cannot do; the app's own state is "hors ligne" either way |
+| Native keyboard does not cover the response/action | **PASS** (11) |
+| Permission denial offers text without resetting the task | **PARTIAL** (12): with `simctl privacy … deny microphone`, the V2 respond step is text-only and unaffected. The dedicated voice surface (Studio / `audio-session`) was **not** exercised |
+| Another account sees none of the previous account's content | **NOT RUN** — one account only |
+| Expired auth refresh does not cause a second attempt | **NOT RUN** — needs a short-lived token build |
+
+Observations worth a defect line for WP-20:
+
+- **D-1 (resume target).** Cold start after a kill inside the V2 journey landed
+  on the **legacy** Séance, not the V2 scene, three times out of three. Nothing
+  is lost — the home surfaces both, honestly labelled, and one tap returns to the
+  scene with the draft intact — but `readResumeActivity()` prefers the older
+  practice session over the active journey.
+- **D-2 (Dynamic Type).** `simctl ui … content_size accessibility-large` produced
+  no visible change (05): the WKWebView does not follow iOS Dynamic Type. The
+  "large text" gate as written cannot be exercised through the OS setting; it
+  needs an in-app text-size control or `-webkit-text-size-adjust` work.
+- **D-3 (header safe area).** In the V2 journey the sticky progress header draws
+  under the status bar and overlaps the clock (08, 11). Cosmetic, reproducible.
+- Not a defect: a horizontal scroll offset seen once on the Séance after keyboard
+  interaction did not reproduce after relaunch, so it is not reported as overflow.
+
+### 7. Commands actually run
+
+| Command | Result |
+|---|---|
+| `npm run type-check` | pass |
+| `npm run lint` | pass — "No ESLint warnings or errors" |
+| `npm run test:native-env` | 6/6 pass |
+| `pytest tests/test_wp19_notifications.py tests/test_notifications.py tests/test_pilot_work_packages.py` | 28 passed |
+| `pytest … test_journey_events.py` (earlier run) | 68 passed |
+| `npm run cap:sync:ios` (local API) | pass — sync finished, 3 plugins |
+| `xcodebuild … -destination id=<iPhone 16> build` | **BUILD SUCCEEDED** |
+| `bundle install` | pass (created `web-frontend/Gemfile.lock`, fastlane 2.230.0) |
+| `bundle exec fastlane ios archive` | **FAILS — blocked, not a code defect** |
+
+Mid-session note: `npm run cap:sync:ios` failed once on
+`lib/atelier-next.ts(111)` `practice_targets` vs `practiced_targets`, a
+concurrent agent's in-flight edit outside this lease. It was not touched; the
+build was re-run after that agent's tree settled and passed.
+
+### 8. The one gate that cannot pass here
+
+`bundle exec fastlane ios archive` reaches code signing and stops at:
+
+```
+error: No profiles for 'com.pixellab.feuilleton' were found: Xcode couldn't find
+any iOS App Development provisioning profiles matching 'com.pixellab.feuilleton'.
+```
+
+`security find-identity -v -p codesigning` lists exactly one identity on this
+machine (`gdb-certificate`) and `~/Library/MobileDevice/Provisioning Profiles/`
+is empty. There is no Apple Developer team enrolled here, so no App Store
+archive can be produced, with or without the new xcconfig. This is the same
+owner action the TestFlight checklist already carries (Apple enrollment and the
+App Store Connect app record). Everything the repository controls is verified:
+the project loads, the Release configuration resolves `DEVELOPMENT_TEAM` from
+the gitignored xcconfig, the lane refuses cleanly without a team, the app
+compiles and links, and the privacy manifest and full icon set land in the
+bundle. The WP-19 acceptance line "`bundle exec fastlane ios archive` succeeds
+locally" stays **pending on Apple enrollment**, and the two WP-10 lines above
+stay pending on a second test account and a short-lived-token build.

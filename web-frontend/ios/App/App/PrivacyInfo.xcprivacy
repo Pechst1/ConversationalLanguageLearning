@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	  Privacy manifest for com.pixellab.feuilleton (ITMS-91053).
+
+	  Required-reason API declarations were verified on 2026-09-07 against the
+	  Capacitor 8.4.0 runtime and the three plugins this app links
+	  (@capacitor/haptics, @capacitor/push-notifications,
+	  capacitor-secure-storage-plugin) by grepping their iOS sources and by
+	  running `nm` over the built Capacitor.framework, Cordova.framework,
+	  CapApp-SPM.o, SecureStoragePlugin.o and SwiftKeychainWrapper.o.
+
+	  - File timestamp (C617.1): Capacitor's WebViewAssetHandler reads
+	    `resourceValues(forKeys: [.fileSizeKey])` on the bundled web assets in
+	    order to serve range requests, which goes through the file-metadata
+	    APIs Apple groups under this category. Reason C617.1: the files are
+	    inside the app bundle / app container and the timestamps never leave
+	    the device.
+	  - User defaults (CA92.1): the Capacitor bridge and the WKWebView shell
+	    read and write preferences belonging to this app only. Reason CA92.1.
+
+	  Deliberately NOT declared, because nothing this app links uses them
+	  (verified by the same grep + nm sweep):
+	  - System boot time (35F9.1): no `systemUptime` / `mach_absolute_time`.
+	  - Disk space (E174.1): no `volumeAvailableCapacity*` / `statfs` /
+	    `attributesOfFileSystem`.
+	  - Active keyboards (54BD.1): no `activeInputModes`.
+	  If App Store Connect ever returns ITMS-91053 naming one of these, add it
+	  here with the matching reason rather than removing the audit note.
+	-->
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>C617.1</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>CA92.1</string>
+			</array>
+		</dict>
+	</array>
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array>
+		<!-- Account email, stored on the learner's user row. -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeEmailAddress</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<!-- Learner-written French: answers, mission replies, story choices. -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeOtherUserContent</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<!-- Spoken answers, uploaded for transcription; not retained as audio. -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeAudioData</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<!-- Learning progress: SRS state, streaks, journey evidence, pilot events. -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeOtherUsageData</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+				<string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
+			</array>
+		</dict>
+		<!-- First-party client_crash events (window.onerror -> /analytics/client-error). -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeCrashData</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>
