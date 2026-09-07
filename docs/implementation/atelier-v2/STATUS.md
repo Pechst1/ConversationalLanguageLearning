@@ -1116,3 +1116,24 @@ unowned by this package. The learner gates are unchanged: WP-22's five-learner
 study and the journey conversation's live-model review are still the last things
 between the pilot and a real answer, and nothing in this walk says anything about
 prose — it ran entirely on the fake provider.
+
+## 2026-09-07 — end-of-day integration summary
+
+All packages from [NEXT-WORK-PACKAGES-2026-09-07.md](NEXT-WORK-PACKAGES-2026-09-07.md) except WP-22 (learner study) and WP-23 (deferred) have landed on `codex/serial-season-engine-production`; only the owner-side steps remain.
+
+| Commit | Package |
+|---|---|
+| `3cc56b5` `904e856` `ed8404f` `6440e0b` | WP-15 — Codex Séance rework committed, CI wiring, render.yaml correction block |
+| `d6aa974` `98c4eb5` | WP-17 — variety guards, cost ledger, critic stages; paid-run follow-up |
+| `21dd85b` | WP-19 — privacy manifest, signing xcconfig, icons, journey push, simulator walk |
+| `0a863b5` `9191a6d` `114face` | WP-21 — learner-language copy, POS overrides, gloss backfill (+ starvation and language-scope fixes) |
+| `0f39b7e` `db78d65` | WP-18 preparation — ROLLOUT.md, drain proof 34/34, health queries; production empty-cohort guard |
+| `4b9bde6` `59237d3` | WP-16 — one daily Séance, practice mode, shared evidence + streak, correction cost telemetry |
+| `7ee9178` | Codex follow-up — classify alternation, generator v11, drill-first credit lock |
+| `c184ac4` | WP-20 — browser QA, resume-target fix, legacy-page disposition (44 → 33 routes) |
+
+Paid runs with owner consent: four 14-day engine runs (US$0.45; A1 12/13 both modes, A2 6/13 with critic → 12/13 without; fixes in `98c4eb5`), one A2 run with `--critic turns` in progress, Anki gloss backfill (French deck, ≈US$0.02 per 250 rows).
+
+**Owner-only steps:** `TTS_PROVIDER=openai` in `.env` + backend restart on 8010; Apple team enrolment (archive); first Render deploy and cohort flip per ROLLOUT.md (owner account alone first); decision on `CRITIC_STAGES` default after the turns-only run; WP-22 learner study.
+**For Codex:** the `pages/atelier.tsx` split proposal (WP-16 section); `sucrase` undeclared in `lib/seance-feedback.test.js`; ~60 English x-ray/contrast strings in `atelier_assets.py` tied to `grammar_feedback.GrammarProfile` (WP-21 section).
+**Open defects:** WP-20 D-4…D-15 in QA-REPORT-WP20-2026-09-07.md (none blocking).
