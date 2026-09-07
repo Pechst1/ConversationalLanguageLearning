@@ -185,22 +185,22 @@ class Settings(BaseSettings):
     )
     ATELIER_CORRECTION_LLM_ENABLED: bool = Field(
         True,
-        description="Use LLM-backed Atelier correction for live submits, with deterministic fallback on provider failure.",
+        description="Use AI assessment for open answers; provider failure saves them unassessed. Keyed drills retain deterministic checking.",
     )
     ATELIER_CORRECTION_LLM_MODEL: str = Field(
-        "gpt-5-nano",
+        "gpt-5-mini",
         description="Fast model for low-latency Atelier submit corrections.",
     )
     ATELIER_CORRECTION_LLM_TIMEOUT_SECONDS: float = Field(
-        25.0,
-        description="Short single-attempt timeout for optional Atelier LLM correction before deterministic fallback.",
+        60.0,
+        description="Single-attempt deadline for a complete paragraph assessment; provider failure remains unassessed.",
     )
     ATELIER_CORRECTION_LLM_MAX_TOKENS: int = Field(
-        900,
+        5000,
         description="Output token cap for live Atelier LLM correction.",
     )
     ATELIER_CORRECTION_LLM_REASONING_EFFORT: str | None = Field(
-        "minimal",
+        "low",
         description="Optional reasoning_effort override for Atelier correction models that support it.",
     )
     OPENAI_IMAGE_MODEL: str = Field("gpt-image-2", description="Default OpenAI image model")

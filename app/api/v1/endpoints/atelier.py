@@ -216,16 +216,15 @@ def _with_serial_conversation(
         {
             # The concept is quoted inside a French instruction, so quote the
             # French title -- the catalog name is an internal English label.
-            "prompt": (
-                f"{context['opener']} Répondez à {character.get('name') or 'ce personnage'} "
-                f"en utilisant « {_fr_concept_title(concept, fr_localizations)} » de façon naturelle."
-            ),
+            # Keep the approved task's concrete situation and question. Cast
+            # decoration must not replace the task after content validation.
+            "prompt": items[0].get("prompt"),
             "character": character,
             "serial_context": {
                 "thread_id": context["thread_id"],
                 "episode_index": context["episode_index"],
                 "scene_context": context["scene_context"],
-                "opener": context["opener"],
+                "opener": items[0].get("prompt"),
                 "register": register,
             },
         }
@@ -1395,7 +1394,7 @@ def submit_attempt(
             ),
             None,
         )
-        if conversation_item:
+        if conversation_item and attempt.verdict in {"correct", "accepted"}:
             serial_context = conversation_item.get("serial_context") or {}
             character = conversation_item.get("character") or {}
             learner_text = str((attempt.answer_payload or {}).get("text") or "").strip()

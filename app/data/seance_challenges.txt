@@ -1,0 +1,54 @@
+FR_A1_NOUN_001|Une [petite/petit] table blanche est dans la cuisine.|Vous décrivez une table : elle est petite et blanche. Votre amie demande : « Quelle table est dans la cuisine ? »
+FR_A1_ART_001|J'aime [la/une] musique en général.|Votre ami demande : « Est-ce que vous aimez la musique en général ? » Répondez en parlant de toute la catégorie.
+FR_A1_ART_002|J'ai [une/un] question.|Au bureau, vous voulez poser une seule question. Votre collègue demande : « Vous voulez ajouter quelque chose ? »
+FR_A1_ART_003|Je voudrais [du/de le] pain.|À la boulangerie, vous voulez une quantité non précisée de pain. La vendeuse demande : « Vous désirez ? »
+FR_A1_DET_001|[Mon/Ma] amie arrive avec mes clés.|Votre amie apporte vos clés. Votre voisin demande : « Qui arrive avec vos clés ? »
+FR_A1_DET_002|[Cet/Ce] hôtel est près de cette gare.|Vous montrez un hôtel près d'une gare. Votre amie demande : « Quel hôtel est près de cette gare ? »
+FR_A1_PRON_001|[Nous/Je] allons au marché.|Votre ami et vous allez au marché. Votre voisine demande : « Où allez-vous tous les deux ? » Répondez avec nous.
+FR_A1_VERB_001|Nous [faisons/fait] nos devoirs.|Vous faites vos devoirs avec une amie. Un voisin demande : « Qu'est-ce que vous faites ? »
+FR_A1_NEG_001|Elle [n'aime/ne aime] pas le café.|Votre amie déteste le café. Le serveur demande : « Elle aime le café ? » Répondez avec ne…pas.
+FR_A1_SYN_001|Est-ce [que/qui] tu viens demain ?|Vous préparez un dîner demain. Vous voulez savoir si votre amie viendra. Quelle question lui posez-vous avec est-ce que ?
+FR_A1_ADJ_001|De petites maisons [blanches/blanc] bordent la rue.|Vous décrivez une rue avec de petites maisons blanches. Votre amie demande : « Comment sont les maisons ? »
+FR_A1_VERB_002|Nous [allons/avons] visiter Paris demain.|Vous avez déjà décidé de visiter Paris demain. Votre ami demande : « Qu'est-ce que vous allez faire ? » Répondez au futur proche.
+FR_A2_PRON_001|Je [lui/le] parle tous les jours.|Votre amie demande : « Tu parles souvent à Paul ? » Répondez en remplaçant à Paul par un pronom.
+FR_A2_PRON_002|Des pommes ? J'[en/y] achète deux.|Au marché, votre amie demande : « Tu achètes combien de pommes ? » Vous en prenez deux. Remplacez pommes par un pronom et gardez la quantité.
+FR_A2_NEG_001|Je ne bois pas [de/du] café.|Au café, le serveur demande : « Vous buvez du café ? » Vous n'en buvez pas. Répondez avec une quantité négative.
+FR_A2_TENSE_001|Hier, nous [avons fini/finissons] le projet.|Votre collègue demande : « Vous avez terminé le projet ? » Vous l'avez terminé hier. Répondez au passé composé.
+FR_A2_TENSE_002|Les étudiantes sont [arrivées/arrivé] tôt.|Deux étudiantes sont arrivées tôt ce matin. Votre collègue demande : « Quand sont-elles arrivées ? »
+FR_A2_VERB_001|Nous [nous/vous] levons à sept heures.|Votre amie demande : « À quelle heure vous levez-vous, votre frère et vous ? » Vous vous levez à sept heures.
+FR_A2_TENSE_003|Quand j'étais enfant, je [jouais/jouer] dehors tous les jours.|Votre ami demande : « Que faisiez-vous chaque jour quand vous étiez enfant ? » Décrivez une habitude à l'imparfait.
+FR_A2_TENSE_004|Je lisais quand le téléphone [a sonné/sonner] une fois.|Hier, vous lisiez quand le téléphone a sonné une fois. Votre ami demande : « Qu'est-ce qui a interrompu votre lecture ? »
+FR_A2_ADJ_001|Cette solution est plus simple [que/comme] l'autre.|Deux solutions sont possibles ; la première est plus simple. Votre collègue demande : « Laquelle est la plus simple ? » Comparez-les.
+FR_A2_REL_001|La ville [où/que] j'habite est calme.|Votre amie demande : « Comment est la ville dans laquelle vous habitez ? » Répondez avec une relative de lieu.
+FR_A2_PREP_001|J'étudie le français [depuis/il y a] deux ans, et je continue.|Votre amie demande : « Depuis combien de temps étudiez-vous le français ? » Vous avez commencé il y a deux ans et continuez.
+FR_A2_VERB_002|[Donne-le-moi/Donne-moi-le] demain.|Votre ami a votre livre. Vous le voulez demain. Quelle instruction lui donnez-vous en remplaçant le livre et à moi par des pronoms ?
+FR_B1_COND_001|Si je finis tôt, je t'[appellerai/appeler].|Votre amie demande : « Si tu finis tôt demain, tu me téléphones ? » Donnez une condition réelle et sa conséquence future.
+FR_B1_COND_002|Si j'[avais/aurais] le temps, je partirais.|Vous manquez de temps pour voyager. Votre amie demande : « Que ferais-tu si tu avais plus de temps ? » Imaginez une autre situation.
+FR_B1_TENSE_002|Demain, nous [aurons/avions] plus de temps.|Votre collègue demande : « Demain, vous aurez plus de temps ? » Répondez au futur simple.
+FR_B1_COND_003|Je [voudrais/voudrait] un café, s'il vous plaît.|Au café, le serveur demande : « Que désirez-vous ? » Commandez poliment avec le conditionnel présent.
+FR_B1_TENSE_001|Il [pleuvait/pleuvoir] quand je suis sorti.|Vous êtes sorti pendant une averse. Votre ami demande : « Quel temps faisait-il quand tu es sorti ? » Distinguez le décor et l'événement.
+FR_B1_PRON_001|Je [le lui/lui le] donne demain.|Votre amie demande : « Tu donnes le dossier à Paul demain ? » Remplacez le dossier et à Paul par deux pronoms.
+FR_B1_PRON_002|De ce projet, j'[en/y] parle souvent.|Votre collègue demande : « Tu parles souvent de ce projet ? » Répondez en remplaçant de ce projet par un pronom.
+FR_B1_REL_001|C'est le problème [dont/que] nous parlons.|Votre collègue demande : « Quel problème évoquez-vous ? » Identifiez-le avec parler de et une proposition relative.
+FR_B1_SYN_001|Elle demande [si/est-ce que] tu viens demain.|Une amie vous écrit : « Tu viens demain ? » Votre frère demande : « Qu'est-ce qu'elle demande ? » Rapportez sa question indirectement.
+FR_B1_VERB_001|Il faut que tu [viennes/viens] demain.|Votre collègue doit être présent demain. Il demande : « Ma présence est nécessaire ? » Répondez avec il faut que.
+FR_B1_VERB_002|Elle a répondu en [souriant/sourire].|Votre amie demande : « Comment a-t-elle répondu au client ? » Elle souriait en répondant. Combinez les actions avec un gérondif.
+FR_B1_AGR_001|Les lettres que j'ai [écrites/écrit] sont longues.|Vous avez écrit de longues lettres. Votre amie demande : « Comment sont les lettres que tu as écrites ? » Commencez par Les lettres que.
+FR_B2_SUBJ_001|Je doute qu'il [puisse/peut] finir ce soir.|Le travail est loin d'être terminé. Votre collègue demande : « Il peut finir ce soir ? » Exprimez votre doute avec je doute que.
+FR_B2_SUBJ_002|Je pense qu'il vient, mais je doute qu'il [vienne/vient] demain.|Votre amie demande : « Il vient ? Et il sera là demain ? » Distinguez une croyance affirmative d'un doute avec penser que et douter que.
+FR_B2_TENSE_001|Quand je suis arrivé, elle [était/est] déjà partie.|Votre ami demande : « Elle est partie avant ton arrivée ? » Oui. Situez son départ avant cet autre événement passé.
+FR_B2_COND_001|J'[aurais/avais] répondu si j'avais vu ton message.|Vous avez manqué un message hier. Votre amie demande : « Pourquoi n'as-tu pas répondu ? » Exprimez ce que vous auriez fait si vous l'aviez vu.
+FR_B2_TENSE_002|Quand tu arriveras, j'[aurai/avais] fini le rapport.|Votre collègue arrive demain après la fin prévue du rapport. Il demande : « Le rapport sera terminé à mon arrivée ? » Répondez au futur antérieur.
+FR_B2_COND_002|Si j'[avais/aurais] su, je serais venu plus tôt.|Vous avez appris trop tard que votre amie avait besoin d'aide. Elle demande : « Tu serais venu plus tôt si tu avais su ? » Exprimez une condition passée irréelle.
+FR_B2_SYN_001|La loi a été [votée/voté] par l'Assemblée.|Votre collègue demande : « Qu'est-il arrivé à la loi ? » L'Assemblée l'a votée. Mettez la loi au premier plan avec la voix passive.
+FR_B2_VERB_001|Je fais [réparer/réparé] mon vélo demain.|Un mécanicien va réparer votre vélo. Votre ami demande : « Tu répares ton vélo toi-même ? » Expliquez que vous faites faire l'action.
+FR_B2_CONN_001|Bien qu'il [soit/est] tard, elle continue à travailler.|Il est tard, mais votre collègue travaille encore. Votre amie demande : « Elle continue malgré l'heure ? » Répondez avec bien que.
+FR_B2_REL_001|C'est la raison pour [laquelle/lequel] je refuse.|Votre collègue demande : « Pourquoi refuses-tu ce projet ? » Le délai est impossible. Reliez ce motif à votre refus avec la raison pour laquelle.
+FR_B2_PRON_001|Je vais [le lui/lui le] envoyer demain.|Votre collègue demande : « Tu vas envoyer le contrat à Léa ? » Répondez avec deux pronoms placés devant l'infinitif.
+FR_B2_SYN_002|Le ministre [répondra-t-il/répondra-il] demain ?|Vous interviewez un porte-parole. Vous voulez savoir si le ministre répondra demain. Quelle question formelle posez-vous avec inversion ?
+FR_C1_SYN_001|Je crains qu'il [ne parte/n'est parti] trop tôt.|Vous redoutez un départ prématuré. Votre collègue demande : « Qu'est-ce qui vous inquiète ? » Répondez avec craindre que et un ne explétif, sans négation.
+FR_C1_NEG_001|Il ne répond [guère/aucun] à ces critiques.|Votre collègue demande : « Répond-il souvent aux critiques ? » Il le fait très peu. Exprimez cette fréquence dans un registre soutenu avec ne…guère.
+FR_C1_TENSE_001|Il a dit qu'il [avait compris/comprendra] avant la réunion.|Il a déclaré hier : « J'ai compris avant la réunion. » Votre collègue demande : « Qu'a-t-il dit ? » Rapportez les paroles en conservant l'antériorité.
+FR_C1_SYN_002|La décision a été [critiquée/critiqué] par plusieurs députés.|Plusieurs députés ont critiqué la décision. Votre collègue demande : « Quel accueil a reçu la décision ? » Mettez la décision en tête et gardez l'agent.
+FR_C1_VERB_001|[Arrivant/Arriver] en retard, elle s'est excusée.|Votre collègue est arrivée en retard et s'est excusée. Votre amie demande : « Pourquoi s'est-elle excusée ? » Reliez les actions par une proposition participiale au même sujet.
+FR_C1_CONN_001|[Cela dit/Cela dire], il faut nuancer cette conclusion.|Votre collègue affirme : « Le projet a gagné des clients, donc c'est un succès total. » Les coûts ont aussi doublé. Comment nuancer sa conclusion avec cela dit ?

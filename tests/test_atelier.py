@@ -45,9 +45,9 @@ from app.services.atelier import (
 from app.services.atelier_assets import AtelierAssetService
 from app.services.atelier_rewards import AtelierRewardService
 from app.services.error_memory import ErrorMemoryService
-from app.services.pilot_events import PilotEventService
 from app.services.grammar_feedback import count_concept_hits
 from app.services.llm_service import LLMProviderError, LLMResult
+from app.services.pilot_events import PilotEventService
 
 
 def _user(db_session) -> User:
@@ -352,11 +352,23 @@ class _FakeLLMService:
 
     def generate_chat_completion(self, messages, **kwargs):
         self.calls.append({"method": "generate_chat_completion", "messages": messages, **kwargs})
+        response_name = (((kwargs.get("response_format") or {}).get("json_schema") or {}).get("name"))
+        if response_name == "atelier_exercise_critique":
+            task = json.loads(messages[0]["content"])
+            verdicts = [{"item_id": item["id"], "round": item["round"], "mode": item["mode"], "passes": True, "reason": "Reviewed fixture"} for item in task["items"]]
+            return _FakeLLMService({"verdicts": verdicts})._result()
         return self._result(model=kwargs.get("model", "gpt-4o-mini"))
 
     def generate_error_detection(self, messages, **kwargs):
         self.calls.append({"method": "generate_error_detection", "messages": messages, **kwargs})
-        return self._result(model="gpt-4o")
+        # These success-path fixtures represent a complete schema response.
+        # Malformed-response behavior is tested separately in test_seance_contract.
+        payload = json.loads(messages[0]["content"])
+        content = dict(self.content)
+        content.setdefault("corrected_answer", (payload.get("answer") or {}).get("text", ""))
+        content.setdefault("concept_hits", [])
+        content.setdefault("missing_targets", [])
+        return _FakeLLMService(content)._result(model="gpt-4o")
 
     def _result(self, model: str = "gpt-4o-mini") -> LLMResult:
         return LLMResult(
@@ -405,7 +417,12 @@ class _GenerationCritiqueFakeLLMService(_FakeLLMService):
         if kind == "critique":
             index = min(self.critique_calls, len(self.critique_contents) - 1)
             self.critique_calls += 1
-            return self._json_result(self.critique_contents[index], model=kwargs.get("model", "gpt-4o-mini"))
+            supplied = self.critique_contents[index]["verdicts"]
+            verdicts = list(supplied)
+            covered = {item["item_id"] for item in supplied}
+            task = json.loads(messages[0]["content"])
+            verdicts += [{"item_id": item["id"], "round": item["round"], "mode": item["mode"], "passes": True, "reason": "Reviewed fixture"} for item in task["items"] if item["id"] not in covered]
+            return self._json_result({"verdicts": verdicts}, model=kwargs.get("model", "gpt-4o-mini"))
         index = min(self.generation_calls, len(self.generation_contents) - 1)
         self.generation_calls += 1
         return self._json_result(self.generation_contents[index], model=kwargs.get("model", "gpt-4o-mini"))
@@ -478,11 +495,11 @@ def test_generator_repairs_vague_output_ladder_prompts(db_session):
     speak_prompt = exercise_set.payload["output_ladder"]["speak"]["items"][0]["prompt"]
     conversation_prompt = exercise_set.payload["output_ladder"]["conversation"]["items"][0]["prompt"]
     assert "target grammar" not in produce_prompt.lower()
-    assert "friend asks what happened yesterday" in produce_prompt
+    assert "Quel temps faisait-il" in produce_prompt
     assert "target grammar" not in sentence_prompt.lower()
-    assert "friend asks why you arrived late" in sentence_prompt
-    assert "phone rang" in speak_prompt
-    assert "Message received" in conversation_prompt
+    assert "Quel temps faisait-il" in sentence_prompt
+    assert "Quel temps faisait-il" in speak_prompt
+    assert "Quel temps faisait-il" in conversation_prompt
     assert AtelierExerciseGenerator.validate_payload(exercise_set.payload, concept=concept)
 
 
@@ -1245,8 +1262,11 @@ def test_new_grammar_concepts_complete_full_backend_exercise_cycle(db_session):
     )
 
     assert len(attempts) == (len(concepts) * 7) + 1
-    assert {attempt.verdict for attempt in attempts}.issubset({"correct", "accepted"})
-    assert all((attempt.correction_payload.get("ai_review") or {}).get("status") == "not_applicable" for attempt in attempts)
+    keyed = [attempt for attempt in attempts if attempt.round in {"recognize", "transform"}]
+    open_answers = [attempt for attempt in attempts if attempt.round not in {"recognize", "transform"}]
+    assert all(attempt.verdict == "correct" for attempt in keyed)
+    assert all(attempt.verdict == "needs_review" and attempt.correction_payload["assessment_status"] == "unavailable" for attempt in open_answers)
+    assert all(attempt.correction_payload["ai_review"]["status"] == "failed" for attempt in open_answers)
     assert all(not attempt.correction_payload.get("errata") for attempt in attempts)
 
     recap = AtelierSRSService(db_session).complete_session(session=session, user=user)
@@ -1367,7 +1387,7 @@ def test_generated_grammar_cycle_wrong_answers_stay_item_specific(db_session):
                     tokens = [str(token) for token in item.get("answer_tokens") or []]
                     answers[item["id"]] = tokens[1:] + tokens[:1] if len(tokens) > 1 else ["__wrong__"]
 
-            correction = correction_service.correct(
+            correction = correction_service._correct_deterministic(
                 concept=concept,
                 round_name="recognize",
                 mode=mode,
@@ -1380,7 +1400,7 @@ def test_generated_grammar_cycle_wrong_answers_stay_item_specific(db_session):
             assert_specific_errata(correction, {item["id"] for item in items})
 
         transform_items = payload["transform"]["items"]
-        transform_correction = correction_service.correct(
+        transform_correction = correction_service._correct_deterministic(
             concept=concept,
             round_name="transform",
             mode="rewrite",
@@ -1394,7 +1414,7 @@ def test_generated_grammar_cycle_wrong_answers_stay_item_specific(db_session):
 
         for round_name in ("sentence", "speak", "conversation"):
             item = payload["output_ladder"][round_name]["items"][0]
-            output_correction = correction_service.correct(
+            output_correction = correction_service._correct_deterministic(
                 concept=concept,
                 round_name=round_name,
                 mode=round_name,
@@ -1406,7 +1426,7 @@ def test_generated_grammar_cycle_wrong_answers_stay_item_specific(db_session):
             assert output_correction["verdict"] == "partial"
             assert_specific_errata(output_correction, {item["id"]})
 
-        produce_correction = correction_service.correct(
+        produce_correction = correction_service._correct_deterministic(
             concept=None,
             round_name="produce",
             mode="integrated_writing",
@@ -1488,7 +1508,13 @@ def test_select_atelier_vocabulary_uses_curated_starter_for_new_user(db_session)
     assert vocabulary[0]["bucket"] == "starter"
 
 
-def test_atelier_sentence_context_anchor_credits_used_vocabulary(client: TestClient, db_session):
+def test_atelier_sentence_context_anchor_credits_used_vocabulary(client: TestClient, db_session, monkeypatch):
+    # Vocabulary credit requires a completed assessment, not keyword presence.
+    monkeypatch.setattr(AtelierCorrectionService, "_get_llm_service", lambda self: _FakeLLMService({
+        "verdict": "accepted", "score_0_4": 4, "errata": [],
+        "corrected_answer": "Je n'ai pas de dossier aujourd'hui.",
+        "concept_hits": [], "missing_targets": [],
+    }))
     token = _token(client)
     AtelierScheduler(db_session).ensure_catalog()
     _prime_core_exercise_sets(db_session)
@@ -1572,7 +1598,7 @@ def test_atelier_blueprint_template_works_for_non_french_concept(db_session):
     assert blueprint.payload["exercise_recipe"]["output_ladder"]["conversation_turn"]["subitems"] == 1
 
 
-def test_output_ladder_counts_non_tense_concept_from_metadata(db_session):
+def test_rule_hint_output_ladder_counts_non_tense_concept_from_metadata(db_session):
     concept = GrammarConcept(
         external_id=f"FR_B1_REL_{uuid4().hex[:8]}",
         language="fr",
@@ -1596,7 +1622,7 @@ def test_output_ladder_counts_non_tense_concept_from_metadata(db_session):
         "Le dossier dont je parle reste ici.",
     )
 
-    correction = AtelierCorrectionService(db_session).correct(
+    correction = AtelierCorrectionService(db_session)._correct_deterministic(
         concept=concept,
         round_name="sentence",
         mode="short_sentence",
@@ -2015,10 +2041,10 @@ def test_negation_correction_names_article_change(db_session):
 
     erratum = result["errata"][0]
     assert "quantity" in erratum["why_wrong"].lower()
-    assert "de/d'" in erratum["repair_hint"]
+    assert "pas" in erratum["repair_hint"]
 
 
-def test_produce_accepts_submission_with_missing_targets(db_session):
+def test_produce_saves_submission_without_certifying_missing_targets(db_session):
     user = _user(db_session)
     concepts = [_concept(db_session, "FR_B1_COND_001"), _concept(db_session, "FR_B1_TENSE_001"), _concept(db_session, "FR_A2_NEG_001")]
     session = AtelierSession(user_id=user.id, selected_concept_ids=[concept.id for concept in concepts])
@@ -2035,15 +2061,16 @@ def test_produce_accepts_submission_with_missing_targets(db_session):
         session=session,
     )
 
-    assert result["verdict"] == "accepted"
-    assert result["missing_targets"]
-    assert all(erratum["task_error_type"] == "task_compliance" for erratum in result["errata"])
+    assert result["verdict"] == "needs_review"
+    assert result["assessment_status"] == "unavailable"
+    assert result["concept_hits"] == []
+    assert result["corrected_answer"] == ""
 
 
-def test_produce_counts_si_frame_before_flagging_conditional_result(db_session):
+def test_rule_hint_produce_counts_si_frame_before_flagging_conditional_result(db_session):
     concept = _concept(db_session, "FR_B1_COND_001")
 
-    result = AtelierCorrectionService(db_session).correct(
+    result = AtelierCorrectionService(db_session)._correct_deterministic(
         concept=concept,
         round_name="produce",
         mode="integrated_writing",
@@ -2061,12 +2088,12 @@ def test_produce_counts_si_frame_before_flagging_conditional_result(db_session):
     assert "only detected 0" not in json.dumps(result, ensure_ascii=False)
 
 
-def test_output_ladder_short_sentence_scores_active_use(db_session):
+def test_rule_hint_output_ladder_short_sentence_scores_active_use(db_session):
     concept = _concept(db_session, "FR_B1_COND_001")
     payload = _test_generated_payload(db_session, concept)
     prompt_payload = {"round": "sentence", "mode": "sentence", **payload["output_ladder"]["sentence"]}
 
-    result = AtelierCorrectionService(db_session).correct(
+    result = AtelierCorrectionService(db_session)._correct_deterministic(
         concept=concept,
         round_name="sentence",
         mode="sentence",
@@ -2081,13 +2108,13 @@ def test_output_ladder_short_sentence_scores_active_use(db_session):
     assert result["errata"] == []
 
 
-def test_output_ladder_si_sentence_flags_submitted_conditional_result(db_session):
+def test_rule_hint_output_ladder_si_sentence_flags_submitted_conditional_result(db_session):
     concept = _concept(db_session, "FR_B1_COND_001")
     payload = _test_generated_payload(db_session, concept)
     prompt_payload = {"round": "sentence", "mode": "sentence", **payload["output_ladder"]["sentence"]}
     example = prompt_payload["items"][0]["example_answer"]
 
-    result = AtelierCorrectionService(db_session).correct(
+    result = AtelierCorrectionService(db_session)._correct_deterministic(
         concept=concept,
         round_name="sentence",
         mode="sentence",
@@ -2111,7 +2138,7 @@ def test_output_ladder_si_sentence_flags_submitted_conditional_result(db_session
     assert "t'appellerai" not in erratum["corrected_target"]
 
 
-def test_output_ladder_all_freeform_rounds_flag_submitted_conditional_result(db_session):
+def test_rule_hint_output_ladder_all_freeform_rounds_flag_submitted_conditional_result(db_session):
     concept = _concept(db_session, "FR_B1_COND_001")
     payload = _test_generated_payload(db_session, concept)
 
@@ -2119,7 +2146,7 @@ def test_output_ladder_all_freeform_rounds_flag_submitted_conditional_result(db_
         prompt_payload = {"round": round_name, "mode": round_name, **payload["output_ladder"][round_name]}
         example = prompt_payload["items"][0]["example_answer"]
 
-        result = AtelierCorrectionService(db_session).correct(
+        result = AtelierCorrectionService(db_session)._correct_deterministic(
             concept=concept,
             round_name=round_name,
             mode=round_name,
@@ -2137,12 +2164,12 @@ def test_output_ladder_all_freeform_rounds_flag_submitted_conditional_result(db_
         assert result["errata"][0]["corrected_target"] != example
 
 
-def test_output_ladder_missing_target_is_not_recurring_erratum(db_session):
+def test_rule_hint_output_ladder_missing_target_is_not_recurring_erratum(db_session):
     concept = _concept(db_session, "FR_B1_COND_001")
     payload = _test_generated_payload(db_session, concept)
     prompt_payload = {"round": "conversation", "mode": "conversation", **payload["output_ladder"]["conversation"]}
 
-    result = AtelierCorrectionService(db_session).correct(
+    result = AtelierCorrectionService(db_session)._correct_deterministic(
         concept=concept,
         round_name="conversation",
         mode="conversation",
@@ -2473,7 +2500,7 @@ def test_background_ai_review_failure_preserves_deterministic_correction(db_sess
     updated = service.run_ai_review_for_attempt(attempt.id)
 
     assert updated is not None
-    assert updated.correction_payload["ai_review"]["status"] == "not_applicable"
+    assert updated.correction_payload["ai_review"]["status"] == "failed"
     assert updated.correction_payload["corrected_answer"] == deterministic_answer
     assert updated.correction_payload["correction_debug"]["fallback_used"] is True
 
@@ -2907,12 +2934,10 @@ def test_atelier_api_today_session_attempt_and_complete(client: TestClient, db_s
         },
     )
     assert writing.status_code == 200
-    assert writing.json()["verdict"] == "accepted"
-    # With a single-concept first session, this sentence's si+futur pattern
-    # hits 100% of the (one) target concept, so the produce round is flawless
-    # too and mints a second logo token -- it only missed targets, and thus
-    # earned no token, back when the session mixed in two other concepts.
-    assert writing.json()["minted_collectibles"][0]["kind"] == "logo_token"
+    assert writing.json()["verdict"] == "needs_review"
+    assert writing.json()["correction"]["assessment_status"] == "unavailable"
+    # An unchecked paragraph earns no success token, even if keywords match.
+    assert writing.json()["minted_collectibles"] == []
 
     completed = client.post(f"/api/v1/atelier/sessions/{session_id}/complete", headers=headers)
     assert completed.status_code == 200
@@ -2921,12 +2946,12 @@ def test_atelier_api_today_session_attempt_and_complete(client: TestClient, db_s
 
     almanac = client.get("/api/v1/atelier/almanac", headers=headers)
     assert almanac.status_code == 200
-    assert almanac.json()["totals"]["logo_token"] == 2
-    assert almanac.json()["progress"]["plate_semaine"]["available"] == 2
+    assert almanac.json()["totals"]["logo_token"] == 1
+    assert almanac.json()["progress"]["plate_semaine"]["available"] == 1
 
     compose = client.post("/api/v1/atelier/workshop/compose", headers=headers, json={"target": "plate_semaine"})
     assert compose.status_code == 409
-    assert compose.json()["detail"]["shortfall"] == 5
+    assert compose.json()["detail"]["shortfall"] == 6
 
 
 def test_atelier_today_exposes_only_yesterdays_filed_phrase(client: TestClient, db_session):

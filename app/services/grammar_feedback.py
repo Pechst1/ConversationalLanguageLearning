@@ -7,6 +7,7 @@ from dataclasses import asdict, dataclass
 from typing import Any
 
 from app.db.models.grammar import GrammarConcept
+from app.services.seance_curriculum import lesson_for
 
 _STOPWORDS = {
     "about",
@@ -156,9 +157,29 @@ def infer_grammar_profile(
 ) -> GrammarFeedbackProfile:
     """Infer a concept family from explicit task text plus catalog metadata."""
 
+    lesson = lesson_for(concept)
+    if lesson:
+        family = {
+            "Agreement": "agreement", "Articles": "determiner", "Determiners": "determiner",
+            "Pronouns": "pronoun_choice", "Relative clauses": "relative_pronoun",
+            "Comparison": "comparison", "Prepositions": "preposition",
+            "Conditionals": "conditional_mood", "Tenses": "tense_aspect",
+        }.get(lesson["category"], "grammar_target")
+        if lesson["external_id"] == "FR_B1_COND_001":
+            family = "si_present_result_form"
+        elif lesson["external_id"] == "FR_A2_NEG_001":
+            family = "article_after_negation"
+        elif "subjunctive" in lesson["subskill"]:
+            family = "mood"
+        return _profile(family, concept.name, lesson["core_rule"],
+                        lesson["main_traps"].split(" | ")[0], lesson["when_to_use"],
+                        lesson["pattern"], lesson["main_traps"].split(" | ")[0])
+
     concept_text = concept_context_text(concept)
     task_norm = normalize_grammar_text(task_text)
-    combined = f" {task_norm} {concept_text} ".strip()
+    # Catalog identity outranks incidental words in examples or the task.
+    identity = normalize_grammar_text(" ".join(str(getattr(concept, key, "") or "") for key in ("category", "subskill", "name"))) if concept else ""
+    combined = identity or f" {task_norm} {concept_text} ".strip()
     external_id = str(getattr(concept, "external_id", "") or "")
     fallback_label = label or (concept.name if concept else "") or feature or "Grammar target"
     fallback_feature = feature or (concept.name if concept else "the requested grammar concept")
@@ -173,7 +194,7 @@ def infer_grammar_profile(
             "si + present, then future simple or imperative.",
             "If you see si for a real future condition, do not put future simple immediately after si.",
         )
-    if external_id == "FR_A2_NEG_001" or _contains_any(combined, (" negation ", " negative ", " ne pas ", " ne plus ", " ne jamais ", " partitive ", " article after negation ", " negated quantity ")):
+    if external_id == "FR_A2_NEG_001" or _contains_any(combined, (" negation ", " negative ", " ne pas ", " ne plus ", " ne jamais ", " article after negation ", " negated quantity ")):
         return _profile(
             "article_after_negation",
             "Article after negation",
@@ -223,7 +244,7 @@ def infer_grammar_profile(
             "qui/que/ou/dont/lequel according to the role inside the relative clause.",
             "Ask what job the missing word does in the second clause.",
         )
-    if _contains_any(combined, (" pronoun ", " pronom ", " clitic ", " object pronoun ", " y ", " en ", " lui ", " leur ")):
+    if _contains_any(combined, (" pronoun ", " pronouns ", " pronom ", " clitic ", " object pronoun ", " y ", " en ", " lui ", " leur ")):
         return _profile(
             "pronoun_choice",
             "Pronoun choice",
@@ -233,7 +254,7 @@ def infer_grammar_profile(
             "direct, indirect, y, en, reflexive, or stressed pronoun according to the complement.",
             "Check what the pronoun replaces before checking word order.",
         )
-    if _contains_any(combined, (" determiner ", " article ", " definite ", " indefinite ", " partitive ", " possessive ", " demonstrative ")):
+    if _contains_any(combined, (" determiner ", " determiners ", " articles ", " article ", " definite ", " indefinite ", " partitive ", " possessive ", " demonstrative ")):
         return _profile(
             "determiner",
             "Determiner choice",
@@ -253,7 +274,7 @@ def infer_grammar_profile(
             "controller + agreeing determiner/adjective/verb/participle.",
             "Find the controller before checking the ending.",
         )
-    if _contains_any(combined, (" preposition ", " preposition ", " a_vs_de ", " en_vs_dans ", " chez ", " depuis ", " pendant ")):
+    if _contains_any(combined, (" preposition ", " prepositions ", " a_vs_de ", " en_vs_dans ", " chez ", " depuis ", " pendant ")):
         return _profile(
             "preposition",
             "Preposition choice",
@@ -263,7 +284,7 @@ def infer_grammar_profile(
             "verb/place/time expression + required preposition.",
             "Ask what relation the preposition expresses before choosing it.",
         )
-    if _contains_any(combined, (" comparison ", " comparative ", " superlative ", " plus ", " moins ", " autant ", " aussi ")):
+    if _contains_any(combined, (" comparison ", " comparisons ", " comparative ", " superlative ", " plus ", " moins ", " autant ", " aussi ")):
         return _profile(
             "comparison",
             "Comparison",
