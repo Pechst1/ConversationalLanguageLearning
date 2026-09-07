@@ -67,16 +67,18 @@ PREMISES = [
 
 # One objective per premise: the engine rejects an objective that overlaps any of the
 # last five situations (WP-14F L-2), so a fixed objective would stall on day two.
+# One communicative act each, at most one clause: the engine rejects a chained A1/A2
+# objective (WP-17 paid run) and any objective overlapping a recent situation.
 OBJECTIVES = [
-    "Suggest how you can help, or explain that you cannot.",
-    "Propose an alternative for the market morning, or decline.",
-    "Negotiate a price or say the bike does not interest you.",
-    "Explain what happened to the parcel.",
-    "Say whether you come on Friday and what you bring.",
-    "Ask a neighbour for help, or offer yours.",
-    "Accept or decline cat-sitting, and say when you are free.",
-    "Agree a time for the bins, or explain why it is impossible.",
-    "Describe the dog and decide who should be called.",
+    "Offer your help for the exhibition.",
+    "Propose another time for the market morning.",
+    "Ask the price of the bike.",
+    "Explain where the parcel went.",
+    "Say whether you come on Friday.",
+    "Ask a neighbour about the flooded cellar.",
+    "Accept or decline the cat-sitting.",
+    "Agree a time for the bins.",
+    "Describe the lost dog.",
 ]
 
 # WP-17: the engine rejects a third consecutive scene with the same (character,
@@ -1126,3 +1128,49 @@ def test_a_chapter_closes_after_three_resolved_commitments_without_the_model_say
                 "level": "A1",
             },
         )
+
+
+def test_a_promise_restated_on_a_later_day_stays_one_open_commitment(
+    assembled_client, db_session, journey_enabled, clock, provider
+):
+    """A2 paid run ended with two open commitments for one Sunday at the market."""
+
+    d = driver(assembled_client, db_session)
+    first = "Oui, je viens dimanche, mais j'ai un petit budget ; on peut se retrouver à 11h au pont ?"
+    play_day(
+        d,
+        provider,
+        answer=first,
+        turn=TurnScript(
+            commitment_text="Venir dimanche au marché et se retrouver à 11h au pont.",
+            commitment_quote=first,
+        ),
+    )
+    clock.advance(days=1)
+    second = "Oui, je viens dimanche; j'ai seulement vingt euros."
+    play_day(
+        d,
+        provider,
+        answer=second,
+        turn=TurnScript(commitment_text="Tu viens dimanche au marché.", commitment_quote=second),
+    )
+
+    open_commitments = [c for c in live_state(db_session, d)["commitments"] if c["status"] == "open"]
+    assert len(open_commitments) == 1, [c["text_fr"] for c in open_commitments]
+    commitment = open_commitments[0]
+    assert commitment["text_fr"] == "Venir dimanche au marché et se retrouver à 11h au pont.", (
+        "the fuller wording of the promise survives"
+    )
+    # Nothing the learner said is dropped: the restatement keeps its own provenance.
+    assert [r["text_fr"] for r in commitment["restatements"]] == ["Tu viens dimanche au marché."]
+    assert commitment["restatements"][0]["source_quote"] == second
+    # A different promise still opens its own commitment.
+    clock.advance(days=1)
+    third = "Je peux apporter les affiches samedi."
+    play_day(
+        d,
+        provider,
+        answer=third,
+        turn=TurnScript(commitment_text="Apporter les affiches samedi.", commitment_quote=third),
+    )
+    assert len([c for c in live_state(db_session, d)["commitments"] if c["status"] == "open"]) == 2

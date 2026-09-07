@@ -34,14 +34,16 @@ PREMISES = [
 ]
 
 
+# One communicative act each, at most one clause: the engine rejects a chained A1/A2
+# objective (WP-17 paid run) and any objective overlapping a recent situation.
 OBJECTIVES = [
-    "Suggest how you can help, or explain that you cannot.",
-    "Propose an alternative for the market morning, or decline.",
-    "Negotiate a price or say the bike does not interest you.",
-    "Explain what happened to the parcel.",
-    "Say whether you come on Friday and what you bring.",
-    "Ask a neighbour for help, or offer yours.",
-    "Accept or decline cat-sitting, and say when you are free.",
+    "Offer your help for the exhibition.",
+    "Propose another time for the market morning.",
+    "Ask the price of the bike.",
+    "Explain where the parcel went.",
+    "Say whether you come on Friday.",
+    "Ask a neighbour about the flooded cellar.",
+    "Accept or decline the cat-sitting.",
 ]
 
 
@@ -89,7 +91,9 @@ def draft(context, n=0):
         "chapter": {
             k: chapter[k] for k in ("title_fr", "dramatic_question", "possible_developments")
         }
-        if chapter and not chapter.get("resolved")
+        # A compliant director opens a new chapter once the current one is answered or
+        # exhausted (by resolved commitments or by CHAPTER_MAX_SCENES).
+        if chapter and not (chapter.get("resolved") or chapter.get("exhausted"))
         else {
             "title_fr": f"Une exposition {n}",
             "dramatic_question": QUESTIONS[n % len(QUESTIONS)],
@@ -607,7 +611,7 @@ def test_recent_situations_reach_the_director_without_ids(assembled_client, db_s
 
 def test_a_reworded_repeat_of_a_recent_objective_is_rejected():
     proposal = engine.SceneDraft.model_validate(draft(_scene_context(), 0))
-    recent = [{"novelty_key": "x", "premise_fr": "Tout autre chose ce matin.", "objective_native": "Suggest how you could help, or explain you cannot."}]
+    recent = [{"novelty_key": "x", "premise_fr": "Tout autre chose ce matin.", "objective_native": "Offer your help with the exhibition."}]
     with pytest.raises(engine.StoryUnavailable, match="repeated_situation"):
         engine._validate_scene(proposal, _scene_context(recent_situations=recent))
 
@@ -730,7 +734,7 @@ def test_same_character_same_place_same_objective_is_a_repeat():
             "premise_fr": "Une histoire tout à fait différente ce matin.",
             # Overlaps the new objective enough to be the same ask (>= 0.4) but not
             # enough for the plain content-word rule (0.6) to catch it.
-            "objective_native": "Suggest help, or explain the week.",
+            "objective_native": "Offer help for the exhibition next week.",
             "novelty_key": "other",
         }
     ]
@@ -997,3 +1001,214 @@ def test_the_critic_call_can_be_switched_off_for_the_owners_ab_run(
     d.play(answer="Je peux apporter les affiches samedi.")
     d.finish("complete")
     assert "Review" not in [schema for schema, _ in provider.calls]
+
+
+# ---------------------------------------------------------------------------
+# WP-17 paid runs (2026-09-07) — each defect the live A1/A2 runs exposed
+# ---------------------------------------------------------------------------
+
+
+def test_a_repetition_rejection_tells_the_director_what_to_change():
+    """A2 paid run: five days lost to a retry that only saw "repeated_premise_triple".
+
+    The retry feedback must name the offending triple, the objectives already used and
+    the ids that are still free, or the model answers a repetition refusal by rewording
+    the same scene (days 9-12 and 14 were literally the same "call the seller" scene).
+    """
+
+    recent = [
+        {
+            "character_id": "romy_tremblay",
+            "location_id": "le_mistral",
+            "objective_native": "Offer help for the exhibition next week.",
+            "premise_fr": "Une histoire tout à fait différente ce matin.",
+            "novelty_key": "other",
+        }
+    ]
+    context = _scene_context(recent_situations=recent)
+    context["variety"] = engine._variety(
+        recent, context["world"]["cast"], context["world"]["locations"]
+    )
+    proposal = engine.SceneDraft.model_validate(draft(_scene_context(), 0))
+    with pytest.raises(engine.StoryUnavailable) as caught:
+        engine._validate_scene(proposal, context)
+    error = caught.value
+    assert str(error) == "repeated_premise_triple", "the machine reason stays a token"
+    assert "romy_tremblay" in error.hint and "le_mistral" in error.hint
+    assert "Offer help for the exhibition next week." in error.hint
+    assert "lila_bonnet" in error.hint, "the free ids must be named"
+    assert error.feedback.startswith("repeated_premise_triple: ")
+    # The context the director sees carries the same facts, before any rejection.
+    assert context["variety"]["used_objectives"] == [
+        "Offer help for the exhibition next week."
+    ]
+
+
+def test_the_retry_carries_the_hint_not_the_bare_token(
+    assembled_client, db_session, journey_enabled, clock, provider, monkeypatch
+):
+    """The hint has to reach the model's ``previous_rejections``, not just the log."""
+
+    rejections = []
+
+    def refuse_once(proposal, context):
+        if not rejections:
+            rejections.append(True)
+            raise engine.StoryUnavailable("repeated_situation", hint="pick another café")
+
+    monkeypatch.setattr(engine, "_validate_scene", refuse_once)
+    d = driver(assembled_client, db_session)
+    d.create()
+    contexts = [payload for schema, payload in provider.calls if schema == "SceneDraft"]
+    assert contexts[1]["previous_rejections"] == ["repeated_situation: pick another café"]
+
+
+@pytest.mark.parametrize(
+    ("level", "objective", "rejected"),
+    [
+        # The exact A1 objective the paid run served on day 1.
+        (
+            "A1",
+            "Accept or decline the invitation, give a simple reason about budget or "
+            "schedule, and ask for the meeting time and place.",
+            True,
+        ),
+        ("A1", "Ask Lila what time you meet at the market.", False),
+        # The A2 objective that produced five identical retries.
+        (
+            "A2",
+            "Decide if Marin should call now, give a short reason about your budget, and "
+            "ask what Marin will say to the seller.",
+            True,
+        ),
+        ("A2", "Ask the price and propose another time to come back.", False),
+        # B1 and B2 may negotiate several things at once.
+        (
+            "B1",
+            "Accept or decline the invitation, give a reason, and ask for the time and "
+            "the place, then propose an alternative.",
+            False,
+        ),
+    ],
+)
+def test_a1_and_a2_objectives_must_be_one_communicative_act(level, objective, rejected):
+    """A1 paid run: ten of twelve days ended in a clarification loop on chained asks."""
+
+    if rejected:
+        with pytest.raises(engine.StoryUnavailable, match="objective_too_complex"):
+            engine._check_objective_scope(objective, level)
+    else:
+        engine._check_objective_scope(objective, level)
+
+
+def test_a_chapter_ends_after_five_scenes_even_if_nothing_is_ever_resolved():
+    """A1 paid run: one chapter for twelve days — no commitment, no resolution, no end."""
+
+    live = {
+        "chapter": {
+            "id": "c1",
+            "title_fr": "Une exposition",
+            "dramatic_question": "Comment organiser cette exposition ?",
+            "resolved": False,
+            "resolved_commitments": 0,
+            "scene_count": engine.CHAPTER_MAX_SCENES - 1,
+        }
+    }
+    assert engine.chapter_state(live)["exhausted"] is False
+    live["chapter"]["scene_count"] = engine.CHAPTER_MAX_SCENES
+    chapter = engine.chapter_state(live)
+    assert chapter["exhausted"] is True
+    replay = engine.SceneDraft.model_validate(draft(_scene_context(), 0)).model_copy(
+        update={
+            "chapter": engine.Chapter(
+                title_fr="Une exposition",
+                dramatic_question="Comment organiser cette exposition ?",
+                possible_developments=["Trouver une salle.", "Inviter les voisins."],
+            )
+        }
+    )
+    with pytest.raises(engine.StoryUnavailable, match="chapter_not_advanced"):
+        engine._validate_scene(replay, _scene_context(chapter=chapter))
+    engine._validate_scene(
+        engine.SceneDraft.model_validate(draft(_scene_context(), 1)),
+        _scene_context(chapter=chapter),
+    )
+
+
+def test_the_chapter_question_is_held_to_the_learners_address_and_register():
+    """A1 paid run stored "tu restes réservé·e" in the chapter for fourteen days."""
+
+    gendered = deepcopy(draft(_scene_context(), 0))
+    gendered["chapter"]["dramatic_question"] = (
+        "Est-ce que tu acceptes l'aide des nouveaux amis ou tu restes réservé·e ?"
+    )
+    with pytest.raises(engine.StoryUnavailable, match="inclusive_dot_form"):
+        engine._validate_scene(
+            engine.SceneDraft.model_validate(gendered),
+            _scene_context(learner={"address": "neutral"}),
+        )
+    coarse = deepcopy(draft(_scene_context(), 0))
+    coarse["chapter"]["title_fr"] = "Putain de vernissage"
+    with pytest.raises(engine.StoryUnavailable, match="vulgar_register"):
+        engine._validate_scene(
+            engine.SceneDraft.model_validate(coarse), _scene_context(level="A1")
+        )
+
+
+@pytest.mark.parametrize(
+    ("existing", "proposed", "same"),
+    [
+        # The exact pair the A2 run left open at the end of fourteen days.
+        (
+            "Venir dimanche au marché et se retrouver à 11h au pont.",
+            "Tu viens dimanche au marché.",
+            True,
+        ),
+        ("Apporter les affiches samedi.", "APPORTER les affiches, samedi !", True),
+        ("Aider Marin à ranger le bureau.", "Venir dimanche au marché.", False),
+        ("Apporter les affiches samedi.", "Réserver la salle pour vendredi.", False),
+    ],
+)
+def test_a_restated_promise_is_not_a_second_commitment(existing, proposed, same):
+    assert engine._same_promise(existing, proposed) is same
+
+
+def test_the_critic_can_be_limited_to_turns(
+    assembled_client, db_session, journey_enabled, clock, provider, monkeypatch
+):
+    """WP-17 paid runs: 19 scene reviews, one rejection, and it duplicated a guard.
+
+    Reviewing turns only keeps every unique catch, halves the review cost and — because a
+    review rejection consumes one of ``ATELIER_STORY_MAX_ATTEMPTS`` — gives both attempts
+    back to the deterministic scene guards.
+    """
+
+    monkeypatch.setattr(engine, "CRITIC_STAGES", frozenset({"SemanticTurn"}))
+    d = driver(assembled_client, db_session)
+    d.create()
+    assert [schema for schema, _ in provider.calls] == ["SceneDraft"]
+    d.play(answer="Je peux apporter les affiches samedi.")
+    d.finish("complete")
+    schemas = [schema for schema, _ in provider.calls]
+    assert schemas.count("Review") == 1, schemas
+    assert schemas == ["SceneDraft", "SemanticTurn", "Review"]
+
+
+def test_the_interpreters_own_reading_of_the_learner_is_address_checked():
+    """A2 paid run: only the critic saw "Le·a apprenant·e" in understood_intent."""
+
+    payload = {
+        "learner_text": "Je viens dimanche.",
+        "history": [],
+        "targets": [],
+        "story": {"commitments": [], "level": "A1", "learner": {"address": "neutral"}},
+        "scene": {},
+    }
+    turn = engine.SemanticTurn.model_validate(
+        {
+            **turn_fixture("Je viens dimanche."),
+            "understood_intent": "Le·a apprenant·e accepte de venir dimanche.",
+        }
+    )
+    with pytest.raises(engine.StoryUnavailable, match="inclusive_dot_form"):
+        engine._validate_turn(turn, payload)

@@ -222,3 +222,141 @@ Read them off `summary` in each report:
 - the critic keeps its ~25 % of each scene's cost **only** if the with-critic runs reject
   something the deterministic guards missed. Compare `days_failed` and the rejection
   reasons in `requests[]` between the two halves and record the answer either way.
+
+## WP-17 paid runs — 2026-09-07
+
+Owner-authorised, four runs, `gpt-5-mini`, **US$0.4463 in total** (164 requests), reports
+in `var/reviews/atelier-longitudinal-{A1,A2}-{critic,nocritic}.json`. Fourteen simulated
+days each, one scripted skip, so thirteen days can be judged.
+
+| run | accepted (≥ 11/13) | locations (≥ 3) | characters (≥ 3) | chapters (≥ 2) | median request (< 12 s) | requests | cost | cost / accepted day |
+|---|---|---|---|---|---|---|---|---|
+| A1 + critic | **12/13** ✓ | 7 ✓ | 5 ✓ | **1** ✗ | 10.7 s ✓ | 61 | $0.1420 | $0.0118 |
+| A2 + critic | **6/13** ✗ | 5 ✓ | 5 ✓ | 3 ✓ | 17.1 s ✗ | 47 | $0.1274 | $0.0212 |
+| A1 no critic | **12/13** ✓ | 7 ✓ | 5 ✓ | **1** ✗ | 18.2 s ✗ | 29 | $0.0870 | $0.0072 |
+| A2 no critic | **12/13** ✓ | 5 ✓ | 5 ✓ | 3 ✓ | 18.6 s ✗ | 27 | $0.0899 | $0.0075 |
+
+Distinct premises: 12, 6, 12, 12 (a day's premise is never a reworded twin of the last
+five). The single lost day in each of the three 12/13 runs was a guard doing its job:
+`repeated_situation` (A1 both runs, day 12) and `gendered_address` (A2 no critic, day 12).
+The A2 + critic run lost seven, which is what the rest of this section is about.
+
+### Latency: the blended median is the wrong metric
+
+The `< 12 s` threshold was set on `summary.median_request_seconds`, which is the median
+over *all* requests — and the critic's reviews are the fast ones (4-5 s), so adding the
+critic **lowers** the number while making the learner wait longer. Per stage:
+
+| run | draft (p50 / max) | turn (p50 / max) | review (p50) | learner wait: scene | learner wait: whole day |
+|---|---|---|---|---|---|
+| A1 + critic | 20.5 s / 25.0 s | 13.5 s / 17.7 s | 4.2-5.2 s | ≈ 25.8 s | ≈ 43.4 s |
+| A2 + critic | 21.8 s / 24.4 s | 14.6 s / 18.3 s | 4.6-5.1 s | ≈ 26.9 s | ≈ 46.1 s |
+| A1 no critic | 20.8 s / 25.0 s | 13.5 s / 21.2 s | — | ≈ 20.8 s | ≈ 34.3 s |
+| A2 no critic | 19.8 s / 24.4 s | 14.9 s / 22.3 s | — | ≈ 19.8 s | ≈ 34.7 s |
+
+The draft call is the same ~20-22 s in every run; the "10.7 s vs 18.2 s" difference
+between the A1 runs is entirely the critic's fast calls entering the median. **The
+threshold belongs on the two stages the learner actually waits for**, measured
+separately: draft p50 and p95 (the scene the journey blocks on) and turn p50/p95, plus
+the end-to-end operation including retries. As a first proposal from these numbers:
+draft p50 < 22 s and p95 < 25 s, turn p50 < 16 s, scene generation end-to-end < 30 s —
+all well inside `OPERATION_BUDGET_SECONDS` (75 s), but note the draft p50 is already
+close to the 25 s `REQUEST_TIMEOUT_SECONDS`, which is what the six request errors across
+the four runs look like. That window, not the model, is the next latency risk.
+
+**Variety is fixed; turnover and repetition are not.** WP-17's rotation work did what it
+was for: 5 of 5 cast members and 5-7 locations in every run, 12 distinct premises in
+three of the four (against fourteen days at one counter with one character in the WP-14F
+confirmation run). Two thresholds were missed, and both had a real cause, not a threshold
+problem. Median latency is provider-side variance around a 25 s per-call window: the
+first run of the batch measured 10.7 s and the three later ones 17-19 s with the same
+prompts.
+
+### Defects the paid runs exposed, and the fixes (all in `living_story.py`)
+
+| # | Observed live | Fix |
+|---|---|---|
+| P-1 | **A2 lost five consecutive days re-proposing one scene.** Days 9-12 and 14 were literally "Marin proposes to call the seller", reworded, twice per day. The retry only ever saw the opaque token `repeated_premise_triple`, so the model answered a repetition refusal by rewording the same scene, once moving to `ngo_office` while keeping the same objective. | `StoryUnavailable` now carries a `hint`; every repetition/rotation/chapter guard names the offending character, location and objective, the objectives already used, and the ids still free (`_variety_hint`). `_approved` feeds `reason: hint` into `previous_rejections`, and the recorded machine reason is unchanged. `variety.used_objectives` puts the same facts in the context *before* the first attempt, and the director prompt is told to obey `previous_rejections` literally. |
+| P-2 | **The 0.4 objective-overlap threshold was not the problem.** The rejected drafts were the same scene, not similar-but-different A2 objectives, so loosening the guard would only have let repeats through. | Threshold kept at 0.4 for the triple and 0.6 for plain content words. |
+| P-3 | **A1 spent all twelve accepted days in one chapter, with no commitment ever recorded.** Ten of twelve days ended `needs_clarification`, which correctly drops commitments and chapter closure — so neither turnover trigger could ever fire. The cause is upstream: A1 objectives chained three asks ("accept or decline, give a reason about budget or schedule, **and** ask for the meeting time and place"), which one A1 sentence cannot satisfy. | `_check_objective_scope`: at A1 one clause separator and ≤ 16 words, at A2 two and ≤ 24; B1/B2 unrestricted. Director prompt states the same rule. |
+| P-4 | A chapter with no promises and no resolution never ends. | Third deterministic turnover trigger: `CHAPTER_MAX_SCENES = 5` scenes exhausts a chapter regardless of commitments or `chapter_resolved`. |
+| P-5 | **A2 ended with two open commitments for one promise** ("Venir dimanche au marché et se retrouver à 11h au pont." and, six days later, "Tu viens dimanche au marché."). | `_same_promise` merges a restatement of an **open** commitment (content-word containment ≥ 0.6, ≥ 2 shared words); the fuller wording survives and the restatement's own text, quote and event id are kept under `restatements`, so no learner words are lost. The actor prompt now says a restated open promise is not a new commitment, and that a commitment is written as what the learner will do (the run produced "Tu viens…", a line addressed *to* the learner). **Known trade-off:** bag-of-words containment cannot separate "Apporter les affiches samedi" from "Apporter le gâteau samedi" — Jaccard scores that false pair *higher* than the real duplicate — so those would merge too. The merge is non-destructive by design for exactly that reason; the alternative, a model call per commitment, was rejected as extra cost. |
+| P-6 | **The chapter's title and question were never address- or register-checked.** A1 carried "Est-ce que tu acceptes l'aide des nouveaux amis ou tu restes réservé·e ?" as durable chapter state for fourteen days — the WP-14F L-6 inclusive-dot rule with a hole in it. | Both chapter fields join the learner-facing text in `_check_address` and `_check_register`. |
+| P-6b | **`understood_intent` was outside the address check** — the A2 run wrote "Le·a apprenant·e" there and only the critic saw it. | The interpreter's own reading of the learner joins `reply_fr` and `resolution_fr` in `_check_address`. |
+
+Guards that worked as intended in the runs: `gendered_address` refused a scene on day 12
+of A2-no-critic, and the repetition guards refused every repeat listed above — the defect
+was the feedback loop after the refusal, not the refusal.
+
+### Critic A/B — verdict: review turns, not scenes
+
+**Did the critic's rejections cascade into the A2 stall? No.** Reconstructing the request
+sequence per day settles it (`stage` order per day in the report):
+
+| A2 + critic day | requests | who refused |
+|---|---|---|
+| 5, 10, 11, 12, 14 | `SceneDraft → SceneDraft` | both attempts refused by the deterministic guards; **the critic was never called** |
+| 9 | `SceneDraft!ERR → SceneDraft` | one attempt lost to a provider error, the other to a guard |
+| 13 | `SceneDraft → Review:ACC → SemanticTurn → Review:REJ → SemanticTurn → Review:REJ` | the one genuine critic-caused loss |
+
+Six of the seven lost A2 days never reached a critic call: 20 drafts were sent and only 7
+scene reviews happened, because the guards refused the other 13 first. The stall is P-1
+(opaque retry feedback), not the critic and not sample variance. One structural
+interaction is real and worth keeping in mind: `ATELIER_STORY_MAX_ATTEMPTS` is shared, so
+**a scene-stage critic rejection costs the guards one of their two attempts**.
+
+**What the critic actually caught, both runs (26 reviews):**
+
+| stage | reviews | rejections | unique to the critic? |
+|---|---|---|---|
+| scene (`director/Review`) | 19 | 1 | **No.** The single rejection (A1 day 5) was `gendered_address` — a rule the deterministic guard already owns; it fired there because the violation sat in the chapter question, the one field the guard did not see. P-6 closes that. |
+| turn (`actor/Review`) | 7 | 5 | **Yes, three of five.** A2 day 4: `Le·a apprenant·e` in `understood_intent` (now a deterministic check). A2 day 13: a gendered third-person pronoun about the learner, and a quoted line putting *tu* on the seller while attributing the learner's €20 to them — semantic, not guardable. A1 days 3 and 13 were rubric-completeness rejections caused by the chained objectives of P-3; both recovered on the retry. |
+
+**Recommendation: keep the critic for turns only** (`CRITIC_STAGES = {"SemanticTurn"}`).
+
+- It keeps every unique catch: all three came from turn reviews.
+- It removes a review that caught nothing in 19 live scenes.
+- It returns both attempts to the deterministic scene guards, which is exactly where the
+  A2 run ran out of road.
+- It cuts a day from four calls to three: ≈ 25 % fewer requests and ≈ US$0.003 per
+  learner-day, and takes ≈ 5 s off the wait for the scene the learner is blocked on.
+
+The mechanism is implemented and defaults to **both stages** — no behaviour change
+without the owner's word. `scripts/longitudinal_story_review.py --critic {all,turns,none}`
+(with `--no-critic` kept as an alias for `none`) measures each configuration; the next
+A/B should be `all` versus `turns`, not `all` versus `none`, since `none` is now the only
+option the evidence argues against.
+
+### Tests
+
+Regression tests for every defect above, all with the fake provider: retry feedback names
+the triple and the free ids; the hint actually reaches `previous_rejections`; the exact
+A1 and A2 objectives from the runs are rejected as `objective_too_complex` while one-act
+objectives pass; a chapter ends after `CHAPTER_MAX_SCENES`; the chapter question is held
+to the address and register rules; `understood_intent` is address-checked; the run's own
+duplicate commitment pair merges end to end while a genuinely different promise still
+opens its own commitment; and `CRITIC_STAGES = {"SemanticTurn"}` reviews the turn and
+only the turn.
+
+```
+.venv/bin/python -m pytest tests/test_living_story.py tests/test_living_story_longitudinal.py \
+    tests/test_journey_story_outcomes.py tests/test_daily_journey_api.py
+134 passed in 38.65s
+
+.venv/bin/ruff check app/services/living_story.py scripts tests/test_living_story*.py
+All checks passed!
+
+pytest tests -k "journey or serial or story or pilot" -p no:randomly
+1034 passed, 717 deselected in 122.94s
+```
+
+The same selection in random order failed once, in `auth.register_user` with a float
+reaching a UUID column during registration — an ordering flake in the shared fixtures,
+not in the engine; it passes on its own and in fixed order.
+
+**Not yet demonstrated:** these fixes are deterministic and tested, but no paid run has
+been made with them. The next A/B — A1 and A2, `--critic all` against `--critic turns`,
+four runs at the same ceilings, ≈ US$0.40 — is what shows whether A1 now records
+commitments and turns its chapter over, whether the retry hints break the A2 repetition
+loop, and whether turn-only review keeps every catch. Judge it on the per-stage latency
+numbers above, not on `median_request_seconds`.

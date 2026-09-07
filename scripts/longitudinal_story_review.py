@@ -82,13 +82,20 @@ def parse_args():
         "--max-requests", type=int, default=60, help="Hard cap on paid requests for this run."
     )
     parser.add_argument(
+        "--critic",
+        choices=("all", "turns", "none"),
+        default="all",
+        help=(
+            "Which proposals get an independent review, for this process only: 'all' "
+            "(production default), 'turns' (the WP-17 recommendation: no scene review, "
+            "which also leaves both attempts to the deterministic guards), or 'none'. "
+            "The guards always run."
+        ),
+    )
+    parser.add_argument(
         "--no-critic",
         action="store_true",
-        help=(
-            "Skip the independent review call (living_story.CRITIC_ENABLED = False) for "
-            "this process only. Use it for the A/B that decides whether the critic earns "
-            "its ~25%% of each scene's cost; the deterministic guards still run."
-        ),
+        help="Alias for --critic none.",
     )
     parser.add_argument("--output", type=Path, default=None)
     return parser.parse_args()
@@ -248,9 +255,9 @@ def main():
     if not args.live:
         print(
             f"No requests made. --live simulates {args.days} days for a {args.level} learner "
-            f"using at most --max-requests ({args.max_requests}) model requests "
-            f"({'draft + review + turn + review' if not args.no_critic else 'draft + turn'} "
-            "per day). No application database is used."
+            f"using at most --max-requests ({args.max_requests}) model requests: one call "
+            f"per stage (draft, turn) plus one review per reviewed stage (--critic "
+            f"{'none' if args.no_critic else args.critic}). No application database is used."
         )
         return
 
@@ -259,10 +266,12 @@ def main():
     from app.services import living_story as engine
     from app.services.serial import SerialThreadService
 
+    mode = "none" if args.no_critic else args.critic
+
     report = {
         "version": engine.VERSION,
         "level": args.level,
-        "critic": not args.no_critic,
+        "critic": mode,
         "address": args.address,
         "attempts": args.attempts,
         "synthetic_only": True,
@@ -314,7 +323,10 @@ def main():
 
     settings.ATELIER_LLM_ENABLED = True  # This process only; no persisted flag changes.
     settings.ATELIER_STORY_MAX_ATTEMPTS = args.attempts
-    engine.CRITIC_ENABLED = not args.no_critic
+    engine.CRITIC_ENABLED = mode != "none"
+    engine.CRITIC_STAGES = (
+        frozenset({"SemanticTurn"}) if mode == "turns" else frozenset({"SceneDraft", "SemanticTurn"})
+    )
     engine._client = lambda: BoundedClient()
 
     world = SerialThreadService._load_world_bible()

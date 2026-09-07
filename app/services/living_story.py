@@ -53,22 +53,47 @@ MAX_HISTORY = 40
 # resolved this many commitments inside it, whichever comes first. Module constants, not
 # settings keys: the engine must not depend on a flag another agent owns.
 CHAPTER_RESOLVED_COMMITMENT_LIMIT = 3
+# A chapter is bounded even when nothing is ever promised or answered: the paid A1 run of
+# 2026-09-07 spent all twelve accepted days inside one chapter because the actor kept
+# asking for clarification, so neither turnover trigger could fire.
+CHAPTER_MAX_SCENES = 5
 # How many consecutive situations may share one (character, location) pair before the
 # director is required to move.
 PAIR_REPEAT_LIMIT = 3
 # How far back the (character, location, objective) premise check looks.
 PREMISE_WINDOW = 5
 # The critic is a second paid call per proposal. The owner A/Bs its value with
-# ``scripts/longitudinal_story_review.py --no-critic``, which flips this module flag for
-# that process only. Never persisted, never a runtime toggle for learners.
+# ``scripts/longitudinal_story_review.py --critic {all,turns,none}``, which flips these
+# module flags for that process only. Never persisted, never a runtime toggle for
+# learners.
 CRITIC_ENABLED = True
+# Which proposals get an independent review. The WP-17 paid runs reviewed 19 scenes and
+# the critic rejected exactly one, for a defect a deterministic guard already owns, while
+# consuming one of the two attempts the guards need to get a different scene; the same
+# runs' turn reviews caught three defects no guard sees. The recommended configuration is
+# therefore {"SemanticTurn"} — left as both stages until the owner decides.
+CRITIC_STAGES = frozenset({"SceneDraft", "SemanticTurn"})
 # Per-call network window and whole-operation budget, both under the 90 s journey claim.
 REQUEST_TIMEOUT_SECONDS = 25
 OPERATION_BUDGET_SECONDS = 75
 
 
 class StoryUnavailable(RuntimeError):
-    """A generation or reconciliation failure, never a learner mistake."""
+    """A generation or reconciliation failure, never a learner mistake.
+
+    ``str(exc)`` stays the machine reason the API and the reports record. ``hint`` is the
+    optional, human-readable instruction fed back to the model on the next attempt: the
+    paid A2 run of 2026-09-07 lost five days because the retry only ever saw the opaque
+    token ``repeated_premise_triple`` and rewrote the same scene again.
+    """
+
+    def __init__(self, reason: str, *, hint: str | None = None) -> None:
+        super().__init__(reason)
+        self.hint = hint
+
+    @property
+    def feedback(self) -> str:
+        return f"{self}: {self.hint}" if self.hint else str(self)
 
 
 class StrictModel(BaseModel):
@@ -153,7 +178,12 @@ learner's level: A1 gets concrete everyday needs, present tense, lines of at mos
 words; A2 adds past and future, simple opinions and reasons; B1 needs negotiation,
 nuance, hypotheticals and opinions with justification; B2 allows idiom, irony and
 abstract discussion. Never give a B1 or B2 learner a beginner drill such as ordering a
-coffee. Each new scene needs a materially new objective, not the previous task reworded;
+coffee. The objective is ONE communicative act the learner can satisfy in one sentence: at A1
+ask for one thing (no chained "do X, give Y and ask Z"), at A2 at most two; only B1 and
+B2 may negotiate several things at once. previous_rejections lists why the last proposal
+was refused — obey it literally: a repetition refusal means a different communicative
+need in a different situation, never the same scene reworded, and variety.used_objectives
+lists what has already been asked. Each new scene needs a materially new objective, not the previous task reworded;
 within an open chapter, advance its question with a new development. Rotate the
 addressed character and the location: variety.recent_pairs lists the last used
 character/location pairs, variety.unused_characters and variety.unused_locations list
@@ -205,7 +235,10 @@ become a source-grounded in-story commitment for a later scene. It is not real b
 State understood_intent and exact verbatim evidence_quotes from learner turns. When the
 learner explicitly promises an action (coming, bringing, organising, calling, paying) with
 their own words, emit it as a commitment whose source_quote is that exact learner text;
-a character's own offer is never a learner commitment. Never quote or paraphrase
+a character's own offer is never a learner commitment. If the learner is restating a
+promise that is already listed in story.commitments as open, emit no commitment: it is
+the same promise, and it is already recorded. Write a commitment as what the learner
+will do, not as a line of dialogue addressed to them. Never quote or paraphrase
 scene.suggested_response_fr in reply_fr: the character answers, they do not dictate the
 learner's next line. Keep reply_fr and resolution_fr at the learner's level (A1: short
 present-tense sentences, at most 35 words in total; A2: at most 55 words). Mark
@@ -391,6 +424,7 @@ def _approved(
             cost_usd=0.0,
         )
 
+    reason = "story_generation_unavailable"
     for _ in range(settings.ATELIER_STORY_MAX_ATTEMPTS):
         try:
             proposal, _ = _json_call(
@@ -401,8 +435,8 @@ def _approved(
                 deadline=deadline,
             )
             validate(proposal)
-            if not CRITIC_ENABLED:
-                # A/B only (scripts/longitudinal_story_review.py --no-critic). The
+            if not CRITIC_ENABLED or schema.__name__ not in CRITIC_STAGES:
+                # A/B only (scripts/longitudinal_story_review.py --critic). The
                 # deterministic guards above have already run; nothing else is skipped.
                 return proposal, usage
             review, _ = _json_call(
@@ -418,9 +452,12 @@ def _approved(
                 # attempts). Only a rejection feeds the retry.
                 return proposal, usage
             feedback = review.issues or ["semantic_review_rejected"]
+            # The critic's own words stay the recorded reason; the guards' machine token
+            # stays theirs, with the actionable instruction only in the retry feedback.
+            reason = feedback[0]
         except StoryUnavailable as exc:
-            feedback = [str(exc)]
-    reason = feedback[0] if feedback else "story_generation_unavailable"
+            reason = str(exc)
+            feedback = [exc.feedback]
     if usage:
         # Spend on a proposal nobody can use is still spend; record it where the weekly
         # guardrail can see it instead of losing it with the failed attempt.
@@ -543,6 +580,13 @@ def _variety(recent: list[dict], cast: list[dict], locations: list[dict]) -> dic
     return {
         "all_characters": cast_ids,
         "all_locations": location_ids,
+        # What has already been asked: the director must invent a different need, not a
+        # rewording (A2 paid run 2026-09-07).
+        "used_objectives": [
+            item.get("objective_native")
+            for item in recent[-PREMISE_WINDOW:]
+            if item.get("objective_native")
+        ],
         "unused_characters": [c for c in cast_ids if c not in used_characters[-6:]],
         "unused_locations": [loc for loc in location_ids if loc not in used_locations[-6:]],
         "recent_pairs": [
@@ -611,9 +655,10 @@ def learner_level_band(user: User) -> str:
 def chapter_state(live: dict) -> dict | None:
     """The open chapter as the director sees it, including whether it must now close.
 
-    A chapter ends when its dramatic question is answered, or when the learner has
-    resolved ``CHAPTER_RESOLVED_COMMITMENT_LIMIT`` commitments inside it — otherwise a
-    question that nobody ever answers could hold the story still for weeks.
+    A chapter ends when its dramatic question is answered, when the learner has resolved
+    ``CHAPTER_RESOLVED_COMMITMENT_LIMIT`` commitments inside it, or after
+    ``CHAPTER_MAX_SCENES`` scenes — otherwise a question that nobody ever answers holds
+    the story still for weeks, which is exactly what the A1 paid run showed.
     """
 
     chapter = live.get("chapter")
@@ -622,6 +667,7 @@ def chapter_state(live: dict) -> dict | None:
     chapter = dict(chapter)
     chapter["exhausted"] = bool(
         int(chapter.get("resolved_commitments") or 0) >= CHAPTER_RESOLVED_COMMITMENT_LIMIT
+        or int(chapter.get("scene_count") or 0) >= CHAPTER_MAX_SCENES
     )
     return chapter
 
@@ -775,6 +821,48 @@ def _check_scene_address_register(draft: SceneDraft) -> None:
         raise StoryUnavailable("mixed_address_register")
 
 
+def _variety_hint(variety: dict, what: str) -> str:
+    """Tell the director exactly what to change, not merely that something was wrong.
+
+    A2 paid run 2026-09-07: five consecutive days were lost because the retry saw only
+    ``repeated_premise_triple`` and answered it by rewording the same scene again.
+    """
+
+    return (
+        f"{what}. Do not reword it: invent a different communicative need. "
+        f"Objectives already used: {variety.get('used_objectives') or []}. "
+        f"Unused characters: {variety.get('unused_characters') or variety.get('all_characters') or []}. "
+        f"Unused locations: {variety.get('unused_locations') or variety.get('all_locations') or []}."
+    )
+
+
+# One communicative act per scene at A1, at most two at A2. The paid A1 run of
+# 2026-09-07 asked three things at once ("accept or decline, give a reason, and ask the
+# time and place"); ten of twelve days ended in a clarification because one A1 sentence
+# cannot satisfy three asks, so no commitment and no chapter ever closed.
+_OBJECTIVE_LIMITS = {"A1": (1, 16), "A2": (2, 24)}
+_OBJECTIVE_SEPARATORS = re.compile(
+    r"[;,]|\b(and|then|also|et|puis|aussi|und|dann|außerdem)\b", re.IGNORECASE
+)
+
+
+def _check_objective_scope(objective: str, level: str | None) -> None:
+    limits = _OBJECTIVE_LIMITS.get(str(level or ""))
+    if not limits:
+        return
+    separators, words = limits
+    found = len(_OBJECTIVE_SEPARATORS.findall(objective))
+    if found > separators or len(objective.split()) > words:
+        raise StoryUnavailable(
+            "objective_too_complex",
+            hint=(
+                f"A {level} learner answers in one sentence: ask for ONE thing "
+                f"(at most {separators} clause separator(s) and {words} words). "
+                f"\"{objective}\" chains {found + 1} asks."
+            ),
+        )
+
+
 def _premise_overlap(left: str, right: str) -> float:
     """Jaccard overlap of the content words of two premises (0 when either is empty)."""
 
@@ -804,16 +892,29 @@ def _validate_scene(draft: SceneDraft, context: dict):
         *[panel.narration_fr for panel in draft.panels],
         *[line.text_fr for panel in draft.panels for line in panel.dialogue],
     ]
+    # The chapter's title and question are durable state that feeds every later
+    # director call and the reader's chapter label. The paid A1 run of 2026-09-07 stored
+    # "tu restes réservé·e" there for fourteen days because these two fields were the one
+    # learner-facing path the WP-14F address guard did not see.
+    learner_text += [draft.chapter.title_fr, draft.chapter.dramatic_question]
     _check_address(learner_text, (context.get("learner") or {}).get("address"))
     _check_register(learner_text, context.get("level"))
     _check_scene_address_register(draft)
+    _check_objective_scope(draft.objective_native, context.get("level"))
     # If a chapter is open and not yet exhausted, its question cannot silently disappear.
     chapter = context.get("chapter") or {}
     closing = bool(chapter.get("resolved") or chapter.get("exhausted"))
     if chapter and not closing and draft.chapter.dramatic_question != chapter.get(
         "dramatic_question"
     ):
-        raise StoryUnavailable("abandoned_chapter")
+        raise StoryUnavailable(
+            "abandoned_chapter",
+            hint=(
+                "The open chapter's question must be carried over verbatim: "
+                f"\"{chapter.get('dramatic_question')}\". Advance it with a new "
+                "development instead of writing a new question."
+            ),
+        )
     # A closed chapter is closed: the next scene must open a new question, never replay
     # this one or any earlier resolved one (live review 2026-09-06: three near-identical
     # "first order"; WP-17: turnover after the question is answered or the chapter is
@@ -828,43 +929,96 @@ def _validate_scene(draft: SceneDraft, context: dict):
     if question in retired or any(
         _premise_overlap(draft.chapter.dramatic_question, past) >= 0.6 for past in retired
     ):
-        raise StoryUnavailable("chapter_not_advanced")
+        raise StoryUnavailable(
+            "chapter_not_advanced",
+            hint=(
+                "This chapter is closed. Open a new one about something else in this "
+                f"life; already answered: {sorted(retired)}."
+            ),
+        )
     recent = context["recent_situations"][-PREMISE_WINDOW:]
     # WP-17 rotation: after PAIR_REPEAT_LIMIT scenes with the same character in the same
     # place, one of the two must change. The world bible has a whole cast and a dozen
     # locations; fourteen days at one café counter is not this story.
-    must_change = (context.get("variety") or {}).get("must_change") or {}
+    variety = context.get("variety") or {}
+    must_change = variety.get("must_change") or {}
     if (
         must_change
         and draft.character_id == must_change.get("character_id")
         and draft.location_id == must_change.get("location_id")
     ):
-        raise StoryUnavailable("setting_not_rotated")
+        raise StoryUnavailable(
+            "setting_not_rotated",
+            hint=(
+                f"{must_change.get('character_id')} at {must_change.get('location_id')} "
+                "has carried the last three situations. Choose another character or "
+                "another location: unused characters "
+                f"{variety.get('unused_characters') or variety.get('all_characters')}, "
+                f"unused locations {variety.get('unused_locations') or variety.get('all_locations')}."
+            ),
+        )
     # Premise overlap on the (location, character, objective) triple, not only on content
     # words: the same person, in the same place, asking for the same kind of thing is the
     # same situation however it is worded.
-    if any(
-        item.get("character_id") == draft.character_id
-        and item.get("location_id") == draft.location_id
-        and _premise_overlap(draft.objective_native, item.get("objective_native", "")) >= 0.4
-        for item in recent
-    ):
-        raise StoryUnavailable("repeated_premise_triple")
+    triple = next(
+        (
+            item
+            for item in recent
+            if item.get("character_id") == draft.character_id
+            and item.get("location_id") == draft.location_id
+            and _premise_overlap(draft.objective_native, item.get("objective_native", "")) >= 0.4
+        ),
+        None,
+    )
+    if triple:
+        raise StoryUnavailable(
+            "repeated_premise_triple",
+            hint=_variety_hint(
+                variety,
+                f"you already played {draft.character_id} at {draft.location_id} asking "
+                f"\"{triple.get('objective_native')}\"",
+            ),
+        )
     if any(
         item.get("novelty_key", "").casefold() == draft.novelty_key.casefold() for item in recent
     ):
-        raise StoryUnavailable("repeated_situation")
+        raise StoryUnavailable(
+            "repeated_situation",
+            hint=_variety_hint(variety, f"novelty_key {draft.novelty_key!r} was already used"),
+        )
     # The model's novelty_key is self-reported; also compare the premises themselves,
     # and the objectives (WP-14F L-2: five of six days were the same task reworded).
-    if any(
-        _premise_overlap(draft.premise_fr, item.get("premise_fr", "")) >= 0.6 for item in recent
-    ):
-        raise StoryUnavailable("repeated_situation")
-    if any(
-        _premise_overlap(draft.objective_native, item.get("objective_native", "")) >= 0.6
-        for item in recent
-    ):
-        raise StoryUnavailable("repeated_situation")
+    twin = next(
+        (
+            item
+            for item in recent
+            if _premise_overlap(draft.premise_fr, item.get("premise_fr", "")) >= 0.6
+        ),
+        None,
+    )
+    if twin:
+        raise StoryUnavailable(
+            "repeated_situation",
+            hint=_variety_hint(
+                variety, f"this premise repeats \"{twin.get('premise_fr')}\""
+            ),
+        )
+    twin = next(
+        (
+            item
+            for item in recent
+            if _premise_overlap(draft.objective_native, item.get("objective_native", "")) >= 0.6
+        ),
+        None,
+    )
+    if twin:
+        raise StoryUnavailable(
+            "repeated_situation",
+            hint=_variety_hint(
+                variety,
+                f"this objective repeats \"{twin.get('objective_native')}\"",
+            ),
+        )
     # Keep the total reading portion inside the existing five-minute planner.
     words = (
         draft.premise_fr.split()
@@ -1216,6 +1370,32 @@ def _folded(text: str) -> str:
     return " ".join(re.sub(r"[^\w\s]", " ", text.casefold()).split())
 
 
+def _same_promise(left: str, right: str) -> bool:
+    """True when two commitment texts describe the same promise.
+
+    Exact match up to case and punctuation, or one text's content words almost entirely
+    contained in the other's (a shorter restatement of a promise that is still open).
+    Containment, not Jaccard: "Tu viens dimanche au marché." is a restatement of "Venir
+    dimanche au marché et se retrouver à 11h au pont.", and Jaccard scores that pair
+    *lower* than two genuinely different promises. Two open promises that differ in a
+    single content word can still merge, which is why the merge keeps both wordings and
+    both source quotes under ``restatements`` instead of discarding one.
+    """
+
+    if _folded(left) == _folded(right):
+        return True
+
+    def words(text: str) -> set[str]:
+        return {w for w in re.findall(r"\w+", text.casefold()) if len(w) > 3}
+
+    a, b = words(left), words(right)
+    if not a or not b:
+        return False
+    smaller, larger = (a, b) if len(a) <= len(b) else (b, a)
+    shared = len(smaller & larger)
+    return shared >= 2 and shared / len(smaller) >= 0.6
+
+
 def _same_utterance(left: str, right: str) -> bool:
     """True when two strings are the same sentence up to case, spacing and punctuation."""
 
@@ -1246,7 +1426,10 @@ def _validate_turn(turn: SemanticTurn, payload: dict):
     if limit and len(turn.reply_fr.split()) > limit:
         raise StoryUnavailable("reply_above_level")
     _check_address(
-        [turn.reply_fr, turn.resolution_fr], (story.get("learner") or {}).get("address")
+        # understood_intent is internal, but it is where the A2 paid run put
+        # "Le·a apprenant·e": the same violation, caught only by the critic.
+        [turn.reply_fr, turn.resolution_fr, turn.understood_intent],
+        (story.get("learner") or {}).get("address"),
     )
     _check_register([turn.reply_fr, turn.resolution_fr], story.get("level"))
     if turn.outcome == "met" and (turn.needs_clarification or not turn.evidence_quotes):
@@ -1420,10 +1603,27 @@ def settle_resolution(
         if c["id"] in turn.resolved_commitment_ids:
             c.update(status="resolved", resolved_by=event_id)
     for index, c in enumerate(turn.commitments):
-        if any(
-            existing["status"] == "open" and existing["text_fr"].casefold() == c.text_fr.casefold()
-            for existing in commitments
-        ):
+        duplicate = next(
+            (
+                existing
+                for existing in commitments
+                if existing["status"] == "open" and _same_promise(existing["text_fr"], c.text_fr)
+            ),
+            None,
+        )
+        if duplicate:
+            # A restatement of a promise that is still open is the same promise (A2 paid
+            # run 2026-09-07 carried "Venir dimanche au marché…" and "Tu viens dimanche
+            # au marché." side by side). Keep the fuller wording and the provenance of
+            # every restatement rather than dropping the learner's words silently.
+            restatements = [*duplicate.get("restatements", []), {
+                "text_fr": c.text_fr,
+                "source_quote": c.source_quote,
+                "source_event_id": event_id,
+            }][-5:]
+            duplicate["restatements"] = restatements
+            if len(c.text_fr) > len(duplicate["text_fr"]):
+                duplicate["text_fr"] = c.text_fr
             continue
         commitments.append(
             {
