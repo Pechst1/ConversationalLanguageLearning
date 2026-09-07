@@ -65,6 +65,18 @@ services:
         value: gpt-5.5
       - key: OPENAI_IMAGE_MODEL
         value: gpt-image-2
+      # Atelier Séance correction (2026-09-07): gpt-5-nano graded weak feedback
+      # and falsely rejected a valid answer, and 900 output tokens truncated a
+      # full-paragraph assessment (one live retry needed 2,573). Pinned here so
+      # the per-submit cost of the most-used endpoint is visible in the manifest.
+      - key: ATELIER_CORRECTION_LLM_MODEL
+        value: gpt-5-mini
+      - key: ATELIER_CORRECTION_LLM_MAX_TOKENS
+        value: "5000"
+      - key: ATELIER_CORRECTION_LLM_TIMEOUT_SECONDS
+        value: "60"
+      - key: ATELIER_CORRECTION_LLM_REASONING_EFFORT
+        value: low
       - key: SERIAL_WORLD_ENABLED
         value: "true"
       - key: GRAPHIC_NOVEL_IMAGE_GENERATION_ENABLED
@@ -139,6 +151,18 @@ services:
         value: gpt-5.5
       - key: OPENAI_IMAGE_MODEL
         value: gpt-image-2
+      # Atelier Séance correction (2026-09-07): gpt-5-nano graded weak feedback
+      # and falsely rejected a valid answer, and 900 output tokens truncated a
+      # full-paragraph assessment (one live retry needed 2,573). Pinned here so
+      # the per-submit cost of the most-used endpoint is visible in the manifest.
+      - key: ATELIER_CORRECTION_LLM_MODEL
+        value: gpt-5-mini
+      - key: ATELIER_CORRECTION_LLM_MAX_TOKENS
+        value: "5000"
+      - key: ATELIER_CORRECTION_LLM_TIMEOUT_SECONDS
+        value: "60"
+      - key: ATELIER_CORRECTION_LLM_REASONING_EFFORT
+        value: low
       - key: SERIAL_WORLD_ENABLED
         value: "true"
       - key: GRAPHIC_NOVEL_IMAGE_GENERATION_ENABLED

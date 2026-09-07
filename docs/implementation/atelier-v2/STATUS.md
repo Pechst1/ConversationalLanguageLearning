@@ -202,3 +202,110 @@ Known gaps and blockers:
 Rollback/data compatibility:
 Downstream packages now unblocked:
 ```
+
+## 2026-09-07 (evening) — next packages dispatched
+
+Plan: [NEXT-WORK-PACKAGES-2026-09-07.md](NEXT-WORK-PACKAGES-2026-09-07.md). D-0 assumed as recommended (journey = daily Séance, legacy loop = «Plus de pratique») pending the owner's word.
+
+| Package | Agent | Lease | Started |
+|---|---|---|---|
+| WP-15 | integration (Opus) | commits of the Codex working tree; `web-frontend/package.json` scripts, `.github/workflows/ci.yml`, `render.yaml`, `scripts/pilot_digest.py` | 2026-09-07 evening |
+| WP-17 (14G) | story-engine (Opus) | `app/services/living_story.py`, its prompts, `scripts/longitudinal_story_review.py`, `scripts/review_living_story.py`, `tests/test_living_story*.py`; additive pilot-event cost rows. No paid calls. | 2026-09-07 evening |
+| WP-19 | native (Opus) | `web-frontend/ios/App/App/**` (source), `project.pbxproj`, xcconfig, fastlane, `lib/native-push.ts`, notification services + tests, `docs/mobile-visual-checks/2026-09-07-wp19/` | 2026-09-07 evening |
+| Codex | Séance rework | `app/services/atelier.py`, `grammar_feedback.py`, `seance_curriculum.py`, `pages/atelier.tsx` legacy branch | ongoing |
+
+WP-16 starts after WP-15 lands; WP-21 after one of the three above finishes. Max three concurrent agents.
+
+## 2026-09-07 — WP-15
+
+Landed the Codex Séance rework and wired it into the checks. No production flag
+changed; no server was started or restarted by this package.
+
+### Commits
+
+| Commit | Contents |
+|---|---|
+| `3cc56b5` | Curriculum + backend grading: `app/api/v1/endpoints/atelier.py`, `app/config.py`, `app/services/atelier.py`, `app/services/grammar_feedback.py`, `app/services/seance_curriculum.py`, `app/data/seance_challenges.txt`, `tests/test_atelier.py`, `tests/test_atelier_quality_srs.py`, `tests/test_seance_contract.py` |
+| `904e856` | Frontend + docs: `web-frontend/pages/atelier.tsx`, `web-frontend/styles/atelier-v2.css`, `web-frontend/lib/seance-feedback.ts`, `web-frontend/lib/seance-feedback.test.js`, `tests/test_frontend_atelier_word_bank.py`, SEANCE-REWORK-2026-09-07, STABILIZATION-2026-09-06, NEXT-WORK-PACKAGES-2026-09-07 |
+| _(this commit)_ | CI wiring (`web-frontend/package.json`, `.github/workflows/ci.yml`), `render.yaml` correction-model block, this section |
+
+`tests/test_frontend_atelier_word_bank.py` is a source-scanning test pinned to
+`pages/atelier.tsx`, so it travels with the frontend commit rather than the
+backend one; splitting it the other way would have left `3cc56b5` red on its own.
+
+Not touched, because they belong to the concurrent WP-17 and WP-19 agents:
+`app/services/living_story.py`, `web-frontend/ios/**`, `web-frontend/ios/.gitignore`.
+
+### Commands and actual results
+
+| Command | Result |
+|---|---|
+| `.venv/bin/python -m pytest tests/test_seance_contract.py tests/test_atelier.py tests/test_atelier_quality_srs.py tests/test_frontend_atelier_word_bank.py` | `168 passed in 47.62s`, exit 0 |
+| `node --test lib/seance-feedback.test.js` (web-frontend) | `# pass 1 # fail 0`, exit 0 |
+| `npm run type-check` | exit 0, no output |
+| `npm run lint` | `✔ No ESLint warnings or errors` |
+| `npm run test:seance` (new script) | `# pass 1 # fail 0`, exit 0 |
+| `python -c "yaml.safe_load(open('render.yaml'))"` | parses; both `atelier-api` and `atelier-worker` carry the four `ATELIER_CORRECTION_LLM_*` keys |
+
+### Deploy manifest
+
+`render.yaml` now sets `ATELIER_CORRECTION_LLM_MODEL=gpt-5-mini`,
+`ATELIER_CORRECTION_LLM_MAX_TOKENS=5000`,
+`ATELIER_CORRECTION_LLM_TIMEOUT_SECONDS=60` and
+`ATELIER_CORRECTION_LLM_REASONING_EFFORT=low` explicitly on both backend
+services, instead of inheriting them from `app/config.py`. The cost change is
+therefore visible in the blueprint and reversible without a code deploy.
+
+### Gap: the Atelier correction call has no cost telemetry — TODO for WP-16
+
+WP-15 §3 asked for a correction line item in `scripts/pilot_digest.py`. **It
+cannot be written honestly today, so nothing was added to the digest.** The
+data does not exist:
+
+- `PilotEventService.record(..., cost_usd=...)` is the only cost source the
+  digest reads for LLM spend (`pilot_events.py:125`, into `other_llm_usd`).
+- `app/api/v1/endpoints/atelier.py` records `plan_started`, `plan_adjusted`,
+  `plan_completed`, `erratum_repair` and one more event — **none** on the
+  correction path, and every one with the default `cost_usd=0.0`.
+- `AtelierCorrectionService`'s LLM call in `app/services/atelier.py` keeps no
+  usage metadata at all: no token counts, no model cost, nothing persisted.
+- `AtelierGenerationEvent` (the other Atelier log) has `model` and `payload`
+  but no cost or token columns, so it cannot stand in either.
+
+A digest line would have printed `$0.0000` for every learner while the real
+per-submit cost just rose from gpt-5-nano/900 tokens to gpt-5-mini/5,000 tokens
+on the most-used endpoint. That is worse than no line.
+
+The fix belongs at the correction call site in `app/services/atelier.py`, which
+is under the Codex lease for this package, so WP-15 did not edit it.
+
+**TODO (WP-16, or WP-17 §5 if it lands the ledger first):** capture the OpenAI
+usage metadata already returned by the correction call, price it, and write one
+`PilotEvent` per correction with `event_type="atelier_correction"` and a real
+`cost_usd`; then add the line item to `format_daily_digest`. Until that exists,
+`PILOT_SERIAL_WEEKLY_COST_GUARDRAIL_USD` does not cover Séance corrections.
+
+### Other findings from the diff review
+
+- `web-frontend/lib/seance-feedback.test.js` resolves `sucrase` through
+  `require('../node_modules/sucrase/register/ts')`. `sucrase` is not a declared
+  dependency; it is hoisted from `tailwindcss@3.4.18` and is only in the lock
+  file transitively. CI's `npm ci` installs it today, but a Tailwind bump can
+  break `test:seance` for a reason that has nothing to do with the Séance.
+- `test:story-model` exists in `package.json` but is not in the CI node block
+  (CI runs eight of the nine suites). Not fixed here — outside the WP-15 files.
+- `_curated_payload` in `app/services/atelier.py` sets
+  `show_correct = int(lesson['teaching_order']) % 20 == 0`, so the classify item
+  reads "À corriger" for roughly 19 of every 20 lessons. Its own comment says
+  classification "must not train the learner to click the same label every
+  time"; at 1-in-20 it does exactly that. Codex-owned; flagged, not changed.
+- `_compact_llm_answer` now sends the learner's answer with no length cap at
+  all (previously 520 chars for text, 220 × 5 for keyed answers). Correct for
+  full-paragraph assessment, but it makes request size learner-controlled on a
+  paid endpoint with no ceiling. Worth a bound in WP-16.
+
+### Owner action still open
+
+Set `TTS_PROVIDER=openai` in `.env` and restart the backend on **port 8010**.
+The agent did not edit `.env` and did not restart any server. Port 8000 belongs
+to a different project and must not be touched.
