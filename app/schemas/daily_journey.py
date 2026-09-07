@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from datetime import date
 from typing import Annotated, Literal
+from urllib.parse import quote
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -34,6 +35,22 @@ from app.services.journey_contracts import (
 
 CONTRACT_VERSION = 1
 BUDGET_SECONDS = 300
+
+#: WP-16 / decision D-0. The legacy exercise Séance is the «Plus de pratique»
+#: drill activity; it is entered by grammar concept or by the errata queue,
+#: never as "today". Kept here so the schema, the service and the tests agree
+#: on one spelling.
+PRACTICE_HREF = "/atelier?mode=practice"
+#: The drill loop's other legitimate entry: the learner's errata queue.
+PRACTICE_ERRATA_HREF = "/atelier?mode=practice&queue=errata"
+
+
+def practice_href_for(concept_id: object | None = None) -> str:
+    """`/atelier?mode=practice[&concept=<id>]`."""
+
+    value = "" if concept_id is None else str(concept_id).strip()
+    return f"{PRACTICE_HREF}&concept={quote(value, safe='')}" if value else PRACTICE_HREF
+
 
 ContractVersion = Literal[1]
 BudgetSeconds = Literal[300]
@@ -175,6 +192,11 @@ class PracticedTarget(JourneyModel):
     target: TargetRef
     evidence_kind: EvidenceKind
     assistance_level: AssistanceLevel
+    #: WP-16 / decision D-0. Where «Plus de pratique» — the legacy exercise
+    #: Séance, now the explicit drill activity — opens for this target.
+    #: ``None`` for a target the drill loop cannot seat: it is keyed by a
+    #: grammar concept or by the errata queue, never by a bare vocabulary id.
+    practice_href: str | None = None
 
 
 class CapabilityEvidence(JourneyModel):
@@ -244,6 +266,12 @@ class TodayEnvelope(JourneyModel):
     journey: JourneySnapshot | None = None
     available: ScenarioDescriptor | None = None
     legacy_resume: LegacyResume | None = None
+    #: WP-16 / decision D-0. The one entry to the legacy exercise Séance, which
+    #: is now the explicit «Plus de pratique» activity rather than the day's
+    #: primary action. Carries the learner's current grammar focus when the
+    #: scheduler has one, so the drill loop starts from a concept and never
+    #: from "today". Additive: ``contract_version`` is unchanged.
+    practice_href: str = PRACTICE_HREF
 
 
 # ---------------------------------------------------------------------------

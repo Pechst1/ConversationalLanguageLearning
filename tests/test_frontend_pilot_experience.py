@@ -17,7 +17,9 @@ def test_la_une_leads_with_explained_prescription_without_hiding_edition():
     # 2026-09-06: the Claude-design Home keeps one story and one action; the
     # because-line survives as one quiet clause under the action.
     assert "<HomeScreen" in page
-    assert "note={prescriptionBecause}" in page
+    # WP-16 / D-0: the because-line is the legacy primary action's clause and is
+    # suppressed with that action when the daily journey owns the day.
+    assert "note={journeyOwnsPrimary ? null : prescriptionBecause}" in page
     assert "av2-home__note" in component
     assert "{note}" in component
     assert "Ajuster le temps de l’édition" in component
@@ -58,7 +60,12 @@ def test_audio_call_states_never_lie_or_dead_end():
     assert "utterance.onerror = handBack" in page
     # A refused microphone is explained on the page, not only in a toast.
     assert "micError" in page
-    assert "Autorisez-le dans les réglages du navigateur" in page
+    # WP-21 moved the mic-denied explanation into the learner-language copy
+    # table; the page must resolve it rather than hardcode one language.
+    assert "useLearnerLanguage" in page
+    assert "mic_denied" in page
+    copy = (FRONTEND / "lib" / "atelier-v2-copy.ts").read_text(encoding="utf-8")
+    assert "Micro refusé" in copy
     # Classing the call waits for the turn that is already on its way.
     assert "pendingTurnRef" in page
     assert "await pending;" in page

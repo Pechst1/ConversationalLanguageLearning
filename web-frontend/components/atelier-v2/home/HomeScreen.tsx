@@ -46,6 +46,19 @@ export type HomeTile = {
   disabled?: boolean;
   done?: boolean;
   ariaLabel?: string;
+  /**
+   * WP-16 / decision D-0: one quiet secondary line under the tile —
+   * «Plus de pratique» on the Séance tile when the daily journey owns the day.
+   * It is a sibling of the tile, never nested inside it, so neither control
+   * swallows the other's click or focus. Omitted, the tile is exactly what it
+   * was before this package.
+   */
+  secondary?: {
+    label: string;
+    href?: string;
+    onSelect?: () => void;
+    ariaLabel?: string;
+  } | null;
 };
 
 export type HomeEpisode = {
@@ -316,6 +329,35 @@ function EpisodeArt({ episode }: { episode: HomeEpisode }) {
 }
 
 function DayTile({ tile }: { tile: HomeTile }) {
+  const body = <DayTileControl tile={tile} />;
+  if (!tile.secondary) return body;
+  // The secondary needs a grid cell of its own to sit in, under the tile.
+  return (
+    <div className="av2-day-tile-cell">
+      {body}
+      {tile.secondary.href && !tile.secondary.onSelect ? (
+        <Link
+          className="av2-day-tile__more"
+          href={tile.secondary.href}
+          aria-label={tile.secondary.ariaLabel}
+        >
+          {tile.secondary.label}
+        </Link>
+      ) : (
+        <button
+          type="button"
+          className="av2-day-tile__more"
+          onClick={tile.secondary.onSelect}
+          aria-label={tile.secondary.ariaLabel}
+        >
+          {tile.secondary.label}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function DayTileControl({ tile }: { tile: HomeTile }) {
   const inner = (
     <>
       <span

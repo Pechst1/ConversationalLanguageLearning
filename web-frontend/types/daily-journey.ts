@@ -126,6 +126,12 @@ export type PracticedTarget = {
   target: TargetRef;
   evidence_kind: EvidenceKind;
   assistance_level: AssistanceLevel;
+  /**
+   * WP-16: where the drill loop («Plus de pratique») opens for this target.
+   * `null` for a target the legacy loop cannot seat (it is keyed by grammar
+   * concept or by the errata queue, never by a bare vocabulary id).
+   */
+  practice_href: string | null;
 };
 
 export type CapabilityEvidence = {
@@ -181,6 +187,13 @@ export type TodayEnvelope = {
   journey: JourneySnapshot | null;
   available: ScenarioDescriptor | null;
   legacy_resume: { href: string; session_id: string } | null;
+  /**
+   * WP-16 / D-0: the entry to the legacy exercise Séance as the explicit
+   * «Plus de pratique» activity — `/atelier?mode=practice[&concept=<id>]`.
+   * Always present; the concept is the server's own current focus when it has
+   * one. Never the day's primary action.
+   */
+  practice_href: string;
 };
 
 export type JourneyCorrection = {

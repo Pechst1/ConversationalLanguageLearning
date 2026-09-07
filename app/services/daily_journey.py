@@ -50,6 +50,7 @@ from app.db.models.daily_journey import (
 )
 from app.db.models.user import User
 from app.schemas.daily_journey import (
+    PRACTICE_ERRATA_HREF,
     AttemptResult,
     CapabilityEvidence,
     CapabilityProgress,
@@ -73,12 +74,14 @@ from app.schemas.daily_journey import (
     ScenarioDescriptor,
     StoryOutcome,
     TodayEnvelope,
+    practice_href_for,
 )
 from app.services.daily_journey_adapters import (
     AdapterUnavailable,
     JourneyAdapters,
     preview_scenario,
 )
+from app.services.grammar import GrammarService
 from app.services.journey_contracts import (
     AppliedEvidence,
     AssistanceLevel,
@@ -106,8 +109,28 @@ from app.services.journey_contracts import (
     normalize_control_language,
     strongest_assistance,
 )
+from app.services.journey_learning import record_daily_practice_streak
 
 logger = logging.getLogger(__name__)
+
+
+def _target_practice_href(target: dict | object) -> str | None:
+    """WP-16 / D-0: where «Plus de pratique» opens for one practised target.
+
+    The legacy exercise Séance is keyed by a grammar concept or by the errata
+    queue. A bare vocabulary id is neither, so a vocabulary target gets no
+    pointer rather than a link that would land on an unrelated drill set.
+    """
+
+    kind = target.get("kind") if isinstance(target, dict) else getattr(target, "kind", None)
+    identifier = target.get("id") if isinstance(target, dict) else getattr(target, "id", None)
+    kind = str(kind or "")
+    if kind == str(TargetKind.GRAMMAR) and identifier:
+        return practice_href_for(identifier)
+    if kind == str(TargetKind.ERROR):
+        return PRACTICE_ERRATA_HREF
+    return None
+
 
 #: A generation claim older than this is recoverable through ``POST /retry``.
 GENERATION_CLAIM_TTL_SECONDS = 90
@@ -406,6 +429,7 @@ class DailyJourneyService:
             journey=self.snapshot(journey) if journey else None,
             available=available,
             legacy_resume=self._legacy_resume(user),
+            practice_href=self._practice_href(user),
         )
 
     def get_journey(self, user: User, journey_id: uuid.UUID) -> JourneySnapshot:
@@ -843,6 +867,14 @@ class DailyJourneyService:
             journey.completed_at = _utcnow()
             journey.current_step_id = None
             journey.recap_snapshot = recap.model_dump(mode="json")
+            # WP-16 / decision D-0: the journey IS the daily Séance, so it is
+            # what moves the practice streak. The helper is the same rule the
+            # legacy loop applies and is a no-op once the day is marked, so a
+            # learner who finishes the journey and then drills in
+            # «Plus de pratique» gets one increment, not two.
+            record_daily_practice_streak(
+                self.db, user, on_date=local_date_for(journey.timezone)
+            )
             self._close_learning_session(journey, payload.finish_kind)
             self.db.flush()
         except HTTPException as exc:
@@ -1088,6 +1120,29 @@ class DailyJourneyService:
     def _step_assistance(self, step: DailyJourneyStep) -> AssistanceLevel:
         levels = [AssistanceLevel(value) for value in (step.assistance_used or [])]
         return strongest_assistance(levels)
+
+    def _practice_href(self, user: User) -> str:
+        """WP-16 / D-0: where «Plus de pratique» opens.
+
+        The legacy exercise Séance is the drill loop now, and a drill loop is
+        entered by concept, never by "today". The concept is the learner's own
+        most urgent due grammar concept — the same queue the legacy loop would
+        have picked from — so the href seats what the scheduler already thinks
+        is fragile. With an empty queue the bare practice entry is returned and
+        the loop composes its own set, exactly as it does today.
+        """
+
+        try:
+            due = GrammarService(self.db).get_due_concepts(user=user, limit=1)
+        except Exception:  # pragma: no cover - the entry must never 500 Today
+            logger.exception("daily_journey: due-concept lookup for practice_href failed")
+            return practice_href_for(None)
+        if not due:
+            return practice_href_for(None)
+        # `get_due_concepts` yields (concept, progress) pairs.
+        first = due[0]
+        concept = first[0] if isinstance(first, tuple) else first
+        return practice_href_for(getattr(concept, "id", None))
 
     def _legacy_resume(self, user: User) -> LegacyResume | None:
         stmt = (
@@ -2387,6 +2442,11 @@ class DailyJourneyService:
                                 "target": observation["target"],
                                 "evidence_kind": observation["evidence_kind"],
                                 "assistance_level": observation["assistance_level"],
+                                # WP-16 / D-0: the recap points into the drill
+                                # loop for what this scene actually practised.
+                                "practice_href": _target_practice_href(
+                                    observation["target"]
+                                ),
                             }
                         )
                     )

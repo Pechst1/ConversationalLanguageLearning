@@ -69,6 +69,66 @@ export type LegacyRecommendedAction =
 
 export type RecommendedAction = LegacyRecommendedAction | JourneyRecommendedAction;
 
+/**
+ * WP-16 / decision D-0. With the daily journey enabled the journey is the day's
+ * one primary action; the legacy exercise Séance becomes the explicit
+ * «Plus de pratique» drill loop, keyed by a grammar concept or the errata
+ * queue — never by "today".
+ *
+ * Everything below is inert while `TodayEnvelope.enabled !== true`, so a
+ * flag-off learner sees byte-for-byte today's Home.
+ */
+export const PRACTICE_LABEL = 'Plus de pratique';
+
+export type PracticeEntry = {
+  label: string;
+  href: string;
+  /** The grammar concept the drill loop will seat, when the server named one. */
+  conceptId: string | null;
+};
+
+/** `/atelier?mode=practice[&concept=<id>]` — the drill loop's only entry. */
+export function practiceHref(conceptId?: string | number | null): string {
+  const id = conceptId === null || conceptId === undefined ? '' : String(conceptId).trim();
+  return id ? `/atelier?mode=practice&concept=${encodeURIComponent(id)}` : '/atelier?mode=practice';
+}
+
+/**
+ * The secondary «Plus de pratique» line for Home's Séance tile.
+ *
+ * Returns `null` with the capability off: the legacy Séance is then the day's
+ * own primary action and must not also appear as a secondary.
+ *
+ * The concept is taken from the server, in this order: the journey recap's
+ * practice targets (what today's scene actually drilled), then the envelope's
+ * own `practice_href`. Nothing is guessed on the client.
+ */
+export function resolvePracticeEntry(
+  envelope: TodayEnvelope | null | undefined,
+): PracticeEntry | null {
+  if (!envelope || envelope.enabled !== true) return null;
+
+  // The recap's own practised targets, each carrying the server's practice
+  // href (WP-16 extends `practiced_targets` rather than adding a second,
+  // near-identical list — see STATUS 2026-09-07 §WP-16).
+  const targets = envelope.journey?.recap?.practiced_targets || [];
+  const grammarTarget =
+    targets.find((item) => item.target.kind === 'grammar' && item.practice_href)
+    || targets.find((item) => Boolean(item.practice_href));
+  if (grammarTarget?.practice_href) {
+    return {
+      label: PRACTICE_LABEL,
+      href: grammarTarget.practice_href,
+      conceptId: grammarTarget.target.kind === 'grammar' ? grammarTarget.target.id : null,
+    };
+  }
+  if (envelope.practice_href) {
+    return { label: PRACTICE_LABEL, href: envelope.practice_href, conceptId: null };
+  }
+  return { label: PRACTICE_LABEL, href: practiceHref(), conceptId: null };
+}
+
+
 type DayProgressFlag = 'missionDone' | 'feuilletonDone';
 
 interface ServerDayProgress {
@@ -220,7 +280,21 @@ export function resolveRecommendedNext(
   const legacy = resolveLegacyRecommendedNext(today, session, progress);
   // With `enabled === false` (or no envelope at all) this returns exactly what
   // the resolver returned before the daily journey existed.
-  return resolveJourneyNext(journeyEnvelope, legacy) ?? legacy;
+  const journeyAction = resolveJourneyNext(journeyEnvelope, legacy);
+  if (journeyAction) return journeyAction;
+  if (journeyEnvelope?.enabled === true) {
+    // WP-16 / D-0: the journey owns the day. The only way the chain reaches
+    // here with the capability on is branch 4 — today's journey is finished —
+    // or branch 6, where nothing is on offer. In both cases the legacy exercise
+    // Séance is optional practice, not the day's primary action, so it is left
+    // out of the primary chain and offered as «Plus de pratique» instead.
+    //
+    // The `journey_unavailable` branch is deliberately NOT routed through here:
+    // it keeps the full legacy chain in its `fallback`, because an
+    // infrastructure failure must not also take away the learner's practice.
+    return resolveLegacyRecommendedNext(today, session, progress, { skipSession: true });
+  }
+  return legacy;
 }
 
 /** The pre-V2 chain, unchanged. Kept exported so the branch above can defer to it. */
@@ -228,8 +302,17 @@ export function resolveLegacyRecommendedNext(
   today: AtelierToday | null,
   session: AtelierSessionStart | null,
   progress: DayProgress,
+  options?: {
+    /**
+     * WP-16: drop the legacy exercise Séance from the chain. Used only when the
+     * daily journey is enabled and owns the day. Omitted (the default) the
+     * function is the pre-V2 chain, unchanged.
+     */
+    skipSession?: boolean;
+  },
 ): LegacyRecommendedAction {
-  if (progress.sessionStatus === 'active') {
+  const skipSession = options?.skipSession === true;
+  if (!skipSession && progress.sessionStatus === 'active') {
     return {
       kind: 'resume_session',
       conceptIndex: session?.current_position?.concept_index ?? 0,
@@ -239,7 +322,7 @@ export function resolveLegacyRecommendedNext(
     };
   }
 
-  if (progress.sessionStatus === 'none') {
+  if (!skipSession && progress.sessionStatus === 'none') {
     return { kind: 'start_session' };
   }
 

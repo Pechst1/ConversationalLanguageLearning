@@ -1651,6 +1651,34 @@
 .av2 .av2-day-tile__bars i[data-on='reward'] { background: var(--av2-yellow); }
 .av2 .av2-day-tile__bars i[data-on='done'] { background: var(--av2-ink); }
 
+/* WP-16 / D-0: the Séance tile's secondary «Plus de pratique» line. The tile
+   keeps its own cell height; the link sits under it inside the same grid cell,
+   as a sibling so neither control nests inside the other. */
+.av2 .av2-day-tile-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.av2 .av2-day-tile-cell > .av2-day-tile { flex: 1 1 auto; }
+.av2 .av2-day-tile__more {
+  display: block;
+  width: 100%;
+  min-height: 32px;
+  padding: 6px 4px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--av2-muted);
+  font: inherit;
+  font-size: var(--av2-t-meta);
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.av2 .av2-day-tile__more:hover { color: var(--av2-ink); }
+
 /* Colophon: "Demain — l’imparfait, épisode 4." */
 .av2 .av2-home__foot {
   margin: 22px var(--av2-gutter) 0;
@@ -1758,3 +1786,30 @@
 .av2 input[type='checkbox'],
 .av2 input[type='radio'],
 .av2 input[type='range'] { border: 0 !important; border-radius: 0 !important; background-color: transparent; }
+
+/* WP-16 / D-0: the «Plus de pratique» strip above the legacy drill loop. */
+.av2.atelier-practice-strip {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 12px var(--av2-gutter) 0;
+  background: transparent;
+}
+.av2.atelier-practice-strip p { margin: 0; }
+.av2.atelier-practice-strip .av2-headline { margin-top: 2px; }
+
+/* WP-16 / D-0: the recap's inline pointer into the drill loop. A quiet text
+   control on the practised line, never a second primary. */
+.av2 .av2-recap__practice {
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--av2-ink);
+  font: inherit;
+  font-size: var(--av2-t-meta);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.av2 .av2-recap__practice:hover { color: var(--av2-blue); }

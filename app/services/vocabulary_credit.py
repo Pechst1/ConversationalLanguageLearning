@@ -96,12 +96,31 @@ class VocabularyCreditService:
         normalized_event = str(event_type or "seen_context").strip().lower()
         credit_kind = self._credit_kind(normalized_event)
         progress_event = self._progress_event_for(credit_kind)
-        progress = self.progress_service.record_context_credit(
-            user=user,
-            word=word,
-            event_type=progress_event,
-            now=now or datetime.now(UTC),
+        # WP-16 / decision D-0: one daily Séance, one credit. The daily journey
+        # is the day's séance and the legacy exercise loop is «Plus de pratique».
+        # A word the journey already credited today keeps the schedule the
+        # journey gave it, so drilling it afterwards does not advance the
+        # interval twice. A *failure* is never folded away: a real mistake has
+        # to reach the schedule and the errata queue whenever it happens.
+        # Imported lazily: journey_learning imports the credit services.
+        from app.services.journey_learning import journey_credited_today
+
+        folded = credit_kind not in {"produced_incorrect", "missed_target"} and (
+            journey_credited_today(
+                self.db, user=user, target_kind="vocabulary", target_id=str(word.id)
+            )
         )
+        if folded:
+            progress = self.progress_service.get_or_create_progress(
+                user_id=user.id, word_id=word.id
+            )
+        else:
+            progress = self.progress_service.record_context_credit(
+                user=user,
+                word=word,
+                event_type=progress_event,
+                now=now or datetime.now(UTC),
+            )
         erratum_update: dict[str, Any] | None = None
         if credit_kind in {"produced_incorrect", "missed_target"}:
             erratum_update = self._record_vocabulary_erratum(

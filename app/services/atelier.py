@@ -36,6 +36,13 @@ from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
 from app.db.session import SessionLocal
 from app.services.atelier_assets import AtelierAssetService
+
+# WP-16 additive: the correction call's request bound and its cost row.
+from app.services.atelier_correction_cost import (
+    ANSWER_MAX_CHARS,
+    bound_learner_answer,
+    record_correction_cost,
+)
 from app.services.error_memory import ErrorMemoryService, serialize_error_memory
 from app.services.exercise_generation import (
     ExerciseGenerationService,
@@ -3562,6 +3569,10 @@ class AtelierExerciseQualityService:
         return retired
 
 
+# WP-16 additive: re-export so callers and tests keep one spelling.
+ATELIER_LLM_ANSWER_MAX_CHARS = ANSWER_MAX_CHARS
+
+
 class AtelierCorrectionService:
     """Exercise-aware checking and structured correction payloads."""
 
@@ -3569,6 +3580,10 @@ class AtelierCorrectionService:
         self.db = db
         self.llm_service = llm_service
         self._llm_unavailable = False
+        # WP-16 additive: defaults for paths that skip `submit_attempt`.
+        self._answer_truncated = False
+        self._cost_user_id: UUID | None = None
+        self._cost_session_id: UUID | None = None
         self.generator = AtelierExerciseGenerator(db, llm_service=llm_service)
         # The publication speaks French; an explanation of *why an answer was
         # wrong* is instruction, and instruction only works in a language the
@@ -3589,6 +3604,10 @@ class AtelierCorrectionService:
         retest_of: UUID | None = None,
     ) -> AtelierAttempt:
         self.explanation_language = normalize_language(user.native_language)
+        # WP-16 additive: per-attempt state for the answer bound and the cost row.
+        self._answer_truncated = False
+        self._cost_user_id = user.id
+        self._cost_session_id = session.id
         prompt_payload = prompt_payload_override or self._prompt_payload(
             concept,
             round_name,
@@ -4414,7 +4433,7 @@ class AtelierCorrectionService:
             "mode": mode,
             "concept": self._compact_llm_concept(concept),
             "task": self._compact_llm_task(prompt_payload),
-            "answer": self._compact_llm_answer(answer_payload),
+            "answer": self._llm_answer_block(answer_payload),
             "deterministic_assessment": self._compact_llm_assessment(fallback),
             "instructions": [
                 "Review each recognition item against the answer key and the target concept.",
@@ -5389,17 +5408,16 @@ class AtelierCorrectionService:
 
     @staticmethod
     def _compact_llm_answer(answer_payload: dict[str, Any]) -> dict[str, Any]:
-        if "text" in answer_payload:
-            return {"text": str(answer_payload.get("text") or "")}
-        answers = answer_payload.get("answers")
-        if isinstance(answers, dict):
-            return {
-                "answers": {
-                    str(key): str(value or "")
-                    for key, value in answers.items()
-                }
-            }
-        return {"raw": _compact_text(answer_payload, max_length=520)}
+        # WP-16 additive: bounded (see `atelier_correction_cost`), not unbounded.
+        block, _ = bound_learner_answer(answer_payload)
+        return block or {"raw": _compact_text(answer_payload, max_length=520)}
+
+    def _llm_answer_block(self, answer_payload: dict[str, Any]) -> dict[str, Any]:
+        # WP-16 additive: as above, remembering whether it had to cut.
+        block = self._compact_llm_answer(answer_payload)
+        if block.get("truncated"):
+            self._answer_truncated = True
+        return block
 
     @staticmethod
     def _compact_llm_assessment(fallback: dict[str, Any]) -> dict[str, Any]:
@@ -5448,7 +5466,7 @@ class AtelierCorrectionService:
             "round": round_name,
             "concept": self._compact_llm_concept(concept),
             "task": compact_task,
-            "answer": self._compact_llm_answer(answer_payload),
+            "answer": self._llm_answer_block(answer_payload),
             "requirements": ((prompt_payload.get("items") or [{}])[0] or {}).get("requirements") or [],
             "instructions": [
                 "This is part of a guided output ladder: short sentence, spoken transcript, or conversation turn.",
@@ -5496,7 +5514,7 @@ class AtelierCorrectionService:
             "round": "transform",
             "concept": self._compact_llm_concept(concept),
             "task": self._compact_llm_task(prompt_payload),
-            "answer": self._compact_llm_answer(answer_payload),
+            "answer": self._llm_answer_block(answer_payload),
             "deterministic_target": fallback.get("corrected_answer"),
             "deterministic_assessment": self._compact_llm_assessment(fallback),
             "instructions": [
@@ -5536,7 +5554,7 @@ class AtelierCorrectionService:
             "round": "produce",
             "concepts": [self._compact_llm_concept(concept) for concept in clean_concepts],
             "task": self._compact_llm_task(prompt_payload),
-            "answer": self._compact_llm_answer(answer_payload),
+            "answer": self._llm_answer_block(answer_payload),
             "requirements": self._integrated_requirements(clean_concepts, prompt_payload),
             "instructions": [
                 "Save the writing, but mark missing requirements partial and explain them as task_compliance. Saving is not acceptance.",
@@ -5585,17 +5603,33 @@ class AtelierCorrectionService:
                 disable_retries=True,
                 reasoning_effort=settings.ATELIER_CORRECTION_LLM_REASONING_EFFORT,
             )
+            # WP-16 additive: one priced pilot-ledger row per real call.
+            self._record_correction_cost(result)
             parsed = json.loads(result.content)
-            return self._normalize_llm_correction(
+            correction = self._normalize_llm_correction(
                 parsed,
                 concepts=concepts,
                 fallback=fallback,
                 corrected_answer_mode=corrected_answer_mode,
                 model=result.model,
             )
+            # WP-16 additive: a verdict on a cut answer says so.
+            if correction is not None and getattr(self, "_answer_truncated", False):
+                correction["assessment_truncated"] = True
+            return correction
         except (json.JSONDecodeError, LLMProviderError, ValueError, TypeError) as exc:
             logger.warning("Atelier LLM correction failed; using deterministic fallback", error=str(exc))
             return None
+
+    # WP-16 additive
+    def _record_correction_cost(self, result: Any) -> None:
+        record_correction_cost(
+            self.db,
+            result,
+            user_id=getattr(self, "_cost_user_id", None),
+            session_id=getattr(self, "_cost_session_id", None),
+            answer_truncated=getattr(self, "_answer_truncated", False),
+        )
 
     def _normalize_llm_correction(
         self,

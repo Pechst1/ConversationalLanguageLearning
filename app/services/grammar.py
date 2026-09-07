@@ -288,6 +288,25 @@ class GrammarService:
         interval_multiplier = max(0.25, min(2.0, float(interval_multiplier)))
         progress = self.get_or_create_progress(user_id=user.id, concept_id=concept_id)
 
+        # WP-16 / decision D-0: one daily Séance, one credit. The daily journey
+        # is the day's séance and the legacy exercise loop is «Plus de pratique»;
+        # both land here. A concept the journey already credited today keeps the
+        # schedule the journey gave it — extra practice is welcome, but it does
+        # not get to advance the interval a second time on the same day.
+        # Imported lazily: journey_learning imports this module.
+        from app.services.journey_learning import journey_credited_today
+
+        if journey_credited_today(
+            self.db, user=user, target_kind="grammar", target_id=str(concept_id)
+        ):
+            logger.info(
+                "Grammar review folded into today's journey credit",
+                user_id=str(user.id),
+                concept_id=concept_id,
+                score=score,
+            )
+            return progress
+
         now = datetime.now(UTC)
         interval = calculate_next_review(score) * interval_multiplier
 

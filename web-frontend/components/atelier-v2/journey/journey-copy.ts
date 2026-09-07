@@ -94,6 +94,9 @@ export type JourneyCopyKey =
   | 'duration_not_measured'
   | 'more_practice'
   | 'more_practice_note'
+  // WP-16 / D-0: the recap's pointer into the «Plus de pratique» drill loop
+  // for one target the scene actually practised.
+  | 'practice_this'
   | 'done_today'
   | 'nothing_offered';
 
@@ -180,6 +183,7 @@ const EN: CopyTable = {
   duration_not_measured: 'Duration is not measured yet.',
   more_practice: 'More practice',
   more_practice_note: 'Optional. It does not reopen today’s scene.',
+  practice_this: 'Practise this',
   done_today: 'Today’s scene is done.',
   nothing_offered: 'No scene is available right now.',
 };
@@ -265,6 +269,7 @@ const DE: CopyTable = {
   duration_not_measured: 'Die Dauer wird noch nicht gemessen.',
   more_practice: 'Mehr üben',
   more_practice_note: 'Optional. Die heutige Szene wird dadurch nicht neu geöffnet.',
+  practice_this: 'Das üben',
   done_today: 'Die heutige Szene ist erledigt.',
   nothing_offered: 'Gerade ist keine Szene verfügbar.',
 };
@@ -350,6 +355,7 @@ const FR: CopyTable = {
   duration_not_measured: 'La durée n’est pas encore mesurée.',
   more_practice: 'Plus d’exercices',
   more_practice_note: 'Facultatif. Cela ne rouvre pas la scène du jour.',
+  practice_this: 'Retravailler',
   done_today: 'La scène du jour est terminée.',
   nothing_offered: 'Aucune scène n’est disponible pour le moment.',
 };

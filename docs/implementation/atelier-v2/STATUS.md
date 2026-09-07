@@ -789,3 +789,156 @@ the lock races remain `scripts/verify_story_engine_pg.py` (33/33, 2026-09-06).
 4. Still blocked elsewhere: Apple enrolment for the archive (WP-19 §8), the four
    fourteen-day paid engine runs (≈ US$0.60, owner consent), the five-learner
    study (WP-22), and WP-20's browser walk.
+
+## 2026-09-07 — WP-16
+
+Decision **D-0** taken as recommended: the V2 daily journey **is** the daily
+Séance for cohort learners, and the legacy exercise Séance (Codex's 09-07
+rework) becomes the explicit **«Plus de pratique»** drill activity, entered by a
+grammar concept or by the errata queue and never by "today". No production flag
+changed; no server on 8000 or 8010 was touched.
+
+Everything below is inert while `ATELIER_DAILY_JOURNEY_ENABLED=false`: every new
+branch is gated on the server's own `TodayEnvelope.enabled`, and a flag-off Home
+renders exactly what it rendered before this package (screenshot 03).
+
+### Changes
+
+| Area | File | What |
+|---|---|---|
+| Routing | `web-frontend/lib/atelier-next.ts` | `resolvePracticeEntry`, `practiceHref`, `PRACTICE_LABEL`; `resolveLegacyRecommendedNext(…, { skipSession })`; with the capability on, `resolveRecommendedNext` drops the legacy Séance from the *primary* chain |
+| Home | `components/atelier-v2/home/HomeScreen.tsx`, `styles/atelier-v2.css` | `HomeTile.secondary` — one quiet line under a tile, rendered as a **sibling** of the tile control (`av2-day-tile-cell` / `av2-day-tile__more`), never nested inside its button |
+| Today view | `pages/atelier.tsx` | `practiceEntry` on the Séance tile; `journeyOwnsPrimary` suppresses La Une's own 3D-press action, because-clause, overrun clause and adjust link when the journey card is on screen; `?mode=practice&concept=` / `&queue=errata` entry; the «Plus de pratique» strip above `SessionView` |
+| Envelope | `app/schemas/daily_journey.py`, `app/services/daily_journey.py` | `TodayEnvelope.practice_href` (defaulted, additive — `contract_version` unchanged) seated on the learner's most urgent due grammar concept; `PracticedTarget.practice_href` on every recap target |
+| Recap | `components/atelier-v2/journey/JourneySession.tsx`, `journey-copy.ts` | `onPractice` + an inline `practice_this` control per practised target; the recap's `morePractice` button is finally wired from `pages/atelier.tsx` |
+| Evidence | `app/services/journey_learning.py`, `grammar.py`, `vocabulary_credit.py` | `journey_credited_today` + `record_daily_practice_streak`; the drill loop no longer re-credits what the journey credited today; the journey now moves the streak |
+| Cost + bound | `app/services/atelier_correction_cost.py` (new), `app/services/atelier.py` (+49 lines, every hunk `# WP-16 additive`), `scripts/pilot_digest.py` | one priced `PilotEvent("atelier_correction")` per real checker call; a 4,000-character bound on the learner answer, declared as `assessment_truncated`; a digest line item |
+| Tests | `lib/atelier-next.test.js`, `tests/test_wp16_one_evidence_source.py`, `tests/test_wp16_correction_telemetry.py`, `tests/test_frontend_wp16_one_seance.py`, re-pins in `tests/test_atelier_honest_edition.py` and `tests/test_frontend_pilot_experience.py` | |
+
+### Two deliberate deviations from the brief
+
+1. **`practice_targets` vs `practiced_targets`.** The brief asked for a new
+   `practice_targets` list on the recap. The recap already carries
+   `practiced_targets`; a second, near-identical list would be two answers to
+   one question. `practice_href` was added **to** `PracticedTarget` instead.
+   `null` for a vocabulary target: the drill loop is keyed by a grammar concept
+   or by the errata queue, and a bare word id is neither — a link there would
+   open an unrelated drill set.
+2. **`pages/atelier.tsx` was not split** (WP-16 §4 of the plan), as instructed:
+   Codex must agree first. Proposal below.
+
+### One evidence source — what was verified, and what was fixed
+
+Verified by inspection and by `tests/test_wp16_one_evidence_source.py`: the
+journey writes a real `LearningSession` and `SessionLearningMoment` rows through
+the WP-05 adapters, which is where the legacy loop's own credit lands too.
+
+Two things did **not** hold and are now fixed **in the WP-05 adapters, not in
+`atelier.py`**:
+
+* **Double credit.** `GrammarService.record_review` and
+  `VocabularyCreditService.apply` — the two calls `AtelierService` makes at
+  session completion — now consult `journey_learning.journey_credited_today` and
+  keep the schedule the journey already set for that target **today**. A
+  *failure* is never folded away: a real mistake reaches the schedule and the
+  errata queue whenever it happens.
+* **The streak.** The journey did not touch it at all, so a cohort learner who
+  did only the journey had no streak. `finish` now calls
+  `journey_learning.record_daily_practice_streak`, which is byte-for-byte the
+  rule `AtelierService._update_streak` applies and is a no-op once the day is
+  marked — so journey + drill loop on one day is **one** increment. Confirmed in
+  the browser walk: "1 · 1ᵉʳ jour" after the journey alone (screenshot 06).
+
+**Known gap, recorded rather than papered over:** the guard is one-directional.
+It stops the drill loop from re-crediting what the journey credited today, which
+is the D-0 order of play. The reverse (drill loop first, journey second) still
+double-credits, because closing it needs a claim written from `atelier.py`'s own
+call sites — a Codex-leased file this package did not edit. See "For Codex".
+
+### For Codex — three items this package did not touch
+
+1. **`_curated_payload`'s `show_correct`** is still
+   `int(lesson['teaching_order']) % 20 == 0`, so the classify item reads
+   "À corriger" for roughly 19 lessons in 20 — exactly the "same label every
+   time" its own comment forbids. Flagged by WP-15, deliberately **not** changed
+   here. It needs a distribution decision (a per-session coin flip, or alternating
+   within the lesson's own items), which is Codex's to make.
+2. **A same-day credit claim at the legacy call sites**, so the reverse
+   direction of the dedup above closes. The helper to call is
+   `journey_learning.journey_credited_today` / a claim written next to it.
+3. **`web-frontend/lib/seance-feedback.test.js`** resolves `sucrase` through
+   `require('../node_modules/sucrase/register/ts')`. `sucrase` is not a declared
+   dependency — it is hoisted transitively from `tailwindcss@3.4.18`. `npm ci`
+   installs it today, but a Tailwind bump breaks `test:seance` for a reason that
+   has nothing to do with the Séance. Declare it in `devDependencies`.
+
+### Proposed split of `pages/atelier.tsx` (6,900 lines) — for Codex to agree
+
+Three files, no behaviour change, in this order:
+
+| New file | Contents | Owner |
+|---|---|---|
+| `components/atelier/JourneyShell.tsx` | the `view === 'journey'` branch, the `JourneyTodayCard` entry, `useDailyJourney` wiring, `practiceEntry` | Claude sessions |
+| `components/atelier/TodayView.tsx` | `TodayView` and its La Une mapping helpers (already one self-contained component) | Claude sessions |
+| `pages/atelier.tsx` | the page shell, the legacy `SessionView` state machine and every attempt handler | Codex |
+
+The source-scanning backend tests pinned to `pages/atelier.tsx`
+(`test_frontend_atelier_word_bank`, `test_atelier_honest_edition`,
+`test_frontend_pilot_experience`, `test_core_mobile_*`, `test_frontend_wp16_one_seance`)
+must be re-pointed in the same change, or the split lands red.
+
+### Commands and actual results
+
+| Command | Result |
+|---|---|
+| `.venv/bin/python -m pytest tests/test_daily_journey_api.py tests/test_journey_contract_parity.py tests/test_journey_learning.py tests/test_atelier.py tests/test_progress.py tests/test_frontend_*.py tests/test_core_mobile_*.py tests/test_atelier_*.py tests/test_wp16_*.py` | `1 failed, 374 passed in 59.03s` — the one failure is `test_audio_call_states_never_lie_or_dead_end`, which **fails identically on committed HEAD** (verified in a `git worktree` at `0f39b7e`) |
+| `.venv/bin/python -m pytest -q -p no:randomly` (whole suite) | one failure, the same pre-existing one. The same command at HEAD fails **four** tests (`test_frontend_pilot_experience`, both `test_grammar_notebook` cases, `test_vocabulary_due_context_rejects_invalid_direction`) — this suite is order-fragile independently of WP-16 |
+| `npm run type-check` | exit 0, no output |
+| `npm run lint` | `✔ No ESLint warnings or errors` |
+| `npm run test:atelier-next` | `atelier-next resolver tests passed` |
+| `npm run test:journey` | `daily journey frontend tests passed` |
+| `npm run test:atelier-ui` | `atelier v2 design system tests passed` |
+| `npm run test:seance` | `# pass 1 # fail 0` |
+| `npm run build` | succeeded; route table unchanged |
+
+**Pre-existing failure, not WP-16's:** `test_audio_call_states_never_lie_or_dead_end`
+asserts `"Autorisez-le dans les réglages du navigateur"` in
+`pages/audio-session.tsx`. WP-21's copy localisation (`0a863b5`) moved that
+string into the copy table without re-pinning the test. It is WP-21's to fix;
+this package did not touch that file.
+
+### Browser walk — fake-provider harness, throwaway PostgreSQL
+
+Throwaway `atelier_wp16_*` database (`createdb` + `alembic upgrade head`, dropped
+afterwards), `scripts/dev_story_engine_server.py` on **port 8027**, a dev
+frontend on **3021**. Ports 8000 and 8010 untouched; no paid call was made.
+Screenshots in `docs/mobile-visual-checks/2026-09-07-wp16/` (390 pt, dark):
+
+| Shot | What it shows |
+|---|---|
+| `01-home-one-primary-action-journey.png` | flag on: **one** 3D-press action, the journey's «Commencer». La Une draws none of its own. Séance tile reads "1 règle · exercices" with «Plus de pratique» under it |
+| `02-plus-de-pratique-opens-the-drill-loop.png` | `/atelier?mode=practice&concept=1` → the «Plus de pratique» strip naming *Genre et nombre : les bases*, over Codex's drill loop seated on that concept |
+| `03-flag-off-home-unchanged.png` | flag off: the legacy «Continuer» primary, the because-clause, the overrun clause and «Ajuster le temps de l'édition» all back; no journey card and no «Plus de pratique» |
+| `04-recap-points-into-the-drill-loop.png` | the finished recap: «Retravailler» inline on the practised target, plus «Plus de pratique» as the secondary action |
+| `05-recap-pointer-opens-the-concept-drill.png` | that pointer followed — the drill loop on concept 1 |
+| `06-home-after-the-journey-legacy-stays-secondary.png` | after finishing: "La scène du jour est terminée", streak **1 · 1ᵉʳ jour** (the journey moved it), the old legacy session offered separately as "Séance précédente non terminée", «Plus de pratique» still only a secondary line |
+
+Live envelope from that server:
+`practice_href = /atelier?mode=practice&concept=1`; recap
+`practiced_targets[0].practice_href = /atelier?mode=practice&concept=1`.
+
+A bug the unit tests missed and the walk caught: `_practice_href` read `.id` off
+`GrammarService.get_due_concepts`' `(concept, progress)` **tuple** and silently
+produced the bare `/atelier?mode=practice`. Fixed, with a regression test.
+
+### Remaining for acceptance
+
+* The `pages/atelier.tsx` split (plan §4) — needs Codex's agreement.
+* The reverse dedup direction (drill loop first, journey second) — needs a claim
+  at `atelier.py`'s call sites.
+* Correction-policy convergence (plan §3): Codex's "unassessed on provider
+  failure" state is not yet the shared infrastructure-failure state for both
+  loops. The journey already keeps infrastructure failure separate from a wrong
+  answer (CONTRACTS §5); the two vocabularies have not been unified.
+* The walk used the fake provider: it proves routing, the envelope, the recap
+  pointer and the evidence path, never prose quality.

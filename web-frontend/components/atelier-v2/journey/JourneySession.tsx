@@ -67,6 +67,12 @@ export type JourneySessionProps = {
   onExit?: () => void;
   /** Optional practice entry shown after a finished day. Must not reopen it. */
   morePractice?: { label: string; onSelect: () => void } | null;
+  /**
+   * WP-16 / D-0: open the «Plus de pratique» drill loop at one of the recap's
+   * own practice hrefs. The recap only ever offers the server's href; it never
+   * builds one, and it never reopens the finished journey.
+   */
+  onPractice?: (href: string) => void;
 };
 
 /** One progress segment per real planned step — never a demo value. */
@@ -84,7 +90,7 @@ function segmentsOf(steps: PublicStep[], currentId: string | null): StepSegment[
   }));
 }
 
-export function JourneySession({ controller, onExit, morePractice }: JourneySessionProps) {
+export function JourneySession({ controller, onExit, morePractice, onPractice }: JourneySessionProps) {
   const { phase, feedback, step, progress, busy, help, voice, actions } = controller;
   const copy: AtelierCopy = {
     ...atelierCopy(controller.controlLanguage),
@@ -147,6 +153,7 @@ export function JourneySession({ controller, onExit, morePractice }: JourneySess
             copy={copy}
             onExit={onExit}
             morePractice={morePractice}
+            onPractice={onPractice}
           />
 
           {/* A paused journey shows its resume prompt alone, so the learner has
@@ -291,12 +298,14 @@ function JourneyPhaseView({
   copy,
   onExit,
   morePractice,
+  onPractice,
 }: {
   phase: JourneyPhase;
   controller: DailyJourneyController;
   copy: AtelierCopy;
   onExit?: () => void;
   morePractice?: { label: string; onSelect: () => void } | null;
+  onPractice?: (href: string) => void;
 }) {
   const { actions, busy } = controller;
 
@@ -394,6 +403,7 @@ function JourneyPhaseView({
           controller={controller}
           onExit={onExit}
           morePractice={morePractice}
+          onPractice={onPractice}
         />
       );
 
@@ -411,11 +421,13 @@ export function JourneyRecapView({
   controller,
   onExit,
   morePractice,
+  onPractice,
 }: {
   phase: Extract<JourneyPhase, { kind: 'finished' }>;
   controller: DailyJourneyController;
   onExit?: () => void;
   morePractice?: { label: string; onSelect: () => void } | null;
+  onPractice?: (href: string) => void;
 }) {
   const copy: AtelierCopy = {
     ...atelierCopy(controller.controlLanguage),
@@ -456,6 +468,22 @@ export function JourneyRecapView({
                   <span className="av2-label" style={{ display: 'inline' }}>
                     · {copy[`evidence_${item.evidence_kind}` as const]}
                   </span>
+                  {/* WP-16 / D-0: the drill loop is where this target is worked
+                      again. The href is the server's own; the recap never
+                      composes one and never reopens the finished journey. */}
+                  {onPractice && item.practice_href && (
+                    <>
+                      {' · '}
+                      <button
+                        type="button"
+                        className="av2-recap__practice"
+                        onClick={() => onPractice(item.practice_href as string)}
+                        aria-label={`${copy.practice_this} — ${item.target.label_fr}`}
+                      >
+                        {copy.practice_this}
+                      </button>
+                    </>
+                  )}
                 </span>
               </li>
             ))}

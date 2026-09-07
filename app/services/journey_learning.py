@@ -39,13 +39,13 @@ import re
 import unicodedata
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from typing import Any, Literal
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
 from loguru import logger
-from sqlalchemy import or_
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -1054,6 +1054,87 @@ def _resolve_evidence_kind(
     if kind is EvidenceKind.PRODUCED_INDEPENDENT and assistance is not AssistanceLevel.NONE:
         kind = EvidenceKind.PRODUCED_SUPPORTED
     return kind, assistance
+
+
+# ---------------------------------------------------------------------------
+# WP-16 / decision D-0 — one daily Séance, one source of evidence
+# ---------------------------------------------------------------------------
+#
+# The daily journey is the day's Séance; the legacy exercise loop is the
+# «Plus de pratique» drill activity. Both write into the same
+# LearningSession / SessionLearningMoment / SRS records, so a target the
+# journey already credited today must not be credited a second time when the
+# learner chooses to drill it afterwards, and the streak must move once.
+#
+# Both helpers live here, in the WP-05 adapter, rather than in the legacy
+# Atelier service: `app/services/atelier.py` is under a concurrent lease and
+# the policy belongs to the evidence owner in any case.
+
+
+def journey_credited_today(
+    db: Session,
+    *,
+    user: User,
+    target_kind: str,
+    target_id: str,
+    on_date: date | None = None,
+) -> bool:
+    """Did today's daily journey already apply SRS credit for this target?
+
+    Read from the journey's own evidence moments — the row `apply_learning_evidence`
+    writes with `srs_credit_applied` and the target in its payload. No new table
+    and no second ledger: the evidence record *is* the ledger.
+    """
+
+    day = on_date or datetime.now(UTC).date()
+    stmt = (
+        select(SessionLearningMoment)
+        .where(
+            SessionLearningMoment.user_id == user.id,
+            SessionLearningMoment.source_type == JOURNEY_SOURCE_TYPE,
+            SessionLearningMoment.srs_credit_applied.is_(True),
+        )
+        .order_by(SessionLearningMoment.created_at.desc())
+        .limit(200)
+    )
+    wanted_kind = str(target_kind)
+    wanted_id = str(target_id)
+    for moment in db.execute(stmt).scalars():
+        payload = dict(moment.prompt_payload or {})
+        if str(payload.get("observed_on") or "") != day.isoformat():
+            continue
+        target = dict(payload.get("target") or {})
+        if str(target.get("kind") or "") == wanted_kind and str(target.get("id") or "") == wanted_id:
+            return True
+    return False
+
+
+def record_daily_practice_streak(db: Session, user: User, *, on_date: date | None = None) -> int:
+    """Move the learner's practice streak, at most once per local day.
+
+    Byte-for-byte the rule the legacy Atelier session already applies
+    (`AtelierService._update_streak`), deliberately: both surfaces write the
+    same three user columns and both are no-ops once the day is marked, so a
+    learner who finishes the journey and then drills gets one increment, not
+    two. Returns the streak after the call.
+    """
+
+    day = on_date or date.today()
+    last = getattr(user, "grammar_last_review_date", None)
+    if last == day:
+        return int(getattr(user, "grammar_streak_days", 0) or 0)
+    if last == day - timedelta(days=1):
+        user.grammar_streak_days = (user.grammar_streak_days or 0) + 1
+    else:
+        user.grammar_streak_days = 1
+    user.grammar_last_review_date = day
+    user.grammar_longest_streak = max(
+        user.grammar_longest_streak or 0, user.grammar_streak_days or 0
+    )
+    user.mark_activity(day)
+    db.add(user)
+    db.flush([user])
+    return int(user.grammar_streak_days or 0)
 
 
 def _apply_vocabulary_credit(

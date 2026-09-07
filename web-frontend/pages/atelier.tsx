@@ -92,6 +92,8 @@ import {
   dayQueryString,
   resolveLegacyRecommendedNext,
   resolveRecommendedNext,
+  resolvePracticeEntry,
+  PRACTICE_LABEL,
   serialActionFromToday,
   type DayProgress,
   type RecommendedAction,
@@ -864,6 +866,30 @@ export default function AtelierPage() {
     () => resolveLegacyRecommendedNext(today, session, dayProgress),
     [today, session, dayProgress],
   );
+  // --- WP-16 / decision D-0: «Plus de pratique» ---------------------------
+  // The legacy exercise Séance is no longer "today". It is the drill loop, and
+  // a drill loop is entered by a grammar concept or by the errata queue:
+  // `/atelier?mode=practice&concept=<id>` (or `&queue=errata`). The historical
+  // `?concept_id=` deep link from the Cahier fiche keeps working unchanged.
+  const practiceMode = router.isReady && String(router.query.mode || '') === 'practice';
+  const practiceQueue = String(router.query.queue || '');
+  const practiceConceptId = (() => {
+    const raw = router.query.concept ?? router.query.concept_id;
+    const value = Number(Array.isArray(raw) ? raw[0] : raw);
+    return Number.isFinite(value) && value > 0 ? value : null;
+  })();
+  // The concept's own title, for the practice header. Read from the server's
+  // payload only — an unknown id prints no title rather than an invented one.
+  const practiceConceptTitle = (() => {
+    if (!practiceConceptId) return null;
+    const pool = [...(session?.concepts || []), ...(today?.concepts || [])];
+    const found = pool.find((concept) => Number(concept.id) === practiceConceptId);
+    return found ? displayConceptTitle(found) : null;
+  })();
+  // The secondary line Home shows under the Séance tile. `null` with the
+  // capability off, so a flag-off Home is untouched.
+  const practiceEntry = useMemo(() => resolvePracticeEntry(journey.envelope), [journey.envelope]);
+
   const journeyRecommended = recommendation.kind.startsWith('journey_');
   // The Today entry for the journey is on screen exactly when the frozen
   // precedence puts it in front of the legacy chain, plus the finished case.
@@ -990,9 +1016,12 @@ export default function AtelierPage() {
     setSubmitting(true);
     setLoadError(null);
     try {
-      const conceptId = Number(router.query.concept_id);
+      // WP-16: `?concept=` is the practice-mode spelling; `?concept_id=` is the
+      // Cahier fiche's historical one. Both seat the same concept.
+      const rawConcept = router.query.concept ?? router.query.concept_id;
+      const conceptId = Number(Array.isArray(rawConcept) ? rawConcept[0] : rawConcept);
       const next = await apiService.startAtelierSession(
-        Number.isFinite(conceptId) ? { preferred_concept_id: conceptId } : undefined
+        Number.isFinite(conceptId) && conceptId > 0 ? { preferred_concept_id: conceptId } : undefined
       );
       setActiveSessionReady(true);
       hydrateSession(next, true);
@@ -1284,6 +1313,36 @@ export default function AtelierPage() {
     toast('La file de révision est vide.');
   };
 
+  // --- WP-16 / D-0: enter the drill loop from a concept or the errata queue --
+  // `/atelier?mode=practice&concept=<id>` starts the legacy exercise Séance on
+  // that concept; `&queue=errata` opens the errata review instead. Neither is
+  // ever the day's primary action: this only runs when the learner followed a
+  // «Plus de pratique» link. The guard fires once per landing, so a re-render
+  // (or a failed start) cannot loop on the paid start endpoint.
+  const practiceEnteredRef = useRef(false);
+  useEffect(() => {
+    if (!practiceMode || loading) return;
+    if (practiceEnteredRef.current) return;
+    if (practiceQueue === 'errata') {
+      practiceEnteredRef.current = true;
+      openRecommendedReview();
+      return;
+    }
+    if (session && session.status !== 'completed') {
+      practiceEnteredRef.current = true;
+      setView('session');
+      return;
+    }
+    if (!session && activeSessionReady) {
+      practiceEnteredRef.current = true;
+      void startSession();
+    }
+    // `startSession` and `openRecommendedReview` are re-created every render;
+    // listing them would re-run this effect continuously. The `practiceEnteredRef`
+    // guard is what makes the entry happen exactly once, not the dependency list.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [practiceMode, practiceQueue, loading, session, activeSessionReady]);
+
   const handleRecommendedAction = (action: RecommendedAction = recommendation) => {
     // --- Atelier V2 branches, in the frozen precedence order ----------------
     if (action.kind === 'journey_resume') {
@@ -1550,6 +1609,14 @@ export default function AtelierPage() {
               setView('today');
               void journey.actions.refresh();
             }}
+            // WP-16 / D-0: the recap points into the drill loop for what this
+            // scene practised. It navigates to the server's own practice href;
+            // it never reopens the finished journey.
+            morePractice={practiceEntry ? {
+              label: PRACTICE_LABEL,
+              onSelect: () => { void router.push(practiceEntry.href); },
+            } : null}
+            onPractice={(href) => { void router.push(href); }}
           />
         ) : /* A capability that turns off mid-session falls back to Today, never
                into the legacy exercise view the learner did not ask for. */
@@ -1585,9 +1652,27 @@ export default function AtelierPage() {
               loadError={loadError}
               activeSessionReady={activeSessionReady}
               onRetry={() => setReloadKey((key) => key + 1)}
+              // WP-16 / D-0: `null` unless the daily journey owns the day, so a
+              // flag-off Home renders byte-for-byte what it rendered before.
+              practiceEntry={practiceEntry}
             />
           </>
         ) : (
+          <>
+            {/* WP-16 / D-0: the drill loop says what it is. The legacy Séance
+                is «Plus de pratique» now, keyed by the concept the learner
+                chose; the strip sits above SessionView rather than inside it,
+                so no SessionView internal changes. */}
+            {practiceMode && (
+              <div className="atelier-practice-strip av2" role="status">
+                <p className="av2-label">{PRACTICE_LABEL}</p>
+                {practiceConceptTitle && (
+                  <p className="av2-headline av2-headline--rule" lang="fr">
+                    {practiceConceptTitle}
+                  </p>
+                )}
+              </div>
+            )}
           <SessionView
             session={session}
             activeConceptIndex={activeConceptIndex}
@@ -1629,6 +1714,7 @@ export default function AtelierPage() {
             onBack={() => setView('today')}
             produceAnswer={produceAnswer}
           />
+          </>
         )}
         {recap && (
           <RecapModal
@@ -1869,6 +1955,7 @@ function TodayView({
   loadError,
   activeSessionReady,
   onRetry,
+  practiceEntry,
 }: {
   today: AtelierToday | null;
   activeSession: AtelierSessionStart | null;
@@ -1880,6 +1967,12 @@ function TodayView({
   loadError: AtelierErrorNotice | null;
   activeSessionReady: boolean;
   onRetry: () => void;
+  /**
+   * WP-16 / decision D-0. Non-null only when the daily journey is enabled and
+   * owns the day: the Séance tile then carries «Plus de pratique» as a quiet
+   * secondary line instead of being the day's primary action.
+   */
+  practiceEntry?: { label: string; href: string; conceptId: string | null } | null;
 }) {
   const router = useRouter();
   const hasActiveSession = dayProgress.sessionStatus === 'active';
@@ -2052,7 +2145,12 @@ function TodayView({
         onOpen: openStory,
         ariaLabel: (isMissionBeat ? 'Répondre à la mission — ' : 'Lire l’épisode — ') + leadHeadline,
       };
-  const homeAction = errorOnlyPage || isRest
+  // WP-16 / D-0: with the daily journey on screen above, the journey card
+  // carries the day's one 3D-press action. La Une must not draw a second one —
+  // and certainly not one that starts the legacy exercise Séance, which is now
+  // «Plus de pratique». `practiceEntry` is non-null exactly in that case.
+  const journeyOwnsPrimary = Boolean(practiceEntry);
+  const homeAction = errorOnlyPage || isRest || journeyOwnsPrimary
     ? null
     : {
         label: askKind === 'mission'
@@ -2078,16 +2176,35 @@ function TodayView({
         {
           id: 'seance',
           title: 'Séance',
-          meta: seanceStatus === 'done'
-            ? 'Bouclée'
-            : seanceStatus === 'resume' && seanceProgress
+          // WP-16 / D-0: with the journey on, the tile stops advertising a
+          // number of minutes for "today" — the day's minutes belong to the
+          // journey — and names the exercises it really opens.
+          meta: practiceEntry
+            ? seanceStatus === 'resume' && seanceProgress
               ? `${seanceProgress[0]}/${seanceProgress[1]} · reprendre`
-              : `${ruleCount} règle${ruleCount === 1 ? '' : 's'} · ~${Math.max(1, Number(remainingMinutes || sessionMins || 8))} min`,
-          mark: seanceStatus === 'done' ? 'done' : 'story',
+              : `${ruleCount} règle${ruleCount === 1 ? '' : 's'} · exercices`
+            : seanceStatus === 'done'
+              ? 'Bouclée'
+              : seanceStatus === 'resume' && seanceProgress
+                ? `${seanceProgress[0]}/${seanceProgress[1]} · reprendre`
+                : `${ruleCount} règle${ruleCount === 1 ? '' : 's'} · ~${Math.max(1, Number(remainingMinutes || sessionMins || 8))} min`,
+          mark: seanceStatus === 'done' && !practiceEntry ? 'done' : 'story',
           bars: [0, 1, 2].map((index) => (index < seanceBarsOn ? (seanceStatus === 'done' ? 'done' : 'story') : null)),
-          onSelect: () => onRecommendedAction(seanceAction),
-          disabled: seanceDisabled,
-          done: seanceStatus === 'done',
+          // The tile and its secondary line lead to the same place: the drill
+          // loop, entered by concept. Never `start_session` as "today".
+          href: practiceEntry ? practiceEntry.href : undefined,
+          onSelect: practiceEntry ? undefined : () => onRecommendedAction(seanceAction),
+          disabled: practiceEntry ? false : seanceDisabled,
+          done: seanceStatus === 'done' && !practiceEntry,
+          // WP-16 / D-0: with the journey on, the drill loop is reachable here
+          // and from a Cahier concept — never as the day's one action.
+          secondary: practiceEntry
+            ? {
+                label: practiceEntry.label,
+                href: practiceEntry.href,
+                ariaLabel: `${practiceEntry.label} — la séance d’exercices`,
+              }
+            : null,
         },
         {
           id: 'lexique',
@@ -2120,10 +2237,10 @@ function TodayView({
       notice={loadError ? { label: loadError.label, message: loadError.message, onRetry: onRetry } : null}
       episode={homeEpisode}
       action={homeAction}
-      filedLabel={isRest && !errorOnlyPage ? 'Édition bouclée — à demain.' : null}
-      note={prescriptionBecause}
-      overrunMinutes={overBudgetMinutes}
-      adjustHref={errorOnlyPage || isRest ? null : '/settings?section=practice'}
+      filedLabel={isRest && !errorOnlyPage && !journeyOwnsPrimary ? 'Édition bouclée — à demain.' : null}
+      note={journeyOwnsPrimary ? null : prescriptionBecause}
+      overrunMinutes={journeyOwnsPrimary ? null : overBudgetMinutes}
+      adjustHref={errorOnlyPage || isRest || journeyOwnsPrimary ? null : '/settings?section=practice'}
       phrase={phraseOfDay ? { text: phraseOfDay.text, byline: phraseOfDay.byline } : null}
       library={
         STORY_FEATURE_VISIBLE && libraryEpisode && (
