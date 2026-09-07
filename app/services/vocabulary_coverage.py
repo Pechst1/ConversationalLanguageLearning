@@ -1,11 +1,13 @@
 """Coverage map rollups for vocabulary, verbs/conjugation, and grammar."""
 from __future__ import annotations
 
+import json
 import re
 import unicodedata
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 from uuid import UUID
 
@@ -502,11 +504,92 @@ def _word_haystack(word: VocabularyWord) -> str:
     return _folded_text(" ".join(str(value) for value in fields if value))
 
 
-def inferred_part_of_speech(word: VocabularyWord) -> str:
-    explicit = (word.part_of_speech or "").strip().lower()
-    if explicit:
-        return explicit
-    surface = str(word.word or word.normalized_word or "").strip().lower()
+#: Surfaces the suffix rule gets wrong, curated from `scripts/audit_pos_heuristic.py`.
+POS_OVERRIDES_PATH = Path(__file__).resolve().parents[2] / "app" / "data" / "pos_overrides.json"
+
+#: spaCy's universal tags, folded to the vocabulary we store on the card.
+_SPACY_POS_MAP = {
+    "verb": "verb",
+    "aux": "verb",
+    "noun": "noun",
+    "propn": "noun",
+    "adj": "adjective",
+    "adv": "adverb",
+    "pron": "function",
+    "det": "function",
+    "adp": "function",
+    "cconj": "function",
+    "sconj": "function",
+    "part": "function",
+    "num": "function",
+    "intj": "function",
+}
+
+
+def normalize_pos_tag(value: Any) -> str:
+    """One spelling for a part of speech, whatever spelled it.
+
+    The deck's own column, spaCy and the heuristic each have their own names for
+    the same thing ("VERB", "v", "verbe"); the card and the coverage map only
+    ever want one of them.
+    """
+    text = str(value or "").strip().lower()
+    if not text:
+        return ""
+    if text in _SPACY_POS_MAP:
+        return _SPACY_POS_MAP[text]
+    if text in {"v", "verbe"}:
+        return "verb"
+    if text in {"n", "nom", "substantive"}:
+        return "noun"
+    if text in {"adj", "adjectif", "adjective"}:
+        return "adjective"
+    if text in {"adverb", "adverbe"}:
+        return "adverb"
+    return text
+
+
+def _load_pos_overrides() -> dict[str, str]:
+    try:
+        payload = json.loads(POS_OVERRIDES_PATH.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    raw = payload.get("overrides") if isinstance(payload, dict) else None
+    if not isinstance(raw, dict):
+        return {}
+    resolved: dict[str, str] = {}
+    for surface, tag in raw.items():
+        normalized = normalize_pos_tag(tag)
+        if normalized:
+            resolved[str(surface).strip().lower()] = normalized
+    return resolved
+
+
+_POS_OVERRIDES: dict[str, str] | None = None
+
+
+def pos_overrides() -> dict[str, str]:
+    """The curated list, read once. `reload_pos_overrides()` re-reads it."""
+    global _POS_OVERRIDES
+    if _POS_OVERRIDES is None:
+        _POS_OVERRIDES = _load_pos_overrides()
+    return _POS_OVERRIDES
+
+
+def reload_pos_overrides() -> dict[str, str]:
+    """Drop the cache — for the audit script and for tests that write the file."""
+    global _POS_OVERRIDES
+    _POS_OVERRIDES = None
+    return pos_overrides()
+
+
+def heuristic_part_of_speech(word: VocabularyWord) -> str:
+    """The suffix guess, on its own.
+
+    Kept separate so `scripts/audit_pos_heuristic.py` can measure exactly this
+    rule against a tagger, without the overrides that were derived from it.
+    """
+    surface = str(getattr(word, "word", None) or getattr(word, "normalized_word", None) or "").strip().lower()
     compact = _compact_text(surface)
     if compact in FUNCTION_WORDS:
         return "function"
@@ -517,6 +600,33 @@ def inferred_part_of_speech(word: VocabularyWord) -> str:
     if compact.endswith(("age", "eur", "euse", "isme", "ment", "tion", "te")):
         return "noun"
     return ""
+
+
+def inferred_part_of_speech(word: VocabularyWord) -> str:
+    """The part of speech shown to a learner, best source first.
+
+    1. the curated override file — the ~11 % the suffix rule gets wrong;
+    2. a real tagger's answer, when a caller attached one as `spacy_pos`;
+    3. the deck's own `part_of_speech` column, which the Anki import filled;
+    4. the suffix heuristic, which is a guess and is treated as one.
+
+    The order matters because step 4 confidently prints `plaisir` and `avenir`
+    as verbs, and the review card used to repeat that to the learner.
+    """
+    surface = str(getattr(word, "word", None) or getattr(word, "normalized_word", None) or "").strip().lower()
+    override = pos_overrides().get(surface)
+    if override:
+        return override
+
+    tagged = normalize_pos_tag(getattr(word, "spacy_pos", None))
+    if tagged:
+        return tagged
+
+    explicit = normalize_pos_tag(getattr(word, "part_of_speech", None))
+    if explicit:
+        return explicit
+
+    return heuristic_part_of_speech(word)
 
 
 def primary_category(word: VocabularyWord) -> str:

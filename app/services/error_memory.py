@@ -19,6 +19,7 @@ from app.db.models.session import ConversationMessage, LearningSession
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
 from app.services.grammar_feedback import infer_grammar_profile, profile_search_terms
+from app.services.learner_copy import learner_text
 from app.services.progress import ProgressService
 
 
@@ -165,12 +166,22 @@ class ErrorMemoryService:
         code = str(getattr(detected_error, "subcategory", None) or getattr(detected_error, "code", "") or "language_error")
         category = str(getattr(detected_error, "category", None) or "grammar").lower()
         concept_id = self._infer_grammar_concept_id(code=code, category=category)
+        # Explanations follow the learner's own language; the French chrome around
+        # them does not (docs/design-overhaul-2026-08-31.md §Principles).
+        language = getattr(user, "native_language", None)
         erratum = {
-            "display_label": self._display_label_for(code=code, category=category),
+            "display_label": self._display_label_for(code=code, category=category, language=language),
             "learner_text": getattr(detected_error, "span", "") or "",
             "corrected_target": getattr(detected_error, "suggestion", "") or "",
-            "why_wrong": self._direct_feedback(getattr(detected_error, "message", "") or "This form needs review."),
-            "repair_hint": self._repair_hint_for(code=code, suggestion=getattr(detected_error, "suggestion", "")),
+            "why_wrong": self._direct_feedback(
+                getattr(detected_error, "message", "")
+                or learner_text("erratum.form_needs_review", language)
+            ),
+            "repair_hint": self._repair_hint_for(
+                code=code,
+                suggestion=getattr(detected_error, "suggestion", ""),
+                language=language,
+            ),
             "severity": _severity_to_int(getattr(detected_error, "severity", None)),
             "recurring": True,
             "task_error_type": code,
@@ -207,7 +218,14 @@ class ErrorMemoryService:
 
         concept_id = concept_id or erratum.get("concept_id")
         task_type = str(erratum.get("task_error_type") or "grammar_target")
-        display_label = str(erratum.get("display_label") or self._display_label_for(code=task_type, category="grammar"))[:120]
+        display_label = str(
+            erratum.get("display_label")
+            or self._display_label_for(
+                code=task_type,
+                category="grammar",
+                language=getattr(user, "native_language", None),
+            )
+        )[:120]
         category = self._error_category_for_erratum(erratum)
         review_mode = self._review_mode_for(category=category, task_type=task_type, source_type=source_type)
         severity = _severity_to_int(erratum.get("severity"))
@@ -655,22 +673,23 @@ class ErrorMemoryService:
             return concept.id if concept else None
         return None
 
-    def _display_label_for(self, *, code: str, category: str) -> str:
+    def _display_label_for(self, *, code: str, category: str, language: Any = None) -> str:
         marker = _normalize(f"{code} {category}")
         if "pronoun" in marker or " y_en" in marker:
-            return "Pronoun choice"
+            return learner_text("erratum.label_pronoun_choice", language)
         if "vocab" in marker or "lexical" in marker or "false_friend" in marker:
-            return "Vocabulary choice"
+            return learner_text("erratum.label_vocabulary_choice", language)
         if "spelling" in marker or "accent" in marker:
-            return "Spelling"
+            return learner_text("erratum.label_spelling", language)
         profile = infer_grammar_profile(task_text=marker)
         if profile.key != "grammar_target":
             return profile.label
-        return str(code or category or "Language repair").replace("_", " ").title()
+        fallback = str(code or category or "").replace("_", " ").strip()
+        return fallback.title() or learner_text("erratum.label_language_repair", language)
 
-    def _repair_hint_for(self, *, code: str, suggestion: str) -> str:
+    def _repair_hint_for(self, *, code: str, suggestion: str, language: Any = None) -> str:
         if suggestion:
-            return f"Use `{suggestion}` here, then practise the same contrast in a fresh sentence."
+            return learner_text("erratum.repair_use_suggestion", language, suggestion=suggestion)
         return infer_grammar_profile(task_text=code).repair
 
     def _direct_feedback(self, text: str) -> str:
@@ -693,18 +712,25 @@ class ErrorMemoryService:
         return str(erratum.get("error_category") or "grammar").lower()
 
 
-def serialize_error_memory(error: UserError) -> dict[str, Any]:
+def serialize_error_memory(error: UserError, *, language: Any = None) -> dict[str, Any]:
+    """The stored erratum as a payload. `language` is the learner's native code:
+    the stored halves were already authored in it, but the last-resort labels
+    here have to be resolved at read time."""
     learner = error.original_text
     corrected = error.correction
-    reason = error.display_label or error.error_pattern or "Language repair"
+    repair_label = learner_text("erratum.label_language_repair", language)
+    reason = error.display_label or error.error_pattern or repair_label
     if learner and corrected:
         reason = f"{reason}: {learner} -> {corrected}"
-    source_label = ErrorMemoryService.SOURCE_LABELS.get(error.source_type or "", error.source_type or "Practice")
+    source_label = ErrorMemoryService.SOURCE_LABELS.get(
+        error.source_type or "",
+        error.source_type or learner_text("erratum.source_practice", language),
+    )
     return {
         "id": str(error.id),
         "concept_id": error.concept_id,
         "source_attempt_id": str(error.source_attempt_id) if error.source_attempt_id else None,
-        "display_label": error.display_label or error.error_pattern or "Language repair",
+        "display_label": error.display_label or error.error_pattern or repair_label,
         "task_error_type": error.task_error_type or error.error_pattern or "language_repair",
         "error_category": error.error_category,
         "review_mode": error.review_mode or "grammar",

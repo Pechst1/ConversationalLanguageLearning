@@ -4,6 +4,8 @@ import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/router';
 
+import { atelierChrome } from '@/lib/atelier-v2-copy';
+import { useLearnerLanguage } from '@/lib/learner-language';
 import PhoneProductNav from '@/components/layout/PhoneProductNav';
 import { LogoToken } from '@/components/ui/Seal';
 import {
@@ -434,6 +436,9 @@ function CourrierMic({
 }) {
   const [state, setState] = useState<MicState>('idle');
   const [problem, setProblem] = useState<string | null>(null);
+  // A refused microphone is an explanation, not fiction: it follows the
+  // learner's language while the Courrier around it stays French (WP-21).
+  const chrome = atelierChrome(useLearnerLanguage());
   const [seconds, setSeconds] = useState(0);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -448,7 +453,7 @@ function CourrierMic({
   const start = async () => {
     setProblem(null);
     if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
-      setProblem('Le micro n’est pas disponible ici — écrivez votre réponse.');
+      setProblem(chrome.mic_unavailable);
       return;
     }
     try {
@@ -465,10 +470,10 @@ function CourrierMic({
           const blob = recordedAudioBlob(chunksRef.current, recorder);
           const text = await apiService.transcribeMissionAudio(blob);
           if (text && text.trim()) onTranscript(text.trim());
-          else setProblem('Rien n’a été transcrit — réessayez.');
+          else setProblem(chrome.transcription_empty);
         } catch (transcribeError) {
           console.error(transcribeError);
-          setProblem('La transcription a échoué — réessayez, ou écrivez votre réponse.');
+          setProblem(chrome.transcription_failed);
         } finally {
           setState('idle');
         }
@@ -479,7 +484,7 @@ function CourrierMic({
       setState('recording');
     } catch (permissionError) {
       console.error(permissionError);
-      setProblem('Micro refusé — autorisez l’accès, ou écrivez votre réponse.');
+      setProblem(chrome.mic_denied);
       setState('idle');
     }
   };
@@ -512,7 +517,7 @@ function CourrierMic({
       {state === 'transcribing' && (
         <p className="cr-mic-state" role="status" aria-live="polite">
           <ShapeToken kind="story" size="sm" />
-          <span>Transcription en cours</span>
+          <span>{chrome.transcribing}</span>
         </p>
       )}
       {problem && <p className="cr-mic-problem" role="status">{problem}</p>}

@@ -7,6 +7,8 @@ ROOT = Path(__file__).resolve().parents[1]
 VOCABULARY_PAGE = ROOT / "web-frontend" / "pages" / "vocabulary.tsx"
 VOCABULARY_REVIEW_PAGE = ROOT / "web-frontend" / "pages" / "vocabulary" / "review.tsx"
 ATELIER_PAGE = ROOT / "web-frontend" / "pages" / "atelier.tsx"
+VISUAL_CUES_LIB = ROOT / "web-frontend" / "lib" / "visual-cues.ts"
+ATELIER_COPY_LIB = ROOT / "web-frontend" / "lib" / "atelier-v2-copy.ts"
 
 
 def read_vocabulary_page() -> str:
@@ -119,22 +121,45 @@ def test_vocabulary_review_keeps_header_and_rating_controls_compact() -> None:
 
 def test_vocabulary_review_uses_local_visual_cues_before_generated_images() -> None:
     source = read_page(VOCABULARY_REVIEW_PAGE)
+    cues = read_page(VISUAL_CUES_LIB)
 
     assert "function wordVisualCue" in source
     # Icon sets are gone: the cue carries one of the four Bauhaus shapes.
     assert "lucide-react" not in source
-    assert "shape: ShapeKind" in source
-    assert "abaisser" in source
+    assert "shape: VisualCueShape" in cues
+    assert "'abaisser'" in cues
     assert "review-visual-cue" in source
-    # The badge is French publication copy now: the labels were the last
-    # English on the card ("WORD / MEMORY CUE", "TIME / when"), and the caption
-    # no longer echoes `part_of_speech` — that column is heuristic import data
-    # and printed "exemplaire" (a noun) as a verb.
+    # WP-21: the badge was English ("WORD / MEMORY CUE", "TIME / when"), then
+    # French-only, which left a beginner reading French on the one card that
+    # teaches French. The scene name explains the word, so it now follows the
+    # learner's language through `lib/visual-cues.ts`; the chrome around it
+    # (the aria prefix) stays French. The caption still does not echo
+    # `part_of_speech` — that column is heuristic import data and printed
+    # "exemplaire" (a noun) as a verb.
     assert "aria-label={`Indice visuel : ${visualCue.label}`}" in source
-    assert "label: 'Temps', caption: 'quand'" in source
+    assert "visualCueFor(signal, hasSignal, language)" in source
+    assert "wordVisualCue(current, learnerLanguage)" in source
+    assert "useLearnerLanguage()" in source
+    assert "fr: { label: 'Temps', caption: 'quand' }" in cues
+    assert "en: { label: 'Time', caption: 'when' }" in cues
+    assert "de: { label: 'Zeit', caption: 'wann' }" in cues
     # The hint line prints the column only through the French whitelist.
     assert "partOfSpeechLabel(item.part_of_speech)" in source
     assert "PART_OF_SPEECH_LABELS" in source
+
+
+def test_vocabulary_review_mic_failures_follow_the_learner_language() -> None:
+    """The deck's microphone toasts were French for every learner (WP-21)."""
+    source = read_page(VOCABULARY_REVIEW_PAGE)
+    copy = read_page(ATELIER_COPY_LIB)
+
+    assert "const chrome = atelierChrome(learnerLanguage);" in source
+    for key in ("mic_unavailable", "mic_open_failed", "transcription_failed", "transcription_empty"):
+        assert f"chrome.{key}" in source, key
+        # One entry per shipped language, plus the union member.
+        assert copy.count(f"{key}:") == 3, key
+    assert "La transcription a échoué." not in source
+    assert "Le micro n’a pas pu être ouvert.'" not in source
 
 
 def test_vocabulary_review_back_face_keeps_answer_content_visible() -> None:

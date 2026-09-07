@@ -546,3 +546,182 @@ compiles and links, and the privacy manifest and full icon set land in the
 bundle. The WP-19 acceptance line "`bundle exec fastlane ios archive` succeeds
 locally" stays **pending on Apple enrollment**, and the two WP-10 lines above
 stay pending on a second test account and a short-lived-token build.
+| WP-18 (prep) | integration (Opus) | `ROLLOUT.md` (new), `scripts/verify_journey_drain.py`, `scripts/rollout_health.py`, `tests/test_rollout_scripts.py`; throwaway PostgreSQL only | 2026-09-07 evening, after WP-19 landed (`21dd85b`) |
+
+WP-20 inherits from WP-19: D-1 cold start after a kill inside the V2 journey resumes the legacy Séance (`readResumeActivity()` prefers the older practice session); D-2 the WKWebView ignores iOS Dynamic Type; D-3 the V2 sticky progress header draws under the status bar.
+
+## 2026-09-07 — WP-21
+
+Language and data debt: the deterministic corrector, the Courrier's authored
+erratum prose, the review card's visual-cue badge and the mic/transcription
+toasts now follow the learner's `native_language`; the part-of-speech heuristic
+is no longer the last word on what a word is; the Anki deck's missing English
+column has a bounded, unrun backfill script.
+
+**Owner:** content agent. No file owned by another lease was touched.
+
+### 1. Localization
+
+New resolvers, one per side:
+
+- `app/services/learner_copy.py` — 41 keys × en/de/fr (123 strings). Keys, never
+  English sentences, so a grep for English in learner-facing code stays
+  meaningful; a missing column is a test failure, not a silent English fallback.
+- `web-frontend/lib/atelier-v2-copy.ts` — 7 new chrome keys for the microphone
+  and transcription failures, in all three tables.
+- `web-frontend/lib/visual-cues.ts` (new) — the 14 scene cues plus the default,
+  each with its shape, its matching signals and its label/caption in three
+  languages.
+- `web-frontend/lib/learner-language.ts` (new) — the three screens with no
+  journey envelope (Le Lexique's deck, Le Courrier, Le Studio) resolve the
+  learner's language from the cached profile, then from `GET /users/me/settings`,
+  then `en`.
+
+Routed through them:
+
+| Surface | What was single-language |
+| --- | --- |
+| `app/core/error_detection/rules.py`, `detector.py` | 4 rule messages, 4 false-friend explanations, the default suggestion, both summaries — English only |
+| `app/services/error_memory.py` | erratum labels, the "use X here" repair hint, the `why_wrong` fallback, the serialized last-resort labels — English only |
+| `app/services/brief_exercise_service.py` | the fallback verdicts — hardcoded **German** ("Leider falsch", "Das passt zur Grammatikaufgabe") for every learner, plus one English repair hint |
+| `app/services/missions.py` | the authored fallback erratum prose and both deterministic rules (`vous avet`, `probleme`) — English only |
+| `pages/vocabulary/review.tsx`, `pages/missions.tsx`, `pages/audio-session.tsx` | mic / transcription failure toasts — French only |
+| `pages/vocabulary/review.tsx` | the visual-cue badge labels — French only |
+
+`DetectedError` gained `message_key`; the detector renders it in
+`explanation_language`, which it now also resolves per call. Provider-authored
+messages are untouched — the prompt already writes those in the learner's
+language.
+
+`tests/test_learner_copy_localization.py` (new) scans the six backend and three
+frontend surfaces for a sentinel list of the exact strings that were shipped in
+one language, ignoring comments, and checks that every copy row carries all three
+languages with matching placeholders.
+`tests/test_frontend_vocabulary_biography.py` re-pinned: the cue assertions moved
+to `lib/visual-cues.ts` and now pin all three languages, plus a new test for the
+deck's mic toasts. `tests/test_inline_moments.py` re-pinned: the brief-exercise
+verdict is read from the table instead of asserting German.
+
+**Remaining English:** `app/services/atelier_assets.py` still authors the
+sentence-x-ray prose and the family contrast/trap lists in English (~60 strings).
+They belong to the same table but sit behind `infer_grammar_profile`, whose
+`GrammarProfile.label/principle/repair` live in `grammar_feedback.py` — held by
+the Codex lease. Those two must move together, so they are deferred rather than
+half-done. `pages/practice.tsx` and `pages/learn/session/[id].tsx` also carry
+English toasts; both are on the WP-20 deletion list.
+
+### 2. Part of speech
+
+`app/services/vocabulary_coverage.inferred_part_of_speech` resolves in order:
+curated override → a tagger's answer attached as `spacy_pos` → the deck's
+`part_of_speech` column → the suffix heuristic (now split out as
+`heuristic_part_of_speech`). `normalize_pos_tag` folds spaCy's tags, the deck's
+spellings and the heuristic's into one vocabulary. A missing or malformed
+override file degrades to the old behaviour rather than blanking the card.
+
+`scripts/audit_pos_heuristic.py` (new) measures the suffix rule against
+`FRENCH_NLP_MODEL` and exits 0 with a message when spaCy is unavailable. Run on
+the shipped deck (5062 French rows, `fr_core_news_sm`):
+
+```
+rows compared             : 2724
+heuristic mismatches      : 664
+heuristic mismatch rate   : 24.38%
+confident comparisons     : 1112
+confident mismatches      : 329  (these become overrides)
+residual after overrides  : 335 (12.30%)
+worst endings             : -ent:150, -ire:93, -ier:60, -tre:45, -ure:40, -ère:31
+```
+
+"Confident" means both readings — the word inside its example sentence and the
+bare word — agree, *and* the correction is one the tagger is trustworthy on: a
+verb→noun/function fix is accepted, a verb→adjective/adverb one on an -er/-ir
+surface is refused, because French infinitives are exactly where
+`fr_core_news_sm` fails (it calls `diminuer` an adverb and `prier` an adjective).
+
+`app/data/pos_overrides.json` (new): 333 entries — 329 from the audit plus 27
+hand-checked corrections in the script's `CURATED_CORRECTIONS` (the tagger's own
+errors: `pratiquement`, `analyste`, `poète`, `été`; and the -ir/-aire nouns and
+-ier adjectives that started this, `exemplaire`, `souvenir`, `plaisir`,
+`avenir`, `dernier`, `premier`).
+
+The WP's "< 2 % mismatch" acceptance line is **not** met and should not be: the
+residual 12.3 % is where `fr_core_news_sm` and the suffix rule disagree and
+neither is demonstrably right. Encoding the tagger's answer there would replace
+one wrong label on the card with another. What is fixed is the set the card
+demonstrably got wrong. Raising the covered share needs a better tagger
+(`fr_core_news_md`/`_lg`) or a dictionary, not a wider trust radius.
+`tests/test_pos_overrides.py` (new) pins the order, the known-wrong set, that
+real verbs are untouched, and the degrade-to-heuristic path.
+
+### 3. Anki English glosses — prepared, NOT run
+
+`scripts/backfill_anki_glosses.py` (new), on `backfill_anki_examples.py`'s
+pattern. Dry run is the default; `--live` refuses to start without both
+`--max-rows` and `--max-cost-usd`; the cost ceiling is enforced between batches,
+not at the end; only NULL/blank `english_translation` rows are selected and each
+row is re-checked before the write, so nothing is ever overwritten; every written
+row gets `[english_gloss_backfill: anki-gloss-backfill-v1; model=…; at=…]`
+appended to `usage_notes`.
+
+Dry run, 2026-09-07:
+
+```
+rows missing english_translation : 5394
+  of those, Anki-imported        : 5388
+  of those, with a German gloss  : 5389
+rows this run would translate    : 5388
+DRY RUN — nothing was called and nothing was written.
+```
+
+**No paid call was made.** The exact live command, for the owner, with the
+ceiling to start on (one batch of 250 to price the run before committing to the
+rest):
+
+```
+.venv/bin/python scripts/backfill_anki_glosses.py --live --max-rows 250 --max-cost-usd 2.00
+```
+
+Owner consent and the cost ceiling are recorded here; the full 5388 rows should
+only be started after that first 250 has been read for quality and its actual
+cost multiplied out.
+
+### 4. Verification
+
+```
+$ .venv/bin/python -m pytest -q tests/test_frontend_vocabulary_biography.py tests/test_missions.py \
+    tests/test_error_detection_rules.py tests/test_error_detector.py tests/test_vocabulary.py \
+    tests/test_vocabulary_coverage_conjugation.py tests/test_vocabulary_credit.py \
+    tests/test_vocabulary_enrichment.py tests/test_vocabulary_handoffs.py \
+    tests/test_learner_copy_localization.py tests/test_pos_overrides.py \
+    tests/test_backfill_anki_glosses.py tests/test_inline_moments.py
+191 passed
+
+$ .venv/bin/ruff check app scripts tests
+Found 4 errors.   # all pre-existing, in files under other leases:
+                  # app/services/atelier.py, app/services/daily_journey.py,
+                  # tests/test_wp16_correction_telemetry.py, tests/test_wp16_one_evidence_source.py
+
+$ cd web-frontend && npm run type-check      # clean
+$ cd web-frontend && npm run lint            # ✔ No ESLint warnings or errors
+```
+
+Not caused by this package, seen while running the wider suite and left for the
+owner of `app/services/atelier.py`: `test_atelier.py::test_select_atelier_vocabulary_uses_curated_starter_for_new_user`
+and three `test_progress.py::test_vocabulary_recommendations_*` fail on the
+starter-vocabulary selection returning `mot0`/`maison` instead of the seeded
+words. That code is inside the Codex lease and was not touched here.
+
+### Files changed
+
+Backend: `app/services/learner_copy.py` (new), `app/data/pos_overrides.json`
+(new), `app/core/error_detection/rules.py`, `app/core/error_detection/detector.py`,
+`app/services/error_memory.py`, `app/services/brief_exercise_service.py`,
+`app/services/missions.py`, `app/services/vocabulary_coverage.py`.
+Scripts: `scripts/audit_pos_heuristic.py` (new), `scripts/backfill_anki_glosses.py` (new).
+Frontend: `web-frontend/lib/visual-cues.ts` (new), `web-frontend/lib/learner-language.ts` (new),
+`web-frontend/lib/atelier-v2-copy.ts`, `web-frontend/pages/vocabulary/review.tsx`,
+`web-frontend/pages/missions.tsx`, `web-frontend/pages/audio-session.tsx`.
+Tests: `tests/test_learner_copy_localization.py` (new), `tests/test_pos_overrides.py` (new),
+`tests/test_backfill_anki_glosses.py` (new), `tests/test_frontend_vocabulary_biography.py`,
+`tests/test_inline_moments.py`.

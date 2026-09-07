@@ -10,6 +10,7 @@ from loguru import logger
 
 from app.config import settings
 from app.core.conversation import build_error_detection_prompt
+from app.services.learner_copy import learner_text
 from app.services.llm_service import LLMResult
 
 from .rules import DetectedError, ErrorRule, build_default_rules
@@ -89,20 +90,23 @@ class ErrorDetector:
     ) -> ErrorDetectionResult:
         """Analyze a learner message and return detected issues."""
 
+        # The learner's language can arrive per-call (a shared detector serves
+        # several learners) — resolve it before the rules render their prose.
+        if explanation_language:
+            self.explanation_language = explanation_language.strip().lower()[:2] or self.explanation_language
+
         doc = self._nlp(learner_message)
         errors: list[DetectedError] = []
         for rule in self.rules:
             rule_errors = rule.apply(doc)
             logger.debug("Rule executed", rule=rule.name, count=len(rule_errors))
-            errors.extend(rule_errors)
+            errors.extend(self._localized(rule_errors))
 
-        summary = "Automated heuristic review only."
+        summary = learner_text("detect.summary_heuristic_only", self.explanation_language)
         review_vocabulary: list[str] = []
         metadata: dict[str, Any] = {"rule_error_count": len(errors)}
 
         if use_llm and self.llm_service:
-            if explanation_language:
-                self.explanation_language = explanation_language.strip().lower()[:2] or self.explanation_language
             llm_result = self._run_llm_analysis(
                 learner_message,
                 learner_level=learner_level,
@@ -113,6 +117,17 @@ class ErrorDetector:
                 errors.extend(llm_errors)
                 metadata.update(provider_meta)
         return ErrorDetectionResult(errors=errors, summary=summary, review_vocabulary=review_vocabulary, metadata=metadata)
+
+    def _localized(self, errors: list[DetectedError]) -> list[DetectedError]:
+        """Render the deterministic rule prose in the learner's own language.
+
+        Only rows that name a `message_key` are touched: a provider-authored
+        message is already written in the learner's language by the prompt.
+        """
+        for error in errors:
+            if error.message_key:
+                error.message = learner_text(error.message_key, self.explanation_language)
+        return errors
 
     _EXPLANATION_LANGUAGE_NAMES = {
         "en": "ENGLISH",
@@ -219,7 +234,9 @@ class ErrorDetector:
                 )
             except Exception:  # pragma: no cover - skip malformed entries
                 logger.debug("Skipping malformed LLM error", item=item)
-        summary = summary_payload.get("overall_feedback", "Great job—keep practicing!")
+        summary = summary_payload.get("overall_feedback") or learner_text(
+            "detect.summary_default", self.explanation_language
+        )
         review_vocabulary = summary_payload.get("review_vocabulary", [])
         if not isinstance(review_vocabulary, list):
             review_vocabulary = []

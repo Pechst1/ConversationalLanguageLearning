@@ -73,6 +73,16 @@ export type AtelierCopyKey =
   | 'answer_mode_voice'
   | 'record_start'
   | 'record_stop'
+  // Microphone and transcription failures. These *explain* a failure, so they
+  // follow the learner's language rather than staying in the French chrome
+  // voice they were written in (WP-21).
+  | 'mic_unavailable'
+  | 'mic_denied'
+  | 'mic_open_failed'
+  | 'transcribing'
+  | 'transcription_failed'
+  | 'transcription_empty'
+  | 'nothing_heard'
   // Status words — the text half of "status is never colour alone"
   | 'status_selected'
   | 'status_correct'
@@ -131,6 +141,14 @@ const EN: Table = {
   record_start: 'Record',
   record_stop: 'Stop recording',
 
+  mic_unavailable: 'No microphone is available on this device — type your answer instead.',
+  mic_denied: 'The microphone was refused — allow access, or type your answer.',
+  mic_open_failed: 'The microphone could not be opened.',
+  transcribing: 'Transcribing',
+  transcription_failed: 'The transcription failed — try again, or type your answer.',
+  transcription_empty: 'Nothing was transcribed — try again.',
+  nothing_heard: 'I heard nothing. Tap the microphone, then speak.',
+
   status_selected: 'Selected',
   status_correct: 'Correct',
   status_wrong: 'Not yet',
@@ -187,6 +205,14 @@ const DE: Table = {
   record_start: 'Aufnehmen',
   record_stop: 'Aufnahme stoppen',
 
+  mic_unavailable: 'Auf diesem Gerät gibt es kein Mikrofon — schreibe deine Antwort.',
+  mic_denied: 'Das Mikrofon wurde abgelehnt — erlaube den Zugriff, oder schreibe deine Antwort.',
+  mic_open_failed: 'Das Mikrofon ließ sich nicht öffnen.',
+  transcribing: 'Wird transkribiert',
+  transcription_failed: 'Die Transkription ist fehlgeschlagen — versuche es erneut, oder schreibe deine Antwort.',
+  transcription_empty: 'Es wurde nichts transkribiert — versuche es erneut.',
+  nothing_heard: 'Ich habe nichts gehört. Tippe auf das Mikrofon und sprich dann.',
+
   status_selected: 'Ausgewählt',
   status_correct: 'Richtig',
   status_wrong: 'Noch nicht',
@@ -242,6 +268,14 @@ const FR: Table = {
   answer_mode_voice: 'Parler plutôt',
   record_start: 'Enregistrer',
   record_stop: 'Arrêter l’enregistrement',
+
+  mic_unavailable: 'Aucun micro disponible sur cet appareil — écrivez votre réponse.',
+  mic_denied: 'Micro refusé — autorisez l’accès, ou écrivez votre réponse.',
+  mic_open_failed: 'Le micro n’a pas pu être ouvert.',
+  transcribing: 'Transcription en cours',
+  transcription_failed: 'La transcription a échoué — réessayez, ou écrivez votre réponse.',
+  transcription_empty: 'Rien n’a été transcrit — réessayez.',
+  nothing_heard: 'Je n’ai rien entendu. Touchez le micro, puis parlez.',
 
   status_selected: 'Sélectionné',
   status_correct: 'Correct',

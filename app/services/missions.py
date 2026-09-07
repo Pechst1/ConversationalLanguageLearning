@@ -31,6 +31,7 @@ from app.services.glosses import (
     normalize_language,
     word_gloss,
 )
+from app.services.learner_copy import learner_text
 from app.services.llm_service import LLMProviderError, LLMService
 from app.services.news_service import NewsService
 from app.services.progress import ProgressService
@@ -1951,13 +1952,17 @@ class MissionCorrectionService:
         mode: str,
         near_realtime: bool = False,
     ) -> dict[str, Any]:
-        deterministic_errata, deterministic_answer = self._deterministic_errata(text)
+        # The authored fallback prose is an *explanation*, so it follows the
+        # learner's native language; the Courrier's fiction around it stays French.
+        language = getattr(user, "native_language", None)
+        deterministic_errata, deterministic_answer = self._deterministic_errata(text, language=language)
         if near_realtime:
             correction = self._fallback_correction(
                 mission=mission,
                 text=text,
                 corrected_answer=deterministic_answer,
                 deterministic_errata=deterministic_errata,
+                language=language,
             )
             correction["_prompt_version"] = MISSION_FAST_CORRECTION_PROMPT_VERSION
         else:
@@ -1966,6 +1971,7 @@ class MissionCorrectionService:
                 text=text,
                 corrected_answer=deterministic_answer,
                 deterministic_errata=deterministic_errata,
+                language=language,
             )
             if deterministic_errata:
                 correction = self._merge_deterministic_errata(
@@ -2151,9 +2157,9 @@ class MissionCorrectionService:
         Both are refused: what prints under "Correction" has to be a cleaned-up
         version of what the learner actually sent.
         """
-        learner_text = text.strip()
+        submitted = text.strip()
         candidate = str(correction.get("corrected_answer") or "").strip()
-        learner_words = re.findall(r"\S+", learner_text)
+        learner_words = re.findall(r"\S+", submitted)
         candidate_words = re.findall(r"\S+", candidate)
         minimum_words = max(3, round(len(learner_words) * 0.65))
         maximum_words = max(minimum_words + 6, round(len(learner_words) * 1.8) + 6)
@@ -2163,7 +2169,7 @@ class MissionCorrectionService:
         if candidate and (not learner_words or minimum_words <= len(candidate_words) <= maximum_words):
             return candidate
 
-        repaired = learner_text
+        repaired = submitted
         for erratum in correction.get("errata") or []:
             task_type = str(erratum.get("task_error_type") or "")
             if task_type == "task_compliance" or task_type.startswith("vocabulary"):
@@ -2285,6 +2291,7 @@ class MissionCorrectionService:
         text: str,
         corrected_answer: str | None = None,
         deterministic_errata: list[dict[str, Any]] | None = None,
+        language: Any = None,
     ) -> dict[str, Any]:
         stripped = text.strip()
         objectives = mission.objectives or []
@@ -2294,14 +2301,18 @@ class MissionCorrectionService:
                 "id": obj.get("id"),
                 "label": obj.get("label"),
                 "met": bool(stripped) if obj.get("kind") == "communication" else False,
-                "note": "Submitted" if stripped else "No answer yet",
+                "note": (
+                    learner_text("mission.objective_submitted", language)
+                    if stripped
+                    else learner_text("mission.objective_no_answer", language)
+                ),
             }
             for obj in objectives
         ]
         missing_targets = [
             {
                 "external_id": str(obj.get("external_id") or obj.get("id") or "target"),
-                "label": str(obj.get("label") or "Target"),
+                "label": str(obj.get("label") or learner_text("mission.target_generic_label", language)),
                 "detected_count": 0,
                 "target_count": int(obj.get("target_count") or 1),
                 "missing_count": int(obj.get("target_count") or 1),
@@ -2313,11 +2324,11 @@ class MissionCorrectionService:
         if not stripped:
             errata.append(
                 {
-                    "display_label": "Missing mission response",
+                    "display_label": learner_text("mission.empty_label", language),
                     "learner_text": "",
-                    "corrected_target": "Write a short French response before submitting.",
-                    "why_wrong": "You submitted an empty response, so there is no French to review.",
-                    "repair_hint": "Write two or three sentences that answer the mission brief.",
+                    "corrected_target": learner_text("mission.empty_target", language),
+                    "why_wrong": learner_text("mission.empty_why", language),
+                    "repair_hint": learner_text("mission.empty_hint", language),
                     "severity": 2,
                     "recurring": False,
                     "task_error_type": "task_compliance",
@@ -2327,11 +2338,11 @@ class MissionCorrectionService:
         elif len(words) < 8:
             errata.append(
                 {
-                    "display_label": "Too little context",
+                    "display_label": learner_text("mission.short_label", language),
                     "learner_text": stripped,
                     "corrected_target": stripped,
-                    "why_wrong": "Your response is understandable, but it is too short to prove the mission targets.",
-                    "repair_hint": "Add one reason, one concrete detail, and one target grammar form.",
+                    "why_wrong": learner_text("mission.short_why", language),
+                    "repair_hint": learner_text("mission.short_hint", language),
                     "severity": 2,
                     "recurring": False,
                     "task_error_type": "task_compliance",
@@ -2357,7 +2368,7 @@ class MissionCorrectionService:
             "_model": None,
         }
 
-    def _deterministic_errata(self, text: str) -> tuple[list[dict[str, Any]], str]:
+    def _deterministic_errata(self, text: str, *, language: Any = None) -> tuple[list[dict[str, Any]], str]:
         corrected = text
         errata: list[dict[str, Any]] = []
 
@@ -2371,20 +2382,20 @@ class MissionCorrectionService:
         avet_pattern = re.compile(r"\b(?:(vous)\s+)?(avet)\b", re.IGNORECASE)
         avet_match = avet_pattern.search(text)
         if avet_match:
-            learner_text = avet_match.group(0)
+            wrong_fragment = avet_match.group(0)
             corrected_target = re.sub(
                 r"\bavet\b",
                 lambda match: preserve_case(match.group(0), "avez"),
-                learner_text,
+                wrong_fragment,
                 flags=re.IGNORECASE,
             )
             errata.append(
                 {
-                    "display_label": "Conjugation: vous avez",
-                    "learner_text": learner_text,
+                    "display_label": learner_text("mission.rule_avoir_vous_label", language),
+                    "learner_text": wrong_fragment,
                     "corrected_target": corrected_target,
-                    "why_wrong": "With vous, avoir is avez, not avet.",
-                    "repair_hint": "Use vous avez before a noun or past participle.",
+                    "why_wrong": learner_text("mission.rule_avoir_vous_why", language),
+                    "repair_hint": learner_text("mission.rule_avoir_vous_hint", language),
                     "severity": 2,
                     "recurring": False,
                     "task_error_type": "verb_conjugation",
@@ -2401,16 +2412,16 @@ class MissionCorrectionService:
         probleme_pattern = re.compile(r"\b(probleme)(s?)\b", re.IGNORECASE)
         probleme_match = probleme_pattern.search(text)
         if probleme_match:
-            learner_text = probleme_match.group(0)
+            wrong_fragment = probleme_match.group(0)
             base = preserve_case(probleme_match.group(1), "problème")
             corrected_target = f"{base}{probleme_match.group(2)}"
             errata.append(
                 {
-                    "display_label": "Spelling: problème",
-                    "learner_text": learner_text,
+                    "display_label": learner_text("mission.rule_probleme_label", language),
+                    "learner_text": wrong_fragment,
                     "corrected_target": corrected_target,
-                    "why_wrong": "The French word is problème with an accent grave.",
-                    "repair_hint": "Write problème, or problèmes in the plural.",
+                    "why_wrong": learner_text("mission.rule_probleme_why", language),
+                    "repair_hint": learner_text("mission.rule_probleme_hint", language),
                     "severity": 1,
                     "recurring": False,
                     "task_error_type": "orthography",

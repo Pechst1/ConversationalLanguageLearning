@@ -16,7 +16,9 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+import { atelierChrome } from '@/lib/atelier-v2-copy';
 import { createAudioMediaRecorder, recordedAudioBlob } from '@/lib/audio-recording';
+import { useLearnerLanguage } from '@/lib/learner-language';
 import { useAppSession } from '@/lib/app-auth';
 import apiService from '@/services/api';
 
@@ -115,6 +117,9 @@ export default function AudioSessionPage() {
   const [showEndConfirm, setShowEndConfirm] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [micError, setMicError] = useState<string | null>(null);
+  // Le Studio's fiction is French; the microphone failures explain a fault and
+  // follow the learner's own language (WP-21).
+  const chrome = atelierChrome(useLearnerLanguage());
   const pendingTurnRef = useRef<Promise<void> | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -294,7 +299,7 @@ export default function AudioSessionPage() {
           // Nothing was captured (tapped twice, muted hardware): say so plainly
           // instead of sending an empty file and reporting a failed reply.
           setState((current) => ({ ...current, status: 'listening' }));
-          toast('Je n’ai rien entendu. Touchez le micro, puis parlez.');
+          toast(chrome.nothing_heard);
           return;
         }
         // Remember the turn so that classing the call waits for it instead of
@@ -312,8 +317,8 @@ export default function AudioSessionPage() {
       const denied = error instanceof DOMException
         && ['NotAllowedError', 'SecurityError', 'PermissionDeniedError'].includes(error.name);
       const message = denied
-        ? 'Le micro est refusé pour ce site. Autorisez-le dans les réglages du navigateur, puis touchez le micro.'
-        : 'Aucun micro disponible sur cet appareil.';
+        ? chrome.mic_denied
+        : chrome.mic_unavailable;
       setMicError(message);
       toast.error(message);
     }

@@ -5,6 +5,9 @@ import { useRouter } from 'next/router';
 import toast from 'react-hot-toast';
 
 import { learnerGloss } from '@/lib/glosses';
+import { atelierChrome } from '@/lib/atelier-v2-copy';
+import { useLearnerLanguage } from '@/lib/learner-language';
+import { visualCueFor, type VisualCue } from '@/lib/visual-cues';
 
 import MotsDuJour from '@/components/lexique/MotsDuJour';
 import { WordBiographySheet } from '@/components/mobile';
@@ -21,7 +24,6 @@ import {
   StateBlock,
   StopIcon,
   Surface,
-  type ShapeKind,
 } from '@/components/atelier-v2/ui';
 import { createAudioMediaRecorder, recordedAudioBlob } from '@/lib/audio-recording';
 import apiService, {
@@ -241,19 +243,16 @@ function hasSignal(signal: string, words: string[]) {
   return words.some((word) => tokens.has(word));
 }
 
-type ReviewVisualCue = {
-  label: string;
-  caption: string;
-  shape: ShapeKind;
-};
-
 // The badge is a memory hook, not a dictionary entry: it names a scene the
-// word belongs to. Both lines are French publication copy — they used to read
-// "WORD / MEMORY CUE", "TIME / when", the last English left on the card. It is
-// drawn with one of the design's four shapes rather than a pictogram set; the
-// label always prints beside it. The caption does not echo `part_of_speech`
-// either: the hint line prints that column, whitelisted, in its own slot.
-function wordVisualCue(item: VocabularyRecommendationItem): ReviewVisualCue {
+// word belongs to. It used to read "WORD / MEMORY CUE" in English and was then
+// rewritten in French — which still left the one card whose job is teaching
+// French vocabulary carrying two French words a beginner cannot read. The scene
+// name explains the word, so it follows the learner's language now; the table of
+// cues, their shapes and their matching signals lives in `lib/visual-cues.ts`
+// (WP-21). It is drawn with one of the design's four shapes rather than a
+// pictogram set, and the caption still does not echo `part_of_speech`: the hint
+// line prints that column, whitelisted, in its own slot.
+function wordVisualCue(item: VocabularyRecommendationItem, language: string): VisualCue {
   const signal = foldedSignal([
     queueFrench(item),
     queueWord(item),
@@ -262,49 +261,7 @@ function wordVisualCue(item: VocabularyRecommendationItem): ReviewVisualCue {
     ...(item.topic_tags || []),
   ].filter(Boolean).join(' '));
 
-  if (hasSignal(signal, ['abaisser', 'baisse', 'reduire', 'reduction', 'senken', 'lower', 'down'])) {
-    return { label: 'Baisse', caption: 'mouvement', shape: 'story' };
-  }
-  if (hasSignal(signal, ['famille', 'ami', 'soeur', 'frere', 'mere', 'pere', 'person', 'schwester', 'freund'])) {
-    return { label: 'Gens', caption: 'relation', shape: 'action' };
-  }
-  if (hasSignal(signal, ['cafe', 'vin', 'restaurant', 'manger', 'boire', 'pain', 'food', 'essen', 'trinken'])) {
-    return { label: 'Table', caption: 'repas', shape: 'reward' };
-  }
-  if (hasSignal(signal, ['heure', 'jour', 'semaine', 'temps', 'week', 'time', 'morgen', 'gestern'])) {
-    return { label: 'Temps', caption: 'quand', shape: 'story' };
-  }
-  if (hasSignal(signal, ['train', 'gare', 'metro', 'bus', 'voiture', 'voyage', 'reise', 'transport'])) {
-    return { label: 'Trajet', caption: 'mouvement', shape: 'done' };
-  }
-  if (hasSignal(signal, ['maison', 'appartement', 'porte', 'fenetre', 'home', 'haus', 'wohnung'])) {
-    return { label: 'Maison', caption: 'lieu', shape: 'reward' };
-  }
-  if (hasSignal(signal, ['ville', 'rue', 'hotel', 'bureau', 'place', 'street', 'stadt', 'office'])) {
-    return { label: 'Ville', caption: 'où', shape: 'story' };
-  }
-  if (hasSignal(signal, ['travail', 'argent', 'prix', 'client', 'job', 'work', 'geld'])) {
-    return { label: 'Travail', caption: 'pratique', shape: 'done' };
-  }
-  if (hasSignal(signal, ['sante', 'douleur', 'malade', 'corps', 'health', 'arzt', 'krank'])) {
-    return { label: 'Corps', caption: 'santé', shape: 'action' };
-  }
-  if (hasSignal(signal, ['ecole', 'cours', 'livre', 'apprendre', 'question', 'learn', 'schule'])) {
-    return { label: 'Étude', caption: 'savoir', shape: 'story' };
-  }
-  if (hasSignal(signal, ['dire', 'parler', 'demander', 'message', 'lettre', 'sagen', 'sprechen'])) {
-    return { label: 'Parole', caption: 'message', shape: 'done' };
-  }
-  if (hasSignal(signal, ['loi', 'etat', 'gouvernement', 'politique', 'law', 'recht'])) {
-    return { label: 'Cité', caption: 'institutions', shape: 'action' };
-  }
-  if (hasSignal(signal, ['film', 'musique', 'jeu', 'art', 'danser', 'music'])) {
-    return { label: 'Culture', caption: 'loisir', shape: 'reward' };
-  }
-  if (hasSignal(signal, ['robe', 'chemise', 'pantalon', 'chaussure', 'kleid', 'schuh'])) {
-    return { label: 'Habits', caption: 'objet', shape: 'done' };
-  }
-  return { label: 'Mot', caption: 'à retenir', shape: 'done' };
+  return visualCueFor(signal, hasSignal, language);
 }
 
 function escapeRegExp(value: string) {
@@ -487,6 +444,11 @@ export default function VocabularyReviewPage() {
   const [audioPlaying, setAudioPlaying] = useState(false);
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
+  // Le Lexique has no journey envelope, so the learner's language comes from the
+  // profile rather than a `control_language` field. Only the failure copy below
+  // uses it: the deck's chrome stays French.
+  const learnerLanguage = useLearnerLanguage();
+  const chrome = atelierChrome(learnerLanguage);
   const [reviewedIds, setReviewedIds] = useState<Set<number>>(() => new Set());
   const [lastRating, setLastRating] = useState<number | null>(null);
   const [lastReviewedItem, setLastReviewedItem] = useState<VocabularyRecommendationItem | null>(null);
@@ -707,11 +669,11 @@ export default function VocabularyReviewPage() {
       if (transcript.trim()) {
         setTypedAnswer(transcript.trim());
       } else {
-        toast('Aucune parole détectée.');
+        toast(chrome.transcription_empty);
       }
     } catch (error) {
       console.error(error);
-      toast.error('La transcription a échoué.');
+      toast.error(chrome.transcription_failed);
     } finally {
       if (activeWordIdRef.current === wordId) {
         setTranscribing(false);
@@ -723,7 +685,7 @@ export default function VocabularyReviewPage() {
     event.stopPropagation();
     if (!current || recording || transcribing) return;
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
-      toast.error('L’enregistrement vocal n’est pas disponible dans ce navigateur.');
+      toast.error(chrome.mic_unavailable);
       return;
     }
     try {
@@ -757,7 +719,7 @@ export default function VocabularyReviewPage() {
       setRecording(true);
     } catch (error) {
       console.error(error);
-      toast.error('Le micro n’a pas pu être ouvert.');
+      toast.error(chrome.mic_open_failed);
     }
   };
 
@@ -852,7 +814,7 @@ export default function VocabularyReviewPage() {
   const meaning = current ? queueMeaning(current) : '';
   const example = current ? queueExample(current) : '';
   const exampleTranslation = current ? queueExampleTranslation(current) : '';
-  const visualCue = current ? wordVisualCue(current) : null;
+  const visualCue = current ? wordVisualCue(current, learnerLanguage) : null;
   const visibleExample = mode === 'audio' ? '' : example;
   const contextText = mode === 'audio'
     ? [meaning, example].filter(Boolean).join(' · ')
@@ -1028,7 +990,7 @@ export default function VocabularyReviewPage() {
                               Écouter
                             </Action>
                             <IconAction
-                              label={transcribing ? 'Transcription…' : recording ? 'Arrêter l’enregistrement' : 'Enregistrer la réponse'}
+                              label={transcribing ? chrome.transcribing : recording ? chrome.record_stop : chrome.record_start}
                               tone={recording ? 'recording' : 'action'}
                               pressable
                               pending={transcribing}
