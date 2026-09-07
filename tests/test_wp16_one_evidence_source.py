@@ -418,3 +418,90 @@ def test_the_practice_href_falls_back_to_the_bare_entry(db_session, monkeypatch)
     )
     service = DailyJourneyService(db_session, adapters=None)
     assert service._practice_href(user) == "/atelier?mode=practice"
+
+
+def test_drill_first_word_keeps_journey_evidence_without_double_credit(db_session):
+    user = _user(db_session)
+    word = _word(db_session)
+    progress = _due_word_progress(db_session, user, word)
+    VocabularyCreditService(db_session).apply(
+        user=user, word=word, event_type="produced_correct", source_type="atelier",
+    )
+    before = _schedule(progress)
+    _journey_respond(db_session, user=user, observations=[_vocab_observation(word)])
+    db_session.refresh(progress)
+    assert _schedule(progress) == before
+    moment = db_session.query(SessionLearningMoment).filter_by(
+        user_id=user.id, source_type=JOURNEY_SOURCE_TYPE
+    ).one()
+    assert not moment.srs_credit_applied
+    assert moment.result_payload["credit"]["skipped"] == "credited_in_drill_today"
+
+
+def test_drill_first_grammar_keeps_journey_evidence_without_double_credit(db_session):
+    user = _user(db_session)
+    concept = _concept(db_session)
+    progress = GrammarService(db_session).record_review(
+        user=user, concept_id=concept.id, score=8.0, source_type="atelier",
+    )
+    before = _schedule(progress)
+    _journey_respond(db_session, user=user, observations=[_grammar_observation(concept)])
+    db_session.refresh(progress)
+    assert _schedule(progress) == before
+
+
+def test_drill_claim_is_idempotent_and_expires_tomorrow(db_session):
+    from app.services.journey_learning import record_drill_credit
+    user = _user(db_session)
+    word = _word(db_session)
+    now = datetime.now(UTC)
+    for _ in range(2):
+        record_drill_credit(db_session, user=user, target_kind="vocabulary",
+                           target_id=str(word.id), now=now)
+    claims = db_session.query(SessionLearningMoment).filter_by(source_type="atelier", user_id=user.id).all()
+    assert len(claims) == 1
+    assert not journey_credited_today(
+        db_session, user=user, target_kind="vocabulary", target_id=str(word.id),
+        source_type="atelier", on_date=now.date() + timedelta(days=1),
+    )
+
+
+def test_failed_drill_does_not_claim_success_and_later_journey_can_credit(db_session):
+    user = _user(db_session)
+    concept = _concept(db_session)
+    progress = GrammarService(db_session).record_review(
+        user=user, concept_id=concept.id, score=2.0, source_type="atelier",
+    )
+    assert not journey_credited_today(
+        db_session, user=user, target_kind="grammar", target_id=str(concept.id),
+        source_type="atelier",
+    )
+    before = _schedule(progress)
+    _journey_respond(db_session, user=user, observations=[_grammar_observation(concept)])
+    db_session.refresh(progress)
+    assert _schedule(progress) != before
+
+
+def test_journey_failure_after_drill_still_reaches_schedule(db_session):
+    from dataclasses import replace
+    user = _user(db_session)
+    concept = _concept(db_session)
+    progress = GrammarService(db_session).record_review(
+        user=user, concept_id=concept.id, score=8.0, source_type="atelier",
+    )
+    before = _schedule(progress)
+    observation = replace(_grammar_observation(concept), evidence_kind=EvidenceKind.NOT_YET)
+    _journey_respond(db_session, user=user, observations=[observation])
+    db_session.refresh(progress)
+    assert _schedule(progress) != before
+    assert progress.score == 2.0
+
+
+def test_grammar_failure_after_journey_is_not_folded(db_session):
+    user = _user(db_session)
+    concept = _concept(db_session)
+    _journey_respond(db_session, user=user, observations=[_grammar_observation(concept)])
+    progress = GrammarService(db_session).record_review(
+        user=user, concept_id=concept.id, score=2.0, source_type="atelier",
+    )
+    assert progress.score == 2.0

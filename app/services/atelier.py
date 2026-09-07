@@ -64,7 +64,7 @@ from app.services.progress import ProgressService
 from app.services.seance_curriculum import lesson_for, lesson_panel
 from app.services.vocabulary_credit import VocabularyCreditService
 
-ATELIER_GENERATOR_VERSION = "atelier-v10"
+ATELIER_GENERATOR_VERSION = "atelier-v11"
 # How many LLM generation attempts to make before giving up. Each retry is fed the
 # previous attempt's structural/critique feedback so the model can self-correct,
 # which keeps the deterministic fallback rare.
@@ -2638,7 +2638,7 @@ class AtelierExerciseGenerator:
         tokens = _tokenize_french_sentence(sentence)
         # Alternate the correct category across lessons; classification must not
         # train the learner to click the same label every time.
-        show_correct = int(lesson['teaching_order']) % 20 == 0
+        show_correct = bool(lesson['classify_show_correct'])
         payload['recognize'] = {
             'fill': {'items': [{
                 'id': f'{prefix}-focus', 'prompt': lesson['blank'],
@@ -6224,6 +6224,7 @@ class AtelierSRSService:
                 concept_id=concept_id,
                 score=quality,
                 notes=f"Atelier session {session.id}",
+                source_type="atelier",
                 interval_multiplier=interval_multiplier,
             )
             progress_rows.append(

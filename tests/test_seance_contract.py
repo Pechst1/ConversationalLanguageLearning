@@ -146,3 +146,17 @@ def test_future_drill_feedback_does_not_teach_passe_compose():
     reason = correction['errata'][0]['why_wrong']
     assert 'future' in reason.lower()
     assert 'passé composé' not in reason.lower()
+
+
+def test_curated_classification_balances_labels_and_keeps_authored_answers():
+    from collections import Counter
+    generator = AtelierExerciseGenerator(None)
+    labels = Counter()
+    for key, lesson in curriculum().items():
+        payload = generator._curated_payload(concept_for(key), lesson)
+        item = payload['recognize']['classify']['items'][0]
+        labels[item['correct_label']] += 1
+        expected = lesson['sentence'] if item['correct_label'] == 'Correct' else lesson['source']
+        assert item['prompt'] == expected
+        assert generator._curated_payload(concept_for(key), lesson) == payload
+    assert abs(labels['Correct'] - labels['À corriger']) <= 1

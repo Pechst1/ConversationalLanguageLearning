@@ -38,6 +38,12 @@ def curriculum() -> dict[str, dict[str, Any]]:
             " For a place: Tu vas au marché ? J'y vais."
             " For a de-complement: Tu parles de ce projet ? J'en parle."
         )
+    # Alternate authored correct/incorrect examples by catalog position.
+    # Teaching-order values are not a probability or a sampling interval.
+    for index, key in enumerate(sorted(
+        lessons, key=lambda key: (int(lessons[key]['teaching_order']), key)
+    )):
+        lessons[key]['classify_show_correct'] = index % 2 == 0
     return lessons
 
 

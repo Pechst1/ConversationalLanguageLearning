@@ -282,8 +282,13 @@ class GrammarService:
         score: float,
         notes: str | None = None,
         interval_multiplier: float = 1.0,
+        source_type: str | None = None,
     ) -> UserGrammarProgress:
         """Record a grammar review with a 0-10 score."""
+        if source_type == "atelier":
+            from app.services.journey_learning import lock_learning_credit
+
+            lock_learning_credit(self.db, user)
         score = max(0.0, min(10.0, score))  # Clamp to 0-10
         interval_multiplier = max(0.25, min(2.0, float(interval_multiplier)))
         progress = self.get_or_create_progress(user_id=user.id, concept_id=concept_id)
@@ -296,7 +301,7 @@ class GrammarService:
         # Imported lazily: journey_learning imports this module.
         from app.services.journey_learning import journey_credited_today
 
-        if journey_credited_today(
+        if score >= 5.0 and journey_credited_today(
             self.db, user=user, target_kind="grammar", target_id=str(concept_id)
         ):
             logger.info(
@@ -322,6 +327,13 @@ class GrammarService:
                 progress.notes = notes
         progress.updated_at = now
 
+        if source_type == "atelier" and score >= 5.0:
+            from app.services.journey_learning import record_drill_credit
+
+            record_drill_credit(
+                self.db, user=user, target_kind="grammar",
+                target_id=str(concept_id), now=now,
+            )
         self.db.commit()
         self.db.refresh(progress)
 

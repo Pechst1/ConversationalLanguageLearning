@@ -41,7 +41,7 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from typing import Any, Literal
-from uuid import UUID
+from uuid import NAMESPACE_URL, UUID, uuid5
 from zoneinfo import ZoneInfo
 
 from loguru import logger
@@ -1066,9 +1066,7 @@ def _resolve_evidence_kind(
 # journey already credited today must not be credited a second time when the
 # learner chooses to drill it afterwards, and the streak must move once.
 #
-# Both helpers live here, in the WP-05 adapter, rather than in the legacy
-# Atelier service: `app/services/atelier.py` is under a concurrent lease and
-# the policy belongs to the evidence owner in any case.
+# Cross-surface credit claims live with the canonical evidence owner.
 
 
 def journey_credited_today(
@@ -1078,12 +1076,11 @@ def journey_credited_today(
     target_kind: str,
     target_id: str,
     on_date: date | None = None,
+    source_type: str = JOURNEY_SOURCE_TYPE,
 ) -> bool:
-    """Did today's daily journey already apply SRS credit for this target?
+    """Check canonical credited moments for a target/day and source surface.
 
-    Read from the journey's own evidence moments — the row `apply_learning_evidence`
-    writes with `srs_credit_applied` and the target in its payload. No new table
-    and no second ledger: the evidence record *is* the ledger.
+    Defaults to the journey; "atelier" selects the reverse-direction drill claim.
     """
 
     day = on_date or datetime.now(UTC).date()
@@ -1091,11 +1088,10 @@ def journey_credited_today(
         select(SessionLearningMoment)
         .where(
             SessionLearningMoment.user_id == user.id,
-            SessionLearningMoment.source_type == JOURNEY_SOURCE_TYPE,
+            SessionLearningMoment.source_type == source_type,
             SessionLearningMoment.srs_credit_applied.is_(True),
         )
         .order_by(SessionLearningMoment.created_at.desc())
-        .limit(200)
     )
     wanted_kind = str(target_kind)
     wanted_id = str(target_id)
@@ -1107,6 +1103,49 @@ def journey_credited_today(
         if str(target.get("kind") or "") == wanted_kind and str(target.get("id") or "") == wanted_id:
             return True
     return False
+
+
+def lock_learning_credit(db: Session, user: User) -> None:
+    """Serialize cross-surface schedule checks and writes until caller commit."""
+    db.execute(select(User.id).where(User.id == user.id).with_for_update()).scalar_one()
+
+
+def record_drill_credit(
+    db: Session, *, user: User, target_kind: str, target_id: str,
+    now: datetime | None = None,
+) -> None:
+    """Record successful legacy credit in the canonical evidence ledger.
+
+    One completed practice session per UTC day holds these claims. Failed and
+    unassessed answers never call this helper. It flushes; the caller commits.
+    """
+    now = now or datetime.now(UTC)
+    day = now.date()
+    lock_learning_credit(db, user)
+    if journey_credited_today(
+        db, user=user, target_kind=target_kind, target_id=target_id,
+        on_date=day, source_type="atelier",
+    ):
+        return
+
+    session_id = uuid5(NAMESPACE_URL, f"atelier-credit:{user.id}:{day.isoformat()}")
+    session = db.get(LearningSession, session_id)
+    if session is None:
+        session = LearningSession(
+            id=session_id, user_id=user.id, planned_duration_minutes=0,
+            scenario="atelier_credit", status="completed", completed_at=now,
+        )
+        db.add(session)
+        db.flush([session])
+    db.add(SessionLearningMoment(
+        session_id=session.id, user_id=user.id, kind="drill_credit",
+        source_type="atelier", source_id=f"{target_kind}:{target_id}",
+        status="completed", completed_at=now, srs_credit_applied=True,
+        prompt_payload={"observed_on": day.isoformat(), "timezone": "UTC",
+                        "target": {"kind": target_kind, "id": str(target_id)}},
+        result_payload={"credit": "applied"},
+    ))
+    db.flush()
 
 
 def record_daily_practice_streak(db: Session, user: User, *, on_date: date | None = None) -> int:
@@ -1511,6 +1550,8 @@ def apply_learning_evidence(
         )
 
     scenario_key = session.scenario
+    lock_learning_credit(db, user)
+
     for observation in evaluation.observations:
         evidence_kind, assistance = _resolve_evidence_kind(
             db,
@@ -1563,14 +1604,23 @@ def apply_learning_evidence(
         db.add(moment)
         db.flush([moment])
 
-        credit = _credit_for(
-            db,
-            user=user,
-            observation=observation,
-            evidence_kind=evidence_kind,
-            session=session,
-            source_key=source_key,
-            now=now,
+        # Preserve the journey evidence, but do not advance a schedule that
+        # today's drill already advanced. A real failure still reaches SRS.
+        folded = (
+            evidence_kind != EvidenceKind.NOT_YET
+            and observation.target.kind in {TargetKind.GRAMMAR, TargetKind.VOCABULARY}
+            and journey_credited_today(
+                db, user=user, target_kind=str(observation.target.kind),
+                target_id=str(observation.target.id), on_date=now.date(),
+                source_type="atelier",
+            )
+        )
+        credit = (
+            _CreditOutcome(False, {"skipped": "credited_in_drill_today"})
+            if folded else _credit_for(
+                db, user=user, observation=observation, evidence_kind=evidence_kind,
+                session=session, source_key=source_key, now=now,
+            )
         )
         moment.srs_credit_applied = credit.applied
         punishment_recorded = punishment_recorded or bool(credit.detail.get("erratum_id"))

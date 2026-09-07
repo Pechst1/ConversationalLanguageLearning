@@ -93,6 +93,10 @@ class VocabularyCreditService:
     ) -> VocabularyCreditResult:
         """Apply SRS credit and optionally create a linked vocabulary erratum."""
 
+        if source_type == "atelier":
+            from app.services.journey_learning import lock_learning_credit
+
+            lock_learning_credit(self.db, user)
         normalized_event = str(event_type or "seen_context").strip().lower()
         credit_kind = self._credit_kind(normalized_event)
         progress_event = self._progress_event_for(credit_kind)
@@ -120,6 +124,15 @@ class VocabularyCreditService:
                 word=word,
                 event_type=progress_event,
                 now=now or datetime.now(UTC),
+            )
+        if source_type == "atelier" and not folded and credit_kind in {
+            "recognized", "produced_correct", "produced_supported",
+        }:
+            from app.services.journey_learning import record_drill_credit
+
+            record_drill_credit(
+                self.db, user=user, target_kind="vocabulary",
+                target_id=str(word.id), now=now,
             )
         erratum_update: dict[str, Any] | None = None
         if credit_kind in {"produced_incorrect", "missed_target"}:
