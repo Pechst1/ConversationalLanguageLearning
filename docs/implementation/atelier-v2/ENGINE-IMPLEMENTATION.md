@@ -360,3 +360,11 @@ four runs at the same ceilings, ≈ US$0.40 — is what shows whether A1 now rec
 commitments and turns its chapter over, whether the retry hints break the A2 repetition
 loop, and whether turn-only review keeps every catch. Judge it on the per-stage latency
 numbers above, not on `median_request_seconds`.
+
+
+### Decision — 2026-09-07 late: critic default is turns only
+
+Fifth paid run, A2 `--critic turns` on the follow-up fixes: **13/13** non-skipped days accepted, 13 distinct
+premises, 4 chapters, 6 locations, 5 characters, 0 request errors, US$0.13
+(`var/reviews/atelier-longitudinal-A2-turns.json`). `CRITIC_STAGES` now defaults to
+`{"SemanticTurn"}`; `--critic all` restores scene reviews for a future A/B. Engine spend today US$0.58.

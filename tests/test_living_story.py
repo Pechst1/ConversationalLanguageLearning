@@ -300,9 +300,11 @@ def test_fourteen_days_causal_context_and_new_chapters(
 
 
 def test_generation_failure_never_serves_authored_scene(
-    assembled_client, db_session, journey_enabled, clock, provider
+    assembled_client, db_session, journey_enabled, clock, provider, monkeypatch
 ):
     provider.reject = True
+    # Exercises the scene-stage critic explicitly; the default is turns only.
+    monkeypatch.setattr(engine, "CRITIC_STAGES", frozenset({"SceneDraft", "SemanticTurn"}))
     d = driver(assembled_client, db_session)
     d.create(expect=(200,))
     assert d.journey["status"] == "unavailable"
@@ -883,9 +885,11 @@ def test_narration_and_dialogue_must_address_the_learner_the_same_way():
 
 
 def test_every_accepted_scene_and_turn_writes_one_cost_row(
-    assembled_client, db_session, journey_enabled, clock, provider
+    assembled_client, db_session, journey_enabled, clock, provider, monkeypatch
 ):
     """5. The pilot ledger and the weekly guardrail both see engine spend, once."""
+    # Exercises the scene-stage critic explicitly; the default is turns only.
+    monkeypatch.setattr(engine, "CRITIC_STAGES", frozenset({"SceneDraft", "SemanticTurn"}))
 
     from app.db.models.pilot_event import PilotEvent
     from app.services.serial_costs import SerialGenerationCostService
@@ -964,9 +968,11 @@ def test_a_rolled_back_scene_leaves_no_phantom_cost_row(
 
 
 def test_spend_on_a_scene_nobody_can_use_is_still_recorded(
-    assembled_client, db_session, journey_enabled, clock, provider
+    assembled_client, db_session, journey_enabled, clock, provider, monkeypatch
 ):
     """5. A rejected generation is real spend; the ledger keeps it."""
+    # Exercises the scene-stage critic explicitly; the default is turns only.
+    monkeypatch.setattr(engine, "CRITIC_STAGES", frozenset({"SceneDraft", "SemanticTurn"}))
 
     from app.db.models.pilot_event import PilotEvent
 

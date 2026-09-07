@@ -67,12 +67,12 @@ PREMISE_WINDOW = 5
 # module flags for that process only. Never persisted, never a runtime toggle for
 # learners.
 CRITIC_ENABLED = True
-# Which proposals get an independent review. The WP-17 paid runs reviewed 19 scenes and
-# the critic rejected exactly one, for a defect a deterministic guard already owns, while
-# consuming one of the two attempts the guards need to get a different scene; the same
-# runs' turn reviews caught three defects no guard sees. The recommended configuration is
-# therefore {"SemanticTurn"} — left as both stages until the owner decides.
-CRITIC_STAGES = frozenset({"SceneDraft", "SemanticTurn"})
+# Which proposals get an independent review. Turns only, decided 2026-09-07 on five
+# paid 14-day runs: scene reviews rejected 1 of 19 drafts (a defect a deterministic
+# guard already owns) while consuming one of the two attempts the guards need to get
+# a different scene; turn reviews rejected 5 of 7, three of which no guard sees. A2
+# with turns-only accepted 13/13 days. Override per run with --critic all.
+CRITIC_STAGES = frozenset({"SemanticTurn"})
 # Per-call network window and whole-operation budget, both under the 90 s journey claim.
 REQUEST_TIMEOUT_SECONDS = 25
 OPERATION_BUDGET_SECONDS = 75
