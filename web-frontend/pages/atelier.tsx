@@ -7,6 +7,7 @@ import { ArrowRight, BookOpen, Check, HelpCircle, Loader2, MapPinned, Mic, Rotat
 import toast from 'react-hot-toast';
 
 import { createAudioMediaRecorder, recordedAudioBlob } from '@/lib/audio-recording';
+import { seanceAssessment } from '@/lib/seance-feedback';
 import apiService, {
   AtelierCollectible,
   AtelierAttemptRead,
@@ -805,7 +806,7 @@ export default function AtelierPage() {
   const exerciseMode = exerciseRound === 'recognize'
     ? (activeRetest?.mode as RecognizeMode || mode)
     : mode;
-  const baseActiveConcept = session?.concepts[activeConceptIndex] || today?.concepts[activeConceptIndex] || null;
+  const baseActiveConcept = session?.concepts[exerciseRound === 'produce' ? 0 : activeConceptIndex] || today?.concepts[activeConceptIndex] || null;
   const activeConcept = activeRetest && session
     ? session.concepts.find((concept) => concept.id === activeRetest.conceptId) || baseActiveConcept
     : baseActiveConcept;
@@ -2979,6 +2980,17 @@ function ExerciseFeedbackMoment({
   aiReviewSubmitting?: boolean;
 }) {
   if (!submitted || !feedback) return null;
+  if (feedback.unscored) {
+    return (
+      <div className="ep-feedback" data-verdict="unscored" role="status">
+        <p className="av2-body">Votre réponse est enregistrée, mais elle n’a pas encore pu être vérifiée. Aucun résultat ni progrès de maîtrise n’est attribué.</p>
+        <EpRelecture status="failed" onRetry={onRetryAiReview} retrying={aiReviewSubmitting} />
+        <EpFoot tone="neutral">
+          <EpBar tone="ghost" onClick={onNext}>Passer sans évaluation</EpBar>
+        </EpFoot>
+      </div>
+    );
+  }
   const issues = feedback.issues?.length
     ? feedback.issues
     : feedback.target
@@ -2987,11 +2999,12 @@ function ExerciseFeedbackMoment({
   const repairs = correction?.micro_repairs || {};
   // The typed retype only gates Next for corrections that are real lines;
   // one-word fixes are settled by the galley marks alone.
-  const repairsComplete = isLabelCompare || issues.every((issue, index) => {
+  const needsNewAnswer = issues.some((issue) => issue.task_error_type === 'task_compliance' || !issue.corrected_target);
+  const repairsComplete = !needsNewAnswer && (isLabelCompare || issues.every((issue, index) => {
     const target = String(issue.corrected_target || '').trim();
     if (!isRepairableLine(target)) return true;
     return repairs[String(index)]?.status === 'ok';
-  });
+  }));
   const aiStatus = aiReviewStatus(correction);
   const relecture = aiStatus === 'pending' || aiStatus === 'reviewing' || aiStatus === 'queued'
     ? <EpRelecture status="pending" />
@@ -3030,6 +3043,13 @@ function ExerciseFeedbackMoment({
         const target = String(issue.corrected_target || feedback.target || '').trim();
         const repairKey = `${feedbackKey}:${index}`;
         const repair = repairs[String(index)] || null;
+        if (issue.task_error_type === 'task_compliance' || !target) {
+          return <div className="av2-surface" key={`task-${index}`} role="status">
+            <p className="av2-label">La consigne</p>
+            <p className="av2-body">{issue.why_wrong || feedback.why}</p>
+            {issue.repair_hint && <p className="av2-body">{issue.repair_hint}</p>}
+          </div>;
+        }
         return (
           <React.Fragment key={`${issue.display_label || 'repair'}-${index}`}>
             <EpGalley
@@ -3075,7 +3095,7 @@ function ExerciseFeedbackMoment({
           13px line, then the primary — Continuer once the line is recopied,
           otherwise the retry. The quiet links stay third-tier underneath. */}
       <EpFoot tone="wrong">
-        <EpVerdict tone="no" sub={rule}>Presque.</EpVerdict>
+        <EpVerdict tone="no" sub={rule}>À reprendre</EpVerdict>
         {repairsComplete
           ? <EpBar icon="check" onClick={onNext}>{nextLabel}</EpBar>
           : onTryAgain && <EpBar tone="ghost" icon="retry" onClick={onTryAgain}>Réessayer la ligne</EpBar>}
@@ -3083,6 +3103,7 @@ function ExerciseFeedbackMoment({
           {repairsComplete && onTryAgain && (
             <button type="button" onClick={onTryAgain}>Réessayer</button>
           )}
+          {needsNewAnswer && <button type="button" onClick={onNext}>Passer cet exercice</button>}
           {onReport && (
             <button type="button" onClick={onReport}>Signaler cet exercice</button>
           )}
@@ -3299,7 +3320,11 @@ function itemFeedback(item: any, learner: any, correction: Record<string, any> |
   // "J' ai" for "J'" + "ai"), which normalizeClient doesn't collapse the way the
   // backend's French-elision-aware normalizer does — a correct answer with an
   // elidable apostrophe (j', c', l', ...) would otherwise show as wrong.
-  const correct = matchingErrata.length === 0;
+  const assessment = seanceAssessment(correction);
+  const correct = matchingErrata.length === 0 && (assessment === 'correct' || (
+    assessment === 'needs_work' && correction.errata?.some((error: AtelierErratum) => error.item_id && error.item_id !== item.id) && typeof corrected === 'object' && !!targetText &&
+    normalizeClient(learnerText).replace(/['’]\s+/g, "'") === normalizeClient(targetText).replace(/['’]\s+/g, "'")
+  ));
   return {
     correct,
     learner: learnerText,
@@ -3307,11 +3332,13 @@ function itemFeedback(item: any, learner: any, correction: Record<string, any> |
     why: printableWhy(matchingErrata[0]?.why_wrong) || undefined,
     repair: matchingErrata[0]?.repair_hint ?? undefined,
     issues: matchingErrata,
+    unscored: assessment === 'pending' || assessment === 'unavailable',
   };
 }
 
 type InlineFeedbackModel = {
   correct: boolean;
+  unscored?: boolean;
   learner?: string;
   target?: string;
   why?: string;
@@ -3332,10 +3359,8 @@ function correctionTargetText(value: unknown): string {
 function feedbackFromFreeformCorrection(correction: Record<string, any> | null, fallbackTarget = '', learner = ''): InlineFeedbackModel {
   if (!correction) return null;
   const allErrata: AtelierErratum[] = Array.isArray(correction?.errata) ? correction.errata : [];
-  // "Missing target" task-compliance notes carry a grammar rule pattern or an
-  // awkward "needs N visible use of…" template in their corrected_target and do
-  // not explain a concrete fix — drop them from the shown correction.
-  const errata = allErrata.filter((item) => String(item?.task_error_type || '') !== 'task_compliance');
+  // Task compliance is part of the assessment and must remain visible.
+  const errata = allErrata;
   // Show the learner's whole line rewritten cleanly. The full rewrite lives in
   // corrected_answer (reliable); a per-erratum corrected_target is sometimes a
   // rule pattern or a hedge like "c'était/ce serait? depending on…", so only use
@@ -3344,17 +3369,24 @@ function feedbackFromFreeformCorrection(correction: Record<string, any> | null, 
   const rewriteDiffers = !!cleanRewrite && normalizeClient(cleanRewrite) !== normalizeClient(learner);
   const shownTarget = rewriteDiffers ? cleanRewrite : (errata[0]?.corrected_target || cleanRewrite || fallbackTarget);
   const whyLines = errata.map((item) => String(item?.why_wrong || '').trim()).filter(Boolean);
-  const correct = errata.length === 0;
+  const assessment = seanceAssessment(correction);
+  const correct = assessment === 'correct';
+  const taskOnly = !rewriteDiffers && (errata.length === 0 || errata.every((item) => item.task_error_type === 'task_compliance'));
   // One clean before/after for the whole line, with each error explained in the
   // note — instead of one messy before/after per erratum.
   const issues: AtelierErratum[] = correct ? [] : [{
     display_label: errata.length > 1 ? `${errata.length} corrections` : (errata[0]?.display_label || 'Ligne corrigée'),
     learner_text: learner,
-    corrected_target: shownTarget,
-    why_wrong: whyLines.join(' '),
+    corrected_target: taskOnly ? '' : (rewriteDiffers ? shownTarget : (errata[0]?.corrected_target || '')),
+    why_wrong: whyLines.join(' ') || 'La réponse ne remplit pas encore la consigne. Relisez la situation et réessayez avec la règle indiquée.',
+    task_error_type: taskOnly ? 'task_compliance' : undefined,
   } as AtelierErratum];
+  if (!correct && !taskOnly) {
+    issues.push(...errata.filter((item) => item.task_error_type === 'task_compliance').map((item) => ({ ...item, corrected_target: '' })));
+  }
   return {
     correct,
+    unscored: assessment === 'unavailable' || assessment === 'pending',
     learner,
     target: shownTarget,
     why: whyLines.join(' ') || undefined,
@@ -3572,10 +3604,10 @@ function OutputLadderPanel({
       {round === 'conversation' && character.name && (
         <div className="ep-character-byline" aria-label={`Conversation avec ${character.name}`}>
           <span>{character.name}</span>
-          <em>{character.role || 'Le Feuilleton'} · {String(character.register || 'vous').toUpperCase()}</em>
+          <em>{String(character.register || 'vous').toUpperCase()}</em>
         </div>
       )}
-      <EpPrompt cue={meta.instruction}>
+      <EpPrompt cue={item.instruction || meta.instruction}>
         {promptText}
       </EpPrompt>
       {round === 'speak' && (
@@ -3602,7 +3634,7 @@ function OutputLadderPanel({
         {wordRangeLabel(wordCount(answer), item.min_words, item.max_words)}
       </div>
       {submitted && (() => {
-        const modelText = String(correction?.corrected_answer || item.example_answer || answer || '').trim();
+        const modelText = String(seanceAssessment(correction) === 'correct' ? correction?.corrected_answer || item.example_answer || '' : '').trim();
         return modelText ? <EpreuveModelAudio text={modelText} /> : null;
       })()}
       {round === 'conversation' && submitted && worldReply.text && (
@@ -3634,8 +3666,11 @@ function ProducePanel({
   correction: Record<string, any> | null;
   submitted: boolean;
 }) {
-  const requirements = concepts.map((concept) => conceptRequirement(concept, exerciseSets));
   const produce = payload.produce || {};
+  const requirements = (produce.requirements || []).map((req: any) => ({
+    label: concepts.find((concept) => concept.id === req.concept_id)?.title_fr || req.label,
+    count: req.target_count || 1,
+  }));
   const sourceFragment = String(produce.source_fragment || '').trim();
   const promptText = String(produce.prompt || '').trim();
   return (
@@ -3644,7 +3679,7 @@ function ProducePanel({
         {promptText || 'La consigne de composition est indisponible.'}
       </EpPrompt>
       <div className="target-chips">
-        {requirements.map((req) => <span key={req.label}>{req.count} × {req.label}</span>)}
+        {requirements.map((req: { label: string; count: number }) => <span key={req.label}>{req.count} × {req.label}</span>)}
       </div>
       {Boolean(targetVocabulary?.length) && (
         <div className="target-word-strip" aria-label="Lexique visé pour ce paragraphe">

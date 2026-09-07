@@ -45,7 +45,10 @@ def test_word_bank_feedback_trusts_server_errata_not_client_string_compare() -> 
     # and normalizeClient doesn't collapse that the way the backend's
     # French-elision-aware normalizer does, so a correct answer with an elidable
     # apostrophe (j', c', l', ...) would otherwise be flagged wrong.
-    assert "const correct = matchingErrata.length === 0;" in source
+    assert "const assessment = seanceAssessment(correction);" in source
+    assert "const correct = matchingErrata.length === 0 &&" in source
+    assert "assessment === 'correct'" in source
+    assert "error.item_id !== item.id" in source
 
 
 def test_atelier_page_does_not_render_old_hardcoded_exercise_fallbacks() -> None:

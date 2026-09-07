@@ -1447,6 +1447,10 @@
   gap: 12px;
 }
 
+.av2 .av2-recap__header {
+  padding: 16px 18px;
+}
+
 .av2 .av2-recap__list {
   list-style: none;
   margin: 8px 0 0;
