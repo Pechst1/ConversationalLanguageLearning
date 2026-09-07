@@ -1,68 +1,114 @@
-/* Atelier — L'ÉPREUVE · the grammar session as setting tomorrow's type.
-   1:1 port of the design package (epreuve-parts.jsx / epreuve.css, the
-   "Atelier L'Epreuve" canvas) into the app's --app-* token system. Every
-   component maps onto a real session payload field; the migration note and
-   component contract live in docs/overhaul-session.md §5. Interactive parts
-   take behaviour handlers so pages/atelier.tsx (SessionView) can wire the
-   real session logic — presentation only lives here. Theme-aware (the derived
-   --ep-* values are color-mix over --app-ink; --ep-bon lifts in dark). */
+/* Atelier — L'ÉPREUVE · the legacy exercise session, on the Atelier V2 design.
+   Presentation only. Every exported component keeps the name and props that
+   pages/atelier.tsx (SessionView / RecapModal) and pages/mobile-visual-qa.tsx
+   wire behaviour into; the markup underneath is the Séance artboard of
+   docs/design-reference/claude/Atelier App.dc.html, built from the primitives
+   in components/atelier-v2/ui and the tokens/classes of styles/atelier-v2.css.
+
+   Design mapping (Séance artboard):
+     verbatim — round close control, blue progress rule on the line track, the
+       red "● n" run on the right (printed only from a real value), the blue
+       12px/700 step label, the "■ La règle" pill and the rounded rule card,
+       the Garamond-italic 30px prompt with an inline underlined blank, the 56px
+       option cards (2px edge, radius 16, 0 3px 0 press, 22px dot;
+       selected/correct/wrong colouring), the tinted footer band with its round
+       icon badge + Garamond verdict + 13px line, the one 3D-press primary
+       (grey face until an option is chosen).
+     extended from the primitives — word bank (tiles), classify boxes (tile
+       groups), production well, confidence chips, correction cards, relecture
+       notices, typed repair, listen/record controls, the early-mastery lock
+       (reward surface), the recap, resume/skeleton/notice states, and the
+       partial-close confirm on the quiet "Terminer" control.
+
+   Every rule below is written `.av2 .ep-…` (0,2,0): pages/atelier.tsx has a
+   `.atelier-page button { border: 0; background: transparent }` reset at
+   (0,1,1) that a single class cannot outrank. The recap block doubles its
+   selectors with `.ep-recap …` and bridges the tokens on `.ep-recap:not(.av2)`
+   because RecapModal (outside this file) mounts its section without an
+   AtelierV2Root; see the note above that block. */
 
 import React from 'react';
 
+import {
+  AtelierMark,
+  AtelierV2Root,
+  CheckIcon,
+  Chip,
+  CrossIcon,
+  IconAction,
+  MicIcon,
+  Notice,
+  PendingIcon,
+  ProgressRule,
+  RepairIcon,
+  ShapeToken,
+  SpinnerToken,
+  StopIcon,
+  Surface,
+} from '@/components/atelier-v2/ui';
 import { pulseAppHaptic } from '@/lib/haptics';
 
 type Node = React.ReactNode;
 
-/* ---------- press chrome icons ---------- */
+/* ---------- icons (2.4–3px strokes, currentColor, like the system's own) ---------- */
+const ico = (stroke: number, children: React.ReactNode, fill = 'none') => (
+  <svg viewBox="0 0 24 24" width="16" height="16" fill={fill} stroke="currentColor" strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">{children}</svg>
+);
 export const EpIco: Record<string, React.ReactElement> = {
-  close: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="square"><path d="M5 5l14 14M19 5L5 19" /></svg>,
-  ask: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 9a3 3 0 1 1 4 2.8c-1 .5-1.5 1-1.5 2.2" /><circle cx="11.5" cy="18" r="1.1" fill="currentColor" stroke="none" /></svg>,
-  arrow: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="square"><path d="M4 12h15M13 6l6 6-6 6" /></svg>,
-  check: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="square"><path d="M4 12.5l5 5 11-12" /></svg>,
-  play: <svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M7 4l13 8-13 8z" /></svg>,
-  mic: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></svg>,
-  home: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 11l8-6 8 6v8H4z" /></svg>,
-  book: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 5h7v14H4zM13 5h7v14h-7z" /></svg>,
-  pencil: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20l1-4L16 5l3 3L8 19z" /><path d="M14 7l3 3" /></svg>,
-  retry: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M4 11a8 8 0 0 1 14-5l2 2M20 5v4h-4" /></svg>,
+  close: ico(2.6, <path d="M6 6l12 12M18 6L6 18" />),
+  ask: ico(2.4, <><path d="M9 9a3 3 0 1 1 4 2.8c-1 .5-1.5 1-1.5 2.2" /><circle cx="11.5" cy="18" r="1.1" fill="currentColor" stroke="none" /></>),
+  arrow: ico(2.8, <path d="M4 12h15M13 6l6 6-6 6" />),
+  check: ico(3, <path d="M4.5 12.5l5 5 10-11" />),
+  play: ico(2.6, <path d="M8 5l11 7-11 7z" />, 'currentColor'),
+  mic: ico(2.4, <><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></>),
+  home: ico(2.4, <path d="M4 11l8-6 8 6v8H4z" />),
+  book: ico(2.4, <path d="M4 5h7v14H4zM13 5h7v14h-7z" />),
+  pencil: ico(2.4, <><path d="M4 20l1-4L16 5l3 3L8 19z" /><path d="M14 7l3 3" /></>),
+  retry: ico(2.6, <path d="M4 11a8 8 0 0 1 14-5l2 2M20 5v4h-4" />),
 };
 
 /* ---------- shell ---------- */
-export function EpShell({ children, style, className = '' }: { children: Node; style?: React.CSSProperties; className?: string }) {
-  return <div className={`ep ${className}`.trim()} style={style}>{children}</div>;
+/* The session root. `AtelierV2Root` carries the `.av2` scope (tokens, fonts,
+   dark mode, the rounded form wells); `av2-screen` gives the design's
+   header / body / footer column. */
+export function EpShell({ children, style, className = '', as = 'main' }: { children: Node; style?: React.CSSProperties; className?: string; as?: 'div' | 'main' | 'section' | 'article' }) {
+  return (
+    <AtelierV2Root as={as} className={`ep-shell av2-screen ${className}`.trim()} style={style}>
+      {children}
+    </AtelierV2Root>
+  );
 }
 
-/* ---------- composing stick (progress) ---------- */
+/* ---------- progress (the design's blue rule on the line track) ---------- */
 export type EpStickGroup = { total: number; set: number; current?: boolean };
 export type EpStickLabel = { name: string; state?: string };
 export function EpStick({ groups, cap, full, labels }: { groups: EpStickGroup[]; cap?: [string, string | number]; full?: boolean; labels?: EpStickLabel[] }) {
+  const total = groups.reduce((sum, g) => sum + Math.max(0, g.total), 0);
+  const set = groups.reduce((sum, g) => sum + Math.max(0, Math.min(g.set, g.total)), 0);
+  const caption = cap ? [cap[0], cap[1]].filter((part) => part !== '' && part != null).join(' ') : undefined;
   return (
-    <div className={'ep-stick' + (full ? ' full' : '')}>
-      <div className="chan">
-        {groups.map((g, gi) => (
-          <div className="grp" key={gi}>
-            {Array.from({ length: g.total }).map((_, i) => {
-              const set = i < g.set;
-              const cur = g.current && i === g.set;
-              return <span key={i} className={'slug' + (set ? ' set' : '') + (cur ? ' cur' : '')} />;
-            })}
-          </div>
-        ))}
-      </div>
-      {cap && <div className="cap"><span>{cap[0]}</span>{cap[1] ? <span><b>{cap[1]}</b></span> : null}</div>}
-      {full && labels && (
-        <div className="concepts">
-          {labels.map((l, i) => <div key={i} className={'c' + (l.state ? ' ' + l.state : '')}>{l.name}</div>)}
+    <div className={'ep-stick' + (full ? ' ep-stick--full' : '')}>
+      <ProgressRule value={set} max={total} label="Progression de la séance" caption={caption || undefined} />
+      {full && labels && labels.length > 0 && (
+        <div className="ep-stick__concepts">
+          {labels.map((l, i) => (
+            <span key={i} className="av2-byline ep-stick__concept" data-state={l.state || undefined}>
+              <ShapeToken kind={l.state === 'done' ? 'done' : 'story'} size="sm" />
+              <span className="av2-label">{l.name}</span>
+            </span>
+          ))}
         </div>
       )}
     </div>
   );
 }
 
-/* ---------- topbar ---------- */
+/* ---------- header ---------- */
 /* `partial` means the learner is stopping before the end of the edition. Their
-   work is already banked either way, so the button asks once rather than
-   refusing: an edition you cannot put down is an edition you stop opening. */
+   work is already banked either way, so the control asks once rather than
+   refusing: an edition you cannot put down is an edition you stop opening.
+   `run` is the session's own count of consecutive correct answers; the red
+   "● n" prints only when it is a real, positive number. */
 export function EpTopbar({
   groups,
   cap,
@@ -70,6 +116,7 @@ export function EpTopbar({
   onFinish,
   finishDisabled,
   partial = false,
+  run,
 }: {
   groups: EpStickGroup[];
   cap?: [string, string | number];
@@ -77,6 +124,7 @@ export function EpTopbar({
   onFinish?: () => void;
   finishDisabled?: boolean;
   partial?: boolean;
+  run?: number;
 }) {
   const [confirming, setConfirming] = React.useState(false);
   React.useEffect(() => {
@@ -94,45 +142,76 @@ export function EpTopbar({
     onFinish?.();
   };
 
+  const runCount = Math.max(0, Math.floor(Number(run) || 0));
+
   return (
-    <div className="ep-top">
-      <button className="ic" title="Fermer" onClick={onClose}>{EpIco.close}</button>
+    <header className="av2-session__head ep-top">
+      <IconAction label="Fermer la séance" onClick={onClose}>
+        <CrossIcon size={16} />
+      </IconAction>
       <EpStick groups={groups} cap={cap} />
+      {runCount > 0 && (
+        <span className="ep-run" role="img" aria-label={`${runCount} ${runCount === 1 ? 'bonne réponse' : 'bonnes réponses'} de suite`}>
+          <span className="av2-shape av2-shape--dot ep-run__dot" aria-hidden="true" />
+          {runCount}
+        </span>
+      )}
       <button
-        className={'finish' + (confirming ? ' confirming' : '')}
+        type="button"
+        className={'av2-btn av2-btn--quiet av2-btn--inline ep-finish' + (confirming ? ' ep-finish--confirming' : '')}
         onClick={finish}
         disabled={finishDisabled}
         title={partial ? 'Clore l’édition sur ce qui est déjà classé' : 'Clore l’édition'}
       >
         {confirming ? 'Clore ici ?' : 'Terminer'}
       </button>
-    </div>
+    </header>
   );
 }
 
-/* ---------- sheet header ---------- */
+/* ---------- step label ---------- */
 export function EpEyebrow({ round, mode, i, n, retour }: { round: string; mode?: string; i: number | string; n: number | string; retour?: boolean }) {
   return (
     <div className="ep-eyebrow">
-      <span>{round}</span>{mode && <><i></i><span className="mode">{mode}</span></>}
-      {retour && <span className="ep-retour"><span className="d"></span>Retour · déjà corrigé</span>}
-      <span className="idx">{i} / {n}</span>
+      <p className="av2-label av2-label--story ep-eyebrow__step">
+        {round}{mode ? ` · ${mode}` : ''} · {i}/{n}
+      </p>
+      {retour && (
+        <span className="av2-chip av2-chip--quiet ep-retour">
+          <ShapeToken kind="story" size="sm" />
+          <span>Retour · déjà corrigé</span>
+        </span>
+      )}
     </div>
   );
 }
 
 export function EpProvenance({ children }: { children: Node }) {
-  return <div className="ep-prov">{children}</div>;
+  return (
+    <div className="ep-prov">
+      <Notice tone="quiet" shape="story">
+        <p>{children}</p>
+      </Notice>
+    </div>
+  );
 }
 
+/* Concept row: the motif, the concept name, and the design's "■ La règle" pill
+   (yellow square = reward) that discloses the rule card. */
 export function EpConcept({ title, motif, askOn, onAsk }: { title: Node; motif?: Node; askOn?: boolean; onAsk?: () => void }) {
   return (
     <div className="ep-concept">
-      <div className="ct">
-        {motif}
-        <h1>{title}</h1>
-      </div>
-      <button className={'ask' + (askOn ? ' on' : '')} title="Voir la règle" onClick={onAsk}>{EpIco.ask}</button>
+      {motif}
+      <p className="ep-concept__title" lang="fr">{title}</p>
+      <Chip
+        className="ep-concept__ask"
+        icon={<ShapeToken kind="reward" size="sm" />}
+        aria-pressed={Boolean(askOn)}
+        aria-expanded={Boolean(askOn)}
+        onClick={onAsk || (() => undefined)}
+      >
+        La règle
+      </Chip>
     </div>
   );
 }
@@ -147,11 +226,11 @@ function epShape(p: MotifPrim, key: number) {
     const pts = `${p.cx},${p.cy - half} ${p.cx + half},${p.cy + half} ${p.cx - half},${p.cy + half}`;
     return <polygon key={key} className={cls} points={pts} />;
   }
-  return <rect key={key} className={cls} x={p.cx - p.s / 2} y={p.cy - p.s / 2} width={p.s} height={p.s} />;
+  return <rect key={key} className={cls} x={p.cx - p.s / 2} y={p.cy - p.s / 2} width={p.s} height={p.s} rx={p.s / 6} />;
 }
 export function EpMotif({ prims = [], done, canvas = 46 }: { prims?: MotifPrim[]; done?: boolean; canvas?: number }) {
   return (
-    <div className={'ep-motif' + (done ? ' done' : '')}>
+    <div className={'ep-motif' + (done ? ' ep-motif--done' : '')} aria-hidden="true">
       <svg viewBox={`0 0 ${canvas} ${canvas}`}>
         {prims.map((p, i) => (
           <g key={i} className={'prim' + (p.printed ? '' : ' ghost') + (p.printing ? ' print-in' : '')}>
@@ -163,82 +242,124 @@ export function EpMotif({ prims = [], done, canvas = 46 }: { prims?: MotifPrim[]
   );
 }
 
-/* ---------- rule sheet ---------- */
-export function EpRule({ lede, examples = [], onClose }: { kicker?: string; lede?: Node; examples?: Node[]; onClose?: () => void }) {
+/* ---------- rule card ---------- */
+/* The design's disclosed card: Garamond-italic title, 13px muted body, blue
+   Garamond example. The lede is usually the page's ConceptRulePanel, whose
+   own markup is restyled under `.ep-rule` below. The pill toggles the card,
+   so the card carries no close control of its own. */
+export function EpRule({ lede, examples = [] }: { kicker?: string; lede?: Node; examples?: Node[]; onClose?: () => void }) {
   return (
-    <div className="ep-rule">
-      <div className="rh">
-        <button className="x" onClick={onClose} aria-label="Fermer la règle">✕</button>
-      </div>
-      <div className="rb">
-        <div className="lede">{lede}</div>
-        {examples.length > 0 && (
-          <div className="anchor">
-            {examples.map((e, i) => <div className="ex" key={i}>{e}</div>)}
-          </div>
-        )}
-      </div>
-    </div>
+    <Surface className="ep-rule" role="region" aria-label="La règle">
+      <div className="ep-rule__body">{lede}</div>
+      {examples.length > 0 && (
+        <div className="ep-rule__anchor">
+          {examples.map((e, i) => <p className="ep-rule__ex" key={i}>{e}</p>)}
+        </div>
+      )}
+    </Surface>
   );
 }
 
 /* ---------- prompt + cue ---------- */
-/* The `label` prop was dropped from the render in an earlier pass but left in
-   the signature, so six call sites went on passing copy nobody could read. */
+/* The one Garamond-italic headline of the screen; the cue (instruction or
+   meaning) is the 15px body under it. A block child (the word-bank line) is
+   legal because this is a div, not an h-element. */
 export function EpPrompt({ children, cue }: { children: Node; cue?: Node }) {
   return (
     <div className="ep-prompt">
-      {cue && <div className="ep-cue">{cue}</div>}
-      <div className="ep-line">{children}</div>
+      <div className="av2-headline ep-line" lang="fr">{children}</div>
+      {cue && <p className="av2-body av2-body--lg ep-cue">{cue}</p>}
     </div>
   );
 }
 export function Blank({ children, set }: { children?: Node; set?: boolean }) {
-  return <span className={'blank' + (set ? ' set' : '')}>{children || '    '}</span>;
+  return <span className="ep-blank" data-set={set ? 'true' : undefined}>{children || ' '}</span>;
 }
 
-/* ---------- recognize / fill ---------- */
-export function EpOpts({ children }: { children: Node }) { return <div className="ep-opts">{children}</div>; }
+/* ---------- recognize / fill: the design's option cards ---------- */
+export function EpOpts({ children }: { children: Node }) {
+  return <div className="av2-choices ep-opts" role="group" aria-label="Choix">{children}</div>;
+}
 export function EpOpt({ chosen, right, wrong, children, onClick, disabled }: { chosen?: boolean; right?: boolean; wrong?: boolean; children: Node; onClick?: () => void; disabled?: boolean }) {
-  return <button className={'ep-opt' + (chosen ? ' chosen' : '') + (right ? ' right' : '') + (wrong ? ' wrong' : '')} onClick={onClick} disabled={disabled}>{children}</button>;
+  const state = right ? 'correct' : wrong ? 'wrong' : chosen ? 'selected' : 'idle';
+  const word = right ? 'juste' : wrong ? 'faux' : chosen ? 'choisi' : null;
+  return (
+    <button
+      type="button"
+      className="av2-choice ep-opt"
+      data-state={state}
+      aria-pressed={Boolean(chosen)}
+      onClick={onClick}
+      disabled={disabled}
+    >
+      <span lang="fr">{children}</span>
+      <span className="av2-choice__dot" aria-hidden="true">
+        {right ? <CheckIcon size={13} /> : null}
+        {wrong ? <RepairIcon size={13} /> : null}
+      </span>
+      {word && <span className="av2-sr"> · {word}</span>}
+    </button>
+  );
 }
-export function EpChoices({ children }: { children: Node }) { return <div className="ep-choices">{children}</div>; }
+export function EpChoices({ children }: { children: Node }) { return <div className="av2-help__actions ep-choices">{children}</div>; }
 
-/* ---------- movable type (word-bank) ---------- */
+/* ---------- movable type (word bank) → the system's word tiles ---------- */
 export function EpSlug({ children, spent, set, onClick, disabled }: { children: Node; spent?: boolean; set?: boolean; onClick?: () => void; disabled?: boolean }) {
-  return <button className={'ep-slug' + (spent ? ' spent' : '') + (set ? ' set' : '')} onClick={onClick} disabled={disabled}>{children}</button>;
+  return (
+    <button
+      type="button"
+      className="av2-tile ep-slug"
+      lang="fr"
+      data-state={set ? 'placed' : undefined}
+      data-spent={spent ? 'true' : undefined}
+      onClick={onClick}
+      disabled={disabled}
+    >
+      {children}
+      {spent && <span className="av2-sr"> · déjà placé</span>}
+    </button>
+  );
 }
 export function EpSetLine({ empty, children }: { empty?: boolean; children?: Node }) {
-  return <div className={'ep-setline' + (empty ? ' empty' : '')}>{children}</div>;
+  return (
+    <div className="av2-tiles__line ep-setline" data-empty={empty ? 'true' : undefined} aria-live="polite" aria-label="La ligne composée">
+      {empty && <span className="ep-setline__hint">Réglez la ligne ici</span>}
+      {children}
+    </div>
+  );
 }
 export function EpCase({ label, count, children }: { label: Node; count?: number | null; children?: Node }) {
   return (
     <div className="ep-case">
-      <div className="cap"><span>{label}</span>{count != null && <span>{count} sortes</span>}</div>
-      <div className="sorts">{children}</div>
+      <div className="ep-case__cap">
+        <span className="av2-label">{label}</span>
+        {count != null && <span className="av2-label">{count} sortes</span>}
+      </div>
+      <div className="av2-tiles__bank">{children}</div>
     </div>
   );
 }
+/* Classify: each label is a tile-group surface holding its "Placer ici" card. */
 export function EpCases({ boxes }: { boxes: { label: Node; slugs: Node[] }[] }) {
   return (
-    <div className="ep-cases">
+    <div className="ep-cases" role="group" aria-label="Classer">
       {boxes.map((b, i) => (
-        <div className="ep-casebox" key={i}>
-          <div className="ch">{b.label}</div>
-          <div className="cbody">{b.slugs.map((s, j) => <React.Fragment key={j}>{s}</React.Fragment>)}</div>
+        <div className="av2-surface av2-surface--tile ep-casebox" key={i}>
+          <p className="av2-label ep-casebox__label" lang="fr">{b.label}</p>
+          <div className="ep-casebox__body">{b.slugs.map((s, j) => <React.Fragment key={j}>{s}</React.Fragment>)}</div>
         </div>
       ))}
     </div>
   );
 }
 
-/* ---------- produce ---------- */
+/* ---------- produce (display well; the page's textarea carries the input) ---------- */
 export function EpProduce({ typed, placeholder, caret = true }: { typed?: Node; placeholder?: Node; caret?: boolean }) {
   return (
     <div className="ep-produce">
-      <div className="ep-field">
-        {typed ? <span>{typed}</span> : <span className="ph">{placeholder}</span>}
-        {caret && <span className="caret"></span>}
+      <div className="ep-field" lang="fr">
+        {typed ? <span>{typed}</span> : <span className="ep-field__ph">{placeholder}</span>}
+        {caret && <span className="ep-field__caret" aria-hidden="true"></span>}
       </div>
     </div>
   );
@@ -247,91 +368,113 @@ export function EpProduce({ typed, placeholder, caret = true }: { typed?: Node; 
 /* ---------- confidence tap ---------- */
 export function EpConfidence({ value, onPick }: { value?: 'sure' | 'unsure' | null; onPick?: (v: 'sure' | 'unsure') => void }) {
   return (
-    <div className="ep-conf">
-      <div className="chips">
-        <button className={'chip sure' + (value === 'sure' ? ' on' : '')} onClick={() => onPick && onPick('sure')}>sûr·e</button>
-        <button className={'chip unsure' + (value === 'unsure' ? ' on' : '')} onClick={() => onPick && onPick('unsure')}>pas sûr·e</button>
-      </div>
+    <div className="ep-conf" role="group" aria-label="Votre confiance">
+      <span className="av2-label">Vous êtes…</span>
+      <Chip tone={value === 'sure' ? 'story' : 'plain'} aria-pressed={value === 'sure'} onClick={() => onPick?.('sure')}>sûr·e</Chip>
+      <Chip tone={value === 'unsure' ? 'story' : 'plain'} aria-pressed={value === 'unsure'} onClick={() => onPick?.('unsure')}>pas sûr·e</Chip>
     </div>
   );
 }
 
-/* ---------- primary action ---------- */
-export function EpVerdict({ tone = 'go', children }: { tone?: string; children: Node }) {
-  return <div className={'ep-verdict ' + tone}><span>{children}</span><span className="ln"></span></div>;
-}
-export function EpBar({ children, tone, disabled, icon = 'check', onClick }: { children: Node; tone?: string; disabled?: boolean; icon?: string | null; onClick?: () => void }) {
+/* ---------- verdict band + the one primary ---------- */
+/* The footer's feedback band: round icon badge, Garamond verdict, 13px line.
+   `tone` keeps its legacy values: "go" = correct, anything else = wrong. */
+export function EpVerdict({ tone = 'go', children, sub }: { tone?: string; children: Node; sub?: Node }) {
+  const correct = tone === 'go';
   return (
-    <button className={'ep-bar' + (tone ? ' ' + tone : '')} disabled={disabled} onClick={onClick}>
-      <span>{children}</span>{icon && EpIco[icon]}
+    <div className="av2-feedback ep-verdict" data-tone={correct ? 'correct' : 'wrong'} role="status" aria-live="polite">
+      <span className="av2-feedback__icon" aria-hidden="true">
+        {correct ? <CheckIcon size={15} /> : <RepairIcon size={15} />}
+      </span>
+      <div className="ep-verdict__text">
+        <p className="av2-feedback__title">{children}</p>
+        {sub && <p className="av2-feedback__sub">{sub}</p>}
+      </div>
+    </div>
+  );
+}
+/* The 3D press. `tone="ghost"` is the secondary (paper face); everything else
+   is the red primary. The face dims while disabled; the label never does. */
+export function EpBar({ children, tone, disabled, icon, onClick, pending }: { children: Node; tone?: string; disabled?: boolean; icon?: string | null; onClick?: () => void; pending?: boolean }) {
+  return (
+    <button
+      type="button"
+      className={'av2-btn ep-bar ' + (tone === 'ghost' ? 'av2-btn--secondary' : 'av2-btn--primary')}
+      disabled={disabled || pending}
+      aria-busy={pending || undefined}
+      data-pending={pending ? 'true' : undefined}
+      data-icon={icon || undefined}
+      onClick={onClick}
+    >
+      {pending && <SpinnerToken />}
+      <span>{children}</span>
     </button>
   );
 }
-export function EpFoot({ children }: { children: Node }) { return <div className="ep-foot">{children}</div>; }
+/* The tinted footer band: mint when correct, blush when wrong, paper otherwise. */
+export function EpFoot({ children, tone }: { children: Node; tone?: 'correct' | 'wrong' | 'neutral' }) {
+  return <div className="av2-screen__foot ep-foot" data-tone={tone || undefined}>{children}</div>;
+}
 
-/* ---------- proofreader's marks ---------- */
+/* ---------- corrections ---------- */
 export function EpFix({ old, fix }: { old: Node; fix: Node }) {
   return (
     <span className="ep-fix">
-      <span className="new">{fix}</span>
-      <span className="car">‸</span>
-      <span className="old">{old}</span>
+      <span className="av2-correction__span" lang="fr">{old}</span>
+      {' '}<span aria-hidden="true">→</span>{' '}
+      <span className="av2-correction__fix" lang="fr">{fix}</span>
     </span>
   );
 }
 export function EpIns({ fix }: { fix: Node }) {
   return (
     <span className="ep-ins">
-      <span className="new">{fix}</span>
-      <span className="car">‸</span>
+      <span className="ep-ins__mark" aria-hidden="true">+</span>{' '}
+      <span className="av2-correction__fix" lang="fr">{fix}</span>
+      <span className="av2-sr"> (à ajouter)</span>
     </span>
   );
 }
-/* label-vs-label correction (classify): two stacked lines, no floating caret —
-   the chosen and correct category names run too long to anchor a bubble. */
+/* label-vs-label correction (classify): two stacked lines, because the chosen
+   and correct category names run too long to sit on one. */
 export function EpLabelFix({ old, fix }: { old: Node; fix: Node }) {
   return (
     <div className="ep-labelfix">
-      <div className="row"><span className="k">Classé</span><span className="v old">{old}</span></div>
-      <div className="row"><span className="k">Correct</span><span className="v new">{fix}</span></div>
+      <p><span className="av2-label ep-labelfix__k">Classé</span><span className="av2-correction__span" lang="fr">{old}</span></p>
+      <p><span className="av2-label ep-labelfix__k">Correct</span><span className="av2-correction__fix" lang="fr">{fix}</span></p>
     </div>
   );
 }
-/* full-line rewrite (sentence / spoken / conversation / paragraph): the learner's
-   own line struck through, the corrected line beneath — both WRAP within the
-   column. The floating-caret EpFix is for a short word swap only; a whole
-   sentence in a nowrap span overflows the frame. */
+/* full-line rewrite: the learner's line struck through, the corrected line
+   beneath — both WRAP within the column. */
 export function EpLineFix({ old, fix }: { old: Node; fix: Node }) {
   return (
     <div className="ep-linefix">
-      {old ? <p className="old">{old}</p> : null}
-      <p className="new">{fix}</p>
+      {old ? <p className="av2-correction__span" lang="fr">{old}</p> : null}
+      <p className="av2-correction__fix ep-linefix__new" lang="fr">{fix}</p>
     </div>
   );
 }
-/* `repair` is the corrector's concrete next action (repair_hint). The backend
-   has always produced it and the client has always computed it; it just never
-   had a slot, so the half of the correction that says what to DO was dropped
-   on the floor. It sits under the why, quieter than it. */
+/* `repair` is the corrector's concrete next action (repair_hint); it sits
+   under the why, quieter than it, with the red triangle = action. */
 export function EpGalley({ anchor, children, why, repair, relecture }: { anchor?: Node; children: Node; why?: Node; repair?: Node; relecture?: Node }) {
   return (
-    <div className="ep-galley">
-      {anchor && <div className="gh"><span className="n">{anchor}</span></div>}
+    <div className="av2-correction ep-galley">
+      {anchor && <p className="av2-label ep-galley__anchor">{anchor}</p>}
       <div className="ep-gline">{children}</div>
-      {why && (
-        <div className="ep-why">
-          <span className="pin">{EpIco.pencil}</span>
-          <div className="t">{why}</div>
-        </div>
+      {why && <p className="ep-why">{why}</p>}
+      {repair && (
+        <p className="ep-repair-hint">
+          <ShapeToken kind="action" size="sm" />
+          <span>{repair}</span>
+        </p>
       )}
-      {repair && <div className="ep-repair-hint">{repair}</div>}
       {relecture}
     </div>
   );
 }
-/* `failed` is the state the relecture could always reach and the sheet could
-   never show: the second look errored, the endpoint to ask again exists, and
-   the learner was left with a note that simply never resolved. */
+/* The second look. `failed` is a real state: the endpoint to ask again exists,
+   so the note must resolve into a retry rather than hang. */
 export function EpRelecture({ status = 'pending', children, onRetry, retrying }: {
   status?: 'pending' | 'done' | 'failed';
   children?: Node;
@@ -339,36 +482,51 @@ export function EpRelecture({ status = 'pending', children, onRetry, retrying }:
   retrying?: boolean;
 }) {
   if (status === 'pending') {
-    return <div className="ep-relecture pending"><span>Relecture en cours</span><span className="dots"><i></i><i></i><i></i></span></div>;
-  }
-  if (status === 'failed') {
     return (
-      <div className="ep-relecture failed">
-        <span>Relecture interrompue</span>
-        {onRetry && (
-          <button type="button" className="again" onClick={onRetry} disabled={retrying}>
-            {retrying ? 'Relance…' : 'Relancer'}
-          </button>
-        )}
+      <div className="ep-relecture" data-status="pending">
+        <Notice tone="quiet" shape="story">
+          <p className="ep-relecture__line"><PendingIcon size={14} /> Relecture en cours…</p>
+        </Notice>
       </div>
     );
   }
-  return <div className="ep-relecture done">{children}</div>;
+  if (status === 'failed') {
+    return (
+      <div className="ep-relecture" data-status="failed">
+        <Notice tone="alert" live="alert" shape="action">
+          <p>Relecture interrompue.</p>
+          {onRetry && (
+            <button type="button" className="av2-btn av2-btn--secondary av2-btn--inline ep-relecture__again" onClick={onRetry} disabled={retrying} aria-busy={retrying || undefined}>
+              {retrying ? 'Relance…' : 'Relancer'}
+            </button>
+          )}
+        </Notice>
+      </div>
+    );
+  }
+  return (
+    <div className="ep-relecture" data-status="done">
+      <Notice tone="quiet" shape="done">
+        <p>{children}</p>
+      </Notice>
+    </div>
+  );
 }
 
-/* ---------- BON stamp + correct moment ---------- */
+/* ---------- the correct moment ---------- */
 export function EpBonStamp({ struck }: { struck?: boolean }) {
   return (
-    <div className={'ep-bon-stamp' + (struck ? ' ep-struck' : '')}>
-      <span>Bon</span><span className="d">à tirer</span>
-    </div>
+    <span className="av2-byline ep-bon-stamp" data-struck={struck ? 'true' : undefined}>
+      <ShapeToken kind="done" size="sm" />
+      <span className="av2-label">Bon à tirer</span>
+    </span>
   );
 }
 export function EpCorrect({ said, struck }: { said: Node; struck?: boolean }) {
   return (
-    <div className="ep-correct">
+    <div className="av2-correction ep-correct">
       <EpBonStamp struck={struck} />
-      <div className="said">{said}</div>
+      <p className="av2-fr ep-correct__said" lang="fr">{said}</p>
     </div>
   );
 }
@@ -397,100 +555,122 @@ export function EpRepair({
   const okChars = errFrom == null ? typed.length : errFrom;
   const good = typed.slice(0, okChars);
   const bad = errFrom == null ? '' : typed.slice(errFrom);
+  const inputId = React.useId();
   return (
-    <div className="ep-repair">
-      <div className="rh">Recopie la correction</div>
-      <div className="ep-rf">
-        <div className={'ep-typefield' + (status === 'ok' ? ' ok' : status === 'no' ? ' no' : '')}>
-          {onChange ? (
-            <input
-              aria-label="Recopie la correction"
-              value={typed}
-              onChange={(event) => onChange(event.target.value)}
-              // The correction is already visible in the galley above; the
-              // placeholder here is a generic prompt, not the answer itself,
-              // so retyping stays a real recall exercise instead of copying.
-              placeholder="Tapez la ligne corrigée…"
-              disabled={disabled || status === 'ok'}
-              autoCapitalize="sentences"
-              autoCorrect="off"
-              autoComplete="off"
-              spellCheck={false}
-            />
-          ) : (
-            <>
-              <span className="typed">{good}</span>
-              {bad && <span className="typed err">{bad}</span>}
-              {status !== 'ok' && <span className="caret"></span>}
-              <span className="ghost">{ghost}</span>
-            </>
-          )}
-        </div>
-        {onSubmit && status !== 'ok' && (
-          <button type="button" className="ep-repair-submit" onClick={onSubmit} disabled={disabled || submitting || !typed.trim()}>
-            {submitting ? 'Comparaison…' : 'Comparer la ligne'}
-          </button>
+    <Surface className="ep-repair" data-status={status || undefined}>
+      <label className="av2-field">
+        <span className="av2-field__label">Recopie la correction</span>
+        {onChange ? (
+          <input
+            id={inputId}
+            className="av2-field__control ep-repair__input"
+            lang="fr"
+            value={typed}
+            onChange={(event) => onChange(event.target.value)}
+            // The correction is already visible in the card above; the
+            // placeholder is a generic prompt, not the answer itself, so
+            // retyping stays a real recall exercise instead of copying.
+            placeholder="Tapez la ligne corrigée…"
+            disabled={disabled || status === 'ok'}
+            aria-invalid={status === 'no' || undefined}
+            autoCapitalize="sentences"
+            autoCorrect="off"
+            autoComplete="off"
+            spellCheck={false}
+          />
+        ) : (
+          <span className="av2-field__control ep-repair__ghostline" lang="fr">
+            <span>{good}</span>
+            {bad && <span className="ep-repair__err">{bad}</span>}
+            {status !== 'ok' && <span className="ep-field__caret" aria-hidden="true"></span>}
+            <span className="ep-repair__ghost">{ghost}</span>
+          </span>
         )}
-        {status === 'ok' && <div className="rmeta ok">— Ligne recomposée · juste —</div>}
-        {status === 'no' && <div className="rmeta no">— La lettre diffère · reprenez le sort —</div>}
-      </div>
-    </div>
+      </label>
+      {onSubmit && status !== 'ok' && (
+        <button
+          type="button"
+          className="av2-btn av2-btn--secondary av2-btn--inline ep-repair__submit"
+          onClick={onSubmit}
+          disabled={disabled || submitting || !typed.trim()}
+          aria-busy={submitting || undefined}
+        >
+          {submitting ? 'Comparaison…' : 'Comparer la ligne'}
+        </button>
+      )}
+      {status === 'ok' && (
+        <Notice tone="quiet" shape="done">
+          <p>Ligne recomposée · juste.</p>
+        </Notice>
+      )}
+      {status === 'no' && (
+        <Notice tone="alert" live="alert" shape="action">
+          <p>La lettre diffère · reprenez la ligne.</p>
+        </Notice>
+      )}
+    </Surface>
   );
 }
 
 /* ---------- écouter + shadowing ---------- */
 export function EpListen({ fr, disabled, playing, onPlay }: { fr: Node; disabled?: boolean; playing?: boolean; onPlay?: () => void }) {
+  const label = disabled ? 'Voix indisponible' : playing ? 'Lecture…' : 'Écouter le modèle';
   return (
-    <div className={'ep-listen' + (disabled ? ' disabled' : '')}>
-      <button className="play" onClick={onPlay} disabled={disabled}>{EpIco.play}</button>
-      <div className="l">
-        <div className="k">{disabled ? 'Voix indisponible' : playing ? 'Lecture' : 'Écouter le modèle'}</div>
-        <div className="fr">{fr}</div>
+    <div className="ep-listen" data-disabled={disabled ? 'true' : undefined} data-playing={playing ? 'true' : undefined}>
+      <IconAction label={label} pressable onClick={onPlay} disabled={disabled} pending={playing}>
+        {playing ? <SpinnerToken /> : EpIco.play}
+      </IconAction>
+      <div className="ep-listen__text">
+        <p className="av2-label">{label}</p>
+        <p className="av2-fr ep-listen__fr" lang="fr">{fr}</p>
       </div>
-      {!disabled && (
-        <div className="wave">
-          {[10, 18, 8, 22, 14, 20, 9, 16, 12].map((h, i) => <i key={i} style={{ height: h }}></i>)}
-        </div>
-      )}
     </div>
   );
 }
 export function EpRecord({ status = 'idle', onToggle, disabled }: { status?: 'idle' | 'recording' | 'transcribing'; onToggle?: () => void; disabled?: boolean }) {
-  const st = ({ idle: 'Appuyez pour répéter', recording: 'Enregistrement…', transcribing: 'Transcription…' } as Record<string, string>)[status];
+  const st = ({ idle: 'Appuyez pour répéter', recording: 'Enregistrement… appuyez pour arrêter', transcribing: 'Transcription…' } as Record<string, string>)[status];
   return (
-    <div className={'ep-record ' + status}>
-      {status === 'transcribing'
-        ? <div className="rollers"><i></i><i></i><i></i></div>
-        : <button className="mic" onClick={onToggle} disabled={disabled}>{EpIco.mic}</button>}
-      <div className="st">{st}</div>
+    <div className="ep-record" data-status={status}>
+      <IconAction
+        label={status === 'recording' ? 'Arrêter l’enregistrement' : 'Enregistrer'}
+        tone={status === 'recording' ? 'recording' : 'action'}
+        pressable
+        pending={status === 'transcribing'}
+        onClick={onToggle}
+        disabled={disabled}
+      >
+        {status === 'recording' ? <StopIcon size={18} /> : <MicIcon size={18} />}
+      </IconAction>
+      <p className="av2-label ep-record__st" role="status" aria-live="polite">{st}</p>
     </div>
   );
 }
 
 /* ---------- early mastery lock ---------- */
 /* `retired` is how many drills the lock actually removed from the edition. The
-   copy must not promise a closed concept when only one rung was retired. */
+   copy must not promise a closed concept when only one rung was retired.
+   Yellow = reward: mastery ahead of schedule is the day's reward moment. */
 export function EpLock({ motif, title, retired = 0 }: { motif?: Node; title: Node; retired?: number }) {
   const count = Math.max(0, Math.round(retired));
   return (
-    <div className="ep-lock">
-      <div className="k">Maîtrise anticipée</div>
-      <div className="plate">
-        {motif}
-        <div className="band">Plomb verrouillé</div>
-      </div>
-      <h2>{title}</h2>
-      <p>
+    <Surface tone="reward" shape="hero" className="ep-lock" role="status">
+      <p className="av2-label ep-lock__k">Maîtrise anticipée</p>
+      {motif && <div className="ep-lock__plate">{motif}</div>}
+      <h2 className="av2-headline av2-headline--title ep-lock__title" lang="fr">{title}</h2>
+      <p className="av2-body av2-body--lg ep-lock__p">
         {count > 0
           ? `Tout était propre — ${count} exercice${count === 1 ? '' : 's'} retiré${count === 1 ? '' : 's'} de l’édition du jour.`
           : 'Tout était propre — cette épreuve se ferme en avance.'}
       </p>
-      <div className="promo">Classé <b>sans faute</b></div>
-    </div>
+      <span className="av2-byline ep-lock__promo">
+        <ShapeToken kind="done" size="sm" />
+        <span className="av2-label">Classé sans faute</span>
+      </span>
+    </Surface>
   );
 }
 
-/* ---------- BON À TIRER completion stamp ---------- */
+/* ---------- completion stamp ---------- */
 export function EpBatStage({ sub }: { sub?: Node }) {
   React.useEffect(() => {
     pulseAppHaptic('complete');
@@ -498,8 +678,12 @@ export function EpBatStage({ sub }: { sub?: Node }) {
 
   return (
     <div className="ep-bat-stage">
-      <div className="ep-bat ep-struck"><span className="m">Bon à tirer</span><span className="d">Édition prête</span></div>
-      {sub && <div className="sub">{sub}</div>}
+      <Surface shape="hero" className="ep-bat">
+        <AtelierMark size={34} title="Atelier" />
+        <p className="av2-label ep-bat__d">Édition prête</p>
+        <h2 className="av2-headline av2-headline--screen ep-bat__m">Bon à tirer</h2>
+        {sub && <p className="av2-body av2-body--lg ep-bat__sub">{sub}</p>}
+      </Surface>
     </div>
   );
 }
@@ -508,74 +692,73 @@ export function EpBatStage({ sub }: { sub?: Node }) {
 export function EpRecapHead({ date }: { date: Node }) {
   return (
     <div className="ep-recap-head">
-      <div className="folio"><span>Atelier</span><i></i><span>La séance</span><i></i><span>L’épreuve</span></div>
-      <h1>L’épreuve</h1>
-      <div className="date">{date}</div>
+      <p className="av2-label ep-recap-head__folio">Atelier · La séance · L’épreuve</p>
+      <h1 className="av2-headline av2-headline--display ep-recap-head__title">L’épreuve</h1>
+      <p className="av2-label ep-recap-head__date">{date}</p>
     </div>
   );
 }
 export function EpTally({ items }: { items: { n: Node; l: Node }[] }) {
   return (
     <div className="ep-tally">
-      {items.map((it, i) => <div className="t" key={i}><div className="n">{it.n}</div><div className="l">{it.l}</div></div>)}
-    </div>
-  );
-}
-export function EpProof({ lines }: { lines: { fr: Node; tag: Node; re?: boolean }[] }) {
-  return (
-    <div className="ep-proof">
-      {lines.map((l, i) => (
-        <div className="pl" key={i}>
-          <span className={'mk' + (l.re ? ' re' : '')}>{l.re ? '✎' : '✓'}</span>
-          <span className="fr">{l.fr}</span>
-          <span className="tag">{l.tag}</span>
+      {items.map((it, i) => (
+        <div className="av2-surface av2-surface--tile ep-tally__t" key={i}>
+          <p className="ep-tally__n">{it.n}</p>
+          <p className="av2-label ep-tally__l">{it.l}</p>
         </div>
       ))}
     </div>
   );
 }
+export function EpProof({ lines }: { lines: { fr: Node; tag: Node; re?: boolean }[] }) {
+  return (
+    <ul className="ep-proof">
+      {lines.map((l, i) => (
+        <li className="ep-proof__pl" key={i} data-re={l.re ? 'true' : undefined}>
+          <ShapeToken kind={l.re ? 'action' : 'done'} size="sm" title={l.re ? 'Corrigé' : 'Juste'} />
+          <span className="av2-fr ep-proof__fr" lang="fr">{l.fr}</span>
+          <span className="av2-label ep-proof__tag">{l.tag}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
 export function EpPhrase({ quote, by }: { quote: Node; by: Node }) {
   return (
-    <div className="ep-phrase">
-      <div className="flag">À paraître demain</div>
-      <div className="q">« {quote} »</div>
-      <div className="by"><span className="ln"></span><span>{by}</span></div>
-    </div>
+    <Surface tone="blue" className="ep-phrase">
+      <p className="av2-label ep-phrase__flag">À paraître demain</p>
+      <p className="av2-headline av2-headline--title ep-phrase__q" lang="fr">« {quote} »</p>
+      <p className="av2-label ep-phrase__by">{by}</p>
+    </Surface>
   );
 }
 export function EpToken() {
   return (
-    <div className="ep-token">
-      <div className="lt">
-        <svg viewBox="0 0 24 24"><circle className="shp c-circle" cx="8" cy="8" r="5" /></svg>
-        <svg viewBox="0 0 24 24"><rect className="shp c-square" x="12" y="3" width="9" height="9" /></svg>
-        <svg viewBox="0 0 24 24"><polygon className="shp c-tri" points="12,13 20,21 4,21" /></svg>
-      </div>
-    </div>
+    <span className="av2-surface av2-surface--tile ep-token" aria-hidden="true">
+      <ShapeToken kind="story" size="sm" />
+      <ShapeToken kind="reward" size="sm" />
+      <ShapeToken kind="action" size="sm" />
+    </span>
   );
 }
 export function EpMint({ note, tokens = 2 }: { note?: Node; tokens?: number }) {
   return (
     <div className="ep-mint">
-      <div className="tx"><b>Jetons frappés</b><span>{note}</span></div>
-      <div className="tokens">{Array.from({ length: tokens }).map((_, i) => <EpToken key={i} />)}</div>
+      <div className="ep-mint__tx">
+        <p className="av2-label ep-mint__b">Jetons frappés</p>
+        {note && <p className="av2-body ep-mint__note">{note}</p>}
+      </div>
+      <div className="ep-mint__tokens">{Array.from({ length: tokens }).map((_, i) => <EpToken key={i} />)}</div>
     </div>
   );
 }
-export function EpSeal({ gilt, label = 'ATELIER · BON À TIRER', stamp }: { gilt?: boolean; label?: string; stamp?: boolean }) {
+/* The seal: the Atelier mark on a round medallion — yellow (reward) when gilt. */
+export function EpSeal({ gilt, label = 'Atelier · Bon à tirer', stamp }: { gilt?: boolean; label?: string; stamp?: boolean }) {
   return (
-    <div className={'ep-seal' + (gilt ? ' gilt' : '') + (stamp ? ' stamp' : '')}>
-      <div className="med">
-        <svg className="ring" viewBox="0 0 116 116">
-          <defs><path id="ep-ring-p" d="M58,58 m-44,0 a44,44 0 1,1 88,0 a44,44 0 1,1 -88,0" /></defs>
-          <text><textPath href="#ep-ring-p" startOffset="0">{label} · {label}</textPath></text>
-        </svg>
-        <div className="core">
-          <svg viewBox="0 0 58 58"><circle className="shp c-circle" cx="20" cy="20" r="12" /></svg>
-          <svg viewBox="0 0 58 58"><rect className="shp c-square" x="30" y="8" width="20" height="20" /></svg>
-          <svg viewBox="0 0 58 58"><polygon className="shp c-tri" points="29,30 50,52 8,52" /></svg>
-        </div>
-      </div>
+    <div className="ep-seal" data-gilt={gilt ? 'true' : undefined} data-stamp={stamp ? 'true' : undefined} role="img" aria-label={gilt ? `${label} · doré` : label}>
+      <span className="ep-seal__med">
+        <AtelierMark size={44} />
+      </span>
     </div>
   );
 }
@@ -585,26 +768,32 @@ export function EpSeal({ gilt, label = 'ATELIER · BON À TIRER', stamp }: { gil
 export function EpStreak({ was, now, rules = 5, on = 4 }: { was: Node; now: Node; rules?: number; on?: number }) {
   const advanced = was !== now;
   return (
-    <div className="ep-streak">
-      {advanced && <span className="n was">{was}</span>}
-      {advanced && <span className="arw">{EpIco.arrow}</span>}
-      <span className="n now">{now}</span>
-      <span className="l"><b>{now} {now === 1 ? 'jour' : 'jours'}</b> de suite — l’édition ne rate pas.</span>
-      <span className="rules">{Array.from({ length: rules }).map((_, i) => <i key={i} className={i < on ? 'on' : ''}></i>)}</span>
-    </div>
+    <Surface className="ep-streak" role="status">
+      <div className="ep-streak__row">
+        {advanced && <span className="ep-streak__n ep-streak__n--was">{was}</span>}
+        {advanced && <span className="ep-streak__arw" aria-hidden="true">{EpIco.arrow}</span>}
+        <span className="ep-streak__n">{now}</span>
+        <span className="av2-body ep-streak__l"><b>{now} {now === 1 ? 'jour' : 'jours'}</b> de suite — l’édition ne rate pas.</span>
+      </div>
+      <span className="ep-streak__rules" aria-hidden="true">
+        {Array.from({ length: rules }).map((_, i) => <i key={i} data-on={i < on ? 'true' : undefined}></i>)}
+      </span>
+    </Surface>
   );
 }
-/* `label` is the whole call to action, not a noun to prefix. The old signature
-   composed "Lire {next}", and every real caller passes a verb phrase from
-   recapActionLabel — which printed "Lire Réviser maintenant", "Lire Ouvrir la
-   mission", "Lire Répondre". The handoff is not always a reading, either. */
+/* `label` is the whole call to action ("Réviser maintenant", "Ouvrir la
+   mission"); with none, the single way out is home. */
 export function EpHandoff({ label, onRead, onHome }: { label?: Node; onRead?: () => void; onHome?: () => void }) {
   return (
     <div className="ep-handoff">
-      {/* No label means nothing is prescribed next; the single way out is home,
-          rather than a primary that repeats the secondary word for word. */}
-      {label ? <button className="on" onClick={onRead}><span>{label}</span>{EpIco.book}</button> : null}
-      <button className="back" onClick={onHome}><span>Revenir à La Une</span>{EpIco.home}</button>
+      {label ? (
+        <button type="button" className="av2-btn av2-btn--primary" onClick={onRead}>
+          <span>{label}</span>
+        </button>
+      ) : null}
+      <button type="button" className="av2-btn av2-btn--secondary" onClick={onHome}>
+        <span>Revenir à La Une</span>
+      </button>
     </div>
   );
 }
@@ -612,36 +801,41 @@ export function EpHandoff({ label, onRead, onHome }: { label?: Node; onRead?: ()
 /* ---------- system states ---------- */
 export function EpResume({ groups, cap, onResume }: { groups: EpStickGroup[]; cap?: [string, string | number]; onResume?: () => void }) {
   return (
-    <div className="ep-resume">
-      <div className="k">Séance en cours</div>
-      <h2>La ligne était à moitié réglée.</h2>
-      <p>Reprenez là où le plomb attend.</p>
-      <div className="stickwrap"><EpStick groups={groups} cap={cap} /></div>
-      <button className="cta" onClick={onResume}>{EpIco.arrow}<span>Reprendre la composition</span></button>
-    </div>
+    <Surface shape="hero" className="ep-resume" role="status">
+      <p className="av2-label av2-label--story">Séance en cours</p>
+      <h2 className="av2-headline av2-headline--title">La ligne était à moitié réglée.</h2>
+      <p className="av2-body av2-body--lg">Reprenez là où le plomb attend.</p>
+      <div className="ep-resume__stick"><EpStick groups={groups} cap={cap} /></div>
+      <button type="button" className="av2-btn av2-btn--primary" onClick={onResume}>
+        <span>Reprendre la composition</span>
+      </button>
+    </Surface>
   );
 }
 export function EpSkeleton() {
   return (
-    <div className="ep-skel">
-      <div className="l" style={{ width: '38%' }}></div>
-      <div className="l" style={{ width: '72%', height: 20 }}></div>
-      <div className="box"></div>
-      <div className="l" style={{ width: '90%' }}></div>
-      <div className="l" style={{ width: '80%' }}></div>
-      <div className="l" style={{ width: '55%' }}></div>
-      <div className="press">— on compose la séance —</div>
+    <div className="ep-skel" role="status" aria-busy="true">
+      <div className="av2-skeleton" style={{ width: '38%', height: 14 }} aria-hidden="true"></div>
+      <div className="av2-skeleton" style={{ width: '72%', height: 34 }} aria-hidden="true"></div>
+      <div className="av2-skeleton" style={{ height: 56 }} aria-hidden="true"></div>
+      <div className="av2-skeleton" style={{ height: 56 }} aria-hidden="true"></div>
+      <div className="av2-skeleton" style={{ height: 56 }} aria-hidden="true"></div>
+      <p className="av2-label ep-skel__press">On compose la séance…</p>
     </div>
   );
 }
 export function EpNotice({ msg = 'La séance n’a pas pu être composée. Le texte est sauvegardé ; la rédaction réessaie.', onRetry }: { msg?: Node; onRetry?: () => void }) {
   return (
     <div className="ep-notice">
-      <div className="nh"><span className="tri"></span><span className="t">Avis de la rédaction</span></div>
-      <div className="nb">
-        <div className="m">{msg}</div>
-        <button className="retry" onClick={onRetry}>{EpIco.retry}<span>Réessayer</span></button>
-      </div>
+      <Notice tone="alert" live="alert" shape="action">
+        <p className="av2-label">Avis de la rédaction</p>
+        <p>{msg}</p>
+        {onRetry && (
+          <button type="button" className="av2-btn av2-btn--secondary av2-btn--inline" onClick={onRetry}>
+            {EpIco.retry}<span>Réessayer</span>
+          </button>
+        )}
+      </Notice>
     </div>
   );
 }
@@ -649,698 +843,596 @@ export function EpNotice({ msg = 'La séance n’a pas pu être composée. Le te
 export function LEpreuveStyles() {
   return (
     <style jsx global>{`
-.ep {
-  --ep-bon: #2c6a5d;
-  --ep-graphite: color-mix(in srgb, var(--app-ink) 62%, transparent);
-  --ep-channel: color-mix(in srgb, var(--app-ink) 16%, transparent);
-  --ep-slug-lo: color-mix(in srgb, var(--app-ink) 22%, transparent);
-  --ep-printin-dur: .5s;
-  --ep-mono: "iA Writer Mono", ui-monospace, "SF Mono", Menlo, monospace;
-  position: relative;
-  width: min(var(--app-viewport-width, 100vw), var(--phone-shell-max, 430px));
-  max-width: 100%;
-  background: var(--app-paper);
-  color: var(--app-ink);
-  font-family: var(--app-grotesk);
-  -webkit-font-smoothing: antialiased;
-  display: flex; flex-direction: column;
-  overflow: hidden;
+/* ============================================================
+   SHELL — header · body · sticky tinted footer. The phone bottom
+   navigation is the app shell's; the footer sits above it.
+   ============================================================ */
+.av2.ep-shell {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  min-height: var(--app-viewport-height, 100vh);
+  padding: 0 0 calc(16px + var(--phone-bottom-nav-space, 0px));
 }
-.ep * { box-sizing: border-box; }
-.ep-body { flex: 1 1 auto; }
+.av2 .ep-body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding-top: 20px;
+  padding-bottom: 0;
+  gap: 0;
+}
+.av2 .ep-sheet {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.av2 .ep-sheet > :last-child { flex: 1 1 auto; display: flex; flex-direction: column; }
+.av2 .ep-frame { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.av2 .ep-exercise { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 
 /* ============================================================
-   TOPBAR — close · composing-stick progress · Finish. Slim, sticky.
+   HEADER — close · blue rule · red run · quiet Terminer
    ============================================================ */
-.ep-top {
-  position: sticky; top: 0; z-index: 6;
-  display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 13px;
-  padding: 9px 14px 10px;
-  background: var(--app-paper);
-  border-bottom: 1px solid var(--app-ink);
+.av2 .ep-top { padding-top: calc(12px + env(safe-area-inset-top, 0px)); gap: 12px; }
+.av2 .ep-top .ep-stick { flex: 1 1 auto; min-width: 0; }
+.av2 .ep-stick__concepts { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; }
+.av2 .ep-stick__concept[data-state='done'] .av2-label { color: var(--av2-ink); }
+.av2 .ep-run {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.875rem; /* design 14px */
+  font-weight: 700;
+  color: var(--av2-red);
+  font-variant-numeric: tabular-nums;
 }
-.ep-top .ic {
-  width: 30px; height: 30px; flex: 0 0 auto; padding: 0;
-  border: 1px solid var(--app-ink); background: var(--app-sheet); color: var(--app-ink);
-  display: grid; place-items: center; cursor: pointer;
-}
-.ep-top .ic svg { width: 15px; height: 15px; }
-/* Outlined pill, the quiet sibling of .ep-bar: same soft geometry at the
-   compact chrome size (44px keeps the tap target legal in the sticky bar). */
-.ep-top .finish {
-  min-height: 44px; padding: 0 18px; border-radius: 999px;
-  border: 1px solid var(--app-ink); background: transparent; color: var(--app-ink);
-  font-size: var(--t-small); font-weight: 600; letter-spacing: .01em; text-transform: none;
-  cursor: pointer; white-space: nowrap;
-  transition: background .16s ease, color .16s ease;
-}
-.ep-top .finish:disabled { opacity: .5; cursor: not-allowed; }
-.ep-top .finish:active { background: var(--app-paper-2); color: var(--app-ink); }
-.ep-top .finish.confirming { background: var(--app-ink); color: var(--app-paper); }
-
-/* ---- THE COMPOSING STICK (progress) ------------------------
-   A typesetter's stick: each completed drill sets a lead slug
-   into the current line. Concept boundaries read as breaks. */
-.ep-stick { flex: 1 1 auto; min-width: 0; }
-.ep-stick .chan {
-  display: flex; gap: 4px; align-items: stretch;
-  height: 18px; padding: 2px;
-  background: var(--ep-channel);
-  border: 1px solid var(--app-ink);
-  box-shadow: inset 0 1px 2px rgba(0,0,0,.22);
-}
-.ep-stick .grp { display: flex; gap: 1.5px; flex: 1 1 auto; min-width: 0; }
-.ep-stick .grp + .grp { margin-left: 3px; border-left: 1px solid var(--app-ink-3); padding-left: 4px; }
-.ep-stick .slug { flex: 1 1 auto; min-width: 2px; background: var(--ep-slug-lo); }
-.ep-stick .slug.set { background: var(--app-ink); }
-.ep-stick .slug.cur { background: var(--app-yellow); box-shadow: 0 0 0 1px var(--app-ink); }
-.ep-stick .cap {
-  display: flex; justify-content: space-between; margin-top: 4px;
-  font-size: var(--t-label); font-weight: 900; letter-spacing: .1em; text-transform: uppercase; color: var(--app-ink-3);
-}
-.ep-stick .cap b { color: var(--app-ink); }
-
-/* fuller stick — used in the recap proof sheet */
-.ep-stick.full .chan { height: 26px; }
-.ep-stick.full .concepts {
-  margin-top: 7px; display: flex; gap: 4px;
-}
-.ep-stick.full .concepts .c {
-  flex: 1 1 auto; text-align: center;
-  font-size: var(--t-label); font-weight: 900; letter-spacing: .08em; text-transform: uppercase;
-  color: var(--app-ink-3); padding-top: 5px; border-top: 1px solid var(--app-paper-3);
-}
-.ep-stick.full .concepts .c.done { color: var(--ep-bon); border-top-color: var(--ep-bon); }
-.ep-stick.full .concepts .c.cur { color: var(--app-ink); border-top-color: var(--app-ink); }
+.av2 .ep-run__dot { width: 12px; height: 12px; color: var(--av2-red); }
+.av2 .ep-finish { flex: none; padding-left: 8px; padding-right: 8px; white-space: nowrap; }
+.av2 .ep-finish--confirming { color: var(--av2-red); font-weight: 700; }
+.av2 .ep-finish:disabled { text-decoration: none; }
 
 /* ============================================================
-   THE EXERCISE SHEET (ExerciseShell)
-   eyebrow (round · mode · i/n) · provenance · concept title +
-   assembling motif · rule toggle · body per round type.
+   STEP LABEL · CONCEPT ROW · RULE CARD
    ============================================================ */
-.ep-sheet { padding: 15px 20px 18px; }
+.av2 .ep-eyebrow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; min-width: 0; }
+.av2 .ep-eyebrow__step { font-variant-numeric: tabular-nums; }
+.av2 .ep-retour { min-height: 0; padding: 0; }
+.av2 .ep-prov .av2-notice p { font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-body); }
+.av2 .ep-prov .av2-notice b { font-style: normal; font-weight: 700; }
 
-.ep-eyebrow {
-  display: flex; align-items: center; gap: 7px;
-  font-size: var(--t-label); font-weight: 900; letter-spacing: .16em; text-transform: uppercase;
-  color: var(--app-ink-3);
+.av2 .ep-concept { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.av2 .ep-concept__title {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  font-size: var(--av2-t-label);
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--av2-ink-2);
+  overflow-wrap: anywhere;
 }
-.ep-eyebrow i { width: 3px; height: 3px; background: var(--app-ink-3); flex: 0 0 auto; }
-.ep-eyebrow .mode { color: var(--app-ink-3); }
-.ep-eyebrow .idx { margin-left: auto; font-variant-numeric: tabular-nums; }
+.av2 .ep-concept__ask { flex: none; min-height: var(--av2-tap); font-size: var(--av2-t-meta); font-weight: 600; }
+.av2 .ep-concept__ask[aria-pressed='true'] { background: var(--av2-line); }
 
-/* re-test flash tag — "Retour · déjà corrigé" (marginal) */
-.ep-retour {
-  display: inline-flex; align-items: center; gap: 5px; margin-left: 7px;
-  font-size: var(--t-label); font-weight: 900; letter-spacing: .1em; text-transform: uppercase;
-  color: var(--app-blue); border: 1px solid var(--app-blue); padding: 2px 5px;
-}
-.ep-retour .d { width: 0; height: 0; border-style: solid; border-width: 4px 0 4px 5px; border-color: transparent transparent transparent var(--app-blue); }
-
-/* provenance note — graphite margin line for a resurfaced error */
-.ep-prov {
-  margin-top: 7px; padding-left: 10px; border-left: 2px solid var(--ep-graphite);
-  font-family: var(--app-serif); font-style: italic; font-size: var(--t-small); line-height: 1.35;
-  color: var(--ep-graphite);
-}
-.ep-prov b { font-weight: 700; font-style: normal; }
-
-/* concept title row + the assembling motif */
-.ep-concept { margin-top: 11px; display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: start; }
-.ep-concept .ct { min-width: 0; display: flex; gap: 12px; align-items: flex-start; }
-.ep-concept h1 {
-  margin: 0; font-family: var(--app-serif); font-style: italic; font-weight: 600;
-  font-size: var(--t-head); line-height: 1.04; letter-spacing: 0; color: var(--app-ink); text-wrap: balance;
-}
-.ep-concept .ask {
-  flex: 0 0 auto; width: 30px; height: 30px; padding: 0;
-  border: 1px solid var(--app-ink); background: var(--app-sheet); color: var(--app-ink);
-  display: grid; place-items: center; cursor: pointer;
-}
-.ep-concept .ask svg { width: 16px; height: 16px; }
-.ep-concept .ask.on { background: var(--app-ink); color: var(--app-paper); }
-
-/* ---- ASSEMBLING MOTIF (per-concept progress) --------------
-   A Bauhaus mark set from house primitives; one prints into
-   place per round; whole when the concept is done. */
-.ep-motif {
-  position: relative; width: 46px; height: 46px; flex: 0 0 auto;
-}
-.ep-motif svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-.ep-motif .prim { transition: opacity var(--ep-printin-dur) ease, transform var(--ep-printin-dur) ease; }
-.ep-motif .prim .shp { stroke: var(--app-ink); stroke-width: 3; }
-.ep-motif .prim .c-circle { fill: var(--app-blue); }
-.ep-motif .prim .c-square { fill: var(--app-yellow); }
-.ep-motif .prim .c-tri { fill: var(--app-red); }
-.ep-motif .prim .c-block { fill: var(--app-ink); }
-/* ghost = not yet printed: dashed outline, no fill */
-.ep-motif .prim.ghost .shp { fill: none; stroke: var(--app-ink-3); stroke-width: 1.5; stroke-dasharray: 2.5 2.5; }
-.ep-motif .prim.ghost { opacity: .75; }
-.ep-motif.done { border-color: var(--app-ink); box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--app-ink) 22%, transparent); }
+/* the assembling motif: the four shapes in their semantic colours */
+.av2 .ep-motif { position: relative; width: 32px; height: 32px; flex: none; }
+.av2 .ep-lock__plate .ep-motif { width: 56px; height: 56px; margin: 6px 0 2px; }
+.av2 .ep-motif svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.av2 .ep-motif .prim { transition: opacity 0.5s ease, transform 0.5s ease; transform-origin: 50% 50%; }
+.av2 .ep-motif .prim .shp { stroke: none; }
+.av2 .ep-motif .prim .c-circle { fill: var(--av2-blue); }
+.av2 .ep-motif .prim .c-square { fill: var(--av2-yellow); }
+.av2 .ep-motif .prim .c-tri { fill: var(--av2-red); }
+.av2 .ep-motif .prim .c-block { fill: var(--av2-ink); }
+.av2 .ep-motif .prim.ghost .shp { fill: var(--av2-line-2); }
+.av2 .ep-motif .prim.ghost { opacity: 0.8; }
 @media (prefers-reduced-motion: no-preference) {
-  .ep-motif .prim.print-in { animation: ep-print var(--ep-printin-dur) ease both; }
-  .ep-motif.done { animation: ep-motif-settle 180ms ease-out both; }
+  .av2 .ep-motif .prim.print-in { animation: ep-print 0.5s ease both; }
+  .av2 .ep-motif--done { animation: ep-motif-settle 180ms ease-out both; }
 }
-@keyframes ep-print { from { opacity: 0; transform: scale(.94); } to { opacity: 1; transform: scale(1); } }
-@keyframes ep-motif-settle { 0% { transform: scale(.9); opacity: .55; } 65% { transform: scale(1.06); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
-/* motif caption (spec/legend use) */
-.ep-motif-cap { font-family: var(--ep-mono); font-size: var(--t-label); color: var(--app-ink-3); margin-top: 5px; line-height: 1.4; }
+@keyframes ep-print { from { opacity: 0; transform: scale(0.94); } to { opacity: 1; transform: scale(1); } }
+@keyframes ep-motif-settle { 0% { transform: scale(0.9); opacity: 0.55; } 65% { transform: scale(1.06); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
 
-/* ---- THE RULE SHEET (payload.rule_panel + anchor examples) -- */
-.ep-rule {
-  margin-top: 13px; border: 1px solid var(--app-ink); background: var(--app-sheet);
-  overflow: hidden;
+/* the rule card, and the page's ConceptRulePanel markup inside it */
+.av2 .ep-rule { padding: 14px 16px; animation: av2-fade 0.2s; }
+.av2 .ep-rule .rule-panel { border: 0; padding: 0; background: transparent; }
+.av2 .ep-rule .between { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.av2 .ep-rule .t-mono {
+  font-family: inherit;
+  font-size: var(--av2-t-meta);
+  font-weight: 700;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--av2-blue);
 }
-.ep-rule .rh {
-  display: flex; align-items: center; gap: 8px; padding: 6px 8px 0;
+.av2 .ep-rule .notebook-link {
+  margin: 0;
+  font-family: inherit;
+  font-size: var(--av2-t-label);
+  font-weight: 600;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--av2-ink-2);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  min-height: var(--av2-tap);
+  display: inline-flex;
+  align-items: center;
 }
-.ep-rule .rh .k { font-size: var(--t-label); font-weight: 900; letter-spacing: .14em; text-transform: uppercase; color: var(--app-red); }
-.ep-rule .rh .x { margin-left: auto; border: 0; background: none; color: var(--app-ink-3); cursor: pointer; font-size: var(--t-body); line-height: 1; padding: 0; }
-.ep-rule .rb { padding: 12px 14px 14px; }
-.ep-rule .rb .lede { font-family: var(--app-serif); font-style: italic; font-size: var(--t-body); line-height: 1.36; color: var(--app-ink); }
-.ep-rule .rb .anchor { margin-top: 10px; }
-.ep-rule .rb .anchor .c { font-size: var(--t-label); font-weight: 900; letter-spacing: .13em; text-transform: uppercase; color: var(--app-ink-3); margin-bottom: 6px; }
-.ep-rule .rb .ex { font-family: var(--app-serif); font-size: var(--t-body); line-height: 1.5; color: var(--app-ink-2); }
-.ep-rule .rb .ex b { color: var(--app-ink); border-bottom: 2px solid var(--app-red); font-weight: 600; }
-
-/* ============================================================
-   THE PROMPT LINE — French sentence is the hero type
-   ============================================================ */
-.ep-prompt { margin-top: 15px; }
-.ep-line {
-  font-family: var(--app-serif); font-size: var(--t-head); line-height: 1.4; color: var(--app-ink); text-wrap: pretty;
+.av2 .ep-rule .rule-panel p {
+  margin: 6px 0 0;
+  font-size: var(--av2-t-label);
+  line-height: 1.45;
+  color: var(--av2-ink-2);
+  font-weight: 400;
 }
-.ep-line .blank {
-  display: inline-block; min-width: 68px; text-align: center;
-  border-bottom: 2px solid var(--app-red); color: var(--app-ink-3); font-style: italic;
+.av2 .ep-rule .rule-panel > p:first-of-type {
+  margin-top: 8px;
+  font-family: var(--av2-serif);
+  font-style: italic;
+  font-weight: 500;
+  font-size: var(--av2-t-rule);
+  line-height: 1.15;
+  color: var(--av2-ink);
 }
-.ep-line .blank.set { border-bottom-color: var(--app-ink); color: var(--app-ink); }
-/* the English meaning cue — the compositor's instruction */
-.ep-cue { margin-top: 9px; font-size: var(--t-small); line-height: 1.4; color: var(--app-ink-3); }
-.ep-cue b { font-weight: 800; color: var(--app-ink-2); }
-
-/* ============================================================
-   RECOGNIZE / FILL — option sorts
-   ============================================================ */
-.ep-opts { display: grid; gap: 8px; margin-top: 15px; }
-.ep-opt {
-  border: 1px solid var(--app-ink); background: var(--app-paper); color: var(--app-ink);
-  padding: 12px 14px; text-align: left; cursor: pointer;
-  font-family: var(--app-serif); font-size: var(--t-body); line-height: 1.15;
+.av2 .ep-rule .rule-panel p strong { font-weight: 700; color: var(--av2-ink); }
+.av2 .ep-rule .examples { margin-top: 8px; padding: 0; border: 0; }
+.av2 .ep-rule .examples p,
+.av2 .ep-rule .ep-rule__ex {
+  margin: 4px 0 0;
+  font-family: var(--av2-serif);
+  font-style: italic;
+  font-size: var(--av2-t-body);
+  line-height: 1.35;
+  color: var(--av2-blue);
 }
-.ep-opt.chosen { background: var(--app-ink); color: var(--app-paper); }
-.ep-opt.right { border-color: var(--ep-bon); box-shadow: inset 0 0 0 1.5px var(--ep-bon); }
-.ep-opt.wrong { border-color: var(--app-red); box-shadow: inset 0 0 0 1.5px var(--app-red); }
-/* fill: choices as a row of small sorts */
-.ep-choices { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
-
-/* ============================================================
-   MOVABLE TYPE (word-bank) — tokens set into a line
-   ============================================================ */
-.ep-slug {
-  font-family: var(--app-serif); font-size: var(--t-body); line-height: 1;
-  padding: 9px 11px; background: var(--app-paper); color: var(--app-ink);
-  border: 1px solid var(--app-ink); cursor: pointer;
-  box-shadow: inset 1px 1px 0 rgba(255,255,255,.35), 2px 2px 0 var(--app-ink);
+.av2 .ep-rule .rule-bridge {
+  margin: 10px 0 0;
+  padding: 0;
+  border: 0;
+  font-size: var(--av2-t-label);
+  font-weight: 500;
+  color: var(--av2-ink-2);
 }
-.ep[data-theme="dark"] .ep-slug { box-shadow: inset 1px 1px 0 rgba(255,255,255,.08), 2px 2px 0 var(--app-ink); }
-.ep-slug.spent { opacity: .3; pointer-events: none; box-shadow: none; }
-.ep-slug.set { box-shadow: inset 1px 1px 0 rgba(255,255,255,.3), 1px 1px 0 var(--app-ink); }
-
-/* the composing line — where set slugs sit on a baseline */
-.ep-setline {
-  position: relative; margin-top: 14px; min-height: 60px;
-  display: flex; flex-wrap: wrap; gap: 7px; align-content: flex-start;
-  padding: 12px 12px 16px;
-  background: var(--ep-channel); border: 1px solid var(--app-ink);
-  box-shadow: inset 0 1px 3px rgba(0,0,0,.15);
-}
-.ep-setline::after {
-  content: ""; position: absolute; left: 12px; right: 12px; bottom: 9px;
-  border-bottom: 1px solid var(--app-ink-3);
-}
-.ep-setline.empty::before {
-  content: "réglez la ligne ici"; position: absolute; left: 14px; top: 14px;
-  font-family: var(--ep-mono); font-size: var(--t-label); color: var(--app-ink-3); letter-spacing: .04em;
-}
-/* the type case — available sorts */
-.ep-case { margin-top: 13px; }
-.ep-case .cap {
-  display: flex; align-items: center; justify-content: space-between;
-  font-size: var(--t-label); font-weight: 900; letter-spacing: .13em; text-transform: uppercase; color: var(--app-ink-3);
-  margin-bottom: 9px;
-}
-.ep-case .sorts {
-  display: flex; flex-wrap: wrap; gap: 8px;
-  padding: 11px; background: var(--app-sheet); border: 1px solid var(--app-paper-3);
-}
-
-/* CLASSIFY — sorting slugs into labelled cases */
-.ep-cases { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
-.ep-casebox { border: 1px solid var(--app-ink); background: var(--app-sheet); }
-.ep-casebox .ch {
-  padding: 7px 10px; border-bottom: 1px solid var(--app-ink); background: var(--app-paper);
-  font-size: var(--t-label); font-weight: 900; letter-spacing: .1em; text-transform: uppercase; color: var(--app-ink-2);
-}
-.ep-casebox .cbody { padding: 10px; min-height: 58px; display: flex; flex-wrap: wrap; gap: 6px; align-content: flex-start; }
+.av2 .ep-rule__body .ep-rule__lede { font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-rule); }
+.av2 .ep-rule__anchor { margin-top: 8px; }
 
 /* ============================================================
-   PRODUCE — free composition (a set line + typed field)
+   PROMPT — the one Garamond headline, with the inline blank
    ============================================================ */
-.ep-produce { margin-top: 14px; }
-.ep-field {
-  font-family: var(--app-serif); font-size: var(--t-lead); line-height: 1.4; color: var(--app-ink);
-  padding: 13px 14px; min-height: 74px;
-  background: var(--app-sheet); border: 1px solid var(--app-ink);
-  box-shadow: inset 0 1px 3px rgba(0,0,0,.1);
+.av2 .ep-prompt { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.av2 .ep-line { margin: 0; }
+.av2 .ep-cue { margin: 0; }
+.av2 .ep-cue b { font-weight: 700; color: var(--av2-ink); }
+.av2 .ep-blank {
+  display: inline-block;
+  min-width: 5em;
+  margin: 0 0.2em;
+  border-bottom: 2.5px solid var(--av2-ink);
+  vertical-align: baseline;
+  text-align: center;
+  color: var(--av2-blue);
+  font-style: italic;
+  line-height: 1;
 }
-.ep-field .ph { color: var(--app-ink-3); font-style: italic; }
-.ep-field .caret { display: inline-block; width: 2px; height: 1.05em; background: var(--app-red); vertical-align: -2px; margin-left: 1px; }
-@media (prefers-reduced-motion: no-preference) { .ep-field .caret { animation: ep-blink 1s step-end infinite; } }
+.av2 .ep-blank[data-set='true'] { color: var(--av2-blue); }
+
+/* option cards: everything is the system's .av2-choice */
+.av2 .ep-opts { margin-top: 4px; }
+.av2 .ep-choices { min-width: 0; }
+
+/* ============================================================
+   WORD BANK · CLASSIFY
+   ============================================================ */
+.av2 .ep-setline { min-height: max(var(--av2-tap), 3.5rem); }
+.av2 .ep-setline__hint { color: var(--av2-muted); }
+.av2 .ep-setline .ep-slug { min-height: 36px; padding: 0.25rem 0.75rem; }
+.av2 .ep-typecase { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; }
+.av2 .ep-slug[data-spent='true'] {
+  background: var(--av2-line);
+  border-color: transparent;
+  box-shadow: none;
+  color: var(--av2-ink-2);
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+}
+.av2 .ep-case { display: flex; flex-direction: column; gap: 8px; }
+.av2 .ep-case__cap { display: flex; justify-content: space-between; gap: 8px; }
+.av2 .ep-cases { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; min-width: 0; }
+.av2 .ep-casebox { display: flex; flex-direction: column; gap: 10px; }
+.av2 .ep-casebox__label { color: var(--av2-ink); }
+.av2 .ep-casebox__body { display: flex; flex-direction: column; gap: 8px; }
+.av2 .ep-casebox .av2-choice { font-size: var(--av2-t-body); padding: 0.5rem 0.875rem; }
+@media (max-width: 360px) { .av2 .ep-cases { grid-template-columns: 1fr; } }
+
+/* ============================================================
+   PRODUCE — the answer well (the page's textarea, and the display well)
+   ============================================================ */
+.av2 .ep-composed-input,
+.av2 .ep-field {
+  width: 100%;
+  min-height: 7.5rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--av2-r-card);
+  background: var(--av2-card);
+  color: var(--av2-ink);
+  font-family: var(--av2-serif);
+  font-style: italic;
+  font-size: var(--av2-t-option);
+  line-height: 1.4;
+  resize: vertical;
+  outline: 0;
+}
+.av2 .ep-composed-input::placeholder { color: var(--av2-muted); font-style: italic; }
+.av2 .ep-composed-input[readonly] { color: var(--av2-ink-2); }
+.av2 .ep-field__ph { color: var(--av2-muted); }
+.av2 .ep-field__caret { display: inline-block; width: 2px; height: 1.05em; background: var(--av2-red); vertical-align: -2px; margin-left: 1px; }
+@media (prefers-reduced-motion: no-preference) { .av2 .ep-field__caret { animation: ep-blink 1s step-end infinite; } }
 @keyframes ep-blink { 50% { opacity: 0; } }
-
-/* ============================================================
-   CONFIDENCE TAP — optional two-chip: sûr / pas sûr, skippable
-   ============================================================ */
-.ep-conf { margin-top: 16px; display: flex; align-items: center; gap: 9px; }
-/* The label that used to anchor these on the left is gone (the chips say
-   "sûr·e / pas sûr·e" right above the check button), so they no longer push
-   themselves to the right edge. */
-.ep-conf .chips { display: flex; gap: 7px; }
-.ep-conf .chip {
-  border: 1px solid var(--app-ink-3); background: var(--app-paper); color: var(--app-ink-2);
-  font-size: var(--t-small); font-weight: 800; letter-spacing: .02em; padding: 6px 12px; cursor: pointer;
+.av2 .word-count { margin: -6px 0 0; text-align: right; font-size: var(--av2-t-meta); font-weight: 700; color: var(--av2-muted); font-variant-numeric: tabular-nums; }
+.av2 .target-chips,
+.av2 .target-word-strip { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; min-width: 0; }
+.av2 .target-chips span,
+.av2 .target-word-strip span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  min-height: 32px;
+  padding: 4px 12px;
+  border: 0;
+  border-radius: var(--av2-r-pill);
+  background: var(--av2-card);
+  color: var(--av2-ink);
+  font-family: inherit;
+  font-size: var(--av2-t-label);
+  font-weight: 700;
+  font-style: normal;
+  letter-spacing: normal;
+  text-transform: none;
+  line-height: 1.3;
 }
-.ep-conf .chip.sure.on { border-color: var(--ep-bon); background: var(--ep-bon); color: var(--app-paper); }
-.ep-conf .chip.unsure.on { border-color: var(--app-ink); background: var(--app-ink); color: var(--app-paper); }
+.av2 .target-word-strip span { font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-body); font-weight: 500; }
+.av2 .target-word-strip em { font-family: var(--av2-sans); font-style: normal; font-size: var(--av2-t-meta); font-weight: 400; color: var(--av2-muted); }
+
+/* conversation: the character byline and the world's reply */
+.av2 .ep-character-byline {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.av2 .ep-character-byline span { font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-rule); line-height: 1.15; color: var(--av2-ink); }
+.av2 .ep-character-byline em { font-family: var(--av2-sans); font-style: normal; font-size: var(--av2-t-meta); font-weight: 700; letter-spacing: normal; text-transform: none; color: var(--av2-blue); }
+.av2 .ep-world-reply {
+  margin: 0;
+  padding: 14px 16px;
+  border: 0;
+  border-radius: var(--av2-r-card);
+  background: var(--av2-card);
+  color: var(--av2-ink);
+  min-width: 0;
+}
+.av2 .ep-world-reply > span { display: block; font-size: var(--av2-t-meta); font-weight: 700; letter-spacing: normal; text-transform: none; color: var(--av2-blue); }
+.av2 .ep-world-reply p { margin: 6px 0 0; font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-rule); line-height: 1.3; }
 
 /* ============================================================
-   THE PRIMARY ACTION — ink press-bar. Never two competing CTAs.
+   CONFIDENCE
    ============================================================ */
-.ep-foot { padding: 0 20px 20px; }
-.ep-bar {
-  display: flex; align-items: center; justify-content: center; gap: 11px;
-  width: 100%; min-height: 54px; padding: 0 22px;
-  border-radius: 999px;
-  background: var(--app-ink); color: var(--app-paper);
-  border: 1px solid var(--app-ink);
-  font-size: var(--t-body); font-weight: 600; letter-spacing: .01em; text-transform: none;
+.av2 .ep-conf { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+.av2 .ep-conf .av2-chip { min-height: var(--av2-tap); }
+
+/* ============================================================
+   FOOTER — tinted band, verdict, the one primary. Sticky above the
+   app's bottom navigation; pushed to the bottom when the sheet is short.
+   ============================================================ */
+.av2 .ep-foot {
+  position: sticky;
+  bottom: var(--phone-bottom-nav-space, 0px);
+  z-index: 5;
+  margin: auto calc(-1 * var(--av2-gutter)) 0;
+  padding-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.av2 .ep-foot[data-tone='correct'] { background: var(--av2-tint-correct); }
+.av2 .ep-foot[data-tone='wrong'] { background: var(--av2-tint-wrong); }
+.av2 .ep-foot .ep-verdict { margin: 0; }
+.av2 .ep-verdict__text { min-width: 0; }
+.av2 .ep-bar { margin: 0; }
+
+/* ============================================================
+   FEEDBACK BODY — corrections, relecture, repair, correct moment
+   ============================================================ */
+.av2 .ep-feedback { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.av2 .ep-galley { margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.av2 .ep-galley__anchor { margin: 0; }
+.av2 .ep-gline { font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-option); line-height: 1.35; color: var(--av2-ink); overflow-wrap: anywhere; }
+.av2 .ep-gline .av2-correction__span { color: var(--av2-ink-2); }
+.av2 .ep-why { margin: 0; font-size: var(--av2-t-label); line-height: 1.45; color: var(--av2-ink-2); }
+.av2 .ep-repair-hint { margin: 0; display: flex; align-items: flex-start; gap: 8px; font-size: var(--av2-t-label); line-height: 1.45; color: var(--av2-ink-2); }
+.av2 .ep-repair-hint .av2-shape { margin-top: 5px; }
+.av2 .ep-labelfix { display: flex; flex-direction: column; gap: 4px; }
+.av2 .ep-labelfix p { margin: 0; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.av2 .ep-labelfix__k { flex: none; width: 4rem; }
+.av2 .ep-linefix { display: flex; flex-direction: column; gap: 4px; }
+.av2 .ep-linefix p { margin: 0; overflow-wrap: anywhere; }
+.av2 .ep-relecture { margin-top: 2px; }
+.av2 .ep-relecture__line { display: inline-flex; align-items: center; gap: 6px; }
+.av2 .ep-relecture .av2-notice { padding: 8px 12px; }
+.av2 .ep-relecture__again { min-height: var(--av2-tap); }
+.av2 .ep-correct { margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.av2 .ep-correct__said { margin: 0; font-size: var(--av2-t-option); color: var(--av2-green); }
+.av2 .ep-bon-stamp[data-struck='true'] { animation: av2-pop 0.3s; }
+.av2 .ep-bon-stamp .av2-label { color: var(--av2-ink); }
+.av2 .ep-rulenote { margin: 0; font-size: var(--av2-t-meta); font-weight: 700; color: var(--av2-muted); }
+.av2 .ep-notebook-add {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: var(--av2-r-card);
+  background: var(--av2-card);
+  min-width: 0;
+}
+.av2 .ep-notebook-add .nh { display: block; margin-bottom: 6px; font-size: var(--av2-t-meta); font-weight: 700; color: var(--av2-green); }
+.av2 .ep-notebook-add ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.av2 .ep-notebook-add li { font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-body); line-height: 1.3; color: var(--av2-ink); }
+.av2 .ep-notebook-add li b { font-weight: 700; }
+.av2 .ep-notebook-add li em { color: var(--av2-muted); }
+.av2 .ep-fb-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 12px; margin: 0; }
+.av2 .ep-fb-links button {
+  min-height: var(--av2-tap);
+  padding: 0.5rem 0.75rem;
+  border: 0;
+  background: transparent;
+  color: var(--av2-ink-2);
+  font-family: inherit;
+  font-size: var(--av2-t-label);
+  font-weight: 600;
+  letter-spacing: normal;
+  text-transform: none;
+  text-decoration: underline;
+  text-underline-offset: 3px;
   cursor: pointer;
-  transition: background .16s ease, color .16s ease;
 }
-.ep-bar svg { width: 17px; height: 17px; }
-.ep-bar:active { background: var(--app-paper-2); color: var(--app-ink); }
-.ep-bar[disabled] { opacity: .5; cursor: default; }
-.ep-bar.red { background: var(--app-red); border-color: var(--app-red); color: var(--app-paper); }
-.ep-bar.red:active { background: var(--app-paper-2); border-color: var(--app-ink); color: var(--app-ink); }
-.ep-bar.ghost { background: transparent; color: var(--app-ink); border-color: var(--app-ink); }
-.ep-bar.ghost:active { background: var(--app-paper-2); color: var(--app-ink); }
 
-/* verdict line above the action (a ruled press notice) */
-.ep-verdict {
-  display: flex; align-items: center; gap: 10px; margin-bottom: 13px;
-  font-size: var(--t-label); font-weight: 900; letter-spacing: .13em; text-transform: uppercase;
-}
-.ep-verdict .ln { flex: 1 1 auto; height: 1px; background: currentColor; opacity: .4; }
-.ep-verdict.go { color: var(--ep-bon); }
-.ep-verdict.no { color: var(--app-ink); }
-.ep-verdict.no .ln { background: var(--app-red); opacity: 1; }
+/* typed micro-repair */
+.av2 .ep-repair { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; }
+.av2 .ep-repair__input { font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-option); }
+.av2 .ep-repair__ghostline { display: block; font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-option); }
+.av2 .ep-repair__err { color: var(--av2-red); text-decoration: underline; text-decoration-thickness: 2px; }
+.av2 .ep-repair__ghost { color: var(--av2-muted); }
+.av2 .ep-repair__submit { align-self: flex-start; }
+.av2 .ep-repair .av2-notice { padding: 8px 12px; }
 
 /* ============================================================
-   PROOFREADER'S MARKS — the feedback language (the heart)
-   The learner's OWN sentence, marked like an editor's galley:
-   strike on the error, a red margin correction with caret, the
-   "why" as a graphite pencil note beneath.
+   LISTEN · RECORD
    ============================================================ */
-.ep-galley {
-  margin-top: 14px; position: relative;
-  padding: 16px 16px 14px; background: var(--app-sheet); border: 1px solid var(--app-ink);
-}
-.ep-galley .gh {
-  display: flex; align-items: center; gap: 8px; margin-bottom: 12px;
-  font-size: var(--t-label); font-weight: 900; letter-spacing: .14em; text-transform: uppercase; color: var(--app-ink-3);
-}
-/* The error-frame anchor is furniture, not a debug tag: it takes the same kicker
-   treatment as every other Épreuve label (uppercase letter-spaced grotesk in
-   --app-ink-3) instead of a right-flushed mono machine string. */
-.ep-galley .gh .n { color: var(--app-ink-3); }
-/* the set line, with room above for margin corrections */
-.ep-gline {
-  font-family: var(--app-serif); font-size: var(--t-head); line-height: 2.15; color: var(--app-ink);
-}
-/* a corrected span: struck original in line, red fix floating above with a caret.
-   Only fits a short word-level swap inside a longer visible line — see
-   EpLabelFix below for label-vs-label corrections (e.g. classify). */
-.ep-fix { position: relative; white-space: nowrap; }
-.ep-fix .old {
-  color: var(--app-ink-2); text-decoration: line-through; text-decoration-thickness: 2px;
-  text-decoration-color: var(--app-red);
-}
-.ep-fix .new {
-  position: absolute; left: 50%; top: -0.92em; transform: translateX(-50%);
-  font-style: italic; font-size: var(--t-body); color: var(--app-ink-2); white-space: nowrap; line-height: 1;
-}
-/* the proofreader's caret ⁁ pointing up from the baseline to the fix */
-.ep-fix .car {
-  position: absolute; left: 50%; top: -0.08em; transform: translateX(-50%);
-  color: var(--app-red); font-size: var(--t-small); line-height: 1;
-}
-/* an insertion (missing word): a caret on the line, the word above */
-.ep-ins { position: relative; display: inline-block; width: 0; }
-.ep-ins .new { position: absolute; left: 50%; top: -0.92em; transform: translateX(-50%); font-style: italic; font-size: var(--t-body); color: var(--app-ink-2); white-space: nowrap; }
-.ep-ins .car { position: absolute; left: 50%; top: -0.08em; transform: translateX(-50%); color: var(--app-red); font-size: var(--t-small); }
-.ep-labelfix { display: grid; gap: 7px; }
-.ep-labelfix .row { display: flex; align-items: baseline; gap: 10px; }
-.ep-labelfix .k { flex: 0 0 auto; width: 58px; font-family: var(--ep-mono); font-size: var(--t-label); font-weight: 900; letter-spacing: .1em; text-transform: uppercase; color: var(--app-ink-3); }
-.ep-labelfix .v { font-family: var(--app-serif); font-size: var(--t-body); line-height: 1.3; }
-.ep-labelfix .v.old { color: var(--app-ink-2); text-decoration: line-through; text-decoration-thickness: 2px; text-decoration-color: var(--app-red); }
-.ep-labelfix .v.new { color: var(--app-ink-2); font-style: italic; }
-.ep-linefix { display: grid; gap: 6px; }
-.ep-linefix p { margin: 0; font-family: var(--app-serif); font-size: var(--t-lead); line-height: 1.4; overflow-wrap: anywhere; }
-.ep-linefix .old { color: var(--app-ink-2); text-decoration: line-through; text-decoration-thickness: 2px; text-decoration-color: var(--app-red); }
-.ep-linefix .new { color: var(--app-ink-2); font-style: italic; }
-/* the graphite pencil "why" note */
-.ep-why {
-  margin-top: 12px;
-  display: grid; grid-template-columns: auto 1fr; gap: 9px; align-items: start;
-}
-.ep-why .pin {
-  flex: 0 0 auto; width: 15px; height: 15px; color: var(--ep-graphite);
-}
-.ep-why .pin svg { width: 15px; height: 15px; }
-.ep-why .t {
-  font-family: var(--app-serif); font-style: italic; font-size: var(--t-body); line-height: 1.42; color: var(--ep-graphite);
-}
-.ep-why .t b { font-style: normal; font-weight: 700; color: var(--app-ink-2); }
-/* the corrector's next action — set below the why, one step quieter */
-.ep-repair-hint {
-  margin-top: 7px; padding-left: 24px;
-  font-size: var(--t-small); line-height: 1.42; color: var(--app-ink-3);
-}
-
-/* the async AI second-look — discreet marginal note, resolves in place */
-.ep-relecture {
-  margin-top: 12px; display: flex; align-items: center; gap: 8px;
-  font-family: var(--app-serif); font-style: italic; font-size: var(--t-small); color: var(--app-ink-3);
-}
-.ep-relecture .dots { display: inline-flex; gap: 3px; }
-.ep-relecture .dots i { width: 4px; height: 4px; border-radius: 50%; background: var(--app-ink-3); }
-@media (prefers-reduced-motion: no-preference) {
-  .ep-relecture.pending .dots i { animation: ep-pulse 1s ease-in-out infinite; }
-  .ep-relecture.pending .dots i:nth-child(2) { animation-delay: .2s; }
-  .ep-relecture.pending .dots i:nth-child(3) { animation-delay: .4s; }
-}
-@keyframes ep-pulse { 0%,100% { opacity: .3; } 50% { opacity: 1; } }
-.ep-relecture.done { color: var(--ep-bon); }
-.ep-relecture.done b { font-style: normal; font-weight: 700; }
-.ep-relecture.failed { color: var(--app-ink-3); }
-.ep-relecture.failed .again {
-  border: 0; background: none; padding: 0; cursor: pointer;
-  font-family: inherit; font-size: inherit; font-style: inherit;
-  color: var(--app-ink); text-decoration: underline; text-underline-offset: 2px;
-}
-.ep-relecture.failed .again:disabled { opacity: .55; cursor: not-allowed; text-decoration: none; }
-
-/* ---- BON stamp — correct answer, small, NOT a modal --------- */
-.ep-bon-stamp {
-  display: inline-flex; align-items: center; gap: 6px;
-  border: 2px solid var(--ep-bon); color: var(--ep-bon);
-  font-size: var(--t-small); font-weight: 900; letter-spacing: .18em; text-transform: uppercase;
-  padding: 5px 11px 4px; transform: rotate(-3.5deg);
-  box-shadow: inset 0 0 0 1px var(--ep-bon);
-}
-.ep-bon-stamp .d { font-size: var(--t-label); letter-spacing: .1em; color: var(--ep-bon); opacity: .8; }
-@media (prefers-reduced-motion: no-preference) {
-  .ep-struck { animation: ep-strike .3s cubic-bezier(.18,1.35,.3,1) both; }
-}
-@keyframes ep-strike { 0% { transform: scale(1.5) rotate(-14deg); opacity: 0; } 60% { transform: scale(.94) rotate(-2deg); opacity: 1; } 100% { transform: rotate(-3.5deg); } }
-
-/* the correct-moment inline block (no modal) */
-.ep-correct { margin-top: 14px; display: flex; align-items: center; gap: 13px; }
-.ep-correct .said { font-family: var(--app-serif); font-style: italic; font-size: var(--t-body); color: var(--app-ink-2); line-height: 1.3; }
-.ep-correct .said b { color: var(--app-ink); font-style: normal; font-weight: 700; }
+.av2 .ep-listen { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.av2 .ep-listen__text { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.av2 .ep-listen__text p { margin: 0; }
+.av2 .ep-listen__fr { font-size: var(--av2-t-rule); color: var(--av2-ink); }
+.av2 .ep-listen[data-disabled='true'] .ep-listen__fr { color: var(--av2-ink-2); }
+.av2 .ep-record { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.av2 .ep-record__st { margin: 0; }
+.av2 .ep-record[data-status='recording'] .ep-record__st { color: var(--av2-ink); }
 
 /* ============================================================
-   TYPED MICRO-REPAIR — "Recopie la correction :"
-   The corrected sentence as a ghost to type over.
+   LOCK — the early-mastery reward surface
    ============================================================ */
-.ep-repair { margin-top: 14px; border: 1px solid var(--app-ink); background: var(--app-paper); }
-.ep-repair .rh {
-  padding: 8px 13px; border-bottom: 1px solid var(--app-ink); background: var(--app-sheet);
-  font-size: var(--t-label); font-weight: 900; letter-spacing: .13em; text-transform: uppercase; color: var(--app-ink-2);
-}
-.ep-repair .ep-rf { padding: 13px 14px; }
-.ep-typefield {
-  position: relative; font-family: var(--app-serif); font-size: var(--t-lead); line-height: 1.4; color: var(--app-ink);
-  padding: 11px 13px; background: var(--app-sheet); border: 1px solid var(--app-ink-3);
-}
-.ep-typefield input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--app-ink); font-family: var(--app-serif); font-size: var(--t-lead); line-height: 1.4; }
-.ep-typefield input::placeholder { color: var(--app-ink-3); opacity: .52; }
-.ep-repair-submit { margin-top: 10px; border: 1px solid var(--app-ink); background: var(--app-paper); color: var(--app-ink); padding: 8px 10px; font: 700 8.5px/1 var(--app-grotesk); letter-spacing: .12em; text-transform: uppercase; }
-.ep-repair-submit:not(:disabled):hover { background: var(--app-ink); color: var(--app-paper); }
-.ep-repair-submit:disabled { opacity: .45; cursor: not-allowed; }
-.ep-typefield .typed { color: var(--app-ink); }
-.ep-typefield .typed.err { color: var(--app-ink-2); text-decoration: underline; text-decoration-style: wavy; text-decoration-color: var(--app-red); }
-.ep-typefield .ghost { color: var(--app-ink-3); }
-.ep-typefield .caret { display: inline-block; width: 2px; height: 1.05em; background: var(--app-red); vertical-align: -2px; }
-@media (prefers-reduced-motion: no-preference) { .ep-typefield .caret { animation: ep-blink 1s step-end infinite; } }
-.ep-typefield.ok { border-color: var(--ep-bon); box-shadow: inset 0 0 0 1px var(--ep-bon); }
-.ep-typefield.no { border-color: var(--app-red); }
-.ep-repair .rmeta { margin-top: 9px; font-size: var(--t-label); font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
-.ep-repair .rmeta.ok { color: var(--ep-bon); }
-.ep-repair .rmeta.no { color: var(--app-red); }
+.av2 .ep-lock { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 18px 20px; margin-top: 4px; }
+.av2 .ep-lock__k, .av2 .ep-lock__promo .av2-label { color: var(--av2-on-yellow); }
+.av2 .ep-lock__plate { display: flex; }
+.av2 .ep-lock__title { margin: 0; color: var(--av2-on-yellow); }
+.av2 .ep-lock__p { margin: 0; color: var(--av2-on-yellow); }
+.av2 .ep-lock__promo .av2-shape--square { color: var(--av2-on-yellow); }
 
 /* ============================================================
-   ÉCOUTER + SHADOWING (speak round)
-   écouter → parler (idle/recording/transcribing) → marked transcript
+   NOTICE · SKELETON · RESUME
    ============================================================ */
-.ep-listen {
-  margin-top: 14px; display: flex; align-items: center; gap: 12px;
-  padding: 12px 14px; background: var(--app-ink); color: var(--app-paper); border: 1.5px solid var(--app-ink);
-}
-.ep-listen.disabled { background: var(--app-sheet); color: var(--app-ink-3); border-color: var(--app-ink-3); border-style: dashed; }
-.ep-listen .play {
-  flex: 0 0 auto; width: 40px; height: 40px; padding: 0;
-  border: 1.5px solid var(--app-paper); background: var(--app-red); color: #fff;
-  display: grid; place-items: center; cursor: pointer;
-}
-.ep-listen.disabled .play { border-color: var(--app-ink-3); background: transparent; color: var(--app-ink-3); }
-.ep-listen .play svg { width: 16px; height: 16px; }
-.ep-listen .l { min-width: 0; }
-.ep-listen .l .k { font-size: var(--t-label); font-weight: 900; letter-spacing: .14em; text-transform: uppercase; color: var(--app-yellow); }
-.ep-listen.disabled .l .k { color: var(--app-ink-3); }
-.ep-listen .l .fr { margin-top: 2px; font-family: var(--app-serif); font-style: italic; font-size: var(--t-body); line-height: 1.15; color: var(--app-paper); }
-.ep-listen.disabled .l .fr { color: var(--app-ink-3); }
-.ep-listen .wave { margin-left: auto; display: flex; gap: 2px; align-items: center; height: 22px; }
-.ep-listen .wave i { width: 2px; background: var(--app-yellow); opacity: .55; }
-
-/* the record affordance */
-.ep-record { margin-top: 12px; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 16px; border: 1px dashed var(--app-ink); background: var(--app-sheet); }
-.ep-record .mic {
-  width: 62px; height: 62px; border-radius: 50%; padding: 0;
-  border: 1.5px solid var(--app-ink); background: var(--app-paper); color: var(--app-ink);
-  display: grid; place-items: center; cursor: pointer;
-}
-.ep-record .mic svg { width: 24px; height: 24px; }
-.ep-record.recording .mic { background: var(--app-red); color: #fff; border-color: var(--app-red); }
-@media (prefers-reduced-motion: no-preference) {
-  .ep-record.recording .mic { animation: ep-rec 1.3s ease-in-out infinite; }
-}
-@keyframes ep-rec { 0%,100% { box-shadow: 0 0 0 0 rgba(216,50,26,.5); } 50% { box-shadow: 0 0 0 8px rgba(216,50,26,0); } }
-.ep-record .st { font-size: var(--t-label); font-weight: 900; letter-spacing: .14em; text-transform: uppercase; color: var(--app-ink-3); }
-.ep-record.recording .st { color: var(--app-red); }
-/* transcribing — the press rollers */
-.ep-record .rollers { display: flex; gap: 7px; }
-.ep-record .rollers i { width: 8px; height: 30px; background: var(--app-ink-3); }
-@media (prefers-reduced-motion: no-preference) {
-  .ep-record.transcribing .rollers i { animation: ep-roll 1s linear infinite; }
-  .ep-record.transcribing .rollers i:nth-child(2) { animation-delay: .16s; }
-  .ep-record.transcribing .rollers i:nth-child(3) { animation-delay: .32s; }
-}
-@keyframes ep-roll { 0% { transform: scaleY(.4); opacity: .5; } 50% { transform: scaleY(1); opacity: 1; } 100% { transform: scaleY(.4); opacity: .5; } }
+.av2 .ep-notice { min-width: 0; }
+.av2 .ep-notice .av2-btn { gap: 6px; }
+.av2 .ep-skel { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.av2 .ep-skel__press { margin: 4px 0 0; }
+.av2 .ep-resume { display: flex; flex-direction: column; gap: 10px; padding: 20px; }
+.av2 .ep-resume h2, .av2 .ep-resume p { margin: 0; }
+.av2 .ep-resume__stick { margin: 6px 0; }
 
 /* ============================================================
-   EARLY MASTERY LOCK — "PLOMB VERROUILLÉ"
-   Skipping feels like an earned promotion, not missing content.
+   RECAP — L'ÉPREUVE. RecapModal (pages/atelier.tsx) mounts
+   <section class="ep ep-recap"> without an AtelierV2Root, so every
+   recap selector is doubled with .ep-recap … and the design tokens
+   are bridged from the app's own theme tokens on that section. The
+   bridge mirrors the token table in styles/atelier-v2.css; it becomes
+   dead the moment that section carries the av2 class.
    ============================================================ */
-.ep-lock { padding: 26px 22px 22px; text-align: center; }
-.ep-lock .k { font-size: var(--t-label); font-weight: 900; letter-spacing: .2em; text-transform: uppercase; color: var(--ep-bon); }
-.ep-lock .plate {
-  position: relative; margin: 18px auto 0; width: 132px; height: 132px;
-  border: 2px solid var(--app-ink); background: var(--app-sheet); box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--ep-channel) 20%, transparent);
-  display: grid; place-items: center;
+.ep-recap:not(.av2) {
+  --av2-paper: var(--app-paper);
+  --av2-card: var(--app-sheet);
+  --av2-line: var(--app-paper-2);
+  --av2-line-2: var(--app-paper-3);
+  --av2-ink: var(--app-ink);
+  --av2-ink-2: var(--app-ink-2);
+  --av2-muted: var(--app-ink-3);
+  --av2-on-dark: var(--app-sheet);
+  --av2-on-red: var(--app-sheet);
+  --av2-on-blue: var(--app-sheet);
+  --av2-on-green: var(--app-sheet);
+  --av2-on-yellow: var(--app-ink);
+  --av2-on-ink: var(--app-sheet);
+  --av2-red: var(--app-red);
+  --av2-red-deep: color-mix(in srgb, var(--app-red) 72%, var(--app-ink));
+  --av2-blue: var(--app-blue);
+  --av2-blue-deep: color-mix(in srgb, var(--app-blue) 72%, var(--app-ink));
+  --av2-yellow: var(--app-yellow);
+  --av2-yellow-deep: color-mix(in srgb, var(--app-yellow) 72%, var(--app-ink));
+  --av2-green: var(--app-green);
+  --av2-green-deep: color-mix(in srgb, var(--app-green) 72%, var(--app-ink));
+  --av2-ink-deep: color-mix(in srgb, var(--app-ink) 60%, var(--app-paper));
+  --av2-tint-correct: color-mix(in srgb, var(--app-green) 14%, var(--app-paper));
+  --av2-tint-wrong: color-mix(in srgb, var(--app-red) 14%, var(--app-paper));
+  --av2-tint-neutral: var(--app-paper);
+  --av2-r-pill: 999px;
+  --av2-r-button: 16px;
+  --av2-r-card: 16px;
+  --av2-r-tile: 18px;
+  --av2-r-episode: 22px;
+  --av2-r-hero: 24px;
+  --av2-r-vocab: 28px;
+  --av2-r-sheet: 28px;
+  --av2-press: 5px;
+  --av2-press-sm: 3px;
+  --av2-press-md: 4px;
+  --av2-press-lg: 8px;
+  --av2-press-dur: 0.08s;
+  --av2-serif: 'AtelierSerif', var(--app-serif);
+  --av2-sans: 'AtelierSans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --av2-t-meta: 0.75rem;
+  --av2-t-label: 0.8125rem;
+  --av2-t-body: 0.9375rem;
+  --av2-t-body-lg: 1rem;
+  --av2-t-action: 1.0625rem;
+  --av2-t-rule: 1.1875rem;
+  --av2-t-option: 1.25rem;
+  --av2-t-title: 1.5rem;
+  --av2-t-head: 1.875rem;
+  --av2-t-screen: 2rem;
+  --av2-t-display: 2.125rem;
+  --av2-gutter: 20px;
+  --av2-gap: 12px;
+  --av2-tap: 44px;
+  --av2-safe-bottom: max(20px, env(safe-area-inset-bottom));
+  --av2-focus: var(--app-ink);
+  font-family: var(--av2-sans);
+  color: var(--av2-ink);
+  text-transform: none;
+  letter-spacing: normal;
 }
-.ep-lock .plate .ep-motif { width: 76px; height: 76px; border: 0; background: transparent; }
-.ep-lock .plate .band {
-  position: absolute; left: -8px; right: -8px; top: 50%; transform: translateY(-50%) rotate(-6deg);
-  background: var(--app-ink); color: var(--app-paper);
-  font-size: var(--t-label); font-weight: 900; letter-spacing: .16em; text-transform: uppercase; text-align: center; padding: 5px 0;
+.ep-recap:not(.av2) *, .ep-recap:not(.av2) *::before, .ep-recap:not(.av2) *::after { box-sizing: border-box; }
+.ep-recap:not(.av2) .av2-surface { background: var(--av2-card); border-radius: var(--av2-r-card); padding: 16px 18px; color: var(--av2-ink); min-width: 0; }
+.ep-recap:not(.av2) .av2-surface--tile { border-radius: var(--av2-r-tile); padding: 12px 14px; }
+.ep-recap:not(.av2) .av2-surface--hero { border-radius: var(--av2-r-hero); padding: 0; overflow: hidden; }
+.ep-recap:not(.av2) .av2-surface--blue { background: var(--av2-blue); color: var(--av2-on-blue); }
+.ep-recap:not(.av2) .av2-surface--blue .av2-label, .ep-recap:not(.av2) .av2-surface--blue .av2-headline { color: inherit; }
+.ep-recap:not(.av2) .av2-headline { margin: 0; font-family: var(--av2-serif); font-style: italic; font-weight: 500; font-size: var(--av2-t-head); line-height: 1.15; color: var(--av2-ink); text-wrap: pretty; overflow-wrap: anywhere; }
+.ep-recap:not(.av2) .av2-headline--screen { font-size: var(--av2-t-screen); line-height: 1; }
+.ep-recap:not(.av2) .av2-headline--display { font-size: var(--av2-t-display); line-height: 1.05; }
+.ep-recap:not(.av2) .av2-headline--title { font-size: var(--av2-t-title); line-height: 1.1; font-weight: 600; }
+.ep-recap:not(.av2) .av2-label { margin: 0; font-size: var(--av2-t-meta); font-weight: 700; line-height: 1.3; color: var(--av2-muted); }
+.ep-recap:not(.av2) .av2-body { margin: 0; font-size: var(--av2-t-label); line-height: 1.45; color: var(--av2-ink-2); }
+.ep-recap:not(.av2) .av2-body--lg { font-size: var(--av2-t-body); }
+.ep-recap:not(.av2) .av2-fr { font-family: var(--av2-serif); font-style: italic; line-height: 1.35; overflow-wrap: anywhere; }
+.ep-recap:not(.av2) .av2-byline { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.ep-recap:not(.av2) .av2-shape { display: inline-block; flex: none; width: 12px; height: 12px; background: currentColor; }
+.ep-recap:not(.av2) .av2-shape--square { border-radius: 2px; color: var(--av2-ink); }
+.ep-recap:not(.av2) .av2-shape--circle { border-radius: 999px; color: var(--av2-blue); }
+.ep-recap:not(.av2) .av2-shape--reward { border-radius: 3px; color: var(--av2-yellow); }
+.ep-recap:not(.av2) .av2-shape--triangle { color: var(--av2-red); clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.ep-recap:not(.av2) .av2-shape--sm { width: 8px; height: 8px; }
+.ep-recap:not(.av2) .av2-btn {
+  --av2-btn-face: var(--av2-card);
+  --av2-btn-fg: var(--av2-ink);
+  --av2-btn-shadow: var(--av2-line-2);
+  --av2-btn-depth: var(--av2-press);
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; min-height: max(var(--av2-tap), 3.5rem); padding: 0.75rem 1.25rem;
+  border: 0; border-radius: var(--av2-r-button);
+  background: var(--av2-btn-face); color: var(--av2-btn-fg);
+  box-shadow: 0 var(--av2-btn-depth) 0 var(--av2-btn-shadow);
+  font-family: inherit; font-size: var(--av2-t-action); font-weight: 700; line-height: 1.25;
+  letter-spacing: normal; text-transform: none; cursor: pointer;
+  transition: transform var(--av2-press-dur), box-shadow var(--av2-press-dur);
 }
-.ep-lock h2 { margin: 20px auto 0; max-width: 270px; font-family: var(--app-serif); font-style: italic; font-weight: 600; font-size: var(--t-head); line-height: 1.05; }
-.ep-lock p { margin: 11px auto 0; max-width: 250px; font-size: var(--t-small); line-height: 1.5; color: var(--app-ink-2); }
-.ep-lock .promo {
-  margin: 16px auto 0; display: inline-flex; align-items: center; gap: 8px;
-  border-top: 1px solid var(--app-ink); border-bottom: 1px solid var(--app-ink); padding: 8px 14px;
-  font-size: var(--t-label); font-weight: 900; letter-spacing: .13em; text-transform: uppercase; color: var(--app-ink);
+.ep-recap:not(.av2) .av2-btn:not(:disabled):active { transform: translateY(var(--av2-btn-depth)); box-shadow: 0 0 0 transparent; }
+.ep-recap:not(.av2) .av2-btn--primary { --av2-btn-face: var(--av2-red); --av2-btn-fg: var(--av2-on-red); --av2-btn-shadow: var(--av2-red-deep); }
+.ep-recap:not(.av2) .av2-btn--secondary { --av2-btn-depth: var(--av2-press-md); font-size: var(--av2-t-body-lg); }
+.ep-recap:not(.av2) .av2-mark { display: block; }
+
+/* the recap's own layout (both scopes) */
+.av2 .ep-recap, .ep.ep-recap {
+  position: relative;
+  width: min(100%, 510px);
+  max-height: min(90dvh, 780px);
+  overflow: auto;
+  border: 0;
+  border-radius: var(--av2-r-sheet);
+  background: var(--av2-paper);
+  color: var(--av2-ink);
+  box-shadow: none;
+  display: flex;
+  flex-direction: column;
 }
-.ep-lock .promo b { color: var(--ep-bon); }
-
-/* ============================================================
-   BON À TIRER — the session-completion stamp across the page
-   ============================================================ */
-.ep-bat-stage { position: relative; padding: 54px 22px; text-align: center; background: var(--app-paper); }
-.ep-bat {
-  display: inline-flex; flex-direction: column; align-items: center; gap: 3px;
-  border: 3px solid var(--app-red); color: var(--app-red);
-  padding: 12px 22px 10px; transform: rotate(-5deg);
-  box-shadow: inset 0 0 0 2px var(--app-red);
+.av2 .ep-recap-close, .ep-recap .ep-recap-close {
+  position: absolute;
+  z-index: 2;
+  right: 12px;
+  top: 12px;
+  display: grid;
+  place-items: center;
+  width: var(--av2-tap);
+  height: var(--av2-tap);
+  padding: 0;
+  border: 0;
+  border-radius: var(--av2-r-pill);
+  background: var(--av2-card);
+  color: var(--av2-ink);
+  font-size: var(--av2-t-title);
+  line-height: 1;
+  cursor: pointer;
 }
-.ep-bat .m { font-family: var(--app-grotesk); font-weight: 900; font-size: var(--t-head); letter-spacing: .08em; line-height: .9; }
-.ep-bat .d { font-size: var(--t-label); font-weight: 900; letter-spacing: .22em; text-transform: uppercase; }
-.ep-bat-stage .sub { margin: 26px auto 0; max-width: 260px; font-family: var(--app-serif); font-style: italic; font-size: var(--t-body); line-height: 1.35; color: var(--app-ink-2); }
-
-/* ============================================================
-   L'ÉPREUVE — the proof-sheet recap
-   ============================================================ */
-.ep-recap { background: var(--app-paper); }
-.ep-recap-head { padding: 20px 22px 16px; border-bottom: 3px double var(--app-ink); text-align: center; }
-.ep-recap-head .folio {
-  display: flex; align-items: center; justify-content: center; gap: 7px;
-  font-size: var(--t-label); font-weight: 900; letter-spacing: .18em; text-transform: uppercase; color: var(--app-ink);
+.av2 .ep-bat-stage, .ep.ep-recap .ep-bat-stage { padding: 20px 20px 0; text-align: left; background: transparent; }
+.av2 .ep-bat, .ep-recap .ep-bat { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 18px 20px; animation: av2-pop 0.3s; }
+.av2 .ep-bat__d, .ep-recap .ep-bat__d { margin-top: 6px; }
+.av2 .ep-bat__m, .ep-recap .ep-bat__m { margin: 0; }
+.av2 .ep-bat__sub, .ep-recap .ep-bat__sub { margin: 4px 0 0; }
+.av2 .ep-recap-head, .ep-recap .ep-recap-head { display: flex; flex-direction: column; gap: 4px; padding: 20px 20px 0; }
+.av2 .ep-recap-head__title, .ep-recap .ep-recap-head__title { margin: 2px 0 0; }
+.av2 .ep-recap-body, .ep-recap .ep-recap-body { display: flex; flex-direction: column; gap: 14px; padding: 18px 20px 24px; }
+.av2 .ep-tally, .ep-recap .ep-tally { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; min-width: 0; }
+.av2 .ep-tally__t, .ep-recap .ep-tally__t { display: flex; flex-direction: column; gap: 4px; }
+.av2 .ep-tally__n, .ep-recap .ep-tally__n { margin: 0; font-family: var(--av2-serif); font-style: italic; font-weight: 600; font-size: var(--av2-t-title); line-height: 1; color: var(--av2-ink); }
+.av2 .ep-tally__l, .ep-recap .ep-tally__l { margin: 0; }
+.av2 .ep-proof, .ep-recap .ep-proof { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.av2 .ep-proof__pl, .ep-recap .ep-proof__pl { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: baseline; gap: 10px; }
+.av2 .ep-proof__pl .av2-shape, .ep-recap .ep-proof__pl .av2-shape { align-self: center; }
+.av2 .ep-proof__fr, .ep-recap .ep-proof__fr { font-size: var(--av2-t-body); color: var(--av2-ink); }
+.av2 .ep-proof__fr del, .ep-recap .ep-proof__fr del { color: var(--av2-ink-2); }
+.av2 .ep-proof__fr ins, .ep-recap .ep-proof__fr ins { text-decoration: none; color: var(--av2-green); }
+.av2 .ep-proof__tag, .ep-recap .ep-proof__tag { white-space: nowrap; }
+.av2 .ep-phrase, .ep-recap .ep-phrase { display: flex; flex-direction: column; gap: 8px; }
+.av2 .ep-phrase__q, .ep-recap .ep-phrase__q { margin: 0; text-wrap: balance; }
+.av2 .ep-recap-rewards, .ep-recap .ep-recap-rewards { display: flex; align-items: center; gap: 16px; margin: 0; padding: 4px 0; border: 0; min-width: 0; }
+.av2 .ep-recap-rewards .ep-mint, .ep-recap .ep-recap-rewards .ep-mint { flex: 1 1 auto; }
+.av2 .ep-seal, .ep-recap .ep-seal { flex: none; display: inline-grid; place-items: center; }
+.av2 .ep-seal__med, .ep-recap .ep-seal__med { display: grid; place-items: center; width: 84px; height: 84px; border-radius: var(--av2-r-pill); background: var(--av2-card); }
+.av2 .ep-seal[data-gilt='true'] .ep-seal__med, .ep-recap .ep-seal[data-gilt='true'] .ep-seal__med { background: var(--av2-yellow); }
+@media (prefers-reduced-motion: no-preference) { .av2 .ep-seal[data-stamp='true'] .ep-seal__med, .ep-recap .ep-seal[data-stamp='true'] .ep-seal__med { animation: av2-pop 0.4s; } }
+.av2 .ep-mint, .ep-recap .ep-mint { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; }
+.av2 .ep-mint__tx, .ep-recap .ep-mint__tx { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.av2 .ep-mint__b, .ep-recap .ep-mint__b { color: var(--av2-ink); }
+.av2 .ep-mint__tokens, .ep-recap .ep-mint__tokens { display: flex; gap: 6px; flex: none; }
+.av2 .ep-token, .ep-recap .ep-token { display: inline-flex; align-items: center; gap: 3px; padding: 10px 8px; }
+.av2 .ep-streak, .ep-recap .ep-streak { display: flex; flex-direction: column; gap: 10px; }
+.av2 .ep-streak__row, .ep-recap .ep-streak__row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-width: 0; }
+.av2 .ep-streak__n, .ep-recap .ep-streak__n { font-family: var(--av2-serif); font-style: italic; font-weight: 600; font-size: var(--av2-t-title); line-height: 1; color: var(--av2-ink); }
+.av2 .ep-streak__n--was, .ep-recap .ep-streak__n--was { color: var(--av2-muted); }
+.av2 .ep-streak__arw, .ep-recap .ep-streak__arw { display: inline-flex; color: var(--av2-muted); }
+.av2 .ep-streak__l, .ep-recap .ep-streak__l { flex: 1 1 10rem; }
+.av2 .ep-streak__rules, .ep-recap .ep-streak__rules { display: flex; gap: 5px; }
+.av2 .ep-streak__rules i, .ep-recap .ep-streak__rules i { display: block; width: 12px; height: 12px; border-radius: 2px; background: var(--av2-line); }
+.av2 .ep-streak__rules i[data-on='true'], .ep-recap .ep-streak__rules i[data-on='true'] { background: var(--av2-ink); }
+.av2 .ep-handoff, .ep-recap .ep-handoff { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+@media (max-width: 480px) {
+  .av2 .ep-recap, .ep.ep-recap { width: 100%; max-height: calc(var(--app-viewport-height, 100vh) - 24px); }
+  .av2 .ep-composed-input { min-height: 6.5rem; }
 }
-.ep-recap-head .folio i { width: 3px; height: 3px; background: var(--app-red); }
-.ep-recap-head h1 { margin: 8px 0 0; font-family: var(--app-serif); font-style: italic; font-weight: 700; font-size: var(--t-display); line-height: .95; }
-.ep-recap-head .date { margin-top: 7px; font-size: var(--t-label); font-weight: 900; letter-spacing: .13em; text-transform: uppercase; color: var(--app-ink-3); }
-
-.ep-recap-body { padding: 16px 22px 22px; }
-.ep-sec-cap { font-size: var(--t-label); font-weight: 900; letter-spacing: .16em; text-transform: uppercase; color: var(--app-ink-3); margin: 20px 0 10px; display: flex; align-items: center; gap: 8px; }
-.ep-sec-cap::after { content: ""; flex: 1 1 auto; height: 1px; background: var(--app-paper-3); }
-
-/* the day's tally (attempts · strengthened · errata) */
-.ep-tally { display: grid; grid-template-columns: repeat(3, 1fr); border: 1.5px solid var(--app-ink); }
-.ep-tally .t { padding: 13px 12px 12px; border-right: 1px solid var(--app-ink); }
-.ep-tally .t:last-child { border-right: 0; }
-.ep-tally .t .n { font-family: var(--app-serif); font-style: italic; font-weight: 700; font-size: var(--t-head); line-height: .9; }
-.ep-tally .t .l { margin-top: 6px; font-size: var(--t-label); font-weight: 900; letter-spacing: .11em; text-transform: uppercase; color: var(--app-ink-3); line-height: 1.3; }
-
-/* lines set — the proof lines of the session */
-.ep-proof { display: grid; gap: 0; }
-.ep-proof .pl { display: grid; grid-template-columns: 20px 1fr auto; gap: 10px; align-items: baseline; padding: 9px 2px; border-bottom: 1px solid var(--app-paper-3); }
-.ep-proof .pl:last-child { border-bottom: 0; }
-.ep-proof .pl .mk { font-family: var(--ep-mono); font-size: var(--t-small); color: var(--ep-bon); padding-top: 2px; }
-.ep-proof .pl .mk.re { color: var(--app-red); }
-.ep-proof .pl .fr { font-family: var(--app-serif); font-size: var(--t-body); line-height: 1.3; color: var(--app-ink); }
-.ep-proof .pl .fr del { color: var(--app-ink-2); text-decoration-color: var(--app-red); text-decoration-thickness: 1.5px; }
-.ep-proof .pl .fr ins { text-decoration: none; border-bottom: 1.5px solid var(--ep-bon); color: var(--app-ink); }
-.ep-proof .pl .tag { font-size: var(--t-label); font-weight: 900; letter-spacing: .1em; text-transform: uppercase; color: var(--app-ink-3); white-space: nowrap; padding-top: 3px; }
-
-/* La phrase du jour — the learner's best sentence, typeset as a boxed quote */
-.ep-phrase { margin-top: 12px; position: relative; border: 1.5px solid var(--app-ink); background: var(--app-sheet); padding: 18px 18px 15px; }
-.ep-phrase .flag {
-  position: absolute; top: -1px; right: 14px; transform: translateY(-50%);
-  background: var(--app-red); color: #fff; font-size: var(--t-label); font-weight: 900; letter-spacing: .11em; text-transform: uppercase; padding: 4px 8px;
-}
-.ep-phrase .q { font-family: var(--app-serif); font-style: italic; font-weight: 600; font-size: var(--t-head); line-height: 1.28; color: var(--app-ink); text-wrap: balance; }
-.ep-phrase .by { margin-top: 11px; display: flex; align-items: center; gap: 8px; font-size: var(--t-label); font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: var(--app-ink-3); }
-.ep-phrase .by .ln { flex: 1 1 auto; height: 1px; background: var(--app-paper-3); }
-
-/* minted collectibles — logo tokens + gilt seal */
-.ep-mint { display: flex; align-items: center; gap: 14px; border: 1px solid var(--app-ink); background: var(--app-sheet); padding: 14px; }
-.ep-mint .tx { min-width: 0; }
-.ep-mint .tx b { font-size: var(--t-small); font-weight: 800; }
-.ep-mint .tx span { display: block; margin-top: 2px; font-size: var(--t-label); line-height: 1.35; color: var(--app-ink-2); }
-.ep-mint .tokens { display: flex; gap: 7px; margin-left: auto; flex: 0 0 auto; }
-
-/* the logo token (house forms fused) — set, not drawn */
-.ep-token { position: relative; width: 40px; height: 40px; border: 1.5px solid var(--app-ink); background: var(--app-paper); box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--app-ink) 22%, transparent); display: grid; place-items: center; flex: 0 0 auto; }
-.ep-token .lt { position: relative; width: 24px; height: 24px; }
-.ep-token .lt svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-.ep-token .shp { stroke: var(--app-ink); stroke-width: 3.5; }
-.ep-token .c-circle { fill: var(--app-blue); } .ep-token .c-square { fill: var(--app-yellow); }
-.ep-token .c-tri { fill: var(--app-red); } .ep-token .c-block { fill: var(--app-ink); }
-
-/* the seal — the printer's colophon; gilt for a flawless run */
-.ep-seal { position: relative; display: inline-grid; place-items: center; }
-.ep-seal .med {
-  position: relative; width: 116px; height: 116px; border-radius: 50%;
-  background: var(--app-sheet); border: 1.5px solid var(--app-ink);
-  box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--ep-channel) 20%, transparent); display: grid; place-items: center;
-}
-.ep-seal .ring { position: absolute; inset: 0; width: 100%; height: 100%; }
-.ep-seal .ring text { font-family: var(--app-grotesk); font-weight: 900; letter-spacing: .22em; fill: var(--app-ink); font-size: var(--t-label); }
-.ep-seal .core { position: relative; width: 58px; height: 58px; }
-.ep-seal .core svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-.ep-seal .core .shp { stroke: var(--app-ink); stroke-width: 3; }
-.ep-seal .core .c-circle { fill: var(--app-blue); } .ep-seal .core .c-square { fill: var(--app-yellow); }
-.ep-seal .core .c-tri { fill: var(--app-red); } .ep-seal .core .c-block { fill: var(--app-ink); }
-.ep-seal.gilt .med { background: #f0e3b8; border-color: #8a6d1a; box-shadow: inset 0 -2px 0 color-mix(in srgb, #8a6d1a 26%, transparent); }
-.ep-seal.gilt .ring text { fill: #6f571a; }
-.ep[data-theme="dark"] .ep-seal.gilt .med { background: #d8c37e; }
-@media (prefers-reduced-motion: no-preference) {
-  .ep-seal.stamp .med { animation: ep-seal-press .5s cubic-bezier(.2,1.2,.3,1) both; }
-}
-@keyframes ep-seal-press { 0% { transform: scale(1.18) rotate(-3.5deg); } 58% { transform: scale(.965) rotate(.6deg); } 100% { transform: scale(1) rotate(0); } }
-
-/* streak line before → after */
-.ep-streak { display: flex; align-items: center; gap: 12px; border: 1px solid var(--app-ink); background: var(--app-paper); padding: 12px 14px; }
-.ep-streak .n { font-family: var(--app-serif); font-style: italic; font-weight: 700; font-size: var(--t-head); line-height: 1; }
-.ep-streak .n.was { color: var(--app-ink-3); }
-.ep-streak .n.now { color: var(--app-ink); }
-.ep-streak .arw { color: var(--app-red); }
-.ep-streak .l { font-size: var(--t-label); line-height: 1.35; color: var(--app-ink-2); }
-.ep-streak .l b { font-weight: 800; color: var(--app-ink); }
-.ep-streak .rules { margin-left: auto; display: flex; gap: 2px; align-items: flex-end; }
-.ep-streak .rules i { width: 3px; height: 13px; background: var(--app-paper-3); }
-.ep-streak .rules i.on { background: var(--app-ink); }
-
-/* the handoff — back to La Une / on to Le Feuilleton */
-.ep-handoff { margin-top: 14px; display: grid; gap: 10px; }
-.ep-handoff a {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  min-height: 54px; padding: 0 18px; text-decoration: none; border: 1.5px solid var(--app-ink);
-  font-size: var(--t-small); font-weight: 900; letter-spacing: .12em; text-transform: uppercase;
-}
-.ep-handoff a.on { background: var(--app-red); color: var(--app-paper); box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--ep-channel) 24%, transparent); }
-.ep-handoff a.back { background: var(--app-paper); color: var(--app-ink); }
-.ep-handoff a svg { width: 16px; height: 16px; flex: 0 0 auto; }
-
-/* ============================================================
-   RESUME · LOADING · ERROR (press-house system states)
-   ============================================================ */
-.ep-resume { padding: 30px 24px; text-align: center; }
-.ep-resume .k { font-size: var(--t-label); font-weight: 900; letter-spacing: .2em; text-transform: uppercase; color: var(--app-red); }
-.ep-resume h2 { margin: 13px auto 0; max-width: 270px; font-family: var(--app-serif); font-style: italic; font-weight: 600; font-size: var(--t-head); line-height: 1.05; }
-.ep-resume p { margin: 11px auto 0; max-width: 250px; font-size: var(--t-small); line-height: 1.5; color: var(--app-ink-2); }
-.ep-resume .stickwrap { margin: 20px auto 0; max-width: 260px; }
-.ep-resume .cta { margin: 22px auto 0; display: inline-flex; align-items: center; gap: 10px; min-height: 52px; padding: 0 22px; background: var(--app-ink); color: var(--app-paper); border: 1.5px solid var(--app-ink); box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--ep-channel) 24%, transparent); font-size: var(--t-small); font-weight: 900; letter-spacing: .13em; text-transform: uppercase; cursor: pointer; }
-.ep-resume .cta svg { width: 16px; height: 16px; }
-
-.ep-skel { padding: 16px 20px; }
-.ep-skel .l { background: var(--app-paper-3); height: 12px; margin-bottom: 10px; position: relative; overflow: hidden; }
-.ep-skel .box { height: 120px; border: 1px solid var(--app-paper-3); background: var(--app-paper-2); margin: 14px 0; position: relative; overflow: hidden; }
-@media (prefers-reduced-motion: no-preference) {
-  .ep-skel .l::after, .ep-skel .box::after {
-    content: ""; position: absolute; inset: 0;
-    background: linear-gradient(100deg, transparent 20%, rgba(255,255,255,.32) 50%, transparent 80%);
-    animation: ep-shim 1.4s linear infinite;
-  }
-}
-@keyframes ep-shim { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
-.ep-skel .press { text-align: center; font-family: var(--ep-mono); font-size: var(--t-label); letter-spacing: .1em; color: var(--app-ink-3); margin-top: 8px; }
-
-.ep-notice { margin: 16px 20px; border: 1.5px solid var(--app-red); background: var(--app-sheet); }
-.ep-notice .nh { display: flex; align-items: center; gap: 8px; padding: 9px 13px; border-bottom: 1px solid var(--app-red); }
-.ep-notice .nh .tri { width: 0; height: 0; border-style: solid; border-width: 0 6px 11px 6px; border-color: transparent transparent var(--app-red) transparent; }
-.ep-notice .nh .t { font-size: var(--t-label); font-weight: 900; letter-spacing: .14em; text-transform: uppercase; color: var(--app-red); }
-.ep-notice .nb { padding: 12px 14px 14px; }
-.ep-notice .nb .m { font-family: var(--app-serif); font-style: italic; font-size: var(--t-body); line-height: 1.3; color: var(--app-ink); }
-.ep-notice .retry { margin-top: 11px; display: inline-flex; align-items: center; gap: 7px; border: 1.5px solid var(--app-ink); background: var(--app-paper); padding: 8px 13px; font-size: var(--t-label); font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: var(--app-ink); cursor: pointer; }
-.ep-notice .retry svg { width: 13px; height: 13px; }
-
-/* --ep-bon lifts one step in dark; driven by the GLOBAL app theme (the app does not
-   set data-theme on .ep). Mirrors globals.css dark handling. */
-:root[data-theme="dark"] .ep { --ep-bon: #5fb3a1; }
-@media (prefers-color-scheme: dark) { :root[data-theme="system"] .ep { --ep-bon: #5fb3a1; } }
-      `}</style>
+    `}</style>
   );
 }

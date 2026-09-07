@@ -374,6 +374,16 @@ export function FeuilletonReaderStyles() {
         font-size: 0.8125rem;
         color: var(--fr-muted);
       }
+      /* the server's "because" line: one small graphite note, never a second prompt */
+      .av2 .fr-act .fr-prompt-note {
+        margin: -4px 0 0;
+        font-size: 0.8125rem;
+        line-height: 1.4;
+        color: var(--fr-muted);
+      }
+      /* the illustrated-page edition's composed page keeps its own ratio */
+      .av2 .fr-plate.is-page { aspect-ratio: auto; max-block-size: none; background: var(--fr-card); }
+      .av2 .fr-plate.is-page img { height: auto; object-fit: contain; }
       .av2 .fr-options {
         display: flex;
         flex-direction: column;

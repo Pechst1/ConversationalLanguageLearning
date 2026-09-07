@@ -169,11 +169,10 @@ def test_journal_surfaces_use_only_the_type_scale():
         "components/epreuve/Epreuve.tsx",
         "components/cahiers/Cahiers.tsx",
         "components/courrier/Courrier.tsx",
-        "components/feuilleton/Feuilleton.tsx",
     ]:
         source = _source(relative)
         assert not re.findall(r"font-size: *[0-9.]+px", source), relative
-        assert "font-size: var(--t-" in source, relative
+        assert "font-size: var(--t-" in source or "font-size: var(--av2-t-" in source, relative
 
 
 def test_component_resets_cannot_outrank_component_classes():
@@ -188,7 +187,6 @@ def test_component_resets_cannot_outrank_component_classes():
         "components/laune/LaUne.tsx",
         "components/cahiers/Cahiers.tsx",
         "components/courrier/Courrier.tsx",
-        "components/feuilleton/Feuilleton.tsx",
     ]:
         source = _source(relative)
         bare = re.findall(r"^\s*\.(?:lu|nc|cr|fe)(?:-embed)? (?:a|button|input|textarea)[ ,{]", source, re.M)

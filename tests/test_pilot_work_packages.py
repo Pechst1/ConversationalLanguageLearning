@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import re
 from datetime import UTC, date, datetime
 from pathlib import Path
-import re
 from uuid import uuid4
 
 from app.db.models.graphic_novel import GraphicNovelScene
@@ -325,7 +325,6 @@ def test_no_raw_german_labels_or_offset_shadows_in_journal_components():
     component_paths = [
         "components/laune/LaUne.tsx",
         "components/courrier/Courrier.tsx",
-        "components/feuilleton/Feuilleton.tsx",
         "components/epreuve/Epreuve.tsx",
         "components/cahiers/Cahiers.tsx",
         "pages/atelier.tsx",

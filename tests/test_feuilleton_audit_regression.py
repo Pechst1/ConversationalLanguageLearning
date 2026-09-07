@@ -213,104 +213,61 @@ from pathlib import Path  # noqa: E402
 
 WEB = Path(__file__).resolve().parents[1] / "web-frontend"
 READER = WEB / "pages" / "graphic-novel.tsx"
-SUPPLEMENT = WEB / "components" / "feuilleton" / "Feuilleton.tsx"
 
 
 def _reader() -> str:
     return READER.read_text(encoding="utf-8")
 
 
-def _supplement() -> str:
-    return SUPPLEMENT.read_text(encoding="utf-8")
+def _component() -> str:
+    return (READER.parent.parent / "components" / "feuilleton" / "reader" / "FeuilletonReader.tsx").read_text(encoding="utf-8")
 
 
-def test_reader_header_names_the_season_once_and_never_a_news_kicker_without_news():
-    reader = _reader()
-    supplement = _supplement()
-
-    # The folio is the only place a season is named; the dateline carries the
-    # place and the date, never a second "Saison 1".
-    assert 'dateline={[loc, dateLabel].filter(Boolean) as string[]}' in reader
-    folio = supplement[supplement.index("export function FeMasthead(") : supplement.index("export function FePreviously(")]
-    assert "`Saison ${season}`" in folio
-    assert folio.count("Saison") == 1
-    # The news kicker (and the helper that fed it) is gone: news is opt-in per
-    # authored episode brief, so its label must never render without a panel.
-    body = reader[reader.index("export default function GraphicNovelPage()"):]
-    for dead in ('<span className="lbl">Cette semaine</span>', "serialNewsLine", 's-news"'):
-        assert dead not in body
-
-
-def test_reader_previously_is_one_quiet_line():
-    supplement = _supplement()
-
-    assert 'export function FePreviously({ children }' in supplement
-    assert '<p className="fe-previously">' in supplement
-    # No boxed strip with its own kicker row and episode chip.
-    assert 'className="ph"' not in supplement
-    assert "epRef" not in supplement
-
-
-def test_panel_prints_one_numeral_no_kicker_and_one_press_mark():
-    reader = _reader()
-    supplement = _supplement()
-
-    # FePanel no longer takes a slug, a direction label or a credit line — the
-    # three things that printed "LE FEUILLETON" and the panel title on every
-    # plate alongside the numeral.
-    fe_panel = supplement[supplement.index("export function FePanel(") : supplement.index("export function FeDialogue(")]
-    for dead in ("credit?:", "direction?:", "slug?:", "bubbles", "narration"):
-        assert dead not in fe_panel
-    for dead in ("FeBubble", "fe-credit", ".fe-narr"):
-        assert dead not in supplement
-    # One numeral, from one place.
-    assert reader.count("capNum={String(panel.panel_index || 1).padStart(2, '0')}") == 1
-    # The printing state is one quiet mark, not a sentence repeated per panel.
-    assert "'Sous presse'" in supplement
-    assert "La planche arrive" not in reader
-    # One consistent ratio and focal treatment for every plate.
-    assert "ratio = 'square'" in supplement
-    assert "aspect-ratio: 1 / 1;" in supplement
-    assert "object-fit: cover; object-position: center;" in supplement
+def _model() -> str:
+    return (READER.parent.parent / "components" / "feuilleton" / "reader" / "panel-model.ts").read_text(encoding="utf-8")
 
 
 def test_dialogue_is_printed_once_with_canonical_short_names():
     reader = _reader()
-    supplement = _supplement()
+    component = _component()
+    model = _model()
 
     # One dialogue system: lines under the art. No on-art bubble layer plus a
     # transcript repeating the same lines (audit §9).
-    assert "function panelDialogueLines" in reader
-    assert reader.count("<FeDialogue") == 2  # the scrolling reader and the page annotation
-    assert "fe-bubble" not in supplement
-    assert "FeTranscript" not in supplement and "FeTranscript" not in reader
+    assert "export function panelLines" in model
+    assert component.count('<div className="fr-speech"') == 1
+    assert "fe-bubble" not in reader and "fe-bubble" not in component
+    assert "FeTranscript" not in reader and "FeTranscript" not in component
     # Canonical short display names (checklist #13).
-    assert "function shortSpeakerName" in reader
-    assert "who: shortSpeakerName(bubble.speaker) || undefined" in reader
+    assert "export function shortSpeakerName" in model
+    assert "shortSpeakerName(" in model
     # Whitespace-only dialogue cannot render (checklist #15).
-    assert ".filter((bubble) => String(bubble?.fr || '').trim())" in reader
+    assert "normalizeReaderText" in model
 
 
 def test_caption_renders_only_when_it_adds_something():
-    reader = _reader()
+    model = _model()
 
-    assert "function additivePanelCaption" in reader
-    assert "return spoken.includes(normalizeReaderText(caption)) ? '' : caption;" in reader
+    assert "export function panelCaption" in model
+    assert "return spoken.includes(normalizeReaderText(caption)) ? '' : caption;" in model
 
 
 def test_only_the_next_learning_action_is_live():
     """Checklist #11 — and #10: a panel whose action is not yet due renders none."""
-    reader = _reader()
+    model = _model()
+    component = _component()
 
-    assert "const activeTaskId = nextPendingTask?.id ? String(nextPendingTask.id) : null;" in reader
-    assert ".filter((task) => attemptsByTask[task.id] || String(task.id) === activeTaskId);" in reader
+    assert "export function liveTaskId" in model
+    assert "const live = taskId === liveTaskId;" in component
+    assert "if (!attempt && !live)" in component
 
 
 def test_the_reply_prompt_is_said_once_in_sentence_case():
-    reader = _reader()
+    reader = _reader() + _component()
+    model = _model()
 
-    assert "function taskPromptLine" in reader
-    assert reader.count('<p className="task-prompt">{prompt}</p>') == 1
+    assert "export function taskPromptLine" in model
+    assert reader.count('<p className="fr-prompt">') == 1
     # The launcher, the shouted intro and the kind/instruction header are gone.
     for dead in (
         "À vous d’écrire la prochaine réplique.",
@@ -323,17 +280,17 @@ def test_the_reply_prompt_is_said_once_in_sentence_case():
     ):
         assert dead not in reader
     # One Envoyer, and the "because" line survives as one small graphite note.
-    assert reader.count("{attempt ? submittedLabel : submitting ? 'Relecture…' : 'Envoyer'}") == 1
-    assert 'className="task-reason"' in reader
+    assert reader.count("{submitting ? 'Relecture…' : 'Envoyer'}") == 1
+    assert 'className="fr-prompt-note"' in reader
     assert "recommendation_reason" in reader
 
 
 def test_feedback_is_one_short_french_line_with_no_taxonomy_leak():
     """Checklist #12 and #16 — one response, rendered once."""
-    reader = _reader()
+    reader = _reader() + _component()
 
-    assert "function correctionLine" in reader
-    assert reader.count('className={`inline-feedback ') == 1
+    assert "export function correctionLine" in _model()
+    assert reader.count('className={`fr-feedback ') == 1
     # No raw verdict enum, no errata counter, no duplicate sheet correction.
     for dead in (
         "String(correction.verdict || 'submitted').replace(/_/g, ' ')",
@@ -368,50 +325,36 @@ def test_reader_shows_no_deck_names_or_english_vocabulary_dump():
 
 
 def test_option_translations_stay_hidden_until_requested():
-    reader = _reader()
+    reader = _component()
 
     # The option button prints the French line only; the English gloss that used
     # to render unconditionally beside it is gone.
-    assert "<button\n              key={option.value}" in reader
+    assert "key={option.value}" in reader
     assert "{option.en && <small>{option.en}</small>}" not in reader
     # Translation is one explicit affordance.
     assert "function TaskTranslate" in reader
     assert "{open ? 'Masquer la traduction' : 'Traduire'}" in reader
 
 
-def test_a_suivre_teaser_is_not_shouted():
-    supplement = _supplement()
-
-    demain = supplement[supplement.index(".fe-cliff .demain {"):]
-    demain = demain[: demain.index("}")]
-    assert "text-transform: uppercase" not in demain
-    assert "font-style: italic" in demain
-
-
 def test_sticky_bar_carries_one_action_and_no_counters():
-    reader = _reader()
+    reader = _component()
 
-    bar = reader[reader.index("function MobileReadingBar") : reader.index("function SerialSceneReader")]
-    assert "Quitter" in bar
-    assert "Votre réplique" in bar
+    bar = reader[reader.index('<div className="fr-bar">') : reader.index('<div className="fr-head">')]
+    assert "Quitter la lecture" in bar
+    nav = reader[reader.index('<nav className="fr-nav"') : reader.index("</nav>")]
     for dead in ("planches", "tâches", "submittedCount", "taskCount"):
-        assert dead not in bar
+        assert dead not in nav
 
 
 def test_reader_uses_tokens_only_and_resolves_media_urls():
     reader = _reader()
-    supplement = _supplement()
+    component = _component()
 
     css = reader[reader.index("function FeuilletonStyles()") :]
     assert re.search(r"#[0-9a-fA-F]{3,8}\b", css) is None
-    # The supplement's only literals are the documented --char-* spot inks from
-    # the serial world bible (lifted a step in dark); everything else is a token.
-    supplement_css = re.sub(r"\s+--char-[a-z]+: #[0-9a-fA-F]{3,8};", "", _supplement_css(supplement))
-    assert re.search(r"#[0-9a-fA-F]{3,8}\b", supplement_css) is None
+    assert re.search(r"#[0-9a-fA-F]{3,8}\b", component) is None
     # Panel art is served from the API origin, not the app bundle.
-    assert "resolveMediaUrl(panelImageUrl(panel))" in reader
+    assert "resolveMediaUrl(stage.imageUrl)" in component
     assert "resolveMediaUrl(scene.script_payload?.page_image?.url)" in reader
 
 
-def _supplement_css(supplement: str) -> str:
-    return supplement[supplement.index("export function FeuilletonStyles()") :]

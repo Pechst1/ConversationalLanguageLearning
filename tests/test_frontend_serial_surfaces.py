@@ -45,11 +45,13 @@ def test_graphic_novel_panel_prints_art_dialogue_and_one_inline_action() -> None
     are gone; a panel is art + one numeral + dialogue lines + one quiet action."""
     source = read_web("pages/graphic-novel.tsx")
 
-    assert "function PanelTask" in source
-    assert "function panelDialogueLines" in source
-    assert "function additivePanelCaption" in source
-    assert "<FeDialogue" in source
-    assert "choiceOptionView" in source
+    component = read_web("components/feuilleton/reader/FeuilletonReader.tsx")
+    model = read_web("components/feuilleton/reader/panel-model.ts")
+    assert "function TaskCard" in component
+    assert "export function panelLines" in model
+    assert "export function panelCaption" in model
+    assert 'className="fr-speech"' in component
+    assert "choiceOptionView" in model
     for dead in (
         "function PanelInlineTaskDisclosure",
         "data-panel-task-drawer",
@@ -71,10 +73,7 @@ def test_graphic_novel_scene_leads_with_panels_and_has_no_scene_brief() -> None:
 
     assert "function SceneBrief" not in source
     assert "<SceneBrief" not in source
-    assert "className=\"serial-reader\"" in source
-    assert "function SerialFinalAct" in source
-    assert source.index("<SerialSceneReader") < source.index("<SerialFinalAct")
-    assert source.index('className="panel-grid" id="reading-panels"') < source.index("<SerialFinalAct")
+    assert "<FeuilletonReader" in source
 
 
 def test_graphic_novel_completion_routes_to_returned_serial_beat() -> None:
@@ -95,7 +94,8 @@ def test_graphic_novel_completion_routes_to_returned_serial_beat() -> None:
     # Reader rebuild: the end of the episode is one action — Terminer l’épisode
     # while it is open, the declared next beat once it is filed.
     assert "Terminer l’épisode" in source
-    assert "<Link className=\"btn solid lg\" href={nextBeatHref}>" in source
+    component = read_web("components/feuilleton/reader/FeuilletonReader.tsx")
+    assert 'className="fr-btn fr-next is-action" data-press="3d" href={nextHref}' in component
 
 
 def test_feuilleton_legacy_reader_rules_are_pruned_after_fe_panel_adoption() -> None:
@@ -108,7 +108,7 @@ def test_feuilleton_legacy_reader_rules_are_pruned_after_fe_panel_adoption() -> 
     # header are gone with the rest of the legacy .s-* era.
     assert ".s-news" not in source
     assert ".s-fork" not in source
-    assert 'className="fe-embed serial-final-act"' in source
+    assert "fe-embed" not in source
 
 
 def test_graphic_novel_default_route_rejoins_canonical_story_beat() -> None:
@@ -129,16 +129,14 @@ def test_feuilleton_translations_stay_hidden_until_requested() -> None:
     """Reader rebuild: the global "Afficher EN" toggle is replaced by a per-panel
     and per-task Traduire affordance; nothing English renders unrequested."""
     source = read_web("pages/graphic-novel.tsx")
-    supplement = read_web("components/feuilleton/Feuilleton.tsx")
+    reader = read_web("components/feuilleton/reader/FeuilletonReader.tsx")
 
     assert "showMobileTranslations" not in source
     assert "Afficher EN" not in source
-    assert "translated={translated}" in source
-    assert "onTranslate={() => setTranslated((current) => !current)}" in source
-    assert "translateLabel = 'Traduire'" in supplement
-    assert "{translated && line.en && <em>{line.en}</em>}" in supplement
-    assert "@media (max-width: 900px)" in source
-    assert ".feuilleton-page .serial-act > .fe-task" in source
+    # The paged reader owns both affordances: one per panel, one per task.
+    assert "{showTranslation ? 'Masquer la traduction' : 'Traduire la planche'}" in reader
+    assert '{showTranslation && line.en && <p className="fr-line-en">{line.en}</p>}' in reader
+    assert "{open ? 'Masquer la traduction' : 'Traduire'}" in reader
 
 
 def test_almanac_story_seals_render_panel_crop_art() -> None:

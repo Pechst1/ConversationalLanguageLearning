@@ -57,7 +57,7 @@ def test_feuilleton_renders_visible_seeded_thread_context() -> None:
 
     assert "function TodayThreadBanner" in source
     assert 'aria-label="Fil du jour"' in source
-    assert "FIL DU JOUR" in source
+    assert "Fil du jour" in source
     assert "Scène issue de l’Atelier" in source
     assert "today-thread-chips" in source
     assert "key: 'grammar', label: 'Grammaire'" in source
@@ -65,9 +65,8 @@ def test_feuilleton_renders_visible_seeded_thread_context() -> None:
     assert "key: 'errata', label: 'Errata'" in source
     assert "key: 'mission', label: 'Mission'" in source
     assert "key: 'atelier-session', label: 'Séance Atelier'" in source
-    assert ".today-thread-chip.red" in source
-    assert ".today-thread-chip.blue" in source
-    assert ".today-thread-chip.yellow" in source
+    assert "gn-today-thread-chips" in source
+    assert "chip.tone === 'red' ? 'action' : chip.tone === 'blue' ? 'story' : 'reward'" in source
     assert "{!scene && visibleThreadContext && (" in source
 
 

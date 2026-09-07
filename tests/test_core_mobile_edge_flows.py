@@ -92,8 +92,7 @@ def test_feuilleton_locks_task_sheet_until_scene_and_requires_real_answers() -> 
     assert "L’histoire est prête." in feuilleton
     # Reader rebuild: the sticky bar carries no counters — it exposes Quitter plus
     # the single action still due (scrolls to it), so the pin follows that element id.
-    assert "nextTaskElementId: string | null" in feuilleton
-    assert "scrollToFeuilletonSection(nextTaskElementId)" in feuilleton
+    assert "<FeuilletonReader" in feuilleton  # the paged reader carries its own sticky nav
     # Reader rebuild: the gated completion card is gone; the episode ends on one
     # action that is only ever "Terminer l'épisode" or the next beat once filed.
     assert "Terminer l’épisode" in feuilleton

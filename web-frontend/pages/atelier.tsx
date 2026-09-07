@@ -2710,11 +2710,8 @@ function SessionView({
   const currentFeedback = currentSubmitted
     ? feedbackForExercise(round, mode, activeSet, activeItemIndex, currentAnswers, currentCorrection)
     : null;
-  const feedbackNextLabel = isFinalConversation
-    ? 'Terminer'
-    : activeItemIndex < activeItemCount - 1
-      ? 'Exercice suivant'
-      : 'Épreuve suivante';
+  // The design's primary cycles Vérifier → Continuer → Terminer.
+  const feedbackNextLabel = isFinalConversation ? 'Terminer' : 'Continuer';
   const feedbackRule = currentFeedback && !currentFeedback.correct
     ? feedbackRuleLine(activeSet, activeConcept)
     : undefined;
@@ -2736,11 +2733,24 @@ function SessionView({
     ? provenanceLine(activeConcept?.due_errata?.[0])
     : null;
   const activeLock = currentCorrection?.adaptive_lock;
+  // The header's red "● n" is the session's own run of consecutive correct
+  // answers, read from the real corrections in submission order; it is never
+  // a placeholder. A correction with no substantive erratum is a correct line.
+  const correctRun = (() => {
+    let run = 0;
+    const corrections = Object.values(correctionsByKey);
+    for (let index = corrections.length - 1; index >= 0; index -= 1) {
+      const errata = Array.isArray(corrections[index]?.errata) ? corrections[index].errata : [];
+      const substantive = errata.filter((item: any) => String(item?.task_error_type || '') !== 'task_compliance');
+      if (substantive.length > 0) break;
+      run += 1;
+    }
+    return run;
+  })();
 
   return (
     <EpShell className="atelier-do-mode">
       <LEpreuveStyles />
-      <EpreuveWiringStyles />
       <EpTopbar
         groups={epGroups}
         cap={epCap}
@@ -2751,10 +2761,11 @@ function SessionView({
         // Only a session with nothing in it has nothing to file.
         finishDisabled={submitting || completedDrills < 1}
         partial={completedDrills < total}
+        run={correctRun}
       />
-      <div className="ep-body">
+      <div className="ep-body av2-screen__body">
       {activeSet && activeConcept && (
-        <section className="do-stage ep-sheet">
+        <section className="ep-sheet">
           <EpEyebrow
             round={activeRoundLabel}
             mode={round === 'recognize' ? activeRecognizeLabel : undefined}
@@ -2777,7 +2788,7 @@ function SessionView({
             />
           )}
               {round === 'recognize' && (
-                <div className="exercise-frame">
+                <div className="ep-frame">
                     <RecognizePanel
                       payload={activeSet}
                       mode={mode}
@@ -2798,7 +2809,7 @@ function SessionView({
                 </div>
               )}
               {round === 'transform' && (
-                <div className="exercise-frame">
+                <div className="ep-frame">
                   <TransformPanel
                     payload={activeSet}
                     activeItemIndex={activeItemIndex}
@@ -2818,7 +2829,7 @@ function SessionView({
                 </div>
               )}
               {(round === 'sentence' || round === 'speak' || round === 'conversation') && (
-                <div className="exercise-frame">
+                <div className="ep-frame">
                   <OutputLadderPanel
                     payload={activeSet}
                     round={round}
@@ -2838,7 +2849,7 @@ function SessionView({
                 </div>
               )}
               {round === 'produce' && (
-                <div className="exercise-frame">
+                <div className="ep-frame">
                   <ProducePanel
                     concepts={session.concepts}
                     exerciseSets={session.exercise_sets}
@@ -2890,7 +2901,7 @@ function SessionView({
         // A concept whose exercise set failed to compose used to render the
         // topbar over an empty page: no copy, no way forward. The press notice
         // is the designed state for it.
-        <section className="do-stage ep-sheet">
+        <section className="ep-sheet">
           <EpNotice
             msg="La feuille de cette règle n’a pas pu être composée. Ce qui est déjà classé est enregistré ; revenez à La Une, la rédaction recompose l’édition."
             onRetry={onBack}
@@ -2919,12 +2930,16 @@ function ActionRow({
 }) {
   if (submitted) return null;
   return (
-    <EpFoot>
+    <>
       <EpConfidence value={confidence} onPick={onPickConfidence} />
-      <EpBar tone="go" icon="check" disabled={submitting || nextDisabled} onClick={submitAttempt}>
-        {submitting ? 'Vérification…' : 'Vérifier la ligne'}
-      </EpBar>
-    </EpFoot>
+      {/* The one 3D press of the screen, in the footer band: grey face until an
+          answer is chosen, spent (spinner + word) while the line is checked. */}
+      <EpFoot tone="neutral">
+        <EpBar tone="go" icon="check" disabled={submitting || nextDisabled} pending={submitting} onClick={submitAttempt}>
+          {submitting ? 'Vérification…' : 'Vérifier'}
+        </EpBar>
+      </EpFoot>
+    </>
   );
 }
 
@@ -2997,10 +3012,11 @@ function ExerciseFeedbackMoment({
 
   if (feedback.correct) {
     return (
-      <div className="ep-feedback go">
-        <EpVerdict tone="go">Bon à tirer</EpVerdict>
+      <div className="ep-feedback" data-verdict="correct">
         <EpCorrect said={feedback.target || feedback.learner || 'Ligne réglée.'} struck />
-        <EpFoot>
+        {/* The design's mint footer: badge + Garamond verdict, then the primary. */}
+        <EpFoot tone="correct">
+          <EpVerdict tone="go" sub={rule}>Bien joué !</EpVerdict>
           <EpBar icon="check" onClick={onNext}>{nextLabel}</EpBar>
         </EpFoot>
       </div>
@@ -3008,8 +3024,7 @@ function ExerciseFeedbackMoment({
   }
 
   return (
-    <div className="ep-feedback no">
-      <EpVerdict tone="no">À recomposer</EpVerdict>
+    <div className="ep-feedback" data-verdict="wrong">
       {issues.map((issue, index) => {
         const learner = String(issue.learner_text || feedback.learner || '').trim();
         const target = String(issue.corrected_target || feedback.target || '').trim();
@@ -3056,20 +3071,23 @@ function ExerciseFeedbackMoment({
           </ul>
         </div>
       )}
-      {rule && <div className="ep-rulenote">{rule}</div>}
-      <EpFoot>
+      {/* The design's blush footer: badge + "Presque." with the rule as its
+          13px line, then the primary — Continuer once the line is recopied,
+          otherwise the retry. The quiet links stay third-tier underneath. */}
+      <EpFoot tone="wrong">
+        <EpVerdict tone="no" sub={rule}>Presque.</EpVerdict>
         {repairsComplete
           ? <EpBar icon="check" onClick={onNext}>{nextLabel}</EpBar>
           : onTryAgain && <EpBar tone="ghost" icon="retry" onClick={onTryAgain}>Réessayer la ligne</EpBar>}
+        <div className="ep-fb-links">
+          {repairsComplete && onTryAgain && (
+            <button type="button" onClick={onTryAgain}>Réessayer</button>
+          )}
+          {onReport && (
+            <button type="button" onClick={onReport}>Signaler cet exercice</button>
+          )}
+        </div>
       </EpFoot>
-      <div className="ep-fb-links">
-        {repairsComplete && onTryAgain && (
-          <button type="button" onClick={onTryAgain}>Réessayer</button>
-        )}
-        {onReport && (
-          <button type="button" onClick={onReport}>Signaler cet exercice</button>
-        )}
-      </div>
     </div>
   );
 }
@@ -3681,7 +3699,7 @@ function RecapModal({
   }
   return (
     <div className="recap-overlay">
-      <section className="ep ep-recap" aria-label="L’épreuve de la séance">
+      <section className="ep ep-recap av2" aria-label="L’épreuve de la séance">
         <LEpreuveStyles />
         <EpreuveWiringStyles />
         <button type="button" className="ep-recap-close" onClick={onClose} aria-label="Fermer l’épreuve">×</button>
@@ -5623,14 +5641,9 @@ function AtelierStyles() {
       .due-errata-actions .notebook-link { margin-left: 0; }
       .atelier-footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--ink); display: flex; justify-content: space-between; color: var(--ink-2); font-size: 12px; }
       .session-spread { padding-top: 24px; padding-bottom: 80px; }
-      .atelier-do-mode {
-        width: min(100%, 980px);
-        max-width: 100%;
-        min-height: var(--app-viewport-height);
-        padding: 0 var(--phone-gutter) calc(var(--phone-bottom-nav-space) + 28px);
-        /* clip stray horizontal overflow without breaking the sticky top bar */
-        overflow-x: clip;
-      }
+      /* The séance shell (EpShell → .av2.ep-shell) sizes itself in
+         components/epreuve/Epreuve.tsx; the class only names the mode. */
+      .atelier-do-mode { max-width: 100%; }
       .do-topbar {
         position: sticky;
         top: 0;
@@ -6419,10 +6432,6 @@ function AtelierStyles() {
           min-height: var(--app-viewport-height);
           padding-top: 0;
           padding-bottom: 28px;
-        }
-        .atelier-do-mode {
-          min-height: var(--app-viewport-height);
-          padding: 0 var(--phone-gutter) calc(var(--phone-bottom-nav-space) + 20px);
         }
         .atelier-do-mode .do-topbar {
           grid-template-columns: 42px minmax(0, 1fr) 68px;

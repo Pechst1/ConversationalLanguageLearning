@@ -631,3 +631,32 @@ edge), which had been reaching the daily session's fields too.
 
 **Not verified:** none of the authenticated routes has been walked in a browser. One owner
 sign-in against a dev account is the remaining WP-08 gate before WP-12 final.
+
+## 4F. Séance and Feuilleton page — 2026-09-07
+
+The owner still saw the old design on two surfaces after 4E. Causes and fixes:
+
+- **Séance.** `ATELIER_DAILY_JOURNEY_ENABLED` defaults off and `.env` does not set it,
+  so `pages/atelier.tsx` renders the legacy exercise `SessionView` on the Épreuve
+  component set, not the migrated daily journey. `components/epreuve/Epreuve.tsx` is
+  now the Séance artboard's chrome (close, blue progress rule from the real drill
+  count, correct-run count only from the session's own data, blue step label, "La
+  règle" pill + rule card, Garamond prompt with the inline blank, `av2-choice` option
+  cards, tinted footer band, one primary cycling Vérifier → Continuer → Terminer); every
+  exported component keeps its name and props, and `SessionView` logic is unchanged.
+  Gaps: word bank / classify / produce / speak / relecture / lock / recap have no
+  artboard and are extended from the primitives; the tab bar is not hidden on the
+  Séance (the footer sits above it).
+- **Feuilleton page.** `pages/graphic-novel.tsx` wrapped the migrated reader in the old
+  two-column supplement shell and routed preparing / writing / canonical-beat / page
+  render mode / audio / end-of-episode through legacy components. Rewritten as one
+  column on the FEUILLETON artboard: blue story hero with the one CTA press, rows,
+  dashed locked row only for a real delayed state, hatched "sous presse" plate with the
+  real ready/total count, and the paged reader for every scene (page mode passes its
+  composed page as `pageArt`). `components/feuilleton/Feuilleton.tsx` is deleted;
+  nothing imported it. On-demand task translation is kept in the reader
+  (`TaskTranslate`: hidden until requested). Recorded gap: the system has no play icon
+  (an inline triangle is used).
+
+Test pins retargeted by the lead to the reader / panel-model where the behaviour now
+lives; the four supplement-only audit tests were removed with the file they scanned.

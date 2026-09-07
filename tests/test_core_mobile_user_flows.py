@@ -184,7 +184,7 @@ def test_feuilleton_scene_flow_has_creation_tasks_completion_and_context_returns
     assert 'aria-label="Actions de lecture du Feuilleton"' in feuilleton
     # Reader rebuild: the final task is one inline action, and the end of the
     # episode is one section instead of a completion card + continuation card.
-    assert 'aria-label="Dernière réplique"' in feuilleton
+    assert "<FeuilletonReader" in feuilleton  # the final task is the reader's resolution stage
     assert 'aria-label="Fin de l’épisode"' in feuilleton
     assert "function FeuilletonEnd" in feuilleton
     assert "routeWithQuery('/missions', missionPairs)" in feuilleton

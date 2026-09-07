@@ -46,7 +46,8 @@ def test_mission_screen_removed_duplicate_repair_chrome_while_feuilleton_uses_sl
     # (audit §6), so the bottom-sheet duplicate and the shared repair slip are gone.
     assert "MobileBottomSheet" not in feuilleton
     assert "RedInkRepairSlip" not in feuilleton
-    assert "function correctionLine" in feuilleton
+    model = read(ROOT / "web-frontend" / "components" / "feuilleton" / "reader" / "panel-model.ts")
+    assert "export function correctionLine" in model
 
 
 def test_atelier_uses_repair_slip_for_due_errata_and_closure() -> None:

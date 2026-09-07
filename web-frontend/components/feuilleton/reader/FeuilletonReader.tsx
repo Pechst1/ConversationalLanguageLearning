@@ -28,6 +28,7 @@ import {
   SpinnerToken,
 } from '@/components/atelier-v2/ui';
 import { resolveMediaUrl } from '@/lib/media-url';
+import apiService from '@/services/api';
 
 import { TappableFrench } from './TappableFrench';
 import { WordHelpSheet, type WordHelpRequest } from './WordHelpSheet';
@@ -80,6 +81,14 @@ export type FeuilletonReaderProps = {
   nextLabel?: string;
   /** shown above the stage when the server says art is still being produced */
   banner?: React.ReactNode;
+  /** An illustrated-page edition composes ONE printed page for the whole scene
+      (`script_payload.page_image`). When given, a panel that has no art of its
+      own shows that page as its plate instead of a "sans illustration" note. */
+  pageArt?: string | null;
+  /** Extra per-panel tools (e.g. a panel's narration) rendered in the tools row. */
+  renderStageTools?: (stage: ReaderStage) => React.ReactNode;
+  /** One small note under a task's prompt — the server's "because" line. */
+  taskNote?: (task: ReaderTask) => string;
 };
 
 function prefersReducedMotion(): boolean {
@@ -113,6 +122,9 @@ export function FeuilletonReader({
   nextHref,
   nextLabel,
   banner,
+  pageArt,
+  renderStageTools,
+  taskNote,
 }: FeuilletonReaderProps) {
   const [help, setHelp] = useState<WordHelpRequest | null>(null);
   const [translated, setTranslated] = useState<Record<string, boolean>>({});
@@ -239,6 +251,7 @@ export function FeuilletonReader({
   const hasEnglish =
     stage.kind === 'panel' && stage.lines.some((line) => Boolean(line.en));
 
+  const stageTools = renderStageTools ? renderStageTools(stage) : null;
   const railPct = count > 1 ? Math.round(((safeIndex + 1) / count) * 100) : 100;
   const positionLabel =
     stage.kind === 'resolution'
@@ -317,22 +330,26 @@ export function FeuilletonReader({
             stage={stage}
             showTranslation={showTranslation}
             onWord={openHelp}
+            pageArt={pageArt}
           />
         ) : (
           <ResolutionBody stage={stage} />
         )}
 
-        {stage.kind === 'panel' && hasEnglish && (
+        {stage.kind === 'panel' && (hasEnglish || stageTools) && (
           <div className="fr-tools">
-            <button
-              type="button"
-              className="fr-chip"
-              aria-pressed={showTranslation}
-              onClick={() => setTranslated((current) => ({ ...current, [stageKey]: !current[stageKey] }))}
-            >
-              <span className="sq" aria-hidden="true" />
-              {showTranslation ? 'Masquer la traduction' : 'Traduire la planche'}
-            </button>
+            {hasEnglish && (
+              <button
+                type="button"
+                className="fr-chip"
+                aria-pressed={showTranslation}
+                onClick={() => setTranslated((current) => ({ ...current, [stageKey]: !current[stageKey] }))}
+              >
+                <span className="sq" aria-hidden="true" />
+                {showTranslation ? 'Masquer la traduction' : 'Traduire la planche'}
+              </button>
+            )}
+            {stageTools}
           </div>
         )}
 
@@ -362,6 +379,7 @@ export function FeuilletonReader({
               press={primary === 'task' && live}
               onWord={openHelp}
               character={stage.character}
+              note={taskNote ? taskNote(task) : ''}
             />
           );
         })}
@@ -459,6 +477,7 @@ function PanelBody({
   stage,
   showTranslation,
   onWord,
+  pageArt,
 }: {
   stage: Extract<ReaderStage, { kind: 'panel' }>;
   showTranslation: boolean;
@@ -466,14 +485,22 @@ function PanelBody({
     word: { surface: string; term: string },
     context: { sentence: string; sentenceEn?: string; character?: string; speaker?: string },
   ) => void;
+  pageArt?: string | null;
 }) {
   const src = resolveMediaUrl(stage.imageUrl);
+  const page = pageArt ? resolveMediaUrl(pageArt) : null;
   return (
     <>
       {stage.artStatus === 'ready' && src ? (
         <figure className="fr-plate">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={src} alt={stage.title ? `Planche : ${stage.title}` : ''} />
+        </figure>
+      ) : page ? (
+        /* the illustrated-page edition: one composed page is the plate */
+        <figure className="fr-plate is-page">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={page} alt="La page illustrée de cette édition" />
         </figure>
       ) : stage.artStatus === 'printing' ? (
         <figure className="fr-plate is-printing" aria-live="polite">
@@ -546,6 +573,7 @@ function TaskCard({
   press,
   onWord,
   character,
+  note = '',
 }: {
   task: ReaderTask;
   value: string;
@@ -560,6 +588,7 @@ function TaskCard({
     context: { sentence: string; sentenceEn?: string; character?: string; speaker?: string },
   ) => void;
   character?: string;
+  note?: string;
 }) {
   const taskId = String(task.id || '');
   const correction = attempt?.correction as Record<string, any> | undefined;
@@ -583,7 +612,8 @@ function TaskCard({
           onWord={(word) => onWord(word, { sentence: prompt, sentenceEn: promptEn, character })}
         />
       </p>
-      {promptEn && <p className="fr-prompt-en">{promptEn}</p>}
+      <TaskTranslate french={prompt} supplied={promptEn} />
+      {note && <p className="fr-prompt-note">{note}</p>}
 
       {answered ? (
         <>
@@ -663,6 +693,56 @@ function TaskCard({
         </>
       )}
     </div>
+  );
+}
+
+/* Translation is one explicit affordance: the English never prints beside the
+   French uncalled. A supplied translation is shown on request; otherwise the
+   line is translated on demand, and the request is never a graded attempt. */
+function TaskTranslate({ french, supplied }: { french: string; supplied?: string }) {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState(supplied || '');
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setText(supplied || '');
+    setOpen(false);
+  }, [french, supplied]);
+
+  if (!french.trim()) return null;
+
+  const toggle = async () => {
+    if (open) {
+      setOpen(false);
+      return;
+    }
+    setOpen(true);
+    if (text || loading) return;
+    setLoading(true);
+    try {
+      const translated = await apiService.translateToEnglish(french);
+      setText(translated || '');
+    } catch {
+      setText('');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <>
+      <div className="fr-tools">
+        <button type="button" className="fr-chip" aria-expanded={open} onClick={() => void toggle()}>
+          <span className="sq" aria-hidden="true" />
+          {open ? 'Masquer la traduction' : 'Traduire'}
+        </button>
+      </div>
+      {open && (
+        <p className="fr-prompt-en" aria-live="polite">
+          {loading ? 'Traduction…' : text || 'Aucune traduction disponible pour l’instant.'}
+        </p>
+      )}
+    </>
   );
 }
 

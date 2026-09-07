@@ -60,7 +60,7 @@ def test_feuilleton_post_scene_uses_journal_continuation_primitives() -> None:
     # into one FeuilletonEnd — the filed stamp plus a single next action.
     assert "function FeuilletonEnd" in source
     assert "<FeuilletonEnd" in source
-    assert "<FeFiled label=" in source
+    assert "Classé{number}" in source
     assert "function FeuilletonContinuationCard" not in source
     assert "Agir dans Le Courrier" in source
     assert "Lire le prochain épisode" in source
@@ -87,7 +87,6 @@ def test_atelier_recap_continues_session_into_context() -> None:
 
 
 def test_serial_world_design_surfaces_are_integrated() -> None:
-    atelier = read(ATELIER_PAGE)
     missions = read(MISSIONS_PAGE)
     feuilleton = read(FEUILLETON_PAGE)
     globals_css = read(GLOBALS)
@@ -99,10 +98,9 @@ def test_serial_world_design_surfaces_are_integrated() -> None:
     # kicker and stamps "Acte bouclé" on resolution.
     assert "Le Feuilleton · Acte" in missions
     assert "Acte bouclé" in missions
-    assert "function FeuilletonCliffhangerHero" in feuilleton
-    # "Le Feuilleton" reskin: the cliffhanger is drawn with the shared FeCliff
-    # primitive inside an .fe-embed scope (see components/feuilleton/Feuilleton).
-    assert "className=\"fe-embed feuilleton-cliffhanger\"" in feuilleton
-    assert "<FeCliff" in feuilleton
+    # Claude design: the cliffhanger is the paged reader's resolution stage.
+    reader = read(ROOT / "web-frontend" / "components" / "feuilleton" / "reader" / "FeuilletonReader.tsx")
+    assert 'className="fr-eyebrow">À suivre' in reader
+    assert "<FeuilletonReader" in feuilleton
     assert "--char-romy: #1d3a8a" in globals_css
     assert "[data-char=\"marchand\"]" in globals_css

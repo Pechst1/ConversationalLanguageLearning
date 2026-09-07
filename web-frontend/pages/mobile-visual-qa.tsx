@@ -129,7 +129,7 @@ function LaUneFullPage() {
 // the correction. Same purpose as LaUneFullPage — a measurable capture.
 function EpreuveSheet() {
   return (
-    <div className="ep">
+    <div className="ep av2">
       <LEpreuveStyles />
       <EpTopbar groups={[{ total: 31, set: 12, current: true }]} cap={['12/31', '']} partial />
       <div className="ep-body">
@@ -288,7 +288,7 @@ export default function MobileVisualQA() {
               onCta={() => undefined}
             />
           </div>
-          <div className="ep">
+          <div className="ep av2">
             <LEpreuveStyles />
             <EpTopbar groups={[{ total: 31, set: 12, current: true }]} cap={['12/31', '']} partial />
             <EpLock title="Négation : ne … pas" retired={6} />
