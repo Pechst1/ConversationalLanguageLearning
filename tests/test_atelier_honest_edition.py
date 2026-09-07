@@ -68,7 +68,10 @@ def test_prescription_quotes_the_estimate_not_the_budget():
     page = _source("pages/atelier.tsx")
     # The headline minutes must not be the learner's daily-goal setting.
     assert "const prescribedMinutes = Math.max(1, Number(remainingMinutes || sessionMins || 8));" in page
-    assert "overrunMinutes={overBudgetMinutes}" in page
+    # WP-16 / D-0: the overrun clause belongs to La Une's own 3D-press action.
+    # With the daily journey on screen that action is the journey's, so the
+    # clause is suppressed with it — see `journeyOwnsPrimary` in atelier.tsx.
+    assert "overrunMinutes={journeyOwnsPrimary ? null : overBudgetMinutes}" in page
     home = _source("components/atelier-v2/home/HomeScreen.tsx")
     assert "Plus long que les {overrunMinutes} minutes" in home
 
