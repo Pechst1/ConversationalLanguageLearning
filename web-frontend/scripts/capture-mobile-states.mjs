@@ -20,6 +20,12 @@ const captureDir = process.env.CAPTURE_DIR
   ? path.resolve(process.env.CAPTURE_DIR)
   : path.join(repoRoot, 'docs/pilot-smoke-qa-screenshots', defaultCaptureDate, 'latest-run');
 const remotePort = Number(process.env.CHROME_DEBUG_PORT || 9333 + Math.floor(Math.random() * 400));
+// How long Chrome itself gets to come up, in 100ms attempts. This used to be a
+// hard-coded 8 seconds, which is fine on a laptop and a coin flip on a loaded CI
+// runner: the same commit passed on the PR and timed out on main at 8.2s.
+const chromeStartupAttempts = Number(process.env.CHROME_STARTUP_ATTEMPTS || 300);
+/** Set when the Chrome child process fails to spawn or exits early. */
+let chromeFailure = null;
 const previewEmail = process.env.PREVIEW_EMAIL || `mobile-capture-${Date.now()}@example.com`;
 const previewPassword = process.env.PREVIEW_PASSWORD || 'previewsecurepassword';
 const previewTheme = process.env.PREVIEW_THEME || 'light';
@@ -387,15 +393,22 @@ function feuilletonRoute() {
     : '/graphic-novel';
 }
 
-async function waitForJson(url, attempts = 80) {
+async function waitForJson(url, attempts = chromeStartupAttempts) {
   for (let attempt = 0; attempt < attempts; attempt += 1) {
+    // A Chrome that died is not a Chrome that is still starting. Without this
+    // the two are indistinguishable: both spend the whole budget and report the
+    // same timeout, so a missing binary reads as a slow one.
+    if (chromeFailure) throw new Error(chromeFailure);
     try {
       const response = await fetch(url);
       if (response.ok) return response.json();
     } catch {}
     await delay(100);
   }
-  throw new Error(`Timed out waiting for ${url}`);
+  throw new Error(
+    `Timed out waiting for ${url} after ${(attempts / 10).toFixed(0)}s. ` +
+      'Set CHROME_STARTUP_ATTEMPTS higher if this host is simply slow.',
+  );
 }
 
 async function createTab(url) {
@@ -972,6 +985,16 @@ const chrome = spawn(chromePath, [
   `--user-data-dir=${userDataDir}`,
   'about:blank',
 ], { stdio: 'ignore' });
+
+chrome.on('error', (error) => {
+  chromeFailure = `Chrome could not be started from ${chromePath}: ${error.message}`;
+});
+chrome.on('exit', (code, signal) => {
+  if (chromeFailure) return;
+  chromeFailure =
+    `Chrome exited before its DevTools endpoint was ready (code ${code}, signal ${signal}). ` +
+    `Check CHROME_PATH (${chromePath}).`;
+});
 
 const manifest = {
   capturedAt: new Date().toISOString(),
