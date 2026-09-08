@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -29,16 +28,16 @@ class AnalyticsSummary(BaseModel):
     words_mastered: int
     reviews_due_today: int
     reviews_due_week: int
-    last_session_at: Optional[datetime] = None
+    last_session_at: datetime | None = None
 
 
 class AnalyticsStatisticsResponse(BaseModel):
     """Rolling analytics metrics."""
 
-    accuracy: List[MetricPoint] = Field(default_factory=list)
-    xp_earned: List[MetricPoint] = Field(default_factory=list)
-    minutes_practiced: List[MetricPoint] = Field(default_factory=list)
-    reviews_completed: List[MetricPoint] = Field(default_factory=list)
+    accuracy: list[MetricPoint] = Field(default_factory=list)
+    xp_earned: list[MetricPoint] = Field(default_factory=list)
+    minutes_practiced: list[MetricPoint] = Field(default_factory=list)
+    reviews_completed: list[MetricPoint] = Field(default_factory=list)
 
 
 class StreakCalendarDay(BaseModel):
@@ -53,7 +52,7 @@ class StreakInfo(BaseModel):
 
     current_streak: int
     longest_streak: int
-    calendar: List[StreakCalendarDay] = Field(default_factory=list)
+    calendar: list[StreakCalendarDay] = Field(default_factory=list)
 
 
 class VocabularyHeatmapEntry(BaseModel):
@@ -67,7 +66,7 @@ class VocabularyHeatmapResponse(BaseModel):
     """Heatmap payload summarising vocabulary states."""
 
     total: int
-    states: List[VocabularyHeatmapEntry] = Field(default_factory=list)
+    states: list[VocabularyHeatmapEntry] = Field(default_factory=list)
 
 
 class ErrorPattern(BaseModel):
@@ -75,15 +74,15 @@ class ErrorPattern(BaseModel):
 
     error_type: str
     count: int
-    severity: Optional[str] = None
-    example: Optional[str] = None
+    severity: str | None = None
+    example: str | None = None
 
 
 class ErrorPatternsResponse(BaseModel):
     """Collection of frequent learner errors."""
 
     total: int
-    items: List[ErrorPattern] = Field(default_factory=list)
+    items: list[ErrorPattern] = Field(default_factory=list)
 
 
 class ErrorCategoryCount(BaseModel):
@@ -109,7 +108,7 @@ class ErrorSummary(BaseModel):
     total_errors: int
     due_today: int
     stage_counts: ErrorStageCounts
-    categories: List[ErrorCategoryCount] = Field(default_factory=list)
+    categories: list[ErrorCategoryCount] = Field(default_factory=list)
 
 
 class ErrorDetailItem(BaseModel):
@@ -117,21 +116,21 @@ class ErrorDetailItem(BaseModel):
 
     id: int
     pattern: str
-    explanation: Optional[str] = None
+    explanation: str | None = None
     category: str
     occurrences: int
     lapses: int
     learning_stage: str
-    next_review: Optional[datetime] = None
-    last_seen: Optional[datetime] = None
-    example_sentence: Optional[str] = None
+    next_review: datetime | None = None
+    last_seen: datetime | None = None
+    example_sentence: str | None = None
 
 
 class ErrorListResponse(BaseModel):
     """List of detailed error items."""
 
     total: int
-    items: List[ErrorDetailItem] = Field(default_factory=list)
+    items: list[ErrorDetailItem] = Field(default_factory=list)
 
 
 __all__ = [

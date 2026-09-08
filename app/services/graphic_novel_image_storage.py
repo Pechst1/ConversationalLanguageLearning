@@ -13,7 +13,6 @@ import httpx
 
 from app.config import settings
 
-
 _CONTENT_TYPE_EXTENSIONS = {
     "image/jpeg": ".jpg",
     "image/jpg": ".jpg",
@@ -76,6 +75,50 @@ def _extension_from_url(url: str, content_type: str) -> str:
     return _extension_for_content_type(content_type)
 
 
+# A 1024x1024 PNG straight from the image model weighs ~3 MB; six of them inlined as
+# base64 made a 64 MB episode payload that the reader re-fetched while polling. Panels
+# are re-encoded as WebP (visually lossless at this size) before they are stored.
+OPTIMISED_MAX_SIDE = 1024
+OPTIMISED_WEBP_QUALITY = 82
+_RASTER_TYPES = {"image/png", "image/jpeg", "image/jpg"}
+
+
+def optimise_image(image: DecodedImage) -> DecodedImage:
+    """Re-encode raster panels as capped WebP; leave vectors/GIF/WebP untouched."""
+    if image.content_type not in _RASTER_TYPES:
+        return image
+    try:
+        from io import BytesIO
+
+        from PIL import Image
+    except ImportError:  # pragma: no cover - Pillow is a declared dependency
+        return image
+    try:
+        with Image.open(BytesIO(image.content)) as opened:
+            opened.load()
+            has_alpha = opened.mode in {"RGBA", "LA"} or (opened.mode == "P" and "transparency" in opened.info)
+            mode = "RGBA" if has_alpha else "RGB"
+            converted = opened.convert(mode)
+            width, height = converted.size
+            longest = max(width, height)
+            if longest > OPTIMISED_MAX_SIDE:
+                scale = OPTIMISED_MAX_SIDE / longest
+                converted = converted.resize((max(1, round(width * scale)), max(1, round(height * scale))))
+            buffer = BytesIO()
+            converted.save(buffer, format="WEBP", quality=OPTIMISED_WEBP_QUALITY, method=4)
+    except Exception:  # noqa: BLE001 - a corrupt source keeps its original bytes
+        return image
+    optimised = buffer.getvalue()
+    if not optimised or len(optimised) >= len(image.content):
+        return image
+    return DecodedImage(
+        content=optimised,
+        content_type="image/webp",
+        extension=".webp",
+        source_kind=image.source_kind,
+    )
+
+
 class GraphicNovelImageStorage:
     """Store generated image payloads behind stable URLs."""
 
@@ -100,6 +143,7 @@ class GraphicNovelImageStorage:
         decoded = await self._decode_or_fetch(url.strip())
         if decoded is None:
             return payload
+        decoded = optimise_image(decoded)
 
         digest = hashlib.sha256(decoded.content).hexdigest()
         key = self._object_key(

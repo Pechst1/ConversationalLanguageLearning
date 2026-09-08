@@ -4,7 +4,7 @@ from __future__ import annotations
 import hashlib
 from collections import Counter, defaultdict
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -15,13 +15,16 @@ from app.db.models.atelier import AtelierAttempt, AtelierCollectible, AtelierSes
 from app.db.models.graphic_novel import GraphicNovelPanel, GraphicNovelScene
 from app.db.models.serial import SerialEpisode, SerialThread
 
-
-LOGO_TOKEN = "logo_token"
+LOGO_TOKEN = "logo_token"  # noqa: S105 - collectible identifier, not a credential
 GILT_SEAL = "gilt_seal"
 STORY_SEAL = "story_seal"
 PLATE_SEMAINE = "plate_semaine"
 PLATE_CHAPTER = "plate_chapter"
 COLOPHON = "colophon"
+
+#: Source kind for the Atelier V2 daily-journey keepsake (WP-09). A new source
+#: for the existing logo token, not a new collectible kind or collection.
+DAILY_JOURNEY_SOURCE_KIND = "daily_journey"
 
 GILT_VARIANTS = ("row", "stack", "nested", "quad")
 PLATE_KINDS = {PLATE_SEMAINE, PLATE_CHAPTER, COLOPHON}
@@ -135,7 +138,7 @@ class AtelierRewardService:
         )
         if not self._is_flawless_session(session, attempts):
             return []
-        completed_at = session.completed_at or datetime.now(timezone.utc)
+        completed_at = session.completed_at or datetime.now(UTC)
         variant = self._gilt_variant(completed_at, str(session.id))
         item, created = self._mint(
             user_id=session.user_id,
@@ -188,7 +191,7 @@ class AtelierRewardService:
         prompt = mission.prompt_payload or {}
         variety = prompt.get("variety") if isinstance(prompt.get("variety"), dict) else {}
         messenger = prompt.get("messenger") if isinstance(prompt.get("messenger"), dict) else {}
-        completed_at = mission.completed_at or datetime.now(timezone.utc)
+        completed_at = mission.completed_at or datetime.now(UTC)
         item, created = self._mint(
             user_id=mission.user_id,
             kind=LOGO_TOKEN,
@@ -206,6 +209,42 @@ class AtelierRewardService:
                 "tone": variety.get("tone"),
                 "source": "real_world_mission",
                 "credit": 3,
+            },
+        )
+        return [serialize_collectible(item)] if created else []
+
+    def mint_conversation_effort_token(
+        self,
+        *,
+        user_id: UUID,
+        source_kind: str,
+        source_ref: str,
+        recovery: bool,
+        word_count: int,
+        error_count: int,
+        session_id: UUID | str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Reward linguistic risk or a repair without turning accuracy into a tax.
+
+        These are regular logo tokens so they participate in the existing
+        workshop economy. Their metadata makes the reason visible in the
+        almanac while the gilt seal remains the rarer perfection reward.
+        """
+        effort = "recovery" if recovery else "courage"
+        item, created = self._mint(
+            user_id=user_id,
+            kind=LOGO_TOKEN,
+            source_kind=source_kind,
+            source_ref=source_ref,
+            metadata={
+                "name": "Jeton de reprise" if recovery else "Jeton de courage",
+                "date": self._date_for(None),
+                "effort": effort,
+                "credit": 2 if recovery else 1,
+                "word_count": max(0, int(word_count)),
+                "error_count": max(0, int(error_count)),
+                "session_id": str(session_id) if session_id else None,
+                "source": "conversation_effort",
             },
         )
         return [serialize_collectible(item)] if created else []
@@ -334,6 +373,35 @@ class AtelierRewardService:
             }
         return progress
 
+    def mint_daily_journey_keepsake(
+        self,
+        *,
+        user_id: UUID,
+        source_ref: str,
+        metadata: dict[str, Any],
+        commit: bool = False,
+    ) -> tuple[AtelierCollectible, bool]:
+        """Keepsake for one completed daily journey (Atelier V2, WP-09).
+
+        An ordinary logo token from a new source, exactly like the mission
+        token: existing collections, kinds, and workshop thresholds are
+        unchanged. ``source_ref`` is the journey's ``journey:<id>:keepsake``
+        key, so the existing ``(user, source_kind, source_ref, kind)``
+        uniqueness makes an HTTP retry return the same collectible.
+
+        Defaults to ``commit=False`` because the daily-journey state machine
+        owns the transaction (CONTRACTS §1).
+        """
+
+        return self._mint(
+            user_id=user_id,
+            kind=LOGO_TOKEN,
+            source_kind=DAILY_JOURNEY_SOURCE_KIND,
+            source_ref=source_ref,
+            metadata=metadata,
+            commit=commit,
+        )
+
     def _mint(
         self,
         *,
@@ -342,6 +410,7 @@ class AtelierRewardService:
         source_kind: str,
         source_ref: str,
         metadata: dict[str, Any],
+        commit: bool = True,
     ) -> tuple[AtelierCollectible, bool]:
         existing = self._existing(user_id=user_id, kind=kind, source_kind=source_kind, source_ref=source_ref)
         if existing:
@@ -353,6 +422,22 @@ class AtelierRewardService:
             source_ref=source_ref,
             metadata_payload=metadata,
         )
+        if not commit:
+            # Transaction-compatible path: claim the row inside a SAVEPOINT so a
+            # racing duplicate rolls back the insert alone and never the
+            # caller's open transaction. The caller commits.
+            try:
+                with self.db.begin_nested():
+                    self.db.add(item)
+                    self.db.flush([item])
+            except IntegrityError:
+                existing = self._existing(
+                    user_id=user_id, kind=kind, source_kind=source_kind, source_ref=source_ref
+                )
+                if existing:
+                    return existing, False
+                raise
+            return item, True
         self.db.add(item)
         try:
             self.db.commit()
@@ -418,18 +503,22 @@ class AtelierRewardService:
     @staticmethod
     def _expected_session_keys(session: AtelierSession) -> set[tuple[Any, ...]]:
         concept_ids = [int(item) for item in (session.selected_concept_ids or [])]
+        locks = dict((session.quote_payload or {}).get("adaptive_locks") or {})
         expected: set[tuple[Any, ...]] = {("produce", None)}
         for concept_id in concept_ids:
+            skipped_modes = set((locks.get(str(concept_id)) or {}).get("skipped_modes") or [])
             expected.update(
                 {
-                    ("recognize", "fill", concept_id),
-                    ("recognize", "classify", concept_id),
-                    ("recognize", "word_bank", concept_id),
                     ("transform", concept_id),
                     ("sentence", concept_id),
                     ("speak", concept_id),
                     ("conversation", concept_id),
                 }
+            )
+            expected.update(
+                ("recognize", mode, concept_id)
+                for mode in ("fill", "classify", "word_bank")
+                if mode not in skipped_modes
             )
         return expected
 
@@ -462,7 +551,7 @@ class AtelierRewardService:
 
     @staticmethod
     def _date_for(value: datetime | None) -> str:
-        moment = value or datetime.now(timezone.utc)
+        moment = value or datetime.now(UTC)
         return moment.date().isoformat()
 
     @staticmethod

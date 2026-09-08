@@ -8,7 +8,6 @@ from pathlib import Path
 from app.db.models.grammar import GrammarConcept
 from app.services.atelier import AtelierExerciseGenerator, AtelierScheduler
 
-
 FIXTURE_PATH = Path("tests/fixtures/atelier_bad_word_banks.json")
 
 

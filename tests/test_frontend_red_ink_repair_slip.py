@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 MOBILE_INDEX = ROOT / "web-frontend" / "components" / "mobile" / "index.ts"
 REPAIR_SLIP = ROOT / "web-frontend" / "components" / "mobile" / "RedInkRepairSlip.tsx"
@@ -39,30 +38,40 @@ def test_mission_screen_removed_duplicate_repair_chrome_while_feuilleton_uses_sl
     assert "function TurnRepairMarkup" not in missions
     assert "className=\"turn-repair-slip\"" not in missions
     assert "function CorrectionStack" not in missions
-    assert "className=\"scene-frame\"" in missions
-    assert "import { ContinuationCard, MobileBottomSheet, RedInkRepairSlip, VocabularyCreditBadge }" in feuilleton
-    assert "source=\"Feuilleton" in feuilleton
+    # Missions keeps its own quiet graphite repair (CrRepair), not the shared slip.
+    assert "<CrRepair" in missions
+    assert "correctedAnswer={correctedAnswer}" in missions
+    assert "savedCount={savedCount}" in missions
+    # Reader rebuild: the Feuilleton reply shows ONE short French response inline
+    # (audit §6), so the bottom-sheet duplicate and the shared repair slip are gone.
+    assert "MobileBottomSheet" not in feuilleton
+    assert "RedInkRepairSlip" not in feuilleton
+    model = read(ROOT / "web-frontend" / "components" / "feuilleton" / "reader" / "panel-model.ts")
+    assert "export function correctionLine" in model
 
 
 def test_atelier_uses_repair_slip_for_due_errata_and_closure() -> None:
     atelier = read(ATELIER_PAGE)
     api_types = read(API_TYPES)
 
-    assert "function DueErrataList" in atelier
+    # DueErrataList/ErrataStack were unreferenced legacy components; the live
+    # repair path is the overlay reached from La Une and the review deck.
     assert "function ErrataReviewOverlay" in atelier
-    assert "function ErrataStack" in atelier
-    assert "ERRATA DUE" in atelier
-    assert "REMEMBERED SLIP" in atelier
-    assert "SUBMIT REPAIR" in atelier
-    assert "result.is_correct ? 'REPAIRED' : 'NOT YET'" in atelier
-    assert "Repair in mission" in atelier
+    assert "ERREUR MÉMORISÉE" in atelier
+    assert "ENVOYER LA REPRISE" in atelier
+    assert "result.is_correct ? 'REPRIS' : 'PAS ENCORE'" in atelier
     assert "export interface AtelierErrataAttemptResult" in api_types
 
 
 def test_grammar_notebook_uses_same_repair_slip() -> None:
     grammar = read(GRAMMAR_PAGE)
 
-    assert "NotebookModeSwitch, RedInkRepairSlip" in grammar
-    assert "function ErratumCard" in grammar
-    assert "className=\"notebook-erratum-card\"" in grammar
-    assert "Repair in mission" in grammar
+    # In the Cahiers fiche, a concept's errata are filed as proofreader-style
+    # ledger rows: the learner's slip struck through, the correction in the
+    # margin — split into "à revoir" (due) and "récents" (repaired) sections.
+    # Claude-design fiche: the same ledger rows on the av2 surface.
+    assert "function ErratumLine" in grammar
+    assert "<s>{learner}</s>" in grammar
+    assert 't="Errata à revoir"' in grammar
+    assert 't="Errata récents"' in grammar
+    assert "<ErratumLine" in grammar

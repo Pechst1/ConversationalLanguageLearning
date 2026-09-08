@@ -1,6 +1,8 @@
 
 from sqlalchemy import text
+
 from app.db.session import SessionLocal
+
 
 def fix_db():
     db = SessionLocal()

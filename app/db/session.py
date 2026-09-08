@@ -1,8 +1,8 @@
 """Database session and engine management."""
+from loguru import logger
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import QueuePool
-from loguru import logger
 
 from app.config import settings
 

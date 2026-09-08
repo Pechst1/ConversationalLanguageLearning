@@ -4,7 +4,11 @@ from __future__ import annotations
 from uuid import uuid4
 
 from app.db.models.grammar import GrammarConcept
-from app.services.grammar_feedback import count_concept_hits, infer_grammar_profile, is_concept_demonstrated
+from app.services.grammar_feedback import (
+    count_concept_hits,
+    infer_grammar_profile,
+    is_concept_demonstrated,
+)
 
 
 def _concept(**kwargs) -> GrammarConcept:

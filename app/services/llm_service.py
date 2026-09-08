@@ -2,14 +2,60 @@
 from __future__ import annotations
 
 import logging
+import time
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any, ClassVar, Dict, List, Optional, Protocol, Sequence
+from typing import Any, ClassVar, Protocol
 
 import httpx
 from loguru import logger
 from tenacity import before_sleep_log, retry, stop_after_attempt, wait_exponential
 
 from app.config import settings
+
+_AUDIO_EXTENSION_BY_MIME = {
+    "audio/aac": "aac",
+    "audio/flac": "flac",
+    "audio/m4a": "m4a",
+    "audio/mp3": "mp3",
+    "audio/mp4": "mp4",
+    "audio/mpeg": "mp3",
+    "audio/ogg": "ogg",
+    "audio/wav": "wav",
+    "audio/webm": "webm",
+    "audio/x-flac": "flac",
+    "audio/x-m4a": "m4a",
+    "audio/x-wav": "wav",
+}
+_AUDIO_MIME_BY_EXTENSION = {
+    extension: mime_type for mime_type, extension in _AUDIO_EXTENSION_BY_MIME.items()
+}
+_AUDIO_MIME_BY_EXTENSION.update({"m4a": "audio/mp4", "mp3": "audio/mpeg"})
+
+
+def _audio_upload_metadata(
+    filename: str | None,
+    content_type: str | None,
+) -> tuple[str, str]:
+    """Return safe multipart metadata without lying about iOS MP4 recordings."""
+    mime_type = (content_type or "").partition(";")[0].strip().lower()
+    extension = _AUDIO_EXTENSION_BY_MIME.get(mime_type)
+
+    if not extension and filename:
+        candidate = filename.replace("\\", "/").rsplit("/", 1)[-1].rsplit(".", 1)
+        if len(candidate) == 2:
+            candidate_extension = candidate[-1].lower()
+            candidate_mime = _AUDIO_MIME_BY_EXTENSION.get(candidate_extension)
+            if candidate_mime:
+                extension = candidate_extension
+                mime_type = candidate_mime
+
+    if not extension:
+        # Preserve the historical default for internal callers that do not provide metadata.
+        extension = "webm"
+        mime_type = "audio/webm"
+
+    return f"audio.{extension}", mime_type
 
 
 @dataclass
@@ -23,7 +69,7 @@ class LLMResult:
     completion_tokens: int
     total_tokens: int
     cost: float
-    raw_response: Dict[str, Any]
+    raw_response: dict[str, Any]
 
 
 class LLMProviderError(RuntimeError):
@@ -35,7 +81,7 @@ class BaseLLMProvider(Protocol):
 
     name: str
 
-    def generate(self, messages: Sequence[Dict[str, str]], **kwargs: Any) -> LLMResult:  # pragma: no cover - interface definition
+    def generate(self, messages: Sequence[dict[str, str]], **kwargs: Any) -> LLMResult:  # pragma: no cover - interface definition
         """Generate a chat completion."""
 
 
@@ -51,7 +97,7 @@ class OpenAIProvider:
 
     name: str = "openai"
 
-    COST_PER_1K_TOKENS: ClassVar[Dict[str, Dict[str, float]]] = {
+    COST_PER_1K_TOKENS: ClassVar[dict[str, dict[str, float]]] = {
         "gpt-5-mini": {"prompt": 0.00025, "completion": 0.002},
         "gpt-5.4-mini": {"prompt": 0.00075, "completion": 0.0045},
         "gpt-5.4-nano": {"prompt": 0.0002, "completion": 0.00125},
@@ -60,7 +106,7 @@ class OpenAIProvider:
         "gpt-3.5-turbo": {"prompt": 0.0005, "completion": 0.0015},
     }
 
-    def _build_headers(self) -> Dict[str, str]:
+    def _build_headers(self) -> dict[str, str]:
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
@@ -70,7 +116,7 @@ class OpenAIProvider:
             headers["OpenAI-Organization"] = settings.OPENAI_ORG_ID  # type: ignore[attr-defined]
         return headers
 
-    def _estimate_cost(self, usage: Dict[str, Any], model: str | None = None) -> float:
+    def _estimate_cost(self, usage: dict[str, Any], model: str | None = None) -> float:
         model_rates = self.COST_PER_1K_TOKENS.get(model or self.model, {"prompt": 0.0, "completion": 0.0})
         prompt_cost = (usage.get("prompt_tokens", 0) / 1000) * model_rates["prompt"]
         completion_cost = (usage.get("completion_tokens", 0) / 1000) * model_rates["completion"]
@@ -82,7 +128,7 @@ class OpenAIProvider:
 
         return model.startswith("gpt-5")
 
-    def generate(self, messages: Sequence[Dict[str, str]], **kwargs: Any) -> LLMResult:
+    def generate(self, messages: Sequence[dict[str, str]], **kwargs: Any) -> LLMResult:
         disable_retries = bool(kwargs.pop("disable_retries", False))
         if disable_retries:
             return self._generate_once(messages, **kwargs)
@@ -94,12 +140,12 @@ class OpenAIProvider:
         before_sleep=before_sleep_log(logger, logging.WARNING),
         reraise=True,
     )
-    def _generate_with_retries(self, messages: Sequence[Dict[str, str]], **kwargs: Any) -> LLMResult:
+    def _generate_with_retries(self, messages: Sequence[dict[str, str]], **kwargs: Any) -> LLMResult:
         return self._generate_once(messages, **kwargs)
 
-    def _generate_once(self, messages: Sequence[Dict[str, str]], **kwargs: Any) -> LLMResult:
+    def _generate_once(self, messages: Sequence[dict[str, str]], **kwargs: Any) -> LLMResult:
         model = kwargs.get("model", self.model)
-        payload: Dict[str, Any] = {
+        payload: dict[str, Any] = {
             "model": model,
             "messages": list(messages),
         }
@@ -157,10 +203,17 @@ class OpenAIProvider:
         )
         return result
 
-    def transcribe_audio(self, file: Any) -> str:
+    def transcribe_audio(
+        self,
+        file: Any,
+        *,
+        filename: str | None = None,
+        content_type: str | None = None,
+    ) -> str:
         """Transcribe audio using OpenAI Whisper."""
+        upload_filename, upload_content_type = _audio_upload_metadata(filename, content_type)
         with httpx.Client(base_url=self.base_url, timeout=self.request_timeout) as client:
-            files = {"file": ("audio.webm", file, "audio/webm")}
+            files = {"file": (upload_filename, file, upload_content_type)}
             data = {"model": "whisper-1"}
             response = client.post("/audio/transcriptions", files=files, data=data, headers={"Authorization": f"Bearer {self.api_key}"})
 
@@ -183,19 +236,35 @@ class OpenAIProvider:
             "voice": voice,
             "response_format": "mp3",
         }
-        with httpx.Client(base_url=self.base_url, timeout=60.0) as client:
-            response = client.post(
-                "/audio/speech",
-                json=payload,
-                headers=self._build_headers(),
-            )
+        # A spoken turn has no second chance on screen: a transient 5xx or a
+        # dropped socket used to leave the learner with a silent character, so
+        # retry briefly before giving up (kept short to stay inside a live call).
+        attempts = 3
+        last_error: Exception | None = None
+        for attempt in range(1, attempts + 1):
+            try:
+                with httpx.Client(base_url=self.base_url, timeout=60.0) as client:
+                    response = client.post(
+                        "/audio/speech",
+                        json=payload,
+                        headers=self._build_headers(),
+                    )
+            except httpx.HTTPError as exc:
+                last_error = LLMProviderError(f"OpenAI TTS transport error: {exc}")
+            else:
+                if response.status_code < 400:
+                    logger.info("TTS generation success", chars=len(text), voice=voice, model=model)
+                    return response.content
+                logger.error("OpenAI TTS error", status=response.status_code, body=response.text)
+                last_error = LLMProviderError(
+                    f"OpenAI TTS error {response.status_code}: {response.text}"
+                )
+                if response.status_code < 500:
+                    break
+            if attempt < attempts:
+                time.sleep(0.6 * attempt)
 
-        if response.status_code >= 400:
-            logger.error("OpenAI TTS error", status=response.status_code, body=response.text)
-            raise LLMProviderError(f"OpenAI TTS error {response.status_code}: {response.text}")
-
-        logger.info("TTS generation success", chars=len(text), voice=voice, model=model)
-        return response.content
+        raise last_error or LLMProviderError("OpenAI TTS error")
 
 @dataclass
 class ElevenLabsProvider:
@@ -221,9 +290,11 @@ class ElevenLabsProvider:
             voice = "JBFqnCBsd6RMkjVDRZzb" # Example ID (George) or Rachel: "21m00Tcm4TlvDq8ikWAM"
         
         # Determine voice ID (using a basic mapping or pass-through)
-        voice_id = voice 
-        if voice == "Rachel": voice_id = "21m00Tcm4TlvDq8ikWAM"
-        if voice == "Nicole": voice_id = "piTKgcLEGmPE4e6mEKli" # Smooth female
+        voice_id = voice
+        if voice == "Rachel":
+            voice_id = "21m00Tcm4TlvDq8ikWAM"
+        if voice == "Nicole":
+            voice_id = "piTKgcLEGmPE4e6mEKli"  # Smooth female
 
         payload = {
             "text": text,
@@ -269,12 +340,12 @@ class AnthropicProvider:
 
     name: str = "anthropic"
 
-    COST_PER_1K_TOKENS: ClassVar[Dict[str, Dict[str, float]]] = {
+    COST_PER_1K_TOKENS: ClassVar[dict[str, dict[str, float]]] = {
         "claude-3-5-sonnet": {"prompt": 0.003, "completion": 0.015},
         "claude-3-sonnet": {"prompt": 0.003, "completion": 0.015},
     }
 
-    def generate(self, messages: Sequence[Dict[str, str]], **kwargs: Any) -> LLMResult:
+    def generate(self, messages: Sequence[dict[str, str]], **kwargs: Any) -> LLMResult:
         disable_retries = bool(kwargs.pop("disable_retries", False))
         if disable_retries:
             return self._generate_once(messages, **kwargs)
@@ -286,11 +357,11 @@ class AnthropicProvider:
         before_sleep=before_sleep_log(logger, logging.WARNING),
         reraise=True,
     )
-    def _generate_with_retries(self, messages: Sequence[Dict[str, str]], **kwargs: Any) -> LLMResult:
+    def _generate_with_retries(self, messages: Sequence[dict[str, str]], **kwargs: Any) -> LLMResult:
         return self._generate_once(messages, **kwargs)
 
-    def _generate_once(self, messages: Sequence[Dict[str, str]], **kwargs: Any) -> LLMResult:
-        payload: Dict[str, Any] = {
+    def _generate_once(self, messages: Sequence[dict[str, str]], **kwargs: Any) -> LLMResult:
+        payload: dict[str, Any] = {
             "model": kwargs.get("model", self.model),
             "max_tokens": kwargs.get("max_tokens", 512),
             "messages": [
@@ -355,9 +426,9 @@ class LLMService:
 
     def __init__(
         self,
-        providers: Optional[Sequence[BaseLLMProvider]] = None,
-        primary: Optional[str] = None,
-        secondary: Optional[str] = None,
+        providers: Sequence[BaseLLMProvider] | None = None,
+        primary: str | None = None,
+        secondary: str | None = None,
     ) -> None:
         if providers is not None:
             self._providers = list(providers)
@@ -371,8 +442,8 @@ class LLMService:
         resolved_secondary = secondary or settings.SECONDARY_LLM_PROVIDER
         self._provider_order = self._build_order(resolved_primary, resolved_secondary)
 
-    def _build_default_providers(self) -> List[BaseLLMProvider]:
-        provider_list: List[BaseLLMProvider] = []
+    def _build_default_providers(self) -> list[BaseLLMProvider]:
+        provider_list: list[BaseLLMProvider] = []
         if settings.OPENAI_API_KEY:
             provider_list.append(
                 OpenAIProvider(
@@ -401,11 +472,11 @@ class LLMService:
             )
         return provider_list
 
-    def _build_order(self, primary: Optional[str], secondary: Optional[str]) -> List[BaseLLMProvider]:
-        ordered: List[BaseLLMProvider] = []
+    def _build_order(self, primary: str | None, secondary: str | None) -> list[BaseLLMProvider]:
+        ordered: list[BaseLLMProvider] = []
         seen: set[str] = set()
 
-        def maybe_add(name: Optional[str]) -> None:
+        def maybe_add(name: str | None) -> None:
             if not name:
                 return
             provider = self._providers_by_name.get(name)
@@ -423,24 +494,26 @@ class LLMService:
 
     def generate_chat_completion(
         self,
-        messages: Sequence[Dict[str, str]],
+        messages: Sequence[dict[str, str]],
         *,
         temperature: float = 0.7,
         max_tokens: int = 512,
-        response_format: Optional[Dict[str, Any]] = None,
-        system_prompt: Optional[str] = None,
-        model: Optional[str] = None,
-        request_timeout: Optional[float] = None,
+        response_format: dict[str, Any] | None = None,
+        system_prompt: str | None = None,
+        model: str | None = None,
+        request_timeout: float | None = None,
         disable_retries: bool = False,
-        reasoning_effort: Optional[str] = None,
+        reasoning_effort: str | None = None,
+        max_provider_attempts: int | None = None,
     ) -> LLMResult:
         """Generate a chat completion using the configured providers."""
 
-        errors: List[str] = []
-        for provider in self._provider_order:
+        errors: list[str] = []
+        providers = self._provider_order if max_provider_attempts is None else self._provider_order[:max(1, max_provider_attempts)]
+        for provider in providers:
             if not hasattr(provider, "generate"):
                 continue
-            payload_kwargs: Dict[str, Any] = {
+            payload_kwargs: dict[str, Any] = {
                 "temperature": temperature,
                 "max_tokens": max_tokens,
             }
@@ -479,26 +552,26 @@ class LLMService:
 
     def generate_error_detection(
         self,
-        messages: Sequence[Dict[str, str]],
+        messages: Sequence[dict[str, str]],
         *,
         temperature: float = 0.1,
         max_tokens: int = 800,
-        model: Optional[str] = None,
-        response_format: Optional[Dict[str, Any]] = None,
-        system_prompt: Optional[str] = None,
-        request_timeout: Optional[float] = None,
+        model: str | None = None,
+        response_format: dict[str, Any] | None = None,
+        system_prompt: str | None = None,
+        request_timeout: float | None = None,
         disable_retries: bool = False,
-        reasoning_effort: Optional[str] = None,
+        reasoning_effort: str | None = None,
     ) -> LLMResult:
         """Generate error detection using the dedicated error detection model.
         
         Uses the configured correction model for better grammar analysis.
         """
-        errors: List[str] = []
+        errors: list[str] = []
         for provider in self._provider_order:
             if not hasattr(provider, "generate"):
                 continue
-            payload_kwargs: Dict[str, Any] = {
+            payload_kwargs: dict[str, Any] = {
                 "temperature": temperature,
                 "max_tokens": max_tokens,
             }
@@ -507,6 +580,14 @@ class LLMService:
                 payload_kwargs["model"] = model or settings.OPENAI_ERROR_DETECTION_MODEL
                 if response_format:
                     payload_kwargs["response_format"] = response_format
+                # gpt-5 class models bill reasoning against the completion
+                # ceiling: with no effort set they burned the whole budget and
+                # returned empty content, so every detection call raised and the
+                # spoken session silently reported zero mistakes.
+                if not reasoning_effort and OpenAIProvider._uses_completion_token_limit(
+                    str(payload_kwargs["model"])
+                ):
+                    payload_kwargs["reasoning_effort"] = "minimal"
             elif model:
                 payload_kwargs["model"] = model
             if request_timeout is not None:
@@ -539,14 +620,24 @@ class LLMService:
                 continue
         raise LLMProviderError("; ".join(errors))
 
-    def transcribe_audio(self, file: Any) -> str:
+    def transcribe_audio(
+        self,
+        file: Any,
+        *,
+        filename: str | None = None,
+        content_type: str | None = None,
+    ) -> str:
         """Transcribe audio using the primary provider (must be OpenAI)."""
         # Find OpenAI provider
         openai_provider = next((p for p in self._providers if isinstance(p, OpenAIProvider)), None)
         if not openai_provider:
             raise LLMProviderError("OpenAI provider not configured for transcription")
         
-        return openai_provider.transcribe_audio(file)
+        return openai_provider.transcribe_audio(
+            file,
+            filename=filename,
+            content_type=content_type,
+        )
 
     def text_to_speech(
         self,
@@ -567,9 +658,18 @@ class LLMService:
                 # Default ElevenLabs model
                 model = model or "eleven_turbo_v2_5"
                 # Map OpenAI voice names to ElevenLabs if necessary
-                if voice in ["alloy", "echo", "fable", "nova", "onyx", "shimmer"]:
-                    voice = "Rachel" # Fallback to default EL voice
-                return el_provider.text_to_speech(text, voice=voice, model=model)
+                el_voice = "Rachel" if voice in [
+                    "alloy", "echo", "fable", "nova", "onyx", "shimmer"
+                ] else voice
+                try:
+                    return el_provider.text_to_speech(text, voice=el_voice, model=model)
+                except Exception as exc:
+                    # A spoken session is worthless without a voice: an ElevenLabs
+                    # outage or plan limit must degrade to the other provider
+                    # instead of 500ing the whole turn.
+                    logger.warning("ElevenLabs TTS failed, falling back to OpenAI: {}", exc)
+                    target_provider = "openai"
+                    model = None
 
         if target_provider == "openai":
             openai_provider = next((p for p in self._providers if isinstance(p, OpenAIProvider)), None)

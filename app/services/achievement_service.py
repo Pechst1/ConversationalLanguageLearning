@@ -1,9 +1,8 @@
 """Achievement service for grammar-related achievements and streak tracking."""
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from typing import TYPE_CHECKING
-from uuid import UUID
 
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db.models.achievement import Achievement, UserAchievement
@@ -92,7 +91,7 @@ class AchievementService:
         existing_achievement_ids = self.db.execute(
             select(UserAchievement.achievement_id).where(
                 UserAchievement.user_id == user.id,
-                UserAchievement.completed == True
+                UserAchievement.completed.is_(True)
             )
         ).scalars().all()
 
@@ -113,7 +112,7 @@ class AchievementService:
                     achievement_id=achievement.id,
                     completed=True,
                     progress=achievement.trigger_value or 1,
-                    unlocked_at=datetime.now(timezone.utc),
+                    unlocked_at=datetime.now(UTC),
                 )
                 self.db.add(user_achievement)
 

@@ -3,20 +3,48 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 
-import EditorialMasthead from '@/components/layout/EditorialMasthead';
-import { NOTEBOOK_MODE_STORAGE_KEY, NotebookModeSwitch, type NotebookMode } from '@/components/mobile';
+import PhoneProductNav from '@/components/layout/PhoneProductNav';
+import {
+  Action,
+  ArrowRightIcon,
+  AtelierV2Root,
+  ShapeToken,
+  Skeleton,
+  StateBlock,
+  Surface,
+} from '@/components/atelier-v2/ui';
+import {
+  CAHIER_MODE_LABELS,
+  CahierHead,
+  CahierStyles,
+  NbSectionHead,
+  NotebookModeTabs,
+  type CahierMode,
+} from '@/components/cahiers/CahierV2';
+import { NOTEBOOK_MODE_STORAGE_KEY } from '@/components/mobile';
+import Releve from '@/components/releve/Releve';
 import { Button } from '@/components/ui/Button';
 import { ExerciseShell } from '@/components/ui/ExerciseShell';
 import { FeedbackSheet } from '@/components/ui/FeedbackSheet';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { pulseAppHaptic } from '@/lib/haptics';
 import { STORY_FEATURE_VISIBLE } from '@/lib/launch-flags';
-import api, { type CEFRProgress, type GraphicNovelToday, type LibraryBook, type LibraryEpisode } from '@/services/api';
+import api, {
+  type CEFRProgress,
+  type GrammarProgressSummary,
+  type GraphicNovelToday,
+  type LibraryBook,
+  type LibraryEpisode,
+} from '@/services/api';
 
 import { GrammarNotebookSurface } from './grammar';
 import VocabularyPage from './vocabulary';
 
 type NotebookQuery = Record<string, string | string[] | undefined>;
+/* The Cahier's own tab set. `NotebookMode` in components/mobile still describes
+   the retired mobile switch; Le Relevé is a Cahier tab, so the shell keeps its
+   own union rather than widening the legacy one. */
+type NotebookMode = CahierMode;
 type LibraryExerciseKind = 'comprehension' | 'vocabulary' | 'grammar' | 'production';
 type LibraryExerciseStep = {
   id: string;
@@ -47,6 +75,7 @@ function storedNotebookMode(): NotebookMode {
   try {
     const stored = window.localStorage.getItem(NOTEBOOK_MODE_STORAGE_KEY);
     if (stored === 'vocabulary') return 'vocabulary';
+    if (stored === 'releve') return 'releve';
     if (STORY_FEATURE_VISIBLE && stored === 'library') return 'library';
     return 'grammar';
   } catch {
@@ -65,19 +94,11 @@ function rememberNotebookMode(mode: NotebookMode) {
 
 function notebookModeFromQuery(query: NotebookQuery): NotebookMode | null {
   const explicitMode = firstQueryValue(query.mode);
-  if (explicitMode === 'grammar' || explicitMode === 'vocabulary') return explicitMode;
+  if (explicitMode === 'grammar' || explicitMode === 'vocabulary' || explicitMode === 'releve') return explicitMode;
   if (STORY_FEATURE_VISIBLE && explicitMode === 'library') return 'library';
   if (STORY_FEATURE_VISIBLE && firstQueryValue(query.book)) return 'library';
   if (firstQueryValue(query.word)) return 'vocabulary';
   if (firstQueryValue(query.concept) || firstQueryValue(query.review)) return 'grammar';
-  return null;
-}
-
-function notebookModeFromHref(href: string | null): NotebookMode | null {
-  if (!href) return null;
-  if (STORY_FEATURE_VISIBLE && (href.includes('mode=library') || href.includes('/bibliotheque') || href.includes('/stories'))) return 'library';
-  if (href.includes('/vocabulary')) return 'vocabulary';
-  if (href.includes('/grammar')) return 'grammar';
   return null;
 }
 
@@ -90,6 +111,9 @@ function queryForMode(query: NotebookQuery, requestedMode: NotebookMode): Notebo
   if (mode === 'grammar') {
     const concept = firstQueryValue(query.concept) || firstQueryValue(query.review);
     if (concept) nextQuery.concept = concept;
+  } else if (mode === 'releve') {
+    // Le Relevé is a read-only ledger; it carries no deep-link parameters.
+    return nextQuery;
   } else {
     if (mode === 'library') {
       const book = firstQueryValue(query.book);
@@ -105,10 +129,18 @@ function queryForMode(query: NotebookQuery, requestedMode: NotebookMode): Notebo
   return nextQuery;
 }
 
+const MODE_TITLES: Record<NotebookMode, string> = {
+  grammar: 'Le Cahier · Grammaire',
+  vocabulary: 'Le Cahier · Lexique',
+  releve: 'Le Cahier · Le Relevé',
+  library: 'Le Cahier · Bibliothèque',
+};
+
 export default function NotebookEntryPage() {
   const router = useRouter();
   const [mode, setMode] = useState<NotebookMode>('grammar');
   const [cefr, setCefr] = useState<CEFRProgress | null>(null);
+  const [grammarSummary, setGrammarSummary] = useState<GrammarProgressSummary | null>(null);
   const [feuilletonToday, setFeuilletonToday] = useState<GraphicNovelToday | null>(null);
   const queryConcept = router.query.concept;
   const queryMode = router.query.mode;
@@ -145,6 +177,22 @@ export default function NotebookEntryPage() {
     };
   }, []);
 
+  // The design's kicker — "54 concepts · 12 vus" — is the learner's own
+  // concept count from /grammar/summary, or nothing.
+  useEffect(() => {
+    let cancelled = false;
+    (api.getGrammarSummary() as Promise<GrammarProgressSummary>)
+      .then((payload) => {
+        if (!cancelled) setGrammarSummary(payload);
+      })
+      .catch(() => {
+        if (!cancelled) setGrammarSummary(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     api.getGraphicNovelToday()
@@ -175,54 +223,68 @@ export default function NotebookEntryPage() {
     [mode, router]
   );
 
-  const handleModeSwitchClick = useCallback(
-    (event: React.MouseEvent<HTMLElement>) => {
-      const target = event.target instanceof Element ? event.target : null;
-      const anchor = target?.closest('a[href]');
-      const nextMode = notebookModeFromHref(anchor?.getAttribute('href') || null);
-      if (!nextMode) return;
-      event.preventDefault();
-      switchMode(nextMode);
-    },
-    [switchMode]
-  );
-
   const visibleMode = !STORY_FEATURE_VISIBLE && mode === 'library' ? 'grammar' : mode;
+
+  // The bound serial clipping at the top of the carnet — one line, or absent.
+  const notebookFeuilleton = React.useMemo(() => {
+    const scene = feuilletonToday?.active_scene
+      || feuilletonToday?.available_scene
+      || feuilletonToday?.recent_completed?.[0]
+      || null;
+    if (!scene) return null;
+    const ep = typeof scene.episode_index === 'number' ? scene.episode_index + 1 : undefined;
+    return {
+      ep,
+      title: scene.title || 'Reprendre le feuilleton',
+      href: `/graphic-novel?scene=${encodeURIComponent(scene.id)}`,
+    };
+  }, [feuilletonToday]);
+
+  // Kicker: real counts in the rules register, the CEFR line elsewhere.
+  const cefrLine = cefr?.estimate ? `${cefr.estimate} en cours` : null;
+  const total = Number(grammarSummary?.total_concepts || 0);
+  const started = Number(grammarSummary?.started || 0);
+  const countsLine = total > 0
+    ? `${total} ${total === 1 ? 'concept' : 'concepts'} · ${started} ${started === 1 ? 'vu' : 'vus'}`
+    : null;
+  const kicker = visibleMode === 'grammar' && countsLine
+    ? [countsLine, cefrLine].filter(Boolean).join(' · ')
+    : [CAHIER_MODE_LABELS[visibleMode], cefrLine].filter(Boolean).join(' · ');
 
   return (
     <>
       <Head>
-        <title>{`${visibleMode === 'grammar' ? 'Grammar Notebook' : visibleMode === 'vocabulary' ? 'Vocabulary Notebook' : 'Library Notebook'} · Atelier`}</title>
+        <title>{`${MODE_TITLES[visibleMode]} · L’Atelier`}</title>
       </Head>
-      <EditorialMasthead active="notebook" />
-      <div className="notebook-shell-page">
-        <div className="notebook-shell-spread">
-          <header className="notebook-shell-title">
-            <div>
-              <div className="notebook-shell-eyebrow">Reference Layer</div>
-              <h1>Notebook</h1>
-            </div>
-          </header>
-
-          <NotebookProgression cefr={cefr} />
-          <NotebookArchiveLead feuilleton={feuilletonToday} />
-
-          <NotebookModeSwitch
+      <CahierStyles />
+      <AtelierV2Root as="main" className="nb-page" aria-label="Le cahier">
+        <CahierHead kicker={kicker}>
+          <NotebookModeTabs
             active={visibleMode}
-            grammarMeta="Rules and weak spots"
-            vocabularyMeta="French 5000"
-            libraryMeta={STORY_FEATURE_VISIBLE ? 'Books and episodes' : undefined}
-            className="notebook-shell-switch"
-            onClickCapture={handleModeSwitchClick}
+            library={STORY_FEATURE_VISIBLE}
+            onSelect={switchMode}
           />
-
-          <section key={visibleMode} className="notebook-shell-content" data-mode={visibleMode}>
+        </CahierHead>
+        <div className="nb-body">
+          {notebookFeuilleton && (
+            <Link className="av2-row nb-feuille" href={notebookFeuilleton.href}>
+              <ShapeToken kind="story" size="lg" />
+              <span className="av2-row__main">
+                <span className="av2-label av2-label--story">Le feuilleton · classé au dossier</span>
+                <span className="nb-feuille__title" lang="fr">
+                  {notebookFeuilleton.ep != null ? `Épisode ${notebookFeuilleton.ep} — ` : ''}{notebookFeuilleton.title}
+                </span>
+              </span>
+              <ArrowRightIcon size={18} />
+            </Link>
+          )}
+          <section key={visibleMode} className="nb-embed" data-mode={visibleMode}>
             {visibleMode === 'grammar' ? (
               <GrammarNotebookSurface embedded />
             ) : visibleMode === 'vocabulary' ? (
-              <div className="notebook-embedded-vocabulary">
-                <VocabularyPage embedded />
-              </div>
+              <VocabularyPage embedded />
+            ) : visibleMode === 'releve' ? (
+              <Releve />
             ) : (
               <LibraryNotebookSurface
                 bookId={firstQueryValue(queryBook)}
@@ -231,595 +293,9 @@ export default function NotebookEntryPage() {
             )}
           </section>
         </div>
-      </div>
-      <style jsx global>{`
-        .notebook-shell-page {
-          --paper: #f1ece1;
-          --sheet: #f8f3e8;
-          --ink: #14110d;
-          --ink-2: #4a4538;
-          --ink-3: #8a826f;
-          min-height: 100vh;
-          background: var(--paper);
-          color: var(--ink);
-        }
-        .notebook-shell-spread {
-          box-sizing: border-box;
-          width: min(1320px, 100%);
-          margin: 0 auto;
-          padding: 28px clamp(22px, 4vw, 48px) 124px;
-        }
-        .notebook-shell-title {
-          display: flex;
-          align-items: end;
-          justify-content: space-between;
-          gap: 24px;
-          border-bottom: 4px solid var(--ink);
-          padding-bottom: 20px;
-        }
-        .notebook-shell-eyebrow {
-          color: var(--ink-2);
-          font: 900 11px/1 var(--app-mono, "Inter", "Helvetica Neue", Arial, sans-serif);
-          letter-spacing: .13em;
-          text-transform: uppercase;
-        }
-        .notebook-shell-title h1 {
-          margin: 8px 0 0;
-          font-family: var(--app-serif, "EB Garamond", Garamond, serif);
-          font-size: clamp(42px, 8vw, 74px);
-          font-style: italic;
-          font-weight: 700;
-          letter-spacing: 0;
-          line-height: .92;
-        }
-        .notebook-shell-switch {
-          margin: 18px 0 24px;
-        }
-        .notebook-progression {
-          margin: 18px 0 0;
-          border: 2px solid var(--ink);
-          background: var(--sheet);
-          padding: 16px;
-          display: grid;
-          grid-template-columns: minmax(190px, .8fr) repeat(3, minmax(0, 1fr));
-          gap: 14px;
-          align-items: center;
-        }
-        .notebook-progression span {
-          font: 900 10px/1 var(--app-mono, "Inter", "Helvetica Neue", Arial, sans-serif);
-          letter-spacing: .13em;
-          text-transform: uppercase;
-          color: var(--ink-3);
-        }
-        .notebook-progression strong {
-          display: block;
-          margin-top: 5px;
-          font-size: 24px;
-          line-height: 1;
-        }
-        .notebook-progression small {
-          display: block;
-          margin-top: 5px;
-          color: var(--ink-2);
-          line-height: 1.25;
-        }
-        .progression-row {
-          display: grid;
-          gap: 6px;
-        }
-        .progression-row i {
-          display: block;
-          height: 10px;
-          border: 1px solid var(--ink);
-          background: var(--paper);
-        }
-        .progression-row em {
-          display: block;
-          height: 100%;
-          background: #1d3a8a;
-        }
-        .progression-row b {
-          font-size: 12px;
-          line-height: 1;
-        }
-        .notebook-archive-lead {
-          margin: 16px 0 18px;
-          display: grid;
-          grid-template-columns: minmax(0, 1fr) minmax(260px, 380px);
-          gap: 12px;
-          align-items: stretch;
-        }
-        .feuilleton-lead-card {
-          min-width: 0;
-          display: grid;
-          grid-template-columns: 86px minmax(0, 1fr) auto;
-          gap: 14px;
-          align-items: center;
-          border: 2px solid var(--ink);
-          background: var(--sheet);
-          color: var(--ink);
-          padding: 12px;
-          text-decoration: none;
-        }
-        .lead-panel-image,
-        .lead-imprint {
-          width: 86px;
-          aspect-ratio: 1;
-          border: 1px solid var(--ink);
-          background: var(--paper);
-        }
-        .lead-panel-image {
-          display: block;
-          background-position: center;
-          background-size: cover;
-        }
-        .lead-imprint {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 7px;
-          padding: 12px;
-          align-items: end;
-        }
-        .lead-imprint i {
-          display: block;
-          border: 1.5px solid var(--ink);
-          background: #1d3a8a;
-        }
-        .lead-imprint i:nth-child(1) {
-          height: 48px;
-        }
-        .lead-imprint i:nth-child(2) {
-          height: 64px;
-          background: #e3341c;
-        }
-        .lead-imprint i:nth-child(3) {
-          height: 36px;
-          background: #f3c318;
-        }
-        .lead-copy {
-          min-width: 0;
-          display: grid;
-          gap: 5px;
-        }
-        .lead-copy em,
-        .archive-quick-links a {
-          font: 900 10px/1 var(--app-mono, "Inter", "Helvetica Neue", Arial, sans-serif);
-          letter-spacing: .12em;
-          text-transform: uppercase;
-        }
-        .lead-copy em {
-          color: var(--ink-3);
-          font-style: normal;
-        }
-        .lead-copy strong {
-          min-width: 0;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-          font-size: 20px;
-          line-height: 1.05;
-        }
-        .lead-copy small {
-          color: var(--ink-2);
-          line-height: 1.32;
-        }
-        .feuilleton-lead-card b {
-          font-size: 24px;
-          line-height: 1;
-        }
-        .archive-quick-links {
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          border: 1px solid var(--ink);
-          background: var(--ink);
-          gap: 1px;
-        }
-        .archive-quick-links a {
-          min-height: 44px;
-          display: grid;
-          place-items: center;
-          background: var(--sheet);
-          color: var(--ink);
-          text-decoration: none;
-        }
-        .notebook-shell-content {
-          min-width: 0;
-          transform-origin: 50% 0;
-        }
-        @media (prefers-reduced-motion: no-preference) {
-          .notebook-shell-content {
-            animation: notebook-page-turn .28s cubic-bezier(.2, .8, .2, 1) both;
-          }
-          .feuilleton-lead-card,
-          .archive-quick-links a,
-          .library-book-row {
-            transition: transform .16s ease, box-shadow .16s ease, background-color .16s ease;
-          }
-          .feuilleton-lead-card:hover,
-          .archive-quick-links a:hover,
-          .library-book-row:hover {
-            transform: translate(-2px, -2px);
-            box-shadow: 4px 4px 0 var(--ink);
-          }
-        }
-        @keyframes notebook-page-turn {
-          from {
-            opacity: .62;
-            transform: translateY(10px) rotateX(2deg);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0) rotateX(0);
-          }
-        }
-        .notebook-embedded-vocabulary .vocab-page {
-          min-height: auto;
-          padding: 0;
-          background: transparent;
-        }
-        .library-notebook {
-          display: grid;
-          gap: 18px;
-        }
-        .library-grid {
-          display: grid;
-          grid-template-columns: minmax(260px, 380px) minmax(0, 1fr);
-          gap: 22px;
-          align-items: start;
-        }
-        .library-list {
-          display: grid;
-          gap: 10px;
-        }
-        .library-book-row {
-          display: grid;
-          grid-template-columns: 42px 1fr 48px;
-          gap: 8px 12px;
-          align-items: center;
-          border: 1px solid var(--ink);
-          background: var(--sheet);
-          color: var(--ink);
-          padding: 12px;
-          text-decoration: none;
-        }
-        .library-book-row.active {
-          box-shadow: 5px 5px 0 var(--ink);
-          background: #fffaf0;
-        }
-        .library-book-row span,
-        .library-book-row b {
-          font: 900 11px/1 var(--app-mono, "Inter", "Helvetica Neue", Arial, sans-serif);
-          letter-spacing: .08em;
-          text-transform: uppercase;
-        }
-        .library-book-row strong,
-        .library-book-row em {
-          min-width: 0;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-        .library-book-row strong {
-          font-size: 15px;
-        }
-        .library-book-row em {
-          grid-column: 2 / 4;
-          color: var(--ink-3);
-          font-size: 12px;
-          font-style: normal;
-        }
-        .library-reader {
-          border-left: 4px solid var(--ink);
-          padding-left: 20px;
-        }
-        .library-reader header span,
-        .library-exercises h3,
-        .library-exercises article span {
-          font: 900 10px/1 var(--app-mono, "Inter", "Helvetica Neue", Arial, sans-serif);
-          letter-spacing: .13em;
-          text-transform: uppercase;
-          color: var(--ink-3);
-        }
-        .library-reader h2 {
-          margin: 7px 0 0;
-          font-family: var(--app-serif, "EB Garamond", Garamond, serif);
-          font-size: clamp(30px, 4vw, 48px);
-          font-style: italic;
-          line-height: .98;
-        }
-        .library-reader header p {
-          margin: 8px 0 0;
-          color: var(--ink-2);
-          font-size: 13px;
-        }
-        .library-passage {
-          margin-top: 18px;
-          max-width: 72ch;
-          color: var(--ink);
-          font-family: var(--app-serif, "EB Garamond", Garamond, serif);
-          font-size: 20px;
-          line-height: 1.5;
-        }
-        .library-passage p {
-          margin: 0 0 14px;
-        }
-        .library-exercises {
-          margin-top: 22px;
-          display: grid;
-          gap: 10px;
-        }
-        .library-exercises > div {
-          display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 10px;
-        }
-        .library-exercises article {
-          border: 1px solid var(--ink);
-          background: var(--sheet);
-          padding: 12px;
-        }
-        .library-exercises article p {
-          margin: 8px 0 0;
-          font-size: 13px;
-          line-height: 1.35;
-        }
-        .library-complete {
-          margin-top: 16px;
-          min-height: 44px;
-          border: 1.5px solid var(--ink);
-          background: var(--ink);
-          color: var(--sheet);
-          padding: 0 16px;
-          font: 900 11px/1 var(--app-mono, "Inter", "Helvetica Neue", Arial, sans-serif);
-          letter-spacing: .12em;
-          text-transform: uppercase;
-          cursor: pointer;
-        }
-        .library-runner {
-          margin-top: 24px;
-        }
-        .library-do-mode {
-          background: var(--sheet);
-        }
-        .library-do-mode :global(.atelier-progress-bar) {
-          width: 150px;
-        }
-        .library-runner-stage {
-          display: grid;
-          gap: 10px;
-        }
-        .library-runner-stage > span,
-        .library-runner-complete > span {
-          font: 900 10px/1 var(--app-mono, "Inter", "Helvetica Neue", Arial, sans-serif);
-          letter-spacing: .13em;
-          text-transform: uppercase;
-          color: var(--ink-3);
-        }
-        .library-runner-stage p {
-          margin: 0;
-          color: var(--ink);
-          font-size: 18px;
-          font-weight: 800;
-          line-height: 1.3;
-        }
-        .library-runner-stage blockquote {
-          margin: 0;
-          border-left: 4px solid #1d3a8a;
-          background: var(--paper);
-          padding: 10px 12px;
-          color: var(--ink-2);
-          font-size: 14px;
-          line-height: 1.42;
-        }
-        .library-runner-stage ul {
-          margin: 0;
-          padding-left: 18px;
-          color: var(--ink-2);
-          font-size: 13px;
-          line-height: 1.4;
-        }
-        .library-runner-input,
-        .library-runner-textarea {
-          width: 100%;
-          border: 1px solid var(--ink) !important;
-          background: var(--paper);
-          padding: 12px 14px;
-          box-shadow: 4px 4px 0 var(--ink) !important;
-          color: var(--ink);
-          outline: none;
-        }
-        .library-runner-textarea {
-          min-height: 110px;
-          resize: vertical;
-          font-family: var(--app-serif, "EB Garamond", Garamond, serif);
-          font-size: 20px;
-          line-height: 1.35;
-        }
-        .library-runner-action {
-          display: flex;
-          justify-content: flex-end;
-        }
-        .library-runner-complete {
-          border: 1px solid var(--ink);
-          background: var(--sheet);
-          padding: 16px;
-          display: grid;
-          gap: 8px;
-        }
-        .library-runner-complete strong {
-          font-size: 22px;
-          line-height: 1.05;
-        }
-        .library-runner-complete p {
-          margin: 0;
-          color: var(--ink-2);
-          line-height: 1.4;
-        }
-        .library-runner-complete :global(button) {
-          justify-self: start;
-          margin-top: 4px;
-        }
-        .library-state,
-        .library-empty {
-          border: 1px solid var(--ink);
-          background: var(--sheet);
-          padding: 18px;
-        }
-        .library-empty h2 {
-          margin: 0;
-          font-family: var(--app-serif, "EB Garamond", Garamond, serif);
-          font-size: 34px;
-          font-style: italic;
-        }
-        .library-empty p {
-          margin: 8px 0 14px;
-          color: var(--ink-2);
-        }
-        .library-empty a {
-          color: var(--blue, #1d3a8a);
-          font-weight: 900;
-          text-transform: uppercase;
-          text-decoration: none;
-        }
-        @media (max-width: 640px) {
-          .notebook-shell-spread {
-            padding: 16px 0 calc(134px + env(safe-area-inset-bottom));
-          }
-          .notebook-shell-title {
-            border-bottom: 0;
-            padding: 0 16px 12px;
-          }
-          .notebook-shell-title h1 {
-            font-size: 38px;
-          }
-          .notebook-shell-switch {
-            width: calc(100% - 32px);
-            max-width: calc(100% - 32px);
-            margin: 0 16px 14px;
-          }
-          .notebook-progression {
-            margin: 0 16px 14px;
-            grid-template-columns: 1fr;
-          }
-          .notebook-archive-lead {
-            margin: 0 16px 14px;
-            grid-template-columns: 1fr;
-          }
-          .feuilleton-lead-card {
-            grid-template-columns: 64px minmax(0, 1fr) auto;
-          }
-          .lead-panel-image,
-          .lead-imprint {
-            width: 64px;
-          }
-          .lead-copy strong {
-            white-space: normal;
-            font-size: 17px;
-          }
-          .library-notebook {
-            padding: 0 16px;
-          }
-          .library-grid,
-          .library-exercises > div {
-            grid-template-columns: 1fr;
-          }
-          .library-reader {
-            border-left: 0;
-            padding-left: 0;
-          }
-          .library-do-mode :global(header) {
-            align-items: stretch;
-          }
-          .library-do-mode :global(.atelier-progress-bar) {
-            width: 100%;
-          }
-          .notebook-shell-page .notebook-mode-switch.notebook-shell-switch {
-            width: calc(100% - 32px);
-            max-width: calc(100% - 32px);
-            margin: 0 16px 14px;
-          }
-        }
-      `}</style>
+      </AtelierV2Root>
+      <PhoneProductNav active="notebook" placement="embedded" />
     </>
-  );
-}
-
-function NotebookProgression({ cefr }: { cefr: CEFRProgress | null }) {
-  if (!cefr) return null;
-  const breakdown = cefr.breakdown || {};
-  const forecast = cefr.forecast || null;
-  const forecastText = forecast?.status === 'available' && Array.isArray(forecast.range_days)
-    ? `${forecast.range_days[0]}-${forecast.range_days[1]} days`
-    : forecast?.message || 'Forecast unlocks after 7 active days';
-  return (
-    <section className="notebook-progression">
-      <div>
-        <span>Progression</span>
-        <strong>{cefr.estimate} → {cefr.target}</strong>
-        <small>{forecastText}</small>
-      </div>
-      <ProgressionRow label="Words" metric={breakdown.vocabulary} />
-      <ProgressionRow label="Concepts" metric={breakdown.grammar} />
-      <ProgressionRow label="Score" metric={breakdown.score} />
-    </section>
-  );
-}
-
-function ProgressionRow({ label, metric }: { label: string; metric: any }) {
-  const current = Number(metric?.current || 0);
-  const target = Number(metric?.target || 0);
-  const pct = target > 0 ? Math.max(0, Math.min(100, Math.round((current / target) * 100))) : 0;
-  return (
-    <div className="progression-row">
-      <span>{label}</span>
-      <i><em style={{ width: `${pct}%` }} /></i>
-      <b>{current}/{target}</b>
-    </div>
-  );
-}
-
-function NotebookArchiveLead({ feuilleton }: { feuilleton: GraphicNovelToday | null }) {
-  const scene = feuilleton?.active_scene || feuilleton?.available_scene || feuilleton?.recent_completed?.[0] || null;
-  const panelImage = scene?.panels?.find((panel) => panel.image_url)?.image_url || null;
-  const href = scene ? `/graphic-novel?scene=${encodeURIComponent(scene.id)}` : '/graphic-novel';
-  const eyebrow = scene?.status === 'completed'
-    ? 'Latest Feuilleton'
-    : scene?.status === 'in_progress'
-      ? 'Feuilleton in progress'
-      : 'Today in the serial';
-
-  return (
-    <section className="notebook-archive-lead" aria-label="Notebook archive lead">
-      <Link className="feuilleton-lead-card" href={href} onClick={() => pulseAppHaptic('selection')}>
-        {panelImage ? (
-          <span
-            className="lead-panel-image"
-            style={{ backgroundImage: `url("${panelImage.replace(/"/g, '%22')}")` }}
-            aria-hidden="true"
-          />
-        ) : (
-          <span className="lead-imprint" aria-hidden="true">
-            <i />
-            <i />
-            <i />
-          </span>
-        )}
-        <span className="lead-copy">
-          <em>{eyebrow}</em>
-          <strong>{scene?.title || 'Open the Feuilleton'}</strong>
-          <small>{scene?.brief || 'A fresh scene waits beside today’s notes.'}</small>
-        </span>
-        <b aria-hidden="true">→</b>
-      </Link>
-      <nav className="archive-quick-links" aria-label="Archive shortcuts">
-        <Link href="/serial">Serial archive</Link>
-        <Link href="/almanac" onClick={() => pulseAppHaptic('selection')}>Seals</Link>
-        <Link href="/missions">Past missions</Link>
-        {STORY_FEATURE_VISIBLE && (
-          <Link href="/bibliotheque" onClick={() => pulseAppHaptic('selection')}>Uploads</Link>
-        )}
-      </nav>
-    </section>
   );
 }
 
@@ -853,9 +329,9 @@ function libraryExerciseSteps(payload: Record<string, any> | null | undefined): 
     ...comprehension.slice(0, 2).map((item: any, index: number): LibraryExerciseStep => ({
       id: `comprehension-${index}`,
       kind: 'comprehension',
-      eyebrow: 'Comprehension',
-      title: `Find the proof ${index + 1}`,
-      prompt: String(item.question || 'Answer from the passage.'),
+      eyebrow: 'Compréhension',
+      title: `Retrouver la preuve ${index + 1}`,
+      prompt: String(item.question || 'Répondez à partir du passage.'),
       target: String(item.answer || ''),
       evidence: String(item.evidence || ''),
       inputMode: 'paragraph',
@@ -863,9 +339,9 @@ function libraryExerciseSteps(payload: Record<string, any> | null | undefined): 
     ...vocabulary.slice(0, 2).map((item: any, index: number): LibraryExerciseStep => ({
       id: `vocabulary-${index}`,
       kind: 'vocabulary',
-      eyebrow: 'Vocabulary',
-      title: String(item.word || `Word ${index + 1}`),
-      prompt: `Which passage word fits this cue? ${item.gloss_hint || 'Use the context sentence.'}`,
+      eyebrow: 'Lexique',
+      title: String(item.word || `Mot ${index + 1}`),
+      prompt: `Quel mot du passage convient ici ? ${item.gloss_hint || 'Appuyez-vous sur la phrase.'}`,
       target: String(item.word || ''),
       evidence: String(item.context_sentence || ''),
       inputMode: 'line',
@@ -873,9 +349,9 @@ function libraryExerciseSteps(payload: Record<string, any> | null | undefined): 
     ...grammar.slice(0, 1).map((item: any, index: number): LibraryExerciseStep => ({
       id: `grammar-${index}`,
       kind: 'grammar',
-      eyebrow: 'Grammar in the passage',
-      title: String(item.pattern || 'Pattern'),
-      prompt: String(item.prompt || 'Find the pattern in the passage.'),
+      eyebrow: 'Grammaire dans le passage',
+      title: String(item.pattern || 'Structure'),
+      prompt: String(item.prompt || 'Repérez la structure dans le passage.'),
       target: String(item.answer || ''),
       explanation: String(item.explanation || ''),
       inputMode: 'paragraph',
@@ -884,8 +360,8 @@ function libraryExerciseSteps(payload: Record<string, any> | null | undefined): 
       id: 'production-0',
       kind: 'production' as const,
       eyebrow: 'Production',
-      title: 'Write from the passage',
-      prompt: String(production.prompt || 'Write a short response grounded in the passage.'),
+      title: 'Écrire depuis le passage',
+      prompt: String(production.prompt || 'Écrivez une réponse courte appuyée sur le passage.'),
       target: String(production.example_answer || ''),
       criteria: Array.isArray(production.success_criteria) ? production.success_criteria.map((item: any) => String(item || '').trim()).filter(Boolean) : [],
       inputMode: 'paragraph' as const,
@@ -906,24 +382,27 @@ function libraryExerciseFeedback(step: LibraryExerciseStep, answer: string): Lib
   if (close || (step.kind === 'production' && enoughWriting)) {
     return {
       status: 'correct',
-      title: step.kind === 'production' ? 'Ready to file' : 'Grounded in the passage',
+      title: step.kind === 'production' ? 'Prêt à classer' : 'Vérifié dans le passage',
       explanation: step.kind === 'production'
-        ? 'The answer is long enough to carry the episode forward. Keep one detail from the passage visible.'
-        : 'Good. The answer connects to the generated passage evidence.',
-      rule: step.evidence ? `Evidence: ${excerpt(step.evidence)}` : undefined,
+        ? 'La réponse est assez développée pour faire avancer l’épisode. Gardez un détail du passage visible.'
+        : 'Bien. La réponse s’appuie sur un élément précis du passage.',
+      rule: step.evidence ? `Preuve : ${excerpt(step.evidence)}` : undefined,
     };
   }
   return {
     status: 'wrong',
-    title: 'Use the passage as proof',
+    title: 'Le passage fait foi',
     explanation: step.kind === 'vocabulary'
-      ? 'Look back at the context sentence and copy the word that matches the cue.'
-      : 'Add one concrete detail from the passage before moving on.',
-    repair: step.target ? `Target: ${excerpt(step.target)}` : undefined,
-    rule: step.evidence ? `Evidence: ${excerpt(step.evidence)}` : step.explanation || undefined,
+      ? 'Relisez la phrase de contexte et reprenez le mot correspondant à l’indice.'
+      : 'Ajoutez un détail concret du passage avant de continuer.',
+    repair: step.target ? `Réponse visée : ${excerpt(step.target)}` : undefined,
+    rule: step.evidence ? `Preuve : ${excerpt(step.evidence)}` : step.explanation || undefined,
   };
 }
 
+/* La Bibliothèque has no artboard in the design; it is extended from the
+   concept-row primitive (a book is a row with a level glyph and a completion
+   figure) and the reading surface. Flag-gated behind STORY_FEATURE_VISIBLE. */
 function LibraryNotebookSurface({
   bookId,
   episodeIndex,
@@ -957,7 +436,7 @@ function LibraryNotebookSurface({
         setBooks(rows || []);
       })
       .catch(() => {
-        if (!cancelled) setError('Could not load your library.');
+        if (!cancelled) setError('La bibliothèque n’a pas pu être chargée.');
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -1002,50 +481,79 @@ function LibraryNotebookSurface({
   }, [bookId, books, episodeIndex]);
 
   return (
-    <div className="library-notebook">
-      {error && <div className="library-state">{error}</div>}
-      {loading && <div className="library-state">Loading library</div>}
+    <div className="nb-lib">
+      {error && <StateBlock tone="error" title={error} />}
+      {loading && (
+        <div className="nb-list" aria-busy="true">
+          <Skeleton height={68} radius={16} />
+          <Skeleton height={68} radius={16} />
+          <span className="av2-sr" role="status">Ouverture de la bibliothèque</span>
+        </div>
+      )}
 
       {!loading && !books.length && (
-        <section className="library-empty">
-          <h2>Library</h2>
-          <p>Your uploaded books will appear here as reading episodes.</p>
-          <Link href="/bibliotheque">Open uploads</Link>
-        </section>
+        <StateBlock
+          tone="empty"
+          title="Bibliothèque"
+          body={(
+            <>
+              Vos livres importés paraîtront ici sous forme d’épisodes de lecture.{' '}
+              <Link href="/bibliotheque">Ouvrir les imports</Link>
+            </>
+          )}
+        />
       )}
 
       {!!books.length && (
-        <div className="library-grid">
-          <section className="library-list" aria-label="Uploaded books">
-            {books.map((book) => (
-              <Link
-                key={book.id}
-                className={`library-book-row ${selectedBook?.id === book.id ? 'active' : ''}`}
-                href={`/notebook?mode=library&book=${book.id}&episode=${book.current_episode_index || 0}`}
-                onClick={() => pulseAppHaptic('selection')}
-              >
-                <span>{book.target_level}</span>
-                <strong>{book.title}</strong>
-                <em>{book.author || book.source_filename || 'Uploaded text'}</em>
-                <b>{book.completion_percentage}%</b>
-              </Link>
-            ))}
+        <div className="nb-lib__grid">
+          <section className="nb-list" aria-label="Livres importés">
+            {books.map((book) => {
+              const active = selectedBook?.id === book.id;
+              const pct = Number(book.completion_percentage || 0);
+              const tone = pct >= 100 ? 'done' : active ? 'progress' : 'new';
+              return (
+                <Link
+                  key={book.id}
+                  className="nb-row"
+                  data-tone={tone}
+                  aria-current={active ? 'true' : undefined}
+                  href={`/notebook?mode=library&book=${book.id}&episode=${book.current_episode_index || 0}`}
+                  onClick={() => pulseAppHaptic('selection')}
+                >
+                  <span className="nb-row__glyph" aria-hidden="true">{book.target_level}</span>
+                  <span className="nb-row__main">
+                    <span className="nb-row__title">{book.title}</span>
+                    <span className="nb-row__meta">
+                      {book.target_level} · {book.author || book.source_filename || 'Texte importé'}{active ? ' · ouvert' : ''}
+                    </span>
+                  </span>
+                  <span className="nb-row__pct">{pct}%</span>
+                </Link>
+              );
+            })}
           </section>
 
-          <section className="library-reader" aria-label="Selected reading episode">
-            {episodeLoading && <div className="library-state">Loading episode</div>}
+          <section className="nb-lib__reader" aria-label="Épisode de lecture sélectionné">
+            {episodeLoading && (
+              <div className="nb-list" aria-busy="true">
+                <Skeleton height={120} radius={16} />
+                <span className="av2-sr" role="status">Ouverture de l’épisode</span>
+              </div>
+            )}
             {!episodeLoading && selectedBook && episode && (
               <>
                 <header>
-                  <span>{selectedBook.title}</span>
-                  <h2>{episode.title}</h2>
-                  <p>Episode {episode.order_index + 1} of {selectedBook.total_episodes || 1} · {episode.est_reading_minutes} min · {episode.word_count} words</p>
+                  <p className="av2-label av2-label--story">{selectedBook.title}</p>
+                  <h2 className="av2-headline av2-headline--title" lang="fr">{episode.title}</h2>
+                  <p className="av2-label" style={{ fontWeight: 400, marginTop: 4 }}>
+                    Épisode {episode.order_index + 1} sur {selectedBook.total_episodes || 1} · {episode.est_reading_minutes} min · {episode.word_count} mots
+                  </p>
                 </header>
-                <article className="library-passage">
+                <Surface as="article" className="nb-lib__passage" lang="fr">
                   {(episode.passage_text || '').split(/\n{2,}/).filter(Boolean).slice(0, 8).map((paragraph, index) => (
                     <p key={`${episode.id}-${index}`}>{paragraph}</p>
                   ))}
-                </article>
+                </Surface>
                 <LibraryExercisePreview payload={episode.exercise_payload} />
                 <LibraryEpisodeExerciseRunner
                   episode={episode}
@@ -1099,24 +607,24 @@ function LibraryEpisodeExerciseRunner({
 
   if (completed) {
     return (
-      <section className="library-runner library-runner-complete" aria-label="Episode exercises complete">
-        <span>Exercises filed</span>
-        <strong>Episode {episode.order_index + 1} is complete.</strong>
-        <p>The passage, vocabulary, and production prompt are saved in your library progress.</p>
-      </section>
+      <Surface as="section" className="nb-sec" aria-label="Exercices de l’épisode terminés">
+        <p className="av2-label"><ShapeToken kind="done" size="sm" /> Exercices classés</p>
+        <h3 className="av2-headline av2-headline--rule">L’épisode {episode.order_index + 1} est terminé.</h3>
+        <p className="av2-body">Le passage, le lexique et la consigne de production sont classés dans votre progression.</p>
+      </Surface>
     );
   }
 
   if (allChecked) {
     return (
-      <section className="library-runner library-runner-complete" aria-label="Episode ready to complete">
-        <span>Feedback moment</span>
-        <strong>Ready to continue {episode.title}</strong>
-        <p>You read the passage, checked the generated prompts, and wrote from the episode.</p>
-        <Button loading={finishing} rightIcon={<span aria-hidden="true">→</span>} onClick={finishEpisode}>
-          Complete episode
-        </Button>
-      </section>
+      <Surface as="section" className="nb-sec" aria-label="Épisode prêt à être classé">
+        <p className="av2-label av2-label--action">Moment de bilan</p>
+        <h3 className="av2-headline av2-headline--rule">Prêt à continuer {episode.title}</h3>
+        <p className="av2-body">Vous avez lu le passage, vérifié les consignes et écrit depuis l’épisode.</p>
+        <Action tone="primary" pending={finishing} pendingLabel="Classement…" iconAfter={<ArrowRightIcon size={18} />} onClick={finishEpisode}>
+          Terminer l’épisode
+        </Action>
+      </Surface>
     );
   }
 
@@ -1135,40 +643,40 @@ function LibraryEpisodeExerciseRunner({
 
   return (
     <ExerciseShell
-      className="library-runner library-do-mode"
-      eyebrow={`Episode exercise ${stepIndex + 1} of ${steps.length}`}
+      className="nb-lib__runner"
+      eyebrow={`Exercice ${stepIndex + 1} sur ${steps.length}`}
       title={activeStep.title}
-      action={<ProgressBar value={stepIndex} max={steps.length} label="Episode exercise progress" />}
+      action={<ProgressBar value={stepIndex} max={steps.length} label="Progression des exercices" />}
     >
-      <div className="library-runner-stage">
-        <span>{activeStep.eyebrow}</span>
-        <p>{activeStep.prompt}</p>
-        {activeStep.evidence && <blockquote>{excerpt(activeStep.evidence, 260)}</blockquote>}
+      <div className="nb-lib__stage">
+        <p className="av2-label">{activeStep.eyebrow}</p>
+        <p className="nb-lib__prompt">{activeStep.prompt}</p>
+        {activeStep.evidence && <blockquote className="nb-lib__evidence" lang="fr">{excerpt(activeStep.evidence, 260)}</blockquote>}
         {!!activeStep.criteria?.length && (
-          <ul>
+          <ul className="nb-lib__criteria">
             {activeStep.criteria.slice(0, 4).map((item) => <li key={item}>{item}</li>)}
           </ul>
         )}
       </div>
       {activeStep.inputMode === 'line' ? (
         <input
-          className="library-runner-input"
+          className="nb-field nb-field--sans nb-field--line"
           value={answer}
           onChange={(event) => {
             setAnswers((current) => ({ ...current, [activeStep.id]: event.target.value }));
             setFeedback(null);
           }}
-          placeholder="Answer from the passage"
+          placeholder="Répondez à partir du passage"
         />
       ) : (
         <textarea
-          className="library-runner-textarea"
+          className="nb-field"
           value={answer}
           onChange={(event) => {
             setAnswers((current) => ({ ...current, [activeStep.id]: event.target.value }));
             setFeedback(null);
           }}
-          placeholder="Write your answer in French"
+          placeholder="Écrivez votre réponse en français"
         />
       )}
       {feedback && (
@@ -1183,9 +691,9 @@ function LibraryEpisodeExerciseRunner({
         />
       )}
       {!feedback && (
-        <div className="library-runner-action">
+        <div className="nb-lib__actions">
           <Button disabled={!answer.trim()} onClick={checkAnswer}>
-            Check
+            Vérifier
           </Button>
         </div>
       )}
@@ -1198,26 +706,26 @@ function LibraryExercisePreview({ payload }: { payload: Record<string, any> }) {
   const vocabulary = Array.isArray(payload?.vocabulary) ? payload.vocabulary.slice(0, 5) : [];
   const production = payload?.production || null;
   return (
-    <section className="library-exercises" aria-label="Episode exercises">
-      <h3>Episode prompts</h3>
-      <div>
+    <section className="nb-sec" aria-label="Exercices de l’épisode">
+      <NbSectionHead t="Consignes de l’épisode" />
+      <div className="nb-lib__consignes">
         {comprehension.map((item: any, index: number) => (
-          <article key={`comp-${index}`}>
-            <span>Comprehension</span>
-            <p>{item.question}</p>
-          </article>
+          <Surface as="article" key={`comp-${index}`} shape="tile">
+            <p className="av2-label">Compréhension</p>
+            <p className="av2-body">{item.question}</p>
+          </Surface>
         ))}
         {!!vocabulary.length && (
-          <article>
-            <span>Vocabulary</span>
-            <p>{vocabulary.map((item: any) => item.word).filter(Boolean).join(', ')}</p>
-          </article>
+          <Surface as="article" shape="tile">
+            <p className="av2-label">Lexique</p>
+            <p className="av2-body">{vocabulary.map((item: any) => item.word).filter(Boolean).join(', ')}</p>
+          </Surface>
         )}
         {production?.prompt && (
-          <article>
-            <span>Production</span>
-            <p>{production.prompt}</p>
-          </article>
+          <Surface as="article" shape="tile">
+            <p className="av2-label">Production</p>
+            <p className="av2-body">{production.prompt}</p>
+          </Surface>
         )}
       </div>
     </section>

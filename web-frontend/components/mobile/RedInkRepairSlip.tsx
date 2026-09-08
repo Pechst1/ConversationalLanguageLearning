@@ -108,7 +108,6 @@ const RedInkRepairSlip = React.forwardRef<HTMLElement, RedInkRepairSlipProps>(
             background: var(--repair-sheet);
             color: var(--repair-ink);
             padding: 14px;
-            box-shadow: 4px 4px 0 color-mix(in srgb, var(--repair-ink) 92%, transparent);
           }
           .red-ink-repair-slip.compact {
             gap: 9px;

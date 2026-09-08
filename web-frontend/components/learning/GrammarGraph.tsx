@@ -112,11 +112,11 @@ export default function GrammarGraph({
       <div className="flex flex-wrap gap-4 text-sm">
         <span className="text-gray-600 dark:text-gray-400">Status:</span>
         {Object.entries({
-          neu: 'Neu',
-          'ausbaufähig': 'Ausbaufähig',
-          in_arbeit: 'In Arbeit',
-          gefestigt: 'Gefestigt',
-          gemeistert: 'Gemeistert',
+          neu: 'Nouveau',
+          'ausbaufähig': 'À renforcer',
+          in_arbeit: 'En cours',
+          gefestigt: 'Solide',
+          gemeistert: 'Acquis',
         }).map(([state, label]) => (
           <div key={state} className="flex items-center gap-1">
             <div className={`w-3 h-3 rounded border ${legendColors[state]}`} />
@@ -355,7 +355,7 @@ export default function GrammarGraph({
               onClick={() => onConceptClick(selectedNode.id)}
               className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors"
             >
-              Übung starten
+              Commencer l’exercice
             </button>
           )}
         </motion.div>
@@ -366,11 +366,11 @@ export default function GrammarGraph({
 
 function getStateLabel(state: string): string {
   const labels: Record<string, string> = {
-    neu: 'Neu',
-    'ausbaufähig': 'Ausbaufähig',
-    in_arbeit: 'In Arbeit',
-    gefestigt: 'Gefestigt',
-    gemeistert: 'Gemeistert',
+    neu: 'Nouveau',
+    'ausbaufähig': 'À renforcer',
+    in_arbeit: 'En cours',
+    gefestigt: 'Solide',
+    gemeistert: 'Acquis',
   };
   return labels[state] || state;
 }

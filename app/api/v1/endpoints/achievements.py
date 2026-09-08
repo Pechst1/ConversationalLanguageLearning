@@ -50,6 +50,10 @@ def get_my_achievements(
     """Return the authenticated user's achievement progress."""
 
     service = AchievementService(db)
+    # Achievements unlock as a consequence of learning, never after a manual
+    # "check progress" chore. This also catches milestones earned in flows
+    # that predate the event-level achievement hook.
+    service.check_and_unlock(user=current_user)
     progress = service.get_user_achievements(
         current_user.id, include_locked=include_locked
     )
@@ -77,7 +81,7 @@ def check_achievements(
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
 ) -> AchievementUnlockResponse:
-    """Manually trigger achievement check for the authenticated user."""
+    """Compatibility endpoint; normal clients unlock automatically on read."""
 
     service = AchievementService(db)
     newly_unlocked = service.check_and_unlock(user=current_user)

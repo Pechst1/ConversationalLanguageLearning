@@ -1,7 +1,7 @@
 """Cost observability for Serial Feuilleton generation."""
 from __future__ import annotations
 
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import UTC, date, datetime, time, timedelta
 from typing import Any
 from uuid import UUID
 
@@ -25,7 +25,7 @@ def _int_or(value: Any, default: int = 0) -> int:
 
 
 def _utc_start(day: date) -> datetime:
-    return datetime.combine(day, time.min, tzinfo=timezone.utc)
+    return datetime.combine(day, time.min, tzinfo=UTC)
 
 
 def _week_start(day: date) -> date:
@@ -87,7 +87,7 @@ class SerialGenerationCostService:
 
         buckets: dict[tuple[str, int, int], dict[str, Any]] = {}
         for scene in query.order_by(GraphicNovelScene.created_at.asc()).all():
-            created_at = scene.created_at or datetime.now(timezone.utc)
+            created_at = scene.created_at or datetime.now(UTC)
             created_day = created_at.date()
             iso = created_day.isocalendar()
             event = serial_generation_cost_event(scene)

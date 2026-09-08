@@ -216,16 +216,21 @@ docker compose -f docker/docker-compose.staging.yml up --detach
 The staging compose file assumes you have already published a container image to the
 GitHub Container Registry (`ghcr.io/pechst1/conversational-language-learning:latest`).
 
+> **iPhone daily testing / pilot:** the end-to-end path (hosting options incl.
+> the `render.yaml` blueprint, native install, TestFlight) is in
+> `docs/iphone-daily-testing-runbook.md`.
+
 **Production deployment blueprint**
 
 ```bash
-cp .env.example .env.prod  # populate with production secrets
+cp .env.prod.example .env.prod  # populate every placeholder with production secrets
 docker compose -f docker/docker-compose.prod.yml pull
 docker compose -f docker/docker-compose.prod.yml up -d
 ```
 
-The production stack runs two API replicas behind the Compose orchestrator while reusing
-managed PostgreSQL and Redis instances.
+The production stack runs one API instance plus the Celery worker and persistent
+PostgreSQL/Redis volumes. Scale the API only after adding a reverse proxy or load
+balancer; the provided Compose file intentionally publishes a single port binding.
 
 ### Database Migrations
 
@@ -360,8 +365,11 @@ Access Flower dashboard at http://localhost:5555
 
 **Production:**
 ```bash
-docker compose -f docker/docker-compose.prod.yml up -d celery-worker celery-beat
+docker compose -f docker/docker-compose.prod.yml up -d worker
 ```
+
+The production `worker` embeds Celery beat with `-B`; do not start a second
+beat scheduler unless you first remove `-B` from that service.
 
 ### Scheduled Tasks
 

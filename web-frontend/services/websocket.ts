@@ -199,18 +199,36 @@ class WebSocketService {
   }
 }
 
-function resolveWebSocketBaseUrl(): string {
+function sameOriginWebSocketBaseUrl(pathPrefix = ''): string {
+  if (typeof window === 'undefined') {
+    throw new Error(
+      'No WebSocket host is configured. Set NEXT_PUBLIC_WS_URL (or ' +
+        'NEXT_PUBLIC_API_BASE_URL) to the backend origin — for example ' +
+        'ws://localhost:8010. It is deliberately not defaulted: guessing a port ' +
+        'risks opening an authenticated socket against an unrelated service.',
+    );
+  }
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  return `${protocol}//${window.location.host}${pathPrefix}`;
+}
+
+export function resolveWebSocketBaseUrl(): string {
   const configured = process.env.NEXT_PUBLIC_WS_URL?.replace(/\/+$/, '');
   if (configured) return configured;
 
+  // Never falls back to ws://localhost:8000. The socket carries the learner's
+  // access token in its query string, and that port belongs to a different
+  // application on some developer machines. With nothing configured the socket
+  // follows this page's own origin, which next.config.js proxies to the backend
+  // only when API_URL is actually set.
   const apiBase = (
     process.env.NEXT_PUBLIC_API_BASE_URL ||
     process.env.NEXT_PUBLIC_API_URL ||
-    'http://localhost:8000/api/v1'
+    ''
   ).replace(/\/+$/, '');
-  if (typeof window !== 'undefined' && apiBase.startsWith('/')) {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    return `${protocol}//${window.location.host}${apiBase.replace(/\/api\/v1$/, '')}`;
+  if (!apiBase) return sameOriginWebSocketBaseUrl();
+  if (apiBase.startsWith('/')) {
+    return sameOriginWebSocketBaseUrl(apiBase.replace(/\/api\/v1$/, ''));
   }
 
   try {
@@ -221,7 +239,7 @@ function resolveWebSocketBaseUrl(): string {
     url.hash = '';
     return url.toString().replace(/\/+$/, '');
   } catch {
-    return 'ws://localhost:8000';
+    return sameOriginWebSocketBaseUrl();
   }
 }
 

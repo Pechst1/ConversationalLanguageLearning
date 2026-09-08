@@ -1,9 +1,9 @@
 """Anki import and synchronization schemas."""
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 
 
 class AnkiImportRequest(BaseModel):
@@ -14,7 +14,7 @@ class AnkiImportRequest(BaseModel):
         description="CSV content from Anki export",
         min_length=1
     )
-    deck_name: Optional[str] = Field(
+    deck_name: str | None = Field(
         None,
         description="Optional deck name override"
     )
@@ -23,8 +23,9 @@ class AnkiImportRequest(BaseModel):
         description="Whether to preserve existing Anki scheduling data"
     )
     
-    @validator('csv_content')
-    def validate_csv_content(cls, v):
+    @field_validator("csv_content")
+    @classmethod
+    def validate_csv_content(cls, v: str) -> str:
         """Validate that CSV content looks reasonable."""
         if not v.strip():
             raise ValueError("CSV content cannot be empty")
@@ -53,7 +54,7 @@ class AnkiImportResponse(BaseModel):
     
     success: bool = Field(..., description="Whether the import was successful")
     message: str = Field(..., description="Human-readable result message")
-    statistics: Dict[str, Any] = Field(..., description="Detailed import statistics")
+    statistics: dict[str, Any] = Field(..., description="Detailed import statistics")
 
 
 class AnkiVocabularyStatistics(BaseModel):
@@ -98,10 +99,10 @@ class AnkiCardVocabulary(BaseModel):
     
     word: str = Field(..., description="The vocabulary word")
     language: str = Field(..., description="Language code (fr/de)")
-    direction: Optional[str] = Field(None, description="Card direction (fr_to_de/de_to_fr)")
-    french_translation: Optional[str] = Field(None, description="French text")
-    german_translation: Optional[str] = Field(None, description="German text")
-    deck_name: Optional[str] = Field(None, description="Original Anki deck name")
+    direction: str | None = Field(None, description="Card direction (fr_to_de/de_to_fr)")
+    french_translation: str | None = Field(None, description="French text")
+    german_translation: str | None = Field(None, description="German text")
+    deck_name: str | None = Field(None, description="Original Anki deck name")
 
 
 class AnkiDueCard(BaseModel):
@@ -110,28 +111,28 @@ class AnkiDueCard(BaseModel):
     progress_id: str = Field(..., description="Progress entry ID")
     word_id: int = Field(..., description="Vocabulary word ID")
     scheduler: str = Field(..., description="Scheduler type (anki/fsrs)")
-    phase: Optional[str] = Field(None, description="Current learning phase")
-    due_at: Optional[str] = Field(None, description="Precise due date/time (ISO format)")
-    next_review_date: Optional[str] = Field(None, description="Next review date (ISO format)")
-    proficiency_score: Optional[int] = Field(None, description="Proficiency score (0-100)")
+    phase: str | None = Field(None, description="Current learning phase")
+    due_at: str | None = Field(None, description="Precise due date/time (ISO format)")
+    next_review_date: str | None = Field(None, description="Next review date (ISO format)")
+    proficiency_score: int | None = Field(None, description="Proficiency score (0-100)")
     reps: int = Field(0, description="Number of times reviewed")
-    ease_factor: Optional[float] = Field(None, description="Anki ease factor")
-    interval_days: Optional[int] = Field(None, description="Current interval in days")
-    vocabulary: Optional[AnkiCardVocabulary] = Field(None, description="Associated vocabulary")
+    ease_factor: float | None = Field(None, description="Anki ease factor")
+    interval_days: int | None = Field(None, description="Current interval in days")
+    vocabulary: AnkiCardVocabulary | None = Field(None, description="Associated vocabulary")
 
 
 class AnkiDueCardsResponse(BaseModel):
     """Response for due cards endpoint."""
     
-    cards: List[AnkiDueCard] = Field(..., description="Cards due for review")
+    cards: list[AnkiDueCard] = Field(..., description="Cards due for review")
     total_count: int = Field(..., description="Number of cards returned")
-    scheduler_type: Optional[str] = Field(None, description="Filter applied for scheduler type")
+    scheduler_type: str | None = Field(None, description="Filter applied for scheduler type")
 
 
 class AnkiSyncRequest(BaseModel):
     """Request for synchronizing changes back to Anki format."""
     
-    deck_name: Optional[str] = Field(None, description="Specific deck to export")
+    deck_name: str | None = Field(None, description="Specific deck to export")
     include_new_cards: bool = Field(True, description="Include cards created in the app")
     include_scheduling: bool = Field(True, description="Include current scheduling data")
     format_type: str = Field("csv", description="Export format (csv/apkg)")
@@ -141,8 +142,8 @@ class AnkiSyncResponse(BaseModel):
     """Response for Anki synchronization export."""
     
     success: bool = Field(..., description="Whether the export was successful")
-    content: Optional[str] = Field(None, description="Exported content (for CSV)")
-    download_url: Optional[str] = Field(None, description="Download URL (for binary formats)")
+    content: str | None = Field(None, description="Exported content (for CSV)")
+    download_url: str | None = Field(None, description="Download URL (for binary formats)")
     cards_exported: int = Field(..., description="Number of cards included in export")
     format_type: str = Field(..., description="Format of the exported data")
     message: str = Field(..., description="Human-readable result message")
@@ -154,9 +155,9 @@ class AnkiHealthCheck(BaseModel):
     anki_cards_imported: bool = Field(..., description="Whether any Anki cards have been imported")
     total_anki_vocabulary: int = Field(..., description="Total Anki vocabulary in system")
     active_users_with_anki: int = Field(..., description="Users with imported Anki cards")
-    last_import_date: Optional[str] = Field(None, description="Most recent import date (ISO format)")
-    schedulers_supported: List[str] = Field(..., description="List of supported schedulers")
-    features_available: List[str] = Field(..., description="Available Anki integration features")
+    last_import_date: str | None = Field(None, description="Most recent import date (ISO format)")
+    schedulers_supported: list[str] = Field(..., description="List of supported schedulers")
+    features_available: list[str] = Field(..., description="Available Anki integration features")
 
 
 class AnkiReviewRequest(BaseModel):
@@ -164,7 +165,7 @@ class AnkiReviewRequest(BaseModel):
 
     word_id: int = Field(..., ge=1)
     rating: int = Field(..., ge=0, le=3, description="Anki rating 0=Again,1=Hard,2=Good,3=Easy")
-    response_time_ms: Optional[int] = Field(None, ge=0)
+    response_time_ms: int | None = Field(None, ge=0)
 
 
 class AnkiReviewResponse(BaseModel):
@@ -172,11 +173,11 @@ class AnkiReviewResponse(BaseModel):
 
     word_id: int
     scheduler: str = Field("anki")
-    phase: Optional[str] = None
-    ease_factor: Optional[float] = None
-    interval_days: Optional[int] = None
-    due_at: Optional[str] = None
-    next_review: Optional[str] = None
+    phase: str | None = None
+    ease_factor: float | None = None
+    interval_days: int | None = None
+    due_at: str | None = None
+    next_review: str | None = None
 
 
 class AnkiCardUpdate(BaseModel):
@@ -186,16 +187,16 @@ class AnkiCardUpdate(BaseModel):
     card_id: int
     deck_name: str
     model_name: str
-    fields: Dict[str, str]
-    due: Optional[int] = None
-    interval: Optional[int] = None
-    ease: Optional[int] = None
-    reps: Optional[int] = None
-    lapses: Optional[int] = None
-    ord: Optional[int] = None
+    fields: dict[str, str]
+    due: int | None = None
+    interval: int | None = None
+    ease: int | None = None
+    reps: int | None = None
+    lapses: int | None = None
+    ord: int | None = None
 
 
 class AnkiConnectSyncRequest(BaseModel):
     """Payload for syncing data from AnkiConnect."""
     
-    cards: List[AnkiCardUpdate]
+    cards: list[AnkiCardUpdate]

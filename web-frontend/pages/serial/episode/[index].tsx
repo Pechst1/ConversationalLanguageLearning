@@ -1,11 +1,20 @@
+/* Episode replay — a filed episode read again from the archive.
+ *
+ * No artboard in the Claude design covers a replay, so it is extended from the
+ * reader's own primitives: the Feuilleton index head (kicker + one Garamond-
+ * italic headline), the reader's plate + speech cards for a scene, and the
+ * Missions chat bubbles for a mission's turns. Reading is read-only: nothing
+ * here submits, completes or scores. */
+
 import { useEffect, useMemo, useState } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { ArrowLeft, Loader2 } from 'lucide-react';
 
-import EditorialMasthead from '@/components/layout/EditorialMasthead';
+import PhoneProductNav from '@/components/layout/PhoneProductNav';
+import { ArrowLeftIcon, AtelierV2Root, Skeleton } from '@/components/atelier-v2/ui';
+import { FeuilletonReaderStyles } from '@/components/feuilleton/reader';
 import apiService, { GraphicNovelScene, RealWorldMission, SerialArchiveEpisode } from '@/services/api';
+import { resolveMediaUrl } from '@/lib/media-url';
 
 const STATIC_REPLAY_EPISODES = 24;
 
@@ -39,16 +48,24 @@ export default function SerialEpisodeReplayPage() {
   const [episode, setEpisode] = useState<SerialArchiveEpisode | null>(null);
   const [scene, setScene] = useState<GraphicNovelScene | null>(null);
   const [mission, setMission] = useState<RealWorldMission | null>(null);
+  const [seasonNumber, setSeasonNumber] = useState(1);
   const [loading, setLoading] = useState(true);
+  /* An archive that could not be fetched is not an archive without this
+     episode in it. The two used to render the same empty block, so a dropped
+     connection read as "you never filed this" (WP-20 D-12). */
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [reloads, setReloads] = useState(0);
 
   useEffect(() => {
     if (!router.isReady || episodeIndex === null) return;
     let alive = true;
     setLoading(true);
+    setLoadFailed(false);
     apiService.getSerialEpisodes()
       .then(async (payload) => {
         const match = (payload.episodes || []).find((item) => item.episode_index === episodeIndex) || null;
         if (!alive) return;
+        setSeasonNumber(Number(payload.season_number || 1));
         setEpisode(match);
         setScene(null);
         setMission(null);
@@ -66,6 +83,7 @@ export default function SerialEpisodeReplayPage() {
           setEpisode(null);
           setScene(null);
           setMission(null);
+          setLoadFailed(true);
         }
       })
       .finally(() => {
@@ -74,220 +92,138 @@ export default function SerialEpisodeReplayPage() {
     return () => {
       alive = false;
     };
-  }, [episodeIndex, router.isReady]);
+  }, [episodeIndex, reloads, router.isReady]);
 
-  const title = useMemo(() => episode?.title || scene?.title || mission?.title || 'Episode', [episode, mission, scene]);
+  const title = useMemo(() => episode?.title || scene?.title || mission?.title || 'Épisode', [episode, mission, scene]);
+
+  /* The fiction speaks: the character's name from the mission messenger
+     (same source as pages/missions.tsx), never the raw LLM role. */
+  const correspondentName = useMemo(() => {
+    const messenger = mission?.prompt_payload?.messenger;
+    const name = messenger && typeof messenger === 'object'
+      ? String((messenger as Record<string, any>).contact_name || '').trim()
+      : '';
+    return name || 'La correspondance';
+  }, [mission]);
+
+  const kicker = episodeIndex === null
+    ? 'Le feuilleton'
+    : `Saison ${seasonNumber} · Épisode ${episodeIndex + 1} · relecture`;
 
   return (
     <>
-      <ReplayStyles />
-      <main className="replay-page">
-        <EditorialMasthead active="studio" />
-        <section className="replay-head">
-          <Link href="/serial"><ArrowLeft size={15} /> Season 1</Link>
-          <div>
-            <span>{episode?.episode_label || 'Le Feuilleton'}</span>
-            <h1>{title}</h1>
-          </div>
-        </section>
+      <FeuilletonReaderStyles />
+      <AtelierV2Root as="main" className="fr-page replay-page" aria-label="Relecture de l’épisode">
+        <div className="replay-back">
+          <Link className="av2-btn av2-btn--secondary av2-btn--inline" href="/serial">
+            <ArrowLeftIcon size={18} /> Saison {seasonNumber}
+          </Link>
+        </div>
+        <header className="fr-page-head">
+          <div className="k">{kicker}</div>
+          {/* the one Garamond italic headline on this screen */}
+          <h1>{title}</h1>
+        </header>
 
         {loading ? (
-          <div className="replay-loading"><Loader2 className="spin" /> Loading episode</div>
+          <div className="replay-stack" aria-live="polite" aria-busy="true">
+            <span className="fr-sr">On tire l’épisode</span>
+            <Skeleton height={260} radius={24} />
+            <Skeleton height={96} radius={18} />
+            <Skeleton height={96} radius={18} />
+          </div>
         ) : scene ? (
-          <section className="replay-panels" aria-label="Episode panels">
+          <section className="replay-stack" aria-label="Planches de l’épisode">
             {(scene.panels || []).map((panel) => {
               const caption = panel.overlay_payload?.caption || {};
-              const imageUrl = panel.image_url || panel.image_payload?.url;
+              const imageUrl = resolveMediaUrl(panel.image_url || panel.image_payload?.url);
               return (
                 <article className="replay-panel" key={panel.id}>
-                  <div className="replay-image">
-                    {imageUrl ? <Image src={imageUrl} alt="" fill sizes="(max-width: 760px) 100vw, 50vw" unoptimized /> : <span>Panel {panel.panel_index}</span>}
-                  </div>
-                  <div className="replay-copy">
-                    <span>Panel {panel.panel_index}</span>
-                    <h2>{panel.title}</h2>
-                    <p>{caption.fr || panel.beat}</p>
-                    {caption.en && <small>{caption.en}</small>}
+                  {imageUrl ? (
+                    <figure className="fr-plate">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={imageUrl} alt={panel.title ? `Planche : ${panel.title}` : ''} loading="lazy" />
+                    </figure>
+                  ) : (
+                    <figure className="fr-plate is-missing">
+                      <figcaption className="fr-plate-note">Cette planche est parue sans illustration.</figcaption>
+                    </figure>
+                  )}
+                  <div className="fr-speech">
+                    <p className="fr-speaker">
+                      <span className="glyph" aria-hidden="true" />
+                      Planche {panel.panel_index}{panel.title ? ` · ${panel.title}` : ''}
+                    </p>
+                    <p className="fr-line" lang="fr">{caption.fr || panel.beat}</p>
+                    {caption.en && <p className="fr-line-en">{caption.en}</p>}
                   </div>
                 </article>
               );
             })}
           </section>
         ) : mission ? (
-          <section className="mission-replay">
-            <article>
-              <span>Act</span>
+          <section className="replay-stack mission-replay" aria-label="L’acte rejoué">
+            <div className="fr-notice">
+              <p className="fr-eyebrow">L’acte</p>
               <h2>{mission.title}</h2>
               <p>{mission.brief}</p>
-            </article>
-            {(mission.turns || []).map((turn) => (
-              <blockquote key={turn.id} className={turn.role === 'user' ? 'user' : ''}>
-                <span>{turn.role}</span>
-                <p>{turn.text}</p>
-              </blockquote>
-            ))}
-            {(mission.attempts || []).map((attempt) => (
-              <blockquote key={attempt.id} className="user">
-                <span>message</span>
-                <p>{attempt.answer_payload?.text || attempt.answer_payload?.answer || ''}</p>
-              </blockquote>
-            ))}
+            </div>
+            <div className="replay-thread">
+              {(mission.turns || []).map((turn) => (
+                <div key={turn.id} className={turn.role === 'user' ? 'replay-turn' : 'replay-turn replay-turn--them'}>
+                  <span className="av2-label">{turn.role === 'user' ? 'Vous' : correspondentName}</span>
+                  <p className={turn.role === 'user' ? 'av2-bubble av2-bubble--mine' : 'av2-bubble'} lang="fr">
+                    {turn.text}
+                  </p>
+                </div>
+              ))}
+              {(mission.attempts || []).map((attempt) => (
+                <div key={attempt.id} className="replay-turn">
+                  <span className="av2-label">Vous</span>
+                  <p className="av2-bubble av2-bubble--mine" lang="fr">
+                    {attempt.answer_payload?.text || attempt.answer_payload?.answer || ''}
+                  </p>
+                </div>
+              ))}
+            </div>
           </section>
+        ) : loadFailed ? (
+          /* Infrastructure, stated as infrastructure, with a way to try again
+             — the rule the journey follows (CONTRACTS §5). It never claims the
+             episode is absent, because nothing here knows that. */
+          <div className="fr-empty" role="alert">
+            <h2>Les archives n’ont pas répondu.</h2>
+            <p>La connexion a échoué. Rien n’est perdu — l’épisode est classé, pas la page.</p>
+            <button
+              type="button"
+              className="av2-btn av2-btn--secondary av2-btn--inline"
+              onClick={() => setReloads((count) => count + 1)}
+            >
+              Réessayer
+            </button>
+          </div>
         ) : (
-          <div className="replay-empty">
-            <h2>Episode not filed.</h2>
-            <p>This entry is not available in the archive yet.</p>
+          <div className="fr-empty" role="status">
+            <h2>Épisode non classé.</h2>
+            <p>Cette entrée ne figure pas encore aux archives.</p>
           </div>
         )}
-      </main>
+      </AtelierV2Root>
+      <PhoneProductNav active="feuilleton" />
+      <style jsx global>{`
+        body { background: var(--app-paper); }
+        .av2.replay-page { min-height: 100vh; padding-bottom: calc(var(--phone-bottom-nav-space, 88px)); }
+        .av2 .replay-back { padding-top: calc(16px + env(safe-area-inset-top, 0px)); }
+        .av2 .replay-back .av2-btn { min-height: 44px; padding: 0.5rem 1rem; font-size: var(--av2-t-label); }
+        .av2 .replay-page .fr-page-head { padding-top: 14px; }
+        .av2 .replay-stack { display: flex; flex-direction: column; gap: 14px; padding: 18px 0 0; }
+        .av2 .replay-panel { display: flex; flex-direction: column; gap: 10px; }
+        .av2 .replay-panel .fr-plate { max-block-size: none; aspect-ratio: 1 / 1; }
+        .av2 .replay-thread { display: flex; flex-direction: column; gap: 12px; }
+        .av2 .replay-turn { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; min-width: 0; }
+        .av2 .replay-turn--them { align-items: flex-start; }
+        .av2 .replay-turn .av2-bubble { margin: 0; }
+      `}</style>
     </>
-  );
-}
-
-function ReplayStyles() {
-  return (
-    <style jsx global>{`
-      .replay-page {
-        min-height: 100vh;
-        background: #f4efe3;
-        color: #14110d;
-        padding: 0 18px 48px;
-      }
-      .replay-head {
-        display: flex;
-        justify-content: space-between;
-        align-items: end;
-        gap: 18px;
-        max-width: 980px;
-        margin: 28px auto 22px;
-        border-bottom: 3px solid #14110d;
-        padding-bottom: 18px;
-      }
-      .replay-head a {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        border: 2px solid #14110d;
-        background: #fff9ec;
-        color: #14110d;
-        padding: 10px 12px;
-        font-weight: 900;
-        text-decoration: none;
-      }
-      .replay-head span,
-      .replay-copy span,
-      .mission-replay span {
-        display: block;
-        font-size: 11px;
-        font-weight: 900;
-        letter-spacing: .12em;
-        text-transform: uppercase;
-      }
-      .replay-head h1 {
-        margin: 6px 0 0;
-        max-width: 700px;
-        font-family: Georgia, serif;
-        font-size: 40px;
-        line-height: 1;
-        text-align: right;
-      }
-      .replay-panels {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 18px;
-        max-width: 980px;
-        margin: 0 auto;
-      }
-      .replay-panel,
-      .mission-replay article,
-      .mission-replay blockquote,
-      .replay-loading,
-      .replay-empty {
-        border: 2px solid #14110d;
-        background: #fff9ec;
-        box-shadow: 4px 4px 0 #14110d;
-      }
-      .replay-image {
-        position: relative;
-        aspect-ratio: 1;
-        overflow: hidden;
-        border-bottom: 2px solid #14110d;
-        background: #e8ddc8;
-      }
-      .replay-image img {
-        object-fit: cover;
-      }
-      .replay-image span {
-        display: grid;
-        place-items: center;
-        height: 100%;
-        color: #1d3a8a;
-        font-weight: 900;
-      }
-      .replay-copy,
-      .mission-replay article {
-        padding: 14px;
-      }
-      .replay-copy h2,
-      .mission-replay h2,
-      .replay-empty h2 {
-        margin: 6px 0;
-        font-family: Georgia, serif;
-        font-size: 24px;
-      }
-      .replay-copy p,
-      .mission-replay p,
-      .replay-empty p {
-        margin: 0;
-        color: #554d43;
-        line-height: 1.45;
-      }
-      .replay-copy small {
-        display: block;
-        margin-top: 8px;
-        color: #6d6357;
-        line-height: 1.35;
-      }
-      .mission-replay {
-        display: grid;
-        gap: 14px;
-        max-width: 760px;
-        margin: 0 auto;
-      }
-      .mission-replay blockquote {
-        margin: 0;
-        padding: 14px;
-      }
-      .mission-replay blockquote.user {
-        border-left: 8px solid #1d3a8a;
-      }
-      .replay-loading,
-      .replay-empty {
-        max-width: 980px;
-        margin: 0 auto;
-        padding: 18px;
-      }
-      .replay-loading {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        font-weight: 900;
-      }
-      .spin { animation: spin 1s linear infinite; }
-      @keyframes spin { to { transform: rotate(360deg); } }
-      @media (max-width: 760px) {
-        .replay-head {
-          align-items: start;
-          flex-direction: column;
-        }
-        .replay-head h1 {
-          text-align: left;
-          font-size: 34px;
-        }
-        .replay-panels {
-          grid-template-columns: 1fr;
-        }
-      }
-    `}</style>
   );
 }

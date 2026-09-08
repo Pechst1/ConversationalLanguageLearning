@@ -8,8 +8,7 @@ Hierarchy:
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Sequence
+from dataclasses import dataclass
 
 
 @dataclass(frozen=True, slots=True)
@@ -28,7 +27,7 @@ class ErrorConcept:
 
 # Core error concepts with pattern mappings
 # Patterns are matched against error_pattern from UserError
-ERROR_CONCEPT_REGISTRY: Dict[str, ErrorConcept] = {
+ERROR_CONCEPT_REGISTRY: dict[str, ErrorConcept] = {
     "gender_agreement": ErrorConcept(
         id="gender_agreement",
         name="Gender Agreement",
@@ -207,7 +206,7 @@ def get_concept_for_category(category: str) -> ErrorConcept | None:
     return ERROR_CONCEPT_REGISTRY.get(concept_id) if concept_id else None
 
 
-def list_concepts() -> List[ErrorConcept]:
+def list_concepts() -> list[ErrorConcept]:
     """Return all registered error concepts."""
     return list(ERROR_CONCEPT_REGISTRY.values())
 

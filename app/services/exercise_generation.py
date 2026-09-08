@@ -335,6 +335,37 @@ def _quoted_fragments(value: Any) -> list[str]:
     return fragments
 
 
+def _transform_noop_errors(item: dict[str, Any]) -> list[str]:
+    """Reject transform answer keys the learner cannot possibly match.
+
+    Two shapes, both found live and both grading a correct answer as wrong:
+
+    1. expected_answer == source. The learner sees `source`, so the item prints
+       its own answer and teaches nothing; the matcher accepts anything close to
+       the printed text and the relecture has no target to judge against
+       (FR_B1_COND_001: source "sera", expected_answer "sera").
+    2. expected_answer is a "source -> target" mapping, sometimes with an English
+       gloss ("sera -> est (in the si-clause)"). It is a note about the answer,
+       not the answer: typing the real answer scores 0 and books a lapse, and the
+       correction card sets that mapping as the model French line.
+
+    The deterministic fallback deck has always kept a real, single answer; the
+    LLM payload and the shared cache have to clear the same bar.
+    """
+    source = _normalize_transform_text(item.get("source"))
+    raw_expected = str(item.get("expected_answer") or "")
+    expected = _normalize_transform_text(raw_expected)
+    if "->" in raw_expected or "→" in raw_expected:
+        return ["transform expected_answer must be the answer itself, not a 'source -> target' mapping"]
+    if source and expected and source == expected:
+        return ["transform items must change the source: expected_answer may not repeat it"]
+    return []
+
+
+def _normalize_transform_text(value: Any) -> str:
+    return re.sub(r"[\s.!?;:,]+", " ", str(value or "").strip().casefold()).strip()
+
+
 def _directed_rewrite_instruction_errors(item: dict[str, Any]) -> list[str]:
     if item.get("type") != "directed_rewrite":
         return []
@@ -345,7 +376,7 @@ def _directed_rewrite_instruction_errors(item: dict[str, Any]) -> list[str]:
     normalized_source = _compact_text(source, max_length=500).lower()
     normalized_expected = _compact_text(expected, max_length=500).lower()
     has_source_fragment = any(fragment.lower() in normalized_source for fragment in quoted)
-    has_target_form = any(fragment.lower() in normalized_expected for fragment in quoted if not fragment.lower() in normalized_source)
+    has_target_form = any(fragment.lower() in normalized_expected for fragment in quoted if fragment.lower() not in normalized_source)
     has_target_marker = bool(re.search(r"\b(?:to|into|use|target|form|present|future|imparfait|passe|passé|conditional|conditionnel|subjunctive|subjonctif)\b", instruction, re.I))
     if not has_source_fragment:
         return ["directed_rewrite instructions must quote the source word or phrase to change"]
@@ -555,6 +586,10 @@ class ExerciseGenerationService:
             "Classify labels must name contrastive grammatical forms, never generic affirmative/negative or true/false labels. "
             "Transform instructions must QUOTE the exact source word or phrase to change (in quotes) and name the grammatical target category "
             "(a tense or rule name such as 'the imparfait', 'the future', 'its negated form'), but MUST NOT spell out the corrected word or the answer. "
+            "Every transform item must actually change something: expected_answer must never repeat `source` verbatim "
+            "(an item like source 'sera' / expected_answer 'sera' prints its own answer and teaches nothing), "
+            "and expected_answer must be ONLY the finished corrected text the learner types — never a 'source -> target' mapping, "
+            "never a rule name, and never with a parenthetical note appended. "
             "For example: \"Change 'pleut' to the imparfait\" (never \"change pleut to pleuvait\"); "
             "\"Change the article 'une' after 'pas' to its negated form\" (never \"change 'une' to de\"). "
             "Each output_ladder example_answer must be a standalone full French answer that visibly uses the target grammar; "
@@ -1027,6 +1062,7 @@ def validate_atelier_generation_payload(payload: dict[str, Any]) -> list[str]:
             ):
                 errors.append("transform items require id, instruction, source, and expected_answer")
                 continue
+            errors.extend(_transform_noop_errors(item))
             errors.extend(_directed_rewrite_instruction_errors(item))
     produce = payload.get("produce") if isinstance(payload.get("produce"), dict) else {}
     if not (_filled(produce.get("source_fragment")) and _filled(produce.get("prompt")) and produce.get("requirements")):

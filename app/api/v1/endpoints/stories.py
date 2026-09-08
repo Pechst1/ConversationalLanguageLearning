@@ -24,8 +24,15 @@ from app.config import settings
 from app.db.models.library import UserBook
 from app.db.models.user import User
 from app.schemas.story import (
+    ChapterCompletionRequest,
+    ChapterCompletionResponse,
     ChapterRead,
+    ChapterWithStatusRead,
     ConsequenceRead,
+    GoalCheckRequest,
+    GoalCheckResponse,
+    NarrativeChoiceRequest,
+    NarrativeChoiceResponse,
     NPCInSceneRead,
     NPCResponseRead,
     ObjectiveRead,
@@ -148,7 +155,7 @@ async def upload_book(
     """
     filename = file.filename or "unknown.txt"
     extension = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
-    
+
     if extension not in SUPPORTED_LIBRARY_FORMATS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -309,17 +316,17 @@ async def import_content(
     service = ContentImportService(db)
     try:
         return service.import_from_url(request.url, current_user.id)
-    except ContentImportError as e:
+    except ContentImportError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
-    except Exception as e:
-        logger.error(f"Import failed: {e}")
+            detail=str(exc)
+        ) from exc
+    except Exception as exc:
+        logger.error(f"Import failed: {exc}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to process content"
-        )
+        ) from exc
 
 @router.post("/{story_id}/discuss", response_model=dict)
 async def start_story_discussion(
@@ -334,11 +341,17 @@ async def start_story_discussion(
     try:
         session = service.start_article_session(story_id, current_user)
         return {"session_id": str(session.id)}
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-    except Exception as e:
-        logger.error(f"Failed to start discussion session: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to start session")
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+    except Exception as exc:
+        logger.error(f"Failed to start discussion session: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to start session",
+        ) from exc
 
 async def generate_cover_task(story_id: str):
     """Background task to generate story cover."""
@@ -400,37 +413,33 @@ def _calculate_story_xp(
     # Base engagement XP
     base_xp = 5
     total_xp += base_xp
-    breakdown.append({"reason": "Konversation", "amount": base_xp})
+    breakdown.append({"reason": "Conversation", "amount": base_xp})
     
     # Bonus for longer messages (more language practice)
     word_count = len(content.split())
     if word_count >= 10:
         length_bonus = 10
         total_xp += length_bonus
-        breakdown.append({"reason": "Ausführliche Antwort", "amount": length_bonus})
+        breakdown.append({"reason": "Réponse développée", "amount": length_bonus})
     elif word_count >= 5:
         length_bonus = 5
         total_xp += length_bonus
-        breakdown.append({"reason": "Gute Antwort", "amount": length_bonus})
-    
-    # Penalty for errors
-    if error_count > 0:
-        penalty = min(total_xp - 5, error_count * 2)  # Don't go below 5
-        if penalty > 0:
-            total_xp -= penalty
-            breakdown.append({"reason": f"{error_count} Fehler", "amount": -penalty})
-    else:
+        breakdown.append({"reason": "Bonne réponse", "amount": length_bonus})
+
+    # Errors belong in the repair loop, never in an XP penalty. Accuracy still
+    # earns a prestige bonus while risk-taking keeps every participation point.
+    if error_count == 0:
         # No error bonus (30%)
         bonus = int(total_xp * 0.3)
         if bonus > 0:
             total_xp += bonus
-            breakdown.append({"reason": "Perfekte Grammatik", "amount": bonus})
+            breakdown.append({"reason": "Maîtrise sans faute", "amount": bonus})
     
     # Story progress bonus
     if has_story_progress and objectives_completed:
         progress_bonus = 20
         total_xp += progress_bonus
-        breakdown.append({"reason": "Ziel erreicht!", "amount": progress_bonus})
+        breakdown.append({"reason": "Objectif atteint", "amount": progress_bonus})
     
     return {
         "total": total_xp,
@@ -614,11 +623,11 @@ async def start_story(
     
     try:
         result = service.start_story(current_user, story_id)
-    except ValueError as e:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e),
-        )
+            detail=str(exc),
+        ) from exc
     
     # Queue vocabulary from the chapter for SRS practice
     progress_service = ProgressService(db)
@@ -873,10 +882,6 @@ async def process_story_input(
 
         # Get response (fixed narration usually)
         response_text = selected_option.get("response", {}).get("narration", "")
-        
-        # Check transition based on choice trigger
-        # We simulate a "choice_made" trigger or specific choice trigger
-        transition_trigger = "choice_made" 
         
         # Build Result dict compatible with response
         result = {
@@ -1149,7 +1154,7 @@ async def process_story_input(
     # Calculate and apply XP
     xp_result = _calculate_story_xp(
         content=request.content,
-        error_count=len(error_result.errors),
+        error_count=xp_error_count,
         has_story_progress=bool(completed_objective_ids),
         objectives_completed=completed_objective_ids,
     )
@@ -1159,6 +1164,19 @@ async def process_story_input(
         current_user.total_xp = (current_user.total_xp or 0) + xp_result["total"]
         current_user.mark_activity()
         db.commit()
+
+    minted_collectibles = []
+    if xp_error_count > 0:
+        from app.services.atelier_rewards import AtelierRewardService
+
+        minted_collectibles = AtelierRewardService(db).mint_conversation_effort_token(
+            user_id=current_user.id,
+            source_kind="story_turn",
+            source_ref=f"{story_id}:{scene_context.scene.id}",
+            recovery=False,
+            word_count=len(request.content.split()),
+            error_count=xp_error_count,
+        )
     
     return StoryInputResponse(
         npc_response=NPCResponseRead(
@@ -1173,6 +1191,7 @@ async def process_story_input(
         consequences=consequences,
         xp_earned=xp_result["total"],
         xp_breakdown=xp_result["breakdown"],
+        minted_collectibles=minted_collectibles,
         errors_detected=errors_detected,
         updated_flags=result["triggers_unlocked"],
         scene_transition=scene_transition_response,
@@ -1183,7 +1202,7 @@ async def process_story_input(
 # Chapter-Level Endpoints (merged from worktree)
 # ============================================================================
 
-@router.get("/{story_id}/chapters", response_model=list["ChapterWithStatusRead"])
+@router.get("/{story_id}/chapters", response_model=list[ChapterWithStatusRead])
 async def get_story_chapters(
     story_id: str,
     db: Annotated[Session, Depends(get_db)],
@@ -1191,8 +1210,6 @@ async def get_story_chapters(
 ):
     """Get all chapters for a story with completion status."""
     from app.db.models.story import Chapter, Story
-    from app.schemas.story import ChapterWithStatusRead
-
     story_service = StoryService(db)
 
     # Get story
@@ -1259,10 +1276,10 @@ async def get_story_chapters(
 async def check_chapter_goals(
     story_id: str,
     chapter_id: str,
-    request: "GoalCheckRequest",
+    request: GoalCheckRequest,
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
-) -> "GoalCheckResponse":
+) -> GoalCheckResponse:
     """Check narrative goal completion for a chapter session using French morphological matching."""
     import uuid
 
@@ -1282,11 +1299,11 @@ async def check_chapter_goals(
     # Parse session_id
     try:
         session_uuid = uuid.UUID(request.session_id)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid session_id format",
-        )
+        ) from exc
 
     # Check goals using French morphological matching
     result = story_service.check_narrative_goals(session_uuid, chapter)
@@ -1302,10 +1319,10 @@ async def check_chapter_goals(
 async def complete_chapter(
     story_id: str,
     chapter_id: str,
-    request: "ChapterCompletionRequest",
+    request: ChapterCompletionRequest,
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
-) -> "ChapterCompletionResponse":
+) -> ChapterCompletionResponse:
     """Complete a chapter and unlock the next one."""
     import uuid
 
@@ -1325,11 +1342,11 @@ async def complete_chapter(
     # Parse session_id
     try:
         session_uuid = uuid.UUID(request.session_id)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid session_id format",
-        )
+        ) from exc
 
     # Check goals first to get proper completion state
     goal_result = story_service.check_narrative_goals(session_uuid, chapter)
@@ -1342,11 +1359,11 @@ async def complete_chapter(
             session_uuid,
             goal_result,
         )
-    except ValueError as e:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        )
+            detail=str(exc),
+        ) from exc
 
     # Apply XP to user
     if reward.xp_earned > 0:
@@ -1378,10 +1395,10 @@ async def complete_chapter(
 @router.post("/{story_id}/make-choice")
 async def make_narrative_choice(
     story_id: str,
-    request: "NarrativeChoiceRequest",
+    request: NarrativeChoiceRequest,
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
-) -> "NarrativeChoiceResponse":
+) -> NarrativeChoiceResponse:
     """Make a narrative branching choice and advance to the corresponding chapter."""
     from app.schemas.story import ChapterRead, NarrativeChoiceResponse
 
@@ -1393,11 +1410,11 @@ async def make_narrative_choice(
             story_id,
             request.choice_id,
         )
-    except ValueError as e:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        )
+            detail=str(exc),
+        ) from exc
 
     next_chapter_read = ChapterRead(
         id=result.next_chapter.id,
@@ -1412,15 +1429,3 @@ async def make_narrative_choice(
         next_chapter=next_chapter_read,
         choice_recorded=result.choice_recorded,
     )
-
-
-# Import schemas at module level for type hints
-from app.schemas.story import (
-    ChapterCompletionRequest,
-    ChapterCompletionResponse,
-    ChapterWithStatusRead,
-    GoalCheckRequest,
-    GoalCheckResponse,
-    NarrativeChoiceRequest,
-    NarrativeChoiceResponse,
-)

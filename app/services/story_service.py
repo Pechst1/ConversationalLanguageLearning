@@ -3,15 +3,15 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Sequence
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from loguru import logger
 from sqlalchemy import select
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session
 
-from app.db.models.story import Story, Chapter, Scene, StoryProgress
 from app.db.models.npc import NPC, NPCRelationship
+from app.db.models.story import Chapter, Scene, Story, StoryProgress
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
 
@@ -92,7 +92,7 @@ class StoryService:
         """List stories available for the user's level."""
         
         # Get all active stories
-        stmt = select(Story).where(Story.is_active == True).order_by(Story.title)
+        stmt = select(Story).where(Story.is_active.is_(True)).order_by(Story.title)
         stories = self.db.execute(stmt).scalars().all()
         
         # Get user's progress for all stories
@@ -341,12 +341,10 @@ class StoryService:
         
         # Find matching transition rule
         next_scene_id = None
-        transition_narration = None
         
         for rule in (current_scene.transition_rules or []):
             if self._check_transition_condition(rule.get("condition", {}), trigger, progress):
                 next_scene_id = rule.get("next_scene")
-                transition_narration = rule.get("narration")
                 break
         
         if not next_scene_id:
@@ -376,7 +374,7 @@ class StoryService:
             return None
         
         progress.current_scene_id = next_scene_id
-        progress.last_played_at = datetime.now(timezone.utc)
+        progress.last_played_at = datetime.now(UTC)
         self.db.commit()
         
         return self.get_current_scene(user, story_id)
@@ -435,7 +433,7 @@ class StoryService:
             # Story complete
             progress.status = "completed"
             progress.completion_percentage = 100
-            progress.completed_at = datetime.now(timezone.utc)
+            progress.completed_at = datetime.now(UTC)
             self.db.commit()
             return None
         
@@ -453,7 +451,7 @@ class StoryService:
         # Update progress
         progress.current_chapter_id = next_chapter.id
         progress.current_scene_id = first_scene.id
-        progress.last_played_at = datetime.now(timezone.utc)
+        progress.last_played_at = datetime.now(UTC)
         
         # Calculate completion percentage
         total_chapters = self.db.execute(
@@ -492,7 +490,7 @@ class StoryService:
         choices.append({
             "scene_id": scene_id,
             "choice_id": choice_id,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         })
         progress.player_choices = choices
         self.db.commit()
@@ -525,7 +523,7 @@ class StoryService:
         self,
         user: User,
         chapter: Chapter,
-        progress_service: "ProgressService",
+        progress_service: ProgressService,
     ) -> list[VocabularyWord]:
         """Queue vocabulary from a chapter's learning focus into user's practice queue.
         
@@ -652,7 +650,7 @@ class StoryService:
 
     def check_narrative_goals(
         self, session_id: uuid.UUID, chapter: Chapter
-    ) -> "GoalCheckResult":
+    ) -> GoalCheckResult:
         """
         Evaluate narrative goal completion based on session messages.
 
@@ -666,9 +664,10 @@ class StoryService:
         Returns:
             GoalCheckResult with completed and remaining goal IDs
         """
-        from app.db.models.session import ConversationMessage
-        import unicodedata
         import re
+        import unicodedata
+
+        from app.db.models.session import ConversationMessage
 
         def normalize_text(text: str) -> str:
             """Normalize text for comparison (lowercase, remove accents)."""
@@ -788,8 +787,8 @@ class StoryService:
         user: User,
         chapter_id: str,
         session_id: uuid.UUID,
-        goal_results: "GoalCheckResult",
-    ) -> "ChapterCompletionReward":
+        goal_results: GoalCheckResult,
+    ) -> ChapterCompletionReward:
         """Award XP, unlock next chapter, check achievements.
 
         Args:
@@ -827,7 +826,7 @@ class StoryService:
         chapters_completed_details = progress.chapters_completed_details or []
         chapters_completed_details.append({
             "chapter_id": chapter.id,
-            "completed_at": datetime.now(timezone.utc).isoformat(),
+            "completed_at": datetime.now(UTC).isoformat(),
             "xp_earned": xp_earned,
             "was_perfect": is_perfect,
             "goals_completed": goal_results.goals_completed,
@@ -899,9 +898,9 @@ class StoryService:
                 story_completed = True
                 progress.status = "completed"
                 progress.completion_percentage = 100
-                progress.completed_at = datetime.now(timezone.utc)
+                progress.completed_at = datetime.now(UTC)
 
-        progress.last_played_at = datetime.now(timezone.utc)
+        progress.last_played_at = datetime.now(UTC)
 
         self.db.commit()
         self.db.refresh(progress)
@@ -919,7 +918,7 @@ class StoryService:
         user: User,
         story_id: str,
         choice_id: str,
-    ) -> "NextChapterResult":
+    ) -> NextChapterResult:
         """Record user's choice and advance to corresponding chapter.
 
         Args:
@@ -978,7 +977,7 @@ class StoryService:
         if first_scene:
             progress.current_scene_id = first_scene.id
 
-        progress.last_played_at = datetime.now(timezone.utc)
+        progress.last_played_at = datetime.now(UTC)
 
         self.db.commit()
         self.db.refresh(progress)

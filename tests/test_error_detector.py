@@ -1,5 +1,14 @@
 import json
-from typing import List
+import sys
+
+import pytest
+
+if sys.version_info >= (3, 14):
+    pytest.skip(
+        "spaCy's pydantic.v1 dependency is not compatible with Python 3.14 yet; "
+        "tracked in docs/audit-2026-07-18-status-and-work-packages.md (WP-10)",
+        allow_module_level=True,
+    )
 
 import spacy
 
@@ -8,7 +17,7 @@ from app.services.llm_service import LLMResult
 
 
 class StubLLMService:
-    def __init__(self, responses: List[LLMResult]):
+    def __init__(self, responses: list[LLMResult]):
         self._responses = responses
 
     def generate_chat_completion(self, *args, **kwargs):

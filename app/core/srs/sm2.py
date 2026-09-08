@@ -1,8 +1,8 @@
 """Anki SM-2 spaced repetition scheduler implementation."""
 from __future__ import annotations
+
 import datetime as dt
 import os
-from typing import Tuple
 
 # Anki defaults
 MIN_EASE_FACTOR = 1.3
@@ -17,7 +17,7 @@ DEFAULT_RELEARNING_STEPS = [10]  # 10 minutes for lapses
 DEFAULT_GRADUATING_INTERVAL = 1  # days
 DEFAULT_EASY_INTERVAL = 4  # days
 
-TZ = dt.timezone.utc
+TZ = dt.UTC
 
 
 def get_learning_steps() -> list[int]:
@@ -51,7 +51,7 @@ def update_ease_factor(ease_factor: float, quality: int) -> float:
     return max(MIN_EASE_FACTOR, new_ef)
 
 
-def schedule_new_card(now: dt.datetime, quality: int, step_index: int = 0) -> Tuple[dt.datetime, str, int, float]:
+def schedule_new_card(now: dt.datetime, quality: int, step_index: int = 0) -> tuple[dt.datetime, str, int, float]:
     """Schedule a new card based on quality rating.
     
     Returns: (due_time, phase, step_index, ease_factor)
@@ -81,7 +81,7 @@ def schedule_new_card(now: dt.datetime, quality: int, step_index: int = 0) -> Tu
         return due_time, "review", 0, DEFAULT_EASE_FACTOR
 
 
-def schedule_learning_card(now: dt.datetime, quality: int, step_index: int, ease_factor: float) -> Tuple[dt.datetime, str, int, float]:
+def schedule_learning_card(now: dt.datetime, quality: int, step_index: int, ease_factor: float) -> tuple[dt.datetime, str, int, float]:
     """Schedule a card currently in learning phase.
     
     Returns: (due_time, phase, step_index, ease_factor)
@@ -111,7 +111,7 @@ def schedule_learning_card(now: dt.datetime, quality: int, step_index: int, ease
         return due_time, "review", 0, ease_factor
 
 
-def schedule_review_card(now: dt.datetime, quality: int, interval_days: int, ease_factor: float) -> Tuple[dt.datetime, str, int, float, int]:
+def schedule_review_card(now: dt.datetime, quality: int, interval_days: int, ease_factor: float) -> tuple[dt.datetime, str, int, float, int]:
     """Schedule a card in review phase.
     
     Returns: (due_time, phase, step_index, ease_factor, new_interval_days)
@@ -143,7 +143,7 @@ def schedule_review_card(now: dt.datetime, quality: int, interval_days: int, eas
     return due_time, "review", 0, new_ease_factor, new_interval
 
 
-def schedule_relearning_card(now: dt.datetime, quality: int, step_index: int, ease_factor: float) -> Tuple[dt.datetime, str, int, float]:
+def schedule_relearning_card(now: dt.datetime, quality: int, step_index: int, ease_factor: float) -> tuple[dt.datetime, str, int, float]:
     """Schedule a card currently in relearning phase.
     
     Returns: (due_time, phase, step_index, ease_factor)
@@ -175,7 +175,7 @@ def schedule_relearning_card(now: dt.datetime, quality: int, step_index: int, ea
 
 
 def review_card(now: dt.datetime, phase: str, interval_days: int, ease_factor: float, 
-               step_index: int, quality: int) -> Tuple[dt.datetime, str, int, float, int]:
+               step_index: int, quality: int) -> tuple[dt.datetime, str, int, float, int]:
     """Main entry point for reviewing a card.
     
     Args:

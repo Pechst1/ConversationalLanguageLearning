@@ -23,8 +23,12 @@ from app.db.models.error import UserError
 from app.db.models.grammar import GrammarConcept
 from app.db.models.user import User
 from app.services.error_memory import ErrorMemoryService
-from app.services.exercise_generation import ExerciseGenerationService, ExerciseGenerationUnavailable
+from app.services.exercise_generation import (
+    ExerciseGenerationService,
+    ExerciseGenerationUnavailable,
+)
 from app.services.grammar_feedback import infer_grammar_profile, is_concept_demonstrated
+from app.services.learner_copy import learner_text
 from app.services.llm_service import LLMService
 
 
@@ -93,17 +97,29 @@ class BriefExerciseService:
             correct_answer=correct_answer,
         )
 
+    def _learner_language(self, user_id: str | UUID | None) -> str | None:
+        """The learner's native language, for the deterministic verdicts below.
+
+        The fallback verdicts used to be hardcoded German ("Leider falsch"),
+        which an English or French learner could not read at all.
+        """
+        if not user_id:
+            return None
+        user = self.db.get(User, user_id)
+        return getattr(user, "native_language", None) if user else None
+
     def _build_grammar_override(
         self,
         *,
         concept: GrammarConcept | None,
         correct_answer: str,
+        language: str | None = None,
     ) -> dict[str, Any]:
         sample_solution = correct_answer if correct_answer and correct_answer != "(Freie Antwort)" else concept.examples if concept else ""
         profile = infer_grammar_profile(concept)
         return {
             "is_correct": True,
-            "feedback": "Das passt zur Grammatikaufgabe.",
+            "feedback": learner_text("brief.feedback_correct", language),
             "explanation": profile.principle,
             "sample_solution": sample_solution or "",
             "score": 8,
@@ -180,10 +196,11 @@ class BriefExerciseService:
             Dict with is_correct, feedback, explanation, score
         """
         # Quick check for exact match (case-insensitive, trimmed)
+        language = self._learner_language(user_id)
         if user_answer.strip().lower() == correct_answer.strip().lower():
             return {
                 "is_correct": True,
-                "feedback": "Richtig! 🎉",
+                "feedback": learner_text("brief.feedback_exact_correct", language),
                 "explanation": "",
                 "score": 10
             }
@@ -207,6 +224,7 @@ class BriefExerciseService:
                     user_answer,
                     prompt=prompt,
                     concept_id=concept_id,
+                    language=language,
                 )
 
             concept = self.db.get(GrammarConcept, concept_id) if concept_id else None
@@ -223,6 +241,7 @@ class BriefExerciseService:
                 return self._build_grammar_override(
                     concept=concept,
                     correct_answer=correct_answer,
+                    language=language,
                 )
 
             # Persist error if wrong and user_id is provided
@@ -250,6 +269,7 @@ class BriefExerciseService:
                 user_answer,
                 prompt=prompt,
                 concept_id=concept_id,
+                language=language,
             )
 
     async def _generate_with_llm(self, prompt: str, max_tokens: int = 1000):
@@ -287,21 +307,26 @@ class BriefExerciseService:
         if not subcategory and concept:
             subcategory = infer_grammar_profile(concept).label
         
-        # Default if still empty
-        if not subcategory:
-            subcategory = "Review"
-
         user = self.db.get(User, user_id)
         if not user:
             return
+        language = getattr(user, "native_language", None)
+
+        # Default if still empty
+        if not subcategory:
+            subcategory = learner_text("brief.label_review", language)
         ErrorMemoryService(self.db).record_erratum(
             user=user,
             erratum={
-                "display_label": subcategory or "Brief exercise",
+                "display_label": subcategory or learner_text("brief.label_brief_exercise", language),
                 "learner_text": user_answer,
                 "corrected_target": correct_answer,
                 "why_wrong": explanation,
-                "repair_hint": infer_grammar_profile(concept).repair if concept else "Review the requested form, then answer a fresh version of this exercise.",
+                "repair_hint": (
+                    infer_grammar_profile(concept).repair
+                    if concept
+                    else learner_text("brief.repair_review_requested_form", language)
+                ),
                 "severity": 2,
                 "recurring": True,
                 "task_error_type": subcategory or "brief_exercise_error",
@@ -320,6 +345,7 @@ class BriefExerciseService:
         *,
         prompt: str = "",
         concept_id: int | None = None,
+        language: str | None = None,
     ) -> dict[str, Any]:
         """Simple fallback check without LLM."""
         # Normalize for comparison
@@ -341,6 +367,7 @@ class BriefExerciseService:
             return self._build_grammar_override(
                 concept=concept,
                 correct_answer=correct_answer,
+                language=language,
             )
         
         # Check for partial match
@@ -353,7 +380,7 @@ class BriefExerciseService:
         if is_correct:
             return {
                 "is_correct": True,
-                "feedback": "Richtig! 🎉",
+                "feedback": learner_text("brief.feedback_exact_correct", language),
                 "explanation": "",
                 "sample_solution": correct_answer,
                 "score": 10,
@@ -361,7 +388,7 @@ class BriefExerciseService:
         elif similarity > 0.5:
             return {
                 "is_correct": False,
-                "feedback": f"Fast! Die richtige Antwort ist: {correct_answer}",
+                "feedback": learner_text("brief.feedback_near", language, answer=correct_answer),
                 "explanation": "",
                 "sample_solution": correct_answer,
                 "score": 5
@@ -369,7 +396,7 @@ class BriefExerciseService:
         else:
             return {
                 "is_correct": False,
-                "feedback": f"Leider falsch. Richtig wäre: {correct_answer}",
+                "feedback": learner_text("brief.feedback_incorrect", language, answer=correct_answer),
                 "explanation": "",
                 "sample_solution": correct_answer,
                 "score": 2

@@ -1,0 +1,6 @@
+{
+  "fixture": "unknown_legacy_assistance",
+  "private": {
+    "legacy_rows": "Pre-V2 attempts have no assistance column; do not infer."
+  }
+}

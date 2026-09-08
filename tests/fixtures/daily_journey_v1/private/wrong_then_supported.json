@@ -1,0 +1,11 @@
+{
+  "fixture": "wrong_then_supported",
+  "private": {
+    "first_attempt": {
+      "text": "Je veux un café",
+      "assistance": "hint",
+      "evidence_kind": "produced_supported"
+    },
+    "policy": "Supported success must not be recorded as independent production."
+  }
+}

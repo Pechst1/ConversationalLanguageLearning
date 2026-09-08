@@ -131,14 +131,11 @@ function getMastheadSection(pathname: string) {
   if (productSection === 'missions') return 'missions';
   if (productSection === 'feuilleton') return 'feuilleton';
   if (productSection === 'settings') return 'settings';
-  if (pathname === '/dashboard') return 'studio';
   if (pathname.startsWith('/learn')) return 'conversation';
-  if (pathname === '/atelier' || pathname === '/daily-practice') return 'studio';
+  if (pathname === '/atelier') return 'studio';
   if (pathname === '/grammar' || pathname === '/vocabulary') return 'notebook';
   if (pathname === '/missions') return 'missions';
   if (pathname === '/graphic-novel') return 'feuilleton';
-  if (pathname === '/practice' || pathname === '/sessions') return 'review';
-  if (pathname === '/progress' || pathname === '/achievements') return 'progress';
   if (pathname === '/settings') return 'settings';
   return undefined;
 }

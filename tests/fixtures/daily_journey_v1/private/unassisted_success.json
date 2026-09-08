@@ -1,0 +1,8 @@
+{
+  "fixture": "unassisted_success",
+  "private": {
+    "learner_text": "Je voudrais un café, s'il vous plaît. Je m'installe en terrasse.",
+    "evidence_kind": "produced_independent",
+    "outcome_key": "served_at_terrace"
+  }
+}

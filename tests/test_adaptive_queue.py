@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
@@ -40,7 +40,7 @@ def seeded_user(db_session):
 
 def test_review_performance_calculation(db_session, seeded_user):
     user, _, progress = seeded_user
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     ratings = [3, 2, 1]
     logs = [
         ReviewLog(progress=progress, rating=rating, review_date=now - timedelta(days=index))
@@ -57,7 +57,7 @@ def test_review_performance_calculation(db_session, seeded_user):
 
 def test_adaptive_review_ratio_poor_performance(db_session, seeded_user):
     user, _, progress = seeded_user
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     logs = [
         ReviewLog(progress=progress, rating=0, review_date=now - timedelta(days=day))
         for day in range(1, 4)
@@ -80,7 +80,7 @@ def test_new_word_budget_respects_due_reviews(db_session):
     db_session.add(user)
     db_session.flush()
 
-    today = datetime.now(timezone.utc).date()
+    today = datetime.now(UTC).date()
     for index in range(20):
         word = VocabularyWord(
             language="fr",
@@ -116,7 +116,7 @@ def test_learning_queue_surfaces_upcoming_anki_reviews(db_session):
     db_session.add(user)
     db_session.flush()
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     for offset in range(3):
         word = VocabularyWord(
             language="fr",
@@ -158,7 +158,7 @@ def test_due_count_includes_upcoming_window(db_session):
     db_session.add(user)
     db_session.flush()
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     word = VocabularyWord(
         language="fr",
         word="prévoir",

@@ -58,15 +58,15 @@ export default function SignInPage() {
   return (
     <>
       <Head>
-        <title>Sign in - Atelier</title>
+        <title>Sign in · L’Atelier</title>
       </Head>
 
       <main className="auth-page">
         <section className="auth-shell" aria-labelledby="signin-title">
           <div className="auth-brand-panel">
-            <Link className="auth-brand" href="/" aria-label="Open Atelier home">
+            <Link className="auth-brand" href="/" aria-label="Open L’Atelier home">
               <AtelierMark />
-              <span>Atelier</span>
+              <span>L’Atelier</span>
             </Link>
 
             <div className="auth-copy">
@@ -96,7 +96,12 @@ export default function SignInPage() {
               </p>
             </div>
 
-            <form onSubmit={handleSubmit(onSubmit)} className="auth-form">
+            <form
+              method="post"
+              action="/api/auth/pre-hydration"
+              onSubmit={handleSubmit(onSubmit)}
+              className="auth-form"
+            >
               <Input
                 {...register('email')}
                 type="email"
@@ -144,8 +149,8 @@ export default function SignInPage() {
             justify-items: center;
             padding: calc(max(18px, env(safe-area-inset-top)) + 12px) 16px calc(max(22px, env(safe-area-inset-bottom)) + 10px);
             background:
-              linear-gradient(rgba(20, 17, 13, .035) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(20, 17, 13, .025) 1px, transparent 1px),
+              linear-gradient(rgb(var(--app-ink-rgb) / .035) 1px, transparent 1px),
+              linear-gradient(90deg, rgb(var(--app-ink-rgb) / .025) 1px, transparent 1px),
               var(--app-paper);
             background-size: 100% 34px, 34px 100%, auto;
             color: var(--app-ink);
@@ -157,7 +162,6 @@ export default function SignInPage() {
             overflow: hidden;
             border: 1px solid var(--app-ink);
             background: var(--app-sheet);
-            box-shadow: 7px 7px 0 var(--app-ink);
           }
 
           .auth-brand-panel,
@@ -283,8 +287,29 @@ export default function SignInPage() {
             text-underline-offset: 4px;
           }
 
+          /* Soft journal action: pill geometry, solid ink on paper, sentence
+             case. !important beats the shared Button's Tailwind utilities. */
           :global(.auth-submit) {
             min-height: 54px;
+            padding-left: 22px !important;
+            padding-right: 22px !important;
+            border-radius: 999px !important;
+            border-color: var(--app-ink) !important;
+            background: var(--app-ink) !important;
+            color: var(--app-paper) !important;
+            font-size: var(--t-body) !important;
+            font-weight: 600 !important;
+            letter-spacing: .01em !important;
+            text-transform: none !important;
+          }
+
+          :global(.auth-submit:active) {
+            background: var(--app-paper-2) !important;
+            color: var(--app-ink) !important;
+          }
+
+          :global(.auth-submit:disabled) {
+            opacity: .5 !important;
           }
 
           @media (min-width: 780px) {
@@ -295,7 +320,6 @@ export default function SignInPage() {
 
             .auth-shell {
               grid-template-columns: minmax(320px, .82fr) minmax(380px, 1fr);
-              box-shadow: 10px 10px 0 var(--app-ink);
             }
 
             .auth-brand-panel {

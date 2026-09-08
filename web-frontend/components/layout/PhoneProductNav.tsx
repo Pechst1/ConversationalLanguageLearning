@@ -9,131 +9,94 @@ type PhoneProductNavProps = {
   placement?: 'fixed' | 'embedded';
 };
 
+/**
+ * The four-tab bar, drawn as the Claude design draws it (Atelier App.dc.html,
+ * TAB BAR): a paper surface over a 1px line, each tab an icon in a 44×28 pill
+ * over an 11px sentence-case label; the active tab gets the line-coloured pill,
+ * ink text and the bold weight. The icons are the Bauhaus mark's shapes with
+ * the design's rounded corners.
+ *
+ * The nav carries the `av2` class itself, so the system's tokens (and its
+ * light/dark handling) resolve on every page it sits under — the legacy pages
+ * included. Routes, labels and the fixed/embedded placements are unchanged.
+ */
 export default function PhoneProductNav({ active, placement = 'fixed' }: PhoneProductNavProps) {
   const router = useRouter();
   const activeSection = active || resolveProductSection(router.pathname);
 
   return (
-    <nav className={`phone-product-nav ${placement}`} aria-label="Primary">
+    <nav className={`av2 av2-tabbar phone-product-nav ${placement}`} aria-label="Primary">
       {PHONE_PRODUCT_TABS.map((item) => {
         const isActive = item.id === activeSection;
         return (
           <Link
             key={item.id}
-            className={isActive ? 'active' : ''}
+            className="av2-tabbar__tab"
             href={item.href}
             aria-current={isActive ? 'page' : undefined}
           >
-            <PhoneProductIcon kind={item.icon} />
+            <span className="av2-tab__pill" aria-hidden="true">
+              <PhoneProductIcon kind={item.icon} active={isActive} />
+            </span>
             <span>{item.label}</span>
           </Link>
         );
       })}
-      <style jsx global>{`
-        .phone-product-nav {
-          --nav-paper: var(--app-paper, #f1ece1);
-          --nav-sheet: var(--app-sheet, #f8f3e8);
-          --nav-ink: var(--app-ink, #14110d);
-          --nav-muted: var(--app-ink-3, #8a826f);
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-          min-height: var(--phone-bottom-nav-space);
-          padding: 0 0 var(--phone-safe-bottom-space);
-          border-top: 1px solid var(--nav-ink);
-          background: var(--nav-paper);
-        }
-        .phone-product-nav.fixed {
-          position: fixed;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          z-index: 70;
-          display: none;
-        }
-        .phone-product-nav.embedded {
-          display: grid;
-          flex: 0 0 auto;
-        }
-        .phone-product-nav a {
-          min-width: 0;
-          min-height: var(--phone-bottom-nav-height);
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          gap: 5px;
-          margin-top: -1px;
-          border-top: 2px solid transparent;
-          color: var(--nav-muted);
-          text-decoration: none;
-          font-family: var(--app-grotesk, Inter, ui-sans-serif, system-ui, sans-serif);
-          font-size: 10px;
-          font-weight: 900;
-          letter-spacing: .12em;
-          line-height: 1;
-          text-transform: uppercase;
-        }
-        .phone-product-nav a.active {
-          border-top-color: var(--nav-ink);
-          background: var(--nav-sheet);
-          color: var(--nav-ink);
-        }
-        .phone-product-nav svg {
-          width: 22px;
-          height: 22px;
-          flex: 0 0 auto;
-        }
-        .phone-product-nav span {
-          max-width: 100%;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-        @media (max-width: 760px) {
-          .phone-product-nav.fixed {
-            display: grid;
-          }
-        }
-        @media (max-width: 420px) {
-          .phone-product-nav a {
-            font-size: 9px;
-            letter-spacing: .08em;
-          }
-        }
-      `}</style>
     </nav>
   );
 }
 
-function PhoneProductIcon({ kind }: { kind: 'mark' | 'mission' | 'feuilleton' | 'book' }) {
+function PhoneProductIcon({
+  kind,
+  active,
+}: {
+  kind: 'mark' | 'mission' | 'feuilleton' | 'book';
+  active: boolean;
+}) {
   if (kind === 'mark') {
+    // The brand's four-shape mark in its own colours — the one full-colour
+    // spot in the otherwise monochrome nav, in both themes.
     return (
-      <svg viewBox="0 0 20 20" aria-hidden="true">
-        <rect x="0" y="0" width="8" height="8" fill="currentColor" />
-        <path d="M20 0 A 12 12 0 0 0 8 12 L 20 12 Z" fill="currentColor" />
-        <rect x="0" y="12" width="8" height="8" fill="currentColor" />
+      <svg width="16" height="16" viewBox="0 0 28 28" aria-hidden="true">
+        <rect x="0" y="0" width="11" height="11" rx="2" fill="var(--av2-ink)" />
+        <circle cx="22" cy="6" r="6" fill="var(--av2-blue)" />
+        <rect x="0" y="17" width="11" height="11" rx="2" fill="var(--av2-yellow)" />
+        <path d="M17 28L23 16L28 28H17Z" fill="var(--av2-red)" />
       </svg>
     );
   }
+  const common = {
+    width: 18,
+    height: 18,
+    viewBox: '0 0 20 20',
+    fill: 'none',
+    stroke: 'currentColor',
+    'aria-hidden': true as const,
+  };
   if (kind === 'mission') {
     return (
-      <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
-        <path d="M10 2.5 18 17.5H2L10 2.5Z" stroke="currentColor" strokeWidth="1.8" />
+      <svg {...common}>
+        <path
+          d="M10 2.5 18 17.5H2L10 2.5Z"
+          strokeWidth={2}
+          strokeLinejoin="round"
+          fill={active ? 'currentColor' : 'none'}
+        />
       </svg>
     );
   }
   if (kind === 'feuilleton') {
     return (
-      <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
-        <rect x="3" y="3" width="14" height="14" stroke="currentColor" strokeWidth="1.8" />
-        <path d="M10 3V17M3 10H17" stroke="currentColor" strokeWidth="1.4" />
+      <svg {...common}>
+        <rect x="3" y="3" width="14" height="14" rx="3" strokeWidth={2} />
+        <path d="M10 3V17M3 10H17" strokeWidth={1.5} />
       </svg>
     );
   }
   return (
-    <svg viewBox="0 0 20 20" aria-hidden="true" fill="none">
-      <rect x="3" y="2" width="13" height="16" stroke="currentColor" strokeWidth="1.6" />
-      <path d="M3 4h13M3 6h13" stroke="currentColor" strokeWidth="1" />
-      <path d="M11 2v8l-2-2-2 2V2" fill="currentColor" />
+    <svg {...common}>
+      <rect x="3" y="2" width="13" height="16" rx="2" strokeWidth={1.8} />
+      <path d="M11 2v8l-2-2-2 2V2" fill="currentColor" strokeWidth={1.5} />
     </svg>
   );
 }

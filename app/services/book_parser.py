@@ -12,16 +12,14 @@ from __future__ import annotations
 import re
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import IO, Sequence
 
 from loguru import logger
 from sqlalchemy.orm import Session
 
-from app.db.models.story import Story, Chapter, Scene
 from app.db.models.npc import NPC
-from app.db.models.user import User
+from app.db.models.story import Chapter, Scene, Story
 from app.services.llm_service import LLMService
 
 
@@ -33,7 +31,7 @@ class ParsedChapter:
     order_index: int
     content: str
     estimated_word_count: int
-    scenes: list["ParsedScene"] = field(default_factory=list)
+    scenes: list[ParsedScene] = field(default_factory=list)
 
 
 @dataclass
@@ -72,7 +70,7 @@ class BookParseResult:
     estimated_duration_minutes: int
     
     # Metadata
-    parsed_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    parsed_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     total_word_count: int = 0
 
 
@@ -362,7 +360,7 @@ class BookParserService:
             if len(scene.characters_present) > 1:
                 objectives.append({
                     "id": f"discover_{self._slugify(main_char)}",
-                    "description": f"Erfahre mehr über die Situation",
+                    "description": "Erfahre mehr über die Situation",
                     "type": "discovery",
                     "optional": True,
                 })
@@ -388,10 +386,11 @@ class BookParserService:
     def _extract_epub_text(self, content: bytes) -> str:
         """Extract plain text from EPUB file."""
         try:
-            import ebooklib
-            from ebooklib import epub
             from io import BytesIO
+
+            import ebooklib
             from bs4 import BeautifulSoup
+            from ebooklib import epub
             
             book = epub.read_epub(BytesIO(content))
             text_parts = []

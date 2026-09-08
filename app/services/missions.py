@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 import re
 import unicodedata
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
@@ -14,21 +14,30 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.db.models.atelier import AtelierSession
 from app.db.models.error import UserError
-from app.db.models.grammar import GrammarConcept
+from app.db.models.grammar import GrammarConcept, GrammarConceptLocalization
 from app.db.models.mission import RealWorldMission, RealWorldMissionAttempt, RealWorldMissionTurn
 from app.db.models.serial import SerialEpisode, SerialThread
-from app.db.models.vocabulary import VocabularyWord
 from app.db.models.user import User
+from app.db.models.vocabulary import VocabularyWord
 from app.services.atelier_assets import AtelierAssetService
+from app.services.atelier_rewards import AtelierRewardService
+from app.services.daily_words import DailyWordSlateService
 from app.services.error_memory import ErrorMemoryService, serialize_error_memory
+from app.services.glosses import (
+    DEFAULT_GLOSS_LANGUAGE,
+    EXPLANATION_LANGUAGE_NAMES,
+    gloss_from_map,
+    gloss_payload,
+    normalize_language,
+    word_gloss,
+)
+from app.services.learner_copy import learner_text
 from app.services.llm_service import LLMProviderError, LLMService
 from app.services.news_service import NewsService
 from app.services.progress import ProgressService
 from app.services.serial_arc_planner import cefr_generation_profile
-from app.services.atelier_rewards import AtelierRewardService
-from app.services.vocabulary_credit import VocabularyCreditService
 from app.services.vocabulary_coverage import VocabularyCoverageService, normalize_category
-
+from app.services.vocabulary_credit import VocabularyCreditService
 
 MISSION_CORRECTION_PROMPT_VERSION = "mission-correction-v1"
 MISSION_FAST_CORRECTION_PROMPT_VERSION = "mission-correction-fast-v1"
@@ -497,7 +506,12 @@ def _clean_feedback(text: Any) -> str:
     cleaned = str(text or "").strip()
     cleaned = re.sub(r"\b[Tt]he learner\b", "you", cleaned)
     cleaned = re.sub(r"\b[Tt]he user\b", "you", cleaned)
-    return cleaned
+    # Providers sprinkle markdown into prose that is printed as plain text on the
+    # page; a trailing "**" read as a typo in the correction itself.
+    cleaned = re.sub(r"`([^`]+)`", r"« \1 »", cleaned)
+    cleaned = cleaned.replace("`", "")
+    cleaned = re.sub(r"\*{1,3}", "", cleaned)
+    return re.sub(r"\s{2,}", " ", cleaned).strip(" -–—:;,")
 
 
 def _concept_title(concept: GrammarConcept, asset_service: AtelierAssetService | None = None) -> str:
@@ -507,8 +521,12 @@ def _concept_title(concept: GrammarConcept, asset_service: AtelierAssetService |
             title = blueprint.get("display_title")
             if title:
                 return str(title)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug(
+                "Could not load approved concept title",
+                concept_id=concept.id,
+                error=str(exc),
+            )
     return concept.name
 
 
@@ -541,6 +559,115 @@ def _normalize_phrase(value: Any) -> str:
     text = unicodedata.normalize("NFKD", str(value or ""))
     ascii_text = text.encode("ascii", "ignore").decode("ascii")
     return re.sub(r"[^a-z0-9]+", " ", ascii_text.lower()).strip()
+
+
+_QUOTE_VARIANTS = re.compile(r"[’‘‚‛`´]")
+
+
+def _normalized_repair_text(value: Any) -> str:
+    """Case/whitespace/punctuation-insensitive form for echo detection.
+
+    Curly and straight apostrophes fold together (iOS types U+2019), but accents
+    stay significant — "probleme" -> "problème" is a real correction and must not
+    compare equal, so this deliberately does NOT reuse `_normalize_phrase`.
+    """
+    text = unicodedata.normalize("NFC", str(value or "")).casefold()
+    text = _QUOTE_VARIANTS.sub("'", text)
+    text = re.sub(r"[^\w']+", " ", text)
+    return " ".join(text.split())
+
+
+# A correction card shows ONE short fragment. Anything wider is a rewrite of the
+# learner's message, not a repair — the live corrector kept returning whole
+# sentences (and, for a one-word reply, an entirely invented message) under the
+# "corrected_target" key.
+MISSION_FRAGMENT_MAX_WORDS = 6
+
+# Corrector-internal / task-and-style commentary that must never reach the page.
+# These are judgments about the *reply* (too short, too vague, off topic) or
+# leaks of the correction prompt itself — neither is a French language error.
+_META_FEEDBACK_MARKERS: tuple[str, ...] = (
+    "short fragment",
+    "fragment should",
+    "should be corrected",
+    "corrected_target",
+    "learner_text",
+    "why_wrong",
+    "repair_hint",
+    "task_error_type",
+    "too short",
+    "too long",
+    "too vague",
+    "lacks content",
+    "lacks detail",
+    "not specific enough",
+    "off topic",
+    "off-topic",
+    "does not answer",
+    "doesn't answer",
+    "no answer yet",
+    "keep a concrete",
+    "add a concrete",
+    "needs address",
+    "empty response",
+    # Same complaints, in the learner's language (the prose is no longer English).
+    "phrase incomplète",
+    "phrase incomplete",
+    "pas assez",
+    "trop court",
+    "trop vague",
+    "trop long",
+    "manque de contenu",
+    "hors sujet",
+    "zu kurz",
+    "zu vage",
+    "unvollständig",
+)
+
+# "[votre adresse]", "{name}", "XXX" — scaffolding a provider slipped into a
+# "polished" answer. Printing it as the learner's corrected reply is worse than
+# printing nothing.
+_PLACEHOLDER_PATTERN = re.compile(r"[\[\{][^\]\}]{1,60}[\]\}]|\bx{3,}\b", re.IGNORECASE)
+
+
+def _repair_tokens(value: Any) -> list[str]:
+    return _normalized_repair_text(value).split()
+
+
+def _narrow_repair_span(learner: str, corrected: str) -> tuple[str, str] | None:
+    """Shrink a sentence-wide "correction" to the fragment that actually changed.
+
+    Returns the (learner, corrected) fragment pair, or None when there is
+    nothing to show: either the two texts are identical (an echo) or the change
+    is so wide it is a rewrite rather than a repair.
+    """
+    learner_words = learner.split()
+    corrected_words = corrected.split()
+    learner_keys = _repair_tokens(learner)
+    corrected_keys = _repair_tokens(corrected)
+    if len(learner_words) != len(learner_keys) or len(corrected_words) != len(corrected_keys):
+        # Punctuation split the two views apart; fall back to a size check only.
+        if max(len(learner_words), len(corrected_words)) > MISSION_FRAGMENT_MAX_WORDS:
+            return None
+        return learner.strip(), corrected.strip()
+
+    start = 0
+    while start < len(learner_keys) and start < len(corrected_keys) and learner_keys[start] == corrected_keys[start]:
+        start += 1
+    end = 0
+    while (
+        end < len(learner_keys) - start
+        and end < len(corrected_keys) - start
+        and learner_keys[len(learner_keys) - 1 - end] == corrected_keys[len(corrected_keys) - 1 - end]
+    ):
+        end += 1
+    learner_span = learner_words[start : len(learner_words) - end]
+    corrected_span = corrected_words[start : len(corrected_words) - end]
+    if not learner_span and not corrected_span:
+        return None
+    if max(len(learner_span), len(corrected_span)) > MISSION_FRAGMENT_MAX_WORDS:
+        return None
+    return " ".join(learner_span).strip(), " ".join(corrected_span).strip()
 
 
 class MissionGenerator:
@@ -858,9 +985,7 @@ class MissionGenerator:
             translations = item.get("translations") if isinstance(item.get("translations"), dict) else {}
             translation = (
                 _compact_text(item.get("translation"), max_length=90)
-                or _compact_text(translations.get("de"), max_length=90)
-                or _compact_text(translations.get("en"), max_length=90)
-                or _compact_text(translations.get("fr"), max_length=90)
+                or _compact_text(gloss_from_map(translations, user.native_language), max_length=90)
             )
             selected.append(
                 {
@@ -890,12 +1015,7 @@ class MissionGenerator:
                     {
                         "word_id": word.id,
                         "word": word.word,
-                        "translation": word.german_translation or word.english_translation or word.french_translation,
-                        "translations": {
-                            "de": word.german_translation,
-                            "en": word.english_translation,
-                            "fr": word.french_translation,
-                        },
+                        **gloss_payload(word, user.native_language),
                         "bucket": "preferred",
                         "scheduler": "explicit",
                         "priority_score": 1.0,
@@ -905,6 +1025,39 @@ class MissionGenerator:
                         "example_translation": word.example_translation,
                     }
                 )
+
+        # "Les mots du jour": the day's due/fragile slate words lead the
+        # default daily mission (capped so recently-nailed words keep a slot),
+        # so the same vocabulary crosses read → retrieve → produce in one day.
+        # Seeded (preferred) and category-themed missions keep their own
+        # identity and are left alone.
+        if len(selected) < limit and not preferred_ids and not active_category:
+            slate_ids = [
+                word_id
+                for word_id in DailyWordSlateService(self.db).focus_word_ids(user=user)
+                if word_id not in seen_word_ids
+            ][: max(1, limit - 1)]
+            if slate_ids:
+                rows = self.db.query(VocabularyWord).filter(VocabularyWord.id.in_(slate_ids)).all()
+                by_id = {row.id: row for row in rows}
+                for word_id in slate_ids:
+                    word = by_id.get(word_id)
+                    if not word:
+                        continue
+                    add_item(
+                        {
+                            "word_id": word.id,
+                            "word": word.word,
+                            **gloss_payload(word, user.native_language),
+                            "bucket": "mot_du_jour",
+                            "scheduler": "slate",
+                            "priority_score": 0.9,
+                            "part_of_speech": word.part_of_speech,
+                            "topic_tags": word.topic_tags or [],
+                            "example_sentence": word.example_sentence,
+                            "example_translation": word.example_translation,
+                        }
+                    )
 
         if len(selected) < limit:
             recently_nailed = VocabularyCoverageService(self.db).recently_nailed_vocabulary(
@@ -936,12 +1089,7 @@ class MissionGenerator:
                     {
                         "word_id": word.id,
                         "word": word.word,
-                        "translation": word.german_translation or word.english_translation or word.french_translation,
-                        "translations": {
-                            "de": word.german_translation,
-                            "en": word.english_translation,
-                            "fr": word.french_translation,
-                        },
+                        **gloss_payload(word, user.native_language),
                         "bucket": "topic",
                         "scheduler": "explicit",
                         "priority_score": 0.5,
@@ -995,7 +1143,7 @@ class MissionGenerator:
         ask = (
             _compact_text(messenger.get("success_signal"), max_length=160)
             or _compact_text(brief, max_length=160)
-            or "Send one natural French reply that solves the practical task."
+            or "Une réponse en français qui règle la situation."
         )
         used_word_ids = _dedupe_ints([item.get("word_id") for item in vocabulary])
         used_verb_lemmas = [
@@ -1080,7 +1228,7 @@ class MissionGenerator:
 
     @staticmethod
     def _fuel_detail(*, fuel_source: str, active_category: str | None) -> dict[str, Any]:
-        month = datetime.now(timezone.utc).month
+        month = datetime.now(UTC).month
         seasonal_seed = {
             1: "January paperwork and winter errands",
             2: "grey-weather routines",
@@ -1259,9 +1407,9 @@ class MissionGenerator:
 
     def _custom_opening(self, *, relationship: str, register: str, outcome: str, scenario: str) -> str:
         if "formal" in register:
-            return f"Bonjour, expliquez-moi la situation clairement. Quel résultat souhaitez-vous obtenir ?"
+            return "Bonjour, expliquez-moi la situation clairement. Quel résultat souhaitez-vous obtenir ?"
         if "informal" in register:
-            return f"D'accord, raconte-moi vite la situation. Qu'est-ce que tu veux obtenir exactement ?"
+            return "D'accord, raconte-moi vite la situation. Qu'est-ce que tu veux obtenir exactement ?"
         return f"D'accord, explique-moi le contexte. Le but, c'est bien: {outcome}"
 
     def _custom_cues(self, *, scenario: str, register: str) -> list[str]:
@@ -1334,6 +1482,11 @@ class MissionGenerator:
         stakes_level: int = 1,
     ) -> list[dict[str, Any]]:
         asset_service = AtelierAssetService(self.db)
+        # Objective labels are printed on the resolved dossier, so the concept
+        # names follow the publication-language contract (authored `name_fr`,
+        # same source La Une and l'Épreuve read) and fall back to the catalog
+        # name only when no 'fr' row exists.
+        titles_fr = self._concept_titles_fr(concepts[:3])
         concept_limit = 3
         errata_limit = 2
         vocabulary_limit = 3
@@ -1351,7 +1504,7 @@ class MissionGenerator:
             objectives.append(
                 {
                     "id": "follow_up_move",
-                    "label": "Make the next step explicit enough that the other person can act",
+                    "label": "Rendre la suite assez explicite pour que l'autre puisse agir",
                     "target_count": 1,
                     "kind": "pragmatics",
                     "required": stakes_level >= 3,
@@ -1362,18 +1515,21 @@ class MissionGenerator:
             objectives.append(
                 {
                     "id": "register_pressure",
-                    "label": "Keep the register precise under pressure",
+                    "label": "Tenir le registre sous pression",
                     "target_count": 1,
                     "kind": "register",
                     "required": True,
                     "stakes_level": stakes_level,
                 }
             )
-        for index, concept in enumerate(concepts[:concept_limit], start=1):
+        # The enumeration index used to print as the count ("Use 1... / Use 2... /
+        # Use 3 clear instance of ..."), so three objectives that each ask for one
+        # instance read like an escalating quota. The count is `target_count`.
+        for concept in concepts[:concept_limit]:
             objectives.append(
                 {
                     "id": f"concept_{concept.id}",
-                    "label": f"Use {index} clear instance of {_concept_title(concept, asset_service)}",
+                    "label": f"Placer une fois : {titles_fr.get(concept.id) or _concept_title(concept, asset_service)}",
                     "target_count": 1,
                     "kind": "grammar",
                     "concept_id": concept.id,
@@ -1385,7 +1541,7 @@ class MissionGenerator:
             objectives.append(
                 {
                     "id": f"erratum_{error.id}",
-                    "label": f"Repair: {error.display_label or error.error_pattern or 'remembered mistake'}",
+                    "label": f"Réparer : {error.display_label or error.error_pattern or 'une erreur retenue'}",
                     "target_count": 1,
                     "kind": error.review_mode or "grammar",
                     "error_id": str(error.id),
@@ -1397,7 +1553,7 @@ class MissionGenerator:
             objectives.append(
                 {
                     "id": f"vocabulary_{item['word_id']}",
-                    "label": f"Use {item['word']} naturally",
+                    "label": f"Placer « {item['word']} » naturellement",
                     "target_count": 1,
                     "kind": "vocabulary",
                     "word_id": item["word_id"],
@@ -1410,13 +1566,27 @@ class MissionGenerator:
             objectives.append(
                 {
                     "id": "source_context",
-                    "label": "Use one attributed detail from the news card",
+                    "label": "Reprendre un détail attribué de la dépêche",
                     "target_count": 1,
                     "kind": "source",
                     "required": False,
                 }
             )
         return objectives
+
+    def _concept_titles_fr(self, concepts: list[GrammarConcept]) -> dict[int, str]:
+        concept_ids = [concept.id for concept in concepts if getattr(concept, "id", None)]
+        if not concept_ids:
+            return {}
+        rows = (
+            self.db.query(GrammarConceptLocalization)
+            .filter(
+                GrammarConceptLocalization.concept_id.in_(concept_ids),
+                GrammarConceptLocalization.locale == "fr",
+            )
+            .all()
+        )
+        return {row.concept_id: row.title for row in rows if row.title}
 
     def _llm_scenario(
         self,
@@ -1448,7 +1618,9 @@ class MissionGenerator:
             "Use the provided domain, channel, contact type, tone, and twist; do not switch to a different setup. "
             "opening_message is the OTHER person's first French text: short, natural, phone-style, in "
             "character. Weave target vocabulary naturally into the situation so the learner needs it, but never "
-            "show a vocabulary list. Keep every French string at the learner's CEFR level. Avoid all recent "
+            "show a vocabulary list. EVERY prose field you return is printed on a French page, so write them all "
+            "in French — title, brief, scene_anchor, success_signal, inbox_context and twist included — plainly "
+            "enough for the learner's CEFR level. Avoid all recent "
             "domains, contacts, channels, and tones. Never reuse a train-station arrival. Return JSON only."
         )
         user_payload = {
@@ -1459,23 +1631,27 @@ class MissionGenerator:
             "due_vocabulary": vocab,
             "chosen_variety": variety,
             "recent_variety_to_avoid": recent_variety[-8:],
+            # Every field below is printed on Le Courrier, a French publication
+            # surface: the headline, the situation, the "on attend de vous" line
+            # and the P.S. all sit in the same French fiction as the chrome, with
+            # a translate glyph beside them for anyone who needs it.
             "fields": {
-                "title": "English, the mission-card heading (max 6 words)",
-                "brief": "English, one or two sentences: what the learner must accomplish",
+                "title": "French, the mission-card headline (max 6 words, no final period)",
+                "brief": "French, one or two sentences: what the learner must accomplish",
                 "contact_name": "the other person's name",
-                "contact_role": "who they are to the learner (landlord, colleague, friend...)",
+                "contact_role": "French, who they are to the learner (propriétaire, collègue, voisine...)",
                 "contact_initials": "two uppercase letters from contact_name",
-                "scene_anchor": "English, one line of where/when this is happening",
-                "thread_title": "short label for the message thread",
+                "scene_anchor": "French, one line of where/when this is happening",
+                "thread_title": "short French label for the message thread",
                 "opening_message": "French, the other person's first text",
-                "ambient_cues": "2-3 short real-world details",
+                "ambient_cues": "2-3 short real-world details, in French",
                 "quick_replies": "2-3 French reply starters at the CEFR level",
-                "success_signal": "English, what a good outcome looks like",
-                "inbox_context": "English, one line on what the other person actually needs",
+                "success_signal": "French, what a good outcome looks like",
+                "inbox_context": "French, one line on what the other person actually needs",
                 "domain": "same domain id as chosen_variety",
                 "channel": "same channel id as chosen_variety",
                 "tone": "same tone id as chosen_variety",
-                "twist": "English, tiny believable complication",
+                "twist": "French, tiny believable complication",
                 "mission_format": "chat_message, voicemail_reply, email_formal, admin_form, or phone_call",
             },
         }
@@ -1712,40 +1888,43 @@ class MissionGenerator:
             return f"Try to include one natural use of {names[0]}."
         return f"Try to include: {', '.join(names[:-1])}, and {names[-1]}."
 
+    # The composer scaffold below is printed verbatim above the learner's draft
+    # box (missions.tsx `formatComposerCopy` prefers the payload over its own
+    # French defaults), so it belongs to the French publication surface.
     def _writing_title(self, mission_type: str) -> str:
         return {
-            "message": "Draft the message",
-            "explain_plan": "Write the plan",
-            "news_summary": "Write the brief",
-            "travel_work": "Write what you would say",
-            "conversation": "Prepare a first reply",
-        }.get(mission_type, "One useful response")
+            "message": "Votre dépêche",
+            "explain_plan": "Votre plan",
+            "news_summary": "Votre brève",
+            "travel_work": "Ce que vous diriez",
+            "conversation": "Votre première réponse",
+        }.get(mission_type, "Votre réponse")
 
     def _writing_instruction(self, mission_type: str) -> str:
         return {
-            "message": "Keep it short enough for a real message: greeting, useful detail, one question, polite close.",
-            "explain_plan": "Use sequence and consequence: first step, backup option, and what will happen next.",
-            "news_summary": "Do not paste the source. Summarize the point and add your own practical consequence.",
-            "travel_work": "Be specific and polite: problem, request, confirmation.",
-            "conversation": "Write the first answer you would say aloud. You can continue in the conversation box below.",
-        }.get(mission_type, "Write a realistic response.")
+            "message": "Gardez la longueur d'un vrai message : salutation, détail utile, une question, formule de politesse.",
+            "explain_plan": "Enchaînez les étapes : première étape, solution de repli, puis ce qui se passera ensuite.",
+            "news_summary": "Ne recopiez pas la source. Résumez l'essentiel et ajoutez la conséquence concrète pour vous.",
+            "travel_work": "Soyez précis et poli : le problème, la demande, la confirmation.",
+            "conversation": "Écrivez la première réponse que vous diriez à voix haute, puis continuez l'échange.",
+        }.get(mission_type, "Écrivez une réponse réaliste.")
 
     def _conversation_title(self, mission_type: str) -> str:
-        return "Back-and-forth scene" if mission_type == "conversation" else "Practice a follow-up turn"
+        return "L'échange" if mission_type == "conversation" else "Une réponse de plus"
 
     def _conversation_instruction(self, mission_type: str) -> str:
         if mission_type == "conversation":
-            return "Answer the assistant, then continue for several turns. Each reply should move the situation forward."
-        return "Use this if you want to rehearse the same mission as a short spoken or typed exchange."
+            return "Répondez, puis continuez sur plusieurs tours. Chaque réponse doit faire avancer la situation."
+        return "À utiliser pour rejouer la même situation en quelques répliques, à l'oral ou à l'écrit."
 
     def _task_label(self, mission_type: str) -> str:
         return {
-            "message": "Write a message someone could actually send",
-            "explain_plan": "Explain a concrete plan",
-            "news_summary": "Summarize French news with one consequence",
-            "travel_work": "Handle a travel or work situation",
-            "conversation": "Keep the conversation moving",
-        }.get(mission_type, "Complete the realistic task")
+            "message": "Écrire un message qu'on pourrait vraiment envoyer",
+            "explain_plan": "Expliquer un plan concret",
+            "news_summary": "Résumer l'actualité française avec une conséquence",
+            "travel_work": "Régler une situation de voyage ou de travail",
+            "conversation": "Faire avancer la conversation",
+        }.get(mission_type, "Mener la situation à son terme")
 
     def _placeholder(self, mission_type: str) -> str:
         if mission_type == "news_summary":
@@ -1754,7 +1933,7 @@ class MissionGenerator:
             return "Bonjour, je vous écris parce que..."
         if mission_type == "explain_plan":
             return "D'abord, je vais..."
-        return "Write your mission response here."
+        return "Votre réponse en français…"
 
 
 class MissionCorrectionService:
@@ -1773,13 +1952,17 @@ class MissionCorrectionService:
         mode: str,
         near_realtime: bool = False,
     ) -> dict[str, Any]:
-        deterministic_errata, deterministic_answer = self._deterministic_errata(text)
+        # The authored fallback prose is an *explanation*, so it follows the
+        # learner's native language; the Courrier's fiction around it stays French.
+        language = getattr(user, "native_language", None)
+        deterministic_errata, deterministic_answer = self._deterministic_errata(text, language=language)
         if near_realtime:
             correction = self._fallback_correction(
                 mission=mission,
                 text=text,
                 corrected_answer=deterministic_answer,
                 deterministic_errata=deterministic_errata,
+                language=language,
             )
             correction["_prompt_version"] = MISSION_FAST_CORRECTION_PROMPT_VERSION
         else:
@@ -1788,6 +1971,7 @@ class MissionCorrectionService:
                 text=text,
                 corrected_answer=deterministic_answer,
                 deterministic_errata=deterministic_errata,
+                language=language,
             )
             if deterministic_errata:
                 correction = self._merge_deterministic_errata(
@@ -1795,7 +1979,11 @@ class MissionCorrectionService:
                     deterministic_errata=deterministic_errata,
                     corrected_answer=deterministic_answer,
                 )
-        correction["errata"] = [self._normalize_erratum(item, mission) for item in correction.get("errata") or []]
+        correction["errata"] = self._clean_errata(
+            correction.get("errata") or [],
+            mission=mission,
+            submission_text=text,
+        )
         correction["correction_debug"] = {
             "prompt_version": correction.get("_prompt_version") or MISSION_CORRECTION_PROMPT_VERSION,
             "fallback_used": correction.get("_fallback_used", False),
@@ -1804,10 +1992,194 @@ class MissionCorrectionService:
             "near_realtime": near_realtime,
         }
         correction = self._apply_vocabulary_feedback(mission=mission, text=text, correction=correction)
+        correction["corrected_answer"] = self._complete_corrected_answer(text=text, correction=correction)
+        # Design contract, principle 4: a card headed "Correction" has to be backed
+        # by a repair. When every erratum failed the gates, the provider's polished
+        # rewrite is a style preference — hand back the learner's own sentence so
+        # the page prints no card, no erratum and no "réparation enregistrée".
+        if not self._has_language_repair(correction):
+            correction["corrected_answer"] = text.strip()
         correction.pop("_fallback_used", None)
         correction.pop("_model", None)
         correction.pop("_prompt_version", None)
         return correction
+
+    @staticmethod
+    def _has_language_repair(correction: dict[str, Any]) -> bool:
+        return any(
+            str(item.get("task_error_type") or "") != "task_compliance"
+            and not MissionCorrectionService._is_vocabulary_erratum(item)
+            for item in correction.get("errata") or []
+            if isinstance(item, dict)
+        )
+
+    def _clean_errata(
+        self,
+        errata: list[Any],
+        *,
+        mission: RealWorldMission,
+        submission_text: str,
+    ) -> list[dict[str, Any]]:
+        """The three gates every erratum must pass before it can become a card.
+
+        1. echo — a "correction" identical to what the learner wrote;
+        2. meta — commentary about the reply or about the corrector itself;
+        3. fragment — the fix must be a short span the learner can actually
+           read as a repair, quoted from the message they really sent.
+
+        Vocabulary and task-compliance notes carry their own contract (they
+        deliberately echo the reply and drive credit events), so they skip
+        gates 1 and 3 but still have to be grounded.
+        """
+        cleaned: list[dict[str, Any]] = []
+        for raw in errata:
+            if not isinstance(raw, dict):
+                continue
+            erratum = self._normalize_erratum(raw, mission)
+            if self._is_echo_erratum(erratum, submission_text=submission_text):
+                continue
+            task_type = str(erratum.get("task_error_type") or "")
+            if task_type == "task_compliance" or self._is_vocabulary_erratum(erratum):
+                # These two are authored here, not by the provider: they may
+                # legitimately talk about the reply itself and quote all of it.
+                cleaned.append(erratum)
+                continue
+            if self._is_meta_erratum(erratum):
+                continue
+            if not self._quote_is_grounded(erratum, submission_text=submission_text):
+                continue
+            narrowed = self._narrow_erratum(erratum, submission_text=submission_text)
+            if narrowed is None:
+                continue
+            cleaned.append(narrowed)
+        return cleaned
+
+    @staticmethod
+    def _is_meta_erratum(erratum: dict[str, Any]) -> bool:
+        """True when the feedback judges the reply (or the corrector) rather than the French."""
+        blob = " ".join(
+            str(erratum.get(key) or "")
+            for key in ("why_wrong", "repair_hint", "display_label")
+        ).casefold()
+        return any(marker in blob for marker in _META_FEEDBACK_MARKERS)
+
+    @staticmethod
+    def _quote_is_grounded(erratum: dict[str, Any], *, submission_text: str) -> bool:
+        """The quoted wrong fragment must come from the message the learner sent.
+
+        Providers paraphrase: they quote "une photo" when the learner typed
+        "un photo". A near-quote is fine (the fix is still real); a fragment
+        with no anchor in the submission is a hallucination and is dropped
+        before it can be persisted into error memory.
+        """
+        quoted = _repair_tokens(erratum.get("learner_text"))
+        if not quoted:
+            return True
+        submitted = set(_repair_tokens(submission_text))
+        if not submitted:
+            return False
+        hits = sum(1 for token in quoted if token in submitted)
+        return hits * 5 >= len(quoted) * 3  # at least 60% of the quote is real
+
+    @staticmethod
+    def _is_append_only_suggestion(learner: str, corrected: str) -> bool:
+        """"Oui," -> "Oui, bonsoir Madame Vidal." — nothing was wrong, the
+        corrector just wants more said. That is a remark about the reply, and it
+        arrives in whatever language the provider felt like, so the marker list
+        cannot catch it; the shape can.
+        """
+        learner_keys = _repair_tokens(learner)
+        corrected_keys = _repair_tokens(corrected)
+        if not learner_keys or len(corrected_keys) - len(learner_keys) < 2:
+            return False
+        return corrected_keys[: len(learner_keys)] == learner_keys
+
+    @staticmethod
+    def _is_write_more_suggestion(learner: str, corrected: str, *, submission_text: str) -> bool:
+        """"Oui." -> "Oui, c'est" is not a repair of "Oui." — it is a request for
+        a longer message. Whenever the quote covers the learner's entire reply
+        and the "fix" only extends it, the note is about the task, not the French.
+        """
+        learner_keys = _repair_tokens(learner)
+        corrected_keys = _repair_tokens(corrected)
+        if not learner_keys or learner_keys != _repair_tokens(submission_text):
+            return False
+        return len(corrected_keys) > len(learner_keys) and corrected_keys[: len(learner_keys)] == learner_keys
+
+    @staticmethod
+    def _fragment_is_contiguous(fragment: str, submission_text: str) -> bool:
+        fragment_keys = _repair_tokens(fragment)
+        if not fragment_keys:
+            return True
+        submitted = _repair_tokens(submission_text)
+        window = len(fragment_keys)
+        return any(
+            submitted[index : index + window] == fragment_keys
+            for index in range(0, max(0, len(submitted) - window + 1))
+        )
+
+    def _narrow_erratum(self, erratum: dict[str, Any], *, submission_text: str) -> dict[str, Any] | None:
+        learner = str(erratum.get("learner_text") or "").strip()
+        corrected = str(erratum.get("corrected_target") or "").strip()
+        if not learner or not corrected:
+            # A one-sided note (no quote, or no fix) is only useful while it stays short.
+            widest = max(len(learner.split()), len(corrected.split()))
+            return None if widest > MISSION_FRAGMENT_MAX_WORDS else erratum
+        if self._is_append_only_suggestion(learner, corrected):
+            return None
+        if self._is_write_more_suggestion(learner, corrected, submission_text=submission_text):
+            return None
+        if (
+            len(learner.split()) <= MISSION_FRAGMENT_MAX_WORDS
+            and len(corrected.split()) <= MISSION_FRAGMENT_MAX_WORDS
+        ):
+            return erratum
+        span = _narrow_repair_span(learner, corrected)
+        if span is None:
+            return None
+        narrowed_learner, narrowed_corrected = span
+        if not narrowed_corrected:
+            return None
+        # Trimming a sentence pair with several separate changes can splice two
+        # distant words into one nonsense fragment ("un porte" -> "une photo").
+        # A fragment this method synthesised has to be readable back in the
+        # learner's own message, word for word.
+        if not self._fragment_is_contiguous(narrowed_learner, submission_text):
+            return None
+        return {**erratum, "learner_text": narrowed_learner, "corrected_target": narrowed_corrected}
+
+    @staticmethod
+    def _complete_corrected_answer(*, text: str, correction: dict[str, Any]) -> str:
+        """Keep the polished answer complete — but still the learner's own message.
+
+        A provider may return an excerpt (too short, repaired below) or, for a
+        one-word reply, invent a whole new message with template placeholders.
+        Both are refused: what prints under "Correction" has to be a cleaned-up
+        version of what the learner actually sent.
+        """
+        submitted = text.strip()
+        candidate = str(correction.get("corrected_answer") or "").strip()
+        learner_words = re.findall(r"\S+", submitted)
+        candidate_words = re.findall(r"\S+", candidate)
+        minimum_words = max(3, round(len(learner_words) * 0.65))
+        maximum_words = max(minimum_words + 6, round(len(learner_words) * 1.8) + 6)
+        if candidate and _PLACEHOLDER_PATTERN.search(candidate):
+            candidate = ""
+            candidate_words = []
+        if candidate and (not learner_words or minimum_words <= len(candidate_words) <= maximum_words):
+            return candidate
+
+        repaired = submitted
+        for erratum in correction.get("errata") or []:
+            task_type = str(erratum.get("task_error_type") or "")
+            if task_type == "task_compliance" or task_type.startswith("vocabulary"):
+                continue
+            wrong = str(erratum.get("learner_text") or "").strip()
+            fixed = str(erratum.get("corrected_target") or "").strip()
+            if not wrong or not fixed or wrong.casefold() == fixed.casefold():
+                continue
+            repaired = re.sub(re.escape(wrong), lambda _match, value=fixed: value, repaired, count=1, flags=re.IGNORECASE)
+        return repaired or candidate
 
     def persist_errata(
         self,
@@ -1822,6 +2194,12 @@ class MissionCorrectionService:
         persisted: list[dict[str, Any]] = []
         for index, erratum in enumerate(correction.get("errata") or []):
             if self._is_vocabulary_erratum(erratum):
+                continue
+            # "Too little context" / "Missing mission response" are notes about the
+            # task, not French the learner got wrong. Filing them as errata polluted
+            # the review deck and inflated the "N réparations enregistrées" line
+            # under a card that showed no repair at all.
+            if str(erratum.get("task_error_type") or "") == "task_compliance":
                 continue
             update = memory.record_erratum(
                 user=user,
@@ -1852,21 +2230,40 @@ class MissionCorrectionService:
     def _llm_correction(self, *, user: User, mission: RealWorldMission, text: str, mode: str) -> dict[str, Any] | None:
         if not self.llm:
             return None
+        # An explanation the learner cannot read teaches nothing: follow the same
+        # contract as the Atelier corrector — French stays French, the prose that
+        # explains the mistake follows the learner's own language.
+        gloss_language = EXPLANATION_LANGUAGE_NAMES.get(
+            normalize_language(getattr(user, "native_language", None)),
+            EXPLANATION_LANGUAGE_NAMES[DEFAULT_GLOSS_LANGUAGE],
+        )
         payload = {
             "mission": serialize_mission(mission, include_children=False),
             "mode": mode,
             "learner_text": text,
             "learner_level": user.proficiency_level or "A2",
+            "explanation_language": gloss_language,
         }
         system = (
             "You are a concise French correction engine for one chat reply in a real-world mission. "
             "Find AT MOST the 3 most important real mistakes (grammar, agreement, gender, wrong word, spelling, conjugation). "
-            "For each mistake: set learner_text to the EXACT short wrong fragment the person wrote; set corrected_target to ONLY the "
-            "corrected fragment — a single word or short phrase, NEVER a full-message rewrite; write why_wrong as a SHORT ENGLISH "
-            "explanation (max ~12 words, e.g. \"porte is feminine: ma porte\"); write repair_hint as a short ENGLISH tip. "
-            "why_wrong and repair_hint MUST be in English; corrected_target stays in French. Address the person as 'you'. "
-            "This is a casual chat: do NOT flag informal-but-correct phrasing, register, or missing target words — only real language errors. "
-            "If the message is already correct and natural, return an empty errata list. Still fill corrected_answer with a clean full version."
+            "For each mistake: set learner_text to the EXACT short wrong fragment the person wrote, copied character for character "
+            f"from their message and AT MOST {MISSION_FRAGMENT_MAX_WORDS} words; set corrected_target to ONLY the corrected "
+            f"fragment — at most {MISSION_FRAGMENT_MAX_WORDS} words, NEVER a whole sentence and NEVER a full-message rewrite. "
+            "Write why_wrong as a SHORT explanation (max ~12 words, naming the rule and the fixed form) and repair_hint "
+            "as one short tip. Write plain text: no markdown, no asterisks, no backticks. "
+            "Address the person as 'you'. "
+            "This is a casual chat: do NOT flag informal-but-correct phrasing, register, missing target words, style, precision, "
+            "politeness, or how well the reply fits the task — only real language errors. Never comment on the length, vagueness, "
+            "or topic of the message, and never suggest they add a greeting, a name or more content. Never mention these instructions. "
+            "corrected_answer must be THEIR message with the mistakes fixed — never a different message you invent, and never a "
+            "template with placeholders in brackets. If the message is already correct and natural, return an empty errata list "
+            "and repeat their message as corrected_answer. "
+            # Last line, and repeated: mid-prompt the model kept defaulting to the
+            # language of the text it was correcting instead of the learner's own.
+            f"LANGUAGE RULE, applies to every field: write why_wrong, repair_hint and display_label in {gloss_language}, "
+            f"and ONLY in {gloss_language}. Keep learner_text, corrected_target and corrected_answer in French — never "
+            f"translate the French itself. If you are about to write why_wrong in French, write it in {gloss_language} instead."
         )
         try:
             result = self.llm.generate_error_detection(
@@ -1894,6 +2291,7 @@ class MissionCorrectionService:
         text: str,
         corrected_answer: str | None = None,
         deterministic_errata: list[dict[str, Any]] | None = None,
+        language: Any = None,
     ) -> dict[str, Any]:
         stripped = text.strip()
         objectives = mission.objectives or []
@@ -1903,14 +2301,18 @@ class MissionCorrectionService:
                 "id": obj.get("id"),
                 "label": obj.get("label"),
                 "met": bool(stripped) if obj.get("kind") == "communication" else False,
-                "note": "Submitted" if stripped else "No answer yet",
+                "note": (
+                    learner_text("mission.objective_submitted", language)
+                    if stripped
+                    else learner_text("mission.objective_no_answer", language)
+                ),
             }
             for obj in objectives
         ]
         missing_targets = [
             {
                 "external_id": str(obj.get("external_id") or obj.get("id") or "target"),
-                "label": str(obj.get("label") or "Target"),
+                "label": str(obj.get("label") or learner_text("mission.target_generic_label", language)),
                 "detected_count": 0,
                 "target_count": int(obj.get("target_count") or 1),
                 "missing_count": int(obj.get("target_count") or 1),
@@ -1922,11 +2324,11 @@ class MissionCorrectionService:
         if not stripped:
             errata.append(
                 {
-                    "display_label": "Missing mission response",
+                    "display_label": learner_text("mission.empty_label", language),
                     "learner_text": "",
-                    "corrected_target": "Write a short French response before submitting.",
-                    "why_wrong": "You submitted an empty response, so there is no French to review.",
-                    "repair_hint": "Write two or three sentences that answer the mission brief.",
+                    "corrected_target": learner_text("mission.empty_target", language),
+                    "why_wrong": learner_text("mission.empty_why", language),
+                    "repair_hint": learner_text("mission.empty_hint", language),
                     "severity": 2,
                     "recurring": False,
                     "task_error_type": "task_compliance",
@@ -1936,11 +2338,11 @@ class MissionCorrectionService:
         elif len(words) < 8:
             errata.append(
                 {
-                    "display_label": "Too little context",
+                    "display_label": learner_text("mission.short_label", language),
                     "learner_text": stripped,
                     "corrected_target": stripped,
-                    "why_wrong": "Your response is understandable, but it is too short to prove the mission targets.",
-                    "repair_hint": "Add one reason, one concrete detail, and one target grammar form.",
+                    "why_wrong": learner_text("mission.short_why", language),
+                    "repair_hint": learner_text("mission.short_hint", language),
                     "severity": 2,
                     "recurring": False,
                     "task_error_type": "task_compliance",
@@ -1966,7 +2368,7 @@ class MissionCorrectionService:
             "_model": None,
         }
 
-    def _deterministic_errata(self, text: str) -> tuple[list[dict[str, Any]], str]:
+    def _deterministic_errata(self, text: str, *, language: Any = None) -> tuple[list[dict[str, Any]], str]:
         corrected = text
         errata: list[dict[str, Any]] = []
 
@@ -1980,20 +2382,20 @@ class MissionCorrectionService:
         avet_pattern = re.compile(r"\b(?:(vous)\s+)?(avet)\b", re.IGNORECASE)
         avet_match = avet_pattern.search(text)
         if avet_match:
-            learner_text = avet_match.group(0)
+            wrong_fragment = avet_match.group(0)
             corrected_target = re.sub(
                 r"\bavet\b",
                 lambda match: preserve_case(match.group(0), "avez"),
-                learner_text,
+                wrong_fragment,
                 flags=re.IGNORECASE,
             )
             errata.append(
                 {
-                    "display_label": "Conjugation: vous avez",
-                    "learner_text": learner_text,
+                    "display_label": learner_text("mission.rule_avoir_vous_label", language),
+                    "learner_text": wrong_fragment,
                     "corrected_target": corrected_target,
-                    "why_wrong": "With vous, avoir is avez, not avet.",
-                    "repair_hint": "Use vous avez before a noun or past participle.",
+                    "why_wrong": learner_text("mission.rule_avoir_vous_why", language),
+                    "repair_hint": learner_text("mission.rule_avoir_vous_hint", language),
                     "severity": 2,
                     "recurring": False,
                     "task_error_type": "verb_conjugation",
@@ -2010,16 +2412,16 @@ class MissionCorrectionService:
         probleme_pattern = re.compile(r"\b(probleme)(s?)\b", re.IGNORECASE)
         probleme_match = probleme_pattern.search(text)
         if probleme_match:
-            learner_text = probleme_match.group(0)
+            wrong_fragment = probleme_match.group(0)
             base = preserve_case(probleme_match.group(1), "problème")
             corrected_target = f"{base}{probleme_match.group(2)}"
             errata.append(
                 {
-                    "display_label": "Spelling: problème",
-                    "learner_text": learner_text,
+                    "display_label": learner_text("mission.rule_probleme_label", language),
+                    "learner_text": wrong_fragment,
                     "corrected_target": corrected_target,
-                    "why_wrong": "The French word is problème with an accent grave.",
-                    "repair_hint": "Write problème, or problèmes in the plural.",
+                    "why_wrong": learner_text("mission.rule_probleme_why", language),
+                    "repair_hint": learner_text("mission.rule_probleme_hint", language),
                     "severity": 1,
                     "recurring": False,
                     "task_error_type": "orthography",
@@ -2075,6 +2477,23 @@ class MissionCorrectionService:
         merged["score_0_4"] = min(current_score or score_cap, score_cap)
         return merged
 
+    def _is_echo_erratum(self, erratum: dict[str, Any], *, submission_text: str) -> bool:
+        """True when a "correction" changes nothing the learner wrote.
+
+        Observed live: the LLM echoed the learner's sentence as corrected_target and
+        leaked a meta note about its own constraints into why_wrong. Such an erratum
+        must vanish entirely — no correction card, no persisted repair. Task-compliance
+        notes deliberately echo the reply and vocabulary errata carry credit events,
+        so both are exempt.
+        """
+        task_type = str(erratum.get("task_error_type") or "")
+        if task_type == "task_compliance" or self._is_vocabulary_erratum(erratum):
+            return False
+        corrected = _normalized_repair_text(erratum.get("corrected_target"))
+        if corrected == _normalized_repair_text(erratum.get("learner_text")):
+            return True
+        return bool(corrected) and corrected == _normalized_repair_text(submission_text)
+
     def _normalize_erratum(self, erratum: dict[str, Any], mission: RealWorldMission) -> dict[str, Any]:
         external_id = erratum.get("external_id")
         concept_id = None
@@ -2101,10 +2520,11 @@ class MissionCorrectionService:
         text: str,
         correction: dict[str, Any],
     ) -> dict[str, Any]:
-        vocabulary = self._mission_vocabulary_items(mission)
+        vocabulary = self._shown_vocabulary_items(mission)
         if not vocabulary:
             correction.setdefault("vocabulary_events", [])
             return correction
+        already_missed = self._already_missed_word_ids(mission)
 
         merged = {**correction}
         objective_progress = list(merged.get("objective_progress") or [])
@@ -2175,7 +2595,15 @@ class MissionCorrectionService:
                     "missing_count": 1,
                 }
             )
-            if added_vocab_erratum or int(word_id) in existing_vocab_error_ids or not normalized_text:
+            if (
+                added_vocab_erratum
+                or int(word_id) in existing_vocab_error_ids
+                or int(word_id) in already_missed
+                or not normalized_text
+            ):
+                # One nudge per word per mission. Charging a "missed target" on
+                # every turn punished a four-turn conversation four times over
+                # for the same unused word and inflated the repair counters.
                 continue
             errata.append(
                 self._target_vocabulary_erratum(
@@ -2219,6 +2647,52 @@ class MissionCorrectionService:
         merged["vocabulary_events"] = vocabulary_events
         return merged
 
+    def _shown_vocabulary_items(self, mission: RealWorldMission) -> list[dict[str, Any]]:
+        """Only the target words the Courrier actually prints in its « À placer » ribbon.
+
+        `target_vocabulary_ids` also collects the words linked to the mission's
+        errata, which never reach `prompt_payload.target_vocabulary` and so are
+        never shown. Scoring a learner on a word the page never named is the
+        opposite of the honest-data rule, so the penalty side is limited to the
+        printed slate; positive credit still applies to every target.
+        """
+        shown_ids = _dedupe_ints(
+            item.get("word_id")
+            for item in ((mission.prompt_payload or {}).get("target_vocabulary") or [])
+            if isinstance(item, dict)
+        )
+        items = self._mission_vocabulary_items(mission)
+        if not shown_ids:
+            return items
+        allowed = set(shown_ids)
+        return [item for item in items if int(item.get("word_id") or 0) in allowed]
+
+    def _already_missed_word_ids(self, mission: RealWorldMission) -> set[int]:
+        """Words this mission has already flagged as unused, in an earlier turn."""
+        missed: set[int] = set()
+        for turn in mission.turns or []:
+            for event in (turn.correction_payload or {}).get("vocabulary_events") or []:
+                if not isinstance(event, dict):
+                    continue
+                if str(event.get("event_type") or "") not in {"missed_target", "produced_incorrect"}:
+                    continue
+                for word_id in _dedupe_ints([event.get("word_id")]):
+                    missed.add(word_id)
+        for attempt in mission.attempts or []:
+            for event in (attempt.correction_payload or {}).get("vocabulary_events") or []:
+                if not isinstance(event, dict):
+                    continue
+                if str(event.get("event_type") or "") not in {"missed_target", "produced_incorrect"}:
+                    continue
+                for word_id in _dedupe_ints([event.get("word_id")]):
+                    missed.add(word_id)
+        return missed
+
+    def _mission_native_language(self, mission: RealWorldMission) -> str:
+        """The language this mission's learner reads glosses in."""
+        user = self.db.get(User, mission.user_id) if mission.user_id else None
+        return normalize_language(getattr(user, "native_language", None))
+
     def _mission_vocabulary_items(self, mission: RealWorldMission) -> list[dict[str, Any]]:
         payload_items = [
             item
@@ -2246,7 +2720,7 @@ class MissionCorrectionService:
                     "word_id": word.id,
                     "word": word.word,
                     "normalized_word": word.normalized_word,
-                    "translation": word.german_translation or word.english_translation or word.definition or "",
+                    "translation": word_gloss(word, self._mission_native_language(mission)),
                     "example_sentence": word.example_sentence,
                     "example_translation": word.example_translation,
                 }
@@ -2387,7 +2861,7 @@ class MissionSRSService:
         self.db = db
 
     def seed_phrase_bank(self, *, user: User, mission: RealWorldMission) -> dict[str, Any]:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         phrases = self._phrase_bank(mission)
         saved: list[dict[str, Any]] = []
         for phrase in phrases[:5]:
@@ -2425,7 +2899,9 @@ class MissionSRSService:
         return {
             "saved_count": len(saved),
             "phrase_bank": saved,
-            "review_route": "/daily-practice?focus=mission",
+            # /daily-practice is a legacy home screen that no longer appears in the
+            # product shell; saved mission phrases are reviewed in the Lexique queue.
+            "review_route": "/vocabulary/review?focus=mission",
             "queue_note": "Saved mission phrases are due in the unified SRS queue.",
         }
 
@@ -2519,11 +2995,32 @@ class MissionDebriefService:
         srs_result: dict[str, Any],
     ) -> dict[str, Any]:
         latest_correction = self._latest_correction(attempts=attempts, turns=turns)
-        objective_progress = latest_correction.get("objective_progress") or []
+        # An objective met in turn 1 stays met: reading only the LAST correction
+        # scored a whole conversation on its closing "Oui." and reported 0%
+        # task fit for a mission the learner had actually completed.
+        progress_by_id = self._merged_objective_progress(attempts=attempts, turns=turns)
         objectives = mission.objectives or []
-        met_required = sum(1 for item in objective_progress if item.get("met"))
-        required_total = max(1, len([item for item in objectives if item.get("required")]) or len(objectives) or 1)
-        score = float(latest_correction.get("score_0_4") or 0)
+        objective_results = [
+            {
+                "id": item.get("id"),
+                "label": item.get("label") or item.get("id") or "Mission objective",
+                "required": bool(item.get("required")),
+                "met": bool(progress_by_id.get(str(item.get("id")), {}).get("met")),
+                "note": progress_by_id.get(str(item.get("id")), {}).get("note"),
+            }
+            for item in objectives
+        ]
+        scored_objectives = [item for item in objectives if item.get("required")] or objectives
+        met_required = sum(
+            1
+            for item in scored_objectives
+            if progress_by_id.get(str(item.get("id")), {}).get("met")
+        )
+        required_total = max(1, len(scored_objectives))
+        score = max(
+            (float((payload or {}).get("score_0_4") or 0) for payload in self._all_corrections(attempts=attempts, turns=turns)),
+            default=float(latest_correction.get("score_0_4") or 0),
+        )
         clarity = min(100, round((score / 4) * 70 + min(len(turns), 3) * 10))
         task_fit = min(100, round((met_required / required_total) * 100))
         repair_stability = max(20, 100 - errata_count * 18)
@@ -2546,6 +3043,7 @@ class MissionDebriefService:
                 "label": outcome,
                 "next_best_move": self._next_best_move(mission=mission, errata_count=errata_count, readiness=readiness),
             },
+            "objective_results": objective_results,
             "saved_to_srs": srs_result,
             "next_mission_seed": self._next_mission_seed(mission=mission, readiness=readiness, errata_count=errata_count),
         }
@@ -2560,6 +3058,35 @@ class MissionDebriefService:
         attempt_correction = [attempt.correction_payload or {} for attempt in attempts if attempt.correction_payload]
         return (turn_correction or attempt_correction or [{}])[-1]
 
+    @staticmethod
+    def _all_corrections(
+        *,
+        attempts: list[RealWorldMissionAttempt],
+        turns: list[RealWorldMissionTurn],
+    ) -> list[dict[str, Any]]:
+        return [
+            *[attempt.correction_payload or {} for attempt in attempts if attempt.correction_payload],
+            *[turn.correction_payload or {} for turn in turns if turn.correction_payload],
+        ]
+
+    def _merged_objective_progress(
+        self,
+        *,
+        attempts: list[RealWorldMissionAttempt],
+        turns: list[RealWorldMissionTurn],
+    ) -> dict[str, dict[str, Any]]:
+        """Best result per objective across the whole mission (met once = met)."""
+        merged: dict[str, dict[str, Any]] = {}
+        for correction in self._all_corrections(attempts=attempts, turns=turns):
+            for item in correction.get("objective_progress") or []:
+                if not isinstance(item, dict) or not item.get("id"):
+                    continue
+                key = str(item["id"])
+                current = merged.get(key)
+                if current is None or (item.get("met") and not current.get("met")):
+                    merged[key] = item
+        return merged
+
     def _word_total(self, attempts: list[RealWorldMissionAttempt], turns: list[RealWorldMissionTurn]) -> int:
         texts = [(attempt.answer_payload or {}).get("text", "") for attempt in attempts]
         texts.extend(turn.text for turn in turns)
@@ -2570,21 +3097,23 @@ class MissionDebriefService:
         rules = " ".join(messenger.get("realism_rules") or []).lower()
         return 86 if "formal" in rules or "informal" in rules else 78
 
+    # This label and the next move are printed on the resolved dossier, which is a
+    # publication surface — they speak French like the rest of Le Courrier.
     def _outcome_label(self, *, readiness: int, errata_count: int, turns: int) -> str:
         if readiness >= 85 and errata_count == 0:
-            return "Ready to use in a real conversation."
+            return "Prêt à servir dans une vraie conversation."
         if readiness >= 70:
-            return "Usable, with one careful reread."
+            return "Utilisable, après une relecture attentive."
         if turns == 0:
-            return "Rehearse one live turn before using this."
-        return "Needs a follow-up repair before real use."
+            return "Répétez une réponse en direct avant de vous en servir."
+        return "À reprendre une fois avant de l'envoyer pour de vrai."
 
     def _next_best_move(self, *, mission: RealWorldMission, errata_count: int, readiness: int) -> str:
         if errata_count:
-            return "Review the repair slips in daily practice, then send a cleaner version."
+            return "Revoyez les corrections dans la séance du jour, puis renvoyez une version plus nette."
         if readiness < 75:
-            return "Add one specific detail and ask a clearer next-step question."
-        return "Try the same situation aloud once, then use the saved phrase in daily practice."
+            return "Ajoutez un détail concret et posez une question plus claire sur la suite."
+        return "Refaites la même situation à l'oral, puis replacez la phrase gardée dans la séance."
 
     def _next_mission_seed(self, *, mission: RealWorldMission, readiness: int, errata_count: int) -> dict[str, Any]:
         messenger = (mission.prompt_payload or {}).get("messenger") or {}
@@ -3250,6 +3779,7 @@ class MissionScheduler:
             "errata_created": 0,
         }
         explicit_event_ids: set[int] = set()
+        produced_word_ids: set[int] = set()
         for correction in correction_payloads:
             for event in correction.get("vocabulary_events") or []:
                 if not isinstance(event, dict):
@@ -3259,7 +3789,13 @@ class MissionScheduler:
                     continue
                 credit_kind = self._vocabulary_credit_kind(str(event.get("event_type") or "seen_context"))
                 explicit_event_ids.add(event_ids[0])
+                if credit_kind == "produced_correct":
+                    produced_word_ids.add(event_ids[0])
                 summary[credit_kind] = summary.get(credit_kind, 0) + 1
+        if produced_word_ids:
+            DailyWordSlateService(self.db).record_encounters(
+                user=user, word_ids=sorted(produced_word_ids), kind="place"
+            )
 
         credit_service = VocabularyCreditService(self.db)
         seen_results = []
@@ -3304,8 +3840,21 @@ class MissionScheduler:
 
         attempts = mission.attempts or []
         turns = [turn for turn in (mission.turns or []) if turn.role == "user"]
-        errata_count = sum(len((attempt.correction_payload or {}).get("errata") or []) for attempt in attempts)
-        errata_count += sum(len((turn.correction_payload or {}).get("errata") or []) for turn in turns)
+
+        def _language_errata(payload: dict[str, Any] | None) -> int:
+            # The dossier prints this as "N erreurs repérées". Vocabulary nudges
+            # and task notes are neither errors nor repairs on any card, so
+            # counting them made the number contradict the repair slips above it.
+            return sum(
+                1
+                for item in (payload or {}).get("errata") or []
+                if isinstance(item, dict)
+                and str(item.get("task_error_type") or "") != "task_compliance"
+                and not MissionCorrectionService._is_vocabulary_erratum(item)
+            )
+
+        errata_count = sum(_language_errata(attempt.correction_payload) for attempt in attempts)
+        errata_count += sum(_language_errata(turn.correction_payload) for turn in turns)
         srs_result = MissionSRSService(self.db).seed_phrase_bank(user=user, mission=mission)
         vocabulary_credit = self._apply_target_vocabulary_credit(
             user=user,
@@ -3333,7 +3882,7 @@ class MissionScheduler:
                     "hook": hook,
                 }
         mission.status = "completed"
-        mission.completed_at = datetime.now(timezone.utc)
+        mission.completed_at = datetime.now(UTC)
         minted_collectibles = (
             AtelierRewardService(self.db).mint_logo_token_for_mission(mission)
             if not getattr(mission, "serial_thread_id", None)
@@ -3351,6 +3900,20 @@ class MissionScheduler:
         }
         if outcome:
             mission.recap_payload["outcome"] = outcome
+        from app.services.pilot_events import PilotEventService
+
+        PilotEventService(self.db).record(
+            "plan_completed",
+            user_id=user.id,
+            entity_type="mission",
+            entity_id=mission.id,
+            payload={
+                "attempts": len(attempts),
+                "turns": len(turns),
+                "errata_logged": errata_count,
+                "serial": bool(getattr(mission, "serial_thread_id", None)),
+            },
+        )
         self.db.add(mission)
         self.db.commit()
         self.db.refresh(mission)
@@ -3454,6 +4017,64 @@ class MissionConversationService:
             logger.debug("Mission conversation fallback", error=str(exc))
             return self._fallback_response(mission, branch=preliminary_branch, objective_progress=latest_progress)
 
+    def respond_for_atelier(
+        self,
+        *,
+        character: dict[str, Any],
+        opener: str,
+        scene_context: str,
+        user_text: str,
+    ) -> str:
+        """Run an Atelier final turn through the same in-character world engine.
+
+        Corrections remain in Atelier so they are filed quietly to its errata. This
+        method owns only the fictional reply and deliberately carries no tutor voice.
+        """
+        name = _compact_text(character.get("name"), max_length=80) or "Votre interlocuteur"
+        role = _compact_text(character.get("role"), max_length=120)
+        register = _compact_text(character.get("register"), max_length=40) or "vous"
+        if not self.llm:
+            if register == "tu":
+                return f"{name} hoche la tête. « Je comprends. Et maintenant, qu'est-ce que tu proposes ? »"
+            return f"{name} acquiesce. « Je comprends. Et maintenant, qu'est-ce que vous proposez ? »"
+
+        context = json.dumps(
+            {
+                "character": {"name": name, "role": role, "register": register},
+                "scene": _compact_text(scene_context, max_length=800),
+                "opening_line": _compact_text(opener, max_length=500),
+            },
+            ensure_ascii=False,
+        )
+        system = (
+            "You are an actor playing ONE character inside an ongoing French feuilleton. "
+            f"You ARE {name}{f' ({role})' if role else ''}. "
+            f"Use the {register} register with the learner. Reply only in first person as this "
+            "character, in natural French, in 1-3 short sentences. React to the learner's meaning, "
+            "add one concrete in-world detail, and move the scene forward. You are never a language "
+            "teacher: never correct, grade, praise, mention grammar, or reveal that this is an exercise. "
+            "If the French is imperfect but understandable, simply answer in character."
+        )
+        try:
+            result = self.llm.generate_chat_completion(
+                messages=[
+                    {"role": "user", "content": f"Scene context: {context}"},
+                    {"role": "assistant", "content": opener},
+                    {"role": "user", "content": user_text},
+                ],
+                system_prompt=system,
+                temperature=0.7,
+                max_tokens=180,
+                model=settings.OPENAI_MISSION_FAST_MODEL,
+                request_timeout=settings.MISSION_CHAT_TIMEOUT_SECONDS,
+            )
+            return _compact_text(result.content, max_length=600)
+        except LLMProviderError as exc:
+            logger.debug("Atelier serial conversation fallback", error=str(exc))
+            if register == "tu":
+                return f"{name} répond : « D'accord. Et toi, qu'est-ce que tu ferais ensuite ? »"
+            return f"{name} répond : « D'accord. Et vous, que feriez-vous ensuite ? »"
+
     def _fallback_response(
         self,
         mission: RealWorldMission,
@@ -3505,7 +4126,7 @@ class MissionConversationService:
                 candidates.append((turn.created_at, payload))
         if not candidates:
             return []
-        payload = sorted(candidates, key=lambda item: item[0] or datetime.min.replace(tzinfo=timezone.utc))[-1][1]
+        payload = sorted(candidates, key=lambda item: item[0] or datetime.min.replace(tzinfo=UTC))[-1][1]
         return [item for item in payload.get("objective_progress") or [] if isinstance(item, dict)]
 
     def _latest_score(self, *, attempts: list[RealWorldMissionAttempt], turns: list[RealWorldMissionTurn]) -> float:
@@ -3518,7 +4139,7 @@ class MissionConversationService:
                 candidates.append((turn.created_at, float(payload.get("score_0_4") or 0)))
         if not candidates:
             return 0.0
-        return sorted(candidates, key=lambda item: item[0] or datetime.min.replace(tzinfo=timezone.utc))[-1][1]
+        return sorted(candidates, key=lambda item: item[0] or datetime.min.replace(tzinfo=UTC))[-1][1]
 
     def resolve_outcome(
         self,
@@ -3683,14 +4304,14 @@ class MissionConversationService:
                 candidates.append((turn.created_at, turn.text))
         if not candidates:
             return ""
-        return sorted(candidates, key=lambda item: item[0] or datetime.min.replace(tzinfo=timezone.utc))[-1][1]
+        return sorted(candidates, key=lambda item: item[0] or datetime.min.replace(tzinfo=UTC))[-1][1]
 
     @staticmethod
     def _latest_assistant_text(*, turns: list[RealWorldMissionTurn]) -> str:
         assistant_turns = [turn for turn in turns if turn.role == "assistant"]
         if not assistant_turns:
             return ""
-        return sorted(assistant_turns, key=lambda item: item.created_at or datetime.min.replace(tzinfo=timezone.utc))[-1].text
+        return sorted(assistant_turns, key=lambda item: item.created_at or datetime.min.replace(tzinfo=UTC))[-1].text
 
     def branch_state(self, *, mission: RealWorldMission, user_text: str, assistant_text: str) -> dict[str, Any]:
         text = _compact_text(user_text, max_length=500)
@@ -3739,6 +4360,8 @@ class MissionConversationService:
 def serialize_mission(mission: RealWorldMission | None, *, include_children: bool = True) -> dict[str, Any] | None:
     if not mission:
         return None
+    from app.services.recommendation_reasons import recommendation_reason
+
     payload = {
         "id": str(mission.id),
         "status": mission.status,
@@ -3763,6 +4386,13 @@ def serialize_mission(mission: RealWorldMission | None, *, include_children: boo
         "objectives": mission.objectives or [],
         "prompt_payload": mission.prompt_payload or {},
         "recap": mission.recap_payload or {},
+        "recommendation_reason": recommendation_reason(
+            "mission",
+            serial_thread_id=str(mission.serial_thread_id) if getattr(mission, "serial_thread_id", None) else None,
+            target_errata_count=len(mission.target_errata_ids or []),
+            target_vocabulary_count=len(mission.target_vocabulary_ids or []),
+            concept_ids=mission.selected_concept_ids or [],
+        ),
         "created_at": mission.created_at.isoformat() if mission.created_at else None,
         "started_at": mission.started_at.isoformat() if mission.started_at else None,
         "completed_at": mission.completed_at.isoformat() if mission.completed_at else None,

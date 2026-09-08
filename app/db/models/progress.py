@@ -3,10 +3,10 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import Column, Date, DateTime, Float, ForeignKey, Index, Integer, String, Text
-from sqlalchemy.types import JSON
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+from sqlalchemy.types import JSON
 
 from app.db.base import Base
 
@@ -81,6 +81,13 @@ class UserVocabularyProgress(Base):
 
         self.last_review_date = review_date
         self.next_review_date = next_review
+        # `due_at` is the authoritative clause in vocabulary_due_filter, and it
+        # used to be left untouched here. A card that had ever carried a due_at
+        # (an imported Anki row, or one credited from a mission) therefore kept
+        # its stale past deadline and came back as "due" after every FSRS
+        # review — the deck could not be emptied. The two fields describe the
+        # same moment, so they move together.
+        self.due_at = next_review
         self.due_date = next_review.date() if next_review else None
         self.reps += 1
         if rating <= 0:

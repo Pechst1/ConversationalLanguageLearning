@@ -1,20 +1,27 @@
 from __future__ import annotations
 
+import sys
 from uuid import UUID
 
 import pytest
+
+if sys.version_info >= (3, 14):
+    pytest.skip(
+        "spaCy's pydantic.v1 dependency is not compatible with Python 3.14 yet; "
+        "tracked in docs/audit-2026-07-18-status-and-work-packages.md (WP-10)",
+        allow_module_level=True,
+    )
+
+import spacy
 from fastapi.testclient import TestClient
 from starlette.testclient import WebSocketDenialResponse
 from starlette.websockets import WebSocketDisconnect
 
-import spacy
-
 from app.api import deps
-from app.services.realtime import SessionConnectionManager
-from app.services.progress import ProgressService
-from app.services.session_service import SessionService
 from app.core.conversation import ConversationGenerator
-
+from app.services.progress import ProgressService
+from app.services.realtime import SessionConnectionManager
+from app.services.session_service import SessionService
 from tests.test_sessions import StubErrorDetector, StubLLMService, register_and_login
 
 

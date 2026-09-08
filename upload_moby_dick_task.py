@@ -3,15 +3,15 @@ import asyncio
 import os
 import sys
 from pathlib import Path
-from unittest.mock import patch
 
 # Add current directory to path
 sys.path.append(os.getcwd())
 
+from app.db.models.story import Chapter, Scene, Story
 from app.db.session import SessionLocal
-from app.services.book_parser import BookParserService, ParsedChapter
+from app.services.book_parser import BookParserService
 from app.services.story_visualization import StoryVisualizationService
-from app.db.models.story import Story, Scene, Chapter
+
 
 async def main():
     db = SessionLocal()

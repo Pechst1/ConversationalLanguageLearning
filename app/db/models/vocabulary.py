@@ -3,8 +3,21 @@ from __future__ import annotations
 
 import uuid
 
-from sqlalchemy import Boolean, Column, Date, DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
+from sqlalchemy import (
+    Boolean,
+    Column,
+    Date,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from sqlalchemy.types import JSON
@@ -115,4 +128,29 @@ class UserConjugationProgress(Base):
     __table_args__ = (
         UniqueConstraint("user_id", "normalized_lemma", "tense", name="uq_user_conjugation_progress_item"),
         Index("ix_user_conjugation_progress_due", "user_id", "next_review_date", "due_date"),
+    )
+
+
+class UserDailyWordSlate(Base):
+    """The day's coordinated vocabulary slate ("Les mots du jour").
+
+    One row per user per day. The payload carries the selected words plus the
+    triple-stamp encounter state (lu / retrouvé / placé) that the review deck,
+    missions, and the feuilleton all report into.
+    """
+
+    __tablename__ = "user_daily_word_slates"
+
+    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    slate_date = Column(Date, nullable=False, index=True)
+    payload = Column(JSONB().with_variant(JSON(), "sqlite"), default=dict, nullable=False)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    user = relationship("User")
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "slate_date", name="uq_user_daily_word_slate_day"),
     )

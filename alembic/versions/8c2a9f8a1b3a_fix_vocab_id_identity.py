@@ -9,7 +9,6 @@ from __future__ import annotations
 
 from alembic import op
 
-
 # revision identifiers, used by Alembic.
 revision = "8c2a9f8a1b3a"
 down_revision = "4f0d5a5f2dc0"

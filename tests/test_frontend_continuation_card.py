@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 MOBILE_INDEX = ROOT / "web-frontend" / "components" / "mobile" / "index.ts"
 CONTINUATION_CARD = ROOT / "web-frontend" / "components" / "mobile" / "ContinuationCard.tsx"
@@ -40,51 +39,68 @@ def test_vocabulary_review_done_state_offers_context_handoffs() -> None:
     assert "Actualiser" in source
 
 
-def test_mission_completion_routes_to_coverage_and_new_moment() -> None:
+def test_mission_completion_routes_to_new_moment_and_home() -> None:
     source = read(MISSIONS_PAGE)
 
-    assert "completionLine(mission)" in source
-    assert "href=\"/vocabulary\"" in source
-    assert "Coverage map" in source
-    assert "New moment" in source
+    # The resolved dossier ("Le Courrier") offers: next act (serial) / a fresh
+    # correspondence / back to La Une — per the design brief §6.
+    assert "resolutionCredit(mission" in source
+    assert "Nouveau courrier" in source
+    assert "Retour à la Une" in source
+    assert "routeForMissionSerialBeat(completedNextSerial)" in source
     assert "createSeededMission({" in source
     assert "minted_collectibles" in source
 
 
-def test_feuilleton_post_scene_uses_shared_continuation_card() -> None:
+def test_feuilleton_post_scene_uses_journal_continuation_primitives() -> None:
     source = read(FEUILLETON_PAGE)
 
-    assert "function FeuilletonContinuationCard" in source
-    assert "<FeuilletonContinuationCard scene={scene} vocabulary={targetVocabulary} />" in source
-    assert "<ContinuationCard" in source
-    assert "Turn this scene into practice" in source
+    # Reader rebuild: the post-scene furniture (completion card with counters,
+    # lexical summary, two-beat continuation, duplicate complete row) collapsed
+    # into one FeuilletonEnd — the filed stamp plus a single next action.
+    assert "function FeuilletonEnd" in source
+    assert "<FeuilletonEnd" in source
+    assert "Classé{number}" in source
+    assert "function FeuilletonContinuationCard" not in source
+    assert "Agir dans Le Courrier" in source
+    assert "Lire le prochain épisode" in source
+    assert "nextBeatIsMission" in source
     assert "routeWithQuery('/missions', missionPairs)" in source
-    assert "routeWithQuery('/atelier', atelierPairs)" in source
+    assert "routeWithQuery('/graphic-novel', readerPairs)" in source
 
 
 def test_atelier_recap_continues_session_into_context() -> None:
     source = read(ATELIER_PAGE)
 
+    # The recap is now the L'Épreuve proof sheet (EpBatStage/EpRecapHead/EpTally/
+    # EpProof/EpSeal/EpHandoff) instead of the old plain "Edition printed" card;
+    # its close button replaces the old "Done" label.
     assert "function RecapModal" in source
-    assert "Edition printed" in source
+    assert "<EpBatStage" in source
+    assert "<EpRecapHead" in source
+    assert "<EpTally" in source
+    assert "<EpProof" in source
+    assert "<EpSeal" in source
+    assert "<EpHandoff" in source
     assert "session_id: result.session_id" in source
-    assert "Tomorrow" in source
-    assert "printed-stats" in source
-    assert "printed-minted" in source
-    assert "Done" in source
+    assert "aria-label=\"Fermer l’épreuve\"" in source
 
 
 def test_serial_world_design_surfaces_are_integrated() -> None:
-    atelier = read(ATELIER_PAGE)
     missions = read(MISSIONS_PAGE)
     feuilleton = read(FEUILLETON_PAGE)
     globals_css = read(GLOBALS)
 
-    assert "function SerialThreadCard" in atelier
-    assert "className={`s-thread" in atelier
+    # SerialThreadCard was an unreferenced legacy card; the serial surfaces on
+    # La Une are LuLead/LuDemain, wired from the serial payload.
     assert "const isSerialAct = Boolean(mission?.serial_thread_id || seed.serialThreadId)" in missions
-    assert "Feuilleton act" in missions
-    assert "function FeuilletonCliffhangerHero" in feuilleton
-    assert "className=\"s-cliff feuilleton-cliffhanger\"" in feuilleton
+    # A serial act flips the desk furniture to the blue "Le Feuilleton · Acte N"
+    # kicker and stamps "Acte bouclé" on resolution.
+    assert "Le Feuilleton · Acte" in missions
+    assert "Acte bouclé" in missions
+    # Claude design: the cliffhanger is the paged reader's resolution stage.
+    reader = read(ROOT / "web-frontend" / "components" / "feuilleton" / "reader" / "FeuilletonReader.tsx")
+    assert 'className="fr-eyebrow">À suivre' in reader
+    assert "<FeuilletonReader" in feuilleton
     assert "--char-romy: #1d3a8a" in globals_css
     assert "[data-char=\"marchand\"]" in globals_css

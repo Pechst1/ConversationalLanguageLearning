@@ -1,11 +1,13 @@
 """Coverage map rollups for vocabulary, verbs/conjugation, and grammar."""
 from __future__ import annotations
 
+import json
 import re
 import unicodedata
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 from uuid import UUID
 
@@ -17,7 +19,7 @@ from app.db.models.progress import UserVocabularyProgress
 from app.db.models.user import User
 from app.db.models.vocabulary import UserConjugationProgress, VerbConjugation, VocabularyWord
 from app.services.conjugation import CEFR_ORDER, CORE_TENSES, DISPLAY_TENSES
-
+from app.services.glosses import gloss_map, word_gloss
 
 NAILED_RETRIEVABILITY = 0.9
 NAILED_MIN_REVIEWS = 2
@@ -93,7 +95,7 @@ TAXONOMY_ALIASES = {
     "function": "function_words",
     "function words": "function_words",
 }
-VERB_GRAMMAR_CATEGORIES = {"tenses", "tense", "verbs", "verben", "conditionals", "conditionnel", "conditionals"}
+VERB_GRAMMAR_CATEGORIES = {"tenses", "tense", "verbs", "verben", "conditionals", "conditionnel"}
 FUNCTION_POS = {"adp", "det", "pron", "conj", "cconj", "sconj", "part", "aux", "interjection"}
 FUNCTION_WORDS = {
     "a",
@@ -502,11 +504,92 @@ def _word_haystack(word: VocabularyWord) -> str:
     return _folded_text(" ".join(str(value) for value in fields if value))
 
 
-def inferred_part_of_speech(word: VocabularyWord) -> str:
-    explicit = (word.part_of_speech or "").strip().lower()
-    if explicit:
-        return explicit
-    surface = str(word.word or word.normalized_word or "").strip().lower()
+#: Surfaces the suffix rule gets wrong, curated from `scripts/audit_pos_heuristic.py`.
+POS_OVERRIDES_PATH = Path(__file__).resolve().parents[2] / "app" / "data" / "pos_overrides.json"
+
+#: spaCy's universal tags, folded to the vocabulary we store on the card.
+_SPACY_POS_MAP = {
+    "verb": "verb",
+    "aux": "verb",
+    "noun": "noun",
+    "propn": "noun",
+    "adj": "adjective",
+    "adv": "adverb",
+    "pron": "function",
+    "det": "function",
+    "adp": "function",
+    "cconj": "function",
+    "sconj": "function",
+    "part": "function",
+    "num": "function",
+    "intj": "function",
+}
+
+
+def normalize_pos_tag(value: Any) -> str:
+    """One spelling for a part of speech, whatever spelled it.
+
+    The deck's own column, spaCy and the heuristic each have their own names for
+    the same thing ("VERB", "v", "verbe"); the card and the coverage map only
+    ever want one of them.
+    """
+    text = str(value or "").strip().lower()
+    if not text:
+        return ""
+    if text in _SPACY_POS_MAP:
+        return _SPACY_POS_MAP[text]
+    if text in {"v", "verbe"}:
+        return "verb"
+    if text in {"n", "nom", "substantive"}:
+        return "noun"
+    if text in {"adj", "adjectif", "adjective"}:
+        return "adjective"
+    if text in {"adverb", "adverbe"}:
+        return "adverb"
+    return text
+
+
+def _load_pos_overrides() -> dict[str, str]:
+    try:
+        payload = json.loads(POS_OVERRIDES_PATH.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    raw = payload.get("overrides") if isinstance(payload, dict) else None
+    if not isinstance(raw, dict):
+        return {}
+    resolved: dict[str, str] = {}
+    for surface, tag in raw.items():
+        normalized = normalize_pos_tag(tag)
+        if normalized:
+            resolved[str(surface).strip().lower()] = normalized
+    return resolved
+
+
+_POS_OVERRIDES: dict[str, str] | None = None
+
+
+def pos_overrides() -> dict[str, str]:
+    """The curated list, read once. `reload_pos_overrides()` re-reads it."""
+    global _POS_OVERRIDES
+    if _POS_OVERRIDES is None:
+        _POS_OVERRIDES = _load_pos_overrides()
+    return _POS_OVERRIDES
+
+
+def reload_pos_overrides() -> dict[str, str]:
+    """Drop the cache — for the audit script and for tests that write the file."""
+    global _POS_OVERRIDES
+    _POS_OVERRIDES = None
+    return pos_overrides()
+
+
+def heuristic_part_of_speech(word: VocabularyWord) -> str:
+    """The suffix guess, on its own.
+
+    Kept separate so `scripts/audit_pos_heuristic.py` can measure exactly this
+    rule against a tagger, without the overrides that were derived from it.
+    """
+    surface = str(getattr(word, "word", None) or getattr(word, "normalized_word", None) or "").strip().lower()
     compact = _compact_text(surface)
     if compact in FUNCTION_WORDS:
         return "function"
@@ -517,6 +600,33 @@ def inferred_part_of_speech(word: VocabularyWord) -> str:
     if compact.endswith(("age", "eur", "euse", "isme", "ment", "tion", "te")):
         return "noun"
     return ""
+
+
+def inferred_part_of_speech(word: VocabularyWord) -> str:
+    """The part of speech shown to a learner, best source first.
+
+    1. the curated override file — the ~11 % the suffix rule gets wrong;
+    2. a real tagger's answer, when a caller attached one as `spacy_pos`;
+    3. the deck's own `part_of_speech` column, which the Anki import filled;
+    4. the suffix heuristic, which is a guess and is treated as one.
+
+    The order matters because step 4 confidently prints `plaisir` and `avenir`
+    as verbs, and the review card used to repeat that to the learner.
+    """
+    surface = str(getattr(word, "word", None) or getattr(word, "normalized_word", None) or "").strip().lower()
+    override = pos_overrides().get(surface)
+    if override:
+        return override
+
+    tagged = normalize_pos_tag(getattr(word, "spacy_pos", None))
+    if tagged:
+        return tagged
+
+    explicit = normalize_pos_tag(getattr(word, "part_of_speech", None))
+    if explicit:
+        return explicit
+
+    return heuristic_part_of_speech(word)
 
 
 def primary_category(word: VocabularyWord) -> str:
@@ -544,7 +654,7 @@ def _retrievability(progress: UserVocabularyProgress | UserConjugationProgress, 
     if not stability or stability <= 0 or last_review is None:
         return None
     if last_review.tzinfo is None:
-        last_review = last_review.replace(tzinfo=timezone.utc)
+        last_review = last_review.replace(tzinfo=UTC)
     elapsed_days = max(0.0, (now - last_review).total_seconds() / 86_400)
     decay = -0.5
     factor = 0.9 ** (1 / decay) - 1
@@ -554,7 +664,7 @@ def _retrievability(progress: UserVocabularyProgress | UserConjugationProgress, 
 def is_vocab_nailed(progress: UserVocabularyProgress | None, *, now: datetime | None = None) -> bool:
     if progress is None:
         return False
-    now = now or datetime.now(timezone.utc)
+    now = now or datetime.now(UTC)
     state = (progress.state or "").lower()
     if progress.mastered_date or state in {"mastered", "gemeistert"}:
         return True
@@ -592,7 +702,7 @@ class VocabularyCoverageService:
         self.db = db
 
     def coverage(self, *, user: User) -> dict[str, Any]:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         words = self._word_items(user=user)
         categories = self._category_rollups(words=words, now=now)
         verb_lexicon = self._verb_lexicon_rollup(words=words, now=now)
@@ -624,7 +734,7 @@ class VocabularyCoverageService:
     ) -> list[dict[str, Any]]:
         """Return words the learner just nailed, plus a few due words if requested."""
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         target_language = (user.target_language or "fr").strip() or "fr"
         query = (
             self.db.query(UserVocabularyProgress, VocabularyWord)
@@ -650,7 +760,12 @@ class VocabularyCoverageService:
                 continue
             if word.id in seen:
                 continue
-            selected.append(self._serialize_word(word, progress, "recently_nailed" if is_vocab_nailed(progress, now=now) else "due"))
+            selected.append(self._serialize_word(
+                    word,
+                    progress,
+                    "recently_nailed" if is_vocab_nailed(progress, now=now) else "due",
+                    user.native_language,
+                ))
             seen.add(word.id)
             if len(selected) >= limit:
                 break
@@ -935,7 +1050,7 @@ class VocabularyCoverageService:
             if value is None:
                 return None
             if value.tzinfo is None:
-                return value.replace(tzinfo=timezone.utc)
+                return value.replace(tzinfo=UTC)
             return value
 
         due_at = aware(progress.due_at)
@@ -947,12 +1062,17 @@ class VocabularyCoverageService:
         return bool(progress.due_date and progress.due_date <= now.date())
 
     @staticmethod
-    def _serialize_word(word: VocabularyWord, progress: UserVocabularyProgress | None, bucket: str) -> dict[str, Any]:
+    def _serialize_word(
+        word: VocabularyWord,
+        progress: UserVocabularyProgress | None,
+        bucket: str,
+        native_language: str | None = None,
+    ) -> dict[str, Any]:
         return {
             "bucket": bucket,
             "word_id": word.id,
             "word": word.word,
-            "translation": word.german_translation or word.english_translation or word.french_translation,
+            "translation": word_gloss(word, native_language),
             "language": word.language,
             "direction": word.direction,
             "part_of_speech": word.part_of_speech,
@@ -966,11 +1086,7 @@ class VocabularyCoverageService:
             "priority_score": 120 if bucket == "recently_nailed" else 80,
             "is_new": progress is None,
             "deck_name": word.deck_name,
-            "translations": {
-                "de": word.german_translation,
-                "en": word.english_translation,
-                "fr": word.french_translation,
-            },
+            "translations": gloss_map(word),
             "example_sentence": word.example_sentence,
             "example_translation": word.example_translation,
         }

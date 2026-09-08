@@ -34,18 +34,18 @@ export default function GrammarLevelGrid({ levels, loading = false, onConceptCli
 
     const getStateLabel = (state: string) => {
         switch (state) {
-            case 'gemeistert': return 'MEISTER';
-            case 'gefestigt': return 'FEST';
-            case 'in_arbeit': return 'LÄUFT';
-            case 'ausbaufähig': return 'ÜBEN';
-            default: return 'NEU';
+            case 'gemeistert': return 'ACQUIS';
+            case 'gefestigt': return 'SOLIDE';
+            case 'in_arbeit': return 'EN COURS';
+            case 'ausbaufähig': return 'À REVOIR';
+            default: return 'NOUVEAU';
         }
     };
 
     if (loading) {
         return (
             <div className="border-2 border-black p-8 text-center bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                <span className="font-bold text-xl uppercase tracking-widest">Lade Daten...</span>
+                <span className="font-bold text-xl uppercase tracking-widest">Chargement…</span>
             </div>
         );
     }

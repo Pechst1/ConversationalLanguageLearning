@@ -1,0 +1,37 @@
+{
+  "fixture": "unknown_legacy_assistance",
+  "contract_version": 1,
+  "endpoint": "/api/v1/daily-journeys/capabilities/progress",
+  "method": "GET",
+  "http_status": 200,
+  "response": {
+    "contract_version": 1,
+    "rubric_version": "capability-rubric-v1",
+    "capabilities": [
+      {
+        "capability_key": "order_at_cafe",
+        "title_native": "Order at a café",
+        "state": "unknown",
+        "modalities": [],
+        "latest_qualifying_on": null,
+        "evidence": []
+      },
+      {
+        "capability_key": "arrange_meeting",
+        "title_native": "Arrange a meeting",
+        "state": "not_tried",
+        "modalities": [],
+        "latest_qualifying_on": null,
+        "evidence": []
+      },
+      {
+        "capability_key": "explain_delay",
+        "title_native": "Explain a delay",
+        "state": "not_tried",
+        "modalities": [],
+        "latest_qualifying_on": null,
+        "evidence": []
+      }
+    ]
+  }
+}

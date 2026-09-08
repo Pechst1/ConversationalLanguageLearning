@@ -5,11 +5,12 @@ import csv
 import math
 import re
 import unicodedata
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
-from typing import Any, Sequence, TYPE_CHECKING
 
 from loguru import logger
 from sqlalchemy import func, or_, select
@@ -21,42 +22,44 @@ from app.core.conversation import (
     ConversationGenerator,
     ConversationHistoryMessage,
     ConversationPlan,
-    GeneratedTurn,
     TargetWord,
 )
+from app.core.conversation.scenarios import Scenario, get_scenario
 from app.core.error_detection import ErrorDetectionResult, ErrorDetector
 from app.core.error_detection.rules import DetectedError
+from app.db.models.error import UserError
 from app.db.models.progress import UserVocabularyProgress
+from app.db.models.scenario import UserScenarioState
 from app.db.models.session import (
     ConversationMessage,
     LearningSession,
     SessionLearningMoment,
     WordInteraction,
 )
-from app.db.models.error import UserError
-from app.db.models.scenario import UserScenarioState
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
-from app.core.conversation.scenarios import get_scenario, Scenario
+from app.schemas import PracticeIssue, TargetWordRead
 from app.services.achievement import AchievementService
+from app.services.auto_context_service import SessionContext  # [NEW]
 from app.services.error_memory import ErrorMemoryService
 from app.services.grammar import GrammarService
 from app.services.llm_service import LLMResult, LLMService
+from app.services.progress import ProgressService
 from app.services.session_moment_planner import (
     BLOCKING_MOMENT_KINDS,
     MomentEvaluation,
-    PRIMARY_VOCAB_DECK_NAME as DEFAULT_PRIMARY_VOCAB_DECK_NAME,
     SessionMomentPlanner,
 )
-from app.services.progress import ProgressService
+from app.services.session_moment_planner import (
+    PRIMARY_VOCAB_DECK_NAME as DEFAULT_PRIMARY_VOCAB_DECK_NAME,
+)
 from app.services.vocabulary_credit import VocabularyCreditService
-from app.services.auto_context_service import SessionContext  # [NEW]
-from app.utils.cache import cache_backend, build_cache_key
-from app.schemas import PracticeIssue, TargetWordRead
+from app.utils.cache import build_cache_key, cache_backend
 
 if TYPE_CHECKING:
-    from app.db.models.grammar import GrammarConcept, UserGrammarProgress
     from spacy.language import Language
+
+    from app.db.models.grammar import GrammarConcept, UserGrammarProgress
 
 
 @dataclass(slots=True)
@@ -94,7 +97,7 @@ class AssistantTurn:
     llm_result: LLMResult
     target_details: list[TargetWordRead] | None = None
     targeted_errors: list[UserError] = field(default_factory=list)
-    targeted_grammar: list[tuple["GrammarConcept", "UserGrammarProgress | None"]] = field(
+    targeted_grammar: list[tuple[GrammarConcept, UserGrammarProgress | None]] = field(
         default_factory=list
     )
     pending_moment: SessionLearningMoment | None = None
@@ -223,7 +226,7 @@ class SessionService:
                     self.nlp = spacy.load(settings.FRENCH_NLP_MODEL)
                 except Exception:
                     self.nlp = spacy.blank("fr")
-            except Exception as e:
+            except Exception:
                 # Fallback for when spacy import itself fails (e.g. pydantic conflict)
                 class DummyDoc:
                     def __iter__(self): return iter([])
@@ -1145,7 +1148,7 @@ class SessionService:
 
     def _grammar_challenge_hint(
         self,
-        due_grammar: Sequence[tuple["GrammarConcept", "UserGrammarProgress | None"]] | None,
+        due_grammar: Sequence[tuple[GrammarConcept, UserGrammarProgress | None]] | None,
     ) -> str:
         """Build an instruction snippet tied to the top due grammar concept."""
         if not due_grammar:
@@ -1163,7 +1166,7 @@ class SessionService:
         *,
         history: Sequence[ConversationHistoryMessage],
         learner_level: str | None,
-        due_grammar: Sequence[tuple["GrammarConcept", "UserGrammarProgress | None"]] | None = None,
+        due_grammar: Sequence[tuple[GrammarConcept, UserGrammarProgress | None]] | None = None,
     ) -> str | None:
         """
         Return a targeted challenge when the learner is getting terse or repetitive.
@@ -1303,7 +1306,7 @@ class SessionService:
         *,
         target_details: Sequence[TargetWordRead] | None,
         targeted_errors: Sequence[UserError] | None = None,
-        targeted_grammar: Sequence[tuple["GrammarConcept", "UserGrammarProgress | None"]] | None = None,
+        targeted_grammar: Sequence[tuple[GrammarConcept, UserGrammarProgress | None]] | None = None,
     ) -> list[dict[str, Any]]:
         """Normalize current vocabulary, grammar, and error cues for the UI layer."""
 
@@ -1330,7 +1333,7 @@ class SessionService:
 
         for index, (concept, progress) in enumerate((targeted_grammar or [])[:2]):
             state = progress.state if progress else "neu"
-            state_label = progress.state_label if progress else "Neu"
+            state_label = progress.state_label if progress else "Nouveau"
             items.append(
                 {
                     "kind": "grammar",
@@ -1396,7 +1399,7 @@ class SessionService:
         progress.hint_count = (progress.hint_count or 0) + 1
         progress.times_seen = (progress.times_seen or 0) + 1
         progress.adjust_proficiency(penalty)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         progress.next_review_date = now
         progress.due_date = now.date()
 
@@ -1419,7 +1422,7 @@ class SessionService:
             progress.difficulty = 5.0
         progress.state = "learning"
         progress.adjust_proficiency(-20)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         progress.next_review_date = now
         progress.due_date = now.date()
         progress.updated_at = now
@@ -1539,9 +1542,9 @@ class SessionService:
         start_time = session.started_at or session.created_at
         if start_time and session.planned_duration_minutes:
             # Ensure awareness of timezone
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             if start_time.tzinfo is None:
-                start_time = start_time.replace(tzinfo=timezone.utc)
+                start_time = start_time.replace(tzinfo=UTC)
             
             elapsed = (now - start_time).total_seconds() / 60.0
             remaining = session.planned_duration_minutes - elapsed
@@ -1703,6 +1706,7 @@ class SessionService:
             content,
             learner_level=user.proficiency_level or "B1",
             target_vocabulary=[word.word for word, _ in previous_targets],
+            explanation_language=getattr(user, "native_language", None),
         )
         user_message.errors_detected = self._serialize_errors(error_result)
         self._persist_errors(
@@ -1940,7 +1944,7 @@ class SessionService:
             (e.category, e.code): e for e in detected_errors.errors
         }
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         for error in due_errors:
             key = (error.error_category, error.error_pattern)
@@ -2034,9 +2038,13 @@ class SessionService:
                 if state.current_goal_index >= len(scenario_def.goals):
                     state.status = "completed"
                 logger.info("Scenario goal achieved", goal=current_goal)
-        except Exception:
+        except Exception as exc:
             # Fallback: don't block flow
-            pass
+            logger.debug(
+                "Scenario goal evaluation failed",
+                scenario_id=session.scenario,
+                error=str(exc),
+            )
 
     def _trigger_achievement_check(self, user: User) -> None:
         """Trigger achievement evaluation for the learner."""
@@ -2176,7 +2184,7 @@ class SessionService:
             return []
 
         stats: list[ErrorStats] = []
-        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+        today_start = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
 
         for error in error_result.errors:
             # Count total occurrences of this error pattern
@@ -2275,7 +2283,7 @@ class SessionService:
             raise ValueError(f"Invalid session status: {status}")
         session.status = status
         if status in {"completed", "abandoned"}:
-            session.completed_at = datetime.now(timezone.utc)
+            session.completed_at = datetime.now(UTC)
         self.db.commit()
         self.db.refresh(session)
         self._invalidate_analytics_cache(session.user_id)

@@ -12,6 +12,11 @@ from app.db.models.atelier import (
     AtelierSession,
 )
 from app.db.models.cefr import UserCEFRProgressHistory
+from app.db.models.daily_journey import (
+    DailyJourney,
+    DailyJourneyMutation,
+    DailyJourneyStep,
+)
 from app.db.models.error import UserError, UserErrorConcept
 from app.db.models.feedback import UserFeedbackReport
 from app.db.models.grammar import (
@@ -29,6 +34,7 @@ from app.db.models.graphic_novel import (
 from app.db.models.library import BookEpisode, UserBook
 from app.db.models.mission import RealWorldMission, RealWorldMissionAttempt, RealWorldMissionTurn
 from app.db.models.npc import NPC, NPCMemory, NPCRelationship
+from app.db.models.pilot_event import PilotEvent
 from app.db.models.progress import ReviewLog, UserVocabularyProgress
 from app.db.models.push_subscription import PushSubscription
 from app.db.models.scenario import UserScenarioState
@@ -95,4 +101,8 @@ __all__ = [
     "NPCMemory",
     "UserFeedbackReport",
     "PushSubscription",
+    "PilotEvent",
+    "DailyJourney",
+    "DailyJourneyStep",
+    "DailyJourneyMutation",
 ]

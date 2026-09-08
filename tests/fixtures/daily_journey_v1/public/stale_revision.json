@@ -1,0 +1,15 @@
+{
+  "fixture": "stale_revision",
+  "contract_version": 1,
+  "endpoint": "/api/v1/daily-journeys/{id}/advance",
+  "method": "POST",
+  "http_status": 409,
+  "response": {
+    "detail": {
+      "code": "journey_version_conflict",
+      "message": "This journey moved on. Refresh to continue.",
+      "current_revision": 7,
+      "refresh_href": "/api/v1/daily-journeys/00000000-0000-4000-8000-000000000012"
+    }
+  }
+}

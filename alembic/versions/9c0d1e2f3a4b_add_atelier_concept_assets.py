@@ -6,10 +6,10 @@ Create Date: 2026-05-04
 """
 from __future__ import annotations
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
+from alembic import op
 
 revision = "9c0d1e2f3a4b"
 down_revision = "0f4e5a6b7c8d"

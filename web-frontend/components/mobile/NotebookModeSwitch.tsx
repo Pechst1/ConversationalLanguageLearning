@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { STORY_FEATURE_VISIBLE } from '@/lib/launch-flags';
 import { cn } from '@/lib/utils';
 
-export type NotebookMode = 'grammar' | 'vocabulary' | 'library';
+export type NotebookMode = 'grammar' | 'vocabulary' | 'library' | 'progress';
 
 export interface NotebookModeSwitchProps extends React.HTMLAttributes<HTMLElement> {
   active: NotebookMode;
@@ -23,12 +23,16 @@ function rememberNotebookMode(mode: NotebookMode) {
   }
 }
 
+/* The link-based mode switch for the direct /grammar and /vocabulary routes.
+ * Drawn as the Cahier design's segmented pill: `--av2-line` container, radius
+ * 999, 3px padding, an ink face with paper text for the active mode. It carries
+ * the `av2` class itself so the tokens resolve wherever it is rendered. */
 const NotebookModeSwitch = React.forwardRef<HTMLElement, NotebookModeSwitchProps>(
   ({ active, grammarMeta, vocabularyMeta, libraryMeta, className, ...props }, ref) => (
     <nav
       ref={ref}
-      className={cn('notebook-mode-switch', STORY_FEATURE_VISIBLE && 'with-library', className)}
-      aria-label="Notebook mode"
+      className={cn('av2', 'notebook-mode-switch', STORY_FEATURE_VISIBLE && 'with-library', className)}
+      aria-label="Rubriques du cahier"
       data-active-mode={active}
       {...props}
     >
@@ -38,7 +42,7 @@ const NotebookModeSwitch = React.forwardRef<HTMLElement, NotebookModeSwitchProps
         className={active === 'grammar' ? 'active' : ''}
         onClick={() => rememberNotebookMode('grammar')}
       >
-        <span>Grammar</span>
+        <span>Règles</span>
         {grammarMeta && <em>{grammarMeta}</em>}
       </Link>
       <Link
@@ -47,7 +51,7 @@ const NotebookModeSwitch = React.forwardRef<HTMLElement, NotebookModeSwitchProps
         className={active === 'vocabulary' ? 'active' : ''}
         onClick={() => rememberNotebookMode('vocabulary')}
       >
-        <span>Vocabulary</span>
+        <span>Mots</span>
         {vocabularyMeta && <em>{vocabularyMeta}</em>}
       </Link>
       {STORY_FEATURE_VISIBLE && (
@@ -57,77 +61,58 @@ const NotebookModeSwitch = React.forwardRef<HTMLElement, NotebookModeSwitchProps
           className={active === 'library' ? 'active' : ''}
           onClick={() => rememberNotebookMode('library')}
         >
-          <span>Library</span>
+          <span>Livres</span>
           {libraryMeta && <em>{libraryMeta}</em>}
         </Link>
       )}
-      <style jsx>{`
-        .notebook-mode-switch {
-          --switch-paper: var(--app-paper, var(--paper, #f1ece1));
-          --switch-sheet: var(--app-sheet, var(--sheet, #f8f3e8));
-          --switch-ink: var(--app-ink, var(--ink, #14110d));
-          --switch-ink-3: var(--app-ink-3, var(--ink-3, #8a826f));
-          --switch-blue: var(--app-blue, var(--blue, #1d3a8a));
-          --switch-yellow: var(--app-yellow, var(--yellow, #f3c318));
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 0;
+      <style jsx global>{`
+        .av2.notebook-mode-switch {
+          display: flex;
           width: 100%;
-          border: 1px solid var(--switch-ink);
-          background: var(--switch-ink);
+          padding: 3px;
+          border-radius: var(--av2-r-pill);
+          background: var(--av2-line);
         }
-        .notebook-mode-switch.with-library {
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-        }
-        .notebook-mode-switch :global(a) {
-          display: grid;
+        .av2.notebook-mode-switch a {
+          flex: 1 1 0;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 2px;
           min-width: 0;
-          min-height: 54px;
-          align-content: center;
-          gap: 5px;
-          background: var(--switch-sheet);
-          color: var(--switch-ink);
-          padding: 10px 12px;
+          min-height: var(--av2-tap);
+          padding: 4px 0.8125rem;
+          border-radius: var(--av2-r-pill);
+          color: var(--av2-ink);
           text-decoration: none;
         }
-        .notebook-mode-switch :global(a + a) {
-          border-left: 1px solid var(--switch-ink);
+        .av2.notebook-mode-switch a.active {
+          background: var(--av2-ink);
+          color: var(--av2-on-ink);
         }
-        .notebook-mode-switch :global(a.active) {
-          background: var(--switch-ink);
-          color: var(--switch-paper);
-        }
-        .notebook-mode-switch :global(a.active:nth-child(2)) {
-          box-shadow: inset 0 4px 0 var(--switch-yellow);
-        }
-        .notebook-mode-switch :global(a.active:first-child) {
-          box-shadow: inset 0 4px 0 var(--switch-blue);
-        }
-        .notebook-mode-switch.with-library :global(a.active:last-child) {
-          box-shadow: inset 0 4px 0 var(--switch-blue), inset 0 -4px 0 var(--switch-yellow);
-        }
-        .notebook-mode-switch span,
-        .notebook-mode-switch em {
+        .av2.notebook-mode-switch span,
+        .av2.notebook-mode-switch em {
           display: block;
-          min-width: 0;
+          max-width: 100%;
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
         }
-        .notebook-mode-switch span {
-          font: 900 12px/1 var(--app-mono, "Inter", "Helvetica Neue", Arial, sans-serif);
-          letter-spacing: .11em;
-          text-transform: uppercase;
-        }
-        .notebook-mode-switch em {
-          color: var(--switch-ink-3);
-          font-size: 12px;
-          font-style: normal;
-          font-weight: 750;
+        .av2.notebook-mode-switch span {
+          font-size: var(--av2-t-meta);
+          font-weight: 700;
           line-height: 1.2;
         }
-        .notebook-mode-switch :global(a.active) em {
-          color: color-mix(in srgb, var(--switch-paper) 70%, transparent);
+        .av2.notebook-mode-switch em {
+          font-size: var(--av2-t-meta);
+          font-style: normal;
+          font-weight: 400;
+          line-height: 1.2;
+          color: var(--av2-muted);
+        }
+        .av2.notebook-mode-switch a.active em {
+          color: inherit;
         }
       `}</style>
     </nav>

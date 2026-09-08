@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class AtelierConceptRead(BaseModel):
@@ -14,6 +14,8 @@ class AtelierConceptRead(BaseModel):
     level: str
     category: str | None = None
     subskill: str | None = None
+    title_fr: str | None = None
+    category_label_fr: str | None = None
     core_rule: str | None = None
     main_traps: list[str] = Field(default_factory=list)
     anchor_examples: list[str] = Field(default_factory=list)
@@ -38,6 +40,7 @@ class AtelierTodayResponse(BaseModel):
     library_episode: dict[str, Any] | None = None
     serial_episode: dict[str, Any] | None = None
     serial: dict[str, Any] | None = None
+    phrase_of_day: dict[str, Any] | None = None
 
 
 class AtelierSessionStartRequest(BaseModel):
@@ -59,6 +62,7 @@ class AtelierSessionStartResponse(BaseModel):
     target_vocabulary_ids: list[int] = Field(default_factory=list)
     target_vocabulary: list[dict[str, Any]] = Field(default_factory=list)
     recap: dict[str, Any] = Field(default_factory=dict)
+    learning_moments: dict[str, Any] = Field(default_factory=dict)
 
 
 class AtelierActiveSessionResponse(BaseModel):
@@ -71,6 +75,8 @@ class AtelierAttemptRequest(BaseModel):
     mode: str
     exercise_id: str
     answer_payload: dict[str, Any] = Field(default_factory=dict)
+    confidence: Literal["sure", "unsure"] | None = None
+    retest_source_attempt_id: UUID | None = None
     resubmit: bool = False
 
 
@@ -125,6 +131,11 @@ class AtelierAttemptResponse(BaseModel):
     minted_collectibles: list[AtelierCollectibleRead] = Field(default_factory=list)
 
 
+class AtelierAttemptRepairRequest(BaseModel):
+    text: str = Field(..., min_length=1, max_length=1200)
+    erratum_index: int = Field(0, ge=0, le=20)
+
+
 class AtelierExerciseReportRequest(BaseModel):
     session_id: UUID | None = None
     concept_id: int | None = None
@@ -161,7 +172,22 @@ class AtelierErrataTaskResponse(BaseModel):
 
 
 class AtelierErrataAttemptRequest(BaseModel):
-    answer_text: str = ""
+    """An empty body is not an answer.
+
+    `answer_text: str = ""` let a missing or blank field through, and the service
+    graded it as a wrong attempt: rating 1, `needs_repair`, one more lapse, the
+    erratum pushed into `relearning`. A learner's memory strength must never be
+    moved by a request that carried no answer.
+    """
+
+    answer_text: str = Field(..., min_length=1, max_length=2000)
+
+    @field_validator("answer_text")
+    @classmethod
+    def _reject_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("answer_text must contain an answer")
+        return value
 
 
 class AtelierErrataAttemptResponse(BaseModel):

@@ -1,7 +1,7 @@
 """Celery tasks for analytics generation and maintenance."""
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from uuid import UUID
 
 from loguru import logger
@@ -22,7 +22,7 @@ def generate_daily_snapshots(self, target_date: str | None = None) -> dict[str, 
     snapshot_date = (
         date.fromisoformat(target_date)
         if target_date
-        else (datetime.now(timezone.utc) - timedelta(days=1)).date()
+        else (datetime.now(UTC) - timedelta(days=1)).date()
     )
 
     try:
@@ -81,7 +81,7 @@ def cleanup_old_snapshots(retention_days: int = 365) -> dict[str, int]:
     """Remove analytics snapshots older than the retention period."""
 
     db = SessionLocal()
-    cutoff_date = (datetime.now(timezone.utc) - timedelta(days=retention_days)).date()
+    cutoff_date = (datetime.now(UTC) - timedelta(days=retention_days)).date()
 
     try:
         deleted = (
@@ -115,7 +115,7 @@ def generate_user_snapshot(user_id: str, target_date: str | None = None) -> dict
     snapshot_date = (
         date.fromisoformat(target_date)
         if target_date
-        else (datetime.now(timezone.utc) - timedelta(days=1)).date()
+        else (datetime.now(UTC) - timedelta(days=1)).date()
     )
 
     try:

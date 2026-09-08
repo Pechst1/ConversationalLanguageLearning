@@ -9,8 +9,19 @@ if TYPE_CHECKING:  # pragma: no cover - import only for static analysis
     import httpx
 
 os.environ.setdefault("SECRET_KEY", "test-secret-key")
+# Existing authored fixtures explicitly test the legacy compatibility path.
+# Story-engine tests enable the new engine with an injected fake model.
+os.environ.setdefault("ATELIER_STORY_ENGINE_ENABLED", "false")
 os.environ.setdefault("ATELIER_LLM_ENABLED", "false")
 os.environ.setdefault("GRAPHIC_NOVEL_IMAGE_GENERATION_ENABLED", "false")
+# The unauthenticated local-demo fallback (`app/api/deps.get_current_user_or_demo`)
+# is a developer convenience that the owner's `.env` switches on. Left to the
+# environment, the suite inherited it: three tests passed on that machine and
+# returned 401 in CI, which has no `.env`. Pinned to the production default here
+# — an environment variable outranks the dotenv file — so a local run and CI
+# agree. Assignment, not `setdefault`: inheriting this one is the bug. Tests that
+# genuinely exercise the fallback take the `local_demo_auth` fixture below.
+os.environ["AUTO_CREATE_USERS_ON_LOGIN"] = "false"
 
 import pytest
 
@@ -45,6 +56,11 @@ from app.db.models.atelier import (
     AtelierSession,
 )
 from app.db.models.cefr import UserCEFRProgressHistory
+from app.db.models.daily_journey import (
+    DailyJourney,
+    DailyJourneyMutation,
+    DailyJourneyStep,
+)
 from app.db.models.error import UserError, UserErrorConcept
 from app.db.models.feedback import UserFeedbackReport
 from app.db.models.grammar import (
@@ -61,6 +77,7 @@ from app.db.models.graphic_novel import (
 )
 from app.db.models.library import BookEpisode, UserBook
 from app.db.models.mission import RealWorldMission, RealWorldMissionAttempt, RealWorldMissionTurn
+from app.db.models.pilot_event import PilotEvent
 from app.db.models.progress import ReviewLog, UserVocabularyProgress
 from app.db.models.push_subscription import PushSubscription
 from app.db.models.serial import SerialEpisode, SerialThread
@@ -70,6 +87,7 @@ from app.db.models.session import (
     SessionLearningMoment,
     WordInteraction,
 )
+from app.db.models.vocabulary import UserDailyWordSlate
 from app.main import create_app
 from app.utils.cache import cache_backend
 
@@ -98,6 +116,7 @@ def db_engine():
             Achievement.__table__,
             UserAchievement.__table__,
             AnalyticsSnapshot.__table__,
+            PilotEvent.__table__,
             VocabularyWord.__table__,
             VerbConjugation.__table__,
             UserConjugationProgress.__table__,
@@ -127,11 +146,15 @@ def db_engine():
             UserError.__table__,
             UserErrorConcept.__table__,
             UserVocabularyProgress.__table__,
+            UserDailyWordSlate.__table__,
             ReviewLog.__table__,
             LearningSession.__table__,
             ConversationMessage.__table__,
             SessionLearningMoment.__table__,
             WordInteraction.__table__,
+            DailyJourney.__table__,
+            DailyJourneyStep.__table__,
+            DailyJourneyMutation.__table__,
         ],
     )
     try:
@@ -140,13 +163,18 @@ def db_engine():
         Base.metadata.drop_all(
             bind=engine,
             tables=[
+                DailyJourneyMutation.__table__,
+                DailyJourneyStep.__table__,
+                DailyJourney.__table__,
                 WordInteraction.__table__,
                 SessionLearningMoment.__table__,
                 ConversationMessage.__table__,
                 LearningSession.__table__,
                 ReviewLog.__table__,
+                UserDailyWordSlate.__table__,
                 UserVocabularyProgress.__table__,
                 AnalyticsSnapshot.__table__,
+                PilotEvent.__table__,
                 UserErrorConcept.__table__,
                 UserError.__table__,
                 SerialEpisode.__table__,
@@ -202,6 +230,21 @@ def clear_cache() -> Generator[None, None, None]:
         yield
     finally:
         cache_backend.clear()
+
+
+@pytest.fixture()
+def local_demo_auth(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Enable the unauthenticated local-demo user for one test.
+
+    `get_current_user_or_demo` reads the flag on every call, so patching the
+    settings object is enough. A test that calls an authenticated endpoint with
+    no Authorization header must ask for this fixture: without it the endpoint
+    answers 401, which is what production does.
+    """
+
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "AUTO_CREATE_USERS_ON_LOGIN", True)
 
 
 @pytest.fixture()

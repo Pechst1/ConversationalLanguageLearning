@@ -1,30 +1,37 @@
 """Grammar review API endpoints."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import re
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.security import OAuth2PasswordBearer
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, get_db
+from app.api.deps import (
+    get_current_user,
+    get_db,
+    harden_demo_user_password,
+)
 from app.config import settings
-from app.core.security import InvalidTokenError, decode_token
+from app.core.security import (
+    InvalidTokenError,
+    decode_token,
+    get_unusable_password_hash,
+)
 from app.db.models.error import UserError
 from app.db.models.grammar import GrammarConcept, GrammarConceptLocalization, UserGrammarProgress
 from app.db.models.user import User
 from app.schemas import TokenPayload
+from app.services.achievement_service import AchievementService
 from app.services.atelier_assets import AtelierAssetService
 from app.services.error_memory import serialize_error_memory
+from app.services.grammar import GrammarService, personal_note
 from app.services.grammar_catalog import FRENCH_CORE_CATALOG_VERSION, FrenchCoreGrammarCatalog
-from app.services.grammar import GrammarService
-from app.services.achievement_service import AchievementService
-
 
 router = APIRouter(prefix="/grammar", tags=["grammar"])
 grammar_notebook_oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login", auto_error=False)
@@ -56,6 +63,9 @@ class GrammarConceptCreate(BaseModel):
 
 class GrammarConceptRead(BaseModel):
     """Response for a grammar concept."""
+
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     external_id: str | None
     language: str
@@ -72,10 +82,6 @@ class GrammarConceptRead(BaseModel):
     exercise_tags: list[str]
     is_foundation: bool
     active: bool
-
-    class Config:
-        from_attributes = True
-
 
 class GrammarProgressRead(BaseModel):
     """Response for user grammar progress."""
@@ -112,6 +118,10 @@ class GrammarNotebookItemRead(BaseModel):
     localized_title: str | None = None
     localized_category: str | None = None
     localized_subskill: str | None = None
+    # French publication titles — the Cahier index speaks French regardless of
+    # the learner's instructional locale.
+    title_fr: str | None = None
+    category_label_fr: str | None = None
     level: str
     category: str | None
     subskill: str | None
@@ -292,11 +302,11 @@ def get_grammar_notebook_user(
 
     user = db.query(User).filter(User.email == GRAMMAR_NOTEBOOK_DEMO_EMAIL).first()
     if user:
-        return user
+        return harden_demo_user_password(db, user)
 
     user = User(
         email=GRAMMAR_NOTEBOOK_DEMO_EMAIL,
-        hashed_password="atelier-demo",
+        hashed_password=get_unusable_password_hash(),
         full_name="Atelier Demo",
         native_language="en",
         target_language="fr",
@@ -328,7 +338,7 @@ def _progress_payload(progress: UserGrammarProgress | None) -> GrammarNotebookPr
         reps=progress.reps,
         state=progress.state,
         state_label=progress.state_label,
-        notes=progress.notes,
+        notes=personal_note(progress.notes),
         last_review=_iso(progress.last_review),
         next_review=_iso(progress.next_review),
     )
@@ -336,7 +346,7 @@ def _progress_payload(progress: UserGrammarProgress | None) -> GrammarNotebookPr
 
 def _progress_state(progress: UserGrammarProgress | None) -> tuple[float, str, str, str | None]:
     if not progress:
-        return 0.0, "neu", "Neu", None
+        return 0.0, "neu", "Nouveau", None
     return progress.score, progress.state, progress.state_label, _iso(progress.next_review)
 
 
@@ -347,6 +357,7 @@ def _notebook_item_payload(
     due_count: int,
     recent_count: int,
     localization: GrammarConceptLocalization | None = None,
+    fr_localization: GrammarConceptLocalization | None = None,
 ) -> dict[str, Any]:
     mastery, state, state_label, next_review = _progress_state(progress)
     localized_title = localization.title if localization else None
@@ -359,6 +370,8 @@ def _notebook_item_payload(
         "localized_title": localized_title,
         "localized_category": localization.category_label if localization else None,
         "localized_subskill": localization.subskill_label if localization else None,
+        "title_fr": fr_localization.title if fr_localization else None,
+        "category_label_fr": fr_localization.category_label if fr_localization else None,
         "level": concept.level,
         "category": concept.category,
         "subskill": concept.subskill,
@@ -408,7 +421,7 @@ def _concept_errata(
     concept_id: int,
     limit_recent: int = 8,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     base = (
         db.query(UserError)
         .filter(
@@ -450,7 +463,21 @@ def _notebook_detail_payload(
 ) -> GrammarNotebookDetailRead:
     blueprint = asset_service.approved_blueprint_payload(concept)
     due_errata, recent_errata = _concept_errata(db, user, concept.id)
-    item = _notebook_item_payload(concept, progress, blueprint, len(due_errata), len(recent_errata), localization)
+    fr_localization = (
+        localization
+        if localization is not None and localization.locale == "fr"
+        else (
+            db.query(GrammarConceptLocalization)
+            .filter(
+                GrammarConceptLocalization.concept_id == concept.id,
+                GrammarConceptLocalization.locale == "fr",
+            )
+            .first()
+        )
+    )
+    item = _notebook_item_payload(
+        concept, progress, blueprint, len(due_errata), len(recent_errata), localization, fr_localization
+    )
     return GrammarNotebookDetailRead(
         **item,
         core_rule=concept.core_rule,
@@ -463,7 +490,7 @@ def _notebook_detail_payload(
         progress=_progress_payload(progress),
         due_errata=due_errata,
         recent_errata=recent_errata,
-        personal_notes=progress.notes if progress else None,
+        personal_notes=personal_note(progress.notes) if progress else None,
     )
 
 
@@ -510,18 +537,24 @@ def get_grammar_notebook(
     )
     progress_by_concept = {progress.concept_id: progress for progress in progress_rows}
     localization_by_concept: dict[int, GrammarConceptLocalization] = {}
-    if locale.lower() != "en":
+    fr_by_concept: dict[int, GrammarConceptLocalization] = {}
+    wanted_locales = {locale.lower(), "fr"} - {"en"}
+    if wanted_locales:
         localization_rows = (
             db.query(GrammarConceptLocalization)
             .filter(
                 GrammarConceptLocalization.concept_id.in_(concept_ids),
-                GrammarConceptLocalization.locale == locale.lower(),
+                GrammarConceptLocalization.locale.in_(sorted(wanted_locales)),
             )
             .all()
         )
-        localization_by_concept = {row.concept_id: row for row in localization_rows}
+        for row in localization_rows:
+            if row.locale == "fr":
+                fr_by_concept[row.concept_id] = row
+            if row.locale == locale.lower():
+                localization_by_concept[row.concept_id] = row
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     due_counts = dict(
         db.query(UserError.concept_id, func.count(UserError.id))
         .filter(
@@ -560,6 +593,7 @@ def get_grammar_notebook(
                     int(due_counts.get(concept.id, 0)),
                     int(recent_counts.get(concept.id, 0)),
                     localization_by_concept.get(concept.id),
+                    fr_by_concept.get(concept.id),
                 )
             )
         )
@@ -767,7 +801,7 @@ def record_review(
         reps=progress.reps,
         state=progress.state,
         state_label=progress.state_label,
-        notes=progress.notes,
+        notes=personal_note(progress.notes),
         last_review=progress.last_review.isoformat() if progress.last_review else None,
         next_review=progress.next_review.isoformat() if progress.next_review else None,
     )

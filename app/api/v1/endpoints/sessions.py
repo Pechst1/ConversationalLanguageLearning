@@ -3,8 +3,8 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from starlette.concurrency import run_in_threadpool
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from starlette.concurrency import run_in_threadpool
 
 from app.api.deps import get_current_user, get_session_service
 from app.api.v1.endpoints.session_utils import (
@@ -36,7 +36,6 @@ from app.schemas import (
 )
 from app.services.session_service import SessionService
 from app.utils.cache import build_cache_key
-
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
 

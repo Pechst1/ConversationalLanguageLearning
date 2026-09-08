@@ -15,6 +15,8 @@ export interface FeedbackSheetProps extends React.HTMLAttributes<HTMLDivElement>
   repair?: string;
   rule?: string;
   correctionItems?: FeedbackCorrectionItem[];
+  /** Optional, domain-specific correction treatment rendered before the actions. */
+  detail?: React.ReactNode;
   onTryAgain?: () => void;
   onNext?: () => void;
   nextLabel?: string;
@@ -28,6 +30,7 @@ export function FeedbackSheet({
   repair,
   rule,
   correctionItems,
+  detail,
   onTryAgain,
   onNext,
   nextLabel,
@@ -45,7 +48,7 @@ export function FeedbackSheet({
       <div className="feedback-copy">
         <h3>{title}</h3>
         {explanation && <p>{explanation}</p>}
-        {hasCorrectionItems ? (
+        {detail ? detail : hasCorrectionItems ? (
           <div className="feedback-corrections">
             {correctionItems.map((item, index) => (
               <section key={`${item.title}-${index}`}>
@@ -62,14 +65,14 @@ export function FeedbackSheet({
       </div>
       <div className="feedback-actions">
         {onReport && (
-          <button type="button" className="subtle" onClick={onReport}>Report</button>
+          <button type="button" className="subtle" onClick={onReport}>Signaler</button>
         )}
         {status === 'wrong' && onTryAgain && (
-          <button type="button" onClick={onTryAgain}>Try again</button>
+          <button type="button" onClick={onTryAgain}>Reprendre</button>
         )}
         {onNext && (
           <button type="button" className="primary" onClick={onNext}>
-            {nextLabel || (status === 'correct' ? 'Next' : 'Got it, next')}
+            {nextLabel || (status === 'correct' ? 'Suivant' : 'Compris, suivant')}
           </button>
         )}
       </div>

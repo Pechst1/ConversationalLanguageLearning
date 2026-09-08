@@ -1,7 +1,6 @@
 """Application configuration management."""
 from functools import lru_cache
 from pathlib import Path
-from typing import List, Optional
 
 from pydantic import AnyUrl, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -28,11 +27,11 @@ class Settings(BaseSettings):
         False,
         description="Dev/test only: include the raw reset token in the API response.",
     )
-    SMTP_HOST: Optional[str] = None
+    SMTP_HOST: str | None = None
     SMTP_PORT: int = 587
-    SMTP_USERNAME: Optional[str] = None
-    SMTP_PASSWORD: Optional[str] = None
-    SMTP_FROM_EMAIL: Optional[str] = None
+    SMTP_USERNAME: str | None = None
+    SMTP_PASSWORD: str | None = None
+    SMTP_FROM_EMAIL: str | None = None
     SMTP_USE_TLS: bool = True
 
     DATABASE_URL: AnyUrl = Field(
@@ -44,7 +43,7 @@ class Settings(BaseSettings):
         "redis://localhost:6379/0", description="Redis connection string for cache and Celery"
     )
 
-    BACKEND_CORS_ORIGINS: List[str] = Field(
+    BACKEND_CORS_ORIGINS: list[str] = Field(
         default_factory=lambda: [
             "http://localhost",
             "http://localhost:3000",
@@ -55,11 +54,11 @@ class Settings(BaseSettings):
         description="Allowed CORS origins",
     )
 
-    OPENAI_API_KEY: Optional[str] = None
-    OPENAI_ORG_ID: Optional[str] = None
-    ANTHROPIC_API_KEY: Optional[str] = None
+    OPENAI_API_KEY: str | None = None
+    OPENAI_ORG_ID: str | None = None
+    ANTHROPIC_API_KEY: str | None = None
     PRIMARY_LLM_PROVIDER: str = Field("openai", description="Preferred LLM provider key")
-    SECONDARY_LLM_PROVIDER: Optional[str] = Field(
+    SECONDARY_LLM_PROVIDER: str | None = Field(
         "anthropic", description="Fallback LLM provider key"
     )
     OPENAI_MODEL: str = Field("gpt-5-mini", description="Default OpenAI text model")
@@ -75,18 +74,18 @@ class Settings(BaseSettings):
         2.0,
         description="Short timeout for mission chat replies before falling back locally",
     )
-    PERPLEXITY_API_KEY: Optional[str] = Field(None, description="API key for Perplexity search (optional)")
+    PERPLEXITY_API_KEY: str | None = Field(None, description="API key for Perplexity search (optional)")
     SUBSTACK_FEED_URLS: str = Field(
         "",
         description="Comma-separated Substack RSS feed URLs for live content mode (optional)",
     )
-    ELEVENLABS_API_KEY: Optional[str] = Field(None, description="API key for ElevenLabs TTS (optional)")
+    ELEVENLABS_API_KEY: str | None = Field(None, description="API key for ElevenLabs TTS (optional)")
     TTS_PROVIDER: str = Field("openai", description="Default TTS provider (openai, elevenlabs)")
-    OPENAI_API_BASE: Optional[AnyUrl] = Field(
+    OPENAI_API_BASE: AnyUrl | None = Field(
         None, description="Override base URL for OpenAI-compatible endpoints"
     )
     ANTHROPIC_MODEL: str = Field("claude-3-5-sonnet", description="Default Anthropic model")
-    ANTHROPIC_API_BASE: Optional[AnyUrl] = Field(
+    ANTHROPIC_API_BASE: AnyUrl | None = Field(
         None, description="Override base URL for Anthropic endpoints"
     )
     LLM_REQUEST_TIMEOUT_SECONDS: float = Field(90.0, description="Timeout for LLM HTTP calls")
@@ -100,11 +99,36 @@ class Settings(BaseSettings):
 
     # Web Push
     VAPID_SUBJECT: str = "mailto:admin@example.com"
-    VAPID_PRIVATE_KEY: Optional[str] = None
-    VAPID_PUBLIC_KEY: Optional[str] = None
+    VAPID_PRIVATE_KEY: str | None = None
+    VAPID_PUBLIC_KEY: str | None = None
+    APNS_TEAM_ID: str | None = Field(
+        None,
+        description="Apple Developer team identifier used to sign APNs provider tokens.",
+    )
+    APNS_KEY_ID: str | None = Field(
+        None,
+        description="Apple Push Notifications authentication key identifier.",
+    )
+    APNS_PRIVATE_KEY: str | None = Field(
+        None,
+        description="Contents of the APNs .p8 private key; escaped newlines are accepted.",
+    )
+    APNS_BUNDLE_ID: str = Field(
+        "com.pixellab.feuilleton",
+        description="iOS application bundle identifier/APNs topic.",
+    )
+    APNS_USE_SANDBOX: bool = Field(
+        True,
+        description="Send native notifications through Apple's development APNs host.",
+    )
+    PILOT_SERIAL_WEEKLY_COST_GUARDRAIL_USD: float = Field(
+        2.0,
+        ge=0,
+        description="Admin dashboard warning threshold for weekly Serial spend per learner.",
+    )
 
-    CELERY_BROKER_URL: Optional[AnyUrl] = None
-    CELERY_RESULT_BACKEND: Optional[AnyUrl] = None
+    CELERY_BROKER_URL: AnyUrl | None = None
+    CELERY_RESULT_BACKEND: AnyUrl | None = None
 
     # Developer convenience: optionally auto-create users on first login attempt
     AUTO_CREATE_USERS_ON_LOGIN: bool = Field(
@@ -127,7 +151,7 @@ class Settings(BaseSettings):
         90.0,
         description="Single-attempt timeout for Atelier exercise generation before deterministic fallback.",
     )
-    ATELIER_EXERCISE_LLM_REASONING_EFFORT: Optional[str] = Field(
+    ATELIER_EXERCISE_LLM_REASONING_EFFORT: str | None = Field(
         "minimal",
         description="Optional reasoning_effort override for Atelier exercise models that support it.",
     )
@@ -147,7 +171,7 @@ class Settings(BaseSettings):
         1200,
         description="Output token cap for Atelier exercise critique.",
     )
-    ATELIER_CRITIQUE_LLM_REASONING_EFFORT: Optional[str] = Field(
+    ATELIER_CRITIQUE_LLM_REASONING_EFFORT: str | None = Field(
         "minimal",
         description="Optional reasoning_effort override for Atelier critique models that support it.",
     )
@@ -161,22 +185,22 @@ class Settings(BaseSettings):
     )
     ATELIER_CORRECTION_LLM_ENABLED: bool = Field(
         True,
-        description="Use LLM-backed Atelier correction for live submits, with deterministic fallback on provider failure.",
+        description="Use AI assessment for open answers; provider failure saves them unassessed. Keyed drills retain deterministic checking.",
     )
     ATELIER_CORRECTION_LLM_MODEL: str = Field(
-        "gpt-5-nano",
+        "gpt-5-mini",
         description="Fast model for low-latency Atelier submit corrections.",
     )
     ATELIER_CORRECTION_LLM_TIMEOUT_SECONDS: float = Field(
-        25.0,
-        description="Short single-attempt timeout for optional Atelier LLM correction before deterministic fallback.",
+        60.0,
+        description="Single-attempt deadline for a complete paragraph assessment; provider failure remains unassessed.",
     )
     ATELIER_CORRECTION_LLM_MAX_TOKENS: int = Field(
-        900,
+        5000,
         description="Output token cap for live Atelier LLM correction.",
     )
-    ATELIER_CORRECTION_LLM_REASONING_EFFORT: Optional[str] = Field(
-        "minimal",
+    ATELIER_CORRECTION_LLM_REASONING_EFFORT: str | None = Field(
+        "low",
         description="Optional reasoning_effort override for Atelier correction models that support it.",
     )
     OPENAI_IMAGE_MODEL: str = Field("gpt-image-2", description="Default OpenAI image model")
@@ -204,8 +228,10 @@ class Settings(BaseSettings):
         False,
         description="Generate Feuilleton panel images through OpenAI. When false, deterministic SVG panels are used.",
     )
+    # "local" by default: inlining base64 panels made every episode payload ~64 MB.
+    # Production sets "s3"; "data_uri" remains available for tests/one-off tooling.
     GRAPHIC_NOVEL_IMAGE_STORAGE: str = Field(
-        "data_uri",
+        "local",
         description="Feuilleton image persistence mode: data_uri, local, or s3.",
     )
     GRAPHIC_NOVEL_LOCAL_IMAGE_DIR: Path = Field(
@@ -216,7 +242,7 @@ class Settings(BaseSettings):
         "/media/graphic-novel",
         description="Public URL prefix mounted for locally persisted Feuilleton panel images.",
     )
-    GRAPHIC_NOVEL_IMAGE_S3_BUCKET: Optional[str] = Field(
+    GRAPHIC_NOVEL_IMAGE_S3_BUCKET: str | None = Field(
         None,
         description="S3-compatible bucket for persisted Feuilleton panel images.",
     )
@@ -224,27 +250,27 @@ class Settings(BaseSettings):
         "graphic-novel",
         description="Object key prefix for persisted Feuilleton panel images.",
     )
-    GRAPHIC_NOVEL_IMAGE_S3_REGION: Optional[str] = Field(
+    GRAPHIC_NOVEL_IMAGE_S3_REGION: str | None = Field(
         None,
         description="S3 region for Feuilleton panel image storage.",
     )
-    GRAPHIC_NOVEL_IMAGE_S3_ENDPOINT_URL: Optional[str] = Field(
+    GRAPHIC_NOVEL_IMAGE_S3_ENDPOINT_URL: str | None = Field(
         None,
         description="Optional S3-compatible endpoint URL for Feuilleton panel image storage.",
     )
-    GRAPHIC_NOVEL_IMAGE_S3_ACCESS_KEY_ID: Optional[str] = Field(
+    GRAPHIC_NOVEL_IMAGE_S3_ACCESS_KEY_ID: str | None = Field(
         None,
         description="Optional S3 access key for Feuilleton panel image storage.",
     )
-    GRAPHIC_NOVEL_IMAGE_S3_SECRET_ACCESS_KEY: Optional[str] = Field(
+    GRAPHIC_NOVEL_IMAGE_S3_SECRET_ACCESS_KEY: str | None = Field(
         None,
         description="Optional S3 secret key for Feuilleton panel image storage.",
     )
-    GRAPHIC_NOVEL_IMAGE_S3_PUBLIC_BASE_URL: Optional[str] = Field(
+    GRAPHIC_NOVEL_IMAGE_S3_PUBLIC_BASE_URL: str | None = Field(
         None,
         description="Optional public base URL for S3-compatible Feuilleton panel images.",
     )
-    GRAPHIC_NOVEL_IMAGE_S3_ACL: Optional[str] = Field(
+    GRAPHIC_NOVEL_IMAGE_S3_ACL: str | None = Field(
         None,
         description="Optional object ACL for S3-compatible Feuilleton panel images.",
     )
@@ -276,6 +302,22 @@ class Settings(BaseSettings):
         False,
         description="Enable experimental phone-call mission formats inside the serial planner.",
     )
+    ATELIER_DAILY_JOURNEY_ENABLED: bool = Field(
+        False,
+        description=(
+            "Enable the Atelier V2 five-minute daily journey. Defaults dark; the server "
+            "response is authoritative and already-created journeys keep draining when off."
+        ),
+    )
+    ATELIER_STORY_ENGINE_ENABLED: bool = Field(
+        True, description="Generate new daily situations and semantic responses from shared serial state."
+    )
+    ATELIER_STORY_MAX_ATTEMPTS: int = Field(2, ge=1, le=3)
+
+    ATELIER_DAILY_JOURNEY_COHORT: str = Field(
+        "",
+        description="Comma-separated user emails or ids allowed into the V2 pilot.",
+    )
 
     model_config = SettingsConfigDict(
         env_file=Path(__file__).resolve().parent.parent / ".env",
@@ -303,7 +345,7 @@ class Settings(BaseSettings):
         return normalized
 
 
-@lru_cache()
+@lru_cache
 def get_settings() -> Settings:
     """Return cached application settings instance."""
 

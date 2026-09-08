@@ -4,12 +4,14 @@ from __future__ import annotations
 import asyncio
 import json
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Sequence, TYPE_CHECKING
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from loguru import logger
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -28,8 +30,8 @@ from app.services.vocabulary_credit import VocabularyCreditService
 
 if TYPE_CHECKING:
     from app.core.conversation import ConversationPlan
-    from app.services.session_service import WordFeedback
     from app.db.models.grammar import GrammarConcept, UserGrammarProgress
+    from app.services.session_service import WordFeedback
 
 
 PRIMARY_VOCAB_DECK_NAME = "Französisch 5000::1. FR → DE"
@@ -41,6 +43,13 @@ EXPLICIT_MOMENT_KINDS = {
     "grammar_repair",
     "error_repair",
 }
+# The daily journey (WP-05, `app.services.journey_learning`) stores its evidence
+# in the same `session_learning_moments` table, in its own LearningSession.
+# Those rows are completed evidence, never an inline prompt this planner owns —
+# they must never surface as a pending moment that blocks a conversation turn.
+# Kept as a literal rather than an import so the conversation planner does not
+# pull the journey stack in; `test_journey_learning.py` asserts the two agree.
+JOURNEY_MOMENT_SOURCE_TYPE = "daily_journey"
 
 
 def _run_async(coro):
@@ -137,7 +146,7 @@ class GrammarContextEvaluator:
     def evaluate(
         self,
         *,
-        concept: "GrammarConcept",
+        concept: GrammarConcept,
         assistant_prompt: str,
         learner_reply: str,
         error_result: ErrorDetectionResult,
@@ -192,7 +201,7 @@ class GrammarContextEvaluator:
     def _heuristic_evaluation(
         self,
         *,
-        concept: "GrammarConcept",
+        concept: GrammarConcept,
         learner_reply: str,
         error_result: ErrorDetectionResult,
     ) -> GrammarContextEvaluation:
@@ -230,7 +239,7 @@ class GrammarContextEvaluator:
             retry_needed=False,
         )
 
-    def _matches_concept_pattern(self, *, concept: "GrammarConcept", learner_reply: str) -> bool:
+    def _matches_concept_pattern(self, *, concept: GrammarConcept, learner_reply: str) -> bool:
         return is_concept_demonstrated(concept, learner_reply)
 
 
@@ -269,6 +278,10 @@ class SessionMomentPlanner:
                 SessionLearningMoment.session_id == session_id,
                 SessionLearningMoment.user_id == user_id,
                 SessionLearningMoment.status == "pending",
+                or_(
+                    SessionLearningMoment.source_type.is_(None),
+                    SessionLearningMoment.source_type != JOURNEY_MOMENT_SOURCE_TYPE,
+                ),
             )
             .order_by(SessionLearningMoment.created_at.desc())
             .first()
@@ -307,6 +320,10 @@ class SessionMomentPlanner:
                 SessionLearningMoment.user_id == user_id,
                 SessionLearningMoment.anchor_message_id.in_(message_ids),
                 SessionLearningMoment.status == "pending",
+                or_(
+                    SessionLearningMoment.source_type.is_(None),
+                    SessionLearningMoment.source_type != JOURNEY_MOMENT_SOURCE_TYPE,
+                ),
             )
             .all()
         )
@@ -351,11 +368,11 @@ class SessionMomentPlanner:
         session: LearningSession,
         user: User,
         anchor_message: ConversationMessage,
-        conversation_plan: "ConversationPlan",
+        conversation_plan: ConversationPlan,
         due_errors: Sequence[UserError] | None = None,
-        due_grammar: Sequence[tuple["GrammarConcept", "UserGrammarProgress | None"]] | None = None,
+        due_grammar: Sequence[tuple[GrammarConcept, UserGrammarProgress | None]] | None = None,
         last_error_result: ErrorDetectionResult | None = None,
-        word_feedback: Sequence["WordFeedback"] | None = None,
+        word_feedback: Sequence[WordFeedback] | None = None,
     ) -> SessionLearningMoment | None:
         if not settings.SESSION_INLINE_MOMENTS_ENABLED:
             return None
@@ -429,7 +446,7 @@ class SessionMomentPlanner:
     def _plan_immediate_repair(
         self,
         *,
-        due_grammar: Sequence[tuple["GrammarConcept", "UserGrammarProgress | None"]] | None,
+        due_grammar: Sequence[tuple[GrammarConcept, UserGrammarProgress | None]] | None,
         last_error_result: ErrorDetectionResult | None,
     ) -> PlannedMoment | None:
         return None
@@ -468,7 +485,7 @@ class SessionMomentPlanner:
         self,
         *,
         session: LearningSession,
-        due_grammar: Sequence[tuple["GrammarConcept", "UserGrammarProgress | None"]] | None,
+        due_grammar: Sequence[tuple[GrammarConcept, UserGrammarProgress | None]] | None,
     ) -> PlannedMoment | None:
         if not due_grammar:
             return None
@@ -496,8 +513,8 @@ class SessionMomentPlanner:
         self,
         *,
         session: LearningSession,
-        conversation_plan: "ConversationPlan",
-        word_feedback: Sequence["WordFeedback"] | None,
+        conversation_plan: ConversationPlan,
+        word_feedback: Sequence[WordFeedback] | None,
     ) -> PlannedMoment | None:
         if not self._can_schedule_explicit(session=session):
             return None
@@ -535,7 +552,7 @@ class SessionMomentPlanner:
         self,
         *,
         session: LearningSession,
-        conversation_plan: "ConversationPlan",
+        conversation_plan: ConversationPlan,
     ) -> PlannedMoment | None:
         if not self._can_schedule_explicit(session=session):
             return None
@@ -569,7 +586,7 @@ class SessionMomentPlanner:
     def _select_primary_deck_word(
         self,
         *,
-        conversation_plan: "ConversationPlan",
+        conversation_plan: ConversationPlan,
     ) -> VocabularyWord | None:
         for item in conversation_plan.queue_items:
             if item.word.deck_name == self.primary_vocab_deck_name:
@@ -597,7 +614,7 @@ class SessionMomentPlanner:
             )
         return ("", [])
 
-    def _generate_grammar_challenge_payload(self, concept: "GrammarConcept") -> dict[str, Any] | None:
+    def _generate_grammar_challenge_payload(self, concept: GrammarConcept) -> dict[str, Any] | None:
         if self.brief_exercise_service is not None:
             try:
                 response = _run_async(
@@ -728,7 +745,7 @@ class SessionMomentPlanner:
         self,
         *,
         session: LearningSession,
-        word_feedback: Sequence["WordFeedback"] | None,
+        word_feedback: Sequence[WordFeedback] | None,
     ) -> bool:
         if not word_feedback:
             return False
@@ -761,9 +778,9 @@ class SessionMomentPlanner:
         assistant_message: ConversationMessage | None,
         learner_reply: str,
         pending_moment: SessionLearningMoment | None,
-        word_feedback: Sequence["WordFeedback"],
+        word_feedback: Sequence[WordFeedback],
         error_result: ErrorDetectionResult,
-        due_grammar: Sequence[tuple["GrammarConcept", "UserGrammarProgress | None"]] | None = None,
+        due_grammar: Sequence[tuple[GrammarConcept, UserGrammarProgress | None]] | None = None,
     ) -> dict[str, Any]:
         payload: dict[str, Any] = {}
 
@@ -820,7 +837,7 @@ class SessionMomentPlanner:
                     },
                     score_0_10=evaluation.score_0_10,
                     srs_credit_applied=True,
-                    completed_at=datetime.now(timezone.utc),
+                    completed_at=datetime.now(UTC),
                 )
                 self.db.add(moment)
                 self.db.flush([moment])
@@ -849,7 +866,7 @@ class SessionMomentPlanner:
         session: LearningSession,
         user: User,
         moment: SessionLearningMoment,
-        word_feedback: Sequence["WordFeedback"],
+        word_feedback: Sequence[WordFeedback],
         learner_reply: str,
     ) -> MomentEvaluation | None:
         word_id = (moment.prompt_payload or {}).get("metadata", {}).get("word_id")
@@ -1175,7 +1192,7 @@ class SessionMomentPlanner:
             "feedback_summary": feedback_summary,
             "next_step_hint": next_step_hint,
         }
-        moment.completed_at = datetime.now(timezone.utc)
+        moment.completed_at = datetime.now(UTC)
         self.sync_anchor_message_snapshot(moment)
         logger.info(
             "session_moment_completed",
@@ -1204,7 +1221,7 @@ class SessionMomentPlanner:
             "feedback_summary": feedback_summary,
             "next_step_hint": None,
         }
-        moment.completed_at = datetime.now(timezone.utc)
+        moment.completed_at = datetime.now(UTC)
         self.sync_anchor_message_snapshot(moment)
         logger.info(
             "session_moment_skipped",

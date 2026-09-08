@@ -4,15 +4,17 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
-from datetime import datetime, timezone
+from collections.abc import Mapping
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Mapping, TextIO
+from typing import Any, TextIO
+
+from sqlalchemy import select, update
 
 from app.config import settings
 from app.db.models.graphic_novel import GraphicNovelPanel
 from app.db.session import SessionLocal
 from app.services.graphic_novel_image_storage import GraphicNovelImageStorage, is_data_uri
-from sqlalchemy import select, update
 
 
 def _parse_args() -> argparse.Namespace:
@@ -42,7 +44,7 @@ def _parse_args() -> argparse.Namespace:
 
 
 def _default_backup_path() -> Path:
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     return Path("var") / "graphic-novel-image-backfills" / f"{stamp}.jsonl"
 
 
@@ -75,7 +77,7 @@ def _write_backup(handle: TextIO | None, panel: Mapping[str, Any], payload: dict
 async def _run() -> int:
     args = _parse_args()
     if args.storage:
-        setattr(settings, "GRAPHIC_NOVEL_IMAGE_STORAGE", args.storage)
+        settings.GRAPHIC_NOVEL_IMAGE_STORAGE = args.storage
     if settings.GRAPHIC_NOVEL_IMAGE_STORAGE == "data_uri" and not args.dry_run:
         raise SystemExit(
             "Refusing to apply with GRAPHIC_NOVEL_IMAGE_STORAGE=data_uri. "

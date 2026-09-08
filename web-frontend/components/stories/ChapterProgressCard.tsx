@@ -1,7 +1,13 @@
+/* Where the learner stands inside one chapter, and the one way to close it.
+ *
+ * The completion control never lies about why it is unavailable: when the
+ * chapter's own criteria are not met yet, the label says what is missing
+ * instead of simply going grey.
+ */
+
 import React from 'react';
-import { CheckCircle, BookOpen, Award, Sparkles } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+
+import { Action, ProgressRule } from '@/components/atelier-v2/ui';
 
 interface ChapterProgressCardProps {
   goalsCompleted: number;
@@ -22,85 +28,50 @@ export default function ChapterProgressCard({
   onComplete,
   loading = false,
 }: ChapterProgressCardProps) {
-  const progressPercent = totalGoals > 0 ? (goalsCompleted / totalGoals) * 100 : 0;
-  const isPerfect = goalsCompleted === totalGoals;
+  const isPerfect = totalGoals > 0 && goalsCompleted === totalGoals;
 
   return (
-    <Card className="border-2 border-primary-200">
-      <CardHeader>
-        <CardTitle className="text-lg flex items-center gap-2">
-          <CheckCircle className="h-5 w-5 text-primary-600" />
-          Chapter Progress
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Goals Progress */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-700">Goals Completed</span>
-            <span className="text-sm font-bold text-primary-600">
-              {goalsCompleted} / {totalGoals}
-            </span>
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-            <div
-              className={`h-3 rounded-full transition-all duration-500 ${
-                isPerfect
-                  ? 'bg-gradient-to-r from-green-500 to-emerald-500'
-                  : 'bg-gradient-to-r from-primary-500 to-blue-600'
-              }`}
-              style={{ width: `${progressPercent}%` }}
-            />
-          </div>
-        </div>
+    <section className="av2-surface bib-block" aria-label="Progression dans le chapitre">
+      <p className="av2-label">Progression dans le chapitre</p>
 
-        {/* Vocabulary Used */}
-        <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
-          <BookOpen className="h-5 w-5 text-blue-600 flex-shrink-0" />
-          <div className="flex-1">
-            <p className="text-xs text-blue-700 font-medium">Vocabulary Used</p>
-            <p className="text-lg font-bold text-blue-900">{vocabularyUsed} words</p>
-          </div>
-        </div>
+      <ProgressRule
+        value={goalsCompleted}
+        max={totalGoals}
+        label="Objectifs atteints"
+        caption={`${goalsCompleted} / ${totalGoals}`}
+      />
 
-        {/* XP Earned */}
+      <div className="bib-stats">
+        <div className="bib-stat">
+          <span className="av2-label">Mots employés</span>
+          <span className="av2-headline av2-headline--rule">{vocabularyUsed}</span>
+        </div>
         {xpEarned > 0 && (
-          <div className="flex items-center gap-3 p-3 bg-purple-50 rounded-lg border border-purple-200">
-            <Sparkles className="h-5 w-5 text-purple-600 flex-shrink-0" />
-            <div className="flex-1">
-              <p className="text-xs text-purple-700 font-medium">XP Earned</p>
-              <p className="text-lg font-bold text-purple-900">+{xpEarned} XP</p>
-            </div>
+          <div className="bib-stat">
+            <span className="av2-label">XP gagnés</span>
+            <span className="av2-headline av2-headline--rule">+{xpEarned}</span>
           </div>
         )}
+      </div>
 
-        {/* Perfect Completion Indicator */}
-        {isPerfect && (
-          <div className="flex items-center gap-2 p-3 bg-gradient-to-r from-yellow-100 to-orange-100 rounded-lg border-2 border-yellow-400">
-            <Award className="h-5 w-5 text-yellow-700" />
-            <span className="text-sm font-bold text-yellow-800">
-              Perfect completion possible!
-            </span>
-          </div>
-        )}
+      {isPerfect && <p className="av2-label">Un chapitre sans faute est encore possible.</p>}
 
-        {/* Complete Button */}
-        <Button
-          onClick={onComplete}
-          disabled={!canComplete || loading}
-          className="w-full"
-          size="lg"
-        >
-          {loading ? 'Completing...' : canComplete ? 'Complete Chapter' : 'Complete more goals to finish'}
-        </Button>
+      {/* the one tactile 3D press of this column */}
+      <Action
+        tone="done"
+        onClick={onComplete}
+        disabled={!canComplete}
+        pending={loading}
+        pendingLabel="Clôture…"
+      >
+        {canComplete ? 'Terminer le chapitre' : 'Encore quelques objectifs à atteindre'}
+      </Action>
 
-        {/* Help Text */}
-        <p className="text-xs text-gray-500 text-center">
-          {canComplete
-            ? 'You can complete this chapter now'
-            : `Complete at least ${Math.ceil(totalGoals / 2)} goals to finish`}
-        </p>
-      </CardContent>
-    </Card>
+      <p className="av2-label">
+        {canComplete
+          ? 'Vous pouvez clore ce chapitre dès maintenant.'
+          : `Atteignez au moins ${Math.ceil(totalGoals / 2)} objectif${Math.ceil(totalGoals / 2) === 1 ? '' : 's'} pour le clore.`}
+      </p>
+    </section>
   );
 }

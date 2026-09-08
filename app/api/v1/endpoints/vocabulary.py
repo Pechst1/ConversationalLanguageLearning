@@ -1,7 +1,7 @@
 """Vocabulary browsing endpoints."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Annotated, Any
 from uuid import UUID
 
@@ -21,6 +21,7 @@ from app.schemas.progress import VocabularyDueContextResponse
 from app.schemas.vocabulary import (
     ConjugationReviewRequest,
     ConjugationReviewResponse,
+    DailyWordSlateResponse,
     VocabularyBiographyEvent,
     VocabularyBiographyExample,
     VocabularyBiographyOrigin,
@@ -30,12 +31,44 @@ from app.schemas.vocabulary import (
     VocabularyWordRead,
 )
 from app.services.conjugation import ConjugationService
+from app.services.daily_words import DailyWordSlateService
+from app.services.glosses import gloss_payload, normalize_language
 from app.services.progress import ProgressService
 from app.services.vocabulary import VocabularyNotFoundError, VocabularyService
 from app.services.vocabulary_coverage import VocabularyCoverageService
-from app.utils.cache import cache_backend, build_cache_key
+from app.utils.cache import build_cache_key, cache_backend
 
 router = APIRouter(prefix="/vocabulary", tags=["vocabulary"])
+
+
+def optional_viewer(
+    token: str | None = Depends(deps.optional_oauth2_scheme),
+    db: Session = Depends(deps.get_db),
+) -> User | None:
+    """The signed-in learner when there is one; these routes stay public.
+
+    Browsing the registre never required a session, so the payload builders had
+    no learner to resolve a gloss for and shipped the raw columns instead. The
+    reader is optional here: signed in, the Cahier gets glosses in the learner's
+    own language; anonymous, it falls back to the shared default.
+    """
+    if not token:
+        return None
+    try:
+        return deps.get_current_user_or_demo(token=token, db=db)
+    except HTTPException:
+        return None
+
+
+def _viewer_language(viewer: User | None) -> str:
+    return normalize_language(getattr(viewer, "native_language", None))
+
+
+def _word_payload(word: Any, viewer_language: str) -> dict[str, Any]:
+    """A vocabulary row plus the gloss the learner should actually read."""
+    payload = VocabularyWordRead.model_validate(word).model_dump(mode="json")
+    payload.update(gloss_payload(word, viewer_language))
+    return payload
 
 
 @router.get("/", response_model=VocabularyListResponse)
@@ -45,10 +78,20 @@ def list_vocabulary(
     limit: int = Query(default=25, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(deps.get_db),
+    viewer: User | None = Depends(optional_viewer),
 ) -> VocabularyListResponse:
     """Return vocabulary items with optional pagination."""
 
-    cache_key = build_cache_key(language=language, search=(search or "").strip().lower(), limit=limit, offset=offset)
+    viewer_language = _viewer_language(viewer)
+    # The gloss depends on who is reading, so it has to be part of the cache
+    # key — otherwise the first reader's language is served to everyone.
+    cache_key = build_cache_key(
+        language=language,
+        search=(search or "").strip().lower(),
+        limit=limit,
+        offset=offset,
+        gloss=viewer_language,
+    )
     cached = cache_backend.get("vocabulary:list", cache_key)
     if cached is not None:
         return cached
@@ -56,8 +99,10 @@ def list_vocabulary(
     service = VocabularyService(db)
     items = service.list_words(language=language, search=search, limit=limit, offset=offset)
     total = service.count_words(language=language, search=search)
-    response = VocabularyListResponse(total=total, items=items)
-    payload = response.model_dump(mode="json")
+    payload = {
+        "total": total,
+        "items": [_word_payload(item, viewer_language) for item in items],
+    }
     cache_backend.set("vocabulary:list", cache_key, payload, ttl_seconds=3600)
     return payload
 
@@ -95,7 +140,7 @@ def _as_aware_datetime(value: datetime | None) -> datetime | None:
     if value is None:
         return None
     if value.tzinfo is None:
-        return value.replace(tzinfo=timezone.utc)
+        return value.replace(tzinfo=UTC)
     return value
 
 
@@ -159,8 +204,13 @@ def _dedupe_events(events: list[VocabularyBiographyEvent]) -> list[VocabularyBio
     return deduped
 
 
+# The deck prints these four French labels over ratings 0..3; the word's own
+# thread must name the same buttons rather than the raw number.
+_RATING_LABELS = {0: "Encore", 1: "Dur", 2: "Bien", 3: "Facile"}
+
+
 def _origin_for_word(word: Any) -> VocabularyBiographyOrigin:
-    label = word.deck_name or ("French 5000" if word.is_anki_card else "Vocabulary bank")
+    label = word.deck_name or ("French 5000" if word.is_anki_card else "Le lexique")
     source_type = "anki_deck" if word.is_anki_card else ("deck" if word.deck_name else "lexicon")
     return VocabularyBiographyOrigin(
         label=label,
@@ -180,7 +230,7 @@ def _fragility_for_progress(
     now: datetime,
 ) -> tuple[str, str, str | None]:
     if progress is None:
-        return "new", "New thread", "No personal reviews yet."
+        return "new", "Nouveau", "Pas encore révisé par vous."
 
     state = str(progress.state or "new").lower()
     phase = str(progress.phase or "").lower()
@@ -188,21 +238,21 @@ def _fragility_for_progress(
     is_due = aware_due_at is not None and aware_due_at <= now
 
     if is_due and (progress.reps or 0) > 0:
-        return "due", "Due now", "Ready for another touch."
+        return "due", "À revoir", "Prêt pour une reprise."
     if (progress.lapses or 0) >= 3 or (retrievability is not None and retrievability < 0.45):
-        return "fraying", "Fraying memory", "Several misses or low recall estimate."
+        return "fraying", "Mémoire qui s’effrite", "Plusieurs oublis, ou un rappel estimé faible."
     if (
         phase in {"learn", "learning", "relearn", "relearning"}
         or state in {"learning", "relearning"}
         or (progress.lapses or 0) > 0
         or (retrievability is not None and retrievability < 0.72)
     ):
-        return "tender", "Tender memory", "Useful, but still easy to lose."
+        return "tender", "Mémoire fragile", "Utile, mais encore facile à perdre."
     if state == "mastered" or (progress.proficiency_score or 0) >= 90:
-        return "holding", "Holding", "This thread is currently strong."
+        return "holding", "Tient", "Ce fil tient bien pour l’instant."
     if state == "new" and (progress.reps or 0) == 0:
-        return "new", "New thread", "Not reviewed yet."
-    return "forming", "Forming", "The thread is taking shape."
+        return "new", "Nouveau", "Pas encore révisé."
+    return "forming", "En formation", "Le fil se dessine."
 
 
 def _progress_payload(
@@ -295,13 +345,13 @@ def _context_timeline_events(db: Session, *, user: User, word_id: int) -> list[V
         .all()
     )
     interaction_labels = {
-        "target_new": "Introduced in conversation",
-        "target_review": "Returned in conversation",
-        "learner_use": "Used in conversation",
-        "learner_skip": "Skipped in conversation",
+        "target_new": "Introduit en conversation",
+        "target_review": "Revenu en conversation",
+        "learner_use": "Employé en conversation",
+        "learner_skip": "Esquivé en conversation",
     }
     for interaction in interactions:
-        label = interaction_labels.get(interaction.interaction_type, "Conversation touch")
+        label = interaction_labels.get(interaction.interaction_type, "Passage en conversation")
         events.append(
             _timeline_event(
                 event_id=f"interaction:{interaction.id}",
@@ -331,7 +381,7 @@ def _context_timeline_events(db: Session, *, user: User, word_id: int) -> list[V
             _timeline_event(
                 event_id=f"erratum:{erratum.id}",
                 event_type="erratum",
-                label=erratum.display_label or "Linked erratum",
+                label=erratum.display_label or "Erratum lié",
                 description=erratum.why_wrong or erratum.repair_hint or erratum.context_snippet,
                 occurred_at=erratum.created_at,
                 source_type=erratum.source_type or "errata",
@@ -359,7 +409,7 @@ def _context_timeline_events(db: Session, *, user: User, word_id: int) -> list[V
             _timeline_event(
                 event_id=f"mission:{mission.id}",
                 event_type="mission",
-                label=f"Mission target: {mission.title}",
+                label=f"Mission : {mission.title}",
                 description=mission.brief,
                 occurred_at=mission.completed_at or mission.started_at or mission.created_at,
                 source_type="mission",
@@ -382,7 +432,7 @@ def _context_timeline_events(db: Session, *, user: User, word_id: int) -> list[V
             _timeline_event(
                 event_id=f"graphic-novel:{scene.id}",
                 event_type="graphic_novel",
-                label=f"Feuilleton thread: {scene.title}",
+                label=f"Feuilleton : {scene.title}",
                 description=scene.brief,
                 occurred_at=scene.completed_at or scene.started_at or scene.created_at,
                 source_type="graphic_novel",
@@ -405,7 +455,7 @@ def _context_timeline_events(db: Session, *, user: User, word_id: int) -> list[V
             _timeline_event(
                 event_id=f"atelier-session:{session.id}",
                 event_type="atelier",
-                label="Atelier context anchor",
+                label="Ancre de l’Atelier",
                 description=(session.quote_payload or {}).get("brief") or (session.quote_payload or {}).get("title"),
                 occurred_at=session.completed_at or session.started_at or session.created_at,
                 source_type="atelier",
@@ -453,7 +503,7 @@ def get_vocabulary_due_context(
     new_limit: int = Query(4, ge=0, le=50),
     topic_limit: int = Query(4, ge=0, le=50),
     linked_limit: int = Query(4, ge=0, le=50),
-    direction: str | None = Query("fr_to_de", description="Optional card direction filter"),
+    direction: str | None = Query(None, description="Optional card direction filter; defaults to the learner's stored direction"),
     topic_tags: Annotated[list[str] | None, Query()] = None,
     linked_word_ids: Annotated[list[str] | None, Query()] = None,
     mission_id: UUID | None = Query(None),
@@ -463,11 +513,65 @@ def get_vocabulary_due_context(
 ) -> VocabularyDueContextResponse:
     """Return SRS and contextual vocabulary buckets for mobile practice surfaces."""
 
-    if direction and direction not in {"fr_to_de", "de_to_fr"}:
+    card_directions = {"fr_to_de", "de_to_fr"}
+    if direction and direction not in card_directions:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid direction filter")
+    if direction is None:
+        # Fall back to the learner's stored direction; non-German pairs have no
+        # Anki-style card direction yet, so they simply skip the filter.
+        stored = getattr(current_user, "default_vocab_direction", None)
+        direction = stored if stored in card_directions else None
 
     resolved_topic_tags = _split_csv_values(topic_tags)
     resolved_linked_ids = _split_csv_ints(linked_word_ids)
+    episodic_anchor: dict[str, Any] | None = None
+
+    # Normal review should still carry the active episode into the deck. Explicit
+    # mission/scene filters below remain authoritative when a surface supplies one.
+    if not mission_id and not feuilleton_scene_id:
+        from app.db.models.serial import SerialThread
+        from app.services.serial import SerialThreadService
+
+        thread = (
+            db.query(SerialThread)
+            .filter(SerialThread.user_id == current_user.id, SerialThread.status == "active")
+            .order_by(SerialThread.updated_at.desc())
+            .first()
+        )
+        if thread:
+            serial_service = SerialThreadService(db)
+            episode = serial_service.current_episode(thread)
+            if episode and episode.mission:
+                resolved_linked_ids.extend(
+                    int(word_id) for word_id in (episode.mission.target_vocabulary_ids or []) if word_id
+                )
+                snapshot = episode.mission.source_snapshot or {}
+                resolved_topic_tags.extend(str(tag) for tag in snapshot.get("topic_tags", []) if tag)
+            elif episode and episode.scene:
+                resolved_linked_ids.extend(
+                    int(word_id) for word_id in (episode.scene.target_vocabulary_ids or []) if word_id
+                )
+                snapshot = episode.scene.source_snapshot or {}
+                resolved_topic_tags.extend(str(tag) for tag in snapshot.get("topic_tags", []) if tag)
+
+            cast = serial_service.cast_payload(thread)
+            required_cast = [
+                str(value)
+                for value in ((episode.brief_payload or {}).get("required_cast") or [])
+                if str(value).strip()
+            ] if episode else []
+            cast_by_id = {str(member.get("id")): member for member in cast}
+            member = next(
+                (cast_by_id[member_id] for member_id in required_cast if member_id in cast_by_id),
+                cast[0] if cast else None,
+            )
+            if member:
+                episodic_anchor = {
+                    "character_name": member.get("name"),
+                    "portrait_url": member.get("model_sheet_url"),
+                    "accent_colour": member.get("accent_colour"),
+                    "source": "active_episode",
+                }
 
     if mission_id:
         mission = (
@@ -480,6 +584,19 @@ def get_vocabulary_due_context(
         resolved_linked_ids.extend(int(word_id) for word_id in (mission.target_vocabulary_ids or []) if word_id)
         snapshot = mission.source_snapshot or {}
         resolved_topic_tags.extend(str(tag) for tag in snapshot.get("topic_tags", []) if tag)
+        if mission.serial_thread_id:
+            from app.db.models.serial import SerialThread
+            from app.services.serial import SerialThreadService
+
+            thread = db.get(SerialThread, mission.serial_thread_id)
+            cast = SerialThreadService(db).cast_payload(thread) if thread else []
+            member = cast[0] if cast else None
+            if member:
+                episodic_anchor = {
+                    "character_name": member.get("name"),
+                    "portrait_url": member.get("model_sheet_url"),
+                    "source": "mission",
+                }
 
     if feuilleton_scene_id:
         scene = (
@@ -492,6 +609,19 @@ def get_vocabulary_due_context(
         resolved_linked_ids.extend(int(word_id) for word_id in (scene.target_vocabulary_ids or []) if word_id)
         snapshot = scene.source_snapshot or {}
         resolved_topic_tags.extend(str(tag) for tag in snapshot.get("topic_tags", []) if tag)
+        if scene.serial_thread_id:
+            from app.db.models.serial import SerialThread
+            from app.services.serial import SerialThreadService
+
+            thread = db.get(SerialThread, scene.serial_thread_id)
+            cast = SerialThreadService(db).cast_payload(thread) if thread else []
+            member = cast[0] if cast else None
+            if member:
+                episodic_anchor = {
+                    "character_name": member.get("name"),
+                    "portrait_url": member.get("model_sheet_url"),
+                    "source": "feuilleton",
+                }
 
     service = ProgressService(db)
     payload = service.get_vocabulary_due_context(
@@ -506,7 +636,40 @@ def get_vocabulary_due_context(
         topic_tags=resolved_topic_tags,
         linked_word_ids=resolved_linked_ids,
     )
+    if episodic_anchor:
+        anchor_word_ids = {int(word_id) for word_id in resolved_linked_ids}
+        for bucket_name in (
+            "due_words",
+            "fragile_words",
+            "new_words",
+            "topic_compatible_words",
+            "linked_words",
+        ):
+            payload[bucket_name] = [
+                {
+                    **item,
+                    **(
+                        {"episodic_anchor": episodic_anchor}
+                        if bucket_name == "linked_words" or int(item.get("word_id") or 0) in anchor_word_ids
+                        else {}
+                    ),
+                }
+                for item in payload.get(bucket_name) or []
+            ]
     return VocabularyDueContextResponse(**payload)
+
+
+@router.get("/words-of-the-day", response_model=DailyWordSlateResponse)
+def get_words_of_the_day(
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user_or_demo),
+) -> DailyWordSlateResponse:
+    """Return today's coordinated word slate, selecting it on first call."""
+
+    service = DailyWordSlateService(db)
+    payload = service.get_or_create(user=current_user)
+    db.commit()
+    return DailyWordSlateResponse(**payload)
 
 
 @router.get("/coverage")
@@ -582,10 +745,12 @@ def lookup_vocabulary_word(
     word: str = Query(..., min_length=1, description="Surface form to look up"),
     language: str | None = Query(default=None, max_length=10),
     db: Session = Depends(deps.get_db),
+    viewer: User | None = Depends(optional_viewer),
 ) -> VocabularyWordRead:
     """Lookup a vocabulary word by its surface form."""
 
-    cache_key = build_cache_key(word=word.strip().lower(), language=language)
+    viewer_language = _viewer_language(viewer)
+    cache_key = build_cache_key(word=word.strip().lower(), language=language, gloss=viewer_language)
     cached = cache_backend.get("vocabulary:lookup", cache_key)
     if cached is not None:
         return cached
@@ -596,7 +761,7 @@ def lookup_vocabulary_word(
     except VocabularyNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
-    payload = VocabularyWordRead.model_validate(vocab_word).model_dump(mode="json")
+    payload = _word_payload(vocab_word, viewer_language)
     cache_backend.set("vocabulary:lookup", cache_key, payload, ttl_seconds=600)
     return payload
 
@@ -613,7 +778,7 @@ def get_vocabulary_word_biography(
     if not word:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vocabulary word not found")
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     progress_service = ProgressService(db)
     progress = progress_service.get_progress(user_id=current_user.id, word_id=word_id)
     origin = _origin_for_word(word)
@@ -629,9 +794,9 @@ def get_vocabulary_word_biography(
         _timeline_event(
             event_id=f"origin:{word.id}",
             event_type="origin",
-            label=f"Entered from {origin.label}",
+            label=f"Entré par {origin.label}",
             description=(
-                f"Frequency rank {word.frequency_rank}"
+                f"Rang de fréquence {word.frequency_rank}"
                 if word.frequency_rank
                 else word.definition or word.usage_notes
             ),
@@ -648,8 +813,8 @@ def get_vocabulary_word_biography(
                 _timeline_event(
                     event_id=f"progress:first-seen:{progress.id}",
                     event_type="first_seen",
-                    label="First seen by you",
-                    description=f"{progress.times_seen or 0} context touches recorded.",
+                    label="Première rencontre",
+                    description=f"{progress.times_seen or 0} passages en contexte.",
                     occurred_at=progress.first_seen_date,
                     source_type="srs",
                     source_id=progress.id,
@@ -660,8 +825,8 @@ def get_vocabulary_word_biography(
                 _timeline_event(
                     event_id=f"progress:last-review:{progress.id}",
                     event_type="review",
-                    label="Last reviewed",
-                    description=f"{progress.reps or 0} reviews, {progress.lapses or 0} lapses.",
+                    label="Dernière révision",
+                    description=f"{progress.reps or 0} révisions, {progress.lapses or 0} oublis.",
                     occurred_at=progress.last_review_date,
                     source_type="srs",
                     source_id=progress.id,
@@ -673,7 +838,7 @@ def get_vocabulary_word_biography(
                 _timeline_event(
                     event_id=f"progress:due:{progress.id}",
                     event_type="schedule",
-                    label="Next scheduled touch",
+                    label="Prochaine reprise",
                     description=progress_state.fragility_reason,
                     occurred_at=progress_state.due_at,
                     source_type="srs",
@@ -693,9 +858,9 @@ def get_vocabulary_word_biography(
                 _timeline_event(
                     event_id=f"review-log:{log.id}",
                     event_type="review_log",
-                    label=f"Review rating {log.rating}",
+                    label=f"Noté : {_RATING_LABELS.get(int(log.rating or 0), 'classé')}",
                     description=(
-                        f"Schedule {log.schedule_before or 0} to {log.schedule_after or 0} days"
+                        f"Échéance {log.schedule_before or 0} → {log.schedule_after or 0} jours"
                         if log.schedule_after is not None
                         else log.state_transition
                     ),
@@ -716,7 +881,7 @@ def get_vocabulary_word_biography(
     recent_events = [event for event in deduped_timeline if event.event_type != "origin"]
     recent_events.sort(
         key=lambda event: _as_aware_datetime(event.occurred_at)
-        or datetime.min.replace(tzinfo=timezone.utc),
+        or datetime.min.replace(tzinfo=UTC),
         reverse=True,
     )
     timeline = origin_events + recent_events[:27]
@@ -737,7 +902,12 @@ def get_vocabulary_word_biography(
     context_event_count = len([event for event in timeline if event.event_type in context_event_types])
 
     return VocabularyBiographyResponse(
-        word=VocabularyWordRead.model_validate(word),
+        # `_word_payload` attaches the gloss resolved for this learner; the bare
+        # model_validate left `translation` empty and the sheet fell back to
+        # reading the German column first for everyone.
+        word=VocabularyWordRead.model_validate(
+            _word_payload(word, _viewer_language(current_user))
+        ),
         origin=origin,
         progress=progress_state,
         examples=examples,
@@ -748,10 +918,15 @@ def get_vocabulary_word_biography(
 
 
 @router.get("/{word_id}", response_model=VocabularyWordRead)
-def get_vocabulary_word(word_id: int, db: Session = Depends(deps.get_db)) -> VocabularyWordRead:
+def get_vocabulary_word(
+    word_id: int,
+    db: Session = Depends(deps.get_db),
+    viewer: User | None = Depends(optional_viewer),
+) -> VocabularyWordRead:
     """Retrieve a vocabulary word by identifier."""
 
-    cache_key = build_cache_key(word_id=word_id)
+    viewer_language = _viewer_language(viewer)
+    cache_key = build_cache_key(word_id=word_id, gloss=viewer_language)
     cached = cache_backend.get("vocabulary:item", cache_key)
     if cached is not None:
         return cached
@@ -761,6 +936,6 @@ def get_vocabulary_word(word_id: int, db: Session = Depends(deps.get_db)) -> Voc
         word = service.get_word(word_id)
     except VocabularyNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
-    payload = VocabularyWordRead.model_validate(word).model_dump(mode="json")
+    payload = _word_payload(word, viewer_language)
     cache_backend.set("vocabulary:item", cache_key, payload, ttl_seconds=3600)
     return payload

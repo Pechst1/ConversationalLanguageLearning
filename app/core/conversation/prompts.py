@@ -1,9 +1,9 @@
 """Prompt templates that guide LLM driven conversations."""
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from textwrap import dedent
-from typing import Dict, List, Sequence
 
 from loguru import logger
 
@@ -52,7 +52,7 @@ class ConversationTemplate:
         return prompt
 
 
-CONVERSATION_STYLES: Dict[str, ConversationTemplate] = {
+CONVERSATION_STYLES: dict[str, ConversationTemplate] = {
     "travel": ConversationTemplate(
         style=ConversationStyle(
             name="Camille",
@@ -390,12 +390,12 @@ def build_few_shot_examples(
     target_vocabulary: Sequence[str],
     learner_level: str,
     topic: str | None = None,
-) -> List[Dict[str, str]]:
+) -> list[dict[str, str]]:
     """Construct few-shot examples that demonstrate vocabulary usage."""
 
     vocab_line = ", ".join(target_vocabulary[:5]) if target_vocabulary else ""
     topic_line = topic if topic else "un sujet de ton choix"
-    examples: List[Dict[str, str]] = [
+    examples: list[dict[str, str]] = [
         {
             "role": "system",
             "content": dedent(
@@ -419,7 +419,7 @@ def build_few_shot_examples(
     return examples
 
 
-def build_error_detection_schema() -> Dict[str, object]:
+def build_error_detection_schema() -> dict[str, object]:
     """Return the JSON schema used for structured error detection responses."""
 
     schema = {

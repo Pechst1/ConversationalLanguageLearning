@@ -20,7 +20,6 @@ from app.db.models.vocabulary import VocabularyWord
 from app.db.session import SessionLocal
 from app.services.anki_import import AnkiImportService
 
-
 DEFAULT_CSV = ROOT / "Anki_cards___2025-11-01T13-09-36.csv"
 
 

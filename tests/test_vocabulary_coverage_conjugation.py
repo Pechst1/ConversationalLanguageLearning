@@ -1,7 +1,7 @@
 """Coverage map and conjugation drill regressions."""
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
@@ -10,7 +10,11 @@ from app.db.models.grammar import GrammarConcept, UserGrammarProgress
 from app.db.models.progress import UserVocabularyProgress
 from app.db.models.user import User
 from app.db.models.vocabulary import UserConjugationProgress, VerbConjugation, VocabularyWord
-from app.services.conjugation import ConjugationService, build_conjugation_rows, upsert_conjugation_rows
+from app.services.conjugation import (
+    ConjugationService,
+    build_conjugation_rows,
+    upsert_conjugation_rows,
+)
 from app.services.missions import MissionGenerator
 from app.services.vocabulary_coverage import primary_category
 
@@ -33,7 +37,7 @@ def _auth_user(client: TestClient, db_session, *, email: str | None = None) -> t
 
 def test_coverage_endpoint_rolls_up_vocabulary_grammar_and_conjugation(client: TestClient, db_session) -> None:
     token, user = _auth_user(client, db_session)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     apple = VocabularyWord(
         language="fr",
         word="pomme",
@@ -256,7 +260,7 @@ def test_conjugation_generation_prefers_accented_vocabulary_surface(db_session) 
 
 def test_conjugation_review_cefr_filter_applies_to_due_progress(client: TestClient, db_session) -> None:
     token, user = _auth_user(client, db_session)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     upsert_conjugation_rows(db_session, build_conjugation_rows("venir", cefr_band="A2"))
     upsert_conjugation_rows(db_session, build_conjugation_rows("connaître", cefr_band="B2"))
     db_session.add_all(
@@ -336,7 +340,7 @@ def test_mission_generator_prefers_recently_nailed_vocabulary(db_session) -> Non
             state="mastered",
             reps=3,
             proficiency_score=96,
-            mastered_date=datetime.now(timezone.utc),
+            mastered_date=datetime.now(UTC),
         )
     )
     db_session.commit()

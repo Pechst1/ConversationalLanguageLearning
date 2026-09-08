@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from app.db.models.error import UserError
@@ -45,7 +45,7 @@ def test_daily_context_selects_exactly_three_srs_concepts(db_session) -> None:
             state="review",
             lapses=2,
             occurrences=3,
-            next_review_date=datetime.now(timezone.utc) - timedelta(days=1),
+            next_review_date=datetime.now(UTC) - timedelta(days=1),
         )
     )
     db_session.add(
@@ -55,7 +55,7 @@ def test_daily_context_selects_exactly_three_srs_concepts(db_session) -> None:
             score=4.0,
             reps=2,
             state="in_arbeit",
-            next_review=datetime.now(timezone.utc) - timedelta(hours=3),
+            next_review=datetime.now(UTC) - timedelta(hours=3),
         )
     )
     db_session.commit()

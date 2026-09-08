@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import func, or_
@@ -11,12 +11,11 @@ from sqlalchemy.orm import Session
 from app.db.models.atelier import AtelierAttempt
 from app.db.models.cefr import UserCEFRProgressHistory
 from app.db.models.error import UserError
-from app.db.models.graphic_novel import GraphicNovelAttempt
 from app.db.models.grammar import UserGrammarProgress
+from app.db.models.graphic_novel import GraphicNovelAttempt
 from app.db.models.mission import RealWorldMissionAttempt
 from app.db.models.progress import UserVocabularyProgress
 from app.db.models.user import User
-
 
 CEFR_PROGRESS_VERSION = "cefr-progress-v1"
 CEFR_LEVELS = ("A1.1", "A1.2", "A2.1", "A2.2", "B1.1", "B1.2", "B2.1", "B2.2")
@@ -77,6 +76,35 @@ def next_cefr_level(level: str | None) -> str | None:
     return CEFR_LEVELS[index + 1] if index + 1 < len(CEFR_LEVELS) else None
 
 
+# The coarse level a learner picks at signup, mapped onto the internal half-step
+# scale. C1/C2 clamp to the top of the scale this service models.
+DECLARED_LEVEL_FLOOR: dict[str, str] = {
+    "A1": "A1.1",
+    "A2": "A2.1",
+    "B1": "B1.1",
+    "B2": "B2.1",
+    "C1": "B2.2",
+    "C2": "B2.2",
+    "BEGINNER": "A1.1",
+    "INTERMEDIATE": "B1.1",
+    "ADVANCED": "B2.1",
+}
+# How much in-app work it takes before measured evidence is allowed to contradict
+# what the learner said about themselves. Below this the app has simply not seen
+# enough of them to argue.
+DECLARED_LEVEL_EVIDENCE_ATTEMPTS = 40
+
+
+def declared_level_floor(user: User) -> str | None:
+    """The internal level implied by the learner's own statement at signup."""
+    raw = str(getattr(user, "proficiency_level", None) or "").strip().upper()
+    if not raw:
+        return None
+    if raw in CEFR_LEVELS:
+        return raw
+    return DECLARED_LEVEL_FLOOR.get(raw) or DECLARED_LEVEL_FLOOR.get(raw[:2])
+
+
 class CEFRProgressService:
     """Compute, smooth, persist, and serialize CEFR estimates."""
 
@@ -84,16 +112,22 @@ class CEFRProgressService:
         self.db = db
 
     def recompute(self, user: User, *, source: str = "recompute", persist: bool = True) -> dict[str, Any]:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         signals = self._signals(user=user, now=now)
         computed_level = self._computed_level(signals)
-        estimate_level = self._smooth_level(user=user, computed_level=computed_level)
+        measured_level = self._smooth_level(user=user, computed_level=computed_level)
+        estimate_level, estimate_source = self._estimate_with_declaration(
+            user=user,
+            signals=signals,
+            measured_level=measured_level,
+        )
         target_level = self._target_level(user=user, estimate_level=estimate_level)
         payload = self._payload(
             user=user,
             signals=signals,
             computed_level=computed_level,
             estimate_level=estimate_level,
+            estimate_source=estimate_source,
             target_level=target_level,
             now=now,
         )
@@ -120,11 +154,13 @@ class CEFRProgressService:
             return payload
         if recompute_if_missing:
             return self.recompute(user, source="lazy")
-        estimate = str(getattr(user, "cefr_estimate", None) or "A1.1")
+        estimate = str(getattr(user, "cefr_estimate", None) or declared_level_floor(user) or "A1.1")
         target = self._target_level(user=user, estimate_level=estimate)
         return {
             "version": CEFR_PROGRESS_VERSION,
             "estimate": estimate,
+            "estimate_source": "declared" if estimate == declared_level_floor(user) else "measured",
+            "declared_level": declared_level_floor(user),
             "computed_estimate": estimate,
             "target": target,
             "next_level": next_cefr_level(estimate),
@@ -251,6 +287,34 @@ class CEFRProgressService:
                 estimate = level
         return estimate
 
+    def _estimate_with_declaration(
+        self,
+        *,
+        user: User,
+        signals: CEFRSignals,
+        measured_level: str,
+    ) -> tuple[str, str]:
+        """Reconcile what the learner said with what the app has actually seen.
+
+        A self-declared B1 who has just signed up has mastered nothing *in this
+        app*, so the threshold walk puts them at A1.1 and the front page tells
+        them they are a beginner with 0 of 300 words. That is not an estimate,
+        it is an artefact of an empty database.
+
+        Until there is enough in-app work to argue with (DECLARED_LEVEL_EVIDENCE_
+        ATTEMPTS), the declaration is the floor. After that the measurement wins
+        outright, including downwards -- the declaration is a starting point, not
+        a permanent claim.
+        """
+        floor = declared_level_floor(user)
+        if not floor:
+            return measured_level, "measured"
+        if signals.recent_attempt_count >= DECLARED_LEVEL_EVIDENCE_ATTEMPTS:
+            return measured_level, "measured"
+        if level_index(floor) > level_index(measured_level):
+            return floor, "declared"
+        return measured_level, "measured"
+
     def _smooth_level(self, *, user: User, computed_level: str) -> str:
         previous = str(getattr(user, "cefr_estimate", None) or "A1.1")
         if level_index(computed_level) >= level_index(previous):
@@ -285,6 +349,7 @@ class CEFRProgressService:
         signals: CEFRSignals,
         computed_level: str,
         estimate_level: str,
+        estimate_source: str,
         target_level: str,
         now: datetime,
     ) -> dict[str, Any]:
@@ -292,13 +357,22 @@ class CEFRProgressService:
         return {
             "version": CEFR_PROGRESS_VERSION,
             "estimate": estimate_level,
+            # "declared" means the learner told us and the app has not yet seen
+            # enough work to agree or disagree; surfaces must not present that
+            # as a measurement.
+            "estimate_source": estimate_source,
+            "declared_level": declared_level_floor(user),
             "computed_estimate": computed_level,
             "target": target_level,
             "next_level": next_cefr_level(estimate_level),
             "daily_minutes": int(getattr(user, "daily_goal_minutes", None) or 20),
             "signals": signals.as_dict(),
             "thresholds": CEFR_THRESHOLDS,
-            "breakdown": self._breakdown(signals=signals, target_level=target_level),
+            "breakdown": self._breakdown(
+                signals=signals,
+                target_level=target_level,
+                estimate_source=estimate_source,
+            ),
             "forecast": forecast,
             "today_delta": {
                 "words_active": signals.today_words_active,
@@ -309,9 +383,13 @@ class CEFRProgressService:
         }
 
     @staticmethod
-    def _breakdown(*, signals: CEFRSignals, target_level: str) -> dict[str, Any]:
+    def _breakdown(*, signals: CEFRSignals, target_level: str, estimate_source: str = "measured") -> dict[str, Any]:
         threshold = CEFR_THRESHOLDS.get(target_level, CEFR_THRESHOLDS["A1.2"])
         return {
+            # These counters only ever count what this app has verified. Against a
+            # self-declared level they are not a measure of the learner's French,
+            # and a surface must not draw them as if they were.
+            "status": "unverified" if estimate_source == "declared" else "measured",
             "vocabulary": {
                 "current": signals.mastered_vocabulary,
                 "target": int(threshold["vocabulary"]),
@@ -376,6 +454,9 @@ __all__ = [
     "CEFR_LEVELS",
     "CEFR_PROGRESS_VERSION",
     "CEFR_THRESHOLDS",
+    "DECLARED_LEVEL_EVIDENCE_ATTEMPTS",
+    "DECLARED_LEVEL_FLOOR",
     "CEFRProgressService",
+    "declared_level_floor",
     "next_cefr_level",
 ]

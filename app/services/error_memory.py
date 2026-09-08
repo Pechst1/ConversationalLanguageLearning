@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
@@ -15,11 +15,11 @@ from app.core.error_concepts import get_concept_for_category, get_concept_for_pa
 from app.db.models.atelier import AtelierAttempt
 from app.db.models.error import UserError, UserErrorConcept
 from app.db.models.grammar import GrammarConcept
-from app.db.models.progress import UserVocabularyProgress
 from app.db.models.session import ConversationMessage, LearningSession
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
 from app.services.grammar_feedback import infer_grammar_profile, profile_search_terms
+from app.services.learner_copy import learner_text
 from app.services.progress import ProgressService
 
 
@@ -53,20 +53,55 @@ def _severity_to_int(value: Any) -> int:
 class ErrorMemoryService:
     """Persist, deduplicate, schedule, and retrieve learner mistakes across modes."""
 
+    # Publication French, and every source_type the repair card can carry — an
+    # unmapped key used to print raw ("pilot_capture") straight onto the page.
     SOURCE_LABELS = {
         "atelier": "Atelier",
-        "audio": "Audio conversation",
+        "audio": "Le studio",
         "conversation": "Conversation",
-        "story": "Story",
-        "brief_exercise": "Exercise",
-        "mission": "Mission",
+        "story": "Le feuilleton",
+        "serial": "Le feuilleton",
+        "feuilleton": "Le feuilleton",
+        "brief_exercise": "Exercice",
+        "mission": "Le courrier",
+        "pilot_capture": "Capture pilote",
+        "graphic_novel": "Le roman-photo",
+        "vocabulary": "Le lexique",
+        "daily_journey": "La séance du jour",
+    }
+
+    REVIEW_MODE_COPY: dict[str, dict[str, str]] = {
+        "grammar": {
+            "label": "Grammaire",
+            "instruction": "Réécrivez la forme correcte de mémoire.",
+            "prompt": "Reprenez cette faute de grammaire :",
+            "placeholder": "La phrase corrigée",
+        },
+        "vocabulary": {
+            "label": "Lexique",
+            "instruction": "Écrivez le mot ou l’expression correcte de mémoire.",
+            "prompt": "Reprenez ce choix de mot :",
+            "placeholder": "Le mot correct",
+        },
+        "spelling": {
+            "label": "Orthographe",
+            "instruction": "Réécrivez la forme correcte, accents compris.",
+            "prompt": "Reprenez cette orthographe :",
+            "placeholder": "L’orthographe correcte",
+        },
+        "speaking": {
+            "label": "À l’oral",
+            "instruction": "Tapez la phrase que vous diriez ; la relecture porte sur la langue.",
+            "prompt": "Reprenez cette phrase parlée :",
+            "placeholder": "La phrase à dire",
+        },
     }
 
     def __init__(self, db: Session) -> None:
         self.db = db
 
     def due_error_records(self, user: User, *, limit: int = 20, review_modes: set[str] | None = None) -> list[UserError]:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         query = (
             self.db.query(UserError)
             .filter(UserError.user_id == user.id, UserError.state != "mastered")
@@ -131,12 +166,22 @@ class ErrorMemoryService:
         code = str(getattr(detected_error, "subcategory", None) or getattr(detected_error, "code", "") or "language_error")
         category = str(getattr(detected_error, "category", None) or "grammar").lower()
         concept_id = self._infer_grammar_concept_id(code=code, category=category)
+        # Explanations follow the learner's own language; the French chrome around
+        # them does not (docs/design-overhaul-2026-08-31.md §Principles).
+        language = getattr(user, "native_language", None)
         erratum = {
-            "display_label": self._display_label_for(code=code, category=category),
+            "display_label": self._display_label_for(code=code, category=category, language=language),
             "learner_text": getattr(detected_error, "span", "") or "",
             "corrected_target": getattr(detected_error, "suggestion", "") or "",
-            "why_wrong": self._direct_feedback(getattr(detected_error, "message", "") or "This form needs review."),
-            "repair_hint": self._repair_hint_for(code=code, suggestion=getattr(detected_error, "suggestion", "")),
+            "why_wrong": self._direct_feedback(
+                getattr(detected_error, "message", "")
+                or learner_text("erratum.form_needs_review", language)
+            ),
+            "repair_hint": self._repair_hint_for(
+                code=code,
+                suggestion=getattr(detected_error, "suggestion", ""),
+                language=language,
+            ),
             "severity": _severity_to_int(getattr(detected_error, "severity", None)),
             "recurring": True,
             "task_error_type": code,
@@ -173,7 +218,14 @@ class ErrorMemoryService:
 
         concept_id = concept_id or erratum.get("concept_id")
         task_type = str(erratum.get("task_error_type") or "grammar_target")
-        display_label = str(erratum.get("display_label") or self._display_label_for(code=task_type, category="grammar"))[:120]
+        display_label = str(
+            erratum.get("display_label")
+            or self._display_label_for(
+                code=task_type,
+                category="grammar",
+                language=getattr(user, "native_language", None),
+            )
+        )[:120]
         category = self._error_category_for_erratum(erratum)
         review_mode = self._review_mode_for(category=category, task_type=task_type, source_type=source_type)
         severity = _severity_to_int(erratum.get("severity"))
@@ -223,7 +275,7 @@ class ErrorMemoryService:
             .filter(UserError.user_id == user.id, UserError.memory_key == memory_key)
             .first()
         )
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         next_review = self._next_review(now=now, severity=severity, repeated=bool(existing), source_type=source_type)
         metadata = {
             "severity": severity,
@@ -303,7 +355,7 @@ class ErrorMemoryService:
         linked_word_id: int | None,
         metadata: dict[str, Any],
     ) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         error.original_text = erratum.get("learner_text")
         error.correction = erratum.get("corrected_target")
         error.context_snippet = erratum.get("why_wrong")
@@ -327,7 +379,7 @@ class ErrorMemoryService:
         error = self.db.query(UserError).filter(UserError.id == error_id, UserError.user_id == user.id).first()
         if not error:
             return None
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if repaired and rating >= 3:
             delay_days = 14 if rating == 4 else 7
             error.state = "review"
@@ -370,7 +422,7 @@ class ErrorMemoryService:
 
         metadata = dict(reviewed.error_metadata or {})
         attempts = list(metadata.get("review_attempts") or [])
-        submitted_at = datetime.now(timezone.utc)
+        submitted_at = datetime.now(UTC)
         attempts.append(
             {
                 "submitted_at": submitted_at.isoformat(),
@@ -385,8 +437,8 @@ class ErrorMemoryService:
         closure = None
         if is_correct:
             closure = {
-                "label": "Corrected. Filed.",
-                "detail": "This erratum leaves today and returns on its next review date.",
+                "label": "Corrigé · classé",
+                "detail": "Cet erratum quitte le jour et revient à sa prochaine date de contrôle.",
                 "filed_at": submitted_at.isoformat(),
                 "next_review_date": reviewed.next_review_date.isoformat() if reviewed.next_review_date else None,
                 "state": reviewed.state or "review",
@@ -417,52 +469,48 @@ class ErrorMemoryService:
         return payload
 
     def _review_task_payload(self, error: UserError) -> dict[str, Any]:
-        target = error.correction or ""
+        """The repair card BEFORE the learner answers.
+
+        Two rules this payload has to keep: the furniture is publication French
+        (it is rendered as the card's kicker, prompt and placeholder), and it
+        carries no `target_answer` — shipping the answer with the question made
+        the whole exercise a copy for anyone reading the response.
+        """
         learner = error.original_text or ""
         review_mode = error.review_mode or "grammar"
-        if review_mode == "vocabulary":
-            instruction = "Write the corrected word or phrase from memory."
-            prompt = f"Repair the vocabulary choice: {learner or error.display_label}"
-            placeholder = "Correct word or phrase"
-        elif review_mode == "spelling":
-            instruction = "Rewrite the corrected form with spelling and accents fixed."
-            prompt = f"Repair the spelling: {learner or error.display_label}"
-            placeholder = "Correct spelling"
-        elif review_mode == "speaking":
-            instruction = "For now, type the phrase you should say. Audio replay can be added later."
-            prompt = f"Repair the spoken phrase: {learner or error.display_label}"
-            placeholder = "Phrase to say"
-        else:
-            instruction = "Rewrite the remembered mistake correctly."
-            prompt = f"Repair this grammar slip: {learner or error.display_label}"
-            placeholder = "Corrected sentence or phrase"
+        copy = self.REVIEW_MODE_COPY.get(review_mode, self.REVIEW_MODE_COPY["grammar"])
+        subject = learner or error.display_label or "cette erreur"
         return {
             "error_id": str(error.id),
-            "display_label": error.display_label or "Language repair",
+            "display_label": error.display_label or "Reprise de langue",
             "review_mode": review_mode,
+            "review_mode_label": copy["label"],
             "source_type": error.source_type or "unknown",
-            "source_label": self.SOURCE_LABELS.get(error.source_type or "", error.source_type or "Practice"),
-            "reason": serialize_error_memory(error)["reason"],
-            "instruction": instruction,
-            "prompt": prompt,
-            "placeholder": placeholder,
+            "source_label": self.SOURCE_LABELS.get(error.source_type or "", "Pratique"),
+            # The stored reason is a "learner -> target" mapping, i.e. the answer
+            # to the very repair being asked; keep only the label half.
+            "reason": str(serialize_error_memory(error)["reason"] or "").split("->")[0].split("→")[0].strip(" :"),
+            "instruction": copy["instruction"],
+            "prompt": f"{copy['prompt']} {subject}",
+            "placeholder": copy["placeholder"],
             "learner_text": learner,
             "why_wrong": error.why_wrong or error.context_snippet,
             "repair_hint": error.repair_hint,
-            "target_answer": target,
             "occurrences": error.occurrences or 1,
             "lapses": error.lapses or 0,
             "next_review_date": error.next_review_date.isoformat() if error.next_review_date else None,
         }
 
     def _review_feedback(self, error: UserError, *, is_correct: bool) -> str:
+        # Publication French, and « guillemets » rather than markdown backticks —
+        # the card prints this verbatim.
         if is_correct:
             if error.review_mode == "vocabulary":
-                return "Correct. This vocabulary slip moves back into review."
-            return "Correct. This erratum is scheduled for a later check."
+                return "Juste. Ce mot repart en révision."
+            return "Juste. Cet erratum est reprogrammé pour un contrôle plus tard."
         if error.review_mode == "vocabulary":
-            return f"Not yet. The target phrase is `{error.correction}`; review the meaning and try it again soon."
-        return f"Not yet. The target form is `{error.correction}`; the erratum stays due for repair."
+            return f"Pas encore. La forme visée est « {error.correction} » ; revoyez le sens et reprenez-la bientôt."
+        return f"Pas encore. La forme visée est « {error.correction} » ; l’erratum reste à reprendre."
 
     def _next_review(self, *, now: datetime, severity: int, repeated: bool, source_type: str) -> datetime:
         if repeated:
@@ -539,7 +587,7 @@ class ErrorMemoryService:
         progress.lapses = (progress.lapses or 0) + 1
         progress.state = "relearning"
         progress.phase = "relearn"
-        progress.next_review_date = datetime.now(timezone.utc) + timedelta(days=1)
+        progress.next_review_date = datetime.now(UTC) + timedelta(days=1)
         progress.due_date = progress.next_review_date.date()
         existing_types = list(progress.error_types or [])
         marker = str(erratum.get("task_error_type") or erratum.get("display_label") or "lexical_choice")
@@ -593,8 +641,8 @@ class ErrorMemoryService:
                 user_id=user.id,
                 concept_id=concept.id,
                 total_occurrences=1,
-                last_occurrence_date=datetime.now(timezone.utc),
-                next_review_date=datetime.now(timezone.utc),
+                last_occurrence_date=datetime.now(UTC),
+                next_review_date=datetime.now(UTC),
                 state="new",
             )
             self.db.add(user_concept)
@@ -625,22 +673,23 @@ class ErrorMemoryService:
             return concept.id if concept else None
         return None
 
-    def _display_label_for(self, *, code: str, category: str) -> str:
+    def _display_label_for(self, *, code: str, category: str, language: Any = None) -> str:
         marker = _normalize(f"{code} {category}")
         if "pronoun" in marker or " y_en" in marker:
-            return "Pronoun choice"
+            return learner_text("erratum.label_pronoun_choice", language)
         if "vocab" in marker or "lexical" in marker or "false_friend" in marker:
-            return "Vocabulary choice"
+            return learner_text("erratum.label_vocabulary_choice", language)
         if "spelling" in marker or "accent" in marker:
-            return "Spelling"
+            return learner_text("erratum.label_spelling", language)
         profile = infer_grammar_profile(task_text=marker)
         if profile.key != "grammar_target":
             return profile.label
-        return str(code or category or "Language repair").replace("_", " ").title()
+        fallback = str(code or category or "").replace("_", " ").strip()
+        return fallback.title() or learner_text("erratum.label_language_repair", language)
 
-    def _repair_hint_for(self, *, code: str, suggestion: str) -> str:
+    def _repair_hint_for(self, *, code: str, suggestion: str, language: Any = None) -> str:
         if suggestion:
-            return f"Use `{suggestion}` here, then practise the same contrast in a fresh sentence."
+            return learner_text("erratum.repair_use_suggestion", language, suggestion=suggestion)
         return infer_grammar_profile(task_text=code).repair
 
     def _direct_feedback(self, text: str) -> str:
@@ -663,18 +712,25 @@ class ErrorMemoryService:
         return str(erratum.get("error_category") or "grammar").lower()
 
 
-def serialize_error_memory(error: UserError) -> dict[str, Any]:
+def serialize_error_memory(error: UserError, *, language: Any = None) -> dict[str, Any]:
+    """The stored erratum as a payload. `language` is the learner's native code:
+    the stored halves were already authored in it, but the last-resort labels
+    here have to be resolved at read time."""
     learner = error.original_text
     corrected = error.correction
-    reason = error.display_label or error.error_pattern or "Language repair"
+    repair_label = learner_text("erratum.label_language_repair", language)
+    reason = error.display_label or error.error_pattern or repair_label
     if learner and corrected:
         reason = f"{reason}: {learner} -> {corrected}"
-    source_label = ErrorMemoryService.SOURCE_LABELS.get(error.source_type or "", error.source_type or "Practice")
+    source_label = ErrorMemoryService.SOURCE_LABELS.get(
+        error.source_type or "",
+        error.source_type or learner_text("erratum.source_practice", language),
+    )
     return {
         "id": str(error.id),
         "concept_id": error.concept_id,
         "source_attempt_id": str(error.source_attempt_id) if error.source_attempt_id else None,
-        "display_label": error.display_label or error.error_pattern or "Language repair",
+        "display_label": error.display_label or error.error_pattern or repair_label,
         "task_error_type": error.task_error_type or error.error_pattern or "language_repair",
         "error_category": error.error_category,
         "review_mode": error.review_mode or "grammar",

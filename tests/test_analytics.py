@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from app.db.models.progress import ReviewLog, UserVocabularyProgress
 from app.db.models.error import UserError
+from app.db.models.progress import ReviewLog, UserVocabularyProgress
 from app.db.models.session import LearningSession, WordInteraction
 from app.db.models.user import User
 
@@ -33,7 +33,7 @@ async def test_analytics_endpoints(async_client, db_session, french_vocabulary):
     headers = {"Authorization": f"Bearer {token}"}
 
     user = db_session.query(User).filter(User.email == email).one()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     session_one = LearningSession(
         user_id=user.id,
@@ -154,3 +154,29 @@ async def test_analytics_endpoints(async_client, db_session, french_vocabulary):
     errors = errors_response.json()
     assert errors["total"] == 1
     assert errors["items"][0]["error_type"] == "gender"
+
+
+@pytest.mark.asyncio
+async def test_pilot_operations_dashboard_is_admin_only(async_client, db_session):
+    email = "pilot-ops@example.com"
+    token = await _register_and_login(async_client, email, "verysecure")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    forbidden = await async_client.get("/api/v1/analytics/pilot-ops", headers=headers)
+    assert forbidden.status_code == 403
+
+    user = db_session.query(User).filter(User.email == email).one()
+    user.role = "admin"
+    db_session.commit()
+
+    response = await async_client.get(
+        "/api/v1/analytics/pilot-ops",
+        params={"weeks": 2},
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["window"]["weeks"] == 2
+    assert payload["costs"]["weekly_guardrail_usd_per_learner"] >= 0
+    assert payload["content_health"]["active_exercise_sets"] >= 0

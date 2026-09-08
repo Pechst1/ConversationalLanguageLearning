@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
@@ -18,11 +18,16 @@ from app.db.models.grammar import GrammarConcept
 from app.db.models.graphic_novel import GraphicNovelPanel, GraphicNovelScene
 from app.db.models.mission import RealWorldMission
 from app.db.models.progress import UserVocabularyProgress
-from app.db.models.serial import SerialThread
+from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
 from app.services.atelier import AtelierScheduler
-from app.services.graphic_novel import GraphicNovelCorrectionService, GraphicNovelGenerationError, GraphicNovelScheduler, GraphicNovelStoryGenerator
+from app.services.graphic_novel import (
+    GRAPHIC_NOVEL_TASK_COUNTS,
+    GraphicNovelCorrectionService,
+    GraphicNovelScheduler,
+    GraphicNovelStoryGenerator,
+)
 
 
 def _patch_story(monkeypatch):
@@ -46,36 +51,33 @@ def _patch_story(monkeypatch):
         script = _valid_visual_surface(panel_count=kwargs["panel_count"])
         target_vocabulary = kwargs.get("target_vocabulary", [])
         if target_vocabulary:
+            # Under the redesigned contract, target-vocabulary production lives in the
+            # optional end-of-story reflection, not in a crowded panel task.
             word = target_vocabulary[0]
-            for panel in script["panels"]:
-                for task in panel["overlay_payload"].get("tasks", []):
-                    if task.get("task_type") == "short_sentence":
-                        task.update(
-                            {
-                                "id": "panel_vocabulary_generated",
-                                "label": "Vocabulary in context",
-                                "instruction": f"Write one natural French sentence that continues the scene and uses {word['word']}.",
-                                "prompt": (
-                                    f"Context anchor: {word.get('example_sentence') or word['word']} "
-                                    f"Now add one new French line for this panel that uses {word['word']} naturally."
-                                ),
-                                "prompt_translation": f"Use {word['word']} in a new French line that fits the comic moment.",
-                                "expected_features": [
-                                    f"include the target vocabulary word: {word['word']}",
-                                    "continue the panel with a fresh contextual sentence",
-                                ],
-                                "vocabulary_task": True,
-                                "production_goal": "use_target_vocabulary_in_context",
-                                "target_word_id": word["word_id"],
-                                "target_word": word["word"],
-                                "target_translation": word.get("translation"),
-                                "example_sentence": word.get("example_sentence"),
-                                "example_translation": word.get("example_translation"),
-                            }
-                        )
-                        break
-                if any(task.get("vocabulary_task") for task in panel["overlay_payload"].get("tasks", [])):
-                    break
+            script["final_prompt"] = {
+                "id": "panel_vocabulary_generated",
+                "task_type": "short_sentence",
+                "instruction": f"Write one natural French sentence that continues the scene and uses {word['word']}.",
+                "prompt_body": (
+                    f"Context anchor: {word.get('example_sentence') or word['word']} "
+                    f"Now add one new French line after the story that uses {word['word']} naturally."
+                ),
+                "prompt_translation": f"Use {word['word']} in a new French line that fits the comic moment.",
+                "placeholder": "Écris ta phrase…",
+                "expected_features": [
+                    f"include the target vocabulary word: {word['word']}",
+                    "continue the panel with a fresh contextual sentence",
+                ],
+                "min_words": 6,
+                "max_words": 30,
+                "vocabulary_task": True,
+                "production_goal": "use_target_vocabulary_in_context",
+                "target_word_id": word["word_id"],
+                "target_word": word["word"],
+                "target_translation": word.get("translation"),
+                "example_sentence": word.get("example_sentence"),
+                "example_translation": word.get("example_translation"),
+            }
         return script, {
             "provider": "test",
             "model": kwargs["story_model"],
@@ -173,7 +175,7 @@ def test_create_feuilleton_prioritizes_due_errata(client: TestClient, db_session
         why_wrong="You used present in the result clause.",
         repair_hint="Put the consequence in future simple.",
         source_type="atelier",
-        next_review_date=datetime.now(timezone.utc) - timedelta(days=1),
+        next_review_date=datetime.now(UTC) - timedelta(days=1),
     )
     vocab_word = VocabularyWord(
         language="fr",
@@ -208,9 +210,9 @@ def test_create_feuilleton_prioritizes_due_errata(client: TestClient, db_session
             scheduler="anki",
             state="reviewing",
             phase="review",
-            due_at=datetime.now(timezone.utc) - timedelta(days=1),
-            due_date=(datetime.now(timezone.utc) - timedelta(days=1)).date(),
-            last_review_date=datetime.now(timezone.utc) - timedelta(days=4),
+            due_at=datetime.now(UTC) - timedelta(days=1),
+            due_date=(datetime.now(UTC) - timedelta(days=1)).date(),
+            last_review_date=datetime.now(UTC) - timedelta(days=4),
             stability=2.1,
             difficulty=7.2,
             interval_days=2,
@@ -262,17 +264,25 @@ def test_create_feuilleton_prioritizes_due_errata(client: TestClient, db_session
         for panel in scene["panels"]
         for task in panel["overlay_payload"].get("tasks", [])
     ]
-    assert [task["task_type"] for task in tasks[:3]] == ["cloze", "choice", "short_sentence"]
-    assert len(tasks) == 5
-    vocabulary_tasks = [task for task in tasks if task.get("vocabulary_task")]
-    assert len(vocabulary_tasks) == 1
-    assert vocabulary_tasks[0]["task_type"] == "short_sentence"
-    assert vocabulary_tasks[0]["production_goal"] == "use_target_vocabulary_in_context"
-    assert vocabulary_tasks[0]["target_word_id"] == target_word.id
-    assert vocabulary_tasks[0]["target_word"] == "remarquer"
-    assert vocabulary_tasks[0]["example_sentence"] == "Elle remarque le détail trop tard."
-    assert vocabulary_tasks[0]["example_translation"] == "She notices the detail too late."
-    assert "Elle remarque le détail trop tard." in vocabulary_tasks[0]["prompt"]
+    # New contract: exactly one panel interaction, and it is a story decision (branch),
+    # never a graded grammar answer.
+    assert len(tasks) == 1
+    assert tasks[0]["task_type"] == "choice"
+    assert tasks[0]["grading_mode"] == "branch"
+    assert tasks[0]["expected_answer"] == ""
+    # At least two panels can be read with no interaction at all.
+    interaction_free = [panel for panel in scene["panels"] if not panel["overlay_payload"].get("tasks")]
+    assert len(interaction_free) >= 2
+    # Target-vocabulary production lives in the optional end-of-story reflection.
+    vocabulary_final = scene["script_payload"]["final_prompt"]
+    assert vocabulary_final.get("vocabulary_task") is True
+    assert vocabulary_final["optional"] is True
+    assert vocabulary_final["production_goal"] == "use_target_vocabulary_in_context"
+    assert vocabulary_final["target_word_id"] == target_word.id
+    assert vocabulary_final["target_word"] == "remarquer"
+    assert vocabulary_final["example_sentence"] == "Elle remarque le détail trop tard."
+    assert vocabulary_final["example_translation"] == "She notices the detail too late."
+    assert "Elle remarque le détail trop tard." in vocabulary_final["prompt"]
     assert all("no readable text" in panel["image_prompt"].lower() for panel in scene["panels"])
     assert all("story premise" not in panel["image_prompt"].lower() for panel in scene["panels"])
     assert all("news/context inspiration" not in panel["image_prompt"].lower() for panel in scene["panels"])
@@ -353,8 +363,11 @@ def test_non_serial_feuilleton_generation_does_not_enter_serial_plan(client: Tes
         for panel in scene["panels"]
         for task in panel["overlay_payload"].get("tasks", [])
     ]
-    assert [task["task_type"] for task in tasks[:3]] == ["cloze", "choice", "short_sentence"]
-    assert tasks[1]["options"] == ["S'il pleut, prends ton manteau.", "S'il pleut, prendras ton manteau."]
+    # New contract: a single panel interaction, and it is the story decision.
+    assert len(tasks) == 1
+    assert tasks[0]["task_type"] == "choice"
+    assert tasks[0]["grading_mode"] == "branch"
+    assert tasks[0]["options"] == ["Il salue la foule.", "Il se referme et s'en va."]
 
 
 def test_feuilleton_vocabulary_task_miss_creates_credit_erratum(client: TestClient, db_session, monkeypatch):
@@ -386,12 +399,9 @@ def test_feuilleton_vocabulary_task_miss_creates_credit_erratum(client: TestClie
         headers={"Authorization": f"Bearer {token}"},
     )
     scene = create.json()["scene"]
-    vocabulary_task = next(
-        task
-        for panel in scene["panels"]
-        for task in panel["overlay_payload"].get("tasks", [])
-        if task.get("vocabulary_task")
-    )
+    # Vocabulary production now lives in the optional end-of-story reflection.
+    vocabulary_task = scene["script_payload"]["final_prompt"]
+    assert vocabulary_task.get("vocabulary_task") is True
 
     miss = client.post(
         f"/api/v1/graphic-novel/scenes/{scene['id']}/attempts",
@@ -419,31 +429,19 @@ def test_feuilleton_vocabulary_task_miss_creates_credit_erratum(client: TestClie
     assert progress.state == "relearning"
     assert progress.phase == "relearn"
 
-    all_tasks = [
+    # Answer the single panel decision so the episode can complete.
+    for task in (
         task
         for panel in scene["panels"]
         for task in panel["overlay_payload"].get("tasks", [])
-    ]
-    for task in all_tasks:
-        if task["id"] == vocabulary_task["id"]:
-            continue
-        answer = task.get("expected_answer") or "Je remarque le tampon dans la scène."
+    ):
+        answer = task.get("expected_answer") or (task.get("options") or ["A"])[0]
         response = client.post(
             f"/api/v1/graphic-novel/scenes/{scene['id']}/attempts",
             json={"task_id": task["id"], "answer_payload": {"answer": answer}},
             headers={"Authorization": f"Bearer {token}"},
         )
         assert response.status_code == 200
-    final_prompt = scene["script_payload"]["final_prompt"]
-    response = client.post(
-        f"/api/v1/graphic-novel/scenes/{scene['id']}/attempts",
-        json={
-            "task_id": final_prompt["id"],
-            "answer_payload": {"answer": "Je remarque enfin pourquoi le tampon ralentit la scène."},
-        },
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    assert response.status_code == 200
 
     complete = client.post(
         f"/api/v1/graphic-novel/scenes/{scene['id']}/complete",
@@ -481,7 +479,15 @@ def test_feuilleton_completion_requires_required_tasks(client: TestClient, db_se
     assert complete.status_code == 409
     detail = complete.json()["detail"]
     assert detail["code"] == "feuilleton_tasks_incomplete"
-    assert scene["script_payload"]["final_prompt"]["id"] in detail["missing_task_ids"]
+    panel_task_ids = [
+        task["id"]
+        for panel in scene["panels"]
+        for task in panel["overlay_payload"].get("tasks", [])
+    ]
+    # The panel decision is required; the optional final reflection never blocks completion.
+    assert panel_task_ids
+    assert set(panel_task_ids).issubset(set(detail["missing_task_ids"]))
+    assert scene["script_payload"]["final_prompt"]["id"] not in detail["missing_task_ids"]
 
 
 def test_closed_task_correction_is_deterministic_and_persists_errata(client: TestClient, db_session, monkeypatch):
@@ -494,7 +500,33 @@ def test_closed_task_correction_is_deterministic_and_persists_errata(client: Tes
         headers={"Authorization": f"Bearer {token}"},
     )
     scene = response.json()["scene"]
-    task = scene["panels"][1]["overlay_payload"]["tasks"][0]
+    # The default panel interaction is a story decision (branch). Inject a genuine graded
+    # cloze so we can verify the closed-task grading + errata-persistence path end to end.
+    persisted_scene = db_session.get(GraphicNovelScene, UUID(scene["id"]))
+    graded_panel = sorted(persisted_scene.panels, key=lambda item: item.panel_index)[1]
+    overlay = dict(graded_panel.overlay_payload or {})
+    graded_task = {
+        "id": "graded_cloze_future_result",
+        "task_type": "cloze",
+        "grading_mode": "graded",
+        "concept_id": None,
+        "label": "Future result",
+        "instruction": "Complete the next line after the phone rings.",
+        "prompt": "Si elle appelle, je ____ tout de suite.",
+        "prompt_translation": "If she calls, I ____ right away.",
+        "expected_answer": "répondrai",
+        "accepted_answers": ["répondrai", "repondrai"],
+        "options": [],
+        "expected_features": [],
+        "placeholder": "Your answer",
+        "scene_function": "The next line gives the cafe a concrete consequence.",
+        "feedback_context": "The si-clause stays present and the result clause carries the future.",
+    }
+    overlay["tasks"] = [*(overlay.get("tasks") or []), graded_task]
+    graded_panel.overlay_payload = overlay
+    db_session.add(graded_panel)
+    db_session.commit()
+    task = graded_task
 
     wrong = client.post(
         f"/api/v1/graphic-novel/scenes/{scene['id']}/attempts",
@@ -577,8 +609,8 @@ def test_feuilleton_supports_variable_panel_lengths(client: TestClient, db_sessi
         for task in panel["overlay_payload"].get("tasks", [])
     ]
     assert len(quick_scene["panels"]) == 4
-    assert quick_scene["script_payload"]["task_count"] == 3
-    assert len(quick_tasks) == 3
+    assert quick_scene["script_payload"]["task_count"] == 1
+    assert len(quick_tasks) == 1
 
     long = client.post(
         "/api/v1/graphic-novel/scenes",
@@ -599,8 +631,8 @@ def test_feuilleton_supports_variable_panel_lengths(client: TestClient, db_sessi
         for task in panel["overlay_payload"].get("tasks", [])
     ]
     assert len(long_scene["panels"]) == 8
-    assert long_scene["script_payload"]["task_count"] == 7
-    assert len(long_tasks) == 7
+    assert long_scene["script_payload"]["task_count"] == 2
+    assert len(long_tasks) == 2
     assert long_scene["script_payload"]["story_quality"] == "premium"
     assert long_scene["script_payload"]["humor_style"] == "absurd"
 
@@ -654,7 +686,7 @@ def test_feuilleton_panel_mode_uses_per_panel_image_payloads(client: TestClient,
     assert all("human continuity" in panel["image_prompt"].lower() for panel in scene["panels"])
 
 
-def test_feuilleton_generation_failure_is_honest(client: TestClient, db_session, monkeypatch):
+def test_feuilleton_generation_recovers_without_story_llm(client: TestClient, db_session, monkeypatch):
     monkeypatch.setattr("app.services.graphic_novel._safe_llm", lambda: None)
     token = _token(client)
     concept = _concept(db_session)
@@ -665,10 +697,127 @@ def test_feuilleton_generation_failure_is_honest(client: TestClient, db_session,
         headers={"Authorization": f"Bearer {token}"},
     )
 
-    assert response.status_code == 503
-    detail = response.json()["detail"]
-    assert detail["code"] == "feuilleton_generation_failed"
-    assert "story_llm_unavailable" in detail["errors"]
+    assert response.status_code == 200
+    scene = response.json()["scene"]
+    script = scene["script_payload"]
+    # A standalone edition must recover as a self-contained fallback, NOT by borrowing the
+    # default Paris serial world.
+    assert script["generation_debug"]["status"] == "local_recovery_script"
+    assert script["generation_debug"]["provider_error"] == "story_llm_unavailable"
+    assert script["generation_debug"]["fallback_used"] is True
+    assert script["visual_only_demo"] is False
+    assert "serial_context_used" not in script["generation_debug"]
+    assert "Romy" not in script["title"]
+    assert scene["serial_thread_id"] is None
+    # No learner-facing news/source card leaks from the recovery edition.
+    assert scene["source_snapshot"] == {}
+    panel_tasks = [
+        task
+        for panel in scene["panels"]
+        for task in panel["overlay_payload"].get("tasks", [])
+    ]
+    # Exactly one story decision (branch); at least two panels stay interaction-free.
+    assert len(panel_tasks) == script["task_count"] == 1
+    assert panel_tasks[0]["task_type"] == "choice"
+    assert panel_tasks[0]["grading_mode"] == "branch"
+    interaction_free = [panel for panel in scene["panels"] if not panel["overlay_payload"].get("tasks")]
+    assert len(interaction_free) >= 2
+    validation_errors = script["generation_debug"]["validation_errors"]
+    assert not any(error.startswith("overlay_task_count_mismatch") for error in validation_errors)
+    assert "task_missing_scene_function" not in validation_errors
+    assert "task_missing_feedback_context" not in validation_errors
+    assert "closed_task_copied_from_caption" not in validation_errors
+    assert "third_person_feedback" not in validation_errors
+
+
+def test_ad_hoc_recovery_rejoins_active_serial_cast_and_plot(client: TestClient, db_session, monkeypatch):
+    monkeypatch.setattr("app.services.graphic_novel._safe_llm", lambda: None)
+    token = _token(client)
+    user = _user_from_token(db_session, token)
+    thread = SerialThread(
+        user_id=user.id,
+        status="active",
+        world_bible=_serial_world(),
+        state={
+            "user": {"has_met_group": True},
+            "relationships": {
+                "romy_tremblay": {"register": "tu", "closeness": 3},
+                "lila_bonnet": {"register": "tu", "closeness": 4},
+            },
+        },
+        news_seed={"title": "A quiet day in Paris"},
+        current_episode_index=2,
+    )
+    episode = SerialEpisode(
+        thread=thread,
+        episode_index=2,
+        kind="mission",
+        status="available",
+        location_id="le_mistral",
+        hook_from_previous={
+            "text": "Romy found a note under the table.",
+            "unresolved_question": "Pourquoi Romy a-t-elle caché le mot ?",
+        },
+        brief_payload={
+            "required_cast": ["romy_tremblay", "lila_bonnet"],
+            "location_id": "le_mistral",
+            "a_plot": {"stage_summary": "Romy must decide whether to show Lila the note."},
+            "hook_guidance": "Romy montrera-t-elle enfin le mot à Lila ?",
+        },
+    )
+    db_session.add_all([thread, episode])
+    db_session.commit()
+
+    response = client.post(
+        "/api/v1/graphic-novel/scenes",
+        json={"cadence": "ad_hoc", "use_news": False},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 200
+    scene = response.json()["scene"]
+    script = scene["script_payload"]
+    assert script["generation_debug"]["status"] == "local_character_recovery_script"
+    assert script["generation_debug"]["serial_plan_source"] == "continuity_recovery"
+    assert script["title"] == "Romy garde une porte ouverte"
+    speakers = {
+        bubble["speaker"]
+        for panel in scene["panels"]
+        for bubble in panel["overlay_payload"].get("bubbles", [])
+    }
+    assert speakers == {"Romy Tremblay", "Lila Bonnet"}
+    captions = [panel["overlay_payload"]["caption"]["fr"] for panel in scene["panels"]]
+    assert len(set(captions)) == len(captions)
+    assert all("tampon" not in caption.lower() for caption in captions)
+
+
+def test_feuilleton_generation_recovers_after_story_provider_exhausts_retries(
+    client: TestClient,
+    db_session,
+    monkeypatch,
+):
+    monkeypatch.setattr("app.services.graphic_novel._safe_llm", lambda: object())
+    monkeypatch.setattr(
+        GraphicNovelStoryGenerator,
+        "_llm_skeleton",
+        lambda self, **kwargs: None,
+    )
+    token = _token(client)
+    concept = _concept(db_session)
+
+    response = client.post(
+        "/api/v1/graphic-novel/scenes",
+        json={"cadence": "ad_hoc", "preferred_concept_ids": [concept.id]},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 200
+    generation = response.json()["scene"]["script_payload"]["generation_debug"]
+    # Standalone scene recovers as a self-contained fallback, not a serial-world episode.
+    assert generation["status"] == "local_recovery_script"
+    assert generation["provider_error"] == "skeleton_model_returned_no_valid_json_or_provider_timeout"
+    assert generation["attempts"] >= 1
+    assert generation["fallback_used"] is True
 
 
 def test_feuilleton_demo_script_can_power_mobile_qa_without_llm(client: TestClient, db_session, monkeypatch):
@@ -824,14 +973,14 @@ def test_serial_visual_design_contract_feeds_cast_and_location_descriptors(db_se
         "canonical_descriptor": "locked Romy model sheet descriptor; leather jacket; cold-blue accent",
         "accent_colour": "#1d3a8a",
         "ui_token": "--char-romy",
-        "reference_images": ["assets/serial/characters/romy_tremblay/model-sheet.png"],
-        "style_ref": "assets/serial/characters/romy_tremblay/model-sheet.png",
+        "reference_images": ["assets/serial/characters/romy_tremblay/model-sheet.webp"],
+        "style_ref": "assets/serial/characters/romy_tremblay/model-sheet.webp",
         "expressions": {"warm": "softened", "guarded": "reporter stare"},
     }
     world["visual_design"]["locations"] = {
         "le_mistral": {
             "canonical_descriptor": "locked Le Mistral plate descriptor; zinc counter; rain on glass",
-            "reference_images": ["assets/serial/locations/le_mistral-counter.png"],
+            "reference_images": ["assets/serial/locations/le_mistral-counter.webp"],
         }
     }
 
@@ -839,8 +988,8 @@ def test_serial_visual_design_contract_feeds_cast_and_location_descriptors(db_se
     assert "locked Romy model sheet descriptor" in romy["visual_description"]
     assert "#1d3a8a" in romy["visual_description"]
     assert "--char-romy" in romy["visual_description"]
-    assert "reference images: assets/serial/characters/romy_tremblay/model-sheet.png" in romy["visual_description"]
-    assert "style reference: assets/serial/characters/romy_tremblay/model-sheet.png" in romy["visual_description"]
+    assert "reference images: assets/serial/characters/romy_tremblay/model-sheet.webp" in romy["visual_description"]
+    assert "style reference: assets/serial/characters/romy_tremblay/model-sheet.webp" in romy["visual_description"]
     assert "expressions: warm, guarded" in romy["visual_description"]
 
     user = User(
@@ -880,7 +1029,7 @@ def test_serial_visual_design_contract_feeds_cast_and_location_descriptors(db_se
     assert script["location_id"] == "le_mistral"
     assert script["selected_visual_premise"]["domain"] == (
         "locked Le Mistral plate descriptor; zinc counter; rain on glass; "
-        "reference images: assets/serial/locations/le_mistral-counter.png"
+        "reference images: assets/serial/locations/le_mistral-counter.webp"
     )
 
 
@@ -1186,17 +1335,22 @@ def test_serial_feuilleton_uses_llm_episode_plan_when_available(db_session, monk
         for task in panel["overlay_payload"].get("tasks", [])
     ]
     assert {"Radiator phrase", "How do you enter?", "Introduce yourself", "News reaction", "Keep the thread alive"}.isdisjoint(task_labels)
-    cloze_task = script["panels"][0]["overlay_payload"]["tasks"][0]
-    assert cloze_task["expected_answer"] == "marché"
+    # New contract: exactly one panel interaction, and it is the story decision (branch).
+    assert len(task_labels) == 1
     choice_task = script["panels"][1]["overlay_payload"]["tasks"][0]
+    assert choice_task["task_type"] == "choice"
+    assert choice_task["grading_mode"] == "branch"
+    assert choice_task["expected_answer"] == ""
     assert choice_task["options"][0]["fr"].startswith("Excusez-moi")
     assert choice_task["options"][1]["fr"].startswith("On peut goûter")
     assert "extra slice" in choice_task["branch_target"]["B"]["next_panel_beat"]
+    # Panel 1 is now pure reading; its plan bubbles still render.
+    assert script["panels"][0]["overlay_payload"]["tasks"] == []
     assert script["panels"][0]["overlay_payload"]["bubbles"][0]["fr"] == "Debout. Romy va nous tuer."
     assert script["panels"][0]["overlay_payload"]["bubbles"][0]["accent_color"] == "marigold"
 
 
-def test_serial_episode_one_can_still_fallback_but_episode_two_needs_story_true_plan(db_session, monkeypatch):
+def test_serial_episode_two_uses_character_aware_continuity_recovery_without_llm(db_session, monkeypatch):
     generator = GraphicNovelStoryGenerator(db_session)
     user = User(
         id=uuid4(),
@@ -1236,23 +1390,117 @@ def test_serial_episode_one_can_still_fallback_but_episode_two_needs_story_true_
 
     assert fallback_script["generation_debug"]["serial_plan_source"] == "template"
     assert fallback_script["generation_debug"]["fallback_used"] is True
-    with pytest.raises(GraphicNovelGenerationError) as exc:
-        generator.build_script(
-            user=user,
-            concepts=[],
-            errata=[],
-            source_snapshot={"mode": "serial_news_seed", "title": "Paris tests a repair hotline", "source": "QA"},
-            panel_count=6,
-            story_quality="standard",
-            humor_style="satirical",
-            experience_mode="study",
-            render_mode="panels",
-            image_quality="medium",
-            public_figure_mode="named_context",
-            target_vocabulary=[{"word_id": 1, "word": "réparer", "translation": "to repair"}],
-            serial_context={**serial_context, "episode_index": 2},
-        )
-    assert "serial_story_llm_unavailable" in exc.value.errors
+    recovery_script = generator.build_script(
+        user=user,
+        concepts=[],
+        errata=[],
+        source_snapshot={"mode": "serial_news_seed", "title": "Paris tests a repair hotline", "source": "QA"},
+        panel_count=6,
+        story_quality="standard",
+        humor_style="satirical",
+        experience_mode="study",
+        render_mode="panels",
+        image_quality="medium",
+        public_figure_mode="named_context",
+        target_vocabulary=[{"word_id": 1, "word": "réparer", "translation": "to repair"}],
+        serial_context={
+            **serial_context,
+            "episode_index": 2,
+            "state": {
+                "heating_fixed": True,
+                "user": {"has_met_group": True},
+                "relationships": {"marin_leveque": {"register": "tu", "closeness": 3}},
+            },
+            "hook_from_previous": {
+                "text": "Marin asks for help with a secret.",
+                "unresolved_question": "Pourquoi Marin garde-t-il la main dans sa poche ?",
+            },
+            "episode_brief": {
+                "required_cast": ["marin_leveque", "lila_bonnet"],
+                "a_plot": {"stage_summary": "Marin's hidden ring creates pressure between him and Lila."},
+                "hook_guidance": "Marin dira-t-il enfin ce qu'il cache ?",
+            },
+        },
+    )
+
+    assert recovery_script["generation_debug"]["serial_plan_source"] == "continuity_recovery"
+    assert recovery_script["generation_debug"]["fallback_used"] is True
+    assert recovery_script["title"] == "La bague dans la poche"
+    captions = [panel["overlay_payload"]["caption"]["fr"] for panel in recovery_script["panels"]]
+    assert len(set(captions)) == len(captions)
+    dialogue = [
+        bubble
+        for panel in recovery_script["panels"]
+        for bubble in panel["overlay_payload"].get("bubbles", [])
+    ]
+    assert dialogue and {bubble["speaker"] for bubble in dialogue} <= {"Marin Lévêque", "Lila Bonnet"}
+    assert all(bubble["speaker"] != "Voix" for bubble in dialogue)
+    visible_copy = json.dumps(recovery_script, ensure_ascii=False).lower()
+    assert "radiator phrase" not in visible_copy
+    assert "introduce yourself" not in visible_copy
+
+
+def test_serial_recovery_can_select_visual_only_supporting_character(db_session, monkeypatch):
+    generator = GraphicNovelStoryGenerator(db_session)
+    monkeypatch.setattr(GraphicNovelStoryGenerator, "_serial_episode_plan", lambda self, **kwargs: None)
+    user = User(
+        id=uuid4(),
+        email=f"serial-supporting-cast-{uuid4()}@example.com",
+        hashed_password="x",
+        target_language="fr",
+        native_language="en",
+        proficiency_level="A2",
+    )
+    db_session.add(user)
+    db_session.commit()
+    world = _serial_world()
+    world["visual_design"]["characters"]["landlord_marchand"] = {
+        "canonical_descriptor": "Older Parisian landlord, neat grey coat, wire-frame glasses.",
+        "accent_colour": "ink-grey",
+    }
+
+    script = generator.build_script(
+        user=user,
+        concepts=[],
+        errata=[],
+        source_snapshot={"mode": "serial_news_seed", "title": "A quiet Paris day", "source": "QA"},
+        panel_count=6,
+        story_quality="standard",
+        humor_style="dry",
+        experience_mode="study",
+        render_mode="panels",
+        image_quality="medium",
+        public_figure_mode="named_context",
+        target_vocabulary=[{"word_id": 4, "word": "rendez-vous", "translation": "appointment"}],
+        serial_context={
+            "thread_id": str(uuid4()),
+            "episode_index": 2,
+            "world_bible": world,
+            "state": {"relationships": {"landlord_marchand": {"register": "vous", "closeness": 1}}},
+            "previous_locations": ["user_apartment"],
+            "hook_from_previous": {"text": "M. Marchand finally answers the message."},
+            "episode_brief": {
+                "required_cast": ["landlord_marchand"],
+                "location_id": "user_apartment",
+                "a_plot": {"stage_summary": "The repair appointment turns into a test of trust."},
+            },
+        },
+    )
+
+    assert script["title"] == "M. Marchand a une condition"
+    assert script["generation_debug"]["serial_plan_source"] == "continuity_recovery"
+    assert script["dialogue_register"].endswith("vous")
+    assert {member["name"] for member in script["character_bible"]} == {"M. Marchand"}
+    speakers = {
+        bubble["speaker"]
+        for panel in script["panels"]
+        for bubble in panel["overlay_payload"].get("bubbles", [])
+    }
+    assert speakers == {"M. Marchand"}
+    assert not any(
+        error.startswith("overlay_task_count_mismatch")
+        for error in script["generation_debug"]["validation_errors"]
+    )
 
 
 def test_serial_plan_rejects_first_meeting_task_after_group_is_known(db_session):
@@ -1529,6 +1777,220 @@ def test_scene_creation_queues_images_when_image_generation_enabled(db_session, 
     assert all(panel.generation_metadata["image_status"] == "queued" for panel in scene.panels)
 
 
+def test_async_scene_endpoint_returns_pollable_writing_shell(client: TestClient, db_session, monkeypatch):
+    token = _token(client)
+    monkeypatch.setattr(
+        "app.api.v1.endpoints.graphic_novel._generate_prepared_scene",
+        lambda scene_id, user_id, create_kwargs: None,
+    )
+
+    response = client.post(
+        "/api/v1/graphic-novel/scenes",
+        json={
+            "cadence": "ad_hoc",
+            "panel_count": 4,
+            "use_news": False,
+            "async_generation": True,
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 200
+    scene = response.json()["scene"]
+    assert scene["status"] == "writing"
+    assert scene["title"] == "L’édition se compose"
+    assert scene["script_payload"]["generation_phase"] == "script"
+    assert scene["panels"] == []
+    persisted = db_session.get(GraphicNovelScene, UUID(scene["id"]))
+    assert persisted is not None
+    assert persisted.status == "writing"
+
+    repeated = client.post(
+        "/api/v1/graphic-novel/scenes",
+        json={
+            "cadence": "ad_hoc",
+            "panel_count": 4,
+            "use_news": False,
+            "async_generation": True,
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert repeated.status_code == 200
+    assert repeated.json()["scene"]["id"] == scene["id"]
+
+
+def test_async_serial_retry_links_episode_to_pollable_shell(client: TestClient, db_session, monkeypatch):
+    token = _token(client)
+    user = _user_from_token(db_session, token)
+    thread = SerialThread(
+        user_id=user.id,
+        status="active",
+        world_bible=_serial_world(),
+        state={},
+        news_seed={},
+        current_episode_index=1,
+    )
+    db_session.add(thread)
+    db_session.flush()
+    episode = SerialEpisode(
+        thread_id=thread.id,
+        episode_index=1,
+        kind="feuilleton",
+        hook={},
+        hook_from_previous={},
+        state_delta={},
+        brief_payload={},
+        status="delayed",
+    )
+    db_session.add(episode)
+    db_session.commit()
+    monkeypatch.setattr(
+        "app.api.v1.endpoints.graphic_novel._generate_prepared_scene",
+        lambda scene_id, user_id, create_kwargs: None,
+    )
+
+    response = client.post(
+        "/api/v1/graphic-novel/scenes",
+        json={
+            "cadence": "ad_hoc",
+            "serial_thread_id": str(thread.id),
+            "episode_index": 1,
+            "panel_count": 4,
+            "use_news": False,
+            "force_new": True,
+            "async_generation": True,
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 200
+    scene = response.json()["scene"]
+    db_session.refresh(episode)
+    assert scene["status"] == "writing"
+    assert episode.status == "writing"
+    assert str(episode.scene_id) == scene["id"]
+
+
+def test_prepared_background_generation_finishes_art_without_worker(monkeypatch):
+    calls: dict[str, Any] = {}
+
+    class FakeDb:
+        def get(self, model, item_id):
+            return object()
+
+        def rollback(self):
+            return None
+
+        def close(self):
+            return None
+
+    class FakeScheduler:
+        def __init__(self, db):
+            self.db = db
+
+        async def create(self, **kwargs):
+            calls.update(kwargs)
+
+        def mark_generation_failed(self, scene_id, error):
+            pytest.fail(f"background generation unexpectedly failed: {error}")
+
+    monkeypatch.setattr("app.api.v1.endpoints.graphic_novel.SessionLocal", FakeDb)
+    monkeypatch.setattr("app.api.v1.endpoints.graphic_novel.GraphicNovelScheduler", FakeScheduler)
+
+    from app.api.v1.endpoints.graphic_novel import _generate_prepared_scene
+
+    _generate_prepared_scene(uuid4(), uuid4(), {"cadence": "ad_hoc", "force_new": True})
+
+    assert calls["sync"] is True
+    assert calls["pending_scene_id"]
+    assert calls["force_new"] is True
+
+
+def test_prepared_scene_is_finalized_in_place(db_session, monkeypatch):
+    monkeypatch.setattr(settings, "GRAPHIC_NOVEL_IMAGE_GENERATION_ENABLED", False)
+
+    class FakeGenerator:
+        def build_script(self, **kwargs):
+            script = _valid_visual_script(panel_count=kwargs["panel_count"])
+            script["render_mode"] = kwargs["render_mode"]
+            return script
+
+    user = User(
+        id=uuid4(),
+        email=f"prepared-feuilleton-{uuid4()}@example.com",
+        hashed_password="x",
+        target_language="fr",
+        native_language="en",
+        proficiency_level="B1",
+    )
+    db_session.add(user)
+    db_session.commit()
+    scheduler = GraphicNovelScheduler(db_session, generator=FakeGenerator())
+    pending = scheduler.prepare_generation(user=user, cadence="ad_hoc", image_quality="medium")
+
+    completed = asyncio.run(
+        scheduler.create(
+            user=user,
+            cadence="ad_hoc",
+            panel_count=4,
+            force_new=True,
+            sync=True,
+            pending_scene_id=pending.id,
+        )
+    )
+
+    assert completed.id == pending.id
+    assert completed.status == "available"
+    assert completed.script_payload["generation_phase"] == "ready"
+    assert len(completed.panels) == 4
+
+
+def test_art_failure_keeps_prepared_scene_readable(db_session, monkeypatch):
+    monkeypatch.setattr(settings, "GRAPHIC_NOVEL_IMAGE_GENERATION_ENABLED", True)
+
+    class FakeGenerator:
+        def build_script(self, **kwargs):
+            script = _valid_visual_script(panel_count=kwargs["panel_count"])
+            script["render_mode"] = kwargs["render_mode"]
+            return script
+
+    user = User(
+        id=uuid4(),
+        email=f"prepared-art-fallback-{uuid4()}@example.com",
+        hashed_password="x",
+        target_language="fr",
+        native_language="en",
+        proficiency_level="B1",
+    )
+    db_session.add(user)
+    db_session.commit()
+    scheduler = GraphicNovelScheduler(db_session, generator=FakeGenerator())
+    monkeypatch.setattr(
+        scheduler,
+        "_render_panel_payloads",
+        AsyncMock(side_effect=RuntimeError("image provider unavailable")),
+    )
+    pending = scheduler.prepare_generation(user=user, cadence="ad_hoc", image_quality="medium")
+
+    completed = asyncio.run(
+        scheduler.create(
+            user=user,
+            cadence="ad_hoc",
+            panel_count=4,
+            force_new=True,
+            sync=True,
+            pending_scene_id=pending.id,
+        )
+    )
+
+    assert completed.id == pending.id
+    assert completed.status == "available"
+    assert completed.script_payload["generation_phase"] == "ready"
+    assert completed.script_payload["art_generation_error"] == "image provider unavailable"
+    assert len(completed.panels) == 4
+    assert all(panel.generation_metadata["image_status"] == "failed" for panel in completed.panels)
+
+
 def test_local_image_storage_persists_panel_url(db_session, monkeypatch, tmp_path):
     monkeypatch.setattr(settings, "GRAPHIC_NOVEL_IMAGE_STORAGE", "local")
     monkeypatch.setattr(settings, "GRAPHIC_NOVEL_LOCAL_IMAGE_DIR", tmp_path)
@@ -1694,7 +2156,29 @@ def test_feuilleton_validator_rejects_worksheet_in_comic_costume(db_session):
     )
 
     copied_task = _valid_visual_script(panel_count=4)
-    copied_task["panels"][1]["overlay_payload"]["caption"]["fr"] = "Si elle appelle, je répondrai tout de suite."
+    # Inject a genuine graded closed task whose blanked line copies its caption; the
+    # validator must still reject a closed task that merely repeats the caption.
+    graded_caption = {"panel_index": 2, "fr": "Si elle appelle, je répondrai tout de suite.", "en": "If she calls, I will answer right away."}
+    copied_task["panels"][1]["overlay_payload"]["caption"] = graded_caption
+    copied_task["panels"][1]["overlay_payload"]["tasks"] = [
+        {
+            "id": "graded_cloze_copy",
+            "task_type": "cloze",
+            "grading_mode": "graded",
+            "concept_id": None,
+            "label": "Future result",
+            "instruction": "Complete the next line.",
+            "prompt": "Si elle appelle, je répondrai tout de suite.",
+            "prompt_translation": "If she calls, I will answer right away.",
+            "expected_answer": "répondrai",
+            "accepted_answers": ["répondrai"],
+            "options": [],
+            "expected_features": [],
+            "placeholder": "Your answer",
+            "scene_function": "The next line gives the cafe a concrete consequence.",
+            "feedback_context": "The result clause carries the future.",
+        }
+    ]
     assert "closed_task_copied_from_caption" in generator._validate_script(
         script=copied_task,
         panel_count=4,
@@ -1738,9 +2222,10 @@ def test_feuilleton_normalization_does_not_backfill_missing_ai_task_text(db_sess
         public_figure_mode="named_context",
     )
 
-    assert "panel_cloze_future_result" not in {task["id"] for task in tasks}
+    # The panel task lost its instruction and must be dropped, not backfilled.
+    assert "panel_story_decision" not in {task["id"] for task in tasks}
     assert normalized["final_prompt"]["id"] == ""
-    assert "overlay_task_count_mismatch_expected_3" in errors
+    assert "overlay_task_count_mismatch_expected_1" in errors
     assert "final_prompt_missing_required_content" in errors
 
 
@@ -1807,20 +2292,31 @@ def _valid_visual_skeleton(panel_count: int = 4) -> dict:
 
 
 def _valid_visual_surface(panel_count: int = 4) -> dict:
-    prompt = (
-        "Draw one square editorial visual-gag comic panel with Penguin Crime paperback-cover mood and photomechanical halftone texture. "
-        "Scene visual preamble: an official announcement makes a familiar situation urgent again. "
-        "Human continuity: Elise, a reporter with a beige coat; Marc, a waiter with a black apron. "
-        "Panel action: one umbrella sits at a press table like the only competent public official. "
-        "Penguin Crime paperback-cover mood with photomechanical halftone texture. "
-        "Use real public figures only as named topic context outside the image. "
-        "Do not draw readable text, captions, speech bubbles, UI, blanks, signs, labels, or answer choices."
-    )
     skeleton = _valid_visual_skeleton(panel_count)
     premise = skeleton["selected_visual_premise"]
     panels = []
-    task_positions = set(range(2, panel_count + 1))
+    # New contract: one panel decision (two for the eight-panel edition); every other
+    # panel is pure reading. Place the task(s) on the panels right after the opener.
+    desired_task_count = GRAPHIC_NOVEL_TASK_COUNTS[panel_count]
+    task_positions = set(range(2, 2 + desired_task_count))
     task_bank = [
+        {
+            "id": "panel_story_decision",
+            "task_type": "choice",
+            "grading_mode": "branch",
+            "concept_id": None,
+            "label": "Story turn",
+            "instruction": "Choisis comment la scène continue.",
+            "prompt": "Le parapluie hésite entre deux gestes.",
+            "prompt_translation": "The umbrella hesitates between two gestures.",
+            "expected_answer": "",
+            "accepted_answers": [],
+            "options": ["Il salue la foule.", "Il se referme et s'en va."],
+            "expected_features": [],
+            "placeholder": "",
+            "scene_function": "Your choice steers how the umbrella's authority pays off.",
+            "feedback_context": "Both directions are valid; the story reacts to the choice.",
+        },
         {
             "id": "panel_cloze_future_result",
             "task_type": "cloze",
@@ -1977,8 +2473,8 @@ def _valid_visual_script(panel_count: int = 4) -> dict:
         "Scene visual preamble: an official announcement makes a familiar situation urgent again. "
         "Human continuity: Elise, a reporter with a beige coat; Marc, a waiter with a black apron. "
         "Panel action: one umbrella holds office after everyone else leaves. "
-        "Use real public figures only as named topic context outside the image. "
-        "Do not draw readable text, captions, speech bubbles, UI, blanks, signs, labels, or answer choices."
+        "Use real public figures only as named topic context outside the image; in the image use fictionalized people only and do not depict real identifiable politicians. "
+        "The image is context only: no readable text of any kind. Do not draw letters, numbers, captions, signs, labels, subtitles, answer choices, or user-interface elements."
     )
     panels = []
     for panel in surface["panels"]:
@@ -2015,3 +2511,81 @@ def _valid_visual_script(panel_count: int = 4) -> dict:
             "grammar_not_driving_every_panel": True,
         },
     }
+
+
+def test_standalone_edition_never_calls_the_news_service(client: TestClient, db_session, monkeypatch):
+    """Audit checklist #1: a normal standalone episode must not touch the news service."""
+    _patch_story(monkeypatch)
+
+    class _ExplodingNews:
+        async def fetch_feuilleton_daily_seed(self, *args, **kwargs):  # noqa: ANN002, ANN003
+            raise AssertionError("standalone edition must not fetch live news")
+
+    monkeypatch.setattr("app.services.graphic_novel.NewsService", _ExplodingNews)
+    token = _token(client)
+    concept = _concept(db_session)
+    response = client.post(
+        "/api/v1/graphic-novel/scenes",
+        json={"cadence": "ad_hoc", "preferred_concept_ids": [concept.id]},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200
+    # No public-news source payload is exposed to the learner.
+    assert response.json()["scene"]["source_snapshot"] == {}
+
+
+def test_public_generation_metadata_never_ships_inline_images():
+    """The reader payload must carry flags, not the generator's working notes.
+
+    A seal-crop copy of the panel image stored as a data URI added ~3 MB per panel
+    (six panels ≈ 20 MB) to every scene fetch, re-downloaded by the reader's polling.
+    """
+    from app.services.graphic_novel import _public_generation_metadata
+
+    panel = GraphicNovelPanel(
+        panel_index=1,
+        image_url="/media/graphic-novel/scenes/abc/panel-1-deadbeef.webp",
+        generation_metadata={
+            "image_status": "available",
+            "fallback_used": False,
+            "story_prompt": "x" * 5000,
+            "seal_crop": {
+                "kind": "panel_crop",
+                "region": {"x": 0.1, "y": 0.1, "width": 0.5, "height": 0.5},
+                "image_url": "data:image/png;base64," + "A" * 4000,
+            },
+        },
+    )
+
+    public = _public_generation_metadata(panel)
+
+    assert public["image_status"] == "available"
+    assert public["fallback_used"] is False
+    assert "story_prompt" not in public
+    assert public["seal_crop"]["region"] == {"x": 0.1, "y": 0.1, "width": 0.5, "height": 0.5}
+    # The inline copy is replaced by the persisted panel URL.
+    assert public["seal_crop"]["image_url"] == panel.image_url
+    assert "data:" not in json.dumps(public)
+
+
+def test_optimise_image_reencodes_raster_panels_as_capped_webp():
+    from io import BytesIO
+
+    from PIL import Image
+
+    from app.services.graphic_novel_image_storage import DecodedImage, optimise_image
+
+    buffer = BytesIO()
+    Image.new("RGB", (2048, 2048), (200, 120, 40)).save(buffer, format="PNG")
+    source = DecodedImage(content=buffer.getvalue(), content_type="image/png", extension=".png", source_kind="data_uri")
+
+    optimised = optimise_image(source)
+
+    assert optimised.content_type == "image/webp"
+    assert optimised.extension == ".webp"
+    assert len(optimised.content) < len(source.content)
+    with Image.open(BytesIO(optimised.content)) as reopened:
+        assert max(reopened.size) == 1024
+
+    svg = DecodedImage(content=b"<svg/>", content_type="image/svg+xml", extension=".svg", source_kind="data_uri")
+    assert optimise_image(svg) is svg

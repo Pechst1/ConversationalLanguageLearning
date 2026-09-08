@@ -22,12 +22,11 @@ You can also limit the scope:
 from __future__ import annotations
 
 import argparse
-from typing import Optional
 
 from sqlalchemy import select
 
-from app.db.session import SessionLocal
 from app.db.models.vocabulary import VocabularyWord
+from app.db.session import SessionLocal
 from app.services.anki_import import AnkiCardParser
 
 

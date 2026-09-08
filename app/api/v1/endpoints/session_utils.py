@@ -1,8 +1,10 @@
 """Helper utilities shared between session endpoints."""
 from __future__ import annotations
 
-from typing import Any, Iterable
+from collections.abc import Iterable
+from typing import Any
 
+from app.db.models.error import UserError
 from app.db.models.session import ConversationMessage, LearningSession, SessionLearningMoment
 from app.schemas import (
     AssistantTurnRead,
@@ -20,7 +22,6 @@ from app.schemas import (
 )
 from app.services.session_moment_planner import MomentEvaluation
 from app.services.session_service import AssistantTurn, SessionTurnResult, WordFeedback
-from app.db.models.error import UserError
 
 
 def session_to_overview(session: LearningSession) -> SessionOverview:

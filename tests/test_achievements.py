@@ -1,7 +1,7 @@
 """Tests for achievement service and endpoints."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from fastapi.testclient import TestClient
@@ -11,7 +11,6 @@ from app.db.models.session import LearningSession
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
 from app.services.achievement import AchievementDefinition, AchievementService
-
 
 TEST_PASSWORD = "securepass123"
 
@@ -130,8 +129,8 @@ def test_check_achievements_first_session(
         planned_duration_minutes=15,
         status="completed",
         xp_earned=120,
-        started_at=datetime.now(timezone.utc),
-        completed_at=datetime.now(timezone.utc),
+        started_at=datetime.now(UTC),
+        completed_at=datetime.now(UTC),
     )
     db_session.add(session)
     db_session.commit()

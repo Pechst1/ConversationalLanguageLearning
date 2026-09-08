@@ -1,59 +1,104 @@
+/* "Le feuilleton" — the season list.
+ *
+ * This screen exists verbatim in the Claude design (Atelier App.dc.html, the
+ * FEUILLETON artboard): kicker, one Garamond italic headline, a blue story hero
+ * for the current episode with a paper-on-blue 3D press, then read episodes as
+ * paper rows with an ink "done" badge.
+ *
+ * Every row is a real server episode. The design also shows a locked "Épisode 4
+ * · demain" row; the API publishes no future episode, so none is drawn — a
+ * padlock for a chapter that may not exist would be a promise the product
+ * cannot keep. */
+
 import { useEffect, useState } from 'react';
-import Image from 'next/image';
+import Head from 'next/head';
 import Link from 'next/link';
-import { Loader2, Users } from 'lucide-react';
+import PhoneProductNav from '@/components/layout/PhoneProductNav';
+import { FeuilletonReaderStyles } from '@/components/feuilleton/reader';
+import { ArrowRightIcon, AtelierV2Root, CheckIcon } from '@/components/atelier-v2/ui';
+import apiService, { SerialArchiveEpisode, SerialToday } from '@/services/api';
+import { getStoryEpisodes } from '@/services/daily-journey';
+import type { StoryEpisode } from '@/types/daily-journey';
+import { resolveMediaUrl } from '@/lib/media-url';
 
-import EditorialMasthead from '@/components/layout/EditorialMasthead';
-import apiService, { SerialArchiveEpisode } from '@/services/api';
+type CurrentEpisode = (SerialToday & Record<string, any>) | null;
 
-const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
-const FRENCH_MONTHS = ['janv.', 'févr.', 'mars', 'avril', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
-
-function roman(index: number): string {
-  return ROMAN[index] || String(index + 1);
+function episodeNumber(index: number | null | undefined): string {
+  return typeof index === 'number' ? `Épisode ${index + 1}` : 'Épisode';
 }
 
-function frenchDate(iso?: string | null): string {
-  if (!iso) return 'à suivre';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return 'à suivre';
-  return `${d.getDate()} ${FRENCH_MONTHS[d.getMonth()]}`;
-}
-
-function leadChar(episode: SerialArchiveEpisode): string | undefined {
-  const cast = episode.required_cast;
-  if (Array.isArray(cast) && cast.length) return String(cast[0]).toLowerCase();
-  return undefined;
-}
-
-function pick(payload: Record<string, any> | undefined, keys: string[]): string | undefined {
-  if (!payload) return undefined;
-  for (const key of keys) {
-    const value = payload[key];
+function firstText(...values: unknown[]): string {
+  for (const value of values) {
     if (typeof value === 'string' && value.trim()) return value.trim();
   }
-  return undefined;
+  return '';
 }
 
-export default function SerialArchivePage() {
+/* The route that actually continues the story, built from the server's own
+   thread/episode references. Never a guess. */
+function continueHref(episode: CurrentEpisode): string | null {
+  // Engine-managed learners continue through today's journey, never through a
+  // scene route the engine has not published (ENGINE-FRONTEND-CONTRACT §5).
+  if (episode && String(episode.status || '') === 'journey_required') {
+    return String((episode as any).continue_href || '/atelier');
+  }
+  if (!episode?.thread_id || typeof episode.episode_index !== 'number') return null;
+  const params = new URLSearchParams({
+    serial_thread_id: episode.thread_id,
+    episode_index: String(episode.episode_index),
+  });
+  if (episode.kind === 'mission') {
+    if (episode.mission_id) params.set('mission', episode.mission_id);
+    return `/missions?${params.toString()}`;
+  }
+  if (episode.scene_id) params.set('scene', episode.scene_id);
+  return `/graphic-novel?${params.toString()}`;
+}
+
+function archiveHref(episode: SerialArchiveEpisode): string {
+  if (episode.kind === 'mission' && episode.mission_id) {
+    return `/missions?mission=${encodeURIComponent(episode.mission_id)}`;
+  }
+  if (episode.scene_id) return `/graphic-novel?scene=${encodeURIComponent(episode.scene_id)}`;
+  return `/serial/episode?index=${episode.episode_index}`;
+}
+
+export default function SerialSeasonPage() {
   const [episodes, setEpisodes] = useState<SerialArchiveEpisode[]>([]);
+  const [current, setCurrent] = useState<CurrentEpisode>(null);
+  const [threadId, setThreadId] = useState<string>('');
   const [seasonNumber, setSeasonNumber] = useState(1);
-  const [currentEpisodeIndex, setCurrentEpisodeIndex] = useState(0);
+  const [storyEpisodes, setStoryEpisodes] = useState<StoryEpisode[]>([]);
   const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     let alive = true;
     apiService.getSerialEpisodes()
-      .then((payload) => {
-        if (alive) {
-          setEpisodes(payload.episodes || []);
-          setSeasonNumber(Number(payload.season_number || 1));
-          setCurrentEpisodeIndex(Number(payload.current_episode_index || 0));
+      .then(async (payload) => {
+        if (!alive) return;
+        setEpisodes(payload.episodes || []);
+        setSeasonNumber(Number(payload.season_number || 1));
+        setCurrent((payload.current_episode as CurrentEpisode) || null);
+        setThreadId(String(payload.thread_id || ''));
+        // Generated episodes live in the story-engine projection. A GET only:
+        // it neither generates nor completes anything.
+        if ((payload.current_episode as any)?.story_engine) {
+          try {
+            const page = await getStoryEpisodes();
+            if (alive) setStoryEpisodes(page.episodes || []);
+          } catch {
+            /* the legacy rows still render; the generated list is additive */
+          }
         }
       })
       .catch((error) => {
         console.error(error);
-        if (alive) setEpisodes([]);
+        if (alive) {
+          setEpisodes([]);
+          setCurrent(null);
+          setFailed(true);
+        }
       })
       .finally(() => {
         if (alive) setLoading(false);
@@ -63,288 +108,187 @@ export default function SerialArchivePage() {
     };
   }, []);
 
-  const filed = episodes.filter((episode) => episode.completed_at || episode.status === 'completed').length;
+  const filed = episodes.length + storyEpisodes.filter((entry) => entry.status !== 'available').length;
+  // The hero is the current episode only while it is genuinely still open.
+  const heroEpisode: CurrentEpisode =
+    current && current.status !== 'completed'
+      ? { ...current, thread_id: current.thread_id || threadId }
+      : null;
+  const heroHref = continueHref(heroEpisode);
+  const heroArt = resolveMediaUrl(
+    firstText(
+      (heroEpisode as any)?.lead_image_url,
+      (heroEpisode as any)?.thumbnail_url,
+    ),
+  );
+  const heroTitle = firstText(
+    heroEpisode?.hook?.text,
+    heroEpisode?.hook?.teaser,
+    heroEpisode?.brief_payload?.title,
+    heroEpisode?.previously,
+    'La suite de votre histoire vous attend.',
+  );
+  const heroIsJourney = String(heroEpisode?.status || '') === 'journey_required';
+  const heroCta = heroIsJourney
+    ? 'Continuer la journée'
+    : heroEpisode?.kind === 'mission'
+      ? 'Répondre dans Le Courrier'
+      : 'Lire et répondre';
 
   return (
     <>
-      <SerialStyles />
-      <main className="serial-page">
-        <EditorialMasthead active="studio" />
-        <div className="serial-column">
-          <header className="serial-head">
-            <p className="rubric">Le Feuilleton · index</p>
-            <h1>The story so far</h1>
-            <p className="sub">
-              {filed > 0 ? `${filed} installment${filed === 1 ? '' : 's'} with these people` : 'Season ' + seasonNumber}
-            </p>
-            <Link className="cast-link" href="/serial/cast">
-              <Users size={14} aria-hidden="true" /> The cast
-            </Link>
-          </header>
+      <Head>
+        <title>Le feuilleton · L’Atelier</title>
+      </Head>
+      <FeuilletonReaderStyles />
+      <AtelierV2Root as="main" className="fr-page" aria-label="Le feuilleton">
+        <header className="fr-page-head">
+          <div className="k">
+            {loading
+              ? 'Ouverture de la saison…'
+              : `Saison ${seasonNumber} · ${filed} épisode${filed === 1 ? '' : 's'} paru${filed === 1 ? '' : 's'}`}
+          </div>
+          {/* the one Garamond italic headline on this screen */}
+          <h1>Le feuilleton</h1>
+        </header>
 
-          {loading ? (
-            <div className="serial-loading"><Loader2 className="spin" aria-hidden="true" /> Loading the archive</div>
-          ) : episodes.length ? (
-            <ol className="s-map" aria-label={`Season ${seasonNumber} thread`}>
-              {episodes.map((episode, index) => {
-                const done = Boolean(episode.completed_at) || episode.status === 'completed';
-                const up = !done && episode.episode_index >= currentEpisodeIndex;
-                const who = leadChar(episode);
-                const date = frenchDate(episode.completed_at);
-                const loc = pick(episode.brief_payload, ['location', 'setting', 'place', 'scene_label']);
-                const choice = pick(episode.brief_payload, ['choice', 'user_choice', 'decision', 'outcome']);
-                const plate = pick(episode.brief_payload, ['plate', 'shot', 'scene_label', 'setting']);
-                const showPlate = !up && (Boolean(episode.thumbnail_url) || Boolean(choice));
-                const classes = ['s-ep'];
-                if (up) classes.push('up');
-                if (index === 0) classes.push('first');
-                if (index === episodes.length - 1) classes.push('last');
+        {loading ? (
+          <div className="fr-skeleton" aria-live="polite" aria-busy="true">
+            <span className="fr-sr">Chargement de la saison</span>
+            <i />
+            <i />
+            <i />
+          </div>
+        ) : failed ? (
+          <div className="fr-empty" role="status">
+            <h2>La saison n’a pas pu être ouverte.</h2>
+            <p>La liaison avec la rédaction a échoué. Rien n’est perdu ; réessayez dans un instant.</p>
+            <button
+              type="button"
+              className="fr-btn is-action"
+              data-press="3d"
+              onClick={() => window.location.reload()}
+            >
+              Réessayer <ArrowRightIcon size={18} />
+            </button>
+          </div>
+        ) : (
+          <>
+            {heroEpisode && heroHref && (
+              <section className="fr-hero" aria-label="Épisode en cours">
+                <div className="art">
+                  {heroArt ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={heroArt} alt="" />
+                  ) : (
+                    <span>L’illustration de cet épisode n’est pas encore parue.</span>
+                  )}
+                </div>
+                <div className="body">
+                  <div className="k">
+                    {heroIsJourney
+                      ? 'Le feuilleton · aujourd’hui'
+                      : `${episodeNumber(heroEpisode.episode_index)} · ${heroEpisode.status === 'delayed' ? 'retardé' : 'aujourd’hui'}`}
+                  </div>
+                  <h2>{heroIsJourney ? 'La suite se joue dans la journée du jour.' : heroTitle}</h2>
+                  {/* the one tactile 3D press on this screen */}
+                  <Link className="cta" href={heroHref}>
+                    {heroCta} <ArrowRightIcon size={18} />
+                  </Link>
+                </div>
+              </section>
+            )}
 
-                return (
-                  <li className={classes.join(' ')} key={episode.id} data-char={who}>
-                    <Link className="s-ep-link" href={`/serial/episode?index=${episode.episode_index}`} aria-label={`${episode.title}`}>
-                      <span className="dot2">{roman(episode.episode_index)}</span>
-                      <div className="ebody">
-                        <div className="edate">
-                          Ép. {roman(episode.episode_index)} · {date}{loc ? ` · ${loc}` : ''} · {episode.kind === 'mission' ? 'act' : 'scene'}
-                        </div>
-                        <div className="ehook">{episode.hook_text || episode.title}</div>
-                        {showPlate && (
-                          <div className="eplate">
-                            <div className="thumb">
-                              {episode.thumbnail_url ? (
-                                <Image src={episode.thumbnail_url} alt="" fill sizes="72px" unoptimized />
-                              ) : (
-                                <span>{plate || (episode.kind === 'mission' ? 'act' : 'scene')}</span>
-                              )}
-                            </div>
-                            {choice && (
-                              <div className="choice">
-                                <b>You chose</b>
-                                <em>{choice}</em>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
+            {storyEpisodes.length > 0 && (
+              <div className="fr-rows" aria-label="Épisodes générés">
+                {storyEpisodes.map((entry) => {
+                  const settled = entry.status !== 'available';
+                  return (
+                    <Link
+                      className="fr-row"
+                      href={`/graphic-novel?scene=${encodeURIComponent(entry.id)}`}
+                      key={entry.id}
+                    >
+                      <span className="thumb" aria-hidden="true" />
+                      <span className="meta">
+                        <span className="k">
+                          {entry.chapter?.title_fr || 'Le feuilleton'} ·{' '}
+                          {settled ? (entry.status === 'completed' ? 'lu' : 'abandonné') : 'en cours'}
+                        </span>
+                        <span className="t">{entry.title_fr || 'Épisode'}</span>
+                      </span>
+                      {settled ? (
+                        <span className="done" aria-hidden="true">
+                          <CheckIcon size={14} />
+                        </span>
+                      ) : (
+                        <span className="go" aria-hidden="true"><ArrowRightIcon size={18} /></span>
+                      )}
                     </Link>
-                  </li>
-                );
-              })}
-            </ol>
-          ) : (
-            <div className="serial-empty">
-              <h2>No installments filed yet.</h2>
-              <p>Once you act in a scene or finish a Feuilleton episode, it lands here as part of the story.</p>
-              <Link className="cast-link" href="/atelier">Back to today</Link>
-            </div>
-          )}
-        </div>
-      </main>
-    </>
-  );
-}
+                  );
+                })}
+              </div>
+            )}
 
-function SerialStyles() {
-  return (
-    <style jsx global>{`
-      .serial-page {
-        min-height: 100vh;
-        background: var(--app-paper);
-        color: var(--app-ink);
-      }
-      .serial-column {
-        width: min(640px, 100%);
-        margin: 0 auto;
-        padding: var(--space-5) var(--space-4) calc(var(--space-8) + env(safe-area-inset-bottom));
-      }
-      .serial-head {
-        border-bottom: 1px solid var(--app-ink);
-        padding-bottom: var(--space-4);
-      }
-      .serial-head .rubric {
-        margin: 0;
-        color: var(--app-red);
-        font-family: var(--mono);
-        font-size: var(--type-mono);
-        font-weight: var(--weight-medium);
-        letter-spacing: 0.13em;
-        text-transform: uppercase;
-      }
-      .serial-head h1 {
-        margin: var(--space-2) 0 0;
-        font-family: var(--app-serif);
-        font-style: italic;
-        font-weight: var(--weight-medium);
-        font-size: var(--type-title);
-        line-height: 1;
-      }
-      .serial-head .sub {
-        margin: var(--space-2) 0 0;
-        color: var(--app-ink-2);
-        font-size: 0.95rem;
-      }
-      .cast-link {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        margin-top: var(--space-3);
-        color: var(--app-blue);
-        font-family: var(--mono);
-        font-size: var(--type-mono);
-        font-weight: var(--weight-medium);
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
-        text-decoration: none;
-      }
-      .s-map {
-        list-style: none;
-        margin: var(--space-5) 0 0;
-        padding: 0;
-      }
-      .s-ep {
-        position: relative;
-        --accent: var(--app-ink);
-      }
-      .s-ep::before {
-        content: "";
-        position: absolute;
-        left: 14px;
-        top: 0;
-        bottom: 0;
-        border-left: 2px solid var(--app-ink);
-        z-index: 0;
-      }
-      .s-ep.up::before { border-left: 1.5px dashed var(--app-ink-3); }
-      .s-ep.first::before { top: 16px; }
-      .s-ep.last::before { bottom: calc(100% - 16px); }
-      .s-ep-link {
-        position: relative;
-        display: grid;
-        grid-template-columns: 30px minmax(0, 1fr);
-        gap: 14px;
-        padding-bottom: var(--space-2);
-        color: inherit;
-        text-decoration: none;
-      }
-      .s-ep .dot2 {
-        position: relative;
-        z-index: 1;
-        width: 30px;
-        height: 30px;
-        border: 1.5px solid var(--app-ink);
-        background: var(--accent);
-        display: grid;
-        place-items: center;
-        color: var(--app-paper);
-        font-family: var(--app-serif);
-        font-style: italic;
-        font-weight: 700;
-        font-size: 14px;
-      }
-      .s-ep.up .dot2 {
-        background: var(--app-paper);
-        color: var(--app-ink-3);
-        border-color: var(--app-ink-3);
-      }
-      .s-ep .ebody {
-        padding-bottom: var(--space-5);
-        min-width: 0;
-      }
-      .s-ep .edate {
-        font-family: var(--mono);
-        font-size: 0.62rem;
-        font-weight: var(--weight-medium);
-        letter-spacing: 0.13em;
-        text-transform: uppercase;
-        color: var(--app-ink-3);
-      }
-      .s-ep .ehook {
-        margin: var(--space-1) 0 0;
-        font-family: var(--app-serif);
-        font-style: italic;
-        font-weight: var(--weight-medium);
-        font-size: 1.18rem;
-        line-height: 1.14;
-        color: var(--app-ink);
-      }
-      .s-ep.up .ehook { color: var(--app-ink-3); }
-      .s-ep .eplate {
-        margin-top: var(--space-3);
-        display: flex;
-        gap: var(--space-3);
-        align-items: stretch;
-      }
-      .s-ep .eplate .thumb {
-        position: relative;
-        flex: 0 0 72px;
-        height: 50px;
-        overflow: hidden;
-        border: 1px solid var(--app-ink);
-        background: var(--app-paper-2);
-        background-image: repeating-linear-gradient(135deg, rgba(20, 17, 13, 0.07) 0 2px, transparent 2px 9px);
-        display: grid;
-        place-items: end start;
-        padding: 4px;
-      }
-      .s-ep .eplate .thumb img { object-fit: cover; }
-      .s-ep .eplate .thumb span {
-        font-family: var(--mono);
-        font-size: 0.5rem;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        color: var(--app-ink-3);
-      }
-      .s-ep .eplate .choice {
-        min-width: 0;
-        font-size: 0.78rem;
-        line-height: 1.35;
-        color: var(--app-ink-2);
-      }
-      .s-ep .eplate .choice b {
-        display: block;
-        margin-bottom: 2px;
-        font-family: var(--mono);
-        font-size: 0.56rem;
-        font-weight: var(--weight-medium);
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-        color: var(--app-ink-3);
-      }
-      .s-ep .eplate .choice em {
-        font-family: var(--app-serif);
-        font-style: italic;
-        font-size: 0.92rem;
-        color: var(--app-ink);
-      }
-      .serial-loading,
-      .serial-empty {
-        margin-top: var(--space-5);
-        border: 1px solid var(--app-ink);
-        background: var(--app-sheet);
-        padding: var(--space-4);
-      }
-      .serial-loading {
-        display: flex;
-        align-items: center;
-        gap: var(--space-2);
-        color: var(--app-ink-2);
-      }
-      .serial-empty h2 {
-        margin: 0 0 var(--space-2);
-        font-family: var(--app-serif);
-        font-style: italic;
-        font-weight: var(--weight-medium);
-        font-size: 1.4rem;
-      }
-      .serial-empty p {
-        margin: 0 0 var(--space-3);
-        color: var(--app-ink-2);
-        line-height: 1.45;
-      }
-      .spin { animation: spin 1s linear infinite; }
-      @keyframes spin { to { transform: rotate(360deg); } }
-      @media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
-    `}</style>
+            {episodes.length > 0 ? (
+              <div className="fr-rows">
+                {[...episodes]
+                  .sort((left, right) => right.episode_index - left.episode_index)
+                  .map((episode) => {
+                    const thumb = resolveMediaUrl(episode.thumbnail_url);
+                    const title = firstText(episode.hook_text, episode.title, 'Épisode classé');
+                    return (
+                      <Link className="fr-row" href={archiveHref(episode)} key={episode.id}>
+                        <span className="thumb">
+                          {thumb ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={thumb} alt="" />
+                          ) : null}
+                        </span>
+                        <span className="meta">
+                          <span className="k">{episodeNumber(episode.episode_index)} · lu</span>
+                          <span className="t">{title}</span>
+                        </span>
+                        <span className="done" aria-hidden="true">
+                          <CheckIcon size={14} />
+                        </span>
+                      </Link>
+                    );
+                  })}
+              </div>
+            ) : (
+              !heroEpisode && storyEpisodes.length === 0 && (
+                <div className="fr-empty">
+                  <h2>Le premier numéro n’est pas encore paru.</h2>
+                  <p>
+                    Dès qu’un épisode est lu ou qu’un acte est joué, il se range ici, planche par
+                    planche, avec votre réplique.
+                  </p>
+                  <Link className="fr-btn is-action" data-press="3d" href="/graphic-novel">
+                    Ouvrir le premier épisode <ArrowRightIcon size={18} />
+                  </Link>
+                </div>
+              )
+            )}
+
+            <div className="fr-rows">
+              <Link className="fr-row" href="/serial/cast">
+                <span className="thumb" aria-hidden="true" />
+                <span className="meta">
+                  <span className="k">Le registre du théâtre</span>
+                  <span className="t">Les personnages</span>
+                </span>
+                <span className="go" aria-hidden="true"><ArrowRightIcon size={18} /></span>
+              </Link>
+            </div>
+          </>
+        )}
+      </AtelierV2Root>
+      <PhoneProductNav active="feuilleton" />
+      <style jsx global>{`
+        body { background: var(--app-paper); }
+        .av2.fr-page { min-height: 100vh; padding-bottom: calc(var(--phone-bottom-nav-space, 88px)); }
+      `}</style>
+    </>
   );
 }

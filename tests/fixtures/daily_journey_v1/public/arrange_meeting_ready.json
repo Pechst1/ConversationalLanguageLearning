@@ -1,0 +1,146 @@
+{
+  "fixture": "arrange_meeting_ready",
+  "contract_version": 1,
+  "endpoint": "/api/v1/daily-journeys/{id}",
+  "method": "GET",
+  "http_status": 200,
+  "response": {
+    "id": "00000000-0000-4000-8000-000000000022",
+    "contract_version": 1,
+    "revision": 1,
+    "status": "active",
+    "local_date": "2026-09-05",
+    "timezone": "Europe/Paris",
+    "budget_seconds": 300,
+    "estimated_active_seconds": 278,
+    "current_step_id": "00000000-0000-4000-9000-000022000000",
+    "scenario": {
+      "scenario_key": "arrange_meeting",
+      "content_version": "journey-content-v1",
+      "title_fr": "Un rendez-vous avec Lila",
+      "objective_key": "arrange_meeting.time_and_place",
+      "objective_native": "Agree on a time and a place to meet Lila this week.",
+      "level_band": "A2",
+      "character_id": "lila_bonnet",
+      "character_name": "Lila Bonnet",
+      "location_id": "marche_canal",
+      "location_name": "Le marché du Canal",
+      "image_url": "/assets/serial/locations/marche_canal.webp",
+      "serial_thread_id": null,
+      "serial_episode_id": null,
+      "estimated_seconds": 278
+    },
+    "steps": [
+      {
+        "id": "00000000-0000-4000-9000-000022000000",
+        "ordinal": 0,
+        "kind": "scene",
+        "status": "active",
+        "estimated_seconds": 42,
+        "assistance_used": [],
+        "prompt": {
+          "setup_fr": "Lila t'envoie un message : elle veut te montrer le marché du Canal.",
+          "setup_native": "Lila messages you: she wants to show you the Canal market.",
+          "objective_native": "Agree on a day, a time and a place with Lila.",
+          "character_line_fr": "On se voit cette semaine ? Dis-moi quand tu peux.",
+          "character_line_audio_url": null,
+          "image_url": "/assets/serial/locations/marche_canal.webp"
+        }
+      },
+      {
+        "id": "00000000-0000-4000-9000-000022000001",
+        "ordinal": 1,
+        "kind": "recall",
+        "status": "pending",
+        "estimated_seconds": 48,
+        "assistance_used": [],
+        "prompt": {
+          "task_type": "tiles",
+          "instruction_native": "Build a sentence that proposes Saturday morning.",
+          "prompt_fr": null,
+          "options": [
+            {
+              "id": "t1",
+              "text_fr": "samedi"
+            },
+            {
+              "id": "t2",
+              "text_fr": "matin"
+            },
+            {
+              "id": "t3",
+              "text_fr": "on se voit"
+            },
+            {
+              "id": "t4",
+              "text_fr": "?"
+            }
+          ],
+          "target": {
+            "kind": "grammar",
+            "id": "00000000-0000-4000-a000-000000000004",
+            "label_fr": "",
+            "label_native": "proposing a time"
+          },
+          "optional": true,
+          "help_available": [
+            "hint",
+            "translation",
+            "solution"
+          ]
+        }
+      },
+      {
+        "id": "00000000-0000-4000-9000-000022000002",
+        "ordinal": 2,
+        "kind": "respond",
+        "status": "pending",
+        "estimated_seconds": 130,
+        "assistance_used": [],
+        "prompt": {
+          "turn_index": 0,
+          "max_turns": 2,
+          "repair_allowed": true,
+          "character_id": "lila_bonnet",
+          "character_name": "Lila Bonnet",
+          "character_line_fr": "Alors, quand est-ce qu'on se voit ? Et où ?",
+          "character_line_audio_url": null,
+          "objective_native": "Propose a day, a time and a meeting place.",
+          "input_modes": [
+            "text",
+            "voice"
+          ],
+          "targets": [
+            {
+              "kind": "grammar",
+              "id": "00000000-0000-4000-a000-000000000004",
+              "label_fr": "on se voit samedi matin",
+              "label_native": "proposing a time"
+            }
+          ],
+          "help_available": [
+            "hint",
+            "translation",
+            "suggested_response"
+          ]
+        }
+      },
+      {
+        "id": "00000000-0000-4000-9000-000022000003",
+        "ordinal": 3,
+        "kind": "resolution",
+        "status": "pending",
+        "estimated_seconds": 58,
+        "assistance_used": [],
+        "prompt": {
+          "outcome_key": "meeting_saturday_market",
+          "character_line_fr": "Super, samedi au marché alors. Je t'attends près des fleurs.",
+          "summary_native": "You and Lila agreed on Saturday at the Canal market.",
+          "image_url": "/assets/serial/locations/marche_canal.webp"
+        }
+      }
+    ],
+    "recap": null,
+    "retry": null
+  }
+}

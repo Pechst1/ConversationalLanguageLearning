@@ -1,18 +1,19 @@
 """Conversation turn generation utilities."""
 from __future__ import annotations
 
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from typing import Iterable, Literal, Sequence, TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from loguru import logger
 
 from app.core.conversation.prompts import build_few_shot_examples, build_system_prompt
+from app.db.models.error import UserError
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
-from app.db.models.error import UserError
+from app.services.auto_context_service import SessionContext  # [NEW]
 from app.services.llm_service import LLMResult
 from app.services.progress import ProgressService, QueueItem
-from app.services.auto_context_service import SessionContext  # [NEW]
 
 if TYPE_CHECKING:
     from app.db.models.grammar import GrammarConcept, UserGrammarProgress
@@ -368,7 +369,7 @@ class ConversationGenerator:
         topic: str | None = None,
         scenario: str | None = None,
         due_errors: Sequence[UserError] | None = None,
-        due_grammar: Sequence[tuple["GrammarConcept", "UserGrammarProgress | None"]] | None = None,
+        due_grammar: Sequence[tuple[GrammarConcept, UserGrammarProgress | None]] | None = None,
         scenario_context: str | None = None,
     ) -> str:
         """Return a context block describing vocabulary and learner profile."""
@@ -468,7 +469,7 @@ class ConversationGenerator:
         topic: str | None = None,
         scenario: str | None = None,
         due_errors: Sequence[UserError] | None = None,
-        due_grammar: Sequence[tuple["GrammarConcept", "UserGrammarProgress | None"]] | None = None,
+        due_grammar: Sequence[tuple[GrammarConcept, UserGrammarProgress | None]] | None = None,
         scenario_context: str | None = None,
     ) -> list[dict[str, str]]:
         """Assemble the chat completion payload."""
@@ -510,7 +511,7 @@ class ConversationGenerator:
         anki_direction: str | None = None,
         scenario: str | None = None,
         due_errors: Sequence[UserError] | None = None,
-        due_grammar: Sequence[tuple["GrammarConcept", "UserGrammarProgress | None"]] | None = None,
+        due_grammar: Sequence[tuple[GrammarConcept, UserGrammarProgress | None]] | None = None,
         scenario_context: str | None = None,
         session_context: SessionContext | None = None,  # [NEW]
         deck_name: str | None = None,

@@ -55,10 +55,16 @@ def test_polish_fixes_keep_confusing_surfaces_hidden() -> None:
     settings = read_web("pages/settings.tsx")
     cast = read_web("pages/serial/cast.tsx")
 
-    assert "MessageSquarePlus" in feedback
+    # WP-20 D-9: the feedback control speaks the av2 system — a 44px
+    # `IconAction`, not the 36px neo-brutal box it used to be — and it stands
+    # down on immersive surfaces instead of sitting on the reader's action bar.
+    assert "IconAction" in feedback
+    assert "useImmersiveSurface" in feedback
+    assert "h-9 w-9" not in feedback
     assert ">{'!'}</button>" not in feedback
     assert "scene && !scene.serial_thread_id" in feuilleton
-    assert "CREATE FIRST SCENE" in feuilleton
+    # Soft-button pass: CTA labels are sentence case (text-transform removed).
+    assert "Composer la première scène" in feuilleton
     assert "break-all" in settings
     assert "Private model sheet" in cast
     assert "Model sheet asset" not in cast

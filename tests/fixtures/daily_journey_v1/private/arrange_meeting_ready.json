@@ -1,0 +1,10 @@
+{
+  "fixture": "arrange_meeting_ready",
+  "private": {
+    "allowed_outcomes": [
+      "meeting_saturday_market",
+      "meeting_weekday_cafe",
+      "meeting_not_settled"
+    ]
+  }
+}

@@ -1,0 +1,739 @@
+/* ============================================================
+   ATELIER — "L'ÉPREUVE"
+   The grammar session as setting tomorrow's type.
+   The learner is a typesetter finishing the edition: each
+   exercise sets a line, errors get proofreader's marks in red
+   ink, a finished concept locks its plate, the session ends
+   stamped BON À TIRER and the recap is the proof sheet.
+
+   TOKEN DISCIPLINE — the constraint of the whole surface:
+   · --app-* tokens ONLY. Light + dark are free; the session
+     inherits whatever the app theme sets. Per-shell dark:
+     data-theme="dark" on .ep (mirrors globals.css :root[dark]).
+   · DERIVED VALUES (documented, not new hues):
+       --ep-bon      = the "juste" green (success). One step
+                       lifted in dark. Reads over ink both ways.
+       --ep-graphite = ink @ ~62% — the proofreader's pencil.
+       --ep-channel  = ink @ 16% — the recessed composing-stick
+                       channel + the type-case ground.
+       --ep-slug-lo  = ink @ 22% — the empty sort in the stick.
+   · House forms (circle · square · triangle · block) are SET,
+     never drawn — blue / yellow / red / ink, from the colophon.
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..800;1,400..700&family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+:root {
+  --app-paper: #f1ece1;  --app-paper-2: #e8e0cf;  --app-paper-3: #d8cdb6;
+  --app-sheet: #f8f3e8;
+  --app-ink: #14110d;  --app-ink-2: #4a4538;  --app-ink-3: #8a826f;
+  --app-blue: #1d3a8a;  --app-red: #d8321a;  --app-yellow: #f3c318;
+  --app-serif: "EB Garamond", Garamond, "Times New Roman", serif;
+  --app-grotesk: "Inter", "Helvetica Neue", Arial, sans-serif;
+  --ep-mono: "iA Writer Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --ep-bon: #2c6a5d;                       /* the "juste" green   */
+  --ep-graphite: rgba(20, 17, 13, .62);    /* the pencil note     */
+  --ep-channel: rgba(20, 17, 13, .16);     /* recessed channel    */
+  --ep-slug-lo: rgba(20, 17, 13, .22);     /* empty sort          */
+  --ep-printin-dur: .5s;
+}
+
+.ep[data-theme="dark"] {
+  --app-paper: #171510;  --app-paper-2: #242018;  --app-paper-3: #3b3325;
+  --app-sheet: #211d16;
+  --app-ink: #f5efe1;  --app-ink-2: #d3c8b5;  --app-ink-3: #9e927d;
+  --app-blue: #6f91ff;  --app-red: #ff5a42;  --app-yellow: #f0c826;
+  --ep-bon: #5fb3a1;
+  --ep-graphite: rgba(245, 239, 225, .58);
+  --ep-channel: rgba(245, 239, 225, .12);
+  --ep-slug-lo: rgba(245, 239, 225, .2);
+}
+
+/* ============================================================
+   THE SHELL — a 390px focused session view (no bottom nav;
+   the loop is full-screen, the recap hands off)
+   ============================================================ */
+.ep {
+  position: relative;
+  width: 390px;
+  background: var(--app-paper);
+  color: var(--app-ink);
+  font-family: var(--app-grotesk);
+  -webkit-font-smoothing: antialiased;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.ep * { box-sizing: border-box; }
+.ep-body { flex: 1 1 auto; }
+
+/* ============================================================
+   TOPBAR — close · composing-stick progress · Finish. Slim, sticky.
+   ============================================================ */
+.ep-top {
+  position: sticky; top: 0; z-index: 6;
+  display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 13px;
+  padding: 9px 14px 10px;
+  background: var(--app-paper);
+  border-bottom: 1px solid var(--app-ink);
+}
+.ep-top .ic {
+  width: 30px; height: 30px; flex: 0 0 auto; padding: 0;
+  border: 1px solid var(--app-ink); background: var(--app-sheet); color: var(--app-ink);
+  display: grid; place-items: center; cursor: pointer;
+}
+.ep-top .ic svg { width: 15px; height: 15px; }
+.ep-top .finish {
+  border: 1px solid var(--app-ink); background: var(--app-paper); color: var(--app-ink);
+  font-size: 9px; font-weight: 900; letter-spacing: .13em; text-transform: uppercase;
+  padding: 8px 11px; cursor: pointer;
+}
+
+/* ---- THE COMPOSING STICK (progress) ------------------------
+   A typesetter's stick: each completed drill sets a lead slug
+   into the current line. Concept boundaries read as breaks. */
+.ep-stick { flex: 1 1 auto; min-width: 0; }
+.ep-stick .chan {
+  display: flex; gap: 4px; align-items: stretch;
+  height: 18px; padding: 2px;
+  background: var(--ep-channel);
+  border: 1px solid var(--app-ink);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,.22);
+}
+.ep-stick .grp { display: flex; gap: 1.5px; flex: 1 1 auto; min-width: 0; }
+.ep-stick .grp + .grp { margin-left: 3px; border-left: 1px solid var(--app-ink-3); padding-left: 4px; }
+.ep-stick .slug { flex: 1 1 auto; min-width: 2px; background: var(--ep-slug-lo); }
+.ep-stick .slug.set { background: var(--app-ink); }
+.ep-stick .slug.cur { background: var(--app-yellow); box-shadow: 0 0 0 1px var(--app-ink); }
+.ep-stick .cap {
+  display: flex; justify-content: space-between; margin-top: 4px;
+  font-size: 8px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; color: var(--app-ink-3);
+}
+.ep-stick .cap b { color: var(--app-ink); }
+
+/* fuller stick — used in the recap proof sheet */
+.ep-stick.full .chan { height: 26px; }
+.ep-stick.full .concepts {
+  margin-top: 7px; display: flex; gap: 4px;
+}
+.ep-stick.full .concepts .c {
+  flex: 1 1 auto; text-align: center;
+  font-size: 7.5px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--app-ink-3); padding-top: 5px; border-top: 1px solid var(--app-paper-3);
+}
+.ep-stick.full .concepts .c.done { color: var(--ep-bon); border-top-color: var(--ep-bon); }
+.ep-stick.full .concepts .c.cur { color: var(--app-ink); border-top-color: var(--app-ink); }
+
+/* ============================================================
+   THE EXERCISE SHEET (ExerciseShell)
+   eyebrow (round · mode · i/n) · provenance · concept title +
+   assembling motif · rule toggle · body per round type.
+   ============================================================ */
+.ep-sheet { padding: 15px 20px 18px; }
+
+.ep-eyebrow {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 9px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--app-ink-3);
+}
+.ep-eyebrow i { width: 3px; height: 3px; background: var(--app-ink-3); flex: 0 0 auto; }
+.ep-eyebrow .mode { color: var(--app-red); }
+.ep-eyebrow .idx { margin-left: auto; font-variant-numeric: tabular-nums; }
+
+/* re-test flash tag — "Retour · déjà corrigé" (marginal) */
+.ep-retour {
+  display: inline-flex; align-items: center; gap: 5px; margin-left: 7px;
+  font-size: 8px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--app-blue); border: 1px solid var(--app-blue); padding: 2px 5px;
+}
+.ep-retour .d { width: 0; height: 0; border-style: solid; border-width: 4px 0 4px 5px; border-color: transparent transparent transparent var(--app-blue); }
+
+/* provenance note — graphite margin line for a resurfaced error */
+.ep-prov {
+  margin-top: 7px; padding-left: 10px; border-left: 2px solid var(--ep-graphite);
+  font-family: var(--app-serif); font-style: italic; font-size: 12px; line-height: 1.35;
+  color: var(--ep-graphite);
+}
+.ep-prov b { font-weight: 700; font-style: normal; }
+
+/* concept title row + the assembling motif */
+.ep-concept { margin-top: 11px; display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: start; }
+.ep-concept .ct { min-width: 0; display: flex; gap: 12px; align-items: flex-start; }
+.ep-concept h1 {
+  margin: 0; font-family: var(--app-serif); font-style: italic; font-weight: 600;
+  font-size: 25px; line-height: 1.04; letter-spacing: 0; color: var(--app-ink); text-wrap: balance;
+}
+.ep-concept .ask {
+  flex: 0 0 auto; width: 30px; height: 30px; padding: 0;
+  border: 1px solid var(--app-ink); background: var(--app-sheet); color: var(--app-ink);
+  display: grid; place-items: center; cursor: pointer;
+}
+.ep-concept .ask svg { width: 16px; height: 16px; }
+.ep-concept .ask.on { background: var(--app-ink); color: var(--app-paper); }
+
+/* ---- ASSEMBLING MOTIF (per-concept progress) --------------
+   A Bauhaus mark set from house primitives; one prints into
+   place per round; whole when the concept is done. */
+.ep-motif {
+  position: relative; width: 46px; height: 46px; flex: 0 0 auto;
+  border: 1px solid var(--app-ink); background: var(--app-sheet);
+}
+.ep-motif svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.ep-motif .prim { transition: opacity var(--ep-printin-dur) ease, filter var(--ep-printin-dur) ease; }
+.ep-motif .prim .shp { stroke: var(--app-ink); stroke-width: 3; }
+.ep-motif .prim .c-circle { fill: var(--app-blue); }
+.ep-motif .prim .c-square { fill: var(--app-yellow); }
+.ep-motif .prim .c-tri { fill: var(--app-red); }
+.ep-motif .prim .c-block { fill: var(--app-ink); }
+/* ghost = not yet printed: dashed outline, no fill */
+.ep-motif .prim.ghost .shp { fill: none; stroke: var(--app-ink-3); stroke-width: 1.5; stroke-dasharray: 2.5 2.5; }
+.ep-motif .prim.ghost { opacity: .75; }
+.ep-motif.done { border-color: var(--app-ink); box-shadow: 2px 2px 0 var(--app-ink); }
+@media (prefers-reduced-motion: no-preference) {
+  .ep-motif .prim.print-in { animation: ep-print var(--ep-printin-dur) ease both; }
+}
+@keyframes ep-print { from { opacity: 0; filter: grayscale(1); } to { opacity: 1; filter: none; } }
+/* motif caption (spec/legend use) */
+.ep-motif-cap { font-family: var(--ep-mono); font-size: 8px; color: var(--app-ink-3); margin-top: 5px; line-height: 1.4; }
+
+/* ---- THE RULE SHEET (payload.rule_panel + anchor examples) -- */
+.ep-rule {
+  margin-top: 13px; border: 1px solid var(--app-ink); background: var(--app-sheet);
+  overflow: hidden;
+}
+.ep-rule .rh {
+  display: flex; align-items: center; gap: 8px; padding: 9px 13px;
+  border-bottom: 1px solid var(--app-ink); background: var(--app-paper);
+}
+.ep-rule .rh .k { font-size: 8.5px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; color: var(--app-red); }
+.ep-rule .rh .x { margin-left: auto; border: 0; background: none; color: var(--app-ink-3); cursor: pointer; font-size: 15px; line-height: 1; padding: 0; }
+.ep-rule .rb { padding: 12px 14px 14px; }
+.ep-rule .rb .lede { font-family: var(--app-serif); font-style: italic; font-size: 16px; line-height: 1.36; color: var(--app-ink); }
+.ep-rule .rb .anchor { margin-top: 11px; padding-top: 10px; border-top: 1px dashed var(--app-ink-3); }
+.ep-rule .rb .anchor .c { font-size: 8px; font-weight: 900; letter-spacing: .13em; text-transform: uppercase; color: var(--app-ink-3); margin-bottom: 6px; }
+.ep-rule .rb .ex { font-family: var(--app-serif); font-size: 15px; line-height: 1.5; color: var(--app-ink-2); }
+.ep-rule .rb .ex b { color: var(--app-ink); border-bottom: 2px solid var(--app-red); font-weight: 600; }
+
+/* ============================================================
+   THE PROMPT LINE — French sentence is the hero type
+   ============================================================ */
+.ep-prompt { margin-top: 15px; }
+.ep-prompt .lab { font-size: 8.5px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; color: var(--app-ink-3); margin-bottom: 8px; }
+.ep-line {
+  font-family: var(--app-serif); font-size: 23px; line-height: 1.4; color: var(--app-ink); text-wrap: pretty;
+}
+.ep-line .blank {
+  display: inline-block; min-width: 68px; text-align: center;
+  border-bottom: 2px solid var(--app-red); color: var(--app-ink-3); font-style: italic;
+}
+.ep-line .blank.set { border-bottom-color: var(--app-ink); color: var(--app-ink); }
+/* the English meaning cue — the compositor's instruction */
+.ep-cue { margin-top: 9px; font-size: 12px; line-height: 1.4; color: var(--app-ink-3); }
+.ep-cue b { font-weight: 800; color: var(--app-ink-2); }
+
+/* ============================================================
+   RECOGNIZE / FILL — option sorts
+   ============================================================ */
+.ep-opts { display: grid; gap: 8px; margin-top: 15px; }
+.ep-opt {
+  border: 1px solid var(--app-ink); background: var(--app-paper); color: var(--app-ink);
+  padding: 12px 14px; text-align: left; cursor: pointer;
+  font-family: var(--app-serif); font-size: 16px; line-height: 1.15;
+}
+.ep-opt.chosen { background: var(--app-ink); color: var(--app-paper); }
+.ep-opt.right { border-color: var(--ep-bon); box-shadow: inset 0 0 0 1.5px var(--ep-bon); }
+.ep-opt.wrong { border-color: var(--app-red); box-shadow: inset 0 0 0 1.5px var(--app-red); }
+/* fill: choices as a row of small sorts */
+.ep-choices { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+
+/* ============================================================
+   MOVABLE TYPE (word-bank) — tokens set into a line
+   ============================================================ */
+.ep-slug {
+  font-family: var(--app-serif); font-size: 17px; line-height: 1;
+  padding: 9px 11px; background: var(--app-paper); color: var(--app-ink);
+  border: 1px solid var(--app-ink); cursor: pointer;
+  box-shadow: inset 1px 1px 0 rgba(255,255,255,.35), 2px 2px 0 var(--app-ink);
+}
+.ep[data-theme="dark"] .ep-slug { box-shadow: inset 1px 1px 0 rgba(255,255,255,.08), 2px 2px 0 var(--app-ink); }
+.ep-slug.spent { opacity: .3; pointer-events: none; box-shadow: none; }
+.ep-slug.set { box-shadow: inset 1px 1px 0 rgba(255,255,255,.3), 1px 1px 0 var(--app-ink); }
+
+/* the composing line — where set slugs sit on a baseline */
+.ep-setline {
+  position: relative; margin-top: 14px; min-height: 60px;
+  display: flex; flex-wrap: wrap; gap: 7px; align-content: flex-start;
+  padding: 12px 12px 16px;
+  background: var(--ep-channel); border: 1px solid var(--app-ink);
+  box-shadow: inset 0 1px 3px rgba(0,0,0,.15);
+}
+.ep-setline::after {
+  content: ""; position: absolute; left: 12px; right: 12px; bottom: 9px;
+  border-bottom: 1px solid var(--app-ink-3);
+}
+.ep-setline.empty::before {
+  content: "réglez la ligne ici"; position: absolute; left: 14px; top: 14px;
+  font-family: var(--ep-mono); font-size: 10px; color: var(--app-ink-3); letter-spacing: .04em;
+}
+/* the type case — available sorts */
+.ep-case { margin-top: 13px; }
+.ep-case .cap {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 8.5px; font-weight: 900; letter-spacing: .13em; text-transform: uppercase; color: var(--app-ink-3);
+  margin-bottom: 9px;
+}
+.ep-case .sorts {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  padding: 11px; background: var(--app-sheet); border: 1px solid var(--app-paper-3);
+}
+
+/* CLASSIFY — sorting slugs into labelled cases */
+.ep-cases { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+.ep-casebox { border: 1px solid var(--app-ink); background: var(--app-sheet); }
+.ep-casebox .ch {
+  padding: 7px 10px; border-bottom: 1px solid var(--app-ink); background: var(--app-paper);
+  font-size: 8.5px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; color: var(--app-ink-2);
+}
+.ep-casebox .cbody { padding: 10px; min-height: 58px; display: flex; flex-wrap: wrap; gap: 6px; align-content: flex-start; }
+
+/* ============================================================
+   PRODUCE — free composition (a set line + typed field)
+   ============================================================ */
+.ep-produce { margin-top: 14px; }
+.ep-field {
+  font-family: var(--app-serif); font-size: 19px; line-height: 1.4; color: var(--app-ink);
+  padding: 13px 14px; min-height: 74px;
+  background: var(--app-sheet); border: 1px solid var(--app-ink);
+  box-shadow: inset 0 1px 3px rgba(0,0,0,.1);
+}
+.ep-field .ph { color: var(--app-ink-3); font-style: italic; }
+.ep-field .caret { display: inline-block; width: 2px; height: 1.05em; background: var(--app-red); vertical-align: -2px; margin-left: 1px; }
+@media (prefers-reduced-motion: no-preference) { .ep-field .caret { animation: ep-blink 1s step-end infinite; } }
+@keyframes ep-blink { 50% { opacity: 0; } }
+
+/* ============================================================
+   CONFIDENCE TAP — optional two-chip: sûr / pas sûr, skippable
+   ============================================================ */
+.ep-conf { margin-top: 16px; display: flex; align-items: center; gap: 9px; }
+.ep-conf .lab { font-size: 8.5px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: var(--app-ink-3); }
+.ep-conf .chips { display: flex; gap: 7px; margin-left: auto; }
+.ep-conf .chip {
+  border: 1px solid var(--app-ink-3); background: var(--app-paper); color: var(--app-ink-2);
+  font-size: 11px; font-weight: 800; letter-spacing: .02em; padding: 6px 12px; cursor: pointer;
+}
+.ep-conf .chip.sure.on { border-color: var(--ep-bon); background: var(--ep-bon); color: var(--app-paper); }
+.ep-conf .chip.unsure.on { border-color: var(--app-ink); background: var(--app-ink); color: var(--app-paper); }
+
+/* ============================================================
+   THE PRIMARY ACTION — ink press-bar. Never two competing CTAs.
+   ============================================================ */
+.ep-foot { padding: 0 20px 20px; }
+.ep-bar {
+  display: flex; align-items: center; justify-content: center; gap: 11px;
+  width: 100%; min-height: 56px; padding: 0 20px;
+  background: var(--app-ink); color: var(--app-paper);
+  border: 1.5px solid var(--app-ink); box-shadow: 5px 5px 0 var(--ep-channel);
+  font-size: 13px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase;
+  cursor: pointer;
+}
+.ep-bar svg { width: 17px; height: 17px; }
+.ep-bar[disabled] { opacity: .4; cursor: default; box-shadow: none; }
+.ep-bar.red { background: var(--app-red); border-color: var(--app-ink); color: #fff; box-shadow: 5px 5px 0 var(--app-ink); }
+.ep-bar.ghost { background: var(--app-paper); color: var(--app-ink); }
+
+/* verdict line above the action (a ruled press notice) */
+.ep-verdict {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 13px;
+  font-size: 9px; font-weight: 900; letter-spacing: .13em; text-transform: uppercase;
+}
+.ep-verdict .ln { flex: 1 1 auto; height: 1px; background: currentColor; opacity: .4; }
+.ep-verdict.go { color: var(--ep-bon); }
+.ep-verdict.no { color: var(--app-red); }
+
+/* ============================================================
+   PROOFREADER'S MARKS — the feedback language (the heart)
+   The learner's OWN sentence, marked like an editor's galley:
+   strike on the error, a red margin correction with caret, the
+   "why" as a graphite pencil note beneath.
+   ============================================================ */
+.ep-galley {
+  margin-top: 14px; position: relative;
+  padding: 16px 16px 14px; background: var(--app-sheet); border: 1px solid var(--app-ink);
+}
+.ep-galley .gh {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 12px;
+  font-size: 8.5px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; color: var(--app-red);
+}
+.ep-galley .gh .n { margin-left: auto; font-family: var(--ep-mono); color: var(--app-ink-3); font-weight: 400; letter-spacing: .02em; }
+/* the set line, with room above for margin corrections */
+.ep-gline {
+  font-family: var(--app-serif); font-size: 22px; line-height: 2.15; color: var(--app-ink);
+}
+/* a corrected span: struck original in line, red fix floating above with a caret */
+.ep-fix { position: relative; white-space: nowrap; }
+.ep-fix .old {
+  color: var(--app-red); text-decoration: line-through; text-decoration-thickness: 2px;
+  text-decoration-color: var(--app-red);
+}
+.ep-fix .new {
+  position: absolute; left: 50%; top: -0.92em; transform: translateX(-50%);
+  font-style: italic; font-size: 15px; color: var(--app-red); white-space: nowrap; line-height: 1;
+}
+/* the proofreader's caret ⁁ pointing up from the baseline to the fix */
+.ep-fix .car {
+  position: absolute; left: 50%; top: -0.08em; transform: translateX(-50%);
+  color: var(--app-red); font-size: 13px; line-height: 1;
+}
+/* an insertion (missing word): a caret on the line, the word above */
+.ep-ins { position: relative; display: inline-block; width: 0; }
+.ep-ins .new { position: absolute; left: 50%; top: -0.92em; transform: translateX(-50%); font-style: italic; font-size: 15px; color: var(--app-red); white-space: nowrap; }
+.ep-ins .car { position: absolute; left: 50%; top: -0.08em; transform: translateX(-50%); color: var(--app-red); font-size: 13px; }
+/* the graphite pencil "why" note */
+.ep-why {
+  margin-top: 13px; padding-top: 12px; border-top: 1px dashed var(--app-ink-3);
+  display: grid; grid-template-columns: auto 1fr; gap: 9px; align-items: start;
+}
+.ep-why .pin {
+  flex: 0 0 auto; width: 15px; height: 15px; color: var(--ep-graphite);
+}
+.ep-why .pin svg { width: 15px; height: 15px; }
+.ep-why .t {
+  font-family: var(--app-serif); font-style: italic; font-size: 13.5px; line-height: 1.42; color: var(--ep-graphite);
+}
+.ep-why .t b { font-style: normal; font-weight: 700; color: var(--app-ink-2); }
+
+/* the async AI second-look — discreet marginal note, resolves in place */
+.ep-relecture {
+  margin-top: 12px; display: flex; align-items: center; gap: 8px;
+  font-family: var(--app-serif); font-style: italic; font-size: 12.5px; color: var(--app-ink-3);
+}
+.ep-relecture .dots { display: inline-flex; gap: 3px; }
+.ep-relecture .dots i { width: 4px; height: 4px; border-radius: 50%; background: var(--app-ink-3); }
+@media (prefers-reduced-motion: no-preference) {
+  .ep-relecture.pending .dots i { animation: ep-pulse 1s ease-in-out infinite; }
+  .ep-relecture.pending .dots i:nth-child(2) { animation-delay: .2s; }
+  .ep-relecture.pending .dots i:nth-child(3) { animation-delay: .4s; }
+}
+@keyframes ep-pulse { 0%,100% { opacity: .3; } 50% { opacity: 1; } }
+.ep-relecture.done { color: var(--ep-bon); }
+.ep-relecture.done b { font-style: normal; font-weight: 700; }
+
+/* ---- BON stamp — correct answer, small, NOT a modal --------- */
+.ep-bon-stamp {
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 2px solid var(--ep-bon); color: var(--ep-bon);
+  font-size: 12px; font-weight: 900; letter-spacing: .18em; text-transform: uppercase;
+  padding: 5px 11px 4px; transform: rotate(-3.5deg);
+  box-shadow: inset 0 0 0 1px var(--ep-bon);
+}
+.ep-bon-stamp .d { font-size: 7.5px; letter-spacing: .1em; color: var(--ep-bon); opacity: .8; }
+@media (prefers-reduced-motion: no-preference) {
+  .ep-struck { animation: ep-strike .3s cubic-bezier(.18,1.35,.3,1) both; }
+}
+@keyframes ep-strike { 0% { transform: scale(1.5) rotate(-14deg); opacity: 0; } 60% { transform: scale(.94) rotate(-2deg); opacity: 1; } 100% { transform: rotate(-3.5deg); } }
+
+/* the correct-moment inline block (no modal) */
+.ep-correct { margin-top: 14px; display: flex; align-items: center; gap: 13px; }
+.ep-correct .said { font-family: var(--app-serif); font-style: italic; font-size: 16px; color: var(--app-ink-2); line-height: 1.3; }
+.ep-correct .said b { color: var(--app-ink); font-style: normal; font-weight: 700; }
+
+/* ============================================================
+   TYPED MICRO-REPAIR — "Recopie la correction :"
+   The corrected sentence as a ghost to type over.
+   ============================================================ */
+.ep-repair { margin-top: 14px; border: 1px solid var(--app-ink); background: var(--app-paper); }
+.ep-repair .rh {
+  padding: 8px 13px; border-bottom: 1px solid var(--app-ink); background: var(--app-sheet);
+  font-size: 8.5px; font-weight: 900; letter-spacing: .13em; text-transform: uppercase; color: var(--app-ink-2);
+}
+.ep-repair .rf { padding: 13px 14px; }
+.ep-typefield {
+  position: relative; font-family: var(--app-serif); font-size: 19px; line-height: 1.4; color: var(--app-ink);
+  padding: 11px 13px; background: var(--app-sheet); border: 1px solid var(--app-ink-3);
+}
+.ep-typefield .typed { color: var(--app-ink); }
+.ep-typefield .typed.err { color: var(--app-red); text-decoration: underline; text-decoration-style: wavy; text-decoration-color: var(--app-red); }
+.ep-typefield .ghost { color: var(--app-ink-3); }
+.ep-typefield .caret { display: inline-block; width: 2px; height: 1.05em; background: var(--app-red); vertical-align: -2px; }
+@media (prefers-reduced-motion: no-preference) { .ep-typefield .caret { animation: ep-blink 1s step-end infinite; } }
+.ep-typefield.ok { border-color: var(--ep-bon); box-shadow: inset 0 0 0 1px var(--ep-bon); }
+.ep-typefield.no { border-color: var(--app-red); }
+.ep-repair .rmeta { margin-top: 9px; font-size: 9px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+.ep-repair .rmeta.ok { color: var(--ep-bon); }
+.ep-repair .rmeta.no { color: var(--app-red); }
+
+/* ============================================================
+   ÉCOUTER + SHADOWING (speak round)
+   écouter → parler (idle/recording/transcribing) → marked transcript
+   ============================================================ */
+.ep-listen {
+  margin-top: 14px; display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px; background: var(--app-ink); color: var(--app-paper); border: 1.5px solid var(--app-ink);
+}
+.ep-listen.disabled { background: var(--app-sheet); color: var(--app-ink-3); border-color: var(--app-ink-3); border-style: dashed; }
+.ep-listen .play {
+  flex: 0 0 auto; width: 40px; height: 40px; padding: 0;
+  border: 1.5px solid var(--app-paper); background: var(--app-red); color: #fff;
+  display: grid; place-items: center; cursor: pointer;
+}
+.ep-listen.disabled .play { border-color: var(--app-ink-3); background: transparent; color: var(--app-ink-3); }
+.ep-listen .play svg { width: 16px; height: 16px; }
+.ep-listen .l { min-width: 0; }
+.ep-listen .l .k { font-size: 8.5px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; color: var(--app-yellow); }
+.ep-listen.disabled .l .k { color: var(--app-ink-3); }
+.ep-listen .l .fr { margin-top: 2px; font-family: var(--app-serif); font-style: italic; font-size: 16px; line-height: 1.15; color: var(--app-paper); }
+.ep-listen.disabled .l .fr { color: var(--app-ink-3); }
+.ep-listen .wave { margin-left: auto; display: flex; gap: 2px; align-items: center; height: 22px; }
+.ep-listen .wave i { width: 2px; background: var(--app-yellow); opacity: .55; }
+
+/* the record affordance */
+.ep-record { margin-top: 12px; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 16px; border: 1px dashed var(--app-ink); background: var(--app-sheet); }
+.ep-record .mic {
+  width: 62px; height: 62px; border-radius: 50%; padding: 0;
+  border: 1.5px solid var(--app-ink); background: var(--app-paper); color: var(--app-ink);
+  display: grid; place-items: center; cursor: pointer;
+}
+.ep-record .mic svg { width: 24px; height: 24px; }
+.ep-record.recording .mic { background: var(--app-red); color: #fff; border-color: var(--app-red); }
+@media (prefers-reduced-motion: no-preference) {
+  .ep-record.recording .mic { animation: ep-rec 1.3s ease-in-out infinite; }
+}
+@keyframes ep-rec { 0%,100% { box-shadow: 0 0 0 0 rgba(216,50,26,.5); } 50% { box-shadow: 0 0 0 8px rgba(216,50,26,0); } }
+.ep-record .st { font-size: 9px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; color: var(--app-ink-3); }
+.ep-record.recording .st { color: var(--app-red); }
+/* transcribing — the press rollers */
+.ep-record .rollers { display: flex; gap: 7px; }
+.ep-record .rollers i { width: 8px; height: 30px; background: var(--app-ink-3); }
+@media (prefers-reduced-motion: no-preference) {
+  .ep-record.transcribing .rollers i { animation: ep-roll 1s linear infinite; }
+  .ep-record.transcribing .rollers i:nth-child(2) { animation-delay: .16s; }
+  .ep-record.transcribing .rollers i:nth-child(3) { animation-delay: .32s; }
+}
+@keyframes ep-roll { 0% { transform: scaleY(.4); opacity: .5; } 50% { transform: scaleY(1); opacity: 1; } 100% { transform: scaleY(.4); opacity: .5; } }
+
+/* ============================================================
+   EARLY MASTERY LOCK — "PLOMB VERROUILLÉ"
+   Skipping feels like an earned promotion, not missing content.
+   ============================================================ */
+.ep-lock { padding: 26px 22px 22px; text-align: center; }
+.ep-lock .k { font-size: 9px; font-weight: 900; letter-spacing: .2em; text-transform: uppercase; color: var(--ep-bon); }
+.ep-lock .plate {
+  position: relative; margin: 18px auto 0; width: 132px; height: 132px;
+  border: 2px solid var(--app-ink); background: var(--app-sheet); box-shadow: 6px 6px 0 var(--app-ink);
+  display: grid; place-items: center;
+}
+.ep-lock .plate .ep-motif { width: 76px; height: 76px; border: 0; background: transparent; }
+.ep-lock .plate .band {
+  position: absolute; left: -8px; right: -8px; top: 50%; transform: translateY(-50%) rotate(-6deg);
+  background: var(--app-ink); color: var(--app-paper);
+  font-size: 10px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; text-align: center; padding: 5px 0;
+}
+.ep-lock h2 { margin: 20px auto 0; max-width: 270px; font-family: var(--app-serif); font-style: italic; font-weight: 600; font-size: 27px; line-height: 1.05; }
+.ep-lock p { margin: 11px auto 0; max-width: 250px; font-size: 12.5px; line-height: 1.5; color: var(--app-ink-2); }
+.ep-lock .promo {
+  margin: 16px auto 0; display: inline-flex; align-items: center; gap: 8px;
+  border-top: 1px solid var(--app-ink); border-bottom: 1px solid var(--app-ink); padding: 8px 14px;
+  font-size: 9px; font-weight: 900; letter-spacing: .13em; text-transform: uppercase; color: var(--app-ink);
+}
+.ep-lock .promo b { color: var(--ep-bon); }
+
+/* ============================================================
+   BON À TIRER — the session-completion stamp across the page
+   ============================================================ */
+.ep-bat-stage { position: relative; padding: 54px 22px; text-align: center; background: var(--app-paper); }
+.ep-bat {
+  display: inline-flex; flex-direction: column; align-items: center; gap: 3px;
+  border: 3px solid var(--app-red); color: var(--app-red);
+  padding: 12px 22px 10px; transform: rotate(-5deg);
+  box-shadow: inset 0 0 0 2px var(--app-red);
+}
+.ep-bat .m { font-family: var(--app-grotesk); font-weight: 900; font-size: 26px; letter-spacing: .08em; line-height: .9; }
+.ep-bat .d { font-size: 8.5px; font-weight: 900; letter-spacing: .22em; text-transform: uppercase; }
+.ep-bat-stage .sub { margin: 26px auto 0; max-width: 260px; font-family: var(--app-serif); font-style: italic; font-size: 16px; line-height: 1.35; color: var(--app-ink-2); }
+
+/* ============================================================
+   L'ÉPREUVE — the proof-sheet recap
+   ============================================================ */
+.ep-recap { background: var(--app-paper); }
+.ep-recap-head { padding: 20px 22px 16px; border-bottom: 3px double var(--app-ink); text-align: center; }
+.ep-recap-head .folio {
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  font-size: 8.5px; font-weight: 900; letter-spacing: .18em; text-transform: uppercase; color: var(--app-ink);
+}
+.ep-recap-head .folio i { width: 3px; height: 3px; background: var(--app-red); }
+.ep-recap-head h1 { margin: 8px 0 0; font-family: var(--app-serif); font-style: italic; font-weight: 700; font-size: 34px; line-height: .95; }
+.ep-recap-head .date { margin-top: 7px; font-size: 9px; font-weight: 900; letter-spacing: .13em; text-transform: uppercase; color: var(--app-ink-3); }
+
+.ep-recap-body { padding: 16px 22px 22px; }
+.ep-sec-cap { font-size: 9px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; color: var(--app-ink-3); margin: 20px 0 10px; display: flex; align-items: center; gap: 8px; }
+.ep-sec-cap::after { content: ""; flex: 1 1 auto; height: 1px; background: var(--app-paper-3); }
+
+/* the day's tally (attempts · strengthened · errata) */
+.ep-tally { display: grid; grid-template-columns: repeat(3, 1fr); border: 1.5px solid var(--app-ink); }
+.ep-tally .t { padding: 13px 12px 12px; border-right: 1px solid var(--app-ink); }
+.ep-tally .t:last-child { border-right: 0; }
+.ep-tally .t .n { font-family: var(--app-serif); font-style: italic; font-weight: 700; font-size: 29px; line-height: .9; }
+.ep-tally .t .l { margin-top: 6px; font-size: 8px; font-weight: 900; letter-spacing: .11em; text-transform: uppercase; color: var(--app-ink-3); line-height: 1.3; }
+
+/* lines set — the proof lines of the session */
+.ep-proof { display: grid; gap: 0; }
+.ep-proof .pl { display: grid; grid-template-columns: 20px 1fr auto; gap: 10px; align-items: baseline; padding: 9px 2px; border-bottom: 1px solid var(--app-paper-3); }
+.ep-proof .pl:last-child { border-bottom: 0; }
+.ep-proof .pl .mk { font-family: var(--ep-mono); font-size: 11px; color: var(--ep-bon); padding-top: 2px; }
+.ep-proof .pl .mk.re { color: var(--app-red); }
+.ep-proof .pl .fr { font-family: var(--app-serif); font-size: 14.5px; line-height: 1.3; color: var(--app-ink); }
+.ep-proof .pl .fr del { color: var(--app-red); text-decoration-thickness: 1.5px; }
+.ep-proof .pl .fr ins { text-decoration: none; border-bottom: 1.5px solid var(--ep-bon); color: var(--app-ink); }
+.ep-proof .pl .tag { font-size: 7.5px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; color: var(--app-ink-3); white-space: nowrap; padding-top: 3px; }
+
+/* La phrase du jour — the learner's best sentence, typeset as a boxed quote */
+.ep-phrase { margin-top: 12px; position: relative; border: 1.5px solid var(--app-ink); background: var(--app-sheet); padding: 18px 18px 15px; }
+.ep-phrase .flag {
+  position: absolute; top: -1px; right: 14px; transform: translateY(-50%);
+  background: var(--app-red); color: #fff; font-size: 7.5px; font-weight: 900; letter-spacing: .11em; text-transform: uppercase; padding: 4px 8px;
+}
+.ep-phrase .q { font-family: var(--app-serif); font-style: italic; font-weight: 600; font-size: 22px; line-height: 1.28; color: var(--app-ink); text-wrap: balance; }
+.ep-phrase .by { margin-top: 11px; display: flex; align-items: center; gap: 8px; font-size: 8.5px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: var(--app-ink-3); }
+.ep-phrase .by .ln { flex: 1 1 auto; height: 1px; background: var(--app-paper-3); }
+
+/* minted collectibles — logo tokens + gilt seal */
+.ep-mint { display: flex; align-items: center; gap: 14px; border: 1px solid var(--app-ink); background: var(--app-sheet); padding: 14px; }
+.ep-mint .tx { min-width: 0; }
+.ep-mint .tx b { font-size: 12px; font-weight: 800; }
+.ep-mint .tx span { display: block; margin-top: 2px; font-size: 10px; line-height: 1.35; color: var(--app-ink-2); }
+.ep-mint .tokens { display: flex; gap: 7px; margin-left: auto; flex: 0 0 auto; }
+
+/* the logo token (house forms fused) — set, not drawn */
+.ep-token { position: relative; width: 40px; height: 40px; border: 1.5px solid var(--app-ink); background: var(--app-paper); box-shadow: 2px 2px 0 var(--app-ink); display: grid; place-items: center; flex: 0 0 auto; }
+.ep-token .lt { position: relative; width: 24px; height: 24px; }
+.ep-token .lt svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.ep-token .shp { stroke: var(--app-ink); stroke-width: 3.5; }
+.ep-token .c-circle { fill: var(--app-blue); } .ep-token .c-square { fill: var(--app-yellow); }
+.ep-token .c-tri { fill: var(--app-red); } .ep-token .c-block { fill: var(--app-ink); }
+
+/* the seal — the printer's colophon; gilt for a flawless run */
+.ep-seal { position: relative; display: inline-grid; place-items: center; }
+.ep-seal .med {
+  position: relative; width: 116px; height: 116px; border-radius: 50%;
+  background: var(--app-sheet); border: 1.5px solid var(--app-ink);
+  box-shadow: 4px 4px 0 var(--app-ink); display: grid; place-items: center;
+}
+.ep-seal .ring { position: absolute; inset: 0; width: 100%; height: 100%; }
+.ep-seal .ring text { font-family: var(--app-grotesk); font-weight: 900; letter-spacing: .22em; fill: var(--app-ink); font-size: 8.5px; }
+.ep-seal .core { position: relative; width: 58px; height: 58px; }
+.ep-seal .core svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.ep-seal .core .shp { stroke: var(--app-ink); stroke-width: 3; }
+.ep-seal .core .c-circle { fill: var(--app-blue); } .ep-seal .core .c-square { fill: var(--app-yellow); }
+.ep-seal .core .c-tri { fill: var(--app-red); } .ep-seal .core .c-block { fill: var(--app-ink); }
+.ep-seal.gilt .med { background: #f0e3b8; border-color: #8a6d1a; box-shadow: 4px 4px 0 #8a6d1a; }
+.ep-seal.gilt .ring text { fill: #6f571a; }
+.ep[data-theme="dark"] .ep-seal.gilt .med { background: #d8c37e; }
+@media (prefers-reduced-motion: no-preference) {
+  .ep-seal.stamp .med { animation: ep-seal-press .5s cubic-bezier(.2,1.2,.3,1) both; }
+}
+@keyframes ep-seal-press { 0% { transform: scale(1.18) rotate(-3.5deg); } 58% { transform: scale(.965) rotate(.6deg); } 100% { transform: scale(1) rotate(0); } }
+
+/* streak line before → after */
+.ep-streak { display: flex; align-items: center; gap: 12px; border: 1px solid var(--app-ink); background: var(--app-paper); padding: 12px 14px; }
+.ep-streak .n { font-family: var(--app-serif); font-style: italic; font-weight: 700; font-size: 24px; line-height: 1; }
+.ep-streak .n.was { color: var(--app-ink-3); }
+.ep-streak .n.now { color: var(--app-ink); }
+.ep-streak .arw { color: var(--app-red); }
+.ep-streak .l { font-size: 10px; line-height: 1.35; color: var(--app-ink-2); }
+.ep-streak .l b { font-weight: 800; color: var(--app-ink); }
+.ep-streak .rules { margin-left: auto; display: flex; gap: 2px; align-items: flex-end; }
+.ep-streak .rules i { width: 3px; height: 13px; background: var(--app-paper-3); }
+.ep-streak .rules i.on { background: var(--app-ink); }
+
+/* the handoff — back to La Une / on to Le Feuilleton */
+.ep-handoff { margin-top: 14px; display: grid; gap: 10px; }
+.ep-handoff a {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  min-height: 54px; padding: 0 18px; text-decoration: none; border: 1.5px solid var(--app-ink);
+  font-size: 12px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase;
+}
+.ep-handoff a.on { background: var(--app-red); color: #fff; box-shadow: 5px 5px 0 var(--app-ink); }
+.ep-handoff a.back { background: var(--app-paper); color: var(--app-ink); }
+.ep-handoff a svg { width: 16px; height: 16px; flex: 0 0 auto; }
+
+/* ============================================================
+   RESUME · LOADING · ERROR (press-house system states)
+   ============================================================ */
+.ep-resume { padding: 30px 24px; text-align: center; }
+.ep-resume .k { font-size: 9px; font-weight: 900; letter-spacing: .2em; text-transform: uppercase; color: var(--app-red); }
+.ep-resume h2 { margin: 13px auto 0; max-width: 270px; font-family: var(--app-serif); font-style: italic; font-weight: 600; font-size: 27px; line-height: 1.05; }
+.ep-resume p { margin: 11px auto 0; max-width: 250px; font-size: 12.5px; line-height: 1.5; color: var(--app-ink-2); }
+.ep-resume .stickwrap { margin: 20px auto 0; max-width: 260px; }
+.ep-resume .cta { margin: 22px auto 0; display: inline-flex; align-items: center; gap: 10px; min-height: 52px; padding: 0 22px; background: var(--app-ink); color: var(--app-paper); border: 1.5px solid var(--app-ink); box-shadow: 5px 5px 0 var(--ep-channel); font-size: 12px; font-weight: 900; letter-spacing: .13em; text-transform: uppercase; cursor: pointer; }
+.ep-resume .cta svg { width: 16px; height: 16px; }
+
+.ep-skel { padding: 16px 20px; }
+.ep-skel .l { background: var(--app-paper-3); height: 12px; margin-bottom: 10px; position: relative; overflow: hidden; }
+.ep-skel .box { height: 120px; border: 1px solid var(--app-paper-3); background: var(--app-paper-2); margin: 14px 0; position: relative; overflow: hidden; }
+@media (prefers-reduced-motion: no-preference) {
+  .ep-skel .l::after, .ep-skel .box::after {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(100deg, transparent 20%, rgba(255,255,255,.32) 50%, transparent 80%);
+    animation: ep-shim 1.4s linear infinite;
+  }
+}
+@keyframes ep-shim { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+.ep-skel .press { text-align: center; font-family: var(--ep-mono); font-size: 9px; letter-spacing: .1em; color: var(--app-ink-3); margin-top: 8px; }
+
+.ep-notice { margin: 16px 20px; border: 1.5px solid var(--app-red); background: var(--app-sheet); }
+.ep-notice .nh { display: flex; align-items: center; gap: 8px; padding: 9px 13px; border-bottom: 1px solid var(--app-red); }
+.ep-notice .nh .tri { width: 0; height: 0; border-style: solid; border-width: 0 6px 11px 6px; border-color: transparent transparent var(--app-red) transparent; }
+.ep-notice .nh .t { font-size: 9px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; color: var(--app-red); }
+.ep-notice .nb { padding: 12px 14px 14px; }
+.ep-notice .nb .m { font-family: var(--app-serif); font-style: italic; font-size: 15px; line-height: 1.3; color: var(--app-ink); }
+.ep-notice .retry { margin-top: 11px; display: inline-flex; align-items: center; gap: 7px; border: 1.5px solid var(--app-ink); background: var(--app-paper); padding: 8px 13px; font-size: 9.5px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: var(--app-ink); cursor: pointer; }
+.ep-notice .retry svg { width: 13px; height: 13px; }
+
+/* ============================================================
+   SPEC / COPY / MIGRATION BOARDS — paper sheets, not phones
+   ============================================================ */
+.ep-board { width: 560px; background: var(--app-paper); color: var(--app-ink); font-family: var(--app-grotesk); padding: 32px 34px 38px; -webkit-font-smoothing: antialiased; }
+.ep-board * { box-sizing: border-box; }
+.ep-board-head { border-bottom: 2px solid var(--app-ink); padding-bottom: 16px; margin-bottom: 20px; }
+.ep-board-head .k { font-size: 10px; font-weight: 900; letter-spacing: .18em; text-transform: uppercase; color: var(--app-red); }
+.ep-board-head h2 { margin: 6px 0 0; font-family: var(--app-serif); font-style: italic; font-weight: 700; font-size: 33px; line-height: .96; }
+.ep-board-head p { margin: 9px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--app-ink-2); max-width: 450px; }
+
+.ep-spec-row { display: grid; grid-template-columns: 176px 1fr; gap: 24px; padding: 20px 0; border-bottom: 1px solid var(--app-paper-3); align-items: start; }
+.ep-spec-row:last-child { border-bottom: 0; }
+.ep-spec-row .demo { display: flex; align-items: flex-start; }
+.ep-spec-row .desc .t { font-size: 10px; font-weight: 900; letter-spacing: .13em; text-transform: uppercase; color: var(--app-ink); }
+.ep-spec-row .desc p { margin: 7px 0 0; font-size: 11.5px; line-height: 1.5; color: var(--app-ink-2); }
+.ep-spec-row .desc .props { margin-top: 9px; display: flex; flex-wrap: wrap; gap: 5px; }
+.ep-spec-row .desc .props span { font-family: var(--ep-mono); font-size: 9.5px; border: 1px solid var(--app-ink); padding: 3px 6px; background: var(--app-sheet); color: var(--app-ink-2); }
+
+.ep-copy-row { display: grid; grid-template-columns: 158px 1fr; gap: 20px; padding: 13px 0; border-bottom: 1px solid var(--app-paper-3); }
+.ep-copy-row:last-child { border-bottom: 0; }
+.ep-copy-row .state { font-size: 10px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; color: var(--app-ink-3); }
+.ep-copy-row .lines .fr { font-family: var(--app-serif); font-style: italic; font-size: 15px; line-height: 1.4; color: var(--app-ink); }
+.ep-copy-row .lines .fr + .fr { margin-top: 5px; }
+.ep-copy-row .lines .note { margin-top: 6px; font-size: 10.5px; line-height: 1.4; color: var(--app-ink-3); }
+.ep-copy-row .lines .en-chrome { font-family: var(--app-grotesk); font-weight: 700; font-size: 12px; color: var(--app-ink-2); font-style: normal; }
+
+.ep-mig-head, .ep-mig-row { display: grid; grid-template-columns: 1.1fr 1.1fr 1fr; gap: 14px; padding: 11px 0; }
+.ep-mig-head { border-bottom: 2px solid var(--app-ink); }
+.ep-mig-head span { font-size: 9px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: var(--app-ink-3); }
+.ep-mig-row { border-bottom: 1px solid var(--app-paper-3); }
+.ep-mig-row .comp { font-size: 12.5px; font-weight: 800; color: var(--app-ink); }
+.ep-mig-row .comp .file { display: block; font-family: var(--ep-mono); font-size: 9px; color: var(--app-red); margin-top: 3px; font-weight: 400; }
+.ep-mig-row .repl { font-family: var(--ep-mono); font-size: 10px; line-height: 1.5; color: var(--app-ink-2); }
+.ep-mig-row .stat { font-size: 10.5px; line-height: 1.4; color: var(--app-ink-2); }
+.ep-mig-row .stat.keep { color: var(--ep-bon); font-weight: 700; }
+.ep-mig-row .stat.new { color: var(--app-red); font-weight: 700; }
+.ep-note { margin-top: 18px; border-left: 3px solid var(--app-red); padding: 4px 0 4px 13px; font-size: 11px; line-height: 1.5; color: var(--app-ink-2); }
+.ep-note b { color: var(--app-ink); }
+
+.ep-tokens { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.ep-tokens .sw { border: 1px solid var(--app-ink); }
+.ep-tokens .sw .chip { height: 44px; }
+.ep-tokens .sw .meta { padding: 6px 8px 7px; border-top: 1px solid var(--app-ink); background: var(--app-paper); }
+.ep-tokens .sw .meta .nm { font-family: var(--ep-mono); font-size: 9px; font-weight: 700; }
+.ep-tokens .sw .meta .role { font-size: 9px; color: var(--app-ink-3); margin-top: 2px; line-height: 1.3; }
+
+/* a bare demo backdrop for spec swatches that need the shell ground */
+.ep-demo-sheet { background: var(--app-paper); padding: 14px; border: 1px solid var(--app-paper-3); }

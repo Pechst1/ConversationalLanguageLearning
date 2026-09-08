@@ -10,13 +10,12 @@ from __future__ import annotations
 
 import argparse
 import json
-import time
 from typing import Any
 
-from app.db.session import SessionLocal
-from app.db.models.vocabulary import VocabularyWord
-from app.services.llm_service import LLMService
 from app.config import settings
+from app.db.models.vocabulary import VocabularyWord
+from app.db.session import SessionLocal
+from app.services.llm_service import LLMService
 
 NOUN_CATEGORIES = [
     "people_relationships", "body_health", "food_drink", "home_objects", "clothing",

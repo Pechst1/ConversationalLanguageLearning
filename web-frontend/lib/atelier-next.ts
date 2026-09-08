@@ -1,4 +1,5 @@
 import type { AtelierSessionStart, AtelierToday } from '@/services/api';
+import type { ScenarioKey, TodayEnvelope } from '@/types/daily-journey';
 import { STORY_FEATURE_VISIBLE } from './launch-flags';
 
 export const REVIEW_THRESHOLD = 1;
@@ -13,6 +14,8 @@ export interface DayProgress {
   libraryDone: boolean;
   librarySuggested: boolean;
   feuilletonDone: boolean;
+  studioDone: boolean;
+  studioSuggested: boolean;
   sessionDone?: boolean;
   timeBudgetMinutes?: number;
   estimatedTotalMinutes?: number;
@@ -22,20 +25,109 @@ export interface DayProgress {
     id: string;
     label: string;
     estimatedMinutes: number;
+    /** Drills the session node really contains, from the server's own plan. */
+    plannedDrills?: number;
     done?: boolean;
     suggested?: boolean;
   }>;
 }
 
-export type RecommendedAction =
+/**
+ * Atelier V2 daily-journey branches (WP-07).
+ *
+ * These sit **in front of** the legacy chain below and only ever apply when
+ * `TodayEnvelope.enabled === true`. With the capability off the resolver must
+ * return exactly what it returned before this branch existed.
+ */
+export type JourneyRecommendedAction =
+  | { kind: 'journey_resume'; journeyId: string; status: 'active' | 'paused'; scenarioKey: ScenarioKey; titleFr: string }
+  | { kind: 'journey_preparing'; journeyId: string; retryAllowed: boolean; retryAfterSeconds: number }
+  | {
+      kind: 'journey_unavailable';
+      journeyId: string;
+      retryAllowed: boolean;
+      retryAfterSeconds: number;
+      /**
+       * An unavailable generation is not a finished day: the legacy chain's own
+       * answer travels with the branch so the UI can offer retry *and* fall
+       * through, exactly as CONTRACT-FREEZE requires.
+       */
+      fallback: LegacyRecommendedAction;
+    }
+  | { kind: 'journey_start'; scenarioKey: ScenarioKey; titleFr: string; estimatedSeconds: number };
+
+export type LegacyRecommendedAction =
   | { kind: 'resume_session'; conceptIndex: number; round: string; mode?: string; itemIndex?: number }
   | { kind: 'start_session' }
   | { kind: 'review'; errataDue: number; vocabularyDue: number }
   | { kind: 'mission'; query: string }
+  | { kind: 'studio' }
   | { kind: 'library'; bookId: string; episodeIndex: number; href: string; title?: string; bookTitle?: string }
   | { kind: 'feuilleton'; query: string }
   | { kind: 'serial'; threadId: string; episodeKind: 'mission' | 'feuilleton'; query: string }
   | { kind: 'rest' };
+
+export type RecommendedAction = LegacyRecommendedAction | JourneyRecommendedAction;
+
+/**
+ * WP-16 / decision D-0. With the daily journey enabled the journey is the day's
+ * one primary action; the legacy exercise Séance becomes the explicit
+ * «Plus de pratique» drill loop, keyed by a grammar concept or the errata
+ * queue — never by "today".
+ *
+ * Everything below is inert while `TodayEnvelope.enabled !== true`, so a
+ * flag-off learner sees byte-for-byte today's Home.
+ */
+export const PRACTICE_LABEL = 'Plus de pratique';
+
+export type PracticeEntry = {
+  label: string;
+  href: string;
+  /** The grammar concept the drill loop will seat, when the server named one. */
+  conceptId: string | null;
+};
+
+/** `/atelier?mode=practice[&concept=<id>]` — the drill loop's only entry. */
+export function practiceHref(conceptId?: string | number | null): string {
+  const id = conceptId === null || conceptId === undefined ? '' : String(conceptId).trim();
+  return id ? `/atelier?mode=practice&concept=${encodeURIComponent(id)}` : '/atelier?mode=practice';
+}
+
+/**
+ * The secondary «Plus de pratique» line for Home's Séance tile.
+ *
+ * Returns `null` with the capability off: the legacy Séance is then the day's
+ * own primary action and must not also appear as a secondary.
+ *
+ * The concept is taken from the server, in this order: the journey recap's
+ * practice targets (what today's scene actually drilled), then the envelope's
+ * own `practice_href`. Nothing is guessed on the client.
+ */
+export function resolvePracticeEntry(
+  envelope: TodayEnvelope | null | undefined,
+): PracticeEntry | null {
+  if (!envelope || envelope.enabled !== true) return null;
+
+  // The recap's own practised targets, each carrying the server's practice
+  // href (WP-16 extends `practiced_targets` rather than adding a second,
+  // near-identical list — see STATUS 2026-09-07 §WP-16).
+  const targets = envelope.journey?.recap?.practiced_targets || [];
+  const grammarTarget =
+    targets.find((item) => item.target.kind === 'grammar' && item.practice_href)
+    || targets.find((item) => Boolean(item.practice_href));
+  if (grammarTarget?.practice_href) {
+    return {
+      label: PRACTICE_LABEL,
+      href: grammarTarget.practice_href,
+      conceptId: grammarTarget.target.kind === 'grammar' ? grammarTarget.target.id : null,
+    };
+  }
+  if (envelope.practice_href) {
+    return { label: PRACTICE_LABEL, href: envelope.practice_href, conceptId: null };
+  }
+  return { label: PRACTICE_LABEL, href: practiceHref(), conceptId: null };
+}
+
 
 type DayProgressFlag = 'missionDone' | 'feuilletonDone';
 
@@ -47,6 +139,8 @@ interface ServerDayProgress {
   libraryDone?: boolean;
   librarySuggested?: boolean;
   feuilletonDone?: boolean;
+  studioDone?: boolean;
+  studioSuggested?: boolean;
   sessionDone?: boolean;
   timeBudgetMinutes?: number;
   estimatedTotalMinutes?: number;
@@ -89,6 +183,12 @@ export function serialActionFromToday(
   if (!serialEpisode?.thread_id || (serialEpisode.kind !== 'mission' && serialEpisode.kind !== 'feuilleton')) {
     return null;
   }
+  // Engine-managed learners: `/serial/today` answers `journey_required` with no
+  // scene id. The story continues through today's journey, so there is no
+  // scene to send the learner to (ENGINE-FRONTEND-CONTRACT §5).
+  if (String(serialEpisode.status || '') === 'journey_required') {
+    return null;
+  }
   return {
     kind: 'serial',
     threadId: serialEpisode.thread_id,
@@ -97,12 +197,122 @@ export function serialActionFromToday(
   };
 }
 
+/**
+ * The daily journey's own legacy-session resume, kept **orthogonal** to every
+ * journey branch: when it is non-null the UI must always surface a separately
+ * labelled resume for that old Atelier session, whichever branch won.
+ */
+export function legacyResumeEntry(
+  envelope: TodayEnvelope | null | undefined,
+): { href: string; sessionId: string } | null {
+  const resume = envelope?.legacy_resume;
+  return resume ? { href: resume.href, sessionId: resume.session_id } : null;
+}
+
+/**
+ * The capability-aware branch, frozen in CONTRACT-FREEZE.md's "Frontend
+ * recommendation precedence (WP-07 / WP-08)". Returns `null` when nothing in
+ * the journey wins and the legacy chain must answer instead.
+ */
+export function resolveJourneyNext(
+  envelope: TodayEnvelope | null | undefined,
+  fallback: LegacyRecommendedAction,
+): JourneyRecommendedAction | null {
+  if (!envelope || envelope.enabled !== true) return null;
+
+  const journey = envelope.journey;
+  if (journey) {
+    // 1. An open journey is resumed, never restarted.
+    if (journey.status === 'active' || journey.status === 'paused') {
+      return {
+        kind: 'journey_resume',
+        journeyId: journey.id,
+        status: journey.status,
+        scenarioKey: journey.scenario.scenario_key,
+        titleFr: journey.scenario.title_fr,
+      };
+    }
+    // 2. Preparing shows the server's retry hint. Never start a second one.
+    if (journey.status === 'preparing') {
+      return {
+        kind: 'journey_preparing',
+        journeyId: journey.id,
+        retryAllowed: journey.retry?.allowed ?? true,
+        retryAfterSeconds: journey.retry?.after_seconds ?? 3,
+      };
+    }
+    // 3. Unavailable offers retry AND falls through: it is not a finished day.
+    if (journey.status === 'unavailable') {
+      return {
+        kind: 'journey_unavailable',
+        journeyId: journey.id,
+        retryAllowed: journey.retry?.allowed ?? false,
+        retryAfterSeconds: journey.retry?.after_seconds ?? 30,
+        fallback,
+      };
+    }
+    // 4. completed / ended_early: the day's journey is done. Fall through to the
+    //    legacy chain for optional practice. Re-entering it is a read and must
+    //    not inflate progress or streaks, so no journey branch is returned.
+    return null;
+  }
+
+  // 5. No journey, but today's scenario is offered.
+  if (envelope.available) {
+    return {
+      kind: 'journey_start',
+      scenarioKey: envelope.available.scenario_key,
+      titleFr: envelope.available.title_fr,
+      estimatedSeconds: envelope.available.estimated_seconds,
+    };
+  }
+
+  // 6. Anything else: the existing legacy chain, unchanged.
+  return null;
+}
+
 export function resolveRecommendedNext(
   today: AtelierToday | null,
   session: AtelierSessionStart | null,
   progress: DayProgress,
+  journeyEnvelope?: TodayEnvelope | null,
 ): RecommendedAction {
-  if (progress.sessionStatus === 'active') {
+  const legacy = resolveLegacyRecommendedNext(today, session, progress);
+  // With `enabled === false` (or no envelope at all) this returns exactly what
+  // the resolver returned before the daily journey existed.
+  const journeyAction = resolveJourneyNext(journeyEnvelope, legacy);
+  if (journeyAction) return journeyAction;
+  if (journeyEnvelope?.enabled === true) {
+    // WP-16 / D-0: the journey owns the day. The only way the chain reaches
+    // here with the capability on is branch 4 — today's journey is finished —
+    // or branch 6, where nothing is on offer. In both cases the legacy exercise
+    // Séance is optional practice, not the day's primary action, so it is left
+    // out of the primary chain and offered as «Plus de pratique» instead.
+    //
+    // The `journey_unavailable` branch is deliberately NOT routed through here:
+    // it keeps the full legacy chain in its `fallback`, because an
+    // infrastructure failure must not also take away the learner's practice.
+    return resolveLegacyRecommendedNext(today, session, progress, { skipSession: true });
+  }
+  return legacy;
+}
+
+/** The pre-V2 chain, unchanged. Kept exported so the branch above can defer to it. */
+export function resolveLegacyRecommendedNext(
+  today: AtelierToday | null,
+  session: AtelierSessionStart | null,
+  progress: DayProgress,
+  options?: {
+    /**
+     * WP-16: drop the legacy exercise Séance from the chain. Used only when the
+     * daily journey is enabled and owns the day. Omitted (the default) the
+     * function is the pre-V2 chain, unchanged.
+     */
+    skipSession?: boolean;
+  },
+): LegacyRecommendedAction {
+  const skipSession = options?.skipSession === true;
+  if (!skipSession && progress.sessionStatus === 'active') {
     return {
       kind: 'resume_session',
       conceptIndex: session?.current_position?.concept_index ?? 0,
@@ -112,12 +322,18 @@ export function resolveRecommendedNext(
     };
   }
 
-  if (progress.sessionStatus === 'none') {
+  if (!skipSession && progress.sessionStatus === 'none') {
     return { kind: 'start_session' };
   }
 
   const serialAction = serialActionFromToday(today, session);
-  if (serialAction) {
+  const serialActionDone = serialAction
+    ? serialAction.episodeKind === 'mission' ? progress.missionDone : progress.feuilletonDone
+    : false;
+  // An unread episode is the strongest pull in the day. A *read* one used to keep
+  // winning this branch for the rest of the day, which buried review, the written
+  // mission and the voice studio behind a CTA that reopened finished reading.
+  if (serialAction && !serialActionDone) {
     return serialAction;
   }
 
@@ -127,6 +343,13 @@ export function resolveRecommendedNext(
 
   if (!progress.missionDone && progress.missionSuggested) {
     return { kind: 'mission', query: dayQueryString(session, today) };
+  }
+
+  // Speaking is prescribed on the days the written mission is not (see
+  // `studio_suggested` in the day-progress endpoint), so the habit the product is
+  // named for gets a turn in the plan instead of living on an unlinked page.
+  if (!progress.studioDone && progress.studioSuggested) {
+    return { kind: 'studio' };
   }
 
   const libraryEpisode = STORY_FEATURE_VISIBLE
@@ -148,6 +371,12 @@ export function resolveRecommendedNext(
 
   if (!progress.feuilletonDone) {
     return { kind: 'feuilleton', query: dayQueryString(session, today) };
+  }
+
+  // Everything prescribed is filed: the thread stays open for a reread rather
+  // than the day ending on a dead end.
+  if (serialAction) {
+    return serialAction;
   }
 
   return { kind: 'rest' };
@@ -279,6 +508,8 @@ export function buildDayProgress(input: {
       ? Boolean(serverProgress?.librarySuggested ?? Boolean((today as AtelierTodayWithProgress | null)?.library_episode))
       : false,
     feuilletonDone: Boolean(serverProgress?.feuilletonDone ?? localProgress.feuilletonDone),
+    studioDone: Boolean(serverProgress?.studioDone ?? false),
+    studioSuggested: Boolean(serverProgress?.studioSuggested ?? false),
     sessionDone: Boolean(serverProgress?.sessionDone ?? sessionStatus === 'completed'),
     timeBudgetMinutes: Number(serverProgress?.timeBudgetMinutes ?? 20),
     estimatedTotalMinutes: Math.max(0, Number(serverProgress?.estimatedTotalMinutes ?? 20) - hiddenLibraryMinutes) + extraVocabularyMinutes,

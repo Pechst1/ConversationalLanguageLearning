@@ -1,8 +1,11 @@
 """Rule-based error detection heuristics for French learner text."""
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Iterable, List, Protocol, TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol
+
+from app.services.learner_copy import LEARNER_COPY
 
 if TYPE_CHECKING:
     from spacy.tokens import Doc, Token
@@ -10,7 +13,13 @@ if TYPE_CHECKING:
 
 @dataclass
 class DetectedError:
-    """Representation of a detected learner error."""
+    """Representation of a detected learner error.
+
+    `message_key` names a row in `app.services.learner_copy` when the sentence is
+    authored here rather than by a provider. The detector renders it into the
+    learner's own language; `message` keeps a readable English default so a
+    caller that never localizes still prints a sentence, not a key.
+    """
 
     code: str
     message: str
@@ -20,6 +29,13 @@ class DetectedError:
     severity: str
     confidence: float
     subcategory: str | None = None
+    message_key: str | None = None
+    suggestion_key: str | None = None
+
+
+def _default_message(key: str) -> str:
+    """The English column, used when nobody localizes the error downstream."""
+    return LEARNER_COPY.get(key, {}).get("en", key)
 
 
 class ErrorRule(Protocol):
@@ -27,7 +43,7 @@ class ErrorRule(Protocol):
 
     name: str
 
-    def apply(self, doc: Doc) -> List[DetectedError]:  # pragma: no cover - interface definition
+    def apply(self, doc: Doc) -> list[DetectedError]:  # pragma: no cover - interface definition
         """Inspect the document and return any detected errors."""
 
 
@@ -59,8 +75,8 @@ class ArticleNounAgreementRule:
     feminine_articles: Iterable[str] = ("la", "une", "cette", "sa")
     masculine_articles: Iterable[str] = ("le", "un", "ce", "son")
 
-    def apply(self, doc: Doc) -> List[DetectedError]:
-        errors: List[DetectedError] = []
+    def apply(self, doc: Doc) -> list[DetectedError]:
+        errors: list[DetectedError] = []
         tokens = list(doc)
         for index, token in enumerate(tokens[:-1]):
             article = token.text.lower()
@@ -71,7 +87,8 @@ class ArticleNounAgreementRule:
                     errors.append(
                         DetectedError(
                             code=self.name,
-                            message="Possible feminine article used with masculine noun.",
+                            message=_default_message("detect.article_feminine_with_masculine"),
+                            message_key="detect.article_feminine_with_masculine",
                             span=f"{token.text} {noun.text}",
                             suggestion=f"le {noun.text}",
                             category="grammar",
@@ -85,7 +102,8 @@ class ArticleNounAgreementRule:
                     errors.append(
                         DetectedError(
                             code=self.name,
-                            message="Possible masculine article used with feminine noun.",
+                            message=_default_message("detect.article_masculine_with_feminine"),
+                            message_key="detect.article_masculine_with_feminine",
                             span=f"{token.text} {noun.text}",
                             suggestion=f"la {noun.text}",
                             category="grammar",
@@ -115,8 +133,8 @@ class VerbConjugationRule:
         "elles": ("ent",),
     }
 
-    def apply(self, doc: Doc) -> List[DetectedError]:
-        errors: List[DetectedError] = []
+    def apply(self, doc: Doc) -> list[DetectedError]:
+        errors: list[DetectedError] = []
         tokens = list(doc)
         for index, token in enumerate(tokens[:-1]):
             pronoun = token.text.lower()
@@ -137,7 +155,8 @@ class VerbConjugationRule:
                 errors.append(
                     DetectedError(
                         code=self.name,
-                        message="Verb appears to be in infinitive form after pronoun.",
+                        message=_default_message("detect.verb_infinitive_after_pronoun"),
+                        message_key="detect.verb_infinitive_after_pronoun",
                         span=f"{token.text} {candidate.text}",
                         suggestion=f"{token.text} {candidate.text}e",
                         category="grammar",
@@ -152,7 +171,8 @@ class VerbConjugationRule:
                 errors.append(
                     DetectedError(
                         code=self.name,
-                        message="Verb ending may not match subject pronoun.",
+                        message=_default_message("detect.verb_ending_mismatch"),
+                        message_key="detect.verb_ending_mismatch",
                         span=f"{token.text} {candidate.text}",
                         suggestion=f"{token.text} {candidate.lemma_ or candidate.text}",
                         category="grammar",
@@ -170,43 +190,44 @@ class FalseFriendRule:
 
     name: str = "false_friend"
 
-    false_friends: dict[str, str] = None
+    #: surface -> (copy key, the French replacement to offer). The explanation
+    #: itself lives in `learner_copy`, so a German learner is told in German why
+    #: the word is a trap instead of being handed an English gloss.
+    false_friends: dict[str, tuple[str, str]] = None
 
     def __post_init__(self) -> None:
         if self.false_friends is None:
             self.false_friends = {
-                "actuellement": "Use 'en ce moment' for 'currently'.",
-                "librairie": "Means 'bookshop'; use 'bibliothèque' for 'library'.",
-                "sensible": "Means 'sensitive'; use 'raisonnable' for 'sensible'.",
-                "déception": "Means 'disappointment'; use 'tromperie' for 'deception'.",
+                "actuellement": ("detect.false_friend_actuellement", "en ce moment"),
+                "librairie": ("detect.false_friend_librairie", "bibliothèque"),
+                "sensible": ("detect.false_friend_sensible", "raisonnable"),
+                "déception": ("detect.false_friend_deception", "tromperie"),
             }
 
-    def apply(self, doc: Doc) -> List[DetectedError]:
-        errors: List[DetectedError] = []
+    def apply(self, doc: Doc) -> list[DetectedError]:
+        errors: list[DetectedError] = []
         for token in doc:
-            explanation = self.false_friends.get(token.text.lower())
-            if not explanation:
+            entry = self.false_friends.get(token.text.lower())
+            if not entry:
                 continue
-            suggestion_hint = None
-            if ";" in explanation:
-                suggestion_hint = explanation.split(";", 1)[-1].strip()
-            suggestion = suggestion_hint or "Révisez l'usage correct de ce mot."
+            message_key, replacement = entry
             errors.append(
                 DetectedError(
                     code=self.name,
-                    message=explanation,
+                    message=_default_message(message_key),
                     span=token.text,
-                    suggestion=suggestion,
+                    suggestion=replacement,
                     category="vocabulary",
                     severity="low",
                     confidence=0.9,
                     subcategory="false_friends",
+                    message_key=message_key,
                 )
             )
         return errors
 
 
-def build_default_rules() -> List[ErrorRule]:
+def build_default_rules() -> list[ErrorRule]:
     """Return the default rule set for the detector."""
 
     return [

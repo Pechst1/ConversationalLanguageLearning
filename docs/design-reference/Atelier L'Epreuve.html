@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="design_doc_mode" content="canvas" />
+<title>Atelier — L'Épreuve</title>
+<link rel="stylesheet" href="atelier.css" />
+<link rel="stylesheet" href="epreuve.css" />
+<style>
+  html, body { margin: 0; height: 100%; background: #f0eee9; }
+  a { color: var(--app-red); }
+  a:hover { color: var(--app-ink); }
+  /* shells fill their artboard card so overestimated heights read as paper, not white */
+  .ep { min-height: 100%; }
+  /* tweak: hide the optional confidence tap */
+  .hide-conf .ep-conf { display: none; }
+</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="epreuve-parts.jsx"></script>
+<script type="text/babel" src="epreuve-screens.jsx"></script>
+<script type="text/babel" src="epreuve-boards.jsx"></script>
+<script type="text/babel">
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "ambiance": "Light",
+  "confiance": true,
+  "printin": 0.5
+}/*EDITMODE-END*/;
+
+function App() {
+  const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const amb = t.ambiance === 'Dark' ? 'dark' : 'light';
+
+  React.useEffect(() => {
+    document.documentElement.classList.toggle('hide-conf', !t.confiance);
+  }, [t.confiance]);
+  React.useEffect(() => {
+    document.documentElement.style.setProperty('--ep-printin-dur', (t.printin ?? 0.5) + 's');
+  }, [t.printin]);
+
+  return (
+    <React.Fragment>
+      <DesignCanvas>
+        {/* ---- A · THE SÉANCE ---------------------------------------------- */}
+        <DCSection id="seance" title="A · La séance — reconnaître & composer"
+          subtitle="The exercise sheet: eyebrow (round · mode · i/n), concept in serif italic with its assembling motif, rule on demand, movable type. One exercise, one ink press-bar.">
+          <DCArtboard id="rec" label="1 · Reconnaître — règle fermée" width={390} height={600}><EpRecognize theme={amb} /></DCArtboard>
+          <DCArtboard id="rule" label="1 · Reconnaître — la règle ouverte" width={390} height={796}><EpRecognize theme={amb} rule /></DCArtboard>
+          <DCArtboard id="wb" label="2 · Composer — le type mobile, mi-ligne" width={390} height={600}><EpWordBank theme={amb} /></DCArtboard>
+          <DCArtboard id="cls" label="Classer — trier les sortes en casses" width={390} height={600}><EpClassify theme={amb} /></DCArtboard>
+          <DCArtboard id="prov" label="Provenance + retour — l’erreur qui revient" width={390} height={660}><EpRecognize theme={amb} provenance /></DCArtboard>
+        </DCSection>
+
+        {/* ---- B · PROOFREADER'S MARKS (light + dark) --------------------- */}
+        <DCSection id="marks" title="B · Les marques du correcteur — le cœur"
+          subtitle="A wrong answer marks the learner's own line like a galley: red strike + fix with the caret ‸, the “why” as a graphite pencil note, then the typed micro-repair. Light + dark.">
+          <DCArtboard id="mk-l" label="3 · Marques — clair" width={390} height={700}><EpMarks theme="light" step="marks" /></DCArtboard>
+          <DCArtboard id="mk-d" label="3 · Marques — sombre" width={390} height={700}><EpMarks theme="dark" step="marks" /></DCArtboard>
+          <DCArtboard id="rp-l" label="3 · Recopie la correction — clair" width={390} height={724}><EpMarks theme="light" step="repair" /></DCArtboard>
+          <DCArtboard id="rp-d" label="3 · Recopie la correction — sombre" width={390} height={724}><EpMarks theme="dark" step="repair" /></DCArtboard>
+        </DCSection>
+
+        {/* ---- C · JUSTE, SANS MODALE + CONFIDENCE (light + dark) --------- */}
+        <DCSection id="correct" title="C · Juste, sans modale — la confiance"
+          subtitle="The optional sûr / pas sûr tap before Check (skippable, zero friction), and the correct-answer moment: a small BON stamp inline, the motif prints, Next. Never a modal. Light + dark.">
+          <DCArtboard id="cf-l" label="4 · Confiance avant Vérifier — clair" width={390} height={640}><EpCorrectMoment theme="light" phase="confidence" /></DCArtboard>
+          <DCArtboard id="ok-l" label="4 · Juste · tampon BON — clair" width={390} height={664}><EpCorrectMoment theme="light" phase="correct" /></DCArtboard>
+          <DCArtboard id="ok-d" label="4 · Juste · tampon BON — sombre" width={390} height={664}><EpCorrectMoment theme="dark" phase="correct" /></DCArtboard>
+          <DCArtboard id="cf-d" label="4 · Confiance avant Vérifier — sombre" width={390} height={640}><EpCorrectMoment theme="dark" phase="confidence" /></DCArtboard>
+        </DCSection>
+
+        {/* ---- D · ÉCOUTER · PARLER (light + dark) ------------------------ */}
+        <DCSection id="speak" title="D · Écouter · parler — le shadowing"
+          subtitle="écouter (TTS model) → parler (idle / recording / transcribing) → the transcript comes back with proofreader's marks like any other answer. Plus the honest TTS-unavailable variant. Light + dark on the marked state.">
+          <DCArtboard id="sp-listen" label="5 · Écouter le modèle" width={390} height={640}><EpSpeak theme={amb} phase="listen" /></DCArtboard>
+          <DCArtboard id="sp-rec" label="5 · Enregistrement" width={390} height={640}><EpSpeak theme={amb} phase="recording" /></DCArtboard>
+          <DCArtboard id="sp-tr" label="5 · Transcription" width={390} height={640}><EpSpeak theme={amb} phase="transcribing" /></DCArtboard>
+          <DCArtboard id="sp-mk-l" label="5 · Transcription marquée — clair" width={390} height={720}><EpSpeak theme="light" phase="marked" /></DCArtboard>
+          <DCArtboard id="sp-mk-d" label="5 · Transcription marquée — sombre" width={390} height={720}><EpSpeak theme="dark" phase="marked" /></DCArtboard>
+          <DCArtboard id="sp-empty" label="Voix indisponible (tts_url = null)" width={390} height={600}><EpSpeakEmpty theme={amb} /></DCArtboard>
+        </DCSection>
+
+        {/* ---- E · THE SECOND LOOK (AI) ----------------------------------- */}
+        <DCSection id="relecture" title="E · La relecture — le second regard (IA)"
+          subtitle="A discreet marginal “relecture en cours…” under the marks that resolves in place when ai_review completes — a confirm, or a noted turn of phrase retained for the phrase du jour.">
+          <DCArtboard id="ai-p" label="6 · Relecture en cours" width={390} height={600}><EpSecondLook theme={amb} status="pending" /></DCArtboard>
+          <DCArtboard id="ai-d" label="6 · Relu · une nuance retenue" width={390} height={648}><EpSecondLook theme={amb} status="done" /></DCArtboard>
+        </DCSection>
+
+        {/* ---- F · EARLY MASTERY LOCK ------------------------------------- */}
+        <DCSection id="lock" title="F · Plomb verrouillé — la maîtrise anticipée"
+          subtitle="When the engine ends a concept early because everything was clean, its plate stamps PLOMB VERROUILLÉ — the skip reads as an earned promotion, not missing content.">
+          <DCArtboard id="lk-l" label="7 · Plomb verrouillé — clair" width={390} height={600}><EpEarlyLock theme="light" /></DCArtboard>
+          <DCArtboard id="lk-d" label="7 · Plomb verrouillé — sombre" width={390} height={600}><EpEarlyLock theme="dark" /></DCArtboard>
+        </DCSection>
+
+        {/* ---- G · BON À TIRER + L'ÉPREUVE (light + dark) ----------------- */}
+        <DCSection id="complete" title="G · Bon à tirer · l’épreuve — la fin de séance"
+          subtitle="The page gets the BON À TIRER stamp, then the proof-sheet recap: lines set, concepts strengthened, errata filed, minted tokens (gilt seal for a flawless run), streak, phrase du jour, handoff. Light + dark; with and without gilt & phrase.">
+          <DCArtboard id="bat-l" label="8 · Bon à tirer — clair" width={390} height={500}><EpComplete theme="light" phase="bat" /></DCArtboard>
+          <DCArtboard id="bat-d" label="8 · Bon à tirer — sombre" width={390} height={500}><EpComplete theme="dark" phase="bat" /></DCArtboard>
+          <DCArtboard id="rc-l" label="8 · L’épreuve — course sans faute (clair)" width={390} height={1600}><EpComplete theme="light" phase="recap" gilt phrase /></DCArtboard>
+          <DCArtboard id="rc-d" label="8 · L’épreuve — course sans faute (sombre)" width={390} height={1600}><EpComplete theme="dark" phase="recap" gilt phrase /></DCArtboard>
+          <DCArtboard id="rc-solid" label="8 · L’épreuve — série solide (sans sceau, sans phrase)" width={390} height={1180}><EpComplete theme="light" phase="recap" gilt={false} phrase={false} /></DCArtboard>
+        </DCSection>
+
+        {/* ---- H · RESUME & SYSTEM STATES --------------------------------- */}
+        <DCSection id="system" title="H · Reprise & états système"
+          subtitle="Resume mid-session with the composing stick partially set, the press-style loading skeleton, and the editorial error notice. The line is never lost.">
+          <DCArtboard id="sy-resume" label="9 · Reprise — le plomb attend" width={390} height={580}><EpResumeScreen theme={amb} /></DCArtboard>
+          <DCArtboard id="sy-load" label="9 · Chargement (press)" width={390} height={440}><EpLoading theme={amb} /></DCArtboard>
+          <DCArtboard id="sy-err" label="9 · Erreur — avis de la rédaction" width={390} height={460}><EpErrorScreen theme={amb} /></DCArtboard>
+        </DCSection>
+
+        {/* ---- I · HANDOFF BOARDS ----------------------------------------- */}
+        <DCSection id="spec" title="Handoff — component spec, tokens, copy, migration"
+          subtitle="The signature pieces with props mapped to payload fields; the token constraint; the full French copy deck; and the migration note onto SessionView + the components/ui primitives.">
+          <DCArtboard id="b-spec" label="Component spec — the signature pieces" width={560} height={1740}><EpSpecBoard /></DCArtboard>
+          <DCArtboard id="b-tok" label="Tokens only — derived values documented" width={560} height={800}><EpTokenBoard /></DCArtboard>
+          <DCArtboard id="b-copy" label="French copy deck — every state" width={560} height={1560}><EpCopyBoard /></DCArtboard>
+          <DCArtboard id="b-mig" label="Migration note — extends vs new, logic kept" width={560} height={1180}><EpMigrationBoard /></DCArtboard>
+        </DCSection>
+      </DesignCanvas>
+
+      <TweaksPanel>
+        <TweakSection label="Ambiance" />
+        <TweakRadio label="Thème" value={t.ambiance} options={['Light', 'Dark']}
+          onChange={(v) => setTweak('ambiance', v)} />
+        <TweakSection label="La séance" />
+        <TweakToggle label="Tapotement de confiance" value={t.confiance}
+          onChange={(v) => setTweak('confiance', v)} />
+        <TweakSlider label="Vitesse d’impression (motif)" min={0.2} max={1.4} step={0.1}
+          value={t.printin} onChange={(v) => setTweak('printin', v)} unit="s" />
+      </TweaksPanel>
+    </React.Fragment>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

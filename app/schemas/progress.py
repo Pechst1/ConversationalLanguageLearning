@@ -156,9 +156,18 @@ class VocabularyRecommendationItem(BaseModel):
     deck_name: str | None = None
     part_of_speech: str | None = None
     topic_tags: list[str] = Field(default_factory=list)
+    # The server already resolves which gloss this learner should read
+    # (app/services/glosses.py). The response model used to drop those two
+    # fields, so every client had to guess the language again from the raw map
+    # — and guessed English-first, serving English to German learners. They are
+    # part of the contract now; `translations` stays for older clients.
+    translation: str | None = None
+    translation_language: str | None = None
     translations: VocabularyRecommendationTranslations
     example_sentence: str | None = None
     example_translation: str | None = None
+    recommendation_reason: dict[str, Any] | None = None
+    episodic_anchor: dict[str, Any] | None = None
 
 
 class VocabularyRecommendationSummary(BaseModel):
@@ -182,6 +191,8 @@ class VocabularyDueContextSummary(BaseModel):
     """Selected counts for a contextual vocabulary review bundle."""
 
     due: int
+    # Unsliced due count; `due` is capped by due_limit.
+    due_total: int | None = None
     fragile: int
     new: int
     topic_compatible: int

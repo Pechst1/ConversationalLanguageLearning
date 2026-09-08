@@ -3,9 +3,9 @@ import uuid
 
 from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
-from sqlalchemy.types import JSON
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+from sqlalchemy.types import JSON
 
 from app.db.base import Base
 
@@ -80,7 +80,7 @@ class ConversationMessage(Base):
     suggested_words_used = Column(JSONB().with_variant(JSON(), "sqlite"), default=list)
     xp_earned = Column(Integer, default=0)
 
-    generation_prompt = Column(String)
+    generation_prompt = Column(Text)
     llm_model = Column(String(50))
     tokens_used = Column(Integer)
 

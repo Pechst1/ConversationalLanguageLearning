@@ -6,18 +6,15 @@ creating an illustrated book experience that adapts to the narrative.
 from __future__ import annotations
 
 import hashlib
-import json
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from pathlib import Path
-from typing import Literal
+from datetime import UTC, datetime
 
 import httpx
 from loguru import logger
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.db.models.story import Scene, Chapter, Story
+from app.db.models.story import Chapter, Scene, Story
 from app.db.models.user import User
 from app.utils.cache import cache_backend
 
@@ -137,7 +134,7 @@ class StoryVisualizationService:
             prompt=prompt,
             style=style,
             cached=False,
-            generated_at=datetime.now(timezone.utc),
+            generated_at=datetime.now(UTC),
         )
         
         cache_backend.set(
@@ -191,7 +188,7 @@ No text or letters in the image."""
             url=image_url,
             prompt=prompt,
             style=style,
-            generated_at=datetime.now(timezone.utc),
+            generated_at=datetime.now(UTC),
         )
 
     async def generate_story_cover(
@@ -237,7 +234,7 @@ No text or letters in the image, just the artwork."""
             url=image_url,
             prompt=prompt,
             style=style,
-            generated_at=datetime.now(timezone.utc),
+            generated_at=datetime.now(UTC),
         )
     
     def _build_image_prompt(
@@ -333,7 +330,10 @@ No text or letters in the image, just the artwork."""
     def _get_cache_key(self, scene_id: str, style: str | None, include_avatar: bool) -> str:
         """Generate a cache key for a scene visualization."""
         key_parts = f"{scene_id}:{style or 'auto'}:{include_avatar}"
-        return hashlib.md5(key_parts.encode()).hexdigest()
+        return hashlib.md5(
+            key_parts.encode(),
+            usedforsecurity=False,
+        ).hexdigest()
     
     def _get_fallback_image(self, style: str) -> str:
         """Return a fallback placeholder image URL."""

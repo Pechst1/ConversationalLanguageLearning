@@ -1,0 +1,131 @@
+{
+  "fixture": "explain_delay_repair",
+  "contract_version": 1,
+  "endpoint": "/api/v1/daily-journeys/{id}",
+  "method": "GET",
+  "http_status": 200,
+  "response": {
+    "id": "00000000-0000-4000-8000-000000000023",
+    "contract_version": 1,
+    "revision": 6,
+    "status": "active",
+    "local_date": "2026-09-05",
+    "timezone": "Europe/Paris",
+    "budget_seconds": 300,
+    "estimated_active_seconds": 282,
+    "current_step_id": "00000000-0000-4000-9000-000023000002",
+    "scenario": {
+      "scenario_key": "explain_delay",
+      "content_version": "journey-content-v1",
+      "title_fr": "Le métro est bloqué",
+      "objective_key": "explain_delay.new_arrival_time",
+      "objective_native": "Tell Romy you are late, say why, and give a new arrival time.",
+      "level_band": "A2",
+      "character_id": "romy_tremblay",
+      "character_name": "Romy Tremblay",
+      "location_id": "metro_platform",
+      "location_name": "Quai du métro",
+      "image_url": "/assets/serial/locations/metro_platform.webp",
+      "serial_thread_id": null,
+      "serial_episode_id": null,
+      "estimated_seconds": 286
+    },
+    "steps": [
+      {
+        "id": "00000000-0000-4000-9000-000023000000",
+        "ordinal": 0,
+        "kind": "scene",
+        "status": "completed",
+        "estimated_seconds": 40,
+        "assistance_used": [],
+        "prompt": {
+          "setup_fr": "Le métro est arrêté entre deux stations. Romy t'attend déjà.",
+          "setup_native": "The métro has stopped between stations. Romy is already waiting.",
+          "objective_native": "Tell Romy you are late, why, and when you will arrive.",
+          "character_line_fr": "T'es où ? On avait dit dix-neuf heures.",
+          "character_line_audio_url": null,
+          "image_url": "/assets/serial/locations/metro_platform.webp"
+        }
+      },
+      {
+        "id": "00000000-0000-4000-9000-000023000001",
+        "ordinal": 1,
+        "kind": "recall",
+        "status": "completed",
+        "estimated_seconds": 44,
+        "assistance_used": [],
+        "prompt": {
+          "task_type": "short_answer",
+          "instruction_native": "How do you say 'I am going to be late'?",
+          "prompt_fr": "Je ___ en retard.",
+          "options": [],
+          "target": {
+            "kind": "grammar",
+            "id": "00000000-0000-4000-a000-000000000005",
+            "label_fr": "",
+            "label_native": "near future"
+          },
+          "optional": false,
+          "help_available": [
+            "hint",
+            "translation",
+            "solution"
+          ]
+        }
+      },
+      {
+        "id": "00000000-0000-4000-9000-000023000002",
+        "ordinal": 2,
+        "kind": "respond",
+        "status": "active",
+        "estimated_seconds": 140,
+        "assistance_used": [
+          "hint"
+        ],
+        "prompt": {
+          "turn_index": 1,
+          "max_turns": 2,
+          "repair_allowed": true,
+          "character_id": "romy_tremblay",
+          "character_name": "Romy Tremblay",
+          "character_line_fr": "D'accord, mais tu arrives quand exactement ?",
+          "character_line_audio_url": null,
+          "objective_native": "Give a concrete new arrival time.",
+          "input_modes": [
+            "text",
+            "voice"
+          ],
+          "targets": [
+            {
+              "kind": "grammar",
+              "id": "00000000-0000-4000-a000-000000000005",
+              "label_fr": "je vais être en retard",
+              "label_native": "near future"
+            }
+          ],
+          "help_available": [
+            "hint",
+            "translation",
+            "suggested_response"
+          ]
+        }
+      },
+      {
+        "id": "00000000-0000-4000-9000-000023000003",
+        "ordinal": 3,
+        "kind": "resolution",
+        "status": "pending",
+        "estimated_seconds": 58,
+        "assistance_used": [],
+        "prompt": {
+          "outcome_key": "romy_waits_at_bar",
+          "character_line_fr": "Bon. Je commande un truc et je t'attends au bar.",
+          "summary_native": "Romy will wait for you at the bar.",
+          "image_url": null
+        }
+      }
+    ],
+    "recap": null,
+    "retry": null
+  }
+}

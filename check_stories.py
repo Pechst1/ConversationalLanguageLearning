@@ -6,9 +6,11 @@ import sys
 # Add current directory to path
 sys.path.append(os.getcwd())
 
-from app.db.session import SessionLocal
-from app.db.models.story import Story
 from sqlalchemy import select
+
+from app.db.models.story import Story
+from app.db.session import SessionLocal
+
 
 async def main():
     db = SessionLocal()

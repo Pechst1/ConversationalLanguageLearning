@@ -11,18 +11,17 @@ import html
 import logging
 import re
 import unicodedata
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from io import StringIO
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.db.models.progress import UserVocabularyProgress, ReviewLog
-from app.db.models.vocabulary import VocabularyWord
+from app.db.models.progress import UserVocabularyProgress
 from app.db.models.user import User
+from app.db.models.vocabulary import VocabularyWord
 from app.services.srs import FSRSScheduler
-
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +101,7 @@ class AnkiCardParser:
         if not text:
             return ""
 
-        tokens: List[str] = []
+        tokens: list[str] = []
         for raw_token in text.split():
             cleaned = raw_token.strip('.,;:!?«»"\'“”[]()')
             if not cleaned:
@@ -114,7 +113,7 @@ class AnkiCardParser:
         if not tokens:
             return text
 
-        deduped: List[str] = []
+        deduped: list[str] = []
         for token in tokens:
             lowered = token.lower()
             if not deduped or deduped[-1].lower() != lowered:
@@ -122,7 +121,7 @@ class AnkiCardParser:
         tokens = deduped
 
         if expected_language in {"french", "german"}:
-            filtered: List[str] = []
+            filtered: list[str] = []
             for token in tokens:
                 lang = self.detect_language(token)
                 if lang == expected_language:
@@ -257,9 +256,9 @@ class AnkiImportService:
         self, 
         csv_content: str, 
         user_id: str,
-        deck_name: Optional[str] = None,
+        deck_name: str | None = None,
         preserve_scheduling: bool = True
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Import Anki cards from CSV content.
         
         Args:
@@ -288,12 +287,12 @@ class AnkiImportService:
             
             return import_stats
             
-        except Exception as e:
+        except Exception as exc:
             self.db.rollback()
-            logger.error(f"Error during Anki import: {e}")
-            raise AnkiImportError(f"Failed to import Anki cards: {e}")
+            logger.error(f"Error during Anki import: {exc}")
+            raise AnkiImportError(f"Failed to import Anki cards: {exc}") from exc
     
-    def _parse_csv_content(self, csv_content: str) -> List[Dict[str, Any]]:
+    def _parse_csv_content(self, csv_content: str) -> list[dict[str, Any]]:
         """Parse CSV content and extract card data."""
         cards = []
 
@@ -347,9 +346,9 @@ class AnkiImportService:
         candidate = candidate.lstrip(",;: ")
         return candidate
     
-    def _normalize_row_keys(self, row: Dict[str, Any]) -> Dict[str, Any]:
+    def _normalize_row_keys(self, row: dict[str, Any]) -> dict[str, Any]:
         """Return lower-cased, snake_case keys for flexible column access."""
-        normalized: Dict[str, Any] = {}
+        normalized: dict[str, Any] = {}
         for key, value in row.items():
             if key is None:
                 continue
@@ -357,7 +356,7 @@ class AnkiImportService:
             normalized[key_normalized] = value.strip() if isinstance(value, str) else value
         return normalized
 
-    def _is_duplicate_header_row(self, normalized_row: Dict[str, Any]) -> bool:
+    def _is_duplicate_header_row(self, normalized_row: dict[str, Any]) -> bool:
         """Detect rows that simply repeat the header names."""
         if not normalized_row:
             return False
@@ -369,10 +368,10 @@ class AnkiImportService:
 
     def _extract_card_data(
         self,
-        row: Dict[str, str],
-        normalized_row: Dict[str, Any],
+        row: dict[str, str],
+        normalized_row: dict[str, Any],
         row_num: int
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """Extract card data from a CSV row."""
         # Common Anki CSV column names (flexible detection)
         front_fields = [
@@ -456,12 +455,12 @@ class AnkiImportService:
         }
     
     def _process_cards(
-        self, 
-        cards_data: List[Dict[str, Any]], 
+        self,
+        cards_data: list[dict[str, Any]],
         user_id: str,
-        deck_name: Optional[str],
+        deck_name: str | None,
         preserve_scheduling: bool
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Process cards and create database entries."""
         stats = {
             'total': len(cards_data),
@@ -493,7 +492,7 @@ class AnkiImportService:
         
         return stats
     
-    def _identify_card_pairs(self, cards_data: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
+    def _identify_card_pairs(self, cards_data: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
         """Identify paired cards (French<->German) by content similarity."""
         pairs = {}
         
@@ -518,12 +517,12 @@ class AnkiImportService:
         return pairs
     
     def _process_card_pair(
-        self, 
-        cards: List[Dict[str, Any]], 
+        self,
+        cards: list[dict[str, Any]],
         user_id: str,
-        deck_name: Optional[str],
+        deck_name: str | None,
         preserve_scheduling: bool
-    ) -> Dict[str, int]:
+    ) -> dict[str, int]:
         """Process a pair (or single card) and create vocabulary entries."""
         result = {
             'imported': 0,
@@ -532,7 +531,7 @@ class AnkiImportService:
             'de_to_fr': 0,
         }
         
-        vocab_entries: list[tuple[VocabularyWord, Dict[str, Any]]] = []
+        vocab_entries: list[tuple[VocabularyWord, dict[str, Any]]] = []
         
         for card in cards:
             vocab_word = self._create_vocabulary_word(card, deck_name)
@@ -565,7 +564,7 @@ class AnkiImportService:
         
         return result
     
-    def _create_vocabulary_word(self, card: Dict[str, Any], deck_name: Optional[str]) -> Optional[VocabularyWord]:
+    def _create_vocabulary_word(self, card: dict[str, Any], deck_name: str | None) -> VocabularyWord | None:
         """Create a VocabularyWord from card data."""
         front = card['front']
         back = card['back']
@@ -673,7 +672,7 @@ class AnkiImportService:
         vocab_word: VocabularyWord, 
         user: User, 
         preserve_scheduling: bool,
-        card_data: Dict[str, Any]
+        card_data: dict[str, Any]
     ) -> None:
         """Create user progress entry for the vocabulary word."""
         # Check if progress already exists
@@ -713,7 +712,7 @@ class AnkiImportService:
         
         self.db.add(progress)
 
-    def _extract_scheduling_data(self, progress: UserVocabularyProgress, card_data: Dict[str, Any]) -> None:
+    def _extract_scheduling_data(self, progress: UserVocabularyProgress, card_data: dict[str, Any]) -> None:
         """Extract and apply Anki scheduling data to progress."""
         raw_row = card_data.get('raw_row', {}) or {}
         normalized_row = card_data.get('normalized_row') or self._normalize_row_keys(raw_row)  # type: ignore[arg-type]
@@ -773,12 +772,12 @@ class AnkiImportService:
         else:
             progress.phase = "learn"
 
-    def get_import_statistics(self, user_id: str) -> Dict[str, Any]:
+    def get_import_statistics(self, user_id: str) -> dict[str, Any]:
         """Get statistics about imported Anki cards for a user."""
         # Count vocabulary words
         vocab_count = self.db.scalar(
             select(func.count()).select_from(VocabularyWord)
-            .where(VocabularyWord.is_anki_card == True)
+            .where(VocabularyWord.is_anki_card.is_(True))
         ) or 0
         
         # Count user progress
@@ -794,7 +793,7 @@ class AnkiImportService:
         fr_to_de = self.db.scalar(
             select(func.count()).select_from(VocabularyWord)
             .where(
-                VocabularyWord.is_anki_card == True,
+                VocabularyWord.is_anki_card.is_(True),
                 VocabularyWord.direction == "fr_to_de"
             )
         ) or 0
@@ -802,7 +801,7 @@ class AnkiImportService:
         de_to_fr = self.db.scalar(
             select(func.count()).select_from(VocabularyWord)
             .where(
-                VocabularyWord.is_anki_card == True,
+                VocabularyWord.is_anki_card.is_(True),
                 VocabularyWord.direction == "de_to_fr"
             )
         ) or 0
@@ -811,8 +810,8 @@ class AnkiImportService:
         paired_count = self.db.scalar(
             select(func.count()).select_from(VocabularyWord)
             .where(
-                VocabularyWord.is_anki_card == True,
-                VocabularyWord.linked_word_id != None
+                VocabularyWord.is_anki_card.is_(True),
+                VocabularyWord.linked_word_id.is_not(None)
             )
         ) or 0
         
@@ -826,7 +825,7 @@ class AnkiImportService:
         }
 
     @staticmethod
-    def _parse_int_value(value: Any) -> Optional[int]:
+    def _parse_int_value(value: Any) -> int | None:
         """Safely parse an integer from various CSV representations."""
         if value is None:
             return None
@@ -836,7 +835,7 @@ class AnkiImportService:
             return None
 
     @staticmethod
-    def _parse_float_value(value: Any) -> Optional[float]:
+    def _parse_float_value(value: Any) -> float | None:
         """Safely parse a float from various CSV representations."""
         if value is None:
             return None
@@ -845,7 +844,7 @@ class AnkiImportService:
         except (TypeError, ValueError):
             return None
 
-    def _parse_due_value(self, value: Any) -> Optional[datetime]:
+    def _parse_due_value(self, value: Any) -> datetime | None:
         """Parse due dates which may be stored as ISO strings or day offsets."""
         if value is None:
             return None
@@ -858,7 +857,7 @@ class AnkiImportService:
         try:
             due_dt = datetime.fromisoformat(text)
             if due_dt.tzinfo is None:
-                due_dt = due_dt.replace(tzinfo=timezone.utc)
+                due_dt = due_dt.replace(tzinfo=UTC)
             return due_dt
         except ValueError:
             pass
@@ -868,7 +867,7 @@ class AnkiImportService:
         # push cards years into the future.
         int_value = self._parse_int_value(text)
         if int_value is not None and -3650 <= int_value <= 3650:
-            reference = datetime.now(timezone.utc)
+            reference = datetime.now(UTC)
             return reference + timedelta(days=int_value)
 
         return None

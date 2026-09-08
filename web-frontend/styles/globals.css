@@ -9,11 +9,23 @@
   --app-sheet: #f8f3e8;
   --app-ink: #14110d;
   --app-ink-2: #4a4538;
-  --app-ink-3: #8a826f;
+  /* Marginalia ink. Was #8a826f, which measured 3.45:1 on sheet and 3.24:1 on
+     paper — below WCAG AA, and it carries every kicker and meta line in the app.
+     #6f6857 is 5.0:1 / 4.7:1 and still reads as withdrawn. The dark theme's
+     value already passes (5.48:1) and is unchanged. */
+  --app-ink-3: #6f6857;
   --app-blue: #1d3a8a;
   --app-red: #d8321a;
   --app-alert: #8a5b00;
   --app-yellow: #f3c318;
+  --app-green: #23845d;
+  /* RGB channels of the tokens above, for Tailwind classes that need an
+     opacity modifier (rgb(var(--x) / <alpha-value>)). Keep in sync. */
+  --app-red-rgb: 216 50 26;
+  --app-blue-rgb: 29 58 138;
+  --app-yellow-rgb: 243 195 24;
+  --app-ink-rgb: 20 17 13;
+  --app-sheet-rgb: 248 243 232;
   --accent-action: var(--app-red);
   --accent-alert: var(--app-alert);
   --accent-info: var(--app-blue);
@@ -25,6 +37,16 @@
   --type-body: 1rem;
   --type-caption: 0.75rem;
   --type-mono: 0.68rem;
+
+  /* The one type scale. Six steps, in rem so the Apparence font-size setting
+     actually moves the page, with a hard 11px floor -- nothing a learner has to
+     read may be smaller. Journal surfaces use only these. */
+  --t-label: 0.6875rem; /* 11px — uppercase marginalia, the smallest type allowed */
+  --t-small: 0.8125rem; /* 13px — secondary prose, meta lines */
+  --t-body: 1rem; /*        16px — body */
+  --t-lead: 1.25rem; /*     20px — deck, sub-heads */
+  --t-head: 1.75rem; /*     28px — section heroes */
+  --t-display: 2.75rem; /*  44px — the one display line per screen */
   --app-viewport-width: 100vw;
   --app-viewport-height: 100vh;
   --phone-safe-top: env(safe-area-inset-top);
@@ -57,8 +79,11 @@
   --dur: 220ms;
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --shadow-read: none;
-  --shadow-do: 6px 6px 0 var(--app-ink);
-  --shadow-do-sm: 4px 4px 0 var(--app-ink);
+  /* Print-block offset shadows in tinted ink (~the reference's --ep-channel,
+     ink @ 16%) — solid-black offsets read brutalist against the paper. */
+  --shadow-channel: color-mix(in srgb, var(--app-ink) 18%, transparent);
+  --shadow-do: 5px 5px 0 var(--shadow-channel);
+  --shadow-do-sm: 3px 3px 0 var(--shadow-channel);
   --ink-block-shadow: var(--shadow-do);
   --char-marin: #2c6a5d;
   --char-lila: #c2890f;
@@ -139,6 +164,12 @@
   --app-red: #ff5a42;
   --app-alert: #f3b84c;
   --app-yellow: #f0c826;
+  --app-green: #4dbd8a;
+  --app-red-rgb: 255 90 66;
+  --app-blue-rgb: 111 145 255;
+  --app-yellow-rgb: 240 200 38;
+  --app-ink-rgb: 245 239 225;
+  --app-sheet-rgb: 33 29 22;
 }
 
 :root[data-theme="light"] {
@@ -162,12 +193,28 @@
     --app-red: #ff5a42;
     --app-alert: #f3b84c;
     --app-yellow: #f0c826;
+    /* The explicit [data-theme="dark"] block redefines these; this one did not,
+       so every translucent bauhaus and brutal class — they resolve through
+       rgb(var(--x) / alpha) — kept its LIGHT channels under the default
+       "system" theme on a dark OS: a light-navy wash on dark paper.
+       Keep the two dark blocks in sync. */
+    --app-green: #4dbd8a;
+    --app-red-rgb: 255 90 66;
+    --app-blue-rgb: 111 145 255;
+    --app-yellow-rgb: 240 200 38;
+    --app-ink-rgb: 245 239 225;
+    --app-sheet-rgb: 33 29 22;
     color-scheme: dark;
   }
 }
 
+/* Corps du texte (L'administration → Apparence). The scale was 15/16/17px:
+   a 6% span end to end, which no learner could see, so the control read as
+   inert. 14.5/16/19px moves the rem-based --t-* scale by -9%/+19% — a real
+   change at both ends, still short of a reflow (--t-display stays under 53px
+   and the phone shell is width-, not type-, bound). */
 :root[data-font-size="small"] {
-  font-size: 15px;
+  font-size: 14.5px;
 }
 
 :root[data-font-size="medium"] {
@@ -175,7 +222,7 @@
 }
 
 :root[data-font-size="large"] {
-  font-size: 17px;
+  font-size: 19px;
 }
 
 html,
@@ -581,8 +628,9 @@ a {
   width: 34px;
   height: 34px;
   border: 1px solid var(--app-ink);
-  background: var(--accent-action);
-  color: #fff;
+  background: var(--app-sheet);
+  color: var(--app-red);
+  border-color: var(--app-red);
 }
 
 .atelier-feedback-sheet.correct .feedback-mark {
@@ -610,7 +658,7 @@ a {
 }
 
 .atelier-feedback-sheet .feedback-corrections section {
-  border-left: 2px solid var(--accent-action);
+  border-left: 2px solid var(--app-ink-3);
   padding-left: var(--space-3);
 }
 
@@ -1589,4 +1637,57 @@ textarea:focus {
   box-shadow: 0 0 0 5px rgba(243, 195, 24, .35) !important;
   outline: none;
   border-color: var(--app-ink) !important;
+}
+
+/* Pilot density pass: one clear serif hero followed by a compact line of
+   marginalia. Information and controls remain intact. */
+@media (max-width: 640px) {
+  .lu-art-sec,
+  .nc-sec {
+    padding-block: 20px !important;
+  }
+
+  .lu-head,
+  .nc-entryhead h2,
+  .fe-mast h1,
+  .ep-prompt .ep-line {
+    margin-block-start: 12px;
+    text-wrap: balance;
+  }
+
+  .lu-head.lg,
+  .fe-mast h1,
+  .nc-mast .name {
+    line-height: 1.02 !important;
+  }
+
+  .lu-kicker,
+  .nc-sec .kick,
+  .ep-eyebrow,
+  .fe-mast .dateline {
+    min-height: 18px;
+    line-height: 1.35;
+  }
+
+  .nc-entryhead .row2,
+  .ep-eyebrow,
+  .fe-mast .dateline {
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .nc-entryhead .row2::-webkit-scrollbar,
+  .ep-eyebrow::-webkit-scrollbar,
+  .fe-mast .dateline::-webkit-scrollbar {
+    display: none;
+  }
+
+  .cr-sit,
+  .fe-previously,
+  .ep-concept,
+  .nc-entryhead {
+    padding-block-start: 18px !important;
+    padding-block-end: 18px !important;
+  }
 }

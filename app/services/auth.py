@@ -6,7 +6,7 @@ import secrets
 import smtplib
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from email.message import EmailMessage
 from hashlib import sha256
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
@@ -50,6 +50,12 @@ class PasswordResetRequestResult:
     reset_url: str | None = None
 
 
+def _default_vocab_direction_for(native_language: str | None) -> str:
+    """Gloss direction must follow the learner's own language, not the German import default."""
+    code = (native_language or "").strip().lower()[:2]
+    return f"fr_to_{code}" if code in {"de", "en"} else "fr_to_en"
+
+
 class AuthService:
     """Encapsulates user registration and authentication logic."""
 
@@ -84,10 +90,13 @@ class AuthService:
             cefr_target_level=payload.cefr_target_level,
             cefr_estimate_payload=payload.cefr_estimate_payload or {},
             interests=normalized_interests[:500],
+            learning_motivation=payload.learning_motivation,
+            speaking_comfort=payload.speaking_comfort,
             daily_goal_minutes=payload.daily_goal_minutes,
             daily_goal_xp=payload.daily_goal_xp,
             new_words_per_day=payload.new_words_per_day,
-            default_vocab_direction=payload.default_vocab_direction,
+            default_vocab_direction=payload.default_vocab_direction
+            or _default_vocab_direction_for(payload.native_language),
             notifications_enabled=payload.notifications_enabled,
             practice_reminders=payload.practice_reminders,
             reminder_time=payload.reminder_time,
@@ -139,7 +148,7 @@ class AuthService:
         token = secrets.token_urlsafe(32)
         reset_url = self.build_password_reset_url(token)
         user.password_reset_token_hash = self.hash_token(token)
-        user.password_reset_requested_at = datetime.now(timezone.utc)
+        user.password_reset_requested_at = datetime.now(UTC)
         self.db.add(user)
         self.db.commit()
 
@@ -162,7 +171,7 @@ class AuthService:
             raise InvalidPasswordResetTokenError("Invalid or expired password reset link.")
 
         user.hashed_password = get_password_hash(new_password)
-        user.password_updated_at = datetime.now(timezone.utc)
+        user.password_updated_at = datetime.now(UTC)
         user.password_reset_token_hash = None
         user.password_reset_requested_at = None
         user.auth_version = int(user.auth_version or 0) + 1
@@ -184,9 +193,9 @@ class AuthService:
         if not requested_at:
             return False
         if requested_at.tzinfo is None:
-            requested_at = requested_at.replace(tzinfo=timezone.utc)
+            requested_at = requested_at.replace(tzinfo=UTC)
         expires_at = requested_at + timedelta(minutes=settings.PASSWORD_RESET_TOKEN_TTL_MINUTES)
-        return expires_at >= datetime.now(timezone.utc)
+        return expires_at >= datetime.now(UTC)
 
     def _deliver_password_reset(self, user: User, reset_url: str) -> bool:
         """Send a reset email when SMTP is configured; otherwise log a safe hint."""
@@ -249,7 +258,7 @@ class AuthService:
                 id=refresh_token_id,
                 user_id=user_id,
                 token_hash=self.hash_token(refresh),
-                expires_at=datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS),
+                expires_at=datetime.now(UTC) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS),
                 user_agent=user_agent[:255] if user_agent else None,
                 ip_address=ip_address[:64] if ip_address else None,
             )
@@ -277,7 +286,7 @@ class AuthService:
         if token_version != int(user.auth_version or 0):
             raise InvalidCredentialsError("Refresh token has been revoked")
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         token_record = self.db.scalar(
             select(RefreshToken).where(
                 RefreshToken.user_id == user.id,
@@ -303,14 +312,14 @@ class AuthService:
             select(RefreshToken).where(RefreshToken.token_hash == self.hash_token(refresh_token))
         )
         if token_record and not token_record.revoked_at:
-            token_record.revoked_at = datetime.now(timezone.utc)
+            token_record.revoked_at = datetime.now(UTC)
             self.db.add(token_record)
             self.db.commit()
 
     def revoke_all_refresh_tokens(self, user: User) -> None:
         """Invalidate every active refresh token for a user."""
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         tokens = self.db.scalars(
             select(RefreshToken).where(
                 RefreshToken.user_id == user.id,

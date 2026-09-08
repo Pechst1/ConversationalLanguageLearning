@@ -1,258 +1,203 @@
+/* La page d'accueil publique — the quietest sheet in the app.
+   One nameplate, one dateline, one truthful serif sentence, two actions.
+   No fake queue, no placeholder numbers, no time promises: the edition
+   speaks for itself once the reader signs in. */
+
 import Head from 'next/head';
-import { useRouter } from 'next/router';
-import { useEffect } from 'react';
-import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { ArrowRight, BookOpen, Clock3, MessageCircle, Newspaper, Target } from 'lucide-react';
-import EditorialMasthead from '@/components/layout/EditorialMasthead';
+import { useEffect, useState } from 'react';
 import { useAppSession } from '@/lib/app-auth';
 
 export default function HomePage() {
   const { status } = useAppSession();
-  const router = useRouter();
+  const authed = status === 'authenticated';
 
+  /* The dateline is set on the client so the statically generated HTML never
+     carries a stale build-day date. The line's space is reserved; the text
+     simply fades onto the paper (opacity only). */
+  const [dateline, setDateline] = useState<{ text: string; iso: string } | null>(null);
   useEffect(() => {
-    if (status === 'authenticated') {
-      router.push('/atelier');
+    try {
+      const now = new Date();
+      const text = new Intl.DateTimeFormat('fr-FR', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      }).format(now);
+      setDateline({
+        text: text.charAt(0).toUpperCase() + text.slice(1),
+        iso: now.toISOString().slice(0, 10),
+      });
+    } catch {
+      setDateline(null);
     }
-  }, [status, router]);
-
-  if (status === 'loading') {
-    return (
-      <div className="grid min-h-screen place-items-center bg-[var(--app-paper)]">
-        <div className="text-xs font-black uppercase tracking-[0.16em] text-[var(--app-ink-3)]">
-          Opening Atelier
-        </div>
-      </div>
-    );
-  }
+  }, []);
 
   return (
     <>
       <Head>
-        <title>Atelier · Learning Hub</title>
+        <title>L’Atelier</title>
+        <meta
+          name="description"
+          content="L’Atelier — un quotidien pour apprendre le français : un feuilleton dont vous êtes un personnage, une courte séance, des progrès consignés noir sur blanc."
+        />
       </Head>
-      <EditorialMasthead
-        active="home"
-        brandHref="/"
-        trailing={(
-          <>
-            <Link href="/auth/signin">Sign in</Link>
-            <Link className="public-start" href="/auth/signup">Start</Link>
-          </>
-        )}
-      />
-      <main className="hub-page">
-        <section className="hub-top">
-          <div>
-            <div className="hub-kicker">Home</div>
-            <h1>Learning hub</h1>
-          </div>
-          <div className="hub-session-status">
-            <span>No learner loaded</span>
-            <strong>Sign in to load today&apos;s queue.</strong>
-          </div>
-        </section>
 
-        <section className="hub-grid" aria-label="Learning hub">
-          <article className="hub-primary">
-            <div className="hub-section-head">
-              <span><Clock3 size={14} /> Next session</span>
-              <small>~15 min</small>
-            </div>
-            <h2>Continue from the strongest signal.</h2>
-            <p>Conversation first, then repair the errors that appear.</p>
-            <div className="hub-actions">
-              <Link className="hub-button primary" href="/auth/signin">
-                Sign in <ArrowRight size={16} />
+      <main className="landing" lang="fr">
+        <header className="masthead">
+          <AtelierMark />
+          <div className="nameplate">L’Atelier</div>
+          <p className="folio">Quotidien de français</p>
+          <p className={`dateline${dateline ? ' shown' : ''}`}>
+            {dateline && <time dateTime={dateline.iso}>{dateline.text}</time>}
+          </p>
+        </header>
+
+        <section className="pitch" aria-label="Présentation">
+          <h1>Chaque jour, une édition de français dont vous êtes un personnage.</h1>
+          <p className="standfirst">
+            Un épisode de feuilleton où vous tenez votre rôle, une courte séance
+            d’exercices, des progrès consignés noir sur blanc.
+          </p>
+
+          <div className="actions">
+            {authed ? (
+              <Link className="action primary" href="/atelier">
+                Ouvrir votre édition
               </Link>
-              <Link className="hub-button" href="/auth/signup">Create account</Link>
-            </div>
-          </article>
-
-          <aside className="hub-queue" aria-label="Queue snapshot">
-            <div className="hub-section-head">
-              <span>Queue</span>
-              <small>locked</small>
-            </div>
-            <QueueRow icon={<MessageCircle size={16} />} label="Conversation" value="Next prompt" />
-            <QueueRow icon={<Target size={16} />} label="Repairs" value="Needs account" />
-            <QueueRow icon={<BookOpen size={16} />} label="Notebook" value="Reference" />
-            <QueueRow icon={<Newspaper size={16} />} label="Feuilleton" value="After practice" />
-          </aside>
+            ) : (
+              <>
+                <Link className="action primary" href="/auth/signin">
+                  Se connecter
+                </Link>
+                <Link className="action" href="/auth/signup">
+                  Créer un compte
+                </Link>
+              </>
+            )}
+          </div>
         </section>
       </main>
-      <style jsx global>{`
-        .public-start {
-          color: var(--app-ink) !important;
-        }
-        .hub-page {
-          width: min(1120px, 100%);
-          margin: 0 auto;
-          padding: clamp(26px, 5vw, 58px) clamp(22px, 4vw, 48px) 76px;
-          color: var(--app-ink);
-        }
-        .hub-top {
-          display: flex;
-          align-items: end;
-          justify-content: space-between;
-          gap: 28px;
-          border-bottom: 4px solid var(--app-ink);
-          padding-bottom: 22px;
-        }
-        .hub-kicker,
-        .hub-section-head,
-        .hub-session-status span {
-          font-size: 10px;
-          font-weight: 900;
-          letter-spacing: .14em;
-          text-transform: uppercase;
-          color: var(--app-ink-2);
-        }
-        .hub-top h1 {
-          margin: 8px 0 0;
-          font-family: var(--app-serif);
-          font-size: clamp(44px, 6.4vw, 88px);
-          font-style: italic;
-          font-weight: 600;
-          line-height: .9;
-          letter-spacing: 0;
-        }
-        .hub-session-status {
-          min-width: min(360px, 100%);
-          border: 1px solid var(--app-ink);
-          background: var(--app-paper-2);
-          padding: 16px 18px;
-        }
-        .hub-session-status strong {
-          display: block;
-          margin-top: 8px;
-          font-size: 16px;
-          line-height: 1.35;
-        }
-        .hub-grid {
-          display: grid;
-          grid-template-columns: minmax(0, 1fr) minmax(320px, 390px);
-          gap: 28px;
-          margin-top: 30px;
-        }
-        .hub-primary,
-        .hub-queue {
-          border: 1px solid var(--app-ink);
-          background: var(--app-sheet);
-        }
-        .hub-primary {
-          min-height: 370px;
+
+      <style jsx>{`
+        .landing {
+          flex: 1 1 auto;
           display: flex;
           flex-direction: column;
-          justify-content: flex-end;
-          padding: clamp(24px, 4vw, 40px);
-          background:
-            linear-gradient(90deg, rgba(20, 17, 13, .055) 1px, transparent 1px),
-            linear-gradient(180deg, rgba(20, 17, 13, .055) 1px, transparent 1px),
-            var(--app-sheet);
-          background-size: 34px 34px;
+          width: min(100%, var(--phone-shell-max, 430px));
+          margin: 0 auto;
+          padding: calc(max(26px, var(--phone-safe-top, 0px)) + 8px)
+            var(--phone-gutter, 18px)
+            calc(var(--phone-safe-bottom-space, 18px) + 12px);
+          color: var(--app-ink);
         }
-        .hub-section-head {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 16px;
+
+        /* ---- masthead: the nameplate of the paper ---- */
+        .masthead {
+          text-align: center;
           border-bottom: 1px solid var(--app-ink);
-          padding-bottom: 12px;
+          padding-bottom: 18px;
         }
-        .hub-section-head span {
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-        }
-        .hub-section-head small {
-          font: inherit;
-          color: var(--app-ink-3);
-        }
-        .hub-primary h2 {
-          max-width: 680px;
-          margin: auto 0 14px;
-          font-size: clamp(34px, 4.2vw, 58px);
-          line-height: .94;
+        .nameplate {
+          margin-top: 12px;
+          font-family: var(--app-serif);
+          font-size: var(--t-display, 2.75rem);
+          font-weight: 600;
+          line-height: 1;
           letter-spacing: 0;
         }
-        .hub-primary p {
+        .folio {
+          margin: 12px 0 0;
+          font-size: var(--t-label, 0.6875rem);
+          font-weight: 700;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+          color: var(--app-ink-3);
+        }
+        .dateline {
+          margin: 5px 0 0;
+          min-height: 1.5em;
+          font-size: var(--t-label, 0.6875rem);
+          font-weight: 600;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+          color: var(--app-ink-3);
+          opacity: 0;
+        }
+        .dateline.shown {
+          opacity: 1;
+        }
+
+        /* ---- the one article ---- */
+        .pitch {
+          margin: auto 0;
+          padding: 44px 0;
+        }
+        h1 {
           margin: 0;
-          max-width: 500px;
+          font-family: var(--app-serif);
+          font-style: italic;
+          font-weight: 600;
+          font-size: var(--t-head, 1.75rem);
+          line-height: 1.12;
+          letter-spacing: 0;
+          color: var(--app-ink);
+          text-wrap: balance;
+        }
+        .standfirst {
+          margin: 14px 0 0;
+          font-size: var(--t-body, 1rem);
+          line-height: 1.55;
           color: var(--app-ink-2);
-          font-size: 18px;
-          line-height: 1.45;
         }
-        .hub-actions {
+
+        /* ---- actions: soft pills, ≥44px tap targets ---- */
+        .actions {
+          display: grid;
+          gap: 10px;
+          margin-top: 32px;
+        }
+        .actions :global(.action) {
           display: flex;
-          flex-wrap: wrap;
-          gap: 12px;
-          margin-top: 28px;
-        }
-        .hub-button {
-          min-height: 48px;
-          display: inline-flex;
           align-items: center;
           justify-content: center;
-          gap: 10px;
+          min-height: max(44px, var(--phone-action-height, 54px));
+          padding: 0 22px;
+          border-radius: 999px;
           border: 1px solid var(--app-ink);
-          padding: 0 18px;
+          background: transparent;
           color: var(--app-ink);
-          font-size: 10px;
-          font-weight: 900;
-          letter-spacing: .13em;
+          font-size: var(--t-body, 1rem);
+          font-weight: 600;
+          letter-spacing: 0.01em;
+          text-transform: none;
           text-decoration: none;
-          text-transform: uppercase;
         }
-        .hub-button.primary {
+        .actions :global(.action.primary) {
           background: var(--app-ink);
           color: var(--app-paper);
         }
-        .hub-button:hover {
-          background: var(--app-blue);
-          border-color: var(--app-blue);
-          color: var(--app-paper);
-        }
-        .hub-queue {
-          display: grid;
-          align-content: start;
+        .actions :global(.action:hover) {
           background: var(--app-paper-2);
         }
-        .queue-row {
-          display: grid;
-          grid-template-columns: 28px minmax(0, 1fr) auto;
-          align-items: center;
-          gap: 12px;
-          min-height: 68px;
-          border-bottom: 1px solid rgba(20, 17, 13, .32);
-          padding: 0 18px;
-          font-weight: 900;
+        .actions :global(.action.primary:hover) {
+          background: var(--app-ink-2);
+          border-color: var(--app-ink-2);
+          color: var(--app-paper);
         }
-        .hub-queue .hub-section-head {
-          padding: 17px 18px;
-          background: var(--app-sheet);
+        .actions :global(.action:active) {
+          background: var(--app-paper-2);
+          color: var(--app-ink);
         }
-        .queue-row:last-child {
-          border-bottom: 0;
-        }
-        .queue-row span:last-child {
-          color: var(--app-ink-3);
-          font-size: 10px;
-          letter-spacing: .12em;
-          text-transform: uppercase;
-        }
-        @media (max-width: 860px) {
-          .hub-top,
-          .hub-grid {
-            grid-template-columns: 1fr;
-            display: grid;
+
+        @media (prefers-reduced-motion: no-preference) {
+          .dateline {
+            transition: opacity 0.45s var(--ease-standard, ease);
           }
-          .hub-top {
-            align-items: start;
-          }
-          .hub-session-status {
-            min-width: 0;
+          .actions :global(.action) {
+            transition: background 0.16s ease, color 0.16s ease,
+              transform 0.12s ease;
           }
         }
       `}</style>
@@ -260,20 +205,14 @@ export default function HomePage() {
   );
 }
 
-function QueueRow({
-  icon,
-  label,
-  value,
-}: {
-  icon: ReactNode;
-  label: string;
-  value: string;
-}) {
+/* The pressmark, set in the house inks (same mark as the auth pages). */
+function AtelierMark() {
   return (
-    <div className="queue-row">
-      {icon}
-      <span>{label}</span>
-      <span>{value}</span>
-    </div>
+    <svg width="30" height="30" viewBox="0 0 28 28" aria-hidden="true">
+      <rect x="0" y="0" width="11" height="11" fill="var(--app-ink)" />
+      <circle cx="22" cy="6" r="6" fill="var(--app-blue)" />
+      <rect x="0" y="17" width="11" height="11" fill="var(--app-yellow)" />
+      <path d="M17 28L23 16L28 28H17Z" fill="var(--app-red)" />
+    </svg>
   );
 }

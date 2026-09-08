@@ -56,9 +56,9 @@ celery_app.conf.beat_schedule = {
         "task": "app.tasks.analytics.cleanup_old_snapshots",
         "schedule": crontab(hour=3, minute=0, day_of_week=0),
     },
-    "send-daily-srs-reminders": {
-        "task": "app.tasks.notifications.send_daily_srs_reminders",
-        "schedule": crontab(hour=9, minute=0),  # 9 AM daily
+    "send-morning-editions": {
+        "task": "app.tasks.notifications.send_morning_editions",
+        "schedule": crontab(minute="*/15"),
     },
     "send-streak-reminders": {
         "task": "app.tasks.notifications.send_streak_reminders",
@@ -71,6 +71,14 @@ celery_app.conf.beat_schedule = {
     "audit-atelier-word-banks-weekly": {
         "task": "app.tasks.atelier.audit_atelier_word_banks",
         "schedule": crontab(hour=4, minute=30, day_of_week=1),
+    },
+    "retry-delayed-serial-episodes": {
+        "task": "app.tasks.serial_generation.retry_delayed_serial_episodes",
+        "schedule": crontab(minute="*/15"),
+    },
+    "retire-unhealthy-atelier-exercises": {
+        "task": "app.tasks.atelier.retire_unhealthy_exercise_sets",
+        "schedule": crontab(hour=4, minute=45),
     },
 }
 

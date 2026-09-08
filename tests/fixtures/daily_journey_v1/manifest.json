@@ -1,0 +1,222 @@
+{
+  "bundle": "daily_journey_v1",
+  "contract_version": 1,
+  "frozen_on": "2026-09-05",
+  "frozen_by": "WP-00 integration owner",
+  "contract_document": "docs/implementation/atelier-v2/CONTRACT-FREEZE.md",
+  "notes": [
+    "No credentials, no real learner records, no real transcripts.",
+    "public/ payloads must validate against the WP-02 response schemas.",
+    "private/ evaluator data must never be serialized to any client."
+  ],
+  "fixtures": [
+    {
+      "fixture": "first_day",
+      "endpoint": "/api/v1/daily-journeys/today",
+      "method": "GET",
+      "http_status": 200,
+      "state": "New learner, no journey yet; café scenario offered.",
+      "has_private_pair": false
+    },
+    {
+      "fixture": "returning_due",
+      "endpoint": "/api/v1/daily-journeys/{id}",
+      "method": "GET",
+      "http_status": 200,
+      "state": "Returning learner mid-journey with two due targets already selected.",
+      "has_private_pair": true
+    },
+    {
+      "fixture": "empty_queue",
+      "endpoint": "/api/v1/daily-journeys/{id}",
+      "method": "GET",
+      "http_status": 200,
+      "state": "No due items: plan is scene -> respond -> resolution, honestly without recall.",
+      "has_private_pair": false
+    },
+    {
+      "fixture": "active_legacy",
+      "endpoint": "/api/v1/daily-journeys/today",
+      "method": "GET",
+      "http_status": 200,
+      "state": "Unfinished legacy Atelier session offers an explicit resume entry.",
+      "has_private_pair": false
+    },
+    {
+      "fixture": "voice_unavailable",
+      "endpoint": "/api/v1/daily-journeys/{id}",
+      "method": "GET",
+      "http_status": 200,
+      "state": "Microphone/transcription unavailable: text stays a full path, task unchanged.",
+      "has_private_pair": false
+    },
+    {
+      "fixture": "preparing",
+      "endpoint": "/api/v1/daily-journeys",
+      "method": "POST",
+      "http_status": 202,
+      "state": "Creation accepted; content generation still claimed and running.",
+      "has_private_pair": false
+    },
+    {
+      "fixture": "generation_unavailable",
+      "endpoint": "/api/v1/daily-journeys/{id}",
+      "method": "GET",
+      "http_status": 200,
+      "state": "Bounded generation recovery failed; honest unavailable state, retry allowed.",
+      "has_private_pair": false
+    },
+    {
+      "fixture": "wrong_then_supported",
+      "endpoint": "/api/v1/daily-journeys/{id}/steps/{step_id}/attempts",
+      "method": "POST",
+      "http_status": 200,
+      "state": "Learner answered with a hint, then produced a supported correct form.",
+      "has_private_pair": true
+    },
+    {
+      "fixture": "unassisted_success",
+      "endpoint": "/api/v1/daily-journeys/{id}/steps/{step_id}/attempts",
+      "method": "POST",
+      "http_status": 200,
+      "state": "Independent open production fulfilling the objective; outdoor consequence.",
+      "has_private_pair": true
+    },
+    {
+      "fixture": "completed",
+      "endpoint": "/api/v1/daily-journeys/{id}/finish",
+      "method": "POST",
+      "http_status": 200,
+      "state": "Complete café journey with real recap, one keepsake and a grounded callback.",
+      "has_private_pair": false
+    },
+    {
+      "fixture": "ended_early",
+      "endpoint": "/api/v1/daily-journeys/{id}/finish",
+      "method": "POST",
+      "http_status": 200,
+      "state": "Partial participation: visibly partial, no objective credit, no keepsake.",
+      "has_private_pair": false
+    },
+    {
+      "fixture": "stale_revision",
+      "endpoint": "/api/v1/daily-journeys/{id}/advance",
+      "method": "POST",
+      "http_status": 409,
+      "state": "Client sent an outdated expected_revision.",
+      "has_private_pair": false
+    },
+    {
+      "fixture": "duplicate_submit",
+      "endpoint": "/api/v1/daily-journeys/{id}/steps/{step_id}/attempts",
+      "method": "POST",
+      "http_status": 202,
+      "state": "Identical in-flight mutation_id: reuse the key, never double-credit.",
+      "has_private_pair": true
+    },
+    {
+      "fixture": "midnight_resume",
+      "endpoint": "/api/v1/daily-journeys/today",
+      "method": "GET",
+      "http_status": 200,
+      "state": "Yesterday's active journey resumes first; today's journey is not created yet.",
+      "has_private_pair": false
+    },
+    {
+      "fixture": "content_superseded",
+      "endpoint": "/api/v1/daily-journeys/{id}",
+      "method": "GET",
+      "http_status": 200,
+      "state": "Prompt version bumped to v2 server-side; the active journey keeps its pinned brief.",
+      "has_private_pair": true
+    },
+    {
+      "fixture": "unknown_legacy_assistance",
+      "endpoint": "/api/v1/daily-journeys/capabilities/progress",
+      "method": "GET",
+      "http_status": 200,
+      "state": "Historic success with unknown help usage stays 'unknown', never 'independent'.",
+      "has_private_pair": true
+    },
+    {
+      "fixture": "cafe_journey_created",
+      "endpoint": "/api/v1/daily-journeys",
+      "method": "POST",
+      "http_status": 201,
+      "state": "Café journey created and ready: the start of the end-to-end golden path.",
+      "has_private_pair": true
+    },
+    {
+      "fixture": "controls_de",
+      "endpoint": "/api/v1/daily-journeys/today",
+      "method": "GET",
+      "http_status": 200,
+      "state": "German control language; French content unchanged.",
+      "has_private_pair": false
+    },
+    {
+      "fixture": "controls_fr",
+      "endpoint": "/api/v1/daily-journeys/today",
+      "method": "GET",
+      "http_status": 200,
+      "state": "French control language; content and controls both French.",
+      "has_private_pair": false
+    },
+    {
+      "fixture": "null_art_fallback",
+      "endpoint": "/api/v1/daily-journeys/{id}",
+      "method": "GET",
+      "http_status": 200,
+      "state": "Missing artwork never blocks reading or responding.",
+      "has_private_pair": false
+    },
+    {
+      "fixture": "arrange_meeting_ready",
+      "endpoint": "/api/v1/daily-journeys/{id}",
+      "method": "GET",
+      "http_status": 200,
+      "state": "Second scenario family ready to plan.",
+      "has_private_pair": true
+    },
+    {
+      "fixture": "explain_delay_repair",
+      "endpoint": "/api/v1/daily-journeys/{id}",
+      "method": "GET",
+      "http_status": 200,
+      "state": "Late-arrival scenario after exactly one real repair turn.",
+      "has_private_pair": true
+    },
+    {
+      "fixture": "flag_disabled",
+      "endpoint": "/api/v1/daily-journeys/today",
+      "method": "GET",
+      "http_status": 200,
+      "state": "Feature flag off / not in cohort: no creation, legacy entry point unchanged.",
+      "has_private_pair": false
+    },
+    {
+      "fixture": "empty_answer_rejected",
+      "endpoint": "/api/v1/daily-journeys/{id}/steps/{step_id}/attempts",
+      "method": "POST",
+      "http_status": 422,
+      "state": "Blank answer changes no attempt, lapse or credit record.",
+      "has_private_pair": false
+    },
+    {
+      "fixture": "step_not_active",
+      "endpoint": "/api/v1/daily-journeys/{id}/steps/{step_id}/attempts",
+      "method": "POST",
+      "http_status": 409,
+      "state": "Out-of-order step submission is refused.",
+      "has_private_pair": false
+    },
+    {
+      "fixture": "help_revealed",
+      "endpoint": "/api/v1/daily-journeys/{id}/steps/{step_id}/help",
+      "method": "POST",
+      "http_status": 200,
+      "state": "Assistance recorded before the content is returned; copying it is not production.",
+      "has_private_pair": false
+    }
+  ]
+}

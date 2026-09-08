@@ -1,4 +1,5 @@
 import apiService from '@/services/api';
+import { requireApiHost } from '@/lib/api-host';
 
 type AuthenticatedSession = {
   accessToken?: string | null;
@@ -12,7 +13,8 @@ type SessionOverview = {
 const ACTIVE_SESSION_STATUSES = new Set(['created', 'in_progress', 'paused']);
 
 const getApiBaseUrl = () => {
-  return process.env.API_URL || 'http://localhost:8000';
+  // No fallback: see lib/api-host.ts. This path sends the learner's bearer token.
+  return requireApiHost('the learning entry redirect');
 };
 
 const buildAuthHeaders = (accessToken: string) => {

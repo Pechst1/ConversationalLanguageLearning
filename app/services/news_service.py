@@ -3,11 +3,12 @@ from __future__ import annotations
 
 import html
 import re
-import xml.etree.ElementTree as ET
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from urllib.parse import quote_plus
 
 import httpx
+from defusedxml import ElementTree as DefusedET
+from defusedxml.common import DefusedXmlException
 from loguru import logger
 from tenacity import retry, stop_after_attempt, wait_exponential
 
@@ -395,7 +396,7 @@ class NewsService:
             ),
             "content_depth": "rss_title_summary_plus_supporting_headlines",
             "article_fetch_policy": "No full article scraping in v1; store title, summary, source, URL and fetched timestamp.",
-            "fetched_at": datetime.now(timezone.utc).isoformat(),
+            "fetched_at": datetime.now(UTC).isoformat(),
             "cache_status": "refreshed" if refresh else "miss",
         }
         cache_backend.set(
@@ -468,7 +469,7 @@ class NewsService:
             "source_policy": "Curated fallback because live French RSS sources were unavailable.",
             "content_depth": "curated_prompt",
             "article_fetch_policy": "No live article fetched.",
-            "fetched_at": datetime.now(timezone.utc).isoformat(),
+            "fetched_at": datetime.now(UTC).isoformat(),
             "cache_status": "curated",
         }
 
@@ -813,8 +814,8 @@ class NewsService:
         limit: int,
     ) -> list[dict[str, str]]:
         try:
-            root = ET.fromstring(xml_text)
-        except ET.ParseError as exc:
+            root = DefusedET.fromstring(xml_text)
+        except (DefusedET.ParseError, DefusedXmlException) as exc:
             logger.debug("Failed to parse feed XML", source=source_hint, error=str(exc))
             return []
 

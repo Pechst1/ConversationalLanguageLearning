@@ -1,0 +1,14 @@
+{
+  "fixture": "duplicate_submit",
+  "contract_version": 1,
+  "endpoint": "/api/v1/daily-journeys/{id}/steps/{step_id}/attempts",
+  "method": "POST",
+  "http_status": 202,
+  "response": {
+    "detail": {
+      "code": "processing",
+      "message": "This answer is still being graded. Reuse the same request.",
+      "retry_after_seconds": 2
+    }
+  }
+}

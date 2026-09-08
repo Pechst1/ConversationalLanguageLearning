@@ -56,16 +56,18 @@ module.exports = {
           800: '#991b1b',
           900: '#7f1d1d',
         },
+        /* Mapped onto the theme-aware --app-* tokens (globals.css) so every
+           legacy bauhaus/brutal class follows light/dark for free. */
         bauhaus: {
-          red: '#D02020',
-          blue: '#1D4E89',
-          yellow: '#F4B400',
+          red: 'rgb(var(--app-red-rgb) / <alpha-value>)',
+          blue: 'rgb(var(--app-blue-rgb) / <alpha-value>)',
+          yellow: 'rgb(var(--app-yellow-rgb) / <alpha-value>)',
         },
         brutal: {
-          black: '#000000',
-          white: '#FFFFFF',
-          gray: '#F3F4F6',
-          bg: '#FAFAF9',
+          black: 'rgb(var(--app-ink-rgb) / <alpha-value>)',
+          white: 'rgb(var(--app-sheet-rgb) / <alpha-value>)',
+          gray: 'var(--app-paper-2)',
+          bg: 'var(--app-paper)',
         },
       },
       boxShadow: {

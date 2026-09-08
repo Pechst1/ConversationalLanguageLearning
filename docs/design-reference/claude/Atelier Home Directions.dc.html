@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics><meta name="design_doc_mode" content="canvas"><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500;1,600&amp;family=Instrument+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;family=Inter:wght@400;500;600;700;900&amp;display=swap" rel="stylesheet"><style>body{margin:0;background:#e9e4d8;font-family:"Instrument Sans",system-ui,sans-serif;color:#14110d}a{color:#1d3a8a}a:hover{color:#d8321a}.dv-turn{padding:40px 44px 32px;border-bottom:1px solid rgba(0,0,0,.08);scroll-margin-top:16px}.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 20px}.dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#1a1a1a;color:#fff;border-radius:4px;text-decoration:none}.dv-tname{font:600 13px/1.2 system-ui,sans-serif;color:#1a1a1a}.dv-opts{display:flex;flex-wrap:wrap;gap:36px;align-items:flex-start}.dv-opt{flex:none;display:flex;flex-direction:column;gap:10px;scroll-margin-top:16px}.dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(0,0,0,.08);color:#1a1a1a;border-radius:5px;text-decoration:none}.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 12px/1.3 system-ui,sans-serif;color:rgba(0,0,0,.6);max-width:402px}.dv-opt:target .dv-oid{background:#2a78d6;color:#fff}.dv-next{margin:22px 0 0;font:12px/1.5 system-ui,sans-serif;color:rgba(0,0,0,.55)}.dv-brief{max-width:720px;font:13px/1.55 system-ui,sans-serif;color:#2b2822;margin:0 0 24px}.dv-brief p{margin:0 0 8px}</style></helmet>
+
+<section class="dv-turn" id="t1">
+<div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">Home screen — three directions</span></div>
+<div class="dv-brief">
+<p><b>What I read in the current build:</b> cream paper (#f1ece1), EB Garamond italic display, Inter UI, hard 1px ink boxes, offset "print block" shadows, red CTA, roman-numeral roadmap, uppercase 10–11px tracked labels everywhere (kicker, meta, nav, buttons). Three type voices (serif italic, grotesk, mono) and boxes-inside-boxes are what make it read as busy.</p>
+<p><b>System for the overhaul (shared by all three):</b> two fonts only — Garamond italic for the one headline per screen, Instrument Sans for everything else, sentence case, no tracked caps. Rounded 16–24px surfaces instead of ruled boxes. The Bauhaus mark's four shapes become the app's playful vocabulary: progress tokens, path nodes, tab icons. One tactile 3D-press button per screen. Red = action, blue = story/info, yellow = reward, ink = done.</p>
+</div>
+<div class="dv-opts">
+
+<div class="dv-opt" id="1a"><div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a>La Une, allégée — the front page kept, cut to one story, one button, three tiles</div>
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px">
+<div data-screen-label="1a home" style="min-height:100%;background:#f1ece1;display:flex;flex-direction:column;font-family:'Instrument Sans',system-ui,sans-serif;color:#14110d;box-sizing:border-box">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:66px 20px 0">
+    <svg width="26" height="26" viewBox="0 0 28 28" aria-hidden="true"><rect x="0" y="0" width="11" height="11" rx="2" fill="#14110d"></rect><circle cx="22" cy="6" r="6" fill="#1d3a8a"></circle><rect x="0" y="17" width="11" height="11" rx="2" fill="#f3c318"></rect><path d="M17 28L23 16L28 28H17Z" fill="#d8321a"></path></svg>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div style="display:flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:999px;background:#f3c318;font-size:13px;font-weight:700;color:#14110d"><span style="width:10px;height:10px;background:#14110d;border-radius:2px"></span>12 jours</div>
+      <div style="width:32px;height:32px;border-radius:999px;background:#f8f3e8;display:grid;place-items:center;color:#4a4538"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3.2"></circle><path d="M12 2.8v3M12 18.2v3M2.8 12h3M18.2 12h3M5.5 5.5l2.1 2.1M16.4 16.4l2.1 2.1M18.5 5.5l-2.1 2.1M7.6 16.4l-2.1 2.1"></path></svg></div>
+    </div>
+  </div>
+  <div style="padding:22px 20px 0">
+    <div style="font-size:13px;font-weight:600;color:#6f6857">Édition Nº 12 · A2</div>
+    <div style="font-family:'EB Garamond',Georgia,serif;font-style:italic;font-weight:500;font-size:34px;line-height:1.05;margin-top:4px">Samedi 5 septembre</div>
+  </div>
+  <div style="margin:18px 20px 0;background:#f8f3e8;border-radius:22px;overflow:hidden">
+    <div style="aspect-ratio:16/9;background:repeating-linear-gradient(135deg,#e8e0cf 0 8px,#ece5d6 8px 16px);display:grid;place-items:center;color:#6f6857;font:500 11px ui-monospace,Menlo,monospace">episode illustration · 16:9</div>
+    <div style="padding:16px 18px 18px">
+      <div style="font-size:12px;font-weight:700;color:#1d3a8a">Feuilleton · Épisode 3</div>
+      <div style="font-family:'EB Garamond',Georgia,serif;font-style:italic;font-weight:600;font-size:24px;line-height:1.1;margin-top:6px;text-wrap:pretty">Une lettre attend ta réponse.</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px;color:#4a4538"><span style="width:22px;height:22px;border-radius:999px;background:#2c6a5d;color:#f8f3e8;display:grid;place-items:center;font:italic 600 12px 'EB Garamond',serif">M</span>Monsieur Marchand · Si + présent → futur · 8 min</div>
+    </div>
+  </div>
+  <div style="padding:14px 20px 0">
+    <button type="button" style="width:100%;height:58px;border:0;border-radius:16px;background:#d8321a;color:#fff;font:700 17px 'Instrument Sans',system-ui,sans-serif;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 5px 0 #9c2411;cursor:pointer;transition:transform .08s,box-shadow .08s" style-active="transform:translateY(5px);box-shadow:0 0 0 #9c2411" style-hover="background:#e13a21">Continuer<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M4 12h15M13 6l6 6-6 6"></path></svg></button>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:18px 20px 0">
+    <div style="background:#f8f3e8;border-radius:18px;padding:14px 12px 12px;display:flex;flex-direction:column;gap:8px" style-active="transform:scale(.97)"><span style="width:26px;height:26px;border-radius:999px;background:#1d3a8a"></span><div><div style="font-family:'EB Garamond',Georgia,serif;font-style:italic;font-size:17px;line-height:1">Séance</div><div style="font-size:12px;color:#6f6857;margin-top:4px">3 règles · 8 min</div></div><div style="display:flex;gap:3px"><i style="flex:1;height:4px;border-radius:2px;background:#1d3a8a"></i><i style="flex:1;height:4px;border-radius:2px;background:#e8e0cf"></i><i style="flex:1;height:4px;border-radius:2px;background:#e8e0cf"></i></div></div>
+    <div style="background:#f8f3e8;border-radius:18px;padding:14px 12px 12px;display:flex;flex-direction:column;gap:8px" style-active="transform:scale(.97)"><span style="width:26px;height:26px;border-radius:6px;background:#f3c318"></span><div><div style="font-family:'EB Garamond',Georgia,serif;font-style:italic;font-size:17px;line-height:1">Lexique</div><div style="font-size:12px;color:#6f6857;margin-top:4px">4 mots du jour</div></div><div style="display:flex;gap:3px"><i style="flex:1;height:4px;border-radius:2px;background:#e8e0cf"></i><i style="flex:1;height:4px;border-radius:2px;background:#e8e0cf"></i><i style="flex:1;height:4px;border-radius:2px;background:#e8e0cf"></i></div></div>
+    <div style="background:#f8f3e8;border-radius:18px;padding:14px 12px 12px;display:flex;flex-direction:column;gap:8px;color:#6f6857" style-active="transform:scale(.97)"><span style="width:26px;height:26px;border-radius:6px;background:#14110d;display:grid;place-items:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f8f3e8" stroke-width="3"><path d="M4.5 12.5l5 5 10-11"></path></svg></span><div><div style="font-family:'EB Garamond',Georgia,serif;font-style:italic;font-size:17px;line-height:1">Errata</div><div style="font-size:12px;margin-top:4px">Rien à reprendre</div></div><div style="display:flex;gap:3px"><i style="flex:1;height:4px;border-radius:2px;background:#14110d"></i><i style="flex:1;height:4px;border-radius:2px;background:#14110d"></i><i style="flex:1;height:4px;border-radius:2px;background:#14110d"></i></div></div>
+  </div>
+  <div style="margin:22px 20px 0;padding-top:14px;border-top:1px solid #d8cdb6;text-align:center;font:italic 14px 'EB Garamond',Georgia,serif;color:#6f6857">Demain — l’imparfait, épisode 4.</div>
+  <div style="flex:1"></div>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);padding:8px 12px 30px;background:#f8f3e8;border-top:1px solid #e8e0cf;margin-top:20px">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0 4px;font-size:11px;font-weight:700;color:#14110d"><span style="width:44px;height:28px;border-radius:999px;background:#e8e0cf;display:grid;place-items:center"><svg width="16" height="16" viewBox="0 0 28 28"><rect x="0" y="0" width="11" height="11" rx="2" fill="#14110d"></rect><circle cx="22" cy="6" r="6" fill="#1d3a8a"></circle><rect x="0" y="17" width="11" height="11" rx="2" fill="#f3c318"></rect><path d="M17 28L23 16L28 28H17Z" fill="#d8321a"></path></svg></span>Atelier</div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0 4px;font-size:11px;font-weight:600;color:#6f6857"><span style="width:44px;height:28px;display:grid;place-items:center"><svg width="18" height="18" viewBox="0 0 20 20" fill="none"><path d="M10 2.5 18 17.5H2L10 2.5Z" stroke="currentColor" stroke-width="2"></path></svg></span>Missions</div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0 4px;font-size:11px;font-weight:600;color:#6f6857"><span style="width:44px;height:28px;display:grid;place-items:center"><svg width="18" height="18" viewBox="0 0 20 20" fill="none"><rect x="3" y="3" width="14" height="14" rx="3" stroke="currentColor" stroke-width="2"></rect><path d="M10 3V17M3 10H17" stroke="currentColor" stroke-width="1.5"></path></svg></span>Feuilleton</div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0 4px;font-size:11px;font-weight:600;color:#6f6857"><span style="width:44px;height:28px;display:grid;place-items:center"><svg width="18" height="18" viewBox="0 0 20 20" fill="none"><rect x="3" y="2" width="13" height="16" rx="2" stroke="currentColor" stroke-width="1.8"></rect><path d="M11 2v8l-2-2-2 2V2" fill="currentColor"></path></svg></span>Cahier</div>
+  </div>
+</div>
+</x-import>
+</div>
+
+<div class="dv-opt" id="1b"><div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a>Le Parcours — the roman-numeral roadmap turned into a shape path; the concept is the only text</div>
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px">
+<div data-screen-label="1b home" style="min-height:100%;background:#f1ece1;display:flex;flex-direction:column;font-family:'Instrument Sans',system-ui,sans-serif;color:#14110d;box-sizing:border-box">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:66px 20px 0">
+    <svg width="26" height="26" viewBox="0 0 28 28" aria-hidden="true"><rect x="0" y="0" width="11" height="11" rx="2" fill="#14110d"></rect><circle cx="22" cy="6" r="6" fill="#1d3a8a"></circle><rect x="0" y="17" width="11" height="11" rx="2" fill="#f3c318"></rect><path d="M17 28L23 16L28 28H17Z" fill="#d8321a"></path></svg>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div style="display:flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:999px;background:#f3c318;font-size:13px;font-weight:700"><span style="width:10px;height:10px;background:#14110d;border-radius:2px"></span>12</div>
+      <div style="display:flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:999px;background:#f8f3e8;font-size:13px;font-weight:700"><span style="width:10px;height:10px;background:#1d3a8a;border-radius:999px"></span>A2</div>
+    </div>
+  </div>
+  <div style="margin:18px 20px 0;background:#1d3a8a;color:#f8f3e8;border-radius:22px;padding:18px 20px">
+    <div style="font-size:12px;font-weight:700;opacity:.8">Aujourd’hui</div>
+    <div style="font-family:'EB Garamond',Georgia,serif;font-style:italic;font-weight:500;font-size:26px;line-height:1.1;margin-top:4px;text-wrap:pretty">Si + présent, futur simple</div>
+    <div style="font-size:13px;margin-top:8px;opacity:.85">Si tu viens, on <u>ira</u>. · 3 règles · 22 exercices</div>
+  </div>
+  <div style="position:relative;padding:26px 0 0;display:flex;flex-direction:column;align-items:center">
+    <div style="position:absolute;left:50%;top:26px;bottom:20px;width:6px;margin-left:-3px;background:#e8e0cf;border-radius:3px"></div>
+    <div style="position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;margin-left:-110px">
+      <div style="display:flex;align-items:center;gap:6px;height:40px;padding:0 16px;border-radius:999px;background:#f8f3e8;font-size:14px;font-weight:700;box-shadow:0 4px 0 #d8cdb6;white-space:nowrap">Commencer · 8 min</div>
+      <div style="width:6px;height:6px;border-radius:999px;background:#d8cdb6;margin-top:-4px"></div>
+      <button type="button" style="width:88px;height:88px;border:0;border-radius:999px;background:#d8321a;box-shadow:0 7px 0 #9c2411;display:grid;place-items:center;cursor:pointer;transition:transform .08s,box-shadow .08s" style-active="transform:translateY(7px);box-shadow:0 0 0 #9c2411"><span style="width:40px;height:40px;border-radius:999px;background:#f8f3e8;display:block"></span></button>
+      <div style="font-size:13px;font-weight:700;margin-top:2px">Reconnaître</div>
+    </div>
+    <div style="position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;margin-top:26px;margin-left:0"><div style="width:68px;height:68px;border-radius:18px;background:#e8e0cf;display:grid;place-items:center"><span style="width:28px;height:28px;border-radius:6px;background:#d8cdb6;display:block"></span></div><div style="font-size:12px;font-weight:600;color:#6f6857">Transformer</div></div>
+    <div style="position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;margin-top:26px;margin-left:110px"><div style="width:68px;height:68px;border-radius:18px;background:#e8e0cf;display:grid;place-items:center"><svg width="30" height="30" viewBox="0 0 30 30"><path d="M15 3L28 27H2Z" fill="#d8cdb6"></path></svg></div><div style="font-size:12px;font-weight:600;color:#6f6857">Phrase</div></div>
+    <div style="position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;margin-top:26px;margin-left:0"><div style="width:68px;height:68px;border-radius:18px;background:#e8e0cf;display:grid;place-items:center"><span style="width:28px;height:28px;border-radius:999px;background:#d8cdb6;display:block"></span></div><div style="font-size:12px;font-weight:600;color:#6f6857">Parler</div></div>
+    <div style="position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;margin-top:26px;margin-left:-110px"><div style="width:68px;height:68px;border-radius:18px;background:#14110d;display:grid;place-items:center"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#f8f3e8" stroke-width="3"><path d="M4.5 12.5l5 5 10-11"></path></svg></div><div style="font-size:12px;font-weight:600;color:#6f6857">Errata · fait</div></div>
+  </div>
+  <div style="display:flex;gap:10px;padding:28px 20px 0;overflow:hidden">
+    <div style="flex:1;display:flex;align-items:center;gap:10px;background:#f8f3e8;border-radius:16px;padding:12px 14px"><span style="width:12px;height:12px;border-radius:999px;background:#1d3a8a;flex:none"></span><div><div style="font-family:'EB Garamond',Georgia,serif;font-style:italic;font-size:16px;line-height:1">Feuilleton</div><div style="font-size:12px;color:#6f6857;margin-top:3px">Épisode 3</div></div></div>
+    <div style="flex:1;display:flex;align-items:center;gap:10px;background:#f8f3e8;border-radius:16px;padding:12px 14px"><span style="width:12px;height:12px;border-radius:3px;background:#f3c318;flex:none"></span><div><div style="font-family:'EB Garamond',Georgia,serif;font-style:italic;font-size:16px;line-height:1">Lexique</div><div style="font-size:12px;color:#6f6857;margin-top:3px">4 mots</div></div></div>
+  </div>
+  <div style="flex:1"></div>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);padding:8px 12px 30px;background:#f8f3e8;border-top:1px solid #e8e0cf;margin-top:20px">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0 4px;font-size:11px;font-weight:700;color:#14110d"><span style="width:44px;height:28px;border-radius:999px;background:#e8e0cf;display:grid;place-items:center"><svg width="16" height="16" viewBox="0 0 28 28"><rect x="0" y="0" width="11" height="11" rx="2" fill="#14110d"></rect><circle cx="22" cy="6" r="6" fill="#1d3a8a"></circle><rect x="0" y="17" width="11" height="11" rx="2" fill="#f3c318"></rect><path d="M17 28L23 16L28 28H17Z" fill="#d8321a"></path></svg></span>Atelier</div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0 4px;font-size:11px;font-weight:600;color:#6f6857"><span style="width:44px;height:28px;display:grid;place-items:center"><svg width="18" height="18" viewBox="0 0 20 20" fill="none"><path d="M10 2.5 18 17.5H2L10 2.5Z" stroke="currentColor" stroke-width="2"></path></svg></span>Missions</div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0 4px;font-size:11px;font-weight:600;color:#6f6857"><span style="width:44px;height:28px;display:grid;place-items:center"><svg width="18" height="18" viewBox="0 0 20 20" fill="none"><rect x="3" y="3" width="14" height="14" rx="3" stroke="currentColor" stroke-width="2"></rect><path d="M10 3V17M3 10H17" stroke="currentColor" stroke-width="1.5"></path></svg></span>Feuilleton</div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0 4px;font-size:11px;font-weight:600;color:#6f6857"><span style="width:44px;height:28px;display:grid;place-items:center"><svg width="18" height="18" viewBox="0 0 20 20" fill="none"><rect x="3" y="2" width="13" height="16" rx="2" stroke="currentColor" stroke-width="1.8"></rect><path d="M11 2v8l-2-2-2 2V2" fill="currentColor"></path></svg></span>Cahier</div>
+  </div>
+</div>
+</x-import>
+</div>
+
+<div class="dv-opt" id="1c"><div class="dv-olabel"><a class="dv-oid" href="#1c">1c</a>Les Cartes — the day as a stack of colour postcards; boldest, most Duolingo-playful</div>
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px">
+<div data-screen-label="1c home" style="min-height:100%;background:#f1ece1;display:flex;flex-direction:column;font-family:'Instrument Sans',system-ui,sans-serif;color:#14110d;box-sizing:border-box">
+  <div style="display:flex;align-items:flex-end;justify-content:space-between;padding:66px 20px 0">
+    <div>
+      <svg width="26" height="26" viewBox="0 0 28 28" aria-hidden="true"><rect x="0" y="0" width="11" height="11" rx="2" fill="#14110d"></rect><circle cx="22" cy="6" r="6" fill="#1d3a8a"></circle><rect x="0" y="17" width="11" height="11" rx="2" fill="#f3c318"></rect><path d="M17 28L23 16L28 28H17Z" fill="#d8321a"></path></svg>
+      <div style="font-family:'EB Garamond',Georgia,serif;font-style:italic;font-weight:500;font-size:30px;line-height:1;margin-top:14px">Samedi 5 sept.</div>
+    </div>
+    <div style="text-align:right"><div style="font-family:'EB Garamond',Georgia,serif;font-weight:600;font-size:44px;line-height:.9">12</div><div style="font-size:12px;font-weight:700;color:#6f6857">jours de suite</div></div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:12px;padding:20px 20px 0">
+    <button type="button" style="position:relative;text-align:left;border:0;border-radius:26px;background:#d8321a;color:#fff;padding:20px 22px 22px;min-height:196px;display:flex;flex-direction:column;justify-content:space-between;box-shadow:0 6px 0 #9c2411;cursor:pointer;font-family:inherit;transition:transform .08s,box-shadow .08s" style-active="transform:translateY(6px);box-shadow:0 0 0 #9c2411">
+      <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:700"><span>La séance · 8 min</span><span style="width:12px;height:12px;background:#f8f3e8;border-radius:999px"></span></div>
+      <div><div style="font-family:'EB Garamond',Georgia,serif;font-style:italic;font-weight:500;font-size:34px;line-height:1.02;text-wrap:pretty">Si tu viens,<br>on ira.</div><div style="font-size:14px;margin-top:8px;opacity:.9">Si + présent → futur · 3 règles</div></div>
+      <div style="position:absolute;right:18px;bottom:18px;width:48px;height:48px;border-radius:999px;background:#f8f3e8;color:#d8321a;display:grid;place-items:center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"><path d="M4 12h15M13 6l6 6-6 6"></path></svg></div>
+    </button>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div style="border-radius:22px;background:#1d3a8a;color:#f8f3e8;padding:16px 18px;min-height:150px;display:flex;flex-direction:column;justify-content:space-between" style-active="transform:scale(.98)">
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:700"><span>Feuilleton</span><span style="width:12px;height:12px;background:#f8f3e8;border-radius:3px"></span></div>
+        <div style="font-family:'EB Garamond',Georgia,serif;font-style:italic;font-size:22px;line-height:1.05">Épisode 3<br>Une lettre.</div>
+        <div style="font-size:12px;opacity:.85">M. Marchand attend</div>
+      </div>
+      <div style="border-radius:22px;background:#f3c318;color:#14110d;padding:16px 18px;min-height:150px;display:flex;flex-direction:column;justify-content:space-between" style-active="transform:scale(.98)">
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:700"><span>Lexique</span><svg width="12" height="12" viewBox="0 0 12 12"><path d="M6 0L12 12H0Z" fill="#14110d"></path></svg></div>
+        <div style="font-family:'EB Garamond',Georgia,serif;font-weight:600;font-size:44px;line-height:.9">4</div>
+        <div style="font-size:12px;font-weight:600">mots du jour</div>
+      </div>
+    </div>
+    <div style="border-radius:22px;background:#f8f3e8;padding:16px 18px;display:flex;align-items:center;justify-content:space-between;gap:14px">
+      <div><div style="font-size:12px;font-weight:700;color:#6f6857">Le cours</div><div style="font-family:'EB Garamond',Georgia,serif;font-style:italic;font-size:20px;line-height:1.1;margin-top:2px">A2 → B1 · ~40 jours</div></div>
+      <div style="flex:none;width:120px;height:8px;border-radius:4px;background:#e8e0cf;overflow:hidden"><i style="display:block;width:62%;height:100%;background:#1d3a8a"></i></div>
+    </div>
+  </div>
+  <div style="flex:1"></div>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);padding:8px 12px 30px;background:#f8f3e8;border-top:1px solid #e8e0cf;margin-top:20px">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0 4px;font-size:11px;font-weight:700;color:#14110d"><span style="width:44px;height:28px;border-radius:999px;background:#e8e0cf;display:grid;place-items:center"><svg width="16" height="16" viewBox="0 0 28 28"><rect x="0" y="0" width="11" height="11" rx="2" fill="#14110d"></rect><circle cx="22" cy="6" r="6" fill="#1d3a8a"></circle><rect x="0" y="17" width="11" height="11" rx="2" fill="#f3c318"></rect><path d="M17 28L23 16L28 28H17Z" fill="#d8321a"></path></svg></span>Atelier</div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0 4px;font-size:11px;font-weight:600;color:#6f6857"><span style="width:44px;height:28px;display:grid;place-items:center"><svg width="18" height="18" viewBox="0 0 20 20" fill="none"><path d="M10 2.5 18 17.5H2L10 2.5Z" stroke="currentColor" stroke-width="2"></path></svg></span>Missions</div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0 4px;font-size:11px;font-weight:600;color:#6f6857"><span style="width:44px;height:28px;display:grid;place-items:center"><svg width="18" height="18" viewBox="0 0 20 20" fill="none"><rect x="3" y="3" width="14" height="14" rx="3" stroke="currentColor" stroke-width="2"></rect><path d="M10 3V17M3 10H17" stroke="currentColor" stroke-width="1.5"></path></svg></span>Feuilleton</div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0 4px;font-size:11px;font-weight:600;color:#6f6857"><span style="width:44px;height:28px;display:grid;place-items:center"><svg width="18" height="18" viewBox="0 0 20 20" fill="none"><rect x="3" y="2" width="13" height="16" rx="2" stroke="currentColor" stroke-width="1.8"></rect><path d="M11 2v8l-2-2-2 2V2" fill="currentColor"></path></svg></span>Cahier</div>
+  </div>
+</div>
+</x-import>
+</div>
+
+</div>
+<p class="dv-next">Try next: "go with <a class="dv-oid" href="#1b">1b</a> and design the exercise session" · "<a class="dv-oid" href="#1a">1a</a> layout with the colour cards from <a class="dv-oid" href="#1c">1c</a>" · "less red, more paper"</p>
+</section>
+
+<section class="dv-turn" id="t0">
+<div class="dv-thd"><a class="dv-tid" href="#t0">0</a><span class="dv-tname">Current build, recreated from source — for reference</span></div>
+<div class="dv-opts">
+
+<div class="dv-opt" id="0a"><div class="dv-olabel"><a class="dv-oid" href="#0a">0a</a>Home as it is in code today (LaUne.tsx + EditorialMasthead + PhoneProductNav)</div>
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px">
+<div data-screen-label="0a current home" style="min-height:100%;background:#f1ece1;display:flex;flex-direction:column;font-family:Inter,'Helvetica Neue',Arial,sans-serif;color:#14110d;box-sizing:border-box">
+  <div style="position:relative;display:flex;align-items:center;justify-content:center;min-height:52px;padding:62px 16px 12px;border-bottom:1px solid #14110d;background:#f1ece1">
+    <svg style="position:absolute;left:16px;bottom:19px" width="22" height="22" viewBox="0 0 28 28"><rect x="0" y="0" width="11" height="11" fill="#14110d"></rect><circle cx="22" cy="6" r="6" fill="#1d3a8a"></circle><rect x="0" y="17" width="11" height="11" fill="#f3c318"></rect><path d="M17 28L23 16L28 28H17Z" fill="#d8321a"></path></svg>
+    <div style="font-family:'EB Garamond',Garamond,serif;font-style:italic;font-weight:500;font-size:22px;line-height:1">Atelier</div>
+    <div style="position:absolute;right:16px;bottom:12px;width:36px;height:36px;border:1px solid #14110d;background:#f8f3e8;display:grid;place-items:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#14110d" stroke-width="2.4"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"></path></svg></div>
+  </div>
+  <div style="flex:1;background:#f8f3e8;padding:14px 18px 30px">
+    <div style="display:flex;gap:10px;font-size:13px;color:#6f6857"><b style="color:#4a4538;font-weight:600">samedi 5 septembre 2026</b><span>12 jours de suite</span></div>
+    <div style="padding-top:14px">
+      <div style="font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#6f6857">Le Feuilleton · Épisode 3</div>
+      <div style="margin-top:10px;border:1px solid #14110d;background:#e8e0cf;aspect-ratio:16/10;display:grid;place-items:center;filter:grayscale(1) contrast(.94) opacity(.92);color:#6f6857;font:500 11px ui-monospace,Menlo,monospace">episode art (grayscale until read)</div>
+      <h2 style="margin:8px 0 0;font-family:'EB Garamond',Garamond,serif;font-style:italic;font-weight:600;font-size:28px;line-height:1.06">Une lettre attend ta réponse.</h2>
+      <div style="margin-top:10px;display:flex;align-items:center;gap:7px;font-size:11px;font-weight:600;color:#6f6857"><span style="width:22px;height:22px;border:1px solid #14110d;border-radius:50%;background:#e8e0cf;display:grid;place-items:center;font:italic 700 11px 'EB Garamond',serif">M</span>par <em style="font-family:'EB Garamond',serif;font-size:13px">Monsieur Marchand</em></div>
+      <div style="height:1px;background:#d8cdb6;margin-top:16px"></div>
+      <p style="margin:14px 0 0;font-size:13px;line-height:1.5;color:#4a4538">À vous d’écrire : une réponse à Monsieur Marchand.</p>
+      <p style="margin:4px 0 0;font-size:13px;line-height:1.5;color:#6f6857">Si type 1 : présent, futur · ~8 min</p>
+      <button type="button" style="margin-top:16px;display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:54px;background:#14110d;color:#f1ece1;border:0;border-radius:999px;font:600 16px Inter,sans-serif">Continuer <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M4 12h15M13 6l6 6-6 6"></path></svg></button>
+      <div style="display:inline-flex;align-items:center;min-height:44px;margin-top:2px;color:#6f6857;font-size:13px;text-decoration:underline;text-underline-offset:3px">Ajuster le temps de l’édition</div>
+    </div>
+    <div style="padding-top:26px">
+      <div style="font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#6f6857;margin-bottom:10px">En bref</div>
+      <div style="height:1px;background:#14110d"></div>
+      <div style="display:flex;align-items:baseline;justify-content:space-between;padding:15px 0;border-bottom:1px solid #d8cdb6"><span style="font-family:'EB Garamond',serif;font-size:20px">La séance</span><span style="font-size:13px;color:#4a4538">3 règles · ~8 min <span style="color:#6f6857">→</span></span></div>
+      <div style="display:flex;align-items:baseline;justify-content:space-between;padding:15px 0;border-bottom:1px solid #d8cdb6"><span style="font-family:'EB Garamond',serif;font-size:20px">Le lexique</span><span style="font-size:13px;color:#4a4538">4 mots du jour <span style="color:#6f6857">→</span></span></div>
+      <div style="display:flex;align-items:baseline;justify-content:space-between;padding:15px 0"><span style="font-family:'EB Garamond',serif;font-size:20px">Le cours</span><span style="font-size:13px;color:#4a4538">A2 → B1 · ~40 j <span style="color:#6f6857">→</span></span></div>
+    </div>
+    <div style="margin-top:10px;padding:14px 0 6px;border-top:3px double #14110d;text-align:center;font:italic 13px/1.5 'EB Garamond',serif;color:#6f6857">Demain — épisode 4 · <em style="color:#4a4538;border-bottom:1px solid #d8cdb6">l’imparfait</em>.</div>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid #14110d;background:#f1ece1;padding-bottom:18px">
+    <div style="min-height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;margin-top:-1px;border-top:2px solid #14110d;background:#f8f3e8;font:900 10px Inter,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#14110d"><svg width="22" height="22" viewBox="0 0 28 28"><rect x="0" y="0" width="11" height="11" fill="#14110d"></rect><circle cx="22" cy="6" r="6" fill="#1d3a8a"></circle><rect x="0" y="17" width="11" height="11" fill="#f3c318"></rect><path d="M17 28L23 16L28 28H17Z" fill="#d8321a"></path></svg>Atelier</div>
+    <div style="min-height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;font:900 10px Inter,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#6f6857"><svg width="22" height="22" viewBox="0 0 20 20" fill="none"><path d="M10 2.5 18 17.5H2L10 2.5Z" stroke="currentColor" stroke-width="1.8"></path></svg>Missions</div>
+    <div style="min-height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;font:900 10px Inter,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#6f6857"><svg width="22" height="22" viewBox="0 0 20 20" fill="none"><rect x="3" y="3" width="14" height="14" stroke="currentColor" stroke-width="1.8"></rect><path d="M10 3V17M3 10H17" stroke="currentColor" stroke-width="1.4"></path></svg>Feuilleton</div>
+    <div style="min-height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;font:900 10px Inter,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#6f6857"><svg width="22" height="22" viewBox="0 0 20 20" fill="none"><rect x="3" y="2" width="13" height="16" stroke="currentColor" stroke-width="1.6"></rect><path d="M3 4h13M3 6h13" stroke="currentColor" stroke-width="1"></path><path d="M11 2v8l-2-2-2 2V2" fill="currentColor"></path></svg>Cahier</div>
+  </div>
+</div>
+</x-import>
+</div>
+
+<div class="dv-opt" id="0b"><div class="dv-olabel"><a class="dv-oid" href="#0b">0b</a><span>Earlier roadmap home (your docs/mobile-visual-checks screenshot) — the roman-numeral path that <a class="dv-oid" href="#1b">1b</a> builds on</span></div>
+<div style="width:390px;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.1)"><img src="ref/atelier-home-active.png" alt="Current roadmap home screenshot" style="display:block;width:100%"></div>
+</div>
+
+</div>
+</section>
+</x-dc>
+</body>
+</html>

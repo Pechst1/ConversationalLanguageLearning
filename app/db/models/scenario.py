@@ -1,12 +1,11 @@
 """Scenario state tracking models."""
 import uuid
-from datetime import datetime
 
-from sqlalchemy import Column, DateTime, ForeignKey, String, Text, Integer
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID
-from sqlalchemy.types import JSON
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+from sqlalchemy.types import JSON
 
 from app.db.base import Base
 

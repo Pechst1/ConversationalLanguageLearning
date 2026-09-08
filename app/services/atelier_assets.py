@@ -763,7 +763,7 @@ class AtelierAssetService:
         return motif
 
     def _family_motif(self, concept: GrammarConcept, family: str, display_title: str) -> dict[str, Any]:
-        seed = int(hashlib.sha256(f"{concept.external_id or concept.id}:{display_title}".encode("utf-8")).hexdigest()[:8], 16)
+        seed = int(hashlib.sha256(f"{concept.external_id or concept.id}:{display_title}".encode()).hexdigest()[:8], 16)
         dx = seed % 7
         dy = (seed // 7) % 7
         accent = ["red", "blue", "yellow"][seed % 3]

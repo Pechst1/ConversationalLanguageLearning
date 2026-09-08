@@ -1,14 +1,6 @@
 """Service layer package."""
 
-from app.services.achievement import AchievementService
-from app.services.analytics import AnalyticsService
-from app.services.auth import AuthService
-from app.services.insights_service import InsightsService
-from app.services.llm_service import LLMService
-from app.services.progress import ProgressService
-from app.services.users import UserService
-from app.services.session_service import SessionService
-from app.services.vocabulary import VocabularyService
+from importlib import import_module
 
 __all__ = [
     "AchievementService",
@@ -22,3 +14,26 @@ __all__ = [
     "VocabularyService",
 ]
 
+_SERVICE_IMPORTS = {
+    "AchievementService": ("app.services.achievement", "AchievementService"),
+    "AnalyticsService": ("app.services.analytics", "AnalyticsService"),
+    "AuthService": ("app.services.auth", "AuthService"),
+    "InsightsService": ("app.services.insights_service", "InsightsService"),
+    "LLMService": ("app.services.llm_service", "LLMService"),
+    "ProgressService": ("app.services.progress", "ProgressService"),
+    "SessionService": ("app.services.session_service", "SessionService"),
+    "UserService": ("app.services.users", "UserService"),
+    "VocabularyService": ("app.services.vocabulary", "VocabularyService"),
+}
+
+
+def __getattr__(name: str):
+    """Load public service classes lazily to avoid package import cycles."""
+    try:
+        module_name, attribute_name = _SERVICE_IMPORTS[name]
+    except KeyError as exc:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}") from exc
+
+    value = getattr(import_module(module_name), attribute_name)
+    globals()[name] = value
+    return value

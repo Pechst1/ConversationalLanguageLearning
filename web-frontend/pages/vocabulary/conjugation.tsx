@@ -1,17 +1,40 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
-import { ArrowLeft, Check, Loader2, RotateCcw } from 'lucide-react';
+import { useRouter } from 'next/router';
 import toast from 'react-hot-toast';
 
-import EditorialMasthead from '@/components/layout/EditorialMasthead';
+import {
+  Action,
+  AtelierV2Root,
+  CrossIcon,
+  FeedbackBand,
+  IconAction,
+  ProgressRule,
+  ShapeToken,
+  StateBlock,
+  Surface,
+} from '@/components/atelier-v2/ui';
 import apiService, { ConjugationReviewItem } from '@/services/api';
 
+/* "Les formes irrégulières" — the conjugation drill, on the Claude design
+ * system (Atelier V2).
+ *
+ * The design has no artboard for this screen. It is extended from the Séance
+ * artboard: the same session chrome (round close control, blue progress rule),
+ * one Garamond-italic headline (the form being asked), one answer field, one
+ * 3D-press primary ("Voir le tableau"), the tinted feedback band for the
+ * verdict, and the conjugation table drawn as the Séance's choice cards with
+ * the asked person carried in blue. The four FSRS grades keep their exact
+ * ratings (0–3) and their French labels; they are secondary presses so the
+ * screen has one primary. Tabs are hidden as on every drill screen; the close
+ * control returns to the registre. Recorded as an extension in the report. */
+
 const ratingOptions = [
-  { rating: 0, label: 'Again', hint: 'Soon', tone: 'red' },
-  { rating: 1, label: 'Hard', hint: 'Keep close', tone: 'yellow' },
-  { rating: 2, label: 'Good', hint: 'Schedule', tone: 'blue' },
-  { rating: 3, label: 'Easy', hint: 'Stretch', tone: 'black' },
+  { rating: 0, label: 'À revoir', hint: 'Très bientôt', shape: 'action' },
+  { rating: 1, label: 'Difficile', hint: 'Garder près', shape: 'reward' },
+  { rating: 2, label: 'Correct', hint: 'Rythme normal', shape: 'story' },
+  { rating: 3, label: 'Facile', hint: 'Espacer', shape: 'done' },
 ] as const;
 
 function normalizeAnswer(value: string) {
@@ -24,13 +47,14 @@ function normalizeAnswer(value: string) {
 }
 
 function nextReviewLabel(value?: string | null) {
-  if (!value) return 'Review saved';
+  if (!value) return 'Reprise classée';
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'Review saved';
-  return `Next touch ${date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`;
+  if (Number.isNaN(date.getTime())) return 'Reprise classée';
+  return `Reprise le ${date.toLocaleDateString('fr-FR', { month: 'long', day: 'numeric' })}`;
 }
 
 export default function ConjugationReviewPage() {
+  const router = useRouter();
   const [items, setItems] = useState<ConjugationReviewItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -50,7 +74,7 @@ export default function ConjugationReviewPage() {
       setCompleted(0);
     } catch (nextError) {
       console.error(nextError);
-      setError('Conjugation drill is unavailable right now.');
+      setError('L’exercice de conjugaison ne répond pas pour l’instant.');
     } finally {
       setLoading(false);
     }
@@ -62,10 +86,8 @@ export default function ConjugationReviewPage() {
 
   const current = items[0] || null;
   const typedMatches = current ? normalizeAnswer(typed) === normalizeAnswer(current.answer) : false;
-  const progress = useMemo(() => {
-    const total = completed + items.length;
-    return total ? Math.round((completed / total) * 100) : 0;
-  }, [completed, items.length]);
+  const total = completed + items.length;
+  const progress = useMemo(() => (total ? Math.round((completed / total) * 100) : 0), [completed, total]);
 
   const submitRating = async (rating: number) => {
     if (!current || saving) return;
@@ -83,368 +105,179 @@ export default function ConjugationReviewPage() {
       setRevealed(false);
     } catch (nextError) {
       console.error(nextError);
-      toast.error('Could not save conjugation review.');
+      toast.error('La reprise n’a pas pu être classée.');
     } finally {
       setSaving(false);
     }
   };
 
+  const caption = total ? `${completed}/${total}` : undefined;
+
   return (
     <>
       <Head>
-        <title>Conjugation Drill</title>
+        <title>Le Cahier · Conjugaison · L’Atelier</title>
       </Head>
-      <EditorialMasthead active="notebook" mobileAction={<Link className="conj-mobile-action" href="/vocabulary">Map</Link>} />
-      <main className="conj-page">
-        <header className="conj-hero">
-          <Link href="/vocabulary" className="conj-back"><ArrowLeft size={15} /> Coverage map</Link>
-          <span>Verbs & conjugation</span>
-          <h1>Irregular forms</h1>
-          <div className="conj-progress">
-            <strong>{completed} reviewed</strong>
-            <div aria-label={`${progress}% complete`}><i style={{ width: `${progress}%` }} /></div>
-            <em>{items.length} waiting</em>
-          </div>
-        </header>
+      <AtelierV2Root as="main" className="lx-conj" aria-label="Les formes irrégulières">
+        <div className="av2-screen">
+          <header className="av2-session__head">
+            <IconAction label="Revenir au registre" onClick={() => void router.push('/vocabulary')}>
+              <CrossIcon size={16} />
+            </IconAction>
+            <ProgressRule value={completed} max={total} label={`${progress}% du tour`} caption={caption} />
+          </header>
 
-        {loading && (
-          <section className="conj-state">
-            <Loader2 className="spin" size={20} />
-            <strong>Loading conjugation drill.</strong>
-          </section>
-        )}
+          <div className="av2-screen__body">
+            <p className="av2-label">
+              Les formes irrégulières
+              {current ? ` · ${current.cefr_band} · ${current.tense_label}` : ''}
+            </p>
 
-        {!loading && error && (
-          <section className="conj-state error">
-            <strong>{error}</strong>
-            <button type="button" onClick={loadQueue}><RotateCcw size={14} /> Retry</button>
-          </section>
-        )}
+            {loading && <StateBlock tone="loading" title="L’exercice se prépare." />}
 
-        {!loading && !error && !current && (
-          <section className="conj-state done">
-            <Check size={24} />
-            <strong>No irregular forms waiting.</strong>
-            <Link href="/vocabulary/review">Review vocabulary</Link>
-          </section>
-        )}
-
-        {!loading && !error && current && (
-          <section className="conj-card">
-            <div className="conj-card-head">
-              <span>{current.cefr_band} · {current.tense_label}</span>
-              <em>{current.state}</em>
-            </div>
-            <div className="conj-prompt">
-              <span>Prompt</span>
-              <h2>{current.lemma} · {current.tense_label} · {current.person}</h2>
-              <input
-                value={typed}
-                onChange={(event) => setTyped(event.target.value)}
-                placeholder="Type the form"
-                aria-label="Type the conjugated form"
+            {!loading && error && (
+              <StateBlock
+                tone="error"
+                title={error}
+                action={{ label: 'Réessayer', onSelect: () => void loadQueue() }}
               />
-              <button type="button" onClick={() => setRevealed(true)} disabled={!typed.trim()}>
-                Reveal table
-              </button>
-            </div>
-
-            {revealed && (
-              <div className="conj-answer">
-                <div className={typedMatches ? 'conj-verdict match' : 'conj-verdict miss'}>
-                  <strong>{current.answer}</strong>
-                  <span>{typedMatches ? 'Matched' : `You typed: ${typed}`}</span>
-                </div>
-                <table>
-                  <tbody>
-                    {current.table.map((row) => (
-                      <tr key={`${row.person}-${row.form}`} className={row.person === current.person ? 'target' : ''}>
-                        <th>{row.person}</th>
-                        <td>{row.form}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
             )}
 
-            <div className="conj-ratings" aria-label="Conjugation rating">
-              {ratingOptions.map((option) => (
-                <button
-                  key={option.rating}
-                  type="button"
-                  className={option.tone}
-                  disabled={saving || !revealed}
-                  onClick={() => submitRating(option.rating)}
-                >
-                  <strong>{option.label}</strong>
-                  <span>{option.hint}</span>
-                </button>
-              ))}
-            </div>
-          </section>
-        )}
-      </main>
-      <style jsx>{`
-        .conj-page {
-          --paper: #f1ece1;
-          --paper-2: #e8e0cf;
-          --sheet: #f8f3e8;
-          --ink: #14110d;
-          --ink-2: #4a4538;
-          --ink-3: #8a826f;
-          --red: #d8321a;
-          --blue: #1d3a8a;
-          --yellow: #f3c318;
-          --disabled-bg: #98958c;
-          --disabled-ink: #f8f3e8;
+            {!loading && !error && !current && (
+              <>
+                <StateBlock
+                  tone="empty"
+                  title="Aucune forme irrégulière en attente."
+                  body={completed ? `${completed} ${completed === 1 ? 'forme reprise' : 'formes reprises'} ce tour.` : undefined}
+                />
+                <Link className="av2-btn av2-btn--primary" href="/vocabulary/review">
+                  <ShapeToken kind="action" size="sm" /> Reprendre le vocabulaire
+                </Link>
+              </>
+            )}
+
+            {!loading && !error && current && (
+              <>
+                {/* the one Garamond-italic headline on this screen */}
+                <h1 className="av2-headline lx-conj__prompt">
+                  {current.lemma} · {current.tense_label} · {current.person}
+                </h1>
+
+                <label className="av2-field">
+                  <span className="av2-field__label">La forme conjuguée</span>
+                  <input
+                    className="av2-field__control lx-input"
+                    lang="fr"
+                    value={typed}
+                    onChange={(event) => setTyped(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' && typed.trim() && !revealed) {
+                        event.preventDefault();
+                        setRevealed(true);
+                      }
+                    }}
+                    placeholder="Écrivez la forme"
+                    aria-label="Écrivez la forme conjuguée"
+                    autoComplete="off"
+                    autoCapitalize="off"
+                  />
+                </label>
+
+                {!revealed && (
+                  /* the one tactile 3D press on this screen */
+                  <Action tone="primary" disabled={!typed.trim()} onClick={() => setRevealed(true)}>
+                    Voir le tableau
+                  </Action>
+                )}
+
+                {revealed && (
+                  <>
+                    <Surface shape="hero" className="av2-graded" data-state={typedMatches ? 'correct' : 'wrong'}>
+                      <FeedbackBand
+                        tone={typedMatches ? 'correct' : 'wrong'}
+                        title={current.answer}
+                        detail={typedMatches ? 'Juste' : `Vous avez écrit : ${typed}`}
+                      />
+                    </Surface>
+
+                    <ul className="av2-choices lx-conj__table" aria-label={`${current.lemma} · ${current.tense_label}`}>
+                      {current.table.map((row) => {
+                        const target = row.person === current.person;
+                        return (
+                          <li
+                            key={`${row.person}-${row.form}`}
+                            className="av2-choice lx-conj__row"
+                            data-state={target ? 'selected' : undefined}
+                            aria-current={target ? 'true' : undefined}
+                          >
+                            <span className="lx-conj__person">{row.person}</span>
+                            <span className="lx-conj__form">{row.form}</span>
+                            <span className="av2-choice__dot" aria-hidden="true" />
+                          </li>
+                        );
+                      })}
+                    </ul>
+
+                    <div className="lx-conj__ratings" role="group" aria-label="Classement de la forme">
+                      {ratingOptions.map((option) => (
+                        <Action
+                          key={option.rating}
+                          tone="secondary"
+                          pending={saving}
+                          pendingLabel={option.label}
+                          icon={<ShapeToken kind={option.shape} size="sm" />}
+                          onClick={() => submitRating(option.rating)}
+                          title={option.hint}
+                        >
+                          {option.label}
+                          <span className="av2-sr"> · {option.hint}</span>
+                        </Action>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      </AtelierV2Root>
+      <style jsx global>{`
+        body { background: var(--app-paper); }
+        .av2.lx-conj {
+          display: block;
           min-height: 100vh;
-          background: var(--paper);
-          color: var(--ink);
-          padding: 24px clamp(18px, 4vw, 48px) 96px;
-        }
-        .conj-back,
-        .conj-mobile-action,
-        .conj-hero > span,
-        .conj-card-head,
-        .conj-prompt > span,
-        .conj-verdict span,
-        .conj-ratings span {
-          font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-          font-size: 11px;
-          font-weight: 900;
-          letter-spacing: .1em;
-          text-transform: uppercase;
-        }
-        .conj-back,
-        .conj-mobile-action {
-          display: inline-flex;
-          min-height: 30px;
-          align-items: center;
-          gap: 7px;
-          color: var(--ink);
-          text-decoration: none;
-        }
-        .conj-hero {
-          display: grid;
-          gap: 10px;
-          border-bottom: 1px solid var(--ink);
-          padding-bottom: 18px;
-        }
-        .conj-hero h1 {
-          margin: 0;
-          color: var(--ink);
-          font-family: "EB Garamond", Garamond, serif;
-          font-size: clamp(44px, 9vw, 82px);
-          font-style: italic;
-          line-height: .95;
-          letter-spacing: 0;
-        }
-        .conj-progress {
-          display: grid;
-          grid-template-columns: auto minmax(120px, 320px) auto;
-          align-items: center;
-          gap: 12px;
-          color: var(--ink);
-        }
-        .conj-progress div {
-          height: 8px;
-          border: 1px solid var(--ink);
-          background: var(--paper-2);
-        }
-        .conj-progress i {
-          display: block;
-          height: 100%;
-          background: var(--red);
-        }
-        .conj-card,
-        .conj-state {
-          max-width: 760px;
-          margin: 22px auto 0;
-          border: 1px solid var(--ink);
-          background: var(--sheet);
-          padding: 16px;
-        }
-        .conj-state {
-          display: grid;
-          min-height: 180px;
-          place-items: center;
-          text-align: center;
-        }
-        .conj-state button,
-        .conj-state a,
-        .conj-prompt button {
-          display: inline-flex;
-          min-height: 42px;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-          border: 1px solid var(--ink);
-          background: var(--ink);
-          color: var(--sheet);
-          padding: 0 14px;
-          font-weight: 900;
-          text-decoration: none;
-        }
-        .conj-card-head {
-          display: flex;
-          justify-content: space-between;
-          color: var(--ink-2);
-        }
-        .conj-hero > span,
-        .conj-prompt > span,
-        .conj-verdict span,
-        .conj-ratings span {
-          color: var(--ink-2);
-        }
-        .conj-ratings .black span {
-          color: var(--sheet);
-        }
-        .conj-prompt {
-          display: grid;
-          gap: 12px;
-          margin-top: 18px;
-          border-top: 1px solid var(--ink);
-          padding-top: 18px;
-          text-align: center;
-        }
-        .conj-prompt h2 {
-          margin: 0;
-          color: var(--ink);
-          font-size: clamp(30px, 7vw, 56px);
-          font-weight: 950;
-          line-height: 1;
-          letter-spacing: 0;
-          overflow-wrap: anywhere;
-        }
-        .conj-prompt input {
-          width: min(100%, 420px);
-          min-height: 52px;
+          max-width: 720px;
           margin: 0 auto;
-          border: 2px solid var(--ink);
-          background: var(--paper);
-          padding: 0 14px;
-          color: var(--ink);
-          font-size: 20px;
-          font-weight: 900;
-          text-align: center;
+          padding: 0 0 calc(24px + var(--av2-safe-bottom));
         }
-        .conj-prompt input::placeholder {
-          color: var(--ink-2);
-          opacity: 1;
+        .av2 .lx-conj__prompt { font-size: var(--av2-t-head); }
+        /* globals.css puts an !important 1px ruled border on every input; the
+           design's field is a paper well with a 2px focus edge. */
+        .av2 .lx-input {
+          border: 2px solid transparent !important;
+          border-radius: var(--av2-r-card) !important;
+          box-shadow: none !important;
+          background-color: var(--av2-card);
+          min-height: max(var(--av2-tap), 3rem);
         }
-        .conj-prompt button {
-          width: min(100%, 240px);
-          margin: 0 auto;
+        .av2 .lx-input:focus { border-color: var(--av2-blue) !important; box-shadow: none !important; outline: 0; }
+        .av2 .lx-conj__table { gap: 6px; }
+        .av2 .lx-conj__row { cursor: default; min-height: var(--av2-tap); padding: 0.5rem 1.125rem; }
+        .av2 .lx-conj__row[data-state='selected'] { --av2-choice-face: var(--av2-card); }
+        .av2 .lx-conj__person {
+          flex: 0 0 34%;
+          font-family: var(--av2-sans);
+          font-style: normal;
+          font-size: var(--av2-t-label);
+          font-weight: 700;
+          color: var(--av2-muted);
         }
-        .conj-prompt button:disabled {
-          background: var(--disabled-bg);
-          color: var(--disabled-ink);
-          cursor: not-allowed;
-          opacity: 1;
-        }
-        .conj-answer {
-          display: grid;
-          gap: 12px;
-          margin-top: 16px;
-        }
-        .conj-verdict {
-          border: 1px solid var(--ink);
-          background: var(--paper);
-          padding: 12px;
-          text-align: center;
-        }
-        .conj-verdict.match {
-          border-color: var(--blue);
-        }
-        .conj-verdict.miss {
-          border-color: var(--red);
-        }
-        .conj-verdict strong {
-          display: block;
-          font-size: 28px;
-        }
-        table {
-          width: 100%;
-          border-collapse: collapse;
-          background: var(--paper);
-        }
-        th,
-        td {
-          border: 1px solid var(--ink);
-          padding: 10px 12px;
-          text-align: left;
-        }
-        th {
-          width: 34%;
-          color: var(--ink-3);
-          font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-          font-size: 11px;
-          text-transform: uppercase;
-        }
-        tr.target th,
-        tr.target td {
-          background: var(--yellow);
-        }
-        .conj-ratings {
-          display: grid;
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-          gap: 8px;
-          margin-top: 16px;
-        }
-        .conj-ratings button {
-          min-height: 58px;
-          border: 1px solid var(--ink);
-          background: var(--paper);
-          color: var(--ink);
-          text-align: left;
-          padding: 8px;
-        }
-        .conj-ratings strong,
-        .conj-ratings span {
-          display: block;
-        }
-        .conj-ratings .red { box-shadow: inset 4px 0 0 var(--red); }
-        .conj-ratings .yellow { box-shadow: inset 4px 0 0 var(--yellow); }
-        .conj-ratings .blue { box-shadow: inset 4px 0 0 var(--blue); }
-        .conj-ratings .black {
-          background: var(--ink);
-          color: var(--sheet);
-        }
-        .conj-ratings button:disabled {
-          background: var(--paper);
-          color: var(--ink-2);
-          cursor: not-allowed;
-          opacity: 1;
-        }
-        .conj-ratings button:disabled.black {
-          background: var(--disabled-bg);
-          color: var(--disabled-ink);
-        }
-        .conj-ratings button:disabled.black span {
-          color: var(--disabled-ink);
-        }
-        .spin {
-          animation: spin .7s linear infinite;
-        }
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-        @media (max-width: 640px) {
-          .conj-page {
-            padding: 16px 16px 96px;
-          }
-          .conj-progress,
-          .conj-ratings {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-          }
-          .conj-progress div {
-            grid-column: 1 / -1;
-          }
-          .conj-card,
-          .conj-state {
-            margin-top: 16px;
-          }
+        .av2 .lx-conj__row[data-state='selected'] .lx-conj__person { color: var(--av2-blue); }
+        .av2 .lx-conj__form { flex: 1 1 auto; min-width: 0; }
+        .av2 .lx-conj__ratings { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; min-width: 0; }
+        .av2 .lx-conj__ratings .av2-btn { width: auto; }
+        @media (max-width: 360px) {
+          .av2 .lx-conj__ratings { grid-template-columns: minmax(0, 1fr); }
         }
       `}</style>
     </>

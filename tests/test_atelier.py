@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from uuid import UUID, uuid4
 
 from fastapi.testclient import TestClient
@@ -20,27 +20,34 @@ from app.db.models.atelier import (
     AtelierSession,
 )
 from app.db.models.error import UserError, UserErrorConcept
-from app.db.models.grammar import GrammarConcept, UserGrammarProgress
+from app.db.models.grammar import GrammarConcept, GrammarConceptLocalization, UserGrammarProgress
 from app.db.models.progress import UserVocabularyProgress
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
-from app.services.error_memory import ErrorMemoryService
 from app.services.atelier import (
+    ATELIER_DEFAULT_SECONDS_PER_DRILL,
+    ATELIER_DRILLS_PER_CONCEPT,
     ATELIER_EXERCISE_RESPONSE_FORMAT,
     ATELIER_GENERATION_MAX_ATTEMPTS,
     ATELIER_GENERATOR_VERSION,
+    ATELIER_TRANSFORM_ITEMS,
     AtelierCorrectionService,
     AtelierExerciseGenerator,
-    AtelierSRSService,
     AtelierScheduler,
-    session_exercise_set,
-    select_atelier_vocabulary,
+    AtelierSRSService,
     _is_vague_output_prompt,
+    estimate_session_minutes,
+    measured_seconds_per_drill,
+    planned_session_drills,
+    select_atelier_vocabulary,
+    session_exercise_set,
 )
 from app.services.atelier_assets import AtelierAssetService
 from app.services.atelier_rewards import AtelierRewardService
+from app.services.error_memory import ErrorMemoryService
 from app.services.grammar_feedback import count_concept_hits
 from app.services.llm_service import LLMProviderError, LLMResult
+from app.services.pilot_events import PilotEventService
 
 
 def _user(db_session) -> User:
@@ -345,11 +352,23 @@ class _FakeLLMService:
 
     def generate_chat_completion(self, messages, **kwargs):
         self.calls.append({"method": "generate_chat_completion", "messages": messages, **kwargs})
+        response_name = (((kwargs.get("response_format") or {}).get("json_schema") or {}).get("name"))
+        if response_name == "atelier_exercise_critique":
+            task = json.loads(messages[0]["content"])
+            verdicts = [{"item_id": item["id"], "round": item["round"], "mode": item["mode"], "passes": True, "reason": "Reviewed fixture"} for item in task["items"]]
+            return _FakeLLMService({"verdicts": verdicts})._result()
         return self._result(model=kwargs.get("model", "gpt-4o-mini"))
 
     def generate_error_detection(self, messages, **kwargs):
         self.calls.append({"method": "generate_error_detection", "messages": messages, **kwargs})
-        return self._result(model="gpt-4o")
+        # These success-path fixtures represent a complete schema response.
+        # Malformed-response behavior is tested separately in test_seance_contract.
+        payload = json.loads(messages[0]["content"])
+        content = dict(self.content)
+        content.setdefault("corrected_answer", (payload.get("answer") or {}).get("text", ""))
+        content.setdefault("concept_hits", [])
+        content.setdefault("missing_targets", [])
+        return _FakeLLMService(content)._result(model="gpt-4o")
 
     def _result(self, model: str = "gpt-4o-mini") -> LLMResult:
         return LLMResult(
@@ -398,7 +417,12 @@ class _GenerationCritiqueFakeLLMService(_FakeLLMService):
         if kind == "critique":
             index = min(self.critique_calls, len(self.critique_contents) - 1)
             self.critique_calls += 1
-            return self._json_result(self.critique_contents[index], model=kwargs.get("model", "gpt-4o-mini"))
+            supplied = self.critique_contents[index]["verdicts"]
+            verdicts = list(supplied)
+            covered = {item["item_id"] for item in supplied}
+            task = json.loads(messages[0]["content"])
+            verdicts += [{"item_id": item["id"], "round": item["round"], "mode": item["mode"], "passes": True, "reason": "Reviewed fixture"} for item in task["items"] if item["id"] not in covered]
+            return self._json_result({"verdicts": verdicts}, model=kwargs.get("model", "gpt-4o-mini"))
         index = min(self.generation_calls, len(self.generation_contents) - 1)
         self.generation_calls += 1
         return self._json_result(self.generation_contents[index], model=kwargs.get("model", "gpt-4o-mini"))
@@ -471,11 +495,11 @@ def test_generator_repairs_vague_output_ladder_prompts(db_session):
     speak_prompt = exercise_set.payload["output_ladder"]["speak"]["items"][0]["prompt"]
     conversation_prompt = exercise_set.payload["output_ladder"]["conversation"]["items"][0]["prompt"]
     assert "target grammar" not in produce_prompt.lower()
-    assert "friend asks what happened yesterday" in produce_prompt
+    assert "Quel temps faisait-il" in produce_prompt
     assert "target grammar" not in sentence_prompt.lower()
-    assert "friend asks why you arrived late" in sentence_prompt
-    assert "phone rang" in speak_prompt
-    assert "Message received" in conversation_prompt
+    assert "Quel temps faisait-il" in sentence_prompt
+    assert "Quel temps faisait-il" in speak_prompt
+    assert "Quel temps faisait-il" in conversation_prompt
     assert AtelierExerciseGenerator.validate_payload(exercise_set.payload, concept=concept)
 
 
@@ -834,7 +858,7 @@ def test_atelier_asset_service_creates_language_pack_and_blueprint(db_session):
     assert "the learner" not in json.dumps(blueprint.payload["correction_rubric"]["why_templates"]).lower()
 
 
-def test_atelier_today_returns_blueprint_payload(client: TestClient):
+def test_atelier_today_returns_blueprint_payload(client: TestClient, db_session):
     token = _token(client)
     response = client.get("/api/v1/atelier/today", headers={"Authorization": f"Bearer {token}"})
 
@@ -844,6 +868,16 @@ def test_atelier_today_returns_blueprint_payload(client: TestClient):
     assert blueprint["visual_motif"]["style"] == "atelier_bauhaus_v1"
     assert blueprint["exercise_recipe"]["recognize"]["word_bank"]["subitems"] == 3
     assert blueprint["correction_rubric"]["tone"]["address"] == "you"
+    localization = (
+        db_session.query(GrammarConceptLocalization)
+        .filter(
+            GrammarConceptLocalization.concept_id == concept["id"],
+            GrammarConceptLocalization.locale == "fr",
+        )
+        .one()
+    )
+    assert concept["title_fr"] == localization.title
+    assert concept["category_label_fr"] == localization.category_label
 
 
 def test_atelier_today_does_not_count_future_due_at_later_today_as_due(
@@ -854,7 +888,7 @@ def test_atelier_today_does_not_count_future_due_at_later_today_as_due(
     headers = {"Authorization": f"Bearer {token}"}
     user_id = UUID(decode_token(token)["sub"])
     user = db_session.get(User, user_id)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     due_at = now + timedelta(hours=6)
     word = VocabularyWord(
         language="fr",
@@ -1209,6 +1243,12 @@ def test_new_grammar_concepts_complete_full_backend_exercise_cycle(db_session):
             )
 
     produce_text = " ".join(exercise_set.payload["output_ladder"]["sentence"]["items"][0]["example_answer"] for exercise_set in exercise_sets)
+    # The fallback produce assignment carries a real minimum word count (see
+    # _apply_produce_length_gate); pad past it without touching the per-concept
+    # example sentences the join above deliberately preserves for grammar-hit scoring.
+    min_words = max(int(exercise_set.payload["produce"]["min_words"]) for exercise_set in exercise_sets)
+    while len(produce_text.split()) < min_words:
+        produce_text += " Voici un exemple supplémentaire pour prolonger ce paragraphe correctement."
     attempts.append(
         correction_service.submit_attempt(
             session=session,
@@ -1222,8 +1262,11 @@ def test_new_grammar_concepts_complete_full_backend_exercise_cycle(db_session):
     )
 
     assert len(attempts) == (len(concepts) * 7) + 1
-    assert {attempt.verdict for attempt in attempts}.issubset({"correct", "accepted"})
-    assert all((attempt.correction_payload.get("ai_review") or {}).get("status") == "not_applicable" for attempt in attempts)
+    keyed = [attempt for attempt in attempts if attempt.round in {"recognize", "transform"}]
+    open_answers = [attempt for attempt in attempts if attempt.round not in {"recognize", "transform"}]
+    assert all(attempt.verdict == "correct" for attempt in keyed)
+    assert all(attempt.verdict == "needs_review" and attempt.correction_payload["assessment_status"] == "unavailable" for attempt in open_answers)
+    assert all(attempt.correction_payload["ai_review"]["status"] == "failed" for attempt in open_answers)
     assert all(not attempt.correction_payload.get("errata") for attempt in attempts)
 
     recap = AtelierSRSService(db_session).complete_session(session=session, user=user)
@@ -1344,7 +1387,7 @@ def test_generated_grammar_cycle_wrong_answers_stay_item_specific(db_session):
                     tokens = [str(token) for token in item.get("answer_tokens") or []]
                     answers[item["id"]] = tokens[1:] + tokens[:1] if len(tokens) > 1 else ["__wrong__"]
 
-            correction = correction_service.correct(
+            correction = correction_service._correct_deterministic(
                 concept=concept,
                 round_name="recognize",
                 mode=mode,
@@ -1357,7 +1400,7 @@ def test_generated_grammar_cycle_wrong_answers_stay_item_specific(db_session):
             assert_specific_errata(correction, {item["id"] for item in items})
 
         transform_items = payload["transform"]["items"]
-        transform_correction = correction_service.correct(
+        transform_correction = correction_service._correct_deterministic(
             concept=concept,
             round_name="transform",
             mode="rewrite",
@@ -1371,7 +1414,7 @@ def test_generated_grammar_cycle_wrong_answers_stay_item_specific(db_session):
 
         for round_name in ("sentence", "speak", "conversation"):
             item = payload["output_ladder"][round_name]["items"][0]
-            output_correction = correction_service.correct(
+            output_correction = correction_service._correct_deterministic(
                 concept=concept,
                 round_name=round_name,
                 mode=round_name,
@@ -1383,7 +1426,7 @@ def test_generated_grammar_cycle_wrong_answers_stay_item_specific(db_session):
             assert output_correction["verdict"] == "partial"
             assert_specific_errata(output_correction, {item["id"]})
 
-        produce_correction = correction_service.correct(
+        produce_correction = correction_service._correct_deterministic(
             concept=None,
             round_name="produce",
             mode="integrated_writing",
@@ -1465,7 +1508,13 @@ def test_select_atelier_vocabulary_uses_curated_starter_for_new_user(db_session)
     assert vocabulary[0]["bucket"] == "starter"
 
 
-def test_atelier_sentence_context_anchor_credits_used_vocabulary(client: TestClient, db_session):
+def test_atelier_sentence_context_anchor_credits_used_vocabulary(client: TestClient, db_session, monkeypatch):
+    # Vocabulary credit requires a completed assessment, not keyword presence.
+    monkeypatch.setattr(AtelierCorrectionService, "_get_llm_service", lambda self: _FakeLLMService({
+        "verdict": "accepted", "score_0_4": 4, "errata": [],
+        "corrected_answer": "Je n'ai pas de dossier aujourd'hui.",
+        "concept_hits": [], "missing_targets": [],
+    }))
     token = _token(client)
     AtelierScheduler(db_session).ensure_catalog()
     _prime_core_exercise_sets(db_session)
@@ -1549,7 +1598,7 @@ def test_atelier_blueprint_template_works_for_non_french_concept(db_session):
     assert blueprint.payload["exercise_recipe"]["output_ladder"]["conversation_turn"]["subitems"] == 1
 
 
-def test_output_ladder_counts_non_tense_concept_from_metadata(db_session):
+def test_rule_hint_output_ladder_counts_non_tense_concept_from_metadata(db_session):
     concept = GrammarConcept(
         external_id=f"FR_B1_REL_{uuid4().hex[:8]}",
         language="fr",
@@ -1573,7 +1622,7 @@ def test_output_ladder_counts_non_tense_concept_from_metadata(db_session):
         "Le dossier dont je parle reste ici.",
     )
 
-    correction = AtelierCorrectionService(db_session).correct(
+    correction = AtelierCorrectionService(db_session)._correct_deterministic(
         concept=concept,
         round_name="sentence",
         mode="short_sentence",
@@ -1826,6 +1875,7 @@ def test_classify_ai_correction_rehydrates_item_ids_for_repeated_wrong_label(db_
         }
     )
 
+    # The recognize LLM path now only runs on the background relecture.
     correction = AtelierCorrectionService(db_session, llm_service=fake_llm).correct(
         concept=concept,
         round_name="recognize",
@@ -1839,6 +1889,7 @@ def test_classify_ai_correction_rehydrates_item_ids_for_repeated_wrong_label(db_
                 "si-classify-3": "present",
             }
         },
+        force_llm=True,
     )
 
     assert correction["correction_debug"]["fallback_used"] is False
@@ -1990,10 +2041,10 @@ def test_negation_correction_names_article_change(db_session):
 
     erratum = result["errata"][0]
     assert "quantity" in erratum["why_wrong"].lower()
-    assert "de/d'" in erratum["repair_hint"]
+    assert "pas" in erratum["repair_hint"]
 
 
-def test_produce_accepts_submission_with_missing_targets(db_session):
+def test_produce_saves_submission_without_certifying_missing_targets(db_session):
     user = _user(db_session)
     concepts = [_concept(db_session, "FR_B1_COND_001"), _concept(db_session, "FR_B1_TENSE_001"), _concept(db_session, "FR_A2_NEG_001")]
     session = AtelierSession(user_id=user.id, selected_concept_ids=[concept.id for concept in concepts])
@@ -2010,15 +2061,16 @@ def test_produce_accepts_submission_with_missing_targets(db_session):
         session=session,
     )
 
-    assert result["verdict"] == "accepted"
-    assert result["missing_targets"]
-    assert all(erratum["task_error_type"] == "task_compliance" for erratum in result["errata"])
+    assert result["verdict"] == "needs_review"
+    assert result["assessment_status"] == "unavailable"
+    assert result["concept_hits"] == []
+    assert result["corrected_answer"] == ""
 
 
-def test_produce_counts_si_frame_before_flagging_conditional_result(db_session):
+def test_rule_hint_produce_counts_si_frame_before_flagging_conditional_result(db_session):
     concept = _concept(db_session, "FR_B1_COND_001")
 
-    result = AtelierCorrectionService(db_session).correct(
+    result = AtelierCorrectionService(db_session)._correct_deterministic(
         concept=concept,
         round_name="produce",
         mode="integrated_writing",
@@ -2036,12 +2088,12 @@ def test_produce_counts_si_frame_before_flagging_conditional_result(db_session):
     assert "only detected 0" not in json.dumps(result, ensure_ascii=False)
 
 
-def test_output_ladder_short_sentence_scores_active_use(db_session):
+def test_rule_hint_output_ladder_short_sentence_scores_active_use(db_session):
     concept = _concept(db_session, "FR_B1_COND_001")
     payload = _test_generated_payload(db_session, concept)
     prompt_payload = {"round": "sentence", "mode": "sentence", **payload["output_ladder"]["sentence"]}
 
-    result = AtelierCorrectionService(db_session).correct(
+    result = AtelierCorrectionService(db_session)._correct_deterministic(
         concept=concept,
         round_name="sentence",
         mode="sentence",
@@ -2056,13 +2108,13 @@ def test_output_ladder_short_sentence_scores_active_use(db_session):
     assert result["errata"] == []
 
 
-def test_output_ladder_si_sentence_flags_submitted_conditional_result(db_session):
+def test_rule_hint_output_ladder_si_sentence_flags_submitted_conditional_result(db_session):
     concept = _concept(db_session, "FR_B1_COND_001")
     payload = _test_generated_payload(db_session, concept)
     prompt_payload = {"round": "sentence", "mode": "sentence", **payload["output_ladder"]["sentence"]}
     example = prompt_payload["items"][0]["example_answer"]
 
-    result = AtelierCorrectionService(db_session).correct(
+    result = AtelierCorrectionService(db_session)._correct_deterministic(
         concept=concept,
         round_name="sentence",
         mode="sentence",
@@ -2086,7 +2138,7 @@ def test_output_ladder_si_sentence_flags_submitted_conditional_result(db_session
     assert "t'appellerai" not in erratum["corrected_target"]
 
 
-def test_output_ladder_all_freeform_rounds_flag_submitted_conditional_result(db_session):
+def test_rule_hint_output_ladder_all_freeform_rounds_flag_submitted_conditional_result(db_session):
     concept = _concept(db_session, "FR_B1_COND_001")
     payload = _test_generated_payload(db_session, concept)
 
@@ -2094,7 +2146,7 @@ def test_output_ladder_all_freeform_rounds_flag_submitted_conditional_result(db_
         prompt_payload = {"round": round_name, "mode": round_name, **payload["output_ladder"][round_name]}
         example = prompt_payload["items"][0]["example_answer"]
 
-        result = AtelierCorrectionService(db_session).correct(
+        result = AtelierCorrectionService(db_session)._correct_deterministic(
             concept=concept,
             round_name=round_name,
             mode=round_name,
@@ -2112,12 +2164,12 @@ def test_output_ladder_all_freeform_rounds_flag_submitted_conditional_result(db_
         assert result["errata"][0]["corrected_target"] != example
 
 
-def test_output_ladder_missing_target_is_not_recurring_erratum(db_session):
+def test_rule_hint_output_ladder_missing_target_is_not_recurring_erratum(db_session):
     concept = _concept(db_session, "FR_B1_COND_001")
     payload = _test_generated_payload(db_session, concept)
     prompt_payload = {"round": "conversation", "mode": "conversation", **payload["output_ladder"]["conversation"]}
 
-    result = AtelierCorrectionService(db_session).correct(
+    result = AtelierCorrectionService(db_session)._correct_deterministic(
         concept=concept,
         round_name="conversation",
         mode="conversation",
@@ -2186,7 +2238,7 @@ def test_transform_submit_uses_llm_correction_without_background_review(db_sessi
     assert AtelierCorrectionService(db_session, llm_service=fake_llm).should_auto_start_ai_review(attempt) is False
 
 
-def test_recognize_submit_uses_llm_correction_but_never_queues_ai_review(db_session):
+def test_recognize_submit_is_instant_and_queues_background_relecture_when_wrong(db_session):
     user = _user(db_session)
     concept = _concept(db_session, "FR_B1_COND_001")
     session = AtelierSession(user_id=user.id, selected_concept_ids=[concept.id])
@@ -2205,34 +2257,39 @@ def test_recognize_submit_uses_llm_correction_but_never_queues_ai_review(db_sess
         answer_payload={"answers": {"si-fill-1": "appelle"}},
     )
 
-    assert fake_llm.calls[0]["method"] == "generate_error_detection"
-    assert attempt.correction_payload["ai_review"]["status"] == "complete"
-    assert AtelierCorrectionService(db_session, llm_service=fake_llm).should_auto_start_ai_review(attempt) is False
+    # The live submit never blocks on the model: the deterministic key already
+    # grades recognize items, and the slow prose upgrade is queued instead.
+    assert fake_llm.calls == []
+    assert attempt.correction_payload["correction_debug"]["fallback_used"] is True
+    assert attempt.correction_payload["verdict"] == "incorrect"
+    assert attempt.correction_payload["ai_review"]["status"] == "pending"
+    assert attempt.correction_payload["ai_review"]["auto_started"] is True
+    assert AtelierCorrectionService(db_session, llm_service=fake_llm).should_auto_start_ai_review(attempt) is True
 
 
-def test_recognize_submit_hides_ai_review_when_immediate_llm_correction_falls_back(db_session):
+def test_recognize_submit_with_correct_answer_never_involves_the_model(db_session):
     user = _user(db_session)
     concept = _concept(db_session, "FR_B1_COND_001")
     session = AtelierSession(user_id=user.id, selected_concept_ids=[concept.id])
     db_session.add(session)
     db_session.commit()
     _prime_llm_exercise_set(db_session, concept)
-    failing_llm = _FailingCorrectionLLMService()
+    fake_llm = _FakeLLMService({"verdict": "correct", "score_0_4": 4, "errata": []})
 
-    attempt = AtelierCorrectionService(db_session, llm_service=failing_llm).submit_attempt(
+    attempt = AtelierCorrectionService(db_session, llm_service=fake_llm).submit_attempt(
         session=session,
         user=user,
         concept=concept,
         round_name="recognize",
         mode="fill",
         exercise_id="FR_B1_COND_001:fill",
-        answer_payload={"answers": {"si-fill-1": "appelle"}},
+        answer_payload={"answers": {"si-fill-1": "appellerai", "si-fill-2": "prends", "si-fill-3": "irons"}},
     )
 
-    assert failing_llm.calls[0]["method"] == "generate_error_detection"
-    assert attempt.correction_payload["correction_debug"]["fallback_used"] is True
+    assert fake_llm.calls == []
+    assert attempt.correction_payload["verdict"] == "correct"
     assert attempt.correction_payload["ai_review"]["status"] == "not_applicable"
-    assert AtelierCorrectionService(db_session, llm_service=failing_llm).should_auto_start_ai_review(attempt) is False
+    assert AtelierCorrectionService(db_session, llm_service=fake_llm).should_auto_start_ai_review(attempt) is False
 
 
 def test_manual_ai_review_is_idempotent_for_not_applicable_pending_and_complete(db_session):
@@ -2311,6 +2368,116 @@ def test_background_ai_review_success_updates_attempt_correction(db_session):
     assert service.llm_service.calls[0]["method"] == "generate_error_detection"
 
 
+def test_sentence_submit_ingests_lexical_gap_into_vocabulary(db_session):
+    user = _user(db_session)
+    concept = _concept(db_session, "FR_B1_COND_001")
+    session = AtelierSession(user_id=user.id, selected_concept_ids=[concept.id])
+    db_session.add(session)
+    db_session.commit()
+    _prime_llm_exercise_set(db_session, concept)
+    # The learner fell back to German "geschlossen"; the model returns it as a
+    # lexical gap and (wrongly) marks the line flawless.
+    fake_llm = _FakeLLMService(
+        {
+            "verdict": "accepted",
+            "score_0_4": 4,
+            "corrected_answer": "Non, malheureusement la terrasse est fermée.",
+            "errata": [],
+            "lexical_gaps": [
+                {
+                    "learner_fragment": "geschlossen",
+                    "source_language": "de",
+                    "french": "fermée",
+                    "gloss": "closed",
+                }
+            ],
+        }
+    )
+    service = AtelierCorrectionService(db_session, llm_service=fake_llm)
+    attempt = service.submit_attempt(
+        session=session,
+        user=user,
+        concept=concept,
+        round_name="sentence",
+        mode="sentence",
+        exercise_id="FR_B1_COND_001:sentence",
+        answer_payload={"text": "Non, malheureusment la terrasse est (geschlossen)"},
+    )
+    correction = attempt.correction_payload
+
+    # A foreign fallback word can never read as flawless.
+    assert attempt.verdict == "partial"
+    assert attempt.score_0_4 <= 2.5
+    # The gap surfaces as a galley erratum (geschlossen -> fermée).
+    gap_errata = [e for e in correction["errata"] if e.get("task_error_type") == "lexical_gap"]
+    assert gap_errata and gap_errata[0]["corrected_target"] == "fermée"
+    # The French word is added to the notebook.
+    added = correction["vocabulary_gaps"]["added"]
+    assert added and added[0]["french"] == "fermée"
+
+    word = (
+        db_session.query(VocabularyWord)
+        .filter(VocabularyWord.language == "fr", VocabularyWord.normalized_word == "fermee")
+        .first()
+    )
+    assert word is not None
+    assert word.german_translation == "closed"
+    progress = (
+        db_session.query(UserVocabularyProgress)
+        .filter_by(user_id=user.id, word_id=word.id)
+        .first()
+    )
+    assert progress is not None
+    assert progress.next_review_date is not None
+
+
+def test_lexical_gap_normalizer_drops_french_typos_keeps_real_fallbacks():
+    gaps = AtelierCorrectionService._normalize_lexical_gaps(
+        [
+            {"learner_fragment": "geschlossen", "source_language": "de", "french": "fermée", "gloss": "closed"},
+            {"learner_fragment": "Jai", "source_language": "de", "french": "J'ai", "gloss": ""},
+            {"learner_fragment": "cafe", "source_language": "en", "french": "café", "gloss": ""},
+            {"learner_fragment": "the store", "source_language": "en", "french": "le magasin", "gloss": "the store"},
+        ]
+    )
+    kept = {gap["french"] for gap in gaps}
+    # Genuine cross-language fallbacks survive; French typos (apostrophe/accent) do not.
+    assert kept == {"fermée", "le magasin"}
+
+
+def test_fully_french_sentence_submits_without_lexical_gaps(db_session):
+    user = _user(db_session)
+    concept = _concept(db_session, "FR_B1_COND_001")
+    session = AtelierSession(user_id=user.id, selected_concept_ids=[concept.id])
+    db_session.add(session)
+    db_session.commit()
+    _prime_llm_exercise_set(db_session, concept)
+    fake_llm = _FakeLLMService(
+        {
+            "verdict": "accepted",
+            "score_0_4": 4,
+            "corrected_answer": "Non, la terrasse est fermée ce matin.",
+            "errata": [],
+            "lexical_gaps": [],
+        }
+    )
+    service = AtelierCorrectionService(db_session, llm_service=fake_llm)
+    attempt = service.submit_attempt(
+        session=session,
+        user=user,
+        concept=concept,
+        round_name="sentence",
+        mode="sentence",
+        exercise_id="FR_B1_COND_001:sentence",
+        answer_payload={"text": "Non, la terrasse est fermée ce matin."},
+    )
+    correction = attempt.correction_payload
+    assert attempt.verdict == "accepted"
+    assert correction.get("lexical_gaps") == []
+    assert "vocabulary_gaps" not in correction
+    assert db_session.query(UserVocabularyProgress).filter_by(user_id=user.id).count() == 0
+
+
 def test_background_ai_review_failure_preserves_deterministic_correction(db_session):
     user = _user(db_session)
     concept = _concept(db_session, "FR_B1_COND_001")
@@ -2333,7 +2500,7 @@ def test_background_ai_review_failure_preserves_deterministic_correction(db_sess
     updated = service.run_ai_review_for_attempt(attempt.id)
 
     assert updated is not None
-    assert updated.correction_payload["ai_review"]["status"] == "not_applicable"
+    assert updated.correction_payload["ai_review"]["status"] == "failed"
     assert updated.correction_payload["corrected_answer"] == deterministic_answer
     assert updated.correction_payload["correction_debug"]["fallback_used"] is True
 
@@ -2432,6 +2599,47 @@ def test_complete_session_schedules_recurring_errata_and_updates_progress(db_ses
     assert db_session.query(UserGrammarProgress).filter(UserGrammarProgress.user_id == user.id, UserGrammarProgress.concept_id == concept.id).count() == 1
 
 
+def test_complete_session_files_phrase_for_next_days_la_une(db_session):
+    user = _user(db_session)
+    user.full_name = "Camille Martin"
+    session = AtelierSession(user_id=user.id, selected_concept_ids=[])
+    db_session.add(session)
+    db_session.commit()
+    db_session.add(
+        AtelierAttempt(
+            atelier_session_id=session.id,
+            user_id=user.id,
+            concept_id=None,
+            round="produce",
+            mode="integrated_writing",
+            exercise_id="integrated-writing",
+            prompt_payload={},
+            answer_payload={"text": "Demain, nous ouvrirons les fenêtres sur la ville."},
+            correction_payload={},
+            verdict="accepted",
+            score_0_4=4,
+        )
+    )
+    db_session.commit()
+
+    service = AtelierSRSService(db_session)
+    recap = service.complete_session(session=session, user=user)
+    filed = recap["phrase_of_day"]
+    session_date = date.fromisoformat(filed["session_date"])
+
+    assert filed == {
+        "text": "Demain, nous ouvrirons les fenêtres sur la ville.",
+        "byline": "Camille Martin",
+        "session_date": session_date.isoformat(),
+    }
+    assert service.phrase_for_la_une(user=user, today=session_date) is None
+    assert service.phrase_for_la_une(user=user, today=session_date + timedelta(days=1)) == {
+        **filed,
+        "paru": True,
+    }
+    assert service.phrase_for_la_une(user=user, today=session_date + timedelta(days=2)) is None
+
+
 def test_atelier_attempt_persists_error_memory_before_completion(db_session):
     user = _user(db_session)
     concept = _concept(db_session, "FR_B1_COND_001")
@@ -2507,7 +2715,7 @@ def test_due_errata_pulls_linked_concept_into_atelier_selection(db_session):
             correction="la",
             why_wrong="You used the wrong pronoun.",
             repair_hint="Choose the pronoun that matches the object.",
-            next_review_date=datetime.now(timezone.utc) - timedelta(days=1),
+            next_review_date=datetime.now(UTC) - timedelta(days=1),
             state="new",
             lapses=2,
             occurrences=3,
@@ -2635,7 +2843,10 @@ def test_atelier_api_today_session_attempt_and_complete(client: TestClient, db_s
 
     today = client.get("/api/v1/atelier/today", headers=headers)
     assert today.status_code == 200
-    assert len(today.json()["concepts"]) == 3
+    # A learner's very first-ever edition is trimmed to one concept for a fast
+    # first win (see AtelierScheduler.is_first_session); later editions use
+    # the full 3-concept spread, covered by test_atelier_scheduler_full_spread_after_first_session.
+    assert len(today.json()["concepts"]) == 1
 
     started = client.post("/api/v1/atelier/sessions", headers=headers, json={})
     assert started.status_code == 201
@@ -2712,11 +2923,21 @@ def test_atelier_api_today_session_attempt_and_complete(client: TestClient, db_s
             "round": "produce",
             "mode": "integrated_writing",
             "exercise_id": "integrated-writing",
-            "answer_payload": {"text": "Si je vais a Barcelone, je regarderai la course."},
+            "answer_payload": {
+                "text": (
+                    "Si je vais à Barcelone la semaine prochaine, je regarderai la course avec mes amis "
+                    "près de la plage. Si le temps reste beau, nous resterons dehors jusqu'au soir et nous "
+                    "mangerons dans un petit restaurant du port. Si tu veux nous rejoindre, préviens-moi "
+                    "avant vendredi pour que je réserve une table."
+                )
+            },
         },
     )
     assert writing.status_code == 200
-    assert writing.json()["verdict"] == "accepted"
+    assert writing.json()["verdict"] == "needs_review"
+    assert writing.json()["correction"]["assessment_status"] == "unavailable"
+    # An unchecked paragraph earns no success token, even if keywords match.
+    assert writing.json()["minted_collectibles"] == []
 
     completed = client.post(f"/api/v1/atelier/sessions/{session_id}/complete", headers=headers)
     assert completed.status_code == 200
@@ -2731,6 +2952,76 @@ def test_atelier_api_today_session_attempt_and_complete(client: TestClient, db_s
     compose = client.post("/api/v1/atelier/workshop/compose", headers=headers, json={"target": "plate_semaine"})
     assert compose.status_code == 409
     assert compose.json()["detail"]["shortfall"] == 6
+
+
+def test_atelier_today_exposes_only_yesterdays_filed_phrase(client: TestClient, db_session):
+    token = _token(client)
+    headers = {"Authorization": f"Bearer {token}"}
+    user = db_session.get(User, UUID(str(decode_token(token)["sub"])))
+    # The edition's day is the local one, the same clock the writer stamps and
+    # the reader looks up. Building it in UTC made this test (and the feature)
+    # fail for the hours where the two calendars disagree.
+    yesterday = date.today() - timedelta(days=1)
+    session = AtelierSession(
+        user_id=user.id,
+        selected_concept_ids=[],
+        status="completed",
+        completed_at=datetime.combine(yesterday, datetime.min.time(), tzinfo=UTC),
+        recap_payload={
+            "phrase_of_day": {
+                "text": "Hier, la pluie dessinait des chemins sur les vitres.",
+                "byline": "La rédaction",
+                "session_date": yesterday.isoformat(),
+            }
+        },
+    )
+    db_session.add(session)
+    db_session.commit()
+
+    response = client.get("/api/v1/atelier/today", headers=headers)
+
+    assert response.status_code == 200
+    assert response.json()["phrase_of_day"] == {
+        "text": "Hier, la pluie dessinait des chemins sur les vitres.",
+        "byline": "La rédaction",
+        "session_date": yesterday.isoformat(),
+        "paru": True,
+    }
+
+    session.recap_payload = {
+        "phrase_of_day": {
+            **session.recap_payload["phrase_of_day"],
+            "session_date": (yesterday - timedelta(days=1)).isoformat(),
+        }
+    }
+    db_session.add(session)
+    db_session.commit()
+
+    response = client.get("/api/v1/atelier/today", headers=headers)
+    assert response.status_code == 200
+    assert response.json()["phrase_of_day"] is None
+
+
+def test_atelier_scheduler_uses_daily_budget_after_first_session(client: TestClient, db_session):
+    token = _token(client)
+    headers = {"Authorization": f"Bearer {token}"}
+    _prime_core_exercise_sets(db_session)
+
+    today = client.get("/api/v1/atelier/today", headers=headers)
+    assert today.status_code == 200
+    assert len(today.json()["concepts"]) == 1
+    assert today.json()["concepts"][0]["role"] == "new"
+
+    started = client.post("/api/v1/atelier/sessions", headers=headers, json={})
+    assert started.status_code == 201
+    session_id = started.json()["session_id"]
+
+    completed = client.post(f"/api/v1/atelier/sessions/{session_id}/complete", headers=headers)
+    assert completed.status_code == 200
+
+    today_after = client.get("/api/v1/atelier/today", headers=headers)
+    assert today_after.status_code == 200
+    assert len(today_after.json()["concepts"]) == 2
 
 
 def test_atelier_item_scoped_attempt_advances_to_next_subexercise(client: TestClient, db_session):
@@ -2826,7 +3117,7 @@ def test_atelier_today_includes_due_errata_and_review_endpoint(client: TestClien
         correction="la",
         why_wrong="You used en for a direct object that needs la.",
         repair_hint="Use la when the pronoun replaces a specific feminine direct object.",
-        next_review_date=datetime.now(timezone.utc) - timedelta(days=1),
+        next_review_date=datetime.now(UTC) - timedelta(days=1),
         state="new",
         lapses=1,
         occurrences=2,
@@ -2843,8 +3134,17 @@ def test_atelier_today_includes_due_errata_and_review_endpoint(client: TestClien
 
     task = client.get(f"/api/v1/atelier/errata/{erratum.id}/task", headers=headers)
     assert task.status_code == 200
-    assert task.json()["task"]["target_answer"] == "la"
+    # Superseded 2026-09-04: the pre-attempt card must not ship the answer to the
+    # repair it is asking for. target_answer is returned by the attempt result.
+    assert "target_answer" not in task.json()["task"]
     assert task.json()["task"]["display_label"] == "Pronoun choice"
+
+    # An empty body is not an answer: it must not be graded, and must not move
+    # the erratum's memory strength.
+    blank_attempt = client.post(
+        f"/api/v1/atelier/errata/{erratum.id}/attempt", headers=headers, json={}
+    )
+    assert blank_attempt.status_code == 422
 
     wrong_attempt = client.post(
         f"/api/v1/atelier/errata/{erratum.id}/attempt",
@@ -2867,8 +3167,399 @@ def test_atelier_today_includes_due_errata_and_review_endpoint(client: TestClien
     repaired_payload = repaired_attempt.json()
     assert repaired_payload["verdict"] == "repaired"
     assert repaired_payload["is_correct"] is True
-    assert repaired_payload["closure"]["label"] == "Corrected. Filed."
+    # Superseded 2026-09-04: the repair card's copy is publication French.
+    assert repaired_payload["closure"]["label"] == "Corrigé · classé"
     assert repaired_payload["closure"]["next_review_date"]
     assert repaired_payload["erratum"]["state"] == "review"
     assert len(repaired_payload["erratum"]["metadata"]["review_attempts"]) == 2
-    assert repaired_payload["erratum"]["metadata"]["last_closure"]["label"] == "Corrected. Filed."
+    assert repaired_payload["erratum"]["metadata"]["last_closure"]["label"] == "Corrigé · classé"
+
+
+def test_session_minutes_follow_the_real_drill_count(client: TestClient, db_session):
+    """The learner-facing estimate must be derived from the drills, not a level bucket."""
+    token = _token(client)
+    headers = {"Authorization": f"Bearer {token}"}
+    _prime_core_exercise_sets(db_session)
+
+    response = client.get("/api/v1/atelier/today", headers=headers)
+
+    assert response.status_code == 200
+    payload = response.json()
+    concept_count = len(payload["concepts"])
+    assert concept_count >= 1
+    session_node = next(node for node in payload["progress"]["nodes"] if node["id"] == "session")
+    expected_drills = planned_session_drills(concept_count)
+    assert session_node["plannedDrills"] == expected_drills
+    # No measured history yet, so the default pace applies exactly.
+    assert session_node["estimatedMinutes"] == round(
+        expected_drills * ATELIER_DEFAULT_SECONDS_PER_DRILL / 60
+    )
+    # The old hardcoded promise (3 minutes for a first session, 8 for A1/A2) was
+    # short by multiples; the honest number for one concept is well past it.
+    assert session_node["estimatedMinutes"] > 5
+
+
+def test_planned_session_drills_matches_the_enforced_payload_shape():
+    assert planned_session_drills(0) == 0
+    assert planned_session_drills(1) == ATELIER_DRILLS_PER_CONCEPT + 1
+    assert planned_session_drills(3) == 3 * ATELIER_DRILLS_PER_CONCEPT + 1
+    # 9 recognition items + 3 transforms + sentence + speak + conversation.
+    assert ATELIER_DRILLS_PER_CONCEPT == 15
+
+
+def test_measured_pace_ignores_pauses_and_beats_the_default(client: TestClient, db_session):
+    user = _user(db_session)
+    concept = _concept(db_session, "FR_A2_NEG_001")
+    session = AtelierSession(user_id=user.id, selected_concept_ids=[concept.id], status="in_progress")
+    db_session.add(session)
+    db_session.flush()
+    start = datetime.now(UTC) - timedelta(hours=2)
+    # Ten drills at a steady 10s, with one 20-minute coffee break in the middle
+    # that must not be counted as working time.
+    offsets = [0, 10, 20, 30, 40, 50, 60, 70, 80, 1280, 1290]
+    for index, offset in enumerate(offsets):
+        db_session.add(
+            AtelierAttempt(
+                atelier_session_id=session.id,
+                user_id=user.id,
+                concept_id=concept.id,
+                round="recognize",
+                mode="fill",
+                exercise_id=f"drill-{index}",
+                verdict="correct",
+                score_0_4=4,
+                created_at=start + timedelta(seconds=offset),
+            )
+        )
+    db_session.commit()
+
+    assert measured_seconds_per_drill(db_session, user) == 10.0
+    assert estimate_session_minutes(db_session, user=user, concept_count=1) == round(
+        planned_session_drills(1) * 10.0 / 60
+    )
+
+
+def test_measured_pace_needs_evidence_before_it_overrides_the_default(client: TestClient, db_session):
+    user = _user(db_session)
+    concept = _concept(db_session, "FR_A2_NEG_001")
+    session = AtelierSession(user_id=user.id, selected_concept_ids=[concept.id], status="in_progress")
+    db_session.add(session)
+    db_session.flush()
+    start = datetime.now(UTC) - timedelta(hours=1)
+    for index in range(3):
+        db_session.add(
+            AtelierAttempt(
+                atelier_session_id=session.id,
+                user_id=user.id,
+                concept_id=concept.id,
+                round="recognize",
+                mode="fill",
+                exercise_id=f"drill-{index}",
+                verdict="correct",
+                score_0_4=4,
+                created_at=start + timedelta(seconds=index * 8),
+            )
+        )
+    db_session.commit()
+
+    assert measured_seconds_per_drill(db_session, user) is None
+
+
+def test_two_clean_transforms_retire_the_rest_of_the_rung(client: TestClient, db_session):
+    """Mastery must cost the learner fewer drills, not just a congratulation."""
+    token = _token(client)
+    headers = {"Authorization": f"Bearer {token}"}
+    _prime_core_exercise_sets(db_session)
+
+    started = client.post("/api/v1/atelier/sessions", headers=headers, json={})
+    assert started.status_code == 201
+    data = started.json()
+    session_id = data["session_id"]
+    concept = data["concepts"][0]
+    exercise_set = next(item for item in data["exercise_sets"] if item["concept_id"] == concept["id"])
+    transform_items = exercise_set["payload"]["transform"]["items"]
+    assert len(transform_items) == ATELIER_TRANSFORM_ITEMS
+
+    def submit(item: dict):
+        return client.post(
+            f"/api/v1/atelier/sessions/{session_id}/attempts",
+            headers=headers,
+            json={
+                "concept_id": concept["id"],
+                "round": "transform",
+                "mode": "rewrite",
+                "exercise_id": f"{concept['external_id']}:transform:{item['id']}",
+                "answer_payload": {"answers": {item["id"]: item["expected_answer"]}},
+            },
+        )
+
+    first = submit(transform_items[0])
+    assert first.status_code == 200
+    assert first.json()["verdict"] == "correct"
+    # One clean rewrite is not yet evidence.
+    assert first.json()["correction"].get("adaptive_lock") is None
+
+    second = submit(transform_items[1])
+    assert second.status_code == 200
+    assert second.json()["verdict"] == "correct"
+    lock = second.json()["correction"]["adaptive_lock"]
+    assert lock["skipped_rounds"] == ["transform"]
+    assert lock["clean_transform_items"] == 2
+    assert lock["retired_now"] == ATELIER_TRANSFORM_ITEMS - 2
+    assert lock["retired_drills"] == ATELIER_TRANSFORM_ITEMS - 2
+    assert lock["concept_id"] == concept["id"]
+
+    # The retired rung must read as settled on resume, so a reopened session
+    # never walks the learner back into work they earned their way out of.
+    resumed = client.get("/api/v1/atelier/sessions/active", headers=headers)
+    assert resumed.status_code == 200
+    resumed_session = resumed.json()["session"]
+    assert resumed_session["submitted_map"][f"transform:transform:{concept['id']}"] is True
+    assert resumed_session["learning_moments"]["adaptive_locks"][str(concept["id"])]["skipped_rounds"] == ["transform"]
+    assert resumed_session["current_position"]["round"] != "transform"
+
+
+def test_a_wrong_transform_forfeits_the_skip(client: TestClient, db_session):
+    token = _token(client)
+    headers = {"Authorization": f"Bearer {token}"}
+    _prime_core_exercise_sets(db_session)
+
+    started = client.post("/api/v1/atelier/sessions", headers=headers, json={})
+    data = started.json()
+    session_id = data["session_id"]
+    concept = data["concepts"][0]
+    exercise_set = next(item for item in data["exercise_sets"] if item["concept_id"] == concept["id"])
+    transform_items = exercise_set["payload"]["transform"]["items"]
+
+    wrong = client.post(
+        f"/api/v1/atelier/sessions/{session_id}/attempts",
+        headers=headers,
+        json={
+            "concept_id": concept["id"],
+            "round": "transform",
+            "mode": "rewrite",
+            "exercise_id": f"{concept['external_id']}:transform:{transform_items[0]['id']}",
+            "answer_payload": {"answers": {transform_items[0]["id"]: "Je mange une pomme."}},
+        },
+    )
+    assert wrong.status_code == 200
+    assert wrong.json()["verdict"] != "correct"
+
+    right = client.post(
+        f"/api/v1/atelier/sessions/{session_id}/attempts",
+        headers=headers,
+        json={
+            "concept_id": concept["id"],
+            "round": "transform",
+            "mode": "rewrite",
+            "exercise_id": f"{concept['external_id']}:transform:{transform_items[1]['id']}",
+            "answer_payload": {"answers": {transform_items[1]["id"]: transform_items[1]["expected_answer"]}},
+        },
+    )
+    assert right.status_code == 200
+    assert right.json()["correction"].get("adaptive_lock") is None
+
+
+def test_both_rungs_can_be_retired_and_the_moment_reports_only_its_own_saving(
+    client: TestClient, db_session
+):
+    token = _token(client)
+    headers = {"Authorization": f"Bearer {token}"}
+    _prime_core_exercise_sets(db_session)
+
+    started = client.post("/api/v1/atelier/sessions", headers=headers, json={})
+    data = started.json()
+    session_id = data["session_id"]
+    concept = data["concepts"][0]
+    exercise_set = next(item for item in data["exercise_sets"] if item["concept_id"] == concept["id"])
+    fill_items = exercise_set["payload"]["recognize"]["fill"]["items"]
+    transform_items = exercise_set["payload"]["transform"]["items"]
+
+    recognize_lock = None
+    for item in fill_items:
+        response = client.post(
+            f"/api/v1/atelier/sessions/{session_id}/attempts",
+            headers=headers,
+            json={
+                "concept_id": concept["id"],
+                "round": "recognize",
+                "mode": "fill",
+                "exercise_id": f"{concept['external_id']}:fill:{item['id']}",
+                "answer_payload": {"answers": {item["id"]: item["correct_answer"]}},
+            },
+        )
+        assert response.status_code == 200
+        assert response.json()["verdict"] == "correct"
+        recognize_lock = response.json()["correction"].get("adaptive_lock") or recognize_lock
+
+    # Three clean fills retire the two unused recognition modes: six drills.
+    assert recognize_lock is not None
+    assert sorted(recognize_lock["skipped_modes"]) == ["classify", "word_bank"]
+    assert recognize_lock["retired_now"] == 6
+    assert recognize_lock["retired_drills"] == 6
+
+    for item in transform_items[:2]:
+        response = client.post(
+            f"/api/v1/atelier/sessions/{session_id}/attempts",
+            headers=headers,
+            json={
+                "concept_id": concept["id"],
+                "round": "transform",
+                "mode": "rewrite",
+                "exercise_id": f"{concept['external_id']}:transform:{item['id']}",
+                "answer_payload": {"answers": {item["id"]: item["expected_answer"]}},
+            },
+        )
+        assert response.status_code == 200
+    transform_lock = response.json()["correction"]["adaptive_lock"]
+
+    # The announcement is about this rung only; the running total carries both.
+    assert transform_lock["retired_now"] == 1
+    assert transform_lock["retired_drills"] == 7
+    assert sorted(transform_lock["skipped_modes"]) == ["classify", "word_bank"]
+    assert transform_lock["skipped_rounds"] == ["transform"]
+
+
+def test_day_plan_prescribes_the_voice_studio_between_written_missions(client: TestClient, db_session):
+    """Speaking has to appear in the plan; an unlinked page is not a habit."""
+    token = _token(client)
+    headers = {"Authorization": f"Bearer {token}"}
+    _prime_core_exercise_sets(db_session)
+
+    response = client.get("/api/v1/atelier/today", headers=headers)
+
+    assert response.status_code == 200
+    progress = response.json()["progress"]
+    studio = next(node for node in progress["nodes"] if node["id"] == "studio")
+    assert studio["done"] is False
+    # Missions take Mon/Wed/Fri, the studio the days between; exactly one of the
+    # two is proposed on any given day.
+    assert studio["suggested"] is not progress["missionSuggested"]
+    assert progress["studioSuggested"] is studio["suggested"]
+    assert progress["studioDone"] is False
+
+
+def test_finished_voice_call_marks_the_studio_done_for_the_day(client: TestClient, db_session):
+    token = _token(client)
+    headers = {"Authorization": f"Bearer {token}"}
+    user = db_session.get(User, UUID(str(decode_token(token)["sub"])))
+    _prime_core_exercise_sets(db_session)
+
+    PilotEventService(db_session).record(
+        "plan_completed",
+        user_id=user.id,
+        entity_type="audio_session",
+        entity_id=uuid4(),
+        payload={"turns": 6},
+    )
+    db_session.commit()
+
+    response = client.get("/api/v1/atelier/today", headers=headers)
+
+    assert response.status_code == 200
+    progress = response.json()["progress"]
+    assert progress["studioDone"] is True
+    assert next(node for node in progress["nodes"] if node["id"] == "studio")["done"] is True
+
+
+def test_a_written_mission_does_not_count_as_speaking(client: TestClient, db_session):
+    """The done-signal must be specific to audio_session, not any plan_completed."""
+    token = _token(client)
+    headers = {"Authorization": f"Bearer {token}"}
+    user = db_session.get(User, UUID(str(decode_token(token)["sub"])))
+    _prime_core_exercise_sets(db_session)
+
+    PilotEventService(db_session).record(
+        "plan_completed",
+        user_id=user.id,
+        entity_type="real_world_mission",
+        entity_id=uuid4(),
+        payload={},
+    )
+    db_session.commit()
+
+    response = client.get("/api/v1/atelier/today", headers=headers)
+
+    assert response.json()["progress"]["studioDone"] is False
+
+
+def test_generator_rejects_a_transform_whose_answer_repeats_its_own_source(db_session):
+    """Observed live on FR_B1_COND_001: source "sera", expected_answer "sera".
+
+    The learner is shown `source`, so an unchanged answer prints itself, the
+    matcher marks anything near it correct, and the AI relecture has no target
+    to judge -- it graded a plainly wrong rewrite as correct.
+    """
+    concept = _concept(db_session, "FR_B1_TENSE_001")
+    payload = json.loads(json.dumps(_raw_llm_payload(concept)))
+    assert AtelierExerciseGenerator.validate_payload(payload, concept=concept)
+
+    payload["transform"]["items"][0]["expected_answer"] = payload["transform"]["items"][0]["source"]
+    assert not AtelierExerciseGenerator.validate_payload(payload, concept=concept)
+
+
+def test_transform_noop_detector_ignores_punctuation_and_case_only_differences():
+    from app.services.atelier import _transform_noop_errors
+    from app.services.exercise_generation import _transform_noop_errors as _generation_noop_errors
+
+    def _errors(source: str, expected: str) -> list[str]:
+        item = {"id": "tr-1", "type": "contrast_rewrite", "instruction": "Rewrite it.",
+                "source": source, "expected_answer": expected}
+        # Generation-time and stored-payload validators must agree.
+        assert bool(_transform_noop_errors(item)) == bool(_generation_noop_errors(item))
+        return _transform_noop_errors(item)
+
+    assert _errors("Il pleut.", "il pleut")
+    assert not _errors("Il pleut.", "Il pleuvait.")
+    # An accent IS the change; it must never read as a no-op.
+    assert not _errors("La cle est prete.", "La clé est prête.")
+    # And an answer key that is a note about the answer is not an answer: 18 live
+    # items shipped "sera -> est (in the si-clause)", so typing the real answer
+    # scored 0 and booked a lapse.
+    assert _errors("sera", "sera -> est (in the si-clause)")
+    assert _errors("Si elle ira", "Si elle ira → Si elle va")
+
+
+def test_correction_drops_a_correction_that_reprints_the_learners_own_line(db_session):
+    """The reviewer sometimes returns task_error_type "no_error" with
+    corrected_target == learner_text; the sheet then showed "À recomposer" over
+    the learner's own sentence struck through and set again underneath."""
+    from app.services.atelier import _drop_noop_errata
+
+    kept, dropped = _drop_noop_errata([
+        {"learner_text": "Le document est sur la petite table blanche.",
+         "corrected_target": "Le document est sur la petite table blanche.",
+         "task_error_type": "no_error"},
+        {"learner_text": "La cle est prete.", "corrected_target": "La clé est prête.",
+         "task_error_type": "orthographie_accentuation"},
+        # A completion gate has no rewrite to offer, so it legitimately echoes.
+        {"learner_text": "trop court", "corrected_target": "trop court",
+         "task_error_type": "length_compliance"},
+    ])
+    assert dropped is True
+    assert [item["task_error_type"] for item in kept] == ["orthographie_accentuation", "length_compliance"]
+
+
+def test_phrase_of_day_publishes_the_corrected_line_not_the_typed_one(db_session):
+    """The phrase du jour is printed on the recap and on tomorrow's La Une under
+    the learner's byline, so an accepted answer's missing accent must not be
+    what gets set."""
+    from app.services.atelier import AtelierSRSService
+
+    attempt = AtelierAttempt(
+        atelier_session_id=uuid4(),
+        user_id=uuid4(),
+        concept_id=None,
+        round="conversation",
+        mode="conversation",
+        exercise_id="FR_B1_COND_001:conversation",
+        prompt_payload={},
+        answer_payload={"text": "Si vous voulez, je vous appellerai ce soir pour la propriete."},
+        correction_payload={"corrected_answer": "Si vous voulez, je vous appellerai ce soir pour la propriété."},
+        verdict="accepted",
+        score_0_4=4,
+    )
+    assert AtelierSRSService._published_phrase_text(attempt).endswith("la propriété.")
+
+    attempt.correction_payload = {}
+    assert AtelierSRSService._published_phrase_text(attempt).endswith("la propriete.")

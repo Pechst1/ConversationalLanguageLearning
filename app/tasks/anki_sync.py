@@ -5,11 +5,10 @@ import httpx
 from celery import shared_task
 from loguru import logger
 
-from app.db.session import SessionLocal
 from app.db.models.user import User
+from app.db.session import SessionLocal
 from app.schemas.anki import AnkiCardUpdate
 from app.services.progress import ProgressService
-
 
 ANKI_CONNECT_URL = "http://localhost:8765"
 DEFAULT_DECK = "Französisch Wortschatz"  # Can be configured per user
@@ -50,7 +49,7 @@ def sync_anki_cards_for_all_users(self):
         
     except Exception as e:
         logger.error(f"Anki sync task failed: {e}")
-        raise self.retry(exc=e)
+        raise self.retry(exc=e) from e
     finally:
         db.close()
 

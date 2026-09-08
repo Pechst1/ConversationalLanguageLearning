@@ -1,7 +1,7 @@
 """Tests for learner progress endpoints."""
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -163,7 +163,7 @@ def test_anki_sync_preserves_future_due_datetime(db_session) -> None:
     user = User(email="anki-sync-due@example.com", hashed_password="x", target_language="fr")
     db_session.add(user)
     db_session.flush()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     due_at = now + timedelta(days=3)
 
     stats = ProgressService(db_session).sync_anki_progress(
@@ -206,7 +206,7 @@ def test_future_due_at_later_today_is_not_currently_due_across_srs_surfaces(db_s
     )
     db_session.add_all([user, word])
     db_session.flush()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     due_at = now + timedelta(hours=6)
     progress = UserVocabularyProgress(
         user_id=user.id,
@@ -263,7 +263,7 @@ def test_vocabulary_mastery_map_returns_human_srs_states(client: TestClient, db_
     email = "progress-map@example.com"
     token = register_and_login(client, email, "verysecure")
     user = db_session.query(User).filter(User.email == email).one()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     words = [
         VocabularyWord(
             language="es",
@@ -367,7 +367,7 @@ def test_weekly_dossier_summarizes_repairs_reviews_and_threads(client: TestClien
     email = "weekly-dossier@example.com"
     token = register_and_login(client, email, "verysecure")
     user = db_session.query(User).filter(User.email == email).one()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     strong_word = VocabularyWord(
         language="es",
         word="avanzar",
@@ -579,7 +579,7 @@ def test_vocabulary_recommendations_rank_due_fragile_and_new_cards(
     db_session.flush()
     created_word_ids = [due_word.id, fragile_word.id, new_word.id, stopword.id]
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     db_session.add_all(
         [
             UserVocabularyProgress(
@@ -729,7 +729,7 @@ def test_vocabulary_recommendations_exclude_shared_mission_phrases_by_default(
             scheduler="fsrs",
             state="learning",
             phase="learn",
-            due_at=datetime.now(timezone.utc) - timedelta(days=5),
+            due_at=datetime.now(UTC) - timedelta(days=5),
             due_date=date.today() - timedelta(days=5),
             scheduled_days=1,
             proficiency_score=0,

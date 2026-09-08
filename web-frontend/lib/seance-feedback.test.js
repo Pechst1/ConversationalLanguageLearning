@@ -1,0 +1,15 @@
+const assert = require('node:assert/strict');
+require('sucrase/register/ts');
+const { seanceAssessment } = require('./seance-feedback.ts');
+assert.equal(seanceAssessment({ verdict: 'incorrect', errata: [] }), 'needs_work');
+assert.equal(seanceAssessment({ verdict: 'partial', errata: [] }), 'needs_work');
+assert.equal(seanceAssessment({ verdict: 'accepted', errata: [], ai_review: { status: 'failed' } }), 'unavailable');
+assert.equal(seanceAssessment({ verdict: 'accepted', errata: [], assessment_status: 'unavailable' }), 'unavailable');
+assert.equal(seanceAssessment({ verdict: 'accepted', errata: [{ task_error_type: 'task_compliance' }] }), 'needs_work');
+assert.equal(seanceAssessment({ verdict: 'accepted', missing_targets: [{}] }), 'needs_work');
+assert.equal(seanceAssessment({ verdict: 'accepted', lexical_gaps: [{}] }), 'needs_work');
+assert.equal(seanceAssessment({ verdict: 'accepted', errata: [], ai_review: { status: 'complete' } }), 'correct');
+assert.equal(seanceAssessment({ verdict: 'correct', errata: [], ai_review: { status: 'not_applicable' } }), 'correct');
+console.log('Séance assessment regression checks passed');
+assert.equal(seanceAssessment({ verdict: 'accepted', corrected_answer: 'there is no question', correction_debug: {fallback_used: true}, ai_review: {status: 'not_applicable'} }), 'unavailable');
+assert.equal(seanceAssessment({ verdict: 'incorrect', assessment_status: 'checked', ai_review: {status: 'failed'} }), 'needs_work');

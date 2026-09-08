@@ -7,9 +7,10 @@ Create Date: 2025-12-09 11:10:00.000000
 """
 from __future__ import annotations
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "d2e3f4g5h6i7"

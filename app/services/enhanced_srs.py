@@ -7,16 +7,14 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
-from typing import Optional, Union
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from app.db.models.progress import UserVocabularyProgress, ReviewLog
+from app.db.models.progress import ReviewLog, UserVocabularyProgress
 from app.services.progress import vocabulary_due_filter
-from app.services.srs import FSRSScheduler, ReviewOutcome, SchedulerState
-
+from app.services.srs import FSRSScheduler, SchedulerState
 
 logger = logging.getLogger(__name__)
 
@@ -63,8 +61,12 @@ class AnkiSM2Scheduler:
     MIN_INTERVAL = 1
     MAX_INTERVAL = 36500  # ~100 years
     
-    def __init__(self, *, learning_steps: Optional[list[int]] = None, 
-                 relearning_steps: Optional[list[int]] = None):
+    def __init__(
+        self,
+        *,
+        learning_steps: list[int] | None = None,
+        relearning_steps: list[int] | None = None,
+    ):
         self.learning_steps = learning_steps or self.LEARNING_STEPS
         self.relearning_steps = relearning_steps or self.RELEARNING_STEPS
     
@@ -73,22 +75,22 @@ class AnkiSM2Scheduler:
         *, 
         state: AnkiState,
         rating: int,  # 0=Again, 1=Hard, 2=Good, 3=Easy
-        last_review_at: Optional[datetime] = None,
-        now: Optional[datetime] = None
+        last_review_at: datetime | None = None,
+        now: datetime | None = None
     ) -> AnkiOutcome:
         """Process an Anki review and return updated scheduling."""
         
         if rating < 0 or rating > 3:
             raise ValueError("Anki rating must be between 0 and 3 inclusive")
         
-        now = now or datetime.now(timezone.utc)
+        now = now or datetime.now(UTC)
         if now.tzinfo is None:
-            now = now.replace(tzinfo=timezone.utc)
+            now = now.replace(tzinfo=UTC)
             
         elapsed_days = 0
         if last_review_at:
             if last_review_at.tzinfo is None:
-                last_review_at = last_review_at.replace(tzinfo=timezone.utc)
+                last_review_at = last_review_at.replace(tzinfo=UTC)
             elapsed_days = max(0, (now - last_review_at).days)
         
         if state.phase == "new":
@@ -104,8 +106,17 @@ class AnkiSM2Scheduler:
             return self._handle_new_card(state, rating, now)
     
     def _handle_new_card(self, state: AnkiState, rating: int, now: datetime) -> AnkiOutcome:
-        """Handle review of a new card."""
-        if rating == 0:  # Again
+        """Handle review of a new card.
+
+        The four buttons must order monotonically: a card the learner found
+        harder never comes back later than one they found easier. The previous
+        version put Hard on learning step 1 (10 min) while Good and Easy both
+        restarted at step 0 (1 min), so "Dur" was scheduled *after* "Facile"
+        and Easy never graduated. Now: Again/Hard repeat the first step, Good
+        advances one step (graduating at 1 day when there is none left), and
+        Easy graduates straight out at 4 days, as Anki does.
+        """
+        if rating <= 1:  # Again / Hard - (re)start the learning ladder
             return AnkiOutcome(
                 ease_factor=self.INITIAL_EASE,
                 interval_days=0,
@@ -114,32 +125,36 @@ class AnkiSM2Scheduler:
                 due_at=now + timedelta(minutes=self.learning_steps[0]),
                 elapsed_days=0
             )
-        else:
-            # Good or Easy - move to learning or graduate
-            if rating >= 2 and len(self.learning_steps) == 1:
-                # Graduate immediately
-                interval = 1 if rating == 2 else 4  # Good=1day, Easy=4days
-                return AnkiOutcome(
-                    ease_factor=self.INITIAL_EASE,
-                    interval_days=interval,
-                    phase="review",
-                    step_index=0,
-                    due_at=now + timedelta(days=interval),
-                    elapsed_days=0
-                )
-            else:
-                # Enter learning phase
-                step_idx = 1 if rating == 1 else 0  # Hard starts at step 1
-                step_idx = min(step_idx, len(self.learning_steps) - 1)
-                
-                return AnkiOutcome(
-                    ease_factor=self.INITIAL_EASE,
-                    interval_days=0,
-                    phase="learn",
-                    step_index=step_idx,
-                    due_at=now + timedelta(minutes=self.learning_steps[step_idx]),
-                    elapsed_days=0
-                )
+
+        if rating >= 3:  # Easy - graduate immediately
+            return AnkiOutcome(
+                ease_factor=self.INITIAL_EASE,
+                interval_days=4,
+                phase="review",
+                step_index=0,
+                due_at=now + timedelta(days=4),
+                elapsed_days=0
+            )
+
+        # Good - advance one learning step, or graduate when there is none left
+        step_idx = 1
+        if step_idx >= len(self.learning_steps):
+            return AnkiOutcome(
+                ease_factor=self.INITIAL_EASE,
+                interval_days=1,
+                phase="review",
+                step_index=0,
+                due_at=now + timedelta(days=1),
+                elapsed_days=0
+            )
+        return AnkiOutcome(
+            ease_factor=self.INITIAL_EASE,
+            interval_days=0,
+            phase="learn",
+            step_index=step_idx,
+            due_at=now + timedelta(minutes=self.learning_steps[step_idx]),
+            elapsed_days=0
+        )
     
     def _handle_learning_card(self, state: AnkiState, rating: int, now: datetime, elapsed_days: int) -> AnkiOutcome:
         """Handle review of a learning card."""
@@ -163,9 +178,19 @@ class AnkiSM2Scheduler:
                 elapsed_days=elapsed_days
             )
         
-        # Good or Easy - advance
+        if rating >= 3:  # Easy - graduate out of the ladder immediately
+            return AnkiOutcome(
+                ease_factor=state.ease_factor,
+                interval_days=4,
+                phase="review",
+                step_index=0,
+                due_at=now + timedelta(days=4),
+                elapsed_days=elapsed_days
+            )
+
+        # Good - advance
         next_step = state.step_index + 1
-        
+
         if next_step >= len(self.learning_steps):
             # Graduate to review
             interval = 1 if rating == 2 else 4  # Good=1day, Easy=4days  
@@ -197,7 +222,12 @@ class AnkiSM2Scheduler:
             new_ease = max(self.MIN_EASE, current_ease - 0.2)
             return AnkiOutcome(
                 ease_factor=new_ease,
-                interval_days=0,
+                # The pre-lapse interval is carried through relearning: zeroing
+                # it here made _handle_relearning_card's "70% of the previous
+                # interval" dead code, so a 60-day card that slipped once came
+                # back as if it had never been learned. The card's next due
+                # date is the relearning step, not this number.
+                interval_days=current_interval,
                 phase="relearn",
                 step_index=0,
                 due_at=now + timedelta(minutes=self.relearning_steps[0]),
@@ -244,10 +274,13 @@ class AnkiSM2Scheduler:
                 elapsed_days=elapsed_days
             )
         
-        # Graduate back to review with reduced interval
+        # Graduate back to review with a reduced interval. Hard leaves less
+        # room than Good, Easy restores the card's full pre-lapse interval, so
+        # the four buttons stay monotonic here too.
         base_interval = max(1, state.interval_days)
-        new_interval = max(1, int(base_interval * 0.7))  # 70% of previous interval
-        
+        multiplier = {1: 0.5, 2: 0.7}.get(rating, 1.0)
+        new_interval = max(1, int(base_interval * multiplier))
+
         return AnkiOutcome(
             ease_factor=state.ease_factor,
             interval_days=new_interval,
@@ -270,14 +303,14 @@ class EnhancedSRSService:
         self,
         progress: UserVocabularyProgress,
         rating: int,
-        response_time_ms: Optional[int] = None,
-        now: Optional[datetime] = None
+        response_time_ms: int | None = None,
+        now: datetime | None = None
     ) -> None:
         """Process a vocabulary review using the appropriate scheduler."""
         
-        now = now or datetime.now(timezone.utc)
+        now = now or datetime.now(UTC)
         if now.tzinfo is None:
-            now = now.replace(tzinfo=timezone.utc)
+            now = now.replace(tzinfo=UTC)
         
         if progress.scheduler == "anki":
             self._process_anki_review(progress, rating, response_time_ms, now)
@@ -297,7 +330,7 @@ class EnhancedSRSService:
         self,
         progress: UserVocabularyProgress,
         rating: int,
-        response_time_ms: Optional[int],
+        response_time_ms: int | None,
         now: datetime
     ) -> None:
         """Process review using FSRS algorithm."""
@@ -330,6 +363,8 @@ class EnhancedSRSService:
         progress.scheduled_days = outcome.scheduled_days
         progress.elapsed_days = outcome.elapsed_days
         progress.state = outcome.state
+        # mark_review moves next_review_date, due_date and due_at together, so
+        # an FSRS card that had an inherited due_at stops reading as due.
         progress.mark_review(now, outcome.next_review, fsrs_rating)
         
         # Create review log
@@ -349,7 +384,7 @@ class EnhancedSRSService:
         self,
         progress: UserVocabularyProgress,
         rating: int,
-        response_time_ms: Optional[int],
+        response_time_ms: int | None,
         now: datetime
     ) -> None:
         """Process review using Anki SM-2 algorithm."""
@@ -406,13 +441,13 @@ class EnhancedSRSService:
         self, 
         user_id: str | UUID,
         limit: int = 20,
-        scheduler_type: Optional[str] = None
+        scheduler_type: str | None = None
     ) -> list[UserVocabularyProgress]:
         """Get vocabulary cards due for review."""
         
         from sqlalchemy import select
         
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         coerced_user_id = _coerce_user_id(user_id)
         
         # Base query for due cards
@@ -437,12 +472,12 @@ class EnhancedSRSService:
         self, 
         user_id: str | UUID,
         days: int = 30
-    ) -> dict[str, Union[int, float]]:
+    ) -> dict[str, int | float]:
         """Get review statistics for the user."""
         
-        from sqlalchemy import select, func, and_
+        from sqlalchemy import and_, func, select
         
-        cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
+        cutoff_date = datetime.now(UTC) - timedelta(days=days)
         coerced_user_id = _coerce_user_id(user_id)
         
         # Total reviews

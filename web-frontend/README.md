@@ -32,7 +32,6 @@ npm install
 cp .env.example .env.local
 
 # Update .env.local with your settings:
-# NEXTAUTH_URL=http://localhost:3000
 # NEXTAUTH_SECRET=your-secret-here (keep this fixed between restarts)
 # NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
 # NEXT_PUBLIC_WS_URL=ws://localhost:8000
@@ -43,11 +42,27 @@ npm run dev
 
 The application will be available at http://localhost:3000
 
+### Signed-in local preview
+
+1. Start FastAPI on port 8000 with `AUTO_CREATE_USERS_ON_LOGIN=true`. Production startup
+   rejects that flag, so this convenience cannot leak into production.
+2. Set a stable `NEXTAUTH_SECRET` for the web process. Leave `NEXTAUTH_URL` unset when
+   using the normal local URL so NextAuth derives the origin from the request.
+3. If the preview uses another port or host, set the exact origin before starting it,
+   for example `NEXTAUTH_URL=http://localhost:3001 npm run dev -- -p 3001`.
+4. Create an account at `/auth/signup` (or use an existing local account), sign in at
+   `/auth/signin`, then open `/atelier`, `/serial`, `/graphic-novel`, and `/missions`.
+   Change the theme in `/settings`; the session cookie remains valid across those routes.
+
+Do not reuse a `.env.local` whose `NEXTAUTH_URL` points at a different port. NextAuth uses
+that value for its callback/session origin, so a stale `:3000` value breaks a `:3001`
+preview even though direct FastAPI login still succeeds.
+
 ## Environment Variables
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `NEXTAUTH_URL` | Application URL | `http://localhost:3000` |
+| `NEXTAUTH_URL` | Canonical app URL. Optional locally; if set, it must exactly match the preview origin and port. Required in production. | Auto-detected locally |
 | `NEXTAUTH_SECRET` | JWT secret key (must be a persistent random string so sessions survive restarts) | Required |
 | `NEXT_PUBLIC_API_BASE_URL` | Native/browser direct FastAPI API URL | `http://localhost:8000/api/v1` |
 | `NEXT_PUBLIC_API_URL` | Backend API URL | `http://localhost:8000/api/v1` |

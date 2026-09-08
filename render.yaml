@@ -1,0 +1,204 @@
+# Render.com blueprint — deploys the full backend (API + Celery worker +
+# Postgres + Redis) with automatic HTTPS, no VPS or domain needed.
+#
+# Use: push this file to GitHub → Render dashboard → New → Blueprint →
+# select the repo. Render provisions everything and gives the API a
+# https://<name>.onrender.com URL — that URL is what the iOS build bakes in
+# as NEXT_PUBLIC_API_URL (plus /api/v1).
+#
+# Secrets marked sync:false are prompted for in the Render dashboard on the
+# first deploy (copy values from your local .env).
+
+services:
+  - type: web
+    name: atelier-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter
+    region: frankfurt
+    healthCheckPath: /ready
+    envVars:
+      - key: RUN_MIGRATIONS
+        value: "1"
+      - key: BOOTSTRAP_REFERENCE_DATA
+        value: "1"
+      - key: APP_ENV
+        value: staging   # switch to production for the pilot (requires SMTP_* set)
+      - key: AUTO_CREATE_USERS_ON_LOGIN
+        value: "false"
+      - key: PASSWORD_RESET_RETURN_TOKEN_IN_RESPONSE
+        value: "false"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: atelier-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: atelier-redis
+          property: connectionString
+      - key: CELERY_BROKER_URL
+        fromService:
+          type: keyvalue
+          name: atelier-redis
+          property: connectionString
+      - key: CELERY_RESULT_BACKEND
+        fromService:
+          type: keyvalue
+          name: atelier-redis
+          property: connectionString
+      - key: BACKEND_CORS_ORIGINS
+        value: '["capacitor://localhost","ionic://localhost"]'
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: PRIMARY_LLM_PROVIDER
+        value: openai
+      - key: OPENAI_MODEL
+        value: gpt-5-mini
+      - key: OPENAI_ERROR_DETECTION_MODEL
+        value: gpt-5-mini
+      - key: OPENAI_GRAPHIC_NOVEL_SCRIPT_MODEL
+        value: gpt-5.4-mini
+      - key: OPENAI_GRAPHIC_NOVEL_PREMIUM_SCRIPT_MODEL
+        value: gpt-5.5
+      - key: OPENAI_IMAGE_MODEL
+        value: gpt-image-2
+      # Atelier Séance correction (2026-09-07): gpt-5-nano graded weak feedback
+      # and falsely rejected a valid answer, and 900 output tokens truncated a
+      # full-paragraph assessment (one live retry needed 2,573). Pinned here so
+      # the per-submit cost of the most-used endpoint is visible in the manifest.
+      - key: ATELIER_CORRECTION_LLM_MODEL
+        value: gpt-5-mini
+      - key: ATELIER_CORRECTION_LLM_MAX_TOKENS
+        value: "5000"
+      - key: ATELIER_CORRECTION_LLM_TIMEOUT_SECONDS
+        value: "60"
+      - key: ATELIER_CORRECTION_LLM_REASONING_EFFORT
+        value: low
+      - key: SERIAL_WORLD_ENABLED
+        value: "true"
+      - key: GRAPHIC_NOVEL_IMAGE_GENERATION_ENABLED
+        # Keep the first pilot deterministic and bounded. Configure durable
+        # S3-compatible storage before enabling generated images.
+        value: "false"
+      - key: ATELIER_LLM_ENABLED
+        value: "true"
+      - key: PILOT_SERIAL_WEEKLY_COST_GUARDRAIL_USD
+        value: "2.00"
+      - key: APNS_TEAM_ID
+        sync: false
+      - key: APNS_KEY_ID
+        sync: false
+      - key: APNS_PRIVATE_KEY
+        sync: false
+      - key: APNS_BUNDLE_ID
+        value: com.pixellab.feuilleton
+      - key: APNS_USE_SANDBOX
+        value: "true"
+
+  - type: worker
+    name: atelier-worker
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter
+    region: frankfurt
+    dockerCommand: celery -A app.celery_app worker -B --loglevel=info
+    envVars:
+      - key: RUN_MIGRATIONS
+        value: "0"
+      - key: BOOTSTRAP_REFERENCE_DATA
+        value: "0"
+      - key: APP_ENV
+        value: staging
+      - key: SECRET_KEY
+        fromService:
+          type: web
+          name: atelier-api
+          envVarKey: SECRET_KEY
+      - key: DATABASE_URL
+        fromDatabase:
+          name: atelier-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: atelier-redis
+          property: connectionString
+      - key: CELERY_BROKER_URL
+        fromService:
+          type: keyvalue
+          name: atelier-redis
+          property: connectionString
+      - key: CELERY_RESULT_BACKEND
+        fromService:
+          type: keyvalue
+          name: atelier-redis
+          property: connectionString
+      - key: OPENAI_API_KEY
+        fromService:
+          type: web
+          name: atelier-api
+          envVarKey: OPENAI_API_KEY
+      - key: PRIMARY_LLM_PROVIDER
+        value: openai
+      - key: OPENAI_MODEL
+        value: gpt-5-mini
+      - key: OPENAI_GRAPHIC_NOVEL_SCRIPT_MODEL
+        value: gpt-5.4-mini
+      - key: OPENAI_GRAPHIC_NOVEL_PREMIUM_SCRIPT_MODEL
+        value: gpt-5.5
+      - key: OPENAI_IMAGE_MODEL
+        value: gpt-image-2
+      # Atelier Séance correction (2026-09-07): gpt-5-nano graded weak feedback
+      # and falsely rejected a valid answer, and 900 output tokens truncated a
+      # full-paragraph assessment (one live retry needed 2,573). Pinned here so
+      # the per-submit cost of the most-used endpoint is visible in the manifest.
+      - key: ATELIER_CORRECTION_LLM_MODEL
+        value: gpt-5-mini
+      - key: ATELIER_CORRECTION_LLM_MAX_TOKENS
+        value: "5000"
+      - key: ATELIER_CORRECTION_LLM_TIMEOUT_SECONDS
+        value: "60"
+      - key: ATELIER_CORRECTION_LLM_REASONING_EFFORT
+        value: low
+      - key: SERIAL_WORLD_ENABLED
+        value: "true"
+      - key: GRAPHIC_NOVEL_IMAGE_GENERATION_ENABLED
+        value: "false"
+      - key: ATELIER_LLM_ENABLED
+        value: "true"
+      - key: APNS_TEAM_ID
+        fromService:
+          type: web
+          name: atelier-api
+          envVarKey: APNS_TEAM_ID
+      - key: APNS_KEY_ID
+        fromService:
+          type: web
+          name: atelier-api
+          envVarKey: APNS_KEY_ID
+      - key: APNS_PRIVATE_KEY
+        fromService:
+          type: web
+          name: atelier-api
+          envVarKey: APNS_PRIVATE_KEY
+      - key: APNS_BUNDLE_ID
+        value: com.pixellab.feuilleton
+      - key: APNS_USE_SANDBOX
+        value: "true"
+
+  - type: keyvalue
+    name: atelier-redis
+    plan: starter
+    region: frankfurt
+    maxmemoryPolicy: noeviction
+    ipAllowList: []   # only reachable from other Render services
+
+databases:
+  - name: atelier-db
+    plan: basic-256mb
+    region: frankfurt
+    databaseName: language_learning
+    user: atelier

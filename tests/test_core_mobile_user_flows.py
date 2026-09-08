@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 WEB = ROOT / "web-frontend"
 
@@ -19,11 +18,18 @@ def test_public_onboarding_moves_from_minimal_account_creation_to_daily_atelier(
     forgot = read(WEB / "pages" / "auth" / "forgot-password.tsx")
     app_auth = read(WEB / "lib" / "app-auth.tsx")
     route_gate = read(WEB / "components" / "auth" / "RouteAuthGate.tsx")
+    next_config = read(WEB / "next.config.js")
+    frontend_readme = read(WEB / "README.md")
 
-    assert "if (status === 'authenticated')" in home
-    assert "router.push('/atelier')" in home
-    assert '<Link href="/auth/signin">Sign in</Link>' in home
-    assert '<Link className="public-start" href="/auth/signup">Start</Link>' in home
+    # 2026-08-31: the public landing is the calm French sheet — authenticated
+    # visitors get a single "Ouvrir votre édition" action instead of a silent
+    # redirect, and the signed-out pair is French.
+    assert "const authed = status === 'authenticated';" in home
+    assert "Ouvrir votre édition" in home
+    assert 'href="/auth/signin"' in home
+    assert 'href="/auth/signup"' in home
+    assert "~15 min" not in home
+    assert "Learning hub" not in home
 
     assert "sanitizeAuthCallbackUrl(router.query.callbackUrl)" in signin
     assert "const forgotPasswordHref = { pathname: '/auth/forgot-password', query: callbackQuery }" in signin
@@ -36,6 +42,8 @@ def test_public_onboarding_moves_from_minimal_account_creation_to_daily_atelier(
     assert "const effectiveStatus: AppAuthStatus = refreshFailed ? 'unauthenticated' : nextSession.status" in app_auth
     assert "'/auth/forgot-password'" in route_gate
     assert "sanitizeAuthCallbackUrl(router.asPath)" in route_gate
+    assert "NEXTAUTH_URL: process.env.NEXTAUTH_URL || 'http://localhost:3000'" not in next_config
+    assert "NEXTAUTH_URL=http://localhost:3001 npm run dev -- -p 3001" in frontend_readme
 
     assert "Password must be at least 8 characters" in signup
     assert "function authErrorMessage" in signup
@@ -83,11 +91,12 @@ def test_phone_shell_keeps_the_primary_product_modes_simple_and_reachable() -> N
     assert "storedNotebookMode" in notebook
     assert "notebookModeFromQuery" in notebook
     assert "router.push(" in notebook
-    assert "<NotebookModeSwitch" in notebook
+    assert "<NotebookModeTabs" in notebook
     assert "<GrammarNotebookSurface embedded />" in notebook
     assert "<VocabularyPage embedded />" in notebook
     assert "api.getCefrProgress()" in notebook
-    assert "NotebookProgression" in notebook
+    # CEFR progression now rides in the Cahiers masthead folio, not a dashboard grid.
+    assert "cefr?.estimate ? `${cefr.estimate} en cours`" in notebook
 
 
 def test_atelier_is_the_daily_session_and_review_handoff_center() -> None:
@@ -101,17 +110,19 @@ def test_atelier_is_the_daily_session_and_review_handoff_center() -> None:
     assert "apiService.submitAtelierAttempt" in atelier
     assert "apiService.completeAtelierSession" in atelier
     assert "function TodayView" in atelier
-    assert "function MissionBridge" in atelier
-    assert "Use today&apos;s repairs in a message, conversation, or visual Feuilleton." in atelier
-    assert "const query = conceptQueryString(concepts)" in atelier
-    assert "href={`/missions${conceptIds ? `?${conceptIds}` : ''}`}" in atelier
-    assert "href={`/graphic-novel${conceptIds ? `?${conceptIds}` : ''}`}" in atelier
+    # MissionBridge was an unreferenced legacy card; the live handoff is the
+    # recommendation action routing into Le Courrier.
+    assert "if (action.kind === 'mission') {" in atelier
+    assert "void router.push(`/missions${action.query}`);" in atelier
+    assert "void router.push(`/graphic-novel${action.query}`);" in atelier
     assert "session_id: result.session_id" in atelier
     assert "printed-hook" in atelier
 
-    assert "Vocabulary review" in vocabulary_review
+    # The deck's aria labels and end-of-deck copy are French now; "Vocabulary
+    # review" / "Queue claire" were the last English strings on the surface.
+    assert 'aria-label="Progression de la révision"' in vocabulary_review
     assert "VocabularyReviewContinuation" in vocabulary_review
-    assert "Queue claire" in vocabulary_review
+    assert "Paquet vidé" in vocabulary_review
     assert "onReturn" in vocabulary_review
     assert "onRefresh" in vocabulary_review
     assert "href={`/vocabulary?word=${wordId}`}" in vocabulary_review
@@ -125,15 +136,27 @@ def test_lean_mission_flow_is_complete_on_mobile() -> None:
     assert "apiService.createMission({" in missions
     assert "apiService.submitMissionTurn(mission.id" in missions
     assert "apiService.completeMission(mission.id)" in missions
-    assert "routeForMissionSerialBeat(result.next_serial)" in missions
-    assert "Next act" in missions
-    assert "apiService.translateToEnglish(text)" in missions
-    assert "className=\"mission-stage\"" in missions
-    assert "className=\"scene-frame\"" in missions
-    assert "className=\"thread-body\"" in missions
-    assert "className=\"composer\"" in missions
-    assert "className=\"reward-strip\"" in missions
-    assert "Token minted" in missions
+    assert "setCompletedNextSerial(result.next_serial || null)" in missions
+    # Completion stays on the recap; the learner explicitly chooses Atelier or the next act.
+    assert "Lire l’acte suivant" in missions
+    assert "Retour à l’Atelier" in missions
+    assert "router.push(routeForMissionSerialBeat(result.next_serial))" not in missions
+    assert "apiService.translateToEnglish(openingMessage)" in missions
+    # "Le Courrier" correspondence-desk surface: shell, desk header, slip thread,
+    # per-format composer, resolved-dossier stamp.
+    assert "className=\"cr motion\"" in missions
+    assert "<CrDesk" in missions
+    assert "className=\"cr-thread\"" in missions
+    assert "<CrComposer" in missions
+    assert "className=\"cr-resolve\"" in missions
+    assert "Compte rendu de mission" in missions
+    assert "Jeton frappé" in missions
+    # Format-aware composer + voice + archive.
+    assert "function missionFormat(" in missions
+    assert "missionFormatPayload(mission)" in missions
+    assert "CourrierMic" in missions
+    assert "apiService.transcribeMissionAudio(blob)" in missions
+    assert "today?.recent_completed" in missions
 
     assert "custom_scenario?: string" in api
     assert "desired_outcome?: string" in api
@@ -154,15 +177,18 @@ def test_feuilleton_scene_flow_has_creation_tasks_completion_and_context_returns
     assert "apiService.createGraphicNovelScene" in feuilleton
     assert "apiService.submitGraphicNovelAttempt(scene.id" in feuilleton
     assert "apiService.completeGraphicNovelScene(scene.id)" in feuilleton
-    assert 'aria-label="Create a new Feuilleton scene"' in feuilleton
-    assert 'aria-label="Feuilleton mode"' in feuilleton
-    assert 'aria-label="Panel count"' in feuilleton
-    assert 'aria-label="Feuilleton reading actions"' in feuilleton
-    assert 'aria-label="Final Feuilleton task"' in feuilleton
-    assert 'aria-label="Feuilleton completion"' in feuilleton
-    assert "function FeuilletonContinuationCard" in feuilleton
+    assert 'aria-label="Composer une nouvelle scène du Feuilleton"' in feuilleton
+    assert 'aria-label="Mode Feuilleton"' in feuilleton
+    assert "apiService.getSerialToday()" in feuilleton
+    assert 'aria-label="Prochain acte du Feuilleton"' in feuilleton
+    assert 'aria-label="Actions de lecture du Feuilleton"' in feuilleton
+    # Reader rebuild: the final task is one inline action, and the end of the
+    # episode is one section instead of a completion card + continuation card.
+    assert "<FeuilletonReader" in feuilleton  # the final task is the reader's resolution stage
+    assert 'aria-label="Fin de l’épisode"' in feuilleton
+    assert "function FeuilletonEnd" in feuilleton
     assert "routeWithQuery('/missions', missionPairs)" in feuilleton
-    assert "routeWithQuery('/atelier', atelierPairs)" in feuilleton
+    assert "routeWithQuery('/graphic-novel', readerPairs)" in feuilleton
 
     assert "async getGraphicNovelToday()" in api
     assert "async createGraphicNovelScene" in api
@@ -171,36 +197,54 @@ def test_feuilleton_scene_flow_has_creation_tasks_completion_and_context_returns
 
 
 def test_story_reading_flow_is_parked_behind_launch_flag_without_deleting_contracts() -> None:
-    stories_page = read(WEB / "pages" / "stories.tsx")
-    story_runtime = read(WEB / "pages" / "story" / "[id].tsx")
-    story_detail = read(WEB / "pages" / "stories" / "[storyId].tsx")
-    chapter_page = read(WEB / "pages" / "stories" / "[storyId]" / "chapter" / "[chapterId].tsx")
+    """The Bibliothèque, not /stories, is where the parked reading flow lives.
+
+    WP-20 migrated the three `/bibliotheque/**` routes onto the Atelier V2 system
+    and deleted `pages/stories.tsx`, `pages/stories/**` and `pages/story/[id].tsx`
+    — the pages these assertions used to read. Every contract below is the same
+    contract, re-pointed at the surviving page: the launch-flag park, the redirect
+    table, the hooks, the session layout and the chapter-start payload are
+    untouched, and the two navigation pins now assert the `/bibliotheque` route
+    the migration moved them to. The `/story/[id]` immersive reader has no
+    successor and is asserted absent instead of asserted parked.
+    """
+    stories_page = read(WEB / "pages" / "bibliotheque.tsx")
+    story_detail = read(WEB / "pages" / "bibliotheque" / "[storyId].tsx")
+    chapter_page = read(WEB / "pages" / "bibliotheque" / "[storyId]" / "chapter" / "[chapterId].tsx")
     learn_new = read(WEB / "pages" / "learn" / "new.tsx")
     redirects = read(WEB / "next.config.js")
     story_hooks = read(WEB / "hooks" / "useStories.ts")
     session_layout = read(WEB / "components" / "stories" / "StorySessionLayout.tsx")
+
+    # The retired readers stay retired.
+    assert not (WEB / "pages" / "stories.tsx").exists()
+    assert not (WEB / "pages" / "stories").exists()
+    assert not (WEB / "pages" / "story").exists()
 
     assert "STORY_FEATURE_VISIBLE" in stories_page
     assert "void router.replace('/atelier')" in stories_page
     assert "if (!STORY_FEATURE_VISIBLE) return null" in stories_page
     assert "source: '/stories/:path*', destination: '/atelier'" in redirects
     assert "source: '/bibliotheque/:path*', destination: '/atelier'" in redirects
-    assert "<EditorialMasthead />" in stories_page
+    assert "source: '/story/:id', destination: '/atelier'" in redirects
+    # The index still leads with one text and lists the rest, and still owns the
+    # import affordance — now on the av2 system rather than the legacy cards.
+    assert "AtelierV2Root" in stories_page
     assert "UploadBookModal" in stories_page
-    assert "<FeaturedStoryCard story={storyList[0]} />" in stories_page
-    assert "StoryCard key={story.id} story={story}" in stories_page
-
-    assert "STORY_FEATURE_VISIBLE" in story_runtime
-    assert "void router.replace('/atelier')" in story_runtime
-    assert "if (!STORY_FEATURE_VISIBLE) return null" in story_runtime
+    assert "storyList[0]" in stories_page
+    assert "storyList.slice(1)" in stories_page
+    assert "/bibliotheque/${" in stories_page
 
     assert "STORY_FEATURE_VISIBLE" in story_detail
     assert "void router.replace('/atelier')" in story_detail
     assert "if (!STORY_FEATURE_VISIBLE) return null" in story_detail
     assert "useStoryDetail(resolvedStoryId)" in story_detail
     assert "useStartStory()" in story_detail
-    assert "router.push(`/stories/${resolvedStoryId}/chapter/${result.chapter.id}`)" in story_detail
-    assert "router.push(`/stories/${resolvedStoryId}/chapter/${storyDetail.user_progress.current_chapter_id}`)" in story_detail
+    assert "router.push(`/bibliotheque/${resolvedStoryId}/chapter/${result.chapter.id}`)" in story_detail
+    assert (
+        "router.push(`/bibliotheque/${resolvedStoryId}/chapter/${storyDetail.user_progress.current_chapter_id}`)"
+        in story_detail
+    )
 
     assert "STORY_FEATURE_VISIBLE" in chapter_page
     assert "void router.replace('/atelier')" in chapter_page

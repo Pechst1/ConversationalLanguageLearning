@@ -1,5 +1,16 @@
-import spacy
+import sys
 from uuid import uuid4
+
+import pytest
+
+if sys.version_info >= (3, 14):
+    pytest.skip(
+        "spaCy's pydantic.v1 dependency is not compatible with Python 3.14 yet; "
+        "tracked in docs/audit-2026-07-18-status-and-work-packages.md (WP-10)",
+        allow_module_level=True,
+    )
+
+import spacy
 
 from app.core.conversation.generator import ConversationPlan, GeneratedTurn
 from app.core.error_detection import ErrorDetectionResult
@@ -32,7 +43,7 @@ class StubConversationGenerator:
 
     def generate_turn_with_context(self, **kwargs):  # type: ignore[no-untyped-def]
         self.calls += 1
-        plan = ConversationPlan(queue_items=tuple(), review_targets=[], new_targets=[])
+        plan = ConversationPlan(queue_items=(), review_targets=[], new_targets=[])
         return GeneratedTurn(
             text="Continuons à parler !",
             plan=plan,

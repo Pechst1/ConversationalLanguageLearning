@@ -6,7 +6,8 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 from sqlalchemy.types import JSON
@@ -42,7 +43,7 @@ class PersonalInputItem(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )
 
-    user: Mapped["User"] = relationship("User")
+    user: Mapped[User] = relationship("User")
 
     __table_args__ = (
         Index("ix_personal_input_items_user_type", "user_id", "item_type"),
@@ -92,15 +93,15 @@ class GraphicNovelScene(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )
 
-    user: Mapped["User"] = relationship("User")
-    atelier_session: Mapped["AtelierSession | None"] = relationship("AtelierSession")
-    mission: Mapped["RealWorldMission | None"] = relationship("RealWorldMission")
-    serial_thread: Mapped["SerialThread | None"] = relationship("SerialThread")
-    personal_input_item: Mapped["PersonalInputItem | None"] = relationship("PersonalInputItem")
-    panels: Mapped[list["GraphicNovelPanel"]] = relationship(
+    user: Mapped[User] = relationship("User")
+    atelier_session: Mapped[AtelierSession | None] = relationship("AtelierSession")
+    mission: Mapped[RealWorldMission | None] = relationship("RealWorldMission")
+    serial_thread: Mapped[SerialThread | None] = relationship("SerialThread")
+    personal_input_item: Mapped[PersonalInputItem | None] = relationship("PersonalInputItem")
+    panels: Mapped[list[GraphicNovelPanel]] = relationship(
         "GraphicNovelPanel", back_populates="scene", cascade="all, delete-orphan"
     )
-    attempts: Mapped[list["GraphicNovelAttempt"]] = relationship(
+    attempts: Mapped[list[GraphicNovelAttempt]] = relationship(
         "GraphicNovelAttempt", back_populates="scene", cascade="all, delete-orphan"
     )
 
@@ -130,7 +131,7 @@ class GraphicNovelPanel(Base):
     generation_metadata = mapped_column(JSONB().with_variant(JSON(), "sqlite"), default=dict, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
-    scene: Mapped["GraphicNovelScene"] = relationship("GraphicNovelScene", back_populates="panels")
+    scene: Mapped[GraphicNovelScene] = relationship("GraphicNovelScene", back_populates="panels")
 
     __table_args__ = (
         UniqueConstraint("scene_id", "panel_index", name="uq_graphic_novel_panel_index"),
@@ -161,9 +162,9 @@ class GraphicNovelAttempt(Base):
     score_0_4: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
-    scene: Mapped["GraphicNovelScene"] = relationship("GraphicNovelScene", back_populates="attempts")
-    panel: Mapped["GraphicNovelPanel | None"] = relationship("GraphicNovelPanel")
-    user: Mapped["User"] = relationship("User")
+    scene: Mapped[GraphicNovelScene] = relationship("GraphicNovelScene", back_populates="attempts")
+    panel: Mapped[GraphicNovelPanel | None] = relationship("GraphicNovelPanel")
+    user: Mapped[User] = relationship("User")
 
     __table_args__ = (
         Index("ix_graphic_novel_attempts_scene_task", "scene_id", "task_id"),

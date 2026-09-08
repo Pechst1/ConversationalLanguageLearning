@@ -1,24 +1,24 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
 
 from app.api import deps
-from app.db.models.error import UserError
-from app.db.models.grammar import GrammarConcept, UserGrammarProgress
-from app.db.models.session import ConversationMessage, LearningSession, SessionLearningMoment
-from app.db.models.user import User
-from app.db.models.progress import ReviewLog, UserVocabularyProgress
-from app.services.llm_service import LLMResult
-from app.services.progress import ProgressService
-from app.services.session_service import SessionService
 from app.core.conversation import ConversationGenerator
 from app.core.error_detection import ErrorDetectionResult
 from app.core.error_detection.rules import DetectedError
+from app.db.models.error import UserError
+from app.db.models.grammar import GrammarConcept, UserGrammarProgress
+from app.db.models.progress import ReviewLog, UserVocabularyProgress
+from app.db.models.session import ConversationMessage, LearningSession, SessionLearningMoment
+from app.db.models.user import User
+from app.services.llm_service import LLMResult
+from app.services.progress import ProgressService
+from app.services.session_service import SessionService
 
 
 class DummyToken:
@@ -126,7 +126,7 @@ class StubErrorDetector:
     def __init__(self) -> None:
         self.result: ErrorDetectionResult | None = None
 
-    def analyze(self, learner_message: str, *, learner_level: str = "B1", target_vocabulary=None, use_llm: bool = True) -> ErrorDetectionResult:  # type: ignore[override]
+    def analyze(self, learner_message: str, *, learner_level: str = "B1", target_vocabulary=None, use_llm: bool = True, **kwargs) -> ErrorDetectionResult:  # type: ignore[override]
         if self.result is not None:
             return self.result
         return ErrorDetectionResult(errors=[], summary="Looks great!", metadata={"stub": True})
@@ -239,7 +239,7 @@ def test_create_session_includes_unified_learning_focus_for_due_items(
             score=4.0,
             reps=2,
             state="in_arbeit",
-            next_review=datetime.now(timezone.utc) - timedelta(hours=1),
+            next_review=datetime.now(UTC) - timedelta(hours=1),
         )
     )
     db_session.add(
@@ -252,7 +252,7 @@ def test_create_session_includes_unified_learning_focus_for_due_items(
             reps=2,
             lapses=3,
             state="review",
-            next_review_date=datetime.now(timezone.utc) - timedelta(hours=1),
+            next_review_date=datetime.now(UTC) - timedelta(hours=1),
         )
     )
     db_session.commit()
@@ -447,7 +447,7 @@ def test_post_message_returns_pending_grammar_moment_for_due_concept(
             score=4.0,
             reps=1,
             state="in_arbeit",
-            next_review=datetime.now(timezone.utc) - timedelta(hours=2),
+            next_review=datetime.now(UTC) - timedelta(hours=2),
         )
     )
     db_session.commit()

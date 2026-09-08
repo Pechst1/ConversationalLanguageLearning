@@ -1,10 +1,33 @@
+import type { StoryEpisode, StoryEpisodePage } from "@/types/daily-journey";
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import toast from 'react-hot-toast';
 
 import { getAppAccessToken } from '@/lib/app-auth';
+import { audioUploadFilename } from '@/lib/audio-recording';
 import { clearNativeAuthSession, refreshNativeAccessToken } from '@/lib/native-auth';
 import { isNativePlatform } from '@/lib/native-platform';
+import type {
+  AdvanceBody,
+  AttemptBody,
+  AttemptResult,
+  CapabilityProgress,
+  CreateJourneyBody,
+  FinishBody,
+  HelpBody,
+  HelpResult,
+  JourneyHttpResult,
+  JourneySnapshot,
+  RetryBody,
+  RevisionBody,
+  TodayEnvelope,
+} from '@/types/daily-journey';
 import { AnkiReviewResponse, ReviewResponse } from '@/types/reviews';
+
+/**
+ * How the story engine addresses the reader in French. 'neutral' is the default
+ * and asks the récit to avoid gendered forms and endearments altogether.
+ */
+export type AddressPreference = 'feminine' | 'masculine' | 'neutral';
 
 export interface LiveStory {
   id: string;
@@ -65,6 +88,8 @@ export interface AtelierConcept {
   id: number;
   external_id?: string | null;
   name: string;
+  /** French publication title (grammar_concept_localizations fr row). */
+  title_fr?: string | null;
   level: string;
   category?: string | null;
   subskill?: string | null;
@@ -123,6 +148,12 @@ export interface AtelierToday {
   serial_episode?: Record<string, any> | null;
   serial?: Record<string, any> | null;
   library_episode?: Record<string, any> | null;
+  phrase_of_day?: {
+    text: string;
+    byline: string;
+    session_date: string;
+    paru: boolean;
+  } | null;
 }
 
 export interface AtelierDayProgress {
@@ -150,6 +181,9 @@ export interface AtelierDayProgress {
 export interface CEFRProgress {
   version: string;
   estimate: string;
+  /** 'declared' means the learner stated this level and the app has not verified it yet. */
+  estimate_source?: 'declared' | 'measured' | null;
+  declared_level?: string | null;
   computed_estimate?: string | null;
   target: string;
   next_level?: string | null;
@@ -160,6 +194,51 @@ export interface CEFRProgress {
   forecast?: Record<string, any> | null;
   today_delta?: Record<string, any>;
   generated_at?: string | null;
+}
+
+/** GET /analytics/summary — headline counters, all scoped to the signed-in learner. */
+export interface LearnerAnalyticsSummary {
+  sessions_completed: number;
+  total_minutes: number;
+  average_minutes: number;
+  xp_earned: number;
+  accuracy_rate?: number | null;
+  current_streak: number;
+  longest_streak: number;
+  words_learning: number;
+  words_mastered: number;
+  reviews_due_today: number;
+  reviews_due_week: number;
+  last_session_at?: string | null;
+}
+
+/** GET /grammar/summary — the learner's own UserGrammarProgress rows.
+ *  `state_counts` keys are the German SRS machine keys (neu / ausbaufähig /
+ *  in_arbeit / gefestigt / gemeistert) and must be mapped before display. */
+export interface GrammarProgressSummary {
+  total_concepts: number;
+  started: number;
+  due_today: number;
+  new_available: number;
+  state_counts: Record<string, number>;
+  level_counts: Record<string, number>;
+}
+
+/** GET /achievements/my — unlocked achievements unless `include_locked` is set.
+ *  `name`/`description` are seeded in English; publication surfaces map
+ *  `achievement_key` to French copy instead of printing them. */
+export interface UserAchievementProgress {
+  achievement_id: number;
+  achievement_key: string;
+  name: string;
+  description?: string | null;
+  tier: string;
+  xp_reward: number;
+  icon_url?: string | null;
+  current_progress: number;
+  target_progress: number;
+  completed: boolean;
+  unlocked_at?: string | null;
 }
 
 export interface UnifiedSRSItem {
@@ -196,6 +275,13 @@ export interface VocabularyRecommendationSummary {
 
 export interface VocabularyRecommendationItem {
   bucket: 'due' | 'fragile' | 'new' | 'linked' | 'topic' | 'topic_compatible' | string;
+  recommendation_reason?: { text: string; signals: Record<string, any> };
+  episodic_anchor?: {
+    character_name?: string;
+    portrait_url?: string;
+    accent_colour?: string;
+    source?: string;
+  };
   word_id: number;
   progress_id?: string | null;
   word: string;
@@ -245,6 +331,8 @@ export interface VocabularyRecommendationParams {
 export interface VocabularyDueContextSummary extends VocabularyRecommendationSummary {
   topic_compatible: number;
   linked: number;
+  /** Total due before the endpoint's own limit is applied (see progress.py). */
+  due_total?: number;
 }
 
 export interface VocabularyDueContext {
@@ -255,6 +343,25 @@ export interface VocabularyDueContext {
   topic_compatible_words: VocabularyRecommendationItem[];
   linked_words: VocabularyRecommendationItem[];
   algorithm: string;
+}
+
+export interface DailyWordEntry {
+  word_id: number;
+  word: string;
+  translation?: string | null;
+  bucket?: string;
+  example_sentence?: string | null;
+  example_translation?: string | null;
+  anchor?: string | null;
+  stamps?: Partial<Record<'lu' | 'retrouve' | 'place', string | null>>;
+  triple?: boolean;
+}
+
+export interface DailyWordSlate {
+  date: string;
+  words: DailyWordEntry[];
+  triples: number;
+  version?: string;
 }
 
 export interface VocabularyDueContextParams extends VocabularyRecommendationParams {
@@ -283,6 +390,10 @@ export interface VocabularyWord {
   german_translation?: string | null;
   french_translation?: string | null;
   topic_tags: string[];
+  /** Resolved server-side for the signed-in learner — render this, not the raw
+   * columns above (see lib/glosses.ts). */
+  translation?: string | null;
+  translation_language?: string | null;
 }
 
 export interface VocabularyBiographyOrigin {
@@ -424,7 +535,7 @@ export interface ConjugationReviewItem {
 
 export interface ConjugationReviewQueue {
   items: ConjugationReviewItem[];
-  summary: { total: number; due: number; new: number };
+  summary: { total: number; due: number; new: number; due_total?: number };
   algorithm: string;
 }
 
@@ -514,6 +625,9 @@ export interface AtelierSessionStart {
   };
   due_errata: AtelierErratum[];
   recap: Record<string, any>;
+  learning_moments?: {
+    adaptive_locks?: Record<string, Record<string, any>>;
+  };
 }
 
 export interface AtelierAttemptResult {
@@ -538,7 +652,9 @@ export interface AtelierErrataReviewTask {
   learner_text?: string | null;
   why_wrong?: string | null;
   repair_hint?: string | null;
-  target_answer: string;
+  /** The pre-attempt task deliberately carries no target_answer -- it would be
+   *  the answer to the exercise. It is returned by the attempt result instead. */
+  review_mode_label?: string;
   occurrences?: number;
   lapses?: number;
   next_review_date?: string | null;
@@ -580,6 +696,8 @@ export interface GrammarNotebookItem {
   display_title: string;
   localized_title?: string | null;
   localized_category?: string | null;
+  title_fr?: string | null;
+  category_label_fr?: string | null;
   localized_subskill?: string | null;
   level: string;
   category?: string | null;
@@ -800,6 +918,7 @@ export interface RealWorldMission {
   prompt_payload: Record<string, any>;
   recap: VocabularyRecapPayload;
   outcome?: Record<string, any> | null;
+  recommendation_reason?: { text: string; signals: Record<string, any> };
   attempts?: Array<Record<string, any>>;
   turns?: Array<Record<string, any>>;
   created_at?: string | null;
@@ -815,12 +934,20 @@ export interface MissionToday {
 }
 
 export interface SerialToday {
+  id?: string;
   thread_id: string;
   episode_index: number;
+  episode_label?: string;
+  beat?: 'act' | 'see' | string;
   kind: 'mission' | 'feuilleton' | string;
   status?: string;
   mission_id?: string | null;
   scene_id?: string | null;
+  previously?: string | null;
+  hook_from_previous?: Record<string, any> | null;
+  hook?: Record<string, any> | null;
+  brief_payload?: Record<string, any> | null;
+  location_id?: string | null;
   thread?: Record<string, any>;
 }
 
@@ -1054,10 +1181,19 @@ function isUnauthorized(error: any): boolean {
   return error?.response?.status === 401;
 }
 
+/**
+ * Same-origin route to the backend, rewritten by next.config.js when API_URL is
+ * set. It is the fallback for an unconfigured browser bundle: the old default,
+ * http://localhost:8000/api/v1, sent credentialed requests to whatever owned
+ * that port on the developer's machine.
+ */
+const SAME_ORIGIN_API_PROXY = '/api/backend';
+
 export function resolveBrowserApiBaseUrl() {
   const configured = normalizeApiBaseUrl(
-    process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1',
+    process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || '',
   );
+  if (!configured) return SAME_ORIGIN_API_PROXY;
   if (typeof window === 'undefined') return configured;
   if (isNativePlatform()) return configured;
 
@@ -1065,7 +1201,7 @@ export function resolveBrowserApiBaseUrl() {
     const url = new URL(configured);
     const localApiHost = (url.hostname === 'localhost' || url.hostname === '127.0.0.1') && url.port === '8000';
     if (localApiHost && url.pathname.replace(/\/$/, '') === '/api/v1') {
-      return '/api/backend';
+      return SAME_ORIGIN_API_PROXY;
     }
   } catch {
     // Relative or otherwise non-URL values should pass through unchanged.
@@ -1249,6 +1385,10 @@ class ApiService {
     target_language?: string;
     proficiency_level?: string;
     interests?: string;
+    learning_motivation?: string;
+    speaking_comfort?: 'warming_up' | 'ready' | 'confident';
+    grammar_correction_level?: 'strict' | 'moderate' | 'lenient';
+    daily_goal_minutes?: number;
   }) {
     const { name, ...rest } = userData;
     return this.post('/auth/register', {
@@ -1292,7 +1432,7 @@ class ApiService {
     return this.get('/users/me/settings');
   }
 
-  async updateSettings(data: any) {
+  async updateSettings(data: Record<string, unknown> & { address_preference?: AddressPreference }) {
     return this.patch('/users/me/settings', data);
   }
 
@@ -1326,6 +1466,24 @@ class ApiService {
 
   async subscribeToNotifications(subscription: any) {
     return this.post('/notifications/subscribe', subscription);
+  }
+
+  async subscribeToNativeNotifications(token: string) {
+    return this.post('/notifications/native/subscribe', {
+      token,
+      platform: 'ios',
+      environment: process.env.NEXT_PUBLIC_APNS_ENVIRONMENT === 'production'
+        ? 'production'
+        : 'sandbox',
+    });
+  }
+
+  async recordNotificationTap(data: { route: string; kind?: string; notification_id?: string }) {
+    return this.post('/notifications/tap', data, { suppressGlobalError: true } as SilentRequestConfig);
+  }
+
+  async recordClientError(data: { message: string; stack?: string; route?: string; source?: string }) {
+    return this.post('/analytics/client-error', data, { suppressGlobalError: true } as SilentRequestConfig);
   }
 
   // Session endpoints
@@ -1431,6 +1589,10 @@ class ApiService {
     return this.atelierGet('/vocabulary/coverage');
   }
 
+  async getWordsOfTheDay(): Promise<DailyWordSlate> {
+    return this.atelierGet('/vocabulary/words-of-the-day');
+  }
+
   async getConjugationReview(params?: { limit?: number; cefr_band?: string }): Promise<ConjugationReviewQueue> {
     return this.atelierGet('/vocabulary/conjugation/review', { params });
   }
@@ -1473,8 +1635,8 @@ class ApiService {
   }
 
   // Analytics endpoints
-  async getAnalyticsSummary() {
-    return this.get('/analytics/summary');
+  async getAnalyticsSummary(): Promise<LearnerAnalyticsSummary> {
+    return this.get<LearnerAnalyticsSummary>('/analytics/summary');
   }
 
   async getAnalyticsStatistics(params?: { days?: number }) {
@@ -1497,13 +1659,17 @@ class ApiService {
     return this.get('/analytics/errors/summary');
   }
 
+  async getPilotOperations(weeks = 4) {
+    return this.get('/analytics/pilot-ops', { params: { weeks } });
+  }
+
   // Achievement endpoints
   async getAchievements() {
     return this.get('/achievements');
   }
 
-  async getUserAchievements() {
-    return this.get('/achievements/my');
+  async getUserAchievements(): Promise<UserAchievementProgress[]> {
+    return this.get<UserAchievementProgress[]>('/achievements/my');
   }
 
   async checkAchievements() {
@@ -1616,6 +1782,8 @@ class ApiService {
       mode: string;
       exercise_id: string;
       answer_payload: Record<string, any>;
+      confidence?: 'sure' | 'unsure' | null;
+      retest_source_attempt_id?: string | null;
       resubmit?: boolean;
     }
   ) {
@@ -1624,6 +1792,10 @@ class ApiService {
 
   async getAtelierAttempt(attemptId: string) {
     return this.atelierGet<AtelierAttemptResult>(`/atelier/attempts/${attemptId}`);
+  }
+
+  async repairAtelierAttempt(attemptId: string, data: { text: string; erratum_index: number }) {
+    return this.atelierPost<AtelierAttemptResult>(`/atelier/attempts/${attemptId}/repair`, data);
   }
 
   async requestAtelierAttemptAiReview(attemptId: string) {
@@ -1742,7 +1914,7 @@ class ApiService {
 
   async transcribeMissionAudio(audioBlob: Blob): Promise<string> {
     const formData = new FormData();
-    formData.append('file', audioBlob, 'mission-audio.webm');
+    formData.append('file', audioBlob, audioUploadFilename(audioBlob, 'mission-audio'));
 
     const response = await this.atelierPost<{ text: string }>('/missions/audio/transcribe', formData, {
       headers: {
@@ -1777,9 +1949,10 @@ class ApiService {
     public_figure_mode?: 'off' | 'named_context' | 'editorial_caricature';
     force_new?: boolean;
     refresh_news?: boolean;
+    async_generation?: boolean;
   }) {
     const response = await this.atelierPost<{ scene: GraphicNovelScene }>('/graphic-novel/scenes', data || {}, {
-      timeout: 720000,
+      timeout: 30000,
     });
     return response.scene;
   }
@@ -1817,9 +1990,10 @@ class ApiService {
     opening_message: string;
     opening_audio_text: string;
     context: {
-      system_prompt?: string;
       topic?: string;
       style?: string;
+      cast_member?: SerialCastMember | null;
+      serial_thread_id?: string | null;
     };
   }> {
     return this.post<any>('/audio-session/start', { scenario_id: scenarioId });
@@ -1856,7 +2030,6 @@ class ApiService {
   async respondToAudioSession(data: {
     session_id: string;
     user_text: string;
-    system_prompt?: string;
     conversation_history?: Array<any>;
   }): Promise<{
     ai_response: string;
@@ -1870,6 +2043,12 @@ class ApiService {
     }>;
     xp_awarded: number;
     should_show_text: boolean;
+    vocabulary_credit: {
+      produced_correct?: number;
+      word_ids?: number[];
+      words?: string[];
+    };
+    minted_collectibles: AtelierCollectible[];
   }> {
     const response = await this.post<any>('/audio-session/respond', data);
 
@@ -1889,6 +2068,8 @@ class ApiService {
       detected_errors: errors,
       xp_awarded: response.xp_awarded,
       should_show_text: response.should_show_text,
+      vocabulary_credit: response.vocabulary_credit || {},
+      minted_collectibles: response.minted_collectibles || [],
     };
   }
 
@@ -1897,6 +2078,13 @@ class ApiService {
     duration_seconds: number;
     total_xp: number;
     errors_practiced: number;
+    turns: number;
+    produced_words: number;
+    due_words_reused: string[];
+    longest_answer_words: number;
+    longest_answer: string;
+    tomorrow_focus: string;
+    cast_memory?: Record<string, any> | null;
     message: string;
   }> {
     return this.post<any>('/audio-session/end', data);
@@ -1904,7 +2092,7 @@ class ApiService {
 
   async transcribeAudio(audioBlob: Blob): Promise<string> {
     const formData = new FormData();
-    formData.append('file', audioBlob, 'audio.webm');
+    formData.append('file', audioBlob, audioUploadFilename(audioBlob));
 
     const response = await this.api.post<{ text: string }>('/audio/transcribe', formData, {
       headers: {
@@ -1927,6 +2115,131 @@ class ApiService {
       '/feedback/reports',
       data,
       { suppressGlobalError: true } as SilentRequestConfig,
+    );
+  }
+
+  // ---------------------------------------------------------------------
+  // Atelier V2 daily journey (WP-02)
+  //
+  // These reuse the transport above, so the native token refresh in
+  // `setupInterceptors` still applies. Global error toasts are suppressed:
+  // 409 conflicts, 202 processing and 422 empty answers are contract states
+  // the daily-journey facade handles, not failures to shout about.
+  // ---------------------------------------------------------------------
+
+  private journeyConfig(): SilentRequestConfig {
+    return { suppressGlobalError: true } as SilentRequestConfig;
+  }
+
+  private async journeyPost<T>(url: string, data: unknown): Promise<JourneyHttpResult<T>> {
+    const response = await this.api.post<T>(url, data, this.journeyConfig());
+    return { data: response.data, status: response.status };
+  }
+
+  async getStoryEpisodes(before?: string): Promise<StoryEpisodePage> {
+    return this.get<StoryEpisodePage>(`/story-engine/episodes${before ? `?before=${encodeURIComponent(before)}` : ''}`, this.journeyConfig());
+  }
+
+  async getStoryEpisode(sceneId: string): Promise<StoryEpisode> {
+    return this.get<StoryEpisode>(`/story-engine/episodes/${encodeURIComponent(sceneId)}`, this.journeyConfig());
+  }
+
+  async getStoryEpisodeForJourney(journeyId: string): Promise<StoryEpisode | null> {
+    const page = await this.get<StoryEpisodePage>(`/story-engine/episodes?journey_id=${encodeURIComponent(journeyId)}`, this.journeyConfig());
+    return page.episodes[0] ?? null;
+  }
+
+  async saveStoryReadingPosition(sceneId: string, panelIndex: number): Promise<{ scene_id: string; panel_index: number }> {
+    const response = await this.api.put<{ scene_id: string; panel_index: number }>(`/story-engine/episodes/${encodeURIComponent(sceneId)}/position`, { panel_index: panelIndex }, this.journeyConfig());
+    return response.data;
+  }
+
+  async getDailyJourneyToday(timezone?: string): Promise<TodayEnvelope> {
+    const query = timezone ? `?timezone=${encodeURIComponent(timezone)}` : '';
+    return this.get<TodayEnvelope>(`/daily-journeys/today${query}`, this.journeyConfig());
+  }
+
+  async getDailyJourney(journeyId: string): Promise<JourneySnapshot> {
+    return this.get<JourneySnapshot>(
+      `/daily-journeys/${encodeURIComponent(journeyId)}`,
+      this.journeyConfig(),
+    );
+  }
+
+  async getDailyJourneyCapabilityProgress(): Promise<CapabilityProgress> {
+    return this.get<CapabilityProgress>(
+      '/daily-journeys/capabilities/progress',
+      this.journeyConfig(),
+    );
+  }
+
+  async createDailyJourney(body: CreateJourneyBody): Promise<JourneyHttpResult<JourneySnapshot>> {
+    return this.journeyPost<JourneySnapshot>('/daily-journeys', body);
+  }
+
+  async useDailyJourneyHelp(
+    journeyId: string,
+    stepId: string,
+    body: HelpBody,
+  ): Promise<HelpResult> {
+    const result = await this.journeyPost<HelpResult>(
+      `/daily-journeys/${encodeURIComponent(journeyId)}/steps/${encodeURIComponent(stepId)}/help`,
+      body,
+    );
+    return result.data;
+  }
+
+  async submitDailyJourneyAttempt(
+    journeyId: string,
+    stepId: string,
+    body: AttemptBody,
+  ): Promise<AttemptResult> {
+    const result = await this.journeyPost<AttemptResult>(
+      `/daily-journeys/${encodeURIComponent(journeyId)}/steps/${encodeURIComponent(stepId)}/attempts`,
+      body,
+    );
+    return result.data;
+  }
+
+  async advanceDailyJourney(journeyId: string, body: AdvanceBody): Promise<JourneySnapshot> {
+    const result = await this.journeyPost<JourneySnapshot>(
+      `/daily-journeys/${encodeURIComponent(journeyId)}/advance`,
+      body,
+    );
+    return result.data;
+  }
+
+  async pauseDailyJourney(journeyId: string, body: RevisionBody): Promise<JourneySnapshot> {
+    const result = await this.journeyPost<JourneySnapshot>(
+      `/daily-journeys/${encodeURIComponent(journeyId)}/pause`,
+      body,
+    );
+    return result.data;
+  }
+
+  async resumeDailyJourney(journeyId: string, body: RevisionBody): Promise<JourneySnapshot> {
+    const result = await this.journeyPost<JourneySnapshot>(
+      `/daily-journeys/${encodeURIComponent(journeyId)}/resume`,
+      body,
+    );
+    return result.data;
+  }
+
+  async finishDailyJourney(journeyId: string, body: FinishBody): Promise<JourneySnapshot> {
+    const result = await this.journeyPost<JourneySnapshot>(
+      `/daily-journeys/${encodeURIComponent(journeyId)}/finish`,
+      body,
+    );
+    return result.data;
+  }
+
+  async retryDailyJourney(
+    journeyId: string,
+    body: RetryBody,
+  ): Promise<JourneyHttpResult<JourneySnapshot>> {
+    return this.journeyPost<JourneySnapshot>(
+      `/daily-journeys/${encodeURIComponent(journeyId)}/retry`,
+      body,
     );
   }
 }

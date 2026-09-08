@@ -1,10 +1,10 @@
 """Import grammar concepts from the Excel tracker."""
-import re
 import openpyxl
+from sqlalchemy import delete
+
+from app.db.models.grammar import GrammarConcept
 from app.db.session import SessionLocal
 from app.services.grammar import GrammarService
-from app.db.models.grammar import GrammarConcept
-from sqlalchemy import delete
 
 
 def extract_category(name: str) -> str | None:

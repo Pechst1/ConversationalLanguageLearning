@@ -6,7 +6,7 @@ import argparse
 import json
 import time
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -14,7 +14,11 @@ from app.config import settings
 from app.db.models.atelier import AtelierExerciseSet, AtelierGenerationEvent
 from app.db.models.grammar import GrammarConcept
 from app.db.session import SessionLocal
-from app.services.atelier import ATELIER_GENERATOR_VERSION, AtelierExerciseGenerator, AtelierScheduler
+from app.services.atelier import (
+    ATELIER_GENERATOR_VERSION,
+    AtelierExerciseGenerator,
+    AtelierScheduler,
+)
 
 
 def _parse_args() -> argparse.Namespace:
@@ -242,7 +246,7 @@ def _history_report(db, args: argparse.Namespace) -> dict[str, Any]:
     latest_total = len(latest_by_concept)
     latest_fallback = latest_counts.get("fallback", 0)
     return {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "generator_version": ATELIER_GENERATOR_VERSION,
         "history_only": True,
         "summary": {
@@ -311,7 +315,7 @@ def main() -> int:
                 if args.sleep:
                     time.sleep(args.sleep)
         report = {
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
             "generator_version": ATELIER_GENERATOR_VERSION,
             "settings": {
                 "atelier_llm_enabled": settings.ATELIER_LLM_ENABLED,

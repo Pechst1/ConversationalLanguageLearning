@@ -2,10 +2,10 @@
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.db.models.user import User
-from app.db.models.progress import UserVocabularyProgress
 from app.db.models.error import UserError
+from app.db.models.progress import UserVocabularyProgress
 from app.db.models.session import LearningSession
+
 
 class AnalyticsService:
     """Service for calculating and retrieving user analytics."""
@@ -43,7 +43,7 @@ class AnalyticsService:
             UserError.user_id == user_id
         ).group_by(UserError.error_category).all()
         
-        return {category: count for category, count in rows}
+        return dict(rows)
 
     def get_progress_summary(self, user_id: str) -> dict:
         """Return a comprehensive progress summary."""

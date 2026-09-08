@@ -28,12 +28,33 @@ function normalizeApiBaseUrl(value: string) {
   return trimmed.endsWith('/api/v1') ? trimmed : `${trimmed}/api/v1`;
 }
 
+/**
+ * The backend a native build authenticates against.
+ *
+ * This used to default to `http://localhost:8000/api/v1`. A device or simulator
+ * build that shipped without an explicit host would then post the learner's
+ * email and password to whatever owns port 8000 — on a developer machine, a
+ * different application entirely; on a device, nothing at all. The value is
+ * required, and the check runs at CALL time so `next build` (which compiles
+ * this module without invoking it) keeps working without the variable.
+ * `scripts/native-api-env.mjs` is what supplies it for real native builds.
+ */
 export function nativeApiBaseUrl() {
-  return normalizeApiBaseUrl(
+  const configured = (
     process.env.NEXT_PUBLIC_API_BASE_URL
-      || process.env.NEXT_PUBLIC_API_URL
-      || 'http://localhost:8000/api/v1',
-  );
+    || process.env.NEXT_PUBLIC_API_URL
+    || ''
+  ).trim();
+  if (!configured) {
+    throw new Error(
+      'NEXT_PUBLIC_API_BASE_URL is not set, so native authentication has no '
+      + 'backend to talk to. Set it to the API origin (for example '
+      + 'http://localhost:8010/api/v1) before building the native app. It is '
+      + 'deliberately not defaulted: guessing a port risks sending credentials '
+      + 'to an unrelated service.',
+    );
+  }
+  return normalizeApiBaseUrl(configured);
 }
 
 async function readSecureValue(key: string) {

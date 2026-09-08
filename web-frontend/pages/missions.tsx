@@ -1,36 +1,49 @@
 import React, { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
-import { useRouter } from 'next/router';
-import {
-  ArrowLeft,
-  ArrowRight,
-  Check,
-  Languages,
-  Loader2,
-  MessageCircle,
-  RefreshCw,
-  Send,
-  Sparkles,
-} from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useRouter } from 'next/router';
 
+import { atelierChrome } from '@/lib/atelier-v2-copy';
+import { useLearnerLanguage } from '@/lib/learner-language';
 import PhoneProductNav from '@/components/layout/PhoneProductNav';
+import { LogoToken } from '@/components/ui/Seal';
+import {
+  AtelierV2Root,
+  Chip,
+  IconAction,
+  MicIcon,
+  ShapeToken,
+  Skeleton,
+  StateBlock,
+  StopIcon,
+} from '@/components/atelier-v2/ui';
+import {
+  CourrierStyles,
+  CrComposer,
+  CrDesk,
+  CrGhost,
+  CrMemo,
+  CrPS,
+  CrRepair,
+  CrRibbon,
+  CrSituation,
+  CrSlip,
+} from '@/components/courrier/Courrier';
 import apiService, { MissionToday, RealWorldMission, SerialToday } from '@/services/api';
+import { createAudioMediaRecorder, recordedAudioBlob } from '@/lib/audio-recording';
 import { serialQueryString, writeLocalDayProgressFlag } from '@/lib/atelier-next';
+import { clearResumeActivity, readLocalJson, saveResumeActivity, writeLocalJson } from '@/lib/pilot-resilience';
 
+// Only what the Courrier actually prints. contact_role, contact_initials,
+// presence, thread_title, inbox_context and ambient_cues were computed on every
+// render and read by nothing — dead plumbing carrying dead English defaults.
 type MissionMessenger = {
   channel_label: string;
   contact_name: string;
-  contact_role: string;
-  contact_initials: string;
-  presence: string;
-  thread_title: string;
   scene_anchor: string;
   dispatch_note: string;
-  inbox_context: string;
   opening_message: string;
-  ambient_cues: string[];
   quick_replies: string[];
   success_signal: string;
   twist?: string | null;
@@ -66,6 +79,10 @@ function compactText(value: unknown, max = 180) {
   const text = String(value || '').replace(/\s+/g, ' ').trim();
   if (text.length <= max) return text;
   return `${text.slice(0, max - 1).trim()}...`;
+}
+
+function _normalizeVisibleMessage(value: unknown) {
+  return String(value || '').replace(/\s+/g, ' ').trim().toLocaleLowerCase('fr');
 }
 
 function uniqueText(items: string[], limit = 4) {
@@ -104,19 +121,11 @@ function missionMessenger(mission: RealWorldMission | null): MissionMessenger {
   return {
     channel_label: String(raw.channel_label || missionVariety(mission).channel_label || 'Message'),
     contact_name: String(raw.contact_name || 'Camille'),
-    contact_role: String(raw.contact_role || 'local contact'),
-    contact_initials: String(raw.contact_initials || 'CA').slice(0, 3).toUpperCase(),
-    presence: String(raw.presence || 'available now'),
-    thread_title: String(raw.thread_title || `${raw.contact_name || 'Camille'} · ${mission?.title || 'real moment'}`),
-    scene_anchor: String(slim.frame || raw.scene_anchor || mission?.brief || 'A real-world moment in French'),
-    dispatch_note: String(slim.ask || raw.dispatch_note || mission?.brief || 'Send one natural French reply.'),
-    inbox_context: String(raw.inbox_context || slim.frame || mission?.brief || 'The other person needs a useful reply.'),
+    scene_anchor: String(slim.frame || raw.scene_anchor || mission?.brief || 'Un moment de la vraie vie, en français.'),
+    dispatch_note: String(slim.ask || raw.dispatch_note || mission?.brief || 'Une réponse naturelle en français.'),
     opening_message: String(raw.opening_message || prompt.conversation_opening || 'Bonjour, vous pouvez me répondre ?'),
-    ambient_cues: asStringList(raw.ambient_cues).length
-      ? asStringList(raw.ambient_cues)
-      : ['one practical detail', 'a real person waiting', 'short reply rhythm'],
     quick_replies: uniqueText(asStringList(raw.quick_replies), 3),
-    success_signal: String(raw.success_signal || 'The other person knows what to do next.'),
+    success_signal: String(raw.success_signal || 'Votre correspondant sait quoi faire ensuite.'),
     twist: raw.twist || missionVariety(mission).twist || null,
   };
 }
@@ -142,52 +151,194 @@ function pickMission(today: MissionToday | null) {
     || null;
 }
 
-function targetWords(mission: RealWorldMission | null) {
-  const direct = Array.isArray(mission?.target_vocabulary) ? mission?.target_vocabulary || [] : [];
-  const prompt = Array.isArray(mission?.prompt_payload?.target_vocabulary)
-    ? mission?.prompt_payload?.target_vocabulary || []
-    : [];
-  return uniqueText(
-    (direct.length ? direct : prompt)
-      .map((item: Record<string, any>) => [item.word, item.translation].filter(Boolean).join(' - ')),
-    3,
-  );
-}
-
 function missionTurns(mission: RealWorldMission | null) {
   return [...(mission?.turns || [])].sort((a, b) => Number(a.turn_index || 0) - Number(b.turn_index || 0));
 }
 
-// Immediate, quiet repair shown under the learner's OWN message — never in the
-// character's reply (the character stays in role). Real grammar fixes only; the
-// errata are already saved to the spaced-repetition Repair queue server-side.
-function TurnRepair({ correction }: { correction: Record<string, any> | undefined }) {
-  if (!correction) return null;
+// The word ribbon ("à placer :") — the target word itself, marked "used" once it
+// surfaces in one of the learner's own turns.
+function ribbonWords(mission: RealWorldMission | null): { t: string; used?: boolean }[] {
+  const direct = Array.isArray(mission?.target_vocabulary) ? mission?.target_vocabulary || [] : [];
+  const prompt = Array.isArray(mission?.prompt_payload?.target_vocabulary)
+    ? mission?.prompt_payload?.target_vocabulary || []
+    : [];
+  const said = missionTurns(mission)
+    .filter((turn) => turn.role === 'user')
+    .map((turn) => String(turn.text || '').toLowerCase())
+    .join(' ');
+  const seen = new Set<string>();
+  const result: { t: string; used?: boolean }[] = [];
+  (direct.length ? direct : prompt).forEach((item: Record<string, any>) => {
+    const word = String(item.word || '').trim();
+    const key = word.toLowerCase();
+    if (!word || seen.has(key) || result.length >= 3) return;
+    seen.add(key);
+    result.push({ t: word, used: key.length > 1 && said.includes(key) });
+  });
+  return result;
+}
+
+// The backend rotates five mission formats (serial_arc_planner.py) and ships a
+// per-format payload + writing scaffold. These readers surface it so the
+// composer can adapt; the visual "Le Courrier" reskin is a separate pass.
+type MissionFormat = 'chat_message' | 'email_formal' | 'admin_form' | 'voicemail_reply' | 'phone_call';
+
+function missionFormat(mission: RealWorldMission | null): MissionFormat {
+  const raw = String(mission?.mission_format || mission?.prompt_payload?.mission_format || 'chat_message');
+  const known: MissionFormat[] = ['chat_message', 'email_formal', 'admin_form', 'voicemail_reply', 'phone_call'];
+  return (known as string[]).includes(raw) ? (raw as MissionFormat) : 'chat_message';
+}
+
+function missionFormatPayload(mission: RealWorldMission | null): Record<string, any> {
+  const raw = mission?.prompt_payload?.mission_format_payload;
+  return raw && typeof raw === 'object' ? raw as Record<string, any> : {};
+}
+
+function missionWriting(mission: RealWorldMission | null): { title: string; instruction: string; placeholder: string } {
+  const prompt = mission?.prompt_payload || {};
+  return {
+    title: String(prompt.writing_title || ''),
+    instruction: String(prompt.writing_instruction || ''),
+    placeholder: String(prompt.writing_placeholder || ''),
+  };
+}
+
+function missionIsVoice(format: MissionFormat) {
+  return format === 'voicemail_reply' || format === 'phone_call';
+}
+
+function missionCadenceLabel(mission: RealWorldMission | null): string | null {
+  const cadence = String(mission?.cadence || '');
+  if (cadence === 'weekly') return 'Courrier de la semaine';
+  if (cadence === 'post_session') return 'Après la séance';
+  return null; // ad_hoc needs no marginal label
+}
+
+function formatComposerCopy(format: MissionFormat, writing: { title: string; instruction: string; placeholder: string }) {
+  switch (format) {
+    case 'email_formal':
+      return {
+        label: writing.title || 'Votre email',
+        instruction: writing.instruction || 'Écrivez l’email avec un objet, une formule d’appel, le corps et une formule de politesse.',
+        placeholder: writing.placeholder || 'Objet : ...\n\nMadame, Monsieur,\n...',
+      };
+    case 'admin_form':
+      return {
+        label: writing.title || 'Le formulaire',
+        instruction: writing.instruction || 'Remplissez les champs en français, en phrases complètes là où c’est demandé.',
+        placeholder: writing.placeholder || 'Nom :\nAdresse :\nDemande :',
+      };
+    case 'voicemail_reply':
+      return { label: 'Votre message vocal', instruction: 'Répondez à l’oral — ou écrivez votre réponse.', placeholder: 'Parlez, ou écrivez ici…' };
+    case 'phone_call':
+      return { label: 'Au téléphone', instruction: 'Réponse courte et orale — parlez, ou écrivez.', placeholder: 'Parlez, ou écrivez ici…' };
+    default:
+      return { label: 'Votre dépêche', instruction: '', placeholder: 'Votre réponse en français…' };
+  }
+}
+
+// The composer verb per artefact — the ink press-bar's French label.
+function submitLabel(format: MissionFormat) {
+  if (format === 'email_formal') return 'Envoyer l’email';
+  if (format === 'admin_form') return 'Déposer';
+  return 'Envoyer';
+}
+
+// Real grammar fixes only, mirroring the quiet-repair rules: drop task-compliance
+// notes and vocabulary nudges; keep corrections that carry a fix or a reason.
+function repairLines(correction: Record<string, any> | undefined): { fixed?: string; why?: string }[] {
+  if (!correction) return [];
   const errata = (Array.isArray(correction.errata) ? correction.errata : []).filter((item: any) => {
     const kind = String(item?.task_error_type || '');
-    // Only real language fixes — not "too short" task-compliance notes, and not the
-    // "you didn't use word X" vocabulary nudges (those aren't corrections of an error).
     if (kind === 'task_compliance' || kind.startsWith('vocabulary')) return false;
     return Boolean(item?.corrected_target || item?.why_wrong);
   });
-  const verdict = String(correction.verdict || '');
-  if (errata.length === 0) {
-    if (verdict === 'correct' || verdict === 'accepted') {
-      return <div className="turn-repair clean"><Check size={11} /> Clean</div>;
-    }
-    return null;
+  // The corrector returns at most three real mistakes; show all of them, so the
+  // "N réparations enregistrées" line below the card can never outrun the card.
+  return errata.slice(0, 3).map((item: any) => ({
+    fixed: item.corrected_target ? String(item.corrected_target) : undefined,
+    why: item.why_wrong ? String(item.why_wrong) : undefined,
+  }));
+}
+
+// Repairs actually filed in error memory. `saved_count` also counts vocabulary
+// credit rows, which this card never shows — reading it printed "1 réparation
+// enregistrée" under a card with nothing repaired on it.
+function correctionPersistence(correction: Record<string, any> | undefined) {
+  const persistence = correction?.persistence as Record<string, any> | undefined;
+  if (!persistence) return 0;
+  if (typeof persistence.repair_count === 'number') return Math.max(0, persistence.repair_count);
+  const records = Array.isArray(persistence.records) ? persistence.records : [];
+  return records.filter((row: any) => !row?.linked_word_id && String(row?.error_category || '') !== 'vocabulary').length;
+}
+
+function correctedReply(correction: Record<string, any> | undefined, learnerText: unknown) {
+  const corrected = String(correction?.corrected_answer || '').trim();
+  const original = String(learnerText || '').trim();
+  if (!corrected || corrected.localeCompare(original, undefined, { sensitivity: 'accent' }) === 0) return '';
+  return corrected;
+}
+
+function currentComposerInstruction(
+  mission: RealWorldMission | null,
+  base: { label: string; instruction: string; placeholder: string },
+): { label: string; instruction: string; placeholder: string } {
+  if (!missionTurns(mission).some((turn) => turn.role === 'user')) return base;
+  const assistantTurns = missionTurns(mission).filter((turn) => turn.role === 'assistant');
+  const latest = assistantTurns.slice(-1)[0] as Record<string, any> | undefined;
+  if (!latest) {
+    return base;
   }
-  return (
-    <div className="turn-repair">
-      {errata.slice(0, 2).map((item: any, index: number) => (
-        <div key={index} className="turn-repair-line">
-          {item.corrected_target && <span className="fix">{item.corrected_target}</span>}
-          {item.why_wrong && <span className="why">{item.why_wrong}</span>}
-        </div>
-      ))}
-      <span className="saved">Saved to your repairs</span>
-    </div>
-  );
+  const assistantText = compactText(latest.text, 150);
+  const branch = latest.audio_payload?.branch || {};
+  const state = String(branch.state || '');
+  if (state === 'understood') {
+    return {
+      label: 'Dernière réponse',
+      instruction: 'La situation est comprise. Confirmez le dernier détail ou terminez la mission.',
+      placeholder: 'Confirmez brièvement en français…',
+    };
+  }
+  return {
+    label: 'Votre réponse',
+    instruction: assistantText
+      ? `Dernier message : « ${assistantText} » Répondez à cette demande et faites avancer la situation.`
+      : 'Répondez au dernier message et faites avancer la situation.',
+    placeholder: 'Répondez au dernier message…',
+  };
+}
+
+// Slip time rule ("08 h 12"), printed only when the turn carries a timestamp —
+// never invented (honest-data contract).
+function slipTime(turn: Record<string, any> | null): string | undefined {
+  const raw = turn?.created_at || turn?.timestamp || null;
+  if (!raw) return undefined;
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return undefined;
+  return `${String(date.getHours()).padStart(2, '0')} h ${String(date.getMinutes()).padStart(2, '0')}`;
+}
+
+function frenchDate(raw: string | null | undefined): string {
+  const date = raw ? new Date(raw) : new Date();
+  const safe = Number.isNaN(date.getTime()) ? new Date() : date;
+  return new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long' }).format(safe);
+}
+
+// The kicker: a serial act flips to the blue "Le Feuilleton · Acte N" furniture.
+function deskKicker(mission: RealWorldMission | null, isSerialAct: boolean, actNumber: number | null) {
+  if (!isSerialAct) return 'Le Courrier';
+  return actNumber != null ? `Le Feuilleton · Acte ${actNumber}` : 'Le Feuilleton';
+}
+
+// Status as printed marginalia (never a pill), in the fiction's French.
+function deskStatusLine(mission: RealWorldMission | null, format: MissionFormat, completed: boolean): string {
+  if (completed) return `Bouclé · ${frenchDate(mission?.completed_at)}`;
+  if (mission?.status === 'in_progress') return 'En cours';
+  if (format === 'email_formal') return 'Reçu · à rédiger';
+  if (format === 'admin_form') return 'Dossier · à déposer';
+  if (format === 'voicemail_reply') return 'Message reçu · à rappeler';
+  if (format === 'phone_call') return 'Appel · ligne ouverte';
+  return 'Reçu ce matin';
 }
 
 function latestAssistantReply(mission: RealWorldMission | null) {
@@ -212,6 +363,17 @@ function querySeed(routerQuery: Record<string, string | string[] | undefined>): 
   };
 }
 
+// The serial gate refuses a new act while the current episode is still unread
+// (409 serial_episode_not_ready). Saying only "n'a pas pu être ouvert" left the
+// learner with a retry button that can never work; name the actual blocker.
+function loadErrorMessage(error: any): string {
+  const detail = error?.response?.data?.detail;
+  if (detail && typeof detail === 'object' && detail.code === 'serial_episode_not_ready') {
+    return 'L’acte suivant n’est pas encore ouvert : lisez d’abord l’épisode en cours du Feuilleton.';
+  }
+  return 'Ce moment de mission n’a pas pu être ouvert.';
+}
+
 function shouldCreateFromSeed(seed: QuerySeed) {
   return Boolean(
     seed.serialThreadId
@@ -230,82 +392,135 @@ function routeForMissionSerialBeat(serial: SerialToday | null | undefined) {
   return '/atelier';
 }
 
-function statusCopy(mission: RealWorldMission | null) {
-  if (!mission) return 'Loading';
-  if (mission.status === 'completed') return 'Resolved';
-  if (mission.status === 'in_progress') return 'In progress';
-  return 'Ready';
+// Archive status in the fiction's French — printed as marginalia on each row.
+function archiveStatus(mission: RealWorldMission | null) {
+  if (!mission) return '';
+  if (mission.status === 'completed') return 'Bouclé';
+  if (mission.status === 'in_progress') return 'En cours';
+  return 'À traiter';
 }
 
-function completionLine(mission: RealWorldMission | null) {
+// The credit rows on the resolved dossier. Every value maps to a recap field;
+// rows only print when their number is real (no invented totals).
+function resolutionCredit(mission: RealWorldMission | null, isSerialAct: boolean, hasNextAct: boolean) {
   const recap = (mission?.recap || {}) as Record<string, any>;
-  const minted = Array.isArray(recap.minted_collectibles) ? recap.minted_collectibles.length : 0;
   const produced = Number(recap.vocabulary_credit?.produced_correct || 0);
-  if (minted && produced) return `Token minted · ${produced} word${produced === 1 ? '' : 's'} credited`;
-  if (minted) return 'Token minted';
-  if (produced) return `${produced} word${produced === 1 ? '' : 's'} credited`;
-  return 'Saved to your practice loop';
+  // The filed repairs, not the ones this page happened to print: the dossier and
+  // the per-message cards must not quote two different totals for one thing.
+  const repairs = missionTurns(mission).reduce(
+    (total, turn) => total + correctionPersistence((turn as Record<string, any>).correction),
+    0,
+  );
+  const rows: { label: string; value: string }[] = [];
+  if (produced > 0) rows.push({ label: 'Lexique crédité', value: `${produced} mot${produced === 1 ? '' : 's'}` });
+  if (repairs > 0) rows.push({ label: 'Réparations', value: `${repairs} enregistrée${repairs === 1 ? '' : 's'}` });
+  if (isSerialAct && hasNextAct) rows.push({ label: 'Feuilleton', value: 'Acte suivant' });
+  return rows;
 }
 
-function TranslateButton({ text, label = 'Translate' }: { text: string; label?: string }) {
-  const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [translation, setTranslation] = useState('');
+// Records a spoken reply and transcribes it via /missions/audio/transcribe,
+// then hands the text back to the composer. Used for voicemail/phone formats.
+// It is the design's round red press (mic → ink "recording" → pending) and
+// stands in the composer where the send press would otherwise be, so the
+// screen keeps exactly one 3D press. The state is also said in words.
+type MicState = 'idle' | 'recording' | 'transcribing';
 
-  const reveal = async () => {
-    if (open) {
-      setOpen(false);
+function CourrierMic({
+  onTranscript,
+  onStateChange,
+  disabled,
+}: {
+  onTranscript: (text: string) => void;
+  onStateChange?: (state: MicState) => void;
+  disabled?: boolean;
+}) {
+  const [state, setState] = useState<MicState>('idle');
+  const [problem, setProblem] = useState<string | null>(null);
+  // A refused microphone is an explanation, not fiction: it follows the
+  // learner's language while the Courrier around it stays French (WP-21).
+  const chrome = atelierChrome(useLearnerLanguage());
+  const [seconds, setSeconds] = useState(0);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const clearTimer = () => {
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+  };
+  useEffect(() => () => clearTimer(), []);
+  useEffect(() => { onStateChange?.(state); }, [onStateChange, state]);
+
+  const start = async () => {
+    setProblem(null);
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+      setProblem(chrome.mic_unavailable);
       return;
     }
-    setOpen(true);
-    if (translation || loading) return;
-    setLoading(true);
     try {
-      setTranslation(await apiService.translateToEnglish(text));
-    } catch (error) {
-      console.error(error);
-      setTranslation('Translation unavailable.');
-    } finally {
-      setLoading(false);
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = createAudioMediaRecorder(stream);
+      recorderRef.current = recorder;
+      chunksRef.current = [];
+      recorder.ondataavailable = (event) => { if (event.data.size > 0) chunksRef.current.push(event.data); };
+      recorder.onstop = async () => {
+        stream.getTracks().forEach((track) => track.stop());
+        clearTimer();
+        setState('transcribing');
+        try {
+          const blob = recordedAudioBlob(chunksRef.current, recorder);
+          const text = await apiService.transcribeMissionAudio(blob);
+          if (text && text.trim()) onTranscript(text.trim());
+          else setProblem(chrome.transcription_empty);
+        } catch (transcribeError) {
+          console.error(transcribeError);
+          setProblem(chrome.transcription_failed);
+        } finally {
+          setState('idle');
+        }
+      };
+      recorder.start();
+      setSeconds(0);
+      timerRef.current = setInterval(() => setSeconds((value) => value + 1), 1000);
+      setState('recording');
+    } catch (permissionError) {
+      console.error(permissionError);
+      setProblem(chrome.mic_denied);
+      setState('idle');
     }
   };
 
-  return (
-    <div className="mission-translate">
-      <button type="button" onClick={reveal} className="translate-button">
-        <Languages size={15} />
-        {open ? 'Hide English' : label}
-      </button>
-      {open && (
-        <p className="translation-text">
-          {loading ? 'Translating...' : translation || 'Translation unavailable.'}
-        </p>
-      )}
-    </div>
-  );
-}
+  const stop = () => {
+    if (recorderRef.current && state === 'recording') recorderRef.current.stop();
+  };
 
-function MissionMark({ completed = false }: { completed?: boolean }) {
-  return (
-    <span className={`mission-mark ${completed ? 'complete' : ''}`} aria-hidden="true">
-      <i />
-      <b />
-      <em />
-    </span>
-  );
-}
+  const timer = `${Math.floor(seconds / 60)} : ${String(seconds % 60).padStart(2, '0')}`;
 
-function LoadingState() {
   return (
     <>
-      <main className="missions-page">
-        <section className="mission-loading" aria-live="polite">
-          <Loader2 className="spin" size={22} />
-          <p>Opening today&apos;s moment...</p>
-        </section>
-      </main>
-      <PhoneProductNav active="missions" />
-      <MissionStyles />
+      <IconAction
+        label={state === 'recording' ? 'Arrêter l’enregistrement' : 'Enregistrer une réponse vocale'}
+        tone={state === 'recording' ? 'recording' : 'action'}
+        pressable
+        className="cr-send"
+        pending={state === 'transcribing'}
+        disabled={disabled}
+        onClick={state === 'recording' ? stop : start}
+      >
+        {state === 'recording' ? <StopIcon size={20} /> : <MicIcon size={20} />}
+      </IconAction>
+      {state === 'recording' && (
+        <p className="cr-mic-state cr-mic-state--rec" role="status" aria-live="polite">
+          <ShapeToken kind="action" size="sm" />
+          <span>Enregistrement · {timer}</span>
+        </p>
+      )}
+      {state === 'transcribing' && (
+        <p className="cr-mic-state" role="status" aria-live="polite">
+          <ShapeToken kind="story" size="sm" />
+          <span>{chrome.transcribing}</span>
+        </p>
+      )}
+      {problem && <p className="cr-mic-problem" role="status">{problem}</p>}
     </>
   );
 }
@@ -320,18 +535,56 @@ export default function MissionsPage() {
   const [completing, setCompleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reply, setReply] = useState('');
+  const [micState, setMicState] = useState<MicState>('idle');
   const [completedNextSerial, setCompletedNextSerial] = useState<SerialToday | null>(null);
   const loadRequestRef = useRef(0);
+  const replyRef = useRef<HTMLTextAreaElement | null>(null);
 
   const seed = useMemo(() => querySeed(router.query as Record<string, string | string[] | undefined>), [router.query]);
   const messenger = useMemo(() => missionMessenger(mission), [mission]);
   const frame = useMemo(() => missionFrame(mission, messenger), [mission, messenger]);
   const turns = useMemo(() => missionTurns(mission), [mission]);
-  const words = useMemo(() => targetWords(mission), [mission]);
+  const ribbon = useMemo(() => ribbonWords(mission), [mission]);
   const isSerialAct = Boolean(mission?.serial_thread_id || seed.serialThreadId);
   const completed = mission?.status === 'completed';
   const interactionReady = hasInteraction(mission);
   const canSend = reply.trim().length > 0 && !submitting && !completed;
+  const format = useMemo(() => missionFormat(mission), [mission]);
+  const writing = useMemo(() => missionWriting(mission), [mission]);
+  const formatPayload = useMemo(() => missionFormatPayload(mission), [mission]);
+  const composerCopy = useMemo(() => formatComposerCopy(format, writing), [format, writing]);
+  const turnComposerCopy = useMemo(
+    () => currentComposerInstruction(
+      mission,
+      {
+        ...composerCopy,
+        instruction: composerCopy.instruction || frame.ask,
+      },
+    ),
+    [composerCopy, frame.ask, mission],
+  );
+  const cadenceLabel = missionCadenceLabel(mission);
+  const isVoiceFormat = missionIsVoice(format);
+  const recentCompleted = today?.recent_completed || [];
+  const openingMessage = isVoiceFormat && formatPayload.transcript
+    ? String(formatPayload.transcript)
+    : messenger.opening_message;
+  const visibleTurns = useMemo(() => {
+    let hasLearnerTurn = false;
+    const openingKey = _normalizeVisibleMessage(openingMessage);
+    return turns.filter((turn) => {
+      if (turn.role === 'user') {
+        hasLearnerTurn = true;
+        return true;
+      }
+      return hasLearnerTurn || _normalizeVisibleMessage(turn.text) !== openingKey;
+    });
+  }, [openingMessage, turns]);
+  const actNumber = typeof mission?.episode_index === 'number'
+    ? mission.episode_index + 1
+    : typeof seed.episodeIndex === 'number' ? seed.episodeIndex + 1 : null;
+  const mintedToken = Array.isArray((mission?.recap as Record<string, any>)?.minted_collectibles)
+    && (mission?.recap as Record<string, any>).minted_collectibles.some((item: any) => item?.kind === 'logo_token');
 
   const routeToMission = useCallback((next: RealWorldMission) => {
     if (!router.isReady) return;
@@ -401,7 +654,7 @@ export default function MissionsPage() {
     } catch (loadError) {
       console.error(loadError);
       if (!isCurrent()) return;
-      setError('Could not open the mission moment.');
+      setError(loadErrorMessage(loadError));
     } finally {
       if (isCurrent()) setLoading(false);
     }
@@ -414,6 +667,23 @@ export default function MissionsPage() {
     };
   }, [loadMission]);
 
+  useEffect(() => {
+    if (!mission?.id || mission.status === 'completed') return;
+    const key = `pilot:mission-draft:${mission.id}`;
+    const draft = readLocalJson<string>(key, '');
+    setReply((current) => current || draft);
+    saveResumeActivity({
+      href: `/missions?mission=${mission.id}`,
+      kind: 'mission',
+      entityId: mission.id,
+    });
+  }, [mission?.id, mission?.status]);
+
+  useEffect(() => {
+    if (!mission?.id || mission.status === 'completed') return;
+    writeLocalJson(`pilot:mission-draft:${mission.id}`, reply);
+  }, [mission?.id, mission?.status, reply]);
+
   const sendReply = async (event?: FormEvent) => {
     event?.preventDefault();
     const text = reply.trim();
@@ -423,9 +693,10 @@ export default function MissionsPage() {
       const result = await apiService.submitMissionTurn(mission.id, { text, mode: 'chat' });
       setMission({ ...result.mission, outcome: result.outcome || result.mission.outcome });
       setReply('');
+      window.localStorage.removeItem(`pilot:mission-draft:${mission.id}`);
     } catch (sendError) {
       console.error(sendError);
-      toast.error('Message did not send.');
+      toast.error('Le message n’est pas parti.');
     } finally {
       setSubmitting(false);
     }
@@ -437,17 +708,16 @@ export default function MissionsPage() {
     try {
       const result = await apiService.completeMission(mission.id);
       setMission(result.mission);
+      clearResumeActivity('mission');
+      window.localStorage.removeItem(`pilot:mission-draft:${mission.id}`);
       setCompletedNextSerial(result.next_serial || null);
       if (!result.mission.serial_thread_id) {
         writeLocalDayProgressFlag('missionDone');
       }
-      toast.success(isSerialAct ? 'Act resolved' : 'Mission resolved');
-      if (result.next_serial && result.mission.serial_thread_id) {
-        void router.push(routeForMissionSerialBeat(result.next_serial));
-      }
+      toast.success(isSerialAct ? 'Acte bouclé' : 'Courrier bouclé');
     } catch (completeError) {
       console.error(completeError);
-      toast.error('Could not finish this moment.');
+      toast.error('Ce moment n’a pas pu être terminé.');
     } finally {
       setCompleting(false);
     }
@@ -463,784 +733,327 @@ export default function MissionsPage() {
       });
       if (!next) return;
       setCompletedNextSerial(null);
-      toast.success(next.serial_thread_id ? 'Act opened' : 'Mission opened');
+      toast.success(next.serial_thread_id ? 'Nouvel acte ouvert' : 'Nouveau courrier ouvert');
     } catch (createError) {
       console.error(createError);
-      toast.error('Could not create a new moment.');
+      toast.error('Le nouveau moment n’a pas pu être créé.');
     }
   };
 
-  const returnToAtelierHome = useCallback((event: React.MouseEvent<HTMLAnchorElement>) => {
-    event.preventDefault();
+  const returnToAtelierHome = useCallback((event?: React.MouseEvent) => {
+    event?.preventDefault();
     loadRequestRef.current += 1;
     void router.push('/atelier').catch(() => {
       window.location.assign('/atelier');
     });
   }, [router]);
 
-  if (loading && !mission) return <LoadingState />;
+  const kicker = deskKicker(mission, isSerialAct, actNumber);
+  const statusLine = deskStatusLine(mission, format, completed);
+  const nextBest = mission?.recap?.branch_outcome?.next_best_move || latestAssistantReply(mission) || null;
+  const creditRows = completed
+    ? resolutionCredit(mission, isSerialAct, Boolean(completedNextSerial?.thread_id))
+    : [];
+  const memoRows: [string, string][] = [
+    ['De la part de', String(formatPayload.caller || messenger.contact_name)],
+    ['Canal', messenger.channel_label],
+  ];
+  const translateFrame = () => apiService.translateToEnglish([frame.frame, frame.ask].filter(Boolean).join(' '));
+  const useQuickReply = (value: string) => {
+    setReply(value);
+    window.requestAnimationFrame(() => replyRef.current?.focus());
+  };
 
-  const assistantReply = latestAssistantReply(mission);
-  const completion = completed ? completionLine(mission) : null;
-  const translatePrompt = [frame.frame, frame.ask, messenger.opening_message].filter(Boolean).join(' ');
+  // Header line: "<cadence or act> · <mission title>" — the design's
+  // "Mission de la semaine · résumer un titre".
+  const deskLine = `${cadenceLabel || kicker} · ${missionTitle(mission)}`;
+  const placedCount = ribbon.filter((word) => word.used).length;
+  const deskChip = completed ? (
+    <Chip icon={<ShapeToken kind="done" size="sm" />}>Bouclé</Chip>
+  ) : ribbon.length > 0 ? (
+    <Chip tone="reward" icon={<ShapeToken kind="done" size="sm" />}>
+      {placedCount}/{ribbon.length}
+      <span className="av2-sr"> mots placés</span>
+    </Chip>
+  ) : (
+    <Chip tone="quiet" icon={<ShapeToken kind="story" size="sm" />}>{statusLine}</Chip>
+  );
+  // The mic stands where the send press would be while there is nothing to
+  // send (or while it is busy); with a draft the round red press becomes send.
+  const showMic = isVoiceFormat && (reply.trim().length === 0 || micState !== 'idle');
+  // The situation card already prints the ask; the composer only repeats an
+  // instruction when it says something new (a format scaffold, a follow-up).
+  const composerInstruction = turnComposerCopy.instruction && turnComposerCopy.instruction !== frame.ask
+    ? turnComposerCopy.instruction
+    : '';
+  const recapTurns = Number(mission?.recap?.turns || 0);
+  const recapErrata = Number(mission?.recap?.errata_logged || 0);
+  const recapSaved = Number(mission?.recap?.saved_to_srs?.saved_count || 0);
 
   return (
     <>
       <Head>
-        <title>{isSerialAct ? 'Feuilleton Act' : 'Mission'} · Conversational Language Learning</title>
+        <title>{isSerialAct ? 'Le Feuilleton · Acte' : 'Le Courrier'} · L’Atelier</title>
       </Head>
-      <main className="missions-page">
-        <header className="mission-nav">
-          <Link href="/atelier" className="back-link" aria-label="Return to Atelier home" onClick={returnToAtelierHome}>
-            <ArrowLeft size={16} />
-            Atelier
-          </Link>
-          <span>{statusCopy(mission)}</span>
-        </header>
-
-        {error ? (
-          <section className="mission-error">
-            <MessageCircle size={24} />
-            <h1>{error}</h1>
-            <button type="button" onClick={loadMission} className="ink-button">
-              <RefreshCw size={16} />
-              Retry
-            </button>
-          </section>
+      <AtelierV2Root as="main" className="cr motion" aria-label={isSerialAct ? 'Le Feuilleton · acte' : 'Le Courrier'}>
+        {loading && !mission ? (
+          <div className="cr-page" aria-busy="true" aria-live="polite">
+            <span className="av2-sr">Chargement du courrier</span>
+            <div className="cr-skel">
+              <Skeleton height={44} radius={999} />
+              <Skeleton height={72} />
+              <Skeleton height={56} />
+              <Skeleton height={72} />
+              <Skeleton height={50} />
+            </div>
+          </div>
+        ) : error ? (
+          <div className="cr-page cr-page--centre">
+            <StateBlock
+              tone="error"
+              title="Courrier égaré"
+              body={error}
+              action={{ label: 'Réessayer', onSelect: () => { void loadMission(); }, tone: 'primary' }}
+            />
+            <CrGhost href="/atelier" onClick={returnToAtelierHome}>Retour à la Une</CrGhost>
+          </div>
+        ) : !mission ? (
+          <div className="cr-page cr-page--centre">
+            <StateBlock
+              tone="empty"
+              title="Aucun courrier — la Une vous attend."
+              body="Le facteur repassera avec l’édition de demain."
+              action={{ label: 'Retour à la Une', onSelect: () => returnToAtelierHome(), tone: 'primary' }}
+            />
+          </div>
         ) : (
-          <section className="mission-stage" aria-label={isSerialAct ? 'Feuilleton act' : 'Mission'}>
-            <div className="scene-column">
-              <section className="scene-frame">
-                <div className="frame-top">
-                  <MissionMark completed={completed} />
-                  <div>
-                    <span>{isSerialAct ? 'Feuilleton act' : 'Mission'}</span>
-                    <h1>{missionTitle(mission)}</h1>
-                  </div>
-                </div>
-                <p>{frame.frame}</p>
-                <strong>{frame.ask}</strong>
-                <TranslateButton text={translatePrompt} label="Translate frame" />
-              </section>
+          <>
+            <div className="cr-page">
+              <CrDesk
+                name={String(formatPayload.caller || messenger.contact_name)}
+                line={deskLine}
+                chip={deskChip}
+                onBack={returnToAtelierHome}
+              />
+              {mission.recommendation_reason?.text && (
+                <p className="cr-reason">{mission.recommendation_reason.text}</p>
+              )}
 
-              {words.length > 0 && (
-                <section className="word-ribbon" aria-label="Target words">
-                  {words.map((word) => (
-                    <span key={word}>{word}</span>
-                  ))}
+              {!completed && (
+                <>
+                  <CrSituation frame={frame.frame} ask={frame.ask} translate={translateFrame} />
+                  <CrRibbon words={ribbon} />
+                </>
+              )}
+
+              <div className="cr-thread">
+                {isVoiceFormat ? (
+                  <CrMemo
+                    rows={memoRows}
+                    transcript={openingMessage}
+                    stamp={interactionReady ? 'Répondu' : null}
+                    translate={() => apiService.translateToEnglish(openingMessage)}
+                  />
+                ) : (
+                  <CrSlip who={messenger.contact_name} translate={() => apiService.translateToEnglish(openingMessage)}>
+                    {openingMessage}
+                  </CrSlip>
+                )}
+                {!completed && <CrPS text={messenger.twist} />}
+
+                {visibleTurns.map((turn) => {
+                  const isUser = turn.role === 'user';
+                  const correction = isUser ? (turn as Record<string, any>).correction : undefined;
+                  const lines = repairLines(correction);
+                  const correctedAnswer = correctedReply(correction, turn.text);
+                  const savedCount = correctionPersistence(correction);
+                  return (
+                    <React.Fragment key={turn.id || `${turn.turn_index}-${turn.role}`}>
+                      <CrSlip
+                        who={isUser ? 'Vous' : messenger.contact_name}
+                        time={slipTime(turn)}
+                        you={isUser}
+                        sent={isUser}
+                        translate={isUser ? undefined : () => apiService.translateToEnglish(String(turn.text || ''))}
+                      >
+                        {turn.text}
+                      </CrSlip>
+                      {isUser && (lines.length > 0 || correctedAnswer) && (
+                        <CrRepair
+                          correctedAnswer={correctedAnswer}
+                          lines={lines}
+                          savedCount={savedCount}
+                        />
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+                {submitting && (
+                  <div className="cr-typing" role="status" aria-live="polite">
+                    <span className="rollers" aria-hidden="true"><i /><i /><i /></span>
+                    <span>{messenger.contact_name} rédige sa réponse</span>
+                  </div>
+                )}
+              </div>
+
+              {completed && (
+                <section className="cr-resolve" aria-label="Dossier résolu">
+                  <p className="cr-resolve-kicker">Compte rendu de mission</p>
+                  <div className="cr-seal">
+                    <span className="cr-seal-word">
+                      <ShapeToken kind="done" size="lg" />
+                      {isSerialAct ? 'Acte bouclé' : 'Résolu'}
+                    </span>
+                    <span className="cr-seal-date">{frenchDate(mission?.completed_at)}</span>
+                    <p className="cr-seal-sub" lang="fr">{messenger.success_signal}</p>
+                  </div>
+                  {mintedToken && (
+                    <div className="cr-token" role="status">
+                      <LogoToken pop />
+                      <span className="cr-token-earned">Jeton frappé</span>
+                    </div>
+                  )}
+                  {creditRows.length > 0 && (
+                    <div className="cr-credit">
+                      {creditRows.map((row) => (
+                        <div className="cr-credit-row" key={row.label}>
+                          <span>
+                            <ShapeToken kind={row.label === 'Feuilleton' ? 'story' : 'reward'} size="sm" />
+                            {row.label}
+                          </span>
+                          <b>{row.value}</b>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div className="cr-recap-grid">
+                    <div>
+                      <strong>{recapTurns}</strong>
+                      <span>réponse{recapTurns === 1 ? '' : 's'}</span>
+                    </div>
+                    <div>
+                      <strong>{recapErrata}</strong>
+                      <span>erreur{recapErrata === 1 ? '' : 's'} repérée{recapErrata === 1 ? '' : 's'}</span>
+                    </div>
+                    <div>
+                      <strong>{recapSaved}</strong>
+                      <span>phrase{recapSaved === 1 ? '' : 's'} sauvegardée{recapSaved === 1 ? '' : 's'}</span>
+                    </div>
+                  </div>
+                  {mission.recap?.readiness && (
+                    <div className="cr-readiness">
+                      <span>Prêt pour la vraie vie</span>
+                      <strong>{Number(mission.recap.readiness.overall || 0)}%</strong>
+                    </div>
+                  )}
+                  {Array.isArray(mission.recap?.objective_results) && mission.recap.objective_results.length > 0 && (
+                    <div className="cr-objectives" aria-label="Objectifs de mission">
+                      <span className="cr-objectives-k">Objectifs</span>
+                      {mission.recap.objective_results.map((objective: Record<string, any>, index: number) => (
+                        <div className={'cr-objective' + (objective.met ? ' cr-objective--met' : '')} key={String(objective.id || index)}>
+                          <ShapeToken kind={objective.met ? 'done' : 'action'} size="sm" />
+                          <span>
+                            {String(objective.label || 'Objectif de mission')}
+                            <span className="av2-sr">{objective.met ? ' · atteint' : ' · à revoir'}</span>
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {nextBest && <p className="cr-next" lang="fr">{nextBest}</p>}
+                  {/* One 3D press per screen: the forward move. When the act
+                      continues, that is the next act; otherwise the next
+                      courrier. Everything else stays quiet. */}
+                  <div className="cr-nexts">
+                    {isSerialAct && completedNextSerial?.thread_id ? (
+                      <CrGhost primary href={routeForMissionSerialBeat(completedNextSerial)}>Lire l’acte suivant</CrGhost>
+                    ) : (
+                      <CrGhost primary onClick={startFreshMission} disabled={creating}>Nouveau courrier</CrGhost>
+                    )}
+                    <CrGhost href="/atelier" onClick={returnToAtelierHome}>Retour à l’Atelier</CrGhost>
+                    {isSerialAct && completedNextSerial?.thread_id && (
+                      <CrGhost quiet onClick={startFreshMission} disabled={creating}>Nouveau courrier</CrGhost>
+                    )}
+                  </div>
                 </section>
               )}
 
-              {completed && (
-                <section className="reward-strip" aria-label="Mission payoff">
-                  <div className="token-preview minted">
-                    <Check size={18} />
-                  </div>
-                  <div>
-                    <span>{completion}</span>
-                    <p>{messenger.success_signal}</p>
-                  </div>
+              {recentCompleted.length > 0 && (
+                <section className="cr-archive" aria-label="Courrier passé">
+                  <p className="cr-archive-k">Courrier passé</p>
+                  <ul>
+                    {/* Filter before slicing, or the open courrier silently eats a row. */}
+                    {recentCompleted.filter((past) => past.id !== mission?.id).slice(0, 8).map((past) => (
+                      <li key={past.id}>
+                        <Link className="cr-archive-row" href={{ pathname: '/missions', query: { mission: past.id } }}>
+                          <b>{missionTitle(past)}</b>
+                          <span>
+                            <ShapeToken kind={past.status === 'completed' ? 'done' : 'story'} size="sm" />
+                            {archiveStatus(past)}
+                          </span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
                 </section>
               )}
             </div>
 
-            <section className="phone-column">
-              <div className="thread-head">
-                <div className="avatar">{messenger.contact_initials}</div>
-                <div>
-                  <span>{messenger.channel_label}</span>
-                  <strong>{messenger.contact_name}</strong>
-                  <p>{messenger.contact_role} · {messenger.presence}</p>
-                </div>
-              </div>
-
-              <div className="thread-body" aria-live="polite">
-                <article className="message-row assistant">
-                  <div className="bubble">
-                    <span>{messenger.thread_title}</span>
-                    <p>{messenger.opening_message}</p>
-                    <TranslateButton text={messenger.opening_message} />
-                  </div>
-                </article>
-
-                {turns.map((turn) => (
-                  <article key={turn.id || `${turn.turn_index}-${turn.role}`} className={`message-row ${turn.role === 'user' ? 'user' : 'assistant'}`}>
-                    <div className="bubble">
-                      <p>{turn.text}</p>
-                      {turn.role === 'assistant' && <TranslateButton text={turn.text} />}
-                    </div>
-                    {turn.role === 'user' && <TurnRepair correction={(turn as Record<string, any>).correction} />}
-                  </article>
-                ))}
-
-                {completed && (
-                  <article className="resolution-note">
-                    <MissionMark completed />
-                    <div>
-                      <span>{completion}</span>
-                      <p>{mission?.recap?.branch_outcome?.next_best_move || assistantReply || 'The exchange is saved.'}</p>
-                    </div>
-                  </article>
-                )}
-              </div>
-
-              {!completed && (
-                <form className="composer" onSubmit={sendReply}>
-                  <label htmlFor="mission-reply">Your reply in French</label>
+            {!completed && (
+              <CrComposer
+                quick={messenger.quick_replies}
+                onQuick={useQuickReply}
+                cta={submitLabel(format)}
+                onSubmit={sendReply}
+                sending={submitting}
+                canSubmit={canSend}
+                canFinish={interactionReady}
+                finishing={completing}
+                onFinish={finishMission}
+                finishLabel="Terminer"
+                voice={showMic ? (
+                  <CourrierMic
+                    disabled={submitting}
+                    onStateChange={setMicState}
+                    onTranscript={(text) => setReply((current) => (current.trim() ? `${current.trim()} ${text}` : text))}
+                  />
+                ) : undefined}
+              >
+                <label className="av2-field">
+                  <span className={format === 'chat_message' && !composerInstruction ? 'av2-sr' : 'av2-field__label'}>
+                    {turnComposerCopy.label}
+                  </span>
+                  {composerInstruction && <p className="cr-instruction">{composerInstruction}</p>}
                   <textarea
-                    id="mission-reply"
+                    ref={replyRef}
+                    className={'av2-field__control cr-draft' + (format === 'email_formal' || format === 'admin_form' ? ' cr-draft--tall' : '')}
+                    lang="fr"
+                    rows={1}
                     value={reply}
                     onChange={(event) => setReply(event.target.value)}
-                    placeholder="Bonjour..."
-                    rows={5}
+                    placeholder={turnComposerCopy.placeholder || composerCopy.placeholder}
+                    aria-label={turnComposerCopy.label}
                   />
-                  {messenger.quick_replies.length > 0 && (
-                    <div className="reply-starters" aria-label="Reply starters">
-                      {messenger.quick_replies.map((starter) => (
-                        <button
-                          type="button"
-                          key={starter}
-                          onClick={() => setReply((current) => current ? `${current.trim()} ${starter}` : starter)}
-                        >
-                          {starter}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  <div className="composer-actions">
-                    <button type="submit" className="send-button" disabled={!canSend}>
-                      {submitting ? <Loader2 className="spin" size={16} /> : <Send size={16} />}
-                      Send
-                    </button>
-                    <button
-                      type="button"
-                      className="finish-button"
-                      disabled={completing || !interactionReady}
-                      onClick={finishMission}
-                    >
-                      {completing ? <Loader2 className="spin" size={16} /> : <Check size={16} />}
-                      {interactionReady ? 'Finish' : 'Send first'}
-                    </button>
-                  </div>
-                </form>
-              )}
-
-              {completed && (
-                <div className="completed-actions">
-                  {isSerialAct ? (
-                    <Link href={routeForMissionSerialBeat(completedNextSerial)} className="quiet-link">
-                      Next act <ArrowRight size={14} />
-                    </Link>
-                  ) : null}
-                  <Link href="/vocabulary" className="quiet-link">
-                    Coverage map <ArrowRight size={14} />
-                  </Link>
-                  {!isSerialAct && (
-                    <button type="button" onClick={startFreshMission} className="quiet-link as-button" disabled={creating}>
-                      {creating ? <Loader2 className="spin" size={14} /> : <RefreshCw size={14} />}
-                      New moment
-                    </button>
-                  )}
-                </div>
-              )}
-            </section>
-          </section>
+                </label>
+              </CrComposer>
+            )}
+          </>
         )}
-      </main>
+      </AtelierV2Root>
       <PhoneProductNav active="missions" />
-      <MissionStyles />
+      <CourrierStyles />
+      <MissionsStageStyles />
     </>
   );
 }
 
-function MissionStyles() {
+// The page ground behind the phone-shell `.av2.cr`; bottom-nav clearance is
+// handled inside `.av2.cr` (see CourrierStyles).
+function MissionsStageStyles() {
   return (
     <style jsx global>{`
-      :root {
-        --mission-paper: #f4eee2;
-        --mission-sheet: #fffaf0;
-        --mission-ink: #191715;
-        --mission-muted: #6d665c;
-        --mission-red: #e24a3b;
-        --mission-blue: #2f6fdd;
-        --mission-yellow: #f0c94a;
-        --mission-green: #2f9b68;
-        --mission-line: rgba(25, 23, 21, .18);
-      }
-
-      .missions-page {
-        min-height: 100vh;
-        background:
-          linear-gradient(90deg, rgba(25, 23, 21, .04) 1px, transparent 1px),
-          var(--mission-paper);
-        background-size: 42px 42px;
-        color: var(--mission-ink);
-        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      }
-
-      .missions-page * {
-        box-sizing: border-box;
-      }
-
-      .missions-page button,
-      .missions-page textarea {
-        font: inherit;
-      }
-
-      .mission-nav {
-        position: sticky;
-        top: 0;
-        z-index: 10;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 18px;
-        padding: 16px max(18px, calc((100vw - 1180px) / 2));
-        border-bottom: 2px solid var(--mission-ink);
-        background: rgba(244, 238, 226, .95);
-        backdrop-filter: blur(10px);
-        font-size: 11px;
-        font-weight: 900;
-        letter-spacing: .12em;
-        text-transform: uppercase;
-      }
-
-      .back-link,
-      .quiet-link {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        color: inherit;
-        text-decoration: none;
-      }
-
-      .back-link {
-        min-height: 40px;
-        margin: -10px 0 -10px -8px;
-        padding: 0 8px;
-      }
-
-      .back-link:focus-visible {
-        outline: 2px solid var(--mission-blue);
-        outline-offset: 2px;
-      }
-
-      .mission-stage {
-        width: min(1180px, 100%);
-        margin: 0 auto;
-        padding: 34px 18px 46px;
-        display: grid;
-        grid-template-columns: minmax(290px, 430px) minmax(0, 1fr);
-        gap: 28px;
-        align-items: start;
-      }
-
-      .scene-column,
-      .phone-column {
-        min-width: 0;
-        display: grid;
-        gap: 16px;
-      }
-
-      .scene-frame,
-      .reward-strip,
-      .word-ribbon,
-      .phone-column,
-      .mission-error,
-      .mission-loading {
-        border: 2px solid var(--mission-ink);
-        background: var(--mission-sheet);
-        box-shadow: 8px 8px 0 var(--mission-ink);
-      }
-
-      .scene-frame {
-        padding: 24px;
-        display: grid;
-        gap: 18px;
-      }
-
-      .frame-top {
-        display: flex;
-        gap: 16px;
-        align-items: center;
-      }
-
-      .frame-top span,
-      .thread-head span,
-      .bubble span,
-      .reward-strip span,
-      .composer label,
-      .word-ribbon span {
-        display: block;
-        font-size: 10px;
-        font-weight: 900;
-        letter-spacing: .13em;
-        text-transform: uppercase;
-        color: var(--mission-muted);
-      }
-
-      .frame-top h1 {
-        margin: 3px 0 0;
-        font-family: Georgia, "Times New Roman", serif;
-        font-size: 27px;
-        line-height: 1.05;
-        font-style: italic;
-        font-weight: 700;
-        letter-spacing: 0;
-        color: var(--mission-ink);
-      }
-
-      .scene-frame p,
-      .reward-strip p,
-      .thread-head p,
-      .resolution-note p {
-        margin: 0;
-        color: var(--mission-muted);
-        line-height: 1.45;
-      }
-
-      .scene-frame strong {
-        display: block;
-        font-size: 20px;
-        line-height: 1.28;
-        font-weight: 850;
-      }
-
-      .scene-frame small {
-        display: block;
-        border-left: 5px solid var(--mission-yellow);
-        padding-left: 12px;
-        color: var(--mission-muted);
-        line-height: 1.4;
-      }
-
-      .mission-mark {
-        width: 54px;
-        height: 54px;
-        position: relative;
-        display: inline-grid;
-        place-items: center;
-        flex: 0 0 auto;
-        background: var(--mission-yellow);
-        border: 2px solid var(--mission-ink);
-      }
-
-      .mission-mark i,
-      .mission-mark b,
-      .mission-mark em {
-        position: absolute;
-        display: block;
-        border: 2px solid var(--mission-ink);
-      }
-
-      .mission-mark i {
-        width: 28px;
-        height: 28px;
-        background: var(--mission-red);
-        transform: rotate(45deg);
-      }
-
-      .mission-mark b {
-        width: 20px;
-        height: 20px;
-        border-radius: 999px;
-        background: var(--mission-blue);
-        right: 4px;
-        bottom: 4px;
-      }
-
-      .mission-mark em {
-        width: 0;
-        height: 0;
-        border-left: 11px solid transparent;
-        border-right: 11px solid transparent;
-        border-bottom: 20px solid var(--mission-green);
-        border-top: 0;
-        left: 4px;
-        top: 4px;
-      }
-
-      .mission-mark.complete {
-        background: var(--mission-green);
-      }
-
-      .reward-strip {
-        display: grid;
-        grid-template-columns: 50px minmax(0, 1fr);
-        gap: 14px;
-        align-items: center;
-        padding: 16px;
-      }
-
-      .token-preview {
-        width: 46px;
-        height: 46px;
-        display: grid;
-        place-items: center;
-        border: 2px solid var(--mission-ink);
-        background: var(--mission-yellow);
-      }
-
-      .token-preview.minted {
-        background: var(--mission-green);
-        color: white;
-      }
-
-      .word-ribbon {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        padding: 12px;
-        box-shadow: 5px 5px 0 var(--mission-ink);
-      }
-
-      .word-ribbon span {
-        padding: 7px 9px;
-        border: 1px solid var(--mission-ink);
-        background: white;
-        color: var(--mission-ink);
-        letter-spacing: .07em;
-      }
-
-      .phone-column {
-        padding: 0;
-        overflow: hidden;
-      }
-
-      .thread-head {
-        min-height: 78px;
-        display: grid;
-        grid-template-columns: 48px minmax(0, 1fr);
-        gap: 13px;
-        align-items: center;
-        padding: 16px 18px;
-        border-bottom: 2px solid var(--mission-ink);
-        background: white;
-      }
-
-      .avatar {
-        width: 48px;
-        height: 48px;
-        border: 2px solid var(--mission-ink);
-        display: grid;
-        place-items: center;
-        background: var(--mission-blue);
-        color: white;
-        font-weight: 950;
-      }
-
-      .thread-head strong {
-        display: block;
-        font-size: 18px;
-        line-height: 1.1;
-      }
-
-      .thread-body {
-        min-height: 360px;
-        max-height: 56vh;
-        overflow: auto;
-        padding: 22px;
-        display: flex;
-        flex-direction: column;
-        gap: 14px;
-        background:
-          linear-gradient(180deg, rgba(47, 111, 221, .08), transparent 160px),
-          #f7f3eb;
-      }
-
-      .message-row {
-        display: flex;
-      }
-
-      .message-row.user {
-        justify-content: flex-end;
-        flex-direction: column;
-        align-items: flex-end;
-      }
-
-      .turn-repair {
-        width: min(560px, 86%);
-        margin-top: 5px;
-        display: grid;
-        gap: 3px;
-        justify-items: end;
-        text-align: right;
-      }
-      .turn-repair.clean {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-        font-size: 10px;
-        font-weight: 900;
-        letter-spacing: .1em;
-        text-transform: uppercase;
-        color: var(--mission-green);
-      }
-      .turn-repair-line {
-        display: grid;
-        gap: 1px;
-        justify-items: end;
-        border-right: 3px solid var(--mission-red);
-        padding-right: 9px;
-      }
-      .turn-repair-line .fix {
-        font-family: var(--font-serif, Garamond, serif);
-        font-style: italic;
-        font-size: 16px;
-        color: var(--mission-ink);
-      }
-      .turn-repair-line .why {
-        font-size: 12px;
-        color: var(--mission-muted);
-        line-height: 1.35;
-      }
-      .turn-repair .saved {
-        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-        font-size: 9px;
-        font-weight: 900;
-        letter-spacing: .12em;
-        text-transform: uppercase;
-        color: var(--mission-muted);
-      }
-
-      .bubble {
-        width: min(560px, 86%);
-        border: 2px solid var(--mission-ink);
-        background: white;
-        padding: 13px 15px;
-        box-shadow: 4px 4px 0 var(--mission-ink);
-      }
-
-      .message-row.user .bubble {
-        background: var(--mission-ink);
-        color: white;
-        box-shadow: 4px 4px 0 var(--mission-blue);
-      }
-
-      .message-row.user .bubble p {
-        color: white;
-      }
-
-      .bubble p {
-        margin: 5px 0 0;
-        line-height: 1.45;
-        white-space: pre-wrap;
-      }
-
-      .mission-translate {
-        display: grid;
-        gap: 6px;
-        margin-top: 10px;
-      }
-
-      .translate-button {
-        width: fit-content;
-        display: inline-flex;
-        align-items: center;
-        gap: 7px;
-        border: 1px solid var(--mission-ink);
-        background: var(--mission-sheet);
-        color: var(--mission-ink);
-        padding: 7px 9px;
-        font-size: 11px;
-        font-weight: 850;
-        cursor: pointer;
-      }
-
-      .message-row.user .translate-button {
-        display: none;
-      }
-
-      .translation-text {
-        margin: 0;
-        color: var(--mission-muted);
-        font-size: 13px;
-        line-height: 1.35;
-      }
-
-      .resolution-note {
-        display: grid;
-        grid-template-columns: 48px minmax(0, 1fr);
-        gap: 12px;
-        align-items: center;
-        border: 2px solid var(--mission-ink);
-        background: white;
-        padding: 14px;
-        box-shadow: 4px 4px 0 var(--mission-green);
-      }
-
-      .composer {
-        display: grid;
-        gap: 12px;
-        padding: 18px;
-        border-top: 2px solid var(--mission-ink);
-        background: white;
-      }
-
-      .composer textarea {
-        width: 100%;
-        min-height: 132px;
-        resize: vertical;
-        border: 2px solid var(--mission-ink);
-        background: var(--mission-sheet);
-        padding: 14px;
-        line-height: 1.45;
-        outline: none;
-      }
-
-      .composer textarea:focus {
-        box-shadow: 0 0 0 3px var(--mission-yellow);
-      }
-
-      .reply-starters {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-      }
-
-      .reply-starters button {
-        border: 1px solid var(--mission-ink);
-        background: var(--mission-paper);
-        padding: 7px 9px;
-        font-size: 13px;
-        cursor: pointer;
-      }
-
-      .composer-actions,
-      .completed-actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-        align-items: center;
-      }
-
-      .send-button,
-      .finish-button,
-      .ink-button,
-      .quiet-link.as-button {
-        min-height: 44px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 9px;
-        border: 2px solid var(--mission-ink);
-        padding: 0 16px;
-        font-weight: 900;
-        cursor: pointer;
-        text-decoration: none;
-      }
-
-      .send-button,
-      .ink-button {
-        background: var(--mission-ink);
-        color: white;
-      }
-
-      .finish-button,
-      .quiet-link.as-button,
-      .quiet-link {
-        background: white;
-        color: var(--mission-ink);
-      }
-
-      .send-button:disabled,
-      .finish-button:disabled,
-      .quiet-link.as-button:disabled {
-        cursor: not-allowed;
-        opacity: .5;
-      }
-
-      .completed-actions {
-        padding: 16px 18px 18px;
-        border-top: 2px solid var(--mission-ink);
-        background: white;
-      }
-
-      .mission-loading,
-      .mission-error {
-        width: min(520px, calc(100% - 36px));
-        margin: 80px auto;
-        padding: 28px;
-        display: grid;
-        gap: 16px;
-        justify-items: start;
-      }
-
-      .mission-error h1,
-      .mission-loading p {
-        margin: 0;
-        font-size: 20px;
-      }
-
-      .spin {
-        animation: mission-spin 900ms linear infinite;
-      }
-
-      @keyframes mission-spin {
-        to { transform: rotate(360deg); }
-      }
-
-      @media (max-width: 860px) {
-        .missions-page {
-          padding-bottom: var(--phone-bottom-nav-space);
-        }
-        .mission-stage {
-          grid-template-columns: 1fr;
-          padding: 18px 14px 28px;
-          gap: 18px;
-        }
-
-        .mission-nav {
-          padding-inline: 14px;
-        }
-
-        .scene-frame,
-        .phone-column {
-          box-shadow: 5px 5px 0 var(--mission-ink);
-        }
-
-        .frame-top h1 {
-          font-size: 29px;
-        }
-
-        .thread-body {
-          min-height: 300px;
-          max-height: none;
-          padding: 16px;
-        }
-
-        .bubble {
-          width: 94%;
-        }
-      }
-
-      @media (max-width: 520px) {
-        .scene-frame {
-          padding: 18px;
-        }
-
-        .frame-top {
-          align-items: flex-start;
-        }
-
-        .mission-mark {
-          width: 48px;
-          height: 48px;
-        }
-
-        .composer-actions,
-        .completed-actions {
-          display: grid;
-          grid-template-columns: 1fr;
-        }
-
-        .send-button,
-        .finish-button,
-        .quiet-link {
-          width: 100%;
-        }
-      }
+      body { background: var(--app-paper); }
+      .av2.cr { margin: 0 auto; }
     `}</style>
   );
 }

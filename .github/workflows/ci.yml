@@ -45,7 +45,12 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          # 22, not 20: `scripts/capture-mobile-states.mjs` drives Chrome over
+          # the DevTools Protocol with the global `WebSocket`, which Node 20
+          # does not define (the mobile smoke died on `ReferenceError:
+          # WebSocket is not defined`). It is also the version the project is
+          # developed against.
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: web-frontend/package-lock.json
 
@@ -60,11 +65,19 @@ jobs:
           pip install .[dev]
           python -m spacy download fr_core_news_sm
 
-      - name: Lint with ruff
+      - name: Check Python with Ruff
         run: ruff check .
 
       - name: Run unit tests
         run: pytest --cov=app --cov-report=term-missing
+
+      - name: Verify Alembic migrations
+        # Also the step that gives the CI database its schema: the word-bank
+        # audit below queries real tables, so it has to run after this one.
+        run: |
+          alembic upgrade head
+          alembic downgrade base
+          alembic upgrade head
 
       - name: Audit Atelier word banks
         run: python scripts/audit_atelier_word_banks.py --output /tmp/atelier-word-bank-audit.json
@@ -77,11 +90,23 @@ jobs:
         working-directory: web-frontend
         env:
           NEXT_PUBLIC_API_BASE_URL: https://api.example.com/api/v1
+          # CI has no deployable host; the guard in native-api-env.mjs would
+          # (correctly) reject the placeholder and turn this step permanently red.
+          ALLOW_PLACEHOLDER_NATIVE_API: "true"
         run: |
           npm run type-check
           npm run lint
           npm run test:atelier-next
+          npm run test:journey
+          npm run test:recovery
+          npm run test:resume-target
+          npm run test:reader
+          npm run test:atelier-ui
+          npm run test:api-host
+          npm run test:story-model
+          npm run test:seance
           npm run test:graphic-novel-images
+          npm run test:native-env
           npm run build
           npm run build:native
 
@@ -106,12 +131,6 @@ jobs:
           done
           curl -fsS http://127.0.0.1:3000/mobile-visual-qa >/dev/null
           npm run capture:mobile
-
-      - name: Verify Alembic migrations
-        run: |
-          alembic upgrade head
-          alembic downgrade base
-          alembic upgrade head
 
       - name: Build Docker image
         run: docker build . -t conversational-language-learning:ci

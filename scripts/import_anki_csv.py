@@ -16,17 +16,15 @@ from __future__ import annotations
 
 import argparse
 import os
-import sys
-from typing import Optional
 
 from sqlalchemy.orm import Session
 
-from app.db.session import SessionLocal
 from app.db.models.user import User
-from app.services.anki_import import AnkiImportService, AnkiImportError
+from app.db.session import SessionLocal
+from app.services.anki_import import AnkiImportError, AnkiImportService
 
 
-def _load_user(db: Session, *, user_id: Optional[str], user_email: Optional[str]) -> User:
+def _load_user(db: Session, *, user_id: str | None, user_email: str | None) -> User:
     if user_id:
         user = db.get(User, user_id)
         if not user:
@@ -69,10 +67,10 @@ def main() -> None:
 
         # Read content as UTF-8 with replacement for any stray bytes
         try:
-            with open(csv_path, "r", encoding="utf-8", errors="replace") as f:
+            with open(csv_path, encoding="utf-8", errors="replace") as f:
                 csv_content = f.read()
         except Exception as e:  # pragma: no cover - CLI convenience
-            raise SystemExit(f"Failed to read CSV: {e}")
+            raise SystemExit(f"Failed to read CSV: {e}") from e
 
         importer = AnkiImportService(db)
         try:
@@ -83,7 +81,7 @@ def main() -> None:
                 preserve_scheduling=preserve,
             )
         except AnkiImportError as e:
-            raise SystemExit(f"Import failed: {e}")
+            raise SystemExit(f"Import failed: {e}") from e
 
         print("Import completed:")
         print(f"  total processed:      {stats.get('total', 0)}")
@@ -99,4 +97,3 @@ def main() -> None:
 
 if __name__ == "__main__":  # pragma: no cover - CLI entrypoint
     main()
-

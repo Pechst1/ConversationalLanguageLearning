@@ -13,7 +13,7 @@ interval and bump the difficulty.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 
 @dataclass(slots=True)
@@ -53,7 +53,7 @@ class FSRSScheduler:
         if dt is None:
             return None
         if dt.tzinfo is None:
-            return dt.replace(tzinfo=timezone.utc)
+            return dt.replace(tzinfo=UTC)
         return dt
 
     @staticmethod
@@ -120,7 +120,7 @@ class FSRSScheduler:
         if rating < 0 or rating > 3:
             raise ValueError("Rating must be between 0 and 3 inclusive")
 
-        now = self._ensure_timezone(now or datetime.now(timezone.utc))
+        now = self._ensure_timezone(now or datetime.now(UTC))
         last_review_at = self._ensure_timezone(last_review_at)
 
         elapsed_days = 0

@@ -1,0 +1,747 @@
+[
+  {
+    "label": "home-390-dark",
+    "route": "/atelier",
+    "viewport": "390-dark",
+    "path": "/atelier",
+    "vw": 390,
+    "scrollW": 390,
+    "hOverflow": false,
+    "overflowing": [],
+    "smallTargets": [
+      "A:11ᵉʳ jour 37x61 cls=av2-home__streak",
+      "A:Plus de pratique 110x32 cls=av2-day-tile__more",
+      "A:après la séance 75x18 cls=",
+      "BUTTON:Send feedback 36x36 cls=grid h-9 w-9 place-items-center border b"
+    ],
+    "unnamedControls": [],
+    "inputsWithoutLabel": [],
+    "headings": [
+      "H2:Today’s scene is done.",
+      "H1:Lundi 7 septembre"
+    ],
+    "h1Count": 1,
+    "imgsWithoutAlt": 0,
+    "controlCount": 13,
+    "tabOrder": [
+      "Continue",
+      "Open that session",
+      "11ᵉʳ jour",
+      "Séance0/22 · reprendre",
+      "Plus de pratique",
+      "LexiqueRien à revoir",
+      "ErrataRien à reprendre",
+      "après la séance",
+      "Atelier",
+      "Missions",
+      "Feuilleton",
+      "Cahier",
+      "Send feedback"
+    ],
+    "focusRing": {
+      "outline": "3px none",
+      "boxShadow": "rgb(74, 66, 52) 0px 4px 0px 0px"
+    },
+    "bodyBg": "rgb(23, 21, 16)",
+    "bodyColor": "rgb(245, 239, 225)",
+    "text": " Today Today’s scene is done. Continue Unfinished practice session You still have an older practice session open. It is kept separately. Open that session Édition Nº 1 · A1.1 Lundi 7 septembre 1 1ᵉʳ jour Séance 0/22 · reprendre Plus de pratique Lexique Rien à revoir Errata Rien à reprendre Demain — après la séance, épisode 2. Atelier Missions Feuilleton Cahier"
+  },
+  {
+    "label": "practice-legacy-390-dark",
+    "route": "/atelier?mode=practice&concept=1",
+    "viewport": "390-dark",
+    "path": "/atelier?mode=practice&concept=1",
+    "vw": 390,
+    "scrollW": 390,
+    "hOverflow": false,
+    "overflowing": [],
+    "smallTargets": [
+      "BUTTON:Send feedback 36x36 cls=grid h-9 w-9 place-items-center border b"
+    ],
+    "unnamedControls": [],
+    "inputsWithoutLabel": [],
+    "headings": [],
+    "h1Count": 0,
+    "imgsWithoutAlt": 0,
+    "controlCount": 10,
+    "tabOrder": [
+      "Fermer la séance",
+      "Terminer",
+      "La règle",
+      "Cahier ↗",
+      "petite",
+      "petit",
+      "sûr·e",
+      "pas sûr·e",
+      "Vérifier",
+      "Send feedback"
+    ],
+    "focusRing": {
+      "outline": "3px none",
+      "boxShadow": "none"
+    },
+    "bodyBg": "rgb(23, 21, 16)",
+    "bodyColor": "rgb(245, 239, 225)",
+    "text": "Plus de pratique Genre et nombre : les bases 0/22 Terminer Reconnaître · Compléter · 1/1 Genre et nombre : les bases La règle La règle Cahier ↗ French nouns carry gender and number; determiners and many adjectives must match the noun they belong to. Quand : Use this whenever a noun phrase contains an article, adjective, or pronoun that must agree with the noun. Le schéma : masculine/feminine + singular/plural noun -> matching determiner/adjective Le contrôle : Avoid: guessing gender from English Une petite table blanche est dans la cuisine. un livre blanc une table blanche Essayez maintenant avec l’élément le plus simple. Une table blanche est dans la cuisine. petite petit Vous êtes… sûr·e p"
+  },
+  {
+    "label": "feuilleton-390-dark",
+    "route": "/graphic-novel",
+    "viewport": "390-dark",
+    "path": "/graphic-novel",
+    "vw": 390,
+    "scrollW": 390,
+    "hOverflow": false,
+    "overflowing": [],
+    "smallTargets": [
+      "BUTTON:Send feedback 36x36 cls=grid h-9 w-9 place-items-center border b"
+    ],
+    "unnamedControls": [],
+    "inputsWithoutLabel": [],
+    "headings": [
+      "H1:L’épisode du jour",
+      "H2:L’épisode du jour vous attend."
+    ],
+    "h1Count": 1,
+    "imgsWithoutAlt": 0,
+    "controlCount": 11,
+    "tabOrder": [
+      "L’épisode",
+      "La saison",
+      "Les personnages",
+      "Retour à La Une",
+      "Ouvrir l’épisode du jour",
+      "En margeLe supplément il",
+      "Atelier",
+      "Missions",
+      "Feuilleton",
+      "Cahier",
+      "Send feedback"
+    ],
+    "focusRing": {
+      "outline": "3px none",
+      "boxShadow": "none"
+    },
+    "bodyBg": "rgb(23, 21, 16)",
+    "bodyColor": "rgb(245, 239, 225)",
+    "text": "Le feuilleton · Saison 1 L’épisode du jour L’épisode La saison Les personnages Retour à La Une L’illustration de cet épisode n’est pas encore parue. Épisode 1 · aujourd’hui L’épisode du jour vous attend. Une réponse réelle doit faire avancer la situation. Le prochain épisode montrera exactement ce qu’elle a changé. Ouvrir l’épisode du jour C’est l’épisode annoncé à La Une. Il continue votre saison ; il n’en ouvre pas une autre. En marge Le supplément illustré Une scène composée à la demande, en marge du feuilleton. Elle ne change rien à la saison. Atelier Missions Feuilleton Cahier"
+  },
+  {
+    "label": "serial-index-390-dark",
+    "route": "/serial",
+    "viewport": "390-dark",
+    "path": "/serial",
+    "vw": 390,
+    "scrollW": 390,
+    "hOverflow": false,
+    "overflowing": [],
+    "smallTargets": [
+      "BUTTON:Send feedback 36x36 cls=grid h-9 w-9 place-items-center border b"
+    ],
+    "unnamedControls": [],
+    "inputsWithoutLabel": [],
+    "headings": [
+      "H1:Le feuilleton"
+    ],
+    "h1Count": 1,
+    "imgsWithoutAlt": 0,
+    "controlCount": 7,
+    "tabOrder": [
+      "Épisode 1 · luVous avez ",
+      "Le registre du théâtreLe",
+      "Atelier",
+      "Missions",
+      "Feuilleton",
+      "Cahier",
+      "Send feedback"
+    ],
+    "focusRing": {
+      "outline": "3px none",
+      "boxShadow": "none"
+    },
+    "bodyBg": "rgb(23, 21, 16)",
+    "bodyColor": "rgb(245, 239, 225)",
+    "text": "Saison 1 · 1 épisode paru Le feuilleton Épisode 1 · lu Vous avez promis d'aider samedi. Le registre du théâtre Les personnages Atelier Missions Feuilleton Cahier"
+  },
+  {
+    "label": "serial-cast-390-dark",
+    "route": "/serial/cast",
+    "viewport": "390-dark",
+    "path": "/serial/cast",
+    "vw": 390,
+    "scrollW": 390,
+    "hOverflow": false,
+    "overflowing": [],
+    "smallTargets": [
+      "BUTTON:Send feedback 36x36 cls=grid h-9 w-9 place-items-center border b"
+    ],
+    "unnamedControls": [],
+    "inputsWithoutLabel": [],
+    "headings": [
+      "H1:Les personnages"
+    ],
+    "h1Count": 1,
+    "imgsWithoutAlt": 0,
+    "controlCount": 8,
+    "tabOrder": [
+      "Le feuilletonLa saison",
+      "Personnaliser",
+      "Season 1 · Episode 1Scèn",
+      "Atelier",
+      "Missions",
+      "Feuilleton",
+      "Cahier",
+      "Send feedback"
+    ],
+    "focusRing": {
+      "outline": "3px none",
+      "boxShadow": "none"
+    },
+    "bodyBg": "rgb(23, 21, 16)",
+    "bodyColor": "rgb(245, 239, 225)",
+    "text": "Le registre du théâtre · tout le monde vous vouvoie encore Les personnages Le feuilleton La saison T Votre personnage Mode POV Private model sheet · POV — jamais dessiné Personnaliser Marin Lévêque Half of the anchor couple. Works at an environmental NGO; secretly writes a fantasy novel no one is allowed to read. vous · de rigueur Proximité Pas encore de tutoiement Rappels Vous avez promis d'aider samedi. Dernier échange — You offered to help. Season 1 · Episode 1 Scène 1 — exhibition-help Lila Bonnet Primary-school teacher and painter. The social engine and emotional referee of the group. vous · de rigueur Proximité Pas encore de tutoiement Rappels Aucun rappel encore — l’histoire commence."
+  },
+  {
+    "label": "serial-replay-390-dark",
+    "route": "/serial/episode/0",
+    "viewport": "390-dark",
+    "path": "/serial/episode/0",
+    "vw": 390,
+    "scrollW": 390,
+    "hOverflow": false,
+    "overflowing": [],
+    "smallTargets": [
+      "BUTTON:Send feedback 36x36 cls=grid h-9 w-9 place-items-center border b"
+    ],
+    "unnamedControls": [],
+    "inputsWithoutLabel": [],
+    "headings": [
+      "H1:Épisode",
+      "H2:Épisode non classé."
+    ],
+    "h1Count": 1,
+    "imgsWithoutAlt": 0,
+    "controlCount": 6,
+    "tabOrder": [
+      "Saison 1",
+      "Atelier",
+      "Missions",
+      "Feuilleton",
+      "Cahier",
+      "Send feedback"
+    ],
+    "focusRing": {
+      "outline": "3px none",
+      "boxShadow": "rgb(74, 66, 52) 0px 4px 0px 0px"
+    },
+    "bodyBg": "rgb(23, 21, 16)",
+    "bodyColor": "rgb(245, 239, 225)",
+    "text": "Saison 1 Saison 1 · Épisode 1 · relecture Épisode Épisode non classé. Cette entrée ne figure pas encore aux archives. Atelier Missions Feuilleton Cahier"
+  },
+  {
+    "label": "missions-390-dark",
+    "route": "/missions",
+    "viewport": "390-dark",
+    "path": "/missions?mission=75d00fe8-80e8-4c40-b74b-be916d34b77f",
+    "vw": 390,
+    "scrollW": 390,
+    "hOverflow": false,
+    "overflowing": [],
+    "smallTargets": [
+      "BUTTON:Traduire 55x36 cls=cr-trad-btn",
+      "BUTTON:Send feedback 36x36 cls=grid h-9 w-9 place-items-center border b"
+    ],
+    "unnamedControls": [],
+    "inputsWithoutLabel": [],
+    "headings": [
+      "H1:Samira"
+    ],
+    "h1Count": 1,
+    "imgsWithoutAlt": 0,
+    "controlCount": 14,
+    "tabOrder": [
+      "Retour à la Une",
+      "Traduire",
+      "Traduire",
+      "D'accord, je vais prendr",
+      "Est-ce que vous avez aus",
+      "Vous me conseillez leque",
+      "Votre dépêche",
+      "Envoyer",
+      "Terminer",
+      "Atelier",
+      "Missions",
+      "Feuilleton",
+      "Cahier",
+      "Send feedback"
+    ],
+    "focusRing": {
+      "outline": "3px none",
+      "boxShadow": "none"
+    },
+    "bodyBg": "rgb(23, 21, 16)",
+    "bodyColor": "rgb(245, 239, 225)",
+    "text": "S Samira Courrier de la semaine · Bakery Backup Reçu ce matin Choisi pour produire les mots et structures de votre édition. baker at the corner boulangerie · At the boulangerie counter, just before the lunch rush À faire · Samira knows what you want and whether to slice or set anything aside. Traduire Samira · Bonjour ! Il n'y a plus de tradition pour l'instant. Vous voulez essayer le pain aux céréales ? Traduire P.S. — Your usual baguette is gone, but the baker has one very opinionated recommendation. D'accord, je vais prendre... Est-ce que vous avez aussi... Vous me conseillez lequel ? Votre dépêche Terminer Envoyez d’abord une réponse. Atelier Missions Feuilleton Cahier Le Courrier · L’At"
+  },
+  {
+    "label": "studio-390-dark",
+    "route": "/audio-session",
+    "viewport": "390-dark",
+    "path": "/audio-session",
+    "vw": 390,
+    "scrollW": 390,
+    "hOverflow": false,
+    "overflowing": [],
+    "smallTargets": [
+      "BUTTON:Send feedback 36x36 cls=grid h-9 w-9 place-items-center border b"
+    ],
+    "unnamedControls": [],
+    "inputsWithoutLabel": [],
+    "headings": [
+      "H1:Le Studio",
+      "H2:Une voix, une vraie réponse."
+    ],
+    "h1Count": 1,
+    "imgsWithoutAlt": 0,
+    "controlCount": 4,
+    "tabOrder": [
+      "Retour à La Une",
+      "Commencer à parler",
+      "Choisir une scène",
+      "Send feedback"
+    ],
+    "focusRing": {
+      "outline": "3px none",
+      "boxShadow": "none"
+    },
+    "bodyBg": "rgb(23, 21, 16)",
+    "bodyColor": "rgb(245, 239, 225)",
+    "text": "LE STUDIO · APPEL OUVERT Le Studio 0:00 CONVERSATION · 5 MINUTES Une voix, une vraie réponse. La conversation reprend votre histoire et vos mots du jour. Les corrections restent discrètes : vous gardez le fil. Commencer à parler Choisir une scène"
+  },
+  {
+    "label": "cahier-390-dark",
+    "route": "/notebook",
+    "viewport": "390-dark",
+    "path": "/notebook",
+    "vw": 390,
+    "scrollW": 390,
+    "hOverflow": false,
+    "overflowing": [
+      "BUTTON.av2-chip [365,406]",
+      "SPAN. [378,393]",
+      "BUTTON.av2-chip [412,455]",
+      "SPAN. [425,442]"
+    ],
+    "smallTargets": [
+      "BUTTON:A1 40x44 cls=av2-chip",
+      "BUTTON:A2 43x44 cls=av2-chip",
+      "BUTTON:B1 39x44 cls=av2-chip",
+      "BUTTON:B2 42x44 cls=av2-chip",
+      "BUTTON:C1 41x44 cls=av2-chip",
+      "BUTTON:C2 43x44 cls=av2-chip",
+      "BUTTON:Send feedback 36x36 cls=grid h-9 w-9 place-items-center border b"
+    ],
+    "unnamedControls": [],
+    "inputsWithoutLabel": [],
+    "headings": [
+      "H1:Le cahier"
+    ],
+    "h1Count": 1,
+    "imgsWithoutAlt": 0,
+    "controlCount": 71,
+    "tabOrder": [
+      "Règles",
+      "Mots",
+      "Relevé",
+      "Chercher une règle, un p",
+      "Tous",
+      "À revoir · 0",
+      "A1",
+      "A2",
+      "B1",
+      "B2",
+      "C1",
+      "C2",
+      "Genre et nombre : les ba",
+      "Les articles définis : l",
+      "Les articles indéfinis :",
+      "Les articles partitifs :",
+      "Les possessifs : mon, ma",
+      "Les démonstratifs : ce, ",
+      "Les pronoms sujets et on",
+      "Le présent : verbes esse",
+      "La négation simple : ne.",
+      "Les questions simplesA1 ",
+      "L'adjectif : accord et p",
+      "Le futur proche : aller ",
+      "Les pronoms COD et COIA2",
+      "Y et en : les basesA2 · ",
+      "De/d' après la négationA",
+      "Le passé composé avec av",
+      "Le passé composé avec êt",
+      "Les verbes pronominauxA2",
+      "L'imparfait : les basesA",
+      "Imparfait vs passé compo",
+      "Comparatif et superlatif",
+      "Les pronoms relatifs : q",
+      "Les prépositions de temp",
+      "L'impératif avec les pro",
+      "Si + présent → futur (co",
+      "Si + imparfait → conditi",
+      "Le futur simpleB1 · Temp",
+      "Le conditionnel présentB"
+    ],
+    "focusRing": {
+      "outline": "3px none",
+      "boxShadow": "none"
+    },
+    "bodyBg": "rgb(23, 21, 16)",
+    "bodyColor": "rgb(245, 239, 225)",
+    "text": "54 concepts · 0 vus · A1.1 en cours Le cahier Règles Mots Relevé Tous À revoir · 0 A1 A2 B1 B2 C1 C2 54 fiches Genre et nombre : les bases A1 · Accord · nouveau Les articles définis : le, la, l', les A1 · Articles · nouveau Les articles indéfinis : un, une, des A1 · Articles · nouveau Les articles partitifs : du, de la, de l' A1 · Articles · nouveau Les possessifs : mon, ma, mes A1 · Déterminants · nouveau Les démonstratifs : ce, cet, cette, ces A1 · Déterminants · nouveau Les pronoms sujets et on A1 · Pronoms · nouveau Le présent : verbes essentiels A1 · Verbes · nouveau La négation simple : ne... pas A1 · Négation · nouveau Les questions simples A1 · Syntaxe · nouveau L'adjectif : accord e"
+  },
+  {
+    "label": "cahier-releve-390-dark",
+    "route": "/notebook?mode=releve",
+    "viewport": "390-dark",
+    "path": "/notebook?mode=releve",
+    "vw": 390,
+    "scrollW": 390,
+    "hOverflow": false,
+    "overflowing": [],
+    "smallTargets": [
+      "BUTTON:Send feedback 36x36 cls=grid h-9 w-9 place-items-center border b"
+    ],
+    "unnamedControls": [],
+    "inputsWithoutLabel": [],
+    "headings": [
+      "H1:Le cahier",
+      "H2:Le cours",
+      "H2:Le registre",
+      "H2:La collection"
+    ],
+    "h1Count": 1,
+    "imgsWithoutAlt": 0,
+    "controlCount": 8,
+    "tabOrder": [
+      "Règles",
+      "Mots",
+      "Relevé",
+      "Atelier",
+      "Missions",
+      "Feuilleton",
+      "Cahier",
+      "Send feedback"
+    ],
+    "focusRing": {
+      "outline": "3px none",
+      "boxShadow": "none"
+    },
+    "bodyBg": "rgb(23, 21, 16)",
+    "bodyColor": "rgb(245, 239, 225)",
+    "text": "Relevé · A1.1 en cours Le cahier Règles Mots Relevé Le cours A1.1 Prévisions après sept jours actifs. Mots 0 / 300 Règles 0 / 20 Le registre Mots acquis 0 Mots en cours 0 Mots à revoir aujourd’hui 0 Règles engagées 0 / 54 Règles à revoir aujourd’hui 0 La collection 2 pièces Première séance La première séance est bouclée. · bronze 7 sept. 2026 Vignette 1 Le Relevé · arrêté au 7 sept. 2026 Atelier Missions Feuilleton Cahier"
+  },
+  {
+    "label": "cahier-fiche-390-dark",
+    "route": "/grammar?concept=1",
+    "viewport": "390-dark",
+    "path": "/grammar?concept=1",
+    "vw": 390,
+    "scrollW": 390,
+    "hOverflow": false,
+    "overflowing": [],
+    "smallTargets": [
+      "BUTTON:Send feedback 36x36 cls=grid h-9 w-9 place-items-center border b"
+    ],
+    "unnamedControls": [],
+    "inputsWithoutLabel": [],
+    "headings": [
+      "H1:Le cahier",
+      "H2:Genre et nombre : les bases",
+      "H2:La règle",
+      "H2:Exemples d’ancrage",
+      "H2:Pièges principaux",
+      "H2:Motif",
+      "H2:Notes en marge"
+    ],
+    "h1Count": 1,
+    "imgsWithoutAlt": 0,
+    "controlCount": 11,
+    "tabOrder": [
+      "Règles",
+      "Mots",
+      "Relevé",
+      "Index des règles · fiche",
+      "Annoter",
+      "Travailler cette règle à",
+      "Atelier",
+      "Missions",
+      "Feuilleton",
+      "Cahier",
+      "Send feedback"
+    ],
+    "focusRing": {
+      "outline": "3px none",
+      "boxShadow": "none"
+    },
+    "bodyBg": "rgb(23, 21, 16)",
+    "bodyColor": "rgb(245, 239, 225)",
+    "text": "54 concepts · 0 vus Le cahier Règles Mots Relevé Index des règles · fiche 1 A1 Accord Genre et nombre : les bases 0 / 10 Nouveau La règle French nouns carry gender and number; determiners and many adjectives must match the noun they belong to. Exemples d’ancrage 3 exemples un livre blanc une table blanche des livres blancs Pièges principaux 3 relevés guessing gender from English forgetting plural marks in writing agreeing with the nearest word instead of the noun Motif gabarit vérifié · qualité 100/5 masculine/feminine + singular/plural noun -> matching determiner/adjective Notes en marge Aucune note pour l’instant — la marge vous attend. Annoter Travailler cette règle à l’Atelier Atelier Mi"
+  },
+  {
+    "label": "bibliotheque-390-dark",
+    "route": "/bibliotheque",
+    "viewport": "390-dark",
+    "path": "/atelier",
+    "vw": 390,
+    "scrollW": 390,
+    "hOverflow": false,
+    "overflowing": [],
+    "smallTargets": [
+      "A:11ᵉʳ jour 37x61 cls=av2-home__streak",
+      "A:Plus de pratique 110x32 cls=av2-day-tile__more",
+      "A:après la séance 75x18 cls=",
+      "BUTTON:Send feedback 36x36 cls=grid h-9 w-9 place-items-center border b"
+    ],
+    "unnamedControls": [],
+    "inputsWithoutLabel": [],
+    "headings": [
+      "H2:Today’s scene is done.",
+      "H1:Lundi 7 septembre"
+    ],
+    "h1Count": 1,
+    "imgsWithoutAlt": 0,
+    "controlCount": 13,
+    "tabOrder": [
+      "Continue",
+      "Open that session",
+      "11ᵉʳ jour",
+      "Séance0/22 · reprendre",
+      "Plus de pratique",
+      "LexiqueRien à revoir",
+      "ErrataRien à reprendre",
+      "après la séance",
+      "Atelier",
+      "Missions",
+      "Feuilleton",
+      "Cahier",
+      "Send feedback"
+    ],
+    "focusRing": {
+      "outline": "3px none",
+      "boxShadow": "rgb(74, 66, 52) 0px 4px 0px 0px"
+    },
+    "bodyBg": "rgb(23, 21, 16)",
+    "bodyColor": "rgb(245, 239, 225)",
+    "text": " Today Today’s scene is done. Continue Unfinished practice session You still have an older practice session open. It is kept separately. Open that session Édition Nº 1 · A1.1 Lundi 7 septembre 1 1ᵉʳ jour Séance 0/22 · reprendre Plus de pratique Lexique Rien à revoir Errata Rien à reprendre Demain — après la séance, épisode 2. Atelier Missions Feuilleton Cahier"
+  },
+  {
+    "label": "lexique-390-dark",
+    "route": "/vocabulary",
+    "viewport": "390-dark",
+    "path": "/vocabulary",
+    "vw": 390,
+    "scrollW": 390,
+    "hOverflow": false,
+    "overflowing": [],
+    "smallTargets": [
+      "A:Grammaire 91x30 cls=lx-switch__tab",
+      "BUTTON:Send feedback 36x36 cls=grid h-9 w-9 place-items-center border b"
+    ],
+    "unnamedControls": [
+      "INPUT.lx-search__input lx-input"
+    ],
+    "inputsWithoutLabel": [],
+    "headings": [
+      "H1:Le lexique",
+      "H2:Aucune carte en file",
+      "H2:Semaine — 0 repairs, 0 vocabulary review"
+    ],
+    "h1Count": 1,
+    "imgsWithoutAlt": 0,
+    "controlCount": 50,
+    "tabOrder": [
+      "Grammaire",
+      "Ouvrir la révision",
+      "INPUT",
+      "Tous",
+      "À revoir",
+      "Fragiles",
+      "Nouveaux",
+      "Acquis",
+      "Bbonjourhello · rang 1 ·",
+      "Mmercithank you · rang 2",
+      "Ss'il vous plaîtplease ·",
+      "Bbaguettebaguette · rang",
+      "Ccroissantcroissant · ra",
+      "Ccafécoffee; café · rang",
+      "Tthétea · rang 7 · nom ·",
+      "Ffromagecheese · rang 8 ",
+      "Ppainbread · rang 9 · no",
+      "Eeauwater · rang 10 · no",
+      "Vvinwine · rang 11 · nom",
+      "Bboireto drink · rang 12",
+      "Mmangerto eat · rang 13 ",
+      "Pparlerto speak · rang 1",
+      "Aaimerto like; to love ·",
+      "Aacheterto buy · rang 16",
+      "Ppayerto pay · rang 17 ·",
+      "Ccommandeorder · rang 18",
+      "Mmenumenu · rang 19 · no",
+      "Aadditionbill · rang 20 ",
+      "Mmaisonhouse · rang 21 ·",
+      "Éécoleschool · rang 22 ·",
+      "Ttravailwork · rang 23 ·",
+      "Vvoiturecar · rang 24 · ",
+      "Ttraintrain · rang 25 · ",
+      "Bbusbus · rang 26 · nom ",
+      "Vvillecity · rang 27 · n",
+      "Rruestreet · rang 28 · n",
+      "Aamifriend · rang 29 · n",
+      "Aamiefriend · rang 30 · ",
+      "Ffillegirl; daughter · r",
+      "Ggarçonboy; waiter · ran"
+    ],
+    "focusRing": {
+      "outline": "3px none",
+      "boxShadow": "none"
+    },
+    "bodyBg": "rgb(23, 21, 16)",
+    "bodyColor": "rgb(245, 239, 225)",
+    "text": "0 mots à revoir · 0 fragiles · 0 nouveaux Le lexique Grammaire Vocabulaire Ouvrir la révision Chercher un mot Tous À revoir Fragiles Nouveaux Acquis 0 cartes en file · 36 au registre (tout le registre) File du jour — à revoir 0 cartes Aucune carte en file La file du jour est vide — le registre vous attend plus bas. Registre des mots — Français 5000 36 affichés B bonjour hello · rang 1 · interjection · Nouveau M merci thank you · rang 2 · interjection · Nouveau S s'il vous plaît please · rang 3 · Nouveau B baguette baguette · rang 4 · nom · Nouveau C croissant croissant · rang 5 · nom · Nouveau C café coffee; café · rang 6 · nom · Nouveau T thé tea · rang 7 · nom · Nouveau F fromage cheese · "
+  },
+  {
+    "label": "lexique-review-390-dark",
+    "route": "/vocabulary/review",
+    "viewport": "390-dark",
+    "path": "/vocabulary/review",
+    "vw": 390,
+    "scrollW": 390,
+    "hOverflow": false,
+    "overflowing": [],
+    "smallTargets": [
+      "BUTTON:Send feedback 36x36 cls=grid h-9 w-9 place-items-center border b"
+    ],
+    "unnamedControls": [],
+    "inputsWithoutLabel": [],
+    "headings": [
+      "H2:Paquet vidé"
+    ],
+    "h1Count": 0,
+    "imgsWithoutAlt": 0,
+    "controlCount": 4,
+    "tabOrder": [
+      "Quitter la révision",
+      "L’Atelier",
+      "Actualiser",
+      "Send feedback"
+    ],
+    "focusRing": {
+      "outline": "3px none",
+      "boxShadow": "none"
+    },
+    "bodyBg": "rgb(23, 21, 16)",
+    "bodyColor": "rgb(245, 239, 225)",
+    "text": "Révision espacée Paquet vidé L’Atelier Actualiser"
+  },
+  {
+    "label": "reglages-390-dark",
+    "route": "/settings",
+    "viewport": "390-dark",
+    "path": "/settings",
+    "vw": 390,
+    "scrollW": 390,
+    "hOverflow": false,
+    "overflowing": [],
+    "smallTargets": [
+      "A:L’Atelier 56x26 cls=app-brand",
+      "A:Settings 36x36 cls=app-settings-affordance active",
+      "BUTTON:Légère 91x40 cls=st-seg__btn",
+      "BUTTON:Équilibrée 91x40 cls=st-seg__btn",
+      "BUTTON:Complète 91x40 cls=st-seg__btn",
+      "BUTTON:Féminin 91x40 cls=st-seg__btn",
+      "BUTTON:Masculin 91x40 cls=st-seg__btn",
+      "BUTTON:Neutre 91x40 cls=st-seg__btn",
+      "BUTTON:5 min 91x40 cls=st-seg__btn",
+      "BUTTON:10 min 91x40 cls=st-seg__btn",
+      "BUTTON:15 min 91x40 cls=st-seg__btn",
+      "BUTTON:30 min 140x40 cls=st-seg__btn",
+      "BUTTON:60 min 140x40 cls=st-seg__btn",
+      "BUTTON:20 91x40 cls=st-seg__btn",
+      "BUTTON:50 91x40 cls=st-seg__btn",
+      "BUTTON:100 91x40 cls=st-seg__btn",
+      "BUTTON:150 140x40 cls=st-seg__btn",
+      "BUTTON:200 140x40 cls=st-seg__btn",
+      "BUTTON:Clair 91x40 cls=st-seg__btn",
+      "BUTTON:Sombre 91x40 cls=st-seg__btn",
+      "BUTTON:Système 91x40 cls=st-seg__btn",
+      "BUTTON:Petit 91x40 cls=st-seg__btn",
+      "BUTTON:Moyen 91x40 cls=st-seg__btn",
+      "BUTTON:Grand 91x40 cls=st-seg__btn",
+      "BUTTON:Send feedback 36x36 cls=grid h-9 w-9 place-items-center border b"
+    ],
+    "unnamedControls": [
+      "INPUT.av2-field__control",
+      "INPUT.av2-field__control",
+      "INPUT.av2-field__control",
+      "INPUT.av2-field__control",
+      "INPUT.av2-field__control st-number",
+      "INPUT.av2-field__control st-number"
+    ],
+    "inputsWithoutLabel": [],
+    "headings": [
+      "H1:Réglages"
+    ],
+    "h1Count": 1,
+    "imgsWithoutAlt": 0,
+    "controlCount": 83,
+    "tabOrder": [
+      "L’Atelier",
+      "Settings",
+      "Atelier",
+      "Missions",
+      "Feuilleton",
+      "Cahier",
+      "Dossier",
+      "Langues",
+      "Rythme",
+      "Notifications",
+      "Apparence",
+      "Voix",
+      "Données",
+      "Nom affiché",
+      "INPUT",
+      "INPUT",
+      "Enregistrer la nouvelle ",
+      "INPUT",
+      "INPUT",
+      "Enregistrer le nouveau m",
+      "AllemandAnglaisFrançaisE",
+      "AllemandAnglaisFrançaisE",
+      "A1 · DébutPhrases et exp",
+      "A2 · ÉlémentaireÉchanges",
+      "B1 · IntermédiaireSe déb",
+      "B2 · IndépendantÉchanger",
+      "C1 · AvancéTextes et dis",
+      "C2 · MaîtriseAisance pro",
+      "technologie",
+      "travail",
+      "voyage",
+      "sport",
+      "politique",
+      "sciences",
+      "culture",
+      "économie",
+      "santé",
+      "cuisine",
+      "Ajouter un sujet",
+      "Ajouter"
+    ],
+    "focusRing": {
+      "outline": "3px none",
+      "boxShadow": "none"
+    },
+    "bodyBg": "rgb(23, 21, 16)",
+    "bodyColor": "rgb(245, 239, 225)",
+    "text": "Settings Atelier Missions Feuilleton Cahier Lecteur · beginner Réglages Dossier Langues Rythme Notifications Apparence Voix Données Dossier Compte wp20.qa@example.com Nom affiché Modifier l’adresse Utilisez ce formulaire sécurisé pour changer votre adresse de connexion. Nouvelle adresse Mot de passe actuel Enregistrer la nouvelle adresse Modifier le mot de passe Huit caractères au moins ; vous serez reconnecté ensuite. Mot de passe actuel Nouveau mot de passe Enregistrer le nouveau mot de passe Langues Langue d’appui Allemand Anglais Français Espagnol Italien Langue apprise Allemand Anglais Français Espagnol Italien Niveau actuel beginner A1 · Début Phrases et expressions essentielles A2 · É"
+  }
+]

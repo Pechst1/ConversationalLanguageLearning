@@ -1,0 +1,6 @@
+{
+  "fixture": "cafe_journey_created",
+  "private": {
+    "budget_check": "40+45+120+59 = 264 <= 300 mandatory seconds"
+  }
+}

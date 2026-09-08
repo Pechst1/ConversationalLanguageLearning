@@ -6,25 +6,33 @@ missions, Feuilleton, and direct review surfaces.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from app.db.models.error import UserError
 from app.db.models.session import ConversationMessage, LearningSession
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
 from app.services.error_memory import ErrorMemoryService
+from app.services.glosses import word_gloss
 from app.services.progress import ProgressService
-
 
 VOCABULARY_CREDIT_VERSION = "vocab-credit-v1"
 
 SEEN_EVENTS = {"seen_context", "context_seen", "read_context"}
 RECOGNITION_EVENTS = {"recognized", "translated", "recognition", "context_translation"}
 CORRECT_PRODUCTION_EVENTS = {"produced_correct", "used_correctly", "free_production_correct"}
+# Correct production that leaned on a hint, a translation, a revealed solution
+# or a suggested response. It is real evidence, but it is not the same evidence
+# as an unassisted answer, so it credits at the recognition rating instead of
+# the full production rating (CONTRACTS §7).
+SUPPORTED_PRODUCTION_EVENTS = {
+    "produced_supported",
+    "supported_production",
+    "produced_correct_with_help",
+}
 INCORRECT_PRODUCTION_EVENTS = {
     "produced_incorrect",
     "used_incorrectly",
@@ -85,15 +93,47 @@ class VocabularyCreditService:
     ) -> VocabularyCreditResult:
         """Apply SRS credit and optionally create a linked vocabulary erratum."""
 
+        if source_type == "atelier":
+            from app.services.journey_learning import lock_learning_credit
+
+            lock_learning_credit(self.db, user)
         normalized_event = str(event_type or "seen_context").strip().lower()
         credit_kind = self._credit_kind(normalized_event)
         progress_event = self._progress_event_for(credit_kind)
-        progress = self.progress_service.record_context_credit(
-            user=user,
-            word=word,
-            event_type=progress_event,
-            now=now or datetime.now(timezone.utc),
+        # WP-16 / decision D-0: one daily Séance, one credit. The daily journey
+        # is the day's séance and the legacy exercise loop is «Plus de pratique».
+        # A word the journey already credited today keeps the schedule the
+        # journey gave it, so drilling it afterwards does not advance the
+        # interval twice. A *failure* is never folded away: a real mistake has
+        # to reach the schedule and the errata queue whenever it happens.
+        # Imported lazily: journey_learning imports the credit services.
+        from app.services.journey_learning import journey_credited_today
+
+        folded = credit_kind not in {"produced_incorrect", "missed_target"} and (
+            journey_credited_today(
+                self.db, user=user, target_kind="vocabulary", target_id=str(word.id)
+            )
         )
+        if folded:
+            progress = self.progress_service.get_or_create_progress(
+                user_id=user.id, word_id=word.id
+            )
+        else:
+            progress = self.progress_service.record_context_credit(
+                user=user,
+                word=word,
+                event_type=progress_event,
+                now=now or datetime.now(UTC),
+            )
+        if source_type == "atelier" and not folded and credit_kind in {
+            "recognized", "produced_correct", "produced_supported",
+        }:
+            from app.services.journey_learning import record_drill_credit
+
+            record_drill_credit(
+                self.db, user=user, target_kind="vocabulary",
+                target_id=str(word.id), now=now,
+            )
         erratum_update: dict[str, Any] | None = None
         if credit_kind in {"produced_incorrect", "missed_target"}:
             erratum_update = self._record_vocabulary_erratum(
@@ -149,6 +189,7 @@ class VocabularyCreditService:
             "seen_context": 0,
             "recognized": 0,
             "produced_correct": 0,
+            "produced_supported": 0,
             "produced_incorrect": 0,
             "missed_target": 0,
             "errata_created": 0,
@@ -179,7 +220,7 @@ class VocabularyCreditService:
     ) -> dict[str, Any] | None:
         learner = (learner_text or "").strip()
         corrected = (corrected_text or word.word or word.french_translation or "").strip()
-        translation = word.german_translation or word.english_translation or word.definition or ""
+        translation = word_gloss(word, user.native_language)
         if credit_kind == "missed_target":
             label = f"Use target word: {word.word}"
             why = explanation or f"The task targeted {word.word}, but your answer did not use it."
@@ -224,6 +265,8 @@ class VocabularyCreditService:
     def _credit_kind(event_type: str) -> str:
         if event_type in CORRECT_PRODUCTION_EVENTS:
             return "produced_correct"
+        if event_type in SUPPORTED_PRODUCTION_EVENTS:
+            return "produced_supported"
         if event_type in INCORRECT_PRODUCTION_EVENTS:
             return "produced_incorrect"
         if event_type in MISSING_TARGET_EVENTS:
@@ -238,6 +281,9 @@ class VocabularyCreditService:
     def _progress_event_for(credit_kind: str) -> str:
         if credit_kind == "produced_correct":
             return "produced_correct"
+        if credit_kind == "produced_supported":
+            # Supported production is credited, but never at the unassisted rate.
+            return "recognized"
         if credit_kind in {"produced_incorrect", "missed_target"}:
             return "produced_incorrect"
         if credit_kind == "recognized":

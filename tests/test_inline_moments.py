@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import asyncio
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
+from app.core.conversation.generator import ConversationPlan
 from app.core.error_detection import ErrorDetectionResult
 from app.core.error_detection.rules import DetectedError
-from app.core.conversation.generator import ConversationPlan
 from app.db.models.error import UserError
 from app.db.models.grammar import GrammarConcept, UserGrammarProgress
 from app.db.models.session import LearningSession, SessionLearningMoment
@@ -15,6 +15,7 @@ from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
 from app.services.brief_exercise_service import BriefExerciseService
 from app.services.grammar import GrammarService
+from app.services.learner_copy import LEARNER_COPY, learner_text
 from app.services.llm_service import LLMResult
 from app.services.progress import ProgressService, QueueItem
 from app.services.session_moment_planner import SessionMomentPlanner
@@ -69,7 +70,12 @@ def test_brief_exercise_service_accepts_valid_alternative_si_sentence(db_session
 
     assert result["is_correct"] is True
     assert result["score"] >= 8
-    assert "passt" in result["feedback"].lower()
+    # WP-21: the verdict used to be hardcoded German ("Das passt zur
+    # Grammatikaufgabe") for every learner. It now comes from the copy table and
+    # follows `native_language`; with no user on the call that is English.
+    assert result["feedback"] == learner_text("brief.feedback_correct", "en")
+    assert result["feedback"] == LEARNER_COPY["brief.feedback_correct"]["en"]
+    assert learner_text("brief.feedback_correct", "de") == "Das passt zur Grammatikaufgabe."
 
 
 def test_brief_exercise_accepts_non_tense_concept_with_shared_detector(db_session) -> None:
@@ -191,7 +197,7 @@ def test_due_grammar_prioritizes_started_concepts_over_unseen_ones(db_session) -
             score=4.0,
             reps=1,
             state="in_arbeit",
-            next_review=datetime.now(timezone.utc) - timedelta(hours=2),
+            next_review=datetime.now(UTC) - timedelta(hours=2),
         )
     )
     db_session.commit()

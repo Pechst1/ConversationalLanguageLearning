@@ -1,0 +1,223 @@
+{
+  "id": "34c8dcb4-47f6-4e82-a9d3-0b40e8ec2a37",
+  "status": "available",
+  "title": "La preuve qui se souvient",
+  "episode_index": null,
+  "serial_thread_id": null,
+  "panels": [
+    {
+      "id": "3a2c60ae-93e1-4cd9-8cf2-d171ccb3f196",
+      "panel_index": 1,
+      "title": "Le glissement du reçu",
+      "beat": "Le reçu est introduit comme un objet presque insignifiant.",
+      "image_url": "/media/graphic-novel/scenes/34c8dcb4-47f6-4e82-a9d3-0b40e8ec2a37/panel-1-d530faeebc0e3eeb.webp",
+      "image_payload": {
+        "url": "/media/graphic-novel/scenes/34c8dcb4-47f6-4e82-a9d3-0b40e8ec2a37/panel-1-d530faeebc0e3eeb.webp"
+      },
+      "overlay_payload": {
+        "tasks": [],
+        "bubbles": [
+          {
+            "x": 40.0,
+            "y": 20.0,
+            "en": "Here's your receipt.",
+            "fr": "Voilà votre reçu.",
+            "tone": "polite",
+            "speaker": "Clerk",
+            "speaker_id": "",
+            "accent_color": ""
+          }
+        ],
+        "caption": {
+          "en": "A small transaction. The clerk slides a thin receipt toward the protagonist like a business card.",
+          "fr": "Une petite transaction. Le vendeur glisse un mince reçu vers la protagoniste comme on tend une carte de visite.",
+          "panel_index": 1
+        }
+      },
+      "generation_metadata": {
+        "image_status": "available"
+      }
+    },
+    {
+      "id": "d637a07d-555d-4229-8278-f03ffd97d3a6",
+      "panel_index": 2,
+      "title": "La contestation",
+      "beat": "La protagoniste utilise le reçu comme preuve d'une erreur.",
+      "image_url": "/media/graphic-novel/scenes/34c8dcb4-47f6-4e82-a9d3-0b40e8ec2a37/panel-2-1bfce1a542b73114.webp",
+      "image_payload": {
+        "url": "/media/graphic-novel/scenes/34c8dcb4-47f6-4e82-a9d3-0b40e8ec2a37/panel-2-1bfce1a542b73114.webp"
+      },
+      "overlay_payload": {
+        "tasks": [],
+        "bubbles": [
+          {
+            "x": 30.0,
+            "y": 40.0,
+            "en": "Look at the total here — that's not what I paid.",
+            "fr": "Regardez le total ici — ce n'est pas ce que j'ai payé.",
+            "tone": "insistent",
+            "speaker": "Protagonist",
+            "speaker_id": "",
+            "accent_color": ""
+          },
+          {
+            "x": 60.0,
+            "y": 20.0,
+            "en": "It's the procedure.",
+            "fr": "C'est la procédure.",
+            "tone": "distant",
+            "speaker": "Clerk",
+            "speaker_id": "",
+            "accent_color": ""
+          }
+        ],
+        "caption": {
+          "en": "The protagonist notices a mistake and waves the receipt. The clerk shrugs: \"Our procedure,\" he says without reading.",
+          "fr": "La protagoniste remarque une erreur et brandit le reçu. Le guichetier hausse les épaules: «Notre procédure», dit-il sans lire.",
+          "panel_index": 2
+        }
+      },
+      "generation_metadata": {
+        "image_status": "available"
+      }
+    },
+    {
+      "id": "e3e6e7bd-b27f-494c-b508-bc1c1d579eff",
+      "panel_index": 3,
+      "title": "La lecture solennelle",
+      "beat": "Le supérieur traite le reçu comme s'il portait une sentence.",
+      "image_url": "/media/graphic-novel/scenes/34c8dcb4-47f6-4e82-a9d3-0b40e8ec2a37/panel-3-989fddd41b1f3910.webp",
+      "image_payload": {
+        "url": "/media/graphic-novel/scenes/34c8dcb4-47f6-4e82-a9d3-0b40e8ec2a37/panel-3-989fddd41b1f3910.webp"
+      },
+      "overlay_payload": {
+        "tasks": [],
+        "bubbles": [
+          {
+            "x": 50.0,
+            "y": 25.0,
+            "en": "Hmm... we must check the line.",
+            "fr": "Hm... il faut vérifier la ligne.",
+            "tone": "solemn",
+            "speaker": "Supervisor",
+            "speaker_id": "",
+            "accent_color": ""
+          }
+        ],
+        "caption": {
+          "en": "A supervisor arrives, takes the receipt and contemplates it solemnly, as if reading a verdict.",
+          "fr": "Un supérieur arrive, prend le reçu et le contemple avec solennité, comme s'il lisait un jugement.",
+          "panel_index": 3
+        }
+      },
+      "generation_metadata": {
+        "image_status": "available"
+      }
+    },
+    {
+      "id": "761d1609-aa52-4742-855a-7eadb5bc6818",
+      "panel_index": 4,
+      "title": "Piédestal citoyen",
+      "beat": "Le reçu devient un objet public exposé; la scène appelle une décision sur la suite.",
+      "image_url": "/media/graphic-novel/scenes/34c8dcb4-47f6-4e82-a9d3-0b40e8ec2a37/panel-4-9caa16fcc359d7fe.webp",
+      "image_payload": {
+        "url": "/media/graphic-novel/scenes/34c8dcb4-47f6-4e82-a9d3-0b40e8ec2a37/panel-4-9caa16fcc359d7fe.webp"
+      },
+      "overlay_payload": {
+        "tasks": [
+          {
+            "id": "choice_panel4_001",
+            "label": "Que se passe-t-il ensuite ?",
+            "prompt": "Choisis ce qui arrive ensuite au reçu exposé sur le gobelet.",
+            "options": [
+              "Un employé récupère le reçu et le range dans une petite enveloppe étiquetée «archive».",
+              "Des passants commencent à montrer leurs propres reçus, formant une petite file d'attente."
+            ],
+            "task_type": "choice",
+            "concept_id": null,
+            "instruction": "Choisis la suite la plus plausible visuellement: deux directions différentes pour l'histoire.",
+            "placeholder": "",
+            "grading_mode": "branch",
+            "branch_target": {},
+            "scene_function": "autorise deux suites narrativement plausibles; chaque option guide l'illustration du panneau suivant",
+            "expected_answer": "",
+            "accepted_answers": [],
+            "feedback_context": "Choix narratif: aucun résultat grammatical n'est noté; chaque option mène à une version différente de la vignette suivante.",
+            "expected_features": [],
+            "prompt_translation": "Choose what happens next to the receipt displayed on the cup.",
+            "recommendation_reason": {
+              "text": "Choisie pour vérifier le point de langue de cette planche.",
+              "signals": {
+                "target_errata_count": 0,
+                "target_vocabulary_count": 0,
+                "panel_index": 4
+              }
+            }
+          }
+        ],
+        "bubbles": [
+          {
+            "x": 20.0,
+            "y": 35.0,
+            "en": "This is surprisingly serious.",
+            "fr": "C'est étonnamment sérieux.",
+            "tone": "dry",
+            "speaker": "Bystander",
+            "speaker_id": "",
+            "accent_color": ""
+          },
+          {
+            "x": 60.0,
+            "y": 45.0,
+            "en": "We should decide what to do now...",
+            "fr": "Il faudrait décider quoi faire maintenant...",
+            "tone": "tentative",
+            "speaker": "Protagonist",
+            "speaker_id": "",
+            "accent_color": ""
+          }
+        ],
+        "caption": {
+          "en": "They place the receipt on an upturned cup so it can be seen: the little paper strip becomes a public document.",
+          "fr": "On place le reçu sur un gobelet retourné pour qu'on puisse l'apercevoir: la petite bande de papier devient un document public.",
+          "panel_index": 4
+        }
+      },
+      "generation_metadata": {
+        "image_status": "available"
+      }
+    }
+  ],
+  "script_payload": {
+    "render_mode": "panels",
+    "final_prompt": {
+      "id": "final_prod_exemplaire_001",
+      "prompt": "Imagine que le reçu est conservé comme un exemplaire officiel. Écris une phrase simple en français qui utilise «exemplaire» dans ce contexte.",
+      "optional": true,
+      "max_words": 12,
+      "min_words": 3,
+      "task_type": "short_sentence",
+      "instruction": "Écrire une phrase simple en français utilisant le mot «exemplaire» (vérifier l'accord du nom si nécessaire).",
+      "placeholder": "Ex. Cet exemplaire restera au comptoir.",
+      "prompt_body": "Imagine que le reçu est conservé comme un exemplaire officiel. Écris une phrase simple en français qui utilise «exemplaire» dans ce contexte.",
+      "expected_features": [
+        "contient le mot «exemplaire»",
+        "phrase simple SVO (sujet + verbe + complément) ou équivalent",
+        "accord correct du nom (singulier/pluriel) si un déterminant est présent"
+      ],
+      "prompt_translation": "Imagine the receipt is kept as an official copy. Write a simple French sentence that uses \"exemplaire\" in that context.",
+      "recommendation_reason": {
+        "text": "Choisie pour réemployer un mot du jour dans l’histoire.",
+        "signals": {
+          "target_errata_count": 0,
+          "target_vocabulary_count": 1,
+          "task_scope": "scene_finale"
+        }
+      }
+    },
+    "serial_context": {}
+  },
+  "source_snapshot": {},
+  "hook": {},
+  "attempts": []
+}
