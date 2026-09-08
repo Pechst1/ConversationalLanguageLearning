@@ -45,7 +45,12 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          # 22, not 20: `scripts/capture-mobile-states.mjs` drives Chrome over
+          # the DevTools Protocol with the global `WebSocket`, which Node 20
+          # does not define (the mobile smoke died on `ReferenceError:
+          # WebSocket is not defined`). It is also the version the project is
+          # developed against.
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: web-frontend/package-lock.json
 
