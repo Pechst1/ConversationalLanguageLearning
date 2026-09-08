@@ -54,8 +54,10 @@ const interestPresets = [
 const authInputClass =
   'border-[var(--app-ink)] bg-[var(--app-sheet)] text-[var(--app-ink)] placeholder:text-[var(--app-ink-3)] shadow-none focus:translate-x-0 focus:translate-y-0 focus:shadow-none focus-visible:ring-[var(--app-blue)] focus-visible:ring-offset-[var(--app-paper)]';
 
+// 16px, for the same reason as the Input control: a smaller select zooms the
+// WKWebView on focus and never zooms back (WP-20 D-16).
 const selectClass =
-  'h-12 w-full rounded-none border-2 border-[var(--app-ink)] bg-[var(--app-sheet)] px-3 py-2 text-sm font-semibold text-[var(--app-ink)] shadow-none focus:border-[var(--app-ink)] focus:outline-none focus:ring-2 focus:ring-[var(--app-blue)] focus:ring-offset-2 focus:ring-offset-[var(--app-paper)]';
+  'h-12 w-full rounded-none border-2 border-[var(--app-ink)] bg-[var(--app-sheet)] px-3 py-2 text-base font-semibold text-[var(--app-ink)] shadow-none focus:border-[var(--app-ink)] focus:outline-none focus:ring-2 focus:ring-[var(--app-blue)] focus:ring-offset-2 focus:ring-offset-[var(--app-paper)]';
 
 function authErrorMessage(error: any) {
   const detail = error?.response?.data?.detail;
@@ -353,7 +355,7 @@ export default function SignUpPage() {
                           }
                         }}
                         placeholder="Add custom topic"
-                        className={`h-12 w-full rounded-none border-2 px-3 py-2 text-sm focus:outline-none ${authInputClass}`}
+                        className={`h-12 w-full rounded-none border-2 px-3 py-2 text-base focus:outline-none ${authInputClass}`}
                       />
                       <Button
                         type="button"

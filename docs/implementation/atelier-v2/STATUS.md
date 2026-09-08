@@ -1191,7 +1191,9 @@ Screenshots in `docs/mobile-visual-checks/2026-09-08-device/`.
 | **D-4** — two ✕ controls, two progress bars in the scene reader | **PASS on device.** Exactly one exit and one progress rail |
 | **D-3** — progress header under the status bar | **Was still broken, now fixed and proven.** WP-20 fixed `.av2-session__head`, but the D-4 fix hides that header under the immersive reader, which promoted `.fr-bar` — `padding: 10px 0 14px`, no inset — to the top of the screen. On the notch the reader's ✕ and rail collided with the clock. `.fr-bar` now carries `calc(10px + env(safe-area-inset-top, 0px))`, matching `.av2-session__head` and `.ep-top` (`02-d3-d4-reader-below-status-bar-one-exit.png`) |
 
-### New — D-16: the legacy sign-in zooms the app and never restores
+### D-16 — FIXED 2026-09-08 (see below); originally reported as:
+
+### The legacy sign-in zooms the app and never restores
 
 `pages/auth/signin.tsx` is not on av2 and its inputs are below 16px, so iOS auto-zooms
 the WKWebView on focus. The zoom **persists across navigation**: every screen after
@@ -1223,3 +1225,27 @@ the collision.
   `App.build/App.app-Simulated.xcent` for `keychain-access-groups` before blaming the app.
 * The simulator keyboard is German: `simctl`-typed `-` becomes `ß` and `@` becomes `2`.
   Type the letters, tap the on-screen `@` and `.` keys.
+
+## 2026-09-08 — D-16 fixed: no focusable field is under 16px any more
+
+Root cause was not the page: `components/ui/Input.tsx` set `text-sm` (14px) on
+the control itself, and `pages/auth/signin.tsx` / `signup.tsx` are its only
+learner-facing consumers (the third is `pages/learn/new.tsx`). Below 16px iOS
+auto-zooms the WKWebView on focus, and the zoom persists across navigation.
+
+Fixed at the root — `text-base` on the control, with the reason written next to
+it so nobody "tidies" it back; the label and error lines stay `text-sm` because
+they are not focusable. Sign-up's `selectClass` and its one inline field carried
+the same 14px and are raised too. A sweep found no remaining rule that puts a
+focusable field below 16px anywhere in the frontend: `.av2-field__control`,
+`forgot-password.tsx` (16px) and the legacy Atelier fields (19px) were already
+safe.
+
+**Proven on the device**, since a desktop browser cannot show this: keychain
+reset to reach the signed-out state, sign-in field focused, page still at 1:1
+with its edges intact (`03-d16-signin-focus-no-zoom.png`). Before the fix the
+same tap zoomed the viewport and every screen after it stayed panned and clipped
+until relaunch.
+
+D-17 (the feedback launcher over the «Cahier» tab) is still open and still the
+daily-experience owner's call.
