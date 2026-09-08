@@ -132,7 +132,9 @@ def test_grammar_notebook_list_and_detail_include_blueprint_progress_and_errata(
     assert detail["recent_errata"][0]["display_label"] == "Si frame"
 
 
-def test_grammar_notebook_catalog_is_curated_archives_legacy_and_localizes(client: TestClient, db_session):
+def test_grammar_notebook_catalog_is_curated_archives_legacy_and_localizes(
+    client: TestClient, db_session, local_demo_auth
+):
     legacy = GrammarConcept(
         external_id="FR_C2_LEGACY_001",
         language="fr",
@@ -173,7 +175,7 @@ def test_grammar_notebook_catalog_is_curated_archives_legacy_and_localizes(clien
     assert db_session.query(GrammarConceptLocalization).filter(GrammarConceptLocalization.locale == "fr").count() >= len(items)
 
 
-def test_grammar_notebook_uses_local_demo_user_without_auth(client: TestClient):
+def test_grammar_notebook_uses_local_demo_user_without_auth(client: TestClient, local_demo_auth):
     response = client.get("/api/v1/grammar/notebook")
 
     assert response.status_code == 200

@@ -14,6 +14,14 @@ os.environ.setdefault("SECRET_KEY", "test-secret-key")
 os.environ.setdefault("ATELIER_STORY_ENGINE_ENABLED", "false")
 os.environ.setdefault("ATELIER_LLM_ENABLED", "false")
 os.environ.setdefault("GRAPHIC_NOVEL_IMAGE_GENERATION_ENABLED", "false")
+# The unauthenticated local-demo fallback (`app/api/deps.get_current_user_or_demo`)
+# is a developer convenience that the owner's `.env` switches on. Left to the
+# environment, the suite inherited it: three tests passed on that machine and
+# returned 401 in CI, which has no `.env`. Pinned to the production default here
+# — an environment variable outranks the dotenv file — so a local run and CI
+# agree. Assignment, not `setdefault`: inheriting this one is the bug. Tests that
+# genuinely exercise the fallback take the `local_demo_auth` fixture below.
+os.environ["AUTO_CREATE_USERS_ON_LOGIN"] = "false"
 
 import pytest
 
@@ -222,6 +230,21 @@ def clear_cache() -> Generator[None, None, None]:
         yield
     finally:
         cache_backend.clear()
+
+
+@pytest.fixture()
+def local_demo_auth(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Enable the unauthenticated local-demo user for one test.
+
+    `get_current_user_or_demo` reads the flag on every call, so patching the
+    settings object is enough. A test that calls an authenticated endpoint with
+    no Authorization header must ask for this fixture: without it the endpoint
+    answers 401, which is what production does.
+    """
+
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "AUTO_CREATE_USERS_ON_LOGIN", True)
 
 
 @pytest.fixture()

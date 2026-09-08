@@ -322,7 +322,7 @@ async def test_vocabulary_due_context_serves_the_learner_resolved_gloss(
 
 
 @pytest.mark.asyncio
-async def test_vocabulary_due_context_rejects_invalid_direction(async_client):
+async def test_vocabulary_due_context_rejects_invalid_direction(async_client, local_demo_auth):
     response = await async_client.get(
         "/api/v1/vocabulary/due-context",
         params={"direction": "fr_to_en"},
