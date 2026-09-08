@@ -1173,3 +1173,53 @@ kicker; backend suite green.
 redirect only fires on `isNativePlatform()`, and D-3's safe-area inset is `0px`
 in a browser), WP-22's five-learner study, the journey conversation's live-model
 prose review, and the owner-only steps in ROLLOUT.md.
+
+## 2026-09-08 — device walk: D-1 and D-3 proven, D-3 re-fixed, two new findings
+
+The simulator walk WP-20 said was still owed. Setup reproduced from §6: fake-provider
+backend (`scripts/dev_story_engine_server.py`) on **port 8011** against the throwaway
+`atelier_story_pg_1788716642`, native bundle built with
+`ALLOW_LOCAL_NATIVE_API=true NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8011/api/v1 npm run cap:sync:ios`,
+then `xcodebuild … -destination id=<iPhone 16> CODE_SIGN_IDENTITY="-"`. Device: iPhone 16,
+393 × 852 pt. Nothing on 8000/8010, `.env` and `language_learning` untouched.
+
+Screenshots in `docs/mobile-visual-checks/2026-09-08-device/`.
+
+| | Result |
+|---|---|
+| **D-1** — cold start after a kill resumes the open journey | **PASS on device.** Kill inside the journey, relaunch → the scene reader at panel 1/3, not the legacy Séance. WP-19 got the legacy Séance three times out of three; `lib/journey-resume.ts` + the `?view=journey` entry hold on the real `isNativePlatform()` path (`01-d1-cold-start-resumes-journey-scene.png`) |
+| **D-4** — two ✕ controls, two progress bars in the scene reader | **PASS on device.** Exactly one exit and one progress rail |
+| **D-3** — progress header under the status bar | **Was still broken, now fixed and proven.** WP-20 fixed `.av2-session__head`, but the D-4 fix hides that header under the immersive reader, which promoted `.fr-bar` — `padding: 10px 0 14px`, no inset — to the top of the screen. On the notch the reader's ✕ and rail collided with the clock. `.fr-bar` now carries `calc(10px + env(safe-area-inset-top, 0px))`, matching `.av2-session__head` and `.ep-top` (`02-d3-d4-reader-below-status-bar-one-exit.png`) |
+
+### New — D-16: the legacy sign-in zooms the app and never restores
+
+`pages/auth/signin.tsx` is not on av2 and its inputs are below 16px, so iOS auto-zooms
+the WKWebView on focus. The zoom **persists across navigation**: every screen after
+signing in is panned and clipped — the masthead, the day tiles and the fourth tab all
+lose their left or right edge — until the app is relaunched. `styles/atelier-v2.css`
+guards against exactly this on its own field (`font-size: var(--av2-t-body-lg); /* never
+below 16px: iOS zooms the viewport */`); the auth pages never got that pass. Browser QA
+cannot see it — desktop browsers do not auto-zoom — and it cost this walk a wrong-turn
+diagnosis (read at first as horizontal overflow on Home).
+
+### New — D-17: the feedback launcher overlaps the fourth tab on Home
+
+The rewritten launcher (WP-20 D-9) is `position: fixed` at
+`bottom: calc(var(--phone-bottom-nav-space) + 8px)`, inherited from the widget it
+replaced. On Home the tab bar is `placement="embedded"` — in flow, not pinned — so at
+some scroll positions the launcher lands on top of it and covers the «Cahier» tab. The
+restyle and the immersive stand-down from D-9 are correct and unchanged; only the
+anchoring is wrong. **Not fixed here**: the right answer depends on whether the launcher
+should clear an in-flow nav or stop being viewport-fixed on those pages, which is the
+daily-experience owner's call, and an offset guessed without measurement would only move
+the collision.
+
+### Method notes for the next walk
+
+* Build with `CODE_SIGN_IDENTITY="-"` **only**. Adding `CODE_SIGNING_ALLOWED=NO` skips the
+  CodeSign step that embeds entitlements, so `keychain-access-groups` never reaches the
+  bundle and sign-in fails silently: `POST /auth/login` answers 200, the token write
+  throws, and the UI simply stays on the sign-in page. Check
+  `App.build/App.app-Simulated.xcent` for `keychain-access-groups` before blaming the app.
+* The simulator keyboard is German: `simctl`-typed `-` becomes `ß` and `@` becomes `2`.
+  Type the letters, tap the on-screen `@` and `.` keys.

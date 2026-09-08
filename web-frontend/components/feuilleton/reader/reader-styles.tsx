@@ -112,7 +112,12 @@ export function FeuilletonReaderStyles() {
         display: flex;
         align-items: center;
         gap: 12px;
-        padding: 10px 0 14px;
+        /* The reader owns the top of the screen — inside the journey the
+           session header stands down (WP-20 D-4), so this bar is what meets the
+           notch. Without the inset the exit control and the progress rail draw
+           under the status bar and collide with the clock; proven on an
+           iPhone 16, 2026-09-08. Matches .av2-session__head and .ep-top. */
+        padding: calc(10px + env(safe-area-inset-top, 0px)) 0 14px;
       }
       .av2 .fr-icon-btn {
         width: 44px;
