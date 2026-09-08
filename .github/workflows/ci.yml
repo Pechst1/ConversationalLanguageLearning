@@ -66,6 +66,14 @@ jobs:
       - name: Run unit tests
         run: pytest --cov=app --cov-report=term-missing
 
+      - name: Verify Alembic migrations
+        # Also the step that gives the CI database its schema: the word-bank
+        # audit below queries real tables, so it has to run after this one.
+        run: |
+          alembic upgrade head
+          alembic downgrade base
+          alembic upgrade head
+
       - name: Audit Atelier word banks
         run: python scripts/audit_atelier_word_banks.py --output /tmp/atelier-word-bank-audit.json
 
@@ -118,12 +126,6 @@ jobs:
           done
           curl -fsS http://127.0.0.1:3000/mobile-visual-qa >/dev/null
           npm run capture:mobile
-
-      - name: Verify Alembic migrations
-        run: |
-          alembic upgrade head
-          alembic downgrade base
-          alembic upgrade head
 
       - name: Build Docker image
         run: docker build . -t conversational-language-learning:ci
