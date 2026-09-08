@@ -952,6 +952,22 @@
 .av2 .av2-field__control:disabled { opacity: 1; color: var(--av2-ink-2); }
 .av2 .av2-field__control[aria-invalid='true'] { border-color: var(--av2-red); }
 
+/* The answer once it has been graded. The field stops offering to be used —
+   the step is closed — but what the learner actually sent stays legible in the
+   same block the field occupied (WP-20 D-6). */
+.av2 .av2-field__sent {
+  margin: 0;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 2px solid transparent;
+  border-radius: var(--av2-r-card);
+  background: var(--av2-card);
+  color: var(--av2-ink-2);
+  font-size: var(--av2-t-body-lg);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
 /* The chat-style composer well (Missions). */
 .av2 .av2-composer { display: flex; align-items: flex-end; gap: 8px; min-width: 0; }
 .av2 .av2-composer .av2-field { flex: 1 1 auto; }
@@ -1554,6 +1570,7 @@
   align-items: flex-end;
   gap: 2px;
   min-height: var(--av2-tap);
+  min-width: var(--av2-tap); /* the tap floor is a square, not a height */
   padding: 0;
   border: 0;
   background: transparent;
@@ -1667,7 +1684,7 @@
 .av2 .av2-day-tile__more {
   display: block;
   width: 100%;
-  min-height: 32px;
+  min-height: var(--av2-tap);
   padding: 6px 4px;
   border: 0;
   border-radius: 10px;

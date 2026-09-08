@@ -229,7 +229,11 @@ export default function EditorialMasthead({
           .app-brand {
             position: absolute;
             left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
             width: 56px;
+            /* the mark is 26px; the link around it carries the tap floor */
+            min-height: 44px;
             gap: 0;
             font-size: 0;
           }
@@ -276,8 +280,11 @@ export default function EditorialMasthead({
           .app-masthead.app-has-mobile-action .app-mobile-title {
             display: none;
           }
-          /* the design's settings gear: a 32px round paper disc, no rule */
+          /* the design's settings gear: a 36px round paper disc, no rule. The
+             disc stays as drawn; the tap target around it is the 44px floor
+             (WP-20 D-10). */
           .app-mobile-action .app-settings-affordance {
+            position: relative;
             width: 36px;
             height: 36px;
             min-height: 36px;
@@ -286,6 +293,15 @@ export default function EditorialMasthead({
             border-radius: 999px;
             background: var(--app-sheet);
             color: var(--app-ink-2);
+          }
+          .app-mobile-action .app-settings-affordance::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 44px;
+            height: 44px;
+            transform: translate(-50%, -50%);
           }
           .app-mobile-action .app-settings-affordance span {
             display: none;

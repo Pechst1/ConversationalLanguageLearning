@@ -474,7 +474,9 @@ export function CourrierStyles() {
       }
       .av2 .cr-trad-reveal { margin: 0 0 4px; font-size: var(--av2-t-label); line-height: 1.45; color: var(--av2-ink-2); }
       .av2 .cr-turn .cr-trad { margin-top: -6px; }
-      .av2 .cr-turn .cr-trad-btn { min-height: 36px; }
+      /* the turn's translate control is tighter than the standalone one, but
+         never below the tap floor */
+      .av2 .cr-turn .cr-trad-btn { min-height: var(--av2-tap); }
 
       /* hint pill — Garamond italic, blue, yellow square */
       .av2 .cr-hint {

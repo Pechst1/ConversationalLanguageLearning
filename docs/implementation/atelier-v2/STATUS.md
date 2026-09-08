@@ -1141,3 +1141,35 @@ Paid runs with owner consent: four 14-day engine runs (US$0.45; A1 12/13 both mo
 **2026-09-07 late — gloss backfill executed (owner consent):** two live batches (`--max-rows 250` then `--max-rows 5000 --language fr`), 5,014 rows written, US$0.41 total, model gpt-5-mini, provenance `anki-gloss-backfill-v1` in `usage_notes`. Six French rows remain without a gloss (skipped by the model; inspect by hand). The first launch starved at 1,200 tokens without `reasoning_effort` (fixed in `9191a6d`); 14 rows of the separate German deck were glossed before the language scope landed (`114face`) — harmless.
 
 **2026-09-07 late — fifth paid run, A2 with `--critic turns` on the follow-up fixes (`98c4eb5`):** 13/13 non-skipped days accepted (0 failed), 13 distinct premises, 4 chapters, 6 locations, 5 characters, 0 request errors, 47 requests, US$0.13 (`var/reviews/atelier-longitudinal-A2-turns.json`). Compared with the pre-fix A2 runs (6/13 with the full critic, 12/13 without), this confirms the rejection-hint fix and the turns-only critic. Total engine spend today US$0.58; gloss backfill US$0.41.
+
+## 2026-09-08 — WP-20 defects D-4 … D-15 closed
+
+Every defect WP-20 left unowned is fixed. No production flag was changed, no
+paid call was made, and nothing under `app/**` was touched.
+
+| | Fix |
+|---|---|
+| **D-4** — two ✕ controls and two progress bars in the journey scene reader | New one-bit signal `web-frontend/lib/immersive-surface.ts` (a counter, so one reader replacing another never flickers the chrome back on). `FeuilletonReader` declares itself immersive on mount; `JourneySession` hides its own header, the scenario line and the "finish early" tier while it is up, so the reader's exit and its panel rail are the only ones on screen |
+| **D-5** — the step header advanced before the step did | `segmentsOf` now reads "is this the step on screen" **before** "is it completed" — the server marks a step completed the moment its answer is graded, while the verdict is still being read — and the caption counts the current step's real position (`positionOnScreen`) instead of `done + 1` |
+| **D-6** — the answer field and its three helpers stayed live after grading | A graded step closes its input surface: `RespondStepView` and `RecallStepView` drop the textarea, Send, the microphone, the text/voice switch and the whole help row, and show what the learner sent as read-only text (`SentAnswer`, `.av2-field__sent`). The verdict's Continue is the only action left. Choice and tile recalls keep their options — they carry the verdict colouring |
+| **D-7** — `Today · ` with a dangling separator | `joinMeta()` in `journey-state.ts` joins only non-empty parts; used by `JourneyTodayCard`'s three eyebrows and by the session's scenario line, which had the same bug against the engine's empty `location_name` |
+| **D-9** — the legacy 36 × 36 feedback FAB | `FeedbackWidget` rewritten on the av2 system: a 44 × 44 `IconAction` launcher, a panel built from `Chip` / `textAnswerField` / `Action` on `--av2-*` tokens, and it returns `null` while an immersive surface owns the screen. The last off-system element in the product is gone |
+| **D-10** — controls under 44 × 44 | Réglages `st-seg__btn` floored at `max(2.5rem, var(--av2-tap))`; Cahier level chips given `min-width: var(--av2-tap)`; Missions `cr-trad-btn` turn override raised from 36px; Home streak given a minimum width and `av2-day-tile__more` a 44px minimum height. Where the drawn size is load-bearing — the Lexique switch pill (30px) and the masthead's 36px gear — the disc stays and a transparent 44px hit area is drawn around it; the phone brand mark carries a 44px minimum height |
+| **D-11** — two screens with no `<h1>` | `/vocabulary/review` gained an `av2-sr` h1 that is present in the loading and empty states too (the flash-card word, which only exists in one state, is no longer an `h1`); the «Plus de pratique» séance gained one in `SessionView`, and the recap modal's title became the dialog's `h2` so the screen keeps exactly one |
+| **D-12** — the serial replay could not tell a failure from an absence | `pages/serial/episode/[index].tsx` tracks the failed fetch and renders an `alert` that says the archives did not answer, with a retry, instead of the "épisode non classé" empty block |
+| **D-13** — the Feuilleton hero promised an episode and delivered the Atelier | `SerialEpisodeInJourney` renders for an engine-managed beat (`journey_required`, or an episode carrying the `story_engine` stamp): "L'épisode du jour se lit dans la séance." with «Ouvrir la séance du jour». The learner is told where they are going before they go |
+| **D-14** — the Studio's tracked-uppercase kicker | `KICKER_BY_STATUS` and the page's other shouted labels are sentence case |
+| **D-15** — the grammar fiche overflowed at 320 px with large text | Reproduced against the built stylesheet at 320 px / 24 px root (`documentElement.scrollWidth` 339 vs 320) and traced to `.nb-sechead__n`: the section-head count was `white-space: nowrap`, and "gabarit vérifié · qualité 100/5" set a min-content floor 18 px wider than the shell. The head now wraps and both parts break; measured back to 320/320 at 24 px and at 16 px |
+
+**Verification:** `type-check` exit 0, `lint` clean, all eleven node suites pass
+(`journey.test.js` re-pinned for D-6: a graded turn now has no textarea, no
+send, no help row, and shows the sent answer), `next build` exit 0 with the same
+route table. `tests/test_mobile_capture_harness.py` re-pinned for the rewritten
+feedback widget (`IconAction` + `useImmersiveSurface` instead of the lucide box)
+and `tests/test_frontend_pilot_experience.py` for the sentence-case Studio
+kicker; backend suite green.
+
+**Still open, unchanged:** the WP-19 simulator walk on a notched device (D-1's
+redirect only fires on `isNativePlatform()`, and D-3's safe-area inset is `0px`
+in a browser), WP-22's five-learner study, the journey conversation's live-model
+prose review, and the owner-only steps in ROLLOUT.md.

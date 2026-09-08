@@ -85,6 +85,26 @@ function widenCopy(copy: JourneyCopy): AtelierCopy {
     : { ...atelierCopy('en'), ...copy };
 }
 
+/**
+ * The answer the learner sent, once the step is graded.
+ *
+ * A graded step's input surface stops offering to be used — the textarea, the
+ * send button and the help row all go, because none of them can do anything
+ * for a step that is closed (WP-20 D-6). What the learner wrote stays on
+ * screen, read-only, in the block the field occupied.
+ */
+function SentAnswer({ label, text }: { label: string; text: string }) {
+  if (answerIsBlank(text)) return null;
+  return (
+    <div className="av2-field">
+      <span className="av2-field__label">{label}</span>
+      <p className="av2-field__sent" lang="fr">
+        {text}
+      </p>
+    </div>
+  );
+}
+
 export type StepViewCommonProps = {
   copy: JourneyCopy;
   busy: boolean;
@@ -276,7 +296,8 @@ export function RecallStepView({
   // A recall draft is keyed by the step: one step, one written answer.
   const draftKey = step.id;
   const [text, setText] = useState(() => draft?.get(draftKey) ?? '');
-  const locked = busy || feedback.kind === 'graded' || feedback.kind === 'submitting';
+  const graded = feedback.kind === 'graded';
+  const locked = busy || graded || feedback.kind === 'submitting';
 
   useEffect(() => {
     // A new step is a new answer; the same step keeps what the learner picked,
@@ -352,42 +373,51 @@ export function RecallStepView({
         />
       )}
 
-      {step.prompt.task_type === 'short_answer' && (
-        // Called as a factory, not rendered as a child component, so the
-        // field lives in this step's own element tree — that is the surface
-        // the WP-10 draft-recovery tests drive.
-        textAnswerField({
-          label: copy.answer_label,
-          value: text,
-          rows: 2,
-          disabled: locked,
-          placeholder: copy.answer_placeholder,
-          invalid: feedback.kind === 'empty',
-          onChange: (next) => {
-            setText(next);
-            draft?.set(draftKey, next);
-          },
-        })
+      {step.prompt.task_type === 'short_answer' &&
+        (graded ? (
+          <SentAnswer label={copy.answer_label} text={text} />
+        ) : (
+          // Called as a factory, not rendered as a child component, so the
+          // field lives in this step's own element tree — that is the surface
+          // the WP-10 draft-recovery tests drive.
+          textAnswerField({
+            label: copy.answer_label,
+            value: text,
+            rows: 2,
+            disabled: locked,
+            placeholder: copy.answer_placeholder,
+            invalid: feedback.kind === 'empty',
+            onChange: (next) => {
+              setText(next);
+              draft?.set(draftKey, next);
+            },
+          })
+        ))}
+
+      {/* The verdict carries the step's only remaining action once it is
+          graded; checking again and asking for a hint are both spent. */}
+      {!graded && (
+        <>
+          <Action
+            tone="primary"
+            disabled={locked || !ready}
+            pending={feedback.kind === 'submitting'}
+            pendingLabel={copy.sending}
+            onClick={submit}
+          >
+            {copy.check}
+          </Action>
+
+          <HelpRow
+            available={step.prompt.help_available}
+            used={step.assistance_used.filter((level) => level !== 'none')}
+            copy={copy}
+            busy={busy}
+            help={help}
+            onHelp={onHelp}
+          />
+        </>
       )}
-
-      <Action
-        tone="primary"
-        disabled={locked || !ready}
-        pending={feedback.kind === 'submitting'}
-        pendingLabel={copy.sending}
-        onClick={submit}
-      >
-        {copy.check}
-      </Action>
-
-      <HelpRow
-        available={step.prompt.help_available}
-        used={step.assistance_used.filter((level) => level !== 'none')}
-        copy={copy}
-        busy={busy}
-        help={help}
-        onHelp={onHelp}
-      />
     </StepFrame>
   );
 }
@@ -426,10 +456,11 @@ export function RespondStepView({
   const canType = textOffered(step.prompt);
   // A graded turn is closed until the learner continues: re-submitting into a
   // completed step would only earn a 409 `step_not_active`.
+  const graded = feedback.kind === 'graded';
   const locked =
     busy ||
     feedback.kind === 'submitting' ||
-    feedback.kind === 'graded' ||
+    graded ||
     voice.kind === 'recording' ||
     voice.kind === 'transcribing';
 
@@ -462,7 +493,7 @@ export function RespondStepView({
         </div>
       )}
 
-      {canSpeak && canType && (
+      {canSpeak && canType && !graded && (
         <div className="av2-help__actions" role="group" aria-label={copy.answer_label}>
           <Chip
             tone={mode === 'text' ? 'story' : 'plain'}
@@ -484,44 +515,53 @@ export function RespondStepView({
         </div>
       )}
 
-      {/* Text is always a full path, whatever the microphone is doing. */}
-      {textAnswerField({
-        label: copy.answer_label,
-        value: text,
-        rows: 3,
-        disabled: locked,
-        placeholder: copy.answer_placeholder,
-        invalid: feedback.kind === 'empty',
-        inputRef,
-        onChange: (next) => {
-          setText(next);
-          draft?.set(draftKey, next);
-        },
-      })}
+      {/* Text is always a full path, whatever the microphone is doing — until
+          the turn is graded, when the field, the send button, the microphone
+          and the help row all stop offering themselves and the verdict's
+          Continue is the only action left (WP-20 D-6). */}
+      {graded ? (
+        <SentAnswer label={copy.answer_label} text={text} />
+      ) : (
+        <>
+          {textAnswerField({
+            label: copy.answer_label,
+            value: text,
+            rows: 3,
+            disabled: locked,
+            placeholder: copy.answer_placeholder,
+            invalid: feedback.kind === 'empty',
+            inputRef,
+            onChange: (next) => {
+              setText(next);
+              draft?.set(draftKey, next);
+            },
+          })}
 
-      <div className="av2-respond__actions">
-        <Action
-          tone="primary"
-          disabled={locked || answerIsBlank(text)}
-          pending={feedback.kind === 'submitting'}
-          pendingLabel={copy.sending}
-          onClick={() => onSubmit({ mode: 'text', text })}
-        >
-          {copy.send}
-        </Action>
+          <div className="av2-respond__actions">
+            <Action
+              tone="primary"
+              disabled={locked || answerIsBlank(text)}
+              pending={feedback.kind === 'submitting'}
+              pendingLabel={copy.sending}
+              onClick={() => onSubmit({ mode: 'text', text })}
+            >
+              {copy.send}
+            </Action>
 
-        {canSpeak && mode === 'voice' && (
-          <IconAction
-            label={voice.kind === 'recording' ? copy.stop_recording : copy.record}
-            tone={voice.kind === 'recording' ? 'recording' : 'action'}
-            pressable
-            pending={voice.kind === 'transcribing'}
-            onClick={() => (voice.kind === 'recording' ? onStopRecording() : onStartRecording())}
-          >
-            {voice.kind === 'recording' ? <StopIcon size={18} /> : <MicIcon size={18} />}
-          </IconAction>
-        )}
-      </div>
+            {canSpeak && mode === 'voice' && (
+              <IconAction
+                label={voice.kind === 'recording' ? copy.stop_recording : copy.record}
+                tone={voice.kind === 'recording' ? 'recording' : 'action'}
+                pressable
+                pending={voice.kind === 'transcribing'}
+                onClick={() => (voice.kind === 'recording' ? onStopRecording() : onStartRecording())}
+              >
+                {voice.kind === 'recording' ? <StopIcon size={18} /> : <MicIcon size={18} />}
+              </IconAction>
+            )}
+          </div>
+        </>
+      )}
 
       {voice.kind === 'recording' && (
         <Notice shape="action">
@@ -541,14 +581,16 @@ export function RespondStepView({
         </Notice>
       )}
 
-      <HelpRow
-        available={step.prompt.help_available}
-        used={step.assistance_used.filter((level) => level !== 'none')}
-        copy={copy}
-        busy={busy}
-        help={help}
-        onHelp={onHelp}
-      />
+      {!graded && (
+        <HelpRow
+          available={step.prompt.help_available}
+          used={step.assistance_used.filter((level) => level !== 'none')}
+          copy={copy}
+          busy={busy}
+          help={help}
+          onHelp={onHelp}
+        />
+      )}
     </StepFrame>
   );
 }

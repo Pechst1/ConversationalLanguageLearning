@@ -2884,6 +2884,10 @@ function SessionView({
   return (
     <EpShell className="atelier-do-mode">
       <LEpreuveStyles />
+      {/* The séance names itself for the document outline. The design draws no
+          screen title here — the concept is the visible headline — so the name
+          is announced rather than printed (WP-20 D-11). */}
+      <h1 className="av2-sr">L’épreuve</h1>
       <EpTopbar
         groups={epGroups}
         cap={epCap}

@@ -360,7 +360,9 @@ export function CahierStyles() {
         scrollbar-width: none;
       }
       .av2 .nb-chips::-webkit-scrollbar { display: none; }
-      .av2 .nb-chips .av2-chip { flex: none; white-space: nowrap; padding: 4px 0.8125rem; }
+      /* A two-character level chip is narrower than the tap floor; the floor is
+         a square, so it gets a minimum width as well as the chip's height. */
+      .av2 .nb-chips .av2-chip { flex: none; white-space: nowrap; padding: 4px 0.8125rem; min-width: var(--av2-tap); justify-content: center; }
 
       /* ---- live line ---- */
       .av2 .nb-live {
@@ -422,9 +424,14 @@ export function CahierStyles() {
       .av2 .nb-row__pct { flex: none; font-family: var(--av2-serif); font-style: italic; font-weight: 600; font-size: var(--av2-t-body-lg); color: var(--av2-ink); }
 
       /* ---- section heads ---- */
-      .av2 .nb-sechead { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-      .av2 .nb-sechead__t { margin: 0; font-family: inherit; font-size: var(--av2-t-body); font-weight: 700; line-height: 1.3; color: var(--av2-ink); }
-      .av2 .nb-sechead__n { font-size: var(--av2-t-meta); font-weight: 600; color: var(--av2-muted); white-space: nowrap; }
+      /* The section head wraps rather than widening the page: at 320px with the
+         large text setting, a long count ("gabarit vérifié · qualité 100/5")
+         was 18px wider than the shell and scrolled the whole screen sideways —
+         the one horizontal overflow in the product (WP-20 D-15). The shell is
+         width-bound, not type-bound. */
+      .av2 .nb-sechead { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; min-width: 0; }
+      .av2 .nb-sechead__t { margin: 0; min-width: 0; font-family: inherit; font-size: var(--av2-t-body); font-weight: 700; line-height: 1.3; color: var(--av2-ink); overflow-wrap: anywhere; }
+      .av2 .nb-sechead__n { min-width: 0; font-size: var(--av2-t-meta); font-weight: 600; color: var(--av2-muted); overflow-wrap: anywhere; }
 
       /* ---- fiche ---- */
       .av2 .nb-back {

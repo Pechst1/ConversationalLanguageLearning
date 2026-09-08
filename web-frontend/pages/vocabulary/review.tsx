@@ -852,6 +852,10 @@ export default function VocabularyReviewPage() {
       </Head>
       <AtelierV2Root as="main" className="lx-review" aria-label="Le Lexique — révision">
         <div className="av2-screen lx-review__screen">
+          {/* The screen's own name, in every state including the loading and
+              empty ones. The design draws no title here, so it is announced
+              rather than printed (WP-20 D-11). */}
+          <h1 className="av2-sr">Le Lexique — révision</h1>
           {/* The design's Lexique header: round close, one segment per word,
               the count. No masthead and no tabs on this immersive screen. */}
           <header className="av2-session__head lx-review__head">
@@ -977,7 +981,7 @@ export default function VocabularyReviewPage() {
                       </div>
                       {mode === 'audio' ? (
                         <>
-                          <h1 className="av2-headline lx-card__word lx-card__word--sans">{prompt}</h1>
+                          <p className="av2-headline lx-card__word lx-card__word--sans">{prompt}</p>
                           <div className="lx-card__audio" onClick={(event) => event.stopPropagation()}>
                             <Action
                               tone="secondary"
@@ -1004,7 +1008,7 @@ export default function VocabularyReviewPage() {
                       ) : (
                         <>
                           {/* the one Garamond-italic headline on this screen */}
-                          <h1 className="av2-headline lx-card__word review-prompt-term">{prompt}</h1>
+                          <p className="av2-headline lx-card__word review-prompt-term">{prompt}</p>
                           {hint && <p className="lx-card__hint">{hint}</p>}
                         </>
                       )}
@@ -1036,7 +1040,7 @@ export default function VocabularyReviewPage() {
                           <ShapeToken kind="story" size="sm" title="L’histoire du mot" />
                         </IconAction>
                       </div>
-                      <h1 className="av2-headline lx-card__word review-answer-word">{answer || meaning || french}</h1>
+                      <p className="av2-headline lx-card__word review-answer-word">{answer || meaning || french}</p>
                       {mode !== 'recognition' && typedAnswer && (
                         <p className="lx-card__hint lx-card__verdict" data-match={typedMatches ? 'true' : 'false'}>
                           <ShapeToken kind={typedMatches ? 'done' : 'action'} size="sm" />

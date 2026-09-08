@@ -207,6 +207,22 @@ export type JourneyProgress = {
   plannedSeconds: number | null;
 };
 
+/**
+ * Join the parts of a meta line with the design's separator, skipping the ones
+ * that are not there.
+ *
+ * The story-engine `available` descriptor ships `location_name` (and the other
+ * placement fields) as empty strings, so an unconditional template produced
+ * "Today · " with nothing after it (WP-20 D-7). A separator only ever appears
+ * between two real parts.
+ */
+export function joinMeta(...parts: Array<string | null | undefined>): string {
+  return parts
+    .map((part) => (typeof part === 'string' ? part.trim() : ''))
+    .filter((part) => part.length > 0)
+    .join(' · ');
+}
+
 export function journeyProgress(journey: JourneySnapshot | null): JourneyProgress {
   if (!journey || journey.steps.length === 0) {
     return {

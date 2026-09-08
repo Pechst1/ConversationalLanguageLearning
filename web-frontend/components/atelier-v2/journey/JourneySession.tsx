@@ -47,11 +47,12 @@ import {
   type StepSegment,
 } from '@/components/atelier-v2/ui';
 import { atelierCopy, stepOfLabel, type AtelierCopy } from '@/lib/atelier-v2-copy';
+import { useImmersiveSurface } from '@/lib/immersive-surface';
 import type { ConnectionView } from '@/lib/journey-recovery';
 import type { PublicStep } from '@/types/daily-journey';
 
 import { journeyCopy } from './journey-copy';
-import { formatDuration, recapView, type JourneyPhase } from './journey-state';
+import { formatDuration, joinMeta, recapView, type JourneyPhase } from './journey-state';
 import {
   JourneyFeedbackView,
   RecallStepView,
@@ -75,19 +76,37 @@ export type JourneySessionProps = {
   onPractice?: (href: string) => void;
 };
 
-/** One progress segment per real planned step — never a demo value. */
+/**
+ * One progress segment per real planned step — never a demo value.
+ *
+ * The step the learner is looking at is `active` even once the server has
+ * marked it completed, which it does the moment an answer is graded while the
+ * verdict is still on screen. Reading `completed` first told the learner they
+ * had moved on from a step they had not left (WP-20 D-5).
+ */
 function segmentsOf(steps: PublicStep[], currentId: string | null): StepSegment[] {
   return steps.map((step) => ({
     id: step.id,
     state:
-      step.status === 'completed'
-        ? 'done'
-        : step.status === 'skipped'
-          ? 'skipped'
-          : step.id === currentId
-            ? 'active'
+      step.id === currentId
+        ? 'active'
+        : step.status === 'completed'
+          ? 'done'
+          : step.status === 'skipped'
+            ? 'skipped'
             : 'pending',
   }));
+}
+
+/**
+ * The 1-based position of the step actually on screen, or null when there is
+ * none. Counting finished steps instead advances the header the instant an
+ * answer is graded, while the graded step is still the one being read.
+ */
+function positionOnScreen(steps: PublicStep[], currentId: string | null): number | null {
+  if (!currentId) return null;
+  const index = steps.findIndex((step) => step.id === currentId);
+  return index < 0 ? null : index + 1;
 }
 
 export function JourneySession({ controller, onExit, morePractice, onPractice }: JourneySessionProps) {
@@ -111,19 +130,29 @@ export function JourneySession({ controller, onExit, morePractice, onPractice }:
   );
 
   const segments = journey ? segmentsOf(journey.steps, journey.current_step_id) : [];
+  const position = journey ? positionOnScreen(journey.steps, journey.current_step_id) : null;
   const caption =
     progress.total > 0
-      ? `${stepOfLabel(copy, Math.min(progress.done + 1, progress.total), progress.total)}${
-          remaining ? ` · ${remaining} ${copy.time_left}` : ''
-        }`
+      ? `${stepOfLabel(
+          copy,
+          position ?? Math.min(progress.done + 1, progress.total),
+          progress.total,
+        )}${remaining ? ` · ${remaining} ${copy.time_left}` : ''}`
       : undefined;
+
+  /* The story-engine reader is a full-screen surface with its own exit and its
+     own progress rail. While it is up the session's header would be a second,
+     identical ✕ over a second progress bar, each meaning something different
+     (WP-20 D-4), so the session chrome stands down and the reader is the one
+     surface on screen. */
+  const immersive = useImmersiveSurface();
 
   return (
     <AtelierV2Root as="main" language={controller.controlLanguage} className="journey-shell">
       <div className="av2-screen">
         {/* The design's session header: close, then the progress rule. The
             streak slot the design puts on the right is deliberately empty. */}
-        {journey && (
+        {journey && !immersive && (
           <header className="av2-session__head">
             {onExit && (
               <IconAction label={copy.pause} onClick={onExit}>
@@ -141,9 +170,12 @@ export function JourneySession({ controller, onExit, morePractice, onPractice }:
         <div className="av2-screen__body">
           <ConnectionNotice connection={recovery ? recovery.connection : null} copy={copy} />
 
-          {journey && phase.kind === 'session' && (
+          {journey && phase.kind === 'session' && !immersive && (
+            /* One separator between two real parts. The story engine ships an
+               empty `location_name`, which used to render a dangling "·"
+               (WP-20 D-7). */
             <p className="av2-label">
-              {journey.scenario.location_name} · {journey.scenario.objective_native}
+              {joinMeta(journey.scenario.location_name, journey.scenario.objective_native)}
             </p>
           )}
 
@@ -220,17 +252,20 @@ export function JourneySession({ controller, onExit, morePractice, onPractice }:
               />
 
               {/* Third tier. Quiet by construction, so the step's own primary
-                  stays the only primary in the composition. */}
-              <div className="av2-session__secondary">
-                <Action
-                  tone="quiet"
-                  inline
-                  disabled={busy}
-                  onClick={() => void actions.finish('early')}
-                >
-                  {copy.finish_early}
-                </Action>
-              </div>
+                  stays the only primary in the composition. Hidden under the
+                  immersive reader, which owns its whole screen. */}
+              {!immersive && (
+                <div className="av2-session__secondary">
+                  <Action
+                    tone="quiet"
+                    inline
+                    disabled={busy}
+                    onClick={() => void actions.finish('early')}
+                  >
+                    {copy.finish_early}
+                  </Action>
+                </div>
+              )}
             </>
           )}
         </div>

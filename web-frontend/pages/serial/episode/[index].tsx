@@ -50,11 +50,17 @@ export default function SerialEpisodeReplayPage() {
   const [mission, setMission] = useState<RealWorldMission | null>(null);
   const [seasonNumber, setSeasonNumber] = useState(1);
   const [loading, setLoading] = useState(true);
+  /* An archive that could not be fetched is not an archive without this
+     episode in it. The two used to render the same empty block, so a dropped
+     connection read as "you never filed this" (WP-20 D-12). */
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [reloads, setReloads] = useState(0);
 
   useEffect(() => {
     if (!router.isReady || episodeIndex === null) return;
     let alive = true;
     setLoading(true);
+    setLoadFailed(false);
     apiService.getSerialEpisodes()
       .then(async (payload) => {
         const match = (payload.episodes || []).find((item) => item.episode_index === episodeIndex) || null;
@@ -77,6 +83,7 @@ export default function SerialEpisodeReplayPage() {
           setEpisode(null);
           setScene(null);
           setMission(null);
+          setLoadFailed(true);
         }
       })
       .finally(() => {
@@ -85,7 +92,7 @@ export default function SerialEpisodeReplayPage() {
     return () => {
       alive = false;
     };
-  }, [episodeIndex, router.isReady]);
+  }, [episodeIndex, reloads, router.isReady]);
 
   const title = useMemo(() => episode?.title || scene?.title || mission?.title || 'Épisode', [episode, mission, scene]);
 
@@ -180,6 +187,21 @@ export default function SerialEpisodeReplayPage() {
               ))}
             </div>
           </section>
+        ) : loadFailed ? (
+          /* Infrastructure, stated as infrastructure, with a way to try again
+             — the rule the journey follows (CONTRACTS §5). It never claims the
+             episode is absent, because nothing here knows that. */
+          <div className="fr-empty" role="alert">
+            <h2>Les archives n’ont pas répondu.</h2>
+            <p>La connexion a échoué. Rien n’est perdu — l’épisode est classé, pas la page.</p>
+            <button
+              type="button"
+              className="av2-btn av2-btn--secondary av2-btn--inline"
+              onClick={() => setReloads((count) => count + 1)}
+            >
+              Réessayer
+            </button>
+          </div>
         ) : (
           <div className="fr-empty" role="status">
             <h2>Épisode non classé.</h2>

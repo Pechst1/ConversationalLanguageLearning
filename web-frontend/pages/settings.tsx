@@ -1512,14 +1512,16 @@ function SettingsStyles() {
             .av2 .st-topics .av2-chip--reward { background: var(--av2-yellow); }
             .av2 .st-jump .av2-chip--story { background: var(--av2-blue); }
 
-            /* The segmented control, as drawn: 40px, radius 12, 700 14px;
-               active = ink face, paper label, 3px press; inactive = paper face,
-               line-2 press. */
+            /* The segmented control, as drawn: radius 12, 700 14px; active =
+               ink face, paper label, 3px press; inactive = paper face, line-2
+               press. The design draws it 40px tall; it is floored at the 44px
+               tap minimum, which is the one number the design does not get to
+               set (WP-20 D-10). */
             .av2 .st-seg { display: flex; gap: 6px; min-width: 0; width: 100%; }
             .av2 .st-seg__btn {
                 flex: 1 1 0;
                 min-width: 0;
-                height: 2.5rem;
+                min-height: max(2.5rem, var(--av2-tap));
                 padding: 0 4px;
                 border: 0;
                 border-radius: 12px;

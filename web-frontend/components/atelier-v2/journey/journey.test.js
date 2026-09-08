@@ -593,6 +593,9 @@ const noSleep = () => Promise.resolve();
     }),
   );
   assert.ok(lockedRecallHtml.includes('disabled=""'), 'choices lock after grading');
+  // WP-20 D-6: checking again and asking for a hint are both spent.
+  assert.ok(!htmlHas(lockedRecallHtml, EN.check), 'a graded recall offers no second check');
+  assert.ok(!htmlHas(lockedRecallHtml, EN.help_hint), 'and no help row');
   for (const option of recallStep.prompt.options) {
     assert.ok(htmlHas(lockedRecallHtml, option.text_fr), 'a disabled option stays legible');
   }
@@ -672,9 +675,31 @@ const noSleep = () => Promise.resolve();
       onResetVoice: () => {},
     }),
   );
+  // WP-20 D-6: a graded turn closes its input surface. The field, the send
+  // button and the help row all go; only the verdict's own action remains.
+  assert.ok(!gradedRespondHtml.includes('<textarea'), 'a graded turn offers no field');
+  assert.ok(!htmlHas(gradedRespondHtml, EN.send), 'and no send button');
+  assert.ok(!htmlHas(gradedRespondHtml, EN.help_hint), 'and no help row');
+
+  const gradedRespondWithAnswer = renderToStaticMarkup(
+    React.createElement(steps.RespondStepView, {
+      step: withVoice,
+      ...baseStepProps,
+      feedback: cleanFeedback,
+      voice: { kind: 'idle' },
+      draft: { get: () => 'Un café, s’il vous plaît.', set: () => {} },
+      onStartRecording: () => {},
+      onStopRecording: () => {},
+      onResetVoice: () => {},
+    }),
+  );
   assert.ok(
-    gradedRespondHtml.includes('<textarea') && gradedRespondHtml.includes('disabled=""'),
-    'a graded turn keeps the answer visible but closed',
+    htmlHas(gradedRespondWithAnswer, 'Un café, s’il vous plaît.'),
+    'what the learner sent stays readable after the verdict',
+  );
+  assert.ok(
+    !gradedRespondWithAnswer.includes('<textarea'),
+    'and it is text, not a field that still invites an answer',
   );
 
   const resolutionStep = returning.steps.find((step) => step.kind === 'resolution');

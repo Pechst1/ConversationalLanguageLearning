@@ -27,6 +27,7 @@ import {
   CrossIcon,
   SpinnerToken,
 } from '@/components/atelier-v2/ui';
+import { enterImmersiveSurface } from '@/lib/immersive-surface';
 import { resolveMediaUrl } from '@/lib/media-url';
 import apiService from '@/services/api';
 
@@ -128,6 +129,11 @@ export function FeuilletonReader({
 }: FeuilletonReaderProps) {
   const [help, setHelp] = useState<WordHelpRequest | null>(null);
   const [translated, setTranslated] = useState<Record<string, boolean>>({});
+
+  /* This reader owns the whole screen while it is up: its own exit, its own
+     progress rail, its own action bar. Anything else that draws one of those
+     stands down (WP-20 D-4, D-9). */
+  useEffect(() => enterImmersiveSurface(), []);
   const rootRef = useRef<HTMLElement | null>(null);
   const swipeRef = useRef<{ x: number; y: number } | null>(null);
   const firstRenderRef = useRef(true);

@@ -96,13 +96,13 @@ const SPEAKING_TIMEOUT_MS = 60000;
 const EMPTY_RECORDING_BYTES = 1200;
 
 const KICKER_BY_STATUS: Record<Status, string> = {
-  idle: 'APPEL OUVERT',
-  selecting: 'APPEL OUVERT',
-  starting: 'LIGNE EN PRÉPARATION',
-  listening: 'APPEL EN COURS',
-  processing: 'APPEL EN COURS',
-  speaking: 'APPEL EN COURS',
-  ended: 'APPEL CLASSÉ',
+  idle: 'Appel ouvert',
+  selecting: 'Appel ouvert',
+  starting: 'Ligne en préparation',
+  listening: 'Appel en cours',
+  processing: 'Appel en cours',
+  speaking: 'Appel en cours',
+  ended: 'Appel classé',
 };
 
 // Screen readers get the same French stage line the page prints, never the
@@ -446,7 +446,7 @@ export default function AudioSessionPage() {
           <div className="studio-head__main">
             {/* No call number exists in this flow — "N°" only ever appears before an actual number.
                 The kicker states the call's real stage: a classed call is not "en cours". */}
-            <p className="av2-label">LE STUDIO · {KICKER_BY_STATUS[state.status]}</p>
+            <p className="av2-label">Le Studio · {KICKER_BY_STATUS[state.status]}</p>
             <h1 className="av2-headline av2-headline--display">Le Studio</h1>
           </div>
           <Chip className="studio-time">{formatTime(state.elapsedSeconds)}</Chip>
@@ -455,7 +455,7 @@ export default function AudioSessionPage() {
         <div className="av2-screen__body studio-body">
           {state.status === 'idle' && (
             <section className="studio-panel studio-intro">
-              <p className="av2-label">CONVERSATION · 5 MINUTES</p>
+              <p className="av2-label">Conversation · 5 minutes</p>
               <h2 className="av2-headline av2-headline--screen">Une voix, une vraie réponse.</h2>
               <p className="av2-body av2-body--lg studio-lede">
                 La conversation reprend votre histoire et vos mots du jour. Les corrections
@@ -477,7 +477,7 @@ export default function AudioSessionPage() {
 
           {state.status === 'selecting' && (
             <section className="studio-panel studio-scenes">
-              <p className="av2-label">SCÈNES DE RECHANGE</p>
+              <p className="av2-label">Scènes de rechange</p>
               <h2 className="av2-headline av2-headline--screen">Un décor précis</h2>
               <div className="studio-scene-list">
                 {SCENES.map((scene) => (
@@ -619,13 +619,13 @@ export default function AudioSessionPage() {
               </dl>
               {state.longestAnswer && (
                 <Surface as="section" shape="tile" className="studio-aside">
-                  <p className="av2-label">VOTRE PLUS LONGUE RÉPONSE</p>
+                  <p className="av2-label">Votre plus longue réponse</p>
                   <p className="av2-fr studio-aside__body">« {state.longestAnswer} »</p>
                 </Surface>
               )}
               {state.errors.length > 0 && (
                 <section className="studio-corrections">
-                  <p className="av2-label">CORRECTIONS DISCRÈTES</p>
+                  <p className="av2-label">Corrections discrètes</p>
                   {state.errors.map((error, index) => (
                     <div className="studio-correction" key={`${error.original}-${index}`}>
                       <s className="av2-correction__span">{error.original}</s>
@@ -636,7 +636,7 @@ export default function AudioSessionPage() {
                 </section>
               )}
               <Surface as="section" shape="tile" className="studio-aside studio-tomorrow">
-                <p className="av2-label">POUR DEMAIN</p>
+                <p className="av2-label">Pour demain</p>
                 <p className="av2-fr studio-aside__body">{state.tomorrowFocus}</p>
               </Surface>
               <div className="studio-actions">
@@ -698,7 +698,7 @@ function CastHeader({ cast }: { cast: CastMember | null }) {
           : <span aria-hidden="true">{initials}</span>}
       </div>
       <div className="studio-cast__id">
-        <span className="av2-label">EN LIGNE</span>
+        <span className="av2-label">En ligne</span>
         <strong className="av2-headline av2-headline--rule">{cast?.name || 'Conversation libre'}</strong>
         <em className="av2-body studio-cast__role">{cast?.role || 'Le Studio'}</em>
       </div>

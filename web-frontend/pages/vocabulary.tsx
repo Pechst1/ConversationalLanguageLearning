@@ -1704,6 +1704,7 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
         .av2 .lx-mast__count { margin: 0 0 3px; font-size: var(--av2-t-label); font-weight: 600; color: var(--av2-muted); overflow-wrap: anywhere; }
         .av2 .lx-switch { display: flex; flex: none; padding: 3px; border-radius: var(--av2-r-pill); background: var(--av2-line); }
         .av2 .lx-switch__tab {
+          position: relative;
           display: inline-flex;
           align-items: center;
           min-height: 30px;
@@ -1717,6 +1718,16 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
           text-decoration: none;
         }
         .av2 .lx-switch__tab[aria-current='page'] { background: var(--av2-ink); color: var(--av2-on-ink); }
+        /* The pill stays 30px as drawn; the tap target around it is the floor. */
+        .av2 .lx-switch__tab::after {
+          content: '';
+          position: absolute;
+          left: 0;
+          right: 0;
+          top: 50%;
+          height: var(--av2-tap);
+          transform: translateY(-50%);
+        }
         .av2 .lx-cta { margin-top: 2px; }
 
         /* Search well: 44px, radius 14, card face. */

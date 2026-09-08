@@ -51,7 +51,10 @@ def test_audio_call_states_never_lie_or_dead_end():
 
     # The kicker states the real stage: a classed call is not "en cours".
     assert "KICKER_BY_STATUS" in page
-    assert "ended: 'APPEL CLASSÉ'" in page
+    # WP-20 D-14: the kicker is sentence case like the rest of the system; the
+    # state it names is what matters, not the tracked caps it used to shout.
+    assert "ended: 'Appel classé'" in page
+    assert "APPEL CLASSÉ" not in page
     # Screen readers get French, not the internal status key.
     assert "aria-label={state.status}" not in page
     assert "METER_LABEL_BY_STATUS[state.status]" in page

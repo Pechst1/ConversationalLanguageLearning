@@ -693,7 +693,9 @@ export function EpRecapHead({ date }: { date: Node }) {
   return (
     <div className="ep-recap-head">
       <p className="av2-label ep-recap-head__folio">Atelier · La séance · L’épreuve</p>
-      <h1 className="av2-headline av2-headline--display ep-recap-head__title">L’épreuve</h1>
+      {/* The recap is a dialog over the séance, so its title is the dialog's
+          heading; the screen's own `h1` belongs to the séance (WP-20 D-11). */}
+      <h2 className="av2-headline av2-headline--display ep-recap-head__title">L’épreuve</h2>
       <p className="av2-label ep-recap-head__date">{date}</p>
     </div>
   );

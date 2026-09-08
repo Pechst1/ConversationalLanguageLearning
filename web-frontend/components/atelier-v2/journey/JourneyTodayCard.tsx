@@ -37,7 +37,7 @@ import {
 import { atelierCopy, type AtelierCopy } from '@/lib/atelier-v2-copy';
 
 import { journeyCopy } from './journey-copy';
-import { formatDuration, type JourneyPhase } from './journey-state';
+import { formatDuration, joinMeta, type JourneyPhase } from './journey-state';
 import type { DailyJourneyController } from './useDailyJourney';
 
 export type JourneyTodayCardProps = {
@@ -144,7 +144,7 @@ function JourneyTodayBody({
       return (
         <Card
           copy={copy}
-          eyebrow={`${copy.today_eyebrow} · ${scenario.location_name}`}
+          eyebrow={joinMeta(copy.today_eyebrow, scenario.location_name)}
           title={scenario.title_fr}
           lang="fr"
           imageUrl={scenario.image_url}
@@ -177,7 +177,7 @@ function JourneyTodayBody({
       return (
         <Card
           copy={copy}
-          eyebrow={`${copy.today_eyebrow} · ${scenario.location_name}`}
+          eyebrow={joinMeta(copy.today_eyebrow, scenario.location_name)}
           title={scenario.title_fr}
           lang="fr"
           imageUrl={scenario.image_url}
@@ -209,7 +209,7 @@ function JourneyTodayBody({
       return (
         <Card
           copy={copy}
-          eyebrow={`${copy.today_eyebrow} · ${scenario.location_name}`}
+          eyebrow={joinMeta(copy.today_eyebrow, scenario.location_name)}
           title={scenario.title_fr}
           lang="fr"
           imageUrl={scenario.image_url}

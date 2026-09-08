@@ -986,9 +986,14 @@ function EpisodeTabSurface({
   const canonicalRoute = routeForSerialBeat(canonicalBeat);
   if (canonicalBeat?.kind === 'feuilleton') {
     const status = String(canonicalBeat.status || '');
+    // The story engine manages this learner's episode; it opens in the séance.
+    const inJourney =
+      status === 'journey_required' || Boolean((canonicalBeat as Record<string, any>).story_engine);
     return (
       <>
-        {status === 'delayed' ? (
+        {inJourney ? (
+          <SerialEpisodeInJourney beat={canonicalBeat} creating={creating} onOpenSerial={onOpenSerial} />
+        ) : status === 'delayed' ? (
           <SerialEpisodeDelayed beat={canonicalBeat} creating={creating} onRetry={onOpenSerial} />
         ) : status === 'completed' ? (
           <SerialEpisodeFiled beat={canonicalBeat} onOpenSerial={onOpenSerial} />
@@ -1082,6 +1087,52 @@ function SerialEpisodeLead({
         <button className="cta gn-hero-cta" type="button" disabled={creating} onClick={onOpenSerial}>
           {creating ? <SpinnerToken /> : null}
           {creating ? 'Recherche du fil' : pressing ? 'Voir où en est l’épisode' : 'Ouvrir l’épisode du jour'}
+          {creating ? null : <ArrowRightIcon size={18} />}
+        </button>
+        <p className="gn-hero-small">C’est l’épisode annoncé à La Une. Il continue votre saison ; il n’en ouvre pas une autre.</p>
+      </div>
+    </section>
+  );
+}
+
+/* The engine-managed learner's episode lives inside the day's séance: the
+   backend answers `journey_required`, or serialises the episode with a
+   `story_engine` stamp and `continue_href: /atelier`. Promising "l'épisode du
+   jour vous attend" here and then landing on the Atelier made the page tell
+   the learner where they were going only after they had gone (WP-20 D-13). */
+function SerialEpisodeInJourney({
+  beat,
+  creating,
+  onOpenSerial,
+}: {
+  beat: SerialToday;
+  creating: boolean;
+  onOpenSerial: () => void;
+}) {
+  const number = serialEpisodeNumber(beat);
+  const names = serialBeatCharacterNames(beat);
+  const art = serialBeatArt(beat);
+  return (
+    <section className="fr-hero" aria-label="Épisode du Feuilleton">
+      <div className="art">
+        {art ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={art} alt="" />
+        ) : (
+          <span>L’illustration de cet épisode n’est pas encore parue.</span>
+        )}
+      </div>
+      <div className="body">
+        <div className="k">Épisode {number} · dans la séance</div>
+        <h2>L’épisode du jour se lit dans la séance.</h2>
+        <p className="gn-hero-p">
+          Votre histoire se joue avant de se lire : l’épisode s’ouvre au début de la séance du jour,
+          pas ici. Cette page garde les archives.
+        </p>
+        <CastChips names={names} label="Personnages de cet épisode" />
+        <button className="cta gn-hero-cta" type="button" disabled={creating} onClick={onOpenSerial}>
+          {creating ? <SpinnerToken /> : null}
+          {creating ? 'Recherche du fil' : 'Ouvrir la séance du jour'}
           {creating ? null : <ArrowRightIcon size={18} />}
         </button>
         <p className="gn-hero-small">C’est l’épisode annoncé à La Une. Il continue votre saison ; il n’en ouvre pas une autre.</p>

@@ -1,10 +1,29 @@
+/**
+ * The pilot feedback control.
+ *
+ * WP-20 D-9: this used to be the last off-system element in the product — a
+ * 36 × 36 neo-brutal box on paper, below the 44 px target floor, drawn on every
+ * authenticated screen including the immersive reader, where it sat directly on
+ * top of the reader's own action bar. It now speaks the av2 system, meets the
+ * tap floor, and stands down while an immersive surface owns the screen.
+ */
+
 import { FormEvent, useEffect, useMemo, useState } from 'react';
-import { MessageSquarePlus, Send, X } from 'lucide-react';
 import { useRouter } from 'next/router';
 import toast from 'react-hot-toast';
 
-import apiService, { type FeedbackCategory } from '@/services/api';
+import {
+  Action,
+  AtelierV2Root,
+  Chip,
+  CrossIcon,
+  IconAction,
+  SendIcon,
+  textAnswerField,
+} from '@/components/atelier-v2/ui';
+import { useImmersiveSurface } from '@/lib/immersive-surface';
 import { resolveProductSection, resolveProductTitle } from '@/lib/product-shell';
+import apiService, { type FeedbackCategory } from '@/services/api';
 
 const FEEDBACK_OPTIONS: Array<{ value: FeedbackCategory; label: string }> = [
   { value: 'bug', label: 'Bug' },
@@ -22,6 +41,7 @@ export default function FeedbackWidget() {
   const [category, setCategory] = useState<FeedbackCategory | null>(null);
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const immersive = useImmersiveSurface();
 
   const productSection = useMemo(() => resolveProductSection(router.pathname), [router.pathname]);
   const screen = useMemo(
@@ -32,6 +52,12 @@ export default function FeedbackWidget() {
   useEffect(() => {
     setOpen(false);
   }, [router.asPath]);
+
+  // A reader that has taken over the screen draws its own action bar at the
+  // bottom right; a floating control there is one more thing over it.
+  useEffect(() => {
+    if (immersive) setOpen(false);
+  }, [immersive]);
 
   async function submitFeedback(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -76,89 +102,136 @@ export default function FeedbackWidget() {
     }
   }
 
+  if (immersive) return null;
+
   return (
-    <div className="fixed bottom-[calc(var(--phone-bottom-nav-space)+8px)] right-3 z-[80] sm:bottom-5 sm:right-5">
+    <AtelierV2Root as="div" className="fb-scope">
       {open && (
-        <form
-          onSubmit={submitFeedback}
-          role="dialog"
-          aria-label="Send feedback"
-          className="fixed inset-x-3 bottom-[calc(var(--phone-bottom-nav-space)+56px)] z-[81] max-h-[calc(100vh-128px)] overflow-y-auto border border-[var(--app-ink)] bg-[var(--app-paper)] p-3 sm:inset-x-auto sm:bottom-16 sm:right-5 sm:w-80"
-        >
-          <div className="mb-3 flex items-start justify-between gap-3">
+        <form onSubmit={submitFeedback} role="dialog" aria-label="Send feedback" className="fb-panel">
+          <div className="fb-panel__head">
             <div>
-              <div className="font-mono text-[10px] font-black uppercase tracking-[0.16em] text-[var(--app-ink-3)]">
-                Feedback
-              </div>
-              <div className="mt-1 text-sm font-black text-[var(--app-ink)]">What is off?</div>
+              <p className="av2-label">Feedback</p>
+              <p className="fb-panel__title">What is off?</p>
             </div>
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              className="grid h-8 w-8 place-items-center border border-[var(--app-ink)] bg-[var(--app-paper)] text-[var(--app-ink)]"
-              aria-label="Close feedback"
-            >
-              <X size={15} strokeWidth={2.6} />
-            </button>
+            <IconAction label="Close feedback" onClick={() => setOpen(false)}>
+              <CrossIcon size={16} />
+            </IconAction>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className="fb-options" role="group" aria-label="What is off?">
             {FEEDBACK_OPTIONS.map((option) => (
-              <button
+              <Chip
                 key={option.value}
-                type="button"
+                tone={category === option.value ? 'story' : 'plain'}
+                aria-pressed={category === option.value}
                 onClick={() => setCategory(option.value)}
-                className={`min-h-[36px] border px-2 py-2 text-left font-mono text-[10px] font-black uppercase tracking-[0.08em] transition ${
-                  category === option.value
-                    ? 'border-[var(--app-ink)] bg-[var(--accent-action)] text-white'
-                    : 'border-[rgba(20,17,13,0.32)] bg-[rgba(255,255,255,0.24)] text-[var(--app-ink)]'
-                }`}
               >
                 {option.label}
-              </button>
+              </Chip>
             ))}
           </div>
 
-          <label className="mt-3 block">
-            <span className="font-mono text-[10px] font-black uppercase tracking-[0.14em] text-[var(--app-ink-3)]">
-              Note
-            </span>
-            <textarea
-              value={message}
-              onChange={(event) => setMessage(event.target.value.slice(0, 1000))}
-              maxLength={1000}
-              rows={3}
-              placeholder="Optional detail"
-              className="mt-1 w-full resize-none border border-[rgba(20,17,13,0.34)] bg-[rgba(255,255,255,0.32)] px-3 py-2 text-sm text-[var(--app-ink)] outline-none focus:border-[var(--app-ink)]"
-            />
-          </label>
+          {textAnswerField({
+            label: 'Note',
+            value: message,
+            rows: 3,
+            placeholder: 'Optional detail',
+            onChange: (next) => setMessage(next.slice(0, 1000)),
+          })}
 
-          <div className="mt-3 flex items-center justify-between gap-3">
-            <div className="font-mono text-[9px] font-black uppercase tracking-[0.12em] text-[var(--app-ink-3)]">
-              {screen}
-            </div>
-            <button
+          <div className="fb-panel__foot">
+            <span className="av2-label">{screen}</span>
+            <Action
+              tone="primary"
               type="submit"
-              disabled={!category || submitting}
-              className="inline-flex min-h-[36px] items-center gap-2 border-2 border-[var(--app-ink)] bg-[var(--app-ink)] px-3 py-2 font-mono text-[10px] font-black uppercase tracking-[0.12em] text-[var(--app-paper)] disabled:cursor-not-allowed disabled:opacity-45"
+              disabled={!category}
+              pending={submitting}
+              pendingLabel="Sending"
+              icon={<SendIcon size={15} />}
             >
-              {submitting ? 'Sending' : 'Send'}
-              <Send size={13} strokeWidth={2.6} />
-            </button>
+              Send
+            </Action>
           </div>
         </form>
       )}
 
-      <button
-        type="button"
-        onClick={() => setOpen((current) => !current)}
-        title="Send feedback"
-        className="grid h-9 w-9 place-items-center border border-[var(--app-ink)] bg-[var(--app-paper)] text-[var(--app-ink)] transition hover:bg-[var(--app-sheet)] focus:outline-none focus:ring-2 focus:ring-[var(--app-blue)] sm:h-10 sm:w-10"
-        aria-label="Send feedback"
-        aria-expanded={open}
-      >
-        <MessageSquarePlus size={17} strokeWidth={2.6} />
-      </button>
-    </div>
+      <div className="fb-launcher">
+        <IconAction
+          label="Send feedback"
+          pressable
+          aria-expanded={open}
+          onClick={() => setOpen((current) => !current)}
+        >
+          <SendIcon size={17} />
+        </IconAction>
+      </div>
+
+      <style jsx global>{`
+        .av2.fb-scope {
+          position: fixed;
+          right: 12px;
+          bottom: calc(var(--phone-bottom-nav-space, 0px) + 8px);
+          z-index: 80;
+          display: flex;
+          flex-direction: column;
+          align-items: flex-end;
+          gap: 8px;
+        }
+        .av2 .fb-launcher .av2-icon-btn {
+          background: var(--av2-paper);
+          box-shadow: 0 var(--av2-press-md) 0 var(--av2-line-2);
+        }
+        .av2 .fb-panel {
+          position: fixed;
+          right: 12px;
+          left: 12px;
+          bottom: calc(var(--phone-bottom-nav-space, 0px) + 64px);
+          z-index: 81;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          max-height: calc(100vh - 140px);
+          overflow-y: auto;
+          padding: 14px;
+          border-radius: var(--av2-r-card);
+          background: var(--av2-paper);
+          box-shadow: 0 10px 30px rgba(20, 17, 13, 0.18);
+        }
+        .av2 .fb-panel__head {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 12px;
+        }
+        .av2 .fb-panel__title {
+          margin: 3px 0 0;
+          font-size: var(--av2-t-body-lg);
+          font-weight: 700;
+        }
+        .av2 .fb-options {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px;
+        }
+        .av2 .fb-panel__foot {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+        }
+        @media (min-width: 640px) {
+          .av2.fb-scope {
+            right: 20px;
+            bottom: 20px;
+          }
+          .av2 .fb-panel {
+            left: auto;
+            right: 20px;
+            bottom: 76px;
+            width: 320px;
+          }
+        }
+      `}</style>
+    </AtelierV2Root>
   );
 }
