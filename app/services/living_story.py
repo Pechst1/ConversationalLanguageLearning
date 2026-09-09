@@ -74,7 +74,23 @@ CRITIC_ENABLED = True
 # with turns-only accepted 13/13 days. Override per run with --critic all.
 CRITIC_STAGES = frozenset({"SemanticTurn"})
 # Per-call network window and whole-operation budget, both under the 90 s journey claim.
-REQUEST_TIMEOUT_SECONDS = 25
+#
+# The window was 25 s, which measurement showed was set exactly on top of the
+# distribution rather than clear of it. Across the five paid runs in
+# ``var/reviews/atelier-longitudinal-*.json`` (371 recorded requests, gpt-5-mini):
+#
+#     stage                  n     p50    p90    p95    max
+#     director/SceneDraft  173    18.2   23.5   25.0   26.2
+#     actor/SemanticTurn    88    12.6   17.7   21.2   22.9
+#     director|actor/Review 110    4.6    9.7   11.9   15.2
+#
+# **8 of 173 scene drafts (4.6 %) died on "The read operation timed out" at ~25.1 s**,
+# paying for the tokens and returning no content, while other drafts completed at
+# 24.3–25.0 s. Each timeout burns one of the ``ATELIER_STORY_MAX_ATTEMPTS`` attempts, so
+# two slow draws in a row cost a learner the day. 35 s clears every completion actually
+# observed with room to spare and still fits two attempts inside the operation budget —
+# the invariant ``tests/test_living_story_budget.py`` now holds us to.
+REQUEST_TIMEOUT_SECONDS = 35
 OPERATION_BUDGET_SECONDS = 75
 
 

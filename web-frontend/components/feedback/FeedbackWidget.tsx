@@ -42,6 +42,8 @@ export default function FeedbackWidget() {
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const immersive = useImmersiveSurface();
+  // How far the bottom navigation intrudes into the viewport right now (WP-20 D-17).
+  const [navIntrusion, setNavIntrusion] = useState(0);
 
   const productSection = useMemo(() => resolveProductSection(router.pathname), [router.pathname]);
   const screen = useMemo(
@@ -58,6 +60,56 @@ export default function FeedbackWidget() {
   useEffect(() => {
     if (immersive) setOpen(false);
   }, [immersive]);
+
+  /**
+   * Sit above the bottom navigation, wherever it actually is.
+   *
+   * The tab bar is `fixed` on some routes and `embedded` — in normal flow at the end
+   * of the page — on others, Home included. A constant offset therefore cannot be
+   * right for both: anchored to `--phone-bottom-nav-space` this control sat on top of
+   * the «Cahier» tab on a real device (WP-20 D-17). Measuring the bar's on-screen top
+   * edge is correct in every case: a fixed bar always intrudes by its own height, an
+   * embedded one only while it is scrolled into view, and none at all when there is
+   * no bar.
+   */
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    let frame = 0;
+
+    const measure = () => {
+      frame = 0;
+      const nav = document.querySelector('.phone-product-nav');
+      if (!nav) {
+        setNavIntrusion(0);
+        return;
+      }
+      const { top } = nav.getBoundingClientRect();
+      setNavIntrusion(Math.max(0, Math.round(window.innerHeight - top)));
+    };
+
+    const schedule = () => {
+      if (frame) return;
+      frame = window.requestAnimationFrame(measure);
+    };
+
+    measure();
+    // Capture phase, on the document: the shell scrolls an inner element on some
+    // routes, and a scroll event does not bubble, so a listener on `window` never
+    // hears it and the offset stays frozen at whatever the first paint measured.
+    document.addEventListener('scroll', schedule, { capture: true, passive: true });
+    window.addEventListener('resize', schedule);
+    // The bar's own height changes with the text-size setting and the keyboard.
+    const observer =
+      typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(schedule);
+    const nav = document.querySelector('.phone-product-nav');
+    if (observer && nav) observer.observe(nav);
+    return () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      document.removeEventListener('scroll', schedule, { capture: true });
+      window.removeEventListener('resize', schedule);
+      observer?.disconnect();
+    };
+  }, [router.asPath, immersive]);
 
   async function submitFeedback(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -105,7 +157,11 @@ export default function FeedbackWidget() {
   if (immersive) return null;
 
   return (
-    <AtelierV2Root as="div" className="fb-scope">
+    <AtelierV2Root
+      as="div"
+      className="fb-scope"
+      style={{ ['--fb-nav-intrusion' as string]: `${navIntrusion}px` }}
+    >
       {open && (
         <form onSubmit={submitFeedback} role="dialog" aria-label="Send feedback" className="fb-panel">
           <div className="fb-panel__head">
@@ -170,7 +226,10 @@ export default function FeedbackWidget() {
         .av2.fb-scope {
           position: fixed;
           right: 12px;
-          bottom: calc(var(--phone-bottom-nav-space, 0px) + 8px);
+          /* measured from the navigation actually on screen — see D-17 above */
+          bottom: calc(
+            var(--fb-nav-intrusion, 0px) + 8px + env(safe-area-inset-bottom, 0px)
+          );
           z-index: 80;
           display: flex;
           flex-direction: column;
@@ -185,7 +244,9 @@ export default function FeedbackWidget() {
           position: fixed;
           right: 12px;
           left: 12px;
-          bottom: calc(var(--phone-bottom-nav-space, 0px) + 64px);
+          bottom: calc(
+            var(--fb-nav-intrusion, 0px) + 64px + env(safe-area-inset-bottom, 0px)
+          );
           z-index: 81;
           display: flex;
           flex-direction: column;

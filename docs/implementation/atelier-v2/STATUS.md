@@ -1249,3 +1249,69 @@ until relaunch.
 
 D-17 (the feedback launcher over the «Cahier» tab) is still open and still the
 daily-experience owner's call.
+
+## 2026-09-09 — draft latency, D-17, and a blocked live review
+
+### 1. Draft latency: the window was set on top of the distribution, not clear of it
+
+`living_story.REQUEST_TIMEOUT_SECONDS` was 25 s. Measured across the 371 recorded
+requests in the five paid runs (`var/reviews/atelier-longitudinal-*.json`, gpt-5-mini):
+
+| stage | n | p50 | p90 | p95 | max |
+|---|---:|---:|---:|---:|---:|
+| `director/SceneDraft` | 173 | 18.2 | 23.5 | **25.0** | 26.2 |
+| `actor/SemanticTurn` | 88 | 12.6 | 17.7 | 21.2 | 22.9 |
+| `director`/`actor` `/Review` | 110 | 4.6 | 9.7 | 11.9 | 15.2 |
+
+The scene draft's p95 was **the timeout itself**. **8 of 173 drafts (4.6 %) died on
+`LLMProviderError: openai: The read operation timed out` at ~25.1 s** — tokens billed,
+no content — while other drafts completed at 24.3–25.0 s. Each timeout burns one of the
+two `ATELIER_STORY_MAX_ATTEMPTS`, so two slow draws in a row cost a learner the day; the
+A2 runs show days that only survived because the retry happened to be fast.
+
+Window raised to **35 s**, which clears every completion actually observed and still
+fits two attempts inside the unchanged 75 s operation budget.
+`tests/test_living_story_budget.py` now pins the three properties this violated: two
+attempts fit the budget, the window sits above the slowest recorded completion, and the
+budget stays under the journey's 90 s claim. The last test reads the recorded runs, so a
+future run that completes slower than the window fails loudly instead of silently
+timing out in production.
+
+### 2. D-17 fixed: the launcher measures the navigation instead of assuming it
+
+The feedback launcher was anchored to `--phone-bottom-nav-space`, a constant. The tab
+bar is `fixed` on some routes and `embedded` — in normal flow — on others, Home
+included, so no constant can be right for both, and on the device it sat on top of the
+«Cahier» tab. It now measures the bar's on-screen top edge (rAF-throttled, on scroll and
+resize) and lifts itself by however far the bar actually intrudes: a fixed bar always
+intrudes by its height, an embedded one only while scrolled into view, and no bar at all
+lifts it by nothing.
+
+The device caught the first attempt being wrong: the listener was on `window`, but the
+shell scrolls an inner element and a scroll event does not bubble, so the offset stayed
+frozen at whatever the first paint measured and the launcher simply sat *below* the bar
+instead. It now listens in the capture phase on `document`, which does receive
+non-bubbling events from descendants, plus a `ResizeObserver` on the bar for text-size
+changes. Proven on the device: `04-d17-launcher-clears-the-tab-bar.png` shows all four
+tab labels legible with the launcher above them.
+
+### 3. Live-model conversation review: BLOCKED, and the pilot is blocked with it
+
+`scripts/review_living_story.py` gained `--level` and `--days`: it was hardcoded to A1,
+and register is one of the things §9 asks the review to judge, so one band could never
+answer the question.
+
+The run itself could not proceed:
+
+```
+credit_balance_exhausted — You have no credits remaining.
+```
+
+The key is valid (`GET /v1/models` → 200, 135 models); the **account has no credits**.
+Nothing was billed — every request was rejected before it reached a model — so this cost
+US$0.00 and the review remains unexecuted.
+
+**This is larger than the review.** Every learner-facing generation goes through the same
+provider: scenes, turns, corrections. With the account empty, a cohort flip would give
+every learner `story_provider_unavailable` on day one. Adding credits is an owner action
+and now sits ahead of the Render deploy in the rollout order.
