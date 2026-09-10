@@ -89,6 +89,10 @@ def main():
                     "tokens": result.total_tokens,
                     "estimated_cost_usd": result.cost,
                     "elapsed_seconds": round(time.monotonic() - started, 2),
+                    # The content is the whole point of a prose review: without it a
+                    # rejected day records a verdict with nothing to judge it against,
+                    # and the run has to be paid for twice to see what was said.
+                    "content": result.content,
                 }
             )
             return result
