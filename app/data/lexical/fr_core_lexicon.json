@@ -1,0 +1,4231 @@
+{
+ "version": "fr-core-lexicon-v1",
+ "language": "fr",
+ "provenance": {
+  "summary": "Compact curated French core lexicon. Not a corpus frequency list: `rank` is list order within band and is a coarse frequency proxy only.",
+  "function_words": "Seeded from spaCy's French stop-word list (spacy.lang.fr.stop_words.STOP_WORDS, MIT licence, already a dependency of this repo), reduced by hand to lemmas.",
+  "content_words": "Hand-curated against the CEFR band descriptors and this app's own A1/A2 journey scenarios. No proprietary word list was copied.",
+  "forms": "Irregular surface->lemma pairs only. Regular inflection is handled by the suffix rules in app/services/lexical_coverage.py.",
+  "licence": "Curated for this repository; free to redistribute with it.",
+  "built": "2026-09-10 (WP-29)"
+ },
+ "bands": [
+  "A1",
+  "A2",
+  "B1"
+ ],
+ "lemmas": {
+  "le": {
+   "band": "A1",
+   "rank": 1
+  },
+  "la": {
+   "band": "A1",
+   "rank": 2
+  },
+  "les": {
+   "band": "A1",
+   "rank": 3
+  },
+  "un": {
+   "band": "A1",
+   "rank": 4
+  },
+  "une": {
+   "band": "A1",
+   "rank": 5
+  },
+  "des": {
+   "band": "A1",
+   "rank": 6
+  },
+  "de": {
+   "band": "A1",
+   "rank": 7
+  },
+  "du": {
+   "band": "A1",
+   "rank": 8
+  },
+  "à": {
+   "band": "A1",
+   "rank": 9
+  },
+  "au": {
+   "band": "A1",
+   "rank": 10
+  },
+  "aux": {
+   "band": "A1",
+   "rank": 11
+  },
+  "et": {
+   "band": "A1",
+   "rank": 12
+  },
+  "ou": {
+   "band": "A1",
+   "rank": 13
+  },
+  "mais": {
+   "band": "A1",
+   "rank": 14
+  },
+  "donc": {
+   "band": "A1",
+   "rank": 15
+  },
+  "car": {
+   "band": "A1",
+   "rank": 16
+  },
+  "ni": {
+   "band": "A1",
+   "rank": 17
+  },
+  "or": {
+   "band": "A1",
+   "rank": 18
+  },
+  "ne": {
+   "band": "A1",
+   "rank": 19
+  },
+  "pas": {
+   "band": "A1",
+   "rank": 20
+  },
+  "plus": {
+   "band": "A1",
+   "rank": 21
+  },
+  "jamais": {
+   "band": "A1",
+   "rank": 22
+  },
+  "rien": {
+   "band": "A1",
+   "rank": 23
+  },
+  "personne": {
+   "band": "A1",
+   "rank": 24
+  },
+  "aucun": {
+   "band": "A1",
+   "rank": 25
+  },
+  "non": {
+   "band": "A1",
+   "rank": 26
+  },
+  "oui": {
+   "band": "A1",
+   "rank": 27
+  },
+  "si": {
+   "band": "A1",
+   "rank": 28
+  },
+  "je": {
+   "band": "A1",
+   "rank": 29
+  },
+  "tu": {
+   "band": "A1",
+   "rank": 30
+  },
+  "il": {
+   "band": "A1",
+   "rank": 31
+  },
+  "elle": {
+   "band": "A1",
+   "rank": 32
+  },
+  "on": {
+   "band": "A1",
+   "rank": 33
+  },
+  "nous": {
+   "band": "A1",
+   "rank": 34
+  },
+  "vous": {
+   "band": "A1",
+   "rank": 35
+  },
+  "ils": {
+   "band": "A1",
+   "rank": 36
+  },
+  "elles": {
+   "band": "A1",
+   "rank": 37
+  },
+  "me": {
+   "band": "A1",
+   "rank": 38
+  },
+  "te": {
+   "band": "A1",
+   "rank": 39
+  },
+  "se": {
+   "band": "A1",
+   "rank": 40
+  },
+  "moi": {
+   "band": "A1",
+   "rank": 41
+  },
+  "toi": {
+   "band": "A1",
+   "rank": 42
+  },
+  "lui": {
+   "band": "A1",
+   "rank": 43
+  },
+  "eux": {
+   "band": "A1",
+   "rank": 44
+  },
+  "soi": {
+   "band": "A1",
+   "rank": 45
+  },
+  "mon": {
+   "band": "A1",
+   "rank": 46
+  },
+  "ma": {
+   "band": "A1",
+   "rank": 47
+  },
+  "mes": {
+   "band": "A1",
+   "rank": 48
+  },
+  "ton": {
+   "band": "A1",
+   "rank": 49
+  },
+  "ta": {
+   "band": "A1",
+   "rank": 50
+  },
+  "tes": {
+   "band": "A1",
+   "rank": 51
+  },
+  "son": {
+   "band": "A1",
+   "rank": 52
+  },
+  "sa": {
+   "band": "A1",
+   "rank": 53
+  },
+  "ses": {
+   "band": "A1",
+   "rank": 54
+  },
+  "notre": {
+   "band": "A1",
+   "rank": 55
+  },
+  "nos": {
+   "band": "A1",
+   "rank": 56
+  },
+  "votre": {
+   "band": "A1",
+   "rank": 57
+  },
+  "vos": {
+   "band": "A1",
+   "rank": 58
+  },
+  "leur": {
+   "band": "A1",
+   "rank": 59
+  },
+  "leurs": {
+   "band": "A1",
+   "rank": 60
+  },
+  "ce": {
+   "band": "A1",
+   "rank": 61
+  },
+  "cet": {
+   "band": "A1",
+   "rank": 62
+  },
+  "cette": {
+   "band": "A1",
+   "rank": 63
+  },
+  "ces": {
+   "band": "A1",
+   "rank": 64
+  },
+  "ça": {
+   "band": "A1",
+   "rank": 65
+  },
+  "cela": {
+   "band": "A1",
+   "rank": 66
+  },
+  "ceci": {
+   "band": "A1",
+   "rank": 67
+  },
+  "celui": {
+   "band": "A1",
+   "rank": 68
+  },
+  "celle": {
+   "band": "A1",
+   "rank": 69
+  },
+  "ceux": {
+   "band": "A1",
+   "rank": 70
+  },
+  "celles": {
+   "band": "A1",
+   "rank": 71
+  },
+  "que": {
+   "band": "A1",
+   "rank": 72
+  },
+  "qui": {
+   "band": "A1",
+   "rank": 73
+  },
+  "quoi": {
+   "band": "A1",
+   "rank": 74
+  },
+  "dont": {
+   "band": "A1",
+   "rank": 75
+  },
+  "où": {
+   "band": "A1",
+   "rank": 76
+  },
+  "quand": {
+   "band": "A1",
+   "rank": 77
+  },
+  "comment": {
+   "band": "A1",
+   "rank": 78
+  },
+  "pourquoi": {
+   "band": "A1",
+   "rank": 79
+  },
+  "combien": {
+   "band": "A1",
+   "rank": 80
+  },
+  "quel": {
+   "band": "A1",
+   "rank": 81
+  },
+  "quelle": {
+   "band": "A1",
+   "rank": 82
+  },
+  "quels": {
+   "band": "A1",
+   "rank": 83
+  },
+  "quelles": {
+   "band": "A1",
+   "rank": 84
+  },
+  "dans": {
+   "band": "A1",
+   "rank": 85
+  },
+  "sur": {
+   "band": "A1",
+   "rank": 86
+  },
+  "sous": {
+   "band": "A1",
+   "rank": 87
+  },
+  "avec": {
+   "band": "A1",
+   "rank": 88
+  },
+  "sans": {
+   "band": "A1",
+   "rank": 89
+  },
+  "pour": {
+   "band": "A1",
+   "rank": 90
+  },
+  "par": {
+   "band": "A1",
+   "rank": 91
+  },
+  "chez": {
+   "band": "A1",
+   "rank": 92
+  },
+  "entre": {
+   "band": "A1",
+   "rank": 93
+  },
+  "vers": {
+   "band": "A1",
+   "rank": 94
+  },
+  "contre": {
+   "band": "A1",
+   "rank": 95
+  },
+  "depuis": {
+   "band": "A1",
+   "rank": 96
+  },
+  "pendant": {
+   "band": "A1",
+   "rank": 97
+  },
+  "avant": {
+   "band": "A1",
+   "rank": 98
+  },
+  "après": {
+   "band": "A1",
+   "rank": 99
+  },
+  "jusque": {
+   "band": "A1",
+   "rank": 100
+  },
+  "dès": {
+   "band": "A1",
+   "rank": 101
+  },
+  "selon": {
+   "band": "A1",
+   "rank": 102
+  },
+  "malgré": {
+   "band": "A1",
+   "rank": 103
+  },
+  "parmi": {
+   "band": "A1",
+   "rank": 104
+  },
+  "devant": {
+   "band": "A1",
+   "rank": 105
+  },
+  "derrière": {
+   "band": "A1",
+   "rank": 106
+  },
+  "y": {
+   "band": "A1",
+   "rank": 107
+  },
+  "en": {
+   "band": "A1",
+   "rank": 108
+  },
+  "là": {
+   "band": "A1",
+   "rank": 109
+  },
+  "ici": {
+   "band": "A1",
+   "rank": 110
+  },
+  "voilà": {
+   "band": "A1",
+   "rank": 111
+  },
+  "voici": {
+   "band": "A1",
+   "rank": 112
+  },
+  "très": {
+   "band": "A1",
+   "rank": 113
+  },
+  "bien": {
+   "band": "A1",
+   "rank": 114
+  },
+  "mal": {
+   "band": "A1",
+   "rank": 115
+  },
+  "aussi": {
+   "band": "A1",
+   "rank": 116
+  },
+  "alors": {
+   "band": "A1",
+   "rank": 117
+  },
+  "encore": {
+   "band": "A1",
+   "rank": 118
+  },
+  "déjà": {
+   "band": "A1",
+   "rank": 119
+  },
+  "toujours": {
+   "band": "A1",
+   "rank": 120
+  },
+  "souvent": {
+   "band": "A1",
+   "rank": 121
+  },
+  "parfois": {
+   "band": "A1",
+   "rank": 122
+  },
+  "peu": {
+   "band": "A1",
+   "rank": 123
+  },
+  "trop": {
+   "band": "A1",
+   "rank": 124
+  },
+  "assez": {
+   "band": "A1",
+   "rank": 125
+  },
+  "beaucoup": {
+   "band": "A1",
+   "rank": 126
+  },
+  "moins": {
+   "band": "A1",
+   "rank": 127
+  },
+  "autant": {
+   "band": "A1",
+   "rank": 128
+  },
+  "presque": {
+   "band": "A1",
+   "rank": 129
+  },
+  "plutôt": {
+   "band": "A1",
+   "rank": 130
+  },
+  "vraiment": {
+   "band": "A1",
+   "rank": 131
+  },
+  "surtout": {
+   "band": "A1",
+   "rank": 132
+  },
+  "tout": {
+   "band": "A1",
+   "rank": 133
+  },
+  "tous": {
+   "band": "A1",
+   "rank": 134
+  },
+  "toute": {
+   "band": "A1",
+   "rank": 135
+  },
+  "toutes": {
+   "band": "A1",
+   "rank": 136
+  },
+  "autre": {
+   "band": "A1",
+   "rank": 137
+  },
+  "autres": {
+   "band": "A1",
+   "rank": 138
+  },
+  "même": {
+   "band": "A1",
+   "rank": 139
+  },
+  "chaque": {
+   "band": "A1",
+   "rank": 140
+  },
+  "quelque": {
+   "band": "A1",
+   "rank": 141
+  },
+  "quelques": {
+   "band": "A1",
+   "rank": 142
+  },
+  "plusieurs": {
+   "band": "A1",
+   "rank": 143
+  },
+  "comme": {
+   "band": "A1",
+   "rank": 144
+  },
+  "puis": {
+   "band": "A1",
+   "rank": 145
+  },
+  "ensuite": {
+   "band": "A1",
+   "rank": 146
+  },
+  "enfin": {
+   "band": "A1",
+   "rank": 147
+  },
+  "d'abord": {
+   "band": "A1",
+   "rank": 148
+  },
+  "aujourd'hui": {
+   "band": "A1",
+   "rank": 149
+  },
+  "hier": {
+   "band": "A1",
+   "rank": 150
+  },
+  "demain": {
+   "band": "A1",
+   "rank": 151
+  },
+  "maintenant": {
+   "band": "A1",
+   "rank": 152
+  },
+  "bientôt": {
+   "band": "A1",
+   "rank": 153
+  },
+  "tard": {
+   "band": "A1",
+   "rank": 154
+  },
+  "tôt": {
+   "band": "A1",
+   "rank": 155
+  },
+  "vite": {
+   "band": "A1",
+   "rank": 156
+  },
+  "doucement": {
+   "band": "A1",
+   "rank": 157
+  },
+  "ensemble": {
+   "band": "A1",
+   "rank": 158
+  },
+  "seulement": {
+   "band": "A1",
+   "rank": 159
+  },
+  "environ": {
+   "band": "A1",
+   "rank": 160
+  },
+  "deux": {
+   "band": "A1",
+   "rank": 161
+  },
+  "trois": {
+   "band": "A1",
+   "rank": 162
+  },
+  "quatre": {
+   "band": "A1",
+   "rank": 163
+  },
+  "cinq": {
+   "band": "A1",
+   "rank": 164
+  },
+  "six": {
+   "band": "A1",
+   "rank": 165
+  },
+  "sept": {
+   "band": "A1",
+   "rank": 166
+  },
+  "huit": {
+   "band": "A1",
+   "rank": 167
+  },
+  "neuf": {
+   "band": "A1",
+   "rank": 168
+  },
+  "dix": {
+   "band": "A1",
+   "rank": 169
+  },
+  "onze": {
+   "band": "A1",
+   "rank": 170
+  },
+  "douze": {
+   "band": "A1",
+   "rank": 171
+  },
+  "treize": {
+   "band": "A1",
+   "rank": 172
+  },
+  "quatorze": {
+   "band": "A1",
+   "rank": 173
+  },
+  "quinze": {
+   "band": "A1",
+   "rank": 174
+  },
+  "seize": {
+   "band": "A1",
+   "rank": 175
+  },
+  "vingt": {
+   "band": "A1",
+   "rank": 176
+  },
+  "trente": {
+   "band": "A1",
+   "rank": 177
+  },
+  "quarante": {
+   "band": "A1",
+   "rank": 178
+  },
+  "cinquante": {
+   "band": "A1",
+   "rank": 179
+  },
+  "soixante": {
+   "band": "A1",
+   "rank": 180
+  },
+  "cent": {
+   "band": "A1",
+   "rank": 181
+  },
+  "mille": {
+   "band": "A1",
+   "rank": 182
+  },
+  "premier": {
+   "band": "A1",
+   "rank": 183
+  },
+  "deuxième": {
+   "band": "A1",
+   "rank": 184
+  },
+  "dernier": {
+   "band": "A1",
+   "rank": 185
+  },
+  "prochain": {
+   "band": "A1",
+   "rank": 186
+  },
+  "être": {
+   "band": "A1",
+   "rank": 187
+  },
+  "avoir": {
+   "band": "A1",
+   "rank": 188
+  },
+  "faire": {
+   "band": "A1",
+   "rank": 189
+  },
+  "aller": {
+   "band": "A1",
+   "rank": 190
+  },
+  "venir": {
+   "band": "A1",
+   "rank": 191
+  },
+  "dire": {
+   "band": "A1",
+   "rank": 192
+  },
+  "voir": {
+   "band": "A1",
+   "rank": 193
+  },
+  "savoir": {
+   "band": "A1",
+   "rank": 194
+  },
+  "pouvoir": {
+   "band": "A1",
+   "rank": 195
+  },
+  "vouloir": {
+   "band": "A1",
+   "rank": 196
+  },
+  "devoir": {
+   "band": "A1",
+   "rank": 197
+  },
+  "prendre": {
+   "band": "A1",
+   "rank": 198
+  },
+  "mettre": {
+   "band": "A1",
+   "rank": 199
+  },
+  "donner": {
+   "band": "A1",
+   "rank": 200
+  },
+  "parler": {
+   "band": "A1",
+   "rank": 201
+  },
+  "manger": {
+   "band": "A1",
+   "rank": 202
+  },
+  "boire": {
+   "band": "A1",
+   "rank": 203
+  },
+  "habiter": {
+   "band": "A1",
+   "rank": 204
+  },
+  "travailler": {
+   "band": "A1",
+   "rank": 205
+  },
+  "aimer": {
+   "band": "A1",
+   "rank": 206
+  },
+  "arriver": {
+   "band": "A1",
+   "rank": 207
+  },
+  "partir": {
+   "band": "A1",
+   "rank": 208
+  },
+  "entrer": {
+   "band": "A1",
+   "rank": 209
+  },
+  "sortir": {
+   "band": "A1",
+   "rank": 210
+  },
+  "monter": {
+   "band": "A1",
+   "rank": 211
+  },
+  "descendre": {
+   "band": "A1",
+   "rank": 212
+  },
+  "rester": {
+   "band": "A1",
+   "rank": 213
+  },
+  "passer": {
+   "band": "A1",
+   "rank": 214
+  },
+  "trouver": {
+   "band": "A1",
+   "rank": 215
+  },
+  "chercher": {
+   "band": "A1",
+   "rank": 216
+  },
+  "demander": {
+   "band": "A1",
+   "rank": 217
+  },
+  "répondre": {
+   "band": "A1",
+   "rank": 218
+  },
+  "attendre": {
+   "band": "A1",
+   "rank": 219
+  },
+  "comprendre": {
+   "band": "A1",
+   "rank": 220
+  },
+  "apprendre": {
+   "band": "A1",
+   "rank": 221
+  },
+  "écouter": {
+   "band": "A1",
+   "rank": 222
+  },
+  "regarder": {
+   "band": "A1",
+   "rank": 223
+  },
+  "lire": {
+   "band": "A1",
+   "rank": 224
+  },
+  "écrire": {
+   "band": "A1",
+   "rank": 225
+  },
+  "ouvrir": {
+   "band": "A1",
+   "rank": 226
+  },
+  "fermer": {
+   "band": "A1",
+   "rank": 227
+  },
+  "acheter": {
+   "band": "A1",
+   "rank": 228
+  },
+  "payer": {
+   "band": "A1",
+   "rank": 229
+  },
+  "coûter": {
+   "band": "A1",
+   "rank": 230
+  },
+  "commencer": {
+   "band": "A1",
+   "rank": 231
+  },
+  "finir": {
+   "band": "A1",
+   "rank": 232
+  },
+  "jouer": {
+   "band": "A1",
+   "rank": 233
+  },
+  "dormir": {
+   "band": "A1",
+   "rank": 234
+  },
+  "marcher": {
+   "band": "A1",
+   "rank": 235
+  },
+  "appeler": {
+   "band": "A1",
+   "rank": 236
+  },
+  "penser": {
+   "band": "A1",
+   "rank": 237
+  },
+  "croire": {
+   "band": "A1",
+   "rank": 238
+  },
+  "connaître": {
+   "band": "A1",
+   "rank": 239
+  },
+  "apporter": {
+   "band": "A1",
+   "rank": 240
+  },
+  "aider": {
+   "band": "A1",
+   "rank": 241
+  },
+  "montrer": {
+   "band": "A1",
+   "rank": 242
+  },
+  "porter": {
+   "band": "A1",
+   "rank": 243
+  },
+  "tourner": {
+   "band": "A1",
+   "rank": 244
+  },
+  "laisser": {
+   "band": "A1",
+   "rank": 245
+  },
+  "essayer": {
+   "band": "A1",
+   "rank": 246
+  },
+  "oublier": {
+   "band": "A1",
+   "rank": 247
+  },
+  "préférer": {
+   "band": "A1",
+   "rank": 248
+  },
+  "choisir": {
+   "band": "A1",
+   "rank": 249
+  },
+  "rentrer": {
+   "band": "A1",
+   "rank": 250
+  },
+  "revenir": {
+   "band": "A1",
+   "rank": 251
+  },
+  "tomber": {
+   "band": "A1",
+   "rank": 252
+  },
+  "perdre": {
+   "band": "A1",
+   "rank": 253
+  },
+  "gagner": {
+   "band": "A1",
+   "rank": 254
+  },
+  "vivre": {
+   "band": "A1",
+   "rank": 255
+  },
+  "falloir": {
+   "band": "A1",
+   "rank": 256
+  },
+  "plaire": {
+   "band": "A1",
+   "rank": 257
+  },
+  "remercier": {
+   "band": "A1",
+   "rank": 258
+  },
+  "excuser": {
+   "band": "A1",
+   "rank": 259
+  },
+  "adorer": {
+   "band": "A1",
+   "rank": 260
+  },
+  "détester": {
+   "band": "A1",
+   "rank": 261
+  },
+  "préparer": {
+   "band": "A1",
+   "rank": 262
+  },
+  "téléphoner": {
+   "band": "A1",
+   "rank": 263
+  },
+  "visiter": {
+   "band": "A1",
+   "rank": 264
+  },
+  "voyager": {
+   "band": "A1",
+   "rank": 265
+  },
+  "accepter": {
+   "band": "A1",
+   "rank": 266
+  },
+  "refuser": {
+   "band": "A1",
+   "rank": 267
+  },
+  "jour": {
+   "band": "A1",
+   "rank": 268
+  },
+  "semaine": {
+   "band": "A1",
+   "rank": 269
+  },
+  "mois": {
+   "band": "A1",
+   "rank": 270
+  },
+  "année": {
+   "band": "A1",
+   "rank": 271
+  },
+  "an": {
+   "band": "A1",
+   "rank": 272
+  },
+  "heure": {
+   "band": "A1",
+   "rank": 273
+  },
+  "minute": {
+   "band": "A1",
+   "rank": 274
+  },
+  "matin": {
+   "band": "A1",
+   "rank": 275
+  },
+  "midi": {
+   "band": "A1",
+   "rank": 276
+  },
+  "soir": {
+   "band": "A1",
+   "rank": 277
+  },
+  "nuit": {
+   "band": "A1",
+   "rank": 278
+  },
+  "temps": {
+   "band": "A1",
+   "rank": 279
+  },
+  "fois": {
+   "band": "A1",
+   "rank": 280
+  },
+  "moment": {
+   "band": "A1",
+   "rank": 281
+  },
+  "homme": {
+   "band": "A1",
+   "rank": 282
+  },
+  "femme": {
+   "band": "A1",
+   "rank": 283
+  },
+  "enfant": {
+   "band": "A1",
+   "rank": 284
+  },
+  "fille": {
+   "band": "A1",
+   "rank": 285
+  },
+  "garçon": {
+   "band": "A1",
+   "rank": 286
+  },
+  "ami": {
+   "band": "A1",
+   "rank": 287
+  },
+  "amie": {
+   "band": "A1",
+   "rank": 288
+  },
+  "famille": {
+   "band": "A1",
+   "rank": 289
+  },
+  "père": {
+   "band": "A1",
+   "rank": 290
+  },
+  "mère": {
+   "band": "A1",
+   "rank": 291
+  },
+  "frère": {
+   "band": "A1",
+   "rank": 292
+  },
+  "sœur": {
+   "band": "A1",
+   "rank": 293
+  },
+  "monsieur": {
+   "band": "A1",
+   "rank": 294
+  },
+  "madame": {
+   "band": "A1",
+   "rank": 295
+  },
+  "gens": {
+   "band": "A1",
+   "rank": 296
+  },
+  "nom": {
+   "band": "A1",
+   "rank": 297
+  },
+  "âge": {
+   "band": "A1",
+   "rank": 298
+  },
+  "ville": {
+   "band": "A1",
+   "rank": 299
+  },
+  "rue": {
+   "band": "A1",
+   "rank": 300
+  },
+  "maison": {
+   "band": "A1",
+   "rank": 301
+  },
+  "appartement": {
+   "band": "A1",
+   "rank": 302
+  },
+  "chambre": {
+   "band": "A1",
+   "rank": 303
+  },
+  "cuisine": {
+   "band": "A1",
+   "rank": 304
+  },
+  "salle": {
+   "band": "A1",
+   "rank": 305
+  },
+  "porte": {
+   "band": "A1",
+   "rank": 306
+  },
+  "fenêtre": {
+   "band": "A1",
+   "rank": 307
+  },
+  "table": {
+   "band": "A1",
+   "rank": 308
+  },
+  "chaise": {
+   "band": "A1",
+   "rank": 309
+  },
+  "lit": {
+   "band": "A1",
+   "rank": 310
+  },
+  "école": {
+   "band": "A1",
+   "rank": 311
+  },
+  "travail": {
+   "band": "A1",
+   "rank": 312
+  },
+  "bureau": {
+   "band": "A1",
+   "rank": 313
+  },
+  "magasin": {
+   "band": "A1",
+   "rank": 314
+  },
+  "boulangerie": {
+   "band": "A1",
+   "rank": 315
+  },
+  "café": {
+   "band": "A1",
+   "rank": 316
+  },
+  "restaurant": {
+   "band": "A1",
+   "rank": 317
+  },
+  "marché": {
+   "band": "A1",
+   "rank": 318
+  },
+  "gare": {
+   "band": "A1",
+   "rank": 319
+  },
+  "train": {
+   "band": "A1",
+   "rank": 320
+  },
+  "bus": {
+   "band": "A1",
+   "rank": 321
+  },
+  "métro": {
+   "band": "A1",
+   "rank": 322
+  },
+  "voiture": {
+   "band": "A1",
+   "rank": 323
+  },
+  "vélo": {
+   "band": "A1",
+   "rank": 324
+  },
+  "argent": {
+   "band": "A1",
+   "rank": 325
+  },
+  "euro": {
+   "band": "A1",
+   "rank": 326
+  },
+  "prix": {
+   "band": "A1",
+   "rank": 327
+  },
+  "addition": {
+   "band": "A1",
+   "rank": 328
+  },
+  "carte": {
+   "band": "A1",
+   "rank": 329
+  },
+  "billet": {
+   "band": "A1",
+   "rank": 330
+  },
+  "pain": {
+   "band": "A1",
+   "rank": 331
+  },
+  "eau": {
+   "band": "A1",
+   "rank": 332
+  },
+  "vin": {
+   "band": "A1",
+   "rank": 333
+  },
+  "bière": {
+   "band": "A1",
+   "rank": 334
+  },
+  "lait": {
+   "band": "A1",
+   "rank": 335
+  },
+  "thé": {
+   "band": "A1",
+   "rank": 336
+  },
+  "fromage": {
+   "band": "A1",
+   "rank": 337
+  },
+  "viande": {
+   "band": "A1",
+   "rank": 338
+  },
+  "poisson": {
+   "band": "A1",
+   "rank": 339
+  },
+  "légume": {
+   "band": "A1",
+   "rank": 340
+  },
+  "fruit": {
+   "band": "A1",
+   "rank": 341
+  },
+  "pomme": {
+   "band": "A1",
+   "rank": 342
+  },
+  "repas": {
+   "band": "A1",
+   "rank": 343
+  },
+  "déjeuner": {
+   "band": "A1",
+   "rank": 344
+  },
+  "dîner": {
+   "band": "A1",
+   "rank": 345
+  },
+  "chose": {
+   "band": "A1",
+   "rank": 346
+  },
+  "problème": {
+   "band": "A1",
+   "rank": 347
+  },
+  "question": {
+   "band": "A1",
+   "rank": 348
+  },
+  "réponse": {
+   "band": "A1",
+   "rank": 349
+  },
+  "mot": {
+   "band": "A1",
+   "rank": 350
+  },
+  "langue": {
+   "band": "A1",
+   "rank": 351
+  },
+  "français": {
+   "band": "A1",
+   "rank": 352
+  },
+  "anglais": {
+   "band": "A1",
+   "rank": 353
+  },
+  "livre": {
+   "band": "A1",
+   "rank": 354
+  },
+  "téléphone": {
+   "band": "A1",
+   "rank": 355
+  },
+  "ordinateur": {
+   "band": "A1",
+   "rank": 356
+  },
+  "clé": {
+   "band": "A1",
+   "rank": 357
+  },
+  "sac": {
+   "band": "A1",
+   "rank": 358
+  },
+  "vêtement": {
+   "band": "A1",
+   "rank": 359
+  },
+  "pantalon": {
+   "band": "A1",
+   "rank": 360
+  },
+  "robe": {
+   "band": "A1",
+   "rank": 361
+  },
+  "chaussure": {
+   "band": "A1",
+   "rank": 362
+  },
+  "manteau": {
+   "band": "A1",
+   "rank": 363
+  },
+  "pluie": {
+   "band": "A1",
+   "rank": 364
+  },
+  "soleil": {
+   "band": "A1",
+   "rank": 365
+  },
+  "chien": {
+   "band": "A1",
+   "rank": 366
+  },
+  "chat": {
+   "band": "A1",
+   "rank": 367
+  },
+  "place": {
+   "band": "A1",
+   "rank": 368
+  },
+  "quartier": {
+   "band": "A1",
+   "rank": 369
+  },
+  "voisin": {
+   "band": "A1",
+   "rank": 370
+  },
+  "médecin": {
+   "band": "A1",
+   "rank": 371
+  },
+  "pharmacie": {
+   "band": "A1",
+   "rank": 372
+  },
+  "hôpital": {
+   "band": "A1",
+   "rank": 373
+  },
+  "banque": {
+   "band": "A1",
+   "rank": 374
+  },
+  "poste": {
+   "band": "A1",
+   "rank": 375
+  },
+  "hôtel": {
+   "band": "A1",
+   "rank": 376
+  },
+  "vacances": {
+   "band": "A1",
+   "rank": 377
+  },
+  "week-end": {
+   "band": "A1",
+   "rank": 378
+  },
+  "fête": {
+   "band": "A1",
+   "rank": 379
+  },
+  "cadeau": {
+   "band": "A1",
+   "rank": 380
+  },
+  "musique": {
+   "band": "A1",
+   "rank": 381
+  },
+  "film": {
+   "band": "A1",
+   "rank": 382
+  },
+  "photo": {
+   "band": "A1",
+   "rank": 383
+  },
+  "idée": {
+   "band": "A1",
+   "rank": 384
+  },
+  "vie": {
+   "band": "A1",
+   "rank": 385
+  },
+  "monde": {
+   "band": "A1",
+   "rank": 386
+  },
+  "pays": {
+   "band": "A1",
+   "rank": 387
+  },
+  "ticket": {
+   "band": "A1",
+   "rank": 388
+  },
+  "verre": {
+   "band": "A1",
+   "rank": 389
+  },
+  "assiette": {
+   "band": "A1",
+   "rank": 390
+  },
+  "menu": {
+   "band": "A1",
+   "rank": 391
+  },
+  "serveur": {
+   "band": "A1",
+   "rank": 392
+  },
+  "client": {
+   "band": "A1",
+   "rank": 393
+  },
+  "boulanger": {
+   "band": "A1",
+   "rank": 394
+  },
+  "caissier": {
+   "band": "A1",
+   "rank": 395
+  },
+  "bonjour": {
+   "band": "A1",
+   "rank": 396
+  },
+  "bonsoir": {
+   "band": "A1",
+   "rank": 397
+  },
+  "bonne": {
+   "band": "A1",
+   "rank": 398
+  },
+  "salut": {
+   "band": "A1",
+   "rank": 399
+  },
+  "merci": {
+   "band": "A1",
+   "rank": 400
+  },
+  "pardon": {
+   "band": "A1",
+   "rank": 401
+  },
+  "excusez": {
+   "band": "A1",
+   "rank": 402
+  },
+  "excusez-moi": {
+   "band": "A1",
+   "rank": 403
+  },
+  "revoir": {
+   "band": "A1",
+   "rank": 404
+  },
+  "bienvenue": {
+   "band": "A1",
+   "rank": 405
+  },
+  "accord": {
+   "band": "A1",
+   "rank": 406
+  },
+  "soif": {
+   "band": "A1",
+   "rank": 407
+  },
+  "faim": {
+   "band": "A1",
+   "rank": 408
+  },
+  "sourire": {
+   "band": "A1",
+   "rank": 409
+  },
+  "rire": {
+   "band": "A1",
+   "rank": 410
+  },
+  "pleurer": {
+   "band": "A1",
+   "rank": 411
+  },
+  "chanter": {
+   "band": "A1",
+   "rank": 412
+  },
+  "danser": {
+   "band": "A1",
+   "rank": 413
+  },
+  "courir": {
+   "band": "A1",
+   "rank": 414
+  },
+  "nager": {
+   "band": "A1",
+   "rank": 415
+  },
+  "asseoir": {
+   "band": "A1",
+   "rank": 416
+  },
+  "lever": {
+   "band": "A1",
+   "rank": 417
+  },
+  "laver": {
+   "band": "A1",
+   "rank": 418
+  },
+  "habiller": {
+   "band": "A1",
+   "rank": 419
+  },
+  "réveiller": {
+   "band": "A1",
+   "rank": 420
+  },
+  "coucher": {
+   "band": "A1",
+   "rank": 421
+  },
+  "promener": {
+   "band": "A1",
+   "rank": 422
+  },
+  "amuser": {
+   "band": "A1",
+   "rank": 423
+  },
+  "dépêcher": {
+   "band": "A1",
+   "rank": 424
+  },
+  "installer": {
+   "band": "A1",
+   "rank": 425
+  },
+  "saluer": {
+   "band": "A1",
+   "rank": 426
+  },
+  "quelqu'un": {
+   "band": "A1",
+   "rank": 427
+  },
+  "après-midi": {
+   "band": "A1",
+   "rank": 428
+  },
+  "rendez-vous": {
+   "band": "A1",
+   "rank": 429
+  },
+  "s'il": {
+   "band": "A1",
+   "rank": 430
+  },
+  "numéro": {
+   "band": "A1",
+   "rank": 431
+  },
+  "bruit": {
+   "band": "A1",
+   "rank": 432
+  },
+  "odeur": {
+   "band": "A1",
+   "rank": 433
+  },
+  "goût": {
+   "band": "A1",
+   "rank": 434
+  },
+  "couleur": {
+   "band": "A1",
+   "rank": 435
+  },
+  "taille": {
+   "band": "A1",
+   "rank": 436
+  },
+  "main": {
+   "band": "A1",
+   "rank": 437
+  },
+  "tête": {
+   "band": "A1",
+   "rank": 438
+  },
+  "pied": {
+   "band": "A1",
+   "rank": 439
+  },
+  "œil": {
+   "band": "A1",
+   "rank": 440
+  },
+  "cheveu": {
+   "band": "A1",
+   "rank": 441
+  },
+  "bras": {
+   "band": "A1",
+   "rank": 442
+  },
+  "jambe": {
+   "band": "A1",
+   "rank": 443
+  },
+  "cœur": {
+   "band": "A1",
+   "rank": 444
+  },
+  "dos": {
+   "band": "A1",
+   "rank": 445
+  },
+  "ventre": {
+   "band": "A1",
+   "rank": 446
+  },
+  "bouche": {
+   "band": "A1",
+   "rank": 447
+  },
+  "nez": {
+   "band": "A1",
+   "rank": 448
+  },
+  "oreille": {
+   "band": "A1",
+   "rank": 449
+  },
+  "bouteille": {
+   "band": "A1",
+   "rank": 450
+  },
+  "tasse": {
+   "band": "A1",
+   "rank": 451
+  },
+  "cuillère": {
+   "band": "A1",
+   "rank": 452
+  },
+  "couteau": {
+   "band": "A1",
+   "rank": 453
+  },
+  "fourchette": {
+   "band": "A1",
+   "rank": 454
+  },
+  "serviette": {
+   "band": "A1",
+   "rank": 455
+  },
+  "nappe": {
+   "band": "A1",
+   "rank": 456
+  },
+  "monnaie": {
+   "band": "A1",
+   "rank": 457
+  },
+  "caisse": {
+   "band": "A1",
+   "rank": 458
+  },
+  "queue": {
+   "band": "A1",
+   "rank": 459
+  },
+  "file": {
+   "band": "A1",
+   "rank": 460
+  },
+  "bagage": {
+   "band": "A1",
+   "rank": 461
+  },
+  "parapluie": {
+   "band": "A1",
+   "rank": 462
+  },
+  "petit": {
+   "band": "A1",
+   "rank": 463
+  },
+  "grand": {
+   "band": "A1",
+   "rank": 464
+  },
+  "bon": {
+   "band": "A1",
+   "rank": 465
+  },
+  "mauvais": {
+   "band": "A1",
+   "rank": 466
+  },
+  "beau": {
+   "band": "A1",
+   "rank": 467
+  },
+  "joli": {
+   "band": "A1",
+   "rank": 468
+  },
+  "nouveau": {
+   "band": "A1",
+   "rank": 469
+  },
+  "vieux": {
+   "band": "A1",
+   "rank": 470
+  },
+  "jeune": {
+   "band": "A1",
+   "rank": 471
+  },
+  "gros": {
+   "band": "A1",
+   "rank": 472
+  },
+  "long": {
+   "band": "A1",
+   "rank": 473
+  },
+  "court": {
+   "band": "A1",
+   "rank": 474
+  },
+  "chaud": {
+   "band": "A1",
+   "rank": 475
+  },
+  "froid": {
+   "band": "A1",
+   "rank": 476
+  },
+  "cher": {
+   "band": "A1",
+   "rank": 477
+  },
+  "gratuit": {
+   "band": "A1",
+   "rank": 478
+  },
+  "facile": {
+   "band": "A1",
+   "rank": 479
+  },
+  "difficile": {
+   "band": "A1",
+   "rank": 480
+  },
+  "content": {
+   "band": "A1",
+   "rank": 481
+  },
+  "heureux": {
+   "band": "A1",
+   "rank": 482
+  },
+  "triste": {
+   "band": "A1",
+   "rank": 483
+  },
+  "fatigué": {
+   "band": "A1",
+   "rank": 484
+  },
+  "malade": {
+   "band": "A1",
+   "rank": 485
+  },
+  "prêt": {
+   "band": "A1",
+   "rank": 486
+  },
+  "libre": {
+   "band": "A1",
+   "rank": 487
+  },
+  "occupé": {
+   "band": "A1",
+   "rank": 488
+  },
+  "ouvert": {
+   "band": "A1",
+   "rank": 489
+  },
+  "fermé": {
+   "band": "A1",
+   "rank": 490
+  },
+  "plein": {
+   "band": "A1",
+   "rank": 491
+  },
+  "vide": {
+   "band": "A1",
+   "rank": 492
+  },
+  "propre": {
+   "band": "A1",
+   "rank": 493
+  },
+  "sale": {
+   "band": "A1",
+   "rank": 494
+  },
+  "blanc": {
+   "band": "A1",
+   "rank": 495
+  },
+  "noir": {
+   "band": "A1",
+   "rank": 496
+  },
+  "rouge": {
+   "band": "A1",
+   "rank": 497
+  },
+  "bleu": {
+   "band": "A1",
+   "rank": 498
+  },
+  "vert": {
+   "band": "A1",
+   "rank": 499
+  },
+  "jaune": {
+   "band": "A1",
+   "rank": 500
+  },
+  "gentil": {
+   "band": "A1",
+   "rank": 501
+  },
+  "sympa": {
+   "band": "A1",
+   "rank": 502
+  },
+  "désolé": {
+   "band": "A1",
+   "rank": 503
+  },
+  "possible": {
+   "band": "A1",
+   "rank": 504
+  },
+  "important": {
+   "band": "A1",
+   "rank": 505
+  },
+  "pourtant": {
+   "band": "A2",
+   "rank": 506
+  },
+  "cependant": {
+   "band": "A2",
+   "rank": 507
+  },
+  "tandis": {
+   "band": "A2",
+   "rank": 508
+  },
+  "lorsque": {
+   "band": "A2",
+   "rank": 509
+  },
+  "puisque": {
+   "band": "A2",
+   "rank": 510
+  },
+  "afin": {
+   "band": "A2",
+   "rank": 511
+  },
+  "quoique": {
+   "band": "A2",
+   "rank": 512
+  },
+  "ailleurs": {
+   "band": "A2",
+   "rank": 513
+  },
+  "partout": {
+   "band": "A2",
+   "rank": 514
+  },
+  "nulle": {
+   "band": "A2",
+   "rank": 515
+  },
+  "franchement": {
+   "band": "A2",
+   "rank": 516
+  },
+  "heureusement": {
+   "band": "A2",
+   "rank": 517
+  },
+  "malheureusement": {
+   "band": "A2",
+   "rank": 518
+  },
+  "peut-être": {
+   "band": "A2",
+   "rank": 519
+  },
+  "sûrement": {
+   "band": "A2",
+   "rank": 520
+  },
+  "certainement": {
+   "band": "A2",
+   "rank": 521
+  },
+  "évidemment": {
+   "band": "A2",
+   "rank": 522
+  },
+  "d'accord": {
+   "band": "A2",
+   "rank": 523
+  },
+  "bref": {
+   "band": "A2",
+   "rank": 524
+  },
+  "auparavant": {
+   "band": "A2",
+   "rank": 525
+  },
+  "devenir": {
+   "band": "A2",
+   "rank": 526
+  },
+  "rendre": {
+   "band": "A2",
+   "rank": 527
+  },
+  "rendre-visite": {
+   "band": "A2",
+   "rank": 528
+  },
+  "emmener": {
+   "band": "A2",
+   "rank": 529
+  },
+  "amener": {
+   "band": "A2",
+   "rank": 530
+  },
+  "emporter": {
+   "band": "A2",
+   "rank": 531
+  },
+  "envoyer": {
+   "band": "A2",
+   "rank": 532
+  },
+  "recevoir": {
+   "band": "A2",
+   "rank": 533
+  },
+  "oser": {
+   "band": "A2",
+   "rank": 534
+  },
+  "espérer": {
+   "band": "A2",
+   "rank": 535
+  },
+  "craindre": {
+   "band": "A2",
+   "rank": 536
+  },
+  "inquiéter": {
+   "band": "A2",
+   "rank": 537
+  },
+  "rappeler": {
+   "band": "A2",
+   "rank": 538
+  },
+  "réserver": {
+   "band": "A2",
+   "rank": 539
+  },
+  "annuler": {
+   "band": "A2",
+   "rank": 540
+  },
+  "changer": {
+   "band": "A2",
+   "rank": 541
+  },
+  "réparer": {
+   "band": "A2",
+   "rank": 542
+  },
+  "nettoyer": {
+   "band": "A2",
+   "rank": 543
+  },
+  "ranger": {
+   "band": "A2",
+   "rank": 544
+  },
+  "louer": {
+   "band": "A2",
+   "rank": 545
+  },
+  "déménager": {
+   "band": "A2",
+   "rank": 546
+  },
+  "signer": {
+   "band": "A2",
+   "rank": 547
+  },
+  "remplir": {
+   "band": "A2",
+   "rank": 548
+  },
+  "prévenir": {
+   "band": "A2",
+   "rank": 549
+  },
+  "expliquer": {
+   "band": "A2",
+   "rank": 550
+  },
+  "raconter": {
+   "band": "A2",
+   "rank": 551
+  },
+  "proposer": {
+   "band": "A2",
+   "rank": 552
+  },
+  "décider": {
+   "band": "A2",
+   "rank": 553
+  },
+  "organiser": {
+   "band": "A2",
+   "rank": 554
+  },
+  "participer": {
+   "band": "A2",
+   "rank": 555
+  },
+  "réussir": {
+   "band": "A2",
+   "rank": 556
+  },
+  "échouer": {
+   "band": "A2",
+   "rank": 557
+  },
+  "arrêter": {
+   "band": "A2",
+   "rank": 558
+  },
+  "continuer": {
+   "band": "A2",
+   "rank": 559
+  },
+  "recommencer": {
+   "band": "A2",
+   "rank": 560
+  },
+  "terminer": {
+   "band": "A2",
+   "rank": 561
+  },
+  "améliorer": {
+   "band": "A2",
+   "rank": 562
+  },
+  "augmenter": {
+   "band": "A2",
+   "rank": 563
+  },
+  "baisser": {
+   "band": "A2",
+   "rank": 564
+  },
+  "dépenser": {
+   "band": "A2",
+   "rank": 565
+  },
+  "économiser": {
+   "band": "A2",
+   "rank": 566
+  },
+  "emprunter": {
+   "band": "A2",
+   "rank": 567
+  },
+  "prêter": {
+   "band": "A2",
+   "rank": 568
+  },
+  "rembourser": {
+   "band": "A2",
+   "rank": 569
+  },
+  "comparer": {
+   "band": "A2",
+   "rank": 570
+  },
+  "conseiller": {
+   "band": "A2",
+   "rank": 571
+  },
+  "déranger": {
+   "band": "A2",
+   "rank": 572
+  },
+  "réunion": {
+   "band": "A2",
+   "rank": 573
+  },
+  "entretien": {
+   "band": "A2",
+   "rank": 574
+  },
+  "contrat": {
+   "band": "A2",
+   "rank": 575
+  },
+  "facture": {
+   "band": "A2",
+   "rank": 576
+  },
+  "papier": {
+   "band": "A2",
+   "rank": 577
+  },
+  "document": {
+   "band": "A2",
+   "rank": 578
+  },
+  "dossier": {
+   "band": "A2",
+   "rank": 579
+  },
+  "formulaire": {
+   "band": "A2",
+   "rank": 580
+  },
+  "adresse": {
+   "band": "A2",
+   "rank": 581
+  },
+  "immeuble": {
+   "band": "A2",
+   "rank": 582
+  },
+  "ascenseur": {
+   "band": "A2",
+   "rank": 583
+  },
+  "escalier": {
+   "band": "A2",
+   "rank": 584
+  },
+  "étage": {
+   "band": "A2",
+   "rank": 585
+  },
+  "cave": {
+   "band": "A2",
+   "rank": 586
+  },
+  "grenier": {
+   "band": "A2",
+   "rank": 587
+  },
+  "jardin": {
+   "band": "A2",
+   "rank": 588
+  },
+  "balcon": {
+   "band": "A2",
+   "rank": 589
+  },
+  "terrasse": {
+   "band": "A2",
+   "rank": 590
+  },
+  "chauffage": {
+   "band": "A2",
+   "rank": 591
+  },
+  "électricité": {
+   "band": "A2",
+   "rank": 592
+  },
+  "loyer": {
+   "band": "A2",
+   "rank": 593
+  },
+  "propriétaire": {
+   "band": "A2",
+   "rank": 594
+  },
+  "locataire": {
+   "band": "A2",
+   "rank": 595
+  },
+  "agence": {
+   "band": "A2",
+   "rank": 596
+  },
+  "assurance": {
+   "band": "A2",
+   "rank": 597
+  },
+  "impôt": {
+   "band": "A2",
+   "rank": 598
+  },
+  "salaire": {
+   "band": "A2",
+   "rank": 599
+  },
+  "congé": {
+   "band": "A2",
+   "rank": 600
+  },
+  "stage": {
+   "band": "A2",
+   "rank": 601
+  },
+  "collègue": {
+   "band": "A2",
+   "rank": 602
+  },
+  "patron": {
+   "band": "A2",
+   "rank": 603
+  },
+  "équipe": {
+   "band": "A2",
+   "rank": 604
+  },
+  "entreprise": {
+   "band": "A2",
+   "rank": 605
+  },
+  "société": {
+   "band": "A2",
+   "rank": 606
+  },
+  "métier": {
+   "band": "A2",
+   "rank": 607
+  },
+  "carrière": {
+   "band": "A2",
+   "rank": 608
+  },
+  "expérience": {
+   "band": "A2",
+   "rank": 609
+  },
+  "santé": {
+   "band": "A2",
+   "rank": 610
+  },
+  "douleur": {
+   "band": "A2",
+   "rank": 611
+  },
+  "fièvre": {
+   "band": "A2",
+   "rank": 612
+  },
+  "rhume": {
+   "band": "A2",
+   "rank": 613
+  },
+  "grippe": {
+   "band": "A2",
+   "rank": 614
+  },
+  "ordonnance": {
+   "band": "A2",
+   "rank": 615
+  },
+  "médicament": {
+   "band": "A2",
+   "rank": 616
+  },
+  "dentiste": {
+   "band": "A2",
+   "rank": 617
+  },
+  "infirmier": {
+   "band": "A2",
+   "rank": 618
+  },
+  "urgence": {
+   "band": "A2",
+   "rank": 619
+  },
+  "accident": {
+   "band": "A2",
+   "rank": 620
+  },
+  "transport": {
+   "band": "A2",
+   "rank": 621
+  },
+  "correspondance": {
+   "band": "A2",
+   "rank": 622
+  },
+  "retard": {
+   "band": "A2",
+   "rank": 623
+  },
+  "grève": {
+   "band": "A2",
+   "rank": 624
+  },
+  "quai": {
+   "band": "A2",
+   "rank": 625
+  },
+  "voie": {
+   "band": "A2",
+   "rank": 626
+  },
+  "arrêt": {
+   "band": "A2",
+   "rank": 627
+  },
+  "trajet": {
+   "band": "A2",
+   "rank": 628
+  },
+  "aéroport": {
+   "band": "A2",
+   "rank": 629
+  },
+  "avion": {
+   "band": "A2",
+   "rank": 630
+  },
+  "valise": {
+   "band": "A2",
+   "rank": 631
+  },
+  "douane": {
+   "band": "A2",
+   "rank": 632
+  },
+  "frontière": {
+   "band": "A2",
+   "rank": 633
+  },
+  "séjour": {
+   "band": "A2",
+   "rank": 634
+  },
+  "hébergement": {
+   "band": "A2",
+   "rank": 635
+  },
+  "auberge": {
+   "band": "A2",
+   "rank": 636
+  },
+  "recette": {
+   "band": "A2",
+   "rank": 637
+  },
+  "ingrédient": {
+   "band": "A2",
+   "rank": 638
+  },
+  "sel": {
+   "band": "A2",
+   "rank": 639
+  },
+  "poivre": {
+   "band": "A2",
+   "rank": 640
+  },
+  "sucre": {
+   "band": "A2",
+   "rank": 641
+  },
+  "farine": {
+   "band": "A2",
+   "rank": 642
+  },
+  "beurre": {
+   "band": "A2",
+   "rank": 643
+  },
+  "huile": {
+   "band": "A2",
+   "rank": 644
+  },
+  "plat": {
+   "band": "A2",
+   "rank": 645
+  },
+  "entrée": {
+   "band": "A2",
+   "rank": 646
+  },
+  "dessert": {
+   "band": "A2",
+   "rank": 647
+  },
+  "boisson": {
+   "band": "A2",
+   "rank": 648
+  },
+  "commande": {
+   "band": "A2",
+   "rank": 649
+  },
+  "pourboire": {
+   "band": "A2",
+   "rank": 650
+  },
+  "sentiment": {
+   "band": "A2",
+   "rank": 651
+  },
+  "humeur": {
+   "band": "A2",
+   "rank": 652
+  },
+  "colère": {
+   "band": "A2",
+   "rank": 653
+  },
+  "peur": {
+   "band": "A2",
+   "rank": 654
+  },
+  "joie": {
+   "band": "A2",
+   "rank": 655
+  },
+  "surprise": {
+   "band": "A2",
+   "rank": 656
+  },
+  "honte": {
+   "band": "A2",
+   "rank": 657
+  },
+  "fierté": {
+   "band": "A2",
+   "rank": 658
+  },
+  "espoir": {
+   "band": "A2",
+   "rank": 659
+  },
+  "souvenir": {
+   "band": "A2",
+   "rank": 660
+  },
+  "habitude": {
+   "band": "A2",
+   "rank": 661
+  },
+  "caractère": {
+   "band": "A2",
+   "rank": 662
+  },
+  "personnalité": {
+   "band": "A2",
+   "rank": 663
+  },
+  "relation": {
+   "band": "A2",
+   "rank": 664
+  },
+  "amitié": {
+   "band": "A2",
+   "rank": 665
+  },
+  "amour": {
+   "band": "A2",
+   "rank": 666
+  },
+  "dispute": {
+   "band": "A2",
+   "rank": 667
+  },
+  "conflit": {
+   "band": "A2",
+   "rank": 668
+  },
+  "solution": {
+   "band": "A2",
+   "rank": 669
+  },
+  "avantage": {
+   "band": "A2",
+   "rank": 670
+  },
+  "inconvénient": {
+   "band": "A2",
+   "rank": 671
+  },
+  "différence": {
+   "band": "A2",
+   "rank": 672
+  },
+  "ressemblance": {
+   "band": "A2",
+   "rank": 673
+  },
+  "inquiet": {
+   "band": "A2",
+   "rank": 674
+  },
+  "nerveux": {
+   "band": "A2",
+   "rank": 675
+  },
+  "calme": {
+   "band": "A2",
+   "rank": 676
+  },
+  "timide": {
+   "band": "A2",
+   "rank": 677
+  },
+  "bavard": {
+   "band": "A2",
+   "rank": 678
+  },
+  "sérieux": {
+   "band": "A2",
+   "rank": 679
+  },
+  "drôle": {
+   "band": "A2",
+   "rank": 680
+  },
+  "poli": {
+   "band": "A2",
+   "rank": 681
+  },
+  "impoli": {
+   "band": "A2",
+   "rank": 682
+  },
+  "aimable": {
+   "band": "A2",
+   "rank": 683
+  },
+  "généreux": {
+   "band": "A2",
+   "rank": 684
+  },
+  "égoïste": {
+   "band": "A2",
+   "rank": 685
+  },
+  "patient": {
+   "band": "A2",
+   "rank": 686
+  },
+  "rapide": {
+   "band": "A2",
+   "rank": 687
+  },
+  "lent": {
+   "band": "A2",
+   "rank": 688
+  },
+  "bruyant": {
+   "band": "A2",
+   "rank": 689
+  },
+  "silencieux": {
+   "band": "A2",
+   "rank": 690
+  },
+  "confortable": {
+   "band": "A2",
+   "rank": 691
+  },
+  "pratique": {
+   "band": "A2",
+   "rank": 692
+  },
+  "utile": {
+   "band": "A2",
+   "rank": 693
+  },
+  "inutile": {
+   "band": "A2",
+   "rank": 694
+  },
+  "bizarre": {
+   "band": "A2",
+   "rank": 695
+  },
+  "étrange": {
+   "band": "A2",
+   "rank": 696
+  },
+  "typique": {
+   "band": "A2",
+   "rank": 697
+  },
+  "habituel": {
+   "band": "A2",
+   "rank": 698
+  },
+  "rare": {
+   "band": "A2",
+   "rank": 699
+  },
+  "fréquent": {
+   "band": "A2",
+   "rank": 700
+  },
+  "récent": {
+   "band": "A2",
+   "rank": 701
+  },
+  "ancien": {
+   "band": "A2",
+   "rank": 702
+  },
+  "moderne": {
+   "band": "A2",
+   "rank": 703
+  },
+  "néanmoins": {
+   "band": "B1",
+   "rank": 704
+  },
+  "toutefois": {
+   "band": "B1",
+   "rank": 705
+  },
+  "d'ailleurs": {
+   "band": "B1",
+   "rank": 706
+  },
+  "en-effet": {
+   "band": "B1",
+   "rank": 707
+  },
+  "par-conséquent": {
+   "band": "B1",
+   "rank": 708
+  },
+  "notamment": {
+   "band": "B1",
+   "rank": 709
+  },
+  "désormais": {
+   "band": "B1",
+   "rank": 710
+  },
+  "aussitôt": {
+   "band": "B1",
+   "rank": 711
+  },
+  "dorénavant": {
+   "band": "B1",
+   "rank": 712
+  },
+  "éventuellement": {
+   "band": "B1",
+   "rank": 713
+  },
+  "convaincre": {
+   "band": "B1",
+   "rank": 714
+  },
+  "persuader": {
+   "band": "B1",
+   "rank": 715
+  },
+  "reprocher": {
+   "band": "B1",
+   "rank": 716
+  },
+  "regretter": {
+   "band": "B1",
+   "rank": 717
+  },
+  "admettre": {
+   "band": "B1",
+   "rank": 718
+  },
+  "reconnaître": {
+   "band": "B1",
+   "rank": 719
+  },
+  "avouer": {
+   "band": "B1",
+   "rank": 720
+  },
+  "prétendre": {
+   "band": "B1",
+   "rank": 721
+  },
+  "supposer": {
+   "band": "B1",
+   "rank": 722
+  },
+  "imaginer": {
+   "band": "B1",
+   "rank": 723
+  },
+  "envisager": {
+   "band": "B1",
+   "rank": 724
+  },
+  "prévoir": {
+   "band": "B1",
+   "rank": 725
+  },
+  "constater": {
+   "band": "B1",
+   "rank": 726
+  },
+  "remarquer": {
+   "band": "B1",
+   "rank": 727
+  },
+  "souligner": {
+   "band": "B1",
+   "rank": 728
+  },
+  "insister": {
+   "band": "B1",
+   "rank": 729
+  },
+  "exiger": {
+   "band": "B1",
+   "rank": 730
+  },
+  "réclamer": {
+   "band": "B1",
+   "rank": 731
+  },
+  "supporter": {
+   "band": "B1",
+   "rank": 732
+  },
+  "subir": {
+   "band": "B1",
+   "rank": 733
+  },
+  "surmonter": {
+   "band": "B1",
+   "rank": 734
+  },
+  "renoncer": {
+   "band": "B1",
+   "rank": 735
+  },
+  "entreprendre": {
+   "band": "B1",
+   "rank": 736
+  },
+  "atteindre": {
+   "band": "B1",
+   "rank": 737
+  },
+  "parvenir": {
+   "band": "B1",
+   "rank": 738
+  },
+  "aboutir": {
+   "band": "B1",
+   "rank": 739
+  },
+  "dépasser": {
+   "band": "B1",
+   "rank": 740
+  },
+  "rattraper": {
+   "band": "B1",
+   "rank": 741
+  },
+  "démarche": {
+   "band": "B1",
+   "rank": 742
+  },
+  "procédure": {
+   "band": "B1",
+   "rank": 743
+  },
+  "administration": {
+   "band": "B1",
+   "rank": 744
+  },
+  "justificatif": {
+   "band": "B1",
+   "rank": 745
+  },
+  "attestation": {
+   "band": "B1",
+   "rank": 746
+  },
+  "demande": {
+   "band": "B1",
+   "rank": 747
+  },
+  "recours": {
+   "band": "B1",
+   "rank": 748
+  },
+  "réclamation": {
+   "band": "B1",
+   "rank": 749
+  },
+  "plainte": {
+   "band": "B1",
+   "rank": 750
+  },
+  "litige": {
+   "band": "B1",
+   "rank": 751
+  },
+  "délai": {
+   "band": "B1",
+   "rank": 752
+  },
+  "échéance": {
+   "band": "B1",
+   "rank": 753
+  },
+  "engagement": {
+   "band": "B1",
+   "rank": 754
+  },
+  "enjeu": {
+   "band": "B1",
+   "rank": 755
+  },
+  "contrainte": {
+   "band": "B1",
+   "rank": 756
+  },
+  "obstacle": {
+   "band": "B1",
+   "rank": 757
+  },
+  "défi": {
+   "band": "B1",
+   "rank": 758
+  },
+  "opportunité": {
+   "band": "B1",
+   "rank": 759
+  },
+  "perspective": {
+   "band": "B1",
+   "rank": 760
+  },
+  "tendance": {
+   "band": "B1",
+   "rank": 761
+  },
+  "évolution": {
+   "band": "B1",
+   "rank": 762
+  },
+  "développement": {
+   "band": "B1",
+   "rank": 763
+  },
+  "croissance": {
+   "band": "B1",
+   "rank": 764
+  },
+  "crise": {
+   "band": "B1",
+   "rank": 765
+  },
+  "réforme": {
+   "band": "B1",
+   "rank": 766
+  },
+  "mesure": {
+   "band": "B1",
+   "rank": 767
+  },
+  "politique": {
+   "band": "B1",
+   "rank": 768
+  },
+  "citoyen": {
+   "band": "B1",
+   "rank": 769
+  },
+  "droit": {
+   "band": "B1",
+   "rank": 770
+  },
+  "liberté": {
+   "band": "B1",
+   "rank": 771
+  },
+  "égalité": {
+   "band": "B1",
+   "rank": 772
+  },
+  "justice": {
+   "band": "B1",
+   "rank": 773
+  },
+  "loi": {
+   "band": "B1",
+   "rank": 774
+  },
+  "règlement": {
+   "band": "B1",
+   "rank": 775
+  },
+  "environnement": {
+   "band": "B1",
+   "rank": 776
+  },
+  "pollution": {
+   "band": "B1",
+   "rank": 777
+  },
+  "déchet": {
+   "band": "B1",
+   "rank": 778
+  },
+  "climat": {
+   "band": "B1",
+   "rank": 779
+  },
+  "énergie": {
+   "band": "B1",
+   "rank": 780
+  },
+  "ressource": {
+   "band": "B1",
+   "rank": 781
+  },
+  "formation": {
+   "band": "B1",
+   "rank": 782
+  },
+  "diplôme": {
+   "band": "B1",
+   "rank": 783
+  },
+  "compétence": {
+   "band": "B1",
+   "rank": 784
+  },
+  "connaissance": {
+   "band": "B1",
+   "rank": 785
+  },
+  "apprentissage": {
+   "band": "B1",
+   "rank": 786
+  },
+  "recherche": {
+   "band": "B1",
+   "rank": 787
+  },
+  "étude": {
+   "band": "B1",
+   "rank": 788
+  },
+  "enquête": {
+   "band": "B1",
+   "rank": 789
+  },
+  "résultat": {
+   "band": "B1",
+   "rank": 790
+  },
+  "conclusion": {
+   "band": "B1",
+   "rank": 791
+  },
+  "hypothèse": {
+   "band": "B1",
+   "rank": 792
+  },
+  "argument": {
+   "band": "B1",
+   "rank": 793
+  },
+  "débat": {
+   "band": "B1",
+   "rank": 794
+  },
+  "point-de-vue": {
+   "band": "B1",
+   "rank": 795
+  },
+  "opinion": {
+   "band": "B1",
+   "rank": 796
+  },
+  "avis": {
+   "band": "B1",
+   "rank": 797
+  },
+  "critique": {
+   "band": "B1",
+   "rank": 798
+  },
+  "reproche": {
+   "band": "B1",
+   "rank": 799
+  },
+  "compliment": {
+   "band": "B1",
+   "rank": 800
+  },
+  "malentendu": {
+   "band": "B1",
+   "rank": 801
+  },
+  "émotion": {
+   "band": "B1",
+   "rank": 802
+  },
+  "émouvant": {
+   "band": "B1",
+   "rank": 803
+  },
+  "bouleversé": {
+   "band": "B1",
+   "rank": 804
+  },
+  "stupéfait": {
+   "band": "B1",
+   "rank": 805
+  },
+  "déçu": {
+   "band": "B1",
+   "rank": 806
+  },
+  "satisfait": {
+   "band": "B1",
+   "rank": 807
+  },
+  "soulagé": {
+   "band": "B1",
+   "rank": 808
+  },
+  "agacé": {
+   "band": "B1",
+   "rank": 809
+  },
+  "méfiant": {
+   "band": "B1",
+   "rank": 810
+  },
+  "confiant": {
+   "band": "B1",
+   "rank": 811
+  },
+  "conscient": {
+   "band": "B1",
+   "rank": 812
+  },
+  "responsable": {
+   "band": "B1",
+   "rank": 813
+  },
+  "capable": {
+   "band": "B1",
+   "rank": 814
+  },
+  "incapable": {
+   "band": "B1",
+   "rank": 815
+  },
+  "efficace": {
+   "band": "B1",
+   "rank": 816
+  },
+  "pertinent": {
+   "band": "B1",
+   "rank": 817
+  },
+  "cohérent": {
+   "band": "B1",
+   "rank": 818
+  },
+  "contradictoire": {
+   "band": "B1",
+   "rank": 819
+  },
+  "nuancé": {
+   "band": "B1",
+   "rank": 820
+  },
+  "approfondi": {
+   "band": "B1",
+   "rank": 821
+  }
+ },
+ "forms": {
+  "a": "avoir",
+  "achetais": "acheter",
+  "achetait": "acheter",
+  "acheté": "acheter",
+  "achetée": "acheter",
+  "achète": "acheter",
+  "achètent": "acheter",
+  "achètera": "acheter",
+  "achèterai": "acheter",
+  "achèterait": "acheter",
+  "achètes": "acheter",
+  "ai": "avoir",
+  "aie": "avoir",
+  "aient": "avoir",
+  "aies": "avoir",
+  "aille": "aller",
+  "aillent": "aller",
+  "ailles": "aller",
+  "ait": "avoir",
+  "allaient": "aller",
+  "allais": "aller",
+  "allait": "aller",
+  "allez": "aller",
+  "alliez": "aller",
+  "allions": "aller",
+  "allons": "aller",
+  "allé": "aller",
+  "allée": "aller",
+  "allées": "aller",
+  "allés": "aller",
+  "amenais": "amener",
+  "amenait": "amener",
+  "amené": "amener",
+  "amenée": "amener",
+  "amène": "amener",
+  "amènent": "amener",
+  "amènera": "amener",
+  "amènerai": "amener",
+  "amènerait": "amener",
+  "amènes": "amener",
+  "appelais": "appeler",
+  "appelait": "appeler",
+  "appelle": "appeler",
+  "appellent": "appeler",
+  "appellera": "appeler",
+  "appellerai": "appeler",
+  "appellerait": "appeler",
+  "appelles": "appeler",
+  "appelé": "appeler",
+  "appelée": "appeler",
+  "apprenais": "apprendre",
+  "apprenait": "apprendre",
+  "apprend": "apprendre",
+  "apprendra": "apprendre",
+  "apprendrai": "apprendre",
+  "apprendrait": "apprendre",
+  "apprends": "apprendre",
+  "apprenez": "apprendre",
+  "apprenne": "apprendre",
+  "apprennent": "apprendre",
+  "apprenons": "apprendre",
+  "appris": "apprendre",
+  "apprise": "apprendre",
+  "as": "avoir",
+  "atteignait": "atteindre",
+  "atteignent": "atteindre",
+  "atteignez": "atteindre",
+  "atteignons": "atteindre",
+  "atteindra": "atteindre",
+  "atteindrai": "atteindre",
+  "atteindrait": "atteindre",
+  "atteins": "atteindre",
+  "atteint": "atteindre",
+  "atteinte": "atteindre",
+  "attend": "attendre",
+  "attendais": "attendre",
+  "attendait": "attendre",
+  "attende": "attendre",
+  "attendent": "attendre",
+  "attendez": "attendre",
+  "attendons": "attendre",
+  "attendra": "attendre",
+  "attendrai": "attendre",
+  "attendrait": "attendre",
+  "attends": "attendre",
+  "attendu": "attendre",
+  "attendue": "attendre",
+  "aura": "avoir",
+  "aurai": "avoir",
+  "aurais": "avoir",
+  "aurait": "avoir",
+  "auras": "avoir",
+  "aurez": "avoir",
+  "aurons": "avoir",
+  "auront": "avoir",
+  "avaient": "avoir",
+  "avais": "avoir",
+  "avait": "avoir",
+  "avez": "avoir",
+  "aviez": "avoir",
+  "avions": "avoir",
+  "avons": "avoir",
+  "ayez": "avoir",
+  "ayons": "avoir",
+  "bel": "beau",
+  "belle": "beau",
+  "belles": "beau",
+  "blanche": "blanc",
+  "blanches": "blanc",
+  "boira": "boire",
+  "boirai": "boire",
+  "boirait": "boire",
+  "bois": "boire",
+  "boit": "boire",
+  "boive": "boire",
+  "boivent": "boire",
+  "bu": "boire",
+  "bue": "boire",
+  "buvais": "boire",
+  "buvait": "boire",
+  "buvez": "boire",
+  "buvons": "boire",
+  "choisi": "choisir",
+  "choisie": "choisir",
+  "choisira": "choisir",
+  "choisirai": "choisir",
+  "choisirait": "choisir",
+  "choisis": "choisir",
+  "choisissais": "choisir",
+  "choisissait": "choisir",
+  "choisisse": "choisir",
+  "choisissent": "choisir",
+  "choisissez": "choisir",
+  "choisissons": "choisir",
+  "choisit": "choisir",
+  "chère": "cher",
+  "chères": "cher",
+  "commence": "commencer",
+  "commencent": "commencer",
+  "commencera": "commencer",
+  "commencerai": "commencer",
+  "commencerait": "commencer",
+  "commences": "commencer",
+  "commencé": "commencer",
+  "commencée": "commencer",
+  "commençais": "commencer",
+  "commençait": "commencer",
+  "commençons": "commencer",
+  "comprenais": "comprendre",
+  "comprenait": "comprendre",
+  "comprend": "comprendre",
+  "comprendra": "comprendre",
+  "comprendrai": "comprendre",
+  "comprendrait": "comprendre",
+  "comprends": "comprendre",
+  "comprenez": "comprendre",
+  "comprenne": "comprendre",
+  "comprennent": "comprendre",
+  "comprenons": "comprendre",
+  "compris": "comprendre",
+  "comprise": "comprendre",
+  "connais": "connaître",
+  "connaissais": "connaître",
+  "connaissait": "connaître",
+  "connaisse": "connaître",
+  "connaissent": "connaître",
+  "connaissez": "connaître",
+  "connaissons": "connaître",
+  "connaît": "connaître",
+  "connaîtra": "connaître",
+  "connaîtrai": "connaître",
+  "connaîtrait": "connaître",
+  "connu": "connaître",
+  "connue": "connaître",
+  "convainc": "convaincre",
+  "convaincra": "convaincre",
+  "convaincrai": "convaincre",
+  "convaincrait": "convaincre",
+  "convaincs": "convaincre",
+  "convaincu": "convaincre",
+  "convaincue": "convaincre",
+  "convainquent": "convaincre",
+  "convainquez": "convaincre",
+  "convainquons": "convaincre",
+  "croie": "croire",
+  "croient": "croire",
+  "croira": "croire",
+  "croirai": "croire",
+  "croirait": "croire",
+  "crois": "croire",
+  "croit": "croire",
+  "croyais": "croire",
+  "croyait": "croire",
+  "croyez": "croire",
+  "croyons": "croire",
+  "cru": "croire",
+  "crue": "croire",
+  "dernière": "dernier",
+  "dernières": "dernier",
+  "devaient": "devoir",
+  "devais": "devoir",
+  "devait": "devoir",
+  "devenais": "devenir",
+  "devenait": "devenir",
+  "devenez": "devenir",
+  "devenons": "devenir",
+  "devenu": "devenir",
+  "devenue": "devenir",
+  "devez": "devoir",
+  "deviendra": "devenir",
+  "deviendrai": "devenir",
+  "deviendrait": "devenir",
+  "devienne": "devenir",
+  "deviennent": "devenir",
+  "deviens": "devenir",
+  "devient": "devenir",
+  "deviez": "devoir",
+  "devions": "devoir",
+  "devons": "devoir",
+  "devra": "devoir",
+  "devrai": "devoir",
+  "devrais": "devoir",
+  "devrait": "devoir",
+  "devras": "devoir",
+  "devrez": "devoir",
+  "devrons": "devoir",
+  "devront": "devoir",
+  "dira": "dire",
+  "dirai": "dire",
+  "dirais": "dire",
+  "dirait": "dire",
+  "diras": "dire",
+  "direz": "dire",
+  "dirons": "dire",
+  "diront": "dire",
+  "dis": "dire",
+  "disaient": "dire",
+  "disais": "dire",
+  "disait": "dire",
+  "dise": "dire",
+  "disent": "dire",
+  "disiez": "dire",
+  "disions": "dire",
+  "disons": "dire",
+  "dit": "dire",
+  "dites": "dire",
+  "dois": "devoir",
+  "doit": "devoir",
+  "doive": "devoir",
+  "doivent": "devoir",
+  "dormais": "dormir",
+  "dormait": "dormir",
+  "dorme": "dormir",
+  "dorment": "dormir",
+  "dormez": "dormir",
+  "dormi": "dormir",
+  "dormira": "dormir",
+  "dormirai": "dormir",
+  "dormirait": "dormir",
+  "dormons": "dormir",
+  "dors": "dormir",
+  "dort": "dormir",
+  "douce": "doux",
+  "doux": "doux",
+  "due": "devoir",
+  "dus": "devoir",
+  "dû": "devoir",
+  "emmenais": "emmener",
+  "emmenait": "emmener",
+  "emmené": "emmener",
+  "emmenée": "emmener",
+  "emmène": "emmener",
+  "emmènent": "emmener",
+  "emmènera": "emmener",
+  "emmènerai": "emmener",
+  "emmènerait": "emmener",
+  "emmènes": "emmener",
+  "entend": "entendre",
+  "entendais": "entendre",
+  "entendait": "entendre",
+  "entende": "entendre",
+  "entendent": "entendre",
+  "entendez": "entendre",
+  "entendons": "entendre",
+  "entendra": "entendre",
+  "entendrai": "entendre",
+  "entendrait": "entendre",
+  "entends": "entendre",
+  "entendu": "entendre",
+  "entendue": "entendre",
+  "es": "être",
+  "essaie": "essayer",
+  "essaient": "essayer",
+  "essaiera": "essayer",
+  "essaierai": "essayer",
+  "essaierait": "essayer",
+  "essaies": "essayer",
+  "essayais": "essayer",
+  "essayait": "essayer",
+  "essayé": "essayer",
+  "essayée": "essayer",
+  "est": "être",
+  "eu": "avoir",
+  "eue": "avoir",
+  "eus": "avoir",
+  "eut": "avoir",
+  "faille": "falloir",
+  "fais": "faire",
+  "faisaient": "faire",
+  "faisais": "faire",
+  "faisait": "faire",
+  "faisiez": "faire",
+  "faisions": "faire",
+  "faisons": "faire",
+  "fait": "faire",
+  "faites": "faire",
+  "fallait": "falloir",
+  "fallu": "falloir",
+  "fasse": "faire",
+  "fassent": "faire",
+  "fasses": "faire",
+  "faudra": "falloir",
+  "faudrait": "falloir",
+  "faut": "falloir",
+  "fera": "faire",
+  "ferai": "faire",
+  "ferais": "faire",
+  "ferait": "faire",
+  "feras": "faire",
+  "ferez": "faire",
+  "ferons": "faire",
+  "feront": "faire",
+  "fini": "finir",
+  "finie": "finir",
+  "finira": "finir",
+  "finirai": "finir",
+  "finirait": "finir",
+  "finis": "finir",
+  "finissais": "finir",
+  "finissait": "finir",
+  "finisse": "finir",
+  "finissent": "finir",
+  "finissez": "finir",
+  "finissons": "finir",
+  "finit": "finir",
+  "fit": "faire",
+  "folle": "fou",
+  "font": "faire",
+  "fou": "fou",
+  "fus": "être",
+  "fut": "être",
+  "gentille": "gentil",
+  "gentilles": "gentil",
+  "heureuse": "heureux",
+  "heureuses": "heureux",
+  "ira": "aller",
+  "irai": "aller",
+  "irais": "aller",
+  "irait": "aller",
+  "iras": "aller",
+  "irez": "aller",
+  "irons": "aller",
+  "iront": "aller",
+  "journaux": "journal",
+  "lira": "lire",
+  "lirai": "lire",
+  "lirait": "lire",
+  "lis": "lire",
+  "lisais": "lire",
+  "lisait": "lire",
+  "lise": "lire",
+  "lisent": "lire",
+  "lisez": "lire",
+  "lisons": "lire",
+  "lit": "lire",
+  "longue": "long",
+  "longues": "long",
+  "lu": "lire",
+  "lue": "lire",
+  "mange": "manger",
+  "mangeais": "manger",
+  "mangeait": "manger",
+  "mangent": "manger",
+  "mangeons": "manger",
+  "mangera": "manger",
+  "mangerai": "manger",
+  "mangerait": "manger",
+  "manges": "manger",
+  "mangé": "manger",
+  "mangée": "manger",
+  "meilleur": "bon",
+  "meilleure": "bon",
+  "meilleurs": "bon",
+  "mesdames": "madame",
+  "messieurs": "monsieur",
+  "met": "mettre",
+  "mets": "mettre",
+  "mettais": "mettre",
+  "mettait": "mettre",
+  "mette": "mettre",
+  "mettent": "mettre",
+  "mettez": "mettre",
+  "mettons": "mettre",
+  "mettra": "mettre",
+  "mettrai": "mettre",
+  "mettrait": "mettre",
+  "mieux": "bien",
+  "mis": "mettre",
+  "mise": "mettre",
+  "nouvel": "nouveau",
+  "nouvelle": "nouveau",
+  "nouvelles": "nouveau",
+  "oeil": "œil",
+  "oeufs": "œuf",
+  "offert": "offrir",
+  "offerte": "offrir",
+  "offrais": "offrir",
+  "offrait": "offrir",
+  "offre": "offrir",
+  "offrent": "offrir",
+  "offres": "offrir",
+  "offrez": "offrir",
+  "offrira": "offrir",
+  "offrirai": "offrir",
+  "offrirait": "offrir",
+  "offrons": "offrir",
+  "ont": "avoir",
+  "ouvert": "ouvrir",
+  "ouverte": "ouvrir",
+  "ouvrais": "ouvrir",
+  "ouvrait": "ouvrir",
+  "ouvre": "ouvrir",
+  "ouvrent": "ouvrir",
+  "ouvres": "ouvrir",
+  "ouvrez": "ouvrir",
+  "ouvrira": "ouvrir",
+  "ouvrirai": "ouvrir",
+  "ouvrirait": "ouvrir",
+  "ouvrons": "ouvrir",
+  "paie": "payer",
+  "paient": "payer",
+  "paiera": "payer",
+  "paierai": "payer",
+  "paierait": "payer",
+  "paies": "payer",
+  "pars": "partir",
+  "part": "partir",
+  "partais": "partir",
+  "partait": "partir",
+  "parte": "partir",
+  "partent": "partir",
+  "partez": "partir",
+  "parti": "partir",
+  "partie": "partir",
+  "partira": "partir",
+  "partirai": "partir",
+  "partirait": "partir",
+  "partons": "partir",
+  "parvenez": "parvenir",
+  "parvenons": "parvenir",
+  "parvenu": "parvenir",
+  "parvenue": "parvenir",
+  "parviendra": "parvenir",
+  "parviendrai": "parvenir",
+  "parviendrait": "parvenir",
+  "parviennent": "parvenir",
+  "parviens": "parvenir",
+  "parvient": "parvenir",
+  "payais": "payer",
+  "payait": "payer",
+  "paye": "payer",
+  "payent": "payer",
+  "payes": "payer",
+  "payé": "payer",
+  "payée": "payer",
+  "perd": "perdre",
+  "perdais": "perdre",
+  "perdait": "perdre",
+  "perde": "perdre",
+  "perdent": "perdre",
+  "perdez": "perdre",
+  "perdons": "perdre",
+  "perdra": "perdre",
+  "perdrai": "perdre",
+  "perdrait": "perdre",
+  "perds": "perdre",
+  "perdu": "perdre",
+  "perdue": "perdre",
+  "peut": "pouvoir",
+  "peuvent": "pouvoir",
+  "peux": "pouvoir",
+  "pire": "mauvais",
+  "plairait": "plaire",
+  "plais": "plaire",
+  "plaisait": "plaire",
+  "plaise": "plaire",
+  "plaisent": "plaire",
+  "plaisez": "plaire",
+  "plaisons": "plaire",
+  "plaît": "plaire",
+  "pleut": "pleuvoir",
+  "pleuvait": "pleuvoir",
+  "pleuvra": "pleuvoir",
+  "pleuvrait": "pleuvoir",
+  "plu": "pleuvoir",
+  "pourra": "pouvoir",
+  "pourrai": "pouvoir",
+  "pourrais": "pouvoir",
+  "pourrait": "pouvoir",
+  "pourras": "pouvoir",
+  "pourrez": "pouvoir",
+  "pourrons": "pouvoir",
+  "pourront": "pouvoir",
+  "pouvaient": "pouvoir",
+  "pouvais": "pouvoir",
+  "pouvait": "pouvoir",
+  "pouvez": "pouvoir",
+  "pouviez": "pouvoir",
+  "pouvions": "pouvoir",
+  "pouvons": "pouvoir",
+  "première": "premier",
+  "premières": "premier",
+  "prenaient": "prendre",
+  "prenais": "prendre",
+  "prenait": "prendre",
+  "prend": "prendre",
+  "prendra": "prendre",
+  "prendrai": "prendre",
+  "prendrais": "prendre",
+  "prendrait": "prendre",
+  "prendras": "prendre",
+  "prendrez": "prendre",
+  "prendrons": "prendre",
+  "prendront": "prendre",
+  "prends": "prendre",
+  "prenez": "prendre",
+  "preniez": "prendre",
+  "prenions": "prendre",
+  "prenne": "prendre",
+  "prennent": "prendre",
+  "prennes": "prendre",
+  "prenons": "prendre",
+  "pris": "prendre",
+  "prise": "prendre",
+  "prit": "prendre",
+  "préfère": "préférer",
+  "préfèrent": "préférer",
+  "préfères": "préférer",
+  "préférais": "préférer",
+  "préférait": "préférer",
+  "préférera": "préférer",
+  "préférerai": "préférer",
+  "préférerait": "préférer",
+  "préféré": "préférer",
+  "préférée": "préférer",
+  "pu": "pouvoir",
+  "puisse": "pouvoir",
+  "puissent": "pouvoir",
+  "puisses": "pouvoir",
+  "recevais": "recevoir",
+  "recevait": "recevoir",
+  "recevez": "recevoir",
+  "recevons": "recevoir",
+  "recevra": "recevoir",
+  "recevrai": "recevoir",
+  "recevrait": "recevoir",
+  "reconnais": "reconnaître",
+  "reconnaissent": "reconnaître",
+  "reconnaissez": "reconnaître",
+  "reconnaissons": "reconnaître",
+  "reconnaît": "reconnaître",
+  "reconnaîtra": "reconnaître",
+  "reconnaîtrai": "reconnaître",
+  "reconnaîtrait": "reconnaître",
+  "reconnu": "reconnaître",
+  "reconnue": "reconnaître",
+  "rempli": "remplir",
+  "remplie": "remplir",
+  "remplira": "remplir",
+  "remplirai": "remplir",
+  "remplirait": "remplir",
+  "remplis": "remplir",
+  "remplissent": "remplir",
+  "remplissez": "remplir",
+  "remplissons": "remplir",
+  "remplit": "remplir",
+  "rend": "rendre",
+  "rendais": "rendre",
+  "rendait": "rendre",
+  "rende": "rendre",
+  "rendent": "rendre",
+  "rendez": "rendre",
+  "rendons": "rendre",
+  "rendra": "rendre",
+  "rendrai": "rendre",
+  "rendrait": "rendre",
+  "rends": "rendre",
+  "rendu": "rendre",
+  "rendue": "rendre",
+  "revenais": "revenir",
+  "revenait": "revenir",
+  "revenez": "revenir",
+  "revenons": "revenir",
+  "revenu": "revenir",
+  "revenue": "revenir",
+  "reverra": "revoir",
+  "reverrai": "revoir",
+  "reverrait": "revoir",
+  "reviendra": "revenir",
+  "reviendrai": "revenir",
+  "reviendrait": "revenir",
+  "revienne": "revenir",
+  "reviennent": "revenir",
+  "reviens": "revenir",
+  "revient": "revenir",
+  "revoient": "revoir",
+  "revois": "revoir",
+  "revoit": "revoir",
+  "revoyez": "revoir",
+  "revoyons": "revoir",
+  "revu": "revoir",
+  "revue": "revoir",
+  "reçois": "recevoir",
+  "reçoit": "recevoir",
+  "reçoive": "recevoir",
+  "reçoivent": "recevoir",
+  "reçu": "recevoir",
+  "reçue": "recevoir",
+  "répond": "répondre",
+  "répondais": "répondre",
+  "répondait": "répondre",
+  "réponde": "répondre",
+  "répondent": "répondre",
+  "répondez": "répondre",
+  "répondons": "répondre",
+  "répondra": "répondre",
+  "répondrai": "répondre",
+  "répondrait": "répondre",
+  "réponds": "répondre",
+  "répondu": "répondre",
+  "répondue": "répondre",
+  "réussi": "réussir",
+  "réussie": "réussir",
+  "réussira": "réussir",
+  "réussirai": "réussir",
+  "réussirait": "réussir",
+  "réussis": "réussir",
+  "réussissent": "réussir",
+  "réussissez": "réussir",
+  "réussissons": "réussir",
+  "réussit": "réussir",
+  "sache": "savoir",
+  "sachent": "savoir",
+  "saches": "savoir",
+  "sachez": "savoir",
+  "sais": "savoir",
+  "sait": "savoir",
+  "saura": "savoir",
+  "saurai": "savoir",
+  "saurais": "savoir",
+  "saurait": "savoir",
+  "sauras": "savoir",
+  "saurez": "savoir",
+  "saurons": "savoir",
+  "sauront": "savoir",
+  "savaient": "savoir",
+  "savais": "savoir",
+  "savait": "savoir",
+  "savent": "savoir",
+  "savez": "savoir",
+  "saviez": "savoir",
+  "savions": "savoir",
+  "savons": "savoir",
+  "sens": "sentir",
+  "sent": "sentir",
+  "sentais": "sentir",
+  "sentait": "sentir",
+  "sente": "sentir",
+  "sentent": "sentir",
+  "sentez": "sentir",
+  "senti": "sentir",
+  "sentie": "sentir",
+  "sentira": "sentir",
+  "sentirai": "sentir",
+  "sentirait": "sentir",
+  "sentons": "sentir",
+  "sera": "être",
+  "serai": "être",
+  "serais": "être",
+  "serait": "être",
+  "seras": "être",
+  "serez": "être",
+  "serons": "être",
+  "seront": "être",
+  "sers": "servir",
+  "sert": "servir",
+  "servais": "servir",
+  "servait": "servir",
+  "serve": "servir",
+  "servent": "servir",
+  "servez": "servir",
+  "servi": "servir",
+  "servie": "servir",
+  "servira": "servir",
+  "servirai": "servir",
+  "servirait": "servir",
+  "servons": "servir",
+  "soient": "être",
+  "sois": "être",
+  "soit": "être",
+  "sommes": "être",
+  "sont": "être",
+  "sors": "sortir",
+  "sort": "sortir",
+  "sortais": "sortir",
+  "sortait": "sortir",
+  "sorte": "sortir",
+  "sortent": "sortir",
+  "sortez": "sortir",
+  "sorti": "sortir",
+  "sortie": "sortir",
+  "sortira": "sortir",
+  "sortirai": "sortir",
+  "sortirait": "sortir",
+  "sortons": "sortir",
+  "soyez": "être",
+  "su": "savoir",
+  "subi": "subir",
+  "subie": "subir",
+  "subira": "subir",
+  "subirai": "subir",
+  "subirait": "subir",
+  "subis": "subir",
+  "subissent": "subir",
+  "subissez": "subir",
+  "subissons": "subir",
+  "subit": "subir",
+  "suis": "être",
+  "suit": "suivre",
+  "suivais": "suivre",
+  "suivait": "suivre",
+  "suive": "suivre",
+  "suivent": "suivre",
+  "suivez": "suivre",
+  "suivi": "suivre",
+  "suivie": "suivre",
+  "suivons": "suivre",
+  "suivra": "suivre",
+  "suivrai": "suivre",
+  "suivrait": "suivre",
+  "tenais": "tenir",
+  "tenait": "tenir",
+  "tenez": "tenir",
+  "tenons": "tenir",
+  "tenu": "tenir",
+  "tenue": "tenir",
+  "tiendra": "tenir",
+  "tiendrai": "tenir",
+  "tiendrait": "tenir",
+  "tienne": "tenir",
+  "tiennent": "tenir",
+  "tiens": "tenir",
+  "tient": "tenir",
+  "travaux": "travail",
+  "va": "aller",
+  "vaille": "valoir",
+  "vais": "aller",
+  "valait": "valoir",
+  "valu": "valoir",
+  "vas": "aller",
+  "vaudra": "valoir",
+  "vaudrait": "valoir",
+  "vaut": "valoir",
+  "venaient": "venir",
+  "venais": "venir",
+  "venait": "venir",
+  "vend": "vendre",
+  "vendais": "vendre",
+  "vendait": "vendre",
+  "vende": "vendre",
+  "vendent": "vendre",
+  "vendez": "vendre",
+  "vendons": "vendre",
+  "vendra": "vendre",
+  "vendrai": "vendre",
+  "vendrait": "vendre",
+  "vends": "vendre",
+  "vendu": "vendre",
+  "vendue": "vendre",
+  "venez": "venir",
+  "veniez": "venir",
+  "venions": "venir",
+  "venons": "venir",
+  "venu": "venir",
+  "venue": "venir",
+  "venues": "venir",
+  "venus": "venir",
+  "verra": "voir",
+  "verrai": "voir",
+  "verrais": "voir",
+  "verrait": "voir",
+  "verras": "voir",
+  "verrez": "voir",
+  "verrons": "voir",
+  "verront": "voir",
+  "veuille": "vouloir",
+  "veuillent": "vouloir",
+  "veuillez": "vouloir",
+  "veulent": "vouloir",
+  "veut": "vouloir",
+  "veux": "vouloir",
+  "vieil": "vieux",
+  "vieille": "vieux",
+  "vieilles": "vieux",
+  "viendra": "venir",
+  "viendrai": "venir",
+  "viendrais": "venir",
+  "viendrait": "venir",
+  "viendras": "venir",
+  "viendrez": "venir",
+  "viendrons": "venir",
+  "viendront": "venir",
+  "vienne": "venir",
+  "viennent": "venir",
+  "viennes": "venir",
+  "viens": "venir",
+  "vient": "venir",
+  "vieux": "vieux",
+  "vint": "venir",
+  "vis": "vivre",
+  "vit": "voir",
+  "vivais": "vivre",
+  "vivait": "vivre",
+  "vive": "vivre",
+  "vivent": "vivre",
+  "vivez": "vivre",
+  "vivons": "vivre",
+  "vivra": "vivre",
+  "vivrai": "vivre",
+  "vivrait": "vivre",
+  "voie": "voir",
+  "voient": "voir",
+  "voies": "voir",
+  "vois": "voir",
+  "voit": "voir",
+  "vont": "aller",
+  "voudra": "vouloir",
+  "voudrai": "vouloir",
+  "voudrais": "vouloir",
+  "voudrait": "vouloir",
+  "voudras": "vouloir",
+  "voudrez": "vouloir",
+  "voudrons": "vouloir",
+  "voudront": "vouloir",
+  "voulaient": "vouloir",
+  "voulais": "vouloir",
+  "voulait": "vouloir",
+  "voulez": "vouloir",
+  "vouliez": "vouloir",
+  "voulions": "vouloir",
+  "voulons": "vouloir",
+  "voulu": "vouloir",
+  "voyaient": "voir",
+  "voyais": "voir",
+  "voyait": "voir",
+  "voyez": "voir",
+  "voyiez": "voir",
+  "voyions": "voir",
+  "voyons": "voir",
+  "vu": "voir",
+  "vue": "voir",
+  "vues": "voir",
+  "vus": "voir",
+  "vécu": "vivre",
+  "vécue": "vivre",
+  "yeux": "œil",
+  "écrira": "écrire",
+  "écrirai": "écrire",
+  "écrirait": "écrire",
+  "écris": "écrire",
+  "écrit": "écrire",
+  "écrivais": "écrire",
+  "écrivait": "écrire",
+  "écrive": "écrire",
+  "écrivent": "écrire",
+  "écrivez": "écrire",
+  "écrivons": "écrire",
+  "étaient": "être",
+  "étais": "être",
+  "était": "être",
+  "étiez": "être",
+  "étions": "être",
+  "été": "être",
+  "êtes": "être"
+ },
+ "elisions": {
+  "l": "le",
+  "d": "de",
+  "j": "je",
+  "n": "ne",
+  "c": "ce",
+  "s": "se",
+  "t": "te",
+  "m": "me",
+  "qu": "que",
+  "jusqu": "jusque",
+  "lorsqu": "lorsque",
+  "puisqu": "puisque",
+  "quelqu": "quelque"
+ },
+ "atomic_apostrophe": [
+  "aujourd'hui",
+  "c'est-à-dire",
+  "d'abord",
+  "excusez-moi",
+  "presqu'île",
+  "prud'homme",
+  "quelqu'un",
+  "s'il"
+ ],
+ "atomic_hyphen": [
+  "au-delà",
+  "celui-là",
+  "là-bas",
+  "rendez-vous",
+  "vis-à-vis"
+ ]
+}
