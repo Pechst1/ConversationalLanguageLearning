@@ -461,10 +461,11 @@ def nailed_lemmas(db: Session, *, user: User, now: datetime | None = None) -> se
     for progress, word in rows:
         if not is_vocab_nailed(progress, now=now):
             continue
+        # Tokenised, not folded whole: a card can hold a phrase ("avoir soif",
+        # "le chien"), and a known set keyed on the phrase would never match the
+        # word as it appears in a scene.
         for surface in (word.normalized_word, word.word):
-            folded = fold(surface)
-            if folded:
-                known.update(piece for piece in _split_word(folded, load_lexicon()) if piece)
+            known.update(token.key for token in tokenize(str(surface or "")))
     return known
 
 

@@ -1592,5 +1592,5 @@ Ravenhorst-Kalovski 2010), so unknown words are now a budget.
 (`is_vocab_nailed`, imported not re-derived) plus the CEFR core list for WP-25's estimate,
 folds lemmas through elision and accents, splits unknowns into targets and accidents, and
 returns a verdict naming the words to replace *and* the targets to keep. Thin text is
-`not_assessed`, never rejected. 56 tests, US$0.00; the guard stays dark until two diffs
+`not_assessed`, never rejected. 57 tests, US$0.00; the guard stays dark until two diffs
 land in `living_story.py` (WP-28's lease) — verbatim in [WP-29-COVERAGE.md](WP-29-COVERAGE.md) §5.

@@ -804,3 +804,27 @@ def test_the_report_finds_the_learner_by_email(db_session):
 
     assert resolve_user(db_session, user_id=None, email=user.email).id == user.id
     assert resolve_user(db_session, user_id=str(user.id), email=None).id == user.id
+
+
+def test_a_phrase_card_contributes_its_words_not_the_whole_phrase(db_session):
+    """A card can hold "avoir soif"; a scene says "soif"."""
+
+    user = _user(db_session, email="cov-phrase@example.com")
+    _word(db_session, "avoir soif", 900_103)
+    db_session.add(
+        UserVocabularyProgress(
+            user_id=user.id,
+            word_id=900_103,
+            stability=40.0,
+            reps=3,
+            lapses=0,
+            state="review",
+            last_review_date=datetime.now(UTC) - timedelta(days=2),
+        )
+    )
+    db_session.commit()
+
+    lemmas = nailed_lemmas(db_session, user=user)
+
+    assert {"avoir", "soif"} <= lemmas
+    assert "avoir soif" not in lemmas

@@ -25,7 +25,7 @@ So unknown words become a **budget** rather than an accident.
 
 `app/services/lexical_coverage.py`, `app/data/lexical/fr_core_lexicon.json`,
 `scripts/coverage_report.py`, one additive line in `scripts/pilot_digest.py`,
-`tests/test_lexical_coverage.py` (56 tests).
+`tests/test_lexical_coverage.py` (57 tests).
 
 ### 2.1 The known-word set (spec §3.1)
 
