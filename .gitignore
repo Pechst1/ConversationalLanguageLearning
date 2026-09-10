@@ -85,3 +85,9 @@ var/
 # per-machine, so neither belongs in history.
 .claude/worktrees/
 .claude/settings.local.json
+
+# The seeded Claude Design canvas payload — 2 MB of editor code, republished
+# from the working .dc.html files with the skill's helper. The canvas itself
+# lives as an Artifact; only the sources belong in git.
+docs/design-reference/canvas/**/*-out.html
+docs/design-reference/canvas/atelier-auth/atelier-ecrans-hors-systeme.html

@@ -6,6 +6,7 @@
 import Head from 'next/head';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { AtelierMark, AuthScreen, AuthSpacer } from '@/components/auth/AuthShell';
 import { useAppSession } from '@/lib/app-auth';
 
 export default function HomePage() {
@@ -44,175 +45,105 @@ export default function HomePage() {
         />
       </Head>
 
-      <main className="landing" lang="fr">
-        <header className="masthead">
-          <AtelierMark />
-          <div className="nameplate">L’Atelier</div>
-          <p className="folio">Quotidien de français</p>
-          <p className={`dateline${dateline ? ' shown' : ''}`}>
-            {dateline && <time dateTime={dateline.iso}>{dateline.text}</time>}
+      <AuthScreen label="L’Atelier">
+        <header className="la-une" lang="fr">
+          <AtelierMark size={26} />
+          <p className="la-une__nameplate">L’Atelier</p>
+          {/* The dateline's space is reserved so the line never reflows when the
+              client fills it in; only its opacity changes. */}
+          <p className={`la-une__folio${dateline ? ' is-shown' : ''}`}>
+            Quotidien de français
+            {dateline && (
+              <>
+                {' · '}
+                <time dateTime={dateline.iso}>{dateline.text}</time>
+              </>
+            )}
           </p>
+          <div className="la-une__rule" aria-hidden="true" />
         </header>
 
-        <section className="pitch" aria-label="Présentation">
-          <h1>Chaque jour, une édition de français dont vous êtes un personnage.</h1>
-          <p className="standfirst">
+        <AuthSpacer />
+
+        <section className="la-une__pitch" aria-label="Présentation" lang="fr">
+          <h1 className="av2-headline av2-headline--screen">
+            Chaque jour, une édition de français dont vous êtes un personnage.
+          </h1>
+          <p className="av2-body av2-body--lg">
             Un épisode de feuilleton où vous tenez votre rôle, une courte séance
             d’exercices, des progrès consignés noir sur blanc.
           </p>
-
-          <div className="actions">
-            {authed ? (
-              <Link className="action primary" href="/atelier">
-                Ouvrir votre édition
-              </Link>
-            ) : (
-              <>
-                <Link className="action primary" href="/auth/signin">
-                  Se connecter
-                </Link>
-                <Link className="action" href="/auth/signup">
-                  Créer un compte
-                </Link>
-              </>
-            )}
-          </div>
         </section>
-      </main>
 
-      <style jsx>{`
-        .landing {
-          flex: 1 1 auto;
+        <AuthSpacer />
+
+        <div className="la-une__actions">
+          {authed ? (
+            <Link className="av2-btn av2-btn--primary" href="/atelier">
+              Ouvrir votre édition
+            </Link>
+          ) : (
+            <>
+              <Link className="av2-btn av2-btn--primary" href="/auth/signin">
+                Se connecter
+              </Link>
+              <Link className="av2-btn av2-btn--secondary" href="/auth/signup">
+                Créer un compte
+              </Link>
+            </>
+          )}
+        </div>
+      </AuthScreen>
+
+      <style jsx global>{`
+        .av2 .la-une {
           display: flex;
           flex-direction: column;
-          width: min(100%, var(--phone-shell-max, 430px));
-          margin: 0 auto;
-          padding: calc(max(26px, var(--phone-safe-top, 0px)) + 8px)
-            var(--phone-gutter, 18px)
-            calc(var(--phone-safe-bottom-space, 18px) + 12px);
-          color: var(--app-ink);
-        }
-
-        /* ---- masthead: the nameplate of the paper ---- */
-        .masthead {
+          align-items: center;
+          gap: 8px;
           text-align: center;
-          border-bottom: 1px solid var(--app-ink);
-          padding-bottom: 18px;
         }
-        .nameplate {
-          margin-top: 12px;
-          font-family: var(--app-serif);
-          font-size: var(--t-display, 2.75rem);
-          font-weight: 600;
-          line-height: 1;
-          letter-spacing: 0;
+        .av2 .la-une__nameplate {
+          margin: 0;
+          font-family: var(--av2-serif);
+          font-size: var(--av2-t-display);
+          font-weight: 500;
+          line-height: 1.05;
+          color: var(--av2-ink);
         }
-        .folio {
-          margin: 12px 0 0;
-          font-size: var(--t-label, 0.6875rem);
+        .av2 .la-une__folio {
+          margin: 0;
+          min-height: 1.4em;
+          font-size: var(--av2-t-meta);
           font-weight: 700;
-          letter-spacing: 0.14em;
-          text-transform: uppercase;
-          color: var(--app-ink-3);
-        }
-        .dateline {
-          margin: 5px 0 0;
-          min-height: 1.5em;
-          font-size: var(--t-label, 0.6875rem);
-          font-weight: 600;
-          letter-spacing: 0.1em;
-          text-transform: uppercase;
-          color: var(--app-ink-3);
+          line-height: 1.4;
+          color: var(--av2-muted);
           opacity: 0;
+          transition: opacity 0.4s ease;
+          overflow-wrap: anywhere;
         }
-        .dateline.shown {
+        .av2 .la-une__folio.is-shown {
           opacity: 1;
         }
-
-        /* ---- the one article ---- */
-        .pitch {
-          margin: auto 0;
-          padding: 44px 0;
+        .av2 .la-une__rule {
+          width: 100%;
+          height: 1px;
+          margin-top: 6px;
+          background: var(--av2-line);
         }
-        h1 {
-          margin: 0;
-          font-family: var(--app-serif);
-          font-style: italic;
-          font-weight: 600;
-          font-size: var(--t-head, 1.75rem);
-          line-height: 1.12;
-          letter-spacing: 0;
-          color: var(--app-ink);
-          text-wrap: balance;
-        }
-        .standfirst {
-          margin: 14px 0 0;
-          font-size: var(--t-body, 1rem);
-          line-height: 1.55;
-          color: var(--app-ink-2);
-        }
-
-        /* ---- actions: soft pills, ≥44px tap targets ---- */
-        .actions {
-          display: grid;
-          gap: 10px;
-          margin-top: 32px;
-        }
-        .actions :global(.action) {
+        .av2 .la-une__pitch {
           display: flex;
-          align-items: center;
-          justify-content: center;
-          min-height: max(44px, var(--phone-action-height, 54px));
-          padding: 0 22px;
-          border-radius: 999px;
-          border: 1px solid var(--app-ink);
-          background: transparent;
-          color: var(--app-ink);
-          font-size: var(--t-body, 1rem);
-          font-weight: 600;
-          letter-spacing: 0.01em;
-          text-transform: none;
-          text-decoration: none;
+          flex-direction: column;
+          gap: 14px;
+          min-width: 0;
         }
-        .actions :global(.action.primary) {
-          background: var(--app-ink);
-          color: var(--app-paper);
-        }
-        .actions :global(.action:hover) {
-          background: var(--app-paper-2);
-        }
-        .actions :global(.action.primary:hover) {
-          background: var(--app-ink-2);
-          border-color: var(--app-ink-2);
-          color: var(--app-paper);
-        }
-        .actions :global(.action:active) {
-          background: var(--app-paper-2);
-          color: var(--app-ink);
-        }
-
-        @media (prefers-reduced-motion: no-preference) {
-          .dateline {
-            transition: opacity 0.45s var(--ease-standard, ease);
-          }
-          .actions :global(.action) {
-            transition: background 0.16s ease, color 0.16s ease,
-              transform 0.12s ease;
-          }
+        .av2 .la-une__actions {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          min-width: 0;
         }
       `}</style>
     </>
-  );
-}
-
-/* The pressmark, set in the house inks (same mark as the auth pages). */
-function AtelierMark() {
-  return (
-    <svg width="30" height="30" viewBox="0 0 28 28" aria-hidden="true">
-      <rect x="0" y="0" width="11" height="11" fill="var(--app-ink)" />
-      <circle cx="22" cy="6" r="6" fill="var(--app-blue)" />
-      <rect x="0" y="17" width="11" height="11" fill="var(--app-yellow)" />
-      <path d="M17 28L23 16L28 28H17Z" fill="var(--app-red)" />
-    </svg>
   );
 }

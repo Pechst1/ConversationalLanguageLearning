@@ -1315,3 +1315,57 @@ US$0.00 and the review remains unexecuted.
 provider: scenes, turns, corrections. With the account empty, a cohort flip would give
 every learner `story_provider_unavailable` on day one. Adding credits is an owner action
 and now sits ahead of the Render deploy in the rollout order.
+
+## 2026-09-10 — the last four off-system screens, designed and integrated
+
+### The audit
+
+Every learner-facing page scored for av2 markers against legacy ones. Four were
+still off the system, and they are the **entire signed-out experience**: `/`
+(on the older `--app-*` editorial tokens), `/auth/signin`, `/auth/signup` (37
+legacy markers, the worst in the app) and `/auth/forgot-password`. A learner met
+a different product before they met the real one, then landed on the av2 Home.
+Everything else already speaks av2; dev and ops surfaces are excluded.
+
+**`/learn/new` and `/learn/session/[id]` are also off-system and deliberately
+not redesigned.** They are the legacy conversation cluster, reachable only from
+the Bibliothèque's "discuss this story" modal, and the Studio plus the daily
+journey own conversation now. Recommend disposal, as WP-20 disposed of eleven
+other legacy pages. That is a decision, not a design, so it waits for the owner.
+
+### The design
+
+Brief: `docs/design-reference/claude-design-brief-2026-09-10.md`. Canvas:
+"L'Atelier — écrans hors système", twelve artboards (each screen, its states,
+light and dark), working files under
+`docs/design-reference/canvas/atelier-auth/` so it can be re-seeded.
+
+### The integration
+
+`components/auth/AuthShell.tsx` carries the shared pieces; each page keeps its
+own logic untouched — react-hook-form, yup, the pre-hydration POST, the reset
+token flow. Sign-up became **two steps** with step one validated before it can
+be left. Sign-in states its failure **on the screen** rather than only in a
+toast, and still never says whether an address is registered.
+
+### What the device found that source review did not
+
+Walked on an iPhone 16 against the fake-provider backend.
+
+1. **The WKWebView's own validation bubble pre-empted ours.** `type="email"`
+   meant Safari's English "Enter an email address" popover fired before
+   react-hook-form ran, so the French messages were unreachable. All three forms
+   now carry `noValidate`; the French errors render under their fields.
+   Pre-existing, not introduced by the redesign.
+2. **Six interface languages broke mid-word** in the segmented row — "Englis /
+   h", "Franç / ais". The artboard drew two options; the real form has six, and
+   equal-width cells cannot hold them at 390 px. The row wraps now, words stay
+   whole, and short-label groups (minutes, CEFR levels) take a tighter floor.
+
+### Deltas between canvas and code, recorded rather than hidden
+
+* The canvas omits **CEFR level** and **interest topics**; the brief missed them.
+  They are implemented — dropping the level control would have silently made
+  every learner A1.
+* The free-text **custom topic** input is gone with the redesign; the ten presets
+  remain. A real capability lost, restorable on request.

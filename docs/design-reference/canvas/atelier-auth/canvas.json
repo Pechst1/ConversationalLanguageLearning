@@ -1,0 +1,23 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html",             "x": 0,    "y": 0,    "w": 390, "h": 844, "title": "La une · clair" },
+    { "file": "LaUneSombre.dc.html",      "x": 480,  "y": 0,    "w": 390, "h": 844, "title": "La une · sombre" },
+    { "file": "Connexion.dc.html",        "x": 960,  "y": 0,    "w": 390, "h": 844, "title": "Se connecter" },
+    { "file": "ConnexionErreur.dc.html",  "x": 1440, "y": 0,    "w": 390, "h": 844, "title": "Se connecter · erreur" },
+    { "file": "ConnexionSombre.dc.html",  "x": 1920, "y": 0,    "w": 390, "h": 844, "title": "Se connecter · sombre, envoi" },
+    { "file": "CompteEtape1.dc.html",     "x": 0,    "y": 984,  "w": 390, "h": 844, "title": "Créer un compte · 1/2" },
+    { "file": "CompteEtape2.dc.html",     "x": 480,  "y": 984,  "w": 390, "h": 844, "title": "Créer un compte · 2/2" },
+    { "file": "CompteSombre.dc.html",     "x": 960,  "y": 984,  "w": 390, "h": 844, "title": "Créer un compte · sombre" },
+    { "file": "MotDePasseDemande.dc.html","x": 1440, "y": 984,  "w": 390, "h": 844, "title": "Mot de passe · demande" },
+    { "file": "MotDePasseEnvoye.dc.html", "x": 1920, "y": 984,  "w": 390, "h": 844, "title": "Mot de passe · envoyé" },
+    { "file": "MotDePasseNouveau.dc.html","x": 0,    "y": 1968, "w": 390, "h": 844, "title": "Mot de passe · nouveau" },
+    { "file": "MotDePasseExpire.dc.html", "x": 480,  "y": 1968, "w": 390, "h": 844, "title": "Mot de passe · lien expiré" }
+  ],
+  "annotations": [
+    { "id": "systeme", "x": 0, "y": -150, "w": 900, "text": "Les quatre écrans hors système, redessinés sur av2.\nJetons uniquement (styles/atelier-v2.css) : papier #f1ece1, carte #f8f3e8, encre #14110d, rouge #d8321a = action, bleu #1d3a8a = récit.\nUne seule italique Garamond par écran, un seul primaire à relief 5px, casse normale, champs 16px, cible 44px." },
+    { "id": "champs", "x": 960, "y": -150, "w": 900, "text": "Champs à 16px : en dessous, iOS zoome la vue et ne revient jamais (D-16). C’est de cet écran que venait le défaut." },
+    { "id": "compte", "x": 0, "y": 834, "w": 900, "text": "Créer un compte se scinde en deux étapes plutôt qu’un mur de champs : l’essentiel, puis ce qui façonne la première édition — avec la raison écrite, pas laissée à deviner." },
+    { "id": "motdepasse", "x": 1440, "y": 834, "w": 900, "text": "L’écran « envoyé » ne dit jamais si l’adresse existe. Le lien expiré est déclaré comme une panne d’infrastructure, avec le chemin de retour." }
+  ],
+  "launch": { "view": "canvas" }
+}
