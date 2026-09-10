@@ -61,6 +61,12 @@ testpaths = ["tests"]
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+# Design working files, not application Python: the small generators that emit
+# the Claude Design canvas artboards under docs/. They are scaffolding for a
+# design deliverable — the artboards themselves are the artefact — and holding
+# them to the application's lint rules only invites someone to "fix" a
+# throwaway by rewriting the design output.
+extend-exclude = ["docs/design-reference/canvas"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "A", "C4", "TID", "S"]
