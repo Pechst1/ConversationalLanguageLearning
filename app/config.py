@@ -324,6 +324,39 @@ class Settings(BaseSettings):
         description="Comma-separated user emails or ids allowed into the V2 pilot.",
     )
 
+    # ---- WP-26: latency as a product feature -----------------------------
+    ATELIER_JOURNEY_PREFETCH_ENABLED: bool = Field(
+        True,
+        description=(
+            "Generate the next journey scene ahead of time so the draft is served warm. "
+            "Off means the previous behaviour exactly: generate on the request. The "
+            "beat still refuses anyone outside ATELIER_DAILY_JOURNEY_COHORT and anyone "
+            "already at the weekly cost guardrail."
+        ),
+    )
+    ATELIER_JOURNEY_PREFETCH_TTL_SECONDS: int = Field(
+        26 * 3600,
+        ge=300,
+        le=7 * 24 * 3600,
+        description=(
+            "How long a prefetched scene may wait to be served. Longer than a day so an "
+            "overnight run still covers a late session; a scene older than this is "
+            "discarded and its spend billed on the discard row."
+        ),
+    )
+    ATELIER_JOURNEY_PREFETCH_MAX_LEARNERS: int = Field(
+        25,
+        ge=0,
+        le=500,
+        description="Hard bound on how many learners one prefetch beat may pay for.",
+    )
+    ATELIER_JOURNEY_PREFETCH_ACTIVE_DAYS: int = Field(
+        7,
+        ge=1,
+        le=90,
+        description="Only learners with a journey event this recent are prefetched for.",
+    )
+
     model_config = SettingsConfigDict(
         env_file=Path(__file__).resolve().parent.parent / ".env",
         env_file_encoding="utf-8",

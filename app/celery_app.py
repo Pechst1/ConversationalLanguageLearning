@@ -31,6 +31,7 @@ celery_app = Celery(
         "app.tasks.serial_generation",
         "app.tasks.atelier",
         "app.tasks.book_library",
+        "app.tasks.journey_prefetch",
     ],
 )
 
@@ -75,6 +76,13 @@ celery_app.conf.beat_schedule = {
     "retry-delayed-serial-episodes": {
         "task": "app.tasks.serial_generation.retry_delayed_serial_episodes",
         "schedule": crontab(minute="*/15"),
+    },
+    # WP-26: the draft the learner waits on is generated before they arrive.
+    # Overnight in Europe/Berlin, plus a mid-afternoon top-up for a learner whose
+    # story moved during the day and whose cached scene is therefore stale.
+    "prefetch-next-journey-scenes": {
+        "task": "app.tasks.journey_prefetch.prefetch_next_journey_scenes",
+        "schedule": crontab(hour="3,15", minute=20),
     },
     "retire-unhealthy-atelier-exercises": {
         "task": "app.tasks.atelier.retire_unhealthy_exercise_sets",

@@ -499,6 +499,19 @@ def _active_thread(db: Session, user: User, *, lock=False):
     return db.scalars(stmt).first()
 
 
+def story_revision(db: Session, user: User) -> str:
+    """The frozen story revision a cached scene must still match (WP-26 / WP-14C).
+
+    The same fingerprint ``story_context`` puts in ``context["revision"]`` and
+    ``_lock_context`` refuses to publish against once it has moved. Exposed so the
+    prefetch cache can be keyed on it *without* reaching into a private helper —
+    and so a prefetch generated against an older thread is discarded rather than
+    served. Costs one indexed thread read; it never calls a provider.
+    """
+
+    return _fingerprint(_active_thread(db, user))
+
+
 def is_engine_version(value: str | None) -> bool:
     """True for any revision of this engine's scenes (legacy guards, reader filter)."""
 

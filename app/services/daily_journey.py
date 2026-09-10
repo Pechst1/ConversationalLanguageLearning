@@ -109,6 +109,13 @@ from app.services.journey_contracts import (
     normalize_control_language,
     strongest_assistance,
 )
+from app.services.journey_latency import (
+    PHASE_DRAFT,
+    PHASE_RECAP,
+    PHASE_RESPOND,
+    measure_phase,
+    take_prefetched_scene,
+)
 from app.services.journey_learning import record_daily_practice_streak
 
 logger = logging.getLogger(__name__)
@@ -405,6 +412,9 @@ class DailyJourneyService:
     def __init__(self, db: Session, adapters: JourneyAdapters) -> None:
         self.db = db
         self.adapters = adapters
+        #: WP-26: did *this* service instance serve the draft from a prefetched
+        #: scene? ``None`` means no draft was generated on this instance at all.
+        self.draft_prefetch_hit: bool | None = None
 
     # ------------------------------------------------------------------
     # Reads
@@ -482,6 +492,17 @@ class DailyJourneyService:
     def create_journey(
         self, user: User, payload: JourneyCreateRequest
     ) -> tuple[JourneySnapshot, int]:
+        """WP-26: the draft the learner waits on, measured end to end."""
+
+        with measure_phase(self.db, user=user, phase=PHASE_DRAFT) as timing:
+            snapshot, status_code = self._create_journey(user, payload)
+            timing.prefetch_hit = self.draft_prefetch_hit
+            timing.journey_id = snapshot.id
+            return snapshot, status_code
+
+    def _create_journey(
+        self, user: User, payload: JourneyCreateRequest
+    ) -> tuple[JourneySnapshot, int]:
         if not journey_enabled_for(user):
             raise journey_error(
                 http_status.HTTP_403_FORBIDDEN,
@@ -516,6 +537,18 @@ class DailyJourneyService:
         return snapshot, status_code
 
     def retry_journey(
+        self, user: User, journey_id: uuid.UUID, payload: JourneyRetryRequest
+    ) -> tuple[JourneySnapshot, int]:
+        """A retry is a draft the learner is still waiting on: measured too."""
+
+        with measure_phase(
+            self.db, user=user, phase=PHASE_DRAFT, journey_id=journey_id
+        ) as timing:
+            snapshot, status_code = self._retry_journey(user, journey_id, payload)
+            timing.prefetch_hit = self.draft_prefetch_hit
+            return snapshot, status_code
+
+    def _retry_journey(
         self, user: User, journey_id: uuid.UUID, payload: JourneyRetryRequest
     ) -> tuple[JourneySnapshot, int]:
         journey = self._journey_or_404(user, journey_id)
@@ -611,6 +644,20 @@ class DailyJourneyService:
         return result
 
     def submit_attempt(
+        self,
+        user: User,
+        journey_id: uuid.UUID,
+        step_id: uuid.UUID,
+        payload: JourneyAttemptRequest,
+    ) -> AttemptResult:
+        """WP-26: the reply turn, measured. It still pays a provider call."""
+
+        with measure_phase(
+            self.db, user=user, phase=PHASE_RESPOND, journey_id=journey_id
+        ):
+            return self._submit_attempt(user, journey_id, step_id, payload)
+
+    def _submit_attempt(
         self,
         user: User,
         journey_id: uuid.UUID,
@@ -813,6 +860,16 @@ class DailyJourneyService:
         return snapshot
 
     def finish(
+        self, user: User, journey_id: uuid.UUID, payload: JourneyFinishRequest
+    ) -> JourneySnapshot:
+        """WP-26: the recap, measured. It is assembled, never generated."""
+
+        with measure_phase(
+            self.db, user=user, phase=PHASE_RECAP, journey_id=journey_id
+        ):
+            return self._finish(user, journey_id, payload)
+
+    def _finish(
         self, user: User, journey_id: uuid.UUID, payload: JourneyFinishRequest
     ) -> JourneySnapshot:
         journey = self._journey_or_404(user, journey_id)
@@ -1595,22 +1652,35 @@ class DailyJourneyService:
         scenario_key = (journey.scenario_snapshot or {}).get("scenario_key")
         if not scenario_key:
             scenario_key = self._rotated_offer_key(user)
+        # WP-26 hot path. A prefetched scene whose cache key still matches the
+        # story revision, learner context and prompt version is served as-is;
+        # anything stale was discarded inside ``take_prefetched_scene`` rather
+        # than handed back. Taking one writes its consume row in this same
+        # transaction, so the scene is never generated or served twice.
+        result: Any = None
         try:
-            result = self.adapters.content.build_scenario_context(
-                self.db, user=user, scenario_key=scenario_key, input_mode=input_mode
-            )
-        except AdapterUnavailable as exc:
-            # The content module exists but is broken. Honest dead end, and a
-            # retry cannot help until someone fixes the module.
-            logger.error("daily_journey: content adapter unavailable (%s)", exc.reason)
-            result = ContentUnavailable(
-                reason=f"content_adapter_{exc.reason}",
-                retry_after_seconds=0,
-                retry_allowed=False,
-            )
-        except Exception:
-            logger.exception("daily_journey: scenario generation failed")
-            result = ContentUnavailable(reason="generation_failed")
+            result = take_prefetched_scene(self.db, user, input_mode=input_mode)
+        except Exception:  # pragma: no cover - a cache must never break the day
+            logger.exception("daily_journey: prefetched scene lookup failed")
+            result = None
+        self.draft_prefetch_hit = result is not None
+        if result is None:
+            try:
+                result = self.adapters.content.build_scenario_context(
+                    self.db, user=user, scenario_key=scenario_key, input_mode=input_mode
+                )
+            except AdapterUnavailable as exc:
+                # The content module exists but is broken. Honest dead end, and a
+                # retry cannot help until someone fixes the module.
+                logger.error("daily_journey: content adapter unavailable (%s)", exc.reason)
+                result = ContentUnavailable(
+                    reason=f"content_adapter_{exc.reason}",
+                    retry_after_seconds=0,
+                    retry_allowed=False,
+                )
+            except Exception:
+                logger.exception("daily_journey: scenario generation failed")
+                result = ContentUnavailable(reason="generation_failed")
 
         self.db.expire(journey)
         fresh = self.db.get(DailyJourney, journey.id)
