@@ -1466,3 +1466,42 @@ longitudinal runs recorded, but the harness feeds a synthetic empty context
 (no story-so-far, no chapter, no relationships), which is a harsher input than a
 real learner's thread — the two numbers are not comparable, and the longitudinal
 runs are the production-like ones.
+
+## 2026-09-10 — the measurement loop measured attendance, not learning
+
+The digest already reported the funnel with denominators, step drop-off, help
+use, the measured active-duration distribution, provider reliability and cost
+coverage, with an explicit insufficient-data guard. Every one of those answers
+**whether a learner turned up**.
+
+Nothing answered whether anyone **learned**. The capability rubric —
+`not_tried → with_support → independent_once → used_again_later`, the thing the
+product actually claims — appeared in no digest at all. A pilot could therefore
+report a healthy loop while teaching nobody anything, and the first week's
+numbers would have looked fine.
+
+`journey_daily_rollup` now carries a `capabilities` section, and the digest
+prints it:
+
+```
+Capabilities (n=5 learners, capability-rubric-v1, standing not same-day):
+  independent_once:3, not_tried:9, with_support:2, used_again_later:1
+  Independent at least once: 3/5 (60%) · used again on a later day: 1/5 (20%)
+```
+
+Three deliberate constraints:
+
+* **It reuses `build_capability_summary` verbatim.** Scoring evidence a second
+  way here would be a second rubric, and two rubrics is exactly how
+  `recap.capability_evidence` and `GET /capabilities/progress` once disagreed
+  about the same journey (CONTRACTS §8).
+* **It is a stock, not a flow, and says so.** It reports each active learner's
+  standing as of now, not "learned today" — that needs yesterday's standing to
+  compare against, which is not stored. Deriving it from a same-day window
+  would over-report the one number nobody should over-report.
+* **An unresolvable learner id is `learners_unresolved`, never a silent zero**,
+  in keeping with "unknown cost is unknown, not zero" two sections above.
+
+`used_again_later` is the number to watch: it is the only one that says a
+capability survived a night, and it is the retention signal the five-learner
+study (WP-22) exists to read.
