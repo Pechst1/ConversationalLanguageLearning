@@ -16,6 +16,7 @@
     "test:native-env": "node --test scripts/native-api-env.test.mjs",
     "type-check": "tsc --noEmit",
     "test:journey": "node components/atelier-v2/journey/journey.test.js",
+    "test:journey-latency": "node components/atelier-v2/journey/journey-latency.test.js",
     "test:atelier-ui": "node components/atelier-v2/ui/atelier-v2-ui.test.js",
     "test:recovery": "node lib/journey-recovery.test.js",
     "test:resume-target": "node lib/journey-resume.test.js",

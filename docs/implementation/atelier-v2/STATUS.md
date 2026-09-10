@@ -1505,3 +1505,24 @@ Three deliberate constraints:
 `used_again_later` is the number to watch: it is the only one that says a
 capability survived a night, and it is the retention signal the five-learner
 study (WP-22) exists to read.
+
+## 2026-09-10 — WP-26 latency
+
+Draft p50 sat at 20–22 s against a 25 s timeout, which on a five-minute session
+is the experience. Full handover: [WP-26-LATENCY.md](WP-26-LATENCY.md).
+
+- New `app/services/journey_latency.py`: prefetch cache keyed by the WP-14C rule
+  (story revision + scene identity + learner context + prompt version), the
+  hot-path handover, wall-time telemetry, and the release gate.
+- Bounded beat `app/tasks/journey_prefetch.py` at 03:20/15:20 Europe/Berlin —
+  flag, cohort, open-day, live-cache and weekly-guardrail all refuse before
+  anything is paid for; a repeat run inside the same revision returns `cached`.
+- `_run_generation` serves a valid warm scene and never calls the content
+  adapter; a key that no longer matches is discarded, and its spend billed on the
+  discard row so no engine money escapes the guardrail.
+- Gate: draft p95 ≤ 8 s, prefetch hit rate ≥ 70 %, ≥ 10 samples.
+  `pilot_digest.py --gate` exits non-zero; thin data is never a pass.
+- Frontend: the wait state is delayed 400 ms so a warm draft shows no spinner,
+  and every mutation is bounded — a timeout is a retryable state, not a dead end.
+- 22 backend + 7 frontend tests, all green. No production numbers yet and no paid
+  call was made: the gate is there to answer that on the first real pilot day.

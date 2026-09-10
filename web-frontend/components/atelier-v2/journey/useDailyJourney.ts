@@ -80,6 +80,7 @@ import {
   createRequestGate,
   planFailure,
   runMutation,
+  runWithWaitHint,
   type MutationOutcome,
 } from './journey-requests';
 
@@ -133,6 +134,12 @@ export type DailyJourneyController = {
   progress: JourneyProgress;
   /** A mutation is in flight; the primary action must be disabled. */
   busy: boolean;
+  /**
+   * The mutation has been in flight long enough to be worth a spinner and the
+   * honest wait copy. `busy && !waiting` is the warm, prefetched path: the
+   * button is briefly disabled and nothing else changes.
+   */
+  waiting: boolean;
   /** The most recent revealed help for the current step, or `null`. */
   help: HelpResult | null;
   voice: VoiceState;
@@ -215,6 +222,13 @@ export function useDailyJourney(
   const [help, setHelp] = useState<HelpResult | null>(null);
   const [voice, setVoice] = useState<VoiceState>({ kind: 'idle' });
   const [busy, setBusy] = useState(false);
+  /**
+   * WP-26: is a request slow enough that the learner deserves the honest wait
+   * copy? A draft served from the server's prefetch answers in tens of
+   * milliseconds and never reaches this, so a warm scene shows no spinner at
+   * all; a cold one still says what it is doing within half a second.
+   */
+  const [waiting, setWaiting] = useState(false);
 
   // WP-10, called here rather than from `pages/atelier.tsx`: the page keeps no
   // journey knowledge and the dependency graph stays acyclic.
@@ -500,13 +514,20 @@ export function useDailyJourney(
     await once('create', async () => {
       setBusy(true);
       try {
-        const result = await unwrap('create', { kind: 'create' }, (id) =>
-          dailyJourneyService.create({
-            mutationId: id,
-            timezone: resolveTimezone(),
-            preferredInputMode,
-          }),
-        );
+        // WP-26: the wait hint is delayed and the request is bounded. A
+        // timeout resolves as a *retryable* failure — never a hung `busy`
+        // with no button to press, and never a verdict.
+        const result = await runWithWaitHint(
+          () =>
+            unwrap('create', { kind: 'create' }, (id) =>
+              dailyJourneyService.create({
+                mutationId: id,
+                timezone: resolveTimezone(),
+                preferredInputMode,
+              }),
+            ),
+          { onWait: (value) => { if (mountedRef.current) setWaiting(value); } },
+        ).catch((error) => ({ ok: false as const, detail: null, error }));
         if (result.ok) {
           applySnapshot(result.value.data);
           if (mountedRef.current) setFeedback({ kind: 'idle' });
@@ -516,7 +537,10 @@ export function useDailyJourney(
         await handleFailure(result.detail, result.error);
         if (result.detail?.code !== 'journey_disabled') await loadToday();
       } finally {
-        if (mountedRef.current) setBusy(false);
+        if (mountedRef.current) {
+          setBusy(false);
+          setWaiting(false);
+        }
       }
     });
   }, [applySnapshot, handleFailure, loadToday, once, preferredInputMode, unwrap]);
@@ -528,9 +552,13 @@ export function useDailyJourney(
     await once(intent, async () => {
       setBusy(true);
       try {
-        const result = await unwrap(intent, { kind: 'retry' }, (id) =>
-          dailyJourneyService.retry(target.id, { mutationId: id }),
-        );
+        const result = await runWithWaitHint(
+          () =>
+            unwrap(intent, { kind: 'retry' }, (id) =>
+              dailyJourneyService.retry(target.id, { mutationId: id }),
+            ),
+          { onWait: (value) => { if (mountedRef.current) setWaiting(value); } },
+        ).catch((error) => ({ ok: false as const, detail: null, error }));
         if (result.ok) {
           applySnapshot(result.value.data);
           if (mountedRef.current) setFeedback({ kind: 'idle' });
@@ -538,7 +566,10 @@ export function useDailyJourney(
         }
         await handleFailure(result.detail, result.error, target.id);
       } finally {
-        if (mountedRef.current) setBusy(false);
+        if (mountedRef.current) {
+          setBusy(false);
+          setWaiting(false);
+        }
       }
     });
   }, [applySnapshot, handleFailure, journey, once, unwrap]);
@@ -949,6 +980,7 @@ export function useDailyJourney(
     legacyResume: envelope?.legacy_resume ?? null,
     progress,
     busy,
+    waiting,
     help,
     voice,
     recovery,

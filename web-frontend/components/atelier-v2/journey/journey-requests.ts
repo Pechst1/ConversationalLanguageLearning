@@ -198,3 +198,120 @@ export function planFailure(
   // a retryable transport state rather than a grade.
   return { kind: 'error', message, retryable: true };
 }
+
+// ---------------------------------------------------------------------------
+// WP-26 — the wait, and the end of the wait
+// ---------------------------------------------------------------------------
+
+/**
+ * How long a request may take before the learner is told it is working.
+ *
+ * A draft served from the server's prefetch returns in tens of milliseconds. A
+ * spinner that appears for 40 ms and vanishes is worse than no spinner: it reads
+ * as a stutter. So the wait state is *delayed* rather than immediate — a warm
+ * draft never shows one at all, and a cold draft still gets the honest copy
+ * within half a second.
+ */
+export const WAIT_HINT_DELAY_MS = 400;
+
+/**
+ * The hard end of any single mutation.
+ *
+ * The server's own generation budget is 75 s and its provider window 35 s, so a
+ * request still open after this has lost its answer, not merely delayed it.
+ * Without this bound a hung socket leaves the journey `busy` forever with no
+ * button to press — the dead end WP-26 §4 forbids. Crossing it produces a
+ * *retryable* failure, never a verdict, and the mutation id is unchanged: the
+ * retry is the same request, so the server's receipt still de-duplicates it.
+ */
+export const MUTATION_DEADLINE_MS = 60_000;
+
+/** The message a timed-out mutation carries into `planFailure`. */
+export const TIMEOUT_MESSAGE = 'request_timed_out';
+
+export class JourneyTimeoutError extends Error {
+  readonly isJourneyTimeout = true;
+
+  constructor(message: string = TIMEOUT_MESSAGE) {
+    super(message);
+    this.name = 'JourneyTimeoutError';
+  }
+}
+
+export function isJourneyTimeout(error: unknown): boolean {
+  return Boolean((error as { isJourneyTimeout?: boolean } | null)?.isJourneyTimeout);
+}
+
+export type WaitHintOptions = {
+  /** Told `true` once the request is slow enough to deserve copy, then `false`. */
+  onWait?: (waiting: boolean) => void;
+  delayMs?: number;
+  /** `0` disables the deadline (a test that drives its own clock). */
+  deadlineMs?: number;
+  /** Injected for tests; defaults to real timers. */
+  setTimer?: (fn: () => void, ms: number) => unknown;
+  clearTimer?: (handle: unknown) => void;
+};
+
+/**
+ * Run one request with a delayed wait hint and a hard deadline.
+ *
+ * `onWait(false)` is guaranteed on every exit — resolve, reject or timeout — so
+ * no path can leave the learner looking at a permanent spinner.
+ */
+export async function runWithWaitHint<T>(
+  run: () => Promise<T>,
+  options: WaitHintOptions = {},
+): Promise<T> {
+  const {
+    onWait,
+    delayMs = WAIT_HINT_DELAY_MS,
+    deadlineMs = MUTATION_DEADLINE_MS,
+  } = options;
+  const setTimer = options.setTimer ?? ((fn, ms) => setTimeout(fn, ms));
+  const clearTimer = options.clearTimer ?? ((handle) => clearTimeout(handle as never));
+
+  let hintTimer: unknown = null;
+  let deadlineTimer: unknown = null;
+  let settled = false;
+  const stop = () => {
+    if (hintTimer !== null) clearTimer(hintTimer);
+    if (deadlineTimer !== null) clearTimer(deadlineTimer);
+    hintTimer = null;
+    deadlineTimer = null;
+  };
+
+  const promises: Promise<T>[] = [
+    (async () => {
+      try {
+        return await run();
+      } finally {
+        settled = true;
+      }
+    })(),
+  ];
+  if (deadlineMs > 0) {
+    promises.push(
+      new Promise<T>((_resolve, reject) => {
+        deadlineTimer = setTimer(() => {
+          // The in-flight request is not cancelled: the server may still be
+          // committing it, and its receipt makes the retry safe either way.
+          if (!settled) reject(new JourneyTimeoutError());
+        }, deadlineMs);
+      }),
+    );
+  }
+
+  if (onWait && delayMs >= 0) {
+    hintTimer = setTimer(() => {
+      if (!settled) onWait(true);
+    }, delayMs);
+  }
+
+  try {
+    return await Promise.race(promises);
+  } finally {
+    stop();
+    onWait?.(false);
+  }
+}

@@ -98,6 +98,7 @@ jobs:
           npm run lint
           npm run test:atelier-next
           npm run test:journey
+          npm run test:journey-latency
           npm run test:recovery
           npm run test:resume-target
           npm run test:reader
