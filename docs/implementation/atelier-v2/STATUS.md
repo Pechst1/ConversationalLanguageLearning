@@ -1191,7 +1191,9 @@ Screenshots in `docs/mobile-visual-checks/2026-09-08-device/`.
 | **D-4** — two ✕ controls, two progress bars in the scene reader | **PASS on device.** Exactly one exit and one progress rail |
 | **D-3** — progress header under the status bar | **Was still broken, now fixed and proven.** WP-20 fixed `.av2-session__head`, but the D-4 fix hides that header under the immersive reader, which promoted `.fr-bar` — `padding: 10px 0 14px`, no inset — to the top of the screen. On the notch the reader's ✕ and rail collided with the clock. `.fr-bar` now carries `calc(10px + env(safe-area-inset-top, 0px))`, matching `.av2-session__head` and `.ep-top` (`02-d3-d4-reader-below-status-bar-one-exit.png`) |
 
-### New — D-16: the legacy sign-in zooms the app and never restores
+### D-16 — FIXED 2026-09-08 (see below); originally reported as:
+
+### The legacy sign-in zooms the app and never restores
 
 `pages/auth/signin.tsx` is not on av2 and its inputs are below 16px, so iOS auto-zooms
 the WKWebView on focus. The zoom **persists across navigation**: every screen after
@@ -1223,3 +1225,187 @@ the collision.
   `App.build/App.app-Simulated.xcent` for `keychain-access-groups` before blaming the app.
 * The simulator keyboard is German: `simctl`-typed `-` becomes `ß` and `@` becomes `2`.
   Type the letters, tap the on-screen `@` and `.` keys.
+
+## 2026-09-08 — D-16 fixed: no focusable field is under 16px any more
+
+Root cause was not the page: `components/ui/Input.tsx` set `text-sm` (14px) on
+the control itself, and `pages/auth/signin.tsx` / `signup.tsx` are its only
+learner-facing consumers (the third is `pages/learn/new.tsx`). Below 16px iOS
+auto-zooms the WKWebView on focus, and the zoom persists across navigation.
+
+Fixed at the root — `text-base` on the control, with the reason written next to
+it so nobody "tidies" it back; the label and error lines stay `text-sm` because
+they are not focusable. Sign-up's `selectClass` and its one inline field carried
+the same 14px and are raised too. A sweep found no remaining rule that puts a
+focusable field below 16px anywhere in the frontend: `.av2-field__control`,
+`forgot-password.tsx` (16px) and the legacy Atelier fields (19px) were already
+safe.
+
+**Proven on the device**, since a desktop browser cannot show this: keychain
+reset to reach the signed-out state, sign-in field focused, page still at 1:1
+with its edges intact (`03-d16-signin-focus-no-zoom.png`). Before the fix the
+same tap zoomed the viewport and every screen after it stayed panned and clipped
+until relaunch.
+
+D-17 (the feedback launcher over the «Cahier» tab) is still open and still the
+daily-experience owner's call.
+
+## 2026-09-09 — draft latency, D-17, and a blocked live review
+
+### 1. Draft latency: the window was set on top of the distribution, not clear of it
+
+`living_story.REQUEST_TIMEOUT_SECONDS` was 25 s. Measured across the 371 recorded
+requests in the five paid runs (`var/reviews/atelier-longitudinal-*.json`, gpt-5-mini):
+
+| stage | n | p50 | p90 | p95 | max |
+|---|---:|---:|---:|---:|---:|
+| `director/SceneDraft` | 173 | 18.2 | 23.5 | **25.0** | 26.2 |
+| `actor/SemanticTurn` | 88 | 12.6 | 17.7 | 21.2 | 22.9 |
+| `director`/`actor` `/Review` | 110 | 4.6 | 9.7 | 11.9 | 15.2 |
+
+The scene draft's p95 was **the timeout itself**. **8 of 173 drafts (4.6 %) died on
+`LLMProviderError: openai: The read operation timed out` at ~25.1 s** — tokens billed,
+no content — while other drafts completed at 24.3–25.0 s. Each timeout burns one of the
+two `ATELIER_STORY_MAX_ATTEMPTS`, so two slow draws in a row cost a learner the day; the
+A2 runs show days that only survived because the retry happened to be fast.
+
+Window raised to **35 s**, which clears every completion actually observed and still
+fits two attempts inside the unchanged 75 s operation budget.
+`tests/test_living_story_budget.py` now pins the three properties this violated: two
+attempts fit the budget, the window sits above the slowest recorded completion, and the
+budget stays under the journey's 90 s claim. The last test reads the recorded runs, so a
+future run that completes slower than the window fails loudly instead of silently
+timing out in production.
+
+### 2. D-17 fixed: the launcher measures the navigation instead of assuming it
+
+The feedback launcher was anchored to `--phone-bottom-nav-space`, a constant. The tab
+bar is `fixed` on some routes and `embedded` — in normal flow — on others, Home
+included, so no constant can be right for both, and on the device it sat on top of the
+«Cahier» tab. It now measures the bar's on-screen top edge (rAF-throttled, on scroll and
+resize) and lifts itself by however far the bar actually intrudes: a fixed bar always
+intrudes by its height, an embedded one only while scrolled into view, and no bar at all
+lifts it by nothing.
+
+The device caught the first attempt being wrong: the listener was on `window`, but the
+shell scrolls an inner element and a scroll event does not bubble, so the offset stayed
+frozen at whatever the first paint measured and the launcher simply sat *below* the bar
+instead. It now listens in the capture phase on `document`, which does receive
+non-bubbling events from descendants, plus a `ResizeObserver` on the bar for text-size
+changes. Proven on the device: `04-d17-launcher-clears-the-tab-bar.png` shows all four
+tab labels legible with the launcher above them.
+
+### 3. Live-model conversation review: BLOCKED, and the pilot is blocked with it
+
+`scripts/review_living_story.py` gained `--level` and `--days`: it was hardcoded to A1,
+and register is one of the things §9 asks the review to judge, so one band could never
+answer the question.
+
+The run itself could not proceed:
+
+```
+credit_balance_exhausted — You have no credits remaining.
+```
+
+The key is valid (`GET /v1/models` → 200, 135 models); the **account has no credits**.
+Nothing was billed — every request was rejected before it reached a model — so this cost
+US$0.00 and the review remains unexecuted.
+
+**This is larger than the review.** Every learner-facing generation goes through the same
+provider: scenes, turns, corrections. With the account empty, a cohort flip would give
+every learner `story_provider_unavailable` on day one. Adding credits is an owner action
+and now sits ahead of the Render deploy in the rollout order.
+
+## 2026-09-10 — the last four off-system screens, designed and integrated
+
+### The audit
+
+Every learner-facing page scored for av2 markers against legacy ones. Four were
+still off the system, and they are the **entire signed-out experience**: `/`
+(on the older `--app-*` editorial tokens), `/auth/signin`, `/auth/signup` (37
+legacy markers, the worst in the app) and `/auth/forgot-password`. A learner met
+a different product before they met the real one, then landed on the av2 Home.
+Everything else already speaks av2; dev and ops surfaces are excluded.
+
+**`/learn/new` and `/learn/session/[id]` are also off-system and deliberately
+not redesigned.** They are the legacy conversation cluster, reachable only from
+the Bibliothèque's "discuss this story" modal, and the Studio plus the daily
+journey own conversation now. Recommend disposal, as WP-20 disposed of eleven
+other legacy pages. That is a decision, not a design, so it waits for the owner.
+
+### The design
+
+Brief: `docs/design-reference/claude-design-brief-2026-09-10.md`. Canvas:
+"L'Atelier — écrans hors système", twelve artboards (each screen, its states,
+light and dark), working files under
+`docs/design-reference/canvas/atelier-auth/` so it can be re-seeded.
+
+### The integration
+
+`components/auth/AuthShell.tsx` carries the shared pieces; each page keeps its
+own logic untouched — react-hook-form, yup, the pre-hydration POST, the reset
+token flow. Sign-up became **two steps** with step one validated before it can
+be left. Sign-in states its failure **on the screen** rather than only in a
+toast, and still never says whether an address is registered.
+
+### What the device found that source review did not
+
+Walked on an iPhone 16 against the fake-provider backend.
+
+1. **The WKWebView's own validation bubble pre-empted ours.** `type="email"`
+   meant Safari's English "Enter an email address" popover fired before
+   react-hook-form ran, so the French messages were unreachable. All three forms
+   now carry `noValidate`; the French errors render under their fields.
+   Pre-existing, not introduced by the redesign.
+2. **Six interface languages broke mid-word** in the segmented row — "Englis /
+   h", "Franç / ais". The artboard drew two options; the real form has six, and
+   equal-width cells cannot hold them at 390 px. The row wraps now, words stay
+   whole, and short-label groups (minutes, CEFR levels) take a tighter floor.
+
+### Deltas between canvas and code, recorded rather than hidden
+
+* The canvas omits **CEFR level** and **interest topics**; the brief missed them.
+  They are implemented — dropping the level control would have silently made
+  every learner A1.
+* The free-text **custom topic** input is gone with the redesign; the ten presets
+  remain. A real capability lost, restorable on request.
+
+## 2026-09-10 — the /learn cluster disposed of
+
+The last off-system learner-facing surface, deleted rather than reskinned, on the
+same terms as WP-20's eleven: **every API kept, only the screens went.**
+
+Deleted: `pages/learn/index.tsx`, `pages/learn/new.tsx`,
+`pages/learn/session/[id].tsx`, plus two things that existed only for them —
+`components/stories/ImportStoryModal.tsx` (mounted by `/learn/new` alone) and
+`lib/learning-entry.ts` (resolved a learner to a `/learn` destination).
+
+`pages/learn/index.tsx` was **already unreachable**: WP-20 added
+`/learn → /atelier` to `next.config.js`, and a redirect outranks a page, so the
+route and the entry-resolver behind it had been dead code since then.
+
+Two live consumers pointed into the cluster, and each was handled rather than
+left dangling:
+
+* **The Lexique's word traces** (`pages/vocabulary.tsx`) linked a word to the
+  conversation session where it was met. The link is gone; the trace — source,
+  label, description, date — stays. Where a word was met is still true and still
+  worth showing; only the promise of a screen that no longer exists is gone.
+* **`ImportStoryModal`** turned out not to be a Bibliothèque feature at all: only
+  `/learn/new` mounted it, so it left with the cluster. Checked rather than
+  assumed — the earlier reading of it as a live Bibliothèque flow was wrong.
+
+Also dropped: the `/learn` entries in `lib/product-shell.ts` (tab registry,
+`OWN_SHELL_ROUTES`, and the `resolveProductTitle` clause that named the session
+"Session") and the `/learn` branch in `components/layout/Layout.tsx`.
+`next.config.js` gains `/learn/:path*` beside the existing `/learn`, so the deep
+session links that lived in word traces and old bookmarks land on the Atelier
+instead of a 404.
+
+`test_the_off_system_legacy_pages_are_gone` now covers all five files, and
+`test_no_frontend_surface_links_to_a_deleted_page` covers `/learn`, so a link
+back to any of it fails the suite. The note in
+`test_reachable_surfaces_carry_no_neo_brutalist_styling` that used to except the
+cluster is gone: **nothing off-system remains to except.**
+
+Route table: 34 → 31.

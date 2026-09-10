@@ -5,26 +5,31 @@ import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
-import { ArrowRight } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
+import { Action } from '@/components/atelier-v2/ui';
+import {
+  AuthEyebrow,
+  AuthField,
+  AuthFootLink,
+  AuthNotice,
+  AuthScreen,
+  AuthSpacer,
+} from '@/components/auth/AuthShell';
 import { sanitizeAuthCallbackUrl, useAppAuth } from '@/lib/app-auth';
-import toast from 'react-hot-toast';
 
 const schema = yup.object({
-  email: yup.string().email('Invalid email').required('Email is required'),
-  password: yup.string().min(6, 'Password must be at least 6 characters').required('Password is required'),
+  email: yup.string().email('Adresse e-mail invalide').required('Indiquez votre adresse'),
+  password: yup.string().min(6, 'Au moins 6 caractères').required('Indiquez votre mot de passe'),
 });
 
 type FormData = yup.InferType<typeof schema>;
-
-const authInputClass =
-  'border-[var(--app-ink)] bg-[var(--app-sheet)] text-[var(--app-ink)] placeholder:text-[var(--app-ink-3)] shadow-none focus:translate-x-0 focus:translate-y-0 focus:shadow-none focus-visible:ring-[var(--app-blue)] focus-visible:ring-offset-[var(--app-paper)]';
 
 export default function SignInPage() {
   const router = useRouter();
   const auth = useAppAuth();
   const [isLoading, setIsLoading] = React.useState(false);
+  // Stated on the screen rather than only in a toast the learner may miss, and
+  // never disclosing whether the address is registered.
+  const [failure, setFailure] = React.useState<string | null>(null);
   const destination = sanitizeAuthCallbackUrl(router.query.callbackUrl);
   const callbackQuery = destination === '/atelier' ? {} : { callbackUrl: destination };
   const forgotPasswordHref = { pathname: '/auth/forgot-password', query: callbackQuery };
@@ -39,17 +44,17 @@ export default function SignInPage() {
 
   const onSubmit = async (data: FormData) => {
     setIsLoading(true);
+    setFailure(null);
     try {
       const result = await auth.signInWithCredentials(data.email, data.password);
 
       if (result?.error) {
-        toast.error('Invalid credentials. Please try again.');
+        setFailure('Identifiants incorrects. Vérifiez l’adresse et le mot de passe.');
       } else {
-        toast.success('Welcome back!');
         router.push(destination);
       }
     } catch (error) {
-      toast.error('An error occurred. Please try again.');
+      setFailure('La connexion n’a pas abouti. Réessayez dans un instant.');
     } finally {
       setIsLoading(false);
     }
@@ -58,300 +63,84 @@ export default function SignInPage() {
   return (
     <>
       <Head>
-        <title>Sign in · L’Atelier</title>
+        <title>Se connecter · L’Atelier</title>
       </Head>
 
-      <main className="auth-page">
-        <section className="auth-shell" aria-labelledby="signin-title">
-          <div className="auth-brand-panel">
-            <Link className="auth-brand" href="/" aria-label="Open L’Atelier home">
-              <AtelierMark />
-              <span>L’Atelier</span>
+      <AuthScreen label="Se connecter">
+        <AuthEyebrow>L’Atelier · Quotidien de français</AuthEyebrow>
+
+        <h1 className="av2-headline av2-headline--screen" id="signin-title">
+          Se connecter
+        </h1>
+
+        {failure && <AuthNotice>{failure}</AuthNotice>}
+
+        {/* `action` keeps the pre-hydration post working: a learner who submits
+            before React has hydrated still reaches the server. */}
+        <form
+          method="post"
+          action="/api/auth/pre-hydration"
+          onSubmit={handleSubmit(onSubmit)}
+          className="auth-form-v2"
+          /* Our own validation speaks French and renders under the field; the
+             browser's built-in bubble speaks the device's language and covers
+             the layout. Ours wins. */
+          noValidate
+        >
+          <AuthField
+            {...register('email')}
+            id="signin-email"
+            type="email"
+            label="Adresse e-mail"
+            placeholder="vous@exemple.fr"
+            error={errors.email?.message}
+            autoComplete="email"
+            inputMode="email"
+          />
+
+          <AuthField
+            {...register('password')}
+            id="signin-password"
+            type="password"
+            label="Mot de passe"
+            placeholder="Votre mot de passe"
+            error={errors.password?.message}
+            autoComplete="current-password"
+          />
+
+          <div className="auth-form-v2__meta">
+            <Link className="auth-foot__link" href={forgotPasswordHref}>
+              Mot de passe oublié ?
             </Link>
-
-            <div className="auth-copy">
-              <p className="auth-kicker">Mobile language atelier</p>
-              <h1>Pick up the thread.</h1>
-              <p>
-                Return to the paper trail of drills, repairs, and speaking practice waiting in your atelier.
-              </p>
-            </div>
-
-            <div className="auth-strip" aria-hidden="true">
-              <span>Daily</span>
-              <span>Notebook</span>
-              <span>Voice</span>
-            </div>
           </div>
 
-          <div className="auth-form-panel">
-            <div className="auth-form-heading">
-              <p className="auth-kicker">Welcome back</p>
-              <h2 id="signin-title">Sign in</h2>
-              <p>
-                New here?{' '}
-                <Link href={{ pathname: '/auth/signup', query: callbackQuery }} className="auth-inline-link">
-                  Create account
-                </Link>
-              </p>
-            </div>
+          <AuthSpacer />
 
-            <form
-              method="post"
-              action="/api/auth/pre-hydration"
-              onSubmit={handleSubmit(onSubmit)}
-              className="auth-form"
-            >
-              <Input
-                {...register('email')}
-                type="email"
-                label="Email address"
-                placeholder="Enter your email"
-                error={errors.email?.message}
-                autoComplete="email"
-                className={authInputClass}
-              />
+          <Action tone="primary" type="submit" pending={isLoading} pendingLabel="Connexion…">
+            Se connecter
+          </Action>
+        </form>
 
-              <Input
-                {...register('password')}
-                type="password"
-                label="Password"
-                placeholder="Enter your password"
-                error={errors.password?.message}
-                autoComplete="current-password"
-                className={authInputClass}
-              />
+        <AuthFootLink href={{ pathname: '/auth/signup', query: callbackQuery }} label="Créer un compte">
+          Nouveau ici ?
+        </AuthFootLink>
+      </AuthScreen>
 
-              <div className="auth-form-meta">
-                <Link href={forgotPasswordHref} className="auth-inline-link">
-                  Forgot your password?
-                </Link>
-              </div>
-
-              <Button
-                type="submit"
-                className="auth-submit w-full"
-                loading={isLoading}
-                rightIcon={<ArrowRight className="h-4 w-4" aria-hidden="true" />}
-                size="lg"
-              >
-                Sign in
-              </Button>
-            </form>
-          </div>
-        </section>
-
-        <style jsx>{`
-          .auth-page {
-            min-height: 100dvh;
-            display: grid;
-            align-items: start;
-            justify-items: center;
-            padding: calc(max(18px, env(safe-area-inset-top)) + 12px) 16px calc(max(22px, env(safe-area-inset-bottom)) + 10px);
-            background:
-              linear-gradient(rgb(var(--app-ink-rgb) / .035) 1px, transparent 1px),
-              linear-gradient(90deg, rgb(var(--app-ink-rgb) / .025) 1px, transparent 1px),
-              var(--app-paper);
-            background-size: 100% 34px, 34px 100%, auto;
-            color: var(--app-ink);
-          }
-
-          .auth-shell {
-            width: min(100%, 1040px);
-            display: grid;
-            overflow: hidden;
-            border: 1px solid var(--app-ink);
-            background: var(--app-sheet);
-          }
-
-          .auth-brand-panel,
-          .auth-form-panel {
-            padding: 22px 20px;
-          }
-
-          .auth-brand-panel {
-            display: grid;
-            gap: 22px;
-            border-bottom: 1px solid var(--app-ink);
-            background: var(--app-paper-2);
-          }
-
-          .auth-brand {
-            display: inline-flex;
-            width: max-content;
-            align-items: center;
-            gap: 12px;
-            color: var(--app-ink);
-            text-decoration: none;
-            font-size: 21px;
-            font-weight: 900;
-          }
-
-          .auth-copy {
-            display: grid;
-            gap: 10px;
-          }
-
-          .auth-kicker {
-            margin: 0;
-            color: var(--app-ink-3);
-            font-size: 10px;
-            font-weight: 900;
-            letter-spacing: .14em;
-            text-transform: uppercase;
-          }
-
-          .auth-copy h1,
-          .auth-form-heading h2 {
-            margin: 0;
-            color: var(--app-ink);
-            font-family: var(--app-serif);
-            font-style: italic;
-            font-weight: 500;
-            letter-spacing: 0;
-            line-height: .96;
-          }
-
-          .auth-copy h1 {
-            max-width: 11ch;
-            font-size: clamp(36px, 12vw, 54px);
-          }
-
-          .auth-copy p,
-          .auth-form-heading p {
-            margin: 0;
-            color: var(--app-ink-2);
-            line-height: 1.45;
-          }
-
-          .auth-strip {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            border: 1px solid var(--app-ink);
-            background: var(--app-paper);
-          }
-
-          .auth-strip span {
-            min-width: 0;
-            padding: 10px 8px;
-            overflow: hidden;
-            border-right: 1px solid var(--app-ink);
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            text-align: center;
-            color: var(--app-ink-2);
-            font-size: 10px;
-            font-weight: 900;
-            letter-spacing: .1em;
-            text-transform: uppercase;
-          }
-
-          .auth-strip span:last-child {
-            border-right: 0;
-          }
-
-          .auth-form-panel,
-          .auth-form,
-          .auth-form-heading {
-            display: grid;
-          }
-
-          .auth-form-panel {
-            gap: 22px;
-            background: var(--app-sheet);
-          }
-
-          .auth-form-heading {
-            gap: 8px;
-          }
-
-          .auth-form-heading h2 {
-            font-size: clamp(32px, 10vw, 44px);
-          }
-
-          .auth-form {
-            gap: 18px;
-          }
-
-          .auth-form-meta {
-            display: flex;
-            justify-content: flex-end;
-            margin-top: -4px;
-          }
-
-          .auth-inline-link {
-            color: var(--app-blue);
-            font-weight: 900;
-            text-decoration: underline;
-            text-decoration-thickness: 1px;
-            text-underline-offset: 4px;
-          }
-
-          /* Soft journal action: pill geometry, solid ink on paper, sentence
-             case. !important beats the shared Button's Tailwind utilities. */
-          :global(.auth-submit) {
-            min-height: 54px;
-            padding-left: 22px !important;
-            padding-right: 22px !important;
-            border-radius: 999px !important;
-            border-color: var(--app-ink) !important;
-            background: var(--app-ink) !important;
-            color: var(--app-paper) !important;
-            font-size: var(--t-body) !important;
-            font-weight: 600 !important;
-            letter-spacing: .01em !important;
-            text-transform: none !important;
-          }
-
-          :global(.auth-submit:active) {
-            background: var(--app-paper-2) !important;
-            color: var(--app-ink) !important;
-          }
-
-          :global(.auth-submit:disabled) {
-            opacity: .5 !important;
-          }
-
-          @media (min-width: 780px) {
-            .auth-page {
-              padding: 40px;
-              place-items: center;
-            }
-
-            .auth-shell {
-              grid-template-columns: minmax(320px, .82fr) minmax(380px, 1fr);
-            }
-
-            .auth-brand-panel {
-              min-height: 620px;
-              align-content: space-between;
-              border-right: 1px solid var(--app-ink);
-              border-bottom: 0;
-              padding: 34px;
-            }
-
-            .auth-form-panel {
-              align-content: center;
-              padding: 46px 44px;
-            }
-
-            .auth-copy h1 {
-              font-size: clamp(60px, 7vw, 88px);
-            }
-          }
-        `}</style>
-      </main>
+      <style jsx global>{`
+        .av2 .auth-form-v2 {
+          display: flex;
+          flex: 1 1 auto;
+          flex-direction: column;
+          gap: 14px;
+          min-width: 0;
+        }
+        .av2 .auth-form-v2__meta {
+          display: flex;
+          justify-content: flex-end;
+          min-height: var(--av2-tap);
+          align-items: center;
+        }
+      `}</style>
     </>
-  );
-}
-
-function AtelierMark() {
-  return (
-    <svg width="30" height="30" viewBox="0 0 28 28" aria-hidden="true">
-      <rect x="0" y="0" width="11" height="11" fill="var(--app-ink)" />
-      <circle cx="22" cy="6" r="6" fill="var(--app-blue)" />
-      <rect x="0" y="17" width="11" height="11" fill="var(--app-yellow)" />
-      <path d="M17 28L23 16L28 28H17Z" fill="var(--app-red)" />
-    </svg>
   );
 }

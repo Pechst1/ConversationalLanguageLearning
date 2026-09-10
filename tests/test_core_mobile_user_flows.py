@@ -45,14 +45,19 @@ def test_public_onboarding_moves_from_minimal_account_creation_to_daily_atelier(
     assert "NEXTAUTH_URL: process.env.NEXTAUTH_URL || 'http://localhost:3000'" not in next_config
     assert "NEXTAUTH_URL=http://localhost:3001 npm run dev -- -p 3001" in frontend_readme
 
-    assert "Password must be at least 8 characters" in signup
+    # French since 2026-09-10; the contract is that the rule is stated, not the
+    # language it is stated in.
+    assert "Au moins 8 caractères" in signup
     assert "function authErrorMessage" in signup
     assert "Array.isArray(detail)" in signup
     assert "defaultValues" in signup
     assert "nativeLanguage: 'en'" in signup
     assert "targetLanguage: 'fr'" in signup
     assert "proficiencyLevel: 'A1'" in signup
-    assert "<details className=\"profile-details\">" in signup
+    # The extra profile fields used to hide behind a <details>; they are step
+    # two of a two-step form now. Same contract — not everything at once — with
+    # a mechanism a learner can see the shape of.
+    assert "AuthSteps" in signup and "step === 1" in signup
     assert "apiService.register" in signup
     assert "full_name: data.name" in signup
     assert "interests: selectedTopics.join(',')" in signup
@@ -211,7 +216,6 @@ def test_story_reading_flow_is_parked_behind_launch_flag_without_deleting_contra
     stories_page = read(WEB / "pages" / "bibliotheque.tsx")
     story_detail = read(WEB / "pages" / "bibliotheque" / "[storyId].tsx")
     chapter_page = read(WEB / "pages" / "bibliotheque" / "[storyId]" / "chapter" / "[chapterId].tsx")
-    learn_new = read(WEB / "pages" / "learn" / "new.tsx")
     redirects = read(WEB / "next.config.js")
     story_hooks = read(WEB / "hooks" / "useStories.ts")
     session_layout = read(WEB / "components" / "stories" / "StorySessionLayout.tsx")
@@ -254,8 +258,12 @@ def test_story_reading_flow_is_parked_behind_launch_flag_without_deleting_contra
     assert "planned_duration_minutes: 15" in chapter_page
     assert "<StorySessionLayout" in chapter_page
 
-    assert "STORY_FEATURE_VISIBLE && (" in learn_new
-    assert "STORY_FEATURE_VISIBLE && isImportModalOpen" in learn_new
+    # The /learn cluster was disposed of on 2026-09-10 and its story-import
+    # modal went with it — only /learn/new ever mounted it. The Bibliothèque's
+    # own import affordance is asserted above (`UploadBookModal` in
+    # `stories_page`), so the contract survives its old host.
+    assert not (WEB / "pages" / "learn").exists()
+    assert not (WEB / "components" / "stories" / "ImportStoryModal.tsx").exists()
 
     assert "`/stories${queryParams.toString() ? `?${queryParams.toString()}` : ''}`" in story_hooks
     assert "apiService.get<any>(`/stories/${storyId}`)" in story_hooks

@@ -296,24 +296,35 @@ def test_auth_pages_speak_one_language_and_wear_the_soft_pill():
     signin = _source("pages/auth/signin.tsx")
     forgot = _source("pages/auth/forgot-password.tsx")
 
-    # Auth is instructional chrome, so it is English throughout. The onboarding
-    # fieldset used to be a French island inside an otherwise English form.
-    assert "Your first edition" in signup
-    for french_island in (
-        "Votre première édition",
-        "Pourquoi le français ?",
-        "Style de correction",
-        "À l’oral",
-        "Minutes par jour",
+    # One language, no islands — the invariant this test has always defended.
+    # Its direction flipped on 2026-09-10: the signed-out surface is French now.
+    # The landing page has been French since the 2026-08-31 overhaul, and the
+    # learner's native_language is unknown before they have an account, so there
+    # is no personal control language to honour here — only the publication's
+    # own voice. English chrome on the way in was the island, not the rule.
+    assert "Votre première édition" in signup
+    for english_island in (
+        "Your first edition",
+        "Start with the essentials",
+        "Why French?",
+        "Correction style",
+        "Speaking out loud",
+        "Minutes a day",
     ):
-        assert french_island not in signup
+        assert english_island not in signup
 
     # Endonyms carry their own accents.
     assert "'Français'" in signup and "'Francais'" not in signup
 
-    # Owner's soft-button direction: pills, sentence case, no offset slab.
-    assert "border-radius: 999px" in signin
-    assert "border-radius: 999px" in forgot
+    # Owner's soft-button direction, now inherited rather than restated: these
+    # screens use the design system's own Action, whose radius is
+    # `--av2-r-button` (16px) and whose press is a shadow darker than its face.
+    # The thing that direction was against — the uppercase ink slab with an
+    # offset shadow — is what must stay gone, so that is what is asserted.
+    for page in (signin, forgot, signup):
+        assert "av2-btn" in page or "Action" in page
+        assert "text-transform: uppercase" not in page
+        assert re.search(r"box-shadow:\s*\d+px\s+\d+px\s+0", page) is None
     assert "color: white" not in forgot
 
     # Theme-aware surfaces only: no fixed rgba() or hex on the auth paper.

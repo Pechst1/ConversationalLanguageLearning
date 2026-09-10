@@ -3,8 +3,16 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 import { Eye, EyeOff } from 'lucide-react';
 
+/**
+ * `text-base` (16px) on the control is not a style choice: below 16px iOS
+ * auto-zooms the WKWebView when the field takes focus, and the zoom persists
+ * across navigation, so every screen after sign-in stays panned and clipped
+ * until the app is relaunched (WP-20 D-16, seen on an iPhone 16 2026-09-08).
+ * `styles/atelier-v2.css` carries the same rule on its own field. The label and
+ * the error line below stay `text-sm` — they are not focusable.
+ */
 const inputVariants = cva(
-  'flex w-full rounded-none border border-[var(--app-ink)] bg-[var(--app-sheet)] px-3 py-2 text-sm text-[var(--app-ink)] ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-[var(--app-ink-3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-info)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-[background,border-color,color] duration-[var(--dur-fast)] ease-[var(--ease-standard)]',
+  'flex w-full rounded-none border border-[var(--app-ink)] bg-[var(--app-sheet)] px-3 py-2 text-base text-[var(--app-ink)] ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-[var(--app-ink-3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-info)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-[background,border-color,color] duration-[var(--dur-fast)] ease-[var(--ease-standard)]',
   {
     variants: {
       variant: {

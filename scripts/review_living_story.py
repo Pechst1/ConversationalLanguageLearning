@@ -30,6 +30,18 @@ def main():
         "--max-requests", type=int, default=12, help="Hard cap on paid requests for this run."
     )
     parser.add_argument(
+        "--level",
+        default="A1",
+        choices=("A1", "A2", "B1"),
+        help=(
+            "CEFR band to review. Register and the cast projection both depend on it, so a "
+            "single band says nothing about the others."
+        ),
+    )
+    parser.add_argument(
+        "--days", type=int, default=3, help="Synthetic days to walk (scene + reply each)."
+    )
+    parser.add_argument(
         "--output", type=Path, default=Path("var/reviews/atelier-story-review.json")
     )
     args = parser.parse_args()
@@ -45,7 +57,14 @@ def main():
     from app.services import living_story as engine
     from app.services.serial import SerialThreadService
 
-    report = {"version": engine.VERSION, "synthetic_only": True, "requests": [], "scenes": []}
+    report = {
+        "version": engine.VERSION,
+        "synthetic_only": True,
+        "level": args.level,
+        "attempts": args.attempts,
+        "requests": [],
+        "scenes": [],
+    }
 
     class EventSink:
         def add(self, event):
@@ -82,9 +101,13 @@ def main():
         "thread_id": "synthetic-review",
         "revision": "synthetic",
         "control_language": "en",
-        "level": "A1",
+        "level": args.level,
         # Below B1 the cast projection carries no coarse vocabulary (WP-17 register).
-        "level_register": "no coarse or vulgar vocabulary",
+        "level_register": (
+            "no coarse or vulgar vocabulary"
+            if args.level in {"A1", "A2"}
+            else "mild colloquial register allowed, never coarse"
+        ),
         "world": {
             "logline": world.get("logline"),
             "cast": engine._cast_for_level(
@@ -104,7 +127,7 @@ def main():
                     }
                     for c in world["cast"]
                 ],
-                "A1",
+                args.level,
             ),
             "locations": engine._locations(world),
         },
@@ -119,7 +142,7 @@ def main():
         "legacy_beat": None,
     }
     try:
-        for day in range(3):
+        for day in range(args.days):
             scene, _ = engine._approved(
                 engine.DIRECTOR,
                 context,

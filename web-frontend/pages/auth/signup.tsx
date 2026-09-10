@@ -6,21 +6,31 @@ import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { ArrowRight, Plus } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
+import { Action, Chip } from '@/components/atelier-v2/ui';
+import {
+  AuthChoices,
+  AuthEyebrow,
+  AuthField,
+  AuthFootLink,
+  AuthNotice,
+  AuthScreen,
+  AuthSegments,
+  AuthSpacer,
+  AuthSteps,
+} from '@/components/auth/AuthShell';
 import { sanitizeAuthCallbackUrl } from '@/lib/app-auth';
 import apiService from '@/services/api';
 import toast from 'react-hot-toast';
 
 const schema = yup.object({
-  name: yup.string().required('Name is required'),
-  email: yup.string().email('Invalid email').required('Email is required'),
-  password: yup.string().min(8, 'Password must be at least 8 characters').required('Password is required'),
-  confirmPassword: yup.string().oneOf([yup.ref('password')], 'Passwords must match').required('Please confirm your password'),
-  nativeLanguage: yup.string().required('Native language is required'),
-  targetLanguage: yup.string().required('Target language is required'),
-  proficiencyLevel: yup.string().required('Current level is required'),
-  learningMotivation: yup.string().required('Choose what brings you to French'),
+  name: yup.string().required('Indiquez votre nom'),
+  email: yup.string().email('Adresse e-mail invalide').required('Indiquez votre adresse'),
+  password: yup.string().min(8, 'Au moins 8 caractères').required('Choisissez un mot de passe'),
+  confirmPassword: yup.string().oneOf([yup.ref('password')], 'Les deux ne correspondent pas').required('Confirmez le mot de passe'),
+  nativeLanguage: yup.string().required('Choisissez une langue'),
+  targetLanguage: yup.string().required('Choisissez une langue'),
+  proficiencyLevel: yup.string().required('Choisissez un niveau'),
+  learningMotivation: yup.string().required('Choisissez ce qui vous amène'),
   correctionStyle: yup.string().oneOf(['strict', 'moderate', 'lenient']).required(),
   speakingComfort: yup.string().oneOf(['warming_up', 'ready', 'confident']).required(),
   dailyGoalMinutes: yup.number().oneOf([5, 10, 15, 20]).required(),
@@ -51,12 +61,8 @@ const interestPresets = [
   'food',
 ];
 
-const authInputClass =
-  'border-[var(--app-ink)] bg-[var(--app-sheet)] text-[var(--app-ink)] placeholder:text-[var(--app-ink-3)] shadow-none focus:translate-x-0 focus:translate-y-0 focus:shadow-none focus-visible:ring-[var(--app-blue)] focus-visible:ring-offset-[var(--app-paper)]';
-
-const selectClass =
-  'h-12 w-full rounded-none border-2 border-[var(--app-ink)] bg-[var(--app-sheet)] px-3 py-2 text-sm font-semibold text-[var(--app-ink)] shadow-none focus:border-[var(--app-ink)] focus:outline-none focus:ring-2 focus:ring-[var(--app-blue)] focus:ring-offset-2 focus:ring-offset-[var(--app-paper)]';
-
+// 16px, for the same reason as the Input control: a smaller select zooms the
+// WKWebView on focus and never zooms back (WP-20 D-16).
 function authErrorMessage(error: any) {
   const detail = error?.response?.data?.detail;
   if (Array.isArray(detail)) {
@@ -72,14 +78,19 @@ function authErrorMessage(error: any) {
 export default function SignUpPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = React.useState(false);
+  // Two steps rather than one wall of fields: the essentials, then the answers
+  // that actually shape the first edition.
+  const [step, setStep] = React.useState<1 | 2>(1);
   const [selectedTopics, setSelectedTopics] = React.useState<string[]>([]);
-  const [customTopic, setCustomTopic] = React.useState('');
   const destination = sanitizeAuthCallbackUrl(router.query.callbackUrl);
   const callbackQuery = destination === '/atelier' ? {} : { callbackUrl: destination };
 
   const {
     register,
     handleSubmit,
+    trigger,
+    watch,
+    setValue,
     formState: { errors },
   } = useForm<FormData>({
     resolver: yupResolver(schema),
@@ -94,6 +105,13 @@ export default function SignUpPage() {
     },
   });
 
+  /* Step one may not be left until its own fields are valid — otherwise a
+     learner discovers a typo in their email four questions later. */
+  const goToSecondStep = async () => {
+    const ok = await trigger(['name', 'email', 'password', 'confirmPassword', 'nativeLanguage']);
+    if (ok) setStep(2);
+  };
+
   const toggleTopic = (topic: string) => {
     setSelectedTopics((prev) => {
       if (prev.includes(topic)) {
@@ -101,17 +119,6 @@ export default function SignUpPage() {
       }
       return [...prev, topic];
     });
-  };
-
-  const addCustomTopic = () => {
-    const normalized = customTopic.trim().toLowerCase();
-    if (!normalized) {
-      return;
-    }
-    if (!selectedTopics.includes(normalized)) {
-      setSelectedTopics((prev) => [...prev, normalized]);
-    }
-    setCustomTopic('');
   };
 
   const onSubmit = async (data: FormData) => {
@@ -131,7 +138,7 @@ export default function SignUpPage() {
         daily_goal_minutes: data.dailyGoalMinutes,
       });
 
-      toast.success('Account created successfully! Please sign in.');
+      toast.success('Compte créé. Connectez-vous pour ouvrir votre première édition.');
       router.push({ pathname: '/auth/signin', query: callbackQuery });
     } catch (error: any) {
       toast.error(authErrorMessage(error));
@@ -143,607 +150,225 @@ export default function SignUpPage() {
   return (
     <>
       <Head>
-        <title>Create account · L’Atelier</title>
+        <title>Créer un compte · L’Atelier</title>
       </Head>
 
-      <main className="auth-page">
-        <section className="auth-shell" aria-labelledby="signup-title">
-          <div className="auth-brand-panel">
-            <Link className="auth-brand" href="/" aria-label="Open L’Atelier home">
-              <AtelierMark />
-              <span>L’Atelier</span>
-            </Link>
+      <AuthScreen label="Créer un compte">
+        <AuthEyebrow>L’Atelier · Quotidien de français</AuthEyebrow>
+        <AuthSteps step={step} total={2} />
 
-            <div className="auth-copy">
-              <p className="auth-kicker">Onboarding entry</p>
-              <h1>Start with the essentials.</h1>
-              <p>
-                Make an account now; tune the language profile when you want the first session to feel precise.
+        {/* `method`/`action`: a submit that beats hydration — a password
+            manager, a fast typist — must POST to a route that reads nothing,
+            never fall back to a GET that puts the password in the URL.
+            Native validation is off so our French messages sit under the field
+            they belong to. */}
+        <form
+          method="post"
+          action="/api/auth/pre-hydration"
+          className="auth-form-v2"
+          onSubmit={handleSubmit(onSubmit)}
+          noValidate
+        >
+          {step === 1 ? (
+            <>
+              <h1 className="av2-headline av2-headline--screen">Créer un compte</h1>
+              <p className="av2-body av2-body--lg">
+                L’essentiel d’abord. La suite façonne votre première édition.
               </p>
-            </div>
 
-            <div className="profile-ticket" aria-hidden="true">
-              <span>English</span>
-              <strong>to</strong>
-              <span>French</span>
-              <strong>A1</strong>
-            </div>
-          </div>
-
-          <div className="auth-form-panel">
-            <div className="auth-form-heading">
-              <p className="auth-kicker">Create account</p>
-              <h2 id="signup-title">Join Atelier</h2>
-              <p>
-                Already have an account?{' '}
-                <Link href={{ pathname: '/auth/signin', query: callbackQuery }} className="auth-inline-link">
-                  Sign in
-                </Link>
-              </p>
-            </div>
-
-            <form
-              method="post"
-              action="/api/auth/pre-hydration"
-              onSubmit={handleSubmit(onSubmit)}
-              className="auth-form"
-            >
-              <Input
+              <AuthField
                 {...register('name')}
-                type="text"
-                label="Full name"
-                placeholder="Enter your full name"
+                id="signup-name"
+                label="Nom complet"
+                placeholder="Votre nom"
                 error={errors.name?.message}
                 autoComplete="name"
-                className={authInputClass}
               />
-
-              {/* Instructional chrome, so it speaks the learner's language, not
-                  the publication's. This block was the one French island in an
-                  otherwise English form — legend, four labels and every option
-                  — which read as a half-translated page. French is earned
-                  inside the app, once there is an edition to name. */}
-              <fieldset className="onboarding-lite">
-                <legend>Your first edition</legend>
-                <div className="select-grid">
-                  <div className="field-group">
-                    <label htmlFor="learningMotivation">Why French?</label>
-                    <select id="learningMotivation" {...register('learningMotivation')} className={selectClass}>
-                      <option value="travel">To travel and get by</option>
-                      <option value="work">To work in French</option>
-                      <option value="relationships">To talk with people close to me</option>
-                      <option value="culture">To read, watch and listen</option>
-                    </select>
-                  </div>
-                  <div className="field-group">
-                    <label htmlFor="dailyGoalMinutes">Minutes a day</label>
-                    <select id="dailyGoalMinutes" {...register('dailyGoalMinutes')} className={selectClass}>
-                      {[5, 10, 15, 20].map((minutes) => <option key={minutes} value={minutes}>{minutes} minutes</option>)}
-                    </select>
-                  </div>
-                </div>
-                <div className="select-grid">
-                  <div className="field-group">
-                    <label htmlFor="correctionStyle">Correction style</label>
-                    <select id="correctionStyle" {...register('correctionStyle')} className={selectClass}>
-                      <option value="lenient">Light — keep the thread going</option>
-                      <option value="moderate">Balanced</option>
-                      <option value="strict">Exact — flag everything</option>
-                    </select>
-                  </div>
-                  <div className="field-group">
-                    <label htmlFor="speakingComfort">Speaking out loud</label>
-                    <select id="speakingComfort" {...register('speakingComfort')} className={selectClass}>
-                      <option value="warming_up">Still warming up</option>
-                      <option value="ready">I can answer</option>
-                      <option value="confident">Push me</option>
-                    </select>
-                  </div>
-                </div>
-              </fieldset>
-
-              <Input
+              <AuthField
                 {...register('email')}
+                id="signup-email"
                 type="email"
-                label="Email address"
-                placeholder="Enter your email"
+                label="Adresse e-mail"
+                placeholder="vous@exemple.fr"
                 error={errors.email?.message}
                 autoComplete="email"
-                className={authInputClass}
+                inputMode="email"
               />
-
-              <Input
+              <AuthField
                 {...register('password')}
+                id="signup-password"
                 type="password"
-                label="Password"
-                placeholder="Create a password"
+                label="Mot de passe"
+                placeholder="Au moins 8 caractères"
                 error={errors.password?.message}
                 autoComplete="new-password"
-                className={authInputClass}
               />
-
-              <Input
+              <AuthField
                 {...register('confirmPassword')}
+                id="signup-confirm"
                 type="password"
-                label="Confirm password"
-                placeholder="Confirm your password"
+                label="Confirmer"
+                placeholder="Le même, une seconde fois"
                 error={errors.confirmPassword?.message}
                 autoComplete="new-password"
-                className={authInputClass}
               />
 
-              <details className="profile-details">
-                <summary>
-                  <span className="summary-copy">
-                    <strong>Learning profile</strong>
-                    <small>English to French, A1 by default</small>
-                  </span>
-                </summary>
+              <AuthSegments
+                legend="Langue de l’interface"
+                value={watch('nativeLanguage')}
+                onSelect={(next) => setValue('nativeLanguage', next, { shouldValidate: true })}
+                options={languageOptions.map((option) => ({
+                  value: option.value,
+                  label: option.label,
+                }))}
+              />
 
-                <div className="profile-body">
-                  <div className="select-grid">
-                    <div className="field-group">
-                      <label htmlFor="nativeLanguage">Native language</label>
-                      <select id="nativeLanguage" {...register('nativeLanguage')} className={selectClass}>
-                        {languageOptions.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                      {errors.nativeLanguage?.message && (
-                        <p className="field-error">{errors.nativeLanguage.message}</p>
-                      )}
-                    </div>
+              <AuthSpacer />
 
-                    <div className="field-group">
-                      <label htmlFor="targetLanguage">Target language</label>
-                      <select id="targetLanguage" {...register('targetLanguage')} className={selectClass}>
-                        {languageOptions.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                      {errors.targetLanguage?.message && (
-                        <p className="field-error">{errors.targetLanguage.message}</p>
-                      )}
-                    </div>
-                  </div>
+              <Action tone="primary" type="button" onClick={() => void goToSecondStep()}>
+                Continuer
+              </Action>
 
-                  <div className="field-group">
-                    <label htmlFor="proficiencyLevel">Current CEFR level</label>
-                    <select id="proficiencyLevel" {...register('proficiencyLevel')} className={selectClass}>
-                      {proficiencyOptions.map((option) => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
-                      ))}
-                    </select>
-                    {errors.proficiencyLevel?.message && (
-                      <p className="field-error">{errors.proficiencyLevel.message}</p>
-                    )}
-                  </div>
-
-                  <div className="topic-panel">
-                    <label>Topics for live article seeds</label>
-                    <div className="topic-grid">
-                      {interestPresets.map((topic) => (
-                        <button
-                          key={topic}
-                          type="button"
-                          onClick={() => toggleTopic(topic)}
-                          aria-pressed={selectedTopics.includes(topic)}
-                          className={selectedTopics.includes(topic) ? 'topic-chip selected' : 'topic-chip'}
-                        >
-                          {topic}
-                        </button>
-                      ))}
-                    </div>
-
-                    <div className="custom-topic-row">
-                      <input
-                        type="text"
-                        value={customTopic}
-                        onChange={(event) => setCustomTopic(event.target.value)}
-                        onKeyDown={(event) => {
-                          if (event.key === 'Enter') {
-                            event.preventDefault();
-                            addCustomTopic();
-                          }
-                        }}
-                        placeholder="Add custom topic"
-                        className={`h-12 w-full rounded-none border-2 px-3 py-2 text-sm focus:outline-none ${authInputClass}`}
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={addCustomTopic}
-                        leftIcon={<Plus className="h-4 w-4" aria-hidden="true" />}
-                      >
-                        Add
-                      </Button>
-                    </div>
-
-                    {selectedTopics.length > 0 && (
-                      <p className="selected-topics">Selected: {selectedTopics.join(', ')}</p>
-                    )}
-                  </div>
-                </div>
-              </details>
-
-              <Button
-                type="submit"
-                className="auth-submit w-full"
-                loading={isLoading}
-                rightIcon={<ArrowRight className="h-4 w-4" aria-hidden="true" />}
-                size="lg"
+              <AuthFootLink
+                href={{ pathname: '/auth/signin', query: callbackQuery }}
+                label="Se connecter"
               >
-                Create account
-              </Button>
-            </form>
-          </div>
-        </section>
+                Déjà inscrit ?
+              </AuthFootLink>
+            </>
+          ) : (
+            <>
+              <h1 className="av2-headline av2-headline--screen">Votre première édition</h1>
+              <p className="av2-body av2-body--lg">
+                Ces réponses composent la séance de demain. Tout se change ensuite dans Réglages.
+              </p>
 
-        <style jsx>{`
-          .auth-page {
-            min-height: 100dvh;
-            display: grid;
-            align-items: start;
-            justify-items: center;
-            padding: calc(max(18px, env(safe-area-inset-top)) + 12px) 16px calc(max(22px, env(safe-area-inset-bottom)) + 10px);
-            background:
-              linear-gradient(rgb(var(--app-ink-rgb) / .035) 1px, transparent 1px),
-              linear-gradient(90deg, rgb(var(--app-ink-rgb) / .025) 1px, transparent 1px),
-              var(--app-paper);
-            background-size: 100% 34px, 34px 100%, auto;
-            color: var(--app-ink);
-          }
+              <AuthChoices
+                legend="Pourquoi le français ?"
+                value={watch('learningMotivation')}
+                onSelect={(next) => setValue('learningMotivation', next, { shouldValidate: true })}
+                options={[
+                  { value: 'travel', label: 'Voyager et me débrouiller' },
+                  { value: 'work', label: 'Travailler en français' },
+                  { value: 'relationships', label: 'Parler avec mes proches' },
+                  { value: 'culture', label: 'Lire, regarder, écouter' },
+                ]}
+              />
 
-          .auth-shell {
-            width: min(100%, 1100px);
-            display: grid;
-            overflow: hidden;
-            border: 1px solid var(--app-ink);
-            background: var(--app-sheet);
-          }
+              <AuthSegments
+                legend="Niveau actuel"
+                compact
+                value={watch('proficiencyLevel')}
+                onSelect={(next) => setValue('proficiencyLevel', next, { shouldValidate: true })}
+                options={proficiencyOptions.map((level) => ({ value: level, label: level }))}
+              />
 
-          .auth-brand-panel,
-          .auth-form-panel {
-            padding: 22px 20px;
-          }
+              <AuthSegments
+                legend="Minutes par jour"
+                compact
+                value={String(watch('dailyGoalMinutes'))}
+                onSelect={(next) =>
+                  setValue('dailyGoalMinutes', Number(next) as 5 | 10 | 15 | 20, {
+                    shouldValidate: true,
+                  })
+                }
+                options={[
+                  { value: '5', label: '5' },
+                  { value: '10', label: '10' },
+                  { value: '15', label: '15' },
+                  { value: '20', label: '20' },
+                ]}
+              />
 
-          .auth-brand-panel {
-            display: grid;
-            gap: 22px;
-            border-bottom: 1px solid var(--app-ink);
-            background: var(--app-paper-2);
-          }
+              <AuthSegments
+                legend="Corrections"
+                value={watch('correctionStyle')}
+                onSelect={(next) =>
+                  setValue('correctionStyle', next as 'lenient' | 'moderate' | 'strict', {
+                    shouldValidate: true,
+                  })
+                }
+                options={[
+                  { value: 'lenient', label: 'Légère' },
+                  { value: 'moderate', label: 'Équilibrée' },
+                  { value: 'strict', label: 'Complète' },
+                ]}
+              />
 
-          .auth-brand {
-            display: inline-flex;
-            width: max-content;
-            align-items: center;
-            gap: 12px;
-            color: var(--app-ink);
-            text-decoration: none;
-            font-size: 21px;
-            font-weight: 900;
-          }
+              <AuthSegments
+                legend="À voix haute"
+                value={watch('speakingComfort')}
+                onSelect={(next) =>
+                  setValue('speakingComfort', next as 'warming_up' | 'ready' | 'confident', {
+                    shouldValidate: true,
+                  })
+                }
+                options={[
+                  { value: 'warming_up', label: 'Je débute' },
+                  { value: 'ready', label: 'Je peux répondre' },
+                  { value: 'confident', label: 'Poussez-moi' },
+                ]}
+              />
 
-          .auth-copy {
-            display: grid;
-            gap: 10px;
-          }
+              <div className="signup-topics">
+                <span className="av2-field__label">Sujets qui vous intéressent</span>
+                <div className="signup-topics__row">
+                  {interestPresets.map((topic) => (
+                    <Chip
+                      key={topic}
+                      tone={selectedTopics.includes(topic) ? 'story' : 'plain'}
+                      aria-pressed={selectedTopics.includes(topic)}
+                      onClick={() => toggleTopic(topic)}
+                    >
+                      {topic}
+                    </Chip>
+                  ))}
+                </div>
+              </div>
 
-          .auth-kicker {
-            margin: 0;
-            color: var(--app-ink-3);
-            font-size: 10px;
-            font-weight: 900;
-            letter-spacing: .14em;
-            text-transform: uppercase;
-          }
+              {errors.learningMotivation?.message && (
+                <AuthNotice>{errors.learningMotivation.message}</AuthNotice>
+              )}
 
-          .auth-copy h1,
-          .auth-form-heading h2 {
-            margin: 0;
-            color: var(--app-ink);
-            font-family: var(--app-serif);
-            font-style: italic;
-            font-weight: 500;
-            letter-spacing: 0;
-            line-height: .96;
-          }
+              <AuthSpacer />
 
-          .auth-copy h1 {
-            max-width: 12ch;
-            font-size: clamp(36px, 12vw, 54px);
-          }
+              <Action
+                tone="primary"
+                type="submit"
+                pending={isLoading}
+                pendingLabel="Création…"
+              >
+                Ouvrir ma première édition
+              </Action>
 
-          .auth-copy p,
-          .auth-form-heading p {
-            margin: 0;
-            color: var(--app-ink-2);
-            line-height: 1.45;
-          }
+              <button type="button" className="av2-btn av2-btn--quiet" onClick={() => setStep(1)}>
+                Revenir à l’essentiel
+              </button>
+            </>
+          )}
+        </form>
+      </AuthScreen>
 
-          .profile-ticket {
-            display: grid;
-            grid-template-columns: 1fr auto 1fr auto;
-            align-items: center;
-            border: 1px solid var(--app-ink);
-            background: var(--app-paper);
-          }
-
-          .profile-ticket span,
-          .profile-ticket strong {
-            min-width: 0;
-            padding: 10px 8px;
-            overflow: hidden;
-            border-right: 1px solid var(--app-ink);
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            text-align: center;
-            color: var(--app-ink-2);
-            font-size: 10px;
-            font-weight: 900;
-            letter-spacing: .1em;
-            text-transform: uppercase;
-          }
-
-          .profile-ticket strong:last-child {
-            border-right: 0;
-            background: var(--app-yellow);
-            color: var(--app-ink);
-          }
-
-          .auth-form-panel,
-          .auth-form,
-          .auth-form-heading,
-          .profile-body,
-          .topic-panel {
-            display: grid;
-          }
-
-          .auth-form-panel {
-            gap: 22px;
-            background: var(--app-sheet);
-          }
-
-          .auth-form-heading {
-            gap: 8px;
-          }
-
-          .auth-form-heading h2 {
-            font-size: clamp(32px, 10vw, 44px);
-          }
-
-          .auth-form {
-            gap: 18px;
-          }
-
-          .auth-inline-link {
-            color: var(--app-blue);
-            font-weight: 900;
-            text-decoration: underline;
-            text-decoration-thickness: 1px;
-            text-underline-offset: 4px;
-          }
-
-          .profile-details {
-            border: 1px solid var(--app-ink);
-            background: var(--app-paper);
-          }
-          .onboarding-lite { display: grid; gap: 14px; margin: 0; padding: 16px; border: 1px solid var(--app-ink); background: var(--app-paper-2); }
-          .onboarding-lite legend { padding: 0 7px; color: var(--app-ink-2); font: 900 10px/1 var(--app-mono); letter-spacing: .12em; text-transform: uppercase; }
-
-          .profile-details summary {
-            display: grid;
-            grid-template-columns: 1fr auto;
-            gap: 12px;
-            align-items: center;
-            min-height: 54px;
-            padding: 0 14px;
-            cursor: pointer;
-            list-style: none;
-          }
-
-          .profile-details summary::-webkit-details-marker {
-            display: none;
-          }
-
-          .profile-details summary::after {
-            content: '+';
-            display: grid;
-            width: 28px;
-            height: 28px;
-            place-items: center;
-            border: 1px solid var(--app-ink);
-            background: var(--app-sheet);
-            color: var(--app-ink);
-            font-weight: 900;
-            line-height: 1;
-          }
-
-          .profile-details[open] summary {
-            border-bottom: 1px solid var(--app-ink);
-          }
-
-          .profile-details[open] summary::after {
-            content: '-';
-            background: var(--app-ink);
-            color: var(--app-paper);
-          }
-
-          .summary-copy {
-            display: grid;
-            min-width: 0;
-            gap: 3px;
-          }
-
-          .summary-copy strong {
-            color: var(--app-ink);
-            font-size: 12px;
-            font-weight: 900;
-            letter-spacing: .11em;
-            text-transform: uppercase;
-          }
-
-          .summary-copy small {
-            display: none;
-            color: var(--app-ink-3);
-            font-size: 11px;
-            font-weight: 800;
-          }
-
-          .profile-body {
-            gap: 16px;
-            padding: 16px 14px 18px;
-            background: var(--app-paper-2);
-          }
-
-          .select-grid {
-            display: grid;
-            gap: 14px;
-          }
-
-          .field-group {
-            display: grid;
-            gap: 8px;
-          }
-
-          .field-group label,
-          .topic-panel label {
-            color: var(--app-ink);
-            font-size: 13px;
-            font-weight: 800;
-          }
-
-          .field-error {
-            margin: 0;
-            color: var(--app-red);
-            font-size: 13px;
-            font-weight: 700;
-          }
-
-          .topic-panel {
-            gap: 12px;
-          }
-
-          .topic-grid {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-          }
-
-          .topic-chip {
-            min-height: 34px;
-            border: 1px solid var(--app-ink);
-            background: var(--app-sheet);
-            padding: 0 11px;
-            color: var(--app-ink);
-            font-size: 12px;
-            font-weight: 900;
-            text-transform: capitalize;
-            transition: background .12s ease, color .12s ease;
-          }
-
-          .topic-chip.selected {
-            background: var(--app-blue);
-            color: white;
-          }
-
-          .custom-topic-row {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) auto;
-            gap: 8px;
-            align-items: start;
-          }
-
-          .selected-topics {
-            margin: 0;
-            color: var(--app-ink-2);
-            font-size: 12px;
-            font-weight: 700;
-            line-height: 1.35;
-          }
-
-          /* Soft journal action: pill geometry, solid ink on paper, sentence
-             case. !important beats the shared Button's Tailwind utilities. */
-          :global(.auth-submit) {
-            min-height: 54px;
-            padding-left: 22px !important;
-            padding-right: 22px !important;
-            border-radius: 999px !important;
-            border-color: var(--app-ink) !important;
-            background: var(--app-ink) !important;
-            color: var(--app-paper) !important;
-            font-size: var(--t-body) !important;
-            font-weight: 600 !important;
-            letter-spacing: .01em !important;
-            text-transform: none !important;
-          }
-
-          :global(.auth-submit:active) {
-            background: var(--app-paper-2) !important;
-            color: var(--app-ink) !important;
-          }
-
-          :global(.auth-submit:disabled) {
-            opacity: .5 !important;
-          }
-
-          @media (min-width: 560px) {
-            .summary-copy small {
-              display: block;
-            }
-
-            .select-grid {
-              grid-template-columns: repeat(2, minmax(0, 1fr));
-            }
-          }
-
-          @media (min-width: 860px) {
-            .auth-page {
-              padding: 40px;
-              place-items: center;
-            }
-
-            .auth-shell {
-              grid-template-columns: minmax(320px, .78fr) minmax(460px, 1fr);
-            }
-
-            .auth-brand-panel {
-              min-height: 720px;
-              align-content: space-between;
-              border-right: 1px solid var(--app-ink);
-              border-bottom: 0;
-              padding: 34px;
-            }
-
-            .auth-form-panel {
-              align-content: center;
-              padding: 42px 44px;
-            }
-
-            .auth-copy h1 {
-              font-size: clamp(58px, 6.7vw, 84px);
-            }
-          }
-        `}</style>
-      </main>
+      <style jsx global>{`
+        .av2 .auth-form-v2 {
+          display: flex;
+          flex: 1 1 auto;
+          flex-direction: column;
+          gap: 14px;
+          min-width: 0;
+        }
+        .av2 .signup-topics {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          min-width: 0;
+        }
+        .av2 .signup-topics__row {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px;
+        }
+      `}</style>
     </>
-  );
-}
-
-function AtelierMark() {
-  return (
-    <svg width="30" height="30" viewBox="0 0 28 28" aria-hidden="true">
-      <rect x="0" y="0" width="11" height="11" fill="var(--app-ink)" />
-      <circle cx="22" cy="6" r="6" fill="var(--app-blue)" />
-      <rect x="0" y="17" width="11" height="11" fill="var(--app-yellow)" />
-      <path d="M17 28L23 16L28 28H17Z" fill="var(--app-red)" />
-    </svg>
   );
 }

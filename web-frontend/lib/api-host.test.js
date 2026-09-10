@@ -77,7 +77,10 @@ test('next.config.js never manufactures a backend host', () => {
 
 test('the credential paths use the required host, not a fallback', () => {
   const fs = require('node:fs');
-  for (const file of ['lib/auth.ts', 'lib/learning-entry.ts']) {
+  // `lib/learning-entry.ts` was the second credentialed caller until the /learn
+  // cluster it resolved destinations for was disposed of (2026-09-10). The
+  // contract is unchanged for the callers that remain.
+  for (const file of ['lib/auth.ts']) {
     const source = fs.readFileSync(path.join(WEB_ROOT, file), 'utf8');
     assert.match(source, /requireApiHost\(/, `${file} must use requireApiHost`);
     assert.doesNotMatch(

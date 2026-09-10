@@ -76,7 +76,12 @@ if (!isNativeStaticExport) {
     { source: '/progress', destination: '/notebook', permanent: false },
     { source: '/achievements', destination: '/notebook', permanent: false },
     { source: '/almanac', destination: '/graphic-novel', permanent: false },
+    // The /learn cluster (conversation setup and its session viewer) was
+    // disposed of on 2026-09-10; the Studio and the daily journey own
+    // conversation now. `:path*` catches the deep session links that lived in
+    // word traces and old bookmarks.
     { source: '/learn', destination: '/atelier', permanent: false },
+    { source: '/learn/:path*', destination: '/atelier', permanent: false },
     { source: '/index', destination: '/atelier', permanent: false },
     ...(isStoryFeatureVisible
       ? [

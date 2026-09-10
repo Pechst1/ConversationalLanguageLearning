@@ -3,6 +3,15 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { ArrowLeft, KeyRound, Mail } from 'lucide-react';
+import { Action } from '@/components/atelier-v2/ui';
+import {
+  AuthEyebrow,
+  AuthField,
+  AuthFootLink,
+  AuthNotice,
+  AuthScreen,
+  AuthSpacer,
+} from '@/components/auth/AuthShell';
 
 import { sanitizeAuthCallbackUrl } from '@/lib/app-auth';
 import apiService from '@/services/api';
@@ -33,7 +42,7 @@ export default function ForgotPasswordPage() {
     setMessage('');
     setDevResetUrl('');
     if (!email.trim()) {
-      setError('Enter the email address for your account.');
+      setError('Indiquez l’adresse de votre compte.');
       return;
     }
     setIsSubmitting(true);
@@ -42,7 +51,7 @@ export default function ForgotPasswordPage() {
       setMessage(response.message);
       setDevResetUrl(response.reset_url || '');
     } catch {
-      setError('We could not start the reset flow. Please try again.');
+      setError('L’envoi n’a pas abouti. Réessayez dans un instant.');
     } finally {
       setIsSubmitting(false);
     }
@@ -53,21 +62,21 @@ export default function ForgotPasswordPage() {
     setError('');
     setMessage('');
     if (newPassword.length < 8) {
-      setError('Use at least 8 characters for the new password.');
+      setError('Au moins 8 caractères pour le nouveau mot de passe.');
       return;
     }
     if (newPassword !== confirmPassword) {
-      setError('The passwords do not match.');
+      setError('Les deux mots de passe ne correspondent pas.');
       return;
     }
     setIsSubmitting(true);
     try {
       await apiService.confirmPasswordReset({ token, new_password: newPassword });
-      setMessage('Your password has been reset. You can sign in now.');
+      setMessage('Votre mot de passe est changé. Vous pouvez vous connecter.');
       setNewPassword('');
       setConfirmPassword('');
     } catch {
-      setError('That reset link is invalid or expired. Request a fresh link.');
+      setError('Ce lien est invalide ou a expiré. Demandez-en un nouveau.');
     } finally {
       setIsSubmitting(false);
     }
@@ -76,259 +85,141 @@ export default function ForgotPasswordPage() {
   return (
     <>
       <Head>
-        <title>Password help · L’Atelier</title>
+        <title>Mot de passe · L’Atelier</title>
       </Head>
 
-      <main className="auth-page">
-        <section className="auth-card" aria-labelledby="password-help-title">
-          <Link className="auth-back" href={signInHref}>
-            <ArrowLeft size={15} aria-hidden="true" /> Sign in
-          </Link>
-          <div className="auth-icon" aria-hidden="true">
-            {resetMode ? <KeyRound size={24} /> : <Mail size={24} />}
-          </div>
-          <p className="auth-kicker">Account help</p>
-          <h1 id="password-help-title">{resetMode ? 'Choose a new password.' : 'Reset your password.'}</h1>
-          <p>
-            {resetMode
-              ? 'Enter a new password for your Atelier account. Reset links expire after a short window.'
-              : 'Enter your account email. If it exists, we will send a one-time reset link.'}
-          </p>
+      <AuthScreen label="Mot de passe oublié">
+        <AuthEyebrow>L’Atelier · Quotidien de français</AuthEyebrow>
 
-          {resetMode ? (
-            <form
-              method="post"
-              action="/api/auth/pre-hydration"
-              className="auth-form"
-              onSubmit={confirmReset}
-            >
-              <label>
-                <span>New password</span>
-                <input
-                  value={newPassword}
-                  onChange={(event) => setNewPassword(event.target.value)}
-                  type="password"
-                  autoComplete="new-password"
-                  minLength={8}
-                  required
-                />
-              </label>
-              <label>
-                <span>Confirm password</span>
-                <input
-                  value={confirmPassword}
-                  onChange={(event) => setConfirmPassword(event.target.value)}
-                  type="password"
-                  autoComplete="new-password"
-                  minLength={8}
-                  required
-                />
-              </label>
-              <button className="support-link" type="submit" disabled={isSubmitting}>
-                {isSubmitting ? 'Saving...' : 'Reset password'}
-              </button>
-            </form>
-          ) : (
-            <form
-              method="post"
-              action="/api/auth/pre-hydration"
-              className="auth-form"
-              onSubmit={requestReset}
-            >
-              <label>
-                <span>Email</span>
-                <input
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  type="email"
-                  autoComplete="email"
-                  required
-                />
-              </label>
-              <button className="support-link" type="submit" disabled={isSubmitting}>
-                {isSubmitting ? 'Sending...' : 'Send reset link'}
-              </button>
-            </form>
-          )}
-
-          {message && <p className="status-message">{message}</p>}
-          {resetMode && message ? (
-            <Link className="plain-link" href={signInHref}>
-              Continue to sign in
-            </Link>
-          ) : null}
-          {error && <p className="error-message">{error}</p>}
-          {devResetUrl && (
-            <p className="dev-note">
-              Dev reset link: <a href={devResetUrl}>open reset</a>
+        {resetMode ? (
+          <>
+            <h1 className="av2-headline av2-headline--screen">Nouveau mot de passe</h1>
+            <p className="av2-body av2-body--lg">
+              Choisissez-en un que vous n’utilisez pas ailleurs.
             </p>
-          )}
-          {!resetMode && supportEmail ? (
-            <a className="plain-link" href={`mailto:${supportEmail}?subject=${supportSubject}`}>
-              Still need help?
+
+            {error && <AuthNotice>{error}</AuthNotice>}
+            {message && <AuthNotice tone="done">{message}</AuthNotice>}
+
+            <form
+              method="post"
+              action="/api/auth/pre-hydration"
+              className="auth-form-v2"
+              onSubmit={confirmReset}
+              noValidate
+            >
+              <AuthField
+                id="reset-new"
+                type="password"
+                label="Nouveau mot de passe"
+                placeholder="Au moins 8 caractères"
+                value={newPassword}
+                onChange={(event) => setNewPassword(event.target.value)}
+                autoComplete="new-password"
+                required
+              />
+              <AuthField
+                id="reset-confirm"
+                type="password"
+                label="Confirmer"
+                placeholder="Le même, une seconde fois"
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+                autoComplete="new-password"
+                required
+              />
+
+              <AuthSpacer />
+
+              <Action
+                tone="primary"
+                type="submit"
+                pending={isSubmitting}
+                pendingLabel="Enregistrement…"
+              >
+                Enregistrer
+              </Action>
+            </form>
+          </>
+        ) : (
+          <>
+            <h1 className="av2-headline av2-headline--screen">
+              {message ? 'Vérifiez votre boîte' : 'Mot de passe oublié'}
+            </h1>
+            <p className="av2-body av2-body--lg">
+              {message
+                ? 'Rien reçu au bout de quelques minutes ? Regardez les indésirables, puis redemandez un lien.'
+                : 'Indiquez votre adresse : nous envoyons un lien pour en choisir un nouveau.'}
+            </p>
+
+            {error && <AuthNotice>{error}</AuthNotice>}
+            {/* The server's own wording, which deliberately does not say whether
+                the address is registered. */}
+            {message && <AuthNotice tone="done">{message}</AuthNotice>}
+
+            <form
+              method="post"
+              action="/api/auth/pre-hydration"
+              className="auth-form-v2"
+              onSubmit={requestReset}
+              noValidate
+            >
+              <AuthField
+                id="reset-email"
+                type="email"
+                label="Adresse e-mail"
+                placeholder="vous@exemple.fr"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                autoComplete="email"
+                inputMode="email"
+                required
+              />
+
+              <AuthSpacer />
+
+              <Action tone="primary" type="submit" pending={isSubmitting} pendingLabel="Envoi…">
+                {message ? 'Renvoyer le lien' : 'Envoyer le lien'}
+              </Action>
+            </form>
+          </>
+        )}
+
+        {/* Development only: the API returns the link when no mailer is wired. */}
+        {devResetUrl && (
+          <p className="av2-label reset-dev-link">
+            Lien de test :{' '}
+            <a className="auth-foot__link" href={devResetUrl}>
+              {devResetUrl}
             </a>
-          ) : null}
-        </section>
-      </main>
+          </p>
+        )}
 
-      <style jsx>{`
-        .auth-page {
-          min-height: 100dvh;
-          display: grid;
-          place-items: center;
-          padding: calc(max(18px, env(safe-area-inset-top)) + 12px) 16px calc(max(22px, env(safe-area-inset-bottom)) + 10px);
-          background:
-            linear-gradient(rgb(var(--app-ink-rgb) / .035) 1px, transparent 1px),
-            linear-gradient(90deg, rgb(var(--app-ink-rgb) / .025) 1px, transparent 1px),
-            var(--app-paper);
-          background-size: 100% 34px, 34px 100%, auto;
-          color: var(--app-ink);
-        }
+        {supportEmail && (
+          <p className="av2-label reset-support">
+            Toujours bloqué ?{' '}
+            <a className="auth-foot__link" href={`mailto:${supportEmail}?subject=${supportSubject}`}>
+              {supportEmail}
+            </a>
+          </p>
+        )}
 
-        .auth-card {
-          width: min(100%, 480px);
-          display: grid;
-          gap: 16px;
-          border: 1px solid var(--app-ink);
-          background: var(--app-sheet);
-          padding: 24px 20px;
-        }
+        <AuthFootLink href={signInHref} label="Retour à la connexion" />
+      </AuthScreen>
 
-        .auth-back,
-        .plain-link {
-          width: max-content;
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-          color: var(--app-blue);
-          font-size: 12px;
-          font-weight: 900;
-          letter-spacing: .08em;
-          text-decoration: none;
-          text-transform: uppercase;
-        }
-
-        .auth-icon {
-          width: 54px;
-          height: 54px;
-          display: grid;
-          place-items: center;
-          border: 1px solid var(--app-ink);
-          background: var(--app-yellow);
-        }
-
-        .auth-kicker {
-          margin: 0;
-          color: var(--app-ink-3);
-          font-size: 10px;
-          font-weight: 900;
-          letter-spacing: .14em;
-          text-transform: uppercase;
-        }
-
-        h1 {
-          margin: 0;
-          color: var(--app-ink);
-          font-family: var(--app-serif);
-          font-size: clamp(34px, 10vw, 50px);
-          font-style: italic;
-          font-weight: 500;
-          letter-spacing: 0;
-          line-height: .98;
-        }
-
-        p {
-          margin: 0;
-          color: var(--app-ink-2);
-          line-height: 1.45;
-        }
-
-        .auth-form {
-          display: grid;
+      <style jsx global>{`
+        .av2 .auth-form-v2 {
+          display: flex;
+          flex: 1 1 auto;
+          flex-direction: column;
           gap: 14px;
+          min-width: 0;
         }
-
-        label {
-          display: grid;
-          gap: 7px;
-        }
-
-        label span {
-          color: var(--app-ink-3);
-          font-size: 11px;
-          font-weight: 900;
-          letter-spacing: .1em;
-          text-transform: uppercase;
-        }
-
-        input {
-          min-height: 46px;
-          border: 2px solid var(--app-ink);
-          background: var(--app-paper);
-          color: var(--app-ink);
-          padding: 10px 12px;
-          font-size: 16px;
-          outline: none;
-        }
-
-        input:focus {
-          border-color: var(--app-blue);
-        }
-
-        /* Matches the .auth-submit pill on sign-in and sign-up: this was the
-           last hard red slab with an offset shadow, uppercase, and a hardcoded
-           white foreground that ignored the theme. */
-        .support-link {
-          min-height: 54px;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          border: 1px solid var(--app-ink);
-          border-radius: 999px;
-          background: var(--app-ink);
-          color: var(--app-paper);
-          padding: 12px 22px;
-          text-decoration: none;
-          font-size: var(--t-body);
-          font-weight: 600;
-          letter-spacing: .01em;
-        }
-
-        .support-link:active {
-          background: var(--app-paper-2);
-          color: var(--app-ink);
-        }
-
-        .support-link:disabled {
-          cursor: not-allowed;
-          opacity: .5;
-          transform: none;
-        }
-
-        .status-message,
-        .error-message,
-        .dev-note {
-          border: 1px solid var(--app-ink);
-          padding: 10px 12px;
-          font-size: 13px;
-          font-weight: 800;
-        }
-
-        /* Were fixed rgba() literals off the Tailwind palette, so they stayed
-           light-mode tints under the dark theme. */
-        .status-message {
-          background: rgb(var(--app-blue-rgb) / .1);
-          color: var(--app-ink);
-        }
-
-        .error-message {
-          background: rgb(var(--app-red-rgb) / .12);
-          color: var(--app-ink);
-        }
-
-        .dev-note {
-          background: rgb(var(--app-yellow-rgb) / .15);
-          color: var(--app-ink);
+        .av2 .reset-dev-link,
+        .av2 .reset-support {
+          margin: 0;
+          font-weight: 400;
+          overflow-wrap: anywhere;
         }
       `}</style>
     </>
