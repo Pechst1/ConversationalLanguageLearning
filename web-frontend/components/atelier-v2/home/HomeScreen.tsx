@@ -61,6 +61,28 @@ export type HomeTile = {
   } | null;
 };
 
+/**
+ * WP-24 — the because-line. When today's scene carries a learning target that
+ * exists because of a mistake the learner actually made, the day says so
+ * instead of looking arbitrary.
+ *
+ * Structured, not a sentence: the server sends `kind`, the erratum's label and
+ * an optional «faux → juste» example (`app/services/journey_errata.py`,
+ * `ErrataTarget.as_because`), and the French is written here, beside the rest
+ * of the learner-facing copy. Sentence case, no English, the publication's own
+ * register — same rules as every other line on this screen.
+ */
+export type HomeBecause = {
+  /** Only `erratum` today; an unknown kind prints nothing rather than guessing. */
+  kind: string;
+  /** Machine-readable reason, e.g. `erratum:2f9c…`. Telemetry, never printed. */
+  reason?: string;
+  /** The mistake's own label, e.g. « l’accord du participe passé ». */
+  label: string;
+  /** « une homme → un homme », when both halves were recorded. */
+  example?: string | null;
+};
+
 export type HomeEpisode = {
   kicker: string;
   headline: string;
@@ -90,6 +112,8 @@ export type HomeScreenProps = {
   filedLabel?: string | null;
   /** One quiet explaining clause under the action (first edition only). */
   note?: string | null;
+  /** Why today's scene is this scene. Omitted, no line is printed. */
+  because?: HomeBecause | null;
   /** The learner's stated budget, passed ONLY when the honest estimate overruns it. */
   overrunMinutes?: number | null;
   /** Where the edition's time budget is adjusted. */
@@ -114,6 +138,7 @@ export function HomeScreen({
   action,
   filedLabel,
   note,
+  because,
   overrunMinutes,
   adjustHref,
   phrase,
@@ -181,6 +206,7 @@ export function HomeScreen({
             {action.label}
           </Action>
           {note && <p className="av2-label av2-home__note">{note}</p>}
+          <BecauseLine because={because} />
           {overrunMinutes != null && (
             <p className="av2-body av2-home__note">
               Plus long que les {overrunMinutes} minutes demandées — vous pouvez vous arrêter quand
@@ -252,6 +278,29 @@ export function HomeScreen({
 
       {children}
     </AtelierV2Root>
+  );
+}
+
+/**
+ * « Cette scène reprend une faute notée : l’accord du participe passé (une
+ * homme → un homme). »
+ *
+ * One sentence, French, sentence case. It names the mistake and — when both
+ * halves were recorded — shows it, because "you got something wrong" without
+ * saying what is the kind of line that makes a learner anxious rather than
+ * informed. An unknown `kind` prints nothing: an unexplained scene is better
+ * than an invented explanation.
+ */
+function BecauseLine({ because }: { because?: HomeBecause | null }) {
+  if (!because || because.kind !== 'erratum') return null;
+  const label = (because.label || '').trim();
+  if (!label) return null;
+  const example = (because.example || '').trim();
+  return (
+    <p className="av2-body av2-home__note" data-reason={because.reason || undefined}>
+      Cette scène reprend une faute notée&nbsp;: {label}
+      {example ? ` (${example})` : ''}.
+    </p>
   );
 }
 

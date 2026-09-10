@@ -1559,3 +1559,26 @@ Three properties, each with tests: **resumable** (the conversation is a row, not
 Onboarding: sign-up now hands a new learner to `/placement` after their first sign-in; skipping is a real option that says what it costs, and Réglages re-runs it. One `placement_grading` PilotEvent per call, and a digest line printing cost per placed learner.
 
 **Verification:** backend `1876 passed, 1 skipped`; all twelve node suites pass; `type-check`, `lint`, `next build` clean (31 → 32 routes). **US$0.00 spent — no live model call was made**, which is also the largest open item: the ladder's *mechanism* is proven and its *calibration* is not, and it needs the same kind of bounded paid run the journey conversation waited on.
+
+## 2026-09-10 — WP-24 mistake loop
+
+An erratum could never be finished: `review_error` wrote `review` or
+`relearning` and nothing else, so a learner's mistakes accumulated for the life
+of the account. There are now three states — `open → repairing → mastered` —
+with a real exit (three correct repairs on **distinct days**, no recurrence in
+between) and a real reopen (a recurrence zeroes the streak; it does not pause
+it). Legacy states are folded, not trusted: `review` becomes `repairing`, since
+a row that was merely scheduled forward proved nothing.
+
+The two hand-written day tables are gone. `app/core/srs/schedule.py` wraps the
+SM-2 implementation that had been dead code since it was written; intervals now
+compound with an item's history and a lapse costs ease as well as interval. A
+*first* review still grants the historic seed interval, so nothing already in
+the database is re-dated.
+
+`app/services/journey_errata.py` ranks the learner's due errata and
+`plan_journey(errata_targets=…)` merges them in front of the day's candidates,
+stamping `target_reason="erratum:<id>"`; Home's because-line says so in French.
+Two hooks are still owed by other owners (daily_journey, living_story) and are
+written out in [WP-24-MISTAKE-LOOP.md](WP-24-MISTAKE-LOOP.md) §5 — until they
+land the line is dark and the planner behaves exactly as before.
