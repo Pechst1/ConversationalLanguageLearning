@@ -265,6 +265,5 @@ Nothing is blocked; these are the seams other leases own.
   landed on the same parent as this package's `907eb914c502`, so the committed
   tree had two heads. `79e0beb6c84b` merges them; it has no operations, because
   `journal_entries` and `episode_audio_clips` are independent additive tables.
-  The committed tree now has a single head. **WP-34 owes one line**: its
-  untracked `3759e1c7098c` chains onto `907eb914c502` and will read as a second
-  head once committed — re-point its `down_revision` to `79e0beb6c84b`.
+  WP-34 then chained `3759e1c7098c` onto the merge, so the committed tree has a
+  single head again and nothing is owed here.
