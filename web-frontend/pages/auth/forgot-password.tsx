@@ -101,7 +101,13 @@ export default function ForgotPasswordPage() {
             {error && <AuthNotice>{error}</AuthNotice>}
             {message && <AuthNotice tone="done">{message}</AuthNotice>}
 
-            <form className="auth-form-v2" onSubmit={confirmReset} noValidate>
+            <form
+              method="post"
+              action="/api/auth/pre-hydration"
+              className="auth-form-v2"
+              onSubmit={confirmReset}
+              noValidate
+            >
               <AuthField
                 id="reset-new"
                 type="password"
@@ -151,7 +157,13 @@ export default function ForgotPasswordPage() {
                 the address is registered. */}
             {message && <AuthNotice tone="done">{message}</AuthNotice>}
 
-            <form className="auth-form-v2" onSubmit={requestReset} noValidate>
+            <form
+              method="post"
+              action="/api/auth/pre-hydration"
+              className="auth-form-v2"
+              onSubmit={requestReset}
+              noValidate
+            >
               <AuthField
                 id="reset-email"
                 type="email"

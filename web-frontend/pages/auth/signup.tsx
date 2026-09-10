@@ -157,9 +157,18 @@ export default function SignUpPage() {
         <AuthEyebrow>L’Atelier · Quotidien de français</AuthEyebrow>
         <AuthSteps step={step} total={2} />
 
-        {/* Native validation is off: our messages are French and sit under
-            the field they belong to. */}
-        <form className="auth-form-v2" onSubmit={handleSubmit(onSubmit)} noValidate>
+        {/* `method`/`action`: a submit that beats hydration — a password
+            manager, a fast typist — must POST to a route that reads nothing,
+            never fall back to a GET that puts the password in the URL.
+            Native validation is off so our French messages sit under the field
+            they belong to. */}
+        <form
+          method="post"
+          action="/api/auth/pre-hydration"
+          className="auth-form-v2"
+          onSubmit={handleSubmit(onSubmit)}
+          noValidate
+        >
           {step === 1 ? (
             <>
               <h1 className="av2-headline av2-headline--screen">Créer un compte</h1>
