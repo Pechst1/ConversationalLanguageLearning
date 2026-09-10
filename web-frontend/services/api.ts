@@ -178,12 +178,59 @@ export interface AtelierDayProgress {
   }>;
 }
 
+/** WP-25 — the placement result the level payload carries, when there is one. */
+export interface PlacementPrior {
+  level: string;
+  confidence: number;
+  taken_at?: string | null;
+  graded_turns?: number;
+  version?: string;
+}
+
+/* ---- WP-25 placement (POST /placement/*) ---------------------------------- */
+
+export interface PlacementPromptView {
+  index: number;
+  band: string;
+  prompt_fr: string;
+  hint_fr: string;
+  turns_so_far: number;
+  max_turns: number;
+}
+
+export interface PlacementEnvelope {
+  version: string;
+  session_id?: string | null;
+  /** 'none' | 'in_progress' | 'complete' | 'unassessed' | 'skipped' | 'abandoned' */
+  status: string;
+  /** True only while the learner has neither taken nor declined a placement. */
+  offer: boolean;
+  prompt?: PlacementPromptView | null;
+  estimate?: {
+    status: string;
+    level: string | null;
+    confidence: number;
+    graded_turns: number;
+    dimensions: Record<string, number>;
+    dimension_labels: Record<string, string>;
+    evidence: Array<Record<string, any>>;
+  } | null;
+  level?: string | null;
+  confidence: number;
+  prior?: PlacementPrior | null;
+}
+
 export interface CEFRProgress {
   version: string;
   estimate: string;
-  /** 'declared' means the learner stated this level and the app has not verified it yet. */
-  estimate_source?: 'declared' | 'measured' | null;
+  /**
+   * 'declared'  — the learner stated this level and nothing has verified it.
+   * 'placement' — a graded five-minute placement measured it (WP-25).
+   * 'measured'  — enough in-app work exists to measure it directly.
+   */
+  estimate_source?: 'declared' | 'placement' | 'measured' | null;
   declared_level?: string | null;
+  placement?: PlacementPrior | null;
   computed_estimate?: string | null;
   target: string;
   next_level?: string | null;
@@ -2090,9 +2137,15 @@ class ApiService {
     return this.post<any>('/audio-session/end', data);
   }
 
-  async transcribeAudio(audioBlob: Blob): Promise<string> {
+  /**
+   * `surface` names where the learner was speaking (WP-27: `journey_respond`
+   * for the daily journey's default output). It is cost attribution only —
+   * nothing about the transcription itself changes with it.
+   */
+  async transcribeAudio(audioBlob: Blob, surface?: string): Promise<string> {
     const formData = new FormData();
     formData.append('file', audioBlob, audioUploadFilename(audioBlob));
+    if (surface) formData.append('surface', surface);
 
     const response = await this.api.post<{ text: string }>('/audio/transcribe', formData, {
       headers: {
@@ -2241,6 +2294,40 @@ class ApiService {
       `/daily-journeys/${encodeURIComponent(journeyId)}/retry`,
       body,
     );
+  }
+
+  /* ---- WP-25 placement --------------------------------------------------
+     Every call answers the same envelope, so the screen renders one state
+     machine. `respondToPlacement` carries the turn index: replaying it is a
+     no-op server-side, so a retried request never buys a second paid grading. */
+
+  async getPlacementState(): Promise<PlacementEnvelope> {
+    return this.atelierGet<PlacementEnvelope>('/placement/state');
+  }
+
+  async startPlacement(restart = false): Promise<PlacementEnvelope> {
+    return this.atelierPost<PlacementEnvelope>('/placement/start', { restart });
+  }
+
+  async respondToPlacement(
+    sessionId: string,
+    answer: string,
+    turnIndex: number,
+  ): Promise<PlacementEnvelope> {
+    return this.atelierPost<PlacementEnvelope>(
+      `/placement/${encodeURIComponent(sessionId)}/respond`,
+      { answer, turn_index: turnIndex },
+    );
+  }
+
+  async finishPlacement(sessionId: string): Promise<PlacementEnvelope> {
+    return this.atelierPost<PlacementEnvelope>(
+      `/placement/${encodeURIComponent(sessionId)}/finish`,
+    );
+  }
+
+  async skipPlacement(): Promise<PlacementEnvelope> {
+    return this.atelierPost<PlacementEnvelope>('/placement/skip');
   }
 }
 

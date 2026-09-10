@@ -113,7 +113,7 @@ export function useVoiceAnswer(): VoiceAnswerController {
         return;
       }
       void apiService
-        .transcribeAudio(blob)
+        .transcribeAudio(blob, 'journey_respond')
         .then((text: string) => send({ type: 'transcribed', text: String(text || '') }))
         .catch(() => send({ type: 'fail', reason: 'failed' }));
     };

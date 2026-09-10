@@ -1,14 +1,16 @@
 """Audio transcription and TTS endpoints."""
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import Response
 from loguru import logger
 from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, get_llm_service
+from app.api.deps import get_current_user, get_db, get_llm_service
 from app.db.models.user import User
 from app.services.llm_service import LLMService
+from app.services.transcription_cost import record_transcription_cost
 
 router = APIRouter()
 MAX_AUDIO_UPLOAD_BYTES = 25 * 1024 * 1024
@@ -26,8 +28,17 @@ async def transcribe_audio(
     file: Annotated[UploadFile, File()],
     llm_service: Annotated[LLMService, Depends(get_llm_service)],
     current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    surface: Annotated[str, Form()] = "unknown",
 ) -> dict[str, str]:
-    """Transcribe an audio file to text."""
+    """Transcribe an audio file to text.
+
+    WP-27 made speaking the daily journey's default output, so this is a paid
+    endpoint on the learner's main path: every successful call writes one
+    priced pilot-cost row (`app.services.transcription_cost`). Nothing here
+    scores pronunciation — the transcript is graded as text, exactly like a
+    typed answer.
+    """
     if not file.content_type or not file.content_type.startswith("audio/"):
         raise HTTPException(status_code=400, detail="Invalid file type. Must be audio.")
     
@@ -58,6 +69,15 @@ async def transcribe_audio(
             filename=file.filename,
             content_type=file.content_type,
         )
+        # After the call, so a failed request is not billed on the ledger.
+        record_transcription_cost(
+            db,
+            user_id=current_user.id,
+            byte_count=len(content),
+            content_type=file.content_type,
+            surface=surface,
+        )
+        db.commit()
         return {"text": text}
     except Exception as exc:
         logger.exception("Audio transcription failed")

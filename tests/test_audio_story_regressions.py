@@ -377,6 +377,20 @@ def test_audio_turn_ignores_transcription_artifacts_and_duplicate_repairs():
     assert real("allée", primary("allée (wenn Sprecherin weiblich) oder allé")) is False
 
 
+class _CostLedgerStub:
+    """WP-27: the endpoint now writes one priced pilot row per real call."""
+
+    def __init__(self) -> None:
+        self.rows = []
+        self.commits = 0
+
+    def add(self, row) -> None:
+        self.rows.append(row)
+
+    def commit(self) -> None:
+        self.commits += 1
+
+
 def test_audio_upload_limit_is_enforced_before_transcription():
     class OversizedUpload:
         content_type = "audio/webm"
@@ -394,6 +408,7 @@ def test_audio_upload_limit_is_enforced_before_transcription():
                 file=OversizedUpload(),
                 llm_service=FailIfCalled(),
                 current_user=SimpleNamespace(id=uuid.uuid4()),
+                db=_CostLedgerStub(),
             )
         )
 
@@ -419,15 +434,21 @@ def test_audio_endpoint_preserves_iphone_recording_metadata():
             return "bonjour"
 
     transcriber = RecordingTranscriber()
+    ledger = _CostLedgerStub()
     response = asyncio.run(
         audio.transcribe_audio(
             file=IPhoneUpload(),
             llm_service=transcriber,
             current_user=SimpleNamespace(id=uuid.uuid4()),
+            db=ledger,
+            surface="journey_respond",
         )
     )
 
     assert response == {"text": "bonjour"}
+    # WP-27: a real transcription is on the ledger; an oversized one above is not.
+    assert len(ledger.rows) == 1
+    assert ledger.rows[0].payload["surface"] == "journey_respond"
     assert transcriber.call == (
         b"iphone-audio",
         {
