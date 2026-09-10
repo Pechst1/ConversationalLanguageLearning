@@ -4357,6 +4357,284 @@ class MissionConversationService:
         }
 
 
+# ===========================================================================
+# WP-34 — a Courrier task derived from a document the learner brought in
+#
+# Additive. Nothing above this line is touched, and in particular
+# `MissionCorrectionService` is not: an artefact mission is corrected by the
+# same `correct_submission`, through the same `POST /missions/{id}/submit`, with
+# the same six gates fixed on 2026-09-05. The whole point of building a real
+# `RealWorldMission` row here — rather than a parallel grader in `intake.py` —
+# is that "graded exactly like an existing Courrier mission" should be true by
+# construction and not by resemblance.
+#
+# The mission is built **deterministically**. `MissionGenerator.build_payload`
+# would call the scenario model a second time, and WP-34 buys one model call per
+# artefact: the intake read already returned the scenario, so this function only
+# has to shape it.
+# ===========================================================================
+
+#: An artefact mission's cadence. Deliberately not "ad_hoc": `today()` promotes
+#: an available ad-hoc mission to `active_mission`, and a document the learner
+#: brought in must not silently displace the Courrier's own weekly mission.
+ARTEFACT_CADENCE = "artefact"
+ARTEFACT_MISSION_VERSION = "real-world-mission-artefact-v1"
+
+#: How many of the artefact's own words are printed in the « À placer » ribbon.
+#: Only printed words may ever cost the learner anything (the 2026-09-05 fix in
+#: `_shown_vocabulary_items`), so this bound is also the penalty bound.
+ARTEFACT_TARGET_WORDS = 3
+
+_ARTEFACT_TASK_TITLES_FR: dict[str, str] = {
+    "reply": "Répondre au document",
+    "decide": "Choisir dans le document",
+    "ask": "Poser la question qui manque",
+}
+
+_ARTEFACT_TASK_INSTRUCTIONS_FR: dict[str, str] = {
+    "reply": "Écrivez votre réponse en français.",
+    "decide": "Écrivez votre choix en français, et dites pourquoi en une phrase.",
+    "ask": "Écrivez votre question en français.",
+}
+
+
+def artefact_mission_payload(
+    db: Session,
+    *,
+    user: User,
+    artefact_payload: dict[str, Any],
+    task: dict[str, Any],
+    source_text: str,
+    target_word_ids: list[int] | None = None,
+) -> dict[str, Any]:
+    """The `RealWorldMission` column payload for one brought-in document.
+
+    Same shape `MissionGenerator.build_payload` returns, so every reader —
+    `serialize_mission`, the correction service, the debrief, the Courrier page —
+    sees an ordinary mission. What it is *not* is a generated scenario: the
+    contact is the document's real counterpart and the brief quotes the
+    document, because the learner already knows what it says.
+    """
+
+    kind = str(task.get("kind") or "reply")
+    if kind not in ("reply", "decide", "ask"):
+        kind = "reply"
+    register = "vous" if str(task.get("register") or "vous") == "vous" else "tu"
+    counterpart = _compact_text(task.get("counterpart_fr"), max_length=80) or "votre correspondant"
+    instruction = _compact_text(task.get("instruction_fr"), max_length=280)
+    type_label = _compact_text(artefact_payload.get("type_label_fr"), max_length=40) or "Un document"
+    title_fr = _compact_text(artefact_payload.get("title_fr"), max_length=120) or type_label
+    summary = _compact_text(artefact_payload.get("summary_fr"), max_length=400)
+
+    vocabulary: list[dict[str, Any]] = []
+    allowed = set(_dedupe_ints(target_word_ids or []))
+    for item in (artefact_payload.get("glossed_words") or [])[:ARTEFACT_TARGET_WORDS]:
+        if not isinstance(item, dict):
+            continue
+        word_id = item.get("word_id")
+        try:
+            word_id = int(word_id)
+        except (TypeError, ValueError):
+            continue
+        if allowed and word_id not in allowed:
+            continue
+        word = _compact_text(item.get("lemma") or item.get("word"), max_length=80)
+        if not word:
+            continue
+        vocabulary.append(
+            {
+                "word_id": word_id,
+                "word": word,
+                "translation": _compact_text(item.get("gloss"), max_length=90),
+                "bucket": "learner_artefact",
+                "scheduler": "artefact",
+                "priority_score": 1.0,
+                "part_of_speech": None,
+                "topic_tags": ["learner_artefact"],
+                "example_sentence": _compact_text(item.get("example_fr"), max_length=200),
+                "example_translation": None,
+            }
+        )
+
+    brief = " ".join(
+        part
+        for part in (
+            f"{type_label} que vous avez apporté : « {title_fr} ».",
+            summary,
+            instruction,
+        )
+        if part
+    )
+
+    messenger = {
+        "contact_name": counterpart,
+        "contact_role": type_label.lower(),
+        "contact_initials": "".join(word[:1].upper() for word in counterpart.split()[:2]) or "DO",
+        "channel": "artefact",
+        "channel_label": "Votre document",
+        "tone": "calm_specific",
+        "register": register,
+        "target_register": "vous / registre poli" if register == "vous" else "tu / registre familier",
+        "scene_anchor": f"{type_label} sous les yeux",
+        # The learner already read the document on the artefact card above; the
+        # opening line names the ask rather than replaying the whole text.
+        "opening_message": instruction or _ARTEFACT_TASK_INSTRUCTIONS_FR[kind],
+        "brief": brief,
+        "success_signal": _compact_text(task.get("success_fr"), max_length=160)
+        or "Votre correspondant sait quoi faire ensuite.",
+        "twist": "",
+        "ambient_cues": [type_label.lower(), f"registre : {register}"],
+        "quick_replies": [],
+        "inbox_context": summary,
+    }
+
+    objectives: list[dict[str, Any]] = [
+        {
+            "id": "real_world_task",
+            "label": _ARTEFACT_TASK_TITLES_FR[kind],
+            "target_count": 1,
+            "kind": "communication",
+            "required": True,
+            "stakes_level": 1,
+        }
+    ]
+    for item in vocabulary:
+        objectives.append(
+            {
+                "id": f"vocabulary_{item['word_id']}",
+                "label": f"Placer « {item['word']} » naturellement",
+                "target_count": 1,
+                "kind": "vocabulary",
+                "word_id": item["word_id"],
+                "translation": item.get("translation"),
+                "bucket": item.get("bucket"),
+                "required": False,
+            }
+        )
+
+    generator = MissionGenerator(db)
+    prompt_payload = {
+        "version": ARTEFACT_MISSION_VERSION,
+        "mission_type": "message",
+        "cadence": ARTEFACT_CADENCE,
+        "stakes_level": 1,
+        "experience": "reality_messenger",
+        "custom_context": {
+            "scenario": brief,
+            "desired_outcome": messenger["success_signal"],
+            "relationship": counterpart,
+            "register": register,
+        },
+        "mission_format": "chat_message",
+        "artefact_task_kind": kind,
+        "variety": {
+            "domain": "learner_artefact",
+            "domain_label": type_label,
+            "contact": counterpart,
+            "channel": "artefact",
+            "channel_label": "Votre document",
+            "tone": "calm_specific",
+            "twist": "",
+            "fuel_source": "learner_artefact",
+            "active_category": None,
+            "recently_avoided": [],
+        },
+        "messenger": messenger,
+        "success_objectives": success_objectives_for(
+            "learner_artefact", success_signal=messenger["success_signal"]
+        ),
+        "conversation_opening": messenger["opening_message"],
+        "conversation_title": generator._conversation_title("message"),
+        "conversation_instruction": generator._conversation_instruction("message"),
+        "writing_title": _ARTEFACT_TASK_TITLES_FR[kind],
+        "writing_instruction": instruction or _ARTEFACT_TASK_INSTRUCTIONS_FR[kind],
+        "writing_placeholder": generator._placeholder("message"),
+        "min_words": max(
+            generator._min_words(mission_type="message", stakes_level=1),
+            int(cefr_generation_profile(user.proficiency_level).get("min_words") or 0),
+        ),
+        "max_words": generator._max_words(stakes_level=1),
+        "target_register": messenger["target_register"],
+        "show_source_context": False,
+        "source_context_card": None,
+        "branching": {
+            "enabled": True,
+            "signals": ["understood", "needs_detail", "too_vague", "tone_mismatch"],
+            "stakes_level": 1,
+            "tone_failures_matter": False,
+        },
+        "target_vocabulary": vocabulary,
+        "slim_payload": generator._slim_payload(
+            user=user,
+            brief=brief,
+            messenger=messenger,
+            mission_type="message",
+            vocabulary=vocabulary,
+        ),
+    }
+
+    return {
+        "title": _ARTEFACT_TASK_TITLES_FR[kind],
+        "brief": brief,
+        "selected_concept_ids": [],
+        "target_errata_ids": [],
+        "target_vocabulary_ids": _dedupe_ints([item["word_id"] for item in vocabulary]),
+        # The document's own text is kept on the mission because the corrector
+        # and the debrief both read `source_snapshot`, and because a reply is
+        # graded against what it answers. It is the learner's own document and it
+        # goes no further: deleting the artefact deletes this row with it.
+        "source_snapshot": {
+            "source": "learner_artefact",
+            "artefact_type": artefact_payload.get("type"),
+            "artefact_title_fr": title_fr,
+            "artefact_summary_fr": summary,
+            "artefact_text": _compact_text(source_text, max_length=2000),
+            "key_facts": artefact_payload.get("key_facts") or [],
+        },
+        "objectives": objectives,
+        "prompt_payload": prompt_payload,
+        "stakes_level": 1,
+    }
+
+
+def create_artefact_mission(
+    db: Session,
+    *,
+    user: User,
+    artefact_payload: dict[str, Any],
+    task: dict[str, Any],
+    source_text: str,
+    target_word_ids: list[int] | None = None,
+) -> RealWorldMission:
+    """Persist the derived task as an ordinary Courrier mission.
+
+    No commit here: the caller owns the transaction, so an artefact and its
+    mission are written together or not at all. A half-written pair would be a
+    document with no task, or a task quoting a document the learner cannot see.
+    """
+
+    payload = artefact_mission_payload(
+        db,
+        user=user,
+        artefact_payload=artefact_payload,
+        task=task,
+        source_text=source_text,
+        target_word_ids=target_word_ids,
+    )
+    mission = RealWorldMission(
+        user_id=user.id,
+        status="available",
+        cadence=ARTEFACT_CADENCE,
+        mission_type="message",
+        iso_year=None,
+        iso_week=None,
+        **payload,
+    )
+    db.add(mission)
+    db.flush([mission])
+    return mission
+
+
 def serialize_mission(mission: RealWorldMission | None, *, include_children: bool = True) -> dict[str, Any] | None:
     if not mission:
         return None
@@ -4430,6 +4708,9 @@ def serialize_mission(mission: RealWorldMission | None, *, include_children: boo
 
 
 __all__ = [
+    "ARTEFACT_CADENCE",
+    "ARTEFACT_MISSION_VERSION",
+    "ARTEFACT_TARGET_WORDS",
     "MissionConversationService",
     "MissionCorrectionService",
     "MissionDebriefService",
@@ -4437,5 +4718,7 @@ __all__ = [
     "MissionSRSService",
     "MissionScheduler",
     "SerialEpisodeNotReadyError",
+    "artefact_mission_payload",
+    "create_artefact_mission",
     "serialize_mission",
 ]

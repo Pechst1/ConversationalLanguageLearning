@@ -65,6 +65,14 @@ class UserVocabularyProgress(Base):
 
     error_types = Column(JSONB().with_variant(JSON(), "sqlite"), default=list)
 
+    # WP-34 — where this card came from. Null for every card the app itself
+    # scheduled; "learner_artefact" for a word the learner met in a document they
+    # brought in themselves. WP-29's coverage guard reads it to treat such a word
+    # as a *target* (meant to be new) instead of an accident to generate away, and
+    # `provenance_ref` names the artefact so a deleted document leaves no pointer.
+    provenance = Column(String(32), nullable=True, index=True)
+    provenance_ref = Column(String(64), nullable=True, index=True)
+
     first_seen_date = Column(DateTime(timezone=True), server_default=func.now())
     mastered_date = Column(DateTime(timezone=True))
     created_at = Column(DateTime(timezone=True), server_default=func.now())

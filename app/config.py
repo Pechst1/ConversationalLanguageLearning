@@ -379,6 +379,67 @@ class Settings(BaseSettings):
         ),
     )
 
+    # ---- WP-34: bring your own French ------------------------------------
+    ATELIER_INTAKE_ENABLED: bool = Field(
+        True,
+        description=(
+            "Whether a learner may hand the app a real document — pasted text or a "
+            "photograph — and get it read, glossed and turned into one Courrier task. "
+            "Off means the page says so in French; it never 500s."
+        ),
+    )
+    ATELIER_INTAKE_WEEKLY_CAP: int = Field(
+        5,
+        ge=0,
+        le=50,
+        description=(
+            "How many artefacts one learner may submit in a rolling seven days. Each "
+            "one pays for exactly one model call, so this is the volume half of the "
+            "cost bound. 0 switches intake off for everybody."
+        ),
+    )
+    ATELIER_INTAKE_WEEKLY_COST_CEILING_USD: float = Field(
+        0.50,
+        ge=0.0,
+        description=(
+            "The money half of the same bound: once a learner's intake calls have cost "
+            "this much in a rolling seven days, the next submission is refused in French "
+            "rather than paid for. 0.0 removes the money ceiling and leaves only the count."
+        ),
+    )
+    ATELIER_INTAKE_VISION_MODEL: str = Field(
+        "gpt-4o-mini",
+        description=(
+            "The vision-capable model a photographed artefact is read with. It must accept "
+            "OpenAI-shaped image_url content blocks; an Anthropic-primary deployment needs "
+            "the block adapter written out in WP-34-INTAKE.md before it can read photos."
+        ),
+    )
+    ATELIER_INTAKE_TEXT_MODEL: str = Field(
+        "gpt-4o-mini",
+        description="The model a pasted (already textual) artefact is structured with.",
+    )
+    ATELIER_INTAKE_MAX_IMAGE_BYTES: int = Field(
+        4_000_000,
+        ge=10_000,
+        le=20_000_000,
+        description=(
+            "Hard ceiling on one uploaded photograph. A learner-controlled payload sizes a "
+            "paid request, so the bound is enforced before a byte reaches the provider."
+        ),
+    )
+    ATELIER_INTAKE_MAX_TOKENS: int = Field(
+        1600,
+        ge=400,
+        le=8000,
+        description="Completion budget for the one intake call. Low values starve gpt-5 reasoning models of content.",
+    )
+    ATELIER_INTAKE_TIMEOUT_SECONDS: float = Field(
+        45.0,
+        gt=0,
+        description="Request timeout for the one intake call. A timeout is «non lu», never a fabricated reading.",
+    )
+
     model_config = SettingsConfigDict(
         env_file=Path(__file__).resolve().parent.parent / ".env",
         env_file_encoding="utf-8",

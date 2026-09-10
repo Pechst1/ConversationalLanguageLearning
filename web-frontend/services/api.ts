@@ -253,95 +253,6 @@ export interface PlacementEnvelope {
   prior?: PlacementPrior | null;
 }
 
-/* ---- WP-31 rehearsal (POST /rehearsals/*) ---------------------------------
-   «Répétition»: the learner's own real upcoming situation, rehearsed once and
-   then debriefed. Not story canon — the server keeps it in its own table and
-   never writes it into serial memory, and nothing here carries a story id. */
-
-export interface RehearsalBriefView {
-  goal_fr: string;
-  goal_native: string;
-  counterpart: string;
-  /** 'tu' | 'vous', decided by the server from who the counterpart is. */
-  register: string;
-  date_text: string;
-  date_iso?: string | null;
-  facts: string[];
-}
-
-export interface RehearsalSceneView {
-  title_fr: string;
-  place_fr: string;
-  setup_fr: string;
-  setup_native: string;
-  objective_fr: string;
-  objective_native: string;
-  opening_line_fr: string;
-  register: string;
-  level_band: string;
-  turns_total: number;
-  /** Empty until the learner asks for them: help is a request, not a panel. */
-  phrases: Array<{ fr: string; native: string }>;
-  phrases_revealed: boolean;
-  /** Null while the rehearsal is live — the private rubric is never a spoiler. */
-  rubric_native?: string | null;
-}
-
-export interface RehearsalTurnView {
-  index: number;
-  learner_text: string;
-  mode: string;
-  reply_fr?: string | null;
-  reply_source?: string | null;
-  correction?: { span_fr: string; corrected_fr: string; note_native: string } | null;
-  outcome?: string | null;
-  evidence_kind?: string | null;
-  assistance?: string | null;
-}
-
-export interface RehearsalView {
-  version: string;
-  id: string;
-  /** declared | ready | not_prepared | rehearsing | rehearsed | debriefed | abandoned */
-  status: string;
-  declaration: string;
-  brief: RehearsalBriefView;
-  scene?: RehearsalSceneView | null;
-  turns: RehearsalTurnView[];
-  turns_used: number;
-  turns_total: number;
-  result?: {
-    outcome: string;
-    points_total: number;
-    points_covered: number;
-    ending_key?: string | null;
-    ending_line_fr?: string | null;
-    ending_summary_fr?: string | null;
-  } | null;
-  event_date?: string | null;
-  debrief?: {
-    outcome: string;
-    free_line: string;
-    corrected_fr?: string | null;
-    note_fr?: string | null;
-    already_correct?: boolean | null;
-    /** False means the line was NOT checked — never that it was correct. */
-    correction_available: boolean;
-    recorded_at: string;
-  } | null;
-  outcome?: string | null;
-  debrief_available: boolean;
-}
-
-export interface RehearsalEnvelope {
-  version: string;
-  rehearsal?: RehearsalView | null;
-  debrief_due?: RehearsalView | null;
-  cap: { limit: number; used: number; remaining: number; next_slot_at?: string | null };
-  min_turns: number;
-  max_turns: number;
-}
-
 /* ---- WP-30 «Le journal de bord» (GET/POST /journal/*) ---------------------
    The learner writes the recap from memory. The envelope's one load-bearing
    omission: while `status` is 'offered' the entry carries `cue` — who, where,
@@ -521,6 +432,193 @@ export interface RehearsalEnvelope {
   cap: { limit: number; used: number; remaining: number; next_slot_at?: string | null };
   min_turns: number;
   max_turns: number;
+}
+
+/* ---- WP-35 «Votre dossier» — the inspectable learner model ----------------
+   Every section carries the evidence that produced it (a journey id, a date),
+   because the page's whole claim is that the model can be checked. */
+
+export interface DossierEvidence {
+  /** journey | placement | declaration | in_app_counters | erratum | vocabulary_schedule */
+  kind: string;
+  on?: string | null;
+  journey_id?: string | null;
+  reference?: string | null;
+  detail?: string | null;
+}
+
+export interface DossierLevel {
+  available: boolean;
+  estimate?: string | null;
+  /** 'declared' | 'placement' | 'measured' — WP-25's own field, unchanged. */
+  estimate_source?: string | null;
+  declared_level?: string | null;
+  /** True only when in-app counters back the level; a placement does not. */
+  verified?: boolean;
+  status?: string | null;
+  /** `null` for a declaration: a dropdown has no confidence. */
+  confidence?: number | null;
+  breakdown?: Record<string, any>;
+  placement?: {
+    id: string;
+    level?: string | null;
+    confidence: number;
+    taken_at?: string | null;
+    graded_turns: number;
+    dimensions: Record<string, number>;
+    dimension_labels: Record<string, string>;
+  } | null;
+  target?: string | null;
+  next_level?: string | null;
+  evidence?: DossierEvidence | null;
+  reason?: string | null;
+}
+
+export interface DossierCapabilityEvidence {
+  on: string;
+  modality: string;
+  state: string;
+  context: string;
+  journey_id?: string | null;
+}
+
+export interface DossierCapability {
+  key: string;
+  title: string;
+  /** The CONTRACTS §8 rubric, produced by `build_capability_summary` alone. */
+  state: string;
+  rubric_version: string;
+  modalities: string[];
+  latest_qualifying_on?: string | null;
+  evidence: DossierCapabilityEvidence[];
+}
+
+export interface DossierErratum {
+  id: string;
+  label: string;
+  /** WP-24: open | repairing | mastered. */
+  state: string;
+  learner_text?: string | null;
+  corrected_target?: string | null;
+  why_wrong?: string | null;
+  occurrences: number;
+  lapses: number;
+  mastery_streak: number;
+  mastery_target: number;
+  next_review_date?: string | null;
+  claimable: boolean;
+  evidence?: DossierEvidence | null;
+}
+
+export interface DossierErrata {
+  available: boolean;
+  mastery_target?: number;
+  counts?: Record<string, number>;
+  by_state?: Record<string, DossierErratum[]>;
+  reason?: string | null;
+}
+
+export interface DossierWord {
+  word_id: number;
+  word: string;
+  translation?: string | null;
+  bucket?: string | null;
+  claimable: boolean;
+  evidence?: DossierEvidence | null;
+}
+
+export interface DossierVocabulary {
+  available: boolean;
+  known?: {
+    version: string;
+    band: string;
+    estimate_level: string;
+    estimate_source: string;
+    nailed_words: number;
+    core_words: number;
+    known_lemmas: number;
+  } | null;
+  nailed_rule?: { retrievability: number };
+  words: DossierWord[];
+}
+
+export interface DossierBecause {
+  kind: string;
+  reason?: string | null;
+  label: string;
+  example?: string | null;
+}
+
+export interface DossierToday {
+  has_journey: boolean;
+  journey_id?: string | null;
+  local_date?: string | null;
+  status?: string | null;
+  /** Read from the plan that produced today's scene, never recomputed. */
+  because?: DossierBecause | null;
+  evidence?: DossierEvidence | null;
+}
+
+export interface DossierClaim {
+  kind?: string | null;
+  target_id?: string | null;
+  stage?: string | null;
+  verdict?: string | null;
+  label?: string | null;
+  on?: string | null;
+}
+
+export interface DossierPayload {
+  version: string;
+  level: DossierLevel;
+  capabilities: DossierCapability[];
+  errata: DossierErrata;
+  vocabulary: DossierVocabulary;
+  today: DossierToday;
+  claims: DossierClaim[];
+}
+
+export interface DossierClaimItem {
+  index: number;
+  /** repair | cloze | production | meaning */
+  kind: string;
+  instruction_fr: string;
+  prompt_fr: string;
+  placeholder_fr: string;
+}
+
+export interface DossierClaimCheck {
+  kind: string;
+  target_id: string;
+  label: string;
+  verifiable: boolean;
+  items_required: number;
+  items: DossierClaimItem[];
+  reason?: string | null;
+  message_fr?: string | null;
+}
+
+export interface DossierClaimVerdict {
+  kind: string;
+  target_id: string;
+  /** verified | not_yet | unverifiable */
+  verdict: string;
+  items_correct: number;
+  items_total: number;
+  advanced: boolean;
+  message_fr: string;
+  next_review_date?: string | null;
+  state?: string | null;
+  results: { index: number; kind: string; is_correct: boolean }[];
+}
+
+export interface DossierEnvelope {
+  version: string;
+  dossier?: DossierPayload | null;
+  check?: DossierClaimCheck | null;
+  verdict?: DossierClaimVerdict | null;
+  items_required: number;
+  claim_kinds: string[];
 }
 
 export interface CEFRProgress {
@@ -1281,6 +1379,74 @@ export interface MissionToday {
   post_session_recommendation: RealWorldMission | null;
   active_mission: RealWorldMission | null;
   recent_completed: RealWorldMission[];
+}
+
+/* WP-34 — «Apportez votre français». One envelope for every intake route, so
+   the page renders one state machine rather than five screens. An `unread`
+   artefact carries no `artefact` payload and no `task`: that is the honest
+   «non lu» state, not a rendering bug. */
+export interface IntakeGlossedWord {
+  word: string;
+  lemma?: string;
+  gloss?: string;
+  gloss_language?: string | null;
+  gloss_source?: 'vocabulary' | 'model' | 'none' | string;
+  example_fr?: string;
+  word_id?: number | null;
+}
+
+export interface IntakeArtefactPayload {
+  type?: string;
+  type_label_fr?: string;
+  title_fr?: string;
+  summary_fr?: string;
+  summary_bounded?: boolean;
+  key_facts?: Array<{ label_fr: string; value_fr: string }>;
+  glossed_words?: IntakeGlossedWord[];
+  band?: string;
+  gloss_language?: string;
+}
+
+export interface IntakeArtefactTask {
+  kind?: 'reply' | 'decide' | 'ask' | string;
+  kind_label_fr?: string;
+  instruction_fr?: string;
+  counterpart_fr?: string;
+  register?: 'tu' | 'vous' | string;
+  success_fr?: string;
+}
+
+export interface IntakeArtefact {
+  id: string;
+  version: string;
+  status: 'read' | 'unread' | string;
+  source_kind: 'text' | 'image' | string;
+  source_text: string;
+  artefact: IntakeArtefactPayload;
+  task: IntakeArtefactTask;
+  mission_id: string | null;
+  queued_word_count: number;
+  created_at?: string | null;
+}
+
+export interface IntakeCap {
+  limit: number;
+  used: number;
+  remaining: number;
+  spent_usd: number;
+  ceiling_usd: number;
+  enabled: boolean;
+}
+
+export interface IntakeEnvelope {
+  version: string;
+  artefact: IntakeArtefact | null;
+  mission: RealWorldMission | null;
+  artefacts: IntakeArtefact[];
+  cap: IntakeCap;
+  max_text_chars: number;
+  max_image_bytes: number;
+  max_unknown_words: number;
 }
 
 export interface SerialToday {
@@ -2232,6 +2398,34 @@ class ApiService {
     return response;
   }
 
+  // WP-34 — «Apportez votre français»: a real document the learner brought in.
+  // Every route answers the same envelope, so the page renders one state machine
+  // and never has to reconcile two shapes.
+  async getIntakeArtefacts() {
+    return this.atelierGet<IntakeEnvelope>('/intake');
+  }
+
+  async readIntakeText(text: string) {
+    return this.atelierPost<IntakeEnvelope>('/intake/text', { text });
+  }
+
+  async readIntakePhoto(photo: File | Blob, filename = 'document.jpg') {
+    const formData = new FormData();
+    formData.append('file', photo, filename);
+    return this.atelierPost<IntakeEnvelope>('/intake/photo', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  }
+
+  async getIntakeArtefact(artefactId: string) {
+    return this.atelierGet<IntakeEnvelope>(`/intake/${artefactId}`);
+  }
+
+  /** Deletes the document AND the Courrier task derived from it. */
+  async deleteIntakeArtefact(artefactId: string) {
+    return this.delete<void>(`/intake/${artefactId}`);
+  }
+
   async getSerialToday() {
     return this.atelierGet<SerialToday>('/serial/today');
   }
@@ -2685,59 +2879,7 @@ class ApiService {
   async skipPlacement(): Promise<PlacementEnvelope> {
     return this.atelierPost<PlacementEnvelope>('/placement/skip');
   }
-  /* ---- WP-31 rehearsal --------------------------------------------------
-     One envelope per route, like the placement, so the page renders one state
-     machine. `sendRehearsalTurn` carries the turn index: replaying it is a
-     no-op server-side and buys no second grading. */
 
-  async getRehearsalState(): Promise<RehearsalEnvelope> {
-    return this.atelierGet<RehearsalEnvelope>('/rehearsals/state');
-  }
-
-  async declareRehearsal(declaration: string): Promise<RehearsalEnvelope> {
-    return this.atelierPost<RehearsalEnvelope>('/rehearsals', { declaration });
-  }
-
-  async prepareRehearsal(rehearsalId: string): Promise<RehearsalEnvelope> {
-    return this.atelierPost<RehearsalEnvelope>(
-      `/rehearsals/${encodeURIComponent(rehearsalId)}/prepare`,
-    );
-  }
-
-  async revealRehearsalPhrases(rehearsalId: string): Promise<RehearsalEnvelope> {
-    return this.atelierPost<RehearsalEnvelope>(
-      `/rehearsals/${encodeURIComponent(rehearsalId)}/phrases`,
-    );
-  }
-
-  async sendRehearsalTurn(
-    rehearsalId: string,
-    text: string,
-    turnIndex: number,
-    mode: 'text' | 'voice' = 'text',
-  ): Promise<RehearsalEnvelope> {
-    return this.atelierPost<RehearsalEnvelope>(
-      `/rehearsals/${encodeURIComponent(rehearsalId)}/turns`,
-      { text, turn_index: turnIndex, mode },
-    );
-  }
-
-  async debriefRehearsal(
-    rehearsalId: string,
-    outcome: 'done' | 'partly' | 'not_yet',
-    freeLine: string,
-  ): Promise<RehearsalEnvelope> {
-    return this.atelierPost<RehearsalEnvelope>(
-      `/rehearsals/${encodeURIComponent(rehearsalId)}/debrief`,
-      { outcome, free_line: freeLine },
-    );
-  }
-
-  async abandonRehearsal(rehearsalId: string): Promise<RehearsalEnvelope> {
-    return this.atelierPost<RehearsalEnvelope>(
-      `/rehearsals/${encodeURIComponent(rehearsalId)}/abandon`,
-    );
-  }
   /* ---- WP-30 «Le journal de bord» ---------------------------------------
      `getJournalState` is a GET that may create today's offer: idempotent, and
      it stores no learner content, so an empty tab never becomes a mutation.
@@ -2821,6 +2963,33 @@ class ApiService {
     return this.atelierPost<RehearsalEnvelope>(
       `/rehearsals/${encodeURIComponent(rehearsalId)}/abandon`,
     );
+  }
+  /* ---- WP-35 «Votre dossier» ---------------------------------------------
+     Three routes, one envelope. `openDossierClaim` records the claim and
+     returns its two questions; `verifyDossierClaim` grades them and returns the
+     refreshed model, so a verified claim needs no second read. */
+
+  async getDossier(): Promise<DossierEnvelope> {
+    return this.atelierGet<DossierEnvelope>('/dossier/state');
+  }
+
+  async openDossierClaim(kind: string, targetId: string): Promise<DossierEnvelope> {
+    return this.atelierPost<DossierEnvelope>('/dossier/claims', {
+      kind,
+      target_id: targetId,
+    });
+  }
+
+  async verifyDossierClaim(
+    kind: string,
+    targetId: string,
+    answers: string[],
+  ): Promise<DossierEnvelope> {
+    return this.atelierPost<DossierEnvelope>('/dossier/claims/verify', {
+      kind,
+      target_id: targetId,
+      answers,
+    });
   }
 }
 

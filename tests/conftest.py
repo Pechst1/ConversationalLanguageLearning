@@ -76,6 +76,7 @@ from app.db.models.graphic_novel import (
     GraphicNovelScene,
     PersonalInputItem,
 )
+from app.db.models.intake import LearnerArtefact
 from app.db.models.library import BookEpisode, UserBook
 from app.db.models.mission import RealWorldMission, RealWorldMissionAttempt, RealWorldMissionTurn
 from app.db.models.pilot_event import PilotEvent
@@ -141,9 +142,10 @@ def db_engine():
             RealWorldMission.__table__,
             RealWorldMissionAttempt.__table__,
             RealWorldMissionTurn.__table__,
+            LearnerArtefact.__table__,
+            EpisodeAudioClip.__table__,
             UserBook.__table__,
             BookEpisode.__table__,
-            EpisodeAudioClip.__table__,
             PersonalInputItem.__table__,
             GraphicNovelScene.__table__,
             GraphicNovelPanel.__table__,
@@ -192,6 +194,7 @@ def db_engine():
                 PersonalInputItem.__table__,
                 BookEpisode.__table__,
                 UserBook.__table__,
+                LearnerArtefact.__table__,
                 RealWorldMissionTurn.__table__,
                 RealWorldMissionAttempt.__table__,
                 RealWorldMission.__table__,

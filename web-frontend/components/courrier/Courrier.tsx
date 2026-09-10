@@ -14,7 +14,7 @@
    Every component still maps onto a real API field. All rules here are written
    `.av2 .cr-…` so they outrank the legacy element resets. */
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import Link from 'next/link';
 
 import {
@@ -419,6 +419,360 @@ export function CrGhost({
 }
 
 /* ============================================================
+   WP-34 — «Apportez votre français»
+   The learner hands the app something real: the menu of the café downstairs,
+   the letter from the gérant about the chauffage. It is read once, summarised
+   at their band, glossed in their own language, and turned into ONE Courrier
+   task answered through the ordinary composer above.
+
+   No artboard covers this, so it is extended from the same primitives as the
+   rest of the file: rounded card surfaces, the four Bauhaus tokens, sentence
+   case, two fonts, French. Three rules it keeps:
+
+     · one primary press per screen — «Faire lire» while composing, «Répondre»
+       once the document has been read, and never both;
+     · «Non lu» is a real state with a retry, not an empty card. A document the
+       model could not read is never shown as a document it did;
+     · the document is the learner's: the delete control sits on the card, says
+       what it takes with it, and is a quiet action, not a hidden gesture.
+   ============================================================ */
+
+export type CrGlossedWord = {
+  word: string;
+  lemma?: string;
+  gloss?: string;
+  gloss_language?: string | null;
+  gloss_source?: 'vocabulary' | 'model' | 'none' | string;
+  example_fr?: string;
+};
+
+export type CrArtefactPayload = {
+  type?: string;
+  type_label_fr?: string;
+  title_fr?: string;
+  summary_fr?: string;
+  summary_bounded?: boolean;
+  key_facts?: { label_fr: string; value_fr: string }[];
+  glossed_words?: CrGlossedWord[];
+  band?: string;
+};
+
+export type CrArtefactTask = {
+  kind?: string;
+  kind_label_fr?: string;
+  instruction_fr?: string;
+  counterpart_fr?: string;
+  register?: string;
+  success_fr?: string;
+};
+
+export type CrArtefactView = {
+  id: string;
+  status: 'read' | 'unread' | string;
+  source_kind?: string;
+  source_text?: string;
+  artefact?: CrArtefactPayload;
+  task?: CrArtefactTask;
+  mission_id?: string | null;
+  queued_word_count?: number;
+};
+
+export type CrIntakeCap = {
+  limit: number;
+  used: number;
+  remaining: number;
+  enabled: boolean;
+};
+
+/** The French for the allowance, said plainly. Never a bare number. */
+export function crIntakeCapLine(cap?: CrIntakeCap | null): string {
+  if (!cap || !cap.enabled || cap.limit <= 0) {
+    return 'La lecture de vos documents est désactivée pour l’instant.';
+  }
+  if (cap.remaining <= 0) {
+    return 'Vous avez fait lire tous vos documents de la semaine.';
+  }
+  if (cap.remaining === 1) return 'Il vous reste un document cette semaine.';
+  return `Il vous reste ${cap.remaining} documents cette semaine.`;
+}
+
+/* ---------- the entry: paste or photograph ----------
+   `onRead` is handed the paste, or the file, never both: the two controls fill
+   one field between them, so the learner cannot half-send two documents. */
+export function CrIntakeEntry({
+  cap,
+  onRead,
+  reading = false,
+  error,
+  onDismissError,
+}: {
+  cap?: CrIntakeCap | null;
+  onRead: (input: { text?: string; file?: File }) => void;
+  reading?: boolean;
+  error?: string | null;
+  onDismissError?: () => void;
+}) {
+  const [text, setText] = useState('');
+  const [file, setFile] = useState<File | null>(null);
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const blocked = !cap?.enabled || (cap?.limit ?? 0) <= 0 || (cap?.remaining ?? 0) <= 0;
+  const ready = !blocked && !reading && (file !== null || text.trim().length >= 20);
+
+  const submit = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!ready) return;
+    if (file) onRead({ file });
+    else onRead({ text: text.trim() });
+  };
+
+  const pickFile = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const picked = event.target.files?.[0] ?? null;
+    setFile(picked);
+    if (picked) setText('');
+  };
+
+  return (
+    <form className="cr-intake" onSubmit={submit} aria-label="Apportez votre français">
+      <p className="cr-intake-k">Apportez votre français</p>
+      <p className="cr-intake-lead" lang="fr">
+        Collez un document — une lettre, un courriel, un menu — ou photographiez-le.
+        Il est lu une fois, résumé à votre niveau, et devient une tâche du Courrier.
+      </p>
+
+      <label className="av2-sr" htmlFor="cr-intake-text">
+        Collez le texte de votre document
+      </label>
+      <textarea
+        id="cr-intake-text"
+        className="cr-intake-well"
+        lang="fr"
+        rows={5}
+        value={text}
+        placeholder="Collez votre document ici…"
+        disabled={reading || blocked || file !== null}
+        onChange={(event) => setText(event.target.value)}
+      />
+
+      <div className="cr-intake-row">
+        <input
+          ref={fileRef}
+          className="av2-sr"
+          id="cr-intake-photo"
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+          disabled={reading || blocked}
+          onChange={pickFile}
+        />
+        <Action
+          tone="quiet"
+          inline
+          disabled={reading || blocked}
+          onClick={() => fileRef.current?.click()}
+        >
+          {file ? 'Changer la photo' : 'Photographier'}
+        </Action>
+        {file && (
+          <span className="cr-intake-file">
+            <ShapeToken kind="done" size="sm" />
+            <span>{file.name}</span>
+            <button
+              type="button"
+              className="cr-intake-drop"
+              onClick={() => {
+                setFile(null);
+                if (fileRef.current) fileRef.current.value = '';
+              }}
+            >
+              Retirer
+            </button>
+          </span>
+        )}
+      </div>
+
+      <p className="cr-intake-cap">{crIntakeCapLine(cap)}</p>
+
+      {error && (
+        <p className="cr-intake-error" role="alert" lang="fr">
+          {error}
+          {onDismissError && (
+            <button type="button" className="cr-intake-drop" onClick={onDismissError}>
+              Fermer
+            </button>
+          )}
+        </p>
+      )}
+
+      {/* The one 3D press on this screen. */}
+      <Action
+        tone="primary"
+        type="submit"
+        disabled={!ready}
+        pending={reading}
+        pendingLabel="Lecture…"
+        iconAfter={<ArrowRightIcon size={18} />}
+      >
+        Faire lire
+      </Action>
+    </form>
+  );
+}
+
+/* ---------- the artefact card ----------
+   type · title · summary · the facts that matter · the words, glossed. */
+export function CrArtefactCard({
+  artefact,
+  onDelete,
+  deleting = false,
+}: {
+  artefact: CrArtefactView;
+  onDelete?: () => void;
+  deleting?: boolean;
+}) {
+  const payload = artefact.artefact ?? {};
+  const facts = payload.key_facts ?? [];
+  const words = payload.glossed_words ?? [];
+  return (
+    <section className="cr-art" aria-label="Votre document">
+      <p className="cr-art-head">
+        <Chip icon={<ShapeToken kind="story" size="sm" />}>
+          <span lang="fr">{payload.type_label_fr || 'Un document'}</span>
+        </Chip>
+        {artefact.source_kind === 'image' && <span className="cr-art-src">photographié</span>}
+      </p>
+      <h2 className="cr-art-title" lang="fr">{payload.title_fr || 'Votre document'}</h2>
+      {payload.summary_fr && (
+        <p className="cr-art-sum" lang="fr">
+          {payload.summary_fr}
+          {payload.summary_bounded && <span className="cr-art-cut"> (résumé abrégé)</span>}
+        </p>
+      )}
+
+      {facts.length > 0 && (
+        <dl className="cr-art-facts">
+          {facts.map((fact) => (
+            <div key={`${fact.label_fr}-${fact.value_fr}`}>
+              <dt>{fact.label_fr}</dt>
+              <dd lang="fr">{fact.value_fr}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+
+      {words.length > 0 && (
+        <div className="cr-art-words">
+          <p className="cr-art-k">Les mots que vous ne connaissiez pas</p>
+          <ul>
+            {words.map((word) => (
+              <li key={word.word}>
+                <b lang="fr">{word.word}</b>
+                {word.gloss ? (
+                  <span lang={word.gloss_language || undefined}>{word.gloss}</span>
+                ) : (
+                  <span className="cr-art-nogloss">traduction indisponible</span>
+                )}
+                {word.gloss_source === 'model' && (
+                  <span className="cr-art-nogloss"> · hors lexique</span>
+                )}
+              </li>
+            ))}
+          </ul>
+          <p className="cr-art-queued">
+            <ShapeToken kind="reward" size="sm" />
+            <span>
+              {words.length === 1
+                ? 'Ce mot rejoint votre lexique.'
+                : `Ces ${words.length} mots rejoignent votre lexique.`}
+            </span>
+          </p>
+        </div>
+      )}
+
+      {onDelete && (
+        <Action tone="quiet" inline onClick={onDelete} pending={deleting} pendingLabel="Suppression…">
+          Supprimer ce document et sa tâche
+        </Action>
+      )}
+    </section>
+  );
+}
+
+/* ---------- the derived task ----------
+   One line saying what to do, and who to. The answer itself is written in the
+   ordinary Courrier composer, graded by the ordinary Courrier corrector. */
+export function CrArtefactTaskCard({
+  task,
+  onStart,
+  starting = false,
+}: {
+  task?: CrArtefactTask | null;
+  onStart?: () => void;
+  starting?: boolean;
+}) {
+  if (!task || !task.instruction_fr) return null;
+  return (
+    <section className="cr-art-task" aria-label="Votre tâche">
+      <p className="cr-art-k">
+        {task.kind_label_fr || 'Répondre'}
+        {task.counterpart_fr ? ` · ${task.counterpart_fr}` : ''}
+      </p>
+      <p className="cr-art-ask" lang="fr">{task.instruction_fr}</p>
+      {task.success_fr && <p className="cr-art-win" lang="fr">{task.success_fr}</p>}
+      {onStart && (
+        <Action
+          tone="primary"
+          onClick={onStart}
+          pending={starting}
+          pendingLabel="Ouverture…"
+          iconAfter={<ArrowRightIcon size={18} />}
+        >
+          Répondre
+        </Action>
+      )}
+    </section>
+  );
+}
+
+/* ---------- «Non lu» ----------
+   The honest state. No summary, no facts, no task — and a retry that says what
+   went wrong in one French sentence. */
+export function CrArtefactUnread({
+  sourceKind = 'text',
+  onRetry,
+  retrying = false,
+  onDelete,
+}: {
+  sourceKind?: string;
+  onRetry?: () => void;
+  retrying?: boolean;
+  onDelete?: () => void;
+}) {
+  return (
+    <section className="cr-art cr-art--unread" aria-label="Document non lu" role="status">
+      <p className="cr-art-head">
+        <Chip icon={<ShapeToken kind="action" size="sm" />}>Non lu</Chip>
+      </p>
+      <p className="cr-art-sum" lang="fr">
+        {sourceKind === 'image'
+          ? 'Ce document n’a pas pu être lu. Reprenez la photo de plus près, bien à plat, puis réessayez.'
+          : 'Ce document n’a pas pu être lu. Réessayez dans un instant.'}
+      </p>
+      <div className="cr-art-row">
+        {onRetry && (
+          <Action tone="primary" onClick={onRetry} pending={retrying} pendingLabel="Lecture…">
+            Réessayer
+          </Action>
+        )}
+        {onDelete && (
+          <Action tone="quiet" inline onClick={onDelete}>
+            Supprimer
+          </Action>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/* ============================================================
    Styles — written `.av2 .cr-…` (0,2,0) on purpose: legacy page resets such
    as `.x-page button { background: transparent }` are (0,1,1). Only --av2-*
    tokens; sizes in rem; two faces (AtelierSerif / AtelierSans) behind the
@@ -611,6 +965,57 @@ export function CourrierStyles() {
       }
       .av2 .cr-archive-row b { flex: 1 1 auto; font-size: var(--av2-t-body); font-weight: 600; line-height: 1.3; }
       .av2 .cr-archive-row span { display: flex; align-items: center; gap: 6px; font-size: var(--av2-t-meta); color: var(--av2-muted); white-space: nowrap; }
+
+
+      /* ---- WP-34 «Apportez votre français» — extended from the same
+         primitives: card surfaces, --av2 tokens only, so dark comes free. ---- */
+      .av2 .cr-intake { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border-radius: var(--av2-r-tile); background: var(--av2-card); }
+      .av2 .cr-intake-k { margin: 0; font-family: var(--av2-serif); font-style: italic; font-weight: 400; font-size: 1.375rem; line-height: 1.1; color: var(--av2-ink); }
+      .av2 .cr-intake-lead { margin: 0; font-size: var(--av2-t-label); line-height: 1.45; color: var(--av2-ink-2); }
+      .av2 .cr-intake-well {
+        width: 100%; min-height: 108px; resize: vertical; box-sizing: border-box;
+        padding: 12px 14px; border: 0; border-radius: var(--av2-r-tile);
+        background: var(--av2-paper); color: var(--av2-ink);
+        font: inherit; font-size: var(--av2-t-body); line-height: 1.45;
+      }
+      .av2 .cr-intake-well::placeholder { color: var(--av2-muted); }
+      .av2 .cr-intake-well:disabled { color: var(--av2-muted); }
+      .av2 .cr-intake-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+      .av2 .cr-intake-file { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: var(--av2-t-meta); color: var(--av2-ink-2); }
+      .av2 .cr-intake-file > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .av2 .cr-intake-drop {
+        min-height: var(--av2-tap); padding: 0 4px; border: 0; background: transparent; cursor: pointer;
+        font-size: var(--av2-t-meta); font-weight: 700; color: var(--av2-muted);
+        text-decoration: underline; text-underline-offset: 3px;
+      }
+      .av2 .cr-intake-cap { margin: 0; font-size: var(--av2-t-meta); color: var(--av2-muted); }
+      .av2 .cr-intake-error { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: var(--av2-t-label); line-height: 1.4; color: var(--av2-red); }
+
+      /* the artefact card */
+      .av2 .cr-art { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border-radius: var(--av2-r-tile); background: var(--av2-card); }
+      .av2 .cr-art-head { margin: 0; display: flex; align-items: center; gap: 8px; }
+      .av2 .cr-art-src { font-size: var(--av2-t-meta); color: var(--av2-muted); }
+      .av2 .cr-art-title { margin: 0; font-family: var(--av2-serif); font-style: italic; font-weight: 400; font-size: 1.375rem; line-height: 1.15; color: var(--av2-ink); overflow-wrap: anywhere; }
+      .av2 .cr-art-sum { margin: 0; font-size: var(--av2-t-body); line-height: 1.5; color: var(--av2-ink); }
+      .av2 .cr-art-cut { color: var(--av2-muted); font-size: var(--av2-t-meta); }
+      .av2 .cr-art-facts { margin: 0; display: flex; flex-direction: column; gap: 2px; }
+      .av2 .cr-art-facts > div { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; min-height: 34px; font-size: var(--av2-t-label); }
+      .av2 .cr-art-facts dt { color: var(--av2-muted); }
+      .av2 .cr-art-facts dd { margin: 0; font-weight: 700; color: var(--av2-ink); text-align: right; }
+      .av2 .cr-art-k { margin: 0; font-size: var(--av2-t-meta); font-weight: 700; color: var(--av2-muted); }
+      .av2 .cr-art-words { display: flex; flex-direction: column; gap: 6px; }
+      .av2 .cr-art-words ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+      .av2 .cr-art-words li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; font-size: var(--av2-t-label); line-height: 1.4; color: var(--av2-ink-2); }
+      .av2 .cr-art-words li b { font-weight: 700; color: var(--av2-ink); }
+      .av2 .cr-art-nogloss { color: var(--av2-muted); font-size: var(--av2-t-meta); }
+      .av2 .cr-art-queued { margin: 0; display: flex; align-items: center; gap: 8px; font-size: var(--av2-t-meta); color: var(--av2-muted); }
+
+      /* the derived task */
+      .av2 .cr-art-task { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; border-radius: var(--av2-r-tile); background: var(--av2-card); }
+      .av2 .cr-art-ask { margin: 0; font-size: var(--av2-t-body); line-height: 1.45; color: var(--av2-ink); }
+      .av2 .cr-art-win { margin: 0; font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-label); line-height: 1.4; color: var(--av2-blue); }
+      .av2 .cr-art-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+      .av2 .cr-art--unread .cr-art-sum { color: var(--av2-ink-2); }
 
       /* loading */
       .av2 .cr-skel { display: flex; flex-direction: column; gap: 12px; padding-top: 14px; }

@@ -32,6 +32,7 @@ from app.db.models.graphic_novel import (
     GraphicNovelScene,
     PersonalInputItem,
 )
+from app.db.models.intake import LearnerArtefact
 from app.db.models.journal import JournalEntry
 from app.db.models.library import BookEpisode, UserBook
 from app.db.models.mission import RealWorldMission, RealWorldMissionAttempt, RealWorldMissionTurn
@@ -79,6 +80,7 @@ __all__ = [
     "RealWorldMissionTurn",
     "BookEpisode",
     "EpisodeAudioClip",
+    "LearnerArtefact",
     "JournalEntry",
     "UserBook",
     "SerialEpisode",
