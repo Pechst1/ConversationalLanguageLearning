@@ -1369,3 +1369,43 @@ Walked on an iPhone 16 against the fake-provider backend.
   every learner A1.
 * The free-text **custom topic** input is gone with the redesign; the ten presets
   remain. A real capability lost, restorable on request.
+
+## 2026-09-10 — the /learn cluster disposed of
+
+The last off-system learner-facing surface, deleted rather than reskinned, on the
+same terms as WP-20's eleven: **every API kept, only the screens went.**
+
+Deleted: `pages/learn/index.tsx`, `pages/learn/new.tsx`,
+`pages/learn/session/[id].tsx`, plus two things that existed only for them —
+`components/stories/ImportStoryModal.tsx` (mounted by `/learn/new` alone) and
+`lib/learning-entry.ts` (resolved a learner to a `/learn` destination).
+
+`pages/learn/index.tsx` was **already unreachable**: WP-20 added
+`/learn → /atelier` to `next.config.js`, and a redirect outranks a page, so the
+route and the entry-resolver behind it had been dead code since then.
+
+Two live consumers pointed into the cluster, and each was handled rather than
+left dangling:
+
+* **The Lexique's word traces** (`pages/vocabulary.tsx`) linked a word to the
+  conversation session where it was met. The link is gone; the trace — source,
+  label, description, date — stays. Where a word was met is still true and still
+  worth showing; only the promise of a screen that no longer exists is gone.
+* **`ImportStoryModal`** turned out not to be a Bibliothèque feature at all: only
+  `/learn/new` mounted it, so it left with the cluster. Checked rather than
+  assumed — the earlier reading of it as a live Bibliothèque flow was wrong.
+
+Also dropped: the `/learn` entries in `lib/product-shell.ts` (tab registry,
+`OWN_SHELL_ROUTES`, and the `resolveProductTitle` clause that named the session
+"Session") and the `/learn` branch in `components/layout/Layout.tsx`.
+`next.config.js` gains `/learn/:path*` beside the existing `/learn`, so the deep
+session links that lived in word traces and old bookmarks land on the Atelier
+instead of a 404.
+
+`test_the_off_system_legacy_pages_are_gone` now covers all five files, and
+`test_no_frontend_surface_links_to_a_deleted_page` covers `/learn`, so a link
+back to any of it fails the suite. The note in
+`test_reachable_surfaces_carry_no_neo_brutalist_styling` that used to except the
+cluster is gone: **nothing off-system remains to except.**
+
+Route table: 34 → 31.

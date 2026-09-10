@@ -144,8 +144,8 @@ def test_reachable_surfaces_carry_no_neo_brutalist_styling():
     ``test_the_off_system_legacy_pages_are_gone``; the list grew instead by every
     page WP-20 either migrated (Studio, the serial replay) or confirmed already
     migrated, so the rule now covers more of the product than it did before, not
-    less. The remaining /learn cluster is documented in
-    docs/design-audit-2026-07-30.md rather than reskinned.
+    less. The /learn cluster that this note used to except was deleted on
+    2026-09-10 rather than reskinned, so nothing off-system remains to except.
     """
     import re
 
@@ -171,11 +171,16 @@ def test_reachable_surfaces_carry_no_neo_brutalist_styling():
 
 
 def test_the_off_system_legacy_pages_are_gone():
-    """WP-20 disposition: eight off-system pages were deleted, not reskinned.
+    """WP-20 disposition, plus the /learn cluster disposed of on 2026-09-10.
 
     They are asserted absent rather than asserted clean, because "no page here"
     is the only version of this promise that cannot rot. The APIs they used are
     deliberately untouched; only the screens went.
+
+    The /learn cluster was the legacy conversation surface — setup, session
+    viewer, and the story-import modal only that setup mounted. The Studio and
+    the daily journey own conversation now, so it was the last thing left that
+    both duplicated a live feature and spoke the pre-av2 language.
     """
     for relative in (
         "pages/practice.tsx",
@@ -190,6 +195,13 @@ def test_the_off_system_legacy_pages_are_gone():
         "pages/story/[id].tsx",
         "components/AnkiSync.tsx",
         "components/ui/CollapsibleSection.tsx",
+        "pages/learn/index.tsx",
+        "pages/learn/new.tsx",
+        "pages/learn/session/[id].tsx",
+        # Mounted by /learn/new alone, so it left with it.
+        "components/stories/ImportStoryModal.tsx",
+        # Resolved a learner to a /learn destination; nothing to resolve now.
+        "lib/learning-entry.ts",
     ):
         assert not (FRONTEND / relative).exists(), f"{relative} came back"
 
@@ -203,7 +215,7 @@ def test_no_frontend_surface_links_to_a_deleted_page():
     import re
 
     dead = ("/practice", "/daily-practice", "/sessions", "/dashboard",
-            "/achievements", "/almanac", "/progress")
+            "/achievements", "/almanac", "/progress", "/learn")
     offenders = []
     for folder in ("pages", "components", "lib", "hooks"):
         for path in (FRONTEND / folder).rglob("*.ts*"):

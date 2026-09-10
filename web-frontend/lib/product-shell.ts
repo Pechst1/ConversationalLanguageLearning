@@ -26,9 +26,6 @@ export const PHONE_PRODUCT_TABS: ProductTab[] = [
     icon: 'mark',
     activeRoutes: [
       '/atelier',
-      '/learn',
-      '/learn/new',
-      '/learn/session/[id]',
       '/audio-session',
       ...(STORY_FEATURE_VISIBLE ? STORY_ROUTES : []),
       '/vocabulary/review',
@@ -83,9 +80,6 @@ const OWN_SHELL_ROUTES = new Set([
   '/vocabulary',
   '/vocabulary/review',
   '/vocabulary/conjugation',
-  '/learn',
-  '/learn/new',
-  '/learn/session/[id]',
   '/audio-session',
   ...(STORY_FEATURE_VISIBLE ? STORY_ROUTES : []),
 ]);
@@ -99,9 +93,6 @@ export function resolveProductSection(pathname: string): ProductSection | undefi
 }
 
 export function resolveProductTitle(section: ProductSection | undefined, pathname: string) {
-  if (pathname === '/learn/session/[id]') {
-    return 'Session';
-  }
   if (STORY_FEATURE_VISIBLE && STORY_ROUTES.includes(pathname)) {
     return 'Bibliothèque';
   }

@@ -621,7 +621,9 @@ async function fetchVocabularyUsageSupport(wordId: number) {
         label: session.topic || 'Conversation',
         description: messageReferenceDescription(match, wordId),
         date: match.created_at || session.started_at,
-        href: `/learn/session/${session.id}`,
+        // No href: the conversation-session viewer went with the /learn cluster.
+        // Where the word was met is still true and still worth showing; only the
+        // link to a page that no longer exists is gone.
       });
       const target = (match.target_details || []).find((item) => item.word_id === wordId);
       if (target?.hint_sentence) {

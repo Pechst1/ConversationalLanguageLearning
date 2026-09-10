@@ -131,7 +131,6 @@ function getMastheadSection(pathname: string) {
   if (productSection === 'missions') return 'missions';
   if (productSection === 'feuilleton') return 'feuilleton';
   if (productSection === 'settings') return 'settings';
-  if (pathname.startsWith('/learn')) return 'conversation';
   if (pathname === '/atelier') return 'studio';
   if (pathname === '/grammar' || pathname === '/vocabulary') return 'notebook';
   if (pathname === '/missions') return 'missions';
