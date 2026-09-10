@@ -85,6 +85,20 @@ services:
         value: "false"
       - key: ATELIER_LLM_ENABLED
         value: "true"
+      # The V2 daily journey. The code default is now true, but the pilot's state
+      # belongs in the manifest where an operator can read it without opening
+      # app/config.py. Who actually gets it is the cohort below.
+      - key: ATELIER_DAILY_JOURNEY_ENABLED
+        value: "true"
+      # Comma-separated emails or user ids. `sync: false` so the list is entered
+      # in the dashboard and no learner's address is ever committed here.
+      #
+      # ROLLOUT §3: the owner's account ALONE for the first clean day, then the
+      # study accounts appended to the same list. Never blank this while the
+      # switch above is on — with APP_ENV=staging an empty cohort means every
+      # account on the service, which is the opposite of shrinking the pilot.
+      - key: ATELIER_DAILY_JOURNEY_COHORT
+        sync: false
       - key: PILOT_SERIAL_WEEKLY_COST_GUARDRAIL_USD
         value: "2.00"
       - key: APNS_TEAM_ID
@@ -169,6 +183,20 @@ services:
         value: "false"
       - key: ATELIER_LLM_ENABLED
         value: "true"
+      # The V2 daily journey. The code default is now true, but the pilot's state
+      # belongs in the manifest where an operator can read it without opening
+      # app/config.py. Who actually gets it is the cohort below.
+      - key: ATELIER_DAILY_JOURNEY_ENABLED
+        value: "true"
+      # Comma-separated emails or user ids. `sync: false` so the list is entered
+      # in the dashboard and no learner's address is ever committed here.
+      #
+      # ROLLOUT §3: the owner's account ALONE for the first clean day, then the
+      # study accounts appended to the same list. Never blank this while the
+      # switch above is on — with APP_ENV=staging an empty cohort means every
+      # account on the service, which is the opposite of shrinking the pilot.
+      - key: ATELIER_DAILY_JOURNEY_COHORT
+        sync: false
       - key: APNS_TEAM_ID
         fromService:
           type: web
