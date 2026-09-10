@@ -215,6 +215,19 @@ export function planFailure(
 export const WAIT_HINT_DELAY_MS = 400;
 
 /**
+ * The same delay when the server has *said* the draft is warm
+ * (`TodayEnvelope.is_warm`, WP-26 open item 3, wired by WP-28).
+ *
+ * Warmth used to be inferred from the answer arriving fast, which is only ever
+ * knowable after the fact. Now the envelope says so up front, and the wait copy
+ * is held back long enough that a served prefetch never flashes one — but it is
+ * never suppressed: a warm scene whose preconditions changed is discarded
+ * server-side and generated like any other, and that learner still gets told
+ * what is happening.
+ */
+export const WARM_WAIT_HINT_DELAY_MS = 2_000;
+
+/**
  * The hard end of any single mutation.
  *
  * The server's own generation budget is 75 s and its provider window 35 s, so a

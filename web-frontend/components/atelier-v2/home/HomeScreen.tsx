@@ -76,7 +76,7 @@ export type HomeBecause = {
   /** Only `erratum` today; an unknown kind prints nothing rather than guessing. */
   kind: string;
   /** Machine-readable reason, e.g. `erratum:2f9c…`. Telemetry, never printed. */
-  reason?: string;
+  reason?: string | null;
   /** The mistake's own label, e.g. « l’accord du participe passé ». */
   label: string;
   /** « une homme → un homme », when both halves were recorded. */

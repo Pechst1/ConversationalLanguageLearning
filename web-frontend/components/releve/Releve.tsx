@@ -188,6 +188,20 @@ export default function Releve() {
 
   /* ---- Le Cours (GET /progress/cefr) ---- */
   const declared = cefr?.estimate_source === 'declared';
+  /* WP-25. A placement is a measured prior, not a verdict: the learner's own
+     in-app counters are still zero, so the gauges and the forecast stay away
+     exactly as they do for a declared level — but the line must not say the
+     learner told us, because they did not. */
+  const placement = cefr?.estimate_source === 'placement';
+  const unverified = declared || placement;
+  const placementDate = useMemo(() => {
+    const taken = cefr?.placement?.taken_at;
+    if (!taken) return null;
+    const at = new Date(String(taken));
+    return Number.isNaN(at.getTime())
+      ? null
+      : at.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
+  }, [cefr]);
   const forecastAvailable = cefr?.forecast?.status === 'available';
   const forecastDays = useMemo(() => {
     const range = cefr?.forecast?.range_days;
@@ -283,12 +297,14 @@ export default function Releve() {
         ) : (
           <Surface>
             <p className="av2-headline av2-headline--display">
-              {declared || !forecastAvailable || !nextLevel
+              {unverified || !forecastAvailable || !nextLevel
                 ? cefr.estimate
                 : `${cefr.estimate} → ${nextLevel}`}
             </p>
             <p className="av2-body nb-rv__status">
-              {declared
+              {placement
+                ? `Niveau estimé (placement)${placementDate ? `, ${placementDate}` : ''}. L’Atelier le vérifie au fil des séances.`
+                : declared
                 ? 'Niveau que vous avez indiqué. L’Atelier le vérifie au fil des séances.'
                 : forecastAvailable && forecastDays
                 ? `Environ ${forecastDays} jours à ce rythme.`
@@ -296,7 +312,7 @@ export default function Releve() {
             </p>
             {/* Gauges count what the Atelier has verified. Against a level it has
                 not tested they would read as "vous savez 0 mot", so they wait. */}
-            {!declared && (coursWords[1] > 0 || coursRules[1] > 0) && (
+            {!unverified && (coursWords[1] > 0 || coursRules[1] > 0) && (
               <div className="nb-rv__tracks">
                 {coursWords[1] > 0 && (
                   <div className="nb-rv__track">

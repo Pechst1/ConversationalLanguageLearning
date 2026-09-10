@@ -194,6 +194,31 @@ export type TodayEnvelope = {
    * one. Never the day's primary action.
    */
   practice_href: string;
+  /**
+   * WP-24 / WP-28: why today's scene is this scene, when the plan actually kept
+   * a target that exists because of a mistake the learner made. `null` means
+   * today owes nothing to an erratum and no line is printed. Structured, never
+   * a rendered sentence — the French lives in `HomeScreen`.
+   */
+  because: JourneyBecause | null;
+  /**
+   * WP-26 / WP-28: a prefetched scene is waiting, so today's draft will be
+   * warm. Told by the server rather than inferred from how fast the answer
+   * came back. A warm scene whose preconditions changed is still discarded and
+   * generated as usual, so this delays the wait copy — it never suppresses it.
+   */
+  is_warm: boolean;
+};
+
+/** The because-line payload. `kind` is the only field a renderer may branch on. */
+export type JourneyBecause = {
+  /** `'erratum'` today. An unknown kind must print nothing rather than guess. */
+  kind: string;
+  /** Machine-readable, e.g. `erratum:2f9c…`. Telemetry, never printed. */
+  reason?: string | null;
+  label: string;
+  /** `« une homme → un homme »`, when both halves were recorded. */
+  example?: string | null;
 };
 
 export type JourneyCorrection = {

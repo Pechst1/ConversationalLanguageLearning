@@ -41,6 +41,7 @@ const {
   MUTATION_DEADLINE_MS,
   TIMEOUT_MESSAGE,
   WAIT_HINT_DELAY_MS,
+  WARM_WAIT_HINT_DELAY_MS,
   isJourneyTimeout,
   planFailure,
   runWithWaitHint,
@@ -229,6 +230,41 @@ async function main() {
     assert.ok(MUTATION_DEADLINE_MS >= 45_000);
     assert.ok(MUTATION_DEADLINE_MS <= 90_000);
     assert.ok(WAIT_HINT_DELAY_MS > 0 && WAIT_HINT_DELAY_MS <= 1000);
+  });
+
+  // -------------------------------------------------------------------------
+  // 8. WP-28 — warmth is told, not timed
+  // -------------------------------------------------------------------------
+
+  await test('a draft the server called warm holds the hint back, and still shows it', async () => {
+    // `TodayEnvelope.is_warm` says a prefetched scene is waiting, so the copy
+    // is delayed past the tens of milliseconds a served prefetch takes. It is
+    // delayed, not removed: a warm scene whose preconditions changed is
+    // discarded server-side and generated like any other, and that learner is
+    // still told what is happening rather than left at a silent button.
+    assert.ok(WARM_WAIT_HINT_DELAY_MS > WAIT_HINT_DELAY_MS);
+    assert.ok(WARM_WAIT_HINT_DELAY_MS < MUTATION_DEADLINE_MS);
+
+    const clock = fakeClock();
+    const seen = [];
+    let release;
+    const pending = runWithWaitHint(
+      () => new Promise((resolve) => { release = resolve; }),
+      {
+        onWait: (waiting) => seen.push(waiting),
+        delayMs: WARM_WAIT_HINT_DELAY_MS,
+        setTimer: clock.setTimer,
+        clearTimer: clock.clearTimer,
+      },
+    );
+    await clock.advance(WAIT_HINT_DELAY_MS);
+    assert.deepEqual(seen, [], 'the cold delay must not fire on a warm draft');
+    await clock.advance(WARM_WAIT_HINT_DELAY_MS - WAIT_HINT_DELAY_MS);
+    assert.deepEqual(seen, [true], 'a warm draft that went cold still says so');
+    release('late');
+    assert.equal(await pending, 'late');
+    assert.deepEqual(seen, [true, false]);
+    assert.equal(clock.pending(), 0);
   });
 
   if (failures.length) {

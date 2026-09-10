@@ -33,7 +33,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import apiService from '@/services/api';
 import dailyJourneyService, {
   isJourneyDisabled,
   journeyErrorDetail,
@@ -52,7 +51,6 @@ import type {
   RespondPrompt,
   TodayEnvelope,
 } from '@/types/daily-journey';
-import { createAudioMediaRecorder, recordedAudioBlob } from '@/lib/audio-recording';
 import useJourneyRecovery, {
   type JourneyRecoveryController,
 } from '@/lib/useJourneyRecovery';
@@ -81,21 +79,13 @@ import {
   planFailure,
   runMutation,
   runWithWaitHint,
+  WAIT_HINT_DELAY_MS,
+  WARM_WAIT_HINT_DELAY_MS,
   type MutationOutcome,
 } from './journey-requests';
 
 /** Bounded auto-poll of a `preparing` journey before a manual "check again". */
 const PREPARING_POLL_LIMIT = 8;
-/** Under this many bytes nothing was actually captured by the microphone. */
-const EMPTY_RECORDING_BYTES = 1200;
-
-export type VoiceState =
-  | { kind: 'idle' }
-  | { kind: 'unsupported' }
-  | { kind: 'recording' }
-  | { kind: 'transcribing' }
-  | { kind: 'failed'; message: string };
-
 export type DailyJourneyActions = {
   /** Re-read `/today`. Safe, never creates or pays for generation. */
   refresh: () => Promise<void>;
@@ -116,10 +106,6 @@ export type DailyJourneyActions = {
   finish: (kind: 'complete' | 'early') => Promise<void>;
   /** Dismiss a feedback card without moving on. */
   clearFeedback: () => void;
-  /** Start/stop microphone capture for the current respond step. */
-  startRecording: () => Promise<void>;
-  stopRecording: () => void;
-  resetVoice: () => void;
 };
 
 export type DailyJourneyController = {
@@ -136,13 +122,22 @@ export type DailyJourneyController = {
   busy: boolean;
   /**
    * The mutation has been in flight long enough to be worth a spinner and the
-   * honest wait copy. `busy && !waiting` is the warm, prefetched path: the
-   * button is briefly disabled and nothing else changes.
+   * honest wait copy.
    */
   waiting: boolean;
+  /**
+   * WP-26 / WP-28: the server says a prefetched scene is waiting for this
+   * learner, so today's draft should answer in tens of milliseconds. Read off
+   * `TodayEnvelope.is_warm` — the client no longer infers warmth from how fast
+   * the answer came back.
+   *
+   * It is a promise about the cache, not about the wire: a warm scene whose
+   * preconditions changed is discarded server-side and generated as usual, so
+   * the wait copy is delayed here, never suppressed.
+   */
+  warm: boolean;
   /** The most recent revealed help for the current step, or `null`. */
   help: HelpResult | null;
-  voice: VoiceState;
   /**
    * Interruption recovery (WP-10): the honest connection state, the learner's
    * persisted drafts, and the reading position. Presentation reads it; it never
@@ -220,7 +215,6 @@ export function useDailyJourney(
   const [phase, setPhase] = useState<JourneyPhase>({ kind: 'loading' });
   const [feedback, setFeedback] = useState<JourneyFeedback>({ kind: 'idle' });
   const [help, setHelp] = useState<HelpResult | null>(null);
-  const [voice, setVoice] = useState<VoiceState>({ kind: 'idle' });
   const [busy, setBusy] = useState(false);
   /**
    * WP-26: is a request slow enough that the learner deserves the honest wait
@@ -229,6 +223,8 @@ export function useDailyJourney(
    * all; a cold one still says what it is doing within half a second.
    */
   const [waiting, setWaiting] = useState(false);
+  /** The server's own answer to "is today's draft already generated?" */
+  const warm = envelope?.is_warm === true;
 
   // WP-10, called here rather than from `pages/atelier.tsx`: the page keeps no
   // journey knowledge and the dependency graph stays acyclic.
@@ -284,10 +280,6 @@ export function useDailyJourney(
   const journeyRef = useRef<JourneySnapshot | null>(null);
   const preparingPollsRef = useRef(0);
   const finishedNotifiedRef = useRef<string | null>(null);
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const submitRef = useRef<(input: AttemptInput) => Promise<void>>(async () => {});
   /**
    * The recovery controller is a fresh object every render. Holding the latest
    * one in a ref keeps `unwrap` — and therefore every action built on it —
@@ -302,12 +294,6 @@ export function useDailyJourney(
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
-      try {
-        recorderRef.current?.stop();
-      } catch {
-        // A recorder that was already stopped is not an error worth surfacing.
-      }
-      streamRef.current?.getTracks().forEach((track) => track.stop());
     };
   }, []);
 
@@ -526,7 +512,10 @@ export function useDailyJourney(
                 preferredInputMode,
               }),
             ),
-          { onWait: (value) => { if (mountedRef.current) setWaiting(value); } },
+          {
+            onWait: (value) => { if (mountedRef.current) setWaiting(value); },
+            delayMs: warm ? WARM_WAIT_HINT_DELAY_MS : WAIT_HINT_DELAY_MS,
+          },
         ).catch((error) => ({ ok: false as const, detail: null, error }));
         if (result.ok) {
           applySnapshot(result.value.data);
@@ -543,7 +532,7 @@ export function useDailyJourney(
         }
       }
     });
-  }, [applySnapshot, handleFailure, loadToday, once, preferredInputMode, unwrap]);
+  }, [applySnapshot, handleFailure, loadToday, once, preferredInputMode, unwrap, warm]);
 
   const retryGeneration = useCallback(async () => {
     const target = journey;
@@ -557,7 +546,10 @@ export function useDailyJourney(
             unwrap(intent, { kind: 'retry' }, (id) =>
               dailyJourneyService.retry(target.id, { mutationId: id }),
             ),
-          { onWait: (value) => { if (mountedRef.current) setWaiting(value); } },
+          {
+            onWait: (value) => { if (mountedRef.current) setWaiting(value); },
+            delayMs: warm ? WARM_WAIT_HINT_DELAY_MS : WAIT_HINT_DELAY_MS,
+          },
         ).catch((error) => ({ ok: false as const, detail: null, error }));
         if (result.ok) {
           applySnapshot(result.value.data);
@@ -572,7 +564,7 @@ export function useDailyJourney(
         }
       }
     });
-  }, [applySnapshot, handleFailure, journey, once, unwrap]);
+  }, [applySnapshot, handleFailure, journey, once, unwrap, warm]);
 
   const requestHelp = useCallback(
     async (helpKind: HelpKind) => {
@@ -661,10 +653,6 @@ export function useDailyJourney(
     },
     [journey, performAttempt],
   );
-
-  useEffect(() => {
-    submitRef.current = submitAnswer;
-  }, [submitAnswer]);
 
   const retryLastAnswer = useCallback(async () => {
     const last = lastAttemptRef.current;
@@ -860,70 +848,6 @@ export function useDailyJourney(
   const clearFeedback = useCallback(() => setFeedback({ kind: 'idle' }), []);
 
   // -----------------------------------------------------------------------
-  // Voice — device capture plus the existing stateless transcription endpoint
-  // -----------------------------------------------------------------------
-
-  const resetVoice = useCallback(() => setVoice({ kind: 'idle' }), []);
-
-  const startRecording = useCallback(async () => {
-    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
-      setVoice({ kind: 'unsupported' });
-      return;
-    }
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = createAudioMediaRecorder(stream);
-      streamRef.current = stream;
-      recorderRef.current = recorder;
-      chunksRef.current = [];
-      recorder.ondataavailable = (event) => {
-        if (event.data.size) chunksRef.current.push(event.data);
-      };
-      recorder.onstop = () => {
-        const blob = recordedAudioBlob(chunksRef.current, recorder);
-        stream.getTracks().forEach((track) => track.stop());
-        streamRef.current = null;
-        recorderRef.current = null;
-        if (blob.size < EMPTY_RECORDING_BYTES) {
-          // Nothing was captured. The learner still holds the turn.
-          setVoice({ kind: 'failed', message: 'voice_empty' });
-          return;
-        }
-        setVoice({ kind: 'transcribing' });
-        void apiService
-          .transcribeAudio(blob)
-          .then(async (text) => {
-            const spoken = (text || '').trim();
-            if (!spoken) {
-              setVoice({ kind: 'failed', message: 'voice_empty' });
-              return;
-            }
-            setVoice({ kind: 'idle' });
-            // Contract revision 1: no transcript id exists, so `transcript_ref`
-            // is omitted. `mode: 'voice'` is what records the modality.
-            await submitRef.current({ mode: 'voice', text: spoken });
-          })
-          .catch(() => {
-            // A transcription failure keeps the turn; it is never a wrong answer.
-            setVoice({ kind: 'failed', message: 'voice_failed' });
-          });
-      };
-      recorder.start();
-      setVoice({ kind: 'recording' });
-    } catch {
-      setVoice({ kind: 'failed', message: 'voice_permission' });
-    }
-  }, []);
-
-  const stopRecording = useCallback(() => {
-    try {
-      recorderRef.current?.stop();
-    } catch {
-      setVoice({ kind: 'failed', message: 'voice_failed' });
-    }
-  }, []);
-
-  // -----------------------------------------------------------------------
   // Derived
   // -----------------------------------------------------------------------
 
@@ -947,9 +871,6 @@ export function useDailyJourney(
       resume,
       finish,
       clearFeedback,
-      startRecording,
-      stopRecording,
-      resetVoice,
     }),
     [
       refresh,
@@ -963,9 +884,6 @@ export function useDailyJourney(
       resume,
       finish,
       clearFeedback,
-      startRecording,
-      stopRecording,
-      resetVoice,
     ],
   );
 
@@ -981,8 +899,8 @@ export function useDailyJourney(
     progress,
     busy,
     waiting,
+    warm,
     help,
-    voice,
     recovery,
     actions,
   };

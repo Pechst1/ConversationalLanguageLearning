@@ -30,7 +30,7 @@ import {
   saveResumeActivity,
 } from '@/lib/pilot-resilience';
 import { type LuAskKind } from '@/components/laune/LaUne';
-import { HomeScreen, HomeSkeleton, type HomeTile } from '@/components/atelier-v2/home/HomeScreen';
+import { HomeScreen, HomeSkeleton, type HomeBecause, type HomeTile } from '@/components/atelier-v2/home/HomeScreen';
 import {
   LEpreuveStyles,
   EpShell,
@@ -92,6 +92,7 @@ import {
   dayQueryString,
   resolveLegacyRecommendedNext,
   resolveRecommendedNext,
+  journeyBecause,
   resolvePracticeEntry,
   PRACTICE_LABEL,
   serialActionFromToday,
@@ -889,6 +890,9 @@ export default function AtelierPage() {
   // The secondary line Home shows under the Séance tile. `null` with the
   // capability off, so a flag-off Home is untouched.
   const practiceEntry = useMemo(() => resolvePracticeEntry(journey.envelope), [journey.envelope]);
+  // WP-24: why today's scene is this scene. `null` unless the plan actually
+  // kept a target that exists because of a recorded mistake.
+  const becauseLine = useMemo(() => journeyBecause(journey.envelope), [journey.envelope]);
 
   const journeyRecommended = recommendation.kind.startsWith('journey_');
   // The Today entry for the journey is on screen exactly when the frozen
@@ -1670,6 +1674,8 @@ export default function AtelierPage() {
               // WP-16 / D-0: `null` unless the daily journey owns the day, so a
               // flag-off Home renders byte-for-byte what it rendered before.
               practiceEntry={practiceEntry}
+              // WP-24: the erratum today's scene reprises, when there is one.
+              becauseLine={becauseLine}
             />
           </>
         ) : (
@@ -1971,6 +1977,7 @@ function TodayView({
   activeSessionReady,
   onRetry,
   practiceEntry,
+  becauseLine,
 }: {
   today: AtelierToday | null;
   activeSession: AtelierSessionStart | null;
@@ -1988,6 +1995,12 @@ function TodayView({
    * secondary line instead of being the day's primary action.
    */
   practiceEntry?: { label: string; href: string; conceptId: string | null } | null;
+  /**
+   * WP-24 (wired by WP-28). The structured because payload from
+   * `GET /atelier/today`; `HomeScreen` writes the French. `null` — the
+   * overwhelmingly common case — prints no line at all.
+   */
+  becauseLine?: HomeBecause | null;
 }) {
   const router = useRouter();
   const hasActiveSession = dayProgress.sessionStatus === 'active';
@@ -2254,6 +2267,7 @@ function TodayView({
       action={homeAction}
       filedLabel={isRest && !errorOnlyPage && !journeyOwnsPrimary ? 'Édition bouclée — à demain.' : null}
       note={journeyOwnsPrimary ? null : prescriptionBecause}
+      because={becauseLine}
       overrunMinutes={journeyOwnsPrimary ? null : overBudgetMinutes}
       adjustHref={errorOnlyPage || isRest || journeyOwnsPrimary ? null : '/settings?section=practice'}
       phrase={phraseOfDay ? { text: phraseOfDay.text, byline: phraseOfDay.byline } : null}

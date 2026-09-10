@@ -1,5 +1,5 @@
 import type { AtelierSessionStart, AtelierToday } from '@/services/api';
-import type { ScenarioKey, TodayEnvelope } from '@/types/daily-journey';
+import type { JourneyBecause, ScenarioKey, TodayEnvelope } from '@/types/daily-journey';
 import { STORY_FEATURE_VISIBLE } from './launch-flags';
 
 export const REVIEW_THRESHOLD = 1;
@@ -126,6 +126,30 @@ export function resolvePracticeEntry(
     return { label: PRACTICE_LABEL, href: envelope.practice_href, conceptId: null };
   }
   return { label: PRACTICE_LABEL, href: practiceHref(), conceptId: null };
+}
+
+/**
+ * WP-24's because-line, as Home may print it.
+ *
+ * Returns `null` with the capability off, with no line on the envelope, or for
+ * a kind this build does not know how to write French for — an unexplained
+ * scene is better than an invented explanation. Nothing is composed here: the
+ * server names the mistake, `HomeScreen` writes the sentence.
+ */
+export function journeyBecause(
+  envelope: TodayEnvelope | null | undefined,
+): JourneyBecause | null {
+  if (!envelope || envelope.enabled !== true) return null;
+  const because = envelope.because;
+  if (!because || because.kind !== 'erratum') return null;
+  const label = String(because.label || '').trim();
+  if (!label) return null;
+  return {
+    kind: because.kind,
+    reason: because.reason || null,
+    label,
+    example: String(because.example || '').trim() || null,
+  };
 }
 
 
