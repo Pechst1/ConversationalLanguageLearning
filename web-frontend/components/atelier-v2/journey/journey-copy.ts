@@ -93,6 +93,12 @@ export type JourneyCopyKey =
   | 'capability_state_with_support'
   | 'capability_state_independent_once'
   | 'capability_state_used_again_later'
+  // WP-33 — register and pragmatics. The dimension is scored by the same
+  // rubric as the three capabilities above, so it reuses their state labels
+  // and adds only the honest fourth answer: not assessed.
+  | 'capability_register'
+  | 'capability_state_not_evaluated'
+  | 'correction_register'
   | 'evidence_recognized'
   | 'evidence_produced_supported'
   | 'evidence_produced_independent'
@@ -229,6 +235,9 @@ const EN: CopyTable = {
   capability_state_with_support: 'with help',
   capability_state_independent_once: 'on your own, once',
   capability_state_used_again_later: 'used again later',
+  capability_register: 'Speaking to the right person the right way',
+  capability_state_not_evaluated: 'not assessed',
+  correction_register: 'Who you are speaking to',
   evidence_recognized: 'recognised',
   evidence_produced_supported: 'used, with help',
   evidence_produced_independent: 'used on your own',
@@ -359,6 +368,9 @@ const DE: CopyTable = {
   capability_state_with_support: 'mit Hilfe',
   capability_state_independent_once: 'einmal selbständig',
   capability_state_used_again_later: 'später erneut genutzt',
+  capability_register: 'Die passende Anrede treffen',
+  capability_state_not_evaluated: 'nicht bewertet',
+  correction_register: 'Mit wem du sprichst',
   evidence_recognized: 'erkannt',
   evidence_produced_supported: 'mit Hilfe benutzt',
   evidence_produced_independent: 'selbständig benutzt',
@@ -489,6 +501,9 @@ const FR: CopyTable = {
   capability_state_with_support: 'avec aide',
   capability_state_independent_once: 'seul, une fois',
   capability_state_used_again_later: 'réutilisé plus tard',
+  capability_register: 'S’adresser comme il faut',
+  capability_state_not_evaluated: 'non évalué',
+  correction_register: 'À qui vous parlez',
   evidence_recognized: 'reconnu',
   evidence_produced_supported: 'utilisé avec aide',
   evidence_produced_independent: 'utilisé seul',

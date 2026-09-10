@@ -58,7 +58,7 @@ from __future__ import annotations
 
 import json
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 from uuid import UUID
 
@@ -68,6 +68,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.db.models.serial import SerialThread
 from app.db.models.user import User
+from app.services import pragmatics
 from app.services.journey_content import render_authored_text
 from app.services.journey_contracts import (
     FALLBACK_CONTROL_LANGUAGE,
@@ -94,6 +95,7 @@ from app.services.journey_learning import (
     is_infrastructure_failure,
     select_foreground_correction,
 )
+from app.services.learner_copy import learner_text as learner_copy_text
 from app.services.llm_service import LLMService
 from app.services.pilot_events import PilotEventService
 from app.services.serial import SerialThreadService
@@ -1444,21 +1446,11 @@ _CORRECTION_RULES: tuple[_CorrectionRule, ...] = (
         replacement="je suis en retard",
         note_native="The noun is retard, with no final -e.",
     ),
-    _CorrectionRule(
-        pattern=re.compile(r"\btu peux\b", re.IGNORECASE),
-        replacement="vous pouvez",
-        note_native="Margaux still uses vous with you here, so use vous pouvez.",
-        register="vous",
-    ),
-    _CorrectionRule(
-        # The span deliberately excludes the apostrophe: a quoted span must
-        # survive verbatim in the raw answer as well as the normalized one, and
-        # iOS types U+2019 there.
-        pattern=re.compile(r"\bte pla[iî]t\b", re.IGNORECASE),
-        replacement="vous plaît",
-        note_native="This scene stays on vous, so it is s'il vous plaît.",
-        register="vous",
-    ),
+    # WP-33 removed the two register rules that used to live here
+    # (« tu peux » → « vous pouvez », « te plaît » → « vous plaît »). They were
+    # English-only literals and they double-booked the same slip the register
+    # detector now reports, in the learner's own language and with the reason
+    # attached. `app.services.pragmatics` is the one owner of register.
 )
 
 
@@ -2053,6 +2045,165 @@ def _observations_for(
     return [item for item in observations if item is not None]
 
 
+# --------------------------------------------------------------------------
+# Register and pragmatics (WP-33) — evaluation side only
+#
+# WP-36 owns the *feedback policy* (when a character prompts self-repair). This
+# section only decides what the turn showed about register and turns the one
+# slip into a candidate correction. The candidate then goes through WP-05's
+# ``select_foreground_correction`` like any other, so the "one relevant
+# correction per turn" rule is not bypassed here: a correction on the day's own
+# target still outranks it, and register wins only among the rest.
+# --------------------------------------------------------------------------
+
+def _character_lines(*, scenario: ScenarioBrief, task: ResponseTask, history: list[dict] | None):
+    """Everything the counterpart has actually said to the learner in this scene."""
+
+    lines = [scenario.opening_line_fr or "", task.opening_line_fr or ""]
+    for entry in history or []:
+        if not isinstance(entry, dict):
+            continue
+        text = entry.get("character")
+        if text is None and str(entry.get("role") or "").lower() in {"character", "assistant"}:
+            text = entry.get("text")
+        if isinstance(text, str) and text.strip():
+            lines.append(text)
+    return [line for line in lines if line.strip()]
+
+
+@dataclass(frozen=True, slots=True)
+class _CounterpartRegister:
+    """The register the counterpart uses, and why — or nothing at all."""
+
+    expected: str | None
+    counterpart: str
+    reason_native: str
+
+
+def expected_counterpart_register(
+    *,
+    scenario: ScenarioBrief,
+    task: ResponseTask,
+    history: list[dict] | None = None,
+    native_language: str | None = None,
+) -> _CounterpartRegister:
+    """What the scene declares, or — for a generated scene — what it demonstrates.
+
+    An authored scenario carries ``counterpart_register`` in its own JSON, which
+    is a claim about the *counterpart* and is deliberately stored apart from the
+    scene-wide ``register``. A living-story scene declares nothing, so the only
+    honest source is the counterpart's own lines; if those disagree, the answer
+    is ``None`` and the dimension reports "non évalué" rather than guessing.
+    """
+
+    declared = pragmatics.declared_counterpart_register(
+        str(scenario.scenario_key), content_version=scenario.content_version
+    )
+    if declared is not None and not scenario.story_context:
+        return _CounterpartRegister(
+            expected=declared.expected,
+            counterpart=declared.counterpart or task.character_name or scenario.character_name,
+            reason_native=declared.reason(native_language),
+        )
+    observed = pragmatics.counterpart_register(
+        _character_lines(scenario=scenario, task=task, history=history)
+    )
+    return _CounterpartRegister(
+        expected=observed,
+        counterpart=task.character_name or scenario.character_name or "",
+        reason_native="",
+    )
+
+
+def _meta_pragmatic_note(
+    finding: pragmatics.RegisterFinding, *, counterpart: str, reason_native: str, language: Any
+) -> str:
+    """The explicit line: what the rule is, and why it applies to this person."""
+
+    note = learner_copy_text(
+        finding.copy_key, language, counterpart=counterpart or "", reason=reason_native or ""
+    )
+    return " ".join(note.split())
+
+
+def register_corrections(
+    *,
+    user: User,
+    text: str,
+    scenario: ScenarioBrief,
+    task: ResponseTask,
+    history: list[dict] | None = None,
+) -> tuple[pragmatics.RegisterAssessment, list[Correction]]:
+    """The turn's register verdict, plus the meta-pragmatic correction it earns.
+
+    At most one correction: a slip the learner can see in their own sentence. A
+    slip with no unambiguous one-word repair (« vous » where the verb must move
+    too, « votre » whose gender is unknown) still produces the verdict and no
+    fabricated span — WP-05 would reject it anyway, and rightly.
+    """
+
+    counterpart = expected_counterpart_register(
+        scenario=scenario,
+        task=task,
+        history=history,
+        native_language=getattr(user, "native_language", None),
+    )
+    assessment = pragmatics.assess_register(
+        text,
+        expected_register=counterpart.expected,
+        level_band=scenario.level_band,
+        is_opening_turn=not _learner_history_texts(history),
+    )
+    finding = assessment.slip
+    if finding is None or not finding.span or not finding.replacement:
+        return assessment, []
+    candidate = Correction(
+        span_fr=finding.span,
+        corrected_fr=_preserve_case(finding.span, finding.replacement),
+        note_native=_meta_pragmatic_note(
+            finding,
+            counterpart=counterpart.counterpart,
+            reason_native=counterpart.reason_native,
+            language=getattr(user, "native_language", None),
+        ),
+    )
+    return assessment, [candidate] if candidate.is_valid_for(text) else []
+
+
+def _with_register_correction(
+    evaluation: ResponseEvaluation,
+    *,
+    user: User,
+    scenario: ScenarioBrief,
+    task: ResponseTask,
+    answer: AttemptAnswer,
+    history: list[dict] | None,
+) -> ResponseEvaluation:
+    """Fill an *empty* correction slot on a generated turn with the register line.
+
+    The living-story actor writes its own correction, and that one is the day's
+    one relevant correction when it exists. This only speaks when the actor left
+    the slot empty and the learner addressed the counterpart the wrong way —
+    which is precisely the case the actor keeps missing, because it is in
+    character and answers a *tu* with a *tu*.
+    """
+
+    if evaluation.pending or evaluation.correction is not None:
+        return evaluation
+    text = _normalized(answer.text)
+    if not text:
+        return evaluation
+    _assessment, candidates = register_corrections(
+        user=user, text=text, scenario=scenario, task=task, history=history
+    )
+    correction, _background = select_foreground_correction(
+        user=user, learner_text=text, candidates=candidates, targets=task.targets
+    )
+    if correction is None:
+        return evaluation
+    return replace(evaluation, correction=correction)
+
+
 def evaluate_response(
     db: Session,
     *,
@@ -2074,7 +2225,14 @@ def evaluate_response(
 
     if scenario.story_context:
         from app.services.living_story import evaluate_turn
-        return evaluate_turn(db, user=user, scenario=scenario, task=task, answer=answer, turn_index=turn_index, assistance=assistance, history=history)
+        return _with_register_correction(
+            evaluate_turn(db, user=user, scenario=scenario, task=task, answer=answer, turn_index=turn_index, assistance=assistance, history=history),
+            user=user,
+            scenario=scenario,
+            task=task,
+            answer=answer,
+            history=history,
+        )
 
     scenario_key = str(scenario.scenario_key)
 
@@ -2111,7 +2269,16 @@ def evaluate_response(
     over_budget = remaining_turns(task, turn_index) <= 0
     needs_repair = outcome is not TaskOutcome.MET and not over_budget
 
+    # WP-33: the register slip is a candidate like any other. It is listed first
+    # so that among equally target-irrelevant corrections the pragmatic one wins
+    # — saying *tu* to Margaux costs the learner more than a missing -s — while
+    # `select_foreground_correction` still puts a correction on the day's own
+    # target ahead of it.
+    _register_assessment, register_candidates = register_corrections(
+        user=user, text=text, scenario=scenario, task=task, history=history
+    )
     candidates = [
+        *register_candidates,
         *_rule_corrections(text, register),
         *_english_drink_corrections(text, current),
         *_scene_fact_corrections(scenario_key=scenario_key, text=text, choice=choice),

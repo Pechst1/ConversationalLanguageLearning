@@ -251,6 +251,82 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "de": "Schreibe „problème“, im Plural „problèmes“.",
         "fr": "Écrivez « problème », ou « problèmes » au pluriel.",
     },
+    # -- app/services/pragmatics.py: WP-33 register and pragmatics ------------
+    # Explicit meta-pragmatic instruction: the line names the rule *and* the
+    # reason, because "instruction beats exposure" only holds when the learner
+    # is told why (Taguchi 2015). `{counterpart}` is the character's own name;
+    # `{reason}` is the scene's own declared reason and may be empty, so every
+    # sentence must still read correctly without it.
+    "pragmatics.register_use_vous": {
+        "en": "Here it is “vous”: {counterpart} addresses you with vous. {reason}",
+        "de": "Hier gilt „vous“: {counterpart} siezt dich. {reason}",
+        "fr": "Ici, c’est « vous » : {counterpart} vous vouvoie. {reason}",
+    },
+    "pragmatics.register_use_tu": {
+        "en": "Here it is “tu”: {counterpart} uses tu with you, and the verb follows it. {reason}",
+        "de": "Hier gilt „tu“: {counterpart} duzt dich, und das Verb geht mit. {reason}",
+        "fr": "Ici, c’est « tu » : {counterpart} vous tutoie, et le verbe suit. {reason}",
+    },
+    "pragmatics.register_mixed": {
+        "en": "One register per conversation: this answer uses both tu and vous.",
+        "de": "Eine Anrede pro Gespräch: diese Antwort benutzt tu und vous zugleich.",
+        "fr": "Une seule adresse par conversation : cette réponse mêle « tu » et « vous ».",
+    },
+    "pragmatics.bare_imperative": {
+        "en": "That is an order. Ask instead: “je voudrais…”, or “est-ce que vous pouvez…”.",
+        "de": "Das ist ein Befehl. Frag lieber: „je voudrais…“ oder „est-ce que vous pouvez…“.",
+        "fr": "C’est un ordre. Demandez plutôt : « je voudrais… » ou « est-ce que vous pouvez… ».",
+    },
+    "pragmatics.blunt_want": {
+        "en": "“Je veux” is blunt in a shop or an office. “Je voudrais” is the request.",
+        "de": "„Je veux“ klingt im Laden oder Amt schroff. „Je voudrais“ ist die Bitte.",
+        "fr": "« Je veux » est brutal dans un commerce. La demande, c’est « je voudrais ».",
+    },
+    "pragmatics.missing_greeting": {
+        "en": "In France you greet first: “bonjour” opens the exchange before the request.",
+        "de": "In Frankreich grüßt man zuerst: „bonjour“ eröffnet das Gespräch vor der Bitte.",
+        "fr": "En France, on salue d’abord : « bonjour » ouvre l’échange avant la demande.",
+    },
+    "pragmatics.missing_politeness": {
+        "en": "Nothing softens this request — “s’il vous plaît” or “je voudrais” does it.",
+        "de": "Nichts mildert diese Bitte — „s’il vous plaît“ oder „je voudrais“ tut es.",
+        "fr": "Rien n’adoucit cette demande — « s’il vous plaît » ou « je voudrais » suffit.",
+    },
+    "pragmatics.missing_closing": {
+        "en": "The exchange ends on a word: “merci”, “au revoir”, “bonne journée”.",
+        "de": "Der Austausch endet mit einem Wort: „merci“, „au revoir“, „bonne journée“.",
+        "fr": "L’échange se ferme sur un mot : « merci », « au revoir », « bonne journée ».",
+    },
+    "pragmatics.register_not_evaluated": {
+        "en": "Register was not assessed here — nothing in these answers addressed anyone.",
+        "de": "Die Anrede wurde hier nicht bewertet — keine Antwort sprach jemanden an.",
+        "fr": "L’adresse n’a pas été évaluée ici — aucune réponse ne s’adresse à quelqu’un.",
+    },
+    "capability.register_title": {
+        "en": "Speak to the right person the right way",
+        "de": "Die passende Anrede treffen",
+        "fr": "S’adresser comme il faut",
+    },
+    "capability.register_context_with": {
+        "en": "Kept {register} with {character}.",
+        "de": "{register} bei {character} durchgehalten.",
+        "fr": "« {register} » tenu avec {character}.",
+    },
+    "capability.register_context_bare": {
+        "en": "Kept the scene’s register.",
+        "de": "Die Anrede der Szene gehalten.",
+        "fr": "L’adresse de la scène tenue.",
+    },
+    "capability.register_context_slip_with": {
+        "en": "Slipped out of {register} with {character}.",
+        "de": "Aus {register} bei {character} herausgefallen.",
+        "fr": "Sortie de « {register} » avec {character}.",
+    },
+    "capability.register_context_slip_bare": {
+        "en": "Slipped out of the scene’s register.",
+        "de": "Aus der Anrede der Szene herausgefallen.",
+        "fr": "Sortie de l’adresse de la scène.",
+    },
 }
 
 

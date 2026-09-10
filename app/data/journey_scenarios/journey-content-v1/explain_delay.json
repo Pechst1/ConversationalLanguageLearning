@@ -8,6 +8,16 @@
   "image_asset": "assets/serial/locations/metro_platform.webp",
   "register": "tu",
   "register_note": "Romy defaults to tu (Québec norm) and performs a stiff 'vous' only as a running joke, never here.",
+  "counterpart_register": {
+    "expected": "tu",
+    "counterpart": "Romy",
+    "reason_fr": "Romy tutoie tout le monde (norme québécoise) ; son « vous » n’est qu’une blague.",
+    "reason_native": {
+      "en": "Romy uses tu with everyone, Quebec-style; her stiff vous is only ever a running joke.",
+      "de": "Romy duzt alle, wie in Québec üblich; ihr steifes vous ist nur ein Running Gag.",
+      "fr": "Romy tutoie tout le monde, comme au Québec ; son « vous » guindé n’est qu’une blague."
+    }
+  },
   "forbidden_topic_groups": ["landlord_paperwork", "administration"],
   "forbidden_terms": [],
   "authored_bands": ["A1", "A2"],

@@ -8,6 +8,16 @@
   "image_asset": "assets/serial/locations/le_mistral-counter.webp",
   "register": "vous",
   "register_note": "The learner is still new: the whole scene stays on vous, per the world bible register_map (user_default).",
+  "counterpart_register": {
+    "expected": "vous",
+    "counterpart": "Margaux",
+    "reason_fr": "Margaux tient le comptoir du Mistral : entre elle et un client, on reste sur « vous ».",
+    "reason_native": {
+      "en": "She runs the counter at Le Mistral, and a customer she barely knows stays on vous.",
+      "de": "Sie steht hinter dem Tresen im Mistral, und ein kaum bekannter Gast bleibt beim vous.",
+      "fr": "Elle tient le comptoir du Mistral, et un client qu’elle connaît à peine reste au vous."
+    }
+  },
   "forbidden_topic_groups": [
     "landlord_paperwork",
     "administration"

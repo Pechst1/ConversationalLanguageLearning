@@ -982,6 +982,40 @@ const noSleep = () => Promise.resolve();
   assert.equal(journeyCopy('pt').start, journeyCopy('en').start);
   assert.equal(journeyCopy(null).start, journeyCopy('en').start);
 
+  // --- WP-33: register and pragmatics ---------------------------------------
+  // The dimension reuses the capability state labels above and adds exactly one
+  // more: the honest "we did not assess this". A learner must never read a
+  // blank where a verdict should be, and must never read a verdict where there
+  // was no evidence.
+  for (const language of ['en', 'de', 'fr']) {
+    const table = journeyCopy(language);
+    for (const key of [
+      'capability_register',
+      'capability_state_not_evaluated',
+      'correction_register',
+    ]) {
+      assert.ok(table[key] && table[key].trim().length > 0, `${language}.${key} exists`);
+    }
+    // No pronunciation or accent judgement anywhere (owner WON'T-DO). The one
+    // key allowed to say the word is `voice_hint`, which exists to promise the
+    // opposite — that promise is asserted separately below.
+    for (const key of Object.keys(table)) {
+      if (key === 'voice_hint') continue;
+      for (const banned of ['pronunciation', 'prononciation', 'Aussprache', 'phoneme']) {
+        assert.ok(
+          !table[key].toLowerCase().includes(banned.toLowerCase()),
+          `${language}.${key} must not judge pronunciation`,
+        );
+      }
+    }
+  }
+  assert.equal(journeyCopy('fr').capability_state_not_evaluated, 'non évalué');
+  // WP-27's promise, re-pinned here because WP-33 grades a *spoken* turn's
+  // register from its transcript and must not be read as scoring the voice.
+  assert.match(journeyCopy('en').voice_hint, /nothing here judges your pronunciation/i);
+  assert.match(journeyCopy('de').voice_hint, /nicht bewertet/i);
+  assert.match(journeyCopy('fr').voice_hint, /rien ici ne juge votre prononciation/i);
+
 
   // =========================================================================
   // 10. WP-10 interruption recovery is WIRED IN, not merely available

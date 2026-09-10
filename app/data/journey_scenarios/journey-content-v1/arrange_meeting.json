@@ -8,6 +8,16 @@
   "image_asset": "assets/serial/locations/marche_canal.webp",
   "register": "tu",
   "register_note": "Lila tutoies the learner from night one and mocks a 'vous' (world bible register_with_user).",
+  "counterpart_register": {
+    "expected": "tu",
+    "counterpart": "Lila",
+    "reason_fr": "Lila vous tutoie depuis le premier soir et se moque d’un « vous ».",
+    "reason_native": {
+      "en": "Lila has used tu with you since the first evening, and teases anyone who answers with vous.",
+      "de": "Lila duzt dich seit dem ersten Abend und zieht jeden auf, der mit vous antwortet.",
+      "fr": "Lila vous tutoie depuis le premier soir et taquine qui répond par « vous »."
+    }
+  },
   "forbidden_topic_groups": ["landlord_paperwork", "administration"],
   "forbidden_terms": [],
   "authored_bands": ["A1", "A2"],
