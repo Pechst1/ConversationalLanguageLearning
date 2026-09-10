@@ -221,6 +221,12 @@ def main() -> None:
         print("\n".join(format_latency_lines(latency_rollup(db, args.day, user_id=args.user_id))))
         # WP-25: the placement line item.
         print(format_placement_line(db, args.day, args.user_id))
+        # WP-29: known-word coverage of the day's generated scenes. Says so
+        # explicitly when the generator did not measure them, because an
+        # unmeasured scene is not a scene at 100 %.
+        from app.services.lexical_coverage import format_coverage_line
+
+        print(format_coverage_line(db, args.day, args.user_id))
 
 
 if __name__ == "__main__":

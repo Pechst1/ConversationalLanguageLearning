@@ -1582,3 +1582,15 @@ stamping `target_reason="erratum:<id>"`; Home's because-line says so in French.
 Two hooks are still owed by other owners (daily_journey, living_story) and are
 written out in [WP-24-MISTAKE-LOOP.md](WP-24-MISTAKE-LOOP.md) §5 — until they
 land the line is dark and the planner behaves exactly as before.
+
+## 2026-09-10 — WP-29 coverage-controlled generation
+
+Scenes were aimed by band label; nothing checked the result against the words *this*
+learner has. Comprehension with support needs ~95 % known-word coverage (Laufer &
+Ravenhorst-Kalovski 2010), so unknown words are now a budget.
+`app/services/lexical_coverage.py` builds the known set from FSRS retrievability
+(`is_vocab_nailed`, imported not re-derived) plus the CEFR core list for WP-25's estimate,
+folds lemmas through elision and accents, splits unknowns into targets and accidents, and
+returns a verdict naming the words to replace *and* the targets to keep. Thin text is
+`not_assessed`, never rejected. 56 tests, US$0.00; the guard stays dark until two diffs
+land in `living_story.py` (WP-28's lease) — verbatim in [WP-29-COVERAGE.md](WP-29-COVERAGE.md) §5.
