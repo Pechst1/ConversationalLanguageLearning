@@ -18,6 +18,7 @@ from app.api.v1.endpoints import (
     npcs,
     placement,
     progress,
+    rehearsal,
     serial,
     sessions,
     sessions_ws,
@@ -50,5 +51,6 @@ api_router.include_router(npcs.router, prefix="/npcs", tags=["npcs"])
 api_router.include_router(notifications.router)
 api_router.include_router(daily_journey.router)
 api_router.include_router(placement.router)
+api_router.include_router(rehearsal.router)
 
 api_router.include_router(story_engine.router)

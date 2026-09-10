@@ -81,6 +81,7 @@ from app.db.models.pilot_event import PilotEvent
 from app.db.models.placement import PlacementSession
 from app.db.models.progress import ReviewLog, UserVocabularyProgress
 from app.db.models.push_subscription import PushSubscription
+from app.db.models.rehearsal import Rehearsal
 from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.session import (
     ConversationMessage,
@@ -119,6 +120,7 @@ def db_engine():
             AnalyticsSnapshot.__table__,
             PilotEvent.__table__,
             PlacementSession.__table__,
+            Rehearsal.__table__,
             VocabularyWord.__table__,
             VerbConjugation.__table__,
             UserConjugationProgress.__table__,
@@ -176,6 +178,7 @@ def db_engine():
                 UserDailyWordSlate.__table__,
                 UserVocabularyProgress.__table__,
                 AnalyticsSnapshot.__table__,
+                Rehearsal.__table__,
                 PilotEvent.__table__,
                 UserErrorConcept.__table__,
                 UserError.__table__,

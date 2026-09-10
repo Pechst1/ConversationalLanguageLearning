@@ -38,6 +38,7 @@ from app.db.models.pilot_event import PilotEvent
 from app.db.models.placement import PlacementSession
 from app.db.models.progress import ReviewLog, UserVocabularyProgress
 from app.db.models.push_subscription import PushSubscription
+from app.db.models.rehearsal import Rehearsal
 from app.db.models.scenario import UserScenarioState
 from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.session import (
@@ -104,6 +105,7 @@ __all__ = [
     "PushSubscription",
     "PilotEvent",
     "PlacementSession",
+    "Rehearsal",
     "DailyJourney",
     "DailyJourneyStep",
     "DailyJourneyMutation",

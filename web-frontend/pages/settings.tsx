@@ -995,6 +995,25 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                             </Row>
                         </div>
 
+                        {/* WP-31 — «Répétition». The one entry point into the
+                            rehearsal flow: the learner declares a real thing that
+                            is about to happen, rehearses it once, and reports back
+                            afterwards. The Home entry is owed by another owner. */}
+                        <div className="st-card">
+                            <Row
+                                label="Répéter une vraie situation"
+                                hint="Un appel, un rendez-vous, une démarche. On la répète une fois, puis on vous demande comment ça s’est passé."
+                            >
+                                <button
+                                    type="button"
+                                    className="av2-btn av2-btn--quiet av2-btn--inline"
+                                    onClick={() => { void router.push('/repetition'); }}
+                                >
+                                    Ouvrir
+                                </button>
+                            </Row>
+                        </div>
+
                         <div className="st-card" role="radiogroup" aria-label="Niveau actuel">
                             <Row label="Niveau actuel" value={settings.proficiencyLevel} />
                             {proficiencyLevels.map(level => {

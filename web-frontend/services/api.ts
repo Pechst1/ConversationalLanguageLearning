@@ -220,6 +220,95 @@ export interface PlacementEnvelope {
   prior?: PlacementPrior | null;
 }
 
+/* ---- WP-31 rehearsal (POST /rehearsals/*) ---------------------------------
+   «Répétition»: the learner's own real upcoming situation, rehearsed once and
+   then debriefed. Not story canon — the server keeps it in its own table and
+   never writes it into serial memory, and nothing here carries a story id. */
+
+export interface RehearsalBriefView {
+  goal_fr: string;
+  goal_native: string;
+  counterpart: string;
+  /** 'tu' | 'vous', decided by the server from who the counterpart is. */
+  register: string;
+  date_text: string;
+  date_iso?: string | null;
+  facts: string[];
+}
+
+export interface RehearsalSceneView {
+  title_fr: string;
+  place_fr: string;
+  setup_fr: string;
+  setup_native: string;
+  objective_fr: string;
+  objective_native: string;
+  opening_line_fr: string;
+  register: string;
+  level_band: string;
+  turns_total: number;
+  /** Empty until the learner asks for them: help is a request, not a panel. */
+  phrases: Array<{ fr: string; native: string }>;
+  phrases_revealed: boolean;
+  /** Null while the rehearsal is live — the private rubric is never a spoiler. */
+  rubric_native?: string | null;
+}
+
+export interface RehearsalTurnView {
+  index: number;
+  learner_text: string;
+  mode: string;
+  reply_fr?: string | null;
+  reply_source?: string | null;
+  correction?: { span_fr: string; corrected_fr: string; note_native: string } | null;
+  outcome?: string | null;
+  evidence_kind?: string | null;
+  assistance?: string | null;
+}
+
+export interface RehearsalView {
+  version: string;
+  id: string;
+  /** declared | ready | not_prepared | rehearsing | rehearsed | debriefed | abandoned */
+  status: string;
+  declaration: string;
+  brief: RehearsalBriefView;
+  scene?: RehearsalSceneView | null;
+  turns: RehearsalTurnView[];
+  turns_used: number;
+  turns_total: number;
+  result?: {
+    outcome: string;
+    points_total: number;
+    points_covered: number;
+    ending_key?: string | null;
+    ending_line_fr?: string | null;
+    ending_summary_fr?: string | null;
+  } | null;
+  event_date?: string | null;
+  debrief?: {
+    outcome: string;
+    free_line: string;
+    corrected_fr?: string | null;
+    note_fr?: string | null;
+    already_correct?: boolean | null;
+    /** False means the line was NOT checked — never that it was correct. */
+    correction_available: boolean;
+    recorded_at: string;
+  } | null;
+  outcome?: string | null;
+  debrief_available: boolean;
+}
+
+export interface RehearsalEnvelope {
+  version: string;
+  rehearsal?: RehearsalView | null;
+  debrief_due?: RehearsalView | null;
+  cap: { limit: number; used: number; remaining: number; next_slot_at?: string | null };
+  min_turns: number;
+  max_turns: number;
+}
+
 export interface CEFRProgress {
   version: string;
   estimate: string;
@@ -2328,6 +2417,59 @@ class ApiService {
 
   async skipPlacement(): Promise<PlacementEnvelope> {
     return this.atelierPost<PlacementEnvelope>('/placement/skip');
+  }
+  /* ---- WP-31 rehearsal --------------------------------------------------
+     One envelope per route, like the placement, so the page renders one state
+     machine. `sendRehearsalTurn` carries the turn index: replaying it is a
+     no-op server-side and buys no second grading. */
+
+  async getRehearsalState(): Promise<RehearsalEnvelope> {
+    return this.atelierGet<RehearsalEnvelope>('/rehearsals/state');
+  }
+
+  async declareRehearsal(declaration: string): Promise<RehearsalEnvelope> {
+    return this.atelierPost<RehearsalEnvelope>('/rehearsals', { declaration });
+  }
+
+  async prepareRehearsal(rehearsalId: string): Promise<RehearsalEnvelope> {
+    return this.atelierPost<RehearsalEnvelope>(
+      `/rehearsals/${encodeURIComponent(rehearsalId)}/prepare`,
+    );
+  }
+
+  async revealRehearsalPhrases(rehearsalId: string): Promise<RehearsalEnvelope> {
+    return this.atelierPost<RehearsalEnvelope>(
+      `/rehearsals/${encodeURIComponent(rehearsalId)}/phrases`,
+    );
+  }
+
+  async sendRehearsalTurn(
+    rehearsalId: string,
+    text: string,
+    turnIndex: number,
+    mode: 'text' | 'voice' = 'text',
+  ): Promise<RehearsalEnvelope> {
+    return this.atelierPost<RehearsalEnvelope>(
+      `/rehearsals/${encodeURIComponent(rehearsalId)}/turns`,
+      { text, turn_index: turnIndex, mode },
+    );
+  }
+
+  async debriefRehearsal(
+    rehearsalId: string,
+    outcome: 'done' | 'partly' | 'not_yet',
+    freeLine: string,
+  ): Promise<RehearsalEnvelope> {
+    return this.atelierPost<RehearsalEnvelope>(
+      `/rehearsals/${encodeURIComponent(rehearsalId)}/debrief`,
+      { outcome, free_line: freeLine },
+    );
+  }
+
+  async abandonRehearsal(rehearsalId: string): Promise<RehearsalEnvelope> {
+    return this.atelierPost<RehearsalEnvelope>(
+      `/rehearsals/${encodeURIComponent(rehearsalId)}/abandon`,
+    );
   }
 }
 

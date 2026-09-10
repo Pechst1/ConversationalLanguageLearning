@@ -357,6 +357,20 @@ class Settings(BaseSettings):
         description="Only learners with a journey event this recent are prefetched for.",
     )
 
+    # ---- WP-31: rehearsing a real upcoming situation ---------------------
+    ATELIER_REHEARSAL_WEEKLY_CAP: int = Field(
+        2,
+        ge=0,
+        le=14,
+        description=(
+            "How many rehearsals («Répétition») one learner may start in a rolling "
+            "seven days. Each one pays for a scene generation and a debrief correction, "
+            "so this is a hard cost bound, not a nudge: at the cap the learner is told "
+            "in French how long until the next one. 0 switches the feature off — the "
+            "page then explains why rather than 500-ing."
+        ),
+    )
+
     model_config = SettingsConfigDict(
         env_file=Path(__file__).resolve().parent.parent / ".env",
         env_file_encoding="utf-8",
