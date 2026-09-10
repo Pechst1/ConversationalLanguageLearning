@@ -185,7 +185,11 @@ is one tap away from every stage of the cycle.
 ## 8. Verification
 
 * Backend `tests/test_episode_audio.py` + `tests/test_episode_audio_api.py`:
-  **25 passed**. Full suite: see STATUS.
+  **`25 passed in 7.37s`**. Full suite `2274 passed, 1 skipped, 1 warning in
+  520.42s` — the skip is `test_rollout_scripts.py:133`, which wants a throwaway
+  PostgreSQL. That run is on the tree *after* WP-34 and WP-35 also landed, so
+  the total is theirs as much as this package's; what it says about WP-32 is
+  that nothing else broke.
 * Frontend: `test:episode-audio` **19 tests, 19 pass**; all twelve other node
   suites green; `type-check`, `lint` and `next build` clean.
 * Migration rendered offline against PostgreSQL (`alembic upgrade
