@@ -31,6 +31,7 @@ from app.db.models.graphic_novel import (
     GraphicNovelScene,
     PersonalInputItem,
 )
+from app.db.models.journal import JournalEntry
 from app.db.models.library import BookEpisode, UserBook
 from app.db.models.mission import RealWorldMission, RealWorldMissionAttempt, RealWorldMissionTurn
 from app.db.models.npc import NPC, NPCMemory, NPCRelationship
@@ -76,6 +77,7 @@ __all__ = [
     "RealWorldMissionAttempt",
     "RealWorldMissionTurn",
     "BookEpisode",
+    "JournalEntry",
     "UserBook",
     "SerialEpisode",
     "SerialThread",

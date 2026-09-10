@@ -21,6 +21,7 @@ import {
   NotebookModeTabs,
   type CahierMode,
 } from '@/components/cahiers/CahierV2';
+import JournalTab from '@/components/cahiers/JournalTab';
 import { NOTEBOOK_MODE_STORAGE_KEY } from '@/components/mobile';
 import Releve from '@/components/releve/Releve';
 import { Button } from '@/components/ui/Button';
@@ -75,6 +76,7 @@ function storedNotebookMode(): NotebookMode {
   try {
     const stored = window.localStorage.getItem(NOTEBOOK_MODE_STORAGE_KEY);
     if (stored === 'vocabulary') return 'vocabulary';
+    if (stored === 'journal') return 'journal';
     if (stored === 'releve') return 'releve';
     if (STORY_FEATURE_VISIBLE && stored === 'library') return 'library';
     return 'grammar';
@@ -94,7 +96,12 @@ function rememberNotebookMode(mode: NotebookMode) {
 
 function notebookModeFromQuery(query: NotebookQuery): NotebookMode | null {
   const explicitMode = firstQueryValue(query.mode);
-  if (explicitMode === 'grammar' || explicitMode === 'vocabulary' || explicitMode === 'releve') return explicitMode;
+  if (
+    explicitMode === 'grammar'
+    || explicitMode === 'vocabulary'
+    || explicitMode === 'journal'
+    || explicitMode === 'releve'
+  ) return explicitMode;
   if (STORY_FEATURE_VISIBLE && explicitMode === 'library') return 'library';
   if (STORY_FEATURE_VISIBLE && firstQueryValue(query.book)) return 'library';
   if (firstQueryValue(query.word)) return 'vocabulary';
@@ -111,8 +118,9 @@ function queryForMode(query: NotebookQuery, requestedMode: NotebookMode): Notebo
   if (mode === 'grammar') {
     const concept = firstQueryValue(query.concept) || firstQueryValue(query.review);
     if (concept) nextQuery.concept = concept;
-  } else if (mode === 'releve') {
-    // Le Relevé is a read-only ledger; it carries no deep-link parameters.
+  } else if (mode === 'releve' || mode === 'journal') {
+    // Le Relevé is a read-only ledger and Le journal de bord is the learner's
+    // own writing; neither carries deep-link parameters.
     return nextQuery;
   } else {
     if (mode === 'library') {
@@ -132,6 +140,7 @@ function queryForMode(query: NotebookQuery, requestedMode: NotebookMode): Notebo
 const MODE_TITLES: Record<NotebookMode, string> = {
   grammar: 'Le Cahier · Grammaire',
   vocabulary: 'Le Cahier · Lexique',
+  journal: 'Le Cahier · Le journal de bord',
   releve: 'Le Cahier · Le Relevé',
   library: 'Le Cahier · Bibliothèque',
 };
@@ -283,6 +292,8 @@ export default function NotebookEntryPage() {
               <GrammarNotebookSurface embedded />
             ) : visibleMode === 'vocabulary' ? (
               <VocabularyPage embedded />
+            ) : visibleMode === 'journal' ? (
+              <JournalTab />
             ) : visibleMode === 'releve' ? (
               <Releve />
             ) : (

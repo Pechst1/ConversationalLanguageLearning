@@ -29,11 +29,13 @@ import Link from 'next/link';
 
 import { ArrowLeftIcon, Chip } from '@/components/atelier-v2/ui';
 
-export type CahierMode = 'grammar' | 'vocabulary' | 'releve' | 'library';
+export type CahierMode = 'grammar' | 'vocabulary' | 'journal' | 'releve' | 'library';
 
 export const CAHIER_MODE_LABELS: Record<CahierMode, string> = {
   grammar: 'Règles',
   vocabulary: 'Mots',
+  /* WP-30 — «Le journal de bord», the recap the learner writes themselves. */
+  journal: 'Journal',
   releve: 'Relevé',
   library: 'Livres',
 };
@@ -74,7 +76,7 @@ export function NotebookModeTabs({
   onSelect?: (mode: CahierMode) => void;
   hrefFor?: (mode: CahierMode) => string;
 }) {
-  const modes: CahierMode[] = ['grammar', 'vocabulary', 'releve'];
+  const modes: CahierMode[] = ['grammar', 'vocabulary', 'journal', 'releve'];
   if (library) modes.push('library');
   return (
     <div className="nb-modes" role="tablist" aria-label="Rubriques du cahier">

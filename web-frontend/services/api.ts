@@ -309,6 +309,187 @@ export interface RehearsalEnvelope {
   max_turns: number;
 }
 
+/* ---- WP-30 «Le journal de bord» (GET/POST /journal/*) ---------------------
+   The learner writes the recap from memory. The envelope's one load-bearing
+   omission: while `status` is 'offered' the entry carries `cue` — who, where,
+   how long ago — and NO scene text. `reveal` only ever arrives once the entry
+   has been written, which is why it is a separate object rather than fields on
+   the cue. Do not merge the two. */
+
+export interface JournalCue {
+  character_name?: string | null;
+  location_name?: string | null;
+  scene_date?: string | null;
+  days_ago?: number | null;
+}
+
+export interface JournalReveal {
+  title_fr?: string | null;
+  setup_fr?: string | null;
+  character_line_fr?: string | null;
+  callback_fr?: string | null;
+}
+
+export interface JournalCorrectionItem {
+  label: string;
+  span_fr: string;
+  corrected_fr: string;
+  note_native: string;
+  repair_hint?: string;
+  task_error_type?: string;
+}
+
+export interface JournalCorrection {
+  /** 'checked' — a real verdict. 'unavailable' — nobody graded it, and it says so. */
+  assessment_status: string;
+  assessment_truncated: boolean;
+  verdict?: string | null;
+  corrected_answer: string;
+  explanation_language?: string | null;
+  /** The one correction shown up front, chosen by the journey's own policy. */
+  foreground?: JournalCorrectionItem | null;
+  /** Every correction, for the "tout voir" disclosure. Never silently trimmed. */
+  errata: JournalCorrectionItem[];
+}
+
+export interface JournalContentRecall {
+  version: string;
+  /** 'scored' | 'no_facts' — a scene with nothing stored scores null, not zero. */
+  status: string;
+  score: number | null;
+  matched: Array<{ key?: string; kind?: string; text_fr?: string; cues_hit?: string[] }>;
+  missed: Array<{ key?: string; kind?: string; text_fr?: string; cues_hit?: string[] }>;
+  facts_total: number;
+}
+
+export interface JournalEntryView {
+  id: string;
+  /** 'offered' | 'written' | 'unavailable' | 'skipped' */
+  status: string;
+  scene_date: string;
+  offered_on: string;
+  followup_due_on: string;
+  cue: JournalCue;
+  prompt_fr: string;
+  entry_text?: string | null;
+  correction?: JournalCorrection | null;
+  content_recall?: JournalContentRecall | null;
+  reaction_fr?: string | null;
+  reveal?: JournalReveal | null;
+  vocabulary_credit?: { status?: string; credited?: string[]; skipped_flagged?: string[]; reason?: string } | null;
+  errata_recorded: number;
+}
+
+export interface JournalFollowup {
+  entry_id: string;
+  prompt_fr: string;
+  due_on: string;
+  answered: boolean;
+  text?: string | null;
+  /** 'used_again_later' | 'not_recalled' | null */
+  signal?: string | null;
+}
+
+export interface JournalEnvelope {
+  version: string;
+  /** 'none' | 'offered' | 'written' | 'unavailable' | 'skipped' */
+  status: string;
+  entry?: JournalEntryView | null;
+  followup?: JournalFollowup | null;
+  recall_offset_days: number;
+  followup_offset_days: number;
+  min_entry_words: number;
+}
+
+/* ---- WP-31 rehearsal (POST /rehearsals/*) ---------------------------------
+   «Répétition»: the learner's own real upcoming situation, rehearsed once and
+   then debriefed. Not story canon — the server keeps it in its own table and
+   never writes it into serial memory, and nothing here carries a story id. */
+
+export interface RehearsalBriefView {
+  goal_fr: string;
+  goal_native: string;
+  counterpart: string;
+  /** 'tu' | 'vous', decided by the server from who the counterpart is. */
+  register: string;
+  date_text: string;
+  date_iso?: string | null;
+  facts: string[];
+}
+
+export interface RehearsalSceneView {
+  title_fr: string;
+  place_fr: string;
+  setup_fr: string;
+  setup_native: string;
+  objective_fr: string;
+  objective_native: string;
+  opening_line_fr: string;
+  register: string;
+  level_band: string;
+  turns_total: number;
+  /** Empty until the learner asks for them: help is a request, not a panel. */
+  phrases: Array<{ fr: string; native: string }>;
+  phrases_revealed: boolean;
+  /** Null while the rehearsal is live — the private rubric is never a spoiler. */
+  rubric_native?: string | null;
+}
+
+export interface RehearsalTurnView {
+  index: number;
+  learner_text: string;
+  mode: string;
+  reply_fr?: string | null;
+  reply_source?: string | null;
+  correction?: { span_fr: string; corrected_fr: string; note_native: string } | null;
+  outcome?: string | null;
+  evidence_kind?: string | null;
+  assistance?: string | null;
+}
+
+export interface RehearsalView {
+  version: string;
+  id: string;
+  /** declared | ready | not_prepared | rehearsing | rehearsed | debriefed | abandoned */
+  status: string;
+  declaration: string;
+  brief: RehearsalBriefView;
+  scene?: RehearsalSceneView | null;
+  turns: RehearsalTurnView[];
+  turns_used: number;
+  turns_total: number;
+  result?: {
+    outcome: string;
+    points_total: number;
+    points_covered: number;
+    ending_key?: string | null;
+    ending_line_fr?: string | null;
+    ending_summary_fr?: string | null;
+  } | null;
+  event_date?: string | null;
+  debrief?: {
+    outcome: string;
+    free_line: string;
+    corrected_fr?: string | null;
+    note_fr?: string | null;
+    already_correct?: boolean | null;
+    /** False means the line was NOT checked — never that it was correct. */
+    correction_available: boolean;
+    recorded_at: string;
+  } | null;
+  outcome?: string | null;
+  debrief_available: boolean;
+}
+
+export interface RehearsalEnvelope {
+  version: string;
+  rehearsal?: RehearsalView | null;
+  debrief_due?: RehearsalView | null;
+  cap: { limit: number; used: number; remaining: number; next_slot_at?: string | null };
+  min_turns: number;
+  max_turns: number;
+}
+
 export interface CEFRProgress {
   version: string;
   estimate: string;
@@ -2417,6 +2598,90 @@ class ApiService {
 
   async skipPlacement(): Promise<PlacementEnvelope> {
     return this.atelierPost<PlacementEnvelope>('/placement/skip');
+  }
+  /* ---- WP-31 rehearsal --------------------------------------------------
+     One envelope per route, like the placement, so the page renders one state
+     machine. `sendRehearsalTurn` carries the turn index: replaying it is a
+     no-op server-side and buys no second grading. */
+
+  async getRehearsalState(): Promise<RehearsalEnvelope> {
+    return this.atelierGet<RehearsalEnvelope>('/rehearsals/state');
+  }
+
+  async declareRehearsal(declaration: string): Promise<RehearsalEnvelope> {
+    return this.atelierPost<RehearsalEnvelope>('/rehearsals', { declaration });
+  }
+
+  async prepareRehearsal(rehearsalId: string): Promise<RehearsalEnvelope> {
+    return this.atelierPost<RehearsalEnvelope>(
+      `/rehearsals/${encodeURIComponent(rehearsalId)}/prepare`,
+    );
+  }
+
+  async revealRehearsalPhrases(rehearsalId: string): Promise<RehearsalEnvelope> {
+    return this.atelierPost<RehearsalEnvelope>(
+      `/rehearsals/${encodeURIComponent(rehearsalId)}/phrases`,
+    );
+  }
+
+  async sendRehearsalTurn(
+    rehearsalId: string,
+    text: string,
+    turnIndex: number,
+    mode: 'text' | 'voice' = 'text',
+  ): Promise<RehearsalEnvelope> {
+    return this.atelierPost<RehearsalEnvelope>(
+      `/rehearsals/${encodeURIComponent(rehearsalId)}/turns`,
+      { text, turn_index: turnIndex, mode },
+    );
+  }
+
+  async debriefRehearsal(
+    rehearsalId: string,
+    outcome: 'done' | 'partly' | 'not_yet',
+    freeLine: string,
+  ): Promise<RehearsalEnvelope> {
+    return this.atelierPost<RehearsalEnvelope>(
+      `/rehearsals/${encodeURIComponent(rehearsalId)}/debrief`,
+      { outcome, free_line: freeLine },
+    );
+  }
+
+  async abandonRehearsal(rehearsalId: string): Promise<RehearsalEnvelope> {
+    return this.atelierPost<RehearsalEnvelope>(
+      `/rehearsals/${encodeURIComponent(rehearsalId)}/abandon`,
+    );
+  }
+  /* ---- WP-30 «Le journal de bord» ---------------------------------------
+     `getJournalState` is a GET that may create today's offer: idempotent, and
+     it stores no learner content, so an empty tab never becomes a mutation.
+     `writeJournalEntry` is a no-op server-side once the entry carries text, so
+     a retried request never buys a second paid correction. */
+
+  async getJournalState(): Promise<JournalEnvelope> {
+    return this.atelierGet<JournalEnvelope>('/journal/state');
+  }
+
+  async listJournalEntries(limit = 20): Promise<JournalEntryView[]> {
+    return this.atelierGet<JournalEntryView[]>(`/journal/entries?limit=${encodeURIComponent(String(limit))}`);
+  }
+
+  async writeJournalEntry(entryId: string, text: string): Promise<JournalEnvelope> {
+    return this.atelierPost<JournalEnvelope>(
+      `/journal/${encodeURIComponent(entryId)}/write`,
+      { text },
+    );
+  }
+
+  async skipJournalEntry(entryId: string): Promise<JournalEnvelope> {
+    return this.atelierPost<JournalEnvelope>(`/journal/${encodeURIComponent(entryId)}/skip`);
+  }
+
+  async answerJournalFollowup(entryId: string, text: string): Promise<JournalEnvelope> {
+    return this.atelierPost<JournalEnvelope>(
+      `/journal/${encodeURIComponent(entryId)}/followup`,
+      { text },
+    );
   }
   /* ---- WP-31 rehearsal --------------------------------------------------
      One envelope per route, like the placement, so the page renders one state
