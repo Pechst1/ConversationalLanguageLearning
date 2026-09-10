@@ -1014,6 +1014,26 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                             </Row>
                         </div>
 
+                        {/* WP-35 — «Votre dossier». What the application believes
+                            about the learner, with the evidence behind each
+                            number, and the two-question check that lets them
+                            disagree with it. The Home entry is owed by another
+                            owner. */}
+                        <div className="st-card">
+                            <Row
+                                label="Votre dossier"
+                                hint="Ce que nous croyons savoir de vous, et d’où vient chaque chiffre. Vous pouvez déclarer connaître déjà une faute ou un mot."
+                            >
+                                <button
+                                    type="button"
+                                    className="av2-btn av2-btn--quiet av2-btn--inline"
+                                    onClick={() => { void router.push('/dossier'); }}
+                                >
+                                    Ouvrir
+                                </button>
+                            </Row>
+                        </div>
+
                         <div className="st-card" role="radiogroup" aria-label="Niveau actuel">
                             <Row label="Niveau actuel" value={settings.proficiencyLevel} />
                             {proficiencyLevels.map(level => {
