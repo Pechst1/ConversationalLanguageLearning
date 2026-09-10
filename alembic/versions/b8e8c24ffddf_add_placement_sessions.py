@@ -3,7 +3,7 @@
 Additive only: one new table, no column on any existing one. A deploy that runs
 this and then rolls the code back leaves an unread table behind, which is inert.
 
-Revision ID: b4c5d6e7f8a9
+Revision ID: b8e8c24ffddf
 Revises: a3b4c5d6e7f8
 """
 from __future__ import annotations
@@ -13,7 +13,7 @@ from sqlalchemy.dialects import postgresql
 
 from alembic import op
 
-revision = "b4c5d6e7f8a9"
+revision = "b8e8c24ffddf"
 down_revision = "a3b4c5d6e7f8"
 branch_labels = None
 depends_on = None

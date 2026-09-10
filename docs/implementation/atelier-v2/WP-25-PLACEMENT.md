@@ -24,7 +24,7 @@ leave. There was no placement test of any kind.
 | File | What it is |
 |---|---|
 | `app/db/models/placement.py` | `placement_sessions`: one row per placement, holding the turns and the estimate |
-| `alembic/versions/b4c5d6e7f8a9_add_placement_sessions.py` | Additive: one new table, no column on any existing one. Head was `a3b4c5d6e7f8` |
+| `alembic/versions/b8e8c24ffddf_add_placement_sessions.py` | Additive: one new table, no column on any existing one. Head was `a3b4c5d6e7f8` |
 | `app/services/placement.py` | The ladder, the estimate math, the paid grading call, the cost row, and the prior the CEFR service reads |
 | `app/api/v1/endpoints/placement.py` | `/api/v1/placement/{state,start,{id}/respond,{id}/finish,skip}` |
 | `app/services/cefr_progress.py` | `placement_prior()` and a placement-aware `_estimate_with_declaration` |
