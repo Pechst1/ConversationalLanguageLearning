@@ -105,6 +105,24 @@ def declared_level_floor(user: User) -> str | None:
     return DECLARED_LEVEL_FLOOR.get(raw) or DECLARED_LEVEL_FLOOR.get(raw[:2])
 
 
+def placement_prior(db: Session, user: User) -> dict[str, Any] | None:
+    """WP-25 — the placement result, when there is one worth trusting.
+
+    Imported lazily because :mod:`app.services.placement` reads this module's
+    ladder; a module-level import would close the cycle. The placement service
+    owns the "is this worth trusting" decision (level present, status complete,
+    confidence above its floor) and this module never second-guesses it.
+    """
+    try:
+        from app.services.placement import latest_placement_prior
+    except Exception:  # pragma: no cover - defensive
+        return None
+    try:
+        return latest_placement_prior(db, user)
+    except Exception:  # pragma: no cover - a level must never 500 an endpoint
+        return None
+
+
 class CEFRProgressService:
     """Compute, smooth, persist, and serialize CEFR estimates."""
 
@@ -116,10 +134,12 @@ class CEFRProgressService:
         signals = self._signals(user=user, now=now)
         computed_level = self._computed_level(signals)
         measured_level = self._smooth_level(user=user, computed_level=computed_level)
+        placement = placement_prior(self.db, user)
         estimate_level, estimate_source = self._estimate_with_declaration(
             user=user,
             signals=signals,
             measured_level=measured_level,
+            placement=placement,
         )
         target_level = self._target_level(user=user, estimate_level=estimate_level)
         payload = self._payload(
@@ -129,6 +149,7 @@ class CEFRProgressService:
             estimate_level=estimate_level,
             estimate_source=estimate_source,
             target_level=target_level,
+            placement=placement,
             now=now,
         )
         if persist:
@@ -154,13 +175,26 @@ class CEFRProgressService:
             return payload
         if recompute_if_missing:
             return self.recompute(user, source="lazy")
-        estimate = str(getattr(user, "cefr_estimate", None) or declared_level_floor(user) or "A1.1")
+        placement = placement_prior(self.db, user)
+        estimate = str(
+            getattr(user, "cefr_estimate", None)
+            or (placement or {}).get("level")
+            or declared_level_floor(user)
+            or "A1.1"
+        )
         target = self._target_level(user=user, estimate_level=estimate)
+        if placement and estimate == placement.get("level"):
+            source = "placement"
+        elif estimate == declared_level_floor(user):
+            source = "declared"
+        else:
+            source = "measured"
         return {
             "version": CEFR_PROGRESS_VERSION,
             "estimate": estimate,
-            "estimate_source": "declared" if estimate == declared_level_floor(user) else "measured",
+            "estimate_source": source,
             "declared_level": declared_level_floor(user),
+            "placement": placement,
             "computed_estimate": estimate,
             "target": target,
             "next_level": next_cefr_level(estimate),
@@ -293,8 +327,10 @@ class CEFRProgressService:
         user: User,
         signals: CEFRSignals,
         measured_level: str,
+        placement: dict[str, Any] | None = None,
     ) -> tuple[str, str]:
-        """Reconcile what the learner said with what the app has actually seen.
+        """Reconcile what the learner said, what a placement measured, and what
+        the app has actually seen.
 
         A self-declared B1 who has just signed up has mastered nothing *in this
         app*, so the threshold walk puts them at A1.1 and the front page tells
@@ -302,17 +338,31 @@ class CEFRProgressService:
         it is an artefact of an empty database.
 
         Until there is enough in-app work to argue with (DECLARED_LEVEL_EVIDENCE_
-        ATTEMPTS), the declaration is the floor. After that the measurement wins
-        outright, including downwards -- the declaration is a starting point, not
-        a permanent claim.
+        ATTEMPTS), a **prior** is the floor. After that the measurement wins
+        outright, including downwards -- a prior is a starting point, not a
+        permanent claim.
+
+        WP-25 gives that prior a better source than the learner's own guess. The
+        order is placement, then declaration, then nothing: a placement is five
+        minutes of graded French, a declaration is a dropdown. The placement
+        service already refused to hand over anything it could not stand behind
+        (no level, too little confidence), so a prior that arrives here is one
+        worth using, and its source is named "placement" so no surface can
+        present it as either a self-declaration or a measurement of in-app work.
         """
-        floor = declared_level_floor(user)
-        if not floor:
+        prior_level = None
+        prior_source = "declared"
+        if placement and placement.get("level"):
+            prior_level = str(placement["level"])
+            prior_source = "placement"
+        else:
+            prior_level = declared_level_floor(user)
+        if not prior_level:
             return measured_level, "measured"
         if signals.recent_attempt_count >= DECLARED_LEVEL_EVIDENCE_ATTEMPTS:
             return measured_level, "measured"
-        if level_index(floor) > level_index(measured_level):
-            return floor, "declared"
+        if level_index(prior_level) > level_index(measured_level):
+            return prior_level, prior_source
         return measured_level, "measured"
 
     def _smooth_level(self, *, user: User, computed_level: str) -> str:
@@ -352,6 +402,7 @@ class CEFRProgressService:
         estimate_source: str,
         target_level: str,
         now: datetime,
+        placement: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         forecast = self._forecast(signals=signals, estimate_level=estimate_level, target_level=target_level, now=now)
         return {
@@ -362,6 +413,10 @@ class CEFRProgressService:
             # as a measurement.
             "estimate_source": estimate_source,
             "declared_level": declared_level_floor(user),
+            # WP-25: present whenever a placement stands, whether or not it is
+            # the estimate in force -- a surface that says "niveau estime
+            # (placement)" needs the date and the confidence behind it.
+            "placement": placement,
             "computed_estimate": computed_level,
             "target": target_level,
             "next_level": next_cefr_level(estimate_level),
@@ -389,7 +444,10 @@ class CEFRProgressService:
             # These counters only ever count what this app has verified. Against a
             # self-declared level they are not a measure of the learner's French,
             # and a surface must not draw them as if they were.
-            "status": "unverified" if estimate_source == "declared" else "measured",
+            # A placement measured the learner's French, but these counters
+            # count in-app work, of which a freshly-placed learner has none --
+            # so a placement estimate leaves them unverified too, and says why.
+            "status": "unverified" if estimate_source in {"declared", "placement"} else "measured",
             "vocabulary": {
                 "current": signals.mastered_vocabulary,
                 "target": int(threshold["vocabulary"]),
@@ -458,5 +516,6 @@ __all__ = [
     "DECLARED_LEVEL_FLOOR",
     "CEFRProgressService",
     "declared_level_floor",
+    "placement_prior",
     "next_cefr_level",
 ]

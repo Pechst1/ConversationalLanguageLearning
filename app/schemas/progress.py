@@ -109,6 +109,13 @@ class CEFRProgressResponse(BaseModel):
 
     version: str
     estimate: str
+    #: WP-25. "declared" = the learner said so and nothing has verified it;
+    #: "placement" = a graded five-minute placement; "measured" = in-app work.
+    #: Absent from the response schema until WP-25, which meant Le Releve's
+    #: unverified branch could never fire -- the field was computed and dropped.
+    estimate_source: str | None = None
+    declared_level: str | None = None
+    placement: dict[str, Any] | None = None
     computed_estimate: str | None = None
     target: str
     next_level: str | None = None

@@ -75,16 +75,133 @@ def format_correction_line(db, day: date, user_id: str | None = None) -> str:
     return line
 
 
+def format_transcription_line(db, day: date, user_id: str | None = None) -> str:
+    """One digest line for the day's transcriptions, declared as an estimate.
+
+    WP-27 made speaking the journey's default output, so this endpoint is on
+    the learner's main path. Whisper reports neither duration nor usage, so the
+    money here is modelled from upload size — the line says "estimated" out
+    loud, because a modelled cost printed as a bill is worse than no line.
+    """
+
+    from app.services.transcription_cost import TRANSCRIPTION_EVENT_TYPE
+
+    normalized_user_id = UUID(str(user_id)) if user_id else None
+    rows = db.query(PilotEvent.payload, PilotEvent.cost_usd).filter(
+        PilotEvent.event_type == TRANSCRIPTION_EVENT_TYPE,
+        func.date(PilotEvent.occurred_at) == day,
+    )
+    if normalized_user_id:
+        rows = rows.filter(PilotEvent.user_id == normalized_user_id)
+    calls = 0
+    cost = 0.0
+    seconds = 0.0
+    surfaces: dict[str, int] = {}
+    for payload, row_cost in rows:
+        payload = payload or {}
+        calls += 1
+        cost += float(row_cost or 0.0)
+        seconds += float(payload.get("estimated_seconds") or 0.0)
+        surface = str(payload.get("surface") or "unknown")
+        surfaces[surface] = surfaces.get(surface, 0) + 1
+    if not calls:
+        return "Transcriptions: none"
+    where = ", ".join(f"{name} {count}" for name, count in sorted(surfaces.items()))
+    return (
+        f"Transcriptions: {calls} calls · ~{seconds / 60.0:.1f} min audio · "
+        f"~${cost:.4f} (estimated from upload size, not a provider bill) · {where}"
+    )
+
+
+#: WP-25. One row per placement grading call. A placement is at most six paid
+#: calls and happens at most once per learner, so it will never dominate the
+#: bill — but a cost nobody prints is a cost nobody notices, and the first-week
+#: spend per learner is exactly what the pilot is trying to learn.
+PLACEMENT_EVENT_TYPE = "placement_grading"
+
+
+def format_placement_line(db, day: date, user_id: str | None = None) -> str:
+    """One digest line for the day's placement gradings.
+
+    Same shape and same rule as the correction line: calls and tokens beside the
+    money, so a day whose cost reads zero because the provider reported none is
+    still visible as a day with real traffic. ``learners`` is printed because
+    cost per placed learner, not cost per call, is the number that decides
+    whether an honest placement is affordable at cohort scale.
+    """
+
+    normalized_user_id = UUID(str(user_id)) if user_id else None
+    rows = db.query(PilotEvent.payload, PilotEvent.cost_usd, PilotEvent.user_id).filter(
+        PilotEvent.event_type == PLACEMENT_EVENT_TYPE,
+        func.date(PilotEvent.occurred_at) == day,
+    )
+    if normalized_user_id:
+        rows = rows.filter(PilotEvent.user_id == normalized_user_id)
+    calls = 0
+    tokens = 0
+    cost = 0.0
+    learners: set[str] = set()
+    models: set[str] = set()
+    for payload, row_cost, row_user in rows:
+        payload = payload or {}
+        calls += 1
+        tokens += int(payload.get("total_tokens") or 0)
+        cost += float(row_cost or 0.0)
+        if row_user is not None:
+            learners.add(str(row_user))
+        if payload.get("model"):
+            models.add(str(payload["model"]))
+    if not calls:
+        return "Placements: none"
+    model_note = ", ".join(sorted(models)) or "model unreported"
+    per_learner = f" · ${cost / len(learners):.4f}/learner" if learners else ""
+    return (
+        f"Placements: {calls} gradings · {len(learners)} learner(s) · "
+        f"{tokens} tokens · ${cost:.4f}{per_learner} · {model_note}"
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--day", type=date.fromisoformat, default=date.today() - timedelta(days=1))
     parser.add_argument("--user-id")
+    parser.add_argument(
+        "--latency-only",
+        action="store_true",
+        help="Print only the WP-26 latency section and the release gate.",
+    )
+    parser.add_argument(
+        "--gate",
+        action="store_true",
+        help=(
+            "Exit non-zero unless the WP-26 release gate passes. "
+            "insufficient_data is not a pass."
+        ),
+    )
     parser.add_argument(
         "--journey-only",
         action="store_true",
         help="Print only the daily-journey section (WP-11 release metrics).",
     )
     args = parser.parse_args()
+
+    # WP-26 §3: latency is a release metric, so it can be read on its own and
+    # can fail a build.
+    from app.services.journey_latency import (
+        evaluate_gate,
+        format_latency_lines,
+        latency_rollup,
+    )
+
+    if args.latency_only or args.gate:
+        with SessionLocal() as db:
+            rollup = latency_rollup(db, args.day, user_id=args.user_id)
+        print("\n".join(format_latency_lines(rollup)))
+        if args.gate:
+            verdict = evaluate_gate(rollup)
+            raise SystemExit(0 if verdict["status"] == "pass" else 1)
+        return
+
     with SessionLocal() as db:
         report = PilotEventService(db).daily_rollup(args.day, user_id=args.user_id)
     if args.journey_only:
@@ -96,6 +213,14 @@ def main() -> None:
     # WP-16 §5: the Séance correction line item.
     with SessionLocal() as db:
         print(format_correction_line(db, args.day, args.user_id))
+    # WP-27: the transcription line item, declared as an estimate.
+    with SessionLocal() as db:
+        print(format_transcription_line(db, args.day, args.user_id))
+    # WP-26: p50/p95 per waited-on phase, the prefetch hit rate, and the gate.
+    with SessionLocal() as db:
+        print("\n".join(format_latency_lines(latency_rollup(db, args.day, user_id=args.user_id))))
+        # WP-25: the placement line item.
+        print(format_placement_line(db, args.day, args.user_id))
 
 
 if __name__ == "__main__":

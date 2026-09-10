@@ -16,6 +16,7 @@ from app.api.v1.endpoints import (
     missions,
     notifications,
     npcs,
+    placement,
     progress,
     serial,
     sessions,
@@ -48,5 +49,6 @@ api_router.include_router(stories.router, prefix="/stories", tags=["stories"])
 api_router.include_router(npcs.router, prefix="/npcs", tags=["npcs"])
 api_router.include_router(notifications.router)
 api_router.include_router(daily_journey.router)
+api_router.include_router(placement.router)
 
 api_router.include_router(story_engine.router)
