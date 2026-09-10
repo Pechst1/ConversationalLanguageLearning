@@ -147,7 +147,8 @@ bearer-authenticated and an audio element cannot carry a header.
 ## 6. Files
 
 Backend: `app/services/episode_audio.py`, `app/db/models/episode_audio.py`,
-`alembic/versions/907eb914c502_add_episode_audio_clips.py`,
+`alembic/versions/907eb914c502_add_episode_audio_clips.py` (+ the merge
+`79e0beb6c84b`, §10),
 `app/api/v1/endpoints/episode_audio.py`, one flag in `app/config.py`, one router
 line in `app/api/v1/api.py`, one model export in `app/db/models/__init__.py`,
 two table registrations in `tests/conftest.py`.
@@ -260,8 +261,10 @@ Nothing is blocked; these are the seams other leases own.
 * **The prediction is a two-way choice**, which is generous: a coin flip scores
   50 %. It is measurement, not marking, so this costs nobody anything — but the
   digest must not report it as an accuracy rate without saying so.
-* **Two alembic heads existed in the working tree at commit time** —
-  `c7d8e9f0a1b2` (WP-30 journal) and `3759e1c7098c` (WP-34 intake, chained onto
-  this migration). Both are other leases' uncommitted files. The committed tree
-  has a single head, `907eb914c502`; whoever lands the journal migration owes
-  the merge revision.
+* **The migration branched, and is merged.** WP-30's `c7d8e9f0a1b2` (journal)
+  landed on the same parent as this package's `907eb914c502`, so the committed
+  tree had two heads. `79e0beb6c84b` merges them; it has no operations, because
+  `journal_entries` and `episode_audio_clips` are independent additive tables.
+  The committed tree now has a single head. **WP-34 owes one line**: its
+  untracked `3759e1c7098c` chains onto `907eb914c502` and will read as a second
+  head once committed — re-point its `down_revision` to `79e0beb6c84b`.
