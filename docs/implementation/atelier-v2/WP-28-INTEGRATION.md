@@ -142,9 +142,21 @@ weakened; nothing needed to be.
 | `web-frontend/lib/atelier-next.test.js` (+8 assertions) | `journeyBecause`: nothing off-flag, nothing for an unknown kind, nothing without a label, and a half-recorded example that still prints |
 | `web-frontend/components/atelier-v2/journey/journey-latency.test.js` (7 → 8) | a warm draft holds the hint back past the cold delay and still raises it if the draft turns cold |
 
-**Verification.** Backend `1887 passed, 1 skipped`; twelve node suites green;
-`type-check`, `lint` and `next build` clean (32 routes). **US$0.00 spent — no
-model call was made.**
+**Verification.** Backend `1945 passed, 1 skipped`, three consecutive full runs
+(the tree carries WP-29 as well, which landed in this checkout mid-session);
+twelve node suites green; `type-check`, `lint` and `next build` clean (32
+routes). **US$0.00 spent — no model call was made.**
+
+One caveat, stated rather than buried. In ten full-suite runs across four trees
+— base `46d861a` (1757 ×3), `34e623a` (1876 ×3), this tree (1945 ×3) and one
+earlier run — `test_journey_end_to_end.py::test_every_authored_scenario_family_is_reachable_from_the_real_create_path`
+failed **once**, at a tree that was green on the run before it and green three
+times after. The failure is a float (`inf`) arriving at a UUID column's
+processor during a lazy attribute reload: a corrupted cursor read on the
+SQLite connection the TestClient's worker thread shares with the test's own
+session, not a behaviour this package introduced. It passes 3/3 in isolation.
+Worth a fixture fix by whoever owns that harness; it is not worth a retry
+decorator, which would hide it.
 
 ## 8. Open items
 
