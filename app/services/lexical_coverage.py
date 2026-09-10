@@ -252,9 +252,7 @@ def tokenize(text: str) -> list[Token]:
 def _split_word(folded: str, lexicon: Lexicon) -> list[str]:
     if folded in lexicon.atomic:
         return [folded]
-    pieces: list[str] = []
-    for chunk in _ELISION_SPLIT.split(folded):
-        pieces.append(chunk)
+    pieces = _ELISION_SPLIT.split(folded)
     if len(pieces) > 1:
         # Everything before an apostrophe is an elided clitic; unrecognised ones
         # ("aujourd" in a word the atomic list missed) are kept as written.
