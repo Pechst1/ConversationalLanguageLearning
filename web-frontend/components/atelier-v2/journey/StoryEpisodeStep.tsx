@@ -1,22 +1,38 @@
 /**
  * The daily journey's scene step, read as story-engine panels when the engine
- * has published them (WP-14E), and as the plain scene prompt otherwise.
+ * has published them (WP-14E), heard first when the learner has asked for that
+ * (WP-32), and as the plain scene prompt otherwise.
  *
  * `getStoryEpisodeForJourney(journey.id)` is scoped to the learner; absent or
  * legacy content returns null and the existing `SceneStepView` renders, so a
  * journey never loses its scene because the projection is missing. The
  * lookup is a GET — it neither generates nor completes anything.
+ *
+ * WP-32's addition is deliberately narrow. «Écouter d'abord» is opt-in and
+ * remembered per learner; with it off this file behaves exactly as it did, and
+ * *nothing* about the audio path is reached — no manifest read, no synthesis,
+ * no new request of any kind. That is the property the node suite pins, because
+ * it is the one that decides whether an experiment can cost a learner their
+ * ordinary scene.
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 
-import { StateBlock } from '@/components/atelier-v2/ui';
+import { Action, StateBlock } from '@/components/atelier-v2/ui';
+import apiService from '@/services/api';
 import { getStoryEpisodeForJourney } from '@/services/daily-journey';
 import type { SceneStep, StoryEpisode } from '@/types/daily-journey';
 
 import type { JourneyCopy } from './journey-copy';
 import { SceneStepView } from './JourneySteps';
-import { StoryEpisodeReader } from './StoryEpisodeReader';
+import { EpisodeRadio, StoryEpisodeReader } from './StoryEpisodeReader';
+import {
+  readListenFirst,
+  writeListenFirst,
+  type EpisodeGuessId,
+  type EpisodeVerification,
+} from './story-episode-model';
+import { useEpisodeAudio } from './useEpisodeAudio';
 
 type Lookup = { kind: 'loading' } | { kind: 'none' } | { kind: 'episode'; episode: StoryEpisode };
 
@@ -40,6 +56,14 @@ export function StoryEpisodeStep({
   const [lookup, setLookup] = useState<Lookup>(() =>
     typeof window === 'undefined' ? { kind: 'none' } : { kind: 'loading' },
   );
+  // The remembered choice is read once, on the client. It defaults to off:
+  // listening first is the harder way to meet a scene, and handing the hardest
+  // condition to someone who never asked for it is how a good idea gets
+  // measured as a bad one.
+  const [listenFirst, setListenFirst] = useState(false);
+  useEffect(() => {
+    setListenFirst(readListenFirst());
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -58,20 +82,70 @@ export function StoryEpisodeStep({
     };
   }, [journeyId, step.id]);
 
+  const sceneId = lookup.kind === 'episode' ? lookup.episode.id : null;
+  const audio = useEpisodeAudio({ sceneId, enabled: listenFirst && lookup.kind === 'episode' });
+
+  const chooseMode = useCallback((enabled: boolean) => {
+    setListenFirst(enabled);
+    writeListenFirst(enabled);
+  }, []);
+
+  const recordPrediction = useCallback(
+    (guess: EpisodeGuessId, verification: EpisodeVerification) => {
+      if (!sceneId) return;
+      // Fire and forget on purpose: this is measurement, and a learner must
+      // never wait on — or be stopped by — the recording of a tap.
+      void apiService
+        .recordEpisodePrediction(sceneId, {
+          guess,
+          verdict: verification.verdict,
+          supported: verification.supported,
+        })
+        .catch(() => {});
+    },
+    [sceneId],
+  );
+
   if (lookup.kind === 'loading') {
     return <StateBlock tone="loading" title={copy.preparing_title} body={copy.preparing_body} />;
   }
 
   if (lookup.kind === 'episode') {
+    if (listenFirst) {
+      return (
+        <EpisodeRadio
+          episode={lookup.episode}
+          copy={copy}
+          audio={audio}
+          continuing={busy}
+          onContinue={onContinue}
+          onReadInstead={() => chooseMode(false)}
+          onPrediction={recordPrediction}
+        />
+      );
+    }
     return (
-      <StoryEpisodeReader
-        episode={lookup.episode}
-        mode="continue"
-        onExit={onExit ?? (() => {})}
-        onContinue={onContinue}
-        continuing={busy}
-        continueLabel={copy.scene_continue}
-      />
+      <>
+        <StoryEpisodeReader
+          episode={lookup.episode}
+          mode="continue"
+          onExit={onExit ?? (() => {})}
+          onContinue={onContinue}
+          continuing={busy}
+          continueLabel={copy.scene_continue}
+        />
+        {/*
+          The offer, under the reader rather than in front of it: a learner who
+          came to read is not interrupted, and the sentence says what the mode
+          costs before it is chosen.
+        */}
+        <div className="av2-stack av2-step">
+          <p className="av2-body">{copy.listen_first_hint}</p>
+          <Action tone="quiet" inline onClick={() => chooseMode(true)}>
+            {copy.listen_first_on}
+          </Action>
+        </div>
+      </>
     );
   }
 

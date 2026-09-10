@@ -10,6 +10,7 @@ from app.api.v1.endpoints import (
     audio_session,
     auth,
     daily_journey,
+    episode_audio,
     feedback,
     grammar,
     graphic_novel,
@@ -56,3 +57,4 @@ api_router.include_router(journal.router)
 api_router.include_router(rehearsal.router)
 
 api_router.include_router(story_engine.router)
+api_router.include_router(episode_audio.router)

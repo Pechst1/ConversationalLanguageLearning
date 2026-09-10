@@ -294,6 +294,14 @@ class Settings(BaseSettings):
         2400,
         description="Maximum serial Feuilleton text-to-speech characters generated per scene.",
     )
+    ATELIER_EPISODE_AUDIO_ENABLED: bool = Field(
+        False,
+        description=(
+            "WP-32: synthesize the daily journey's scene as a radio episode for the "
+            "opt-in listening-first cycle. Dark by default — with this off nothing is "
+            "read, no speech call is made, and the scene is read as text as before."
+        ),
+    )
     SERIAL_WORLD_ENABLED: bool = Field(
         False,
         description="Enable the serial Missions x Feuilleton spine. Defaults dark for staged rollout.",

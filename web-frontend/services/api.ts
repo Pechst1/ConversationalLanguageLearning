@@ -24,6 +24,39 @@ import type {
 import { AnkiReviewResponse, ReviewResponse } from '@/types/reviews';
 
 /**
+ * WP-32 — the radio episode's manifest.
+ *
+ * `status` is the whole contract: `disabled` (the flag is off — read the scene
+ * as text), `absent` (nothing synthesized yet), `empty` (no speakable line),
+ * `ready`, or `failed`. A `failed` manifest carries no clips on purpose: half a
+ * scene played aloud is a comprehension test nobody can pass.
+ */
+export interface EpisodeAudioClipRef {
+  id: string;
+  line_key: string;
+  ordinal: number;
+  character_id: string;
+  voice: string;
+  content_type: string;
+  char_count: number;
+  text_fr: string;
+}
+
+export interface EpisodeAudioManifest {
+  status: 'disabled' | 'absent' | 'empty' | 'ready' | 'failed';
+  revision: string;
+  clips: EpisodeAudioClipRef[];
+  truncated: boolean;
+  reason: string;
+}
+
+export interface EpisodePredictionRecord {
+  guess: string;
+  verdict: string;
+  supported: string | null;
+}
+
+/**
  * How the story engine addresses the reader in French. 'neutral' is the default
  * and asks the récit to avoid gendered forms and endearments altogether.
  */
@@ -2474,6 +2507,59 @@ class ApiService {
 
   async saveStoryReadingPosition(sceneId: string, panelIndex: number): Promise<{ scene_id: string; panel_index: number }> {
     const response = await this.api.put<{ scene_id: string; panel_index: number }>(`/story-engine/episodes/${encodeURIComponent(sceneId)}/position`, { panel_index: panelIndex }, this.journeyConfig());
+    return response.data;
+  }
+
+  // WP-32 «Écouter d'abord» — the radio episode. Four additive calls; nothing
+  // below is reached unless the learner has switched listening-first on.
+
+  /** What is already spoken. Never starts a paid synthesis call. */
+  async getEpisodeAudio(sceneId: string): Promise<EpisodeAudioManifest> {
+    return this.get<EpisodeAudioManifest>(
+      `/story-engine/episodes/${encodeURIComponent(sceneId)}/audio`,
+      this.journeyConfig(),
+    );
+  }
+
+  /** Synthesize the episode, or hear honestly that it is not spoken. */
+  async synthesizeEpisodeAudio(sceneId: string): Promise<EpisodeAudioManifest> {
+    const response = await this.api.post<EpisodeAudioManifest>(
+      `/story-engine/episodes/${encodeURIComponent(sceneId)}/audio`,
+      {},
+      this.journeyConfig(),
+    );
+    return response.data;
+  }
+
+  /**
+   * One spoken line, as bytes.
+   *
+   * Fetched rather than handed to `<audio src>`: the clip route is
+   * authenticated with a bearer token and an audio element cannot carry a
+   * header. The caller owns the object URL it makes from this and must revoke
+   * it.
+   */
+  async getEpisodeAudioClip(sceneId: string, clipId: string): Promise<Blob> {
+    const response = await this.api.get<Blob>(
+      `/story-engine/episodes/${encodeURIComponent(sceneId)}/audio/${encodeURIComponent(clipId)}`,
+      { ...this.journeyConfig(), responseType: 'blob' },
+    );
+    return response.data;
+  }
+
+  /** Record the prediction check. Measurement, not marking: no score comes back. */
+  async recordEpisodePrediction(
+    sceneId: string,
+    body: { guess: string; verdict: string; supported?: string | null },
+  ): Promise<{ scene_id: string; prediction: EpisodePredictionRecord }> {
+    const response = await this.api.post<{
+      scene_id: string;
+      prediction: EpisodePredictionRecord;
+    }>(
+      `/story-engine/episodes/${encodeURIComponent(sceneId)}/audio/prediction`,
+      body,
+      this.journeyConfig(),
+    );
     return response.data;
   }
 

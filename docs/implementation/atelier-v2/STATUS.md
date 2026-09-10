@@ -1624,3 +1624,14 @@ The recap was written *for* the learner. Retrieval-practice research says that i
 - Grammar errors enter WP-24's errata loop; due words the recap used earn unassisted SRS credit, and a flagged word earns none. Both gated on a real verdict — no provider, or no concept to anchor on, is `unavailable`: the writing is kept, nothing is invented, no schedule moves.
 - **+7 days, one line** — « Et la semaine dernière, avec Romy ? » — whose answer is the `used_again_later` signal, about a scene rather than a sitting. It is the journal's own signal, deliberately not folded into `build_capability_summary` (two rubrics is the CONTRACTS §8 failure); the digest line pairing them is a hook owed, and until it lands the number is dark.
 - One priced `journal_correction` PilotEvent per real call, via a one-method subclass so the correction stays the Séance's. New tab in Le Cahier, French, av2, dark-capable. 58 new backend tests; **2094 passed, 1 skipped**; ruff, type-check, lint, build and all twelve node suites clean. **US$0.00 — no model call was made.**
+
+## 2026-09-10 — WP-32 «Écouter d'abord»
+
+Audio is not the intervention: predict → listen → verify → debrief is, and it is largest for the weakest listeners (Vandergrift & Tafaghodtari 2010). So the radio episode is the *cycle*, and the machine refuses the shortcut — no listening without a prediction, no verifying without having listened. Full handover in [WP-32-RADIO.md](WP-32-RADIO.md).
+
+- **Opt-in, off by default**, remembered per learner. With it off `StoryEpisodeStep` behaves exactly as before and nothing audio-shaped is reached — a server render asserting zero transport calls pins it.
+- The two guesses and the check are **deterministic from the episode the server already sent**: no model call, no second generation. A scene whose lines settle neither way is **`unresolved`**, told to the learner as such, never scored as a miss.
+- Cached per scene revision (text + voices + model); a replay calls nobody and writes no cost row, because a zero-cost row reads as a free call. One failed line fails the whole episode with **no clips** — half a scene played aloud is a test nobody can pass — while what was paid for stays cached so the retry is cheaper.
+- The price is an estimate and says so (`estimated: true` + basis): the speech endpoint returns audio and no usage. Provider pinned to OpenAI in code, `.env` untouched.
+- The prediction check is **measurement, not marking**: stored beside the reading position, never in the capability rubric — an AST scan fails the build if it ever reaches `DailyJourneyStep`. No pronunciation anywhere; a copy scan in three languages enforces it.
+- 25 backend + 19 frontend tests; twelve other node suites, type-check, lint and build green. **US$0.00 — no live TTS call was made**, which is also the open item: nothing here has actually been *heard*.

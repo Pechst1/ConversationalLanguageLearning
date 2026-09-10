@@ -106,7 +106,46 @@ export type JourneyCopyKey =
   // for one target the scene actually practised.
   | 'practice_this'
   | 'done_today'
-  | 'nothing_offered';
+  | 'nothing_offered'
+  // WP-32 «Écouter d'abord» — the four-stage listening cycle. Chrome only:
+  // the two guesses, the lines and the phrase to retain are French content
+  // derived from the scene itself, and are not translated.
+  | 'listen_first_label'
+  | 'listen_first_hint'
+  | 'listen_first_on'
+  | 'listen_first_off'
+  | 'radio_stage_predire'
+  | 'radio_stage_ecouter'
+  | 'radio_stage_verifier'
+  | 'radio_stage_retenir'
+  | 'radio_predire_body'
+  | 'radio_guess_label'
+  | 'radio_guess_selected'
+  | 'radio_listen_action'
+  | 'radio_ecouter_body'
+  | 'radio_words_hidden'
+  | 'radio_preparing'
+  | 'radio_play'
+  | 'radio_replay'
+  | 'radio_stop'
+  | 'radio_playing'
+  | 'radio_verify_action'
+  | 'radio_verifier_body'
+  | 'radio_reveal'
+  | 'radio_reveal_all'
+  | 'radio_guess_confirmed'
+  | 'radio_guess_other'
+  | 'radio_guess_unresolved'
+  | 'radio_evidence_label'
+  | 'radio_retenir_body'
+  | 'radio_retain_none'
+  | 'radio_truncated'
+  | 'radio_audio_disabled'
+  | 'radio_audio_failed'
+  | 'radio_audio_offline'
+  | 'radio_audio_unsupported'
+  | 'radio_audio_empty'
+  | 'radio_read_instead';
 
 type CopyTable = Record<JourneyCopyKey, string>;
 
@@ -202,6 +241,42 @@ const EN: CopyTable = {
   practice_this: 'Practise this',
   done_today: 'Today’s scene is done.',
   nothing_offered: 'No scene is available right now.',
+  listen_first_label: 'Listen first',
+  listen_first_hint: 'Guess what happens, listen without the text, then check. Harder, and the part that trains listening.',
+  listen_first_on: 'Listen first',
+  listen_first_off: 'Read instead',
+  radio_stage_predire: 'Guess',
+  radio_stage_ecouter: 'Listen',
+  radio_stage_verifier: 'Check',
+  radio_stage_retenir: 'Keep',
+  radio_predire_body: 'Before you listen: how do you think this ends? There is no penalty for guessing wrong — guessing is what makes the listening work.',
+  radio_guess_label: 'Your guess',
+  radio_guess_selected: 'chosen',
+  radio_listen_action: 'Listen',
+  radio_ecouter_body: 'The words stay hidden. You can replay any line as often as you like.',
+  radio_words_hidden: 'Text hidden',
+  radio_preparing: 'Preparing the audio',
+  radio_play: 'Play the episode',
+  radio_replay: 'Play again',
+  radio_stop: 'Stop',
+  radio_playing: 'Playing',
+  radio_verify_action: 'Check my guess',
+  radio_verifier_body: 'Tap a line to see what was said.',
+  radio_reveal: 'Show this line',
+  radio_reveal_all: 'Show every line',
+  radio_guess_confirmed: 'Your guess held.',
+  radio_guess_other: 'It went the other way.',
+  radio_guess_unresolved: 'The scene does not settle it either way, so neither guess is wrong.',
+  radio_evidence_label: 'What settles it',
+  radio_retenir_body: 'One thing to listen for tomorrow:',
+  radio_retain_none: 'Nothing to single out in this episode.',
+  radio_truncated: 'A long episode: only the first part was recorded.',
+  radio_audio_disabled: 'Audio is not switched on for this account. The scene is here to read.',
+  radio_audio_failed: 'The audio could not be prepared. The scene is here to read, and nothing is lost.',
+  radio_audio_offline: 'Without a connection there is no audio. Read the scene, or try again later.',
+  radio_audio_unsupported: 'This device will not play audio. The scene is here to read.',
+  radio_audio_empty: 'This scene has nothing to say aloud. Read it instead.',
+  radio_read_instead: 'Read the scene',
 };
 
 const DE: CopyTable = {
@@ -296,6 +371,42 @@ const DE: CopyTable = {
   practice_this: 'Das üben',
   done_today: 'Die heutige Szene ist erledigt.',
   nothing_offered: 'Gerade ist keine Szene verfügbar.',
+  listen_first_label: 'Zuerst hören',
+  listen_first_hint: 'Rate, wie es ausgeht, hör ohne Text zu, prüfe dann nach. Schwerer — und genau der Teil, der Hörverstehen übt.',
+  listen_first_on: 'Zuerst hören',
+  listen_first_off: 'Lieber lesen',
+  radio_stage_predire: 'Raten',
+  radio_stage_ecouter: 'Hören',
+  radio_stage_verifier: 'Prüfen',
+  radio_stage_retenir: 'Merken',
+  radio_predire_body: 'Bevor du hörst: Wie geht das aus? Falsch raten kostet nichts — das Raten ist es, was das Hören wirken lässt.',
+  radio_guess_label: 'Deine Vermutung',
+  radio_guess_selected: 'gewählt',
+  radio_listen_action: 'Hören',
+  radio_ecouter_body: 'Der Text bleibt verdeckt. Jede Zeile kannst du so oft abspielen, wie du willst.',
+  radio_words_hidden: 'Text verdeckt',
+  radio_preparing: 'Audio wird vorbereitet',
+  radio_play: 'Folge abspielen',
+  radio_replay: 'Nochmal abspielen',
+  radio_stop: 'Stopp',
+  radio_playing: 'Läuft',
+  radio_verify_action: 'Vermutung prüfen',
+  radio_verifier_body: 'Tippe auf eine Zeile, um zu sehen, was gesagt wurde.',
+  radio_reveal: 'Diese Zeile zeigen',
+  radio_reveal_all: 'Alle Zeilen zeigen',
+  radio_guess_confirmed: 'Deine Vermutung hat gestimmt.',
+  radio_guess_other: 'Es kam anders.',
+  radio_guess_unresolved: 'Die Szene entscheidet es nicht — also ist keine der beiden Vermutungen falsch.',
+  radio_evidence_label: 'Woran man es sieht',
+  radio_retenir_body: 'Eine Sache, auf die du morgen hören kannst:',
+  radio_retain_none: 'In dieser Folge gibt es nichts hervorzuheben.',
+  radio_truncated: 'Lange Folge: nur der erste Teil wurde aufgenommen.',
+  radio_audio_disabled: 'Audio ist für dieses Konto nicht eingeschaltet. Die Szene steht zum Lesen bereit.',
+  radio_audio_failed: 'Das Audio konnte nicht vorbereitet werden. Die Szene steht zum Lesen bereit, nichts ist verloren.',
+  radio_audio_offline: 'Ohne Verbindung gibt es kein Audio. Lies die Szene oder versuche es später.',
+  radio_audio_unsupported: 'Dieses Gerät spielt kein Audio ab. Die Szene steht zum Lesen bereit.',
+  radio_audio_empty: 'In dieser Szene gibt es nichts vorzulesen. Lies sie stattdessen.',
+  radio_read_instead: 'Szene lesen',
 };
 
 const FR: CopyTable = {
@@ -390,6 +501,42 @@ const FR: CopyTable = {
   practice_this: 'Retravailler',
   done_today: 'La scène du jour est terminée.',
   nothing_offered: 'Aucune scène n’est disponible pour le moment.',
+  listen_first_label: 'Écouter d’abord',
+  listen_first_hint: 'Devinez ce qui arrive, écoutez sans le texte, puis vérifiez. Plus difficile — et c’est cette partie-là qui travaille l’écoute.',
+  listen_first_on: 'Écouter d’abord',
+  listen_first_off: 'Lire plutôt',
+  radio_stage_predire: 'Prédire',
+  radio_stage_ecouter: 'Écouter',
+  radio_stage_verifier: 'Vérifier',
+  radio_stage_retenir: 'Retenir',
+  radio_predire_body: 'Avant d’écouter : à votre avis, comment cela se termine ? Se tromper ne coûte rien — c’est le fait de prédire qui fait travailler l’écoute.',
+  radio_guess_label: 'Votre prédiction',
+  radio_guess_selected: 'choisi',
+  radio_listen_action: 'Écouter',
+  radio_ecouter_body: 'Le texte reste caché. Vous pouvez réécouter chaque réplique autant de fois que vous voulez.',
+  radio_words_hidden: 'Texte caché',
+  radio_preparing: 'Préparation de l’audio',
+  radio_play: 'Écouter l’épisode',
+  radio_replay: 'Réécouter',
+  radio_stop: 'Arrêter',
+  radio_playing: 'Lecture en cours',
+  radio_verify_action: 'Vérifier ma prédiction',
+  radio_verifier_body: 'Touchez une réplique pour voir ce qui a été dit.',
+  radio_reveal: 'Afficher cette réplique',
+  radio_reveal_all: 'Afficher toutes les répliques',
+  radio_guess_confirmed: 'Votre prédiction se vérifie.',
+  radio_guess_other: 'Cela s’est passé autrement.',
+  radio_guess_unresolved: 'La scène ne tranche pas : aucune des deux prédictions n’est fausse.',
+  radio_evidence_label: 'Ce qui le montre',
+  radio_retenir_body: 'Une chose à écouter demain :',
+  radio_retain_none: 'Rien à retenir en particulier dans cet épisode.',
+  radio_truncated: 'Épisode long : seule la première partie a été enregistrée.',
+  radio_audio_disabled: 'L’audio n’est pas activé sur ce compte. La scène est là, à lire.',
+  radio_audio_failed: 'L’audio n’a pas pu être préparé. La scène est là, à lire : rien n’est perdu.',
+  radio_audio_offline: 'Sans connexion, pas d’audio. Lisez la scène, ou réessayez plus tard.',
+  radio_audio_unsupported: 'Cet appareil ne lit pas l’audio. La scène est là, à lire.',
+  radio_audio_empty: 'Cette scène n’a rien à dire à voix haute. Lisez-la.',
+  radio_read_instead: 'Lire la scène',
 };
 
 const TABLES: Record<ControlLanguage, CopyTable> = { en: EN, de: DE, fr: FR };
