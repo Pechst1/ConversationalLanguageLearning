@@ -47,6 +47,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models.pilot_event import PilotEvent
 from app.services.journey_contracts import (
+    CAPABILITY_RUBRIC_VERSION,
     AssistanceLevel,
     CapabilityKey,
     EvidenceKind,
@@ -956,6 +957,76 @@ def _event_local_date(event: PilotEvent) -> tuple[date | None, bool]:
     return moment.astimezone(ZoneInfo(FALLBACK_TIMEZONE)).date(), False
 
 
+def _capability_rollup(db: Session, learner_ids: set[str]) -> dict[str, Any]:
+    """What the day's learners can now do, by the rubric that already exists.
+
+    The engagement measures above answer whether learners turned up. This
+    answers the question the product is actually making a claim about: has
+    anyone demonstrated a capability without help, and did it survive a second
+    day? `journey_capabilities.build_capability_progress` is the ratified
+    authority for that judgement (CONTRACTS §8) and is reused verbatim here —
+    a digest that scored evidence its own way would be a second rubric, and
+    two rubrics is how `recap.capability_evidence` and `/capabilities/progress`
+    once disagreed about the same journey.
+
+    This is a STOCK, not a flow: it is each learner's standing as of now, for
+    the learners who were active on the day. It deliberately does not claim
+    "learned today" — that needs yesterday's standing to compare against, which
+    is not stored, and inventing it from a same-day window would over-report
+    exactly the number nobody should over-report.
+    """
+
+    from app.db.models.user import User
+    from app.services.journey_capabilities import build_capability_summary
+
+    states: Counter[str] = Counter()
+    learners_with_independent: set[str] = set()
+    learners_with_retention: set[str] = set()
+    per_capability: dict[str, Counter[str]] = {}
+    measured = 0
+
+    for learner_id in sorted(learner_ids):
+        # Event payloads carry the id as text; the column is a UUID. A value that
+        # is not a uuid belongs to no account and is reported as unresolved
+        # rather than silently dropped.
+        try:
+            lookup = UUID(str(learner_id))
+        except (ValueError, AttributeError, TypeError):
+            continue
+        user = db.query(User).filter(User.id == lookup).one_or_none()
+        if user is None:
+            continue
+        measured += 1
+        view = build_capability_summary(
+            db, user=user, control_language=getattr(user, "native_language", None) or "en"
+        )
+        for summary in view.capabilities:
+            state = str(summary.state)
+            key = str(summary.capability_key)
+            states[state] += 1
+            per_capability.setdefault(key, Counter())[state] += 1
+            if state == "independent_once":
+                learners_with_independent.add(learner_id)
+            elif state == "used_again_later":
+                learners_with_independent.add(learner_id)
+                learners_with_retention.add(learner_id)
+
+    return {
+        "rubric_version": CAPABILITY_RUBRIC_VERSION,
+        "basis": "standing as of now, for learners active on this day",
+        "learners_measured": measured,
+        "learners_unresolved": len(learner_ids) - measured,
+        "states": dict(sorted(states.items())),
+        "learners_with_any_independent": len(learners_with_independent),
+        "learners_with_any_retention": len(learners_with_retention),
+        "independence_rate": _rate(len(learners_with_independent), measured),
+        "retention_rate": _rate(len(learners_with_retention), measured),
+        "by_capability": {
+            key: dict(sorted(counts.items())) for key, counts in sorted(per_capability.items())
+        },
+    }
+
+
 def journey_daily_rollup(
     db: Session,
     day: date,
@@ -1094,6 +1165,7 @@ def journey_daily_rollup(
             "events_attributed_by_fallback_zone": fallback_zone_events,
             "fallback_zone": FALLBACK_TIMEZONE,
         },
+        "capabilities": _capability_rollup(db, {str(item) for item in learners}),
         "sample": {
             "journeys": len(all_journeys),
             "learners": len(learners),
@@ -1206,6 +1278,34 @@ def format_journey_digest(section: dict[str, Any]) -> list[str]:
     ) or "no ordinals recorded"
     kinds = ", ".join(f"{name}:{count}" for name, count in drop["by_kind"].items()) or "none"
     lines.append(f"  Steps completed by ordinal (n={drop['denominator']}): {reached}; by kind: {kinds}")
+
+    # The learning half. Everything above measures whether learners turned up.
+    capabilities = section.get("capabilities")
+    if capabilities:
+        measured = capabilities["learners_measured"]
+        if not measured:
+            lines.append("  Capabilities: no learner resolved; nothing to report")
+        else:
+            states = ", ".join(
+                f"{name}:{count}" for name, count in capabilities["states"].items()
+            ) or "none"
+            lines.append(
+                f"  Capabilities (n={measured} learners, {capabilities['rubric_version']}, "
+                f"standing not same-day): {states}"
+            )
+            lines.append(
+                f"    Independent at least once: "
+                f"{capabilities['learners_with_any_independent']}/{measured} "
+                f"({pct(capabilities['independence_rate'])}) · "
+                f"used again on a later day: "
+                f"{capabilities['learners_with_any_retention']}/{measured} "
+                f"({pct(capabilities['retention_rate'])})"
+            )
+            if capabilities["learners_unresolved"]:
+                lines.append(
+                    f"    {capabilities['learners_unresolved']} active learner(s) could not be "
+                    "resolved to an account and are excluded, not counted as zero"
+                )
     help_section = section["help"]
     help_kinds = ", ".join(
         f"{name}:{count}" for name, count in help_section["by_kind"].items()

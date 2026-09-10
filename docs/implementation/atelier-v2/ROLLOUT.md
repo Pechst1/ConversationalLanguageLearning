@@ -73,6 +73,37 @@ a stale client cannot enter the cohort by itself.
 
 ---
 
+## 3b. Prove the loop before you narrow the cohort
+
+**Order matters here, and getting it backwards costs a learner's day.**
+
+`scripts/verify_daily_journey_cafe.py` drives one complete journey against a
+running API — sign-up, today, create, walk every step, interruption recovery,
+finish — and it does so on a throwaway `journey-verify-*@example.com` account, so
+it never touches a real learner's journey:
+
+```bash
+.venv/bin/python scripts/verify_daily_journey_cafe.py \
+    --base-url https://atelier-api.onrender.com --json var/reviews/first-deploy.json
+```
+
+That throwaway account is admitted only while the cohort is **empty** — outside
+production an empty cohort admits everyone, which is exactly what makes this
+proof possible. So:
+
+1. Deploy with `ATELIER_DAILY_JOURNEY_COHORT` unset.
+2. Run the verifier. It proves the loop end to end against the real service,
+   with real generation, on an account nobody is using.
+3. **Then** set the cohort to the pilot's learners and redeploy.
+
+Running it after step 3 fails on `enabled: false`, because the throwaway account
+is not in the list. Verifying with a cohort account instead would spend that
+learner's own journey for the day.
+
+Note the window in step 1–2: between the deploy and the cohort being set, any
+account that signs up is in the pilot. Keep it short, and do not advertise the
+URL until step 3 is done.
+
 ## 4. Health queries
 
 `scripts/rollout_health.py` runs exactly the queries this section documents, so

@@ -151,8 +151,17 @@ class Driver:
                            f"{first_id} vs {second_id}")
         if not body.get("enabled"):
             raise SystemExit(
-                "ATELIER_DAILY_JOURNEY_ENABLED is off for this account. Enable it for the "
-                "verification cohort only; do not enable it in production."
+                "The journey is not enabled for this account, so there is nothing to "
+                "verify.\n\n"
+                "Since 2026-09-10 ATELIER_DAILY_JOURNEY_ENABLED defaults to true, so the "
+                "cause is almost certainly the cohort: this script signs up a throwaway "
+                "journey-verify-*@example.com account, and ATELIER_DAILY_JOURNEY_COHORT "
+                "names real learners.\n\n"
+                "Run this BEFORE narrowing the cohort — outside production an empty "
+                "cohort admits every account, which is what lets a throwaway one prove "
+                "the loop. Then set the cohort to the pilot's learners. Verifying after "
+                "narrowing needs a cohort account, and that spends the learner's own "
+                "journey for the day."
             )
         return body
 

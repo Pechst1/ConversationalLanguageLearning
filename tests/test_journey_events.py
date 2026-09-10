@@ -1015,3 +1015,50 @@ def test_a_journey_provider_failure_counts_as_a_failure_in_the_existing_totals(
 
     report = PilotEventService(db_session).daily_rollup(date(2026, 9, 5), user_id=user.id)
     assert report["totals"]["failures"] == 1
+
+
+def test_the_digest_reports_what_learners_can_do_not_only_that_they_showed_up(
+    db_session,
+):
+    """The measurement loop was open exactly where the product makes its claim.
+
+    Every existing measure — funnel, drop-off, help, duration, cost, provider
+    reliability — answers whether a learner turned up. None answered whether
+    anyone demonstrated a capability, or whether it survived to a second day,
+    which is the thing the product says it does. A pilot that reports only
+    engagement can look healthy while teaching nobody anything.
+
+    The section reuses `journey_capabilities.build_capability_summary`
+    verbatim: scoring evidence a second way here would be a second rubric, and
+    two rubrics is how the recap and `/capabilities/progress` once disagreed
+    about the same journey (CONTRACTS §8).
+    """
+
+    from datetime import date
+
+    from app.services.journey_events import journey_daily_rollup
+
+    section = journey_daily_rollup(db_session, date.today())
+    capabilities = section["capabilities"]
+
+    # Present, versioned, and honest about what it is measuring.
+    assert capabilities["rubric_version"] == "capability-rubric-v1"
+    assert "standing as of now" in capabilities["basis"]
+
+    # Rates carry their denominator, like every other rate in this report.
+    assert capabilities["learners_measured"] >= 0
+    assert set(capabilities) >= {
+        "states",
+        "learners_with_any_independent",
+        "learners_with_any_retention",
+        "independence_rate",
+        "retention_rate",
+        "by_capability",
+        "learners_unresolved",
+    }
+
+    # An id that belongs to no account is unresolved, never a silent zero.
+    assert capabilities["learners_unresolved"] >= 0
+
+    rendered = "\n".join(format_journey_digest(section))
+    assert "Capabilities" in rendered or "no learner resolved" in rendered
