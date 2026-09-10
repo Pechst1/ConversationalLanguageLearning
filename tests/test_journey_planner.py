@@ -778,6 +778,27 @@ def _imported_modules() -> set[str]:
     return names
 
 
+def _typing_only_imports(source: str) -> set[str]:
+    """Modules imported only inside an ``if TYPE_CHECKING:`` block."""
+
+    names: set[str] = set()
+    for node in ast.walk(ast.parse(source)):
+        if not isinstance(node, ast.If):
+            continue
+        test = node.test
+        guarded = (isinstance(test, ast.Name) and test.id == "TYPE_CHECKING") or (
+            isinstance(test, ast.Attribute) and test.attr == "TYPE_CHECKING"
+        )
+        if not guarded:
+            continue
+        for child in ast.walk(node):
+            if isinstance(child, ast.ImportFrom) and child.module:
+                names.add(child.module)
+            elif isinstance(child, ast.Import):
+                names.update(alias.name for alias in child.names)
+    return names
+
+
 def test_the_planner_imports_no_ladder_and_no_scheduler() -> None:
     """One content source (WP-03), one evidence source (WP-05), no second brain."""
 
@@ -792,7 +813,14 @@ def test_the_planner_imports_no_ladder_and_no_scheduler() -> None:
         "typing",
         "app.services.journey_content",
         "app.services.journey_contracts",
+        # WP-24: types only. `journey_errata` reaches the ORM, so the planner
+        # may name it in an annotation and must not import it at runtime — the
+        # next assertion is what actually holds that line.
+        "app.services.journey_errata",
     }, imported
+    assert _typing_only_imports(PLANNER_SOURCE) >= {
+        "app.services.journey_errata"
+    }, "journey_errata must stay behind `if TYPE_CHECKING`"
     for banned in ("output_ladder", "ATELIER_", "UnifiedSRSService", "complete_item("):
         assert banned not in PLANNER_SOURCE, banned
 

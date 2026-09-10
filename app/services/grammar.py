@@ -9,29 +9,50 @@ from loguru import logger
 from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
+from app.core.srs.schedule import interval_for_score
 from app.db.models.grammar import GrammarConcept, GrammarConceptLocalization, UserGrammarProgress
 from app.db.models.user import User
 from app.services.grammar_catalog import FRENCH_CORE_CATALOG_VERSION, FrenchCoreGrammarCatalog
 
-# SRS Interval Logic (from Excel tracker)
-# Score 9-10: +30 days
-# Score 7-8:  +14 days
-# Score 5-6:  +7 days
-# Score 3-4:  +3 days
-# Score 0-2:  +1 day
+# WP-24: this used to be a five-branch day table copied from the Excel tracker
+# (30/14/7/3/1 days by score). A concept reviewed for the twentieth time was
+# scheduled exactly like one reviewed for the first, and a lapse cost nothing,
+# because no ease was carried between reviews. It now delegates to the shared
+# SM-2 scheduler in `app.core.srs.schedule`, which does carry both.
+#
+# The call shape is unchanged, and with no history (`reps=0`) the answer is the
+# graduating interval, so a first review behaves as it always did.
 
-def calculate_next_review(score: float) -> timedelta:
-    """Calculate the next review interval based on score (0-10)."""
-    if score >= 9:
-        return timedelta(days=30)
-    elif score >= 7:
-        return timedelta(days=14)
-    elif score >= 5:
-        return timedelta(days=7)
-    elif score >= 3:
-        return timedelta(days=3)
-    else:
-        return timedelta(days=1)
+def calculate_next_review(
+    score: float,
+    *,
+    previous_interval_days: int = 0,
+    reps: int = 0,
+    ease_factor: float | None = None,
+) -> timedelta:
+    """Next review interval for a 0-10 score, given what came before it."""
+
+    return interval_for_score(
+        score,
+        previous_interval_days=previous_interval_days,
+        reps=reps,
+        ease_factor=ease_factor,
+    )
+
+
+def previous_interval_days(progress: UserGrammarProgress) -> int:
+    """The interval the last review actually granted, in days.
+
+    `UserGrammarProgress` has no interval column, so it is read back off the
+    schedule the last review wrote. Zero when there is no such pair, which the
+    scheduler reads as "no history".
+    """
+
+    last = getattr(progress, "last_review", None)
+    nxt = getattr(progress, "next_review", None)
+    if not last or not nxt:
+        return 0
+    return max(0, (nxt - last).days)
 
 
 # `UserGrammarProgress.notes` is written from two very different places: the
@@ -313,7 +334,14 @@ class GrammarService:
             return progress
 
         now = datetime.now(UTC)
-        interval = calculate_next_review(score) * interval_multiplier
+        interval = (
+            calculate_next_review(
+                score,
+                previous_interval_days=previous_interval_days(progress),
+                reps=int(progress.reps or 0),
+            )
+            * interval_multiplier
+        )
 
         progress.score = score
         progress.reps += 1
@@ -790,4 +818,9 @@ class GrammarService:
         )
 
 
-__all__ = ["GrammarService", "calculate_next_review", "determine_state"]
+__all__ = [
+    "GrammarService",
+    "calculate_next_review",
+    "determine_state",
+    "previous_interval_days",
+]

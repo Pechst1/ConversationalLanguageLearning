@@ -56,8 +56,22 @@ class UserError(Base):
     reps = Column(Integer, default=0)
     lapses = Column(Integer, default=0)
     occurrences = Column(Integer, default=1)  # How many times this error pattern occurred
-    state = Column(String(20), default="new")  # "new", "learning", "review", "relearning"
-    
+    # WP-24 lifecycle. Legacy rows carry "new"/"learning"/"review"/"relearning";
+    # `app.services.error_memory.normalize_error_state` folds those onto the
+    # three states the loop actually has — open, repairing, mastered — so old
+    # rows keep working and nothing has to be back-filled.
+    state = Column(String(20), default="open")
+    #: Consecutive spaced (distinct-day) correct repairs since the last
+    #: recurrence. Reaching MASTERY_REQUIRED_REPAIRS retires the erratum.
+    mastery_streak = Column(Integer, default=0, nullable=True)
+    #: When this erratum left the queue. Cleared the moment it recurs.
+    mastered_at = Column(DateTime(timezone=True), nullable=True)
+    #: The last day a repair was accepted, so two repairs in one sitting cannot
+    #: buy two steps towards mastery.
+    last_correct_date = Column(DateTime(timezone=True), nullable=True)
+    #: SM-2 ease, carried between reviews (app.core.srs.schedule).
+    ease_factor = Column(Float, default=2.5, nullable=True)
+
     last_review_date = Column(DateTime(timezone=True))
     next_review_date = Column(DateTime(timezone=True), index=True)
     

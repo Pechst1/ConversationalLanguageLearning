@@ -1061,7 +1061,8 @@ def test_credit_routes_to_the_existing_grammar_and_error_records(db_session):
     assert grammar.next_review is not None
 
     db_session.refresh(error)
-    assert error.state == "review"
+    # WP-24: one repair schedules the erratum forward; it does not retire it.
+    assert error.state == "repairing"
     assert error.lapses == 0
     assert _naive(error.next_review_date) > datetime.now(UTC).replace(tzinfo=None)
 

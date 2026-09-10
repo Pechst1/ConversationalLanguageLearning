@@ -30,7 +30,7 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass, replace
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from app.services.journey_content import render_authored_text, scenario_target_affordances
 from app.services.journey_contracts import (
@@ -52,6 +52,13 @@ from app.services.journey_contracts import (
     TargetRef,
     normalize_answer_text,
 )
+
+if TYPE_CHECKING:  # pragma: no cover - typing only
+    # WP-24. Imported for types alone: `journey_errata` reaches the ORM, and the
+    # planner is contractually a pure function over its arguments (there is a
+    # test that fails if it imports a scheduler). At runtime an errata target is
+    # anything with `as_candidate()`, `as_because()` and `reason`.
+    from app.services.journey_errata import ErrataTarget
 
 PLANNER_VERSION = "journey-planner-v1"
 
@@ -677,6 +684,90 @@ def resolution_seconds(
 # --------------------------------------------------------------------------
 
 
+def target_reason(candidate: LearningCandidate) -> str | None:
+    """Why this target is in today's plan, machine-readable, or None.
+
+    WP-24. The only reason produced today is ``"erratum:<id>"`` (see
+    :mod:`app.services.journey_errata`), but the field is deliberately a free
+    string: a target chosen because a chapter needs it, or because the learner
+    asked for it, will say so here without another contract change.
+    """
+
+    metadata = candidate.metadata or {}
+    reason = str(metadata.get("target_reason") or "").strip()
+    return reason or None
+
+
+def merge_errata_candidates(
+    candidates: list[LearningCandidate],
+    errata_targets: list[ErrataTarget] | None,
+) -> list[LearningCandidate]:
+    """Put the learner's ranked errata in front of the day's other candidates.
+
+    An erratum that is *also* in ``candidates`` (the same target, reached
+    through the ordinary due queue) is replaced rather than duplicated, so the
+    reason survives and the planner still sees exactly one candidate for it.
+    """
+
+    ranked = [target.as_candidate() for target in (errata_targets or [])]
+    if not ranked:
+        return list(candidates)
+    identities = {target_identity(candidate.target) for candidate in ranked}
+    rest = [
+        candidate
+        for candidate in candidates
+        if target_identity(candidate.target) not in identities
+    ]
+    return [*ranked, *rest]
+
+
+def plan_target_reasons(
+    plan: PlannedJourney, candidates: list[LearningCandidate]
+) -> dict[str, str]:
+    """``{target identity: reason}`` for the targets the plan actually kept.
+
+    The plan itself stores identities, not reasons — the wire contract forbids
+    extra keys on the public prompts — so the reason is recovered from the same
+    candidate list the plan was built from. Candidates that were offered and not
+    kept are not in the answer: nothing is happening today because of them.
+    """
+
+    kept = set(plan.selected_target_ids)
+    reasons: dict[str, str] = {}
+    for candidate in candidates:
+        identity = target_identity(candidate.target)
+        reason = target_reason(candidate)
+        if reason and identity in kept:
+            reasons[identity] = reason
+    return reasons
+
+
+def plan_because(
+    plan: PlannedJourney,
+    candidates: list[LearningCandidate],
+    errata_targets: list[ErrataTarget] | None = None,
+) -> dict[str, Any] | None:
+    """The day's because-line payload, or None when today owes nothing to a mistake.
+
+    Structured — ``{"kind", "reason", "label", "example"}`` — never a rendered
+    sentence: the French copy belongs beside the rest of the learner-facing copy
+    in the component that prints it.
+    """
+
+    reasons = plan_target_reasons(plan, candidates)
+    if not reasons:
+        return None
+    by_reason = {target.reason: target for target in (errata_targets or [])}
+    for identity in plan.selected_target_ids:
+        reason = reasons.get(identity)
+        if not reason:
+            continue
+        target = by_reason.get(reason)
+        if target is not None:
+            return target.as_because()
+    return None
+
+
 def plan_journey(
     *,
     scenario: ScenarioBrief,
@@ -684,6 +775,7 @@ def plan_journey(
     budget_seconds: int = DEFAULT_BUDGET_SECONDS,
     pace: PacingProfile | None = None,
     input_mode: InputMode = InputMode.TEXT,
+    errata_targets: list[ErrataTarget] | None = None,
 ) -> PlannedJourney:
     """Build today's immutable plan.
 
@@ -691,6 +783,12 @@ def plan_journey(
     :class:`ScenarioBrief` carries no modality and ``RespondPrompt.input_modes``
     has to say whether voice is on offer. Omitting it yields the safe answer —
     text only, which is always available.
+
+    ``errata_targets`` (WP-24) are the learner's ranked due mistakes. Passed,
+    they are merged in front of the other candidates and every step they reach
+    is stamped with ``target_reason`` — which is what lets Home say the scene
+    exists because of a mistake, and telemetry say which one. Omitted, the plan
+    is exactly what it was before this package.
     """
 
     outcome_key = _require_plannable(scenario)
@@ -706,6 +804,12 @@ def plan_journey(
     if scenario.is_authored_fallback:
         notes.append("scene is the authored fallback; no serial episode was bound")
 
+    candidates = merge_errata_candidates(candidates, errata_targets)
+    reasons_by_identity = {
+        target_identity(candidate.target): reason
+        for candidate in candidates
+        if (reason := target_reason(candidate))
+    }
     selection = select_plan_targets(scenario, candidates)
     affordances = _affordances_for(scenario)
     task = scenario.response_task
@@ -776,6 +880,27 @@ def plan_journey(
         used_targets.append(entry)
 
     # --- assemble ----------------------------------------------------------
+    # WP-24: which of today's kept targets is here because of a past mistake.
+    # The first one in planner order is the day's reason; a scene rarely carries
+    # two, and Home has room for one line.
+    # The public step prompts are a frozen wire contract that forbids extra
+    # keys (`JourneyModel`, extra="forbid"), so the reason is NOT smuggled into
+    # them. It travels in the plan's rationale for operators and telemetry, and
+    # `plan_target_reasons` / `plan_because` hand the structured form to whoever
+    # builds the learner's envelope.
+    primary_reason = next(
+        (
+            reason
+            for reason in (
+                reasons_by_identity.get(target_identity(entry.target)) for entry in used_targets
+            )
+            if reason
+        ),
+        None,
+    )
+    if primary_reason:
+        notes.append(f"today's targets include {primary_reason}")
+
     steps: list[PlannedStep] = []
     ordinal = 0
     steps.append(
@@ -993,6 +1118,9 @@ __all__ = [
     "TargetSelection",
     "build_recall_task",
     "candidate_is_demonstrated",
+    "merge_errata_candidates",
+    "plan_because",
+    "plan_target_reasons",
     "default_outcome_key",
     "plan_journey",
     "public_recall_target",
@@ -1004,4 +1132,5 @@ __all__ = [
     "select_plan_targets",
     "supported_input_modes",
     "target_identity",
+    "target_reason",
 ]

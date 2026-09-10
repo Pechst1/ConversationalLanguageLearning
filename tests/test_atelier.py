@@ -3155,7 +3155,10 @@ def test_atelier_today_includes_due_errata_and_review_endpoint(client: TestClien
     wrong_payload = wrong_attempt.json()
     assert wrong_payload["verdict"] == "needs_repair"
     assert wrong_payload["is_correct"] is False
-    assert wrong_payload["erratum"]["state"] == "relearning"
+    # WP-24 lifecycle vocabulary: a failed repair is `repairing`, never a state
+    # that could be mistaken for "done".
+    assert wrong_payload["erratum"]["state"] == "repairing"
+    assert wrong_payload["erratum"]["mastered"] is False
     assert wrong_payload["erratum"]["metadata"]["review_attempts"][0]["answer_text"] == "en"
 
     repaired_attempt = client.post(
@@ -3170,7 +3173,10 @@ def test_atelier_today_includes_due_errata_and_review_endpoint(client: TestClien
     # Superseded 2026-09-04: the repair card's copy is publication French.
     assert repaired_payload["closure"]["label"] == "Corrigé · classé"
     assert repaired_payload["closure"]["next_review_date"]
-    assert repaired_payload["erratum"]["state"] == "review"
+    # One correct repair is one of the three spaced repairs mastery needs.
+    assert repaired_payload["erratum"]["state"] == "repairing"
+    assert repaired_payload["erratum"]["mastery_streak"] == 1
+    assert repaired_payload["erratum"]["mastery_target"] == 3
     assert len(repaired_payload["erratum"]["metadata"]["review_attempts"]) == 2
     assert repaired_payload["erratum"]["metadata"]["last_closure"]["label"] == "Corrigé · classé"
 
