@@ -1526,3 +1526,24 @@ is the experience. Full handover: [WP-26-LATENCY.md](WP-26-LATENCY.md).
   and every mutation is bounded — a timeout is a retryable state, not a dead end.
 - 22 backend + 7 frontend tests, all green. No production numbers yet and no paid
   call was made: the gate is there to answer that on the first real pilot day.
+
+## 2026-09-10 — WP-27 voice-first respond
+
+The respond beat opens on «Parler». The recording is transcribed by the existing
+stateless endpoint, the transcript lands **in the answer field** to be corrected,
+and the learner sends it as `mode: 'voice'`. The old path auto-submitted the
+transcript, so a misheard word became a wrong answer nobody saw coming.
+
+**No pronunciation scoring, ever** (owner decision): speech becomes text and is
+graded exactly like typed text, and the French hint on screen says so.
+
+«Écrire» is one tap away and remembered (`localStorage`). Recording, transcribing,
+failed transcription, refused permission (→ text, explained once, remembered),
+unsupported device, offline and empty recording each have their own French
+sentence, and none is ever a wrong answer.
+
+Backend grading needed no change — modality and transcript already reach the
+evidence. What was missing was the money: `POST /audio/transcribe` now writes one
+priced pilot row per call, **declared as an estimate** (Whisper reports no
+duration), with the surface that produced it. Details in
+[WP-27-VOICE-RESPOND.md](WP-27-VOICE-RESPOND.md). **Not walked on the simulator.**
