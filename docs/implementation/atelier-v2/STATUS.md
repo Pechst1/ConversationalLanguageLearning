@@ -1654,3 +1654,22 @@ Audio is not the intervention: predict → listen → verify → debrief is, and
 - The price is an estimate and says so (`estimated: true` + basis): the speech endpoint returns audio and no usage. Provider pinned to OpenAI in code, `.env` untouched.
 - The prediction check is **measurement, not marking**: stored beside the reading position, never in the capability rubric — an AST scan fails the build if it ever reaches `DailyJourneyStep`. No pronunciation anywhere; a copy scan in three languages enforces it.
 - 25 backend + 19 frontend tests; twelve other node suites, type-check, lint and build green. **US$0.00 — no live TTS call was made**, which is also the open item: nothing here has actually been *heard*.
+
+## 2026-09-10 — day's close: eight innovation packages, two finished by hand
+
+Plan: [INNOVATION-WORK-PACKAGES-2026-09-10.md](INNOVATION-WORK-PACKAGES-2026-09-10.md).
+Landed today on top of WP-24…28: WP-29 coverage (`79ccfe7`…`4154b56`) + hooks WP-29H
+(`c1e6d00`), WP-30 journal (`bd3c7d0`), WP-31 rehearsal (`76759a3`), WP-32 radio
+(`5e107ce`, merge `237c86a`), WP-33 register (`ea2ba32`), WP-34 intake (`45d7a5f`),
+WP-35 dossier (`7dd15d4`). Full backend suite after the last commit: **2274 passed,
+1 skipped** (WP-32's run); all 16 node suites pass; type-check, lint, build clean.
+US$0.00 spent — no package made a live model call, so every judgement half
+(placement ladder, coverage lexicon, register LLM gap, radio voice, intake reading)
+is mechanism-proven and calibration-unproven.
+Subagents stalled at the account session limit from the seventh onward; WP-34/35
+were verified and committed by the integration owner (their handoffs say so).
+`services/api.ts` had the WP-31 client block committed twice (HEAD failed
+type-check); `45d7a5f` removes the duplicate.
+**Not done:** WP-36 self-repair prompts (never started); hooks owed by WP-31/32/33/34/35
+(Home entries, `CapabilityKey.REGISTER`, digest lines, settings row, learner-sourced
+coverage targets); no browser or simulator walk of any new surface.

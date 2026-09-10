@@ -109,6 +109,9 @@ jobs:
           npm run test:seance
           npm run test:graphic-novel-images
           npm run test:native-env
+          npm run test:courrier-intake
+          npm run test:rehearsal
+          npm run test:dossier
           npm run build
           npm run build:native
 

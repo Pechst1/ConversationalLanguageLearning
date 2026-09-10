@@ -26,7 +26,9 @@
     "test:episode-audio": "node --test components/atelier-v2/journey/episode-audio.test.js",
     "test:api-host": "node --test lib/api-host.test.js",
     "test:seance": "node --test lib/seance-feedback.test.js",
-    "test:courrier-intake": "node components/courrier/courrier-intake.test.js"
+    "test:courrier-intake": "node components/courrier/courrier-intake.test.js",
+    "test:rehearsal": "node components/atelier-v2/rehearsal/rehearsal.test.js",
+    "test:dossier": "node components/atelier-v2/dossier/dossier.test.js"
   },
   "dependencies": {
     "@capacitor/cli": "^8.4.0",
