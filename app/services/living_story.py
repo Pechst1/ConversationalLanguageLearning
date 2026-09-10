@@ -42,6 +42,13 @@ from app.services.journey_contracts import (
     TaskOutcome,
     normalize_control_language,
 )
+from app.services.lexical_coverage import (
+    LearnerLexicon,
+    SceneText,
+    check_scene_coverage,
+    known_word_set,
+    world_proper_nouns,
+)
 from app.services.llm_service import LLMService
 
 logger = logging.getLogger(__name__)
@@ -65,6 +72,24 @@ CHAPTER_MAX_SCENES = 5
 PAIR_REPEAT_LIMIT = 3
 # How far back the (character, location, objective) premise check looks.
 PREMISE_WINDOW = 5
+# WP-29 (coverage-controlled generation). Two keys live on the generation context and
+# may never reach a prompt: the learner's known-word set, and the coverage the guard
+# measured. `_prompt_payload` is what strips them.
+LEXICON_KEY = "lexicon"
+COVERAGE_KEY = "lexical_coverage"
+# Whether a coverage verdict may *reject* a draft, or only measure it.
+#
+# Measured on the seven-scene A1 fixture set the day this hook landed: the 821-lemma
+# core list of WP-29 puts ordinary A1 French at 65-83 % coverage and rejects 7 of 7 —
+# "samedi", "vendredi", "soiree", "vendre", "garder" are simply not on the list.
+# Enforcing that would not have produced readable scenes, it would have produced three
+# rejected attempts and no journey, which is the exact defect WP-29 §2.4 names: a guard
+# that costs a learner their day. So the guard measures from the first scene and stores
+# what it found, and rejects only once the list has been grown from the distribution it
+# is now recording — WP-29 §6 item 2's "recalibrate the list, not the threshold", in the
+# only order that keeps the product alive while it happens. A module constant, like
+# CRITIC_ENABLED above: the engine must not depend on a flag another agent owns.
+COVERAGE_ENFORCED = False
 # The critic is a second paid call per proposal. The owner A/Bs its value with
 # ``scripts/longitudinal_story_review.py --critic {all,turns,none}``, which flips these
 # module flags for that process only. Never persisted, never a runtime toggle for
@@ -787,6 +812,101 @@ def story_context(db: Session, user: User) -> dict:
     }
 
 
+def _prompt_payload(context: dict) -> dict:
+    """The generation context as a *model* may see it (WP-29).
+
+    Two keys never reach a prompt. ``lexicon`` holds the learner's whole known-word set:
+    hundreds of lemmas no writer needs, and a frozen dataclass ``json.dumps`` cannot
+    serialise anyway. ``lexical_coverage`` holds the words the guard found unknown, and
+    the actor must not have them — it grades what was actually said, and a grader told in
+    advance which words the learner cannot read is not a grader. Same rule that keeps the
+    errata out of ``_turn_payload`` (WP-28 §2).
+    """
+
+    return {key: value for key, value in context.items() if key not in (LEXICON_KEY, COVERAGE_KEY)}
+
+
+def _storable_context(context: dict) -> dict:
+    """The generation context as it is *stored*, on ``brief.story_context["source"]``.
+
+    :class:`~app.services.lexical_coverage.KnownWordSet` is a frozen dataclass and the
+    targets are a frozenset, so the lexicon as the validator holds it is not
+    JSON-serialisable — and this dict is dumped into the prefetch cache and the stored
+    scene. What is worth keeping is the provenance, not the eight hundred lemmas:
+    ``as_dict()`` records which band was granted, on whose authority (measured /
+    placement / declared) and how much of it was the learner's own FSRS evidence.
+    """
+
+    lexicon = context.get(LEXICON_KEY)
+    if not isinstance(lexicon, dict):
+        return context
+    known = lexicon.get("known")
+    return {
+        **context,
+        LEXICON_KEY: {
+            "known": known.as_dict() if known is not None else None,
+            "target_count": len(lexicon.get("targets") or ()),
+            "proper_noun_count": len(lexicon.get("proper_nouns") or ()),
+        },
+    }
+
+
+def coverage_targets(db: Session, user: User, *, errata: list | None = None) -> frozenset[str]:
+    """The French today is *meant* to introduce (WP-29 §5.3).
+
+    Two sources, and both are the ones the day is already planned from: the ranked errata
+    WP-28 wired into the director's context and into the prefetch key — so the guard
+    cannot excuse a word the plan never chose — and the due vocabulary WP-05's
+    ``select_learning_candidates`` draws the recall steps from. Only the erratum's
+    *correction* is read: its label names the rule ("l'accord du participe passé") and
+    whitelisting a rule name would excuse words no scene is teaching.
+
+    A target is a lenience — it moves an unknown word out of the accidental budget, never
+    out of the coverage count — so every read here fails open to nothing. A queue that
+    cannot be read makes the guard stricter, never wronger.
+    """
+
+    words: set[str] = set()
+    for target in errata or ():
+        correct = getattr(target, "example_correct", None)
+        if correct:
+            words.add(str(correct))
+    try:
+        from app.services.unified_srs import ItemType, UnifiedSRSService
+
+        for item in UnifiedSRSService(db).get_journey_candidate_pool(user.id):
+            if item.item_type is ItemType.VOCAB and item.display_title:
+                words.add(str(item.display_title))
+    except Exception:  # pragma: no cover - defensive: a target list is not a scene
+        logger.exception("living_story: due-vocabulary targets unavailable")
+    return frozenset(words)
+
+
+def scene_lexicon(db: Session, user: User, context: dict, *, errata: list | None = None) -> dict:
+    """What this learner can read, and what today is allowed to be new (WP-29 §5.1).
+
+    Built once per generation, and deliberately *not* inside :func:`story_context`:
+    ``_turn_payload`` builds the actor's context from that function, and the actor may
+    never be handed the learner's vocabulary. It is also a database read, and
+    ``_approved`` may call the validator three times, so it must stay outside the retry
+    loop.
+
+    An empty dict is the honest failure: the guard then measures nothing and rejects
+    nothing. A day-one learner is never refused a scene because their lexicon would not
+    load.
+    """
+
+    try:
+        return {
+            "known": known_word_set(db, user=user),
+            "targets": coverage_targets(db, user, errata=errata),
+            "proper_nouns": world_proper_nouns(context),
+        }
+    except Exception:  # pragma: no cover - defensive: coverage is not a scene
+        logger.exception("living_story: known-word set unavailable")
+        return {}
+
+
 # Learner-facing gendered address (WP-14F L-6). Inclusive-dot forms are never acceptable
 # at any level; endearments must match the learner's stored address preference.
 _INCLUSIVE_DOT = re.compile(r"[A-Za-zÀ-ÿ]·[A-Za-zÀ-ÿ]")
@@ -984,6 +1104,64 @@ def _premise_overlap(left: str, right: str) -> float:
     return len(a & b) / len(a | b) if a and b else 0.0
 
 
+def _check_coverage(learner_text: list[str], context: dict) -> None:
+    """The scene must be readable by *this* learner, not by the band label (WP-29 §5.1).
+
+    95 % known-word coverage is the floor for reading with support (Laufer &
+    Ravenhorst-Kalovski 2010; Hu & Nation 2000); accidental unknowns — words nobody
+    chose to teach today — are a budget that scales with the band.
+
+    Three properties this guard must keep:
+
+    * **It fails open.** No lexicon means no verdict: a learner whose known-word set
+      could not be built is never refused a scene over it.
+    * **It never rejects an unmeasurable scene.** ``not_assessed`` is stored as *no
+      measurement*, which is neither 0 % nor 100 %.
+    * **It always measures, whether or not it may reject** (see ``COVERAGE_ENFORCED``).
+      The distribution it records is the only thing that can calibrate the lexicon, and
+      it cannot be recorded by a guard that has emptied the product first.
+
+    The measurement is written back onto ``context``: ``_brief`` receives the very same
+    dict, so it rides out to the stored scene without being threaded through.
+    """
+
+    lexicon = context.get(LEXICON_KEY) or {}
+    known = lexicon.get("known")
+    if known is None:
+        return
+    verdict = check_scene_coverage(
+        SceneText(
+            text=" ".join(text for text in learner_text if text),
+            proper_nouns=lexicon.get("proper_nouns") or frozenset(),
+        ),
+        LearnerLexicon(known=known, targets=lexicon.get("targets") or frozenset()),
+    )
+    result = verdict.result
+    context[COVERAGE_KEY] = (
+        {
+            **result.as_metadata(),
+            "verdict": verdict.status,
+            "verdict_reason": verdict.reason,
+            "enforced": COVERAGE_ENFORCED,
+        }
+        if result is not None and result.is_assessable
+        else None
+    )
+    if not verdict.rejected:
+        return
+    if COVERAGE_ENFORCED:
+        # Every rejecting guard owes the retry an instruction, never a bare token
+        # (STATUS 2026-09-07, defect 1). This one names the words to replace and the
+        # targets to keep.
+        raise StoryUnavailable(verdict.reason, hint=verdict.hint)
+    logger.info(
+        "living_story: coverage %s observed, not enforced (%.1f %%, %d accidental)",
+        verdict.reason,
+        (result.coverage * 100) if result else 0.0,
+        len(result.accidental) if result else 0,
+    )
+
+
 def _validate_scene(draft: SceneDraft, context: dict):
     cast = {c["id"] for c in context["world"]["cast"]}
     locations = {loc["id"] for loc in context["world"]["locations"]}
@@ -1033,6 +1211,7 @@ def _validate_scene(draft: SceneDraft, context: dict):
     _check_register(learner_text, context.get("level"))
     _check_scene_address_register(draft)
     _check_objective_scope(draft.objective_native, context.get("level"))
+    _check_coverage(learner_text, context)
     # If a chapter is open and not yet exhausted, its question cannot silently disappear.
     chapter = context.get("chapter") or {}
     closing = bool(chapter.get("resolved") or chapter.get("exhausted"))
@@ -1206,9 +1385,15 @@ def _brief(draft: SceneDraft, context: dict, *, usage: list[dict]) -> ScenarioBr
         control_language=context["control_language"],
         story_context={
             "version": VERSION,
-            "source": context,
+            # `_storable_context` swaps the validator's live lexicon for its provenance:
+            # this dict is JSON-dumped into the prefetch cache and the stored scene, and
+            # a frozen dataclass would break loudly there (WP-29 §5.1).
+            "source": _storable_context(context),
             "draft": draft.model_dump(mode="json"),
             "generation_usage": usage,
+            # WP-29 §5.2. `None` when the scene was too short to measure or the lexicon
+            # would not load — "not measured", never zero.
+            COVERAGE_KEY: context.get(COVERAGE_KEY),
         },
     )
 
@@ -1256,13 +1441,29 @@ def errata_context(db: Session, user: User, *, limit: int = 3) -> list[dict]:
     A queue that cannot be read costs the hint, never the scene.
     """
 
+    return errata_hints(due_errata(db, user, limit=limit))
+
+
+def due_errata(db: Session, user: User, *, limit: int = 3) -> list[Any]:
+    """The learner's ranked due errata, read once per generation.
+
+    One read, two consumers: the director's hint below, and WP-29's coverage targets —
+    the guard must excuse exactly the mistakes the plan actually chose, not a set read a
+    second time from a queue that may have moved.
+    """
+
     try:
         from app.services.journey_errata import errata_targets_for_user
 
-        targets = errata_targets_for_user(db, user, limit=limit)
+        return list(errata_targets_for_user(db, user, limit=limit))
     except Exception:  # pragma: no cover - defensive: a hint is not a scene
         logger.exception("living_story: errata targets unavailable")
         return []
+
+
+def errata_hints(targets: list[Any]) -> list[dict]:
+    """Three fields per ranked erratum, as the DIRECTOR prompt receives them."""
+
     return [
         {
             key: value
@@ -1281,13 +1482,26 @@ def errata_context(db: Session, user: User, *, limit: int = 3) -> list[dict]:
 def generate_scene(db: Session, *, user: User, input_mode: InputMode):
     try:
         context = story_context(db, user)
+        errata = due_errata(db, user)
         # Director-only (WP-24 §5, the quality half of the mistake loop). Added
         # here rather than inside ``story_context`` so the actor's turn payload,
         # which is built from the same function, never learns what the learner
         # is expected to get wrong.
-        context["errata"] = errata_context(db, user)
+        context["errata"] = errata_hints(errata)
+        # WP-29 §5.1/§5.3, added here for the same reason and one more: the same ranked
+        # errata the director was told about and the prefetch key was built from also
+        # name what today may legitimately be new, so the coverage guard cannot excuse a
+        # word the plan never chose.
+        context[LEXICON_KEY] = scene_lexicon(db, user, context, errata=errata)
         draft, usage = _approved(
-            DIRECTOR, context, SceneDraft, lambda p: _validate_scene(p, context), db=db, user=user
+            DIRECTOR,
+            _prompt_payload(context),
+            SceneDraft,
+            # The validator closes over the *unfiltered* context: it needs the lexicon,
+            # and the coverage it writes back must not leak into the retry's prompt.
+            lambda p: _validate_scene(p, context),
+            db=db,
+            user=user,
         )
         return _brief(draft, context, usage=usage)
     except StoryUnavailable as exc:
@@ -1369,6 +1583,10 @@ def bind_journey(
             "title": brief.title_fr,
             "location_id": brief.location_id,
             "story_engine": VERSION,
+            # WP-29 §5.2: what the guard measured on the scene the learner was served,
+            # so the report and the digest read it instead of recomputing it against a
+            # known-word set the learner did not have that day.
+            COVERAGE_KEY: brief.story_context.get(COVERAGE_KEY),
         },
         cache_key=str(brief.scenario_key),
         prompt_version=VERSION,
@@ -1534,7 +1752,10 @@ def _turn_payload(db, user, scenario, task, answer, history, turn_index):
         scenario.character_id: context["relationships"].get(scenario.character_id, {})
     }
     return {
-        "story": context,
+        # Filtered even though `story_context` builds no lexicon: the actor's ignorance
+        # of the learner's vocabulary is a property, not an accident of where the
+        # lexicon happens to be built today (WP-29, pinned by tests/test_wp29_hooks.py).
+        "story": _prompt_payload(context),
         "scene": scenario.story_context["draft"],
         "rubric": task.rubric_native,
         "history": history or [],

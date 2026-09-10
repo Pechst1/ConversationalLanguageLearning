@@ -221,12 +221,21 @@ def main() -> None:
         print("\n".join(format_latency_lines(latency_rollup(db, args.day, user_id=args.user_id))))
         # WP-25: the placement line item.
         print(format_placement_line(db, args.day, args.user_id))
-        # WP-29: known-word coverage of the day's generated scenes. Says so
-        # explicitly when the generator did not measure them, because an
+        # WP-29: known-word coverage of the day's generated scenes, as the
+        # generator measured them. Says so explicitly when it did not, because an
         # unmeasured scene is not a scene at 100 %.
         from app.services.lexical_coverage import format_coverage_line
 
-        print(format_coverage_line(db, args.day, args.user_id))
+        # The hook is applied (WP-29 §5, in living_story `_validate_scene`), so
+        # an unmeasured scene now means a scene generated before it landed or one
+        # too short to measure — not a missing hook. Rewritten here rather than in
+        # `format_coverage_line`, which another package owns.
+        print(
+            format_coverage_line(db, args.day, args.user_id).replace(
+                "(WP-29 hook not applied in living_story.py)",
+                "(generated before the coverage hook, or too short to measure)",
+            )
+        )
 
 
 if __name__ == "__main__":

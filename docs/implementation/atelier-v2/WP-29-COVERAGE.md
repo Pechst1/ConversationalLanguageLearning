@@ -1,8 +1,11 @@
 # WP-29 — Coverage-controlled generation
 
 Spec: [INNOVATION-WORK-PACKAGES-2026-09-10.md](INNOVATION-WORK-PACKAGES-2026-09-10.md) §3
-WP-29. Status: **items 1–5 landed, guard not registered** (living_story.py is leased to
-WP-28 — see [Hooks owed](#5-hooks-owed)).
+WP-29. Status: **items 1–6 landed; the hooks are applied** (2026-09-10, WP-29H — see
+[Hooks](#5-hooks-applied-2026-09-10)). The guard **measures every scene and stores what it
+found**; it does not yet *reject*, because the 821-lemma core list rejects 7 of 7 ordinary
+A1 scenes. One constant, `living_story.COVERAGE_ENFORCED`, is the flip. Read §5.4 before
+flipping it.
 
 ## 1. The problem
 
@@ -190,131 +193,131 @@ rates exist. See [Open items](#6-open-items).
 
 ## 4. Lease
 
-Written: `app/services/lexical_coverage.py`, `app/data/lexical/fr_core_lexicon.json`,
-`scripts/coverage_report.py`, `tests/test_lexical_coverage.py`, this document, a 12-line
-append to `STATUS.md`, and six additive lines in `scripts/pilot_digest.py`.
+Written by WP-29: `app/services/lexical_coverage.py`,
+`app/data/lexical/fr_core_lexicon.json`, `scripts/coverage_report.py`,
+`tests/test_lexical_coverage.py`, this document, a 12-line append to `STATUS.md`, and six
+additive lines in `scripts/pilot_digest.py`.
+
+Written by WP-29H (the hooks, 2026-09-10): `app/services/living_story.py`,
+`tests/test_wp29_hooks.py`, §5 of this document, four lines in `scripts/pilot_digest.py`,
+an append to `STATUS.md`.
 
 Read only: `app/services/vocabulary_coverage.py`, `app/db/models/progress.py`,
-`app/services/cefr_progress.py`, `app/services/living_story.py`.
+`app/services/cefr_progress.py`, `app/services/journey_errata.py`,
+`app/services/unified_srs.py`.
 
-Not touched: `living_story.py`, `daily_journey.py`, `journey_planner.py`, any schema, any
+Not touched by either: `lexical_coverage.py` (by WP-29H), `daily_journey.py`,
+`journey_latency.py`, `journey_learning.py`, `journey_planner.py`, any schema, any
 frontend file.
 
-## 5. Hooks owed
+## 5. Hooks applied (2026-09-10)
 
-Two diffs for `app/services/living_story.py`, owed by whoever holds that lease next
-(WP-28). Until they land, the guard is dark and generation behaves exactly as before.
+Applied in `app/services/living_story.py` by WP-29H, with `tests/test_wp29_hooks.py` (10)
+pinning them. What landed differs from the diffs written below in three places, each
+because applying them verbatim would have broken something loudly; §5.4 is the one that
+matters.
 
-### 5.1 Guard registration
+### 5.1 Guard registration — applied
 
-Add the import beside the other service imports at the top of `living_story.py`:
+`_check_coverage(learner_text, context)` is called from `_validate_scene` immediately
+after `_check_objective_scope`, and raises `StoryUnavailable(reason, hint=…)` — the reason
+is the machine token the reports record, the hint names the accidental words to replace
+and the targets to keep.
 
-```python
-from app.services.lexical_coverage import (
-    LearnerLexicon,
-    SceneText,
-    check_scene_coverage,
-    known_word_set,
-    world_proper_nouns,
-)
-```
+**The lexicon is built in `generate_scene`, not in `story_context`.** The handover put it
+in `story_context`, and that function has a second caller: `_turn_payload` builds the
+*actor's* context from it. Two consequences, both bad. The actor would have been handed
+the learner's whole known-word set — and the actor grades what was actually said; a grader
+told in advance which words the learner cannot read is not a grader, which is exactly why
+WP-28 §2 put the errata in `generate_scene` too. And `_json_call` does
+`json.dumps({"data": payload, …})` on that context, so a `KnownWordSet` on it would have
+raised `TypeError`, been swallowed by the `except Exception` there, and surfaced as
+`story_provider_failed` on every turn. So `scene_lexicon(db, user, context, errata=…)`
+is called once in `generate_scene`, beside `context["errata"]`.
 
-`_validate_scene(draft, context)` has no `db`/`user` in scope, so the known-word set is
-built once in `story_context` and carried on the context. In `story_context(db, user)`,
-after the existing `cast = _cast_for_level(cast, level)` line:
+**Nothing lexical reaches a prompt.** `_prompt_payload(context)` strips `lexicon` and
+`lexical_coverage`, and is what `_approved` and `_turn_payload` are given. The validator
+closes over the *unfiltered* context, so the coverage it writes back cannot leak into the
+retry's prompt either.
 
-```python
-    # WP-29: built once per generation, never inside the retry loop — it is a
-    # database read, and `_approved` may call the validator three times.
-    lexicon = {
-        "known": known_word_set(db, user=user),
-        "targets": frozenset(),  # WP-28/WP-24: today's due-vocabulary + errata lemmas
-        "proper_nouns": world_proper_nouns({"world": {"cast": cast, "locations": locations}}),
-    }
-```
+**It fails open, twice.** `scene_lexicon` returns `{}` if the known set will not build,
+and `_check_coverage` returns immediately when there is no `known` — so a learner on day
+one is never refused a scene for want of a lexicon, and neither is a caller that never
+registered one (every pre-existing `_validate_scene` test passes a bare context).
 
-and add one key to the returned dict, beside `"variety"`:
+### 5.2 Scene metadata — applied
 
-```python
-        "lexicon": lexicon,
-```
+On the brief (`brief.story_context["lexical_coverage"]`) and on the persisted scene
+(`script_payload["lexical_coverage"]`), which is where `stored_scene_coverage` looks
+first. Three additive keys ride with `as_metadata()`: `verdict`, `verdict_reason` and
+`enforced`, so a stored row says whether the scene *would* have been rejected.
 
-Then, in `_validate_scene`, immediately after the existing
-`_check_objective_scope(draft.objective_native, context.get("level"))` line:
+`None` is stored whenever there is no measurement — the scene was under
+`MIN_ASSESSED_TOKENS`, or no lexicon loaded. Not measured is neither 0 % nor 100 %.
 
-```python
-    # WP-29: the scene must be readable by *this* learner, not by the band label.
-    # 95 % known-word coverage is the floor for reading with support; accidental
-    # unknowns are a budget that scales with the band.
-    lexicon = context.get("lexicon") or {}
-    if lexicon.get("known") is not None:
-        verdict = check_scene_coverage(
-            SceneText(text=" ".join(learner_text), proper_nouns=lexicon["proper_nouns"]),
-            LearnerLexicon(known=lexicon["known"], targets=lexicon["targets"]),
-        )
-        # `_brief` receives this same dict, so the metadata rides back out on it.
-        context["lexical_coverage"] = verdict.result.as_metadata() if verdict.result else None
-        if verdict.rejected:
-            raise StoryUnavailable(verdict.reason, hint=verdict.hint)
-```
+**The JSON trap, resolved.** `_storable_context(context)` replaces the live lexicon with
+its provenance before `context` is stored on `brief.story_context["source"]` — the band,
+the estimate source, the nailed and core counts, the target and proper-noun counts, and
+*not* the eight hundred lemmas. That dict is JSON-dumped into the prefetch cache and the
+stored scene, and `test_the_brief_still_serialises_with_a_lexicon_on_the_context` is the
+pin: it would have raised `TypeError` on the first prefetch.
 
-`learner_text` at that point already holds the premise, opening line, suggested response,
-every narration and every dialogue line — exactly the French a learner reads — plus the
-chapter title and question, which is a slight over-count and errs toward strictness.
+### 5.3 Targets — applied
 
-Two notes for whoever applies it:
+`coverage_targets(db, user, errata=…)` fills `lexicon["targets"]` from two sources:
 
-* `known_word_set` runs one query per generation, not per attempt, because it lives in
-  `story_context`. It must **not** move inside `_approved`'s retry loop.
-* `context` is serialised into `brief.story_context["source"]` and stored. `KnownWordSet`
-  is a frozen dataclass and is **not** JSON-serialisable, so either drop the `lexicon` key
-  before that dump or store `lexicon["known"].as_dict()` in its place. This is the one part
-  of the hook that will break loudly if skipped — `_brief` calls
-  `draft.model_dump(mode="json")` on the draft but stores `context` as-is.
+* **The errata WP-28 already wired.** `due_errata()` is now read *once* per generation and
+  serves both the director's hint (`errata_hints`, unchanged output — WP-28's test passes
+  untouched) and the coverage targets. Same set as the prefetch key's, so the guard cannot
+  excuse a word the plan never chose. Only the erratum's `example_correct` is read: its
+  `label` names the *rule* («l'accord du participe passé») and whitelisting rule names
+  would excuse words no scene is teaching.
+* **Today's due vocabulary**, from `UnifiedSRSService.get_journey_candidate_pool` — the
+  same pool `select_learning_candidates` ranks. That function could not be reused directly:
+  it takes the `ScenarioBrief`, which does not exist yet when the scene is being generated.
 
-### 5.2 Scene metadata
+A target is a *lenience* — it moves an unknown word out of the accidental budget, never
+out of the coverage count — so every read here fails open to nothing. An unreadable queue
+makes the guard stricter, never wronger. Cost: one extra query per generation.
 
-In `_brief(draft, context, usage=…)`, inside the `story_context` dict:
+### 5.4 Why the guard measures but does not yet reject
 
-```python
-        story_context={
-            "version": VERSION,
-            "source": context,
-            "draft": draft.model_dump(mode="json"),
-            "generation_usage": usage,
-            "lexical_coverage": context.get("lexical_coverage"),   # WP-29, may be None
-        },
-```
+`COVERAGE_ENFORCED = False`, a module constant in `living_story.py` (the file's own stated
+convention — "the engine must not depend on a flag another agent owns").
 
-The validator in §5.1 already stashes it there: `_approved` calls
-`lambda p: _validate_scene(p, context)` and `_brief(draft, context, usage=…)` receives the
-very same dict, so nothing else has to be threaded through. A rejected draft never reaches
-`_brief`, and a `not_assessed` verdict stores `None` — which the report reads as
-"not measured", not as zero.
+Measured the day the hook landed, against the seven-scene A1 fixture set in
+`tests/test_living_story.py` — ordinary, deliberately varied A1 French:
 
-And in `bind_journey`, on the persisted scene so the report and the digest can read it
-without re-deriving anything:
+| scene | coverage | accidental unknowns |
+|---|---|---|
+| 0 | 77.8 % | organiser, exposition, affiches, glisse, samedi, vitre |
+| 1 | 80.0 % | + four, gardera, panne |
+| 2 | 82.9 % | + vendre |
+| 3 | 77.5 % | + colis, destinataire, facteur |
+| 4 | 64.9 % | + jeux, soirée, vendredi, affiche, annonce |
+| 5 | 68.4 % | + immeuble, cave, inondé, lundi |
+| 6 | 81.6 % | + garder, poubelles |
 
-```python
-        script_payload={
-            "title": brief.title_fr,
-            "location_id": brief.location_id,
-            "story_engine": VERSION,
-            "lexical_coverage": brief.story_context.get("lexical_coverage"),
-        },
-```
+**7 of 7 rejected.** Not because the scenes are unreadable, but because the 821-lemma core
+list does not contain *samedi*, *vendredi*, *lundi*, *soirée*, *vendre* or *garder*. That
+is open item 2 in §6, arriving earlier than expected.
 
-`scripts/coverage_report.py` and `format_coverage_line` read `script_payload` first and
-`source_snapshot` second, so either location works.
+Enforcing it would not have produced better scenes. `_approved` retries at most
+`ATELIER_STORY_MAX_ATTEMPTS` times against the same lexicon, so a scene rejected on
+vocabulary the list simply lacks is rejected three times and the learner gets
+`story_generation_unavailable` — no journey at all. That is the defect §2.4 names in its
+own words: *a guard that fails closed here would empty the product on a bad data day.*
 
-### 5.3 Targets (WP-28 or WP-24 owner)
+So the order is: **measure first, reject second.** Every scene is measured and its verdict
+stored from today, which is the distribution `scripts/coverage_report.py` and the digest
+line need — and the only thing that can grow the core list from real rejections rather
+than from guesses. §6 item 2 already says the lever is the list and not the threshold;
+this is that advice in the only sequence that keeps the product alive while it happens.
 
-`lexicon["targets"]` is an empty frozenset above. Filling it is what turns "3 unknown words"
-into "1 target, 2 accidents". The lemmas come from the journey plan that produced the
-scene: `journey_errata.errata_targets_for_user` and the due-vocabulary candidates in
-`journey_learning.select_learning_candidates`. Until it is filled, every unknown is
-accidental, and the A1 budget of 1 is tight — so fill it in the same pass that registers
-the guard, or raise `ACCIDENTAL_UNKNOWN_BUDGET` temporarily and say so.
+Flipping `COVERAGE_ENFORCED = True` is the whole change, and
+`test_a_scene_carrying_three_unplanned_b1_words_is_rejected_by_name` already runs the
+guard in that state. Do not flip it before the stored distribution says an ordinary scene
+clears the floor.
 
 ## 6. Open items
 
@@ -333,7 +336,21 @@ the guard, or raise `ACCIDENTAL_UNKNOWN_BUDGET` temporarily and say so.
    metadata — so a distribution mixing the two is visible rather than silent. Neither is
    allowed to be the *only* answer: spaCy's lemma is offered first and the curated
    candidates always follow.
-5. **Targets are not wired** (§5.3).
-6. **Nothing writes a PilotEvent.** Coverage costs nothing to compute, so there is no spend
+5. ~~**Targets are not wired**~~ — wired 2026-09-10 (§5.3). What is *not* wired is the
+   prefetch cache key: `journey_latency.scene_cache_key` carries the errata but not the
+   known-word set, so a scene prefetched last night is served this morning against a
+   lexicon that has since grown. Harmless while the guard only measures — the stored
+   number is then the one the learner was served, which is what it claims to be — but it
+   must be added before `COVERAGE_ENFORCED` is flipped, or a warm scene will bypass a
+   guard the cold path applies. That file is not this package's lease.
+6. **Targets are matched as lemmas, not through the resolver.** `_target_keys` folds the
+   target's *surface*, and `is_target` compares it against the scene word's *resolved
+   lemma* — so a target given as «facture» matches an inflected `factures` in the scene,
+   but a target given as «bouleversée» never matches `bouleverser`. Both target sources
+   produce dictionary forms, so this is currently harmless; §2.3's wording promises more
+   than the code does.
+7. **One extra query per generation** (the due-vocabulary pool, §5.3), on the hot path
+   that already gained two in WP-28. Fine at pilot size.
+8. **Nothing writes a PilotEvent.** Coverage costs nothing to compute, so there is no spend
    row; the digest reads stored scene metadata instead. If coverage ever needs a per-call
    ledger entry, it belongs at the generation site, not here.
