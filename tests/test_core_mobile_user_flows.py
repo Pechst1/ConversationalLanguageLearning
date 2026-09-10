@@ -61,7 +61,11 @@ def test_public_onboarding_moves_from_minimal_account_creation_to_daily_atelier(
     assert "apiService.register" in signup
     assert "full_name: data.name" in signup
     assert "interests: selectedTopics.join(',')" in signup
-    assert "router.push({ pathname: '/auth/signin', query: callbackQuery })" in signup
+    # WP-25 re-pin: sign-up still hands off to sign-in, but a learner with no
+    # destination of their own is carried on to the placement rather than to
+    # Home — their level is otherwise self-declared for the whole first week.
+    assert "router.push({ pathname: '/auth/signin', query: afterSignUp })" in signup
+    assert "const PLACEMENT_AFTER_SIGNUP = '/placement';" in signup
 
 
 def test_phone_shell_keeps_the_primary_product_modes_simple_and_reachable() -> None:

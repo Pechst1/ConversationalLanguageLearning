@@ -976,6 +976,25 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                             </Row>
                         </div>
 
+                        {/* WP-25 — the re-run. The level below is what the learner
+                            *said*; the bilan is what the app can *measure*, and a
+                            learner whose French has moved should be able to ask
+                            again rather than edit a dropdown. */}
+                        <div className="st-card">
+                            <Row
+                                label="Bilan de niveau"
+                                hint="Cinq minutes, en français. Le résultat remplace le niveau déclaré ci-dessous."
+                            >
+                                <button
+                                    type="button"
+                                    className="av2-btn av2-btn--quiet av2-btn--inline"
+                                    onClick={() => { void router.push('/placement?rerun=1'); }}
+                                >
+                                    Refaire le bilan
+                                </button>
+                            </Row>
+                        </div>
+
                         <div className="st-card" role="radiogroup" aria-label="Niveau actuel">
                             <Row label="Niveau actuel" value={settings.proficiencyLevel} />
                             {proficiencyLevels.map(level => {

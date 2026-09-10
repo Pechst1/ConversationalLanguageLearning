@@ -61,6 +61,9 @@ const interestPresets = [
   'food',
 ];
 
+/** WP-25: where a brand-new learner lands after their first sign-in. */
+const PLACEMENT_AFTER_SIGNUP = '/placement';
+
 // 16px, for the same reason as the Input control: a smaller select zooms the
 // WKWebView on focus and never zooms back (WP-20 D-16).
 function authErrorMessage(error: any) {
@@ -84,6 +87,14 @@ export default function SignUpPage() {
   const [selectedTopics, setSelectedTopics] = React.useState<string[]>([]);
   const destination = sanitizeAuthCallbackUrl(router.query.callbackUrl);
   const callbackQuery = destination === '/atelier' ? {} : { callbackUrl: destination };
+  /* WP-25 — the onboarding hand-off. A learner arriving with no destination of
+     their own is sent, after sign-in, to the placement rather than straight to
+     Home: their CEFR level is otherwise self-declared for their first forty
+     attempts, which serves the wrong material for the whole first week. The
+     placement itself is skippable and says so, and a learner who came here from
+     a deep link keeps their own destination. */
+  const afterSignUp =
+    destination === '/atelier' ? { callbackUrl: PLACEMENT_AFTER_SIGNUP } : callbackQuery;
 
   const {
     register,
@@ -139,7 +150,7 @@ export default function SignUpPage() {
       });
 
       toast.success('Compte créé. Connectez-vous pour ouvrir votre première édition.');
-      router.push({ pathname: '/auth/signin', query: callbackQuery });
+      router.push({ pathname: '/auth/signin', query: afterSignUp });
     } catch (error: any) {
       toast.error(authErrorMessage(error));
     } finally {

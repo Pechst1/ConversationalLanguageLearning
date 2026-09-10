@@ -1,0 +1,87 @@
+"""WP-25 — source-level contracts for the placement's onboarding hand-off.
+
+The backend can be perfectly honest and the package still fail its purpose if
+nobody is ever offered the placement. These read the frontend source, because
+the preview is auth-gated and none of this is reachable from a browser test.
+"""
+
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+FRONTEND = ROOT / "web-frontend"
+
+
+def _source(relative_path: str) -> str:
+    return (FRONTEND / relative_path).read_text(encoding="utf-8")
+
+
+def test_signup_hands_a_brand_new_learner_to_the_placement():
+    """The whole package hangs off this one redirect."""
+    page = _source("pages/auth/signup.tsx")
+    assert "const PLACEMENT_AFTER_SIGNUP = '/placement';" in page
+    assert "query: afterSignUp" in page
+    # A learner who arrived from a deep link keeps their own destination; only
+    # the default '/atelier' landing is replaced by the placement.
+    assert "destination === '/atelier' ? { callbackUrl: PLACEMENT_AFTER_SIGNUP } : callbackQuery" in page
+
+
+def test_the_placement_route_exists_and_is_not_public():
+    assert (FRONTEND / "pages/placement.tsx").exists()
+    gate = _source("components/auth/RouteAuthGate.tsx")
+    # Every pathname absent from PUBLIC_PATHNAMES is protected, so the contract
+    # is the *absence* of the route from that set.
+    assert "'/placement'" not in gate
+
+
+def test_the_offer_is_skippable_and_says_what_skipping_costs():
+    page = _source("pages/placement.tsx")
+    assert "Passer pour l’instant" in page
+    assert "api.skipPlacement()" in page
+    assert "Sans bilan, nous gardons le niveau que vous avez indiqué à l’inscription." in page
+
+
+def test_an_unmeasured_placement_says_so_instead_of_naming_a_level():
+    page = _source("pages/placement.tsx")
+    assert "status === 'unassessed'" in page
+    assert "Niveau non évalué" in page
+    assert "nous n’avons rien mesuré" in page
+
+
+def test_the_result_is_labelled_as_an_estimate_not_a_verdict():
+    page = _source("pages/placement.tsx")
+    assert "Niveau estimé" in page
+    assert "confidenceLabel" in page
+    assert "réponses" in page
+
+
+def test_reglages_can_re_run_the_placement():
+    page = _source("pages/settings.tsx")
+    assert "Bilan de niveau" in page
+    assert "/placement?rerun=1" in page
+
+
+def test_the_screen_is_on_the_av2_system_and_speaks_french():
+    page = _source("pages/placement.tsx")
+    assert "AtelierV2Root" in page
+    assert "av2-headline" in page
+    # No uppercase ink slab, no legacy neo-brutalist chrome.
+    assert "neo-" not in page
+    assert "text-sm" not in page
+    # Learner-facing strings are French. Checked as whole rendered labels
+    # rather than substrings: "Continuer" contains "Continue".
+    for english in (">Continue<", "Start the test", "Your level is", "Skip for now"):
+        assert english not in page
+
+
+def test_one_primary_action_per_state():
+    """The design rule: one `tone="primary"` in each branch of the screen."""
+    page = _source("pages/placement.tsx")
+    assert page.count('tone="primary"') == 4  # offer, question, unassessed, result
+
+
+def test_the_client_sends_the_turn_index_so_a_retry_costs_nothing():
+    api = _source("services/api.ts")
+    assert "respondToPlacement" in api
+    assert "turn_index: turnIndex" in api
+    assert "'placement' | 'measured'" in api
+    assert "placement?: PlacementPrior | null;" in api
