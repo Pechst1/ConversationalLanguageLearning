@@ -257,6 +257,27 @@ class LegacyResume(JourneyModel):
     session_id: str
 
 
+class JourneyBecause(JourneyModel):
+    """Why today's scene is this scene (WP-24, wired by WP-28).
+
+    Structured, never a rendered sentence: the server names the mistake and the
+    component writes the French. ``kind`` is the only field a renderer may
+    branch on, and an unknown kind must print nothing rather than guess —
+    ``app/services/journey_errata.py::ErrataTarget.as_because`` produces it and
+    ``app/services/journey_planner.py::plan_because`` decides whether the plan
+    actually kept the target it names.
+    """
+
+    #: ``"erratum"`` today. Deliberately a free string, like ``target_reason``.
+    kind: str
+    #: Machine-readable, e.g. ``"erratum:2f9c…"``. Telemetry, never printed.
+    reason: str | None = None
+    #: The mistake's own label, in the learner's control language where stored.
+    label: str
+    #: ``"une homme → un homme"``, when both halves were recorded.
+    example: str | None = None
+
+
 class TodayEnvelope(JourneyModel):
     contract_version: ContractVersion = CONTRACT_VERSION
     enabled: bool
@@ -272,6 +293,18 @@ class TodayEnvelope(JourneyModel):
     #: scheduler has one, so the drill loop starts from a concept and never
     #: from "today". Additive: ``contract_version`` is unchanged.
     practice_href: str = PRACTICE_HREF
+    #: WP-24 / WP-28. Why today's scene is this scene, when the plan actually
+    #: kept a target that exists because of a recorded mistake. ``None`` means
+    #: today owes nothing to an erratum and Home prints no line at all. Read
+    #: from the persisted plan, never recomputed: the claim is about the scene
+    #: the learner has, not about the queue as it stands this second.
+    because: JourneyBecause | None = None
+    #: WP-26. ``True`` when a prefetched scene is waiting for this learner, so
+    #: the client knows the draft will be warm instead of inferring it from how
+    #: fast the answer came back. A warm scene whose preconditions changed is
+    #: still discarded at serve time, so this is a promise about the cache, not
+    #: about the wire: the client must stay honest if the draft turns cold.
+    is_warm: bool = False
 
 
 # ---------------------------------------------------------------------------
@@ -445,6 +478,7 @@ __all__ = [
     "HelpResult",
     "JourneyAdvanceRequest",
     "JourneyAttemptRequest",
+    "JourneyBecause",
     "JourneyCorrection",
     "JourneyCreateRequest",
     "JourneyErrorBody",

@@ -142,11 +142,21 @@ def scene_cache_key(db: Session, user: User, *, input_mode: InputMode) -> str | 
         return None
     from app.services import living_story
     from app.services.journey_contracts import normalize_control_language
+    from app.services.journey_errata import errata_targets_for_user
 
     try:
         revision = living_story.story_revision(db, user)
+        # WP-24 + WP-28: the learner's due errata ARE learner context. A scene
+        # is drafted to need the repaired form (``living_story.story_context``
+        # puts the erratum in the director's prompt), so a scene generated for
+        # one set of mistakes must not be served after that set has changed —
+        # a repaired erratum would otherwise come back tomorrow morning in a
+        # scene the learner already earned their way out of. Ids only, sorted:
+        # the ranking's own ordering moves with the clock, the membership does
+        # not.
+        errata = sorted(target.error_id for target in errata_targets_for_user(db, user))
     except Exception:  # pragma: no cover - defensive: never break a live request
-        logger.exception("journey_latency: story revision unavailable")
+        logger.exception("journey_latency: cache key context unavailable")
         return None
     return _digest(
         {
@@ -159,6 +169,7 @@ def scene_cache_key(db: Session, user: User, *, input_mode: InputMode) -> str | 
             "control_language": str(normalize_control_language(user.native_language)),
             "address": living_story.learner_address(user)["address"],
             "input_mode": str(input_mode),
+            "errata_targets": errata,
             # 4. prompt version, plus the attempt policy that shapes the output
             "prompt_version": living_story.VERSION,
             "max_attempts": int(settings.ATELIER_STORY_MAX_ATTEMPTS),

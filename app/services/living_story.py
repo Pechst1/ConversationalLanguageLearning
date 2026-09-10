@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import re
 import time
 from dataclasses import replace
@@ -42,6 +43,8 @@ from app.services.journey_contracts import (
     normalize_control_language,
 )
 from app.services.llm_service import LLMService
+
+logger = logging.getLogger(__name__)
 
 ENGINE_VERSION_PREFIX = "living-story-"
 # v2, 2026-09-07: WP-14F fixes (L-1..L-10). Every revision shares the prefix; the reader
@@ -228,7 +231,14 @@ its question and adapt possible developments to choices; build toward a resoluti
 After resolution create a fresh bounded chapter rooted in the aftermath. Future
 plans are provisional, not facts. Mark source_event_ids for the events you draw on.
 Use capability_key only if the objective really exercises that known capability;
-otherwise null. All address, agreement and endearments aimed at the learner follow
+otherwise null. errata lists mistakes this learner has actually made, each with a label,
+the learner's own wrong wording beside the correction, and why it matters. When the list
+is non-empty, prefer a situation whose objective genuinely NEEDS the repaired form to be
+said: the mistake is practised by the scene asking for it, never by the scene mentioning
+it. Never quote the learner's error, never name the rule, never correct anyone, and never
+let a character allude to the learner having got something wrong. An erratum that no
+natural situation needs is ignored rather than forced.
+All address, agreement and endearments aimed at the learner follow
 learner.address: use that gender consistently for feminine or masculine, and for neutral
 use no gendered adjective, participle or endearment about the learner and never an
 inclusive-dot form such as trempé·e. Keep one register per scene: if the addressed character says tu to the learner, the
@@ -1234,9 +1244,48 @@ def describe_next(db: Session, *, user: User, input_mode: InputMode) -> Scenario
     )
 
 
+def errata_context(db: Session, user: User, *, limit: int = 3) -> list[dict]:
+    """The learner's due mistakes as the director may use them (WP-24 §5).
+
+    Three fields only — what the mistake is, the learner's own wrong wording
+    beside the correction, and why it matters — so the director can invent a
+    situation that genuinely *needs* the repaired form. It is a hint about the
+    situation, never a script: the erratum is not quoted at the learner, and
+    nothing here reaches the actor, who must grade what was actually said.
+
+    A queue that cannot be read costs the hint, never the scene.
+    """
+
+    try:
+        from app.services.journey_errata import errata_targets_for_user
+
+        targets = errata_targets_for_user(db, user, limit=limit)
+    except Exception:  # pragma: no cover - defensive: a hint is not a scene
+        logger.exception("living_story: errata targets unavailable")
+        return []
+    return [
+        {
+            key: value
+            for key, value in (
+                ("label", target.label),
+                ("example", target.example),
+                ("why", target.why),
+            )
+            if value
+        }
+        for target in targets
+        if target.label
+    ]
+
+
 def generate_scene(db: Session, *, user: User, input_mode: InputMode):
     try:
         context = story_context(db, user)
+        # Director-only (WP-24 §5, the quality half of the mistake loop). Added
+        # here rather than inside ``story_context`` so the actor's turn payload,
+        # which is built from the same function, never learns what the learner
+        # is expected to get wrong.
+        context["errata"] = errata_context(db, user)
         draft, usage = _approved(
             DIRECTOR, context, SceneDraft, lambda p: _validate_scene(p, context), db=db, user=user
         )

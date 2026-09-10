@@ -58,6 +58,7 @@ from app.schemas.daily_journey import (
     HelpResult,
     JourneyAdvanceRequest,
     JourneyAttemptRequest,
+    JourneyBecause,
     JourneyCorrection,
     JourneyCreateRequest,
     JourneyFinishRequest,
@@ -109,10 +110,12 @@ from app.services.journey_contracts import (
     normalize_control_language,
     strongest_assistance,
 )
+from app.services.journey_errata import errata_targets_for_user
 from app.services.journey_latency import (
     PHASE_DRAFT,
     PHASE_RECAP,
     PHASE_RESPOND,
+    has_live_prefetch,
     measure_phase,
     take_prefetched_scene,
 )
@@ -446,7 +449,37 @@ class DailyJourneyService:
             available=available,
             legacy_resume=self._legacy_resume(user),
             practice_href=self._practice_href(user),
+            because=self._because_for(journey),
+            is_warm=self._draft_is_warm(user) if enabled and journey is None else False,
         )
+
+    def _because_for(self, journey: DailyJourney | None) -> JourneyBecause | None:
+        """WP-24's because-line, read back from the plan that produced it."""
+
+        if journey is None:
+            return None
+        payload = (journey.plan_selection or {}).get("because")
+        if not isinstance(payload, dict):
+            return None
+        try:
+            return JourneyBecause.model_validate(payload)
+        except Exception:  # pragma: no cover - written through the same schema
+            logger.warning("daily_journey: stored because payload is unreadable")
+            return None
+
+    def _draft_is_warm(self, user: User) -> bool:
+        """WP-26: is a prefetched scene waiting? A read, never a generation.
+
+        ``GET /today`` must never pay for content (CONTRACTS §4) and this does
+        not: it is one indexed lookup on the pilot ledger. False is always the
+        safe answer — the client then behaves exactly as it did before.
+        """
+
+        try:
+            return has_live_prefetch(self.db, user)
+        except Exception:  # pragma: no cover - a cache must never break the day
+            logger.exception("daily_journey: prefetch warmth lookup failed")
+            return False
 
     def get_journey(self, user: User, journey_id: uuid.UUID) -> JourneySnapshot:
         return self.snapshot(self._journey_or_404(user, journey_id))
@@ -1700,6 +1733,13 @@ class DailyJourneyService:
                 retry_after_seconds=result.retry_after_seconds,
             )
 
+        # WP-24 §5, wired by WP-28. The learner's ranked due errata are read
+        # before the plan is built, merged in front of the day's candidates by
+        # the planner, and the target the plan actually keeps becomes the
+        # because-line. Reading the queue reschedules nothing; a queue that
+        # cannot be read costs the line, never the day.
+        errata = self._errata_targets(user)
+        because: dict[str, Any] | None = None
         try:
             candidates = self.adapters.learning.select_learning_candidates(
                 self.db, user=user, scenario=result, limit=CANDIDATE_LIMIT
@@ -1713,8 +1753,10 @@ class DailyJourneyService:
                 # ScenarioBrief carries no modality, so RespondPrompt.input_modes
                 # can only know about voice if the create request says so.
                 input_mode=input_mode,
+                errata_targets=errata,
             )
             plan.validate()
+            because = self._plan_because(plan, list(candidates), errata)
         except AdapterUnavailable as exc:
             logger.error("daily_journey: %s adapter unavailable (%s)", exc.module_name, exc.reason)
             return self._mark_unavailable(
@@ -1764,7 +1806,7 @@ class DailyJourneyService:
                 result = bind_journey(self.db, user=user, journey=fresh, brief=result)
             except StoryUnavailable as exc:
                 return self._mark_unavailable(fresh, str(exc))
-        self._persist_plan(fresh, result, plan, input_mode)
+        self._persist_plan(fresh, result, plan, input_mode, because=because)
         fresh.learning_session_id = getattr(session, "id", None)
         fresh.status = str(JourneyStatus.ACTIVE)
         fresh.started_at = _utcnow()
@@ -1824,12 +1866,60 @@ class DailyJourneyService:
         self.db.flush()
         return journey, http_status.HTTP_200_OK
 
+    def _errata_targets(self, user: User) -> list[Any]:
+        """The learner's ranked due errata. A broken queue is never fatal.
+
+        WP-24 owns the ranking; this reads it. The read must not reschedule
+        anything (pinned in ``tests/test_wp24_mistake_loop.py``), and a failure
+        here costs the because-line and the erratum's priority — never the
+        learner's day.
+        """
+
+        try:
+            return list(errata_targets_for_user(self.db, user))
+        except Exception:  # pragma: no cover - defensive: a queue is not a day
+            logger.exception("daily_journey: errata targets unavailable")
+            return []
+
+    def _plan_because(
+        self, plan: Any, candidates: list[Any], errata: list[Any]
+    ) -> dict[str, Any] | None:
+        """The because payload for the target the plan actually kept, or None.
+
+        Resolved through the planner adapter rather than imported, for the same
+        reason ``PlanUnavailable`` is: the state machine owns no domain logic.
+        """
+
+        if not errata:
+            return None
+        plan_because = getattr(self.adapters.planner, "plan_because", None)
+        merge = getattr(self.adapters.planner, "merge_errata_candidates", None)
+        if not callable(plan_because):
+            return None
+        try:
+            merged = merge(candidates, errata) if callable(merge) else candidates
+            payload = plan_because(plan, list(merged), errata)
+        except Exception:  # pragma: no cover - defensive
+            logger.exception("daily_journey: because-line unavailable")
+            return None
+        if not payload:
+            return None
+        # Validated here so an unprintable payload is dropped at write time
+        # rather than 500-ing every subsequent GET /today.
+        try:
+            return JourneyBecause.model_validate(payload).model_dump(mode="json")
+        except Exception:
+            logger.warning("daily_journey: because payload rejected by the schema")
+            return None
+
     def _persist_plan(
         self,
         journey: DailyJourney,
         brief: ScenarioBrief,
         plan: Any,
         input_mode: InputMode,
+        *,
+        because: dict[str, Any] | None = None,
     ) -> None:
         for existing in list(journey.steps):
             journey.steps.remove(existing)
@@ -1897,6 +1987,10 @@ class DailyJourneyService:
             "selected_target_ids": list(plan.selected_target_ids),
             "omitted_candidate_ids": list(plan.omitted_candidate_ids),
             "rationale": plan.rationale,
+            # WP-24's because-line, stored with the plan that earned it. It is
+            # never recomputed on read: the claim is about the scene the
+            # learner actually has, not about the queue as it stands now.
+            "because": because,
         }
         journey.estimated_active_seconds = plan.estimated_active_seconds
         journey.serial_thread_id = brief.serial_thread_id
