@@ -49,6 +49,14 @@ export type JourneyCopyKey =
   | 'voice_retry'
   | 'use_text'
   | 'use_voice'
+  | 'speak'
+  | 'voice_hint'
+  | 'voice_transcript_label'
+  | 'voice_transcript_hint'
+  | 'voice_permission'
+  | 'voice_unsupported'
+  | 'voice_offline'
+  | 'voice_empty'
   | 'empty_answer'
   | 'still_grading'
   | 'try_grading_again'
@@ -137,6 +145,14 @@ const EN: CopyTable = {
   voice_retry: 'Record again',
   use_text: 'Type instead',
   use_voice: 'Speak instead',
+  speak: 'Speak',
+  voice_hint: 'Say your answer out loud. We turn it into text — nothing here judges your pronunciation.',
+  voice_transcript_label: 'What we heard',
+  voice_transcript_hint: 'Correct anything we got wrong, then send.',
+  voice_permission: 'The microphone is not allowed. You can answer in writing; to speak, allow the microphone in your device settings.',
+  voice_unsupported: 'This device cannot record here. Answer in writing.',
+  voice_offline: 'Without a connection there is no transcription. Answer in writing, or try again later.',
+  voice_empty: 'Nothing was recorded. Your turn is still open.',
   empty_answer: 'Write something first.',
   still_grading: 'Still being checked. Nothing was scored yet.',
   try_grading_again: 'Check again',
@@ -223,6 +239,14 @@ const DE: CopyTable = {
   voice_retry: 'Neu aufnehmen',
   use_text: 'Lieber tippen',
   use_voice: 'Lieber sprechen',
+  speak: 'Sprechen',
+  voice_hint: 'Sag deine Antwort laut. Wir schreiben sie mit — deine Aussprache wird hier nicht bewertet.',
+  voice_transcript_label: 'Das haben wir gehört',
+  voice_transcript_hint: 'Korrigiere, was falsch verstanden wurde, und schick es ab.',
+  voice_permission: 'Das Mikrofon ist nicht erlaubt. Du kannst schriftlich antworten; zum Sprechen erlaube das Mikrofon in den Geräteeinstellungen.',
+  voice_unsupported: 'Dieses Gerät kann hier nicht aufnehmen. Antworte schriftlich.',
+  voice_offline: 'Ohne Verbindung gibt es keine Transkription. Antworte schriftlich oder versuche es später.',
+  voice_empty: 'Es wurde nichts aufgenommen. Du bist weiterhin dran.',
   empty_answer: 'Schreibe zuerst etwas.',
   still_grading: 'Wird noch geprüft. Es wurde noch nichts bewertet.',
   try_grading_again: 'Erneut prüfen',
@@ -309,6 +333,14 @@ const FR: CopyTable = {
   voice_retry: 'Réenregistrer',
   use_text: 'Écrire plutôt',
   use_voice: 'Parler plutôt',
+  speak: 'Parler',
+  voice_hint: 'Dites votre réponse à voix haute. Nous la transcrivons — rien ici ne juge votre prononciation.',
+  voice_transcript_label: 'Ce que nous avons entendu',
+  voice_transcript_hint: 'Corrigez ce qui a été mal compris, puis envoyez.',
+  voice_permission: 'Le micro n’est pas autorisé. Vous pouvez répondre par écrit ; pour parler, autorisez le micro dans les réglages de l’appareil.',
+  voice_unsupported: 'Cet appareil ne peut pas enregistrer ici. Répondez par écrit.',
+  voice_offline: 'Sans connexion, pas de transcription. Répondez par écrit, ou réessayez plus tard.',
+  voice_empty: 'Rien n’a été enregistré. C’est toujours votre tour.',
   empty_answer: 'Écrivez d’abord quelque chose.',
   still_grading: 'Toujours en cours de vérification. Rien n’a encore été évalué.',
   try_grading_again: 'Vérifier à nouveau',

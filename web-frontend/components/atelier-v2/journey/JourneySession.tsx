@@ -110,7 +110,9 @@ function positionOnScreen(steps: PublicStep[], currentId: string | null): number
 }
 
 export function JourneySession({ controller, onExit, morePractice, onPractice }: JourneySessionProps) {
-  const { phase, feedback, step, progress, busy, help, voice, actions } = controller;
+  // WP-27: the respond step owns the microphone itself (`useVoiceAnswer`), so
+  // the controller's own voice fields are no longer read here.
+  const { phase, feedback, step, progress, busy, help, actions } = controller;
   const copy: AtelierCopy = {
     ...atelierCopy(controller.controlLanguage),
     ...journeyCopy(controller.controlLanguage),
@@ -224,13 +226,9 @@ export function JourneySession({ controller, onExit, morePractice, onPractice }:
                   busy={busy}
                   feedback={feedback}
                   help={help}
-                  voice={voice}
                   onHelp={actions.requestHelp}
                   onSubmit={actions.submitAnswer}
                   onContinue={actions.continueJourney}
-                  onStartRecording={() => void actions.startRecording()}
-                  onStopRecording={actions.stopRecording}
-                  onResetVoice={actions.resetVoice}
                   draft={draft}
                 />
               )}

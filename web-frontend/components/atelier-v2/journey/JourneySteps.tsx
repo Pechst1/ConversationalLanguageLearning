@@ -62,7 +62,17 @@ import {
   type JourneyFeedback,
   type ReplyProvenance,
 } from './journey-state';
-import type { VoiceState } from './useDailyJourney';
+import {
+  FAILURE_COPY_KEY,
+  micRefusalExplained,
+  readAnswerMode,
+  rememberMicRefusalExplained,
+  submittedMode,
+  voiceIsBusy,
+  writeAnswerMode,
+  type AnswerMode,
+} from './voice-answer';
+import { useVoiceAnswer } from './useVoiceAnswer';
 
 /**
  * The renderers take the copy table as a prop, exactly as they did in the
@@ -432,37 +442,31 @@ export function RespondStepView({
   busy,
   feedback,
   help,
-  voice,
   onHelp,
   onSubmit,
-  onStartRecording,
-  onStopRecording,
-  onResetVoice,
   draft,
-}: { step: RespondStep; voice: VoiceState } & StepViewCommonProps & {
-    onStartRecording: () => void;
-    onStopRecording: () => void;
-    onResetVoice: () => void;
-  }) {
-  const wide = widenCopy(copy);
+}: { step: RespondStep } & StepViewCommonProps) {
   // A respond step can hold more than one turn, and each turn is its own
   // answer, so the turn is part of the key: a new turn starts clean rather
   // than reopening with the sentence the learner already sent.
   const draftKey = `${step.id}:${step.prompt.turn_index}`;
   const [text, setText] = useState(() => draft?.get(draftKey) ?? '');
-  const [mode, setMode] = useState<'text' | 'voice'>('text');
-  const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const canSpeak = voiceOffered(step.prompt);
   const canType = textOffered(step.prompt);
+  // WP-27: speaking is the default output. The first render agrees with the
+  // server (voice whenever the step offers it) and the remembered preference
+  // is applied in an effect, so a learner who chose "Écrire" keeps it without
+  // a hydration mismatch.
+  const [mode, setMode] = useState<AnswerMode>(canSpeak ? 'voice' : 'text');
+  const [explainRefusal, setExplainRefusal] = useState(false);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const voice = useVoiceAnswer();
+  const voiceState = voice.state;
   // A graded turn is closed until the learner continues: re-submitting into a
   // completed step would only earn a 409 `step_not_active`.
   const graded = feedback.kind === 'graded';
-  const locked =
-    busy ||
-    feedback.kind === 'submitting' ||
-    graded ||
-    voice.kind === 'recording' ||
-    voice.kind === 'transcribing';
+  const busyVoice = voiceIsBusy(voiceState);
+  const locked = busy || feedback.kind === 'submitting' || graded || busyVoice;
 
   useEffect(() => {
     // A new turn starts empty but keeps the same mounted field, so focus and
@@ -472,8 +476,68 @@ export function RespondStepView({
   }, [draft, draftKey]);
 
   useEffect(() => {
-    if (!canSpeak && mode === 'voice') setMode('text');
-  }, [canSpeak, mode]);
+    if (!canSpeak) {
+      setMode('text');
+      return;
+    }
+    if (!canType) {
+      setMode('voice');
+      return;
+    }
+    setMode(readAnswerMode('voice'));
+  }, [canSpeak, canType]);
+
+  const chooseMode = (next: AnswerMode) => {
+    setMode(next);
+    writeAnswerMode(next);
+    if (next === 'text') voice.reset();
+  };
+
+  useEffect(() => {
+    // A device that refuses the microphone is a fact about the device, not a
+    // thing to ask about every turn: the learner is put on the text path, told
+    // once why, and the preference remembers it.
+    if (voiceState.kind !== 'failed') return;
+    if (voiceState.reason !== 'permission' && voiceState.reason !== 'unsupported') return;
+    setMode('text');
+    writeAnswerMode('text');
+    if (!micRefusalExplained()) {
+      setExplainRefusal(true);
+      rememberMicRefusalExplained();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [voiceState.kind, (voiceState as { reason?: string }).reason]);
+
+  const setAnswer = (next: string) => {
+    setText(next);
+    draft?.set(draftKey, next);
+  };
+
+  useEffect(() => {
+    // The transcript is a draft, never a submission: it lands in the field so
+    // the learner can fix a misheard word before anything is graded.
+    if (voiceState.kind === 'transcript') setAnswer(voiceState.text);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [voiceState.kind, voiceState.kind === 'transcript' ? voiceState.text : null]);
+
+  const failureNotice =
+    voiceState.kind === 'failed'
+      ? (copy as Record<string, string>)[FAILURE_COPY_KEY[voiceState.reason]] || copy.voice_failed
+      : null;
+
+  const submit = () => onSubmit({ mode: submittedMode(voiceState, text), text });
+
+  const sendAction = (
+    <Action
+      tone="primary"
+      disabled={locked || answerIsBlank(text)}
+      pending={feedback.kind === 'submitting'}
+      pendingLabel={copy.sending}
+      onClick={submit}
+    >
+      {copy.send}
+    </Action>
+  );
 
   return (
     <StepFrame
@@ -493,34 +557,56 @@ export function RespondStepView({
         </div>
       )}
 
-      {canSpeak && canType && !graded && (
-        <div className="av2-help__actions" role="group" aria-label={copy.answer_label}>
-          <Chip
-            tone={mode === 'text' ? 'story' : 'plain'}
-            aria-pressed={mode === 'text'}
-            onClick={() => {
-              setMode('text');
-              onResetVoice();
-            }}
-          >
-            {copy.use_text}
-          </Chip>
-          <Chip
-            tone={mode === 'voice' ? 'story' : 'plain'}
-            aria-pressed={mode === 'voice'}
-            onClick={() => setMode('voice')}
-          >
-            {copy.use_voice}
-          </Chip>
-        </div>
-      )}
-
-      {/* Text is always a full path, whatever the microphone is doing — until
-          the turn is graded, when the field, the send button, the microphone
-          and the help row all stop offering themselves and the verdict's
-          Continue is the only action left (WP-20 D-6). */}
+      {/* Until the turn is graded, when the field, the send button, the
+          microphone and the help row all stop offering themselves and the
+          verdict's Continue is the only action left (WP-20 D-6). */}
       {graded ? (
         <SentAnswer label={copy.answer_label} text={text} />
+      ) : mode === 'voice' && canSpeak ? (
+        <>
+          {voiceState.kind === 'transcript' ? (
+            <>
+              {textAnswerField({
+                label: copy.voice_transcript_label,
+                value: text,
+                rows: 3,
+                disabled: locked,
+                placeholder: copy.answer_placeholder,
+                invalid: feedback.kind === 'empty',
+                inputRef,
+                onChange: setAnswer,
+              })}
+              <p className="av2-body">{copy.voice_transcript_hint}</p>
+              <div className="av2-respond__actions">
+                {sendAction}
+                <Action tone="quiet" disabled={locked} onClick={() => void voice.start()}>
+                  {copy.voice_retry}
+                </Action>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="av2-body">{copy.voice_hint}</p>
+              <div className="av2-respond__actions">
+                <Action
+                  tone="primary"
+                  disabled={busy || feedback.kind === 'submitting'}
+                  pending={voiceState.kind === 'transcribing'}
+                  pendingLabel={copy.transcribing}
+                  icon={voiceState.kind === 'recording' ? <StopIcon size={18} /> : <MicIcon size={18} />}
+                  onClick={() => (voiceState.kind === 'recording' ? voice.stop() : void voice.start())}
+                >
+                  {voiceState.kind === 'recording' ? copy.stop_recording : copy.speak}
+                </Action>
+                {canType && (
+                  <Action tone="quiet" disabled={busyVoice} onClick={() => chooseMode('text')}>
+                    {copy.use_text}
+                  </Action>
+                )}
+              </div>
+            </>
+          )}
+        </>
       ) : (
         <>
           {textAnswerField({
@@ -531,53 +617,41 @@ export function RespondStepView({
             placeholder: copy.answer_placeholder,
             invalid: feedback.kind === 'empty',
             inputRef,
-            onChange: (next) => {
-              setText(next);
-              draft?.set(draftKey, next);
-            },
+            onChange: setAnswer,
           })}
 
           <div className="av2-respond__actions">
-            <Action
-              tone="primary"
-              disabled={locked || answerIsBlank(text)}
-              pending={feedback.kind === 'submitting'}
-              pendingLabel={copy.sending}
-              onClick={() => onSubmit({ mode: 'text', text })}
-            >
-              {copy.send}
-            </Action>
-
-            {canSpeak && mode === 'voice' && (
-              <IconAction
-                label={voice.kind === 'recording' ? copy.stop_recording : copy.record}
-                tone={voice.kind === 'recording' ? 'recording' : 'action'}
-                pressable
-                pending={voice.kind === 'transcribing'}
-                onClick={() => (voice.kind === 'recording' ? onStopRecording() : onStartRecording())}
-              >
-                {voice.kind === 'recording' ? <StopIcon size={18} /> : <MicIcon size={18} />}
-              </IconAction>
+            {sendAction}
+            {canSpeak && (
+              <Action tone="quiet" disabled={locked} onClick={() => chooseMode('voice')}>
+                {copy.use_voice}
+              </Action>
             )}
           </div>
         </>
       )}
 
-      {voice.kind === 'recording' && (
+      {!graded && voiceState.kind === 'recording' && (
         <Notice shape="action">
           <p>{copy.record}</p>
         </Notice>
       )}
 
-      {voice.kind === 'transcribing' && (
+      {!graded && voiceState.kind === 'transcribing' && (
         <Notice shape="story">
           <p>{copy.transcribing}</p>
         </Notice>
       )}
 
-      {(voice.kind === 'failed' || voice.kind === 'unsupported') && (
+      {!graded && failureNotice && (
         <Notice shape="action">
-          <p>{copy.voice_failed}</p>
+          <p>{failureNotice}</p>
+        </Notice>
+      )}
+
+      {!graded && explainRefusal && (
+        <Notice shape="story">
+          <p>{copy.voice_permission}</p>
         </Notice>
       )}
 

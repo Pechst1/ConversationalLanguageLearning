@@ -601,67 +601,55 @@ const noSleep = () => Promise.resolve();
   }
   assert.ok(lockedRecallHtml.includes('aria-checked'), 'and keeps its selection semantics');
 
-  // Respond: voice only when the server offers it; text always.
+  // WP-27 — Respond is voice-first. The primary action speaks; text is one tap
+  // away; a step the server does not offer voice for is text from the start.
   const respondHtml = renderToStaticMarkup(
-    React.createElement(steps.RespondStepView, {
-      step: withVoice,
-      ...baseStepProps,
-      voice: { kind: 'idle' },
-      onStartRecording: () => {},
-      onStopRecording: () => {},
-      onResetVoice: () => {},
-    }),
+    React.createElement(steps.RespondStepView, { step: withVoice, ...baseStepProps }),
   );
-  assert.ok(respondHtml.includes('<textarea'), 'text is always a full path');
-  assert.ok(htmlHas(respondHtml, EN.use_voice), 'voice is offered for a voice-capable step');
+  assert.ok(htmlHas(respondHtml, EN.speak), 'speaking is the primary output');
+  assert.ok(htmlHas(respondHtml, EN.voice_hint), 'and it says what happens to the recording');
+  assert.ok(
+    !/prononciation|pronunciation/i.test(respondHtml) ||
+      htmlHas(respondHtml, EN.voice_hint),
+    'the only mention of pronunciation is the promise not to judge it',
+  );
+  assert.ok(htmlHas(respondHtml, EN.use_text), 'writing is one tap away');
+  assert.ok(!respondHtml.includes('<textarea'), 'the field waits for a transcript');
   assert.ok(htmlHas(respondHtml, withVoice.prompt.character_line_fr));
   assert.ok(htmlHas(respondHtml, 'un café'), 'the elicited targets are shown');
 
   const respondTextOnlyHtml = renderToStaticMarkup(
-    React.createElement(steps.RespondStepView, {
-      step: voicelessRespond,
-      ...baseStepProps,
-      voice: { kind: 'idle' },
-      onStartRecording: () => {},
-      onStopRecording: () => {},
-      onResetVoice: () => {},
-    }),
+    React.createElement(steps.RespondStepView, { step: voicelessRespond, ...baseStepProps }),
   );
   assert.ok(respondTextOnlyHtml.includes('<textarea'), 'text stays a full path without voice');
-  assert.ok(!htmlHas(respondTextOnlyHtml, EN.use_voice), 'no voice control when voice is unavailable');
+  assert.ok(!htmlHas(respondTextOnlyHtml, EN.speak), 'no voice control when voice is unavailable');
+  assert.ok(!htmlHas(respondTextOnlyHtml, EN.use_voice));
   assert.ok(!htmlHas(respondTextOnlyHtml, EN.record));
-
-  // A transcription failure keeps the turn open and is never a wrong answer.
-  const voiceFailedHtml = renderToStaticMarkup(
-    React.createElement(steps.RespondStepView, {
-      step: withVoice,
-      ...baseStepProps,
-      voice: { kind: 'failed', message: 'voice_failed' },
-      onStartRecording: () => {},
-      onStopRecording: () => {},
-      onResetVoice: () => {},
-    }),
-  );
-  assert.ok(htmlHas(voiceFailedHtml, EN.voice_failed));
-  assert.ok(voiceFailedHtml.includes('<textarea'), 'the learner still holds the turn');
-  assert.ok(!htmlHas(voiceFailedHtml, EN.wrong));
 
   // A double tap can never send twice: the primary action is disabled while a
   // request is in flight, and the gate above reuses the first request anyway.
   const busyRespondHtml = renderToStaticMarkup(
     React.createElement(steps.RespondStepView, {
-      step: withVoice,
+      step: voicelessRespond,
       ...baseStepProps,
       busy: true,
       feedback: { kind: 'submitting' },
-      voice: { kind: 'idle' },
-      onStartRecording: () => {},
-      onStopRecording: () => {},
-      onResetVoice: () => {},
     }),
   );
   assert.ok(busyRespondHtml.includes('disabled=""'), 'the primary action locks while submitting');
   assert.ok(htmlHas(busyRespondHtml, EN.sending), 'and says so');
+
+  // The same is true of the microphone: a turn already in flight cannot be
+  // re-answered by speaking over it.
+  const busyVoiceHtml = renderToStaticMarkup(
+    React.createElement(steps.RespondStepView, {
+      step: withVoice,
+      ...baseStepProps,
+      busy: true,
+      feedback: { kind: 'submitting' },
+    }),
+  );
+  assert.ok(busyVoiceHtml.includes('disabled=""'), 'the speak action locks while submitting');
 
   // A graded turn stays closed until the learner continues.
   const gradedRespondHtml = renderToStaticMarkup(
@@ -669,10 +657,6 @@ const noSleep = () => Promise.resolve();
       step: withVoice,
       ...baseStepProps,
       feedback: cleanFeedback,
-      voice: { kind: 'idle' },
-      onStartRecording: () => {},
-      onStopRecording: () => {},
-      onResetVoice: () => {},
     }),
   );
   // WP-20 D-6: a graded turn closes its input surface. The field, the send
@@ -686,11 +670,7 @@ const noSleep = () => Promise.resolve();
       step: withVoice,
       ...baseStepProps,
       feedback: cleanFeedback,
-      voice: { kind: 'idle' },
       draft: { get: () => 'Un café, s’il vous plaît.', set: () => {} },
-      onStartRecording: () => {},
-      onStopRecording: () => {},
-      onResetVoice: () => {},
     }),
   );
   assert.ok(
@@ -1264,8 +1244,16 @@ const noSleep = () => Promise.resolve();
     ...respondJourney.steps.find((entry) => entry.kind === 'respond'),
     status: 'active',
   };
-  const turnOne = { ...respondStep, prompt: { ...respondStep.prompt, turn_index: 1 } };
-  const turnTwo = { ...respondStep, prompt: { ...respondStep.prompt, turn_index: 2 } };
+  // Drafts are a property of the written path, so these two turns are pinned to
+  // text; WP-27's voice-first default is exercised in its own section below.
+  const turnOne = {
+    ...respondStep,
+    prompt: { ...respondStep.prompt, turn_index: 1, input_modes: ['text'] },
+  };
+  const turnTwo = {
+    ...respondStep,
+    prompt: { ...respondStep.prompt, turn_index: 2, input_modes: ['text'] },
+  };
 
   const respondDrafts = draftStore();
   const respondProps = {
@@ -1642,6 +1630,193 @@ const noSleep = () => Promise.resolve();
     'the retry reads the journey it actually has, not a render-old closure',
   );
   assert.equal(stuck.phase.kind, 'finished');
+
+  // -------------------------------------------------------------------------
+  // WP-27 — speaking is the default output, and every failure keeps the turn
+  // -------------------------------------------------------------------------
+  //
+  // No pronunciation scoring exists anywhere in this path (owner decision):
+  // the recording becomes text, the learner corrects it, and the same respond
+  // call grades it exactly like a typed answer.
+
+  const voiceLib = require('./voice-answer.ts');
+  const FRC = journeyCopy('fr');
+
+  // 1. the pure state machine, including each failure path
+  let vs = voiceLib.IDLE;
+  vs = voiceLib.voiceAnswerReduce(vs, { type: 'start' });
+  vs = voiceLib.voiceAnswerReduce(vs, { type: 'recording' });
+  assert.equal(vs.kind, 'recording');
+  assert.equal(voiceLib.voiceIsBusy(vs), true, 'the send button waits while the mic is live');
+  vs = voiceLib.voiceAnswerReduce(vs, { type: 'stop' });
+  assert.equal(vs.kind, 'transcribing');
+  vs = voiceLib.voiceAnswerReduce(vs, { type: 'transcribed', text: '  Je voudrais un café. ' });
+  assert.deepEqual(vs, { kind: 'transcript', text: 'Je voudrais un café.' });
+  assert.equal(
+    voiceLib.submittedMode(vs, 'Je voudrais un café.'),
+    'voice',
+    'a spoken sentence is submitted as voice',
+  );
+  assert.equal(
+    voiceLib.submittedMode(vs, 'Je voudrais un café, s’il vous plaît.'),
+    'voice',
+    'correcting a misheard word does not make the sentence typed',
+  );
+  assert.equal(voiceLib.submittedMode(vs, '   '), 'text', 'an emptied field is no longer voice');
+  assert.equal(voiceLib.submittedMode(voiceLib.IDLE, 'tapé'), 'text');
+
+  // an empty transcript is a declared failure, never a blank submission
+  assert.deepEqual(
+    voiceLib.voiceAnswerReduce({ kind: 'transcribing' }, { type: 'transcribed', text: '   ' }),
+    { kind: 'failed', reason: 'failed' },
+  );
+  // a stop that arrives with nothing running invents no work
+  assert.deepEqual(
+    voiceLib.voiceAnswerReduce(voiceLib.IDLE, { type: 'stop' }),
+    voiceLib.IDLE,
+  );
+  for (const reason of ['permission', 'unsupported', 'offline', 'empty', 'failed']) {
+    const failed = voiceLib.voiceAnswerReduce({ kind: 'recording' }, { type: 'fail', reason });
+    assert.deepEqual(failed, { kind: 'failed', reason });
+    const key = voiceLib.FAILURE_COPY_KEY[reason];
+    assert.ok(FRC[key], `${reason} has a sentence of its own`);
+    assert.ok(!/[A-Za-z]+ing\b|micro?phone\b/.test(FRC[key]), `${reason} is not English`);
+    // and every failure is recoverable: a fresh start clears it
+    assert.deepEqual(voiceLib.voiceAnswerReduce(failed, { type: 'start' }), voiceLib.IDLE);
+  }
+
+  // 2. the French chrome says what it does, and promises nothing about sound
+  assert.equal(FRC.speak, 'Parler');
+  assert.equal(FRC.use_text, 'Écrire plutôt');
+  assert.ok(/prononciation/.test(FRC.voice_hint), 'the hint addresses pronunciation once — to disown it');
+  assert.ok(/ne juge/.test(FRC.voice_hint), 'and only to say nothing judges it');
+  assert.ok(/réglages/i.test(FRC.voice_permission), 'a refusal says where to change it');
+  assert.ok(/écrit/.test(FRC.voice_permission), 'and that writing still works');
+  assert.ok(/écrit/.test(FRC.voice_offline), 'offline keeps the written path');
+  for (const key of ['speak', 'voice_hint', 'voice_permission', 'voice_offline', 'voice_empty']) {
+    assert.ok(FRC[key] !== EN[key], `${key} is actually translated`);
+  }
+
+  // 3. the remembered preference
+  global.window.localStorage.removeItem(voiceLib.INPUT_MODE_KEY);
+  assert.equal(voiceLib.readAnswerMode(), 'voice', 'speaking is the default');
+  voiceLib.writeAnswerMode('text');
+  assert.equal(voiceLib.readAnswerMode(), 'text', 'and the choice is remembered');
+  assert.equal(global.window.localStorage.getItem(voiceLib.INPUT_MODE_KEY), 'text');
+  assert.equal(voiceLib.micRefusalExplained(), false);
+  voiceLib.rememberMicRefusalExplained();
+  assert.equal(voiceLib.micRefusalExplained(), true, 'a refusal is explained once, not every turn');
+
+  // 4. the whole device path: record → transcript → edit → submit as voice
+  const stoppedTracks = [];
+  const fakeStream = { getTracks: () => [{ stop: () => stoppedTracks.push(1) }] };
+  let micAnswer = async () => fakeStream;
+  class FakeRecorder {
+    constructor() {
+      this.mimeType = 'audio/webm';
+      this.started = false;
+    }
+    start() {
+      this.started = true;
+    }
+    stop() {
+      this.ondataavailable({ data: new Blob(['x'.repeat(4000)], { type: 'audio/webm' }) });
+      this.onstop();
+    }
+  }
+  FakeRecorder.isTypeSupported = () => false;
+  let currentRecorder = null;
+  global.MediaRecorder = new Proxy(FakeRecorder, {
+    construct(target, args) {
+      currentRecorder = new target(...args);
+      return currentRecorder;
+    },
+  });
+  Object.defineProperty(global, 'navigator', {
+    configurable: true,
+    value: { onLine: true, mediaDevices: { getUserMedia: (...args) => micAnswer(...args) } },
+  });
+
+  apiHandler = (method) => {
+    if (method === 'transcribeAudio') return Promise.resolve('je voudrai un café');
+    throw new Error(`unexpected ${method}`);
+  };
+
+  const spoken = [];
+  const voiceStep = { ...withVoice, status: 'active' };
+  const voiceProps = {
+    ...stepProps,
+    copy: FRC,
+    step: voiceStep,
+    onSubmit: (input) => spoken.push(input),
+  };
+  global.window.localStorage.setItem(voiceLib.INPUT_MODE_KEY, 'voice');
+  const spokenTurn = mountView(steps.RespondStepView, voiceProps);
+  const actionWith = (tree, label) =>
+    findIn(tree, (node) => node.props && node.props.children === label);
+
+  assert.ok(actionWith(spokenTurn.tree, FRC.speak), 'the primary action is «Parler»');
+  assert.equal(textareaIn(spokenTurn.tree), null, 'and no field is offered yet');
+
+  await actionWith(spokenTurn.tree, FRC.speak).props.onClick();
+  await spokenTurn.settle();
+  assert.ok(currentRecorder && currentRecorder.started, 'the microphone is actually running');
+  assert.ok(actionWith(spokenTurn.tree, FRC.stop_recording), 'and the action becomes «Arrêter»');
+
+  actionWith(spokenTurn.tree, FRC.stop_recording).props.onClick();
+  await spokenTurn.settle();
+  assert.equal(stoppedTracks.length, 1, 'the microphone is released, not left open');
+  const field = textareaIn(spokenTurn.tree);
+  assert.ok(field, 'the transcript comes back into an editable field');
+  assert.equal(field.props.value, 'je voudrai un café');
+  assert.equal(spoken.length, 0, 'nothing is submitted behind the learner’s back');
+
+  // the learner fixes what the transcription got wrong, then sends
+  field.props.onChange({ target: { value: 'Je voudrais un café.' } });
+  await spokenTurn.settle();
+  actionWith(spokenTurn.tree, FRC.send).props.onClick();
+  assert.deepEqual(
+    spoken,
+    [{ mode: 'voice', text: 'Je voudrais un café.' }],
+    'the corrected sentence is submitted, and recorded as spoken',
+  );
+
+  // 5. a refused microphone is a first-class text path, explained once
+  global.window.localStorage.removeItem(voiceLib.MIC_DENIED_KEY);
+  global.window.localStorage.setItem(voiceLib.INPUT_MODE_KEY, 'voice');
+  micAnswer = async () => {
+    throw new Error('NotAllowedError');
+  };
+  const refused = mountView(steps.RespondStepView, { ...voiceProps, onSubmit: () => {} });
+  await actionWith(refused.tree, FRC.speak).props.onClick();
+  await refused.settle();
+  const refusedField = textareaIn(refused.tree);
+  assert.ok(refusedField, 'a refusal drops the learner straight onto the written path');
+  assert.equal(
+    global.window.localStorage.getItem(voiceLib.INPUT_MODE_KEY),
+    'text',
+    'and the device’s answer is remembered rather than re-asked every turn',
+  );
+  assert.equal(voiceLib.micRefusalExplained(), true, 'the explanation is marked as given');
+  const refusedHtml = renderToStaticMarkup(refused.tree);
+  assert.ok(refusedHtml.includes('réglages'), 'and it is on screen, in French');
+  assert.ok(!/wrong|Pas encore/.test(refusedHtml), 'a refusal is never a wrong answer');
+
+  // 6. offline: said before recording, never after losing the sentence
+  Object.defineProperty(global, 'navigator', {
+    configurable: true,
+    value: { onLine: false, mediaDevices: { getUserMedia: async () => fakeStream } },
+  });
+  global.window.localStorage.setItem(voiceLib.INPUT_MODE_KEY, 'voice');
+  const offlineTurn = mountView(steps.RespondStepView, { ...voiceProps, onSubmit: () => {} });
+  await actionWith(offlineTurn.tree, FRC.speak).props.onClick();
+  await offlineTurn.settle();
+  const offlineHtml = renderToStaticMarkup(offlineTurn.tree);
+  assert.ok(offlineHtml.includes('Sans connexion'), 'offline is stated honestly');
+  assert.ok(actionWith(offlineTurn.tree, FRC.speak), 'and the turn is still there to retry');
+
+  delete global.MediaRecorder;
+  delete global.navigator;
 
   apiHandler = () => {
     throw new Error('no api handler installed');
