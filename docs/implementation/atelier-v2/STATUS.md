@@ -1594,3 +1594,12 @@ folds lemmas through elision and accents, splits unknowns into targets and accid
 returns a verdict naming the words to replace *and* the targets to keep. Thin text is
 `not_assessed`, never rejected. 57 tests, US$0.00; the guard stays dark until two diffs
 land in `living_story.py` (WP-28's lease) — verbatim in [WP-29-COVERAGE.md](WP-29-COVERAGE.md) §5.
+
+## 2026-09-10 — WP-28 integration
+
+The four packages' hooks, wired; handover in [WP-28-INTEGRATION.md](WP-28-INTEGRATION.md).
+
+- WP-24 §5: `daily_journey` reads the errata, plans with them and stores `plan_because`'s payload with the plan; `GET /atelier/today` serves it as a nullable `because` and Home prints the French that was unreachable code until today. Read from the plan, never recomputed — a mistake made after the scene must not claim credit for it.
+- WP-24's quality half: the erratum's label, «faux → juste» and why now shape the scene-draft prompt (the actor is deliberately not told; a primed grader is not a grader). The errata therefore joined the WP-26 cache key: a repaired mistake can no longer be served back the next morning in the scene generated to make the learner repeat it.
+- WP-26 item 3: `TodayEnvelope.is_warm` — warmth is told, not timed, and the wait copy is delayed rather than suppressed. WP-27: the controller's dead second microphone is gone. WP-25: Le Relevé says «niveau estimé (placement)» instead of the self-declaration's words. The signup test WP-25 was said to have broken was already re-pinned in `5f465ff` and passes untouched.
+- 12 backend tests + 9 frontend assertions. Backend `1887 passed, 1 skipped` (one order-dependent flake in `test_journey_end_to_end.py`, reproduced at base `46d861a`); twelve node suites, type-check, lint and build green. **US$0.00 — no model call.**
