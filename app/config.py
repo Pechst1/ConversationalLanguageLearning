@@ -303,10 +303,15 @@ class Settings(BaseSettings):
         description="Enable experimental phone-call mission formats inside the serial planner.",
     )
     ATELIER_DAILY_JOURNEY_ENABLED: bool = Field(
-        False,
+        True,
         description=(
-            "Enable the Atelier V2 five-minute daily journey. Defaults dark; the server "
-            "response is authoritative and already-created journeys keep draining when off."
+            "Enable the Atelier V2 five-minute daily journey. Owner decision 2026-09-10: "
+            "the journey is the product's daily Séance, so it defaults ON and the legacy "
+            "drill loop becomes «Plus de pratique». The server response stays "
+            "authoritative, and already-created journeys keep draining if it is ever "
+            "switched off again. Who actually gets it is still ATELIER_DAILY_JOURNEY_COHORT: "
+            "outside production an empty cohort means everyone, in production it means "
+            "nobody until the list says '*' or names them (journey_enabled_for)."
         ),
     )
     ATELIER_STORY_ENGINE_ENABLED: bool = Field(

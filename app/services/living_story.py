@@ -777,17 +777,74 @@ _FEMININE_ADDRESS = (
 )
 
 
+# Predicate adjectives that agree with the learner. "gendered_address" catches a
+# character CALLING the learner something gendered; this catches the quieter half —
+# prose that AGREES with a gender the learner never gave. Live A1 review 2026-09-10
+# shipped "Tu la manges et tu es content" into an accepted resolution: correct French,
+# and wrong for every learner who is not male.
+_MASCULINE_AGREEMENT = (
+    "content", "prêt", "sûr", "heureux", "fatigué", "désolé", "seul", "inquiet",
+    "curieux", "doué", "gentil", "perdu", "surpris", "satisfait", "occupé", "certain",
+    "attentif", "sérieux", "nouveau", "bienvenu",
+)
+_FEMININE_AGREEMENT = (
+    "contente", "prête", "sûre", "heureuse", "fatiguée", "désolée", "seule", "inquiète",
+    "curieuse", "douée", "gentille", "perdue", "surprise", "satisfaite", "occupée",
+    "certaine", "attentive", "sérieuse", "nouvelle", "bienvenue",
+)
+# "tu es", "t'es", "vous êtes", with at most one adverb in between.
+_SECOND_PERSON = r"(?:tu es|t'es|tu étais|vous êtes|vous étiez)\s+(?:\w+\s+)?"
+
+
+def _agreement_hits(folded: str, adjectives: tuple[str, ...]) -> list[str]:
+    return [
+        adjective
+        for adjective in adjectives
+        if re.search(rf"\b{_SECOND_PERSON}{adjective}\b", folded)
+    ]
+
+
 def _check_address(texts: list[str], address: str | None) -> None:
     joined = " ".join(text for text in texts if text)
     if _INCLUSIVE_DOT.search(joined):
-        raise StoryUnavailable("inclusive_dot_form")
+        raise StoryUnavailable(
+            "inclusive_dot_form",
+            hint=(
+                "Inclusive middle-dot spelling (\"seul·e\", \"client·e\") is not "
+                "readable prose for a learner and does not survive being read aloud. "
+                "Write one form, or rephrase so gender never has to be marked: "
+                "\"vous êtes seul ?\" becomes \"il y a quelqu'un avec vous ?\"."
+            ),
+        )
     folded = f" {_folded(joined)} "
     forbidden = {
         "feminine": _MASCULINE_ADDRESS,
         "masculine": _FEMININE_ADDRESS,
     }.get(address or "neutral", _MASCULINE_ADDRESS + _FEMININE_ADDRESS)
     if any(f" {term} " in folded for term in forbidden):
-        raise StoryUnavailable("gendered_address")
+        raise StoryUnavailable(
+            "gendered_address",
+            hint=(
+                "A character addressed the learner with a gendered endearment "
+                "(\"ma belle\", \"mon grand\"). The learner's gender is not known "
+                "here. Use their name, or a form that carries no gender at all."
+            ),
+        )
+    forbidden_agreement = {
+        "feminine": _MASCULINE_AGREEMENT,
+        "masculine": _FEMININE_AGREEMENT,
+    }.get(address or "neutral", _MASCULINE_AGREEMENT + _FEMININE_AGREEMENT)
+    hits = _agreement_hits(folded, forbidden_agreement)
+    if hits:
+        raise StoryUnavailable(
+            "gendered_agreement",
+            hint=(
+                f"\"{hits[0]}\" agrees with a gender the learner never gave. Say it "
+                "without agreeing on them: \"ça te plaît\", \"tu as de la chance\", "
+                "\"ça y est\" — or write the sentence about the food, the room or the "
+                "other character instead."
+            ),
+        )
 
 
 _REPLY_WORD_LIMITS = {"A1": 40, "A2": 60}
@@ -802,7 +859,14 @@ def _check_register(texts: list[str], level: str | None) -> None:
     if str(level or "") not in CLEAN_REGISTER_LEVELS:
         return
     if _VULGAR_RE.search(" ".join(text for text in texts if text)):
-        raise StoryUnavailable("vulgar_register")
+        raise StoryUnavailable(
+            "vulgar_register",
+            hint=(
+                f"Coarse or crude vocabulary does not reach a {level} learner, however "
+                "naturally a character would speak. Keep the character's warmth and "
+                "bluntness; change the words."
+            ),
+        )
 
 
 def _address_register(texts: list[str]) -> str | None:
@@ -834,7 +898,15 @@ def _check_scene_address_register(draft: SceneDraft) -> None:
         ]
     )
     if narration and spoken and narration != spoken:
-        raise StoryUnavailable("mixed_address_register")
+        raise StoryUnavailable(
+            "mixed_address_register",
+            hint=(
+                f"The narration addresses the learner as \"{narration}\" while the "
+                f"character speaks to them as \"{spoken}\". Pick one and use it "
+                "everywhere: switching between tu and vous inside a scene reads as a "
+                "mistake to a learner who is being taught the difference."
+            ),
+        )
 
 
 def _variety_hint(variety: dict, what: str) -> str:
@@ -893,9 +965,30 @@ def _validate_scene(draft: SceneDraft, context: dict):
     cast = {c["id"] for c in context["world"]["cast"]}
     locations = {loc["id"] for loc in context["world"]["locations"]}
     if draft.character_id not in cast or draft.location_id not in locations:
-        raise StoryUnavailable("unknown_character_or_location")
-    if any(line.character_id not in cast for panel in draft.panels for line in panel.dialogue):
-        raise StoryUnavailable("unknown_panel_character")
+        raise StoryUnavailable(
+            "unknown_character_or_location",
+            hint=(
+                f"\"{draft.character_id}\" at \"{draft.location_id}\" is not in this "
+                "world. Cast this scene from the ids you were given: "
+                f"characters {sorted(cast)}, locations {sorted(locations)}."
+            ),
+        )
+    strangers = sorted(
+        {
+            line.character_id
+            for panel in draft.panels
+            for line in panel.dialogue
+            if line.character_id not in cast
+        }
+    )
+    if strangers:
+        raise StoryUnavailable(
+            "unknown_panel_character",
+            hint=(
+                f"{strangers} speak in the panels but are not in the cast. Give their "
+                f"lines to someone who is, or to narration: cast is {sorted(cast)}."
+            ),
+        )
     known = {event["id"] for event in context["events"]}
     # Unknown source ids are dropped, not fatal (WP-14F L-1: the director cited situation
     # ids as sources and a learner lost thirteen days). Provenance keeps only real events;
@@ -1041,8 +1134,16 @@ def _validate_scene(draft: SceneDraft, context: dict):
         + [w for p in draft.panels for w in p.narration_fr.split()]
         + [w for p in draft.panels for line in p.dialogue for w in line.text_fr.split()]
     )
-    if len(words) > (110 if context["level"] == "A1" else 170):
-        raise StoryUnavailable("scene_too_long")
+    limit = 110 if context["level"] == "A1" else 170
+    if len(words) > limit:
+        raise StoryUnavailable(
+            "scene_too_long",
+            hint=(
+                f"The scene runs to {len(words)} words; a {context['level']} learner "
+                f"reads at most {limit}. Cut the premise and the narration first — the "
+                "dialogue is what the learner is here for."
+            ),
+        )
 
 
 def _brief(draft: SceneDraft, context: dict, *, usage: list[dict]) -> ScenarioBrief:
@@ -1427,20 +1528,48 @@ def _validate_turn(turn: SemanticTurn, payload: dict):
         return bool(folded) and any(folded in _folded(text) for text in texts)
 
     if any(not quoted(quote) for quote in turn.evidence_quotes):
-        raise StoryUnavailable("fabricated_evidence_quote")
+        raise StoryUnavailable(
+            "fabricated_evidence_quote",
+            hint=(
+                "Every evidence quote must be copied verbatim from the learner's own "
+                "words or the scene. Quote what was actually written, or drop the quote "
+                "and say the objective was not met."
+            ),
+        )
     if _same_utterance(turn.reply_fr, payload["learner_text"]):
         # Live review 2026-09-06: the model once returned the learner's own sentence as
         # the character's reply, and the critic accepted it. Words back are not a reply.
-        raise StoryUnavailable("reply_echoes_learner")
+        raise StoryUnavailable(
+            "reply_echoes_learner",
+            hint=(
+                "The reply repeats the learner's own sentence back at them. The "
+                "character has to answer it — agree, refuse, ask something back — not "
+                "return it."
+            ),
+        )
     suggestion = str((payload.get("scene") or {}).get("suggested_response_fr") or "")
     if len(suggestion.split()) >= 3 and _folded(suggestion) in _folded(turn.reply_fr):
         # WP-14F L-3: the reply recited the private suggested answer, handing over the
         # answer key with no assistance recorded.
-        raise StoryUnavailable("reply_leaks_suggestion")
+        raise StoryUnavailable(
+            "reply_leaks_suggestion",
+            hint=(
+                "The reply recites the private suggested answer, which hands the "
+                "learner the answer key. The character reacts to what the learner "
+                "actually said; the suggestion is never spoken aloud."
+            ),
+        )
     story = payload.get("story") or {}
     limit = _REPLY_WORD_LIMITS.get(str(story.get("level") or ""))
     if limit and len(turn.reply_fr.split()) > limit:
-        raise StoryUnavailable("reply_above_level")
+        raise StoryUnavailable(
+            "reply_above_level",
+            hint=(
+                f"The reply runs to {len(turn.reply_fr.split())} words; a "
+                f"{story.get('level')} learner reads at most {limit}. Say the same "
+                "thing in fewer, shorter sentences."
+            ),
+        )
     _check_address(
         # understood_intent is internal, but it is where the A2 paid run put
         # "Le·a apprenant·e": the same violation, caught only by the critic.
@@ -1449,12 +1578,31 @@ def _validate_turn(turn: SemanticTurn, payload: dict):
     )
     _check_register([turn.reply_fr, turn.resolution_fr], story.get("level"))
     if turn.outcome == "met" and (turn.needs_clarification or not turn.evidence_quotes):
-        raise StoryUnavailable("unsupported_success")
+        raise StoryUnavailable(
+            "unsupported_success",
+            hint=(
+                "\"met\" needs a quote from the learner showing they did it, and it "
+                "cannot be met while you are still asking them what they meant. Either "
+                "quote the evidence, or record the outcome honestly as not met."
+            ),
+        )
     if any(not quoted(c.source_quote) for c in turn.commitments):
-        raise StoryUnavailable("unsupported_commitment")
+        raise StoryUnavailable(
+            "unsupported_commitment",
+            hint=(
+                "A commitment must quote the words that promised it, verbatim. If "
+                "nobody actually promised anything here, record no commitment."
+            ),
+        )
     known = {c["id"] for c in payload["story"]["commitments"] if c.get("status") == "open"}
     if not set(turn.resolved_commitment_ids) <= known:
-        raise StoryUnavailable("unknown_commitment")
+        raise StoryUnavailable(
+            "unknown_commitment",
+            hint=(
+                f"Only these commitments are open and can be resolved: {sorted(known)}. "
+                "Resolving anything else invents a promise that was never made."
+            ),
+        )
     if turn.needs_clarification and (
         turn.commitments or turn.resolved_commitment_ids or turn.chapter_resolved
     ):
@@ -1465,7 +1613,14 @@ def _validate_turn(turn: SemanticTurn, payload: dict):
         turn.resolved_commitment_ids = []
         turn.chapter_resolved = False
     if not turn.needs_clarification and (not turn.resolution_fr or not turn.summary_native):
-        raise StoryUnavailable("missing_generated_ending")
+        raise StoryUnavailable(
+            "missing_generated_ending",
+            hint=(
+                "A turn that is not asking for clarification has to close: write both "
+                "the French resolution the learner reads and the short native-language "
+                "summary of what happened."
+            ),
+        )
     # Unknown demonstrated_target_ids are ignored rather than fatal: evaluate_turn only
     # records observations for the task's own targets, so an invented id can never
     # earn credit, while rejecting the whole turn would cost the learner a valid reply
@@ -1494,7 +1649,14 @@ def evaluate_turn(
         needs_repair = turn.needs_clarification and turn_index < task.max_turns
         # An exhausted clarification must still have an honest AI-written ending.
         if not needs_repair and (not turn.resolution_fr or not turn.summary_native):
-            raise StoryUnavailable("missing_generated_ending")
+            raise StoryUnavailable(
+                "missing_generated_ending",
+                hint=(
+                    "The clarification turns are used up, so this turn ends the scene: "
+                    "write the French resolution and the native-language summary. An "
+                    "honest ending is required even when the learner never got there."
+                ),
+            )
         correction = None
         if turn.correction_span_fr and turn.correction_fr and turn.correction_note_native:
             candidate = Correction(

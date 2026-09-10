@@ -1409,3 +1409,60 @@ back to any of it fails the suite. The note in
 cluster is gone: **nothing off-system remains to except.**
 
 Route table: 34 → 31.
+
+## 2026-09-10 — the journey defaults on, and the live review finally ran
+
+### The daily journey defaults ON
+
+`ATELIER_DAILY_JOURNEY_ENABLED` now defaults `True` (owner decision). The flag
+says the journey *exists*; `ATELIER_DAILY_JOURNEY_COHORT` and `APP_ENV` still say
+*for whom* — outside production an empty cohort means everyone, in production it
+means nobody until the list says `*` or names them. `render.yaml` ships
+`APP_ENV: staging`, so the first deploy gives the new Séance to every account on
+the service unless a cohort is set. Full suite green with the flip: nothing was
+quietly depending on the journey being dark.
+
+### The live-model review ran — the gate that had never been opened
+
+Owner added credits. Four bounded A1 runs, **US$0.031 total**, and they found
+more than the prose they were meant to judge.
+
+**The prose is good.** An accepted A1 scene, verbatim:
+
+> Margaux : « Tu veux la soupe du jour ? » … « C'est chaud et bon. Je peux te la
+> servir tout de suite. »
+
+Register consistent (`tu` throughout, hint included), cast and location real, the
+objective a single speech act ("ask for one soup, one short sentence"), the
+answer never given away in the panels. The graded turn marked `met` with the
+learner's own sentence as evidence, replied in register and short, invented no
+commitment and — correctly — no correction on correct French.
+
+**Defect 1: sixteen guards handed the retry a bare token.**
+`StoryUnavailable.feedback` is `"reason: hint"` when a hint exists and the bare
+token otherwise. WP-17 already paid for this once — an A2 run lost five days
+because the retry saw only `repeated_premise_triple` and reworded the same scene.
+The premise guard was given a hint then; sixteen others were not. Live runs hit
+two back to back (`gendered_address`, then `inclusive_dot_form`: the model wrote
+`seul·e`), spending both attempts and producing nothing. Every guard that rejects
+a *draft* now hands back an instruction; provider, deadline, concurrency and
+`empty_answer` are exempt, with the reasoning written down.
+`test_every_deterministic_guard_tells_the_retry_what_to_change` fails if a future
+guard ships without one.
+
+**Defect 2: prose agreed with a gender the learner never gave.** The accepted
+resolution above continued: *"Tu la manges et tu es content."* `gendered_address`
+watches what a character **calls** the learner; nothing watched prose that
+**agrees** with them. New `gendered_agreement` guard, address-aware like its
+sibling — a declared gender narrows the check rather than disabling it, because a
+learner who chose "feminine" should not be told "tu es content" either. The hint
+gives the way out: *ça te plaît*, *tu as de la chance*, or write the sentence
+about the soup instead.
+
+**Still open from the runs:** `objective_too_complex` fired twice in a row on one
+day *with* its hint, so the A1 objective scope is not yet reliably learned from
+feedback alone. Acceptance in this harness is lower than the 12/13 the
+longitudinal runs recorded, but the harness feeds a synthetic empty context
+(no story-so-far, no chapter, no relationships), which is a harsher input than a
+real learner's thread — the two numbers are not comparable, and the longitudinal
+runs are the production-like ones.
