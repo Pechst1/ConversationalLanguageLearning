@@ -1547,3 +1547,15 @@ evidence. What was missing was the money: `POST /audio/transcribe` now writes on
 priced pilot row per call, **declared as an estimate** (Whisper reports no
 duration), with the surface that produced it. Details in
 [WP-27-VOICE-RESPOND.md](WP-27-VOICE-RESPOND.md). **Not walked on the simulator.**
+
+## 2026-09-10 — WP-25 placement
+
+CEFR level was self-declared for a learner's first forty attempts, so the first week was served at the wrong band to exactly the people most likely to leave. There is now a placement: four to six French prompts, each drawn from the band the previous answer earned, graded by the same paid checker the Séance correction uses. Full design in [WP-25-PLACEMENT.md](WP-25-PLACEMENT.md).
+
+The result is a prior, not a verdict. `estimate_source` gains `"placement"`, which outranks `"declared"` and is overtaken by `"measured"` once the attempts accrue; it stays a floor and never a ceiling, and `breakdown.status` stays `unverified` because the learner's in-app counters are still zero. `CEFRProgressResponse` gained `estimate_source`, `declared_level` and `placement` — the first two were computed and then dropped by the response schema, so Le Relevé's unverified branch could never fire.
+
+Three properties, each with tests: **resumable** (the conversation is a row, not a request), **idempotent** (a replayed turn returns the stored grading and makes no paid call), **honest under failure** (no grading means `unassessed` and no level — never a fabricated band, never the declaration wearing the word "placement"). An unusable grading raises rather than scoring zero, which would have walked the ladder down on a provider hiccup.
+
+Onboarding: sign-up now hands a new learner to `/placement` after their first sign-in; skipping is a real option that says what it costs, and Réglages re-runs it. One `placement_grading` PilotEvent per call, and a digest line printing cost per placed learner.
+
+**Verification:** backend `1876 passed, 1 skipped`; all twelve node suites pass; `type-check`, `lint`, `next build` clean (31 → 32 routes). **US$0.00 spent — no live model call was made**, which is also the largest open item: the ladder's *mechanism* is proven and its *calibration* is not, and it needs the same kind of bounded paid run the journey conversation waited on.
