@@ -1,7 +1,7 @@
 """Notification helpers for serial editions and the V2 daily journey."""
 from __future__ import annotations
 
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from loguru import logger
@@ -122,8 +122,54 @@ def daily_journey_morning_copy(
     return DAILY_JOURNEY_MORNING_TITLE, message
 
 
+#: Title for the WP-31 day-before push of a rehearsal whose real event is tomorrow.
+REHEARSAL_READY_TITLE = "Votre répétition est prête"
+
+
+def rehearsal_reminder_copy(
+    db: Session,
+    user: User,
+    *,
+    today: date,
+) -> tuple[str, str] | None:
+    """The day before the real thing, or ``None`` when there is nothing to say.
+
+    WP-31 §7.2, applied by WP-37. Two properties hold it honest:
+
+    * **Only an unplayed rehearsal.** ``ready`` and ``rehearsing`` are the two
+      states with turns still to spend. A learner who has already rehearsed —
+      ``rehearsed``, ``debriefed`` — does not need reminding, and a rehearsal
+      that was never prepared (``declared``, ``not_prepared``) has nothing to
+      open. Nudging either would be a push about work that is done or a push to
+      a screen with no scene on it.
+    * **The learner's own goal, never a story character.** A rehearsal is
+      biography, not canon (WP-31 §2): the message repeats what *they* said they
+      were going to do. When the structurer resolved no goal the copy falls back
+      to a line that claims nothing about the situation.
+
+    A rehearsal with no ``event_date`` is never reminded about: the date was not
+    resolvable, and guessing one is how a push arrives on the wrong day.
+    """
+
+    from app.db.models.rehearsal import Rehearsal
+
+    row = db.scalar(
+        select(Rehearsal).where(
+            Rehearsal.user_id == user.id,
+            Rehearsal.status.in_(("ready", "rehearsing")),
+            Rehearsal.event_date == today + timedelta(days=1),
+        )
+    )
+    if row is None:
+        return None
+    goal = _compact((row.brief or {}).get("goal_fr") or "")
+    return REHEARSAL_READY_TITLE, goal or "C’est demain. Répétez-la une fois."
+
+
 __all__ = [
     "DAILY_JOURNEY_MORNING_TITLE",
+    "REHEARSAL_READY_TITLE",
     "daily_journey_morning_copy",
     "enqueue_serial_edition_notification",
+    "rehearsal_reminder_copy",
 ]

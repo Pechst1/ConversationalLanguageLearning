@@ -85,7 +85,20 @@ MAX_EVIDENCE_PER_CAPABILITY = 10
 #: CONTRACTS §8: two independent uses must be at least a day apart.
 REPEAT_USE_MIN_SEPARATION = timedelta(hours=24)
 
-_CAPABILITY_ORDER: tuple[CapabilityKey, ...] = tuple(CapabilityKey)
+#: The scenario objectives: the keys a journey's evidence is *grouped by*.
+#:
+#: WP-37. Until the register dimension reached the wire this was
+#: ``tuple(CapabilityKey)``, which was the same list. It is not any more:
+#: ``CapabilityKey.REGISTER`` names a dimension re-read from those same turns,
+#: not a fourth scenario, and it has no evidence of its own to read, no title in
+#: ``_TITLES`` and no context sentence in ``_CONTEXTS``. Grouping by it would
+#: ask the evidence reader for a scenario nothing writes and summarise it twice.
+_SCENARIO_KEYS: tuple[CapabilityKey, ...] = tuple(
+    key for key in CapabilityKey if key.value != "register"
+)
+
+#: Kept under its established name: every caller means "the scenario keys".
+_CAPABILITY_ORDER: tuple[CapabilityKey, ...] = _SCENARIO_KEYS
 
 _TITLES: dict[str, dict[CapabilityKey, str]] = {
     "en": {
@@ -459,12 +472,16 @@ def _capability_key_of(record: JourneyEvidenceRecord) -> CapabilityKey | None:
     café session reportable as *unknown* rather than invisible.
     """
 
-    if record.capability_key is not None:
-        return record.capability_key
-    try:
-        return CapabilityKey(str(record.scenario_key))
-    except (TypeError, ValueError):
-        return None
+    key = record.capability_key
+    if key is None:
+        try:
+            key = CapabilityKey(str(record.scenario_key))
+        except (TypeError, ValueError):
+            return None
+    # WP-37: `register` is a dimension, not a scenario. Nothing writes evidence
+    # under it, and a record that somehow carried it would be grouped under a
+    # key `_SCENARIO_KEYS` does not hold.
+    return key if key in _SCENARIO_KEYS else None
 
 
 def _collapse_turn(

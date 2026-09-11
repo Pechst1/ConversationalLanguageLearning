@@ -83,6 +83,31 @@ export type HomeBecause = {
   example?: string | null;
 };
 
+/**
+ * WP-37 — one quiet way in to a surface that is not today's work.
+ *
+ * The design's first principle is one primary action per screen
+ * (`docs/design-overhaul-2026-08-31.md`): the red press bar opens the day, and
+ * everything else on La Une is a text line. So these are rows, never buttons —
+ * a label, one explaining clause, and a link. They sit **below** the tiles,
+ * after the day itself, because none of them is the day's work: a rehearsal
+ * debrief is about something that already happened, and the dossier is a thing
+ * to inspect, not a thing to do.
+ *
+ * Presentation only, like the rest of this file: `pages/atelier.tsx` decides
+ * which entries exist, and an entry that has nothing to say is not passed at
+ * all rather than rendered greyed out.
+ */
+export type HomeEntry = {
+  id: string;
+  /** « Votre répétition » — the surface, sentence case, French. */
+  label: string;
+  /** One clause saying what is there. Omitted, the row is the label alone. */
+  hint?: string;
+  href: string;
+  ariaLabel?: string;
+};
+
 export type HomeEpisode = {
   kicker: string;
   headline: string;
@@ -122,6 +147,11 @@ export type HomeScreenProps = {
   phrase?: { text: string; byline: string } | null;
   /** The feature-flagged book episode. Kept independent of the serial story. */
   library?: { title: string; chapter: number; href: string } | false | null;
+  /**
+   * WP-37. Quiet secondary ways in — the rehearsal debrief, the dossier. Never
+   * a second press bar; an empty list renders nothing at all.
+   */
+  entries?: HomeEntry[] | null;
   tiles: HomeTile[];
   colophon: { lead: string; focus: string; focusHref: string; tail?: string } | null;
   /** The tab bar, rendered last so it sits under the page in the same scroll. */
@@ -143,6 +173,7 @@ export function HomeScreen({
   adjustHref,
   phrase,
   library,
+  entries,
   tiles,
   colophon,
   children,
@@ -231,6 +262,29 @@ export function HomeScreen({
         <div className="av2-home__tiles">
           {tiles.map((tile) => (
             <DayTile key={tile.id} tile={tile} />
+          ))}
+        </div>
+      )}
+
+      {entries && entries.length > 0 && (
+        <div className="av2-home__section" style={{ display: 'grid', gap: 8 }}>
+          {entries.map((entry) => (
+            <Link
+              key={entry.id}
+              className="av2-row"
+              href={entry.href}
+              aria-label={entry.ariaLabel || entry.label}
+            >
+              <span className="av2-row__main">
+                <span className="av2-label">{entry.label}</span>
+                {entry.hint && (
+                  <span className="av2-label" style={{ display: 'block', fontWeight: 400 }}>
+                    {entry.hint}
+                  </span>
+                )}
+              </span>
+              <ArrowRightIcon size={18} />
+            </Link>
           ))}
         </div>
       )}

@@ -32,6 +32,12 @@ from app.services.journey_contracts import (
 )
 from app.services.llm_service import LLMResult
 
+#: The scenario families the catalogue publishes. WP-37 put
+#: `CapabilityKey.REGISTER` on the enum — a *dimension* of a respond turn, with
+#: no scenario, no brief and no ending of its own — so the enum is no longer the
+#: family list and these tests iterate the production tuple instead.
+SCENARIO_FAMILIES = jc_content.SCENARIO_PRIORITY
+
 
 @pytest.fixture(autouse=True)
 def _clear_content_cache():
@@ -321,7 +327,7 @@ def test_a_scene_fact_conflict_is_corrected_rather_than_granted(db_session):
 
 def test_every_proposed_outcome_key_is_declared_by_the_brief(db_session):
     user = _user(db_session)
-    for key in CapabilityKey:
+    for key in SCENARIO_FAMILIES:
         brief = _brief(db_session, user, key)
         allowed = set(brief.response_task.allowed_outcomes)
         assert allowed
@@ -861,7 +867,7 @@ def test_the_history_shape_the_state_machine_persists_is_understood(db_session):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("scenario_key", list(CapabilityKey))
+@pytest.mark.parametrize("scenario_key", list(SCENARIO_FAMILIES))
 @pytest.mark.parametrize("band", ["A1", "A2"])
 def test_every_authored_suggested_response_satisfies_its_own_objective(
     db_session, scenario_key: CapabilityKey, band: str
@@ -939,7 +945,7 @@ def test_an_ending_with_no_identifiable_choice_names_none(db_session) -> None:
     """No learner text, no invented detail — and never a raw template."""
 
     user = _user(db_session)
-    for key in CapabilityKey:
+    for key in SCENARIO_FAMILIES:
         brief = _brief(db_session, user, key)
         for outcome in brief.response_task.allowed_outcomes:
             for text in (

@@ -287,10 +287,14 @@ def test_a_learner_with_no_evidence_has_tried_nothing(db_session: Session) -> No
     view = build_capability_summary(db_session, user=user)
 
     assert view.rubric_version == "capability-rubric-v1"
+    # WP-37: `register` is the fourth entry — a dimension re-read from the same
+    # turns, scored by the same rubric, and last because it is read from the
+    # three above it.
     assert [item.capability_key for item in view.capabilities] == [
         CapabilityKey.ORDER_AT_CAFE,
         CapabilityKey.ARRANGE_MEETING,
         CapabilityKey.EXPLAIN_DELAY,
+        CapabilityKey.REGISTER,
     ]
     assert all(item.state is CapabilityState.NOT_TRIED for item in view.capabilities)
     assert all(item.modalities == [] for item in view.capabilities)
@@ -317,7 +321,13 @@ def test_historic_success_with_unknown_help_never_becomes_independence(
     assert [
         item.state for item in view.capabilities
         if item.capability_key is not CapabilityKey.ORDER_AT_CAFE
-    ] == [CapabilityState.NOT_TRIED, CapabilityState.NOT_TRIED]
+    ] == [
+        CapabilityState.NOT_TRIED,
+        CapabilityState.NOT_TRIED,
+        # WP-37: legacy history proves no register either — a row whose help
+        # usage was never recorded carries no exchange to re-read.
+        CapabilityState.NOT_TRIED,
+    ]
 
 
 def test_recorded_support_outranks_unknown_history(db_session: Session) -> None:

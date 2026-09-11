@@ -138,9 +138,22 @@ class TargetKind(StrEnum):
 
 
 class CapabilityKey(StrEnum):
+    """What the rubric reports on. The first three are scenario objectives.
+
+    ``REGISTER`` (WP-33, wired by WP-37) is the odd one out and deliberately so:
+    it is a *dimension* re-read from the same respond turns, scored by the same
+    ``_summarize`` and the same ladder — one rubric, never a second one
+    (CONTRACTS §8). It carries no scenario of its own, which is why
+    ``journey_capabilities._SCENARIO_KEYS`` — not ``tuple(CapabilityKey)`` — is
+    what the evidence reader groups by. It is last because the wire list is
+    ordered by this enum and the register line belongs after the three
+    capabilities it is read from.
+    """
+
     ORDER_AT_CAFE = "order_at_cafe"
     ARRANGE_MEETING = "arrange_meeting"
     EXPLAIN_DELAY = "explain_delay"
+    REGISTER = "register"
 
 
 class CapabilityState(StrEnum):

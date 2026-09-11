@@ -34,6 +34,10 @@ import {
     StateBlock,
 } from '@/components/atelier-v2/ui';
 import {
+    readListenFirst,
+    writeListenFirst,
+} from '@/components/atelier-v2/journey/story-episode-model';
+import {
     applyVisualSettings,
     persistVisualSettings,
     type AppFontSize,
@@ -411,6 +415,15 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
     const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '' });
     const [emailForm, setEmailForm] = useState({ currentPassword: '', newEmail: '' });
     const [isAdmin, setIsAdmin] = useState(false);
+    /**
+     * WP-32's «Écouter d’abord» preference (WP-37 hook). It lives in
+     * `localStorage`, not in the settings payload, so it is read *after* mount:
+     * seeding it from storage during render would make the server's HTML and
+     * the client's first paint disagree. The default, here as everywhere, is
+     * off.
+     */
+    const [listenFirst, setListenFirst] = useState(false);
+    useEffect(() => { setListenFirst(readListenFirst()); }, []);
     const { confirm, dialog: confirmDialog } = useConfirmDialog();
     const pendingScroll = useRef<SettingsSection | null>(null);
 
@@ -1337,6 +1350,29 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                     />
                                 </Row>
                             ))}
+                            {/* WP-32 §9.2, applied by WP-37 — «Écouter d’abord».
+                                The same `LISTEN_FIRST_KEY` the reader writes, so
+                                the two controls can never disagree: this device,
+                                this learner, nothing sent to the server. It is
+                                off by default and stays that way — listening
+                                first is the harder way to meet a scene, and the
+                                evidence for it assumes a learner who chose it.
+                                Until now the only way to choose was to be shown
+                                the offer inside an episode. */}
+                            <Row
+                                id="st-listen-first-label"
+                                label="Écouter d’abord"
+                                hint="Deviner, écouter, vérifier — puis lire. L’épisode commence par le son."
+                            >
+                                <Switch
+                                    labelledBy="st-listen-first-label"
+                                    checked={listenFirst}
+                                    onChange={(next) => {
+                                        writeListenFirst(next);
+                                        setListenFirst(next);
+                                    }}
+                                />
+                            </Row>
                             <Row label="Vitesse de lecture" value={`${settings.ttsSpeed}×`} stacked>
                                 <div className="st-range">
                                     <span className="st-row__hint">Lente</span>

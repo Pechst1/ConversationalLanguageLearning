@@ -22,6 +22,12 @@ from app.services.journey_contracts import (
     normalize_control_language,
 )
 
+#: The scenario families the catalogue actually publishes. WP-37 put
+#: `CapabilityKey.REGISTER` on the enum — a *dimension* of a respond turn, with
+#: no scenario, no brief and no plan of its own — so the enum is no longer the
+#: family list, and this file parametrizes over the production tuple instead.
+SCENARIO_FAMILIES = journey_content.SCENARIO_PRIORITY
+
 FIXTURES = pathlib.Path(__file__).resolve().parent / "fixtures" / "daily_journey_v1" / "public"
 
 # Evaluator material that must never reach a renderer payload.
@@ -92,7 +98,7 @@ def test_an_unsupported_control_language_falls_back_to_english(db_session, learn
     assert brief.public_descriptor() == _fixture("first_day")["available"]
 
 
-@pytest.mark.parametrize("scenario_key", list(CapabilityKey))
+@pytest.mark.parametrize("scenario_key", list(SCENARIO_FAMILIES))
 def test_every_scenario_family_is_publishable_and_bounded(
     db_session, learner, scenario_key
 ) -> None:
@@ -116,7 +122,7 @@ def test_every_scenario_family_is_publishable_and_bounded(
         assert outcome in brief.resolution_summaries, f"{outcome} has no native summary"
 
 
-@pytest.mark.parametrize("scenario_key", list(CapabilityKey))
+@pytest.mark.parametrize("scenario_key", list(SCENARIO_FAMILIES))
 def test_public_descriptor_never_carries_evaluator_material(
     db_session, learner, scenario_key
 ) -> None:
@@ -146,7 +152,7 @@ def test_a_zero_cost_offer_list_needs_no_model_or_image_call(
     briefs = journey_content.list_available_scenarios(
         db_session, user=learner, input_mode=InputMode.TEXT
     )
-    assert {str(b.scenario_key) for b in briefs} == {str(k) for k in CapabilityKey}
+    assert {str(b.scenario_key) for b in briefs} == {str(k) for k in SCENARIO_FAMILIES}
 
 
 def test_wp05_classifies_the_frozen_fixture_evidence_the_same_way() -> None:
@@ -215,7 +221,7 @@ def _plan_for(db, user, scenario_key, input_mode=InputMode.TEXT):
     )
 
 
-@pytest.mark.parametrize("scenario_key", list(CapabilityKey))
+@pytest.mark.parametrize("scenario_key", list(SCENARIO_FAMILIES))
 def test_the_real_chain_produces_a_valid_bounded_plan(db_session, learner, scenario_key):
     """WP-03's brief + WP-05's candidates + WP-04's planner must satisfy the envelope."""
 
@@ -230,7 +236,7 @@ def test_the_real_chain_produces_a_valid_bounded_plan(db_session, learner, scena
     assert mandatory <= 300, f"{scenario_key}: {mandatory}s"
 
 
-@pytest.mark.parametrize("scenario_key", list(CapabilityKey))
+@pytest.mark.parametrize("scenario_key", list(SCENARIO_FAMILIES))
 def test_no_planned_public_prompt_leaks_the_answer_key(db_session, learner, scenario_key):
     _, _, plan = _plan_for(db_session, learner, scenario_key)
     for step in plan.steps:
@@ -316,7 +322,7 @@ def _respond_task(db, user, scenario_key):
     return _brief(db, user, scenario_key).response_task
 
 
-@pytest.mark.parametrize("scenario_key", list(CapabilityKey))
+@pytest.mark.parametrize("scenario_key", list(SCENARIO_FAMILIES))
 def test_a_consequence_is_always_one_the_scenario_declared(db_session, learner, scenario_key):
     """A model may propose an outcome; it may never invent one."""
 
@@ -337,7 +343,7 @@ def test_a_consequence_is_always_one_the_scenario_declared(db_session, learner, 
     assert default_outcome_key(task, scenario_key) in task.allowed_outcomes
 
 
-@pytest.mark.parametrize("scenario_key", list(CapabilityKey))
+@pytest.mark.parametrize("scenario_key", list(SCENARIO_FAMILIES))
 def test_every_declared_outcome_has_an_ending_the_learner_can_be_shown(
     db_session, learner, scenario_key
 ):
@@ -374,7 +380,7 @@ def test_a_repair_turn_exists_beyond_the_two_normal_turns(db_session, learner):
         assert turn_budget(task) == normal_turns(task) + 1
 
 
-@pytest.mark.parametrize("scenario_key", list(CapabilityKey))
+@pytest.mark.parametrize("scenario_key", list(SCENARIO_FAMILIES))
 def test_every_scenario_can_end_without_claiming_the_learner_succeeded(
     db_session, learner, scenario_key
 ):

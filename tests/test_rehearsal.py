@@ -741,6 +741,17 @@ def test_the_weekly_cap_is_hard_and_counts_abandoned_rehearsals(db_session, monk
     service.abandon(second)
     db_session.commit()
 
+    # WP-37 re-pin. `Rehearsal.created_at` is a server default — real wall-clock
+    # — while the window arithmetic below is driven from the frozen `NOW`. The
+    # test therefore passed only on the day it was written: from the next
+    # morning, rows stamped "today" still sat inside `NOW + 8 days`' window and
+    # the slot never freed. Stamping the rows with the same clock the assertion
+    # uses is what makes this a test of the seven-day window rather than of the
+    # date it is run on.
+    for row in (first, second):
+        row.created_at = NOW
+    db_session.commit()
+
     state = cap_state(db_session, user, now=NOW)
     assert state["limit"] == 2
     assert state["used"] == 2

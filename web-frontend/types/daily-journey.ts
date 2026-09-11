@@ -21,7 +21,13 @@ export type HelpKind = 'hint' | 'translation' | 'solution' | 'suggested_response
 export type AssistanceLevel =
   | 'none' | 'hint' | 'translation' | 'solution' | 'suggested_response';
 export type TaskOutcome = 'met' | 'partially_met' | 'not_yet' | 'unscored';
-export type CapabilityKey = 'order_at_cafe' | 'arrange_meeting' | 'explain_delay';
+/**
+ * The three scenario objectives, plus WP-33's `register` — a dimension re-read
+ * from the same respond turns by the same rubric, which WP-37 put on the wire
+ * (`app/services/journey_contracts.py`). It arrives last in the list and
+ * renders through `title_native` like the others.
+ */
+export type CapabilityKey = 'order_at_cafe' | 'arrange_meeting' | 'explain_delay' | 'register';
 export type CapabilityState =
   | 'not_tried' | 'with_support' | 'independent_once' | 'used_again_later';
 /** Opaque generated situation identity, separate from assessed capabilities. */

@@ -30,7 +30,7 @@ import {
   saveResumeActivity,
 } from '@/lib/pilot-resilience';
 import { type LuAskKind } from '@/components/laune/LaUne';
-import { HomeScreen, HomeSkeleton, type HomeBecause, type HomeTile } from '@/components/atelier-v2/home/HomeScreen';
+import { HomeScreen, HomeSkeleton, type HomeBecause, type HomeEntry, type HomeTile } from '@/components/atelier-v2/home/HomeScreen';
 import {
   LEpreuveStyles,
   EpShell,
@@ -2014,6 +2014,22 @@ function TodayView({
       .catch(() => { /* the slate is an enrichment — La Une renders without it */ });
     return () => { alive = false; };
   }, [dayProgress.vocabularyDue, dayProgress.missionDone, dayProgress.feuilletonDone]);
+  /**
+   * WP-37 / WP-31 §7.1 — the rehearsal debrief.
+   *
+   * `debrief_due` is non-null **only** when a rehearsal is finished *and* the
+   * real day it was declared for has arrived, so the entry cannot appear on a
+   * day it has nothing to ask. The server already answers the question; this
+   * only reads it, and a failed read leaves the row off rather than guessing.
+   */
+  const [rehearsalDue, setRehearsalDue] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    apiService.getRehearsalState()
+      .then((envelope) => { if (alive) setRehearsalDue(Boolean(envelope?.debrief_due)); })
+      .catch(() => { /* an entry nobody can open is worse than no entry */ });
+    return () => { alive = false; };
+  }, []);
   const vocabularyReviewDue = Math.max(0, Number(dayProgress.vocabularyDue || 0));
   const repairDue = Math.max(0, Number(dayProgress.errataDue || 0));
   const serialAction = serialActionFromToday(today, activeSession);
@@ -2198,6 +2214,42 @@ function TodayView({
       ? Math.min(3, Math.round((seanceProgress[0] / seanceProgress[1]) * 3))
       : 0;
   const lexiqueDone = lexiqueParts.length === 0;
+  /**
+   * WP-37 — the quiet ways in the 2026-09-10 packages left owed to this file.
+   *
+   * Rows, never a second press bar (design principle 1: one primary action per
+   * screen). Neither is today's work, so both sit under the tiles; and an
+   * error-only page shows none of them, because a page that could not load the
+   * edition should not be offering side doors.
+   *
+   * The rehearsal row appears only on a day the server has something to ask.
+   * «Votre dossier» is always there: it is the learner's standing answer to
+   * "what does this thing believe about me", and it is true every day.
+   *
+   * Not here, deliberately: WP-34's «Vos documents». Its components
+   * (`CrIntakeEntry`, `CrArtefactCard`) are built and tested but mounted on no
+   * page, so a Home entry would open a screen with no intake on it. The wiring
+   * is written out in `docs/implementation/atelier-v2/WP-37-HOOKS.md`.
+   */
+  const homeEntries: HomeEntry[] = errorOnlyPage
+    ? []
+    : [
+        ...(rehearsalDue
+          ? [{
+              id: 'rehearsal-debrief',
+              label: 'Votre répétition',
+              hint: 'Comment ça s’est passé ?',
+              href: '/repetition',
+              ariaLabel: 'Votre répétition — comment ça s’est passé ?',
+            }]
+          : []),
+        {
+          id: 'dossier',
+          label: 'Votre dossier',
+          hint: 'Ce que nous croyons savoir de vous, et d’où vient chaque chiffre.',
+          href: '/dossier',
+        },
+      ];
   const homeTiles: HomeTile[] = errorOnlyPage
     ? []
     : [
@@ -2280,6 +2332,7 @@ function TodayView({
           }
         )
       }
+      entries={homeEntries}
       tiles={homeTiles}
       colophon={errorOnlyPage ? null : {
         lead: 'Demain — ',

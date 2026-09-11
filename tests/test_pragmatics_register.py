@@ -670,13 +670,15 @@ def test_the_dimension_is_the_same_rubric_and_not_a_second_one(db_session: Sessi
     assert register.state is CapabilityState.INDEPENDENT_ONCE
 
 
-def test_the_wire_list_stays_on_the_contracted_keys_until_the_enum_carries_register(
+def test_the_wire_list_carries_register_now_that_the_enum_does(
     db_session: Session,
 ):
-    """A key `CapabilityKey` has never heard of would 500 the finish recap.
+    """WP-37 landed the enum member, so the list is four keys and no more.
 
-    So the dimension joins `build_capability_summary`'s list the moment the enum
-    gains the member — the one-line hook in WP-33-REGISTER.md — and not before.
+    The two failure modes this guards are the ones the hook could have caused:
+    a key `CapabilityKey` has never heard of would 500 the finish recap, and a
+    dimension summarised both by the scenario loop and by the register append
+    would print `register` twice.
     """
 
     user = _user(db_session)
@@ -685,13 +687,16 @@ def test_the_wire_list_stays_on_the_contracted_keys_until_the_enum_carries_regis
         for item in build_capability_summary(db_session, user=user).capabilities
     ]
     assert keys == [str(key) for key in CapabilityKey]
-    assert journey_capabilities._REGISTER_IS_CONTRACTED is (
-        "REGISTER" in CapabilityKey.__members__
-    )
+    assert keys == ["order_at_cafe", "arrange_meeting", "explain_delay", "register"]
+    assert len(keys) == len(set(keys))
+    assert journey_capabilities._REGISTER_IS_CONTRACTED is True
+    assert "REGISTER" in CapabilityKey.__members__
+    # The dimension is not a scenario: nothing is grouped or read under it.
+    assert CapabilityKey.REGISTER not in journey_capabilities._SCENARIO_KEYS
 
 
-def test_the_dimension_joins_the_summary_as_soon_as_the_contract_allows(
-    db_session: Session, monkeypatch: pytest.MonkeyPatch
+def test_the_dimension_is_in_the_summary_and_scored_by_the_one_rubric(
+    db_session: Session,
 ):
     user = _user(db_session)
     _respond_journey(
@@ -701,12 +706,13 @@ def test_the_dimension_joins_the_summary_as_soon_as_the_contract_allows(
         when=datetime(2026, 9, 5, 10, 0, tzinfo=UTC),
         local_date=date(2026, 9, 5),
     )
-    monkeypatch.setattr(journey_capabilities, "_REGISTER_IS_CONTRACTED", True)
     view = build_capability_summary(db_session, user=user)
     assert [str(item.capability_key) for item in view.capabilities][-1] == "register"
     assert view.capabilities[-1].state is CapabilityState.INDEPENDENT_ONCE
     assert view.capabilities[-1].title_native
     assert view.rubric_version  # still the one rubric version, not a second one
+    # And it is the same verdict the standalone reader gives: one rubric.
+    assert build_register_summary(db_session, user=user).state is view.capabilities[-1].state
 
 
 # ==========================================================================

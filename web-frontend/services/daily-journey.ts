@@ -269,6 +269,29 @@ export const dailyJourneyService = {
 export default dailyJourneyService;
 
 
+/**
+ * WP-32 §9.1 (applied by WP-37) — the radio episode's transport, in the facade.
+ *
+ * `useEpisodeAudio.ts` and `StoryEpisodeStep.tsx` reach `apiService` directly
+ * because this file was outside WP-32's lease; these are the entries that let
+ * them stop. Behaviour-neutral: each is the same call the hook already makes.
+ *
+ * None of this is reward or mutation authority. The prediction check is stored
+ * beside the reading position and is deliberately **measurement, not marking**
+ * — it never reaches a `DailyJourneyStep` or the capability rubric (WP-32 §3),
+ * which is why it sits down here with the reader calls and not in
+ * `dailyJourneyService` above.
+ */
+export const getEpisodeAudio = (sceneId: string) => apiService.getEpisodeAudio(sceneId);
+export const synthesizeEpisodeAudio = (sceneId: string) =>
+  apiService.synthesizeEpisodeAudio(sceneId);
+export const getEpisodeAudioClip = (sceneId: string, clipId: string) =>
+  apiService.getEpisodeAudioClip(sceneId, clipId);
+export const recordEpisodePrediction = (
+  sceneId: string,
+  body: { guess: string; verdict: string; supported?: string | null },
+) => apiService.recordEpisodePrediction(sceneId, body);
+
 /** Reader navigation is separate from the journey mutation/reward authority. */
 export const getStoryEpisodes = (before?: string) => apiService.getStoryEpisodes(before);
 export const getStoryEpisode = (sceneId: string) => apiService.getStoryEpisode(sceneId);

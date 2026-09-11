@@ -623,6 +623,11 @@ def test_every_authored_scenario_family_is_reachable_from_the_real_create_path(
     ``GET /capabilities/progress`` promises ``order_at_cafe``, ``arrange_meeting``
     and ``explain_delay``. If the create path can only ever produce one of them,
     the other two are permanently ``not_tried`` — a claim the product cannot honour.
+
+    WP-37 added a fourth entry, ``register``. It is a *dimension* of the respond
+    turns those three scenarios produce, never a scenario of its own, so it is
+    excluded here by name — and pinned as excluded, so that a genuine fourth
+    capability added later cannot slip through this test unserved.
     """
 
     email = f"wp12-rotation-{uuid.uuid4().hex[:8]}@example.com"
@@ -630,10 +635,12 @@ def test_every_authored_scenario_family_is_reachable_from_the_real_create_path(
     user_id = learner_id(db_session, email)
     seed_due_vocabulary(db_session, user_id, CAFE_WORDS)
 
-    advertised = {
+    reported = {
         c["capability_key"]
         for c in Driver(assembled_client, headers, db=db_session).capabilities()["capabilities"]
     }
+    assert "register" in reported, "WP-33's dimension must still be reported"
+    advertised = reported - {"register"}
 
     served: set[str] = set()
     for _day in range(len(advertised) + 2):

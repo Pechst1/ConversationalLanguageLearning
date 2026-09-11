@@ -887,7 +887,9 @@ def test_the_real_wp03_brief_and_wp05_queue_plan_a_real_five_minute_day(db_sessi
     db_session.commit()
     db_session.refresh(user)
 
-    for scenario_key in CapabilityKey:
+    # WP-37: `CapabilityKey.REGISTER` is a dimension of a respond turn, not a
+    # scenario family, so the authored catalogue is `SCENARIO_PRIORITY`.
+    for scenario_key in journey_content.SCENARIO_PRIORITY:
         brief = journey_content.resolve_scenario_brief(
             db_session,
             user=user,
