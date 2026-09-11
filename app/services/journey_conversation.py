@@ -2899,6 +2899,22 @@ def apply_feedback_policy(
     return replace(evaluation, **updates) if updates else evaluation
 
 
+def _stamped(evaluation: ResponseEvaluation, decision: FeedbackDecision) -> ResponseEvaluation:
+    """Carry the policy's reason out on the grading, for WP-36 §8.4 telemetry.
+
+    Deliberately *not* done inside :func:`apply_feedback_policy`: that function
+    returns the same object when nothing fired, which is how "a learner with no
+    open errata is scored exactly as before" is pinned rather than asserted. The
+    reasons worth counting are mostly the ones where nothing fired —
+    ``repair_not_attempted`` is a prompted repair the learner ignored — so the
+    stamp is put on afterwards, by the caller that owns the turn.
+    """
+
+    if evaluation.pending or not decision.reason:
+        return evaluation
+    return replace(evaluation, feedback_reason=decision.reason)
+
+
 def evaluate_response(
     db: Session,
     *,
@@ -2962,6 +2978,19 @@ def evaluate_response(
             history=history,
         )
         if decision.is_empty and not evaluation.pending:
+            # The pragmatic finding only gets a say when the self-repair policy
+            # had nothing to say, so its reason is the one that describes the
+            # turn.
+            decision = pragmatic_decision(
+                user=user,
+                scenario=scenario,
+                task=task,
+                text=_normalized(answer.text),
+                turn_index=turn_index,
+                outcome=evaluation.outcome,
+                correction=evaluation.correction,
+                history=history,
+            )
             evaluation = apply_feedback_policy(
                 evaluation,
                 db,
@@ -2969,18 +2998,9 @@ def evaluate_response(
                 task=task,
                 answer=answer,
                 turn_index=turn_index,
-                decision=pragmatic_decision(
-                    user=user,
-                    scenario=scenario,
-                    task=task,
-                    text=_normalized(answer.text),
-                    turn_index=turn_index,
-                    outcome=evaluation.outcome,
-                    correction=evaluation.correction,
-                    history=history,
-                ),
+                decision=decision,
             )
-        return evaluation
+        return _stamped(evaluation, decision)
 
     scenario_key = str(scenario.scenario_key)
 
@@ -3134,14 +3154,17 @@ def evaluate_response(
             history=history,
             assessment=_register_assessment,
         )
-    return apply_feedback_policy(
-        evaluation,
-        db,
-        user=user,
-        task=task,
-        answer=answer,
-        turn_index=turn_index,
-        decision=decision,
+    return _stamped(
+        apply_feedback_policy(
+            evaluation,
+            db,
+            user=user,
+            task=task,
+            answer=answer,
+            turn_index=turn_index,
+            decision=decision,
+        ),
+        decision,
     )
 
 

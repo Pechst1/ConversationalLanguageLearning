@@ -142,6 +142,12 @@ def _target_practice_href(target: dict | object) -> str | None:
     return None
 
 
+#: WP-36 §8.4. One row per graded respond turn, carrying only what the self-repair
+#: policy decided about it. Deliberately **not** one of WP-11's ten frozen journey
+#: event names: this is a package's own uptake counter, not part of the journey
+#: contract, and it must be addable without touching a frozen vocabulary.
+SELF_REPAIR_EVENT_TYPE = "journey_self_repair"
+
 #: A generation claim older than this is recoverable through ``POST /retry``.
 GENERATION_CLAIM_TTL_SECONDS = 90
 #: A mutation receipt stuck in ``processing`` longer than this is retryable.
@@ -2153,6 +2159,9 @@ class DailyJourneyService:
 
         self._store_step_result(step, evaluation, assistance)
         self.db.flush()
+        # After the turn's own flush, and inside a savepoint: a telemetry row
+        # must not be able to take a graded turn down with it.
+        self._record_feedback_decision(user, journey, step, evaluation)
 
         return AttemptResult(
             evidence_ref=applied.evidence_ref,
@@ -2165,6 +2174,61 @@ class DailyJourneyService:
             pending=False,
             journey=self.snapshot(journey),
         )
+
+    def _record_feedback_decision(
+        self,
+        user: User,
+        journey: DailyJourney,
+        step: DailyJourneyStep,
+        evaluation: Any,
+    ) -> None:
+        """WP-36 §8.4: make the self-repair loop countable.
+
+        The package's own question — *does a prompted repair succeed more often
+        than a recast?* — was unanswerable because the decision was taken, acted
+        on and thrown away. One row per graded respond turn records the reason
+        and nothing else: no learner text, no correction, no character line.
+
+        The interesting reasons are the ones where the policy stayed quiet.
+        ``repair_not_attempted`` is a learner who was asked « Pardon, un ou une
+        café ? » and answered something else — no uptake, which is precisely the
+        arm the evidence is being compared against. ``no_open_errata`` is every
+        other turn in the app and is not written: a row per turn saying "nothing
+        applied" would bury the six that mean something.
+
+        Telemetry, so it never breaks a turn: the flow owns the transaction and
+        a failure here is logged and swallowed.
+        """
+
+        reason = str(getattr(evaluation, "feedback_reason", "") or "")
+        if not reason or reason == "no_open_errata":
+            return
+        try:
+            from app.services.pilot_events import PilotEventService
+
+            # The row is written inside a SAVEPOINT so that a ledger that is
+            # unavailable — or a column that has drifted — rolls back this row
+            # alone. Without it the failure surfaces on the *next* flush, which
+            # is the transaction that carries the learner's turn.
+            with self.db.begin_nested():
+                PilotEventService(self.db).record(
+                    SELF_REPAIR_EVENT_TYPE,
+                    user_id=user.id,
+                    entity_type="daily_journey_step",
+                    entity_id=str(step.id),
+                    payload={
+                        "reason": reason,
+                        "journey_id": str(journey.id),
+                        "turn_index": int(step.turn_index),
+                        "outcome": str(evaluation.outcome),
+                        # Whether the turn actually carried a question to the
+                        # learner. A reason alone cannot say so: `repair_failed`
+                        # shows a correction, `recurrence` shows a question.
+                        "elicited": bool(evaluation.needs_repair),
+                    },
+                )
+        except Exception:  # pragma: no cover - telemetry must never break a turn
+            logger.exception("daily_journey: self-repair telemetry failed")
 
     def _pending_result(
         self, journey: DailyJourney, assistance: AssistanceLevel
@@ -2754,6 +2818,7 @@ __all__ = [
     "GENERATION_CLAIM_TTL_SECONDS",
     "MAX_GENERATION_ATTEMPTS",
     "MUTATION_PROCESSING_TTL_SECONDS",
+    "SELF_REPAIR_EVENT_TYPE",
     "DailyJourneyService",
     "journey_enabled_for",
     "journey_error",

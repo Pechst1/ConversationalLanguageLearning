@@ -1204,7 +1204,20 @@ class RehearsalService:
             turn_index=conversation_turn_index(len(history), total),
             assistance=assistance,
             history=[
-                {"role": "learner", "text": str(turn.get("learner_text") or "")}
+                {
+                    "role": "learner",
+                    "text": str(turn.get("learner_text") or ""),
+                    # WP-36 §8.3. The character's own reply belongs in the same
+                    # entry: the self-repair policy recomputes "have I already
+                    # asked?" and "is this turn the answer?" from the
+                    # counterpart's previous lines. Without it a rehearsal could
+                    # be prompted once — on its first turn, where there is
+                    # nothing to recognise — and the repair could never be
+                    # recognised, credited or corrected. The stored key is
+                    # ``reply_fr`` (see the turn record below), and it is empty
+                    # when the line was dropped for naming a story character.
+                    "character": str(turn.get("reply_fr") or ""),
+                }
                 for turn in history
             ],
         )

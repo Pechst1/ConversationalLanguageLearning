@@ -496,6 +496,13 @@ class ResponseEvaluation:
     turn_consumed: bool = True
     pending: bool = False
     failure_reason: str | None = None
+    #: WP-36 §8.4 telemetry: what the self-repair policy decided about this turn
+    #: (``recurrence``, ``repair_succeeded``, ``repair_failed``,
+    #: ``repair_not_attempted``, ``already_prompted``, ``last_turn``,
+    #: ``pragmatic_move_missing``, ``no_open_errata``). It changes nothing about
+    #: the grading and is **never** shown to a learner: it exists so the pilot
+    #: can count how often a prompted repair actually lands.
+    feedback_reason: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

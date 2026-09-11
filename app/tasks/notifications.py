@@ -79,6 +79,70 @@ def _morning_copy(db, user: User, today: date) -> tuple[str, str]:
     return title, message
 
 
+#: WP-37 §6. The day-before rehearsal nudge is a *second* push, not a variant of
+#: the morning edition: ``_morning_copy`` returns exactly one (title, message)
+#: per learner per day and this one is about something the learner said they
+#: would do tomorrow. It therefore carries its own event type and its own key.
+REHEARSAL_REMINDER_EVENT = "rehearsal_reminder_sent"
+
+
+def _already_sent(db, user: User, event_type: str, key: str) -> bool:
+    return (
+        db.scalar(
+            select(PilotEvent.id).where(
+                PilotEvent.user_id == user.id,
+                PilotEvent.event_type == event_type,
+                PilotEvent.entity_id == key,
+            )
+        )
+        is not None
+    )
+
+
+def _send_rehearsal_reminder(db, user: User, now: datetime) -> int:
+    """WP-31 §7.2's copy, finally sent. Returns the number of deliveries.
+
+    Independent of the edition push in both directions: a learner who already
+    had their edition today must still be reminded about tomorrow's real
+    situation, and a rehearsal reminder that fails must not cost them the
+    edition. The copy decides whether there is anything to say — only an
+    unplayed rehearsal with a resolved date the day before it happens — so this
+    function only owns delivery and the key.
+    """
+
+    from app.services.notification_service import NotificationService
+    from app.services.pilot_events import PilotEventService
+    from app.services.serial_notifications import rehearsal_reminder_copy
+
+    today = now.date()
+    key = f"rehearsal-ready:{user.id}:{today.isoformat()}"
+    if _already_sent(db, user, REHEARSAL_REMINDER_EVENT, key):
+        return 0
+    reminder = rehearsal_reminder_copy(db, user, today=today)
+    if reminder is None:
+        return 0
+    title, message = reminder
+    count = NotificationService(db).send_notification(
+        user.id,
+        message,
+        title,
+        data={"route": "/repetition", "kind": "rehearsal_reminder", "notification_id": key},
+    )
+    if not count:
+        # Nothing left the building, so nothing is marked as sent: tomorrow's
+        # run may try again, and the day after there is nothing to remind about.
+        return 0
+    PilotEventService(db).record(
+        REHEARSAL_REMINDER_EVENT,
+        user_id=user.id,
+        entity_type="notification",
+        entity_id=key,
+        payload={"title": title, "message": message, "deliveries": count},
+    )
+    db.commit()
+    return count
+
+
 @celery_app.task(name="app.tasks.notifications.send_morning_editions")
 def send_morning_editions() -> dict[str, int]:
     """Send each capable device its real edition near the learner's preferred time."""
@@ -88,7 +152,7 @@ def send_morning_editions() -> dict[str, int]:
     now = datetime.now(PARIS_TZ)
     current_minute = now.hour * 60 + now.minute
     db = SessionLocal()
-    eligible = delivered = 0
+    eligible = delivered = reminders = 0
     try:
         users = db.scalars(
             select(User)
@@ -105,38 +169,42 @@ def send_morning_editions() -> dict[str, int]:
             if min(minute_delta, 24 * 60 - minute_delta) > 7:
                 continue
             dedupe_key = now.date().isoformat()
-            sent = db.scalar(
-                select(PilotEvent.id).where(
-                    PilotEvent.user_id == user.id,
-                    PilotEvent.event_type == "morning_edition_sent",
-                    PilotEvent.entity_id == dedupe_key,
-                )
-            )
-            if sent:
-                continue
-            eligible += 1
-            try:
-                title, message = _morning_copy(db, user, now.date())
-                count = NotificationService(db).send_notification(
-                    user.id,
-                    message,
-                    title,
-                    data={"route": "/atelier", "kind": "morning_edition", "notification_id": dedupe_key},
-                )
-                if count:
-                    delivered += count
-                    PilotEventService(db).record(
-                        "morning_edition_sent",
-                        user_id=user.id,
-                        entity_type="notification",
-                        entity_id=dedupe_key,
-                        payload={"title": title, "message": message, "deliveries": count},
+            if not _already_sent(db, user, "morning_edition_sent", dedupe_key):
+                eligible += 1
+                try:
+                    title, message = _morning_copy(db, user, now.date())
+                    count = NotificationService(db).send_notification(
+                        user.id,
+                        message,
+                        title,
+                        data={"route": "/atelier", "kind": "morning_edition", "notification_id": dedupe_key},
                     )
-                    db.commit()
+                    if count:
+                        delivered += count
+                        PilotEventService(db).record(
+                            "morning_edition_sent",
+                            user_id=user.id,
+                            entity_type="notification",
+                            entity_id=dedupe_key,
+                            payload={"title": title, "message": message, "deliveries": count},
+                        )
+                        db.commit()
+                except Exception:
+                    db.rollback()
+                    logger.exception("Failed to prepare morning edition", user_id=str(user.id))
+            # WP-37 §6, applied. Outside the edition's dedupe on purpose: a
+            # learner whose edition already went out today must still hear that
+            # the real thing is tomorrow.
+            try:
+                reminders += _send_rehearsal_reminder(db, user, now)
             except Exception:
                 db.rollback()
-                logger.exception("Failed to prepare morning edition", user_id=str(user.id))
-        return {"eligible_users": eligible, "notifications_sent": delivered}
+                logger.exception("Failed to send rehearsal reminder", user_id=str(user.id))
+        return {
+            "eligible_users": eligible,
+            "notifications_sent": delivered,
+            "rehearsal_reminders_sent": reminders,
+        }
     finally:
         db.close()
 

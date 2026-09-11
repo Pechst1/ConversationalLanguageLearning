@@ -343,6 +343,66 @@ def format_journal_lines(db, day: date, user_id: str | None = None) -> list[str]
     return [first, second]
 
 
+def format_self_repair_line(db, day: date, user_id: str | None = None) -> str:
+    """WP-36 §8.4. Of the repairs the character asked for, how many landed?
+
+    This is the one number WP-36 exists to produce and could not: the policy
+    decided, acted and threw the decision away. Three properties keep it honest.
+
+    * **The denominator is answers, not prompts.** A « Pardon, un ou une café ? »
+      asked at 23:58 is answered tomorrow, so prompts and their outcomes fall in
+      different windows. The rate is therefore over the repairs that were
+      *answered* on the day, and the prompt count is printed beside it as its own
+      number rather than folded in.
+    * **An ignored prompt is a result.** ``repair_not_attempted`` — the learner
+      answered something else — is neither a success nor a failure of form, and
+      it is exactly the "no uptake" case the 50 %/31 % comparison turns on. It
+      sits in the denominator and is named.
+    * **No answers, no percentage.** A window in which nothing was answered says
+      so; a rate with no denominator is not a measurement.
+    """
+
+    from app.services.daily_journey import SELF_REPAIR_EVENT_TYPE
+
+    normalized_user_id = UUID(str(user_id)) if user_id else None
+    rows = db.query(PilotEvent.payload).filter(
+        PilotEvent.event_type == SELF_REPAIR_EVENT_TYPE,
+        func.date(PilotEvent.occurred_at) == day,
+    )
+    if normalized_user_id:
+        rows = rows.filter(PilotEvent.user_id == normalized_user_id)
+    counts: dict[str, int] = {}
+    for (payload,) in rows:
+        reason = str((payload or {}).get("reason") or "unknown")
+        counts[reason] = counts.get(reason, 0) + 1
+    if not counts:
+        return "Self-repair (WP-36): none — no turn met a recorded mistake"
+    prompted = counts.get("recurrence", 0)
+    succeeded = counts.get("repair_succeeded", 0)
+    failed = counts.get("repair_failed", 0)
+    ignored = counts.get("repair_not_attempted", 0)
+    answered = succeeded + failed + ignored
+    head = (
+        f"Self-repair (WP-36): {prompted} prompt(s) asked, {answered} answered"
+    )
+    if not answered:
+        return (
+            f"{head} — no prompted repair has been answered in this window, so no "
+            "uptake rate is printed"
+        )
+    share = 100.0 * succeeded / answered
+    tail = (
+        f" · repaired {succeeded}/{answered} ({share:.0f} %), "
+        f"corrected explicitly {failed}, ignored {ignored}"
+    )
+    withheld = counts.get("last_turn", 0) + counts.get("already_prompted", 0)
+    pragmatic = counts.get("pragmatic_move_missing", 0)
+    return (
+        f"{head}{tail} · {withheld} prompt(s) withheld by the bounds, "
+        f"{pragmatic} pragmatic nudge(s)"
+    )
+
+
 def format_register_line(report: dict, user_id: str | None = None) -> str:
     """WP-33's dimension, read off the rollup the journey section already built.
 
@@ -450,6 +510,9 @@ def main() -> None:
         print(format_episode_prediction_line(db, args.day, args.user_id))  # WP-32 §9.3
         for line in format_journal_lines(db, args.day, args.user_id):  # WP-30 §7
             print(line)
+        # WP-38 (WP-36 §8.4): the self-repair loop's own uptake, now that the
+        # decision is recorded instead of discarded.
+        print(format_self_repair_line(db, args.day, args.user_id))
     # WP-33: read off the rollup above — no extra query, and it cannot disagree
     # with the capability line the journey section prints.
     print(format_register_line(report, args.user_id))

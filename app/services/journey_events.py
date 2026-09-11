@@ -49,7 +49,6 @@ from app.db.models.pilot_event import PilotEvent
 from app.services.journey_contracts import (
     CAPABILITY_RUBRIC_VERSION,
     AssistanceLevel,
-    CapabilityKey,
     EvidenceKind,
     HelpKind,
     InputMode,
@@ -147,6 +146,30 @@ def _enum_of(*allowed: str):
     return check
 
 
+def _scenario_key(value: Any) -> str:
+    """The **authored scenarios**, not every member of :class:`CapabilityKey`.
+
+    WP-37 appended ``register`` to that enum as a *dimension* of a respond turn:
+    it has no brief, no plan and no evidence of its own, so it can never be a
+    journey's ``scenario_key``. Validating against the enum only *accepted*
+    more, which is why WP-37 could leave it — but a vocabulary that accepts a
+    value nothing writes stops being a vocabulary. The catalogue is
+    ``journey_content.SCENARIO_PRIORITY``, and it stays three.
+
+    Imported on first use rather than at module scope: ``journey_content`` pulls
+    the whole generation stack (the LLM service, the serial reader), and
+    telemetry must stay cheap to import — ``pilot_events`` imports this module
+    lazily for exactly that reason.
+    """
+
+    from app.services.journey_content import SCENARIO_PRIORITY
+
+    text = str(value)
+    if text not in {str(key) for key in SCENARIO_PRIORITY}:
+        raise _Rejected("not an authored scenario")
+    return text
+
+
 def _int_between(low: int, high: int):
     def check(value: Any) -> int:
         if isinstance(value, bool) or not isinstance(value, (int, float)):
@@ -229,7 +252,8 @@ _FIELD_RULES: dict[str, Any] = {
     "cost_usd": _float_between(0.0, 1000.0),
     "cost_known": _bool,
     # closed vocabularies
-    "scenario_key": _enum_of(*[str(key) for key in CapabilityKey]),
+    # ``register`` is a dimension, never a scenario — see ``_scenario_key``.
+    "scenario_key": _scenario_key,
     "step_kind": _enum_of(*[str(kind) for kind in StepKind]),
     "step_status": _enum_of(*[str(status) for status in StepStatus]),
     "journey_status": _enum_of(*[str(status) for status in JourneyStatus]),
