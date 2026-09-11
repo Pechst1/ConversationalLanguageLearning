@@ -22,6 +22,8 @@ import apiService, {
   VocabularyRecommendationItem,
 } from '@/services/api';
 import { ConceptMotif } from '@/components/grammar/ConceptMotif';
+// One constant for where the intake lives, shared with the Courrier's own row.
+import { CR_INTAKE_HREF } from '@/components/courrier/Courrier';
 import { nativePushIsAvailable, registerNativePushToken } from '@/lib/native-push';
 import {
   cacheAtelierEdition,
@@ -2030,6 +2032,25 @@ function TodayView({
       .catch(() => { /* an entry nobody can open is worse than no entry */ });
     return () => { alive = false; };
   }, []);
+  /**
+   * WP-38 / WP-34 — «Vos documents».
+   *
+   * WP-37 withheld this row on purpose: the intake components were imported by
+   * no page, so it would have opened a screen with no intake on it. The surface
+   * exists now (`/missions?intake=1`), so the row may exist too — gated on the
+   * server's own allowance, because a row that opens a screen which can only
+   * say "come back next week" is a row that wasted the press.
+   */
+  const [intakeOpen, setIntakeOpen] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    apiService.getIntakeArtefacts()
+      .then((envelope) => {
+        if (alive) setIntakeOpen(Boolean(envelope?.cap?.enabled && Number(envelope.cap.remaining) > 0));
+      })
+      .catch(() => { /* an entry nobody can open is worse than no entry */ });
+    return () => { alive = false; };
+  }, []);
   const vocabularyReviewDue = Math.max(0, Number(dayProgress.vocabularyDue || 0));
   const repairDue = Math.max(0, Number(dayProgress.errataDue || 0));
   const serialAction = serialActionFromToday(today, activeSession);
@@ -2241,6 +2262,14 @@ function TodayView({
               hint: 'Comment ça s’est passé ?',
               href: '/repetition',
               ariaLabel: 'Votre répétition — comment ça s’est passé ?',
+            }]
+          : []),
+        ...(intakeOpen
+          ? [{
+              id: 'intake',
+              label: 'Vos documents',
+              hint: 'Un menu, une lettre : on le lit avec vous.',
+              href: CR_INTAKE_HREF,
             }]
           : []),
         {

@@ -19,8 +19,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 
 import { Action, StateBlock } from '@/components/atelier-v2/ui';
-import apiService from '@/services/api';
-import { getStoryEpisodeForJourney } from '@/services/daily-journey';
+import { getStoryEpisodeForJourney, recordEpisodePrediction } from '@/services/daily-journey';
 import type { SceneStep, StoryEpisode } from '@/types/daily-journey';
 
 import type { JourneyCopy } from './journey-copy';
@@ -95,13 +94,11 @@ export function StoryEpisodeStep({
       if (!sceneId) return;
       // Fire and forget on purpose: this is measurement, and a learner must
       // never wait on — or be stopped by — the recording of a tap.
-      void apiService
-        .recordEpisodePrediction(sceneId, {
-          guess,
-          verdict: verification.verdict,
-          supported: verification.supported,
-        })
-        .catch(() => {});
+      void recordEpisodePrediction(sceneId, {
+        guess,
+        verdict: verification.verdict,
+        supported: verification.supported,
+      }).catch(() => {});
     },
     [sceneId],
   );

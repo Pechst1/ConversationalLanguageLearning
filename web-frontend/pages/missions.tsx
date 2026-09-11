@@ -20,9 +20,14 @@ import {
 } from '@/components/atelier-v2/ui';
 import {
   CourrierStyles,
+  CrArtefactCard,
+  CrArtefactTaskCard,
+  CrArtefactUnread,
   CrComposer,
   CrDesk,
   CrGhost,
+  CrIntakeEntry,
+  CrIntakeLink,
   CrMemo,
   CrPS,
   CrRepair,
@@ -30,7 +35,13 @@ import {
   CrSituation,
   CrSlip,
 } from '@/components/courrier/Courrier';
-import apiService, { MissionToday, RealWorldMission, SerialToday } from '@/services/api';
+import apiService, {
+  IntakeArtefact,
+  IntakeEnvelope,
+  MissionToday,
+  RealWorldMission,
+  SerialToday,
+} from '@/services/api';
 import { createAudioMediaRecorder, recordedAudioBlob } from '@/lib/audio-recording';
 import { serialQueryString, writeLocalDayProgressFlag } from '@/lib/atelier-next';
 import { clearResumeActivity, readLocalJson, saveResumeActivity, writeLocalJson } from '@/lib/pilot-resilience';
@@ -374,6 +385,15 @@ function loadErrorMessage(error: any): string {
   return 'Ce moment de mission n’a pas pu être ouvert.';
 }
 
+// WP-34's refusals already arrive in French from the server (`detail.message_fr`
+// — the weekly cap, an unreadable photo, a document too long). Printing our own
+// sentence over them would be inventing a reason we do not know.
+function intakeErrorMessage(error: any): string {
+  const detail = error?.response?.data?.detail;
+  const french = detail && typeof detail === 'object' ? String(detail.message_fr || '') : '';
+  return french || 'Ce document n’a pas pu être lu. Réessayez dans un instant.';
+}
+
 function shouldCreateFromSeed(seed: QuerySeed) {
   return Boolean(
     seed.serialThreadId
@@ -537,10 +557,20 @@ export default function MissionsPage() {
   const [reply, setReply] = useState('');
   const [micState, setMicState] = useState<MicState>('idle');
   const [completedNextSerial, setCompletedNextSerial] = useState<SerialToday | null>(null);
+  // WP-34's surface (WP-37 §2.1). «Vos documents» is a second view of this
+  // route rather than a second page: it is the Courrier's own intake, it opens
+  // Courrier tasks, and giving it its own view keeps exactly one 3D press on
+  // screen — «Faire lire» here, the reply there.
+  const [intake, setIntake] = useState<IntakeEnvelope | null>(null);
+  const [intakeLoading, setIntakeLoading] = useState(true);
+  const [intakeReading, setIntakeReading] = useState(false);
+  const [intakeError, setIntakeError] = useState<string | null>(null);
+  const [deletingArtefactId, setDeletingArtefactId] = useState<string | null>(null);
   const loadRequestRef = useRef(0);
   const replyRef = useRef<HTMLTextAreaElement | null>(null);
 
   const seed = useMemo(() => querySeed(router.query as Record<string, string | string[] | undefined>), [router.query]);
+  const intakeMode = Boolean(firstQuery(router.query.intake));
   const messenger = useMemo(() => missionMessenger(mission), [mission]);
   const frame = useMemo(() => missionFrame(mission, messenger), [mission, messenger]);
   const turns = useMemo(() => missionTurns(mission), [mission]);
@@ -623,6 +653,14 @@ export default function MissionsPage() {
 
   const loadMission = useCallback(async () => {
     if (!router.isReady) return;
+    if (intakeMode) {
+      // The intake view loads no mission and — the part that matters — creates
+      // none. Falling through would post a new mission (a paid generation) for
+      // a learner who came here to paste a letter, and would then rewrite the
+      // URL to that mission and throw the view away.
+      setLoading(false);
+      return;
+    }
     const requestId = ++loadRequestRef.current;
     const isCurrent = () => loadRequestRef.current === requestId && router.pathname === '/missions';
     setLoading(true);
@@ -658,7 +696,7 @@ export default function MissionsPage() {
     } finally {
       if (isCurrent()) setLoading(false);
     }
-  }, [createSeededMission, routeToMission, router.isReady, router.pathname, seed]);
+  }, [createSeededMission, intakeMode, routeToMission, router.isReady, router.pathname, seed]);
 
   useEffect(() => {
     void loadMission();
@@ -666,6 +704,55 @@ export default function MissionsPage() {
       loadRequestRef.current += 1;
     };
   }, [loadMission]);
+
+  useEffect(() => {
+    if (!intakeMode || !router.isReady) return undefined;
+    let alive = true;
+    setIntakeLoading(true);
+    apiService.getIntakeArtefacts()
+      .then((envelope) => { if (alive) setIntake(envelope); })
+      .catch((loadError) => {
+        console.error(loadError);
+        if (alive) setIntakeError(intakeErrorMessage(loadError));
+      })
+      .finally(() => { if (alive) setIntakeLoading(false); });
+    return () => { alive = false; };
+  }, [intakeMode, router.isReady]);
+
+  const readDocument = useCallback(async (input: { text?: string; file?: File }) => {
+    if (intakeReading) return;
+    setIntakeReading(true);
+    setIntakeError(null);
+    try {
+      const envelope = input.file
+        ? await apiService.readIntakePhoto(input.file, input.file.name || 'document.jpg')
+        : await apiService.readIntakeText(String(input.text || ''));
+      setIntake(envelope);
+    } catch (readError) {
+      console.error(readError);
+      setIntakeError(intakeErrorMessage(readError));
+    } finally {
+      setIntakeReading(false);
+    }
+  }, [intakeReading]);
+
+  const deleteDocument = useCallback(async (artefactId: string) => {
+    if (deletingArtefactId) return;
+    setDeletingArtefactId(artefactId);
+    setIntakeError(null);
+    try {
+      // The button says it removes the document *and* its task, so the list is
+      // re-read from the server rather than spliced here: a task the server
+      // kept must not disappear from the screen.
+      await apiService.deleteIntakeArtefact(artefactId);
+      setIntake(await apiService.getIntakeArtefacts());
+    } catch (deleteError) {
+      console.error(deleteError);
+      setIntakeError(intakeErrorMessage(deleteError));
+    } finally {
+      setDeletingArtefactId(null);
+    }
+  }, [deletingArtefactId]);
 
   useEffect(() => {
     if (!mission?.id || mission.status === 'completed') return;
@@ -793,10 +880,79 @@ export default function MissionsPage() {
   return (
     <>
       <Head>
-        <title>{isSerialAct ? 'Le Feuilleton · Acte' : 'Le Courrier'} · L’Atelier</title>
+        <title>
+          {intakeMode ? 'Vos documents' : isSerialAct ? 'Le Feuilleton · Acte' : 'Le Courrier'} · L’Atelier
+        </title>
       </Head>
-      <AtelierV2Root as="main" className="cr motion" aria-label={isSerialAct ? 'Le Feuilleton · acte' : 'Le Courrier'}>
-        {loading && !mission ? (
+      <AtelierV2Root
+        as="main"
+        className="cr motion"
+        aria-label={intakeMode ? 'Le Courrier · vos documents' : isSerialAct ? 'Le Feuilleton · acte' : 'Le Courrier'}
+      >
+        {intakeMode ? (
+          /* WP-34's surface, mounted (WP-37 §2.1). Everything here already
+             existed and was imported by no page: the components, the client
+             calls and 82 backend tests. */
+          <div className="cr-page">
+            <CrDesk
+              name="Vos documents"
+              line="Votre français, apporté par vous."
+              onBack={returnToAtelierHome}
+            />
+            {intakeLoading && !intake ? (
+              <div className="cr-skel" aria-busy="true" aria-live="polite">
+                <span className="av2-sr">Chargement de vos documents</span>
+                <Skeleton height={44} radius={999} />
+                <Skeleton height={150} />
+                <Skeleton height={72} />
+              </div>
+            ) : (
+              <>
+                <CrIntakeEntry
+                  cap={intake?.cap}
+                  onRead={(input) => { void readDocument(input); }}
+                  reading={intakeReading}
+                  error={intakeError}
+                  onDismissError={() => setIntakeError(null)}
+                />
+                {(intake?.artefacts || []).map((artefact: IntakeArtefact) => (
+                  <React.Fragment key={artefact.id}>
+                    {artefact.status === 'read' ? (
+                      <>
+                        <CrArtefactCard
+                          artefact={artefact}
+                          onDelete={() => { void deleteDocument(artefact.id); }}
+                          deleting={deletingArtefactId === artefact.id}
+                        />
+                        {/* The task is shown here and answered in the Courrier,
+                            where the composer and the corrector already live.
+                            No `onStart`: its press would be this screen's
+                            second 3D press, and «Faire lire» is the one. */}
+                        <CrArtefactTaskCard task={artefact.task} />
+                        {artefact.mission_id && (
+                          <CrGhost href={`/missions?mission=${artefact.mission_id}`}>
+                            Répondre dans le Courrier
+                          </CrGhost>
+                        )}
+                      </>
+                    ) : (
+                      <CrArtefactUnread
+                        sourceKind={artefact.source_kind}
+                        onDelete={() => { void deleteDocument(artefact.id); }}
+                      />
+                    )}
+                  </React.Fragment>
+                ))}
+                {intake && intake.artefacts.length === 0 && (
+                  <p className="cr-reason" lang="fr">
+                    Rien encore. Le premier document que vous apporterez arrivera ici, résumé à
+                    votre niveau, avec une tâche du Courrier.
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+        ) : loading && !mission ? (
           <div className="cr-page" aria-busy="true" aria-live="polite">
             <span className="av2-sr">Chargement du courrier</span>
             <div className="cr-skel">
@@ -825,6 +981,7 @@ export default function MissionsPage() {
               body="Le facteur repassera avec l’édition de demain."
               action={{ label: 'Retour à la Une', onSelect: () => returnToAtelierHome(), tone: 'primary' }}
             />
+            <CrIntakeLink />
           </div>
         ) : (
           <>
@@ -977,6 +1134,10 @@ export default function MissionsPage() {
                   </div>
                 </section>
               )}
+
+              {/* WP-37 §2.1: the Courrier's own way in to «Vos documents». A
+                  row, not a press — the screen's press is the reply. */}
+              <CrIntakeLink />
 
               {recentCompleted.length > 0 && (
                 <section className="cr-archive" aria-label="Courrier passé">

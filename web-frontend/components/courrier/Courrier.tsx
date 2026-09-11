@@ -496,6 +496,38 @@ export function crIntakeCapLine(cap?: CrIntakeCap | null): string {
   return `Il vous reste ${cap.remaining} documents cette semaine.`;
 }
 
+/** Where the intake lives. One constant, so the Courrier's quiet row, Home's
+ *  entry and the page that renders the surface cannot drift apart. */
+export const CR_INTAKE_HREF = '/missions?intake=1';
+
+/* ---------- the way in (WP-37 §2.1, applied by WP-38) ----------
+   A row, never a press. The Courrier's own 3D press is the reply the learner
+   owes someone; bringing a document in is a side door, and design principle 1
+   allows exactly one primary action per screen. Same `.av2-row` the Home
+   entries use, so it needs no CSS of its own and cannot drift from them. */
+export function CrIntakeLink({
+  cap,
+  href = CR_INTAKE_HREF,
+}: {
+  cap?: CrIntakeCap | null;
+  href?: string;
+}) {
+  // Without a loaded cap the row says what the screen is for rather than
+  // guessing an allowance — the surface itself prints the real number.
+  const hint = cap ? crIntakeCapLine(cap) : 'Une lettre, un menu, un courriel : on le lit avec vous.';
+  return (
+    <Link className="av2-row" href={href} aria-label={`Apportez votre français — ${hint}`}>
+      <span className="av2-row__main">
+        <span className="av2-label">Apportez votre français</span>
+        <span className="av2-label" style={{ display: 'block', fontWeight: 400 }} lang="fr">
+          {hint}
+        </span>
+      </span>
+      <ArrowRightIcon size={18} />
+    </Link>
+  );
+}
+
 /* ---------- the entry: paste or photograph ----------
    `onRead` is handed the paste, or the file, never both: the two controls fill
    one field between them, so the learner cannot half-send two documents. */

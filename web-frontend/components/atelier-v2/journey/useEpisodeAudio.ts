@@ -29,7 +29,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import apiService from '@/services/api';
+import {
+  getEpisodeAudio,
+  getEpisodeAudioClip,
+  synthesizeEpisodeAudio,
+} from '@/services/daily-journey';
 import type { EpisodeAudioClipRef, EpisodeAudioManifest } from '@/services/api';
 
 /** Why there is no audio. Each maps to one honest sentence in the copy table. */
@@ -149,7 +153,7 @@ export function useEpisodeAudio({
     async (clip: EpisodeAudioClipRef): Promise<string> => {
       const cached = urls.current.get(clip.id);
       if (cached) return cached;
-      const blob = await apiService.getEpisodeAudioClip(String(sceneId), clip.id);
+      const blob = await getEpisodeAudioClip(String(sceneId), clip.id);
       const url = URL.createObjectURL(blob);
       urls.current.set(clip.id, url);
       return url;
@@ -172,11 +176,11 @@ export function useEpisodeAudio({
     setState({ kind: 'preparing' });
     void (async () => {
       try {
-        let manifest = await apiService.getEpisodeAudio(sceneId);
+        let manifest = await getEpisodeAudio(sceneId);
         // `absent` is the only status worth paying for; every other one is
         // already an answer.
         if (manifest.status === 'absent') {
-          manifest = await apiService.synthesizeEpisodeAudio(sceneId);
+          manifest = await synthesizeEpisodeAudio(sceneId);
         }
         if (!alive.current) return;
         const reason = unavailableFor(manifest);
