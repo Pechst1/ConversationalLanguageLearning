@@ -208,7 +208,11 @@ export type UseDailyJourneyOptions = {
 export function useDailyJourney(
   options: UseDailyJourneyOptions = {},
 ): DailyJourneyController {
-  const { enabled = true, preferredInputMode = 'text', onFinished, onDisabled } = options;
+  // WP-27: speaking is the default output, and the server only offers voice on
+  // a journey that was *created* for voice (CONTRACTS §10 keeps text alongside
+  // it always). A 'text' default here silently made every respond step
+  // text-only — found on the 2026-09-11 QA walk.
+  const { enabled = true, preferredInputMode = 'voice', onFinished, onDisabled } = options;
 
   const [envelope, setEnvelope] = useState<TodayEnvelope | null>(null);
   const [journey, setJourney] = useState<JourneySnapshot | null>(null);

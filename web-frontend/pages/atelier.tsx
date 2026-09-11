@@ -86,6 +86,7 @@ import {
   JourneyTodayCard,
   useDailyJourney,
 } from '@/components/atelier-v2/journey';
+import { readAnswerMode } from '@/components/atelier-v2/journey/voice-answer';
 import { ExerciseShell } from '@/components/ui/ExerciseShell';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Confetti, LogoToken, Seal, sealForEdition, type SealVariant } from '@/components/ui/Seal';
@@ -849,7 +850,13 @@ export default function AtelierPage() {
   // The controller owns every journey request, idempotency key and contract
   // state; this page only renders it. It stays idle until the legacy edition
   // has loaded, so an unauthenticated visit never fires a journey request.
-  const journey = useDailyJourney({ enabled: !loading && !loadError });
+  // WP-27: the journey is created for the mode the learner last chose (voice
+  // unless they picked «Écrire» or the device refused the microphone); the
+  // server always keeps text beside voice, so nothing is lost by asking.
+  const journey = useDailyJourney({
+    enabled: !loading && !loadError,
+    preferredInputMode: readAnswerMode('voice'),
+  });
   // The server response is the only authority. A failed or absent `/today`
   // read is NOT an enabled capability, so the legacy page is untouched when the
   // flag is off, when the request fails, and before the first read returns.

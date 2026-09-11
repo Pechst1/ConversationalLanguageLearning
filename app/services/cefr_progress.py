@@ -361,7 +361,12 @@ class CEFRProgressService:
             return measured_level, "measured"
         if signals.recent_attempt_count >= DECLARED_LEVEL_EVIDENCE_ATTEMPTS:
             return measured_level, "measured"
-        if level_index(prior_level) > level_index(measured_level):
+        # ``>=`` and not ``>``: below the evidence threshold a measurement equal
+        # to the prior has not *confirmed* anything -- a day-one A1.1 learner
+        # with zero attempts is still self-declared, and every surface that
+        # says "mesuré" or "vérifié" on that basis lies (found on the
+        # 2026-09-11 QA walk).
+        if level_index(prior_level) >= level_index(measured_level):
             return prior_level, prior_source
         return measured_level, "measured"
 

@@ -1702,3 +1702,17 @@ The seven diffs WP-36 and WP-37 wrote out and could not apply from inside their 
 - `journey_events`'s `scenario_key` validates against `SCENARIO_PRIORITY`, not the enum that now carries `register`; CONTRACT-FREEZE row 16 applied. The radio hook and step import the journey facade, not `apiService`.
 - **WP-36's loop can be counted and can close in a rehearsal.** `FeedbackDecision.reason` reaches a `PilotEvent` — written after the turn's own flush and inside a SAVEPOINT, because the first version went red in `test_daily_journey_concurrency` on the flush that carries the learner's turn. The digest rate is over *answers*, not prompts. `rehearsal.py` stores the character's reply (`reply_fr`, not §8.3's `character_reply_fr`).
 - 28 new tests. Full suite **2375 passed, 1 skipped**; seventeen node suites (`test:self-repair` wired into CI), ruff, type-check, lint, build clean (37 routes). **US$0.00 — no model call.** Still unwalked: the intake screen has never had a real document pasted into it.
+
+## 2026-09-11 — WP-39 QA walk: two P0s the tests never saw
+
+Walked in the Browser pane on the fake-provider harness ([WP-39-QA.md](WP-39-QA.md)).
+Two product-level defects, both fixed and pinned in `tests/test_wp39_qa_walk.py`:
+**D-1** a day-one learner with declared A1.1 was labelled `estimate_source: "measured"`
+/ «vérifié» (strict `>` in `_estimate_with_declaration`; now `>=`); **D-2** the journey
+was created with `preferred_input_mode: "text"` by default, so the server never offered
+voice and WP-27's «Parler» could not render for anyone (hook default `'voice'`, page
+passes the remembered mode; verified live: «Sprechen / Lieber tippen»). Open: mixed
+chrome languages on Home and Dossier (D-3, product decision), ~130 requests per Home
+load (D-4), English gloss to a German native (D-6). Full backend suite after the fixes:
+exit 0, 0 failures; type-check, lint, journey suite green. Not walked: mic-denied,
+self-repair elicitation, +1-day journal, 320/390 pt rendering, simulator.
