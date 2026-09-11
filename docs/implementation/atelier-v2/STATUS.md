@@ -1673,3 +1673,22 @@ type-check); `45d7a5f` removes the duplicate.
 **Not done:** WP-36 self-repair prompts (never started); hooks owed by WP-31/32/33/34/35
 (Home entries, `CapabilityKey.REGISTER`, digest lines, settings row, learner-sourced
 coverage targets); no browser or simulator walk of any new surface.
+
+## 2026-09-11 — WP-36 characters prompt self-repair
+
+Explicit correction gets uptake in 50 % of cases against 31 % for a recast (Lyster & Ranta 1997), and prompts that push output beat feedback that supplies it. So a learner who repeats one of their own recorded mistakes is now *asked* — « Pardon, un ou une café ? » — the question appended to the character's own reply, never replacing it. A repair that lands is booked through WP-24's `review_error` as *supported* production, because it was prompted; one that fails becomes the explicit correction, chosen by WP-05's own selector; an ignored question is neither, and says so. Bounded: one prompt per scene — recomputed from the character's prior lines, never a marker a learner could read — never on the last turn, and never for a mistake that a background transcript scan recorded and nobody ever explained. Handover: [WP-36-SELF-REPAIR.md](WP-36-SELF-REPAIR.md).
+
+- The actor is told the scene does not end (`turn_plan`), so its own state stays coherent, and is still never told what the learner is *expected* to get wrong: the question is deterministic, so an actor that ignores the plan costs the scene its tidiness and not its pedagogy. `"errata" not in ACTOR` is re-pinned, `VERSION` deliberately not bumped.
+- WP-33's `missing_greeting` / `missing_politeness` / `missing_closing` reach a learner at last, in character rather than as a lecture, and `is_closing_turn` finally has a caller. Only the closing nudge may cost a turn; the other two ride along on a turn that was continuing anyway, so nobody's earned ending is held back to teach them « bonjour ».
+- WP-34's hook is wired: words off the learner's own documents are coverage targets now, not accidents to be generated away.
+- 40 new backend tests; full suite **2347 passed, 1 skipped** (green; an earlier run in this checkout carried six failures that were WP-37's concurrent edit, and they are gone from the final one); ruff, type-check, lint and the node suites clean. **US$0.00 — no model call was made**, so what is proven is the mechanism: whether a prompted repair actually beats a recast *here* needs the telemetry hook and a pilot week, and is the package's first open item.
+
+## 2026-09-11 — WP-37 the hooks, applied
+
+Every 2026-09-10 package stopped at its lease and wrote the missing diff into its handover. Right discipline, one cost: a package ships dark. Applied: [WP-37-HOOKS.md](WP-37-HOOKS.md).
+
+- `CapabilityKey.REGISTER` was never one line. `_CAPABILITY_ORDER` was `tuple(CapabilityKey)`, so the member alone would have asked the evidence reader for a scenario nothing writes and raised `KeyError` on `_TITLES[…][REGISTER]` in every progress call and finish recap — and then printed the dimension twice. The scenario keys are their own tuple now; six test files that read the enum as "the authored scenarios" read `SCENARIO_PRIORITY` instead. The frozen fixture gained one entry, `contract_version` still 1; CONTRACT-FREEZE row 16 is drafted in the handover, not applied.
+- Home carries two quiet rows and still exactly one press bar: the rehearsal debrief (gated on the server's own `debrief_due`) and the dossier. **Not «Vos documents»** — WP-34's intake components are imported by no page, so that row would open a screen with no intake on it. Its surface, not a Home entry, is what is owed.
+- Six digest lines that existed and were never printed; `rehearsal_reminder_copy` (unplayed rehearsals only, the learner's own goal, never a character) whose call site is `app/tasks/notifications.py` and is written out; «Écouter d'abord» in Réglages on the reader's own key; the radio transport in the journey facade.
+- Fixed in passing: WP-31's weekly-cap test compared a frozen `NOW` against a server-default `created_at`, so it passed only on the day it was written.
+- 31 new tests. Full suite **2347 passed, 1 skipped** — including WP-36's, whose six reported failures were this package's enum mid-flight and are gone. Sixteen node suites, type-check, lint, build clean (37 routes). **US$0.00 — no model call.** Nothing here has been walked in a browser or on a simulator.
