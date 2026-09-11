@@ -327,6 +327,18 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "de": "Aus der Anrede der Szene herausgefallen.",
         "fr": "Sortie de l’adresse de la scène.",
     },
+    # -- app/services/journey_conversation.py: WP-36 self-repair --------------
+    # The character asks first, in French, and that question is not copy: it is
+    # the fiction. What *is* copy is the explicit correction that follows a
+    # repair the learner did not manage — explicit meaning the right form is
+    # named outright, in their own language (Lyster & Ranta 1997: 50 % uptake
+    # against 31 % for a recast). `{why}` is the erratum's stored explanation
+    # and is appended by the caller, so each sentence must end cleanly without it.
+    "self_repair.explicit_note": {
+        "en": "That was the one you were just asked about: it is “{correct}”, not “{wrong}”.",
+        "de": "Danach wurde eben gefragt: Es heißt „{correct}“, nicht „{wrong}“.",
+        "fr": "C’est ce qu’on venait de vous demander : on dit « {correct} », pas « {wrong} ».",
+    },
 }
 
 

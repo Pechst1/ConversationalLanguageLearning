@@ -99,6 +99,11 @@ export type JourneyCopyKey =
   | 'capability_register'
   | 'capability_state_not_evaluated'
   | 'correction_register'
+  // WP-36 — the character asks for the repair before it corrects. The question
+  // itself is the character's French line and arrives on the wire; these are
+  // only the labels the app puts around it.
+  | 'correction_self_repair'
+  | 'self_repair_hint'
   | 'evidence_recognized'
   | 'evidence_produced_supported'
   | 'evidence_produced_independent'
@@ -238,6 +243,8 @@ const EN: CopyTable = {
   capability_register: 'Speaking to the right person the right way',
   capability_state_not_evaluated: 'not assessed',
   correction_register: 'Who you are speaking to',
+  correction_self_repair: 'The form you were just asked about',
+  self_repair_hint: 'Say it again with the form you mean.',
   evidence_recognized: 'recognised',
   evidence_produced_supported: 'used, with help',
   evidence_produced_independent: 'used on your own',
@@ -371,6 +378,8 @@ const DE: CopyTable = {
   capability_register: 'Die passende Anrede treffen',
   capability_state_not_evaluated: 'nicht bewertet',
   correction_register: 'Mit wem du sprichst',
+  correction_self_repair: 'Die Form, nach der eben gefragt wurde',
+  self_repair_hint: 'Sag es noch einmal mit der Form, die du meinst.',
   evidence_recognized: 'erkannt',
   evidence_produced_supported: 'mit Hilfe benutzt',
   evidence_produced_independent: 'selbständig benutzt',
@@ -504,6 +513,8 @@ const FR: CopyTable = {
   capability_register: 'S’adresser comme il faut',
   capability_state_not_evaluated: 'non évalué',
   correction_register: 'À qui vous parlez',
+  correction_self_repair: 'La forme qu’on venait de vous demander',
+  self_repair_hint: 'Redites-le avec la forme que vous visez.',
   evidence_recognized: 'reconnu',
   evidence_produced_supported: 'utilisé avec aide',
   evidence_produced_independent: 'utilisé seul',

@@ -17,7 +17,10 @@ Deliberate boundaries
 * **No learning policy here.** Evidence classification, correction validation
   and credit belong to WP-05 (``app.services.journey_learning``). This module
   calls ``classify_observation`` / ``select_foreground_correction`` and never a
-  scheduler or a credit service.
+  scheduler or a credit service. WP-36 adds the one exception, and it is a
+  narrow one: a repair the character *asked for* is booked against WP-24's own
+  ``ErrorMemoryService.review_error``. It is the erratum's own lifecycle, not a
+  second scheduler, and nothing else here writes.
 * **No new memory store.** Consequences land in ``SerialThread.state`` via the
   serial service's own relationship bounds. There is no second character
   memory, no transcript table, and no invented "Romy read your message" event.
@@ -66,9 +69,11 @@ from loguru import logger
 from sqlalchemy.orm import Session
 
 from app.config import settings
+from app.db.models.error import UserError
 from app.db.models.serial import SerialThread
 from app.db.models.user import User
 from app.services import pragmatics
+from app.services.error_memory import ErrorMemoryService
 from app.services.journey_content import render_authored_text
 from app.services.journey_contracts import (
     FALLBACK_CONTROL_LANGUAGE,
@@ -2133,6 +2138,7 @@ def register_corrections(
     scenario: ScenarioBrief,
     task: ResponseTask,
     history: list[dict] | None = None,
+    is_closing_turn: bool = False,
 ) -> tuple[pragmatics.RegisterAssessment, list[Correction]]:
     """The turn's register verdict, plus the meta-pragmatic correction it earns.
 
@@ -2153,6 +2159,10 @@ def register_corrections(
         expected_register=counterpart.expected,
         level_band=scenario.level_band,
         is_opening_turn=not _learner_history_texts(history),
+        # WP-36 is the caller WP-33 §7.3 was waiting for: until this package
+        # nothing knew which turn ended the scene, so `missing_closing` could
+        # never be detected at all.
+        is_closing_turn=is_closing_turn,
     )
     finding = assessment.slip
     if finding is None or not finding.span or not finding.replacement:
@@ -2204,6 +2214,691 @@ def _with_register_correction(
     return replace(evaluation, correction=correction)
 
 
+# --------------------------------------------------------------------------
+# WP-36 — the character prompts self-repair (feedback policy)
+#
+# Explicit correction produced uptake in 50 % of cases against 31 % for recasts
+# (Lyster & Ranta 1997), and output-pushing prompts beat input-providing
+# feedback for accuracy (Lyster & Saito 2010; Li 2010; Brown 2016). The
+# consequence for this module: when a learner repeats one of their own recorded
+# mistakes and the scene can still afford a turn, the character does not hand
+# the form back. It asks for it — a forced choice («Pardon, un ou une homme ?»)
+# or a request to say it again — and the *explicit* correction is what follows a
+# failed repair, never what replaces the prompt.
+#
+# Three boundaries, each one load-bearing:
+#
+# * **Deterministic, and provider-free.** The decision is taken from the
+#   learner's own text and their stored errata, before any model call, so it
+#   costs nothing and cannot be talked out of by a model. On the living-story
+#   path the actor is *told* that the scene does not end (``turn_plan``) so its
+#   own state stays coherent, but the question the learner reads is this
+#   module's, appended to whatever the character said.
+# * **One write, through WP-24's own API.** A successful repair calls
+#   :meth:`ErrorMemoryService.review_error` — the method WP-24 built for exactly
+#   this — as *supported* production (rating 3, the same pair
+#   ``journey_learning.ERROR_EVIDENCE_REVIEW`` uses for
+#   ``PRODUCED_SUPPORTED``): the learner was prompted, so they did not produce
+#   it alone. A failed repair writes nothing here; it emits a correction, and
+#   the existing one-punishment-per-turn pipeline in WP-05 records the
+#   recurrence exactly as it records every other correction. That is also what
+#   re-opens a *mastered* erratum, per WP-24's "a recurrence destroys the
+#   evidence".
+# * **Bounded.** At most one prompt per scene, never on the last turn, and
+#   never for an erratum the learner has never been shown an explanation for.
+# --------------------------------------------------------------------------
+
+#: Stamped nowhere yet; read by the handoff and by tests as the policy's name.
+SELF_REPAIR_POLICY_VERSION = "self-repair-v1"
+
+#: How many stored mistakes one turn is scanned against. The learner's own
+#: sentence is short; scanning their whole history would cost more than it can
+#: possibly find.
+ERRATA_SCAN_LIMIT = 24
+
+#: A folded wrong span shorter than this is not recognised: "a" recurs in every
+#: French sentence ever written.
+MIN_RECURRENCE_CHARS = 3
+
+#: The character's own words are French whatever the learner's language is —
+#: the fiction is French, the *explanation* that may follow it is not
+#: (docs/design-overhaul-2026-08-31.md §Principles).
+SELF_REPAIR_CHOICE_FR = "Pardon, {options} ?"
+SELF_REPAIR_REPETITION_FR: dict[str, str] = {
+    "vous": "Pardon ? Vous pouvez le redire autrement ?",
+    "tu": "Pardon ? Tu peux le redire autrement ?",
+}
+
+#: WP-33 detects `missing_greeting` / `missing_politeness` / `missing_closing`
+#: and had nowhere to put them: they are not slips, so they never became
+#: corrections. They become *elicitations* here — the character asks for the
+#: move rather than the app explaining it — and only when nothing else is owed.
+PRAGMATIC_ELICITATION_FR: dict[str, dict[str, str]] = {
+    pragmatics.MISSING_GREETING: {
+        "vous": "Bonjour ! On se dit bonjour d’abord ?",
+        "tu": "Bonjour ! On se dit bonjour d’abord ?",
+    },
+    pragmatics.MISSING_CLOSING: {
+        "vous": "Et on se quitte comme ça ?",
+        "tu": "Et on se quitte comme ça ?",
+    },
+    pragmatics.MISSING_POLITENESS: {
+        "vous": "Vous me demandez ça comment ?",
+        "tu": "Tu me demandes ça comment ?",
+    },
+}
+
+#: Precedence when a turn is missing more than one move: the two structural
+#: moves first. A missing softener is the mildest of the three and the one a
+#: perfectly idiomatic question can lack, so it is elicited last and only at
+#: A1/A2 (the band bound WP-33's `bare_request_finding` already draws: above
+#: it, directness can be a choice).
+_PRAGMATIC_ORDER = (
+    pragmatics.MISSING_GREETING,
+    pragmatics.MISSING_CLOSING,
+    pragmatics.MISSING_POLITENESS,
+)
+_PRAGMATIC_BANDS = {pragmatics.MISSING_POLITENESS: frozenset({"A1", "A2"})}
+
+#: A scene the learner finished in one sentence was never an exchange, and
+#: « et on se quitte comme ça ? » after a single line is a reprimand for
+#: something that did not happen. The closing move is only elicited once the
+#: learner has actually taken a turn before this one.
+_PRAGMATIC_REQUIRES_EXCHANGE = frozenset({pragmatics.MISSING_CLOSING})
+
+#: Which missing move is worth a turn the scene would not otherwise have spent.
+#: Only the closing one. A learner who ordered their coffee in one polite
+#: sentence without « bonjour » still gets told — the nudge rides along on a
+#: turn that was continuing anyway — but the greeting does not buy them a second
+#: turn and does not hold back the ending they earned. The closing move is the
+#: exception because there is, by definition, no later turn to ride on.
+_PRAGMATIC_MAY_EXTEND = frozenset({pragmatics.MISSING_CLOSING})
+
+
+@dataclass(frozen=True, slots=True)
+class SelfRepairPrompt:
+    """One elicitation the character is about to make, and what it is about."""
+
+    error_id: str
+    #: The learner's wrong wording, verbatim from *this* turn, and the stored fix.
+    span_fr: str
+    corrected_fr: str
+    why_native: str
+    question_fr: str
+    #: ``"choice"`` (a forced alternative) or ``"repetition"`` (say it again).
+    kind: str
+
+
+@dataclass(frozen=True, slots=True)
+class FeedbackDecision:
+    """What the feedback policy decided about one learner turn.
+
+    At most one of the three is ever set: the turn either opens a repair, closes
+    one, or is none of this module's business.
+    """
+
+    prompt: SelfRepairPrompt | None = None
+    #: The erratum a *successful* repair should be credited against.
+    credit_error_id: str | None = None
+    #: The explicit correction a *failed* repair earns.
+    explicit: Correction | None = None
+    #: The in-character line for a missing pragmatic move (WP-33's findings).
+    pragmatic_fr: str | None = None
+    #: Which finding that line is about, and whether it may cost a turn.
+    pragmatic_code: str | None = None
+    #: Why nothing fired, for telemetry and for tests. Never shown to a learner.
+    reason: str = "no_open_errata"
+
+    @property
+    def is_empty(self) -> bool:
+        return (
+            self.prompt is None
+            and self.credit_error_id is None
+            and self.explicit is None
+            and self.pragmatic_fr is None
+        )
+
+    @property
+    def extends_turn(self) -> bool:
+        """May this line ask for a turn the scene had not planned to spend?"""
+
+        if self.prompt is not None:
+            return True
+        return self.pragmatic_code in _PRAGMATIC_MAY_EXTEND
+
+    @property
+    def elicitation_fr(self) -> str | None:
+        """The line the character adds to its reply, if any."""
+
+        return self.prompt.question_fr if self.prompt is not None else self.pragmatic_fr
+
+
+EMPTY_DECISION = FeedbackDecision()
+
+
+# -- folding and spans ------------------------------------------------------
+
+def _folded_tokens(text: str | None) -> list[str]:
+    return [token for token in fold_for_comparison(text).split() if token]
+
+
+def _contains_phrase(text: str | None, phrase: str | None) -> bool:
+    """Is ``phrase`` present in ``text`` as a contiguous run of folded words?
+
+    Deliberately not ``answer_matches``: that one accepts a 0.92 similarity
+    ratio, under which « un homme » *is* « une homme ». A recurrence test that
+    cannot tell those apart is the one test this package must never fail.
+    """
+
+    needle = _folded_tokens(phrase)
+    haystack = _folded_tokens(text)
+    if not needle or len(needle) > len(haystack):
+        return False
+    return any(
+        haystack[index : index + len(needle)] == needle
+        for index in range(len(haystack) - len(needle) + 1)
+    )
+
+
+def _verbatim_span(text: str, phrase: str) -> str | None:
+    """The learner's own wording of ``phrase`` in ``text``, exactly as typed.
+
+    A correction's span must be verbatim from the answer (WP-05 rejects it
+    otherwise), and the stored erratum carries *last week's* wording — different
+    capitals, different accents, iOS's own apostrophe. So the span is read back
+    out of this turn's text rather than copied from the record.
+    """
+
+    needle = _folded_tokens(phrase)
+    if not needle:
+        return None
+    words = [(match.group(0), match.start(), match.end()) for match in re.finditer(r"\S+", text)]
+    folded = [fold_for_comparison(word) for word, _start, _end in words]
+    for index in range(len(words)):
+        collected: list[str] = []
+        for end in range(index, len(words)):
+            if folded[end]:
+                collected.extend(folded[end].split())
+            if len(collected) > len(needle):
+                break
+            if collected == needle:
+                span = text[words[index][1] : words[end][2]].strip()
+                # Trailing punctuation belongs to the sentence, not to the slip.
+                trimmed = span.rstrip(".,;:!?»«\"'’ ")
+                return trimmed if trimmed and trimmed in text else (span or None)
+    return None
+
+
+# -- which mistakes are eligible -------------------------------------------
+
+#: Surfaces that record a mistake *without showing it*: a transcript is scanned
+#: after the fact and the learner is never told. An erratum from one of those is
+#: never prompted on until a repair card has actually been reviewed — the
+#: learner would have nothing to retrieve, and the prompt would be a quiz.
+SILENT_ERROR_SOURCES = frozenset({"audio", "conversation", "pilot_capture"})
+
+
+def _erratum_is_explained(error: UserError) -> bool:
+    """Has this learner ever been shown what is wrong with this form?
+
+    Three ways it counts as shown: a repair card that was actually reviewed, a
+    correction recorded in the foreground of a journey turn, or a surface that
+    shows its correction at the moment it records it — which is every surface
+    except the background detectors above. In every case a stored explanation
+    has to exist: "you got something wrong, work out what" is not feedback.
+    """
+
+    explained = str(error.why_wrong or error.context_snippet or error.repair_hint or "").strip()
+    if not explained:
+        return False
+    if error.last_review_date is not None or int(error.reps or 0) > 0:
+        return True
+    metadata = error.error_metadata if isinstance(error.error_metadata, dict) else {}
+    payload = metadata.get("source_payload")
+    if isinstance(payload, dict) and payload.get("foreground"):
+        return True
+    return str(error.source_type or "").strip().lower() not in SILENT_ERROR_SOURCES
+
+
+def _scan_errata(db: Session, user: User) -> list[UserError]:
+    """Every stored mistake this turn is checked against, most recent first.
+
+    Not ``due_error_records``: due-ness schedules a *review*, and a recurrence
+    happening in this very sentence is not waiting for a date. Mastered rows are
+    scanned too — WP-24 §1 reopens one that resurfaces, and it reaches that
+    reopening through this same path.
+    """
+
+    try:
+        return (
+            db.query(UserError)
+            .filter(UserError.user_id == user.id)
+            .order_by(UserError.updated_at.desc().nullslast(), UserError.id.asc())
+            .limit(ERRATA_SCAN_LIMIT)
+            .all()
+        )
+    except Exception:  # pragma: no cover - defensive: feedback is not the grade
+        logger.exception("journey_conversation: errata unreadable for self-repair")
+        return []
+
+
+def _repairable(error: UserError) -> tuple[str, str] | None:
+    """``(wrong, correct)`` for an erratum this policy can actually prompt on."""
+
+    wrong = str(error.original_text or "").strip()
+    correct = str(error.correction or "").strip()
+    if not wrong or not correct:
+        return None
+    folded_wrong, folded_correct = fold_for_comparison(wrong), fold_for_comparison(correct)
+    if not folded_wrong or folded_wrong == folded_correct:
+        # Folding drops accents, so a purely accentual erratum (« a » → « à »)
+        # is invisible to this detector. Saying nothing is better than asking a
+        # question whose two answers read identically.
+        return None
+    if len(folded_wrong) < MIN_RECURRENCE_CHARS:
+        return None
+    return wrong, correct
+
+
+# -- the question ----------------------------------------------------------
+
+def self_repair_question(*, wrong_fr: str, corrected_fr: str, register: str) -> tuple[str, str]:
+    """The character's line, and which move it is.
+
+    A one-word difference becomes a forced choice — « Pardon, un ou une homme ? »
+    — which is the output-pushing move the evidence prefers: the learner has to
+    produce the form, not recognise a correction. The two options are ordered
+    alphabetically, never correct-first, so the shape of the question never
+    leaks the answer. Anything wider than one word becomes a request to say it
+    again: an alternative question listing two whole clauses would be a reading
+    exercise.
+    """
+
+    wrong_tokens, correct_tokens = wrong_fr.split(), corrected_fr.split()
+    if len(wrong_tokens) == len(correct_tokens):
+        differing = [
+            index
+            for index, (left, right) in enumerate(zip(wrong_tokens, correct_tokens, strict=True))
+            if fold_for_comparison(left) != fold_for_comparison(right)
+        ]
+        if len(differing) == 1:
+            index = differing[0]
+            first, second = sorted(
+                (wrong_tokens[index], correct_tokens[index]), key=lambda item: fold_for_comparison(item)
+            )
+            options = " ".join(
+                [*correct_tokens[:index], first, "ou", second, *correct_tokens[index + 1 :]]
+            )
+            return SELF_REPAIR_CHOICE_FR.format(options=options), "choice"
+    key = "tu" if str(register) == "tu" else "vous"
+    return SELF_REPAIR_REPETITION_FR[key], "repetition"
+
+
+def _explicit_note(*, user: User, wrong: str, correct: str, why: str) -> str:
+    """The explicit correction's note: the rule, then the stored reason.
+
+    Explicit means explicit (Lyster & Ranta): the learner is told which form is
+    right, in their own language, not shown a recast and left to notice.
+    """
+
+    language = getattr(user, "native_language", None)
+    note = learner_copy_text("self_repair.explicit_note", language, correct=correct, wrong=wrong)
+    reason = " ".join(str(why or "").split())
+    return f"{note} {reason}".strip() if reason else note
+
+
+# -- what already happened in this scene ------------------------------------
+
+def _character_history_texts(history: list[dict] | None) -> list[str]:
+    """The counterpart's own previous lines, oldest first."""
+
+    texts: list[str] = []
+    for entry in history or []:
+        if not isinstance(entry, dict):
+            continue
+        text = entry.get("character")
+        if text is None and str(entry.get("role") or "").lower() in {"character", "assistant"}:
+            text = entry.get("text")
+        if isinstance(text, str) and text.strip():
+            texts.append(text)
+    return texts
+
+
+def _already_elicited(history: list[dict] | None) -> bool:
+    """Has the character already asked this scene's one question?
+
+    Recomputed from the transcript rather than stored in it: a marker smuggled
+    into a learner-facing line is a marker a learner can read. The test is
+    deliberately broad — any earlier « Pardon… » counts, including one the
+    character came up with on its own — because the error that costs the learner
+    is a *second* interrogation, not a missed one.
+    """
+
+    for line in _character_history_texts(history):
+        folded = fold_for_comparison(line)
+        if not folded:
+            continue
+        if folded.startswith("pardon"):
+            return True
+        for lines in PRAGMATIC_ELICITATION_FR.values():
+            if any(_contains_phrase(line, value) for value in lines.values()):
+                return True
+    return False
+
+
+def _prompted_erratum(
+    *, history: list[dict] | None, errata: list[UserError], register: str
+) -> tuple[UserError, str, str] | None:
+    """The erratum the *immediately previous* character line asked about.
+
+    Regenerated, not remembered: the question is a pure function of the erratum
+    and the scene's register, so the previous line either contains it or this
+    turn is not a repair.
+    """
+
+    lines = _character_history_texts(history)
+    if not lines:
+        return None
+    last = lines[-1]
+    for error in errata:
+        pair = _repairable(error)
+        if pair is None:
+            continue
+        wrong, correct = pair
+        question, _kind = self_repair_question(
+            wrong_fr=wrong, corrected_fr=correct, register=register
+        )
+        if _contains_phrase(last, question):
+            return error, wrong, correct
+    return None
+
+
+# -- the decision -----------------------------------------------------------
+
+def _pragmatic_elicitation(
+    *,
+    assessment: pragmatics.RegisterAssessment,
+    register: str,
+    level_band: str | None,
+    mid_exchange: bool = True,
+) -> tuple[str, str] | None:
+    """WP-33's advisory findings, as one in-character nudge.
+
+    Only where the register itself held: a turn that used *tu* with the
+    landlord has a correction owed, and stacking "and you did not say hello"
+    onto it would be two punishments for one sentence.
+    """
+
+    if not assessment.respected:
+        return None
+    codes = {finding.code for finding in assessment.findings}
+    band = str(level_band or "")
+    for code in _PRAGMATIC_ORDER:
+        if code not in codes:
+            continue
+        allowed = _PRAGMATIC_BANDS.get(code)
+        if allowed is not None and band not in allowed:
+            continue
+        if code in _PRAGMATIC_REQUIRES_EXCHANGE and not mid_exchange:
+            continue
+        lines = PRAGMATIC_ELICITATION_FR[code]
+        return lines["tu" if str(register) == "tu" else "vous"], code
+    return None
+
+
+def counterpart_register_for(
+    *,
+    user: User,
+    scenario: ScenarioBrief,
+    task: ResponseTask,
+    history: list[dict] | None,
+) -> str:
+    """``"tu"`` or ``"vous"`` for the character's own lines, with a safe default."""
+
+    counterpart = expected_counterpart_register(
+        scenario=scenario,
+        task=task,
+        history=history,
+        native_language=getattr(user, "native_language", None),
+    )
+    return str(counterpart.expected or _scene_register(scenario) or "vous")
+
+
+def is_closing_turn(task: ResponseTask, *, turn_index: int, outcome: TaskOutcome | None = None) -> bool:
+    """Does the exchange end with this turn?
+
+    WP-33 shipped ``assess_register(is_closing_turn=…)`` with no caller: nothing
+    knew which turn was the last one. Two ways a turn is the last: the budget is
+    spent, or the objective is met and the scene has nothing left to ask for.
+    """
+
+    if remaining_turns(task, turn_index) <= 0:
+        return True
+    return outcome is TaskOutcome.MET
+
+
+def feedback_decision(
+    db: Session,
+    *,
+    user: User,
+    scenario: ScenarioBrief,
+    task: ResponseTask,
+    text: str,
+    turn_index: int,
+    history: list[dict] | None = None,
+) -> FeedbackDecision:
+    """Prompt, credit, correct explicitly, or stay out of the way.
+
+    Pure: it reads the learner's errata and decides. Nothing is written and no
+    provider is called, so the caller may take the decision *before* paying for
+    a model turn and apply it afterwards.
+    """
+
+    answer = _normalized(text)
+    if not answer:
+        return EMPTY_DECISION
+    register = counterpart_register_for(
+        user=user, scenario=scenario, task=task, history=history
+    )
+    errata = [error for error in _scan_errata(db, user) if _erratum_is_explained(error)]
+
+    # 1. Is this turn the answer to a question the character already asked?
+    prompted = _prompted_erratum(history=history, errata=errata, register=register)
+    if prompted is not None:
+        error, wrong, correct = prompted
+        if _contains_phrase(answer, correct) and not _contains_phrase(answer, wrong):
+            return FeedbackDecision(credit_error_id=str(error.id), reason="repair_succeeded")
+        span = _verbatim_span(answer, wrong)
+        if span is None:
+            # No uptake at all: the learner answered something else. Nothing is
+            # credited and nothing is corrected — a correction whose span the
+            # learner never wrote is exactly what WP-05 exists to refuse.
+            return FeedbackDecision(reason="repair_not_attempted")
+        return FeedbackDecision(
+            explicit=Correction(
+                span_fr=span,
+                corrected_fr=_preserve_case(span, correct),
+                note_native=_explicit_note(
+                    user=user,
+                    wrong=wrong,
+                    correct=correct,
+                    why=str(error.why_wrong or error.context_snippet or ""),
+                ),
+            ),
+            reason="repair_failed",
+        )
+
+    # 2. Bounds, before anything is asked.
+    if remaining_turns(task, turn_index) <= 0:
+        return FeedbackDecision(reason="last_turn")
+    if _already_elicited(history):
+        return FeedbackDecision(reason="already_prompted")
+
+    # 3. Does this turn repeat a mistake the learner has had explained?
+    for error in errata:
+        pair = _repairable(error)
+        if pair is None:
+            continue
+        wrong, correct = pair
+        if not _contains_phrase(answer, wrong) or _contains_phrase(answer, correct):
+            continue
+        span = _verbatim_span(answer, wrong)
+        if span is None:
+            continue
+        question, kind = self_repair_question(
+            wrong_fr=wrong, corrected_fr=correct, register=register
+        )
+        return FeedbackDecision(
+            prompt=SelfRepairPrompt(
+                error_id=str(error.id),
+                span_fr=span,
+                corrected_fr=correct,
+                why_native=str(error.why_wrong or error.context_snippet or ""),
+                question_fr=question,
+                kind=kind,
+            ),
+            reason="recurrence",
+        )
+
+    return EMPTY_DECISION
+
+
+def pragmatic_decision(
+    *,
+    user: User,
+    scenario: ScenarioBrief,
+    task: ResponseTask,
+    text: str,
+    turn_index: int,
+    outcome: TaskOutcome | None,
+    correction: Correction | None,
+    history: list[dict] | None = None,
+    assessment: pragmatics.RegisterAssessment | None = None,
+) -> FeedbackDecision:
+    """WP-33's advisory findings, when they are the one thing left to say.
+
+    Separate from :func:`feedback_decision` because it is decided *after* the
+    turn is graded: it needs to know that no correction was foregrounded, which
+    on the living-story path only the actor's answer can settle. A recurrence
+    always outranks it — being asked twice in one scene is the thing this
+    package promised not to do.
+    """
+
+    answer = _normalized(text)
+    if not answer or correction is not None:
+        return EMPTY_DECISION
+    if remaining_turns(task, turn_index) <= 0 or _already_elicited(history):
+        return EMPTY_DECISION
+    if assessment is None:
+        assessment, _candidates = register_corrections(
+            user=user,
+            text=answer,
+            scenario=scenario,
+            task=task,
+            history=history,
+            is_closing_turn=is_closing_turn(task, turn_index=turn_index, outcome=outcome),
+        )
+    line = _pragmatic_elicitation(
+        assessment=assessment,
+        register=counterpart_register_for(
+            user=user, scenario=scenario, task=task, history=history
+        ),
+        level_band=scenario.level_band,
+        mid_exchange=bool(_learner_history_texts(history)),
+    )
+    if line is None:
+        return EMPTY_DECISION
+    sentence, code = line
+    return FeedbackDecision(
+        pragmatic_fr=sentence, pragmatic_code=code, reason="pragmatic_move_missing"
+    )
+
+
+def record_correct_repair(db: Session, *, user: User, error_id: str) -> bool:
+    """Book one prompted repair against WP-24's lifecycle.
+
+    ``rating=3, repaired=True`` — the pair ``journey_learning.ERROR_EVIDENCE_REVIEW``
+    gives ``PRODUCED_SUPPORTED``, because the learner was *prompted*: the form
+    came back after a question, not on its own. WP-24's "distinct days" rule
+    makes the call safe to repeat — a replayed turn re-schedules the row and
+    cannot advance the mastery streak twice in one sitting.
+    """
+
+    try:
+        reviewed = ErrorMemoryService(db).review_error(
+            user=user, error_id=UUID(str(error_id)), rating=3, repaired=True
+        )
+    except (TypeError, ValueError):
+        return False
+    if reviewed is None:
+        return False
+    db.flush([reviewed])
+    return True
+
+
+def _joined_reply(reply: str | None, line: str | None) -> str | None:
+    if not line:
+        return reply
+    existing = str(reply or "").strip()
+    return f"{existing} {line}".strip() if existing else line
+
+
+def apply_feedback_policy(
+    evaluation: ResponseEvaluation,
+    db: Session,
+    *,
+    user: User,
+    task: ResponseTask,
+    answer: AttemptAnswer,
+    turn_index: int,
+    decision: FeedbackDecision,
+) -> ResponseEvaluation:
+    """Put the decision on the graded turn — or hand the turn straight back.
+
+    Returns the *same object* when nothing fired, which is how "a learner with
+    no open errata is scored exactly as before" is pinned rather than asserted.
+    """
+
+    if decision.is_empty or evaluation.pending:
+        return evaluation
+    if decision.credit_error_id:
+        record_correct_repair(db, user=user, error_id=decision.credit_error_id)
+        return evaluation
+
+    text = _normalized(answer.text)
+    updates: dict[str, Any] = {}
+    if decision.explicit is not None:
+        candidates = [decision.explicit]
+        if evaluation.correction is not None:
+            candidates.append(evaluation.correction)
+        correction, _background = select_foreground_correction(
+            user=user, learner_text=text, candidates=candidates, targets=task.targets
+        )
+        if correction is not None:
+            updates["correction"] = correction
+
+    line = decision.elicitation_fr
+    if line and not decision.extends_turn and not evaluation.needs_repair:
+        # The scene was about to end and this line is not worth stopping it.
+        return replace(evaluation, **updates) if updates else evaluation
+    if line and remaining_turns(task, turn_index) > 0:
+        updates["character_reply_fr"] = _joined_reply(evaluation.character_reply_fr, line)
+        updates["needs_repair"] = True
+        if decision.prompt is not None:
+            # The scene has *not* ended: what the learner meant is still in
+            # question, so the consequence it proposed is not this turn's to
+            # keep. The next turn proposes its own, from the answer. A pragmatic
+            # nudge is the opposite case — the objective was met and the ending
+            # is earned — so that one leaves the consequence exactly where the
+            # grader put it.
+            updates["consequence"] = None
+            # A prompt and a correction in the same breath would hand over the
+            # answer the prompt exists to elicit (the "no-spoil" rule the
+            # Atelier's transform exercises already live under).
+            updates["correction"] = None
+    return replace(evaluation, **updates) if updates else evaluation
+
+
 def evaluate_response(
     db: Session,
     *,
@@ -2225,14 +2920,67 @@ def evaluate_response(
 
     if scenario.story_context:
         from app.services.living_story import evaluate_turn
-        return _with_register_correction(
-            evaluate_turn(db, user=user, scenario=scenario, task=task, answer=answer, turn_index=turn_index, assistance=assistance, history=history),
+        # WP-36: decided *before* the paid turn, so the actor can be told that
+        # the scene does not end here and keep its own state coherent. What the
+        # learner reads is still this module's question, appended to whatever
+        # the character says — a model that ignores the plan cannot swallow it.
+        decision = feedback_decision(
+            db,
+            user=user,
+            scenario=scenario,
+            task=task,
+            text=_normalized(answer.text),
+            turn_index=turn_index,
+            history=history,
+        )
+        evaluation = evaluate_turn(
+            db,
+            user=user,
+            scenario=scenario,
+            task=task,
+            answer=answer,
+            turn_index=turn_index,
+            assistance=assistance,
+            history=history,
+            self_repair=decision.prompt,
+        )
+        evaluation = apply_feedback_policy(
+            evaluation,
+            db,
+            user=user,
+            task=task,
+            answer=answer,
+            turn_index=turn_index,
+            decision=decision,
+        )
+        evaluation = _with_register_correction(
+            evaluation,
             user=user,
             scenario=scenario,
             task=task,
             answer=answer,
             history=history,
         )
+        if decision.is_empty and not evaluation.pending:
+            evaluation = apply_feedback_policy(
+                evaluation,
+                db,
+                user=user,
+                task=task,
+                answer=answer,
+                turn_index=turn_index,
+                decision=pragmatic_decision(
+                    user=user,
+                    scenario=scenario,
+                    task=task,
+                    text=_normalized(answer.text),
+                    turn_index=turn_index,
+                    outcome=evaluation.outcome,
+                    correction=evaluation.correction,
+                    history=history,
+                ),
+            )
+        return evaluation
 
     scenario_key = str(scenario.scenario_key)
 
@@ -2275,7 +3023,12 @@ def evaluate_response(
     # `select_foreground_correction` still puts a correction on the day's own
     # target ahead of it.
     _register_assessment, register_candidates = register_corrections(
-        user=user, text=text, scenario=scenario, task=task, history=history
+        user=user,
+        text=text,
+        scenario=scenario,
+        task=task,
+        history=history,
+        is_closing_turn=is_closing_turn(task, turn_index=turn_index, outcome=outcome),
     )
     candidates = [
         *register_candidates,
@@ -2345,7 +3098,7 @@ def evaluate_response(
         task=task, answer=answer, text=text, assistance=assistance, correction=correction
     )
 
-    return ResponseEvaluation(
+    evaluation = ResponseEvaluation(
         outcome=outcome,
         assistance=assistance,
         observations=observations,
@@ -2356,6 +3109,39 @@ def evaluate_response(
         turn_consumed=not over_budget,
         pending=False,
         failure_reason=provenance,
+    )
+    # WP-36. Taken last, and applied to the finished grading: the policy may
+    # add a question, credit a repair or make a correction explicit, and it may
+    # never change what the turn was worth.
+    decision = feedback_decision(
+        db,
+        user=user,
+        scenario=scenario,
+        task=task,
+        text=text,
+        turn_index=turn_index,
+        history=history,
+    )
+    if decision.is_empty:
+        decision = pragmatic_decision(
+            user=user,
+            scenario=scenario,
+            task=task,
+            text=text,
+            turn_index=turn_index,
+            outcome=outcome,
+            correction=correction,
+            history=history,
+            assessment=_register_assessment,
+        )
+    return apply_feedback_policy(
+        evaluation,
+        db,
+        user=user,
+        task=task,
+        answer=answer,
+        turn_index=turn_index,
+        decision=decision,
     )
 
 
@@ -2487,16 +3273,26 @@ def apply_story_outcome(
 
 __all__ = [
     "CONVERSATION_POLICY_VERSION",
+    "SILENT_ERROR_SOURCES",
     "NEUTRAL_OUTCOMES",
     "REPLY_SOURCE_AUTHORED",
     "REPLY_SOURCE_MODEL",
+    "SELF_REPAIR_POLICY_VERSION",
     "STORY_OUTCOME_EFFECT",
+    "FeedbackDecision",
+    "SelfRepairPrompt",
+    "apply_feedback_policy",
     "apply_story_outcome",
     "build_callback_fact",
     "coerce_outcome_key",
     "default_outcome_key",
     "evaluate_response",
+    "feedback_decision",
+    "is_closing_turn",
     "is_repair_turn",
+    "pragmatic_decision",
+    "record_correct_repair",
+    "self_repair_question",
     "normal_turns",
     "remaining_turns",
     "reply_source",

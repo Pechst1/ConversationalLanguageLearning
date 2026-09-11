@@ -310,6 +310,12 @@ callback_fr is a concise fact, not a copy of dialogue. No predetermined outcome 
 Commitments require exact learner source_quote; only resolve known commitment IDs when
 the exchange actually resolves them. chapter_resolved only if the chapter's question
 has genuinely reached closure. Do not expose rubric or internal reasoning in dialogue.
+turn_plan.closing_turn says whether this reply is the last one the learner gets.
+turn_plan.clarify_form_fr, when it is not null, is a question the app is putting to the
+learner about their own wording: the scene does NOT end on this reply, so set
+needs_clarification true, give no correction and write no ending. Do not ask that
+question yourself, do not answer it for the learner, and do not say which form is right —
+the learner has to produce it.
 Match the character's register to the scene: answer tu with tu, vous with vous. Below
 B1 (story.level A1 or A2) use no coarse or vulgar word (putain, merde, bordel, con...) in
 reply_fr or resolution_fr, whatever the character's speech pattern says.
@@ -879,6 +885,16 @@ def coverage_targets(db: Session, user: User, *, errata: list | None = None) -> 
                 words.add(str(item.display_title))
     except Exception:  # pragma: no cover - defensive: a target list is not a scene
         logger.exception("living_story: due-vocabulary targets unavailable")
+    try:
+        # WP-34 §"hooks owed": a word off the learner's own landlord letter is
+        # the most target-like word there is, and until now the guard counted it
+        # as an accident — the one unknown word the scene is *least* entitled to
+        # generate away.
+        from app.services.intake import learner_sourced_targets
+
+        words.update(learner_sourced_targets(db, user))
+    except Exception:  # pragma: no cover - defensive: a target list is not a scene
+        logger.exception("living_story: learner-sourced targets unavailable")
     return frozenset(words)
 
 
@@ -1717,7 +1733,7 @@ def bind_journey(
     )
 
 
-def _turn_payload(db, user, scenario, task, answer, history, turn_index):
+def _turn_payload(db, user, scenario, task, answer, history, turn_index, self_repair=None):
     context = story_context(db, user)
     if context["thread_id"] != scenario.serial_thread_id:
         raise StoryUnavailable("story_thread_changed")
@@ -1751,6 +1767,7 @@ def _turn_payload(db, user, scenario, task, answer, history, turn_index):
     context["relationships"] = {
         scenario.character_id: context["relationships"].get(scenario.character_id, {})
     }
+    turns_left = max(0, task.max_turns - turn_index)
     return {
         # Filtered even though `story_context` builds no lexicon: the actor's ignorance
         # of the learner's vocabulary is a property, not an accident of where the
@@ -1760,9 +1777,18 @@ def _turn_payload(db, user, scenario, task, answer, history, turn_index):
         "rubric": task.rubric_native,
         "history": history or [],
         "learner_text": answer.text,
-        "turns_left": max(0, task.max_turns - turn_index),
+        "turns_left": turns_left,
         "targets": [target.as_public() for target in task.targets],
         "assistance": "recorded_by_server",
+        # WP-36. Two facts about *this* turn, both decided before the call:
+        # whether it is the last one, and whether the app is going to ask the
+        # learner about their own wording before the scene may end. The question
+        # itself is deterministic and is appended afterwards, so an actor that
+        # ignores the plan costs the scene its coherence, never its pedagogy.
+        "turn_plan": {
+            "closing_turn": turns_left <= 0,
+            "clarify_form_fr": self_repair.question_fr if self_repair is not None else None,
+        },
     }
 
 
@@ -1920,16 +1946,24 @@ def evaluate_turn(
     turn_index: int,
     assistance: AssistanceLevel,
     history=None,
+    self_repair=None,
 ) -> ResponseEvaluation:
     try:
         if answer.is_blank:
             raise StoryUnavailable("empty_answer")
-        payload = _turn_payload(db, user, scenario, task, answer, history, turn_index)
+        payload = _turn_payload(
+            db, user, scenario, task, answer, history, turn_index, self_repair=self_repair
+        )
         payload["assistance"] = str(assistance)
         turn, usage = _approved(
             ACTOR, payload, SemanticTurn, lambda t: _validate_turn(t, payload), db=db, user=user
         )
         needs_repair = turn.needs_clarification and turn_index < task.max_turns
+        if self_repair is not None and turn_index < task.max_turns:
+            # WP-36: the app is asking the learner about their own wording, so
+            # this reply cannot be the ending — whatever the actor decided. The
+            # ending is written on the turn that answers the question.
+            needs_repair = True
         # An exhausted clarification must still have an honest AI-written ending.
         if not needs_repair and (not turn.resolution_fr or not turn.summary_native):
             raise StoryUnavailable(
