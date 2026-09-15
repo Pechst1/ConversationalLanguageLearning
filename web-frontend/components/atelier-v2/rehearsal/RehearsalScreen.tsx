@@ -18,6 +18,12 @@
  *  3. **The debrief is the point.** The rehearsal result is one modest line; the
  *     screen that matters is «Comment ça s'est passé ?», and its three answers
  *     are equally sized because "pas encore" is information, not a failure.
+ *
+ * WP-45 redraws it on `docs/design-reference/nouvelles-pages-2026-09-15/`
+ * `Repetition.dc.html`: every state is a body plus a screen foot, so the one
+ * primary action is the last thing in the flow and sits above the phone tab bar
+ * rather than under it (WP-39's CTA finding). The DOM order is pinned by
+ * `rehearsal.test.js`.
  */
 
 import React from 'react';
@@ -59,6 +65,24 @@ export type RehearsalScreenProps = {
   onAbandon: (rehearsalId: string) => void;
   onLeave: () => void;
 };
+
+/** The screen's scaffold, on Repetition.dc.html and the canvas note
+ *  «note-pied»: a body that carries the reading and a foot that carries the
+ *  actions. The foot is the *last thing in the flow*, a sibling after the body
+ *  — not a bar floating over the tab bar — so at 390x844 the primary action
+ *  sits above the four tabs instead of under them (WP-39's CTA finding).
+ *
+ *  TODO(WP-43): swap the wrapper for the shared `ScreenFoot` once it lands; the
+ *  class it wraps, `.av2-screen__foot`, is already the one that component
+ *  carries. */
+function Frame({ children, foot }: { children: React.ReactNode; foot?: React.ReactNode }) {
+  return (
+    <>
+      <div className="av2-screen__body rp-body">{children}</div>
+      {foot ? <div className="av2-screen__foot rp-foot">{foot}</div> : null}
+    </>
+  );
+}
 
 function Transcript({ rehearsal }: { rehearsal: RehearsalView }) {
   const opening = rehearsal.scene?.opening_line_fr ?? '';
@@ -138,41 +162,45 @@ export function RehearsalScreen(props: RehearsalScreenProps) {
 
   if (phase.kind === 'loading') {
     return (
-      <>
+      <Frame>
         <Skeleton />
         <Skeleton />
-      </>
+      </Frame>
     );
   }
 
   if (phase.kind === 'load_failed') {
     return (
-      <>
+      <Frame
+        foot={
+          <Action tone="primary" onClick={props.onLeave}>
+            Revenir à l’Atelier
+          </Action>
+        }
+      >
         <span className="av2-label">L’Atelier · Répétition</span>
         <h1 className="av2-headline av2-headline--screen">Page indisponible</h1>
         <p className="rp-lead">{phase.message}</p>
-        <div className="rp-spacer" aria-hidden="true" />
-        <Action tone="primary" onClick={props.onLeave}>
-          Revenir à l’Atelier
-        </Action>
-      </>
+      </Frame>
     );
   }
 
   if (phase.kind === 'disabled') {
     return (
-      <>
+      <Frame
+        foot={
+          <Action tone="primary" onClick={props.onLeave}>
+            Revenir à l’Atelier
+          </Action>
+        }
+      >
         <span className="av2-label">L’Atelier · Répétition</span>
         <h1 className="av2-headline av2-headline--screen">Répétitions désactivées</h1>
         <p className="rp-lead">
           Les répétitions ne sont pas ouvertes en ce moment. Rien n’est perdu : vos séances
           continuent normalement.
         </p>
-        <div className="rp-spacer" aria-hidden="true" />
-        <Action tone="primary" onClick={props.onLeave}>
-          Revenir à l’Atelier
-        </Action>
-      </>
+      </Frame>
     );
   }
 
@@ -180,7 +208,31 @@ export function RehearsalScreen(props: RehearsalScreenProps) {
   if (phase.kind === 'declare' || phase.kind === 'capped') {
     const capped = phase.kind === 'capped';
     return (
-      <>
+      <Frame
+        foot={
+          <>
+            {capped ? (
+              <Action tone="primary" onClick={props.onLeave}>
+                Revenir à l’Atelier
+              </Action>
+            ) : (
+              <Action
+                tone="primary"
+                pending={pending}
+                pendingLabel="Préparation…"
+                disabled={!declaration.trim()}
+                onClick={() => props.onDeclare(declaration.trim())}
+                iconAfter={<ArrowRightIcon size={14} />}
+              >
+                Préparer la répétition
+              </Action>
+            )}
+            <button type="button" className="av2-btn av2-btn--quiet" onClick={props.onLeave}>
+              Plus tard
+            </button>
+          </>
+        }
+      >
         <span className="av2-label">L’Atelier · Répétition</span>
         <h1 className="av2-headline av2-headline--screen">Répétez une vraie situation</h1>
         <p className="rp-lead">
@@ -188,15 +240,22 @@ export function RehearsalScreen(props: RehearsalScreenProps) {
           faisons une scène à répéter une fois, puis nous vous demanderons comment ça s’est
           passé pour de vrai.
         </p>
-        {!capped &&
-          textAnswerField({
-            label: 'Ce qui vous attend',
-            value: declaration,
-            rows: 4,
-            disabled: pending,
-            placeholder: 'Appeler le propriétaire pour le chauffage, mardi…',
-            onChange: setDeclaration,
-          })}
+        {!capped && (
+          // The artboard draws this one field taller than the system default —
+          // 120px — because what the learner writes here is the whole input to
+          // the rehearsal. The control itself is the shared `av2-field`; only
+          // its height is page-scoped.
+          <div className="rp-declare">
+            {textAnswerField({
+              label: 'Ce qui vous attend',
+              value: declaration,
+              rows: 4,
+              disabled: pending,
+              placeholder: 'Appeler le propriétaire pour le chauffage, mardi…',
+              onChange: setDeclaration,
+            })}
+          </div>
+        )}
         <Surface tone="outline">
           <p className="rp-fine">
             {capSentence(envelope!.cap)}
@@ -211,27 +270,7 @@ export function RehearsalScreen(props: RehearsalScreenProps) {
           </Surface>
         )}
         {alert}
-        <div className="rp-spacer" aria-hidden="true" />
-        {capped ? (
-          <Action tone="primary" onClick={props.onLeave}>
-            Revenir à l’Atelier
-          </Action>
-        ) : (
-          <Action
-            tone="primary"
-            pending={pending}
-            pendingLabel="Préparation…"
-            disabled={!declaration.trim()}
-            onClick={() => props.onDeclare(declaration.trim())}
-            iconAfter={<ArrowRightIcon size={14} />}
-          >
-            Préparer la répétition
-          </Action>
-        )}
-        <button type="button" className="av2-btn av2-btn--quiet" onClick={props.onLeave}>
-          Plus tard
-        </button>
-      </>
+      </Frame>
     );
   }
 
@@ -239,7 +278,27 @@ export function RehearsalScreen(props: RehearsalScreenProps) {
   if (phase.kind === 'not_prepared') {
     const rehearsal = phase.rehearsal;
     return (
-      <>
+      <Frame
+        foot={
+          <>
+            <Action
+              tone="primary"
+              pending={pending}
+              pendingLabel="Nouvelle tentative…"
+              onClick={() => props.onPrepare(rehearsal.id)}
+            >
+              Réessayer
+            </Action>
+            <button
+              type="button"
+              className="av2-btn av2-btn--quiet"
+              onClick={() => props.onAbandon(rehearsal.id)}
+            >
+              Abandonner cette répétition
+            </button>
+          </>
+        }
+      >
         <span className="av2-label">L’Atelier · Répétition</span>
         <h1 className="av2-headline av2-headline--screen">Répétition non préparée</h1>
         <p className="rp-lead">
@@ -251,23 +310,7 @@ export function RehearsalScreen(props: RehearsalScreenProps) {
           <p className="rp-lead">{rehearsal.declaration}</p>
         </Surface>
         {alert}
-        <div className="rp-spacer" aria-hidden="true" />
-        <Action
-          tone="primary"
-          pending={pending}
-          pendingLabel="Nouvelle tentative…"
-          onClick={() => props.onPrepare(rehearsal.id)}
-        >
-          Réessayer
-        </Action>
-        <button
-          type="button"
-          className="av2-btn av2-btn--quiet"
-          onClick={() => props.onAbandon(rehearsal.id)}
-        >
-          Abandonner cette répétition
-        </button>
-      </>
+      </Frame>
     );
   }
 
@@ -286,7 +329,32 @@ export function RehearsalScreen(props: RehearsalScreenProps) {
             : ('pending' as const),
     }));
     return (
-      <>
+      <Frame
+        foot={
+          <>
+            <Action
+              tone="primary"
+              pending={pending}
+              pendingLabel="Envoi…"
+              disabled={!answer.trim()}
+              onClick={() => {
+                props.onSendTurn(rehearsal.id, answer.trim(), rehearsal.turns.length);
+                setAnswer('');
+              }}
+              iconAfter={<ArrowRightIcon size={14} />}
+            >
+              Répondre
+            </Action>
+            <button
+              type="button"
+              className="av2-btn av2-btn--quiet"
+              onClick={() => props.onAbandon(rehearsal.id)}
+            >
+              Arrêter la répétition
+            </button>
+          </>
+        }
+      >
         <span className="av2-label">Répétition · {scene?.place_fr || 'votre situation'}</span>
         <StepProgress
           steps={steps}
@@ -333,28 +401,7 @@ export function RehearsalScreen(props: RehearsalScreenProps) {
           </button>
         )}
         {alert}
-        <div className="rp-spacer" aria-hidden="true" />
-        <Action
-          tone="primary"
-          pending={pending}
-          pendingLabel="Envoi…"
-          disabled={!answer.trim()}
-          onClick={() => {
-            props.onSendTurn(rehearsal.id, answer.trim(), rehearsal.turns.length);
-            setAnswer('');
-          }}
-          iconAfter={<ArrowRightIcon size={14} />}
-        >
-          Répondre
-        </Action>
-        <button
-          type="button"
-          className="av2-btn av2-btn--quiet"
-          onClick={() => props.onAbandon(rehearsal.id)}
-        >
-          Arrêter la répétition
-        </button>
-      </>
+      </Frame>
     );
   }
 
@@ -362,7 +409,13 @@ export function RehearsalScreen(props: RehearsalScreenProps) {
   if (phase.kind === 'waiting') {
     const rehearsal = phase.rehearsal;
     return (
-      <>
+      <Frame
+        foot={
+          <Action tone="primary" onClick={props.onLeave}>
+            Revenir à l’Atelier
+          </Action>
+        }
+      >
         <span className="av2-label">Répétition · terminée</span>
         <h1 className="av2-headline av2-headline--screen">À vous, pour de vrai</h1>
         <p className="rp-lead">{resultSentence(rehearsal)}</p>
@@ -382,11 +435,7 @@ export function RehearsalScreen(props: RehearsalScreenProps) {
           </p>
         </Surface>
         {alert}
-        <div className="rp-spacer" aria-hidden="true" />
-        <Action tone="primary" onClick={props.onLeave}>
-          Revenir à l’Atelier
-        </Action>
-      </>
+      </Frame>
     );
   }
 
@@ -394,7 +443,25 @@ export function RehearsalScreen(props: RehearsalScreenProps) {
   if (phase.kind === 'debrief') {
     const rehearsal = phase.rehearsal;
     return (
-      <>
+      <Frame
+        foot={
+          <>
+            <Action
+              tone="primary"
+              pending={pending}
+              pendingLabel="Enregistrement…"
+              disabled={!outcome}
+              onClick={() => outcome && props.onDebrief(rehearsal.id, outcome, freeLine.trim())}
+              iconAfter={<ArrowRightIcon size={14} />}
+            >
+              Enregistrer le bilan
+            </Action>
+            <button type="button" className="av2-btn av2-btn--quiet" onClick={props.onLeave}>
+              Pas maintenant
+            </button>
+          </>
+        }
+      >
         <span className="av2-label">Répétition · bilan</span>
         <h1 className="av2-headline av2-headline--screen">Comment ça s’est passé ?</h1>
         <SituationCard rehearsal={rehearsal} />
@@ -423,21 +490,7 @@ export function RehearsalScreen(props: RehearsalScreenProps) {
         })}
         <p className="rp-fine">Cette phrase-là sera corrigée. Le reste ne l’est pas.</p>
         {alert}
-        <div className="rp-spacer" aria-hidden="true" />
-        <Action
-          tone="primary"
-          pending={pending}
-          pendingLabel="Enregistrement…"
-          disabled={!outcome}
-          onClick={() => outcome && props.onDebrief(rehearsal.id, outcome, freeLine.trim())}
-          iconAfter={<ArrowRightIcon size={14} />}
-        >
-          Enregistrer le bilan
-        </Action>
-        <button type="button" className="av2-btn av2-btn--quiet" onClick={props.onLeave}>
-          Pas maintenant
-        </button>
-      </>
+      </Frame>
     );
   }
 
@@ -446,7 +499,13 @@ export function RehearsalScreen(props: RehearsalScreenProps) {
   const debrief = rehearsal.debrief;
   const done = rehearsal.outcome === 'done';
   return (
-    <>
+    <Frame
+      foot={
+          <Action tone="primary" onClick={props.onLeave}>
+            Revenir à l’Atelier
+          </Action>
+      }
+    >
       <span className="av2-label">Répétition · bilan enregistré</span>
       <h1 className="av2-headline av2-headline--screen">
         {done ? 'Vous l’avez fait' : 'C’est noté'}
@@ -478,11 +537,7 @@ export function RehearsalScreen(props: RehearsalScreenProps) {
         </Surface>
       )}
       {alert}
-      <div className="rp-spacer" aria-hidden="true" />
-      <Action tone="primary" onClick={props.onLeave}>
-        Revenir à l’Atelier
-      </Action>
-    </>
+    </Frame>
   );
 }
 

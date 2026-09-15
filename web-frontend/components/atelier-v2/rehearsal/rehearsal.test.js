@@ -280,4 +280,49 @@ test('every state offers exactly one primary action', () => {
   );
 });
 
+// 11. WP-45 — the screen foot, on `Repetition.dc.html` + canvas note
+//     «note-pied». At 390x844 the four-tab bar is fixed, so an action that is
+//     not *after* the body in the DOM ends up under it.
+test('every state carries its actions in a foot below the body', () => {
+  const screen = fs.readFileSync(path.join(HERE, 'RehearsalScreen.tsx'), 'utf8');
+  const page = fs.readFileSync(path.join(WEB_ROOT, 'pages/repetition.tsx'), 'utf8');
+
+  const body = screen.indexOf('className="av2-screen__body rp-body"');
+  const foot = screen.indexOf('className="av2-screen__foot rp-foot"');
+  assert.ok(body > -1 && foot > -1, 'the scaffold is the av2 screen body + foot');
+  assert.ok(body < foot, 'the foot comes after the body in the DOM');
+
+  // Every state hands its actions to the frame; the old in-flow spacer is gone.
+  assert.ok(!screen.includes('rp-spacer'), 'no spacer stands in for a foot');
+  // Nine states, nine frames. A state that returned a bare fragment would be a
+  // state whose action is back in the body, under the tab bar.
+  assert.equal((screen.match(/<\/Frame>/g) || []).length, 9, 'every state is framed');
+  assert.ok(
+    !/return \(\n\s*<>\n/.test(screen.slice(screen.indexOf('export function RehearsalScreen'))),
+    'no state returns a bare fragment',
+  );
+
+  // The page reserves the tab bar's height and hands the inset back once.
+  assert.ok(page.includes('@media (max-width: 760px)'), 'the phone breakpoint is handled');
+  assert.ok(
+    page.includes('padding-bottom: var(--phone-bottom-nav-space, 0px);'),
+    'the screen reserves the tab bar height',
+  );
+  assert.ok(page.includes('--av2-safe-bottom: 0px;'), 'the foot does not add a second inset');
+});
+
+// 12. WP-45 — «Ce qui vous attend» is the artboard's taller field, and it is
+//     the shared av2 control rather than a second field in the system.
+test('the declaration field is the av2 field, drawn 120px tall', () => {
+  const screen = fs.readFileSync(path.join(HERE, 'RehearsalScreen.tsx'), 'utf8');
+  const page = fs.readFileSync(path.join(WEB_ROOT, 'pages/repetition.tsx'), 'utf8');
+  assert.ok(screen.includes("label: 'Ce qui vous attend'"), 'the field is labelled');
+  assert.ok(screen.includes('className="rp-declare"'), 'the field carries the page hook');
+  assert.match(
+    page,
+    /\.av2 \.rp-declare \.av2-field__control \{\s*min-height: 120px;/,
+    'the design height is 120px on the shared control',
+  );
+});
+
 console.log(`rehearsal-state: ${passed} tests passed`);

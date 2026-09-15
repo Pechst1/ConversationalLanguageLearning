@@ -10,6 +10,10 @@
  * day-before push are written out as hooks in
  * `docs/implementation/atelier-v2/WP-31-REHEARSAL.md`; their files are leased
  * elsewhere, so this page is deliberately reachable without them.
+ *
+ * WP-45 puts it on `docs/design-reference/nouvelles-pages-2026-09-15/`
+ * `Repetition.dc.html`: the shell is the av2 screen scaffold, and the actions
+ * live in a foot below the body rather than in a bar over the tab bar.
  */
 
 import React from 'react';
@@ -81,25 +85,23 @@ export default function RepetitionPage() {
       <Head>
         <title>Répétition · L’Atelier</title>
       </Head>
-      <AtelierV2Root as="main" className="rp-screen" aria-label="Répétition">
-        <div className="rp-screen__column">
-          <RehearsalScreen
-            envelope={envelope}
-            loading={loading}
-            error={error}
-            pending={pending}
-            failure={failure}
-            onDeclare={(declaration) => void run(() => api.declareRehearsal(declaration))}
-            onPrepare={(id) => void run(() => api.prepareRehearsal(id))}
-            onRevealPhrases={(id) => void run(() => api.revealRehearsalPhrases(id))}
-            onSendTurn={(id, text, index) => void run(() => api.sendRehearsalTurn(id, text, index))}
-            onDebrief={(id, outcome: DebriefOutcome, line) =>
-              void run(() => api.debriefRehearsal(id, outcome, line))
-            }
-            onAbandon={(id) => void run(() => api.abandonRehearsal(id))}
-            onLeave={leave}
-          />
-        </div>
+      <AtelierV2Root as="main" className="av2-screen rp-screen" aria-label="Répétition">
+        <RehearsalScreen
+          envelope={envelope}
+          loading={loading}
+          error={error}
+          pending={pending}
+          failure={failure}
+          onDeclare={(declaration) => void run(() => api.declareRehearsal(declaration))}
+          onPrepare={(id) => void run(() => api.prepareRehearsal(id))}
+          onRevealPhrases={(id) => void run(() => api.revealRehearsalPhrases(id))}
+          onSendTurn={(id, text, index) => void run(() => api.sendRehearsalTurn(id, text, index))}
+          onDebrief={(id, outcome: DebriefOutcome, line) =>
+            void run(() => api.debriefRehearsal(id, outcome, line))
+          }
+          onAbandon={(id) => void run(() => api.abandonRehearsal(id))}
+          onLeave={leave}
+        />
         <RehearsalStyles />
       </AtelierV2Root>
     </>
@@ -109,27 +111,61 @@ export default function RepetitionPage() {
 function RehearsalStyles() {
   return (
     <style jsx global>{`
+      /* The screen scaffold, on Repetition.dc.html. A column that fills the
+         shell, a body that carries the reading, and a foot that is the last
+         thing in the flow rather than a bar floating over the tab bar. */
       .av2.rp-screen {
-        display: flex;
-        min-height: 100dvh;
-        justify-content: center;
-        padding: calc(20px + env(safe-area-inset-top, 0px)) 18px
-          calc(20px + env(safe-area-inset-bottom, 0px));
-        background: var(--av2-paper);
-      }
-      .av2 .rp-screen__column {
         display: flex;
         flex: 1 1 auto;
         flex-direction: column;
-        gap: 14px;
-        max-width: 460px;
+        min-height: 100dvh;
         min-width: 0;
+        background: var(--av2-paper);
+      }
+      /* Canvas note «note-pied»: the action does not hide under the tab bar.
+         Below 760px the shell draws a fixed four-tab bar, so the screen
+         reserves its height; the bar owns the safe-area inset there, and the
+         foot gives its own back rather than adding a second one. */
+      @media (max-width: 760px) {
+        .av2.rp-screen {
+          padding-bottom: var(--phone-bottom-nav-space, 0px);
+        }
+        .av2 .rp-foot {
+          --av2-safe-bottom: 0px;
+        }
+      }
+      .av2 .rp-body {
+        flex: 1 1 auto;
+        gap: 16px; /* design 16px between kicker, headline, body, field, note */
+        width: 100%;
+        max-width: 460px;
+        margin: 0 auto;
+        padding-top: calc(24px + env(safe-area-inset-top, 0px));
+        padding-bottom: 20px;
+      }
+      .av2 .rp-foot {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 4px; /* design 4px between the primary and the quiet action */
+      }
+      .av2 .rp-foot > * {
+        width: 100%;
+        max-width: 460px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+      /* «Ce qui vous attend» — the one field the artboard draws taller than the
+         system default. Everything else about it (16px, card ground, radius 16,
+         the 12px label above) is the shared av2 field. */
+      .av2 .rp-declare .av2-field__control {
+        min-height: 120px;
       }
       .av2 .rp-lead {
         margin: 0;
-        font-size: var(--av2-t-body);
-        line-height: 1.5;
-        color: var(--av2-ink);
+        font-size: var(--av2-t-body); /* design 15px */
+        line-height: 1.45;
+        color: var(--av2-ink-2);
       }
       .av2 .rp-fine {
         margin: 0;
@@ -141,12 +177,6 @@ function RehearsalStyles() {
         margin: 0;
         font-size: var(--av2-t-body);
         line-height: 1.45;
-      }
-      /* Keeps the actions at the foot of the flow rather than pinning them, so a
-         software keyboard can never cover the only way forward. */
-      .av2 .rp-spacer {
-        flex: 1 1 auto;
-        min-height: 12px;
       }
       .av2 .rp-facts,
       .av2 .rp-phrases,
