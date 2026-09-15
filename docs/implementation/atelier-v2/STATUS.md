@@ -1732,3 +1732,18 @@ WP-43 Home card + shell foot + journey-shell chrome («Schritt 1 von 3»,
 «Hier aufhören» still German) — not started; the dev server must be
 restarted after `next build` (shared `.next`), and the backend after any
 endpoint change.
+
+## 2026-09-15 (later) — WP-43 by hand, WP-45 closed
+
+Subagents kept stalling (WP-43 twice before editing, WP-45 twice mid-page), so
+the integration owner did **WP-43** directly ([WP-43-HOME.md](WP-43-HOME.md),
+`50514cc`): French chrome keys for every control language, the journey card's
+one red action under the card, no empty art plate, no second episode card, the
+route shell reserving the tab bar once, `ScreenFoot` in the flow, the feedback
+launcher moved into Réglages on phones, and Home down to **9 requests per load**
+from ~130 (`lib/once-per-load.ts`). WP-45's verified leftovers landed as
+`2c1a185` (placement/répétition stop reserving the bar themselves; Courrier
+header deduped). Walked on the fake harness at 390 pt light + dark. Still open
+from the canvas: the journal tab's «Journal» pill and its +1-day entry screen,
+and the documents artefact card as drawn (`Documents.dc.html`); the reader
+variant (bubbles vs lines) remains the owner's call, one constant away.
