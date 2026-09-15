@@ -302,13 +302,20 @@ test('every state carries its actions in a foot below the body', () => {
     'no state returns a bare fragment',
   );
 
-  // The page reserves the tab bar's height and hands the inset back once.
+  // Walked in the pane at 390x844: the clearance comes from the page frame this
+  // route is mounted in, which already ends 96px above the viewport floor. The
+  // screen must not reserve the bar a second time — that pushed the foot back
+  // under it — and the foot gives back its own inset, which the bar owns.
   assert.ok(page.includes('@media (max-width: 760px)'), 'the phone breakpoint is handled');
   assert.ok(
-    page.includes('padding-bottom: var(--phone-bottom-nav-space, 0px);'),
-    'the screen reserves the tab bar height',
+    !page.includes('padding-bottom: var(--phone-bottom-nav-space'),
+    'the screen must not reserve the tab bar height a second time',
   );
   assert.ok(page.includes('--av2-safe-bottom: 0px;'), 'the foot does not add a second inset');
+  // Sized by its parent, never by the viewport: 100dvh is taller than the space
+  // left under the masthead, which is what pushed the foot below the fold.
+  assert.ok(page.includes('min-height: 100%;'), 'the screen is sized by its parent');
+  assert.ok(!page.includes('min-height: 100dvh'), 'no viewport-height screen');
 });
 
 // 12. WP-45 — «Ce qui vous attend» is the artboard's taller field, and it is

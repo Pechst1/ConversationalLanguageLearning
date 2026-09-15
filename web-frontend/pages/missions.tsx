@@ -9,6 +9,7 @@ import { useLearnerLanguage } from '@/lib/learner-language';
 import PhoneProductNav from '@/components/layout/PhoneProductNav';
 import { LogoToken } from '@/components/ui/Seal';
 import {
+  ArrowLeftIcon,
   AtelierV2Root,
   Chip,
   IconAction,
@@ -894,11 +895,21 @@ export default function MissionsPage() {
              existed and was imported by no page: the components, the client
              calls and 82 backend tests. */
           <div className="cr-page">
-            <CrDesk
-              name="Vos documents"
-              line="Votre français, apporté par vous."
-              onBack={returnToAtelierHome}
-            />
+            {/* WP-45: the desk's name and line said «Vos documents» twice, once
+                here and once in the head the intake now carries from
+                `Documents.dc.html`. What is left is the part the artboard does
+                not draw and the screen still needs: the way back. */}
+            <p className="cr-desk cr-desk--back">
+              <Link
+                className="av2-icon-btn cr-back"
+                href="/atelier"
+                onClick={returnToAtelierHome}
+                aria-label="Retour à l’Atelier"
+                title="Retour à l’Atelier"
+              >
+                <ArrowLeftIcon size={20} />
+              </Link>
+            </p>
             {intakeLoading && !intake ? (
               <div className="cr-skel" aria-busy="true" aria-live="polite">
                 <span className="av2-sr">Chargement de vos documents</span>

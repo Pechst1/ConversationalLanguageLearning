@@ -1098,6 +1098,9 @@ export function CourrierStyles() {
         .av2 .cr-intake-ways { grid-template-columns: minmax(0, 1fr); }
       }
       .av2 .cr-intake-lab { font-size: var(--av2-t-meta); font-weight: 700; color: var(--av2-muted); }
+      /* The intake's header is the head inside the form now; what is left of
+         the desk on that screen is the way back. */
+      .av2 .cr-desk--back { margin: 0; display: flex; align-items: center; min-height: var(--av2-tap); }
       .av2 .cr-intake-well {
         width: 100%; min-height: 108px; resize: vertical; box-sizing: border-box;
         padding: 12px 14px; border: 0; border-radius: var(--av2-r-tile);

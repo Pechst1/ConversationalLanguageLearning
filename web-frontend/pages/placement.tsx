@@ -392,18 +392,22 @@ function PlacementStyles() {
         display: flex;
         flex: 1 1 auto;
         flex-direction: column;
-        min-height: 100dvh;
+        /* 100%, not 100dvh: the masthead sits above this element, so a full
+           viewport height here pushes the foot below the fold and back under
+           the tab bar — which is the bug this screen exists to fix. The flex
+           parent .app-route-shell already hands it the space that is left. */
+        min-height: 100%;
         min-width: 0;
         background: var(--av2-paper);
       }
       /* Canvas note «note-pied»: the action does not hide under the tab bar.
-         Below 760px the shell draws a fixed four-tab bar, so the screen
-         reserves its height; the bar owns the safe-area inset there, and the
-         foot gives its own back rather than adding a second one. */
+         Below 760px the shell draws a fixed four-tab bar over this route, and
+         the page frame this screen is mounted in already ends 96px above the
+         viewport floor to clear it — measured in the pane at 390x844. So the
+         screen adds no second reservation of its own (that is what pushed the
+         foot back down under the bar), and the foot gives back its safe-area
+         inset, because the bar below it already owns that inset. */
       @media (max-width: 760px) {
-        .av2.pl-screen {
-          padding-bottom: var(--phone-bottom-nav-space, 0px);
-        }
         .av2 .pl-foot {
           --av2-safe-bottom: 0px;
         }

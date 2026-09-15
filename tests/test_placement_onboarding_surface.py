@@ -108,12 +108,22 @@ def test_the_actions_live_in_a_screen_foot_that_follows_the_body():
 
 
 def test_the_foot_clears_the_phone_tab_bar():
+    """Walked in the pane at 390x844: the quiet action ends 48px above the bar.
+
+    The clearance comes from the page frame this route is mounted in, which
+    already ends 96px above the viewport floor. The screen must therefore *not*
+    reserve the bar's height a second time — doing so pushed the foot back down
+    under the bar — and the foot gives back its own safe-area inset, because the
+    bar below it owns that inset.
+    """
     page = _source("pages/placement.tsx")
     assert "@media (max-width: 760px)" in page
-    assert "padding-bottom: var(--phone-bottom-nav-space, 0px);" in page
-    # The tab bar owns the safe-area inset below 760px; the foot gives its own
-    # back so the two are not added together.
+    assert "padding-bottom: var(--phone-bottom-nav-space" not in page
     assert "--av2-safe-bottom: 0px;" in page
+    # And the screen is sized by its parent, never by the viewport: 100dvh here
+    # is taller than the space left under the masthead.
+    assert "min-height: 100%;" in page
+    assert "min-height: 100dvh" not in page
 
 
 def test_the_page_carries_no_hard_coded_colour():
