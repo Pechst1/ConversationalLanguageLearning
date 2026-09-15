@@ -208,3 +208,109 @@ test('every French line is tappable for help, and the panel is announced', () =>
   assert.ok(/aria-label="Aide pour « /.test(markup));
   assert.ok(/role="progressbar"/.test(markup));
 });
+
+// ---------------------------------------------------------------------------
+// WP-44 — the two artboards, and what left the screen with them
+// ---------------------------------------------------------------------------
+
+const storyStages = [
+  {
+    kind: 'panel',
+    key: 'panel:p1',
+    ordinal: 1,
+    panelId: 'p1',
+    panelIndex: 0,
+    title: '',
+    beat: '',
+    imageUrl: '/assets/serial/mistral.jpg',
+    artStatus: 'ready',
+    character: 'gus',
+    lines: [{ key: 'p1-l0', who: 'Augustin', fr: 'Je peux aider.', en: '', character: 'gus' }],
+    caption: 'Augustin sourit en découvrant la scène.',
+    tasks: [],
+  },
+  {
+    kind: 'panel',
+    key: 'panel:p2',
+    ordinal: 2,
+    panelId: 'p2',
+    panelIndex: 1,
+    title: '',
+    beat: '',
+    imageUrl: '/assets/serial/mistral.jpg',
+    artStatus: 'ready',
+    character: 'gus',
+    lines: [
+      { key: 'p2-l0', who: 'Augustin', fr: 'Vingt euros.', en: '', character: 'gus' },
+      { key: 'p2-l1', who: 'Lila', fr: 'Demain matin.', en: '', character: 'lila' },
+    ],
+    caption: 'Le plombier attend.',
+    tasks: [],
+  },
+];
+
+function renderStory(overrides = {}) {
+  return renderToStaticMarkup(React.createElement(FeuilletonReader, {
+    episodeLabel: 'Chapitre 1 · S’installer, avec complications',
+    title: 'Un prêt théâtral',
+    stages: storyStages,
+    index: 0,
+    furthest: 0,
+    onIndexChange: () => {},
+    answers: {},
+    setAnswer: () => {},
+    onSubmit: () => {},
+    submittingTask: null,
+    attemptsByTask: {},
+    submitError: null,
+    liveTaskId: null,
+    onExit: () => {},
+    onComplete: null,
+    filed: false,
+    panelVariant: (stage) => (stage.lines.length === 1 ? 'bubble' : 'line'),
+    ...overrides,
+  }));
+}
+
+test('variant A: a single reply is a bubble on the art, above the narration', () => {
+  const markup = renderStory({ index: 0 });
+  assert.ok(/class="fr-bubble"/.test(markup), 'the bubble is drawn');
+  // TappableFrench splits the line into word buttons, so the words are
+  // asserted one by one rather than as one string.
+  assert.ok(/Augustin/.test(markup));
+  assert.ok(/aider/.test(markup));
+  // the bubble lives inside the plate, not under it
+  const plate = markup.slice(markup.indexOf('class="fr-plate"'));
+  assert.ok(plate.indexOf('fr-bubble') < plate.indexOf('</figure>'), 'the bubble is inside the frame');
+  // narration follows the art as body copy
+  assert.ok(/fr-caption/.test(markup));
+  assert.ok(markup.indexOf('fr-caption') > markup.indexOf('fr-plate'));
+});
+
+test('variant B: two replies are cards under the art, after the narration', () => {
+  const markup = renderStory({ index: 1 });
+  assert.ok(!/class="fr-bubble"/.test(markup), 'no bubble when the panel carries two lines');
+  assert.ok(/fr-speech/.test(markup));
+  assert.ok(markup.indexOf('fr-caption') < markup.indexOf('fr-speech'), 'narration precedes the replies');
+  assert.ok(/euros/.test(markup) && /matin/.test(markup));
+});
+
+test('the story reader is marked as such, and carries the art provenance quietly', () => {
+  const markup = renderStory({ artProvenance: 'setting_reference' });
+  assert.ok(/data-story="1"/.test(markup));
+  assert.ok(/data-art="setting_reference"/.test(markup), 'telemetry can still read where the art came from');
+  assert.ok(!/montre le lieu/.test(markup), 'the learner is told nothing about it');
+});
+
+test('the quiet foot link sits under the nav, and only when it is given', () => {
+  const withLink = renderStory({ footLink: React.createElement('button', { type: 'button' }, 'Écouter d’abord') });
+  assert.ok(/fr-foot-link/.test(withLink));
+  assert.ok(withLink.indexOf('fr-foot-link') > withLink.indexOf('fr-nav-row'), 'under the nav row');
+  assert.ok(!/fr-foot-link/.test(renderStory()));
+});
+
+test('the legacy edition keeps the layout it had', () => {
+  const { markup } = render(capturedScene);
+  assert.ok(!/data-story="1"/.test(markup));
+  assert.ok(!/class="fr-bubble"/.test(markup));
+});

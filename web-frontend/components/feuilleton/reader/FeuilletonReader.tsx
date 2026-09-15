@@ -44,6 +44,7 @@ import {
   taskIsClosed,
   taskPromptLine,
   taskPromptTranslation,
+  type ReaderLine,
   type ReaderStage,
   type ReaderTask,
 } from './panel-model';
@@ -90,6 +91,17 @@ export type FeuilletonReaderProps = {
   renderStageTools?: (stage: ReaderStage) => React.ReactNode;
   /** One small note under a task's prompt — the server's "because" line. */
   taskNote?: (task: ReaderTask) => string;
+  /** WP-44. How each panel is drawn: `bubble` = the reply over the art
+      (artboard A), `line` = the reply in a card under it (artboard B). Absent
+      leaves the legacy layout — art, replies, caption — exactly as it was. */
+  panelVariant?: ((stage: ReaderStage) => 'bubble' | 'line') | null;
+  /** WP-44. One quiet link under the nav, e.g. «Écouter d'abord». */
+  footLink?: React.ReactNode;
+  /** WP-44. Where this episode's art came from, e.g. `setting_reference`.
+      Written to the DOM for telemetry and never shown to the learner: the
+      provenance is the product's business, and the banner that used to state
+      it interrupted every scene with a disclaimer about a picture. */
+  artProvenance?: string | null;
 };
 
 function prefersReducedMotion(): boolean {
@@ -126,6 +138,9 @@ export function FeuilletonReader({
   pageArt,
   renderStageTools,
   taskNote,
+  panelVariant = null,
+  footLink = null,
+  artProvenance = null,
 }: FeuilletonReaderProps) {
   const [help, setHelp] = useState<WordHelpRequest | null>(null);
   const [translated, setTranslated] = useState<Record<string, boolean>>({});
@@ -268,7 +283,13 @@ export function FeuilletonReader({
     /* The av2 root supplies the tokens and the `.av2` ancestor every reader
        rule is written against; the reader itself stays the section. */
     <AtelierV2Root as="div" className="fr-scope">
-    <section className="fr-reader" aria-label="Lecteur du feuilleton" ref={rootRef}>
+    <section
+      className="fr-reader"
+      aria-label="Lecteur du feuilleton"
+      data-story={panelVariant ? '1' : undefined}
+      data-art={artProvenance || undefined}
+      ref={rootRef}
+    >
       <div className="fr-bar">
         <button type="button" className="fr-icon-btn" onClick={onExit} aria-label="Quitter la lecture">
           <CrossIcon size={16} />
@@ -337,6 +358,7 @@ export function FeuilletonReader({
             showTranslation={showTranslation}
             onWord={openHelp}
             pageArt={pageArt}
+            variant={panelVariant ? panelVariant(stage) : null}
           />
         ) : (
           <ResolutionBody stage={stage} />
@@ -471,6 +493,8 @@ export function FeuilletonReader({
           </button>
           )}
         </div>
+
+        {footLink && <div className="fr-foot-link">{footLink}</div>}
       </nav>
 
       <WordHelpSheet request={help} onClose={() => setHelp(null)} />
@@ -479,11 +503,57 @@ export function FeuilletonReader({
   );
 }
 
+/* One reply, as a card. The legacy layout keeps its accent dot; the WP-44
+   artboards print the name alone in the story blue. */
+function SpeechBody({
+  line,
+  stage,
+  showTranslation,
+  onWord,
+  glyph = false,
+}: {
+  line: ReaderLine;
+  stage: Extract<ReaderStage, { kind: 'panel' }>;
+  showTranslation: boolean;
+  onWord: (
+    word: { surface: string; term: string },
+    context: { sentence: string; sentenceEn?: string; character?: string; speaker?: string },
+  ) => void;
+  glyph?: boolean;
+}) {
+  return (
+    <div className="fr-speech" data-char={line.character || stage.character || undefined}>
+      {line.who && (
+        <p className="fr-speaker">
+          {glyph && <span className="glyph" aria-hidden="true" />}
+          {line.who}
+        </p>
+      )}
+      <p className="fr-line" lang="fr">
+        <TappableFrench
+          text={line.fr}
+          idPrefix={line.key}
+          onWord={(word) =>
+            onWord(word, {
+              sentence: line.fr,
+              sentenceEn: line.en,
+              character: line.character || stage.character,
+              speaker: line.who,
+            })
+          }
+        />
+      </p>
+      {showTranslation && line.en && <p className="fr-line-en">{line.en}</p>}
+    </div>
+  );
+}
+
 function PanelBody({
   stage,
   showTranslation,
   onWord,
   pageArt,
+  variant = null,
 }: {
   stage: Extract<ReaderStage, { kind: 'panel' }>;
   showTranslation: boolean;
@@ -492,9 +562,82 @@ function PanelBody({
     context: { sentence: string; sentenceEn?: string; character?: string; speaker?: string },
   ) => void;
   pageArt?: string | null;
+  variant?: 'bubble' | 'line' | null;
 }) {
   const src = resolveMediaUrl(stage.imageUrl);
   const page = pageArt ? resolveMediaUrl(pageArt) : null;
+
+  /* WP-44, artboards A and B. The story reader reads in the order a reader
+     reads: the picture, then what happened, then who said what. The bubble
+     variant moves the single reply onto the picture it belongs to; nothing
+     else about the panel changes, and the words are the same words. */
+  if (variant) {
+    const speech = stage.lines.map((line) => (
+      <SpeechBody
+        key={line.key}
+        line={line}
+        stage={stage}
+        showTranslation={showTranslation}
+        onWord={onWord}
+      />
+    ));
+    const bubbleLine = variant === 'bubble' ? stage.lines[0] : null;
+    return (
+      <>
+        {stage.artStatus === 'ready' && src ? (
+          <figure className="fr-plate" data-variant={variant}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={src} alt={stage.title ? `Planche : ${stage.title}` : ''} />
+            {bubbleLine && (
+              <div
+                className="fr-bubble"
+                data-char={bubbleLine.character || stage.character || undefined}
+              >
+                <p className="fr-speaker">{bubbleLine.who}</p>
+                <p className="fr-line" lang="fr">
+                  <TappableFrench
+                    text={bubbleLine.fr}
+                    idPrefix={bubbleLine.key}
+                    onWord={(word) =>
+                      onWord(word, {
+                        sentence: bubbleLine.fr,
+                        sentenceEn: bubbleLine.en,
+                        character: bubbleLine.character || stage.character,
+                        speaker: bubbleLine.who,
+                      })
+                    }
+                  />
+                </p>
+              </div>
+            )}
+          </figure>
+        ) : null}
+
+        {stage.caption && (
+          <p className="fr-caption">
+            <TappableFrench
+              text={stage.caption}
+              idPrefix={`${stage.key}-cap`}
+              onWord={(word) => onWord(word, { sentence: stage.caption, character: stage.character })}
+            />
+          </p>
+        )}
+
+        {variant === 'bubble'
+          ? stage.lines.slice(1).map((line) => (
+              <SpeechBody
+                key={line.key}
+                line={line}
+                stage={stage}
+                showTranslation={showTranslation}
+                onWord={onWord}
+              />
+            ))
+          : speech}
+      </>
+    );
+  }
+
   return (
     <>
       {stage.artStatus === 'ready' && src ? (
@@ -519,29 +662,14 @@ function PanelBody({
       )}
 
       {stage.lines.map((line) => (
-        <div className="fr-speech" data-char={line.character || stage.character || undefined} key={line.key}>
-          {line.who && (
-            <p className="fr-speaker">
-              <span className="glyph" aria-hidden="true" />
-              {line.who}
-            </p>
-          )}
-          <p className="fr-line">
-            <TappableFrench
-              text={line.fr}
-              idPrefix={line.key}
-              onWord={(word) =>
-                onWord(word, {
-                  sentence: line.fr,
-                  sentenceEn: line.en,
-                  character: line.character || stage.character,
-                  speaker: line.who,
-                })
-              }
-            />
-          </p>
-          {showTranslation && line.en && <p className="fr-line-en">{line.en}</p>}
-        </div>
+        <SpeechBody
+          key={line.key}
+          line={line}
+          stage={stage}
+          showTranslation={showTranslation}
+          onWord={onWord}
+          glyph
+        />
       ))}
 
       {stage.caption && (

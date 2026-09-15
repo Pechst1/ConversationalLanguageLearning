@@ -848,6 +848,131 @@ class SerialThreadService:
             "updated_at": thread.updated_at.isoformat() if thread.updated_at else None,
         }
 
+    # -----------------------------------------------------------------
+    # WP-44 — the Feuilleton tab's season page
+    # -----------------------------------------------------------------
+
+    def season_page(self, user: User) -> dict[str, Any]:
+        """Everything the Feuilleton tab shows, read and never written.
+
+        This is a projection, not a controller. It opens no thread, starts no
+        beat, generates nothing and touches no story state: a learner who taps
+        the tab must not thereby advance their own story, and the season page
+        is exactly the screen someone opens out of curiosity. Where there is
+        nothing yet it says so — the empty state is the honest answer, not a
+        reason to manufacture an episode.
+
+        Numbers are the season's own: the Nth engine scene of this thread is
+        episode N, and the chapter number is how many chapters have been
+        retired plus the one that is open.
+        """
+
+        from app.services.living_story import ENGINE_VERSION_PREFIX, STATE_KEY
+
+        thread = self.db.scalars(
+            select(SerialThread)
+            .where(SerialThread.user_id == user.id, SerialThread.status == "active")
+            .order_by(SerialThread.created_at.desc())
+        ).first()
+        world = thread.world_bible if thread and isinstance(thread.world_bible, dict) else {}
+        state = thread.state if thread and isinstance(thread.state, dict) else {}
+        live = state.get(STATE_KEY) or {}
+        chapter = live.get("chapter") or {}
+
+        query = select(GraphicNovelScene).where(
+            GraphicNovelScene.user_id == user.id,
+            GraphicNovelScene.prompt_version.like(f"{ENGINE_VERSION_PREFIX}%"),
+        )
+        if thread:
+            query = query.where(GraphicNovelScene.serial_thread_id == thread.id)
+        scenes = list(
+            self.db.scalars(
+                query.order_by(GraphicNovelScene.created_at.asc(), GraphicNovelScene.id.asc())
+            )
+        )
+        numbers = {scene.id: index + 1 for index, scene in enumerate(scenes)}
+
+        read = [
+            self._season_episode_payload(scene, world, numbers[scene.id])
+            for scene in reversed(scenes)
+            if scene.status == "completed"
+        ]
+        today = next(
+            (
+                self._season_episode_payload(scene, world, numbers[scene.id])
+                for scene in reversed(scenes)
+                if scene.status not in {"completed", "abandoned", "superseded"}
+            ),
+            None,
+        )
+        commitments = [
+            {"id": str(item.get("id") or ""), "text_fr": str(item.get("text_fr") or "").strip()}
+            for item in (live.get("commitments") or [])
+            if isinstance(item, dict)
+            and item.get("status") == "open"
+            and str(item.get("text_fr") or "").strip()
+        ][:3]
+
+        return {
+            "thread_id": str(thread.id) if thread else None,
+            "season_number": _int_or(world.get("season_number"), 1),
+            "chapter": {
+                "number": len(live.get("resolved_chapter_questions") or []) + 1,
+                "title_fr": str(chapter.get("title_fr") or "").strip(),
+            }
+            if chapter
+            else None,
+            "today": today,
+            "commitments": commitments,
+            "read_episodes": read,
+        }
+
+    def _season_episode_payload(
+        self, scene: GraphicNovelScene, world: dict[str, Any], number: int
+    ) -> dict[str, Any]:
+        """One row of the season, from the scene the learner was actually served."""
+
+        panels = sorted(scene.panels or [], key=lambda item: item.panel_index)
+        art = next((panel.image_url for panel in panels if panel.image_url), None)
+        character = ""
+        for panel in panels:
+            for line in (panel.overlay_payload or {}).get("dialogue", []) or []:
+                identifier = str((line or {}).get("character_id") or "").strip()
+                if not identifier or identifier.lower() in {"toi", "you", "learner", "vous"}:
+                    continue
+                character = self._season_cast_name(world, identifier)
+                break
+            if character:
+                break
+        location_id = str((scene.script_payload or {}).get("location_id") or "").strip()
+        return {
+            "scene_id": str(scene.id),
+            "number": number,
+            "title_fr": scene.title,
+            "brief_fr": scene.brief or "",
+            "image_url": art,
+            "character": character,
+            "location": self._season_location_name(world, location_id),
+            "status": scene.status,
+        }
+
+    @staticmethod
+    def _season_cast_name(world: dict[str, Any], character_id: str) -> str:
+        for member in world.get("cast", []) or []:
+            if isinstance(member, dict) and str(member.get("id") or "") == character_id:
+                return str(member.get("name") or "").strip() or character_id
+        return character_id
+
+    @staticmethod
+    def _season_location_name(world: dict[str, Any], location_id: str) -> str:
+        if not location_id:
+            return ""
+        setting = world.get("setting") if isinstance(world.get("setting"), dict) else {}
+        for place in (setting or {}).get("recurring_locations", []) or []:
+            if isinstance(place, dict) and str(place.get("id") or "") == location_id:
+                return str(place.get("name") or "").strip() or location_id
+        return location_id
+
     def episode_archive(self, thread: SerialThread) -> list[dict[str, Any]]:
         episodes = (
             self.db.query(SerialEpisode)

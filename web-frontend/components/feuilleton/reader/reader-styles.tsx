@@ -534,6 +534,110 @@ export function FeuilletonReaderStyles() {
         outline-offset: 2px;
       }
 
+      /* =====================================================================
+         WP-44 — the story reader on the «nouvelles pages» artboards
+         ([data-story]: only the story-engine reader passes panelVariant;
+         the legacy Feuilleton edition keeps the layout it had.)
+         ===================================================================== */
+      .av2 .fr-reader[data-story] .fr-eyebrow {
+        font-size: 0.75rem;
+        font-weight: 700;
+        line-height: 1.3;
+        color: var(--fr-blue);
+      }
+      .av2 .fr-reader[data-story] .fr-title {
+        font-size: var(--av2-t-screen);
+        line-height: 1;
+      }
+      /* the art sits in a 16 px frame, not the 24 px hero card: the bubble's
+         own corner is 16 px and two radii on one edge read as a mistake */
+      .av2 .fr-reader[data-story] .fr-plate {
+        border-radius: 16px;
+        background: var(--fr-card);
+        aspect-ratio: auto;
+        max-block-size: none;
+      }
+      .av2 .fr-reader[data-story] .fr-plate img {
+        height: 300px;
+        max-height: 40vh;
+      }
+      .av2 .fr-reader[data-story] .fr-plate[data-variant='line'] img { height: 240px; }
+
+      /* variant A — the reply as a bubble over the art. Card ground, the
+         tail corner pointing down-left at the speaker, one 3 px press. */
+      .av2 .fr-bubble {
+        position: absolute;
+        left: 14px;
+        right: 60px;
+        top: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding: 10px 14px 12px;
+        border-radius: 16px 16px 16px 4px;
+        background: var(--fr-card);
+        box-shadow: 0 3px 0 var(--fr-line-2);
+      }
+      .av2 .fr-bubble .fr-speaker {
+        margin: 0;
+        font-size: 0.75rem;
+        font-weight: 700;
+        line-height: 1.3;
+        color: var(--fr-blue);
+      }
+      .av2 .fr-bubble .fr-line {
+        margin: 0;
+        font-family: var(--fr-serif);
+        font-style: italic;
+        font-weight: 500;
+        font-size: 1.0625rem;
+        line-height: 1.35;
+        color: var(--fr-ink);
+      }
+
+      /* variant B — the reply in a card under the art */
+      .av2 .fr-reader[data-story] .fr-speech {
+        border-left: 0;
+        border-radius: 16px;
+        padding: 16px 18px;
+      }
+      .av2 .fr-reader[data-story] .fr-speech .fr-speaker {
+        margin: 0 0 6px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        line-height: 1.3;
+        color: var(--fr-blue);
+      }
+      .av2 .fr-reader[data-story] .fr-speech .fr-line {
+        font-family: var(--fr-serif);
+        font-style: italic;
+        font-weight: 500;
+        font-size: 1.1875rem;
+        line-height: 1.35;
+      }
+      /* narration is body copy under the art, never a caption of a plate */
+      .av2 .fr-reader[data-story] .fr-caption {
+        font-size: 0.9375rem;
+        line-height: 1.45;
+        color: var(--fr-ink-2);
+      }
+
+      /* «Écouter d'abord», quiet, under the nav row */
+      .av2 .fr-foot-link {
+        display: flex;
+        justify-content: center;
+      }
+      .av2 .fr-foot-link .av2-btn,
+      .av2 .fr-foot-link button {
+        min-height: 44px;
+        padding: 8px 12px;
+        color: var(--fr-ink-2);
+        font-size: 0.8125rem;
+        font-weight: 600;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+      }
+
       /* ---- foot navigation: previous · shape tokens · next ---- */
       .av2 .fr-nav {
         position: sticky;

@@ -49,6 +49,12 @@ import {
   resolveStartIndex,
   type ReaderStage,
 } from '@/components/feuilleton/reader';
+import {
+  SeasonPage,
+  getFeuilletonSeason,
+  seasonHasStory,
+  type SeasonPayload,
+} from '@/components/feuilleton/season';
 import { writeLocalDayProgressFlag } from '@/lib/atelier-next';
 import { glossFromMap } from '@/lib/glosses';
 import { panelImageUrl } from '@/lib/graphic-novel-images';
@@ -133,6 +139,9 @@ export default function GraphicNovelPage() {
   // A story-engine episode opened by its scene id. Replay-only here: reading
   // never completes it, and responding goes through the daily journey.
   const [storyEpisode, setStoryEpisode] = useState<StoryEpisode | null>(null);
+  // WP-44. The season, read once per visit. A failed read leaves it null and
+  // the tab falls back to the face it had; it never invents a season.
+  const [season, setSeason] = useState<SeasonPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [submittingTask, setSubmittingTask] = useState<string | null>(null);
@@ -189,6 +198,16 @@ export default function GraphicNovelPage() {
   const pageArt = scene?.script_payload?.render_mode === 'page'
     ? resolveMediaUrl(scene.script_payload?.page_image?.url)
     : null;
+
+  useEffect(() => {
+    let alive = true;
+    void getFeuilletonSeason().then((payload) => {
+      if (alive) setSeason(payload);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const loadInitial = useCallback(async () => {
     setLoading(true);
@@ -660,6 +679,15 @@ export default function GraphicNovelPage() {
     scene && !scene.serial_thread_id && !['writing', 'generating'].includes(scene.status),
   );
   const head = pageHead({ loading, generationFailure, scene, scenePressing, canonicalBeat });
+  /* WP-44. With no episode open, the Feuilleton tab *is* the season page — for
+     every learner whose story the engine manages, including the one who has
+     read nothing yet and gets the honest empty line. The legacy composer face
+     stays for the learners the engine does not manage. */
+  const engineManaged = Boolean(
+    (canonicalBeat as Record<string, any> | null)?.story_engine
+      || canonicalBeat?.status === 'journey_required',
+  );
+  const showSeason = Boolean(season && (seasonHasStory(season) || engineManaged));
 
   return (
     <>
@@ -673,16 +701,25 @@ export default function GraphicNovelPage() {
         <header className="fr-page-head gn-head">
           {/* the one Garamond italic headline on this screen — the reader
               carries its own once it is mounted */}
-          {!readerMounted && (
+          {!readerMounted && !showSeason && (
             <div>
               <div className="k">{head.kicker}</div>
               <h1>{head.title}</h1>
             </div>
           )}
-          <nav className="gn-seg" aria-label="Le Feuilleton">
-            <Link href="/graphic-novel" aria-current="page">L’épisode</Link>
-            <Link href="/serial">La saison</Link>
-            <Link href="/serial/cast">Les personnages</Link>
+          <nav className="gn-seg wp44-season__seg" aria-label="Le Feuilleton">
+            {showSeason ? (
+              <>
+                <Link href="/graphic-novel" aria-current="page">La saison</Link>
+                <Link href="/serial/cast">Les personnages</Link>
+              </>
+            ) : (
+              <>
+                <Link href="/graphic-novel" aria-current="page">L’épisode</Link>
+                <Link href="/serial">La saison</Link>
+                <Link href="/serial/cast">Les personnages</Link>
+              </>
+            )}
           </nav>
           {(showEditionTools || (!scene && !loading)) && (
             <div className="gn-actions" aria-label="Actions de lecture du Feuilleton">
@@ -797,6 +834,8 @@ export default function GraphicNovelPage() {
           </>
         ) : scene ? (
           <EditionWithoutPlates scene={scene} completing={completing} onComplete={completeScene} />
+        ) : showSeason && season ? (
+          <SeasonPage season={season} onOpenSeance={() => { void router.push('/atelier'); }} />
         ) : (
           <EpisodeTabSurface
             canonicalBeat={canonicalBeat}

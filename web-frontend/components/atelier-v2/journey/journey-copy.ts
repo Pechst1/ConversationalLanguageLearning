@@ -130,6 +130,7 @@ export type JourneyCopyKey =
   | 'radio_stage_verifier'
   | 'radio_stage_retenir'
   | 'radio_predire_body'
+  | 'radio_predire_native'
   | 'radio_guess_label'
   | 'radio_guess_selected'
   | 'radio_listen_action'
@@ -265,6 +266,7 @@ const EN: CopyTable = {
   radio_stage_ecouter: 'Listen',
   radio_stage_verifier: 'Check',
   radio_stage_retenir: 'Keep',
+  radio_predire_native: 'You hear the scene first without the text. The text comes afterwards, line by line.',
   radio_predire_body: 'Before you listen: how do you think this ends? There is no penalty for guessing wrong — guessing is what makes the listening work.',
   radio_guess_label: 'Your guess',
   radio_guess_selected: 'chosen',
@@ -400,6 +402,7 @@ const DE: CopyTable = {
   radio_stage_ecouter: 'Hören',
   radio_stage_verifier: 'Prüfen',
   radio_stage_retenir: 'Merken',
+  radio_predire_native: 'Du hörst die Szene zuerst ohne Text. Der Text erscheint danach, Zeile für Zeile.',
   radio_predire_body: 'Bevor du hörst: Wie geht das aus? Falsch raten kostet nichts — das Raten ist es, was das Hören wirken lässt.',
   radio_guess_label: 'Deine Vermutung',
   radio_guess_selected: 'gewählt',
@@ -535,6 +538,7 @@ const FR: CopyTable = {
   radio_stage_ecouter: 'Écouter',
   radio_stage_verifier: 'Vérifier',
   radio_stage_retenir: 'Retenir',
+  radio_predire_native: 'Vous écoutez la scène sans le texte. Le texte vient après, réplique par réplique.',
   radio_predire_body: 'Avant d’écouter : à votre avis, comment cela se termine ? Se tromper ne coûte rien — c’est le fait de prédire qui fait travailler l’écoute.',
   radio_guess_label: 'Votre prédiction',
   radio_guess_selected: 'choisi',

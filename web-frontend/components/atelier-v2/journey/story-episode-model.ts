@@ -70,6 +70,23 @@ export function storyCharacterName(
   return id.charAt(0).toUpperCase() + id.slice(1);
 }
 
+/**
+ * Narration as the learner should read it (WP-44).
+ *
+ * Some producers number the beat inside the sentence — «Panneau 1 : la fuite a
+ * inondé la cave.» The number is production scaffolding: the reader already
+ * says which plate this is, twice (the rail and the dots), and the prefix reads
+ * as a caption in a storyboard rather than as a line of a story. Stripped at
+ * the edge of the projection so every surface that reads narration — reader,
+ * radio lines, the season page — is free of it, and so a producer that stops
+ * emitting it needs no second change here.
+ */
+export function stripPanelPrefix(text: string | null | undefined): string {
+  return String(text ?? '')
+    .replace(/^\s*panneau\s*n?[°º]?\s*\d+\s*[:.\-–—]\s*/i, '')
+    .trim();
+}
+
 function panelLines(panel: StoryPanel): ReaderLine[] {
   return ((panel.dialogue || []) as StoryDialogueLine[])
     .filter((line) => line && String(line.text_fr || '').trim())
@@ -103,7 +120,7 @@ export function buildStoryStages(episode: StoryEpisode | null | undefined): Read
       artStatus: panel.image_status === 'setting_reference' && panel.image_url ? 'ready' : 'missing',
       character,
       lines,
-      caption: String(panel.narration_fr || '').trim(),
+      caption: stripPanelPrefix(panel.narration_fr),
       tasks: [],
     };
   });
@@ -141,6 +158,54 @@ export function storyEpisodeLabel(episode: StoryEpisode | null | undefined): str
   if (!episode) return '';
   const chapter = episode.chapter?.title_fr ? String(episode.chapter.title_fr).trim() : '';
   return chapter || 'Le feuilleton';
+}
+
+// ---------------------------------------------------------------------------
+// WP-44 — which of the two reader artboards a panel is drawn as
+// ---------------------------------------------------------------------------
+
+/**
+ * `bubble` = variant A, the reply in a speech bubble over the art;
+ * `line`   = variant B, the art alone with the reply in a card underneath.
+ */
+export type PanelVariant = 'bubble' | 'line';
+
+/**
+ * The one switch.
+ *
+ * The owner's choice between the two artboards is still open, so it is a single
+ * constant rather than a rule spread over the component:
+ *
+ *   * `'auto'` (shipped) — a bubble when the panel is one line from one named
+ *     speaker over real art, which is the only shape a bubble can hold without
+ *     covering the picture it sits on; every other panel is a card.
+ *   * `'bubble'` — variant A wherever a bubble is physically possible.
+ *   * `'line'`  — variant B everywhere; flip here to get the whole reader on
+ *     the second artboard with no other edit.
+ */
+export const READER_VARIANT: 'auto' | 'bubble' | 'line' = 'auto';
+
+/**
+ * How one stage is drawn.
+ *
+ * Narration-only panels and panels carrying two or more lines are always cards:
+ * a bubble that has to hold a stack of replies is a card with a tail, and a
+ * bubble with no speaker has nobody to point at. Art is required either way —
+ * a bubble over a missing illustration is a card in a worse place.
+ */
+export function panelReaderVariant(
+  stage: ReaderStage | null | undefined,
+  variant: 'auto' | 'bubble' | 'line' = READER_VARIANT,
+): PanelVariant {
+  if (variant === 'line') return 'line';
+  if (!stage || stage.kind !== 'panel') return 'line';
+  const hasArt = stage.artStatus === 'ready' && Boolean(stage.imageUrl);
+  if (!hasArt) return 'line';
+  const spoken = (stage.lines || []).filter((line) => String(line.fr || '').trim());
+  if (!spoken.length) return 'line';
+  if (variant === 'bubble') return 'bubble';
+  if (spoken.length !== 1) return 'line';
+  return String(spoken[0].who || '').trim() ? 'bubble' : 'line';
 }
 
 // ---------------------------------------------------------------------------
@@ -250,7 +315,7 @@ export function episodeListenLines(
   const panels = [...(episode.panels || [])].sort((a, b) => a.index - b.index);
   const lines: EpisodeListenLine[] = [];
   for (const panel of panels) {
-    const narration = String(panel.narration_fr || '').trim();
+    const narration = stripPanelPrefix(panel.narration_fr);
     if (narration.length >= 2) {
       lines.push({ key: `${panel.id}:n`, characterId: NARRATOR_ID, who: '', fr: narration });
     }

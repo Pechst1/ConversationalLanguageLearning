@@ -149,3 +149,106 @@ test('a null, blank or absent character_name falls back to the existing table', 
   // A name with no id at all is still a name.
   assert.equal(model.storyCharacterName('', 'Lila Bernard'), 'Lila Bernard');
 });
+
+// ---------------------------------------------------------------------------
+// WP-44 — the reader artboards
+// ---------------------------------------------------------------------------
+
+const fs = require('node:fs');
+
+const bubblePanel = {
+  kind: 'panel',
+  key: 'panel:p1',
+  ordinal: 1,
+  panelId: 'p1',
+  panelIndex: 0,
+  title: '',
+  beat: '',
+  imageUrl: '/assets/serial/mistral.jpg',
+  artStatus: 'ready',
+  character: 'gus',
+  lines: [{ key: 'p1-l0', who: 'Augustin', fr: 'Je peux aider.', en: '', character: 'gus' }],
+  caption: 'Augustin sourit.',
+  tasks: [],
+};
+
+test('one line from a named speaker over real art is a bubble; everything else is a card', () => {
+  assert.equal(model.panelReaderVariant(bubblePanel), 'bubble');
+
+  // narration only
+  assert.equal(model.panelReaderVariant({ ...bubblePanel, lines: [] }), 'line');
+  // two or more lines
+  assert.equal(
+    model.panelReaderVariant({
+      ...bubblePanel,
+      lines: [...bubblePanel.lines, { key: 'p1-l1', who: 'Lila', fr: 'Merci.', en: '', character: 'lila' }],
+    }),
+    'line',
+  );
+  // a line whose speaker the server could not name
+  assert.equal(
+    model.panelReaderVariant({ ...bubblePanel, lines: [{ ...bubblePanel.lines[0], who: '' }] }),
+    'line',
+  );
+  // no art to put a bubble on
+  assert.equal(
+    model.panelReaderVariant({ ...bubblePanel, artStatus: 'missing', imageUrl: '' }),
+    'line',
+  );
+  // the resolution stage is not a panel
+  assert.equal(model.panelReaderVariant({ kind: 'resolution', key: 'r', ordinal: 2, tasks: [] }), 'line');
+  assert.equal(model.panelReaderVariant(null), 'line');
+});
+
+test('the variant is one constant, and flipping it flips the whole reader', () => {
+  assert.equal(model.READER_VARIANT, 'auto', 'variant A-by-rule is what ships');
+  // forced B: even the panel that qualifies for a bubble becomes a card
+  assert.equal(model.panelReaderVariant(bubblePanel, 'line'), 'line');
+  // forced A: a two-line panel over art becomes a bubble
+  assert.equal(
+    model.panelReaderVariant(
+      { ...bubblePanel, lines: [...bubblePanel.lines, { key: 'x', who: 'Lila', fr: 'Merci.', en: '', character: 'lila' }] },
+      'bubble',
+    ),
+    'bubble',
+  );
+  // …but never over art that does not exist
+  assert.equal(model.panelReaderVariant({ ...bubblePanel, artStatus: 'missing' }, 'bubble'), 'line');
+});
+
+test('the production prefix «Panneau N :» never reaches the learner', () => {
+  assert.equal(model.stripPanelPrefix('Panneau 1 : La pluie a inondé la cave.'), 'La pluie a inondé la cave.');
+  assert.equal(model.stripPanelPrefix('Panneau 3 — un silence.'), 'un silence.');
+  assert.equal(model.stripPanelPrefix('panneau 12: la suite'), 'la suite');
+  // a sentence that merely talks about a sign is not a prefix
+  assert.equal(
+    model.stripPanelPrefix('Le panneau indique la sortie.'),
+    'Le panneau indique la sortie.',
+  );
+  assert.equal(model.stripPanelPrefix(null), '');
+
+  const prefixed = {
+    ...episode,
+    panels: [
+      {
+        id: 'p9', index: 0, narration_fr: 'Panneau 1 : Le lendemain, au marché.',
+        dialogue: [{ character_id: 'romy', text_fr: 'Bonjour !' }],
+        image_url: null, image_status: 'unavailable',
+      },
+    ],
+  };
+  assert.equal(model.buildStoryStages(prefixed)[0].caption, 'Le lendemain, au marché.');
+  assert.equal(model.episodeListenLines(prefixed)[0].fr, 'Le lendemain, au marché.');
+});
+
+test('the «Décor de référence» banner is gone, and the fact is kept for telemetry', () => {
+  const reader = fs.readFileSync(require('node:path').join(__dirname, 'StoryEpisodeReader.tsx'), 'utf8');
+  // The sentence itself, not the comment that records why it went.
+  assert.ok(!reader.includes('montre le lieu'), 'the disclaimer sentence is not rendered');
+  assert.ok(!reader.includes('planche inédite'));
+  assert.ok(!reader.includes('className="fr-state"'), 'no banner element is passed to the reader');
+  assert.ok(
+    reader.includes("artProvenance={storyUsesSettingArt(episode) ? 'setting_reference' : null}"),
+    'the provenance still reaches the DOM for telemetry',
+  );
+});

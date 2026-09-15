@@ -85,6 +85,22 @@ async def list_current_serial_episodes(
     }
 
 
+@router.get("/season")
+async def get_serial_season(
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_atelier_user)],
+) -> dict:
+    """The Feuilleton tab's season page (WP-44).
+
+    Read-only by construction: unlike `/threads/current/episodes` it does not
+    call `get_or_create_thread`, because opening a tab is not a decision to
+    begin a story. A learner with no thread gets the honest empty page.
+    """
+
+    _ensure_enabled()
+    return SerialThreadService(db).season_page(current_user)
+
+
 @router.get("/threads/current/cast")
 async def get_current_serial_cast(
     db: Annotated[Session, Depends(get_db)],

@@ -2000,3 +2000,175 @@
 }
 
 .av2 .bib-done__actions { display: flex; flex-direction: column; gap: 8px; }
+
+/* WP-44 — reader, radio and the Feuilleton season page
+   (`docs/design-reference/nouvelles-pages-2026-09-15/`). Everything between
+   this comment and the closing one belongs to WP-44; the reader's own rules
+   live in `components/feuilleton/reader/reader-styles.tsx`. */
+
+/* -- «Écouter d'abord»: the action lives in a screen foot, not in the flow -- */
+.av2 .wp44-radio { min-height: 100%; }
+
+.av2 .wp44-radio__foot {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  margin: auto calc(var(--av2-gutter) * -1) 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* -- The season page ------------------------------------------------------ */
+.av2 .wp44-season {
+  display: flex;
+  flex-direction: column;
+  gap: var(--av2-gap);
+  min-width: 0;
+}
+
+.av2 .wp44-season__seg {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: transparent;
+}
+
+.av2 .wp44-season__seg a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  color: var(--av2-muted);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.av2 .wp44-season__seg a[aria-current='page'] {
+  background: var(--av2-card);
+  color: var(--av2-ink);
+}
+
+/* today's episode — the same «episode» component the artboards use elsewhere:
+   radius 22, card ground, art at the head, the story blue for the label and
+   for the one button */
+.av2 .wp44-today {
+  display: flex;
+  flex-direction: column;
+  border-radius: 22px;
+  background: var(--av2-card);
+  overflow: hidden;
+}
+
+.av2 .wp44-today img {
+  display: block;
+  width: 100%;
+  height: 150px;
+  object-fit: cover;
+}
+
+.av2 .wp44-today__body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 18px 16px;
+}
+
+.av2 .wp44-today__title {
+  margin: 0;
+  font-family: var(--av2-serif);
+  font-style: italic;
+  font-weight: 600;
+  font-size: 1.5rem;
+  line-height: 1.1;
+  color: var(--av2-ink);
+  text-wrap: pretty;
+}
+
+.av2 .wp44-today__action { margin-top: 6px; }
+
+/* the open commitment — dashed, because it is not finished */
+.av2 .wp44-commitment {
+  padding: 12px 14px;
+  border: 2px dashed var(--av2-line-2);
+  border-radius: 16px;
+}
+
+.av2 .wp44-commitment__label {
+  margin: 0 0 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--av2-muted);
+}
+
+.av2 .wp44-commitment__text {
+  margin: 0;
+  font-family: var(--av2-serif);
+  font-style: italic;
+  font-size: 1.0625rem;
+  line-height: 1.35;
+  color: var(--av2-ink);
+}
+
+.av2 .wp44-commitment__text + .wp44-commitment__text { margin-top: 6px; }
+
+/* the episodes already read */
+.av2 .wp44-read {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.av2 .wp44-read__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--av2-card);
+  color: var(--av2-ink);
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.av2 .wp44-read__art {
+  flex: none;
+  width: 56px;
+  height: 56px;
+  border-radius: 10px;
+  object-fit: cover;
+  background: var(--av2-tint-neutral);
+}
+
+.av2 .wp44-read__text {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.av2 .wp44-read__title {
+  font-family: var(--av2-serif);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 1.1875rem;
+  line-height: 1.15;
+  color: var(--av2-ink);
+  overflow-wrap: anywhere;
+}
+
+.av2 .wp44-read__meta { font-size: 0.75rem; color: var(--av2-muted); }
+
+.av2 .wp44-read__row svg { flex: 0 0 auto; }
+/* end WP-44 */

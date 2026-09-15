@@ -122,27 +122,31 @@ export function StoryEpisodeStep({
       );
     }
     return (
-      <>
-        <StoryEpisodeReader
-          episode={lookup.episode}
-          mode="continue"
-          onExit={onExit ?? (() => {})}
-          onContinue={onContinue}
-          continuing={busy}
-          continueLabel={copy.scene_continue}
-        />
-        {/*
-          The offer, under the reader rather than in front of it: a learner who
-          came to read is not interrupted, and the sentence says what the mode
-          costs before it is chosen.
-        */}
-        <div className="av2-stack av2-step">
-          <p className="av2-body">{copy.listen_first_hint}</p>
-          <Action tone="quiet" inline onClick={() => chooseMode(true)}>
+      /*
+        WP-44. The offer is one quiet link under the nav, where the artboard
+        puts it: a learner who came to read is not interrupted by a paragraph
+        explaining a mode they did not ask for, and the link is still one tap.
+        The sentence that says what the mode costs lives on the link's own
+        title, and in Réglages, where the preference is set deliberately.
+      */
+      <StoryEpisodeReader
+        episode={lookup.episode}
+        mode="continue"
+        onExit={onExit ?? (() => {})}
+        onContinue={onContinue}
+        continuing={busy}
+        continueLabel={copy.scene_continue}
+        footLink={
+          <Action
+            tone="quiet"
+            inline
+            title={copy.listen_first_hint}
+            onClick={() => chooseMode(true)}
+          >
             {copy.listen_first_on}
           </Action>
-        </div>
-      </>
+        }
+      />
     );
   }
 
