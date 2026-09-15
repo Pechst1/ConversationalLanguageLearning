@@ -80,6 +80,23 @@ export function JourneyTodayCard({
           controlLanguage={controller.controlLanguage}
         />
 
+        {/* WP-43 — the nouvelles-pages artboard: the card carries the scene
+            (art, label, title, byline, the learner-language line) and the one
+            red action sits *under* it, at the same width as the rows below,
+            never inside the card. Exactly one primary per composition. */}
+        <JourneyPrimary
+          phase={phase}
+          copy={copy}
+          busy={busy}
+          onOpen={onOpen}
+          onStart={() => {
+            void actions.start().then(onOpen);
+          }}
+          onResume={() => {
+            void actions.resume().then(onOpen);
+          }}
+        />
+
         {/* The legacy session keeps its own outlined surface and its own
             second-tier action, so it can never be mistaken for today's scene. */}
         {legacyResume && (
@@ -105,6 +122,51 @@ export function JourneyTodayCard({
       </div>
     </AtelierV2Root>
   );
+}
+
+function JourneyPrimary({
+  phase,
+  copy,
+  busy,
+  onOpen,
+  onStart,
+  onResume,
+}: {
+  phase: JourneyPhase;
+  copy: AtelierCopy;
+  busy: boolean;
+  onOpen: () => void;
+  onStart: () => void;
+  onResume: () => void;
+}) {
+  switch (phase.kind) {
+    case 'offer':
+      if (!phase.scenario) return null;
+      return (
+        <Action tone="primary" pending={busy} pendingLabel={copy.sending} onClick={onStart}>
+          {copy.start}
+        </Action>
+      );
+    case 'session':
+    case 'paused':
+      return (
+        <Action
+          tone="primary"
+          disabled={busy}
+          onClick={phase.kind === 'paused' ? onResume : onOpen}
+        >
+          {copy.resume}
+        </Action>
+      );
+    case 'awaiting_finish':
+      return (
+        <Action tone="primary" disabled={busy} onClick={onOpen}>
+          {copy.awaiting_finish_action}
+        </Action>
+      );
+    default:
+      return null;
+  }
 }
 
 function JourneyTodayBody({
@@ -140,7 +202,8 @@ function JourneyTodayBody({
           </Card>
         );
       }
-      const estimate = formatDuration(scenario.estimated_seconds, controlLanguage);
+      // WP-43: the estimate is chrome («5 min»), French on every screen.
+      const estimate = formatDuration(scenario.estimated_seconds, 'fr');
       return (
         <Card
           copy={copy}
@@ -164,9 +227,6 @@ function JourneyTodayBody({
           {estimate && !scenario.character_name && (
             <p className="av2-label">{estimate}</p>
           )}
-          <Action tone="primary" pending={busy} pendingLabel={copy.sending} onClick={onStart}>
-            {copy.start}
-          </Action>
         </Card>
       );
     }
@@ -187,13 +247,6 @@ function JourneyTodayBody({
           }
         >
           <p className="av2-body av2-body--lg">{scenario.objective_native}</p>
-          <Action
-            tone="primary"
-            disabled={busy}
-            onClick={phase.kind === 'paused' ? onResume : onOpen}
-          >
-            {copy.resume}
-          </Action>
         </Card>
       );
     }
@@ -217,9 +270,6 @@ function JourneyTodayBody({
           byline={scenario.character_name ? <Byline name={scenario.character_name} /> : null}
         >
           <p className="av2-body av2-body--lg">{copy.awaiting_finish_body}</p>
-          <Action tone="primary" disabled={busy} onClick={onOpen}>
-            {copy.awaiting_finish_action}
-          </Action>
         </Card>
       );
     }
@@ -298,6 +348,7 @@ function Card({
           url={imageUrl}
           alt={imageAlt ?? ''}
           fallbackLabel={copy.artwork_unavailable}
+          collapseWhenAbsent
         />
       )}
       <div className="journey-today-card__body av2-stack">

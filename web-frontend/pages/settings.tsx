@@ -46,6 +46,7 @@ import {
 import { apiService as api, type AddressPreference } from '@/services/api';
 import { appSignOut, useAppSession } from '@/lib/app-auth';
 import { nativePushIsAvailable, registerNativePushToken } from '@/lib/native-push';
+import { FEEDBACK_OPEN_EVENT } from '@/components/feedback/FeedbackWidget';
 
 interface UserSettings {
     // Profile
@@ -1043,6 +1044,24 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                     onClick={() => { void router.push('/dossier'); }}
                                 >
                                     Ouvrir
+                                </button>
+                            </Row>
+                        </div>
+
+                        {/* WP-43 — the feedback panel's phone entry. The floating
+                            launcher is hidden on phone widths (it floated over
+                            the reading column); this row opens the same panel. */}
+                        <div className="st-card">
+                            <Row
+                                label="Signaler un problème"
+                                hint="Une remarque sur cet écran ou sur l’application. Elle nous arrive avec la page d’où vous l’envoyez."
+                            >
+                                <button
+                                    type="button"
+                                    className="av2-btn av2-btn--quiet av2-btn--inline"
+                                    onClick={() => { window.dispatchEvent(new Event(FEEDBACK_OPEN_EVENT)); }}
+                                >
+                                    Écrire
                                 </button>
                             </Row>
                         </div>

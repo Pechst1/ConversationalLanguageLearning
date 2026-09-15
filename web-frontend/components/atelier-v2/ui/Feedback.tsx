@@ -114,6 +114,14 @@ export type ArtworkProps = {
   alt: string;
   /** Shown in place of a failed or absent image. */
   fallbackLabel: string;
+  /**
+   * WP-43: render nothing at all when there is no image to show. The Home
+   * episode card has a title, a byline and an action to carry it; an empty
+   * striped plate above them is the one thing the nouvelles-pages artboard
+   * forbids. The reader keeps the plate, because a panel without its art
+   * needs the frame to keep its place.
+   */
+  collapseWhenAbsent?: boolean;
 };
 
 /**
@@ -122,11 +130,12 @@ export type ArtworkProps = {
  * to a browser's broken-image glyph, and it reserves 16:9 either way so the
  * step does not reflow when the image resolves.
  */
-export function Artwork({ url, alt, fallbackLabel }: ArtworkProps) {
+export function Artwork({ url, alt, fallbackLabel, collapseWhenAbsent = false }: ArtworkProps) {
   const [failed, setFailed] = useState(false);
   const resolved = url ? resolveMediaUrl(url) || url : null;
 
   if (!resolved || failed) {
+    if (collapseWhenAbsent) return null;
     return (
       <div className="av2-art__fallback" role="img" aria-label={fallbackLabel}>
         <ShapeToken kind="story" size="lg" />

@@ -2172,3 +2172,46 @@
 
 .av2 .wp44-read__row svg { flex: 0 0 auto; }
 /* end WP-44 */
+
+/* WP-43 — the shell reserves the tab bar; feet sit in the flow.
+   ---------------------------------------------------------------------------
+   The tab bar is `position: fixed` on phones. Until now each page that knew
+   about it padded itself (the session shell, the screen body) and every page
+   that did not — placement, répétition, journal — ended under it (WP-39).
+   The route shell now reserves the bar's height once, for every page; the two
+   in-page reservations below are folded into it (no double air). */
+@media (max-width: 760px) {
+  .app-route-shell {
+    padding-bottom: var(--phone-bottom-nav-space, 0px);
+  }
+  .app-route-shell .av2.journey-shell {
+    padding-bottom: 24px;
+  }
+  .app-route-shell .av2 .av2-screen__body {
+    padding-bottom: 16px;
+  }
+}
+
+/* The screen foot in the flow (ScreenFoot): hairline, paper, 14px of air, and
+   the safe area only when it is really the last thing on the screen. Inside a
+   route shell that already reserves the safe area, the foot keeps 14px. */
+.av2 .av2-screen__foot--flow {
+  flex: none;
+  margin-top: auto;
+}
+@media (max-width: 760px) {
+  .app-route-shell .av2 .av2-screen__foot--flow {
+    padding-bottom: 14px;
+  }
+}
+
+/* The feedback launcher must not float over a page's reading column on a
+   phone: the Home colophon and the placement body sat under it (WP-39). On
+   phone widths it lives in Réglages instead (a row opens the same panel);
+   on wider screens it keeps its corner, where nothing flows beneath it. */
+@media (max-width: 760px) {
+  .av2.fb-scope .fb-launcher {
+    display: none;
+  }
+}
+/* end WP-43 */

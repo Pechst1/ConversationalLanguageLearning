@@ -35,6 +35,9 @@ const FEEDBACK_OPTIONS: Array<{ value: FeedbackCategory; label: string }> = [
   { value: 'other', label: 'Other' },
 ];
 
+/** The window event that opens the feedback panel from elsewhere (Réglages). */
+export const FEEDBACK_OPEN_EVENT = 'atelier:feedback-open';
+
 export default function FeedbackWidget() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -54,6 +57,16 @@ export default function FeedbackWidget() {
   useEffect(() => {
     setOpen(false);
   }, [router.asPath]);
+
+  // WP-43: on phone widths the floating launcher is hidden (it floated over
+  // the Home colophon and the placement body — WP-39). Réglages carries a row
+  // that opens the same panel through this event, so the feedback path stays.
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const openPanel = () => setOpen(true);
+    window.addEventListener(FEEDBACK_OPEN_EVENT, openPanel);
+    return () => window.removeEventListener(FEEDBACK_OPEN_EVENT, openPanel);
+  }, []);
 
   // A reader that has taken over the screen draws its own action bar at the
   // bottom right; a floating control there is one more thing over it.

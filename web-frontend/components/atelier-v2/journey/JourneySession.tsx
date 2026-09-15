@@ -120,7 +120,11 @@ export function JourneySession({ controller, onExit, morePractice, onPractice }:
   const journey = controller.journey;
   const recovery = controller.recovery;
 
-  const remaining = formatDuration(progress.remainingSeconds, controller.controlLanguage);
+  // WP-43: the step caption is chrome, so it is French on every screen
+  // («Étape 1 sur 3 · 3 min»); the learner's language stays for what is said
+  // about the scene.
+  const remaining = formatDuration(progress.remainingSeconds, 'fr');
+  const chrome = atelierCopy('fr');
 
   // Draft persistence (WP-10). The accessors are stable callbacks, so the field
   // is not remounted and typing is not interrupted.
@@ -136,7 +140,7 @@ export function JourneySession({ controller, onExit, morePractice, onPractice }:
   const caption =
     progress.total > 0
       ? `${stepOfLabel(
-          copy,
+          chrome,
           position ?? Math.min(progress.done + 1, progress.total),
           progress.total,
         )}${remaining ? ` · ${remaining} ${copy.time_left}` : ''}`

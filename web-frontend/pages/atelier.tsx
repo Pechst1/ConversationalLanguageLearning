@@ -7,6 +7,7 @@ import { ArrowRight, BookOpen, Check, HelpCircle, Loader2, MapPinned, Mic, Rotat
 import toast from 'react-hot-toast';
 
 import { createAudioMediaRecorder, recordedAudioBlob } from '@/lib/audio-recording';
+import { oncePerLoad } from '@/lib/once-per-load';
 import { seanceAssessment } from '@/lib/seance-feedback';
 import apiService, {
   AtelierCollectible,
@@ -719,7 +720,7 @@ export default function AtelierPage() {
 
   const loadActiveSession = useCallback(async (alive: () => boolean) => {
     try {
-      const active = await apiService.getActiveAtelierSession();
+      const active = await oncePerLoad('sessions/active', () => apiService.getActiveAtelierSession());
       if (!alive()) return;
       if (active.session) {
         hydrateSession(active.session);
@@ -752,7 +753,7 @@ export default function AtelierPage() {
     setLoadError(null);
     setActiveSessionReady(false);
     Promise.all([
-      apiService.getAtelierToday(),
+      oncePerLoad('atelier/today', () => apiService.getAtelierToday()),
       apiService.getVocabularyDueContext({
         limit: 1,
         due_limit: 1,
@@ -2018,7 +2019,7 @@ function TodayView({
   const [wordSlate, setWordSlate] = useState<DailyWordSlate | null>(null);
   useEffect(() => {
     let alive = true;
-    apiService.getWordsOfTheDay()
+    oncePerLoad('words-of-the-day', () => apiService.getWordsOfTheDay())
       .then((slate) => { if (alive) setWordSlate(slate); })
       .catch(() => { /* the slate is an enrichment — La Une renders without it */ });
     return () => { alive = false; };
@@ -2034,7 +2035,7 @@ function TodayView({
   const [rehearsalDue, setRehearsalDue] = useState(false);
   useEffect(() => {
     let alive = true;
-    apiService.getRehearsalState()
+    oncePerLoad('rehearsals/state', () => apiService.getRehearsalState())
       .then((envelope) => { if (alive) setRehearsalDue(Boolean(envelope?.debrief_due)); })
       .catch(() => { /* an entry nobody can open is worse than no entry */ });
     return () => { alive = false; };
@@ -2051,7 +2052,7 @@ function TodayView({
   const [intakeOpen, setIntakeOpen] = useState(false);
   useEffect(() => {
     let alive = true;
-    apiService.getIntakeArtefacts()
+    oncePerLoad('intake', () => apiService.getIntakeArtefacts())
       .then((envelope) => {
         if (alive) setIntakeOpen(Boolean(envelope?.cap?.enabled && Number(envelope.cap.remaining) > 0));
       })
@@ -2202,7 +2203,10 @@ function TodayView({
   // with no scene: the story is today's journey (its card is above), so the
   // page does not draw an episode it cannot open.
   const storyIsJourney = String(serialEpisode?.status || '') === 'journey_required';
-  const homeEpisode = errorOnlyPage || storyIsJourney
+  // WP-43: with the journey card on screen (the day's story, `practiceEntry`
+  // non-null exactly then — WP-16), La Une draws no second episode card. One
+  // story per screen, and never an empty art plate under a real one.
+  const homeEpisode = errorOnlyPage || storyIsJourney || Boolean(practiceEntry)
     ? null
     : {
         kicker: isMissionBeat ? `Courrier · Épisode ${episodeNumber}` : `Feuilleton · Épisode ${episodeNumber}`,

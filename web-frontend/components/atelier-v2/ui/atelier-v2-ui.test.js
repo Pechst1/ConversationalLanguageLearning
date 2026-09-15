@@ -643,3 +643,24 @@ const h = React.createElement;
 }
 
 console.log('atelier v2 design system tests passed');
+
+// ===========================================================================
+// WP-43 — the screen foot in the flow, and the shell's tab-bar reservation
+// ===========================================================================
+{
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const index = fs.readFileSync(path.join(__dirname, 'index.ts'), 'utf8');
+  assert.ok(index.includes("export { ScreenFoot } from './ScreenFoot';"), 'ScreenFoot is exported from the kit');
+  const foot = fs.readFileSync(path.join(__dirname, 'ScreenFoot.tsx'), 'utf8');
+  assert.ok(foot.includes('av2-screen__foot--flow'), 'the foot is placed in the flow, never fixed');
+  assert.ok(!/position:\s*fixed/.test(foot), 'no fixed positioning in the foot');
+  const css = fs.readFileSync(path.join(__dirname, '..', '..', '..', 'styles', 'atelier-v2.css'), 'utf8');
+  const block = css.slice(css.indexOf('/* WP-43'), css.indexOf('/* end WP-43 */'));
+  assert.ok(block.includes('.app-route-shell {') && block.includes('padding-bottom: var(--phone-bottom-nav-space'), 'the route shell reserves the tab bar once');
+  assert.ok(block.includes('.av2.fb-scope .fb-launcher') && block.includes('display: none'), 'the floating launcher is hidden on phones');
+  const feedback = fs.readFileSync(path.join(__dirname, '..', '..', 'feedback', 'FeedbackWidget.tsx'), 'utf8');
+  assert.ok(feedback.includes("export const FEEDBACK_OPEN_EVENT = 'atelier:feedback-open'"), 'Réglages can open the panel');
+  const settings = fs.readFileSync(path.join(__dirname, '..', '..', '..', 'pages', 'settings.tsx'), 'utf8');
+  assert.ok(settings.includes('Signaler un problème') && settings.includes('FEEDBACK_OPEN_EVENT'), 'the Réglages row exists');
+}

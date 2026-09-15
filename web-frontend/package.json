@@ -29,7 +29,8 @@
     "test:seance": "node --test lib/seance-feedback.test.js",
     "test:courrier-intake": "node components/courrier/courrier-intake.test.js",
     "test:rehearsal": "node components/atelier-v2/rehearsal/rehearsal.test.js",
-    "test:dossier": "node components/atelier-v2/dossier/dossier.test.js"
+    "test:dossier": "node components/atelier-v2/dossier/dossier.test.js",
+    "test:once-per-load": "node --test lib/once-per-load.test.js"
   },
   "dependencies": {
     "@capacitor/cli": "^8.4.0",

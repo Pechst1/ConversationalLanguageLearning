@@ -76,6 +76,9 @@ export type {
   PortraitProps,
 } from './Feedback';
 
+export { ScreenFoot } from './ScreenFoot';
+export type { ScreenFootProps } from './ScreenFoot';
+
 export { BottomSheet, Dialog } from './Sheet';
 export type { BottomSheetProps, DialogProps } from './Sheet';
 

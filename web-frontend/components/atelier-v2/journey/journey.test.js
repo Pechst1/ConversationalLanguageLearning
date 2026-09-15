@@ -1727,7 +1727,9 @@ const noSleep = () => Promise.resolve();
   assert.ok(/réglages/i.test(FRC.voice_permission), 'a refusal says where to change it');
   assert.ok(/écrit/.test(FRC.voice_permission), 'and that writing still works');
   assert.ok(/écrit/.test(FRC.voice_offline), 'offline keeps the written path');
-  for (const key of ['speak', 'voice_hint', 'voice_permission', 'voice_offline', 'voice_empty']) {
+  // `speak` is chrome and therefore French for every control language (WP-43);
+  // the sentences said to the learner are the ones that must be translated.
+  for (const key of ['voice_hint', 'voice_permission', 'voice_offline', 'voice_empty']) {
     assert.ok(FRC[key] !== EN[key], `${key} is actually translated`);
   }
 
@@ -1865,3 +1867,35 @@ const noSleep = () => Promise.resolve();
   console.error(error);
   process.exit(1);
 });
+
+// ===========================================================================
+// WP-43 — one chrome language per screen (WP-39 D-3)
+// ===========================================================================
+// The app's chrome is French on every screen; the learner's language is for
+// what is said *to* them about the scene. So the card's eyebrow, its start
+// and resume actions, the step names and the stage names read French for a
+// German or English control language, while the instruction and the hint
+// keep the learner's language.
+{
+  const { CHROME_KEYS } = require('./journey-copy.ts');
+  const FRT = journeyCopy('fr');
+  for (const language of ['en', 'de']) {
+    const table = journeyCopy(language);
+    for (const key of CHROME_KEYS) {
+      assert.equal(table[key], FRT[key], `${language}.${key} is French chrome`);
+    }
+    // …and the learner-language sentences are still the learner's.
+    assert.notEqual(table.voice_hint, FRT.voice_hint, `${language}.voice_hint stays native`);
+    assert.notEqual(table.preparing_body, FRT.preparing_body, `${language}.preparing_body stays native`);
+    assert.notEqual(table.radio_predire_body, FRT.radio_predire_body, `${language}.radio_predire_body stays native`);
+  }
+  assert.equal(journeyCopy('de').start, 'Commencer');
+  assert.equal(journeyCopy('de').today_eyebrow, 'Aujourd’hui');
+  assert.equal(journeyCopy('en').finish_early, FRT.finish_early);
+  // The card no longer carries its own primary: the action sits under it.
+  const card = fs.readFileSync(path.join(__dirname, 'JourneyTodayCard.tsx'), 'utf8');
+  assert.ok(card.includes('function JourneyPrimary('), 'the primary action is its own block under the card');
+  assert.ok(card.includes('collapseWhenAbsent'), 'no empty art plate on the Home card');
+  const session = fs.readFileSync(path.join(__dirname, 'JourneySession.tsx'), 'utf8');
+  assert.ok(session.includes("atelierCopy('fr')"), 'the step caption is French chrome');
+}

@@ -571,8 +571,69 @@ const FR: CopyTable = {
 
 const TABLES: Record<ControlLanguage, CopyTable> = { en: EN, de: DE, fr: FR };
 
+/**
+ * WP-43 — one chrome language per screen (WP-39 D-3).
+ *
+ * The app's chrome is French on every screen; the learner's language is for
+ * what is *said to* them about the scene — instructions, hints, explanations,
+ * verdicts. These keys are chrome: labels, buttons and stage names that sit
+ * beside French rows on the same screen. They read French for every control
+ * language; everything else in the table keeps the learner's language.
+ */
+export const CHROME_KEYS: readonly JourneyCopyKey[] = [
+  'today_eyebrow',
+  'start',
+  'resume',
+  'continue',
+  'scene_continue',
+  'send',
+  'sending',
+  'check',
+  'help',
+  'retry',
+  'finish_early',
+  'pause',
+  'time_left',
+  'progress_label',
+  'awaiting_finish_action',
+  'more_practice',
+  'practice_this',
+  'speak',
+  'use_text',
+  'use_voice',
+  'record',
+  'stop_recording',
+  'answer_label',
+  'objective',
+  'preparing_retry',
+  'unavailable_retry',
+  'try_grading_again',
+  'legacy_resume_action',
+  'listen_first_label',
+  'listen_first_on',
+  'listen_first_off',
+  'radio_stage_predire',
+  'radio_stage_ecouter',
+  'radio_stage_verifier',
+  'radio_stage_retenir',
+  'radio_guess_label',
+  'radio_listen_action',
+  'radio_play',
+  'radio_replay',
+  'radio_stop',
+  'radio_verify_action',
+  'radio_reveal',
+  'radio_reveal_all',
+  'radio_read_instead',
+];
+
+const CHROME_FR: Partial<CopyTable> = Object.fromEntries(
+  CHROME_KEYS.map((key) => [key, FR[key]]),
+) as Partial<CopyTable>;
+
 export function journeyCopy(language: ControlLanguage | null | undefined): CopyTable {
-  return TABLES[(language ?? 'en') as ControlLanguage] ?? EN;
+  const table = TABLES[(language ?? 'en') as ControlLanguage] ?? EN;
+  return { ...table, ...CHROME_FR };
 }
 
 export type JourneyCopy = CopyTable;
