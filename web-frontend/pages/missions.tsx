@@ -926,14 +926,11 @@ export default function MissionsPage() {
                         />
                         {/* The task is shown here and answered in the Courrier,
                             where the composer and the corrector already live.
-                            No `onStart`: its press would be this screen's
-                            second 3D press, and «Faire lire» is the one. */}
+                            No `onStart`, and no ghost row beneath it: WP-45 put
+                            the way through — «Répondre à …» — inside the card
+                            above, as `Documents.dc.html` draws it, and that is
+                            this screen's one press. */}
                         <CrArtefactTaskCard task={artefact.task} />
-                        {artefact.mission_id && (
-                          <CrGhost href={`/missions?mission=${artefact.mission_id}`}>
-                            Répondre dans le Courrier
-                          </CrGhost>
-                        )}
                       </>
                     ) : (
                       <CrArtefactUnread

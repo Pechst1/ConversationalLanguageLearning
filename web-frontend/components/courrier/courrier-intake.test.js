@@ -100,35 +100,82 @@ function check(label, fn) {
 // 1. one primary press per screen
 // ===========================================================================
 
-check('the intake entry offers exactly one primary press', () => {
+check('the two ways in are two secondary buttons, and neither is a press', () => {
+  // WP-45, `Documents.dc.html`: «Coller un texte» and «Photographier» choose
+  // *how* the document arrives. Before one is chosen there is nothing to read,
+  // so the screen carries no primary at all.
   const html = render(h(CrIntakeEntry, { cap: CAP, onRead: () => {} }));
+  assert.equal((html.match(/av2-btn--primary/g) || []).length, 0);
+  assert.equal((html.match(/av2-btn--secondary/g) || []).length, 2);
+  assert.match(html, /Coller un texte/);
+  assert.match(html, /Photographier/);
+  assert.match(html, /Le Courrier · Vos documents/);
+  assert.match(html, /on le lit avec vous/);
+  // The well is there for the screen reader but closed until it is asked for.
+  assert.match(html, /id="cr-intake-text"[^>]*hidden/);
+});
+
+check('choosing «coller un texte» opens the well and the one primary press', () => {
+  const html = render(h(CrIntakeEntry, { cap: CAP, onRead: () => {}, pasteOpen: true }));
   const primaries = html.match(/av2-btn--primary/g) || [];
   assert.equal(primaries.length, 1, 'the entry must have exactly one 3D press');
   assert.match(html, /Faire lire/);
-  // Photographing is the second way in, not a second primary.
-  assert.match(html, /av2-btn--quiet[^>]*>(?:(?!<\/button>).)*Photographier/s);
+  assert.ok(!/id="cr-intake-text"[^>]*hidden/.test(html), 'the well is open');
 });
 
-check('the read artefact and its task never show two primaries at once', () => {
+check('the read artefact carries the screen\'s one primary, and its task none', () => {
+  // WP-45 moves «Répondre à …» inside the card: the document is read, and what
+  // is owed is an answer to whoever sent it.
   const card = render(h(CrArtefactCard, { artefact: MENU_ARTEFACT, onDelete: () => {} }));
-  assert.equal((card.match(/av2-btn--primary/g) || []).length, 0);
+  assert.equal((card.match(/av2-btn--primary/g) || []).length, 1);
+  assert.match(card, /Répondre à le serveur/);
+  assert.match(card, /href="\/missions\?mission=m1"/);
+  // Without a mission the server never made, the card offers no press at all.
+  const orphan = render(
+    h(CrArtefactCard, { artefact: { ...MENU_ARTEFACT, mission_id: null } }),
+  );
+  assert.equal((orphan.match(/av2-btn--primary/g) || []).length, 0);
+  // The separate task card still owns its press only when a page asks for one.
   const task = render(h(CrArtefactTaskCard, { task: MENU_ARTEFACT.task, onStart: () => {} }));
   assert.equal((task.match(/av2-btn--primary/g) || []).length, 1);
   assert.match(task, /Répondre/);
 });
 
 check('the primary is disabled until there is a document to read', () => {
-  const html = render(h(CrIntakeEntry, { cap: CAP, onRead: () => {} }));
+  const html = render(h(CrIntakeEntry, { cap: CAP, onRead: () => {}, pasteOpen: true }));
   assert.match(html, /Faire lire[\s\S]*$/);
   assert.match(html, /disabled=""/);
 });
 
 check('a learner at the cap cannot start a read at all', () => {
   const html = render(
-    h(CrIntakeEntry, { cap: { limit: 5, used: 5, remaining: 0, enabled: true }, onRead: () => {} }),
+    h(CrIntakeEntry, {
+      cap: { limit: 5, used: 5, remaining: 0, enabled: true },
+      onRead: () => {},
+      pasteOpen: true,
+    }),
   );
   assert.match(html, /Vous avez fait lire tous vos documents de la semaine/);
   assert.match(html, /disabled=""/);
+});
+
+check('the privacy line is on the same line as the allowance', () => {
+  const html = render(h(CrIntakeEntry, { cap: CAP, onRead: () => {} }));
+  assert.match(html, /privés, supprimables, jamais dans le feuilleton/);
+});
+
+check('the artefact label names the type, the counterpart and the date', () => {
+  const html = render(h(CrArtefactCard, { artefact: { ...MENU_ARTEFACT, created_at: '2026-09-12T09:00:00Z' } }));
+  assert.match(html, /Un menu · le serveur · reçue le 12 sept/);
+  // A document with no date simply drops the clause rather than guessing one.
+  const undated = render(h(CrArtefactCard, { artefact: MENU_ARTEFACT }));
+  assert.ok(!/reçue le/.test(undated));
+});
+
+check('the glossed words are chips, French in the serif, gloss beside it', () => {
+  const html = render(h(CrArtefactCard, { artefact: MENU_ARTEFACT }));
+  assert.equal((html.match(/class="cr-art-word"/g) || []).length, 3);
+  assert.match(html, /<b lang="fr">velouté<\/b>/);
 });
 
 // ===========================================================================

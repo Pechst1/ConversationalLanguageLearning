@@ -475,7 +475,32 @@ export type CrArtefactView = {
   task?: CrArtefactTask;
   mission_id?: string | null;
   queued_word_count?: number;
+  /** When the document was brought in. The label says «reçue le 12 sept.»
+   *  rather than nothing when the server sent it, and simply drops the clause
+   *  when it did not — an invented date is worse than no date. */
+  created_at?: string | null;
 };
+
+/** «Lettre · votre propriétaire · reçue le 12 sept.» — the artboard's label.
+ *  Every clause is dropped rather than guessed when its field is absent. */
+export function crArtefactLabel(artefact: CrArtefactView): string {
+  const type = artefact.artefact?.type_label_fr?.trim();
+  const who = artefact.task?.counterpart_fr?.trim();
+  return [type || 'Un document', who || null, crReceivedOn(artefact.created_at)]
+    .filter(Boolean)
+    .join(' · ');
+}
+
+/** «reçue le 12 sept.», in French, or nothing at all. */
+export function crReceivedOn(value?: string | null): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return `reçue le ${new Intl.DateTimeFormat('fr-FR', {
+    day: 'numeric',
+    month: 'short',
+  }).format(date)}`;
+}
 
 export type CrIntakeCap = {
   limit: number;
@@ -537,16 +562,23 @@ export function CrIntakeEntry({
   reading = false,
   error,
   onDismissError,
+  pasteOpen = false,
 }: {
   cap?: CrIntakeCap | null;
   onRead: (input: { text?: string; file?: File }) => void;
   reading?: boolean;
   error?: string | null;
   onDismissError?: () => void;
+  /** Open the paste well on mount. The two ways in are two buttons on
+   *  `Documents.dc.html`, so the well is closed until one is chosen; a page
+   *  that arrives with a document already in hand can open it directly. */
+  pasteOpen?: boolean;
 }) {
   const [text, setText] = useState('');
+  const [paste, setPaste] = useState(pasteOpen);
   const [file, setFile] = useState<File | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const textRef = useRef<HTMLTextAreaElement | null>(null);
   const blocked = !cap?.enabled || (cap?.limit ?? 0) <= 0 || (cap?.remaining ?? 0) <= 0;
   const ready = !blocked && !reading && (file !== null || text.trim().length >= 20);
 
@@ -560,32 +592,39 @@ export function CrIntakeEntry({
   const pickFile = (event: React.ChangeEvent<HTMLInputElement>) => {
     const picked = event.target.files?.[0] ?? null;
     setFile(picked);
-    if (picked) setText('');
+    if (picked) {
+      setText('');
+      setPaste(false);
+    }
+  };
+
+  const openPaste = () => {
+    setPaste(true);
+    setFile(null);
+    if (fileRef.current) fileRef.current.value = '';
+    // The well is what the learner asked for, so put the caret in it.
+    window.setTimeout(() => textRef.current?.focus(), 0);
   };
 
   return (
     <form className="cr-intake" onSubmit={submit} aria-label="Apportez votre français">
-      <p className="cr-intake-k">Apportez votre français</p>
-      <p className="cr-intake-lead" lang="fr">
-        Collez un document — une lettre, un courriel, un menu — ou photographiez-le.
-        Il est lu une fois, résumé à votre niveau, et devient une tâche du Courrier.
-      </p>
+      <p className="cr-intake-kicker">Le Courrier · Vos documents</p>
+      <h2 className="cr-intake-k" lang="fr">
+        Un menu, une lettre&nbsp;: on le lit avec vous.
+      </h2>
 
-      <label className="av2-sr" htmlFor="cr-intake-text">
-        Collez le texte de votre document
-      </label>
-      <textarea
-        id="cr-intake-text"
-        className="cr-intake-well"
-        lang="fr"
-        rows={5}
-        value={text}
-        placeholder="Collez votre document ici…"
-        disabled={reading || blocked || file !== null}
-        onChange={(event) => setText(event.target.value)}
-      />
-
-      <div className="cr-intake-row">
+      {/* The two ways in, side by side as the artboard draws them. Neither is
+          the screen's press: they choose *how* the document arrives. */}
+      <div className="cr-intake-ways">
+        <Action
+          tone="secondary"
+          disabled={reading || blocked}
+          aria-expanded={paste}
+          aria-controls="cr-intake-text"
+          onClick={openPaste}
+        >
+          Coller un texte
+        </Action>
         <input
           ref={fileRef}
           className="av2-sr"
@@ -596,14 +635,37 @@ export function CrIntakeEntry({
           onChange={pickFile}
         />
         <Action
-          tone="quiet"
-          inline
+          tone="secondary"
           disabled={reading || blocked}
           onClick={() => fileRef.current?.click()}
         >
           {file ? 'Changer la photo' : 'Photographier'}
         </Action>
-        {file && (
+      </div>
+
+      {/* The allowance and what happens to the document, on one quiet line. */}
+      <p className="cr-intake-cap">
+        {crIntakeCapLine(cap)} · privés, supprimables, jamais dans le feuilleton.
+      </p>
+
+      <label className={paste ? 'cr-intake-lab' : 'av2-sr'} htmlFor="cr-intake-text">
+        Collez le texte de votre document
+      </label>
+      <textarea
+        ref={textRef}
+        id="cr-intake-text"
+        className="cr-intake-well"
+        lang="fr"
+        rows={5}
+        value={text}
+        hidden={!paste}
+        placeholder="Collez votre document ici…"
+        disabled={reading || blocked || file !== null}
+        onChange={(event) => setText(event.target.value)}
+      />
+
+      {file && (
+        <p className="cr-intake-row">
           <span className="cr-intake-file">
             <ShapeToken kind="done" size="sm" />
             <span>{file.name}</span>
@@ -618,10 +680,8 @@ export function CrIntakeEntry({
               Retirer
             </button>
           </span>
-        )}
-      </div>
-
-      <p className="cr-intake-cap">{crIntakeCapLine(cap)}</p>
+        </p>
+      )}
 
       {error && (
         <p className="cr-intake-error" role="alert" lang="fr">
@@ -634,17 +694,20 @@ export function CrIntakeEntry({
         </p>
       )}
 
-      {/* The one 3D press on this screen. */}
-      <Action
-        tone="primary"
-        type="submit"
-        disabled={!ready}
-        pending={reading}
-        pendingLabel="Lecture…"
-        iconAfter={<ArrowRightIcon size={18} />}
-      >
-        Faire lire
-      </Action>
+      {/* The one 3D press on this screen, and only once there is something to
+          read: before a way in is chosen there is nothing to press. */}
+      {(paste || file) && (
+        <Action
+          tone="primary"
+          type="submit"
+          disabled={!ready}
+          pending={reading}
+          pendingLabel="Lecture…"
+          iconAfter={<ArrowRightIcon size={18} />}
+        >
+          Faire lire
+        </Action>
+      )}
     </form>
   );
 }
@@ -663,13 +726,14 @@ export function CrArtefactCard({
   const payload = artefact.artefact ?? {};
   const facts = payload.key_facts ?? [];
   const words = payload.glossed_words ?? [];
+  const who = artefact.task?.counterpart_fr?.trim();
   return (
     <section className="cr-art" aria-label="Votre document">
-      <p className="cr-art-head">
-        <Chip icon={<ShapeToken kind="story" size="sm" />}>
-          <span lang="fr">{payload.type_label_fr || 'Un document'}</span>
-        </Chip>
-        {artefact.source_kind === 'image' && <span className="cr-art-src">photographié</span>}
+      {/* «Lettre · votre propriétaire · reçue le 12 sept.» — one 12px line,
+          where a chip used to carry only the type. */}
+      <p className="cr-art-head" lang="fr">
+        {crArtefactLabel(artefact)}
+        {artefact.source_kind === 'image' && <span className="cr-art-src"> · photographié</span>}
       </p>
       <h2 className="cr-art-title" lang="fr">{payload.title_fr || 'Votre document'}</h2>
       {payload.summary_fr && (
@@ -693,9 +757,13 @@ export function CrArtefactCard({
       {words.length > 0 && (
         <div className="cr-art-words">
           <p className="cr-art-k">Les mots que vous ne connaissiez pas</p>
+          {/* Chips, as the artboard draws them: the French word in the serif
+              italic, its gloss beside it in the muted colour. A word the
+              resolver could not gloss still gets a chip and says so — dropping
+              it would hide that the lexique has a hole. */}
           <ul>
             {words.map((word) => (
-              <li key={word.word}>
+              <li key={word.word} className="cr-art-word">
                 <b lang="fr">{word.word}</b>
                 {word.gloss ? (
                   <span lang={word.gloss_language || undefined}>{word.gloss}</span>
@@ -717,6 +785,22 @@ export function CrArtefactCard({
             </span>
           </p>
         </div>
+      )}
+
+      {/* The screen's one primary, inside the card it belongs to: the document
+          is read, and what is owed is an answer to whoever sent it. A Link,
+          because the reply is written in the Courrier's own composer — the
+          corrector and the thread already live there. Rendered only when the
+          server actually made the mission: a press that goes nowhere would be
+          a worse promise than no press. */}
+      {artefact.mission_id && artefact.task?.instruction_fr && (
+        <Link
+          className="av2-btn av2-btn--primary cr-art-reply"
+          href={`/missions?mission=${artefact.mission_id}`}
+        >
+          <span>{who ? `Répondre à ${who}` : 'Répondre'}</span>
+          <ArrowRightIcon size={18} />
+        </Link>
       )}
 
       {onDelete && (
@@ -1001,9 +1085,19 @@ export function CourrierStyles() {
 
       /* ---- WP-34 «Apportez votre français» — extended from the same
          primitives: card surfaces, --av2 tokens only, so dark comes free. ---- */
-      .av2 .cr-intake { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border-radius: var(--av2-r-tile); background: var(--av2-card); }
-      .av2 .cr-intake-k { margin: 0; font-family: var(--av2-serif); font-style: italic; font-weight: 400; font-size: 1.375rem; line-height: 1.1; color: var(--av2-ink); }
+      /* WP-45, Documents.dc.html: the head sits on the paper, not in a card —
+         it is the screen, and a card around the whole screen reads as a box. */
+      .av2 .cr-intake { display: flex; flex-direction: column; gap: 14px; padding: 6px 0 0; background: transparent; }
+      .av2 .cr-intake-kicker { margin: 0; font-size: var(--av2-t-meta); font-weight: 700; line-height: 1.3; color: var(--av2-muted); }
+      .av2 .cr-intake-k { margin: 0; font-family: var(--av2-serif); font-style: italic; font-weight: 500; font-size: var(--av2-t-head); line-height: 1.15; color: var(--av2-ink); text-wrap: pretty; }
       .av2 .cr-intake-lead { margin: 0; font-size: var(--av2-t-label); line-height: 1.45; color: var(--av2-ink-2); }
+      /* The two ways in, side by side. They collapse to one column when the
+         text size grows past what two 56px pills can hold. */
+      .av2 .cr-intake-ways { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+      @media (max-width: 360px) {
+        .av2 .cr-intake-ways { grid-template-columns: minmax(0, 1fr); }
+      }
+      .av2 .cr-intake-lab { font-size: var(--av2-t-meta); font-weight: 700; color: var(--av2-muted); }
       .av2 .cr-intake-well {
         width: 100%; min-height: 108px; resize: vertical; box-sizing: border-box;
         padding: 12px 14px; border: 0; border-radius: var(--av2-r-tile);
@@ -1025,10 +1119,10 @@ export function CourrierStyles() {
 
       /* the artefact card */
       .av2 .cr-art { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border-radius: var(--av2-r-tile); background: var(--av2-card); }
-      .av2 .cr-art-head { margin: 0; display: flex; align-items: center; gap: 8px; }
+      .av2 .cr-art-head { margin: 0; font-size: var(--av2-t-meta); font-weight: 700; line-height: 1.3; color: var(--av2-muted); }
       .av2 .cr-art-src { font-size: var(--av2-t-meta); color: var(--av2-muted); }
-      .av2 .cr-art-title { margin: 0; font-family: var(--av2-serif); font-style: italic; font-weight: 400; font-size: 1.375rem; line-height: 1.15; color: var(--av2-ink); overflow-wrap: anywhere; }
-      .av2 .cr-art-sum { margin: 0; font-size: var(--av2-t-body); line-height: 1.5; color: var(--av2-ink); }
+      .av2 .cr-art-title { margin: 0; font-family: var(--av2-serif); font-style: italic; font-weight: 500; font-size: var(--av2-t-rule); line-height: 1.15; color: var(--av2-ink); overflow-wrap: anywhere; text-wrap: pretty; }
+      .av2 .cr-art-sum { margin: 0; font-size: var(--av2-t-label); line-height: 1.45; color: var(--av2-ink-2); }
       .av2 .cr-art-cut { color: var(--av2-muted); font-size: var(--av2-t-meta); }
       .av2 .cr-art-facts { margin: 0; display: flex; flex-direction: column; gap: 2px; }
       .av2 .cr-art-facts > div { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; min-height: 34px; font-size: var(--av2-t-label); }
@@ -1036,9 +1130,24 @@ export function CourrierStyles() {
       .av2 .cr-art-facts dd { margin: 0; font-weight: 700; color: var(--av2-ink); text-align: right; }
       .av2 .cr-art-k { margin: 0; font-size: var(--av2-t-meta); font-weight: 700; color: var(--av2-muted); }
       .av2 .cr-art-words { display: flex; flex-direction: column; gap: 6px; }
-      .av2 .cr-art-words ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
-      .av2 .cr-art-words li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; font-size: var(--av2-t-label); line-height: 1.4; color: var(--av2-ink-2); }
-      .av2 .cr-art-words li b { font-weight: 700; color: var(--av2-ink); }
+      /* Gloss chips: the French word in the serif italic, the gloss beside it
+         in the muted colour, on the paper ground so they read as chips laid on
+         the card rather than more card. */
+      .av2 .cr-art-words ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+      .av2 .cr-art-word {
+        display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 6px;
+        min-height: 32px; padding: 4px 12px; border-radius: var(--av2-r-pill);
+        background: var(--av2-paper); color: var(--av2-ink);
+        font-size: var(--av2-t-label); line-height: 1.4;
+      }
+      .av2 .cr-art-word b {
+        font-family: var(--av2-serif); font-style: italic; font-weight: 600;
+        font-size: var(--av2-t-body); color: var(--av2-ink);
+      }
+      .av2 .cr-art-word > span { color: var(--av2-muted); }
+      /* The card's own primary. The class the button system already styles,
+         on a Link: same face, same press, same 56px floor. */
+      .av2 a.cr-art-reply { margin-top: 4px; text-decoration: none; }
       .av2 .cr-art-nogloss { color: var(--av2-muted); font-size: var(--av2-t-meta); }
       .av2 .cr-art-queued { margin: 0; display: flex; align-items: center; gap: 8px; font-size: var(--av2-t-meta); color: var(--av2-muted); }
 
