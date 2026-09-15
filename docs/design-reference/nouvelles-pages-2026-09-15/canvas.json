@@ -1,0 +1,139 @@
+{
+  "artboards": [
+    {
+      "file": "Main.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Accueil · scène en cours"
+    },
+    {
+      "file": "AccueilSombre.dc.html",
+      "x": 480,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Accueil · sombre"
+    },
+    {
+      "file": "LectureBulles.dc.html",
+      "x": 960,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Lecteur · A — bulles"
+    },
+    {
+      "file": "LectureLignes.dc.html",
+      "x": 1440,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Lecteur · B — lignes sous l’image"
+    },
+    {
+      "file": "Radio.dc.html",
+      "x": 1920,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Écouter d’abord · prédire"
+    },
+    {
+      "file": "Feuilleton.dc.html",
+      "x": 2400,
+      "y": 0,
+      "w": 390,
+      "h": 980,
+      "title": "Feuilleton · la saison"
+    },
+    {
+      "file": "Bilan.dc.html",
+      "x": 0,
+      "y": 1180,
+      "w": 390,
+      "h": 844,
+      "title": "Bilan de niveau"
+    },
+    {
+      "file": "Repetition.dc.html",
+      "x": 480,
+      "y": 1180,
+      "w": 390,
+      "h": 844,
+      "title": "Répétition"
+    },
+    {
+      "file": "Dossier.dc.html",
+      "x": 960,
+      "y": 1180,
+      "w": 390,
+      "h": 1560,
+      "title": "Votre dossier"
+    },
+    {
+      "file": "Journal.dc.html",
+      "x": 1440,
+      "y": 1180,
+      "w": 390,
+      "h": 844,
+      "title": "Cahier · Journal"
+    },
+    {
+      "file": "Documents.dc.html",
+      "x": 1920,
+      "y": 1180,
+      "w": 390,
+      "h": 844,
+      "title": "Courrier · Vos documents"
+    }
+  ],
+  "annotations": [
+    {
+      "id": "note-accueil",
+      "x": 0,
+      "y": -170,
+      "w": 440,
+      "text": "Accueil — une seule langue de chrome par écran.\nLa carte du jour reprend le composant « épisode » (rayon 22, fond carte, art en tête) au lieu de son propre style bleu/corail. Le seul bouton rouge est « Continuer la scène ». La ligne « parce que » explique le choix de la scène. La consigne en langue maternelle reste une ligne de corps, jamais du chrome."
+    },
+    {
+      "id": "note-lecteur",
+      "x": 960,
+      "y": -170,
+      "w": 440,
+      "text": "Lecteur — deux variantes à trancher.\nA : la réplique en bulle sur l’image (repère « Augustin » bleu, queue vers le personnage). B : l’image seule, la réplique dans une carte dessous. Dans les deux cas : plus de bandeau « décor de référence », plus de préfixe « Panneau 1 : », la narration en corps 15 px."
+    },
+    {
+      "id": "note-radio",
+      "x": 1920,
+      "y": -170,
+      "w": 440,
+      "text": "Écouter d’abord — le cycle prédire → écouter → vérifier → retenir.\nLes deux hypothèses sont des « choix » (sérif italique 20 px, bord 2 px, ombre 3 px). L’action « Écouter » vit dans le pied d’écran ; « Lire la scène » reste à un tap."
+    },
+    {
+      "id": "note-feuilleton",
+      "x": 2400,
+      "y": -170,
+      "w": 440,
+      "text": "Feuilleton — l’onglet raconte la saison au lieu de s’excuser.\nLa scène du jour en tête (bleu = histoire), l’engagement en cours, puis les épisodes lus avec leur vignette. Plus de hachures ni de « l’illustration n’est pas encore parue »."
+    },
+    {
+      "id": "note-pied",
+      "x": 0,
+      "y": 1010,
+      "w": 440,
+      "text": "Pied d’écran — l’action ne se cache plus sous la barre d’onglets.\nBilan, Répétition et Journal portent leur action principale dans un pied fixe (filet 1 px, fond papier, 14 px + zone sûre), au-dessus des onglets. Le bouton « Send feedback » flottant disparaît de ces écrans."
+    },
+    {
+      "id": "note-dossier",
+      "x": 960,
+      "y": 1010,
+      "w": 440,
+      "text": "Dossier — chaque chiffre a une unité et une preuve.\n« 505 mots supposés connus · 12 acquis » remplace « 0 / 300 ». Chaque capacité renvoie à la séance qui l’a montrée. Les titres de capacités sont en français, comme le reste de l’écran."
+    }
+  ],
+  "launch": {
+    "view": "canvas"
+  }
+}
