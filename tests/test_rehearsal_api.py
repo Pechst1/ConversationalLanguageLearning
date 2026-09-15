@@ -18,6 +18,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
+from app.api.v1.endpoints import rehearsal as rehearsal_endpoint
 from app.main import create_app
 from app.services import rehearsal as rehearsal_module
 from tests.test_rehearsal import GOOD_BRIEF, GOOD_SCENE
@@ -121,6 +122,19 @@ def test_a_learner_with_no_rehearsal_is_offered_one_within_the_weekly_cap(
 
 
 def test_the_whole_flow_from_declaration_to_debrief(rehearsal_client, fake_provider, monkeypatch):
+    # The clock is frozen on a Friday: «tuesday» then resolves to the next
+    # Tuesday, 2026-09-15, and the early debrief below is genuinely early.
+    # Read from the wall clock this test passed until the calendar reached the
+    # date it had hard-coded (WP-43 found it on 2026-09-15 itself).
+    from datetime import UTC, datetime
+
+    class _Frozen(datetime):
+        @classmethod
+        def now(cls, tz=None):  # noqa: D401 - the stdlib signature
+            return datetime(2026, 9, 11, 9, 0, tzinfo=UTC if tz is None else tz)
+
+    monkeypatch.setattr(rehearsal_module, "datetime", _Frozen)
+    monkeypatch.setattr(rehearsal_endpoint, "datetime", _Frozen)
     headers = login(rehearsal_client, _email())
 
     created = rehearsal_client.post(
