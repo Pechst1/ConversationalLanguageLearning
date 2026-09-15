@@ -85,3 +85,39 @@ def test_the_client_sends_the_turn_index_so_a_retry_costs_nothing():
     assert "turn_index: turnIndex" in api
     assert "'placement' | 'measured'" in api
     assert "placement?: PlacementPrior | null;" in api
+
+
+# ---------------------------------------------------------------------------
+# WP-45 — the screen foot, on `Bilan.dc.html` + canvas note «note-pied».
+# ---------------------------------------------------------------------------
+
+
+def test_the_actions_live_in_a_screen_foot_that_follows_the_body():
+    """WP-39's CTA finding: at 390x844 the tab bar is fixed, so a primary action
+    that is not *after* the body in the flow ends up under it."""
+    page = _source("pages/placement.tsx")
+    body = page.index('className="av2-screen__body pl-body"')
+    foot = page.index('className="av2-screen__foot pl-foot"')
+    assert body < foot, "the foot must come after the body in the DOM"
+    # Every state hands its actions to the frame rather than rendering them in
+    # the body, and the old in-flow spacer is gone.
+    assert page.count("<PlacementFrame\n          foot={") + page.count(
+        "<PlacementFrame\n        foot={"
+    ) == 4
+    assert "pl-spacer" not in page
+
+
+def test_the_foot_clears_the_phone_tab_bar():
+    page = _source("pages/placement.tsx")
+    assert "@media (max-width: 760px)" in page
+    assert "padding-bottom: var(--phone-bottom-nav-space, 0px);" in page
+    # The tab bar owns the safe-area inset below 760px; the foot gives its own
+    # back so the two are not added together.
+    assert "--av2-safe-bottom: 0px;" in page
+
+
+def test_the_page_carries_no_hard_coded_colour():
+    page = _source("pages/placement.tsx")
+    import re
+
+    assert not re.search(r"#[0-9a-fA-F]{3,8}\b", page)

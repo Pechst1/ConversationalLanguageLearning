@@ -19,6 +19,12 @@
  *
  * On the av2 system throughout: `.av2` tokens, pill sentence-case actions,
  * French chrome, one primary action per state, dark-capable by inheritance.
+ *
+ * WP-45 redraws it on `docs/design-reference/nouvelles-pages-2026-09-15/`
+ * `Bilan.dc.html` and its canvas note «note-pied»: every state carries its
+ * actions in a screen foot that is the *last thing in the flow*, above the
+ * phone tab bar, never a bar floating under it (WP-39's CTA finding). The DOM
+ * order — body, then foot — is pinned by `tests/test_placement_onboarding_surface.py`.
  */
 
 import React from 'react';
@@ -46,10 +52,25 @@ function confidenceLabel(confidence: number): string {
   return 'estimation provisoire';
 }
 
-function PlacementFrame({ children }: { children: React.ReactNode }) {
+/** The screen scaffold, on `Bilan.dc.html`: a body that holds the reading and
+ *  a foot that holds the actions. The foot is a sibling *after* the body in the
+ *  flow — not a fixed bar — so on a 390×844 phone the primary action sits above
+ *  the four-tab bar instead of under it.
+ *
+ *  TODO(WP-43): swap the wrapper for the shared `ScreenFoot` once it lands; the
+ *  class it wraps, `.av2-screen__foot`, is already the one that component
+ *  carries. */
+function PlacementFrame({
+  children,
+  foot,
+}: {
+  children: React.ReactNode;
+  foot?: React.ReactNode;
+}) {
   return (
-    <AtelierV2Root as="main" className="pl-screen" aria-label="Bilan de niveau">
-      <div className="pl-screen__column">{children}</div>
+    <AtelierV2Root as="main" className="av2-screen pl-screen" aria-label="Bilan de niveau">
+      <div className="av2-screen__body pl-body">{children}</div>
+      {foot ? <div className="av2-screen__foot pl-foot">{foot}</div> : null}
       <PlacementStyles />
     </AtelierV2Root>
   );
@@ -164,7 +185,24 @@ export default function PlacementPage() {
         <Head>
           <title>Trouvons votre niveau · L’Atelier</title>
         </Head>
-        <PlacementFrame>
+        <PlacementFrame
+          foot={
+            <>
+              <Action
+                tone="primary"
+                pending={pending}
+                pendingLabel="Ouverture…"
+                onClick={begin}
+                iconAfter={<ArrowRightIcon size={14} />}
+              >
+                Commencer le bilan
+              </Action>
+              <button type="button" className="av2-btn av2-btn--quiet" onClick={decline}>
+                Passer pour l’instant
+              </button>
+            </>
+          }
+        >
           <span className="av2-label">L’Atelier · Bilan de niveau</span>
           <h1 className="av2-headline av2-headline--screen">Trouvons votre niveau</h1>
           <p className="pl-lead">
@@ -178,13 +216,6 @@ export default function PlacementPage() {
             </p>
           </Surface>
           {failure && <Notice tone="alert" live="alert">{failure}</Notice>}
-          <div className="pl-spacer" aria-hidden="true" />
-          <Action tone="primary" pending={pending} pendingLabel="Ouverture…" onClick={begin}>
-            Commencer le bilan
-          </Action>
-          <button type="button" className="av2-btn av2-btn--quiet" onClick={decline}>
-            Passer pour l’instant
-          </button>
         </PlacementFrame>
       </>
     );
@@ -207,7 +238,25 @@ export default function PlacementPage() {
         <Head>
           <title>Bilan de niveau · L’Atelier</title>
         </Head>
-        <PlacementFrame>
+        <PlacementFrame
+          foot={
+            <>
+              <Action
+                tone="primary"
+                pending={pending}
+                pendingLabel="Lecture…"
+                disabled={!answer.trim()}
+                onClick={send}
+                iconAfter={<ArrowRightIcon size={14} />}
+              >
+                Envoyer
+              </Action>
+              <button type="button" className="av2-btn av2-btn--quiet" onClick={stopEarly}>
+                Arrêter le bilan
+              </button>
+            </>
+          }
+        >
           <span className="av2-label">Bilan de niveau</span>
           <StepProgress
             steps={steps}
@@ -228,20 +277,6 @@ export default function PlacementPage() {
             inputRef: fieldRef,
           })}
           {failure && <Notice tone="alert" live="alert">{failure}</Notice>}
-          <div className="pl-spacer" aria-hidden="true" />
-          <Action
-            tone="primary"
-            pending={pending}
-            pendingLabel="Lecture…"
-            disabled={!answer.trim()}
-            onClick={send}
-            iconAfter={<ArrowRightIcon size={14} />}
-          >
-            Envoyer
-          </Action>
-          <button type="button" className="av2-btn av2-btn--quiet" onClick={stopEarly}>
-            Arrêter le bilan
-          </button>
         </PlacementFrame>
       </>
     );
@@ -254,7 +289,23 @@ export default function PlacementPage() {
         <Head>
           <title>Niveau non évalué · L’Atelier</title>
         </Head>
-        <PlacementFrame>
+        <PlacementFrame
+          foot={
+            <>
+              <Action
+                tone="primary"
+                pending={pending}
+                pendingLabel="Ouverture…"
+                onClick={() => void api.startPlacement(true).then(setEnvelope)}
+              >
+                Refaire le bilan
+              </Action>
+              <button type="button" className="av2-btn av2-btn--quiet" onClick={leave}>
+                Continuer sans bilan
+              </button>
+            </>
+          }
+        >
           <span className="av2-label">Bilan de niveau</span>
           <h1 className="av2-headline av2-headline--screen">Niveau non évalué</h1>
           <p className="pl-lead">
@@ -268,13 +319,6 @@ export default function PlacementPage() {
             </p>
           </Surface>
           {failure && <Notice tone="alert" live="alert">{failure}</Notice>}
-          <div className="pl-spacer" aria-hidden="true" />
-          <Action tone="primary" pending={pending} pendingLabel="Ouverture…" onClick={() => void api.startPlacement(true).then(setEnvelope)}>
-            Refaire le bilan
-          </Action>
-          <button type="button" className="av2-btn av2-btn--quiet" onClick={leave}>
-            Continuer sans bilan
-          </button>
         </PlacementFrame>
       </>
     );
@@ -288,7 +332,13 @@ export default function PlacementPage() {
       <Head>
         <title>Votre niveau estimé · L’Atelier</title>
       </Head>
-      <PlacementFrame>
+      <PlacementFrame
+        foot={
+          <Action tone="primary" onClick={leave} iconAfter={<ArrowRightIcon size={14} />}>
+            Ouvrir ma première séance
+          </Action>
+        }
+      >
         <span className="av2-label">Bilan de niveau</span>
         <h1 className="av2-headline av2-headline--screen">
           Niveau estimé&nbsp;: {envelope?.level ?? '—'}
@@ -327,10 +377,6 @@ export default function PlacementPage() {
           </details>
         )}
 
-        <div className="pl-spacer" aria-hidden="true" />
-        <Action tone="primary" onClick={leave} iconAfter={<ArrowRightIcon size={14} />}>
-          Ouvrir ma première séance
-        </Action>
       </PlacementFrame>
     </>
   );
@@ -339,40 +385,61 @@ export default function PlacementPage() {
 function PlacementStyles() {
   return (
     <style jsx global>{`
+      /* The screen scaffold, on Bilan.dc.html. A column that fills the shell, a
+         body that carries the reading, and a foot that is the last thing in the
+         flow rather than a bar floating over the tab bar. */
       .av2.pl-screen {
-        display: flex;
-        min-height: 100dvh;
-        justify-content: center;
-        padding: calc(20px + env(safe-area-inset-top, 0px)) 18px
-          calc(20px + env(safe-area-inset-bottom, 0px));
-        background: var(--av2-paper);
-      }
-      .av2 .pl-screen__column {
         display: flex;
         flex: 1 1 auto;
         flex-direction: column;
-        gap: 14px;
-        max-width: 460px;
+        min-height: 100dvh;
         min-width: 0;
+        background: var(--av2-paper);
+      }
+      /* Canvas note «note-pied»: the action does not hide under the tab bar.
+         Below 760px the shell draws a fixed four-tab bar, so the screen
+         reserves its height; the bar owns the safe-area inset there, and the
+         foot gives its own back rather than adding a second one. */
+      @media (max-width: 760px) {
+        .av2.pl-screen {
+          padding-bottom: var(--phone-bottom-nav-space, 0px);
+        }
+        .av2 .pl-foot {
+          --av2-safe-bottom: 0px;
+        }
+      }
+      .av2 .pl-body {
+        flex: 1 1 auto;
+        gap: 16px; /* design 16px between kicker, headline, body, note */
+        width: 100%;
+        max-width: 460px;
+        margin: 0 auto;
+        padding-top: calc(24px + env(safe-area-inset-top, 0px));
+        padding-bottom: 20px;
+      }
+      .av2 .pl-foot {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 4px; /* design 4px between the primary and the quiet action */
+      }
+      .av2 .pl-foot > * {
+        width: 100%;
+        max-width: 460px;
+        margin-left: auto;
+        margin-right: auto;
       }
       .av2 .pl-lead {
         margin: 0;
-        font-size: var(--av2-t-body);
-        line-height: 1.5;
-        color: var(--av2-ink);
+        font-size: var(--av2-t-body); /* design 15px */
+        line-height: 1.45;
+        color: var(--av2-ink-2);
       }
       .av2 .pl-fine {
         margin: 0;
-        font-size: var(--av2-t-small);
+        font-size: var(--av2-t-label);
         line-height: 1.45;
-        color: var(--av2-ink-quiet);
-      }
-      /* Holds the actions at the foot of the flow rather than pinning them, so
-         a software keyboard can never cover the only way forward (AuthShell
-         solves the same problem the same way). */
-      .av2 .pl-spacer {
-        flex: 1 1 auto;
-        min-height: 12px;
+        color: var(--av2-muted);
       }
       .av2 .pl-dims {
         display: flex;
@@ -387,21 +454,21 @@ function PlacementStyles() {
         gap: 12px;
         align-items: baseline;
         justify-content: space-between;
-        font-size: var(--av2-t-small);
+        font-size: var(--av2-t-label);
       }
       .av2 .pl-dims__score {
         font-variant-numeric: tabular-nums;
-        color: var(--av2-ink-quiet);
+        color: var(--av2-muted);
       }
       .av2 .pl-evidence {
-        font-size: var(--av2-t-small);
+        font-size: var(--av2-t-label);
       }
       .av2 .pl-evidence > summary {
         min-height: var(--av2-tap);
         display: flex;
         align-items: center;
         cursor: pointer;
-        color: var(--av2-ink-quiet);
+        color: var(--av2-muted);
       }
       .av2 .pl-evidence ul {
         display: flex;
