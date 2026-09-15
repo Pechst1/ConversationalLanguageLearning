@@ -1716,3 +1716,19 @@ chrome languages on Home and Dossier (D-3, product decision), ~130 requests per 
 load (D-4), English gloss to a German native (D-6). Full backend suite after the fixes:
 exit 0, 0 failures; type-check, lint, journey suite green. Not walked: mic-denied,
 self-repair elicitation, +1-day journal, 320/390 pt rendering, simulator.
+
+## 2026-09-15 — the nouvelles-pages canvas, implementation begun
+
+Design contract: `docs/design-reference/nouvelles-pages-2026-09-15/` (canvas
+https://claude.ai/artifact/BCqoRp9WQDBGoC1vbrm8W7). Subagents stalled at the
+session limit in every configuration (3 parallel, then 1 alone), so the
+integration owner verified and committed their partial work: **WP-44**
+reader (bubble variant A default, banner + «Panneau N :» gone), the French
+«prédire» stage, the Feuilleton season page + read-only season endpoint
+(`984b8b9`); **WP-45** dossier on the canvas wording with token type sizes
+(`7a209e8`). Walked on the fake harness: dossier and season render per the
+artboards. Open: WP-45 bilan/répétition/journal/documents (agent in flight);
+WP-43 Home card + shell foot + journey-shell chrome («Schritt 1 von 3»,
+«Hier aufhören» still German) — not started; the dev server must be
+restarted after `next build` (shared `.next`), and the backend after any
+endpoint change.
