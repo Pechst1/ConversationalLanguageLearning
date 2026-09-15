@@ -20,6 +20,9 @@ import { AtelierV2Root } from '@/components/atelier-v2/ui';
 import api, { type DossierEnvelope } from '@/services/api';
 
 const HOME = '/atelier';
+/** WP-45: the level card's quiet way to the bilan. `rerun=1` because a learner
+ *  who already declined once is on this screen on purpose. */
+const PLACEMENT = '/placement?rerun=1';
 
 /** The server sends a French sentence with every refusal; this is the fallback. */
 const GENERIC_FAILURE = 'Cette action n’a pas abouti. Réessayez dans un instant.';
@@ -84,9 +87,8 @@ export default function DossierPage() {
       <Head>
         <title>Votre dossier · L’Atelier</title>
       </Head>
-      <AtelierV2Root as="main" className="ds-screen" aria-label="Votre dossier">
-        <div className="ds-screen__column">
-          <DossierScreen
+      <AtelierV2Root as="main" className="av2-screen ds-screen" aria-label="Votre dossier">
+        <DossierScreen
             dossier={envelope?.dossier ?? null}
             check={claim?.check ?? null}
             verdict={claim?.verdict ?? null}
@@ -103,38 +105,78 @@ export default function DossierPage() {
               setFailure(null);
             }}
             onLeave={leave}
+            onOpenPlacement={() => void router.push(PLACEMENT)}
           />
-        </div>
         <DossierStyles />
       </AtelierV2Root>
     </>
   );
 }
 
+
+/* ===========================================================================
+   WP-45 — «Votre dossier» on `Dossier.dc.html`.
+
+   Page-scoped `.av2 .ds-*` only, tokens only, no hard-coded colour: dark mode
+   is inherited from the tokens rather than re-implemented here. Sizes are rem
+   so the app's text-size setting moves them; the design's px are in comments.
+   =========================================================================== */
 function DossierStyles() {
   return (
     <style jsx global>{`
+      /* The screen scaffold. A column that fills the shell, a body that
+         scrolls, and — on the states that carry an action — a foot that is the
+         last thing in the flow rather than a bar floating over the tab bar.
+         TODO(WP-43): replace .ds-foot with the shared ScreenFoot component
+         once it lands; the class it wraps, .av2-screen__foot, is already the
+         one that component will carry. */
       .av2.ds-screen {
-        display: flex;
-        min-height: 100dvh;
-        justify-content: center;
-        padding: calc(20px + env(safe-area-inset-top, 0px)) 18px
-          calc(20px + env(safe-area-inset-bottom, 0px));
-        background: var(--av2-paper);
-      }
-      .av2 .ds-screen__column {
         display: flex;
         flex: 1 1 auto;
         flex-direction: column;
-        gap: 14px;
-        max-width: 460px;
+        min-height: 100%;
         min-width: 0;
+        background: var(--av2-paper);
       }
-      .av2 .ds-lead {
-        margin: 0;
-        font-size: var(--av2-t-body);
-        line-height: 1.5;
-        color: var(--av2-ink);
+      /* Canvas note «note-pied»: the action does not hide under the tab bar.
+         Below 760px the shell draws a fixed four-tab bar, so the screen
+         reserves its height; the bar owns the safe-area inset there, and the
+         foot gives its own back rather than adding a second one. */
+      @media (max-width: 760px) {
+        .av2.ds-screen {
+          padding-bottom: var(--phone-bottom-nav-space, 0px);
+        }
+        .av2 .ds-foot {
+          --av2-safe-bottom: 0px;
+        }
+      }
+      .av2 .ds-body {
+        flex: 1 1 auto;
+        gap: 12px;
+        width: 100%;
+        max-width: 460px;
+        margin: 0 auto;
+        padding-top: 24px;
+        padding-bottom: 20px;
+      }
+      .av2 .ds-foot {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 4px;
+      }
+      .av2 .ds-foot > * {
+        width: 100%;
+        max-width: 460px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+
+      .av2 .ds-card {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        min-width: 0;
       }
       .av2 .ds-fine {
         margin: 0;
@@ -142,12 +184,127 @@ function DossierStyles() {
         line-height: 1.45;
         color: var(--av2-muted);
       }
-      /* Keeps the actions at the foot of the flow rather than pinning them, so a
-         software keyboard can never cover the only way forward. */
-      .av2 .ds-spacer {
-        flex: 1 1 auto;
-        min-height: 12px;
+
+      /* The level: one 46px serif figure, and the sentence that says who said
+         so. They wrap onto two lines rather than shrinking at large text. */
+      .av2 .ds-level {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 4px 10px;
       }
+      .av2 .ds-level__value {
+        font-family: var(--av2-serif);
+        font-style: italic;
+        font-weight: 600;
+        font-size: calc(var(--av2-t-display) * 1.35); /* design 46px, on the display token */
+        line-height: 0.9;
+        color: var(--av2-ink);
+      }
+      .av2 .ds-level__source {
+        font-size: var(--av2-t-label);
+        line-height: 1.45;
+        color: var(--av2-ink-2);
+      }
+
+      /* A dated reference to the work behind a belief. Underlined like the
+         artboard, and a span rather than an anchor: nothing in this app opens
+         a past séance, and a dead link is a worse promise than a reference. */
+      .av2 .ds-ref {
+        font-size: var(--av2-t-meta);
+        font-weight: 600;
+        color: var(--av2-ink-2);
+        text-decoration: underline;
+        text-underline-offset: 3px;
+      }
+
+      /* Capability rows: serif name, state on the right, hairline separators. */
+      .av2 .ds-caps {
+        display: flex;
+        flex-direction: column;
+        margin: 6px 0 0;
+        padding: 0;
+        list-style: none;
+      }
+      .av2 .ds-cap {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 2px 12px;
+        padding: 8px 0;
+        border-top: 1px solid var(--av2-line);
+      }
+      .av2 .ds-cap__name {
+        font-family: var(--av2-serif);
+        font-style: italic;
+        font-size: var(--av2-t-action); /* design 17px */
+        line-height: 1.25;
+        color: var(--av2-ink);
+        overflow-wrap: anywhere;
+      }
+      .av2 .ds-cap__right {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 2px;
+        text-align: right;
+      }
+      .av2 .ds-cap__state {
+        font-size: var(--av2-t-meta);
+        font-weight: 700;
+        color: var(--av2-muted);
+      }
+
+      /* Three counters, each a figure over the noun it counts. Never a ratio:
+         the denominator is the sentence under them (WP-39 D-5). */
+      .av2 .ds-counters {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 18px;
+        margin-top: 2px;
+      }
+      .av2 .ds-counter,
+      .av2 .ds-stock {
+        display: flex;
+        min-width: 0;
+      }
+      .av2 .ds-counter {
+        flex-direction: column;
+        gap: 2px;
+      }
+      .av2 .ds-counter__value,
+      .av2 .ds-stock__value {
+        font-family: var(--av2-serif);
+        font-style: italic;
+        font-weight: 600;
+        font-size: calc(var(--av2-t-title) * 1.1667); /* design 28px, on the title token */
+        line-height: 1;
+        color: var(--av2-ink);
+        font-variant-numeric: tabular-nums;
+      }
+      .av2 .ds-counter__label {
+        font-size: var(--av2-t-meta);
+        font-weight: 700;
+        color: var(--av2-muted);
+      }
+      .av2 .ds-stock {
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 4px 8px;
+      }
+      .av2 .ds-stock__unit {
+        font-size: var(--av2-t-label);
+        line-height: 1.45;
+        color: var(--av2-ink-2);
+      }
+      .av2 .ds-chip {
+        align-self: flex-start;
+        margin-top: 4px;
+      }
+
+      /* Disclosures: the detail behind a counter, and the words a learner may
+         push back on. Both closed by default — the page is a summary first. */
       .av2 .ds-group {
         display: flex;
         flex-direction: column;

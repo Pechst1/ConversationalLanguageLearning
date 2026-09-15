@@ -169,8 +169,8 @@ test('without a journey there is no line and no promise', () => {
 // 4. Capabilities and their evidence.
 test('the rubric’s four states have French labels and an unknown state is not a pass', () => {
   assert.equal(capabilityStateLabel('not_tried'), 'Pas encore tenté');
-  assert.equal(capabilityStateLabel('with_support'), 'Fait avec aide');
-  assert.equal(capabilityStateLabel('independent_once'), 'Fait seul une fois');
+  assert.equal(capabilityStateLabel('with_support'), 'Avec de l’aide');
+  assert.equal(capabilityStateLabel('independent_once'), 'Seul, une fois');
   assert.equal(capabilityStateLabel('used_again_later'), 'Refait un autre jour');
   assert.equal(capabilityStateLabel('unknown'), 'Aide non enregistrée');
   assert.equal(capabilityStateLabel('invented'), 'Aide non enregistrée');

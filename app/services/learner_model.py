@@ -53,7 +53,11 @@ from app.db.models.pilot_event import PilotEvent
 from app.db.models.placement import PlacementSession
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
-from app.services.cefr_progress import CEFRProgressService, declared_level_floor
+from app.services.cefr_progress import (
+    DECLARED_LEVEL_EVIDENCE_ATTEMPTS,
+    CEFRProgressService,
+    declared_level_floor,
+)
 from app.services.error_memory import (
     ERROR_STATE_MASTERED,
     ERROR_STATE_OPEN,
@@ -103,6 +107,19 @@ CLAIM_PASS_RATING = 4
 ERRATA_PER_STATE = 12
 WORDS_SHOWN = 8
 CLAIMS_SHOWN = 10
+
+#: WP-45 (D-3/D-5). «Votre dossier» is a French screen end to end, so every
+#: capability carries a French title beside the control-language one rather than
+#: printing «Im Café bestellen» under a French label. The strings mirror
+#: ``journey_capabilities._TITLES["fr"]``; ``tests/test_wp45_companion.py`` pins
+#: the two together so they cannot drift apart silently. ``register`` has no
+#: entry there — it is a dimension, not a scenario — and comes from the same
+#: copy table the rubric itself uses.
+_CAPABILITY_TITLE_FR: dict[str, str] = {
+    "order_at_cafe": "Commander au café",
+    "arrange_meeting": "Fixer un rendez-vous",
+    "explain_delay": "Expliquer un retard",
+}
 
 #: Publication French. These are printed verbatim by the page, like the repair
 #: card's furniture in ``error_memory``.
@@ -274,6 +291,11 @@ def _level_belief(db: Session, *, user: User) -> dict[str, Any]:
         "verified": str(breakdown.get("status") or "") == "measured",
         "status": breakdown.get("status"),
         "confidence": confidence,
+        # WP-45 (D-5): the page explains what turns «déclaré» into «mesuré», and
+        # the number in that sentence is the one the estimator actually uses —
+        # never a figure retyped into French copy.
+        "evidence_attempts_required": DECLARED_LEVEL_EVIDENCE_ATTEMPTS,
+        "evidence_attempts_counted": int(signals.get("recent_attempt_count") or 0),
         "breakdown": breakdown,
         "placement": placement,
         "target": payload.get("target"),
@@ -354,6 +376,9 @@ def _capability_beliefs(
             {
                 "key": key,
                 "title": summary.title_native,
+                # WP-45: the dossier is French chrome; the page prints this and
+                # falls back to `title` only when a key has no French name yet.
+                "title_fr": _french_capability_title(key),
                 "state": str(summary.state),
                 "rubric_version": view.rubric_version,
                 "modalities": [str(mode) for mode in summary.modalities],
@@ -366,6 +391,23 @@ def _capability_beliefs(
             }
         )
     return capabilities
+
+
+def _french_capability_title(key: str) -> str | None:
+    """The French name of one capability, or ``None`` when there is none.
+
+    ``None`` rather than the English title: a page that gets nothing falls back
+    to the control-language title it already has, which is the current
+    behaviour. Inventing French here would be worse than the mixed chrome.
+    """
+
+    if key in _CAPABILITY_TITLE_FR:
+        return _CAPABILITY_TITLE_FR[key]
+    if key == "register":
+        from app.services.learner_copy import learner_text
+
+        return learner_text("capability.register_title", "fr")
+    return None
 
 
 def _journey_links(db: Session, *, user: User) -> dict[tuple[str, date], str]:
@@ -448,9 +490,34 @@ def _errata_beliefs(db: Session, *, user: User) -> dict[str, Any]:
     return {
         "available": True,
         "mastery_target": MASTERY_REQUIRED_REPAIRS,
+        # How many rows this payload *carries*, capped at ERRATA_PER_STATE.
         "counts": {state: len(items) for state, items in by_state.items()},
+        # WP-45: how many there actually are. The dossier prints three counters
+        # («2 ouvertes · 1 en réparation · 3 maîtrisées»), and a counter drawn
+        # from `counts` would silently stop at twelve and read as the truth.
+        "totals": _errata_totals(db, user=user),
         "by_state": by_state,
     }
+
+
+def _errata_totals(db: Session, *, user: User) -> dict[str, int]:
+    """Every erratum by WP-24 state, counted — not just the ones shown.
+
+    Read as one column rather than aggregated in SQL on purpose: legacy rows
+    carry «new»/«learning»/«review»/«relearning», and only
+    :func:`normalize_error_state` folds those onto the three states the loop
+    has. A ``GROUP BY state`` would report a fourth bucket nobody can name.
+    """
+
+    totals = {ERROR_STATE_OPEN: 0, ERROR_STATE_REPAIRING: 0, ERROR_STATE_MASTERED: 0}
+    try:
+        rows = db.execute(select(UserError.state).where(UserError.user_id == user.id)).all()
+    except Exception:  # pragma: no cover - defensive
+        logger.exception("learner_model: the errata totals could not be counted")
+        return totals
+    for (state,) in rows:
+        totals[normalize_error_state(state)] += 1
+    return totals
 
 
 def _vocabulary_beliefs(db: Session, *, user: User) -> dict[str, Any]:
