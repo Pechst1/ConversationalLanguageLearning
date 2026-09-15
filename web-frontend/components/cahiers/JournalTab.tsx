@@ -43,16 +43,26 @@ import api, {
 
 /* ---------- pure helpers, exported so they can be pinned ---------- */
 
-/** How the cue reads under the kicker. Never any authored scene text. */
+/** How the story label reads above the headline. Never any authored scene text.
+ *
+ *  WP-45 puts it in the artboard's order — «Hier · Le Mistral · avec Augustin»:
+ *  when, where, who. The place is a bare name rather than «à …» because it is a
+ *  label, not a sentence. */
 export function cueLine(entry: JournalEntryView | null | undefined): string {
   if (!entry) return '';
   const who = entry.cue?.character_name?.trim();
   const where = entry.cue?.location_name?.trim();
   const days = entry.cue?.days_ago;
-  const when = days == null ? null : days <= 1 ? 'hier' : `il y a ${days} jours`;
-  return [when, who ? `avec ${who}` : null, where ? `à ${where}` : null]
-    .filter(Boolean)
-    .join(' · ');
+  const when = days == null ? null : days <= 1 ? 'Hier' : `Il y a ${days} jours`;
+  return [when, where || null, who ? `avec ${who}` : null].filter(Boolean).join(' · ');
+}
+
+/** What the field says before the learner writes, in the artboard's shape
+ *  («Hier, Augustin…»). Falls back to the day alone when the server sent no
+ *  character: an invented name would be scene text. */
+export function entryPlaceholder(entry: JournalEntryView | null | undefined): string {
+  const who = entry?.cue?.character_name?.trim();
+  return who ? `Hier, ${who}…` : 'Hier, …';
 }
 
 /** The content-recall sentence. Never a score out of ten, never a grade. */
@@ -242,28 +252,42 @@ export default function JournalTab() {
       )}
 
       {/* ---- writing: the cue only, never the scene ---- */}
+      {/* WP-45 draws this state on `Journal.dc.html`: a blue story label, the
+          one 30px headline, the body, the taller «Hier, en français» field, the
+          dashed note about the corrections, and then a screen foot. No card —
+          the artboard sets this state straight on the paper, because it is the
+          screen rather than one block on it. */}
       {entry && !written && entry.status !== 'skipped' && (
-        <Surface as="section" tone="paper" shape="card" className="jn-card">
-          <p className="av2-label">{cueLine(entry) || 'La scène d’hier'}</p>
-          <h2 className="jn-title">De mémoire</h2>
-          <p className="jn-ask" lang="fr">
-            {entry.prompt_fr}
-          </p>
-          <p className="jn-hint">
-            La scène reste fermée jusqu’à votre envoi : c’est le but.
-          </p>
-          {textAnswerField({
-            label: 'Votre entrée',
-            value: draft,
-            placeholder: 'Deux à quatre phrases…',
-            rows: 5,
-            disabled: pending === 'write',
-            onChange: setDraft,
-          })}
-          <p className="jn-count" aria-live="polite">
-            {wordCount(draft)} mot(s) · {minWords} au minimum
-          </p>
-          <div className="jn-actions">
+        <>
+          <section className="jn-write" aria-label="Le journal de bord">
+            <p className="av2-label av2-label--story">{cueLine(entry) || 'La scène d’hier'}</p>
+            <h2 className="av2-headline">Le journal de bord</h2>
+            <p className="jn-lead" lang="fr">
+              {entry.prompt_fr}
+            </p>
+            <div className="jn-entry-field">
+              {textAnswerField({
+                label: 'Hier, en français',
+                value: draft,
+                placeholder: entryPlaceholder(entry),
+                rows: 6,
+                disabled: pending === 'write',
+                onChange: setDraft,
+              })}
+            </div>
+            <Surface tone="outline">
+              <p className="jn-hint">
+                Une seule correction en avant, la liste complète sur demande. Dans une semaine,
+                une ligne vous redemandera cette scène.
+              </p>
+            </Surface>
+            <p className="jn-count" aria-live="polite">
+              {wordCount(draft)} mot(s) · {minWords} au minimum
+            </p>
+          </section>
+          {/* The screen foot. Last in the flow, so the action is never under the
+              phone tab bar (WP-39's CTA finding). */}
+          <div className="jn-foot">
             <Action
               tone="primary"
               pending={pending === 'write'}
@@ -271,11 +295,15 @@ export default function JournalTab() {
               disabled={wordCount(draft) < minWords}
               onClick={() => void submit()}
             >
-              Envoyer et relire la scène
+              Envoyer
             </Action>
+            {/* A caption, not a control: it says what «Envoyer» does next, and
+                there is nothing to press before the entry is sent. The artboard
+                underlines it; an underline that opens nothing is a false
+                affordance, so it is drawn quiet instead. */}
+            <p className="jn-foot__note">Relire la scène après l’envoi</p>
             <Action
               tone="quiet"
-              inline
               pending={pending === 'skip'}
               pendingLabel="…"
               onClick={() => void skip()}
@@ -283,7 +311,7 @@ export default function JournalTab() {
               Passer cette scène
             </Action>
           </div>
-        </Surface>
+        </>
       )}
 
       {/* ---- after: the learner's own text, then the two verdicts ---- */}
@@ -410,6 +438,51 @@ export function JournalStyles() {
   return (
     <style jsx global>{`
       .av2 .jn-wrap { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+      /* Canvas note «note-pied»: below 760px the shell draws a fixed four-tab
+         bar over the Cahier, so the tab reserves its height and the foot — the
+         last thing in this flow — lands above it instead of under it. */
+      @media (max-width: 760px) {
+        .av2 .jn-wrap { padding-bottom: var(--phone-bottom-nav-space, 0px); }
+      }
+      /* The writing state, on Journal.dc.html: straight on the paper, 14px
+         between the label, the headline, the body, the field and the note. */
+      .av2 .jn-write { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+      .av2 .jn-lead {
+        margin: 0;
+        font-size: var(--av2-t-body); /* design 15px */
+        line-height: 1.45;
+        color: var(--av2-ink-2);
+        overflow-wrap: anywhere;
+      }
+      /* «Hier, en français» — the artboard draws this one field 150px tall,
+         because the entry is the whole point of the screen. Everything else
+         about it is the shared av2 field. */
+      .av2 .jn-entry-field .av2-field__control { min-height: 150px; }
+      /* The screen foot. Same rule as the other companion screens: a hairline,
+         the paper ground, 14px and the safe area — but in flow, never fixed.
+         TODO(WP-43): swap for the shared ScreenFoot component once it lands. */
+      .av2 .jn-foot {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 4px;
+        margin-top: 2px;
+        padding: 14px 0 0;
+        border-top: 1px solid var(--av2-line);
+        background: var(--av2-paper);
+      }
+      .av2 .jn-foot__note {
+        margin: 0;
+        min-height: var(--av2-tap);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: var(--av2-t-label);
+        font-weight: 600;
+        line-height: 1.45;
+        color: var(--av2-ink-2);
+        text-align: center;
+      }
       .av2 .jn-card { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
       .av2 .jn-card--react { flex-direction: row; align-items: flex-start; gap: 12px; }
       .av2 .jn-title {

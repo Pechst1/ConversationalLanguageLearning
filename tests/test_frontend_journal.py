@@ -122,9 +122,13 @@ def test_every_action_is_a_pill_in_sentence_case(tab: str):
 
 def test_the_learner_facing_copy_is_french(tab: str):
     for sentence in (
-        "De mémoire",
-        "La scène reste fermée jusqu’à votre envoi",
-        "Envoyer et relire la scène",
+        # WP-45 re-pins the writing state on `Journal.dc.html`: the headline is
+        # the screen's name, the primary is one word, and the scene-stays-shut
+        # promise moved to the foot caption under it.
+        "Le journal de bord",
+        "Hier, en français",
+        "Relire la scène après l’envoi",
+        "Envoyer",
         "Passer cette scène",
         "Tout voir",
         "Ce dont vous vous souvenez",
@@ -166,3 +170,50 @@ def test_the_two_verdicts_are_two_blocks_with_two_headings(tab: str):
     # And the recall sentence never speaks of correctness.
     recall_fn = tab.split("export function recallLine")[1].split("\n}\n")[0]
     assert "faute" not in recall_fn and "correct" not in recall_fn
+
+
+# ---------------------------------------------------------------------------
+# 5. WP-45 — the writing state on `Journal.dc.html` + canvas note «note-pied»
+# ---------------------------------------------------------------------------
+
+
+def test_the_writing_state_carries_its_action_in_a_foot_below_the_body(tab: str):
+    """At 390x844 the Cahier sits under a fixed four-tab bar, so the entry's
+    action has to be the last thing in the flow and the flow has to reserve the
+    bar's height."""
+    writing = tab.split("{/* ---- after:")[0]
+    body = writing.index('className="jn-write"')
+    foot = writing.index('className="jn-foot"')
+    assert body < foot, "the foot comes after the body in the DOM"
+    assert "@media (max-width: 760px)" in tab
+    assert "padding-bottom: var(--phone-bottom-nav-space, 0px);" in tab
+
+
+def test_the_story_label_reads_when_where_who(tab: str):
+    """«Hier · Le Mistral · avec Augustin», and in the story blue."""
+    assert 'className="av2-label av2-label--story">{cueLine(entry)' in tab
+    cue_fn = tab.split("export function cueLine")[1].split("}\n")[0]
+    assert "[when, where || null, who ? `avec ${who}` : null]" in cue_fn
+    assert "'Hier'" in cue_fn
+
+
+def test_the_entry_field_is_the_shared_control_drawn_150px_tall(tab: str):
+    assert "label: 'Hier, en français'" in tab
+    assert 'className="jn-entry-field"' in tab
+    assert re.search(
+        r"\.av2 \.jn-entry-field \.av2-field__control \{ min-height: 150px; \}", tab
+    )
+
+
+def test_the_dashed_note_states_both_promises(tab: str):
+    """One correction in the foreground, and the +7-day line."""
+    writing = tab.split("{/* ---- after:")[0]
+    assert "Une seule correction en avant, la liste complète sur demande." in writing
+    assert "Dans une semaine," in writing and "redemandera cette scène" in writing
+
+
+def test_the_foot_caption_is_not_a_control(tab: str):
+    """«Relire la scène après l'envoi» describes what Envoyer does; there is
+    nothing to press, so it must not be drawn as a button."""
+    assert '<p className="jn-foot__note">Relire la scène après l’envoi</p>' in tab
+    assert "Relire la scène après l’envoi</Action>" not in tab
