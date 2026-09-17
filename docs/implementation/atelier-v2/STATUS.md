@@ -1760,3 +1760,12 @@ one band low for B1 (one low turn ends the climb); register detector 5/6 and the
 model gap fixed from a gpt-5-mini token starvation (`app/services/pragmatics.py`);
 three radio mp3s for the owner's ear; intake read both fixtures; coverage not
 observable on a synthetic learner.
+
+**WP-46 landed.** Réglages now reads in the learner's `native_language`, not the
+publication's French: `lib/settings-copy.ts` holds the whole screen in en/de/fr
+(122 keys — labels, hints, buttons, toasts, validation, both confirmations, the
+`<title>`), English is the floor for anything else, and the language is chosen
+only once the account has answered, so nothing paints French and swaps. Six
+suites re-pinned onto the key plus all three wordings; `tests/test_settings_language.py`
+fails on any French sentence left in the page. Not walked in a browser — `/settings`
+is auth-gated. See [WP-46-SETTINGS-LANGUAGE.md](WP-46-SETTINGS-LANGUAGE.md).
