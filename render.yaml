@@ -64,7 +64,7 @@ services:
       - key: OPENAI_GRAPHIC_NOVEL_PREMIUM_SCRIPT_MODEL
         value: gpt-5.5
       - key: OPENAI_IMAGE_MODEL
-        value: gpt-image-2
+        value: gpt-image-2.5-flare
       # Atelier Séance correction (2026-09-07): gpt-5-nano graded weak feedback
       # and falsely rejected a valid answer, and 900 output tokens truncated a
       # full-paragraph assessment (one live retry needed 2,573). Pinned here so
@@ -164,7 +164,7 @@ services:
       - key: OPENAI_GRAPHIC_NOVEL_PREMIUM_SCRIPT_MODEL
         value: gpt-5.5
       - key: OPENAI_IMAGE_MODEL
-        value: gpt-image-2
+        value: gpt-image-2.5-flare
       # Atelier Séance correction (2026-09-07): gpt-5-nano graded weak feedback
       # and falsely rejected a valid answer, and 900 output tokens truncated a
       # full-paragraph assessment (one live retry needed 2,573). Pinned here so

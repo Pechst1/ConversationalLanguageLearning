@@ -5914,7 +5914,7 @@ class GraphicNovelStoryGenerator:
             "image_generation_usd": image_cost,
             "story_generation_usd": round(story_cost, 4),
             "total_estimated_usd": round(image_cost + story_cost, 3),
-            "basis": "Configured gpt-image-2 estimate scaled by render mode and quality; story cost uses provider token usage when available.",
+            "basis": "Configured gpt-image-2.5 estimate scaled by render mode and quality; story cost uses provider token usage when available.",
         }
 
     def _source_prompt(self, source_snapshot: dict[str, Any]) -> dict[str, Any]:

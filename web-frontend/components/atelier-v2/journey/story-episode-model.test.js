@@ -173,7 +173,11 @@ const bubblePanel = {
 };
 
 test('one line from a named speaker over real art is a bubble; everything else is a card', () => {
-  assert.equal(model.panelReaderVariant(bubblePanel), 'bubble');
+  // The rule is tested under `'auto'` explicitly: the shipped constant is
+  // `'line'` (owner's choice, 2026-09-17), which makes every panel a card.
+  const auto = (stage) => model.panelReaderVariant(stage, 'auto');
+  assert.equal(auto(bubblePanel), 'bubble');
+  assert.equal(model.panelReaderVariant(bubblePanel), 'line', 'shipped: the line in a card under the art');
 
   // narration only
   assert.equal(model.panelReaderVariant({ ...bubblePanel, lines: [] }), 'line');
@@ -201,7 +205,7 @@ test('one line from a named speaker over real art is a bubble; everything else i
 });
 
 test('the variant is one constant, and flipping it flips the whole reader', () => {
-  assert.equal(model.READER_VARIANT, 'auto', 'variant A-by-rule is what ships');
+  assert.equal(model.READER_VARIANT, 'line', 'variant B — the line in a card under the art — is the owner’s choice (2026-09-17)');
   // forced B: even the panel that qualifies for a bubble becomes a card
   assert.equal(model.panelReaderVariant(bubblePanel, 'line'), 'line');
   // forced A: a two-line panel over art becomes a bubble

@@ -183,7 +183,9 @@ export type PanelVariant = 'bubble' | 'line';
  *   * `'line'`  — variant B everywhere; flip here to get the whole reader on
  *     the second artboard with no other edit.
  */
-export const READER_VARIANT: 'auto' | 'bubble' | 'line' = 'auto';
+// Owner's decision, 2026-09-17: variant B — the art alone, the line in a card
+// under it (`LectureLignes.dc.html`).
+export const READER_VARIANT: 'auto' | 'bubble' | 'line' = 'line';
 
 /**
  * How one stage is drawn.

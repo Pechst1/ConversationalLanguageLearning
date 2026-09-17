@@ -203,7 +203,7 @@ class Settings(BaseSettings):
         "low",
         description="Optional reasoning_effort override for Atelier correction models that support it.",
     )
-    OPENAI_IMAGE_MODEL: str = Field("gpt-image-2", description="Default OpenAI image model")
+    OPENAI_IMAGE_MODEL: str = Field("gpt-image-2.5-flare", description="Default OpenAI image model (gpt-image-2.5-flare: the fast, high-quality everyday model; gpt-image-2.5-sunburst is the most capable one, same list price)")
     OPENAI_IMAGE_QUALITY: str = Field("medium", description="Default OpenAI image generation quality")
     OPENAI_IMAGE_SIZE: str = Field("1024x1024", description="Default OpenAI image generation size")
     OPENAI_IMAGE_TIMEOUT_SECONDS: float = Field(240.0, description="Timeout for OpenAI image generation calls")
@@ -218,7 +218,7 @@ class Settings(BaseSettings):
     GRAPHIC_NOVEL_DEFAULT_PANEL_COUNT: int = Field(6, description="Default Feuilleton panel count")
     GRAPHIC_NOVEL_IMAGE_COST_USD_PER_PANEL: float = Field(
         0.053,
-        description="Estimated image-generation cost per 1024x1024 medium gpt-image-2 panel",
+        description="Estimated image-generation cost per 1024x1024 medium gpt-image-2.5 panel",
     )
     GRAPHIC_NOVEL_IMAGE_CONCURRENCY: int = Field(
         3,
