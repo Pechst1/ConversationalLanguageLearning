@@ -66,7 +66,10 @@ IMPERATIVE_SENSITIVE_BANDS = frozenset({"A1", "A2"})
 
 #: One model call, one attempt, a tiny budget. This is an opinion on a sentence,
 #: not a generation.
-MODEL_MAX_TOKENS = 200
+# gpt-5 reasoning models spend the budget on reasoning first and return *no*
+# content when it is this small (the 2026-09-17 calibration: every call empty).
+# 1,200 with reasoning_effort=low is what the other correction calls use.
+MODEL_MAX_TOKENS = 1200
 
 
 class Register(StrEnum):
@@ -687,6 +690,7 @@ def model_register_gap(
             system_prompt=_MODEL_SYSTEM_PROMPT,
             temperature=0.0,
             max_tokens=MODEL_MAX_TOKENS,
+            reasoning_effort="low",
         )
         cost = float(getattr(result, "cost", 0.0) or 0.0)
         payload = json.loads(_strip_fence(result.content))
