@@ -260,20 +260,34 @@ def test_pilot_frontend_contracts_are_pinned():
     assert "clearPilotResilience()" in auth
     assert "recordClientError" in app_shell
     assert "unhandledrejection" in app_shell
-    assert "L’administration" in settings
-    assert "Receive this edition on this device" not in settings
+    # WP-46: the page <title> comes from the copy table, in the learner's own
+    # language. The French artboard title is pinned where it now lives.
+    assert "{copy.page_title}" in settings
+    assert "L’administration · Réglages" in _source("lib/settings-copy.ts")
 
     # The card direction is derived from the langue d'appui, never hardcoded to
     # the German pair — an English native could not save this page at all while
     # it posted their stored fr_to_en into a German-only schema.
-    assert "vocabDirectionOptions(settings.nativeLanguage)" in settings
+    # WP-46 added the copy table as a second argument; the langue d'appui is
+    # still what the options are derived from.
+    assert "vocabDirectionOptions(settings.nativeLanguage, copy)" in settings
     assert '<option value="fr_to_de">Français → allemand</option>' not in settings
     # Heading and button read the same words in the profile blocks, so the page
     # text showed "Modifier l’adresse" / "Modifier le mot de passe" twice each.
-    assert settings.count("Modifier l’adresse") == 1
-    assert settings.count("Modifier le mot de passe") == 1
-    assert "Enregistrer la nouvelle adresse" in settings
-    assert "Enregistrer le nouveau mot de passe" in settings
+    # The words are in the copy table now; the distinction is pinned there, and
+    # the page is pinned on using the two different keys.
+    settings_copy = _source("lib/settings-copy.ts")
+    assert settings.count("copy.row_change_email}") == 1
+    assert settings.count("copy.row_change_password}") == 1
+    assert settings.count("copy.action_save_email}") == 1
+    assert settings.count("copy.action_save_password}") == 1
+    for label in (
+        "Change your address", "Adresse ändern", "Modifier l’adresse",
+        "Change your password", "Passwort ändern", "Modifier le mot de passe",
+        "Save the new address", "Neue Adresse speichern", "Enregistrer la nouvelle adresse",
+        "Save the new password", "Neues Passwort speichern", "Enregistrer le nouveau mot de passe",
+    ):
+        assert label in settings_copy, label
     # "Durée habituelle d'une séance" was a slider that no save ever sent and no
     # load ever read; the time budget above it is the real setting.
     assert "preferredSessionLength" not in settings

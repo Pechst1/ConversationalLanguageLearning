@@ -151,29 +151,77 @@ def test_story_flow_handles_auth_fetch_locked_and_incomplete_chapter_edges() -> 
 
 def test_settings_safety_edges_for_account_and_device_actions() -> None:
     settings = read(WEB / "pages" / "settings.tsx")
+    copy = read(WEB / "lib" / "settings-copy.ts")
     api = read(WEB / "services" / "api.ts")
 
     assert "await api.getSettings()" in settings
     assert "persistVisualSettings(loadedTheme, loadedFontSize)" in settings
     assert "await api.updateSettings(payload)" in settings
     assert "settingsLoadError" in settings
-    assert "Rechargez le dossier avant de classer les modifications." in settings
-    assert "Votre dossier n’a pas pu être chargé." in settings
+
+    # Superseded 2026-09-17 (WP-46): Réglages is the administrative surface
+    # and reads in the learner's *native* language, so these sentences moved out
+    # of the page and into lib/settings-copy.ts. The safety edge is unchanged
+    # and is pinned in two halves: the page still reaches the sentence, and the
+    # sentence still exists in all three languages.
+    for key in (
+        "copy.save_blocked",
+        ".load_error_body",
+        "copy.save_failed",
+        "copy.save_failed_fields",
+        "copy.confirm_delete_account",
+        "copy.delete_account_failed",
+        "copy.password_incomplete",
+        "copy.confirm_signout_all",
+    ):
+        assert key in settings, key
     # Superseded 2026-09-04: the save failure used to be one unconditional
     # generic line, which is how a rejected default_vocab_direction (422 on
     # every save for English natives) stayed invisible. The generic sentence is
     # still the fallback; a 422 now names the fields the API refused.
-    assert "'Les modifications n’ont pas pu être classées.'," in settings
-    assert "Les modifications n’ont pas pu être classées : ${rejected.join(', ')}." in settings
+    assert "`${copy.save_failed_fields} ${rejected.join(', ')}.`" in settings
+    assert ": copy.save_failed," in settings
 
-    assert "confirm('Supprimer définitivement ce compte" in settings
+    for sentence in (
+        # save_blocked
+        "Reload the file before filing your changes.",
+        "Laden Sie die Akte neu, bevor Sie Ihre Änderungen ablegen.",
+        "Rechargez le dossier avant de classer les modifications.",
+        # load_error_body
+        "Your file could not be loaded.",
+        "Ihre Akte konnte nicht geladen werden.",
+        "Votre dossier n’a pas pu être chargé.",
+        # save_failed
+        "The changes could not be filed.",
+        "Die Änderungen konnten nicht abgelegt werden.",
+        "Les modifications n’ont pas pu être classées.",
+        # confirm_delete_account
+        "Permanently delete this account and all its data?",
+        "Dieses Konto und alle seine Daten endgültig löschen?",
+        "Supprimer définitivement ce compte et toutes ses données ?",
+        # delete_account_failed
+        "The account could not be deleted.",
+        "Das Konto konnte nicht gelöscht werden.",
+        "Le compte n’a pas pu être supprimé.",
+        # password_incomplete
+        "a new password of at least 8 characters",
+        "ein neues Passwort mit mindestens 8 Zeichen",
+        "un nouveau mot de passe d’au moins 8 caractères",
+        # confirm_signout_all
+        "Close every session, including this one?",
+        "Alle Sitzungen schließen, auch diese?",
+        "Fermer toutes les sessions, y compris celle-ci ?",
+    ):
+        assert sentence in copy, sentence
+
+    # The irreversible actions are still behind the confirm() call sites.
+    assert "confirm(copy.confirm_delete_account, { confirmLabel: copy.confirm_delete_account_label })" in settings
+    assert "confirm(copy.confirm_signout_all)" in settings
     assert "await api.deleteAccount()" in settings
     assert "await appSignOut({ callbackUrl: '/' })" in settings
-    assert "setSaveMessage('Le compte n’a pas pu être supprimé. Réessayez.')" in settings
+    assert "setSaveMessage(copy.delete_account_failed)" in settings
     assert "passwordForm.newPassword.length < 8" in settings
-    assert "Saisissez votre mot de passe actuel et un nouveau mot de passe d’au moins 8 caractères." in settings
     assert "await appSignOut({ callbackUrl: '/auth/signin' })" in settings
-    assert "confirm('Fermer toutes les sessions, y compris celle-ci ?')" in settings
     assert "await api.signOutAllDevices()" in settings
     assert "await api.exportUserData()" in settings
 

@@ -106,4 +106,12 @@ def test_native_push_routes_taps_back_into_the_product():
     assert "router.push(route)" in app
     assert "pushNotificationActionPerformed" in native_push
     assert "route.startsWith('/')" in native_push
-    assert "Recevoir l’édition sur cet appareil" in settings
+    # WP-46: the card's title lives in the settings copy table now.
+    assert "copy.card_device_title" in settings
+    device_copy = _source("lib/settings-copy.ts")
+    for title in (
+        "Receive the edition on this device",
+        "Die Ausgabe auf diesem Gerät empfangen",
+        "Recevoir l’édition sur cet appareil",
+    ):
+        assert title in device_copy, title

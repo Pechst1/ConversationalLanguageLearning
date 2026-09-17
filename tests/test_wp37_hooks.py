@@ -497,7 +497,11 @@ def test_reglages_offers_listen_first_through_the_readers_own_key() -> None:
 
     settings = _read(SETTINGS_PAGE)
     assert "readListenFirst" in settings and "writeListenFirst" in settings
-    assert "Écouter d’abord" in settings
+    # WP-46: the row's words read in the learner's own language.
+    assert "copy.row_listen_first" in settings
+    listen_copy = _read(WEB / "lib" / "settings-copy.ts")
+    for label in ("Listen first", "Zuerst hören", "Écouter d’abord"):
+        assert label in listen_copy, label
     assert "st-listen-first-label" in settings
     # Read after mount: localStorage during render is a hydration mismatch.
     assert "useEffect(() => { setListenFirst(readListenFirst()); }, []);" in settings

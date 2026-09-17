@@ -27,8 +27,13 @@ def test_the_dossier_route_exists_and_is_not_public() -> None:
 
 def test_reglages_is_the_way_in() -> None:
     page = _source("pages/settings.tsx")
-    assert "Votre dossier" in page
+    copy = _source("lib/settings-copy.ts")
+    # WP-46: the row's words moved to lib/settings-copy.ts, because Réglages
+    # is administrative and reads in the learner's own language.
+    assert "copy.row_dossier" in page
     assert "'/dossier'" in page
+    for label in ("Your file", "Ihre Akte", "Votre dossier"):
+        assert label in copy, label
 
 
 def test_the_page_states_what_it_believes_and_why() -> None:

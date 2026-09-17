@@ -56,8 +56,15 @@ def test_the_result_is_labelled_as_an_estimate_not_a_verdict():
 
 def test_reglages_can_re_run_the_placement():
     page = _source("pages/settings.tsx")
-    assert "Bilan de niveau" in page
+    copy = _source("lib/settings-copy.ts")
+    # WP-46: Réglages reads in the learner's own language, so the row's words
+    # live in the copy table. The row is pinned by its key on the page and by
+    # its three sentences in the table.
+    assert "copy.row_placement" in page
+    assert "copy.action_placement" in page
     assert "/placement?rerun=1" in page
+    for label in ("Level check", "Einstufung", "Bilan de niveau"):
+        assert label in copy, label
 
 
 def test_the_screen_is_on_the_av2_system_and_speaks_french():
