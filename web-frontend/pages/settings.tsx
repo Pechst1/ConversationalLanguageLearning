@@ -43,6 +43,7 @@ import {
     type AppFontSize,
     type AppTheme,
 } from '@/lib/app-preferences';
+import { resolveSettingsLanguage, settingsCopy, type SettingsCopy } from '@/lib/settings-copy';
 import { apiService as api, type AddressPreference } from '@/services/api';
 import { appSignOut, useAppSession } from '@/lib/app-auth';
 import { nativePushIsAvailable, registerNativePushToken } from '@/lib/native-push';
@@ -121,36 +122,45 @@ const defaultSettings: UserSettings = {
 
 // The récit has to agree with the reader in French. Rather than guess, the reader
 // says so once here; 'neutral' asks the story to avoid gendered forms entirely.
-const addressOptions: { value: AddressPreference; label: string }[] = [
-    { value: 'feminine', label: 'Féminin' },
-    { value: 'masculine', label: 'Masculin' },
-    { value: 'neutral', label: 'Neutre' },
-];
+// The *choice* is French grammar; the words that offer it are the learner's.
+function addressOptions(copy: SettingsCopy): { value: AddressPreference; label: string }[] {
+    return [
+        { value: 'feminine', label: copy.address_feminine },
+        { value: 'masculine', label: copy.address_masculine },
+        { value: 'neutral', label: copy.address_neutral },
+    ];
+}
 
-const addressHints: Record<AddressPreference, string> = {
-    feminine: 'Les personnages vous parleront au féminin.',
-    masculine: 'Les personnages vous parleront au masculin.',
-    neutral: 'Les personnages éviteront les formes genrées et les petits noms.',
-};
+function addressHint(copy: SettingsCopy, preference: AddressPreference): string {
+    if (preference === 'feminine') return copy.address_feminine_hint;
+    if (preference === 'masculine') return copy.address_masculine_hint;
+    return copy.address_neutral_hint;
+}
 
-const proficiencyLevels = [
-    { value: 'A1', label: 'A1 · Début', description: 'Phrases et expressions essentielles' },
-    { value: 'A2', label: 'A2 · Élémentaire', description: 'Échanges simples du quotidien' },
-    { value: 'B1', label: 'B1 · Intermédiaire', description: 'Se débrouiller dans la plupart des situations' },
-    { value: 'B2', label: 'B2 · Indépendant', description: 'Échanger avec spontanéité' },
-    { value: 'C1', label: 'C1 · Avancé', description: 'Textes et discussions complexes' },
-    { value: 'C2', label: 'C2 · Maîtrise', description: 'Aisance proche d’un locuteur natif' },
-];
+// The CEFR code is data — it is printed exactly as the account holds it. Only
+// the word beside it, and the line under it, belong to the learner's language.
+function proficiencyLevels(copy: SettingsCopy) {
+    return [
+        { value: 'A1', label: `A1 · ${copy.level_a1_name}`, description: copy.level_a1_hint },
+        { value: 'A2', label: `A2 · ${copy.level_a2_name}`, description: copy.level_a2_hint },
+        { value: 'B1', label: `B1 · ${copy.level_b1_name}`, description: copy.level_b1_hint },
+        { value: 'B2', label: `B2 · ${copy.level_b2_name}`, description: copy.level_b2_hint },
+        { value: 'C1', label: `C1 · ${copy.level_c1_name}`, description: copy.level_c1_hint },
+        { value: 'C2', label: `C2 · ${copy.level_c2_name}`, description: copy.level_c2_hint },
+    ];
+}
 
 const cefrSublevels = ['A1.1', 'A1.2', 'A2.1', 'A2.2', 'B1.1', 'B1.2', 'B2.1', 'B2.2'];
 
-const languages = [
-    { value: 'de', label: 'Allemand' },
-    { value: 'en', label: 'Anglais' },
-    { value: 'fr', label: 'Français' },
-    { value: 'es', label: 'Espagnol' },
-    { value: 'it', label: 'Italien' },
-];
+function languageOptions(copy: SettingsCopy) {
+    return [
+        { value: 'de', label: copy.language_de },
+        { value: 'en', label: copy.language_en },
+        { value: 'fr', label: copy.language_fr },
+        { value: 'es', label: copy.language_es },
+        { value: 'it', label: copy.language_it },
+    ];
+}
 
 // The vocabulary table only stores German, English and French glosses, so the
 // card direction can only ever pair French with German or English. This list
@@ -158,22 +168,25 @@ const languages = [
 // default) was shown "Français → allemand" and, worse, the save payload then
 // carried their stored `fr_to_en` into a schema that rejected it — every save
 // on this page returned 422. Options now follow the langue d'appui.
-const glossLanguages: Record<string, { label: string; lowercase: string }> = {
-    de: { label: 'Allemand', lowercase: 'allemand' },
-    en: { label: 'Anglais', lowercase: 'anglais' },
-};
+const GLOSS_LANGUAGES = ['de', 'en'];
 
 function glossLanguageFor(nativeLanguage: string) {
     return nativeLanguage === 'de' ? 'de' : 'en';
 }
 
-function vocabDirectionOptions(nativeLanguage: string) {
+/** The values the schema accepts — labels are a separate, translated concern. */
+function vocabDirectionValues(nativeLanguage: string) {
     const code = glossLanguageFor(nativeLanguage);
-    const { label, lowercase } = glossLanguages[code];
+    return [`fr_to_${code}`, `${code}_to_fr`, 'mixed'];
+}
+
+function vocabDirectionOptions(nativeLanguage: string, copy: SettingsCopy) {
+    const code = glossLanguageFor(nativeLanguage);
+    const gloss = code === 'de' ? copy.language_de : copy.language_en;
     return [
-        { value: `fr_to_${code}`, label: `Français → ${lowercase}` },
-        { value: `${code}_to_fr`, label: `${label} → français` },
-        { value: 'mixed', label: 'Alterné' },
+        { value: `fr_to_${code}`, label: `${copy.language_fr} → ${gloss}` },
+        { value: `${code}_to_fr`, label: `${gloss} → ${copy.language_fr}` },
+        { value: 'mixed', label: copy.direction_mixed },
     ];
 }
 
@@ -182,7 +195,7 @@ function vocabDirectionOptions(nativeLanguage: string) {
 function normalizeVocabDirection(direction: string, nativeLanguage: string) {
     const code = glossLanguageFor(nativeLanguage);
     if (direction === 'mixed') return 'mixed';
-    if (vocabDirectionOptions(nativeLanguage).some((option) => option.value === direction)) {
+    if (vocabDirectionValues(nativeLanguage).includes(direction)) {
         return direction;
     }
     return direction.endsWith('_to_fr') ? `${code}_to_fr` : `fr_to_${code}`;
@@ -213,17 +226,17 @@ interface SettingsPageProps {
 
 type SettingsSection = 'profile' | 'learning' | 'practice' | 'notifications' | 'appearance' | 'audio' | 'privacy';
 
-const sections: { id: SettingsSection; label: string }[] = [
-    { id: 'profile', label: 'Dossier' },
-    { id: 'learning', label: 'Langues' },
-    { id: 'practice', label: 'Rythme' },
-    { id: 'notifications', label: 'Notifications' },
-    { id: 'appearance', label: 'Apparence' },
-    { id: 'audio', label: 'Voix' },
-    { id: 'privacy', label: 'Données' },
-];
+const SECTION_LABEL_KEYS: Record<SettingsSection, keyof SettingsCopy> = {
+    profile: 'section_profile',
+    learning: 'section_learning',
+    practice: 'section_practice',
+    notifications: 'section_notifications',
+    appearance: 'section_appearance',
+    audio: 'section_audio',
+    privacy: 'section_privacy',
+};
 
-const sectionIds = sections.map((section) => section.id);
+const sectionIds = Object.keys(SECTION_LABEL_KEYS) as SettingsSection[];
 
 // ---------------------------------------------------------------------------
 // Local controls — the artboard's toggle and segmented control, and the row
@@ -235,11 +248,14 @@ function Switch({
     onChange,
     labelledBy,
     disabled,
+    copy,
 }: {
     checked: boolean;
     onChange: (next: boolean) => void;
     labelledBy: string;
     disabled?: boolean;
+    /** The screen-reader state word; a toggle whose state is unreadable is not a control. */
+    copy: SettingsCopy;
 }) {
     return (
         <button
@@ -254,7 +270,7 @@ function Switch({
             <span className="st-switch__pill" aria-hidden="true">
                 <span className="st-switch__knob" />
             </span>
-            <span className="av2-sr">{checked ? 'activé' : 'désactivé'}</span>
+            <span className="av2-sr">{checked ? copy.switch_on : copy.switch_off}</span>
         </button>
     );
 }
@@ -343,7 +359,7 @@ function Field({
  */
 type ConfirmOptions = { confirmLabel?: string };
 
-function useConfirmDialog() {
+function useConfirmDialog(copy: SettingsCopy) {
     const [request, setRequest] = useState<{ message: string; options: ConfirmOptions } | null>(null);
     const resolver = useRef<((value: boolean) => void) | null>(null);
 
@@ -382,10 +398,10 @@ function useConfirmDialog() {
             actions={
                 <>
                     <Action tone="secondary" onClick={() => settle(false)}>
-                        Annuler
+                        {copy.action_cancel}
                     </Action>
                     <Action tone="primary" onClick={() => settle(true)}>
-                        {request?.options.confirmLabel ?? 'Confirmer'}
+                        {request?.options.confirmLabel ?? copy.action_confirm}
                     </Action>
                 </>
             }
@@ -425,7 +441,28 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
      */
     const [listenFirst, setListenFirst] = useState(false);
     useEffect(() => { setListenFirst(readListenFirst()); }, []);
-    const { confirm, dialog: confirmDialog } = useConfirmDialog();
+
+    /**
+     * WP-46 — the one screen that does not speak the publication's French.
+     *
+     * Réglages is administrative: a learner has to understand what they are
+     * about to change *before* they change it, and «suppression définitive» is
+     * not the sentence to learn that on. So the whole screen follows the
+     * account's `native_language`.
+     *
+     * `nativeLanguageKnown` is what keeps it from flickering. Until the account
+     * answers, the honest value is "we do not know", and `resolveSettingsLanguage`
+     * answers English for it — so the first paint is never French that a German
+     * or English learner then watches swap. The declared default in
+     * `defaultSettings` is a payload default, not a claim about this learner.
+     */
+    const [nativeLanguageKnown, setNativeLanguageKnown] = useState(false);
+    const copyLanguage = resolveSettingsLanguage(
+        nativeLanguageKnown ? settings.nativeLanguage : null,
+    );
+    const copy = settingsCopy(copyLanguage);
+
+    const { confirm, dialog: confirmDialog } = useConfirmDialog(copy);
     const pendingScroll = useRef<SettingsSection | null>(null);
 
     useEffect(() => {
@@ -462,6 +499,8 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
             try {
                 const user: any = await api.getSettings();
                 setIsAdmin(user.role === 'admin');
+                // From here the screen knows whose language it is in.
+                setNativeLanguageKnown(true);
                 const loadedTheme = (user.theme || 'system') as AppTheme;
                 const loadedFontSize = (user.font_size || 'medium') as AppFontSize;
                 setSettings(prev => ({
@@ -508,7 +547,8 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                 persistVisualSettings(loadedTheme, loadedFontSize);
             } catch (error) {
                 console.error('Failed to load user settings:', error);
-                setSettingsLoadError('Votre dossier n’a pas pu être chargé. Réessayez avant de modifier vos préférences.');
+                // The account never answered, so its language is unknown: English.
+                setSettingsLoadError(settingsCopy(resolveSettingsLanguage(null)).load_error_body);
             } finally {
                 setIsLoading(false);
             }
@@ -539,7 +579,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
 
     const saveSettings = async () => {
         if (settingsLoadError) {
-            toast.error('Rechargez le dossier avant de classer les modifications.');
+            toast.error(copy.save_blocked);
             return;
         }
         setIsSaving(true);
@@ -584,7 +624,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
             persistVisualSettings(settings.theme, settings.fontSize);
 
             setSaveFailed(false);
-            setSaveMessage('Modifications classées.');
+            setSaveMessage(copy.save_done);
             setHasChanges(false);
             setTimeout(() => setSaveMessage(null), 3000);
         } catch (error: any) {
@@ -598,8 +638,8 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
             setSaveFailed(true);
             setSaveMessage(
                 rejected.length
-                    ? `Les modifications n’ont pas pu être classées : ${rejected.join(', ')}.`
-                    : 'Les modifications n’ont pas pu être classées.',
+                    ? `${copy.save_failed_fields} ${rejected.join(', ')}.`
+                    : copy.save_failed,
             );
         } finally {
             setIsSaving(false);
@@ -607,7 +647,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
     };
 
     const handleDeleteAccount = async () => {
-        if (!(await confirm('Supprimer définitivement ce compte et toutes ses données ? Cette action est irréversible.', { confirmLabel: 'Supprimer le compte' }))) {
+        if (!(await confirm(copy.confirm_delete_account, { confirmLabel: copy.confirm_delete_account_label }))) {
             return;
         }
 
@@ -619,7 +659,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
         } catch (error) {
             console.error('Failed to delete account:', error);
             setSaveFailed(true);
-            setSaveMessage('Le compte n’a pas pu être supprimé. Réessayez.');
+            setSaveMessage(copy.delete_account_failed);
             setIsSaving(false);
             setPrivacyAction(null);
         }
@@ -627,7 +667,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
 
     const handlePasswordChange = async () => {
         if (!passwordForm.currentPassword || passwordForm.newPassword.length < 8) {
-            toast.error('Saisissez votre mot de passe actuel et un nouveau mot de passe d’au moins 8 caractères.');
+            toast.error(copy.password_incomplete);
             return;
         }
         setIsSaving(true);
@@ -637,11 +677,11 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                 new_password: passwordForm.newPassword,
             });
             setPasswordForm({ currentPassword: '', newPassword: '' });
-            toast.success('Mot de passe modifié. Reconnectez-vous.');
+            toast.success(copy.password_changed);
             await appSignOut({ callbackUrl: '/auth/signin' });
         } catch (error) {
             console.error('Failed to change password:', error);
-            toast.error('Le mot de passe n’a pas pu être modifié.');
+            toast.error(copy.password_failed);
         } finally {
             setIsSaving(false);
         }
@@ -649,7 +689,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
 
     const handleEmailChange = async () => {
         if (!emailForm.currentPassword || !emailForm.newEmail) {
-            toast.error('Saisissez la nouvelle adresse et votre mot de passe actuel.');
+            toast.error(copy.email_incomplete);
             return;
         }
         setIsSaving(true);
@@ -660,11 +700,11 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
             });
             setSettings((prev) => ({ ...prev, email: updated.email || emailForm.newEmail }));
             setEmailForm({ currentPassword: '', newEmail: '' });
-            toast.success('Adresse modifiée. Reconnectez-vous.');
+            toast.success(copy.email_changed);
             await appSignOut({ callbackUrl: '/auth/signin' });
         } catch (error) {
             console.error('Failed to change email:', error);
-            toast.error('L’adresse n’a pas pu être modifiée.');
+            toast.error(copy.email_failed);
         } finally {
             setIsSaving(false);
         }
@@ -683,25 +723,25 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
             link.click();
             document.body.removeChild(link);
             URL.revokeObjectURL(url);
-            toast.success('Archive prête.');
+            toast.success(copy.export_ready);
         } catch (error) {
             console.error('Failed to export user data:', error);
-            toast.error('L’archive n’a pas pu être préparée.');
+            toast.error(copy.export_failed);
         } finally {
             setPrivacyAction(null);
         }
     };
 
     const handleSignOutAllDevices = async () => {
-        if (!(await confirm('Fermer toutes les sessions, y compris celle-ci ?'))) return;
+        if (!(await confirm(copy.confirm_signout_all))) return;
         setPrivacyAction('signout');
         try {
             await api.signOutAllDevices();
-            toast.success('Toutes les sessions sont fermées.');
+            toast.success(copy.signout_all_done);
             await appSignOut({ callbackUrl: '/auth/signin' });
         } catch (error) {
             console.error('Failed to sign out all devices:', error);
-            toast.error('Les sessions n’ont pas pu être fermées.');
+            toast.error(copy.signout_all_failed);
             setPrivacyAction(null);
         }
     };
@@ -709,37 +749,37 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
     const enableDeviceNotifications = async (): Promise<boolean> => {
         if (Capacitor.isNativePlatform()) {
             if (!nativePushIsAvailable()) {
-                toast.error('Les notifications ne sont pas disponibles dans cette version iPhone.');
+                toast.error(copy.push_ios_unavailable);
                 return false;
             }
-            const loadingToast = toast.loading('Connexion des notifications iPhone…');
+            const loadingToast = toast.loading(copy.push_ios_connecting);
             try {
                 const token = await registerNativePushToken();
                 await api.subscribeToNativeNotifications(token);
-                toast.success('Notifications iPhone reliées.', { id: loadingToast });
+                toast.success(copy.push_ios_linked, { id: loadingToast });
                 return true;
             } catch (error: any) {
                 console.error(error);
-                toast.error(error?.message || 'Les notifications iPhone n’ont pas pu être reliées.', { id: loadingToast });
+                toast.error(error?.message || copy.push_ios_failed, { id: loadingToast });
                 return false;
             }
         }
         if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-            toast.error('Ce navigateur ne prend pas en charge les notifications.');
+            toast.error(copy.push_unsupported);
             return false;
         }
-        const loadingToast = toast.loading('Connexion des notifications…');
+        const loadingToast = toast.loading(copy.push_connecting);
         try {
             const permission = await Notification.requestPermission();
             if (permission !== 'granted') {
-                toast.error('Permission refusée. Vérifiez les réglages de cet appareil.', { id: loadingToast });
+                toast.error(copy.push_denied, { id: loadingToast });
                 return false;
             }
             const reg = await navigator.serviceWorker.register('/sw.js');
             await navigator.serviceWorker.ready;
             const { publicKey } = await api.getVapidPublicKey();
             if (!publicKey?.trim()) {
-                toast.error('Les notifications ne sont pas encore configurées.', { id: loadingToast });
+                toast.error(copy.push_not_configured, { id: loadingToast });
                 return false;
             }
             const sub = await reg.pushManager.subscribe({
@@ -747,11 +787,11 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                 applicationServerKey: urlBase64ToUint8Array(publicKey),
             });
             await api.subscribeToNotifications(sub.toJSON());
-            toast.success('Notifications reliées.', { id: loadingToast });
+            toast.success(copy.push_linked, { id: loadingToast });
             return true;
         } catch (error: any) {
             console.error(error);
-            toast.error(`Connexion impossible : ${error?.message || 'erreur inconnue'}`, { id: loadingToast });
+            toast.error(`${copy.push_failed} ${error?.message || copy.push_unknown_error}`, { id: loadingToast });
             return false;
         }
     };
@@ -792,12 +832,13 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
         document.getElementById(`settings-${id}`)?.scrollIntoView({ block: 'start', behavior: 'smooth' });
     };
 
+    // The name and the level are data: printed as the account holds them.
     const firstName = settings.displayName.trim().split(/\s+/)[0] || '';
-    const kicker = `${firstName || 'Lecteur'} · ${settings.proficiencyLevel}`;
+    const kicker = `${firstName || copy.kicker_fallback} · ${settings.proficiencyLevel}`;
 
     const head = (
         <Head>
-            <title>L’administration · Réglages</title>
+            <title>{copy.page_title}</title>
         </Head>
     );
 
@@ -805,7 +846,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
         return (
             <>
                 {head}
-                <AtelierV2Root as="main" className="st-page" language={settings.nativeLanguage} aria-busy="true" aria-label="Réglages">
+                <AtelierV2Root as="main" className="st-page" language={copyLanguage} aria-busy="true" aria-label={copy.page_label}>
                     <header className="st-head">
                         <div style={{ width: '40%' }}><Skeleton height={14} radius={7} /></div>
                         <div style={{ marginTop: 8, width: '55%' }}><Skeleton height={30} radius={8} /></div>
@@ -815,7 +856,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                         <Skeleton height={168} radius={18} />
                         <Skeleton height={168} radius={18} />
                     </div>
-                    <span className="av2-sr" role="status">Ouverture de votre dossier…</span>
+                    <span className="av2-sr" role="status">{copy.loading_status}</span>
                 </AtelierV2Root>
                 <SettingsStyles />
             </>
@@ -826,17 +867,17 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
         return (
             <>
                 {head}
-                <AtelierV2Root as="main" className="st-page" language={settings.nativeLanguage} aria-label="Réglages">
+                <AtelierV2Root as="main" className="st-page" language={copyLanguage} aria-label={copy.page_label}>
                     <header className="st-head">
-                        <p className="st-kicker">Dossier indisponible</p>
-                        <h1 className="av2-headline">Vos réglages n’ont pas pu être chargés.</h1>
+                        <p className="st-kicker">{copy.load_error_kicker}</p>
+                        <h1 className="av2-headline">{copy.load_error_headline}</h1>
                     </header>
                     <div className="st-stack">
                         <StateBlock
                             tone="error"
-                            title="Le dossier est resté fermé."
+                            title={copy.load_error_title}
                             body={settingsLoadError}
-                            action={{ label: 'Réessayer', onSelect: () => setSettingsReloadKey((value) => value + 1) }}
+                            action={{ label: copy.action_retry, onSelect: () => setSettingsReloadKey((value) => value + 1) }}
                         />
                     </div>
                 </AtelierV2Root>
@@ -848,22 +889,22 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
     return (
         <>
             {head}
-            <AtelierV2Root as="main" className="st-page" language={settings.nativeLanguage} aria-label="Réglages">
+            <AtelierV2Root as="main" className="st-page" language={copyLanguage} aria-label={copy.page_label}>
                 <header className="st-head">
                     <p className="st-kicker">{kicker}</p>
                     {/* the one Garamond italic headline on this screen */}
-                    <h1 className="av2-headline">Réglages</h1>
+                    <h1 className="av2-headline">{copy.headline}</h1>
                 </header>
 
-                <nav className="st-jump" aria-label="Sections des réglages">
-                    {sections.map((section) => (
+                <nav className="st-jump" aria-label={copy.jump_label}>
+                    {sectionIds.map((id) => (
                         <Chip
-                            key={section.id}
-                            tone={activeSection === section.id ? 'story' : 'plain'}
-                            aria-current={activeSection === section.id ? 'true' : undefined}
-                            onClick={() => jumpToSection(section.id)}
+                            key={id}
+                            tone={activeSection === id ? 'story' : 'plain'}
+                            aria-current={activeSection === id ? 'true' : undefined}
+                            onClick={() => jumpToSection(id)}
                         >
-                            {section.label}
+                            {copy[SECTION_LABEL_KEYS[id]]}
                         </Chip>
                     ))}
                 </nav>
@@ -871,24 +912,24 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                 <div className="st-stack">
                     {/* ---------------- Dossier ---------------- */}
                     <section id="settings-profile" className="st-section" aria-labelledby="st-profile-label">
-                        <p className="av2-label st-section__label" id="st-profile-label">Dossier</p>
+                        <p className="av2-label st-section__label" id="st-profile-label">{copy.section_profile}</p>
                         <div className="st-card">
-                            <Row label="Compte" value={<span className="st-email" title={settings.email}>{settings.email}</span>} />
-                            <Row label="Nom affiché" stacked>
+                            <Row label={copy.row_account} value={<span className="st-email" title={settings.email}>{settings.email}</span>} />
+                            <Row label={copy.row_display_name} stacked>
                                 <input
                                     type="text"
                                     className="av2-field__control"
                                     value={settings.displayName}
                                     onChange={(e) => updateSetting('displayName', e.target.value)}
-                                    placeholder="Votre nom"
-                                    aria-label="Nom affiché"
+                                    placeholder={copy.display_name_placeholder}
+                                    aria-label={copy.row_display_name}
                                 />
                             </Row>
                             {isAdmin && (
                                 <button type="button" className="st-row st-row--link" onClick={() => void router.push('/pilot-ops')}>
                                     <span className="st-row__text">
-                                        <span className="st-row__label">Pilotage · coût & qualité</span>
-                                        <span className="st-row__hint">Tableau de bord réservé à la rédaction</span>
+                                        <span className="st-row__label">{copy.row_admin}</span>
+                                        <span className="st-row__hint">{copy.row_admin_hint}</span>
                                     </span>
                                     <span className="st-row__value" aria-hidden="true">→</span>
                                 </button>
@@ -896,9 +937,9 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                         </div>
 
                         <div className="st-card">
-                            <Row label="Modifier l’adresse" hint="Utilisez ce formulaire sécurisé pour changer votre adresse de connexion." stacked>
+                            <Row label={copy.row_change_email} hint={copy.row_change_email_hint} stacked>
                                 <div className="st-form">
-                                    <Field label="Nouvelle adresse">
+                                    <Field label={copy.field_new_email}>
                                         <input
                                             type="email"
                                             className="av2-field__control"
@@ -908,7 +949,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                             autoComplete="email"
                                         />
                                     </Field>
-                                    <Field label="Mot de passe actuel">
+                                    <Field label={copy.field_current_password}>
                                         <input
                                             type="password"
                                             className="av2-field__control"
@@ -923,13 +964,13 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                         onClick={handleEmailChange}
                                         disabled={isSaving || !emailForm.newEmail || !emailForm.currentPassword}
                                     >
-                                        Enregistrer la nouvelle adresse
+                                        {copy.action_save_email}
                                     </Action>
                                 </div>
                             </Row>
-                            <Row label="Modifier le mot de passe" hint="Huit caractères au moins ; vous serez reconnecté ensuite." stacked>
+                            <Row label={copy.row_change_password} hint={copy.row_change_password_hint} stacked>
                                 <div className="st-form">
-                                    <Field label="Mot de passe actuel">
+                                    <Field label={copy.field_current_password}>
                                         <input
                                             type="password"
                                             className="av2-field__control"
@@ -938,7 +979,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                             autoComplete="current-password"
                                         />
                                     </Field>
-                                    <Field label="Nouveau mot de passe">
+                                    <Field label={copy.field_new_password}>
                                         <input
                                             type="password"
                                             className="av2-field__control"
@@ -953,7 +994,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                         onClick={handlePasswordChange}
                                         disabled={isSaving || !passwordForm.currentPassword || passwordForm.newPassword.length < 8}
                                     >
-                                        Enregistrer le nouveau mot de passe
+                                        {copy.action_save_password}
                                     </Action>
                                 </div>
                             </Row>
@@ -962,28 +1003,28 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
 
                     {/* ---------------- Langues ---------------- */}
                     <section id="settings-learning" className="st-section" aria-labelledby="st-learning-label">
-                        <p className="av2-label st-section__label" id="st-learning-label">Langues</p>
+                        <p className="av2-label st-section__label" id="st-learning-label">{copy.section_learning}</p>
                         <div className="st-card">
-                            <Row label="Langue d’appui" id="st-native-label">
+                            <Row label={copy.row_native_language} id="st-native-label">
                                 <select
                                     className="av2-field__control st-select"
                                     aria-labelledby="st-native-label"
                                     value={settings.nativeLanguage}
                                     onChange={(e) => updateNativeLanguage(e.target.value)}
                                 >
-                                    {languages.map(lang => (
+                                    {languageOptions(copy).map(lang => (
                                         <option key={lang.value} value={lang.value}>{lang.label}</option>
                                     ))}
                                 </select>
                             </Row>
-                            <Row label="Langue apprise" id="st-target-label">
+                            <Row label={copy.row_target_language} id="st-target-label">
                                 <select
                                     className="av2-field__control st-select"
                                     aria-labelledby="st-target-label"
                                     value={settings.targetLanguage}
                                     onChange={(e) => updateSetting('targetLanguage', e.target.value)}
                                 >
-                                    {languages.map(lang => (
+                                    {languageOptions(copy).map(lang => (
                                         <option key={lang.value} value={lang.value}>{lang.label}</option>
                                     ))}
                                 </select>
@@ -996,15 +1037,15 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                             again rather than edit a dropdown. */}
                         <div className="st-card">
                             <Row
-                                label="Bilan de niveau"
-                                hint="Cinq minutes, en français. Le résultat remplace le niveau déclaré ci-dessous."
+                                label={copy.row_placement}
+                                hint={copy.row_placement_hint}
                             >
                                 <button
                                     type="button"
                                     className="av2-btn av2-btn--quiet av2-btn--inline"
                                     onClick={() => { void router.push('/placement?rerun=1'); }}
                                 >
-                                    Refaire le bilan
+                                    {copy.action_placement}
                                 </button>
                             </Row>
                         </div>
@@ -1015,15 +1056,15 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                             afterwards. The Home entry is owed by another owner. */}
                         <div className="st-card">
                             <Row
-                                label="Répéter une vraie situation"
-                                hint="Un appel, un rendez-vous, une démarche. On la répète une fois, puis on vous demande comment ça s’est passé."
+                                label={copy.row_rehearsal}
+                                hint={copy.row_rehearsal_hint}
                             >
                                 <button
                                     type="button"
                                     className="av2-btn av2-btn--quiet av2-btn--inline"
                                     onClick={() => { void router.push('/repetition'); }}
                                 >
-                                    Ouvrir
+                                    {copy.action_open}
                                 </button>
                             </Row>
                         </div>
@@ -1035,15 +1076,15 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                             owner. */}
                         <div className="st-card">
                             <Row
-                                label="Votre dossier"
-                                hint="Ce que nous croyons savoir de vous, et d’où vient chaque chiffre. Vous pouvez déclarer connaître déjà une faute ou un mot."
+                                label={copy.row_dossier}
+                                hint={copy.row_dossier_hint}
                             >
                                 <button
                                     type="button"
                                     className="av2-btn av2-btn--quiet av2-btn--inline"
                                     onClick={() => { void router.push('/dossier'); }}
                                 >
-                                    Ouvrir
+                                    {copy.action_open}
                                 </button>
                             </Row>
                         </div>
@@ -1053,22 +1094,22 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                             the reading column); this row opens the same panel. */}
                         <div className="st-card">
                             <Row
-                                label="Signaler un problème"
-                                hint="Une remarque sur cet écran ou sur l’application. Elle nous arrive avec la page d’où vous l’envoyez."
+                                label={copy.row_feedback}
+                                hint={copy.row_feedback_hint}
                             >
                                 <button
                                     type="button"
                                     className="av2-btn av2-btn--quiet av2-btn--inline"
                                     onClick={() => { window.dispatchEvent(new Event(FEEDBACK_OPEN_EVENT)); }}
                                 >
-                                    Écrire
+                                    {copy.action_feedback}
                                 </button>
                             </Row>
                         </div>
 
-                        <div className="st-card" role="radiogroup" aria-label="Niveau actuel">
-                            <Row label="Niveau actuel" value={settings.proficiencyLevel} />
-                            {proficiencyLevels.map(level => {
+                        <div className="st-card" role="radiogroup" aria-label={copy.row_level}>
+                            <Row label={copy.row_level} value={settings.proficiencyLevel} />
+                            {proficiencyLevels(copy).map(level => {
                                 const active = settings.proficiencyLevel === level.value;
                                 return (
                                     <button
@@ -1084,7 +1125,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                             <span className="st-row__hint">{level.description}</span>
                                         </span>
                                         <span className="st-row__value st-option__state">
-                                            {active ? <><ShapeToken kind="story" size="sm" /> actuel</> : null}
+                                            {active ? <><ShapeToken kind="story" size="sm" /> {copy.level_current}</> : null}
                                         </span>
                                     </button>
                                 );
@@ -1092,7 +1133,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                         </div>
 
                         <div className="st-card">
-                            <Row label="Sujets de la rédaction" hint="Ces sujets orientent les articles proposés avant une séance." stacked>
+                            <Row label={copy.row_topics} hint={copy.row_topics_hint} stacked>
                                 <div className="st-topics">
                                     {interestTopicPresets.map((topic) => {
                                         const selected = settings.interests.includes(topic);
@@ -1120,44 +1161,45 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                                 addCustomInterestTopic();
                                             }
                                         }}
-                                        placeholder="Ajouter un sujet"
-                                        aria-label="Ajouter un sujet"
+                                        placeholder={copy.topic_placeholder}
+                                        aria-label={copy.topic_placeholder}
                                     />
                                     <Action tone="secondary" inline onClick={addCustomInterestTopic}>
-                                        Ajouter
+                                        {copy.action_add_topic}
                                     </Action>
                                 </div>
                                 {settings.interests.length > 0 && (
-                                    <p className="st-row__hint">Retenus : {settings.interests.join(', ')}</p>
+                                    <p className="st-row__hint">{copy.topics_selected} {settings.interests.join(', ')}</p>
                                 )}
                             </Row>
                         </div>
 
                         <div className="st-card">
                             <Row
-                                label="Intensité des corrections"
+                                label={copy.row_correction}
                                 hint={
                                     settings.grammarCorrectionLevel === 'strict'
-                                        ? 'Toutes les formes seront corrigées.'
+                                        ? copy.correction_strict_hint
                                         : settings.grammarCorrectionLevel === 'moderate'
-                                            ? 'Les erreurs importantes seront corrigées.'
-                                            : 'Seules les erreurs qui gênent le sens seront corrigées.'
+                                            ? copy.correction_moderate_hint
+                                            : copy.correction_lenient_hint
                                 }
                                 stacked
                             >
                                 <Segmented
-                                    label="Intensité des corrections"
+                                    label={copy.row_correction}
                                     options={[
-                                        { value: 'lenient' as const, label: 'Légère' },
-                                        { value: 'moderate' as const, label: 'Équilibrée' },
-                                        { value: 'strict' as const, label: 'Complète' },
+                                        { value: 'lenient' as const, label: copy.correction_lenient },
+                                        { value: 'moderate' as const, label: copy.correction_moderate },
+                                        { value: 'strict' as const, label: copy.correction_strict },
                                     ]}
                                     value={settings.grammarCorrectionLevel}
                                     onChange={(value) => updateSetting('grammarCorrectionLevel', value)}
                                 />
                             </Row>
-                            <Row id="st-explanations-label" label="Afficher les explications" hint="Joindre une note détaillée à chaque correction">
+                            <Row id="st-explanations-label" label={copy.row_explanations} hint={copy.row_explanations_hint}>
                                 <Switch
+                                    copy={copy}
                                     labelledBy="st-explanations-label"
                                     checked={settings.showGrammarExplanations}
                                     onChange={(next) => updateSetting('showGrammarExplanations', next)}
@@ -1167,13 +1209,13 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
 
                         <div className="st-card">
                             <Row
-                                label="Comment le récit s’adresse à vous"
-                                hint={addressHints[settings.addressPreference]}
+                                label={copy.row_address}
+                                hint={addressHint(copy, settings.addressPreference)}
                                 stacked
                             >
                                 <Segmented
-                                    label="Comment le récit s’adresse à vous"
-                                    options={addressOptions}
+                                    label={copy.row_address}
+                                    options={addressOptions(copy)}
                                     value={settings.addressPreference}
                                     onChange={(value) => updateSetting('addressPreference', value)}
                                 />
@@ -1183,20 +1225,20 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
 
                     {/* ---------------- Rythme ---------------- */}
                     <section id="settings-practice" className="st-section" aria-labelledby="st-practice-label">
-                        <p className="av2-label st-section__label" id="st-practice-label">Rythme</p>
+                        <p className="av2-label st-section__label" id="st-practice-label">{copy.section_practice}</p>
                         {/* The artboard's "Temps par édition" card, verbatim. */}
                         <div className="st-card st-card--padded">
                             <div className="st-card__title">
-                                <span>Temps par édition</span>
-                                <span className="st-row__value">{settings.dailyGoalMinutes} min</span>
+                                <span>{copy.card_time_title}</span>
+                                <span className="st-row__value">{settings.dailyGoalMinutes} {copy.minutes_short}</span>
                             </div>
                             <Segmented
-                                label="Temps par édition"
-                                options={minutePresets.map((mins) => ({ value: mins, label: `${mins} min` }))}
+                                label={copy.card_time_title}
+                                options={minutePresets.map((mins) => ({ value: mins, label: `${mins} ${copy.minutes_short}` }))}
                                 value={settings.dailyGoalMinutes}
                                 onChange={(mins) => updateSetting('dailyGoalMinutes', mins)}
                             />
-                            <Field label="Autre durée (5 à 120 minutes)">
+                            <Field label={copy.field_other_duration}>
                                 <input
                                     type="number"
                                     className="av2-field__control st-number"
@@ -1209,7 +1251,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                         </div>
 
                         <div className="st-card">
-                            <Row label="Objectif CECRL" hint="L’Atelier estime l’échéance selon votre rythme réel." id="st-cefr-label">
+                            <Row label={copy.row_cefr} hint={copy.row_cefr_hint} id="st-cefr-label">
                                 <select
                                     className="av2-field__control st-select"
                                     aria-labelledby="st-cefr-label"
@@ -1221,14 +1263,14 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                     ))}
                                 </select>
                             </Row>
-                            <Row label="Repère XP quotidien" value={`${settings.dailyGoalXP} XP`} stacked>
+                            <Row label={copy.row_xp} value={`${settings.dailyGoalXP} XP`} stacked>
                                 <Segmented
-                                    label="Repère XP quotidien"
+                                    label={copy.row_xp}
                                     options={xpPresets.map((xp) => ({ value: xp, label: String(xp) }))}
                                     value={settings.dailyGoalXP}
                                     onChange={(xp) => updateSetting('dailyGoalXP', xp)}
                                 />
-                                <Field label="Autre repère (10 à 500)">
+                                <Field label={copy.field_other_xp}>
                                     <input
                                         type="number"
                                         className="av2-field__control st-number"
@@ -1240,7 +1282,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                     />
                                 </Field>
                             </Row>
-                            <Row label="Nouveaux mots par jour" id="st-words-label">
+                            <Row label={copy.row_new_words} id="st-words-label">
                                 <input
                                     type="number"
                                     className="av2-field__control st-number"
@@ -1252,11 +1294,11 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                 />
                             </Row>
                             <Row
-                                label="Sens des cartes"
+                                label={copy.row_direction}
                                 id="st-direction-label"
                                 hint={
-                                    !glossLanguages[settings.nativeLanguage]
-                                        ? 'Les traductions du lexique n’existent qu’en allemand et en anglais ; l’anglais sert d’appui pour les autres langues.'
+                                    !GLOSS_LANGUAGES.includes(settings.nativeLanguage)
+                                        ? copy.row_direction_hint
                                         : undefined
                                 }
                             >
@@ -1266,7 +1308,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                     value={settings.defaultVocabDirection}
                                     onChange={(e) => updateSetting('defaultVocabDirection', e.target.value)}
                                 >
-                                    {vocabDirectionOptions(settings.nativeLanguage).map((option) => (
+                                    {vocabDirectionOptions(settings.nativeLanguage, copy).map((option) => (
                                         <option key={option.value} value={option.value}>{option.label}</option>
                                     ))}
                                 </select>
@@ -1276,36 +1318,35 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
 
                     {/* ---------------- Notifications ---------------- */}
                     <section id="settings-notifications" className="st-section" aria-labelledby="st-notifications-label">
-                        <p className="av2-label st-section__label" id="st-notifications-label">Notifications</p>
+                        <p className="av2-label st-section__label" id="st-notifications-label">{copy.section_notifications}</p>
                         <div className="st-card st-card--padded">
                             <div className="st-card__title">
-                                <span>Recevoir l’édition sur cet appareil</span>
+                                <span>{copy.card_device_title}</span>
                             </div>
-                            <p className="st-row__hint">
-                                Reliez cet iPhone ou ce navigateur une seule fois, même si vos préférences sont déjà actives.
-                            </p>
+                            <p className="st-row__hint">{copy.card_device_hint}</p>
                             <Action tone="secondary" inline onClick={() => void enableDeviceNotifications()}>
-                                Relier cet appareil
+                                {copy.action_link_device}
                             </Action>
                         </div>
                         <div className="st-card">
                             {[
-                                { key: 'practiceReminders' as const, label: 'Rappel de l’édition', desc: 'Un rappel quotidien à l’heure choisie' },
-                                { key: 'streakNotifications' as const, label: 'Série en cours', desc: 'Un signal quand votre série peut être prolongée' },
-                                { key: 'weeklyEmailSummary' as const, label: 'Relevé hebdomadaire', desc: 'Un bilan de progression chaque semaine' },
-                                { key: 'achievementNotifications' as const, label: 'Distinctions', desc: 'Un avis lorsqu’une distinction est classée' },
-                                { key: 'serialEditionNotifications' as const, label: 'Feuilleton', desc: 'La prochaine parution dès qu’elle est prête' },
+                                { key: 'practiceReminders' as const, label: copy.notif_practice, desc: copy.notif_practice_hint },
+                                { key: 'streakNotifications' as const, label: copy.notif_streak, desc: copy.notif_streak_hint },
+                                { key: 'weeklyEmailSummary' as const, label: copy.notif_weekly, desc: copy.notif_weekly_hint },
+                                { key: 'achievementNotifications' as const, label: copy.notif_achievements, desc: copy.notif_achievements_hint },
+                                { key: 'serialEditionNotifications' as const, label: copy.notif_serial, desc: copy.notif_serial_hint },
                             ].map(item => (
                                 <React.Fragment key={item.key}>
                                     <Row id={`st-${item.key}-label`} label={item.label} hint={item.desc}>
                                         <Switch
+                                            copy={copy}
                                             labelledBy={`st-${item.key}-label`}
                                             checked={settings[item.key]}
                                             onChange={(next) => void handleNotificationToggle(item.key, next)}
                                         />
                                     </Row>
                                     {item.key === 'practiceReminders' && settings.practiceReminders && (
-                                        <Row label="Heure de livraison" id="st-reminder-label">
+                                        <Row label={copy.row_reminder_time} id="st-reminder-label">
                                             <input
                                                 type="time"
                                                 className="av2-field__control st-time"
@@ -1322,27 +1363,27 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
 
                     {/* ---------------- Apparence ---------------- */}
                     <section id="settings-appearance" className="st-section" aria-labelledby="st-appearance-label">
-                        <p className="av2-label st-section__label" id="st-appearance-label">Apparence</p>
+                        <p className="av2-label st-section__label" id="st-appearance-label">{copy.section_appearance}</p>
                         <div className="st-card">
-                            <Row label="Papier" hint="Clair, sombre, ou le réglage de l’appareil" stacked>
+                            <Row label={copy.row_theme} hint={copy.row_theme_hint} stacked>
                                 <Segmented
-                                    label="Papier"
+                                    label={copy.row_theme}
                                     options={[
-                                        { value: 'light' as const, label: 'Clair' },
-                                        { value: 'dark' as const, label: 'Sombre' },
-                                        { value: 'system' as const, label: 'Système' },
+                                        { value: 'light' as const, label: copy.theme_light },
+                                        { value: 'dark' as const, label: copy.theme_dark },
+                                        { value: 'system' as const, label: copy.theme_system },
                                     ]}
                                     value={settings.theme}
                                     onChange={(value) => updateSetting('theme', value)}
                                 />
                             </Row>
-                            <Row label="Corps du texte" hint="Le réglage s’applique immédiatement à toute la publication" stacked>
+                            <Row label={copy.row_font_size} hint={copy.row_font_size_hint} stacked>
                                 <Segmented
-                                    label="Corps du texte"
+                                    label={copy.row_font_size}
                                     options={[
-                                        { value: 'small' as const, label: 'Petit' },
-                                        { value: 'medium' as const, label: 'Moyen' },
-                                        { value: 'large' as const, label: 'Grand' },
+                                        { value: 'small' as const, label: copy.font_small },
+                                        { value: 'medium' as const, label: copy.font_medium },
+                                        { value: 'large' as const, label: copy.font_large },
                                     ]}
                                     value={settings.fontSize}
                                     onChange={(value) => updateSetting('fontSize', value)}
@@ -1353,16 +1394,17 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
 
                     {/* ---------------- Voix ---------------- */}
                     <section id="settings-audio" className="st-section" aria-labelledby="st-audio-label">
-                        <p className="av2-label st-section__label" id="st-audio-label">Voix</p>
+                        <p className="av2-label st-section__label" id="st-audio-label">{copy.section_audio}</p>
                         <div className="st-card">
                             {/* The artboard's "Réponses à l’oral" toggle is the microphone preference. */}
                             {[
-                                { key: 'voiceInputEnabled' as const, label: 'Réponses à l’oral', desc: 'Autoriser la pratique parlée au micro' },
-                                { key: 'textToSpeechEnabled' as const, label: 'Lecture à voix haute', desc: 'Écouter la prononciation des mots' },
-                                { key: 'autoPlayPronunciation' as const, label: 'Lecture automatique', desc: 'Lancer le son du mot sans geste supplémentaire' },
+                                { key: 'voiceInputEnabled' as const, label: copy.row_voice_input, desc: copy.row_voice_input_hint },
+                                { key: 'textToSpeechEnabled' as const, label: copy.row_tts, desc: copy.row_tts_hint },
+                                { key: 'autoPlayPronunciation' as const, label: copy.row_autoplay, desc: copy.row_autoplay_hint },
                             ].map(item => (
                                 <Row key={item.key} id={`st-${item.key}-label`} label={item.label} hint={item.desc}>
                                     <Switch
+                                        copy={copy}
                                         labelledBy={`st-${item.key}-label`}
                                         checked={settings[item.key]}
                                         onChange={(next) => updateSetting(item.key, next)}
@@ -1380,10 +1422,11 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                 the offer inside an episode. */}
                             <Row
                                 id="st-listen-first-label"
-                                label="Écouter d’abord"
-                                hint="Deviner, écouter, vérifier — puis lire. L’épisode commence par le son."
+                                label={copy.row_listen_first}
+                                hint={copy.row_listen_first_hint}
                             >
                                 <Switch
+                                    copy={copy}
                                     labelledBy="st-listen-first-label"
                                     checked={listenFirst}
                                     onChange={(next) => {
@@ -1392,20 +1435,20 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                     }}
                                 />
                             </Row>
-                            <Row label="Vitesse de lecture" value={`${settings.ttsSpeed}×`} stacked>
+                            <Row label={copy.row_tts_speed} value={`${settings.ttsSpeed}×`} stacked>
                                 <div className="st-range">
-                                    <span className="st-row__hint">Lente</span>
+                                    <span className="st-row__hint">{copy.speed_slow}</span>
                                     <input
                                         type="range"
                                         min="0.5"
                                         max="1.5"
                                         step="0.1"
                                         value={settings.ttsSpeed}
-                                        aria-label="Vitesse de lecture"
-                                        aria-valuetext={`${settings.ttsSpeed} fois la vitesse normale`}
+                                        aria-label={copy.row_tts_speed}
+                                        aria-valuetext={`${settings.ttsSpeed} ${copy.speed_valuetext}`}
                                         onChange={(e) => updateSetting('ttsSpeed', parseFloat(e.target.value))}
                                     />
-                                    <span className="st-row__hint">Rapide</span>
+                                    <span className="st-row__hint">{copy.speed_fast}</span>
                                 </div>
                             </Row>
                         </div>
@@ -1413,33 +1456,33 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
 
                     {/* ---------------- Données ---------------- */}
                     <section id="settings-privacy" className="st-section" aria-labelledby="st-privacy-label">
-                        <p className="av2-label st-section__label" id="st-privacy-label">Données</p>
+                        <p className="av2-label st-section__label" id="st-privacy-label">{copy.section_privacy}</p>
                         <div className="st-card">
-                            <Row label="Exporter vos archives" hint="Téléchargez votre vocabulaire, votre progression et vos distinctions.">
+                            <Row label={copy.row_export} hint={copy.row_export_hint}>
                                 <Action
                                     tone="secondary"
                                     inline
                                     onClick={handleExportData}
                                     pending={privacyAction === 'export'}
-                                    pendingLabel="Préparation…"
+                                    pendingLabel={copy.pending_export}
                                 >
-                                    Préparer l’archive JSON
+                                    {copy.action_export}
                                 </Action>
                             </Row>
-                            <Row label="Fermer toutes les sessions" hint="Déconnectez tous les appareils reliés à votre dossier.">
+                            <Row label={copy.row_signout_all} hint={copy.row_signout_all_hint}>
                                 <Action
                                     tone="secondary"
                                     inline
                                     onClick={handleSignOutAllDevices}
                                     pending={privacyAction === 'signout'}
-                                    pendingLabel="Fermeture…"
+                                    pendingLabel={copy.pending_signout_all}
                                 >
-                                    Tout déconnecter
+                                    {copy.action_signout_all}
                                 </Action>
                             </Row>
                             <Row
-                                label={<><ShapeToken kind="action" size="sm" /> Suppression définitive</>}
-                                hint="Supprimez le compte et toutes ses données. Cette action est irréversible."
+                                label={<><ShapeToken kind="action" size="sm" /> {copy.row_delete}</>}
+                                hint={copy.row_delete_hint}
                             >
                                 <Action
                                     tone="secondary"
@@ -1447,10 +1490,10 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                     className="st-danger"
                                     onClick={handleDeleteAccount}
                                     pending={privacyAction === 'delete'}
-                                    pendingLabel="Suppression…"
+                                    pendingLabel={copy.pending_delete}
                                     disabled={isSaving && privacyAction !== 'delete'}
                                 >
-                                    Supprimer le compte
+                                    {copy.action_delete}
                                 </Action>
                             </Row>
                         </div>
@@ -1469,9 +1512,9 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                 tone="primary"
                                 onClick={saveSettings}
                                 pending={isSaving}
-                                pendingLabel="Classement…"
+                                pendingLabel={copy.pending_save}
                             >
-                                Classer les modifications
+                                {copy.action_save}
                             </Action>
                         )}
                     </div>

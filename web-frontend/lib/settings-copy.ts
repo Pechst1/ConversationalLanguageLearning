@@ -136,6 +136,8 @@ export type SettingsCopyKey =
   | 'correction_lenient'
   | 'correction_moderate'
   | 'correction_strict'
+  | 'row_explanations'
+  | 'row_explanations_hint'
   | 'row_address'
   | 'address_feminine'
   | 'address_masculine'
@@ -333,6 +335,8 @@ const EN: SettingsCopy = {
   correction_lenient: 'Light',
   correction_moderate: 'Balanced',
   correction_strict: 'Full',
+  row_explanations: 'Show the explanations',
+  row_explanations_hint: 'Attach a detailed note to every correction',
   row_address: 'How the story addresses you',
   address_feminine: 'Feminine',
   address_masculine: 'Masculine',
@@ -535,6 +539,8 @@ const DE: SettingsCopy = {
   correction_lenient: 'Leicht',
   correction_moderate: 'Ausgewogen',
   correction_strict: 'Vollständig',
+  row_explanations: 'Erklärungen anzeigen',
+  row_explanations_hint: 'Jeder Korrektur eine ausführliche Notiz beilegen',
   row_address: 'Wie die Erzählung Sie anspricht',
   address_feminine: 'Weiblich',
   address_masculine: 'Männlich',
@@ -742,6 +748,8 @@ const FR: SettingsCopy = {
   correction_lenient: 'Légère',
   correction_moderate: 'Équilibrée',
   correction_strict: 'Complète',
+  row_explanations: 'Afficher les explications',
+  row_explanations_hint: 'Joindre une note détaillée à chaque correction',
   row_address: 'Comment le récit s’adresse à vous',
   address_feminine: 'Féminin',
   address_masculine: 'Masculin',
