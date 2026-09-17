@@ -1747,3 +1747,16 @@ header deduped). Walked on the fake harness at 390 pt light + dark. Still open
 from the canvas: the journal tab's «Journal» pill and its +1-day entry screen,
 and the documents artefact card as drawn (`Documents.dc.html`); the reader
 variant (bubbles vs lines) remains the owner's call, one constant away.
+
+## 2026-09-17 — owner decisions applied, calibration run
+
+Reader = variant B (line in a card under the art, `7639410`); panels on
+`gpt-image-2.5-flare` (newest OpenAI everyday image model, same price as
+gpt-image-2; -sunburst is the capable sibling); French chrome confirmed; Réglages
+moves to the learner's language (WP-46, in flight). The four companion feet are
+the shared `ScreenFoot` (`9161d69`). **Calibration** (owner-approved, ≈US$0.15):
+[CALIBRATION-2026-09-17.md](CALIBRATION-2026-09-17.md) — placement right for A1/A2,
+one band low for B1 (one low turn ends the climb); register detector 5/6 and the
+model gap fixed from a gpt-5-mini token starvation (`app/services/pragmatics.py`);
+three radio mp3s for the owner's ear; intake read both fixtures; coverage not
+observable on a synthetic learner.
