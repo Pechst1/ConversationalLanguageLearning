@@ -222,19 +222,58 @@ def opening_band(user: User | None) -> str:
     return clamp_band(max(1, band_index(declared) - 1))
 
 
-def next_band(current: str, score_0_4: float | None) -> str:
+def next_band(
+    current: str, score_0_4: float | None, turns: list[dict[str, Any]] | None = None
+) -> str:
     """Escalate, hold, or de-escalate from one graded turn.
 
     An ungraded turn (``None`` — the provider did not answer) holds the band: a
     missing measurement must not move the ladder in either direction.
+
+    A *first* low turn at a band the learner has just climbed to holds it too
+    (``turns`` is the history before this one). The 2026-09-17 calibration placed
+    a B1 learner at A2.2 because one misread B1.1 prompt sent the ladder straight
+    back down; two low turns at that band are needed to descend, one is a second
+    chance at the same rung.
     """
     if score_0_4 is None:
         return clamp_band(band_index(current))
     if score_0_4 >= 3.0:
         return clamp_band(band_index(current) + 1)
     if score_0_4 <= 1.5:
+        if turns is not None and _climbed_into(turns, current) and not _low_turn_at(turns, current):
+            return clamp_band(band_index(current))
         return clamp_band(band_index(current) - 1)
     return clamp_band(band_index(current))
+
+
+def _score_of(turn: dict[str, Any]) -> float | None:
+    score = (turn.get("grading") or {}).get("score_0_4")
+    return float(score) if isinstance(score, (int, float)) else None
+
+
+def _climbed_into(turns: list[dict[str, Any]], band: str) -> bool:
+    """Did the learner *earn* this rung — a strong turn one band below it?
+
+    The second chance is for a learner who climbed here and then misread one
+    prompt. A learner who *started* high (a declared B2 who is not) and scores
+    low on the first rung has earned nothing yet; the ladder descends at once,
+    so a weak run still reaches the bottom inside the turn budget.
+    """
+    below = band_index(band) - 1
+    return any(
+        turn.get("band") == clamp_band(below) and band_index(str(turn.get("band"))) == below
+        and (_score_of(turn) or 0.0) >= 3.0
+        for turn in turns
+    )
+
+
+def _low_turn_at(turns: list[dict[str, Any]], band: str) -> bool:
+    """Has an earlier graded turn at ``band`` already scored low?"""
+    return any(
+        turn.get("band") == band and (score := _score_of(turn)) is not None and score <= 1.5
+        for turn in turns
+    )
 
 
 def demonstrated_index(*, band: str, score_0_4: float, grader_band: str | None = None) -> float:
@@ -564,7 +603,7 @@ class PlacementService:
         )
         session.turns = turns
         score = float(grading["score_0_4"]) if grading else None
-        session.current_band = next_band(prompt.band, score)
+        session.current_band = next_band(prompt.band, score, turns[:-1])
 
         estimate = estimate_from_turns(turns)
         if not should_continue(turns, estimate):

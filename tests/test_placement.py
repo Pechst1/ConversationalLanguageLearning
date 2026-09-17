@@ -560,3 +560,23 @@ def test_a_placement_below_the_measurement_does_not_hold_a_learner_back(db_sessi
     payload = CEFRProgressService(db_session).recompute(user, source="test")
     assert payload["estimate_source"] in {"measured", "placement"}
     assert band_index(payload["estimate"]) >= band_index("A1.1")
+
+
+def test_one_low_turn_at_a_newly_reached_band_is_a_second_chance_not_a_descent():
+    """2026-09-17 calibration: a B1 learner who misread one B1.1 prompt was sent
+    straight back to A2 and placed one band low. The first low turn at a band
+    holds the rung; a second low turn there descends."""
+    history = [_turn("A2.1", 3.0), _turn("A2.2", 4.0)]
+    # first low turn at B1.1: hold
+    assert next_band("B1.1", 1.0, history) == "B1.1"
+    # a second low turn at B1.1 descends
+    assert next_band("B1.1", 1.0, history + [_turn("B1.1", 1.0)]) == "A2.2"
+    # without a history the rule is the plain ladder (older callers)
+    assert next_band("B1.1", 1.0) == "A2.2"
+    # a learner who *started* at B1.1 (declared high) and scores low has earned
+    # no second chance: the ladder descends at once
+    assert next_band("B1.1", 1.0, []) == "A2.2"
+    assert next_band("B1.1", 1.0, [_turn("B1.1", None)]) == "A2.2"
+    # a strong turn still climbs, an ungraded one still holds
+    assert next_band("B1.1", 4.0, history) == "B1.2"
+    assert next_band("B1.1", None, history) == "B1.1"
