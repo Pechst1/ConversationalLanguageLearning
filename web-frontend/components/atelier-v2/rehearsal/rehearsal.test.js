@@ -288,7 +288,7 @@ test('every state carries its actions in a foot below the body', () => {
   const page = fs.readFileSync(path.join(WEB_ROOT, 'pages/repetition.tsx'), 'utf8');
 
   const body = screen.indexOf('className="av2-screen__body rp-body"');
-  const foot = screen.indexOf('className="av2-screen__foot rp-foot"');
+  const foot = screen.indexOf('<ScreenFoot className="rp-foot">');
   assert.ok(body > -1 && foot > -1, 'the scaffold is the av2 screen body + foot');
   assert.ok(body < foot, 'the foot comes after the body in the DOM');
 

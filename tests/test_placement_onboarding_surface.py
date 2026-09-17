@@ -97,7 +97,7 @@ def test_the_actions_live_in_a_screen_foot_that_follows_the_body():
     that is not *after* the body in the flow ends up under it."""
     page = _source("pages/placement.tsx")
     body = page.index('className="av2-screen__body pl-body"')
-    foot = page.index('className="av2-screen__foot pl-foot"')
+    foot = page.index('<ScreenFoot className="pl-foot">')
     assert body < foot, "the foot must come after the body in the DOM"
     # Every state hands its actions to the frame rather than rendering them in
     # the body, and the old in-flow spacer is gone.

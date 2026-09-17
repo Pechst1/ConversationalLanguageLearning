@@ -33,7 +33,7 @@
 
 import React from 'react';
 
-import { Action, Notice, Skeleton, Surface, textAnswerField } from '@/components/atelier-v2/ui';
+import { Action, Notice, ScreenFoot, Skeleton, Surface, textAnswerField } from '@/components/atelier-v2/ui';
 import type {
   DossierCapability,
   DossierClaimCheck,
@@ -97,7 +97,7 @@ function Frame({ children, foot }: { children: React.ReactNode; foot?: React.Rea
   return (
     <>
       <div className="av2-screen__body ds-body">{children}</div>
-      {foot ? <div className="av2-screen__foot ds-foot">{foot}</div> : null}
+      {foot ? <ScreenFoot className="ds-foot">{foot}</ScreenFoot> : null}
     </>
   );
 }

@@ -127,9 +127,7 @@ function DossierStyles() {
       /* The screen scaffold. A column that fills the shell, a body that
          scrolls, and — on the states that carry an action — a foot that is the
          last thing in the flow rather than a bar floating over the tab bar.
-         TODO(WP-43): replace .ds-foot with the shared ScreenFoot component
-         once it lands; the class it wraps, .av2-screen__foot, is already the
-         one that component will carry. */
+         The foot is the shared ScreenFoot (WP-43). */
       .av2.ds-screen {
         display: flex;
         flex: 1 1 auto;
@@ -139,13 +137,10 @@ function DossierStyles() {
         background: var(--av2-paper);
       }
       /* Canvas note «note-pied»: the action does not hide under the tab bar.
-         Below 760px the shell draws a fixed four-tab bar, so the screen
-         reserves its height; the bar owns the safe-area inset there, and the
-         foot gives its own back rather than adding a second one. */
+         Below 760px the route shell reserves the tab bar's height once
+         (WP-43), so this screen adds no reservation of its own; the foot gives
+         back its safe-area inset because the bar below it already owns it. */
       @media (max-width: 760px) {
-        .av2.ds-screen {
-          padding-bottom: var(--phone-bottom-nav-space, 0px);
-        }
         .av2 .ds-foot {
           --av2-safe-bottom: 0px;
         }

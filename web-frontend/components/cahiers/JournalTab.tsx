@@ -29,6 +29,7 @@ import {
   Action,
   Correction,
   Notice,
+  ScreenFoot,
   ShapeToken,
   Skeleton,
   StateBlock,
@@ -287,7 +288,7 @@ export default function JournalTab() {
           </section>
           {/* The screen foot. Last in the flow, so the action is never under the
               phone tab bar (WP-39's CTA finding). */}
-          <div className="jn-foot">
+          <ScreenFoot className="jn-foot">
             <Action
               tone="primary"
               pending={pending === 'write'}
@@ -310,7 +311,7 @@ export default function JournalTab() {
             >
               Passer cette scène
             </Action>
-          </div>
+          </ScreenFoot>
         </>
       )}
 
@@ -460,16 +461,14 @@ export function JournalStyles() {
       .av2 .jn-entry-field .av2-field__control { min-height: 150px; }
       /* The screen foot. Same rule as the other companion screens: a hairline,
          the paper ground, 14px and the safe area — but in flow, never fixed.
-         TODO(WP-43): swap for the shared ScreenFoot component once it lands. */
+         The wrapper is the shared ScreenFoot (WP-43); this only stacks its
+         children. */
       .av2 .jn-foot {
         display: flex;
         flex-direction: column;
         align-items: stretch;
         gap: 4px;
         margin-top: 2px;
-        padding: 14px 0 0;
-        border-top: 1px solid var(--av2-line);
-        background: var(--av2-paper);
       }
       .av2 .jn-foot__note {
         margin: 0;

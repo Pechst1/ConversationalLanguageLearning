@@ -28,15 +28,7 @@
 
 import React from 'react';
 
-import {
-  Action,
-  ArrowRightIcon,
-  Notice,
-  Skeleton,
-  StepProgress,
-  Surface,
-  textAnswerField,
-} from '@/components/atelier-v2/ui';
+import { Action, ArrowRightIcon, Notice, ScreenFoot, Skeleton, StepProgress, Surface, textAnswerField } from '@/components/atelier-v2/ui';
 import type { RehearsalEnvelope, RehearsalView } from '@/services/api';
 
 import {
@@ -72,14 +64,14 @@ export type RehearsalScreenProps = {
  *  — not a bar floating over the tab bar — so at 390x844 the primary action
  *  sits above the four tabs instead of under them (WP-39's CTA finding).
  *
- *  TODO(WP-43): swap the wrapper for the shared `ScreenFoot` once it lands; the
+ *  The foot is the shared `ScreenFoot` (WP-43); the
  *  class it wraps, `.av2-screen__foot`, is already the one that component
  *  carries. */
 function Frame({ children, foot }: { children: React.ReactNode; foot?: React.ReactNode }) {
   return (
     <>
       <div className="av2-screen__body rp-body">{children}</div>
-      {foot ? <div className="av2-screen__foot rp-foot">{foot}</div> : null}
+      {foot ? <ScreenFoot className="rp-foot">{foot}</ScreenFoot> : null}
     </>
   );
 }

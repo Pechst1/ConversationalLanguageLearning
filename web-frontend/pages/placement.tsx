@@ -36,6 +36,7 @@ import {
   ArrowRightIcon,
   AtelierV2Root,
   Notice,
+  ScreenFoot,
   Skeleton,
   StepProgress,
   Surface,
@@ -57,9 +58,7 @@ function confidenceLabel(confidence: number): string {
  *  flow — not a fixed bar — so on a 390×844 phone the primary action sits above
  *  the four-tab bar instead of under it.
  *
- *  TODO(WP-43): swap the wrapper for the shared `ScreenFoot` once it lands; the
- *  class it wraps, `.av2-screen__foot`, is already the one that component
- *  carries. */
+ *  The foot is the shared `ScreenFoot` (WP-43). */
 function PlacementFrame({
   children,
   foot,
@@ -70,7 +69,7 @@ function PlacementFrame({
   return (
     <AtelierV2Root as="main" className="av2-screen pl-screen" aria-label="Bilan de niveau">
       <div className="av2-screen__body pl-body">{children}</div>
-      {foot ? <div className="av2-screen__foot pl-foot">{foot}</div> : null}
+      {foot ? <ScreenFoot className="pl-foot">{foot}</ScreenFoot> : null}
       <PlacementStyles />
     </AtelierV2Root>
   );
