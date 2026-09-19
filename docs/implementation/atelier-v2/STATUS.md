@@ -1769,3 +1769,32 @@ only once the account has answered, so nothing paints French and swaps. Six
 suites re-pinned onto the key plus all three wordings; `tests/test_settings_language.py`
 fails on any French sentence left in the page. Not walked in a browser — `/settings`
 is auth-gated. See [WP-46-SETTINGS-LANGUAGE.md](WP-46-SETTINGS-LANGUAGE.md).
+
+## 2026-09-19 — owner QA of the Séance and the Feuilleton (`d36e8da`)
+
+Three screenshots, three causes. **Étape 3 asked for a translation of a German
+explanation and graded the word "grammar"**: WP-24 handed the planner the erratum's
+category label as `label_fr` and its explanation as the gloss. `journey_errata`
+now elicits the stored French correction (a row without one is never a target),
+and `journey_planner` poses an error target as a repair of the learner's own
+wording («Write this correctly in French» over the wrong text) — never a
+"How do you say…". The summary line and the junk `journey_correction` row the
+bug filed were the same defect. **Every Feuilleton panel blank**: the owner's
+serial thread predates the 2026-09-04 WebP re-encoding and its stored world-bible
+copy still names `.png` files; `resolveMediaUrl` folds a legacy
+`/assets/serial/…png` to `.webp` (dev rows rewritten; Render has the same 71 stale
+threads — the frontend fold covers them, a one-line `UPDATE serial_threads SET
+world_bible = replace(world_bible::text,'.png','.webp')::jsonb` finishes it).
+**The reprise card was the last legacy overlay on the Séance route**: it is now
+`components/atelier-v2/errata/ErrataReviewSheet.tsx` on the av2 bottom sheet
+(walked in the dev gallery, light and dark). A legacy row that filed the learner's
+wording in the context column («Pourquoi : un conseils») reads it as the task, and
+rows without a correction are no longer due.
+
+Still open, not touched here (Codex holds uncommitted edits in `living_story.py`):
+the three failed respond turns were guard rejections of the actor draft
+(`fabricated_evidence_quote` ×2, `inclusive_dot_form` ×1) at 18–20 s and
+≈US$0.005 each — the learner sees a failed send; engine scenes still reuse one
+static location image for every panel (`image_model="existing-setting-art"`),
+so the flare panel decision has not reached the living-story path; and the
+"no storyline" note is what Codex's DIRECTOR-prompt diff is addressing.
