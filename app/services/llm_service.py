@@ -545,7 +545,9 @@ class LLMService:
                 )
                 return result
             except Exception as exc:  # pragma: no cover - defensive logging path
-                logger.warning("LLM provider failure", provider=provider.name, error=str(exc))
+                logger.warning(
+                    "LLM provider failure ({}): {}", provider.name, str(exc)[:300]
+                )
                 errors.append(f"{provider.name}: {exc}")
                 continue
         raise LLMProviderError("; ".join(errors))

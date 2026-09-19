@@ -142,7 +142,10 @@ def main():
             text = (
                 scene.suggested_response_fr
                 if day != 1
-                else "Non, je ne peux pas vous aider aujourd'hui. Je préfère rentrer chez moi."
+                # A refusal that fits any scene (a romantic walk as much as a favour):
+                # the earlier "vous aider" wording was itself off-scene and made the
+                # critic reject the turn for the wrong reason (live run 2026-09-19d).
+                else "Non, pas aujourd'hui, désolé. Je préfère rentrer chez moi."
             )
             payload = {
                 "story": deepcopy(context),
