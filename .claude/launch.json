@@ -30,7 +30,7 @@
       "runtimeExecutable": "bash",
       "runtimeArgs": [
         "-lc",
-        "BACKEND_CORS_ORIGINS='[\"http://localhost:3000\",\"http://127.0.0.1:3000\",\"http://localhost:61632\"]' DATABASE_URL=postgresql://localhost/atelier_story_pg_1788716642 venv/bin/python scripts/dev_story_engine_server.py --port 8010"
+        "BACKEND_CORS_ORIGINS='[\"http://localhost:3000\",\"http://127.0.0.1:3000\"]' DATABASE_URL=postgresql://localhost/atelier_wp39_1789134531 venv/bin/python scripts/dev_story_engine_server.py --port 8010"
       ],
       "port": 8010
     }
