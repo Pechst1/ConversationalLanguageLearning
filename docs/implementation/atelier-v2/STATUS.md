@@ -1868,3 +1868,9 @@ met, `reply_source: authored`) settles the day. Chapter closure by the actor is
 honoured only from the turn beat. The review script now runs the production
 bookkeeping and the same fallback. Living-story, journey, serial and
 end-to-end suites green; five new tests pin the shape.
+
+**Late follow-up (`70bc641` and after):** a forbidden endearment or a
+middle-dot form is repaired, not refused; the agreement guard now sees
+negation and «t'es». The six-day live run `atelier-story-review-A2-2026-09-19g`
+came back clean — two four-beat chapters, four learner commitments carried
+forward, no fallback — the reading is in the QA report.

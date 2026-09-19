@@ -172,3 +172,16 @@ ring (`marin_proposal`) — the depth material is reaching the page; the run
 itself stopped on a transient OpenAI failure that production would have
 absorbed with the fallback, and it exposed the actor closing a chapter after
 one scene, now gated on the beat.
+
+**Final live reading (`atelier-story-review-A2-2026-09-19g.json`, six days,
+≈US$0.06):** six of six days accepted, no authored fallback, two provider
+timeouts absorbed by the retry. Chapter 1 «La tension Romy» ran setup (a look
+held too long at Le Mistral, a café promised for ten o'clock) → complication
+(the scripted refusal; Romy «un peu déçue, mais je comprends») → turn (she
+says she may go back to Canada; the learner promises to keep seeing her) →
+resolution (a walk with Marin who offers to stand by the learner). Chapter 2
+opened on a new problem in the `marin_proposal` arc: the ring in the pocket,
+Lila painting downstairs, and on day 6 Lila coming home early with her hand on
+his coat. Commitments were recorded from the learner's own words on days 1, 3,
+4 and 5. One slip caught by reading, now guarded: «Tu n'es pas seule» to a
+neutral learner (the agreement guard watched only «tu es»).

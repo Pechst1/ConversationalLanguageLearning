@@ -1194,7 +1194,13 @@ _FEMININE_AGREEMENT = (
     "certaine", "attentive", "sérieuse", "nouvelle", "bienvenue",
 )
 # "tu es", "t'es", "vous êtes", with at most one adverb in between.
-_SECOND_PERSON = r"(?:tu es|t'es|tu étais|vous êtes|vous étiez)\s+(?:\w+\s+)?"
+# Matched against `_folded` text, where "n'es" reads "n es" and "t'es" reads "t es".
+# Negation included: the live run of 2026-09-19g accepted «Tu n'es pas seule» for a
+# neutral learner because only the affirmative was watched.
+_SECOND_PERSON = (
+    r"(?:tu (?:n )?es(?: pas)?|t es(?: pas)?|tu (?:n )?étais(?: pas)?"
+    r"|vous (?:n )?êtes(?: pas)?|vous (?:n )?étiez(?: pas)?)\s+(?:\w+\s+)?"
+)
 
 
 def _agreement_hits(folded: str, adjectives: tuple[str, ...]) -> list[str]:

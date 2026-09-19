@@ -164,6 +164,11 @@ def test_prose_never_agrees_with_a_gender_the_learner_did_not_give() -> None:
     with pytest.raises(living_story.StoryUnavailable):
         living_story._check_address(["Vous êtes très fatigué."], "feminine")
 
+    # Negation and the spoken "t'es" agree just the same (live run 2026-09-19g).
+    for text in ("Tu n'es pas seule.", "T'es pas seul ce soir.", "Vous n'êtes pas fatiguée."):
+        with pytest.raises(living_story.StoryUnavailable, match="gendered_agreement"):
+            living_story._check_address([text], None)
+
     # ...and permits its own.
     living_story._check_address(["Tu es content."], "masculine")
     living_story._check_address(["Tu es contente."], "feminine")
