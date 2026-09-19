@@ -71,6 +71,18 @@ QUESTIONS = [
 ]
 
 
+def _fresh_question(context, n=0):
+    """The n-th chapter question, skipping any this life has already answered (WP-58:
+    four-scene chapters open more chapters in fourteen days than the list has entries)."""
+    retired = {str(q).casefold() for q in context.get("resolved_chapter_questions") or []}
+    current = (context.get("chapter") or {}).get("dramatic_question")
+    if current:
+        retired.add(str(current).casefold())
+    ordered = [QUESTIONS[(n + i) % len(QUESTIONS)] for i in range(len(QUESTIONS))]
+    return next((q for q in ordered if q.casefold() not in retired), ordered[0])
+
+
+
 def draft(context, n=0):
     chapter = context.get("chapter") or {}
     return {
@@ -96,7 +108,7 @@ def draft(context, n=0):
         if chapter and not (chapter.get("resolved") or chapter.get("exhausted"))
         else {
             "title_fr": f"Une exposition {n}",
-            "dramatic_question": QUESTIONS[n % len(QUESTIONS)],
+            "dramatic_question": _fresh_question(context, n),
             "possible_developments": [
                 "Trouver une salle.",
                 "Inviter les voisins.",
@@ -371,13 +383,20 @@ def test_turn_rejects_fabricated_quotes_and_keeps_attempt_retryable(
     route = f"/api/v1/daily-journeys/{d.journey['id']}/steps/{step['id']}/attempts"
     result = assembled_client.post(route, json=body, headers=d.headers)
     assert result.status_code in (200, 202), result.text
-    assert result.json()["pending"] is True
-    thread = db_session.scalar(select(SerialThread).where(SerialThread.user_id == d.user_id))
-    assert thread.state["living_story"].get("events", []) == []
-    provider.transform = lambda schema, value: value
-    result = assembled_client.post(route, json=body, headers=d.headers)
-    assert result.status_code == 200, result.text
+    # WP-58: both attempts refused is no longer a failed send. The learner gets an
+    # honest authored ending (the character is called away), labelled as such, with
+    # nothing graded as met and no invented commitment.
     assert result.json()["pending"] is False
+    assert result.json()["reply_source"] == "authored"
+    assert result.json()["task_outcome"] == "partially_met"
+    thread = db_session.scalar(select(SerialThread).where(SerialThread.user_id == d.user_id))
+    # The fallback is a real, settled exchange: one event, honest about what happened,
+    # with the learner's own words as its only evidence and no commitment.
+    events = thread.state["living_story"].get("events", [])
+    assert len(events) == 1
+    assert events[0]["outcome"] == "partially_met"
+    assert events[0]["source_quotes"] == ["Non, merci."]
+    assert thread.state["living_story"].get("commitments", []) == []
     again = assembled_client.post(route, json=body, headers=d.headers)
     assert again.json() == result.json()
     db_session.refresh(thread)
@@ -520,10 +539,15 @@ def test_semantic_critic_can_reject_a_false_interpretation_with_real_quotes(
             "input": {"mode": "text", "text": "Je ne peux pas apporter les affiches samedi."},
         },
     )
-    assert response.json()["pending"] is True
-    assert response.json()["character_reply_fr"] is None
+    # WP-58: the critic's rejection stands — the disputed reply is never shown — and
+    # the learner still gets a settled, honest ending instead of a failed send.
+    assert response.json()["pending"] is False
+    assert response.json()["reply_source"] == "authored"
+    assert response.json()["task_outcome"] == "partially_met"
+    assert "appelle" in response.json()["character_reply_fr"]
     thread = db_session.scalar(select(SerialThread).where(SerialThread.user_id == d.user_id))
-    assert thread.state["living_story"].get("events", []) == []
+    events = thread.state["living_story"].get("events", [])
+    assert len(events) == 1 and events[0]["outcome"] == "partially_met"
 
 
 def test_expired_generation_budget_never_calls_provider(provider):
@@ -1200,8 +1224,10 @@ def test_the_critic_can_be_limited_to_turns(
     assert schemas == ["SceneDraft", "SemanticTurn", "Review"]
 
 
-def test_the_interpreters_own_reading_of_the_learner_is_address_checked():
-    """A2 paid run: only the critic saw "Le·a apprenant·e" in understood_intent."""
+def test_the_interpreters_own_reading_of_the_learner_is_scrubbed_not_rejected():
+    """A2 paid run: "Le·a apprenant·e" landed in understood_intent, a field no
+    learner reads. The live review of 2026-09-19 lost a day to rejecting it
+    twice; the private field is scrubbed and the clean reply goes through."""
 
     payload = {
         "learner_text": "Je viens dimanche.",
@@ -1216,5 +1242,104 @@ def test_the_interpreters_own_reading_of_the_learner_is_address_checked():
             "understood_intent": "Le·a apprenant·e accepte de venir dimanche.",
         }
     )
+    engine._validate_turn(turn, payload)
+    assert "·" not in turn.understood_intent
+    assert "accepte de venir dimanche" in turn.understood_intent
+
+    # What the learner reads is still a hard rejection.
+    spoken = engine.SemanticTurn.model_validate(
+        {**turn_fixture("Je viens dimanche."), "reply_fr": "Tu es trempé·e, viens."}
+    )
     with pytest.raises(engine.StoryUnavailable, match="inclusive_dot_form"):
-        engine._validate_turn(turn, payload)
+        engine._validate_turn(spoken, payload)
+
+
+# ---------------------------------------------------------------------------
+# WP-58 — story shape: beats, a fresh problem per chapter, arcs, and no dead day
+# ---------------------------------------------------------------------------
+
+
+def test_a_chapter_has_four_required_beats_and_the_last_must_resolve():
+    assert engine.required_beats(None) == ("setup",)
+    assert engine.required_beats({"scene_count": 0}) == ("setup",)
+    assert engine.required_beats({"scene_count": 1}) == ("complication",)
+    assert engine.required_beats({"scene_count": 2}) == ("turn", "resolution")
+    assert engine.required_beats({"scene_count": 3}) == ("resolution",)
+    assert engine.required_beats({"scene_count": 1, "resolved": True}) == ("setup",)
+
+
+def test_a_scene_with_the_wrong_beat_is_told_which_beat_to_write():
+    """The 14-day A2 run of 2026-09-07 kept one leaking radiator alive for two weeks:
+    nothing ever forced a chapter to reach its resolution."""
+
+    context = _scene_context()
+    first = engine.SceneDraft.model_validate(draft(context, 0))
+    chapter = {
+        **first.chapter.model_dump(),
+        "id": "c1",
+        "scene_count": 3,
+        "resolved": False,
+        "resolved_commitments": 0,
+    }
+    open_context = _scene_context(chapter=engine.chapter_state({"chapter": chapter}))
+    assert open_context["chapter"]["required_beat"] == "resolution"
+    stuck = engine.SceneDraft.model_validate({**draft(open_context, 1), "beat": "complication"})
+    stuck = stuck.model_copy(update={"chapter": first.chapter})
+    with pytest.raises(engine.StoryUnavailable, match="wrong_beat") as info:
+        engine._validate_scene(stuck, open_context)
+    assert "resolution" in info.value.feedback
+    # A model that left the field out is given the required beat rather than refused.
+    silent = engine.SceneDraft.model_validate(draft(open_context, 1)).model_copy(
+        update={"chapter": first.chapter}
+    )
+    engine._validate_scene(silent, open_context)
+    assert silent.beat == "resolution"
+
+
+def test_a_new_chapter_cannot_reuse_the_problem_the_last_one_played():
+    context = _scene_context(
+        variety={**engine._variety([], [], []), "used_problems": ["radiateur_fuite"]}
+    )
+    same = engine.SceneDraft.model_validate(
+        {**draft(context, 0), "beat": "setup", "problem_key": "fuite_du_radiateur"}
+    )
+    with pytest.raises(engine.StoryUnavailable, match="stale_problem"):
+        engine._validate_scene(same, context)
+    fresh = engine.SceneDraft.model_validate(
+        {**draft(context, 0), "beat": "setup", "problem_key": "bague_de_marin"}
+    )
+    engine._validate_scene(fresh, context)
+
+
+def test_the_resolution_beat_closes_the_chapter_whatever_the_learner_answered():
+    scene = engine.SceneDraft.model_validate(
+        {**draft(_scene_context(), 0), "beat": "resolution", "problem_key": "p", "arc_id": "marin_proposal"}
+    )
+    refused = engine.SemanticTurn.model_validate(turn_fixture("Non.", close=False))
+    refused = refused.model_copy(update={"outcome": "not_yet"})
+    chapter = engine.chapter_after_scene(engine.open_chapter(scene), scene, refused, "e1")
+    assert chapter["resolved"] is True and chapter["beats"] == ["resolution"]
+    assert chapter["problem_key"] == "p" and chapter["arc_id"] == "marin_proposal"
+    # …and the arc it was anchored in moves one stage, once.
+    arcs = [{"id": "marin_proposal", "stages": [{"id": "a"}, {"id": "b"}]}]
+    progress = engine.arc_progress_after_scene({}, chapter, arcs, "e1")
+    assert progress["marin_proposal"]["stage"] == 1
+    assert engine.arc_progress_after_scene(progress, chapter, arcs, "e1") == progress
+    projection = engine._season_projection({"season_arcs": [{**arcs[0], "title": "T", "stages": [{"id": "a", "summary": "A"}, {"id": "b", "summary": "B"}]}]}, progress)
+    assert projection["arcs"][0]["current_stage"]["id"] == "a"
+    assert projection["arcs"][0]["next_stage"]["id"] == "b"
+
+
+def test_the_director_reads_the_seasons_arcs_secrets_and_threads():
+    from app.services.serial import SerialThreadService
+
+    world = SerialThreadService._load_world_bible()
+    season = engine._season_projection(world, {})
+    assert {arc["id"] for arc in season["arcs"]} >= {"marin_proposal", "lila_berlin_secret"}
+    assert all(arc["next_stage"] for arc in season["arcs"])
+    assert season["open_threads"] and season["warmth_rule"]
+    cast = engine._cast_projection(world)
+    marin = next(c for c in cast if c["id"] == "marin_leveque")
+    assert marin["secret"] and marin["contradiction"] and marin["flaw"]
+    for word in ("required_beat", "problem_key", "arc_id", "world.arcs", "open_threads", "secret"):
+        assert word in engine.DIRECTOR, word

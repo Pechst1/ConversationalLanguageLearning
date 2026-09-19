@@ -114,26 +114,9 @@ def main():
         ),
         "world": {
             "logline": world.get("logline"),
-            "cast": engine._cast_for_level(
-                [
-                    {
-                        k: c.get(k)
-                        for k in (
-                            "id",
-                            "name",
-                            "role",
-                            "personality",
-                            "wants",
-                            "speech_pattern",
-                            "register_with_user",
-                            "gender",
-                        )
-                    }
-                    for c in world["cast"]
-                ],
-                args.level,
-            ),
+            "cast": engine._cast_for_level(engine._cast_projection(world), args.level),
             "locations": engine._locations(world),
+            **engine._season_projection(world, {}),
         },
         "story_so_far": [],
         "relationships": {},
@@ -145,6 +128,7 @@ def main():
         "recent_situations": [],
         "legacy_beat": None,
     }
+    arc_progress: dict = {}
     try:
         for day in range(args.days):
             scene, _ = engine._approved(
@@ -179,19 +163,36 @@ def main():
             payload["story"]["commitments"] = [
                 c for c in context["commitments"] if scene.character_id in c["witnesses"]
             ]
-            result, _ = engine._approved(
-                engine.ACTOR,
-                payload,
-                engine.SemanticTurn,
-                lambda value, source=payload: engine._validate_turn(value, source),
-                db=EventSink(),
-                user=SimpleNamespace(id=uuid4()),
-            )
+            try:
+                result, _ = engine._approved(
+                    engine.ACTOR,
+                    payload,
+                    engine.SemanticTurn,
+                    lambda value, source=payload: engine._validate_turn(value, source),
+                    db=EventSink(),
+                    user=SimpleNamespace(id=uuid4()),
+                )
+                reply_source = "model"
+            except engine.StoryUnavailable as exc:
+                # What production does (WP-58): an honest authored ending, never a
+                # dead day. Recorded as such so the reviewer can count them.
+                character = next(
+                    (c for c in context["world"]["cast"] if c["id"] == scene.character_id), {}
+                )
+                result = engine.fallback_turn(
+                    character_name=character.get("name"),
+                    learner_text=text,
+                    language=context["control_language"],
+                    reason=str(exc),
+                )
+                reply_source = f"authored:{exc}"
             report["scenes"].append(
                 {
                     "day": day + 1,
+                    "chapter_before": context["chapter"],
                     "scene": scene.model_dump(mode="json"),
                     "learner_text": text,
+                    "reply_source": reply_source,
                     "turn": result.model_dump(mode="json"),
                 }
             )
@@ -217,11 +218,23 @@ def main():
                     "objective_native": scene.objective_native,
                     "character_id": scene.character_id,
                     "location_id": scene.location_id,
+                    "beat": scene.beat,
+                    "problem_key": scene.problem_key,
                 }
             )
-            if result.chapter_resolved:
-                context["resolved_chapter_questions"].append(scene.chapter.dramatic_question)
-            context["chapter"] = {**scene.chapter.model_dump(), "resolved": result.chapter_resolved}
+            # The same chapter bookkeeping production runs (WP-58): open on setup,
+            # advance per scene, close on the resolution beat, retire the question.
+            current = context["chapter"]
+            if not current or current.get("resolved") or current.get("exhausted"):
+                current = engine.open_chapter(scene)
+            current = engine.chapter_after_scene(current, scene, result, event_id)
+            if current.get("resolved"):
+                context["resolved_chapter_questions"].append(current["dramatic_question"])
+            arc_progress = engine.arc_progress_after_scene(
+                arc_progress, current, world.get("season_arcs") or [], event_id
+            )
+            context["world"].update(engine._season_projection(world, arc_progress))
+            context["chapter"] = engine.chapter_state({"chapter": current})
             context["variety"] = engine._variety(
                 context["recent_situations"],
                 context["world"]["cast"],

@@ -108,6 +108,18 @@ QUESTIONS = [
     "Le four du café sera-t-il réparé pour dimanche ?",
 ]
 
+
+def _fresh_question(context, n=0):
+    """The n-th chapter question, skipping any this life has already answered (WP-58:
+    four-scene chapters open more chapters in fourteen days than the list has entries)."""
+    retired = {str(q).casefold() for q in context.get("resolved_chapter_questions") or []}
+    current = (context.get("chapter") or {}).get("dramatic_question")
+    if current:
+        retired.add(str(current).casefold())
+    ordered = [QUESTIONS[(n + i) % len(QUESTIONS)] for i in range(len(QUESTIONS))]
+    return next((q for q in ordered if q.casefold() not in retired), ordered[0])
+
+
 CAST = {
     "romy": "romy_tremblay",
     "margaux": "margaux_barman",
@@ -222,7 +234,7 @@ class ScriptedProvider:
             if keeps_chapter
             else {
                 "title_fr": f"Chapitre {n}",
-                "dramatic_question": QUESTIONS[n % len(QUESTIONS)],
+                "dramatic_question": _fresh_question(context, n),
                 "possible_developments": ["Demander de l'aide.", "Changer de plan."],
             },
             "panels": [
@@ -403,7 +415,10 @@ def test_fourteen_days_stay_one_world_for_each_level(
     situations = live["recent_situations"]
     assert len({s["novelty_key"] for s in situations}) == len(situations)
     chapter_ids = {(s.source_snapshot or {})["chapter"]["id"] for s in scenes_of(db_session, d)}
-    assert len(chapter_ids) == 3, "a resolved chapter must be replaced, never replayed"
+    # WP-58: a chapter is at most CHAPTER_MAX_SCENES scenes and its resolution beat
+    # closes it, so fourteen days open at least four chapters; the fake actor may
+    # close one early with chapter_resolved. Never fewer, never a replay.
+    assert len(chapter_ids) >= 14 // engine.CHAPTER_MAX_SCENES, "a resolved chapter must be replaced, never replayed"
 
     episodes = list(
         db_session.scalars(

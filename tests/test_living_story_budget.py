@@ -171,3 +171,30 @@ def test_prose_never_agrees_with_a_gender_the_learner_did_not_give() -> None:
     # Prose that simply does not agree on the learner passes in every mode.
     for address in (None, "masculine", "feminine"):
         living_story._check_address(["Ça te plaît. Tu as de la chance."], address)
+
+
+def test_generation_retry_keeps_all_guard_feedback(monkeypatch):
+    """Fixing a second defect must not discard the first rejection's guidance."""
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(settings, "ATELIER_STORY_MAX_ATTEMPTS", 3)
+    monkeypatch.setattr(living_story, "CRITIC_ENABLED", False)
+    payloads = []
+
+    def generate(system, payload, schema, on_usage, *, deadline):
+        payloads.append(payload)
+        return SimpleNamespace(), {}
+
+    def validate(proposal):
+        if len(payloads) == 1:
+            raise living_story.StoryUnavailable("gendered_address", hint="Use neutral address")
+        if len(payloads) == 2:
+            raise living_story.StoryUnavailable("inclusive_dot_form", hint="Rephrase naturally")
+
+    monkeypatch.setattr(living_story, "_json_call", generate)
+    living_story._approved("director", {}, living_story.SceneDraft, validate, db=None, user=None)
+    assert payloads[0]["previous_rejections"] == []
+    assert payloads[2]["previous_rejections"] == [
+        "gendered_address: Use neutral address",
+        "inclusive_dot_form: Rephrase naturally",
+    ]
