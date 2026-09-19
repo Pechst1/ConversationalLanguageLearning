@@ -32,7 +32,7 @@ def main():
     parser.add_argument(
         "--level",
         default="A1",
-        choices=("A1", "A2", "B1"),
+        choices=("A1", "A2", "B1", "B2"),
         help=(
             "CEFR band to review. Register and the cast projection both depend on it, so a "
             "single band says nothing about the others."
