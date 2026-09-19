@@ -1798,3 +1798,73 @@ the three failed respond turns were guard rejections of the actor draft
 static location image for every panel (`image_model="existing-setting-art"`),
 so the flare panel decision has not reached the living-story path; and the
 "no storyline" note is what Codex's DIRECTOR-prompt diff is addressing.
+
+## 2026-09-19 (evening) — a learner's first day, walked end to end
+
+The whole day as a new German-native learner on the real providers
+(≈US$0.10): [QA-LEARNER-WALK-2026-09-19.md](QA-LEARNER-WALK-2026-09-19.md)
+lists 20 findings, two of them test-harness artefacts, and defines
+WP-47…WP-55. All nine landed the same evening:
+
+- **WP-47** sign-up signs the learner in and opens the placement; the sign-in
+  form (fallback) keeps the address; one French interest list
+  (`lib/interest-topics.ts`) feeds sign-up, Réglages and the «Gewählt» line.
+- **WP-48** a word without a dictionary entry no longer pops «Resource not
+  found.»; `/atelier/translate` answers in the learner's `native_language`
+  (`translateForLearner`; German verified).
+- **WP-49** the scene prompt carries `audio_available` (injected in
+  `snapshot`, so the planner keeps its import allowlist) and `/users/me/settings`
+  carries `episode_audio_enabled`; «Écouter d'abord» and the Réglages row exist
+  only when the deployment can honour them.
+- **WP-50** `name_fr` on every recurring location of both world bibles;
+  `living_story.location_display_name` + `LOCATION_NAMES_FR` fold stored
+  threads and journeys at read time (journey, season page, serial archive all
+  say «Votre appartement»).
+- **WP-51** `describe_next` sends a French `title_fr`; help chips, `action_*`
+  and «Étape n sur N» are chrome (French for every control language, pinned in
+  `atelier-v2-ui.test.js`); assistance-used prints labels; the finished card
+  reads «Revoir».
+- **WP-52/53/54/55** season row titled by the episode title, `<title>` on the
+  Feuilleton, Lexique kicker without the Anki path, placement/journey scroll to
+  the top per step, capitalised confidence sentence, `.fr-word` inline so
+  punctuation stays with its word.
+
+Verified: `tsc`, `lint`, the node suites, and the backend suites for the
+touched modules (one order-dependent `test_atelier` starter test fails only
+in a long run). Browser: Home «Revoir», the season row and its title; API:
+settings flag, scene flag, German translation, French place names. The hidden
+Browser pane stopped hydrating after the first load, so the sign-up hand-off,
+Réglages labels, the reader sheet, the scroll reset and the kicker are covered
+by tests and the type-checker only — an owner walk on a phone is the next
+check. Uncommitted, like Codex's `living_story.py` edits.
+
+**Second pass, same evening — Séance rounds and continuity.** Both Séances
+completed end to end (journey via browser and, on a fresh account, via the
+API on the fixed engine; the legacy practice round via the API). The
+`inclusive_dot_form` guard no longer rejects a turn for a dotted form in the
+private `understood_intent` (WP-57) — that was the owner's failed sends and
+it killed day 2 of a live review. Learner-facing rule labels now read the
+French concept title (WP-56, labels only; the recognize-round English «why»
+sentences remain). Story continuity: two live A2 reviews show real day-to-day
+carry-over (day 2 quotes day 1's constraint) but the engine aborts when both
+drafts fail a guard, and the 09-07 fourteen-day run loops on one problem —
+prompt work that sits in Codex's uncommitted `living_story.py`. Recommend
+`ATELIER_STORY_MAX_ATTEMPTS=3` in production meanwhile. Details in the QA
+report's second pass.
+
+## 2026-09-19 (night) — WP-58: the story gets a shape, and no day dies
+
+Owner: the Feuilleton looped on one problem and aborted on a stumble; the goal
+is a storyline the learner feels. Landed in `living_story.py`
+([WP-58-STORY-SHAPE.md](WP-58-STORY-SHAPE.md)): chapters are four-scene arcs
+with required beats (setup → complication → turn → resolution) whose
+resolution closes the question whatever the learner answers; a new chapter
+must start from a new practical problem (`stale_problem`); the world bible's
+season arcs, open threads, warmth rule and each character's secret,
+contradiction and flaw reach the director, and a resolved chapter advances its
+arc one stage. A refused turn no longer fails the send: an honest authored
+ending (character called away, learner's words as the only evidence, nothing
+met, `reply_source: authored`) settles the day. Chapter closure by the actor is
+honoured only from the turn beat. The review script now runs the production
+bookkeeping and the same fallback. Living-story, journey, serial and
+end-to-end suites green; five new tests pin the shape.

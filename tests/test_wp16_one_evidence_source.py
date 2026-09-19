@@ -404,6 +404,26 @@ def test_the_practice_href_seats_the_learners_own_due_concept(db_session):
     assert service._practice_href(user) == f"/atelier?mode=practice&concept={concept.id}"
 
 
+def test_practice_entry_skips_archived_due_concepts(db_session):
+    from app.services.daily_journey import DailyJourneyService
+
+    user = _user(db_session)
+    archived = _concept(db_session)
+    archived.active = False
+    progress = GrammarService(db_session).get_or_create_progress(
+        user_id=user.id, concept_id=archived.id
+    )
+    progress.next_review = datetime.now(UTC) - timedelta(days=10)
+    active = _concept(db_session)
+    db_session.flush()
+
+    service = DailyJourneyService(db_session, adapters=None)
+    assert service._practice_href(user) == f"/atelier?mode=practice&concept={active.id}"
+    active.active = False
+    db_session.flush()
+    assert service._practice_href(user) == "/atelier?mode=practice"
+
+
 def test_the_practice_href_falls_back_to_the_bare_entry(db_session, monkeypatch):
     from app.services import daily_journey as daily_journey_module
     from app.services.daily_journey import DailyJourneyService

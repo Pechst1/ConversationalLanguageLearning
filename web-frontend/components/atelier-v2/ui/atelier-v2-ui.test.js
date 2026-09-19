@@ -578,21 +578,24 @@ const h = React.createElement;
     }
   }
 
-  // Action names are really localized, not English under a translated heading.
+  // Action names are chrome: French on every screen, whatever the learner's
+  // language (WP-39 D-3, WP-51) — never English under a translated heading.
   const actionKeys = keys.filter((key) => key.startsWith('action_') || key.startsWith('record_'));
   assert.ok(actionKeys.length >= 6, 'there are action names to check');
   for (const key of actionKeys) {
-    assert.notEqual(
+    assert.equal(
       atelierChrome('de')[key],
-      atelierChrome('en')[key],
-      `de.${key} must be German, not the English label`,
-    );
-    assert.notEqual(
       atelierChrome('fr')[key],
+      `de.${key} must read the French chrome label`,
+    );
+    assert.equal(
       atelierChrome('en')[key],
-      `fr.${key} must be French, not the English label`,
+      atelierChrome('fr')[key],
+      `en.${key} must read the French chrome label`,
     );
   }
+  // …while what explains a failure to the learner stays in their language.
+  assert.notEqual(atelierChrome('de').mic_denied, atelierChrome('fr').mic_denied);
 
   // Normalization: regional tags, casing, whitespace, separators, junk.
   assert.equal(normalizeControlLanguage('de'), 'de');
@@ -614,9 +617,10 @@ const h = React.createElement;
   assert.equal(merged.action_check, 'Vérifier');
   assert.equal(atelierCopy('pt').action_check, atelierCopy('en').action_check);
 
-  // Interpolation happens in the learner's language.
-  assert.equal(stepOfLabel(atelierCopy('en'), 2, 5), 'Step 2 of 5');
-  assert.equal(stepOfLabel(atelierCopy('de'), 2, 5), 'Schritt 2 von 5');
+  // The progress caption is chrome: «Étape n sur N» on every screen (WP-51),
+  // with the numbers interpolated.
+  assert.equal(stepOfLabel(atelierCopy('en'), 2, 5), 'Étape 2 sur 5');
+  assert.equal(stepOfLabel(atelierCopy('de'), 2, 5), 'Étape 2 sur 5');
   assert.equal(stepOfLabel(atelierCopy('fr'), 2, 5), 'Étape 2 sur 5');
 }
 
@@ -662,5 +666,7 @@ console.log('atelier v2 design system tests passed');
   const feedback = fs.readFileSync(path.join(__dirname, '..', '..', 'feedback', 'FeedbackWidget.tsx'), 'utf8');
   assert.ok(feedback.includes("export const FEEDBACK_OPEN_EVENT = 'atelier:feedback-open'"), 'Réglages can open the panel');
   const settings = fs.readFileSync(path.join(__dirname, '..', '..', '..', 'pages', 'settings.tsx'), 'utf8');
-  assert.ok(settings.includes('Signaler un problème') && settings.includes('FEEDBACK_OPEN_EVENT'), 'the Réglages row exists');
+  // WP-46 moved the row's words into the per-language copy table.
+  const settingsCopy = fs.readFileSync(path.join(__dirname, '..', '..', '..', 'lib', 'settings-copy.ts'), 'utf8');
+  assert.ok(settingsCopy.includes('Signaler un problème') && settings.includes('FEEDBACK_OPEN_EVENT'), 'the Réglages row exists');
 }

@@ -236,7 +236,9 @@ export default function SerialSeasonPage() {
                   .sort((left, right) => right.episode_index - left.episode_index)
                   .map((episode) => {
                     const thumb = resolveMediaUrl(episode.thumbnail_url);
-                    const title = firstText(episode.hook_text, episode.title, 'Épisode classé');
+                    // The row is titled with the episode's title; the hook (its last line or
+                    // resolution) only stands in when no title was published.
+                    const title = firstText(episode.title, episode.hook_text, 'Épisode classé');
                     return (
                       <Link className="fr-row" href={archiveHref(episode)} key={episode.id}>
                         <span className="thumb">

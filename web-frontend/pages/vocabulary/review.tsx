@@ -825,10 +825,13 @@ export default function VocabularyReviewPage() {
 
   // "Mot du jour · French 5000": the tag half is the deck the card came from,
   // printed only when the payload names one.
+  // An Anki path («Französisch 5000::1. FR → DE») is a filing system, not a
+  // name: only its first segment is printed, and the direction is the badge's.
+  const deckLabel = String(current?.deck_name || '').split('::')[0].trim();
   const kicker = current
     ? [
         currentSlateEntry ? 'Mot du jour' : formatDueLabel(current),
-        current.deck_name || '',
+        deckLabel,
       ].filter(Boolean).join(' · ')
     : '';
 

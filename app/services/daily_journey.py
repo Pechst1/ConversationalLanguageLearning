@@ -415,6 +415,31 @@ def _brief_from_json(payload: dict[str, Any]) -> ScenarioBrief:
     )
 
 
+
+def _scenario_view(snapshot: Any) -> Any:
+    """The stored scenario, with its place named in French (WP-50). Journeys
+    planned before the world bible carried `name_fr` stored the English
+    name; the fold happens here so they read right without a data fix."""
+    if not isinstance(snapshot, dict):
+        return snapshot
+    from app.services.living_story import LOCATION_NAMES_FR
+
+    location_id = str(snapshot.get("location_id") or "")
+    french = LOCATION_NAMES_FR.get(location_id)
+    if not french:
+        return snapshot
+    return {**snapshot, "location_name": french}
+
+
+def _public_prompt_view(step: DailyJourneyStep) -> dict[str, Any]:
+    """The stored public prompt, plus what the client must know about this
+    deployment before it offers a mode (WP-49). Read at projection time, never
+    stored: a flag flipped after the journey was planned is still honoured."""
+    prompt = dict(step.public_prompt or {})
+    if StepKind(step.kind) is StepKind.SCENE:
+        prompt["audio_available"] = bool(settings.ATELIER_EPISODE_AUDIO_ENABLED)
+    return prompt
+
 class DailyJourneyService:
     """Transaction boundary and state machine for the Atelier V2 daily journey."""
 
@@ -1034,7 +1059,7 @@ class DailyJourneyService:
                 "status": step.status,
                 "estimated_seconds": step.estimated_seconds,
                 "assistance_used": list(step.assistance_used or []),
-                "prompt": dict(step.public_prompt or {}),
+                "prompt": _public_prompt_view(step),
             }
             for step in sorted(journey.steps, key=lambda item: item.ordinal)
         ]
@@ -1051,7 +1076,7 @@ class DailyJourneyService:
                 "current_step_id": (
                     str(journey.current_step_id) if journey.current_step_id else None
                 ),
-                "scenario": journey.scenario_snapshot,
+                "scenario": _scenario_view(journey.scenario_snapshot),
                 "steps": steps,
                 "recap": journey.recap_snapshot,
                 "retry": self._retry_hint(journey),

@@ -266,6 +266,7 @@ class GrammarService:
                 (UserGrammarProgress.concept_id == GrammarConcept.id)
                 & (UserGrammarProgress.user_id == user.id),
             )
+            .filter(GrammarConcept.active.is_(True))
             .filter(
                 (UserGrammarProgress.id.is_(None))  # New concepts
                 | (UserGrammarProgress.next_review <= now)  # Due

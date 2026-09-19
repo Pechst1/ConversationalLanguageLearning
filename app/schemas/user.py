@@ -7,6 +7,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
+from app.config import settings
+
 Theme = Literal["light", "dark", "system"]
 FontSize = Literal["small", "medium", "large"]
 # Registration derives the gloss direction from the learner's own language
@@ -221,6 +223,10 @@ class UserSettingsRead(BaseModel):
     show_grammar_explanations: bool
 
     address_preference: AddressPreference = "neutral"
+
+    # WP-49: read-only deployment facts the client needs before it offers a
+    # feature. Not on the user row; never accepted by the update payload.
+    episode_audio_enabled: bool = Field(default_factory=lambda: bool(settings.ATELIER_EPISODE_AUDIO_ENABLED))
 
     role: str
     is_active: bool

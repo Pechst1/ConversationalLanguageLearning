@@ -967,11 +967,15 @@ class SerialThreadService:
     def _season_location_name(world: dict[str, Any], location_id: str) -> str:
         if not location_id:
             return ""
+        # WP-50: the learner reads the French name of a place, whatever the
+        # world-bible copy stored on this thread calls it.
+        from app.services.living_story import LOCATION_NAMES_FR, location_display_name
+
         setting = world.get("setting") if isinstance(world.get("setting"), dict) else {}
         for place in (setting or {}).get("recurring_locations", []) or []:
             if isinstance(place, dict) and str(place.get("id") or "") == location_id:
-                return str(place.get("name") or "").strip() or location_id
-        return location_id
+                return location_display_name(place) or location_id
+        return LOCATION_NAMES_FR.get(location_id) or location_id
 
     def episode_archive(self, thread: SerialThread) -> list[dict[str, Any]]:
         episodes = (

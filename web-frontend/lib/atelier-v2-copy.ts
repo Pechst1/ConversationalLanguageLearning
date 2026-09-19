@@ -306,9 +306,48 @@ const TABLES: Record<ControlLanguage, Table> = { en: EN, de: DE, fr: FR };
 /** The merged table a renderer receives: journey contract keys plus V2 chrome. */
 export type AtelierCopy = JourneyCopy & Table;
 
+/**
+ * WP-51 — the same rule as `journey-copy`'s CHROME_KEYS: buttons, controls and
+ * navigation read French on every screen; failures, verdicts and states keep
+ * the learner's language because they explain something to them.
+ */
+export const V2_CHROME_KEYS: readonly AtelierCopyKey[] = [
+  'nav_atelier',
+  'nav_missions',
+  'nav_serial',
+  'nav_notebook',
+  'nav_label',
+  'settings',
+  'close',
+  'back',
+  'dismiss',
+  'more',
+  'open',
+  'rule_card',
+  'today_edition',
+  'action_check',
+  'action_continue',
+  'action_finish',
+  'action_start',
+  'action_send',
+  'action_retry',
+  'choose_one',
+  'build_sentence',
+  'remove_last',
+  'answer_mode_text',
+  'answer_mode_voice',
+  'record_start',
+  'record_stop',
+  'step_of',
+];
+
+const V2_CHROME_FR: Partial<Table> = Object.fromEntries(
+  V2_CHROME_KEYS.map((key) => [key, FR[key]]),
+) as Partial<Table>;
+
 const MERGED: Record<ControlLanguage, AtelierCopy> = {
-  en: { ...journeyCopy('en'), ...EN },
-  de: { ...journeyCopy('de'), ...DE },
+  en: { ...journeyCopy('en'), ...EN, ...V2_CHROME_FR },
+  de: { ...journeyCopy('de'), ...DE, ...V2_CHROME_FR },
   fr: { ...journeyCopy('fr'), ...FR },
 };
 
@@ -327,7 +366,7 @@ export function stepOfLabel(copy: AtelierCopy, index: number, total: number): st
 
 /** The V2-only chrome table, for a surface that does not need the journey keys. */
 export function atelierChrome(language: unknown): Table {
-  return TABLES[normalizeControlLanguage(language)];
+  return { ...TABLES[normalizeControlLanguage(language)], ...V2_CHROME_FR };
 }
 
 export default atelierCopy;

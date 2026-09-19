@@ -68,6 +68,8 @@ export type ScenePrompt = {
   character_line_fr: string | null;
   character_line_audio_url: string | null;
   image_url: string | null;
+  /** WP-49: «Écouter d'abord» is offered only when the server can honour it. */
+  audio_available?: boolean;
 };
 
 /** Never carries correctness. */

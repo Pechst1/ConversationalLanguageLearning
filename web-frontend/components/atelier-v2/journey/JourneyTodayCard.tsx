@@ -301,7 +301,7 @@ function JourneyTodayBody({
       return (
         <Card copy={copy} eyebrow={copy.today_eyebrow} title={copy.done_today} done>
           <Action tone="secondary" inline onClick={onOpen}>
-            {copy.continue}
+            {copy.done_review}
           </Action>
         </Card>
       );

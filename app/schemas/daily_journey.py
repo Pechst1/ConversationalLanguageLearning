@@ -109,6 +109,10 @@ class ScenePrompt(JourneyModel):
     character_line_fr: str | None = None
     character_line_audio_url: str | None = None
     image_url: str | None = None
+    # WP-49: whether «Écouter d'abord» can be honoured on this deployment. The
+    # client offers the listening-first cycle only when this is true, so a
+    # learner is never invited into a mode that answers "audio is off".
+    audio_available: bool = False
 
 
 class RecallOption(JourneyModel):

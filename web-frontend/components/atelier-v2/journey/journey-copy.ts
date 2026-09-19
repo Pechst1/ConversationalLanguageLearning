@@ -117,6 +117,7 @@ export type JourneyCopyKey =
   // for one target the scene actually practised.
   | 'practice_this'
   | 'done_today'
+  | 'done_review'
   | 'nothing_offered'
   // WP-32 «Écouter d'abord» — the four-stage listening cycle. Chrome only:
   // the two guesses, the lines and the phrase to retain are French content
@@ -257,6 +258,7 @@ const EN: CopyTable = {
   more_practice_note: 'Optional. It does not reopen today’s scene.',
   practice_this: 'Practise this',
   done_today: 'Today’s scene is done.',
+  done_review: 'Look again',
   nothing_offered: 'No scene is available right now.',
   listen_first_label: 'Listen first',
   listen_first_hint: 'Guess what happens, listen without the text, then check. Harder, and the part that trains listening.',
@@ -393,6 +395,7 @@ const DE: CopyTable = {
   more_practice_note: 'Optional. Die heutige Szene wird dadurch nicht neu geöffnet.',
   practice_this: 'Das üben',
   done_today: 'Die heutige Szene ist erledigt.',
+  done_review: 'Noch einmal ansehen',
   nothing_offered: 'Gerade ist keine Szene verfügbar.',
   listen_first_label: 'Zuerst hören',
   listen_first_hint: 'Rate, wie es ausgeht, hör ohne Text zu, prüfe dann nach. Schwerer — und genau der Teil, der Hörverstehen übt.',
@@ -529,6 +532,7 @@ const FR: CopyTable = {
   more_practice_note: 'Facultatif. Cela ne rouvre pas la scène du jour.',
   practice_this: 'Retravailler',
   done_today: 'La scène du jour est terminée.',
+  done_review: 'Revoir',
   nothing_offered: 'Aucune scène n’est disponible pour le moment.',
   listen_first_label: 'Écouter d’abord',
   listen_first_hint: 'Devinez ce qui arrive, écoutez sans le texte, puis vérifiez. Plus difficile — et c’est cette partie-là qui travaille l’écoute.',
@@ -586,6 +590,13 @@ export const CHROME_KEYS: readonly JourneyCopyKey[] = [
   'resume',
   'continue',
   'scene_continue',
+  'done_review',
+  // The four help chips are buttons beside a French answer box; the help they
+  // open still speaks the learner's language.
+  'help_hint',
+  'help_translation',
+  'help_solution',
+  'help_suggested_response',
   'send',
   'sending',
   'check',

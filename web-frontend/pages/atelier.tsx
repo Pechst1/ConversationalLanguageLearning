@@ -793,8 +793,9 @@ export default function AtelierPage() {
       kind: 'atelier',
       entityId: session.session_id,
     });
-    if (router.isReady && router.query.resume) setView('session');
-  }, [router.isReady, router.query.resume, session]);
+    const requestedSession = router.query.resume ?? router.query.session;
+    if (router.isReady && requestedSession === session.session_id) setView('session');
+  }, [router.isReady, router.query.resume, router.query.session, session]);
 
   useEffect(() => {
     return () => {

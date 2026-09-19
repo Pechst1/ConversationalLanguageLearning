@@ -44,6 +44,7 @@ import {
     type AppTheme,
 } from '@/lib/app-preferences';
 import { resolveSettingsLanguage, settingsCopy, type SettingsCopy } from '@/lib/settings-copy';
+import { INTEREST_TOPICS, interestTopicKey, interestTopicLabel } from '@/lib/interest-topics';
 import { apiService as api, type AddressPreference } from '@/services/api';
 import { appSignOut, useAppSession } from '@/lib/app-auth';
 import { nativePushIsAvailable, registerNativePushToken } from '@/lib/native-push';
@@ -201,18 +202,7 @@ function normalizeVocabDirection(direction: string, nativeLanguage: string) {
     return direction.endsWith('_to_fr') ? `${code}_to_fr` : `fr_to_${code}`;
 }
 
-const interestTopicPresets = [
-    'technologie',
-    'travail',
-    'voyage',
-    'sport',
-    'politique',
-    'sciences',
-    'culture',
-    'économie',
-    'santé',
-    'cuisine',
-];
+const interestTopicPresets = INTEREST_TOPICS;
 
 // The design draws 5 / 8 / 15 min. The app's presets predate it and the free
 // field accepts 5–120, so the existing values are rendered as the same control.
@@ -441,6 +431,8 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
      */
     const [listenFirst, setListenFirst] = useState(false);
     useEffect(() => { setListenFirst(readListenFirst()); }, []);
+    // WP-49: the row exists only where the server can read an episode aloud.
+    const [episodeAudioEnabled, setEpisodeAudioEnabled] = useState(false);
 
     /**
      * WP-46 — the one screen that does not speak the publication's French.
@@ -499,6 +491,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
             try {
                 const user: any = await api.getSettings();
                 setIsAdmin(user.role === 'admin');
+                setEpisodeAudioEnabled(Boolean(user.episode_audio_enabled));
                 // From here the screen knows whose language it is in.
                 setNativeLanguageKnown(true);
                 const loadedTheme = (user.theme || 'system') as AppTheme;
@@ -808,7 +801,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
     };
 
     const toggleInterestTopic = (topic: string) => {
-        const normalized = topic.trim().toLowerCase();
+        const normalized = interestTopicKey(topic);
         if (!normalized) return;
         const next = settings.interests.includes(normalized)
             ? settings.interests.filter((item) => item !== normalized)
@@ -817,7 +810,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
     };
 
     const addCustomInterestTopic = () => {
-        const normalized = customInterestTopic.trim().toLowerCase();
+        const normalized = interestTopicKey(customInterestTopic);
         if (!normalized) return;
         if (settings.interests.includes(normalized)) {
             setCustomInterestTopic('');
@@ -1136,15 +1129,15 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                             <Row label={copy.row_topics} hint={copy.row_topics_hint} stacked>
                                 <div className="st-topics">
                                     {interestTopicPresets.map((topic) => {
-                                        const selected = settings.interests.includes(topic);
+                                        const selected = settings.interests.includes(topic.key);
                                         return (
                                             <Chip
-                                                key={topic}
+                                                key={topic.key}
                                                 tone={selected ? 'reward' : 'plain'}
                                                 aria-pressed={selected}
-                                                onClick={() => toggleInterestTopic(topic)}
+                                                onClick={() => toggleInterestTopic(topic.key)}
                                             >
-                                                {topic}
+                                                {topic.label}
                                             </Chip>
                                         );
                                     })}
@@ -1169,7 +1162,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                     </Action>
                                 </div>
                                 {settings.interests.length > 0 && (
-                                    <p className="st-row__hint">{copy.topics_selected} {settings.interests.join(', ')}</p>
+                                    <p className="st-row__hint">{copy.topics_selected} {settings.interests.map(interestTopicLabel).join(', ')}</p>
                                 )}
                             </Row>
                         </div>
@@ -1420,6 +1413,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                 evidence for it assumes a learner who chose it.
                                 Until now the only way to choose was to be shown
                                 the offer inside an episode. */}
+                            {episodeAudioEnabled && (
                             <Row
                                 id="st-listen-first-label"
                                 label={copy.row_listen_first}
@@ -1435,6 +1429,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                     }}
                                 />
                             </Row>
+                            )}
                             <Row label={copy.row_tts_speed} value={`${settings.ttsSpeed}×`} stacked>
                                 <div className="st-range">
                                     <span className="st-row__hint">{copy.speed_slow}</span>

@@ -48,9 +48,9 @@ const HOME = '/atelier';
 
 /** Turned into a sentence rather than a percentage: a learner reads words. */
 function confidenceLabel(confidence: number): string {
-  if (confidence >= 0.75) return 'estimation solide';
-  if (confidence >= 0.55) return 'estimation raisonnable';
-  return 'estimation provisoire';
+  if (confidence >= 0.75) return 'Estimation solide';
+  if (confidence >= 0.55) return 'Estimation raisonnable';
+  return 'Estimation provisoire';
 }
 
 /** The screen scaffold, on `Bilan.dc.html`: a body that holds the reading and
@@ -100,6 +100,15 @@ export default function PlacementPage() {
     if (!router.isReady) return;
     void load();
   }, [load, router.isReady]);
+
+  // Each question and the result are one screen: the learner scrolled down to
+  // «Envoyer», so the next one must not open with its title under the top edge.
+  const promptIndex = envelope?.prompt?.index ?? null;
+  const screenKey = `${envelope?.status ?? ''}:${promptIndex ?? ''}`;
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.scrollTo({ top: 0 });
+  }, [screenKey]);
 
   const leave = React.useCallback(() => {
     void router.replace(HOME);

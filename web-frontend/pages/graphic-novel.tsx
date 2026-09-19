@@ -10,6 +10,7 @@
  * token, written `.av2 .gn-…`. */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import toast from 'react-hot-toast';
@@ -691,6 +692,9 @@ export default function GraphicNovelPage() {
 
   return (
     <>
+      <Head>
+        <title>Le feuilleton · L’Atelier</title>
+      </Head>
       <FeuilletonReaderStyles />
       <FeuilletonStyles />
       <AtelierV2Root

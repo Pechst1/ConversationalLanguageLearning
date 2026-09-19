@@ -18,7 +18,8 @@ import {
   AuthSpacer,
   AuthSteps,
 } from '@/components/auth/AuthShell';
-import { sanitizeAuthCallbackUrl } from '@/lib/app-auth';
+import { sanitizeAuthCallbackUrl, useAppAuth } from '@/lib/app-auth';
+import { INTEREST_TOPICS } from '@/lib/interest-topics';
 import apiService from '@/services/api';
 import toast from 'react-hot-toast';
 
@@ -48,18 +49,7 @@ const languageOptions = [
 ];
 
 const proficiencyOptions = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
-const interestPresets = [
-  'technology',
-  'business',
-  'travel',
-  'sports',
-  'politics',
-  'science',
-  'culture',
-  'finance',
-  'health',
-  'food',
-];
+const interestPresets = INTEREST_TOPICS;
 
 /** WP-25: where a brand-new learner lands after their first sign-in. */
 const PLACEMENT_AFTER_SIGNUP = '/placement';
@@ -80,6 +70,7 @@ function authErrorMessage(error: any) {
 
 export default function SignUpPage() {
   const router = useRouter();
+  const auth = useAppAuth();
   const [isLoading, setIsLoading] = React.useState(false);
   // Two steps rather than one wall of fields: the essentials, then the answers
   // that actually shape the first edition.
@@ -93,8 +84,8 @@ export default function SignUpPage() {
      attempts, which serves the wrong material for the whole first week. The
      placement itself is skippable and says so, and a learner who came here from
      a deep link keeps their own destination. */
-  const afterSignUp =
-    destination === '/atelier' ? { callbackUrl: PLACEMENT_AFTER_SIGNUP } : callbackQuery;
+  const landing = destination === '/atelier' ? PLACEMENT_AFTER_SIGNUP : destination;
+  const afterSignUp = { callbackUrl: landing };
 
   const {
     register,
@@ -149,8 +140,17 @@ export default function SignUpPage() {
         daily_goal_minutes: data.dailyGoalMinutes,
       });
 
+      /* The account exists; the learner has just typed the address and the
+         password, so sign them in with those and open the first edition. Only
+         when that fails does the sign-in form appear — with the address kept,
+         so nothing is retyped. */
+      const signedIn = await auth.signInWithCredentials(data.email, data.password).catch(() => null);
+      if (signedIn?.ok) {
+        router.push(landing);
+        return;
+      }
       toast.success('Compte créé. Connectez-vous pour ouvrir votre première édition.');
-      router.push({ pathname: '/auth/signin', query: afterSignUp });
+      router.push({ pathname: '/auth/signin', query: { ...afterSignUp, email: data.email } });
     } catch (error: any) {
       toast.error(authErrorMessage(error));
     } finally {
@@ -326,12 +326,12 @@ export default function SignUpPage() {
                 <div className="signup-topics__row">
                   {interestPresets.map((topic) => (
                     <Chip
-                      key={topic}
-                      tone={selectedTopics.includes(topic) ? 'story' : 'plain'}
-                      aria-pressed={selectedTopics.includes(topic)}
-                      onClick={() => toggleTopic(topic)}
+                      key={topic.key}
+                      tone={selectedTopics.includes(topic.key) ? 'story' : 'plain'}
+                      aria-pressed={selectedTopics.includes(topic.key)}
+                      onClick={() => toggleTopic(topic.key)}
                     >
-                      {topic}
+                      {topic.label}
                     </Chip>
                   ))}
                 </div>

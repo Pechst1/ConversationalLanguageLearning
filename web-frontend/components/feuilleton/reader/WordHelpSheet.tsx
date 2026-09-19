@@ -137,7 +137,7 @@ export function WordHelpSheet({
         return;
       }
       try {
-        const translated = await apiService.translateToEnglish(sentence);
+        const translated = await apiService.translateForLearner(sentence);
         if (!alive) return;
         if (translated) {
           setSentenceEn(translated);

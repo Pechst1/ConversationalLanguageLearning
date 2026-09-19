@@ -1642,22 +1642,34 @@ class TranslateRequest(BaseModel):
 
 
 @router.post("/translate")
-def translate_to_english(
+def translate_for_learner(
     request: TranslateRequest,
     current_user: User = Depends(get_atelier_user),
 ) -> dict[str, str]:
-    """On-demand French -> English translation for any learner-facing line."""
+    """On-demand French -> learner's-language translation for any learner-facing line.
+
+    The target is the account's ``native_language`` (German for a German
+    learner, English as the floor), never a fixed English: the help sheet
+    quotes this line under the French one, and a translation the learner
+    cannot read is no help at all.
+    """
     text = (request.text or "").strip()
     if not text:
-        return {"translation": ""}
+        return {"translation": "", "language": ""}
+    from app.services.glosses import EXPLANATION_LANGUAGE_NAMES, normalize_language
     from app.services.llm_service import LLMService
+
+    language = normalize_language(getattr(current_user, "native_language", None))
+    if language == "fr" or language not in EXPLANATION_LANGUAGE_NAMES:
+        language = "en"
+    language_name = EXPLANATION_LANGUAGE_NAMES[language]
 
     try:
         result = LLMService().generate_chat_completion(
             messages=[{"role": "user", "content": text}],
             system_prompt=(
-                "Translate the user's French text into natural, concise English. "
-                "Return ONLY the English translation — no quotes, labels, or notes."
+                f"Translate the user's French text into natural, concise {language_name}. "
+                f"Return ONLY the {language_name} translation — no quotes, labels, or notes."
             ),
             temperature=0.0,
             max_tokens=1200,
@@ -1665,6 +1677,6 @@ def translate_to_english(
             reasoning_effort="minimal",
             request_timeout=20.0,
         )
-        return {"translation": (result.content or "").strip()}
+        return {"translation": (result.content or "").strip(), "language": language}
     except Exception:  # pragma: no cover - translation is best-effort
-        return {"translation": ""}
+        return {"translation": "", "language": language}

@@ -283,6 +283,9 @@ export function FeuilletonReaderStyles() {
 
       /* tappable word */
       .av2 .fr-word {
+        /* inline, not the button default inline-block: an atomic inline lets
+           the line break between a word and the «.» that follows it. */
+        display: inline;
         border: 0;
         background: transparent;
         padding: 0;

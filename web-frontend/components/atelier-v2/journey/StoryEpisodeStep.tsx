@@ -107,8 +107,13 @@ export function StoryEpisodeStep({
     return <StateBlock tone="loading" title={copy.preparing_title} body={copy.preparing_body} />;
   }
 
+  // WP-49: the server says whether it can honour the listening-first cycle.
+  // Without it the offer is not made and a remembered choice reads as text —
+  // a learner is never sent into a mode that answers "audio is off".
+  const audioAvailable = Boolean(step.prompt.audio_available);
+
   if (lookup.kind === 'episode') {
-    if (listenFirst) {
+    if (listenFirst && audioAvailable) {
       return (
         <EpisodeRadio
           episode={lookup.episode}
@@ -137,14 +142,16 @@ export function StoryEpisodeStep({
         continuing={busy}
         continueLabel={copy.scene_continue}
         footLink={
-          <Action
-            tone="quiet"
-            inline
-            title={copy.listen_first_hint}
-            onClick={() => chooseMode(true)}
-          >
-            {copy.listen_first_on}
-          </Action>
+          audioAvailable ? (
+            <Action
+              tone="quiet"
+              inline
+              title={copy.listen_first_hint}
+              onClick={() => chooseMode(true)}
+            >
+              {copy.listen_first_on}
+            </Action>
+          ) : null
         }
       />
     );

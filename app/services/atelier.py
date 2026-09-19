@@ -105,6 +105,15 @@ ATELIER_PACE_MIN_SAMPLES = 8
 ATELIER_PACE_LOOKBACK_ATTEMPTS = 120
 
 
+
+def _concept_label(concept: Any) -> str:
+    """The name a learner reads for a rule: the French title the catalogue
+    authored for it (WP-56), the English catalogue name only as a floor."""
+    if concept is None:
+        return ""
+    return str(getattr(concept, "title_fr", None) or getattr(concept, "name", None) or "").strip()
+
+
 class AtelierExerciseGenerationError(RuntimeError):
     """Raised when Atelier cannot produce an LLM-backed exercise payload."""
 
@@ -2633,7 +2642,7 @@ class AtelierExerciseGenerator:
         prefix = str(concept.external_id).lower().replace('_', '-')
         sentence = lesson['sentence']
         focus, foil = lesson['focus'], lesson['foil']
-        requirement = {'concept_id': concept.id, 'external_id': concept.external_id, 'label': concept.name, 'target_count': 1}
+        requirement = {'concept_id': concept.id, 'external_id': concept.external_id, 'label': _concept_label(concept), 'target_count': 1}
         payload = self._base(concept, sentence=sentence, marks=[])
         tokens = _tokenize_french_sentence(sentence)
         # Alternate the correct category across lessons; classification must not
@@ -2664,7 +2673,7 @@ class AtelierExerciseGenerator:
         payload['transform'] = {'items': [{
             'id': f'{prefix}-repair', 'type': 'rewrite',
             'source': lesson['source'],
-            'instruction': f'Corrigez « {foil} » selon la règle « {concept.name} ». Gardez le reste du message.',
+            'instruction': f'Corrigez « {foil} » selon la règle « {_concept_label(concept)} ». Gardez le reste du message.',
             'expected_answer': sentence, 'explanation': lesson['core_rule'],
         }]}
         payload['output_ladder'] = {}
@@ -2709,7 +2718,7 @@ class AtelierExerciseGenerator:
                         {
                             "concept_id": concept.id,
                             "external_id": concept.external_id,
-                            "label": concept.name,
+                            "label": _concept_label(concept),
                             "target_count": _produce_target_count(self.db, concept),
                         }
                     ],
@@ -3194,7 +3203,7 @@ class AtelierExerciseGenerator:
                 {
                     "concept_id": concept.id,
                     "external_id": concept.external_id,
-                    "label": concept.name,
+                    "label": _concept_label(concept),
                     "target_count": 1,
                 }
             ],
@@ -3281,7 +3290,7 @@ class AtelierExerciseGenerator:
             {
                 "concept_id": concept.id,
                 "external_id": concept.external_id,
-                "label": concept.name,
+                "label": _concept_label(concept),
                 "target_count": int(
                     raw_requirement.get("target_count")
                     or _produce_target_count(self.db, concept)
@@ -3308,7 +3317,7 @@ class AtelierExerciseGenerator:
                     {
                         "concept_id": concept.id,
                         "external_id": concept.external_id,
-                        "label": concept.name,
+                        "label": _concept_label(concept),
                         "target_count": int(raw_requirement.get("target_count") or 1),
                     }
                 ]
@@ -3373,7 +3382,7 @@ class AtelierExerciseGenerator:
             return {
                 "concept": serialize_concept(concept),
                 "rule_panel": canonical,
-                "xray": {"sentence": lesson["sentence"], "marks": [{"text": lesson["focus"], "label": concept.name}]},
+                "xray": {"sentence": lesson["sentence"], "marks": [{"text": lesson["focus"], "label": _concept_label(concept)}]},
             }
         blueprint = AtelierAssetService(self.db).approved_blueprint_payload(concept)
         pedagogy = blueprint.get("pedagogy") or {}
@@ -3389,7 +3398,7 @@ class AtelierExerciseGenerator:
             "concept": serialize_concept(concept),
             "xray": {"sentence": xray.get("sentence") or sentence, "marks": blueprint_marks or marks},
             "rule_panel": {
-                "title": concept.name,
+                "title": _concept_label(concept),
                 "rule": pedagogy.get("core_rule")
                 or concept.core_rule
                 or concept.description
@@ -4476,7 +4485,7 @@ class AtelierCorrectionService:
             )
         if concept and item.get("lesson_external_id") == concept.external_id:
             return self._recognize_erratum_payload(
-                concept, item, label=concept.name, learner_text=learner_text, target=target,
+                concept, item, label=_concept_label(concept), learner_text=learner_text, target=target,
                 why=f"You chose `{learner_text}`; this item requires `{target}`. {item.get('explanation') or self._why_for(concept)}",
                 repair=infer_grammar_profile(concept).pattern,
                 task_type=self._task_type_for(concept, item),
@@ -4964,7 +4973,7 @@ class AtelierCorrectionService:
                 {
                     "concept_id": concept.id,
                     "external_id": concept.external_id,
-                    "label": concept.name,
+                    "label": _concept_label(concept),
                     "target_count": 1,
                 }
             ]
@@ -5995,7 +6004,7 @@ class AtelierCorrectionService:
                     {
                         "concept_id": concept.id,
                         "external_id": concept.external_id,
-                        "label": concept.name,
+                        "label": _concept_label(concept),
                         "target_count": count,
                     }
                 )
@@ -6340,7 +6349,7 @@ def serialize_concept_hit(concept: GrammarConcept | None, count: int, total: int
     return {
         "concept_id": concept.id,
         "external_id": concept.external_id,
-        "label": concept.name,
+        "label": _concept_label(concept),
         "detected_count": count,
         "target_count": total,
     }

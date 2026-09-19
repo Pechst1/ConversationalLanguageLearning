@@ -19,10 +19,14 @@ def test_signup_hands_a_brand_new_learner_to_the_placement():
     """The whole package hangs off this one redirect."""
     page = _source("pages/auth/signup.tsx")
     assert "const PLACEMENT_AFTER_SIGNUP = '/placement';" in page
-    assert "query: afterSignUp" in page
     # A learner who arrived from a deep link keeps their own destination; only
     # the default '/atelier' landing is replaced by the placement.
-    assert "destination === '/atelier' ? { callbackUrl: PLACEMENT_AFTER_SIGNUP } : callbackQuery" in page
+    assert "const landing = destination === '/atelier' ? PLACEMENT_AFTER_SIGNUP : destination;" in page
+    # WP-47: the account is signed in with the credentials just typed and sent
+    # straight to that landing; the sign-in form is the fallback, address kept.
+    assert "auth.signInWithCredentials(data.email, data.password)" in page
+    assert "router.push(landing);" in page
+    assert "query: { ...afterSignUp, email: data.email }" in page
 
 
 def test_the_placement_route_exists_and_is_not_public():

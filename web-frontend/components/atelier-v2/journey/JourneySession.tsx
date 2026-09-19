@@ -135,6 +135,14 @@ export function JourneySession({ controller, onExit, morePractice, onPractice }:
     [draftGet, draftSet],
   );
 
+  // A step change is a new screen: the learner reached the action at the
+  // bottom of the last one, and the next must open at its title (WP-54).
+  const currentStepId = journey?.current_step_id ?? null;
+  React.useEffect(() => {
+    if (typeof window === 'undefined' || !currentStepId) return;
+    window.scrollTo({ top: 0 });
+  }, [currentStepId]);
+
   const segments = journey ? segmentsOf(journey.steps, journey.current_step_id) : [];
   const position = journey ? positionOnScreen(journey.steps, journey.current_step_id) : null;
   const caption =

@@ -1884,11 +1884,17 @@ class ApiService {
     }
   }
 
-  async translateToEnglish(text: string): Promise<string> {
+  /** French → the learner's own language (the server reads `native_language`). */
+  async translateForLearner(text: string): Promise<string> {
     const trimmed = (text || '').trim();
     if (!trimmed) return '';
-    const response = await this.atelierPost<{ translation: string }>('/atelier/translate', { text: trimmed });
+    const response = await this.atelierPost<{ translation: string; language?: string }>('/atelier/translate', { text: trimmed });
     return response.translation || '';
+  }
+
+  /** @deprecated the server no longer targets English; kept for old call sites. */
+  async translateToEnglish(text: string): Promise<string> {
+    return this.translateForLearner(text);
   }
 
   // Authentication endpoints
@@ -2073,7 +2079,10 @@ class ApiService {
   async lookupVocabulary(word: string, language?: string) {
     const params = new URLSearchParams({ word });
     if (language) params.set('language', language);
-    return this.get(`/vocabulary/lookup?${params.toString()}`);
+    // 404 is the ordinary answer for a word outside the catalogue: the caller
+    // falls back to the sentence, and no global toast may interrupt the sheet.
+    const config: SilentRequestConfig = { suppressGlobalError: true };
+    return this.get(`/vocabulary/lookup?${params.toString()}`, config);
   }
 
   async listVocabulary(params?: { language?: string; limit?: number; offset?: number }) {

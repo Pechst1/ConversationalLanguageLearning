@@ -37,10 +37,18 @@ export default function SignInPage() {
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors },
   } = useForm<FormData>({
     resolver: yupResolver(schema),
   });
+
+  // A learner sent here straight after sign-up keeps the address they typed.
+  React.useEffect(() => {
+    if (!router.isReady) return;
+    const prefilled = Array.isArray(router.query.email) ? router.query.email[0] : router.query.email;
+    if (prefilled) setValue('email', prefilled);
+  }, [router.isReady, router.query.email, setValue]);
 
   const onSubmit = async (data: FormData) => {
     setIsLoading(true);
