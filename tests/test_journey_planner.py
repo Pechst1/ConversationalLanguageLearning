@@ -981,3 +981,79 @@ def test_the_recall_prompt_still_validates_against_the_frozen_wire_contract() ->
             model = RecallPrompt.model_validate(step.public_prompt)
             assert model.options and model.instruction_native
             assert model.target.id == step.private_task.target.id
+
+
+# --------------------------------------------------------------------------
+# 2026-09-19: an erratum is posed as a repair of the learner's own wording
+# --------------------------------------------------------------------------
+
+
+def test_an_erratum_is_posed_as_a_repair_of_the_learners_wording() -> None:
+    target = TargetRef(
+        kind=TargetKind.ERROR,
+        id="e-1",
+        label_fr="enverrai",
+        label_native="The future of 'envoyer' is irregular: j'enverrai.",
+    )
+    task = planner.build_recall_task(
+        target=target, scenario=_brief(), affordances=[], optional=False, learner_text="envoyerai"
+    )
+    assert task is not None
+    assert task.task_type == "short_answer"
+    assert task.prompt_fr == "envoyerai"
+    assert task.instruction_native == "Write this correctly in French."
+    assert task.accepted_answers == ["enverrai"]
+    # The explanation names the answer, so it is not offered as a "translation".
+    assert task.translation_native is None
+    assert "enverrai" not in task.instruction_native
+
+
+def test_a_multi_word_erratum_becomes_tiles_over_the_learners_wording() -> None:
+    target = TargetRef(kind=TargetKind.ERROR, id="e-2", label_fr="tout de suite", label_native="set phrase")
+    task = planner.build_recall_task(
+        target=target,
+        scenario=_brief(control_language="de"),
+        affordances=[],
+        optional=False,
+        learner_text="toute de suites",
+    )
+    assert task is not None
+    assert task.task_type == "tiles"
+    assert task.prompt_fr == "toute de suites"
+    assert task.instruction_native == "Schreib das richtig auf Französisch."
+    assert sorted(tile["text_fr"] for tile in task.options) == ["de", "suite", "tout"]
+
+
+def test_an_erratum_without_the_learners_wording_gets_no_recall_step() -> None:
+    target = TargetRef(kind=TargetKind.ERROR, id="e-3", label_fr="grammar", label_native="an explanation")
+    assert (
+        planner.build_recall_task(target=target, scenario=_brief(), affordances=[], optional=False)
+        is None
+    )
+    # Wording that already contains the answer would spoil the repair.
+    assert (
+        planner.build_recall_task(
+            target=TargetRef(kind=TargetKind.ERROR, id="e-4", label_fr="un homme", label_native=None),
+            scenario=_brief(),
+            affordances=[],
+            optional=False,
+            learner_text="un homme",
+        )
+        is None
+    )
+
+
+def test_the_plan_reads_the_learners_wording_from_the_candidate() -> None:
+    erratum = _candidate(
+        kind=TargetKind.ERROR,
+        identifier="e-5",
+        label_fr="un homme",
+        label_native="homme is masculine",
+        priority=9.0,
+        metadata={"erratum_learner": "une homme"},
+    )
+    plan = plan_journey(scenario=_brief(), candidates=[erratum])
+    recall = next(step for step in plan.steps if step.kind is StepKind.RECALL)
+    assert recall.public_prompt["prompt_fr"] == "une homme"
+    assert recall.public_prompt["instruction_native"] == "Write this correctly in French."
+    assert "How do you say" not in recall.public_prompt["instruction_native"]

@@ -508,3 +508,32 @@ def test_the_because_line_is_not_english_and_is_not_shouted() -> None:
     for fragment in printed:
         assert not re.search(r"\b(because|mistake|error|scene)\b", fragment, re.IGNORECASE), fragment
         assert fragment.strip() == "" or not fragment.strip().isupper(), fragment
+
+
+# --------------------------------------------------------------------------
+# 2026-09-19: the target's French label is the correction, never the category
+# --------------------------------------------------------------------------
+
+
+def test_the_candidate_elicits_the_french_correction_not_the_category_label(db_session) -> None:
+    """Owner screenshot 2026-09-19: «How do you say "Im Französischen ist die
+    korrekte Wortstellung…" in French?» with the answer "grammar". The display
+    label is a category; the string a recall step elicits is the correction."""
+
+    user = _user(db_session)
+    error = _erratum(db_session, user, label="grammar")
+    target = build_errata_target(error, now=NOW)
+    candidate = target.as_candidate()
+    assert candidate.target.label_fr == "un homme"
+    assert candidate.target.label_native == "homme is masculine"
+    assert candidate.metadata["erratum_learner"] == "une homme"
+    assert target.label == "grammar", "the because-line keeps the stored label"
+
+
+def test_a_row_without_a_stored_correction_is_never_a_target(db_session) -> None:
+    user = _user(db_session)
+    error = _erratum(db_session, user, label="grammar")
+    error.correction = None
+    db_session.commit()
+    assert build_errata_target(error, now=NOW) is None
+    assert errata_targets_for_user(db_session, user, now=NOW) == []

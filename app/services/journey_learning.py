@@ -521,7 +521,16 @@ def select_learning_candidates(
                 "level": item.level,
                 **{
                     key: item.metadata.get(key)
-                    for key in ("word_id", "concept_id", "review_mode", "state", "lapses")
+                    for key in (
+                        "word_id",
+                        "concept_id",
+                        "review_mode",
+                        "state",
+                        "lapses",
+                        # An erratum is posed as a repair of the learner's own
+                        # wording; the planner needs it next to the target.
+                        "original_text",
+                    )
                     if key in (item.metadata or {})
                 },
                 **_history_metadata(history, target),

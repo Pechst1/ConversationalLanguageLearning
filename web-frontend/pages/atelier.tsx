@@ -33,6 +33,7 @@ import {
   saveResumeActivity,
 } from '@/lib/pilot-resilience';
 import { type LuAskKind } from '@/components/laune/LaUne';
+import { ErrataReviewSheet } from '@/components/atelier-v2/errata/ErrataReviewSheet';
 import { HomeScreen, HomeSkeleton, type HomeBecause, type HomeEntry, type HomeTile } from '@/components/atelier-v2/home/HomeScreen';
 import {
   LEpreuveStyles,
@@ -2754,15 +2755,7 @@ function vocabularyTranslation(item: VocabularyRecommendationItem) {
   return learnerGloss(item, 'mot visé');
 }
 
-function ErrataReviewOverlay({
-  task,
-  answer,
-  setAnswer,
-  result,
-  submitting,
-  onSubmit,
-  onClose,
-}: {
+function ErrataReviewOverlay(props: {
   task: AtelierErrataReviewTask;
   answer: string;
   setAnswer: (value: string) => void;
@@ -2771,62 +2764,9 @@ function ErrataReviewOverlay({
   onSubmit: () => void;
   onClose: () => void;
 }) {
-  return (
-    <div className="recap-overlay errata-review-overlay">
-      <section className="errata-review-modal">
-        <CropMarks />
-        <header>
-          <div>
-            {/* review_mode is a machine key ("word_bank", "grammar"); the server
-                now sends the French label beside it. */}
-            <div className="t-mono-low">{task.source_label || 'Atelier'}{task.review_mode_label ? ` · ${task.review_mode_label}` : ''}</div>
-            <h2>{task.display_label}</h2>
-          </div>
-          <button className="btn ghost" onClick={onClose}>FERMER ×</button>
-        </header>
-        <div className="errata-review-body">
-          <div className="errata-review-copy">
-            <div className="t-mono yellow">TÂCHE DE REPRISE</div>
-            <p className="review-prompt">{task.prompt}</p>
-            <p>{task.instruction}</p>
-            {task.learner_text && (
-              <div className="review-memory">
-                <div className="t-mono-low">ERREUR MÉMORISÉE</div>
-                <p className="wrong">{task.learner_text}</p>
-              </div>
-            )}
-            {task.why_wrong && <p><strong>Pourquoi :</strong> {printableWhy(task.why_wrong)}</p>}
-            {task.repair_hint && <p><strong>À reprendre :</strong> {printableWhy(task.repair_hint)}</p>}
-          </div>
-          <div className="errata-review-answer">
-            <label className="t-mono" htmlFor="errata-review-answer">VOTRE REPRISE</label>
-            <textarea
-              id="errata-review-answer"
-              value={answer}
-              onChange={(event) => setAnswer(event.target.value)}
-              placeholder={task.placeholder}
-              autoFocus
-            />
-            {result && (
-              <div className={`review-result ${result.is_correct ? 'correct' : ''}`}>
-                <div className="t-mono">{result.is_correct ? 'REPRIS' : 'PAS ENCORE'}</div>
-                <p>{printableWhy(result.feedback)}</p>
-                {!result.is_correct && (
-                  <p><strong>Réponse visée :</strong> <span className="right">{result.target_answer}</span></p>
-                )}
-              </div>
-            )}
-            <div className="action-row">
-              <button className="btn red lg" disabled={submitting || !answer.trim()} onClick={onSubmit}>
-                ENVOYER LA REPRISE <Send size={15} />
-              </button>
-              {result?.is_correct && <button className="btn solid lg" onClick={onClose}>TERMINÉ <Check size={15} /></button>}
-            </div>
-          </div>
-        </div>
-      </section>
-    </div>
-  );
+  // The repair card is the av2 sheet (components/atelier-v2/errata); this
+  // page only routes the queue's task and the attempt result into it.
+  return <ErrataReviewSheet {...props} />;
 }
 
 function hasConceptRecognizeSubmission(submitted: Record<string, boolean>, conceptId?: number | null) {

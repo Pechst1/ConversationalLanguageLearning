@@ -49,6 +49,7 @@ from app.services.journey_contracts import (
     ScenarioBrief,
     StepKind,
     StepStatus,
+    TargetKind,
     TargetRef,
     normalize_answer_text,
 )
@@ -148,6 +149,14 @@ _SHORT_ANSWER_INSTRUCTION: dict[str, str] = {
     "en": 'How do you say "{native}" in French?',
     "de": 'Wie sagt man „{native}“ auf Französisch?',
     "fr": "Comment dit-on « {native} » en français ?",
+}
+#: An erratum is not a translation: the learner wrote something, and the task
+#: is to write it correctly. Its stored explanation is never the "translation"
+#: (it usually contains the answer), so the learner's own words are the prompt.
+_ERROR_INSTRUCTION: dict[str, str] = {
+    "en": "Write this correctly in French.",
+    "de": "Schreib das richtig auf Französisch.",
+    "fr": "Écrivez ceci correctement en français.",
 }
 _HINT_TEMPLATE: dict[str, str] = {
     "en": 'It is {count} word(s) long and starts with "{initial}".',
@@ -494,12 +503,19 @@ def build_recall_task(
     scenario: ScenarioBrief,
     affordances: list[str],
     optional: bool,
+    learner_text: str | None = None,
 ) -> RecallTask | None:
     """One recall opportunity — a single task, never a fifteen-item ladder.
 
     Returns ``None`` when the target cannot be posed without revealing itself:
     a one-word target with no gloss and no distractors has no honest question,
     so it gets no step at all rather than a fake one.
+
+    An erratum (``TargetKind.ERROR``) is posed as a repair of ``learner_text``,
+    the learner's own wrong wording: "write this correctly", never "how do you
+    say <explanation>". Its ``label_native`` is an explanation, not a gloss, so
+    it is not offered as the translation help either. Without the learner's
+    wording there is no honest repair question, and the target gets no step.
     """
 
     language = scenario.control_language
@@ -509,9 +525,23 @@ def build_recall_task(
     gloss = (target.label_native or "").strip() or None
     tokens = label_fr.split()
     distractors = _distractors(target, affordances)
+    prompt_fr: str | None = None
+    instruction_override: str | None = None
 
-    if gloss and len(distractors) >= 2:
-        task_type: RecallTaskType = "choice"
+    if target.kind is TargetKind.ERROR:
+        learner = " ".join(str(learner_text or "").split())
+        if not learner or _fold(learner) == _fold(label_fr):
+            return None
+        if _fold(label_fr) in _fold(learner):
+            # The wrong wording already contains the whole answer: showing it
+            # would spoil the repair.
+            return None
+        task_type: RecallTaskType = "tiles" if len(tokens) >= 2 else "short_answer"
+        prompt_fr = learner
+        instruction_override = _localized(_ERROR_INSTRUCTION, language)
+        gloss = None
+    elif gloss and len(distractors) >= 2:
+        task_type = "choice"
     elif len(tokens) >= 2:
         task_type = "tiles"
     elif gloss:
@@ -555,7 +585,7 @@ def build_recall_task(
         shown = sorted(ordered, key=lambda tile: _digest(target.id, "layout", tile["id"]))
         if [tile["id"] for tile in shown] == correct_order and len(shown) > 1:
             shown = shown[1:] + shown[:1]
-        instruction = (
+        instruction = instruction_override or (
             _localized(_TILES_INSTRUCTION_WITH_GLOSS, language).format(native=gloss)
             if gloss
             else _localized(_TILES_INSTRUCTION, language)
@@ -563,7 +593,7 @@ def build_recall_task(
         return RecallTask(
             task_type="tiles",
             instruction_native=instruction,
-            prompt_fr=None,
+            prompt_fr=prompt_fr,
             options=shown,
             correct_tile_order=correct_order,
             accepted_answers=[label_fr],
@@ -573,8 +603,9 @@ def build_recall_task(
 
     return RecallTask(
         task_type="short_answer",
-        instruction_native=_localized(_SHORT_ANSWER_INSTRUCTION, language).format(native=gloss),
-        prompt_fr=None,
+        instruction_native=instruction_override
+        or _localized(_SHORT_ANSWER_INSTRUCTION, language).format(native=gloss),
+        prompt_fr=prompt_fr,
         options=[],
         accepted_answers=[label_fr],
         estimated_seconds=0,
@@ -855,11 +886,13 @@ def plan_journey(
             continue
         planned_real = sum(1 for _e, _t, _c, was_skipped in recalls if not was_skipped)
         optional = entry.demonstrated or entry.candidate.is_new or planned_real >= 1
+        metadata = entry.candidate.metadata or {}
         recall = build_recall_task(
             target=entry.target,
             scenario=scenario,
             affordances=affordances,
             optional=optional,
+            learner_text=metadata.get("erratum_learner") or metadata.get("original_text"),
         )
         if recall is None:
             used_targets.append(entry)

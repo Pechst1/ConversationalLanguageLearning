@@ -107,11 +107,17 @@ class ErrataTarget:
         stamp it on whatever step the target ends up in.
         """
 
+        # ``label_fr`` is the string a recall step elicits and the string the
+        # response step looks for in the learner's reply, so it has to be the
+        # French correction itself. The display label is a *category* ("grammar",
+        # "Accord") — handing it over as ``label_fr`` made the planner ask the
+        # learner to translate the explanation into the word "grammar"
+        # (2026-09-19 owner screenshot). The label stays the because-line's word.
         return LearningCandidate(
             target=TargetRef(
                 kind=TargetKind.ERROR,
                 id=self.error_id,
-                label_fr=self.label,
+                label_fr=str(self.example_correct or "").strip(),
                 label_native=self.why,
             ),
             priority_score=self.priority,
@@ -126,6 +132,7 @@ class ErrataTarget:
                 "erratum_state": self.state,
                 "erratum_label": self.label,
                 "erratum_example": self.example,
+                "erratum_learner": self.example_learner,
                 "erratum_why": self.why,
                 "concept_id": self.concept_id,
                 "memory_key": self.memory_key,
@@ -178,6 +185,11 @@ def build_errata_target(error: UserError, *, now: datetime | None = None) -> Err
     payload = serialize_error_memory(error)
     label = str(payload.get("display_label") or "").strip()
     if not label:
+        return None
+    if not str(error.correction or "").strip():
+        # No stored French correction means nothing to elicit and nothing to
+        # grade: the legacy table holds rows with only an explanation. Such a
+        # row can be read in the Cahier, but it cannot be a scene's target.
         return None
     now = now or datetime.now(UTC)
     metadata = error.error_metadata or {}

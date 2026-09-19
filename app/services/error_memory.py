@@ -7,7 +7,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -149,6 +149,10 @@ class ErrorMemoryService:
                 or_(UserError.state.is_(None), UserError.state != ERROR_STATE_MASTERED),
             )
             .filter((UserError.next_review_date.is_(None)) | (UserError.next_review_date <= now))
+            # A row without a stored correction has no target answer: it can never
+            # be graded right, so it must never come up for repair (legacy rows
+            # from the first corrector hold only an explanation).
+            .filter(UserError.correction.isnot(None), func.trim(UserError.correction) != "")
         )
         if review_modes:
             query = query.filter(UserError.review_mode.in_(review_modes))
@@ -605,6 +609,13 @@ class ErrorMemoryService:
         the whole exercise a copy for anyone reading the response.
         """
         learner = error.original_text or ""
+        why_wrong = error.why_wrong or error.context_snippet
+        if not learner and not error.why_wrong and _reads_as_learner_wording(error.context_snippet):
+            # The first corrector filed the learner's wording in the context
+            # column and no explanation at all. Shown as "Pourquoi : un conseils"
+            # it is nonsense; shown as the wording to repair it is the task.
+            learner = str(error.context_snippet or "").strip()
+            why_wrong = None
         review_mode = error.review_mode or "grammar"
         copy = self.REVIEW_MODE_COPY.get(review_mode, self.REVIEW_MODE_COPY["grammar"])
         subject = learner or error.display_label or "cette erreur"
@@ -622,7 +633,7 @@ class ErrorMemoryService:
             "prompt": f"{copy['prompt']} {subject}",
             "placeholder": copy["placeholder"],
             "learner_text": learner,
-            "why_wrong": error.why_wrong or error.context_snippet,
+            "why_wrong": why_wrong,
             "repair_hint": error.repair_hint,
             "occurrences": error.occurrences or 1,
             "lapses": error.lapses or 0,
@@ -841,6 +852,15 @@ class ErrorMemoryService:
         if any(token in marker for token in ("spelling", "accent", "orthograph")):
             return "spelling"
         return str(erratum.get("error_category") or "grammar").lower()
+
+
+def _reads_as_learner_wording(text: str | None) -> bool:
+    """A short phrase with no sentence punctuation: wording, not an explanation."""
+
+    value = " ".join(str(text or "").split())
+    if not value or len(value.split()) > 8:
+        return False
+    return not any(mark in value for mark in (". ", ": ", " : ", "->", "→", "\n")) and value[-1] not in ".!?"
 
 
 def serialize_error_memory(error: UserError, *, language: Any = None) -> dict[str, Any]:

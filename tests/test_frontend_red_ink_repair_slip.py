@@ -55,11 +55,19 @@ def test_atelier_uses_repair_slip_for_due_errata_and_closure() -> None:
     api_types = read(API_TYPES)
 
     # DueErrataList/ErrataStack were unreferenced legacy components; the live
-    # repair path is the overlay reached from La Une and the review deck.
+    # repair path is the overlay reached from La Une and the review deck. Since
+    # 2026-09-19 it is the av2 bottom sheet (owner screenshot: the last uppercase
+    # ink-slab modal on the Séance route), and the page only routes into it.
     assert "function ErrataReviewOverlay" in atelier
-    assert "ERREUR MÉMORISÉE" in atelier
-    assert "ENVOYER LA REPRISE" in atelier
-    assert "result.is_correct ? 'REPRIS' : 'PAS ENCORE'" in atelier
+    assert "<ErrataReviewSheet {...props} />" in atelier
+    assert "ENVOYER LA REPRISE" not in atelier
+    sheet = read(ROOT / "web-frontend" / "components" / "atelier-v2" / "errata" / "ErrataReviewSheet.tsx")
+    assert "<BottomSheet" in sheet
+    assert "<AtelierV2Root" in sheet
+    assert "Erreur mémorisée" in sheet
+    assert "Envoyer la reprise" in sheet
+    assert "<TextAnswer" in sheet
+    assert "<FeedbackBand" in sheet
     assert "export interface AtelierErrataAttemptResult" in api_types
 
 

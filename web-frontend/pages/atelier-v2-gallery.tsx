@@ -48,6 +48,8 @@ import {
   WordTiles,
   type TabKey,
 } from '@/components/atelier-v2/ui';
+import { ErrataReviewSheet } from '@/components/atelier-v2/errata/ErrataReviewSheet';
+import type { AtelierErrataAttemptResult } from '@/services/api';
 import { atelierCopy, CONTROL_LANGUAGES } from '@/lib/atelier-v2-copy';
 import type { ControlLanguage } from '@/types/daily-journey';
 
@@ -72,6 +74,24 @@ const TILES = [
   { id: 't5', textFr: 'ira' },
 ];
 
+const ERRATA_TASK = {
+  error_id: 'gallery',
+  display_label: 'Phrase : locution adverbiale',
+  review_mode: 'grammar',
+  review_mode_label: 'Grammaire',
+  source_type: 'mission',
+  source_label: 'Le courrier',
+  instruction: 'Réécrivez la forme correcte de mémoire.',
+  prompt: 'Reprenez cette faute de grammaire : toute de suites',
+  placeholder: 'La phrase corrigée',
+  learner_text: 'toute de suites',
+  why_wrong: "Locution figée : l'expression correcte est `tout de suite`, sans accord.",
+  repair_hint: null,
+  occurrences: 2,
+  lapses: 0,
+  next_review_date: null,
+};
+
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="gal-section">
@@ -86,6 +106,10 @@ export default function AtelierV2Gallery() {
   const [language, setLanguage] = useState<ControlLanguage>('en');
   const [sheetOpen, setSheetOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  // The repair card («Reprise de langue») as the Séance route mounts it.
+  const [errataOpen, setErrataOpen] = useState(false);
+  const [errataAnswer, setErrataAnswer] = useState('');
+  const [errataResult, setErrataResult] = useState<AtelierErrataAttemptResult | null>(null);
   const [choice, setChoice] = useState<string | null>('a');
   const [placed, setPlaced] = useState<string[]>(['t1', 't2']);
   const [text, setText] = useState('');
@@ -347,6 +371,17 @@ export default function AtelierV2Gallery() {
               <Action tone="secondary" inline onClick={() => setDialogOpen(true)}>
                 Open dialog
               </Action>
+              <Action
+                tone="secondary"
+                inline
+                onClick={() => {
+                  setErrataAnswer('');
+                  setErrataResult(null);
+                  setErrataOpen(true);
+                }}
+              >
+                Open reprise (errata) sheet
+              </Action>
             </div>
           </Section>
 
@@ -383,6 +418,29 @@ export default function AtelierV2Gallery() {
             </Action>
           </div>
         </BottomSheet>
+
+        {errataOpen && (
+          <ErrataReviewSheet
+            task={ERRATA_TASK}
+            answer={errataAnswer}
+            setAnswer={setErrataAnswer}
+            result={errataResult}
+            submitting={false}
+            onSubmit={() =>
+              setErrataResult({
+                verdict: 'needs_repair',
+                score_0_4: 1,
+                is_correct: false,
+                answer_text: errataAnswer,
+                target_answer: 'tout de suite',
+                feedback: 'Pas encore : « tout de suite » est une locution figée, sans accord.',
+                erratum: {} as AtelierErrataAttemptResult['erratum'],
+                task: ERRATA_TASK,
+              })
+            }
+            onClose={() => setErrataOpen(false)}
+          />
+        )}
 
         <Dialog
           open={dialogOpen}

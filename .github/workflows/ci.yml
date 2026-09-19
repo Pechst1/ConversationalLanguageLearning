@@ -115,6 +115,7 @@ jobs:
           npm run test:dossier
           npm run test:once-per-load
           npm run test:settings-copy
+          npm run test:media-url
           npm run build
           npm run build:native
 
