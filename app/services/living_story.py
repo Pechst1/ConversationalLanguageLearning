@@ -1211,6 +1211,39 @@ def _scrub_inclusive_dot(text: str) -> str:
     return re.sub(r"·[A-Za-zÀ-ÿ]+", "", text or "")
 
 
+def _forbidden_endearments(address: str | None) -> tuple[str, ...]:
+    return {
+        "feminine": _MASCULINE_ADDRESS,
+        "masculine": _FEMININE_ADDRESS,
+    }.get(address or "neutral", _MASCULINE_ADDRESS + _FEMININE_ADDRESS)
+
+
+def _scrub_endearments(text: str, address: str | None) -> str:
+    """Drop a gendered endearment the learner's address forbids — ", mon grand" — and
+    keep the sentence (WP-58). Marin's bible voice says "mon grand"; on the live run of
+    2026-09-19 he said it on five of six turns, the retry hint changed nothing, and two
+    days ended in the authored fallback for a word a deterministic pass can remove.
+    Agreement ("tu es content") cannot be cut this way and still rejects."""
+
+    scrubbed = text or ""
+    for term in _forbidden_endearments(address):
+        # Only the vocative: "Merci, mon grand." — never "mon grand frère".
+        pattern = re.compile(
+            r"(?:,\s*|\s+)?\b" + re.escape(term).replace("\\ ", r"\s+") + r"\b(?=\s*(?:[,.!?…;:]|$))",
+            re.IGNORECASE,
+        )
+        scrubbed = pattern.sub("", scrubbed)
+    # French keeps its space before ? ! ; : — only the comma and the full stop close up.
+    scrubbed = re.sub(r"\s+([,.])", r"\1", scrubbed)
+    scrubbed = re.sub(r",\s*([,.!?…;:])", r"\1", scrubbed)
+    scrubbed = re.sub(r"\s{2,}", " ", scrubbed).strip()
+    # "Mon grand, tu viens ?" → ", tu viens ?" → "Tu viens ?"
+    scrubbed = re.sub(r"^[\s,;:]+", "", scrubbed)
+    if scrubbed and scrubbed[0].islower():
+        scrubbed = scrubbed[0].upper() + scrubbed[1:]
+    return scrubbed or (text or "")
+
+
 def _check_address(texts: list[str], address: str | None) -> None:
     joined = " ".join(text for text in texts if text)
     if _INCLUSIVE_DOT.search(joined):
@@ -1459,6 +1492,24 @@ def _validate_scene(draft: SceneDraft, context: dict):
     # ids as sources and a learner lost thirteen days). Provenance keeps only real events;
     # the critic and the "nothing before the first event" rule police invented pasts.
     draft.source_event_ids = [event_id for event_id in draft.source_event_ids if event_id in known]
+    address = (context.get("learner") or {}).get("address")
+
+    def clean(text: str) -> str:
+        # WP-58: what a deterministic pass can repair never costs the learner a day —
+        # a forbidden endearment is cut, an inclusive middle-dot form ("seul·e") keeps
+        # its first half. The live run of 2026-09-19f lost day 1 to "trempé·e" plus
+        # a provider timeout on the retry.
+        return _scrub_endearments(_scrub_inclusive_dot(text), address)
+
+    draft.premise_fr = clean(draft.premise_fr)
+    draft.opening_line_fr = clean(draft.opening_line_fr)
+    draft.suggested_response_fr = clean(draft.suggested_response_fr)
+    draft.chapter.title_fr = clean(draft.chapter.title_fr)
+    draft.chapter.dramatic_question = clean(draft.chapter.dramatic_question)
+    for panel in draft.panels:
+        panel.narration_fr = clean(panel.narration_fr)
+        for line in panel.dialogue:
+            line.text_fr = clean(line.text_fr)
     learner_text = [
         draft.premise_fr,
         draft.opening_line_fr,
@@ -2182,10 +2233,10 @@ def _validate_turn(turn: SemanticTurn, payload: dict):
     # and the live review of 2026-09-19 lost a whole day to it — two attempts,
     # then a failed send for a reply that was itself clean. The dot is scrubbed
     # from the private field instead of costing the learner their turn.
-    _check_address(
-        [turn.reply_fr, turn.resolution_fr],
-        (story.get("learner") or {}).get("address"),
-    )
+    address = (story.get("learner") or {}).get("address")
+    turn.reply_fr = _scrub_endearments(_scrub_inclusive_dot(turn.reply_fr), address)
+    turn.resolution_fr = _scrub_endearments(_scrub_inclusive_dot(turn.resolution_fr), address)
+    _check_address([turn.reply_fr, turn.resolution_fr], address)
     if _INCLUSIVE_DOT.search(turn.understood_intent or ""):
         turn.understood_intent = _scrub_inclusive_dot(turn.understood_intent)
     _check_register([turn.reply_fr, turn.resolution_fr], story.get("level"))

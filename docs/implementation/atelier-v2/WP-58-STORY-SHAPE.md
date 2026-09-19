@@ -87,3 +87,23 @@ chapters in fourteen days than the old modulo did.
 - The reader shows the chapter title; showing the beat («Chapitre 2 · 3/4») is
   one label away if the owner wants the shape visible.
 - Panel art is still one static location image per scene (Codex's image path).
+
+## Follow-up the same night: repair before refusing
+
+The first live runs on the new shape (`atelier-story-review-A2-2026-09-19e/f.json`)
+showed the chapter arc working — «La bague de Marin» ran setup → complication
+→ turn → resolution over four days, then «La tension Romy» opened on a new
+problem in a new place and day 6 remembered day 5's promise — but three of
+six turns ended in the authored fallback, two of them because Marin says
+«mon grand» (his bible voice) to a learner whose address is neutral, and the
+next run lost day 1 to «trempé·e» plus a provider timeout on the retry. Both
+are things a deterministic pass can repair, so the validators now repair them
+instead of refusing: a forbidden vocative endearment is cut from the sentence
+(`_scrub_endearments`, vocatives only — «mon grand frère» is untouched, the
+French space before «?» is kept), and an inclusive middle-dot form keeps its
+first half (`_scrub_inclusive_dot`) in every learner-facing field of a scene
+or a turn. `gendered_agreement` («tu es content») still rejects — there is no
+safe mechanical rewrite for it. The address tests are re-pinned to the
+repaired text. Provider read timeouts (3 of 21 calls at 35 s this evening)
+remain the largest source of lost attempts; the per-call window cannot grow
+without breaking the 75 s two-attempt budget.

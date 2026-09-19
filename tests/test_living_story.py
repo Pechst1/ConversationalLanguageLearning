@@ -645,12 +645,14 @@ def test_a_reworded_repeat_of_a_recent_objective_is_rejected():
 @pytest.mark.parametrize(
     ("address", "text", "reason"),
     [
-        ("neutral", "Tu es trempé·e, viens.", "inclusive_dot_form"),
-        ("feminine", "Bienvenue au·à la nouvel·le arrivé·e.", "inclusive_dot_form"),
-        ("neutral", "Allez, commande, mon grand.", "gendered_address"),
-        ("neutral", "Fais-nous rêver, ma puce.", "gendered_address"),
-        ("feminine", "Tu gères, mon grand.", "gendered_address"),
-        ("masculine", "Tu gères, ma puce.", "gendered_address"),
+        # WP-58: a middle-dot form keeps its first half rather than costing the day.
+        ("neutral", "Tu es trempé·e, viens.", "scrub:Tu es trempé, viens."),
+        ("feminine", "Bienvenue au·à la nouvel·le arrivé·e.", "scrub:Bienvenue au la nouvel arrivé."),
+        # WP-58: a forbidden endearment is cut from the line, never fatal.
+        ("neutral", "Allez, commande, mon grand.", "scrub:Allez, commande."),
+        ("neutral", "Fais-nous rêver, ma puce.", "scrub:Fais-nous rêver."),
+        ("feminine", "Tu gères, mon grand.", "scrub:Tu gères."),
+        ("masculine", "Tu gères, ma puce.", "scrub:Tu gères."),
         ("feminine", "Tu gères, ma puce.", None),
         ("masculine", "Tu gères, mon grand.", None),
         ("neutral", "Tu gères, bravo.", None),
@@ -660,11 +662,15 @@ def test_learner_address_is_enforced_deterministically(address, text, reason):
     """WP-14F L-6: prompt-only address rules were violated live; now a rule."""
     context = _scene_context(learner={"address": address})
     proposal = engine.SceneDraft.model_validate({**draft(context, 0), "opening_line_fr": text})
-    if reason:
+    if reason and reason.startswith("scrub:"):
+        engine._validate_scene(proposal, context)
+        assert proposal.opening_line_fr == reason.removeprefix("scrub:")
+    elif reason:
         with pytest.raises(engine.StoryUnavailable, match=reason):
             engine._validate_scene(proposal, context)
     else:
         engine._validate_scene(proposal, context)
+        assert proposal.opening_line_fr == text
 
 
 def test_a_reply_that_recites_the_suggested_answer_is_rejected():
@@ -682,8 +688,16 @@ def test_an_a1_reply_far_above_level_or_gendered_is_rejected():
     payload = {"learner_text": learner, "history": [], "targets": [], "story": {"commitments": [], "level": "A1", "learner": {"address": "neutral"}}, "scene": {}}
     with pytest.raises(engine.StoryUnavailable, match="reply_above_level"):
         engine._validate_turn(engine.SemanticTurn.model_validate({**turn_fixture(learner), "reply_fr": long_reply}), payload)
-    with pytest.raises(engine.StoryUnavailable, match="gendered_address"):
-        engine._validate_turn(engine.SemanticTurn.model_validate({**turn_fixture(learner), "reply_fr": "Parfait, mon grand !"}), payload)
+    # WP-58: an endearment the address forbids is cut, not fatal — the sentence
+    # stands and the day goes on; only agreement still rejects.
+    turn = engine.SemanticTurn.model_validate({**turn_fixture(learner), "reply_fr": "Parfait, mon grand !"})
+    engine._validate_turn(turn, payload)
+    assert turn.reply_fr == "Parfait !"
+    with pytest.raises(engine.StoryUnavailable, match="gendered_agreement"):
+        engine._validate_turn(
+            engine.SemanticTurn.model_validate({**turn_fixture(learner), "reply_fr": "Tu es content, alors."}),
+            payload,
+        )
     engine._validate_turn(engine.SemanticTurn.model_validate({**turn_fixture(learner), "reply_fr": "Parfait, à samedi !"}), payload)
 
 
@@ -1172,11 +1186,9 @@ def test_the_chapter_question_is_held_to_the_learners_address_and_register():
     gendered["chapter"]["dramatic_question"] = (
         "Est-ce que tu acceptes l'aide des nouveaux amis ou tu restes réservé·e ?"
     )
-    with pytest.raises(engine.StoryUnavailable, match="inclusive_dot_form"):
-        engine._validate_scene(
-            engine.SceneDraft.model_validate(gendered),
-            _scene_context(learner={"address": "neutral"}),
-        )
+    proposal = engine.SceneDraft.model_validate(gendered)
+    engine._validate_scene(proposal, _scene_context(learner={"address": "neutral"}))
+    assert "·" not in proposal.chapter.dramatic_question
     coarse = deepcopy(draft(_scene_context(), 0))
     coarse["chapter"]["title_fr"] = "Putain de vernissage"
     with pytest.raises(engine.StoryUnavailable, match="vulgar_register"):
@@ -1246,12 +1258,12 @@ def test_the_interpreters_own_reading_of_the_learner_is_scrubbed_not_rejected():
     assert "·" not in turn.understood_intent
     assert "accepte de venir dimanche" in turn.understood_intent
 
-    # What the learner reads is still a hard rejection.
+    # What the learner reads is repaired the same way, never shown with a dot.
     spoken = engine.SemanticTurn.model_validate(
         {**turn_fixture("Je viens dimanche."), "reply_fr": "Tu es trempé·e, viens."}
     )
-    with pytest.raises(engine.StoryUnavailable, match="inclusive_dot_form"):
-        engine._validate_turn(spoken, payload)
+    engine._validate_turn(spoken, payload)
+    assert spoken.reply_fr == "Tu es trempé, viens."
 
 
 # ---------------------------------------------------------------------------
@@ -1343,3 +1355,14 @@ def test_the_director_reads_the_seasons_arcs_secrets_and_threads():
     assert marin["secret"] and marin["contradiction"] and marin["flaw"]
     for word in ("required_beat", "problem_key", "arc_id", "world.arcs", "open_threads", "secret"):
         assert word in engine.DIRECTOR, word
+
+
+def test_a_forbidden_endearment_is_cut_and_the_sentence_kept():
+    cut = engine._scrub_endearments
+    assert cut("Merci, mon grand. Vraiment ?", "neutral") == "Merci. Vraiment ?"
+    assert cut("D'accord, ma puce, je comprends.", "neutral") == "D'accord, je comprends."
+    assert cut("Tu gères, ma puce.", "feminine") == "Tu gères, ma puce."
+    assert cut("Tu gères, ma puce.", "masculine") == "Tu gères."
+    # An adjective is not a vocative.
+    assert cut("Mon grand frère arrive.", "neutral") == "Mon grand frère arrive."
+    assert cut("Mon grand, tu viens ?", "neutral") == "Tu viens ?"
