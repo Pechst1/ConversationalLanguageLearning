@@ -1899,3 +1899,11 @@ The recognize round's immediate feedback follows the learner's language
 half of WP-56; the si/imparfait templates stay English until the relecture.
 C1 rerun: 4/4 days, move-shaped objectives, one authored fallback on a
 fabricated quote. See [WP-60-C1-AND-RECOGNIZE-FEEDBACK.md](WP-60-C1-AND-RECOGNIZE-FEEDBACK.md).
+
+**WP-61 (same night):** per-character mood (−2…2) and trust (0…5) as engine
+state, moved by the actor's `feeling_shift`, a refusal, a promise, and a
+weekly drift toward neutral; the director writes characters as they feel now
+and the actor answers from that state. The development the learner's answer
+made true is recorded on the chapter and the next beat must follow it. The
+two-draft score prefers a hurt character and a draft that follows the branch.
+See [WP-61-MOODS-AND-BRANCHING.md](WP-61-MOODS-AND-BRANCHING.md).

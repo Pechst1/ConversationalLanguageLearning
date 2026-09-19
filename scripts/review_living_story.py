@@ -142,6 +142,7 @@ def main():
         },
         "story_so_far": [],
         "relationships": {},
+        "moods": {},
         "chapter": None,
         "resolved_chapter_questions": [],
         "variety": {},
@@ -187,6 +188,7 @@ def main():
             ]
             payload["story"]["story_so_far"] = [e["summary_fr"] for e in payload["story"]["events"]]
             payload["story"]["recent_situations"] = []
+            payload["story"]["moods"] = {scene.character_id: context["moods"].get(scene.character_id, {})}
             payload["story"]["commitments"] = [
                 c for c in context["commitments"] if scene.character_id in c["witnesses"]
             ]
@@ -255,6 +257,7 @@ def main():
             if not current or current.get("resolved") or current.get("exhausted"):
                 current = engine.open_chapter(scene)
             current = engine.chapter_after_scene(current, scene, result, event_id)
+            context["moods"] = engine.moods_after_turn(context["moods"], scene.character_id, result, event_id)
             if current.get("resolved"):
                 context["resolved_chapter_questions"].append(current["dramatic_question"])
             arc_progress = engine.arc_progress_after_scene(

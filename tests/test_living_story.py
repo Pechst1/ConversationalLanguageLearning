@@ -1557,3 +1557,48 @@ def test_an_overflowing_draft_tells_the_retry_which_field(monkeypatch, provider)
         engine._json_call(engine.DIRECTOR, {"data": 1}, engine.SceneDraft, deadline=_time.monotonic() + 60)
     assert caught.value.hint and "objective_native" in caught.value.hint
     assert "shorten" in caught.value.hint
+
+
+# ---------------------------------------------------------------------------
+# WP-61 — moods and trust per character, and branching on what came true
+# ---------------------------------------------------------------------------
+
+
+def _wp61_turn(**over):
+    base = {"outcome": "met", "understood_intent": "x", "evidence_quotes": ["Oui."], "reply_fr": "Bien.", "needs_clarification": False}
+    return engine.SemanticTurn.model_validate({**base, **over})
+
+
+def test_a_characters_mood_and_trust_follow_the_exchange_and_others_recover():
+    moods = {"lila_bonnet": {"mood": 2, "trust": 3}}
+    after = engine.moods_after_turn(moods, "romy_tremblay", _wp61_turn(feeling_shift="colder"), "e1")
+    assert after["romy_tremblay"]["mood"] == -1 and after["romy_tremblay"]["trust"] == 1
+    assert after["lila_bonnet"]["mood"] == 1, "a week passes; feelings drift toward neutral"
+    assert engine.moods_after_turn(after, "romy_tremblay", _wp61_turn(feeling_shift="colder"), "e1") == after, "idempotent per event"
+    warmer = engine.moods_after_turn(after, "romy_tremblay", _wp61_turn(feeling_shift="warmer", commitments=[{"text_fr": "Je viens demain.", "source_quote": "Oui."}]), "e2")
+    assert warmer["romy_tremblay"]["mood"] == 0 and warmer["romy_tremblay"]["trust"] == 3, "a promise buys trust"
+    refused = engine.moods_after_turn({}, "marin_leveque", _wp61_turn(outcome="not_yet"), "e3")
+    assert refused["marin_leveque"]["mood"] == -1, "a refused objective cools a character even when the actor says steady"
+    assert engine.MOOD_RANGE[0] <= refused["marin_leveque"]["mood"] <= engine.MOOD_RANGE[1]
+
+
+def test_the_development_the_learner_made_true_is_recorded_for_the_next_beat():
+    scene = engine.SceneDraft.model_validate({**draft(_scene_context(), 0), "beat": "setup"})
+    options = scene.chapter.possible_developments
+    chapter = engine.chapter_after_scene(engine.open_chapter(scene), scene, _wp61_turn(development_index=2), "e1")
+    assert chapter["last_development"] == options[1]
+    assert chapter["developments"][0]["index"] == 2 and chapter["developments"][0]["outcome"] == "met"
+    none = engine.chapter_after_scene(engine.open_chapter(scene), scene, _wp61_turn(development_index=0), "e2")
+    assert "last_development" not in none
+    assert "chapter.last_development" in engine.DIRECTOR and "feeling_shift" in engine.ACTOR and "moods" in engine.DIRECTOR
+
+
+def test_the_score_prefers_a_hurt_character_and_a_draft_that_follows_the_branch():
+    base = _scene_context()
+    plain = engine.SceneDraft.model_validate(draft(base, 0))
+    cold = _scene_context(moods={"romy_tremblay": {"mood": -2, "trust": 1, "last_shift": "colder"}})
+    assert engine._scene_score(plain, cold) > engine._scene_score(plain, base)
+    branched = _scene_context(chapter={**engine.chapter_state({"chapter": {**plain.chapter.model_dump(), "id": "c", "scene_count": 1, "resolved": False, "resolved_commitments": 0}}), "last_development": "Trouver une salle pour l'exposition dans le quartier."})
+    follows = engine.SceneDraft.model_validate({**draft(base, 1), "premise_fr": "Romy a trouvé une salle pour l'exposition dans le quartier, mais elle est trop petite."}).model_copy(update={"chapter": plain.chapter})
+    ignores = engine.SceneDraft.model_validate({**draft(base, 1), "premise_fr": "Marin fait tomber une bague au comptoir du Mistral."}).model_copy(update={"chapter": plain.chapter})
+    assert engine._scene_score(follows, branched) > engine._scene_score(ignores, branched)
