@@ -32,7 +32,7 @@ def main():
     parser.add_argument(
         "--level",
         default="A1",
-        choices=("A1", "A2", "B1", "B2"),
+        choices=("A1", "A2", "B1", "B2", "C1"),
         help=(
             "CEFR band to review. Register and the cast projection both depend on it, so a "
             "single band says nothing about the others."
@@ -40,6 +40,11 @@ def main():
     )
     parser.add_argument(
         "--days", type=int, default=3, help="Synthetic days to walk (scene + reply each)."
+    )
+    parser.add_argument(
+        "--seed",
+        default="synthetic-review",
+        help="Per-learner dice (WP-59): the arc order and the complication cards this life is dealt.",
     )
     parser.add_argument(
         "--output", type=Path, default=Path("var/reviews/atelier-story-review.json")
@@ -116,7 +121,7 @@ def main():
             "logline": world.get("logline"),
             "cast": engine._cast_for_level(engine._cast_projection(world), args.level),
             "locations": engine._locations(world),
-            **engine._season_projection(world, {}),
+            **engine._season_projection(world, {}, seed=args.seed, chapter_index=0),
         },
         "story_so_far": [],
         "relationships": {},
@@ -138,6 +143,8 @@ def main():
                 lambda value: engine._validate_scene(value, context),
                 db=EventSink(),
                 user=SimpleNamespace(id=uuid4()),
+                candidates=engine.dual_draft_candidates(context),
+                choose=lambda value: engine._scene_score(value, context),
             )
             text = (
                 scene.suggested_response_fr
@@ -236,7 +243,14 @@ def main():
             arc_progress = engine.arc_progress_after_scene(
                 arc_progress, current, world.get("season_arcs") or [], event_id
             )
-            context["world"].update(engine._season_projection(world, arc_progress))
+            context["world"].update(
+                engine._season_projection(
+                    world,
+                    arc_progress,
+                    seed=args.seed,
+                    chapter_index=len(context["resolved_chapter_questions"]) + 1,
+                )
+            )
             context["chapter"] = engine.chapter_state({"chapter": current})
             context["variety"] = engine._variety(
                 context["recent_situations"],

@@ -49,7 +49,7 @@ export type ScenarioDescriptor = {
   title_fr: string;
   objective_key: string;
   objective_native: string;
-  level_band: 'A1' | 'A2' | 'B1' | 'B2';
+  level_band: 'A1' | 'A2' | 'B1' | 'B2' | 'C1';
   character_id: string;
   character_name: string;
   location_id: string;

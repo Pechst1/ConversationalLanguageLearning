@@ -86,7 +86,8 @@ class ScenarioDescriptor(JourneyModel):
     title_fr: str
     objective_key: str
     objective_native: str
-    level_band: Literal["A1", "A2", "B1", "B2"]
+    # WP-59: C1 is a band of its own.
+    level_band: Literal["A1", "A2", "B1", "B2", "C1"]
     character_id: str
     character_name: str
     location_id: str

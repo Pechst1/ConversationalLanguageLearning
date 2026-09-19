@@ -47,6 +47,16 @@ OBJECTIVES = [
 ]
 
 
+# WP-59: from B1 an objective is a move, not a sentence. Four different moves, so the
+# suffix never makes two days' objectives read as the same situation.
+UPPER_BAND_MOVES = [
+    " Give your reason, and propose an alternative if you cannot.",
+    " Explain what worries you about it, then name a condition.",
+    " Say why it matters to you and offer one concrete plan.",
+    " Take a position, concede one point, and hold your line.",
+]
+
+
 # The engine rotates location and character (WP-17): the same pair may not carry three
 # consecutive situations, and the same pair may not repeat an objective.
 LOCATIONS = [
@@ -91,7 +101,13 @@ def draft(context, n=0):
         # overlapping any of the last five situations.
         "premise_fr": PREMISES[n % len(PREMISES)],
         "setup_native": "Romy is arranging a neighborhood exhibition.",
-        "objective_native": OBJECTIVES[n % len(OBJECTIVES)],
+        # WP-59: from B1 an objective is a move, not a sentence; the fixture grows one.
+        "objective_native": OBJECTIVES[n % len(OBJECTIVES)]
+        + (
+            UPPER_BAND_MOVES[n % len(UPPER_BAND_MOVES)]
+            if str(context.get("level") or "") in ("B1", "B2", "C1")
+            else ""
+        ),
         "objective_semantics": "Clearly express an offer or a refusal of help with the exhibition.",
         "character_id": "romy_tremblay",
         "location_id": LOCATIONS[n % len(LOCATIONS)],
@@ -198,6 +214,9 @@ class FakeProvider:
 @pytest.fixture
 def provider(monkeypatch):
     monkeypatch.setattr(settings, "ATELIER_STORY_ENGINE_ENABLED", True)
+    # WP-59: the scripted provider answers one draft per day; the two-draft loop
+    # has its own test and stays off here.
+    monkeypatch.setattr(engine, "DUAL_DRAFTS_ENABLED", False)
     fake = FakeProvider()
     monkeypatch.setattr(engine, "_client", lambda: fake)
     return fake
@@ -880,7 +899,13 @@ def test_lilas_putain_is_stripped_below_b1_and_rejected_in_generated_text():
     proposal = engine.SceneDraft.model_validate(coarse)
     with pytest.raises(engine.StoryUnavailable, match="vulgar_register"):
         engine._validate_scene(proposal, _scene_context(level="A1"))
-    engine._validate_scene(proposal, _scene_context(level="B1"))
+    # At B1 the register passes; the draft is rebuilt for that band because a B1
+    # objective must be a move (WP-59).
+    upper = {**draft(_scene_context(level="B1"), 0), "opening_line_fr": "Putain, tu peux nous aider ?"}
+    upper["panels"][1]["dialogue"] = [
+        {"character_id": "romy_tremblay", "text_fr": "Putain, tu as une idée ?"}
+    ]
+    engine._validate_scene(engine.SceneDraft.model_validate(upper), _scene_context(level="B1"))
 
     payload = {
         "learner_text": "Je peux venir samedi.",
@@ -1366,3 +1391,134 @@ def test_a_forbidden_endearment_is_cut_and_the_sentence_kept():
     # An adjective is not a vocative.
     assert cut("Mon grand frère arrive.", "neutral") == "Mon grand frère arrive."
     assert cut("Mon grand, tu viens ?", "neutral") == "Tu viens ?"
+
+
+# ---------------------------------------------------------------------------
+# WP-59 — loop engineering, per-learner dice, and level-true B1/B2/C1
+# ---------------------------------------------------------------------------
+
+
+def test_upper_bands_are_asked_for_a_move_not_a_sentence():
+    with pytest.raises(engine.StoryUnavailable, match="objective_too_thin"):
+        engine._check_objective_scope("Tell Romy in one sentence whether you want to try.", "B1")
+    with pytest.raises(engine.StoryUnavailable, match="objective_too_thin"):
+        engine._check_objective_scope("Accept the invitation.", "B2")
+    engine._check_objective_scope(
+        "Take a position on Romy's offer, give your reason, and propose a condition under which you would say yes.",
+        "B2",
+    )
+    # A1/A2 keep the one-act rule.
+    with pytest.raises(engine.StoryUnavailable, match="objective_too_complex"):
+        engine._check_objective_scope("Order a coffee, ask the price, and then thank the waiter.", "A1")
+
+
+def test_c1_is_a_band_of_its_own_and_c2_reads_as_c1():
+    def user(estimate):
+        return type("U", (), {"cefr_estimate": estimate})()
+
+    assert engine.learner_level_band(user("C1.2")) == "C1"
+    assert engine.learner_level_band(user("C2.1")) == "C1"
+    assert engine.learner_level_band(user("B2.2")) == "B2"
+    assert engine._REPLY_WORD_LIMITS["C1"] > engine._REPLY_WORD_LIMITS["B2"] > engine._REPLY_WORD_LIMITS["A2"]
+    assert engine._SCENE_WORD_LIMITS["C1"] > engine._SCENE_WORD_LIMITS["A1"]
+    assert "C1" in engine.DIRECTOR and "prêt(e)" in engine.ACTOR
+
+
+def test_a_parenthesised_gender_form_is_cut():
+    assert engine._scrub_paren_gender("Je suis prêt(e) et content(e)s, chère(ère) amie.") == "Je suis prêt et contents, chère amie."
+    assert engine._scrub_paren_gender("(e) seul") == "(e) seul"
+
+
+def test_the_resolution_may_not_ask_the_turns_question_again():
+    context = _scene_context()
+    first = engine.SceneDraft.model_validate(draft(context, 0))
+    chapter = engine.chapter_state(
+        {"chapter": {**first.chapter.model_dump(), "id": "c1", "scene_count": 3, "resolved": False, "resolved_commitments": 0}}
+    )
+    recent = [
+        {
+            "novelty_key": "turn-1",
+            "premise_fr": "Tout autre chose hier soir au parc.",
+            "objective_native": "Tell Romy whether you want to try something real with her or stay friends.",
+            "chapter_title_fr": chapter["title_fr"],
+            "beat": "turn",
+        }
+    ]
+    same = engine.SceneDraft.model_validate(
+        {
+            **draft(context, 1),
+            "beat": "resolution",
+            "objective_native": "Tell Romy whether you want to try something real with her and stay together.",
+        }
+    ).model_copy(update={"chapter": first.chapter})
+    with pytest.raises(engine.StoryUnavailable, match="resolution_repeats_turn"):
+        engine._validate_scene(same, _scene_context(chapter=chapter, recent_situations=recent))
+
+
+def test_the_dice_are_rolled_per_learner_and_per_chapter():
+    from app.services.serial import SerialThreadService
+
+    world = SerialThreadService._load_world_bible()
+    one = engine._season_projection(world, {}, seed="thread-1", chapter_index=0)
+    two = engine._season_projection(world, {}, seed="thread-2", chapter_index=0)
+    again = engine._season_projection(world, {}, seed="thread-1", chapter_index=0)
+    assert [a["id"] for a in one["arcs"]] == [a["id"] for a in again["arcs"]], "reproducible per learner"
+    assert [a["id"] for a in one["arcs"]] != [a["id"] for a in two["arcs"]], "different lives, different order"
+    assert one["suggested_arc"] == one["arcs"][0]["id"]
+    assert one["complication_card"] in engine.COMPLICATION_CARDS
+    assert one["complication_card"] != engine._season_projection(world, {}, seed="thread-1", chapter_index=1)["complication_card"] or len(engine.COMPLICATION_CARDS) == 1
+    # A completed arc is never suggested again.
+    done = {a["id"]: {"stage": len(a["stages"])} for a in one["arcs"][:1]}
+    assert engine._season_projection(world, done, seed="thread-1")["suggested_arc"] == one["arcs"][1]["id"]
+    assert engine.chapters_opened({"resolved_chapter_questions": ["a", "b"], "chapter": {"id": "c"}}) == 3
+    for word in ("suggested_arc", "complication_card"):
+        assert word in engine.DIRECTOR, word
+
+
+def test_two_drafts_are_written_on_the_surprise_beats_and_the_novel_one_is_kept(monkeypatch):
+    """WP-59 loop engineering: setup and turn draw two candidates; the score keeps the
+    one this life has not seen, and the loser's usage is still recorded."""
+
+    context = _scene_context(
+        recent_situations=[
+            {"novelty_key": "seen", "premise_fr": "Romy cherche encore une idée pour une exposition dans le quartier.", "objective_native": "Offer your help with the exhibition."}
+        ]
+    )
+    monkeypatch.setattr(engine, "DUAL_DRAFTS_ENABLED", True)
+    assert engine.dual_draft_candidates(_scene_context()) == 2
+    assert engine.dual_draft_candidates(_scene_context(chapter={"scene_count": 1})) == 1
+    monkeypatch.setattr(engine, "DUAL_DRAFTS_ENABLED", False)
+    assert engine.dual_draft_candidates(_scene_context()) == 1
+    monkeypatch.setattr(engine, "DUAL_DRAFTS_ENABLED", True)
+
+    stale = engine.SceneDraft.model_validate({**draft(context, 0), "novelty_key": "stale", "premise_fr": "Romy cherche une idée pour une exposition dans le quartier ce matin."})
+    fresh = engine.SceneDraft.model_validate({**draft(context, 1), "novelty_key": "fresh", "premise_fr": "Marin fait tomber la bague de sa poche devant tout le Mistral.", "objective_native": "Say what you saw fall, and whether you keep the secret."})
+    served = iter([stale, fresh])
+    recorded: list[dict] = []
+
+    def fake_json_call(system, payload, schema, on_usage=None, *, deadline):
+        proposal = next(served)
+        if on_usage:
+            on_usage({"stage": "SceneDraft", "model": "fake", "provider": "fake", "tokens": 1, "cost_usd": 0.0})
+        return proposal, {}
+
+    monkeypatch.setattr(engine, "_json_call", fake_json_call)
+    monkeypatch.setattr(engine, "CRITIC_ENABLED", False)
+
+    class Sink:
+        def add(self, event):
+            recorded.append(event)
+
+    kept, usage = engine._approved(
+        engine.DIRECTOR,
+        context,
+        engine.SceneDraft,
+        lambda p: None,
+        db=Sink(),
+        user=type("U", (), {"id": "u"})(),
+        candidates=2,
+        choose=lambda p: engine._scene_score(p, context),
+    )
+    assert kept.novelty_key == "fresh"
+    assert len(usage) == 2, "both drafts' spend is kept"
+    assert engine._scene_score(fresh, context) > engine._scene_score(stale, context)

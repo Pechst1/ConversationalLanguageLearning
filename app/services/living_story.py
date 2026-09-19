@@ -77,6 +77,34 @@ CHAPTER_MAX_SCENES = 4
 CHAPTER_BEATS: tuple[str, ...] = ("setup", "complication", "turn", "resolution")
 # How far back a new chapter's problem must differ from what was already played.
 PROBLEM_WINDOW = 6
+# WP-59 loop engineering. On the beats where surprise matters the director drafts two
+# candidate scenes concurrently and a deterministic score keeps one; the losing draft's
+# tokens are the price of a scene that is not merely different but chosen. Wall time
+# stays that of one draft because the two run side by side inside the same deadline.
+DUAL_DRAFT_BEATS = frozenset({"setup", "turn"})
+DUAL_DRAFT_CANDIDATES = 2
+# A module flag like CRITIC_ENABLED: on in production; the scripted providers of the
+# test suites answer one draft per day, so the fixtures switch it off.
+DUAL_DRAFTS_ENABLED = True
+# The authored deck of complications a chapter's second beat draws from, per learner and
+# per chapter (a seeded pick, never the model's favourite): the same life plays a
+# different hand for every learner.
+COMPLICATION_CARDS: tuple[str, ...] = (
+    "an unexpected visitor who changes who is in the room",
+    "money: something costs more, or someone cannot pay",
+    "bad weather or a breakdown that wrecks the plan",
+    "a small lie is discovered",
+    "a letter, message or call that arrives at the wrong moment",
+    "two friends want opposite things from the learner",
+    "a deadline moves earlier",
+    "someone is offended by a word or a tone",
+    "an old promise resurfaces",
+    "a stranger knows more than they should",
+    "a gift that lands badly",
+    "someone leaves the room before the important thing is said",
+    "a chance to help that would cost the learner their evening",
+    "a public moment: others are watching",
+)
 # How many consecutive situations may share one (character, location) pair before the
 # director is required to move.
 PAIR_REPEAT_LIMIT = 3
@@ -252,10 +280,17 @@ character may refer to a promise, plan or earlier remark of the learner. Match t
 learner's level: A1 gets concrete everyday needs, present tense, lines of at most twelve
 words; A2 adds past and future, simple opinions and reasons; B1 needs negotiation,
 nuance, hypotheticals and opinions with justification; B2 allows idiom, irony and
-abstract discussion. Never give a B1 or B2 learner a beginner drill such as ordering a
-coffee. The objective is ONE communicative act the learner can satisfy in one sentence: at A1
-ask for one thing (no chained "do X, give Y and ask Z"), at A2 at most two; only B1 and
-B2 may negotiate several things at once. previous_rejections lists why the last proposal
+abstract discussion; C1 gets implicit meaning, register play, argument with concession
+and characters who do not say what they mean. Never give a B1 or B2 learner a beginner
+drill such as ordering a coffee. At A1 the objective is ONE communicative act the
+learner can satisfy in one sentence (no chained "do X, give Y and ask Z"); at A2 at
+most two. From B1 upward the objective is a MOVE, never "in one sentence": B1 asks
+for a position plus a reason or a counter-proposal (two or three sentences); B2 asks
+the learner to argue, concede a point and hold a line, or to read what a character
+did not say; C1 asks for nuance — irony answered, a face saved, a refusal that keeps
+the friendship. Write the dialogue at the level too: from B2, subordinate clauses,
+connectors (pourtant, alors que, à condition que), idiom and understatement; the
+characters speak like adults with histories, not like a phrasebook. previous_rejections lists why the last proposal
 was refused — obey it literally: a repetition refusal means a different communicative
 need in a different situation, never the same scene reworded, and variety.used_objectives
 lists what has already been asked. Each new scene needs a materially new objective, not the previous task reworded;
@@ -316,7 +351,11 @@ in one season arc: world.arcs lists them with each character's current stage and
 next stage that the chapter's resolution may reach; set arc_id to the arc you are
 advancing, and let the chapter's emotional stakes come from that arc's next stage and
 from the character's wants, contradiction, flaw and secret. Secrets surface only through
-their arc's stages, never dumped. Alternate hope and setback across beats so the story
+their arc's stages, never dumped. world.suggested_arc is the arc this life should turn
+to next when a chapter opens (a different order for every learner — follow it unless an
+open commitment pulls elsewhere); world.complication_card is the hand dealt to this
+chapter's complication beat: play that card, in this life's terms, when
+chapter.required_beat is complication. Alternate hope and setback across beats so the story
 has ups and downs; every scene shows how the addressed character feels and why the
 learner's answer matters to them personally, and every scene lands one genuine beat of
 feeling under the comedy (the warmth rule). The learner is a person the cast is coming
@@ -344,7 +383,10 @@ the same promise, and it is already recorded. Write a commitment as what the lea
 will do, not as a line of dialogue addressed to them. Never quote or paraphrase
 scene.suggested_response_fr in reply_fr: the character answers, they do not dictate the
 learner's next line. Keep reply_fr and resolution_fr at the learner's level (A1: short
-present-tense sentences, at most 35 words in total; A2: at most 55 words). Mark
+present-tense sentences, at most 35 words in total; A2: at most 55 words; B1: up to 85,
+with a reason or a condition; B2: up to 110, with connectors, idiom and something left
+implicit; C1: up to 140, with register play and a line that means more than it says).
+Never write a form like "prêt(e)" or "content(e)": choose one form or rephrase. Mark
 met only when the communicative objective (including a coherent alternative or refusal)
 is fulfilled. Clarify ambiguity; no success, commitment or plot resolution from unclear
 intent. Separate grammatical polish from communication. Give at most one correction,
@@ -509,8 +551,55 @@ def _record_cost(
     )
 
 
+def dual_draft_candidates(context: dict) -> int:
+    """How many drafts the director writes for the next scene (WP-59)."""
+
+    if not DUAL_DRAFTS_ENABLED:
+        return 1
+    beat = required_beats(context.get("chapter"))[0]
+    return DUAL_DRAFT_CANDIDATES if beat in DUAL_DRAFT_BEATS else 1
+
+
+def _scene_score(draft: SceneDraft, context: dict) -> float:
+    """Which of two guard-approved drafts to keep (WP-59): the more novel one, in a
+    place and with a character this life has not used lately, anchored in an arc —
+    the suggested one for preference. Deterministic, so a review can explain a pick."""
+
+    recent = context.get("recent_situations") or []
+    variety = context.get("variety") or {}
+    premise_novelty = 1.0 - max(
+        (_premise_overlap(draft.premise_fr, item.get("premise_fr", "")) for item in recent),
+        default=0.0,
+    )
+    objective_novelty = 1.0 - max(
+        (
+            _premise_overlap(draft.objective_native, item.get("objective_native", ""))
+            for item in recent
+        ),
+        default=0.0,
+    )
+    score = 2.0 * premise_novelty + objective_novelty
+    if draft.character_id in (variety.get("unused_characters") or []):
+        score += 0.5
+    if draft.location_id in (variety.get("unused_locations") or []):
+        score += 0.5
+    if draft.arc_id:
+        score += 0.5
+        if draft.arc_id == (context.get("world") or {}).get("suggested_arc"):
+            score += 0.5
+    return round(score, 4)
+
+
 def _approved(
-    system: str, payload: dict, schema: type[BaseModel], validate, *, db: Session, user: User
+    system: str,
+    payload: dict,
+    schema: type[BaseModel],
+    validate,
+    *,
+    db: Session,
+    user: User,
+    candidates: int = 1,
+    choose=None,
 ) -> tuple[Any, list[dict]]:
     # Leave headroom under the journey's 90-second generation claim and HTTP timeout.
     # No hidden retries or provider cascades may multiply this budget.
@@ -543,16 +632,65 @@ def _approved(
     # ``evaluate_turn`` answers with an honest authored ending instead (live review
     # 2026-09-19: day 3 died on two critic rejections). A refused *scene* still raises:
     # the journey retries or serves the prefetched one, and never an invented scene.
-    for _ in range(settings.ATELIER_STORY_MAX_ATTEMPTS):
+    for attempt in range(settings.ATELIER_STORY_MAX_ATTEMPTS):
         try:
-            proposal, _ = _json_call(
-                system,
-                {**payload, "previous_rejections": feedback},
-                schema,
-                record,
-                deadline=deadline,
-            )
-            validate(proposal)
+            if candidates > 1 and attempt == 0:
+                # WP-59: two drafts side by side, every guard on each, the score keeps
+                # one. Usage is recorded on this thread once the workers are back —
+                # the DB session is not shared with them.
+                request = {**payload, "previous_rejections": feedback}
+                collected: list[list[dict]] = [[] for _ in range(candidates)]
+
+                def draw(index: int):
+                    return _json_call(
+                        system, request, schema, collected[index].append, deadline=deadline
+                    )[0]
+
+                from concurrent.futures import ThreadPoolExecutor
+
+                with ThreadPoolExecutor(max_workers=candidates) as pool:
+                    futures = [pool.submit(draw, index) for index in range(candidates)]
+                    outcomes = [
+                        (future.result(), None) if future.exception() is None else (None, future.exception())
+                        for future in futures
+                    ]
+                for entries in collected:
+                    for entry in entries:
+                        record(entry)
+                approved: list[Any] = []
+                for proposal, error in outcomes:
+                    if error is not None:
+                        reason = str(error)
+                        if isinstance(error, StoryUnavailable):
+                            feedback = list(dict.fromkeys([*feedback, error.feedback]))
+                        continue
+                    try:
+                        validate(proposal)
+                    except StoryUnavailable as exc:
+                        reason = str(exc)
+                        feedback = list(dict.fromkeys([*feedback, exc.feedback]))
+                        continue
+                    approved.append(proposal)
+                if not approved:
+                    continue
+                proposal = (
+                    max(approved, key=choose) if choose is not None and len(approved) > 1 else approved[0]
+                )
+                if len(approved) > 1:
+                    logger.info(
+                        "living_story: kept 1 of %s guard-approved drafts (%s)",
+                        len(approved),
+                        schema.__name__,
+                    )
+            else:
+                proposal, _ = _json_call(
+                    system,
+                    {**payload, "previous_rejections": feedback},
+                    schema,
+                    record,
+                    deadline=deadline,
+                )
+                validate(proposal)
             if not CRITIC_ENABLED or schema.__name__ not in CRITIC_STAGES:
                 # A/B only (scripts/longitudinal_story_review.py --critic). The
                 # deterministic guards above have already run; nothing else is skipped.
@@ -821,7 +959,9 @@ def learner_address(user: User) -> dict:
 def learner_level_band(user: User) -> str:
     """Use the same supported level for the invitation and generated scene."""
     band = str(user.cefr_estimate or "A1")[:2]
-    return band if band in {"A1", "A2", "B1", "B2"} else "B2"
+    # WP-59: C1 is its own band (the catalogue has C1 rules and the bible's cast can
+    # speak at that level); C2 reads as C1 rather than falling back to B2.
+    return band if band in {"A1", "A2", "B1", "B2", "C1"} else ("C1" if band == "C2" else "B2")
 
 
 CAST_KEYS = (
@@ -850,12 +990,19 @@ def _cast_projection(world: dict) -> list[dict]:
     ]
 
 
-def _season_projection(world: dict, arc_progress: dict) -> dict:
+def _season_projection(
+    world: dict, arc_progress: dict, *, seed: str = "", chapter_index: int = 0
+) -> dict:
     """The season's arcs and long questions, with each arc's current and next stage.
 
     The world bible authored these (``season_arcs``, ``season_one_situation``); until
     WP-58 the engine never read them, which is why fourteen days could pass without a
     ring, a Berlin envelope or a last unpacked box ever mattering.
+
+    WP-59: the dice are rolled here, in code. ``seed`` (the thread id) fixes a
+    per-learner order of the arcs, so two learners do not both open on «La tension
+    Romy» with Montréal on day 3, and ``chapter_index`` deals this chapter's
+    complication card from the authored deck. Both are reproducible per learner.
     """
 
     arcs = []
@@ -881,13 +1028,28 @@ def _season_projection(world: dict, arc_progress: dict) -> dict:
                 "complete": reached >= len(stages),
             }
         )
+    if seed:
+        arcs.sort(key=lambda arc: hashlib.sha256(f"{seed}:{arc['id']}".encode()).hexdigest())
+    suggested = next((arc["id"] for arc in arcs if not arc["complete"]), None)
+    card = None
+    if COMPLICATION_CARDS:
+        digest = hashlib.sha256(f"{seed}:chapter:{int(chapter_index)}".encode()).hexdigest()
+        card = COMPLICATION_CARDS[int(digest, 16) % len(COMPLICATION_CARDS)]
     situation = world.get("season_one_situation") or {}
     guardrails = world.get("generation_guardrails") or {}
     return {
         "arcs": arcs,
+        "suggested_arc": suggested,
+        "complication_card": card,
         "open_threads": list(situation.get("open_threads") or []),
         "warmth_rule": guardrails.get("warmth_rule"),
     }
+
+
+def chapters_opened(live: dict) -> int:
+    """How many chapters this life has opened so far (the seed of the next card)."""
+
+    return len(live.get("resolved_chapter_questions") or []) + (1 if live.get("chapter") else 0)
 
 
 def required_beats(chapter: dict | None) -> tuple[str, ...]:
@@ -1039,7 +1201,12 @@ def story_context(db: Session, user: User) -> dict:
             "logline": world.get("logline"),
             "cast": cast,
             "locations": locations,
-            **_season_projection(world, live.get("arc_progress") or {}),
+            **_season_projection(
+                world,
+                live.get("arc_progress") or {},
+                seed=str(thread.id) if thread else str(user.id),
+                chapter_index=chapters_opened(live),
+            ),
         },
         "story_so_far": list(state.get("story_so_far") or [])[-8:],
         "relationships": state.get("relationships") or {},
@@ -1217,6 +1384,16 @@ def _scrub_inclusive_dot(text: str) -> str:
     return re.sub(r"·[A-Za-zÀ-ÿ]+", "", text or "")
 
 
+_PAREN_GENDER = re.compile(r"(?<=[A-Za-zÀ-ÿ])\((?:e|es|ne|le|ve|se|te|trice|euse|ère|ères)\)")
+
+
+def _scrub_paren_gender(text: str) -> str:
+    """"prêt(e)", "content(e)s" → "prêt", "contents": the B2 live run of 2026-09-19
+    wrote the parenthesised workaround three times in one reply. One form, never a
+    bracket the learner would have to read aloud."""
+    return _PAREN_GENDER.sub("", text or "")
+
+
 def _forbidden_endearments(address: str | None) -> tuple[str, ...]:
     return {
         "feminine": _MASCULINE_ADDRESS,
@@ -1293,7 +1470,8 @@ def _check_address(texts: list[str], address: str | None) -> None:
         )
 
 
-_REPLY_WORD_LIMITS = {"A1": 40, "A2": 60}
+_REPLY_WORD_LIMITS = {"A1": 40, "A2": 60, "B1": 90, "B2": 120, "C1": 150}
+_SCENE_WORD_LIMITS = {"A1": 110, "A2": 170, "B1": 210, "B2": 250, "C1": 290}
 
 _TU_MARKERS = re.compile(r"\b(tu|toi|ton|ta|tes|t'as|t'es)\b", re.IGNORECASE)
 _VOUS_MARKERS = re.compile(r"\b(vous|votre|vos)\b", re.IGNORECASE)
@@ -1380,7 +1558,32 @@ _OBJECTIVE_SEPARATORS = re.compile(
 )
 
 
+# From B1 the objective must be a move, not a sentence: the B1/B2 live runs of
+# 2026-09-19 asked «tell Romy in one sentence…» on every day, which is A2 with harder
+# topics. Words the director uses to shrink an objective back to one act, in the three
+# control languages, and the floor on how much an objective must ask for.
+_ONE_SENTENCE_FRAMING = re.compile(
+    r"\b(in one sentence|one sentence|a single sentence|en une phrase|une seule phrase"
+    r"|in einem satz|ein satz|einen satz)\b",
+    re.IGNORECASE,
+)
+_OBJECTIVE_MINIMUM_WORDS = {"B1": 10, "B2": 12, "C1": 14}
+
+
 def _check_objective_scope(objective: str, level: str | None) -> None:
+    floor = _OBJECTIVE_MINIMUM_WORDS.get(str(level or ""))
+    if floor:
+        if _ONE_SENTENCE_FRAMING.search(objective) or len(objective.split()) < floor:
+            raise StoryUnavailable(
+                "objective_too_thin",
+                hint=(
+                    f"A {level} learner is not asked for one sentence. Ask for a move: "
+                    "a position with a reason, a counter-proposal with a condition, an "
+                    "objection answered — two or three sentences, at least "
+                    f"{floor} words of objective. \"{objective}\" is an A2 ask."
+                ),
+            )
+        return
     limits = _OBJECTIVE_LIMITS.get(str(level or ""))
     if not limits:
         return
@@ -1505,7 +1708,7 @@ def _validate_scene(draft: SceneDraft, context: dict):
         # a forbidden endearment is cut, an inclusive middle-dot form ("seul·e") keeps
         # its first half. The live run of 2026-09-19f lost day 1 to "trempé·e" plus
         # a provider timeout on the retry.
-        return _scrub_endearments(_scrub_inclusive_dot(text), address)
+        return _scrub_endearments(_scrub_paren_gender(_scrub_inclusive_dot(text)), address)
 
     draft.premise_fr = clean(draft.premise_fr)
     draft.opening_line_fr = clean(draft.opening_line_fr)
@@ -1555,6 +1758,28 @@ def _validate_scene(draft: SceneDraft, context: dict):
                 )
             ),
         )
+    if draft.beat == "resolution":
+        # The B2 live run of 2026-09-19 asked the turn's question again as the
+        # resolution. The last scene of the same chapter must ask something new.
+        previous = next(
+            (
+                item
+                for item in reversed(context.get("recent_situations") or [])
+                if item.get("chapter_title_fr") == chapter.get("title_fr")
+            ),
+            None,
+        )
+        if previous and _premise_overlap(
+            draft.objective_native, previous.get("objective_native", "")
+        ) >= 0.45:
+            raise StoryUnavailable(
+                "resolution_repeats_turn",
+                hint=(
+                    "The resolution asks the turn's question again: "
+                    f"\"{previous.get('objective_native')}\". Settle the chapter with a "
+                    "different move — a consequence, a decision made, an aftermath."
+                ),
+            )
     world_arcs = {arc.get("id") for arc in (context["world"].get("arcs") or []) if arc.get("id")}
     if draft.arc_id and world_arcs and draft.arc_id not in world_arcs:
         # Unknown arc ids are dropped, not fatal: provenance keeps only real arcs.
@@ -1705,7 +1930,7 @@ def _validate_scene(draft: SceneDraft, context: dict):
         + [w for p in draft.panels for w in p.narration_fr.split()]
         + [w for p in draft.panels for line in p.dialogue for w in line.text_fr.split()]
     )
-    limit = 110 if context["level"] == "A1" else 170
+    limit = _SCENE_WORD_LIMITS.get(str(context["level"]), 170)
     if len(words) > limit:
         raise StoryUnavailable(
             "scene_too_long",
@@ -1875,6 +2100,8 @@ def generate_scene(db: Session, *, user: User, input_mode: InputMode):
             lambda p: _validate_scene(p, context),
             db=db,
             user=user,
+            candidates=dual_draft_candidates(context),
+            choose=lambda p: _scene_score(p, context),
         )
         return _brief(draft, context, usage=usage)
     except StoryUnavailable as exc:
@@ -2240,8 +2467,8 @@ def _validate_turn(turn: SemanticTurn, payload: dict):
     # then a failed send for a reply that was itself clean. The dot is scrubbed
     # from the private field instead of costing the learner their turn.
     address = (story.get("learner") or {}).get("address")
-    turn.reply_fr = _scrub_endearments(_scrub_inclusive_dot(turn.reply_fr), address)
-    turn.resolution_fr = _scrub_endearments(_scrub_inclusive_dot(turn.resolution_fr), address)
+    turn.reply_fr = _scrub_endearments(_scrub_paren_gender(_scrub_inclusive_dot(turn.reply_fr)), address)
+    turn.resolution_fr = _scrub_endearments(_scrub_paren_gender(_scrub_inclusive_dot(turn.resolution_fr)), address)
     _check_address([turn.reply_fr, turn.resolution_fr], address)
     if _INCLUSIVE_DOT.search(turn.understood_intent or ""):
         turn.understood_intent = _scrub_inclusive_dot(turn.understood_intent)

@@ -1874,3 +1874,19 @@ middle-dot form is repaired, not refused; the agreement guard now sees
 negation and «t'es». The six-day live run `atelier-story-review-A2-2026-09-19g`
 came back clean — two four-beat chapters, four learner commitments carried
 forward, no fallback — the reading is in the QA report.
+
+## 2026-09-19 (late night) — WP-59: loop engineering, per-learner dice, B1/B2/C1
+
+Owner: make the arc less deterministic; fix B1/B2; add C1. Landed
+([WP-59-LOOP-ENGINEERING.md](WP-59-LOOP-ENGINEERING.md)): on the setup and
+turn beats the director drafts two scenes concurrently and a deterministic
+novelty/rotation/arc score keeps one (`DUAL_DRAFTS_ENABLED`, off in the
+scripted test fixtures); the season arcs are ordered per learner by a hash
+of the thread id and each chapter is dealt a complication card from an
+authored deck of fourteen; from B1 an objective must be a move
+(`objective_too_thin`), reply and scene limits scale to B1/B2/C1 with a
+prose bar in the prompts, a resolution may not repeat the turn's question,
+«prêt(e)» forms are scrubbed; C1 is a band of its own. Seeded B1 live run:
+4/4 days, opened on Lila's Berlin envelope, move-shaped objectives.
+Earlier B1 and B2 runs on the WP-58 engine were 4/4 stable but one-sentence
+and Romy-first — the reason for this package.

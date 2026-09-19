@@ -185,3 +185,11 @@ Lila painting downstairs, and on day 6 Lila coming home early with her hand on
 his coat. Commitments were recorded from the learner's own words on days 1, 3,
 4 and 5. One slip caught by reading, now guarded: «Tu n'es pas seule» to a
 neutral learner (the agreement guard watched only «tu es»).
+
+## Fourth pass: B1/B2/C1 and the loop (WP-59)
+
+B1 and B2 four-day live runs on the WP-58 engine were stable (4/4 each) but
+level-false: every objective «in one sentence», every life opening on Romy
+with Montréal by day 3, a B2 reply with «prêt(e)». WP-59 fixes those at the
+engine (see its handoff) and the seeded B1 rerun opened on Lila's envelope
+with move-shaped objectives, 4/4. C1 is now a band; no C1 live run yet.

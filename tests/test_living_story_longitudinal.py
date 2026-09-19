@@ -81,6 +81,16 @@ OBJECTIVES = [
     "Describe the lost dog.",
 ]
 
+
+# WP-59: from B1 an objective is a move, not a sentence. Four different moves, so the
+# suffix never makes two days' objectives read as the same situation.
+UPPER_BAND_MOVES = [
+    " Give your reason, and propose an alternative if you cannot.",
+    " Explain what worries you about it, then name a condition.",
+    " Say why it matters to you and offer one concrete plan.",
+    " Take a position, concede one point, and hold your line.",
+]
+
 # WP-17: the engine rejects a third consecutive scene with the same (character,
 # location) pair, and a repeated objective for a pair it has already used.
 LOCATIONS = [
@@ -216,7 +226,13 @@ class ScriptedProvider:
             "title_fr": f"Le quartier {n}",
             "premise_fr": PREMISES[n % len(PREMISES)],
             "setup_native": "A small neighborhood question needs an answer.",
-            "objective_native": OBJECTIVES[n % len(OBJECTIVES)],
+            # WP-59: from B1 an objective is a move, not a sentence; the fixture grows one.
+        "objective_native": OBJECTIVES[n % len(OBJECTIVES)]
+        + (
+            UPPER_BAND_MOVES[n % len(UPPER_BAND_MOVES)]
+            if str(context.get("level") or "") in ("B1", "B2", "C1")
+            else ""
+        ),
             "objective_semantics": "Express an offer, a refusal or a changed plan.",
             "character_id": speaker,
             "location_id": self.scene.location_id or LOCATIONS[n % len(LOCATIONS)],
@@ -286,6 +302,9 @@ class ScriptedProvider:
 @pytest.fixture
 def provider(monkeypatch):
     monkeypatch.setattr(settings, "ATELIER_STORY_ENGINE_ENABLED", True)
+    # WP-59: the scripted provider answers one draft per day; the two-draft loop
+    # has its own test and stays off here.
+    monkeypatch.setattr(engine, "DUAL_DRAFTS_ENABLED", False)
     fake = ScriptedProvider()
     monkeypatch.setattr(engine, "_client", lambda: fake)
     return fake
@@ -431,7 +450,8 @@ def test_fourteen_days_stay_one_world_for_each_level(
 
 @pytest.mark.parametrize(
     ("cefr", "expected_band"),
-    [("A1.1", "A1"), ("A2.2", "A2"), ("B1.2", "B1"), ("B2.1", "B2"), ("C1.1", "B2")],
+    # WP-59: C1 is a band of its own.
+    [("A1.1", "A1"), ("A2.2", "A2"), ("B1.2", "B1"), ("B2.1", "B2"), ("C1.1", "C1")],
 )
 def test_invitation_level_matches_the_generated_scene(
     assembled_client, db_session, journey_enabled, clock, provider, cefr, expected_band
