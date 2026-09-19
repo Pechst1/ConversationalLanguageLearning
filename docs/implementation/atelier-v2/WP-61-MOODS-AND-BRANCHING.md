@@ -50,3 +50,18 @@ the keys.
   depuis mardi» line on the cast page is one label away.
 - Trust is not yet read by the Missions planner (Courrier) — the two surfaces
   still keep separate relationship state (`relationships.closeness`).
+
+## Evidence (`atelier-story-review-A2-2026-09-19h.json`, seed `learner-a2-moods`)
+
+Six of six days, 25 requests, ≈US$0.09. The actor filled the new fields on
+every turn (`feeling_shift` warmer/colder/steady, `development_index`). The
+branch shows: day 1 the learner names the Berlin letter (development 1,
+warmer); day 2 the scripted refusal leaves Marin «triste, mais je comprends»
+(colder, development 4); day 3 opens on Marin still holding his pocket and
+having to decide («Le choix de Marin»), the consequence of that refusal, and
+the learner's «laisse-la décider» warms him; day 4 resolves with the envelope
+on the table. Chapter 2 opened on Romy at the newsroom, who «a entendu parler
+de la lettre pour Berlin» — the first chapter's outcome carried into the next.
+One authored fallback (day 5, critic: an invented character reply). One slip
+for the agreement guard to learn: «parlons seules» agrees with a gender the
+learner never gave and is not a «tu es» form.
