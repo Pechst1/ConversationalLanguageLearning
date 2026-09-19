@@ -79,14 +79,31 @@ def main():
     calls = 0
     max_requests = args.max_requests
 
+    import threading
+
+    counter_lock = threading.Lock()
+
     class BoundedClient:
         def generate_chat_completion(self, *args, **kwargs):
             nonlocal calls
-            if calls >= max_requests:
-                raise engine.StoryUnavailable("review_request_limit")
-            calls += 1
+            # WP-59 draws two drafts on two threads: the counter is locked, and a
+            # call the provider refused is still a request the report shows.
+            with counter_lock:
+                if calls >= max_requests:
+                    raise engine.StoryUnavailable("review_request_limit")
+                calls += 1
             started = time.monotonic()
-            result = real_client().generate_chat_completion(*args, **kwargs)
+            try:
+                result = real_client().generate_chat_completion(*args, **kwargs)
+            except Exception as exc:
+                report["requests"].append(
+                    {
+                        "error": f"{type(exc).__name__}: {exc}"[:300],
+                        "elapsed_seconds": round(time.monotonic() - started, 2),
+                        "content": None,
+                    }
+                )
+                raise
             report["requests"].append(
                 {
                     "model": result.model,

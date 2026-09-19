@@ -124,6 +124,64 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "de": "Sprachliche Korrektur",
         "fr": "Reprise de langue",
     },
+    # -- app/services/atelier.py: the recognize round's immediate feedback (WP-56).
+    # The background relecture rewrites these in the learner's language a moment
+    # later; until it lands, the deterministic line must already be readable.
+    "atelier.recognize.chose_requires": {
+        "en": "You chose “{learner}”; this item needs “{target}”.",
+        "de": "Du hast „{learner}“ gewählt; hier ist „{target}“ nötig.",
+        "fr": "Vous avez choisi « {learner} » ; il faut « {target} » ici.",
+    },
+    "atelier.recognize.blank_needs": {
+        "en": "You chose “{learner}”, but this blank needs “{target}”.",
+        "de": "Du hast „{learner}“ gewählt, aber in diese Lücke gehört „{target}“.",
+        "fr": "Vous avez choisi « {learner} », mais ce blanc demande « {target} ».",
+    },
+    "atelier.recognize.classified_as": {
+        "en": "You classified “{prompt}” as “{learner}”, but the target label is “{target}”.",
+        "de": "Du hast „{prompt}“ als „{learner}“ eingeordnet; richtig wäre „{target}“.",
+        "fr": "Vous avez classé « {prompt} » comme « {learner} » ; l’étiquette attendue est « {target} ».",
+    },
+    "atelier.recognize.word_bank_mismatch": {
+        "en": "The sentence you built does not match the target sentence.",
+        "de": "Der Satz, den du gebaut hast, stimmt nicht mit dem Zielsatz überein.",
+        "fr": "La phrase construite ne correspond pas à la phrase attendue.",
+    },
+    "atelier.recognize.word_bank_rebuild": {
+        "en": "Rebuild the sentence as: {target}",
+        "de": "Baue den Satz so: {target}",
+        "fr": "Reconstruisez la phrase ainsi : {target}",
+    },
+    "atelier.recognize.rule_reference": {
+        "en": "Rule: {title}.",
+        "de": "Regel: {title}.",
+        "fr": "Règle : {title}.",
+    },
+    "atelier.recognize.missing_label": {
+        "en": "Missing answer",
+        "de": "Fehlende Antwort",
+        "fr": "Réponse manquante",
+    },
+    "atelier.recognize.missing_why": {
+        "en": "You left this item blank, so there is no grammar choice to review.",
+        "de": "Du hast dieses Element leer gelassen, also gibt es keine Grammatikwahl zu prüfen.",
+        "fr": "Vous avez laissé cet élément vide : il n’y a aucun choix grammatical à revoir.",
+    },
+    "atelier.recognize.missing_repair": {
+        "en": "Answer the item first; a blank item is not filed as an erratum.",
+        "de": "Beantworte das Element zuerst; ein leeres Element wird nicht als Erratum abgelegt.",
+        "fr": "Répondez d’abord ; un élément vide n’est pas consigné comme erratum.",
+    },
+    "atelier.recognize.label_classification": {
+        "en": "Classification",
+        "de": "Einordnung",
+        "fr": "Classement",
+    },
+    "atelier.recognize.label_word_bank": {
+        "en": "Word bank",
+        "de": "Wortbank",
+        "fr": "Banque de mots",
+    },
     "erratum.repair_use_suggestion": {
         "en": "Use “{suggestion}” here, then try the same contrast in a fresh sentence.",
         "de": "Nimm hier „{suggestion}“ und übe denselben Kontrast dann in einem neuen Satz.",

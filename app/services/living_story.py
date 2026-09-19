@@ -182,13 +182,16 @@ class StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
 
+# Field caps are sized for C1 prose (WP-60): the C1 live run of 2026-09-19 lost a day
+# because a 118-word scene overflowed a 350-character premise. Reading time is bounded
+# by the per-band word limits in `_validate_scene`, not by these.
 class Dialogue(StrictModel):
     character_id: str = Field(min_length=1, max_length=80)
-    text_fr: str = Field(min_length=1, max_length=220)
+    text_fr: str = Field(min_length=1, max_length=320)
 
 
 class Panel(StrictModel):
-    narration_fr: str = Field(default="", max_length=240)
+    narration_fr: str = Field(default="", max_length=360)
     dialogue: list[Dialogue] = Field(default_factory=list, max_length=3)
     visual_direction: str = Field(min_length=1, max_length=500)
 
@@ -201,13 +204,13 @@ class Chapter(StrictModel):
 
 class SceneDraft(StrictModel):
     title_fr: str = Field(min_length=1, max_length=100)
-    premise_fr: str = Field(min_length=1, max_length=350)
-    setup_native: str = Field(min_length=1, max_length=400)
-    objective_native: str = Field(min_length=1, max_length=200)
-    objective_semantics: str = Field(min_length=1, max_length=450)
+    premise_fr: str = Field(min_length=1, max_length=600)
+    setup_native: str = Field(min_length=1, max_length=600)
+    objective_native: str = Field(min_length=1, max_length=320)
+    objective_semantics: str = Field(min_length=1, max_length=700)
     character_id: str = Field(min_length=1, max_length=80)
     location_id: str = Field(min_length=1, max_length=80)
-    causal_reason: str = Field(min_length=1, max_length=400)
+    causal_reason: str = Field(min_length=1, max_length=500)
     source_event_ids: list[str] = Field(default_factory=list, max_length=8)
     novelty_key: str = Field(min_length=1, max_length=120)
     chapter: Chapter
@@ -220,10 +223,10 @@ class SceneDraft(StrictModel):
     problem_key: str = Field(default="", max_length=120)
     arc_id: str | None = Field(default=None, max_length=80)
     panels: list[Panel] = Field(min_length=2, max_length=5)
-    opening_line_fr: str = Field(min_length=1, max_length=240)
-    suggested_response_fr: str = Field(min_length=1, max_length=300)
-    hint_native: str = Field(min_length=1, max_length=250)
-    translation_native: str = Field(min_length=1, max_length=300)
+    opening_line_fr: str = Field(min_length=1, max_length=320)
+    suggested_response_fr: str = Field(min_length=1, max_length=400)
+    hint_native: str = Field(min_length=1, max_length=400)
+    translation_native: str = Field(min_length=1, max_length=400)
     capability_key: CapabilityKey | None = None
 
 
@@ -501,7 +504,22 @@ def _json_call(
             raise StoryUnavailable("story_generation_deadline")
         parsed = schema.model_validate_json(result.content)
         return parsed, usage
-    except (ValueError, ValidationError) as exc:
+    except ValidationError as exc:
+        # Name the fields so the retry can fix them (WP-60): a bare token here cost
+        # the C1 review its second day when both drafts overran a character cap.
+        problems = "; ".join(
+            f"{'.'.join(str(part) for part in error.get('loc', ()))}: {error.get('msg')}"
+            for error in exc.errors()[:4]
+        )
+        raise StoryUnavailable(
+            "invalid_story_output",
+            hint=(
+                f"The JSON did not fit the schema — {problems}. Keep every field within "
+                "its limit: shorten the premise and the objective rather than dropping "
+                "content."
+            ),
+        ) from exc
+    except ValueError as exc:
         raise StoryUnavailable("invalid_story_output") from exc
     except StoryUnavailable:
         raise

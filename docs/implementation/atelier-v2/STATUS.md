@@ -1890,3 +1890,12 @@ prose bar in the prompts, a resolution may not repeat the turn's question,
 4/4 days, opened on Lila's Berlin envelope, move-shaped objectives.
 Earlier B1 and B2 runs on the WP-58 engine were 4/4 stable but one-sentence
 and Romy-first — the reason for this package.
+
+**WP-60 (same night):** C1 lost a day to a 350-character premise cap —
+field caps now sized for C1, a schema overflow names its fields in the retry
+hint, the review script's counter is thread-safe and records failed calls.
+The recognize round's immediate feedback follows the learner's language
+(`learner_copy` `atelier.recognize.*`, localized rule title), the second
+half of WP-56; the si/imparfait templates stay English until the relecture.
+C1 rerun: 4/4 days, move-shaped objectives, one authored fallback on a
+fabricated quote. See [WP-60-C1-AND-RECOGNIZE-FEEDBACK.md](WP-60-C1-AND-RECOGNIZE-FEEDBACK.md).

@@ -3569,3 +3569,47 @@ def test_phrase_of_day_publishes_the_corrected_line_not_the_typed_one(db_session
 
     attempt.correction_payload = {}
     assert AtelierSRSService._published_phrase_text(attempt).endswith("la propriete.")
+
+
+def test_recognize_feedback_speaks_the_learners_language_before_the_relecture(db_session):
+    """WP-56: the immediate deterministic line of the recognize round used to be
+    English for every learner («You chose `petit`; this item requires `petite`. French
+    nouns carry gender…») while the produce round and the recap were German. Now the
+    line itself follows `native_language`, with the rule's localized title standing
+    in for the English catalogue prose until the background relecture lands."""
+
+    from app.db.models.grammar import GrammarConcept, GrammarConceptLocalization
+    from app.services.atelier import AtelierCorrectionService
+
+    concept = GrammarConcept(
+        external_id="FR_TEST_WP56", name="Gender and number basics", level="A1",
+        category="Agreement", subskill="gender_number", core_rule="French nouns carry gender and number.",
+    )
+    concept.localizations = [
+        GrammarConceptLocalization(locale="de", title="Genus und Numerus: Grundlagen"),
+        GrammarConceptLocalization(locale="fr", title="Genre et nombre : les bases"),
+    ]
+    item = {
+        "id": "focus", "prompt": "Une ___ table blanche.", "choices": ["petite", "petit"],
+        "correct_answer": "petite", "lesson_external_id": "FR_TEST_WP56",
+        "explanation": "French nouns carry gender and number; determiners and adjectives must match.",
+    }
+    service = AtelierCorrectionService(db_session)
+
+    service.explanation_language = "de"
+    erratum = service._recognize_erratum(concept, "fill", item, "petit", "petite")
+    assert erratum["why_wrong"].startswith("Du hast „petit“ gewählt; hier ist „petite“ nötig.")
+    assert "Genus und Numerus" in erratum["why_wrong"] and "French nouns" not in erratum["why_wrong"]
+    assert erratum["display_label"] == "Genus und Numerus: Grundlagen"
+
+    service.explanation_language = "en"
+    erratum = service._recognize_erratum(concept, "fill", item, "petit", "petite")
+    assert erratum["why_wrong"].startswith("You chose “petit”; this item needs “petite”.")
+    assert "French nouns carry gender" in erratum["why_wrong"]
+
+    service.explanation_language = "fr"
+    blank = service._fill_erratum(None, {"id": "b", "prompt": "___"}, "petit", "petite")
+    assert blank["why_wrong"] == "Vous avez choisi « petit », mais ce blanc demande « petite »."
+    classified = service._classify_erratum(None, {"id": "c", "prompt": "Une petite table"}, "À corriger", "Correct")
+    assert classified["display_label"] == "Classement"
+    assert "Vous avez classé" in classified["why_wrong"]

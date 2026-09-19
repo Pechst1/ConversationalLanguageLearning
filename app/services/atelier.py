@@ -49,6 +49,7 @@ from app.services.exercise_generation import (
     ExerciseGenerationUnavailable,
 )
 from app.services.exercise_generation import _transform_noop_errors as _transform_noop_errors_shared
+from app.services.learner_copy import learner_text as _copy
 from app.services.glosses import (
     DEFAULT_GLOSS_LANGUAGE,
     EXPLANATION_LANGUAGE_NAMES,
@@ -112,6 +113,18 @@ def _concept_label(concept: Any) -> str:
     if concept is None:
         return ""
     return str(getattr(concept, "title_fr", None) or getattr(concept, "name", None) or "").strip()
+
+
+def _concept_title_for(concept: Any, language: str | None) -> str:
+    """The rule's title in the learner's own language when the catalogue has one
+    (`grammar_concept_localizations`), else the French title (WP-56)."""
+    if concept is None:
+        return ""
+    wanted = normalize_language(language)
+    for row in getattr(concept, "localizations", None) or []:
+        if normalize_language(getattr(row, "locale", None)) == wanted and getattr(row, "title", None):
+            return str(row.title).strip()
+    return _concept_label(concept)
 
 
 class AtelierExerciseGenerationError(RuntimeError):
@@ -4474,19 +4487,30 @@ class AtelierCorrectionService:
             return self._recognize_erratum_payload(
                 concept,
                 item,
-                label="Missing answer",
+                label=_copy("atelier.recognize.missing_label", self.explanation_language),
                 learner_text="",
                 target=target,
-                why="You left this recognition item blank, so there is no grammar choice to review.",
-                repair="Answer the item first; blank recognition items are not scheduled as grammar errata.",
+                why=_copy("atelier.recognize.missing_why", self.explanation_language),
+                repair=_copy("atelier.recognize.missing_repair", self.explanation_language),
                 task_type="task_compliance",
                 severity=1,
                 recurring=False,
             )
         if concept and item.get("lesson_external_id") == concept.external_id:
+            # WP-56: the immediate line is in the learner's language. The item's
+            # authored explanation is English catalogue prose; for a learner who
+            # reads another language the rule's localized title stands in, and the
+            # background relecture writes the full explanation a moment later.
+            language = self.explanation_language
+            why = _copy("atelier.recognize.chose_requires", language, learner=learner_text, target=target)
+            explanation = str(item.get("explanation") or self._why_for(concept) or "").strip()
+            if normalize_language(language) == "en" and explanation:
+                why = f"{why} {explanation}"
+            else:
+                why = f"{why} {_copy('atelier.recognize.rule_reference', language, title=_concept_title_for(concept, language))}"
             return self._recognize_erratum_payload(
-                concept, item, label=_concept_label(concept), learner_text=learner_text, target=target,
-                why=f"You chose `{learner_text}`; this item requires `{target}`. {item.get('explanation') or self._why_for(concept)}",
+                concept, item, label=_concept_title_for(concept, language), learner_text=learner_text, target=target,
+                why=why,
                 repair=infer_grammar_profile(concept).pattern,
                 task_type=self._task_type_for(concept, item),
             )
@@ -4515,7 +4539,7 @@ class AtelierCorrectionService:
         learner_norm = _normalize(learner_text)
         target_norm = _normalize(target)
         label = self._label_for(concept, item)
-        why = f"You chose `{learner_text}`, but this blank needs `{target}`."
+        why = _copy("atelier.recognize.blank_needs", self.explanation_language, learner=learner_text, target=target)
         repair = item.get("repair_hint") or self._repair_for(concept)
         profile_key = infer_grammar_profile(concept).key if concept else ""
 
@@ -4581,8 +4605,8 @@ class AtelierCorrectionService:
     ) -> dict[str, Any]:
         prompt = str(item.get("prompt") or "the form")
         learner_label = learner_text or "no label"
-        label = "Classification"
-        why = f"You classified `{prompt}` as `{learner_label}`, but the target label is `{target}`."
+        label = _copy("atelier.recognize.label_classification", self.explanation_language)
+        why = _copy("atelier.recognize.classified_as", self.explanation_language, prompt=prompt, learner=learner_label, target=target)
         repair = item.get("repair_hint") or self._repair_for(concept)
         profile_key = infer_grammar_profile(concept).key if concept else ""
 
@@ -4658,9 +4682,9 @@ class AtelierCorrectionService:
     ) -> list[dict[str, Any]]:
         learner_norm = _normalize(learner_text)
         target_norm = _normalize(target)
-        label = "Word bank"
-        why = "The built sentence does not match the target sentence."
-        repair = f"Rebuild the sentence as: {target}"
+        label = _copy("atelier.recognize.label_word_bank", self.explanation_language)
+        why = _copy("atelier.recognize.word_bank_mismatch", self.explanation_language)
+        repair = _copy("atelier.recognize.word_bank_rebuild", self.explanation_language, target=target)
         task_type = self._task_type_for(concept, item)
         profile_key = infer_grammar_profile(concept).key if concept else ""
 

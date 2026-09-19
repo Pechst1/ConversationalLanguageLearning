@@ -1522,3 +1522,38 @@ def test_two_drafts_are_written_on_the_surprise_beats_and_the_novel_one_is_kept(
     assert kept.novelty_key == "fresh"
     assert len(usage) == 2, "both drafts' spend is kept"
     assert engine._scene_score(fresh, context) > engine._scene_score(stale, context)
+
+
+# ---------------------------------------------------------------------------
+# WP-60 — C1 prose fits the schema, and an overflow tells the retry which field
+# ---------------------------------------------------------------------------
+
+
+def test_a_c1_scene_fits_the_field_caps():
+    """The first C1 live run lost its second day to a 118-word scene whose premise ran
+    past 350 characters; the word limits, not the character caps, bound reading."""
+
+    long_premise = (
+        "Au parc des Buttes-Chaumont, Romy serre son téléphone comme si la nouvelle "
+        "pouvait encore changer d'avis ; elle a reçu l'appel qu'elle attendait depuis "
+        "Montréal et, pourtant, c'est vers toi qu'elle se tourne d'abord, avec ce "
+        "sourire qui ne décide rien et cette question qu'elle pose comme on tend une "
+        "main sous la pluie : est-ce qu'une année à Paris te fait sourire ou te donne "
+        "envie de fuir, et qu'est-ce qui, chez toi, tient vraiment ?"
+    )
+    assert len(long_premise) > 350
+    scene = engine.SceneDraft.model_validate({**draft(_scene_context(level="C1"), 0), "premise_fr": long_premise})
+    assert scene.premise_fr == long_premise.strip()
+    assert engine._SCENE_WORD_LIMITS["C1"] >= len(long_premise.split()) + 100
+
+
+def test_an_overflowing_draft_tells_the_retry_which_field(monkeypatch, provider):
+    provider.transform = lambda schema, value: (
+        {**value, "objective_native": "x" * 400} if schema == "SceneDraft" else value
+    )
+    import time as _time
+
+    with pytest.raises(engine.StoryUnavailable, match="invalid_story_output") as caught:
+        engine._json_call(engine.DIRECTOR, {"data": 1}, engine.SceneDraft, deadline=_time.monotonic() + 60)
+    assert caught.value.hint and "objective_native" in caught.value.hint
+    assert "shorten" in caught.value.hint
