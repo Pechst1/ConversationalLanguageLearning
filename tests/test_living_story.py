@@ -844,6 +844,35 @@ def test_same_character_same_place_same_objective_is_a_repeat():
     engine._validate_scene(other, context)
 
 
+def test_the_open_chapters_own_scenes_are_not_a_repeat():
+    """Live B1 review 2026-09-21: a complication was refused as a repeat of its setup."""
+
+    proposal = engine.SceneDraft.model_validate(draft(_scene_context(), 0))
+    open_chapter = {**proposal.chapter.model_dump(), "resolved": False}
+    row = {
+        "character_id": proposal.character_id,
+        "location_id": proposal.location_id,
+        "premise_fr": "Une histoire tout à fait différente ce matin.",
+        "objective_native": "Offer help for the exhibition next week.",
+        "novelty_key": "other",
+    }
+    # The same row from ANOTHER chapter is still the repeat it always was …
+    elsewhere = _scene_context(
+        chapter=open_chapter, recent_situations=[{**row, "chapter_title_fr": "Autre chapitre"}]
+    )
+    with pytest.raises(engine.StoryUnavailable, match="repeated_premise_triple"):
+        engine._validate_scene(proposal, elsewhere)
+    # … but the open chapter's own earlier scene is the story continuing.
+    own = _scene_context(
+        chapter=open_chapter,
+        recent_situations=[{**row, "chapter_title_fr": open_chapter["title_fr"]}],
+    )
+    try:
+        engine._validate_scene(proposal, own)
+    except engine.StoryUnavailable as error:
+        assert str(error) != "repeated_premise_triple"
+
+
 def test_a_chapter_exhausted_by_resolved_commitments_must_be_replaced():
     """2. Turnover after N resolved commitments, not only after an answered question."""
 

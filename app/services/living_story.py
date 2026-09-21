@@ -3473,11 +3473,20 @@ def _validate_scene(draft: SceneDraft, context: dict):
     # Premise overlap on the (location, character, objective) triple, not only on content
     # words: the same person, in the same place, asking for the same kind of thing is the
     # same situation however it is worded.
+    # A chapter is one problem worked over several scenes: its own earlier scenes are
+    # expected to share the person and often the place, and B1 objectives share their
+    # boilerplate ("give a short reason"). Live B1 review 2026-09-21: the complication
+    # beat was refused twice as a "repeat" of its own setup. The open chapter's scenes
+    # are exempt here; the premise-twin, novelty-key and rotation guards still hold them.
+    open_title = (
+        str(chapter.get("title_fr") or "") if chapter and not closing else ""
+    )
     triple = next(
         (
             item
             for item in recent
-            if item.get("character_id") == draft.character_id
+            if not (open_title and item.get("chapter_title_fr") == open_title)
+            and item.get("character_id") == draft.character_id
             and item.get("location_id") == draft.location_id
             and _premise_overlap(draft.objective_native, item.get("objective_native", "")) >= 0.4
         ),
