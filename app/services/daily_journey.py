@@ -481,6 +481,22 @@ def _produced_target_ids(evaluation: Any) -> list[str]:
     return produced
 
 
+def _mapping(value: Any) -> dict[str, Any]:
+    """``value`` when it is a dict, ``{}`` otherwise. A brief is JSON from three
+    packages; a key that holds the wrong type is an absent key, never a 500."""
+
+    return value if isinstance(value, dict) else {}
+
+
+def _shape_name(value: Any) -> str | None:
+    """A shape name out of a string or out of ``{"shape": …}``, or ``None``."""
+
+    if isinstance(value, dict):
+        value = value.get("shape")
+    text = str(value or "").strip().lower()
+    return text or None
+
+
 def _stored_day_shape(journey: DailyJourney) -> DayShape:
     """The shape a persisted plan was built with.
 
@@ -2003,19 +2019,41 @@ class DailyJourneyService:
 
         story = brief.story_context if isinstance(brief.story_context, dict) else {}
         draft = story.get("draft") if isinstance(story.get("draft"), dict) else {}
-        chapter = story.get("chapter") if isinstance(story.get("chapter"), dict) else {}
-        beat = story.get("beat") or story.get("chapter_beat") or draft.get("beat")
-        # WP-63 deals a *chapter* shape and one of its five values is «letter»:
-        # a chapter whose turn beat is a Courrier letter. It is read with `.get`
-        # from every place that package could reasonably put it, because none of
-        # them exists yet — and an absent key is simply a chapter that did not
-        # ask for one.
-        chapter_shape = (
+        # WP-62/63 put the whole director context under `source`; the top level of
+        # a scenario brief holds the draft and the provenance and nothing else.
+        # Written before WP-63 landed, this read looked only at the top level and
+        # so never found a chapter shape at all (WP-68).
+        source = _mapping(story.get("source"))
+        chapter = _mapping(story.get("chapter")) or _mapping(source.get("chapter"))
+        beat = (
+            story.get("beat")
+            or story.get("chapter_beat")
+            or draft.get("beat")
+            or source.get("beat")
+        )
+        # WP-63 deals a *chapter* shape and one of its five values is «letter»: a
+        # chapter whose turn beat is a Courrier letter. It is read with `.get`
+        # from every place that package could reasonably put it, and an absent
+        # key is simply a chapter that did not ask for one.
+        shape_row = _mapping(source.get("chapter_shape"))
+        chapter_shape = _shape_name(
             chapter.get("shape")
+            or shape_row.get("shape")
             or story.get("chapter_shape")
             or draft.get("chapter_shape")
             or draft.get("shape")
         )
+        letter_beat = _shape_name(shape_row.get("letter_beat"))
+        if (
+            chapter_shape == str(DayShape.LETTER)
+            and letter_beat
+            and str(beat or "").strip().lower() != letter_beat
+        ):
+            # A letter chapter names *which* of its beats is the letter. The other
+            # three are ordinary days, and dealing four letter days off one
+            # chapter would empty the Courrier to fill a chapter that asked for
+            # one letter.
+            chapter_shape = None
 
         return DayShapeInputs(
             user_id=str(user.id),
@@ -2023,7 +2061,7 @@ class DailyJourneyService:
             previous_shape=previous_shape,
             missed_previous_day=missed,
             chapter_beat=str(beat) if beat else None,
-            chapter_shape=str(chapter_shape) if chapter_shape else None,
+            chapter_shape=chapter_shape,
             audio_available=bool(settings.ATELIER_EPISODE_AUDIO_ENABLED),
             errata_count=int(errata_count),
             # The WP-64 seam, wired: the letter the Courrier is already showing

@@ -355,6 +355,36 @@ def test_a_letter_chapter_deals_a_letter_day():
     assert decision.reason == "chapter_letter_shape"
 
 
+def test_a_letter_chapter_does_not_deal_two_letter_days_running():
+    """WP-68 regression: rule 2 binds the story's overrides too.
+
+    «No two identical shapes on consecutive days» is the module's second rule,
+    and the resolution-beat override has always deferred to it. The letter-chapter
+    override did not, so a letter chapter whose turn beat landed the morning
+    after a letter day dealt the same day twice.
+    """
+
+    inputs = DayShapeInputs(
+        user_id="learner-a",
+        local_date=MONDAY,
+        chapter_shape="letter",
+        previous_shape=DayShape.LETTER,
+        letter=_offer(),
+        audio_available=True,
+        errata_count=3,
+    )
+    decision = choose_day_shape(inputs)
+    assert decision.shape is not DayShape.LETTER
+    assert decision.reason == "seeded_dice"
+    # …and it is still the letter day it always was after any other yesterday.
+    from dataclasses import replace
+
+    assert (
+        choose_day_shape(replace(inputs, previous_shape=DayShape.STANDARD)).reason
+        == "chapter_letter_shape"
+    )
+
+
 def test_a_letter_chapter_without_a_letter_is_not_a_letter_day():
     """The pool is the floor under every rule: a shape needs its material."""
 
@@ -406,6 +436,50 @@ def test_the_day_reads_the_chapter_shape_off_the_story_context(db_session):
         _service(db_session)._day_shape_inputs(user, journey, _Bare(), errata_count=0).chapter_shape
         is None
     )
+
+
+def test_the_day_reads_the_chapter_shape_where_the_engine_actually_writes_it(db_session):
+    """WP-68 regression. The shape lives under ``story_context["source"]``.
+
+    A living-story brief is ``{"version", "source", "draft", …}``: WP-63's
+    ``chapter_shape`` projection is inside ``source``, and the chapter itself is
+    only ever there too. Reading the top level alone — which is all this function
+    did until WP-68 — found nothing on a real brief, so a letter chapter never
+    once dealt «jour de lettre» in a 126-day run even though the engine dealt
+    four of them.
+    """
+
+    user = _user(db_session)
+    journey = DailyJourney(
+        user_id=user.id, local_date=MONDAY, timezone="UTC", status="preparing"
+    )
+    db_session.add(journey)
+    db_session.commit()
+
+    def inputs_for(beat: str):
+        class _Brief:
+            story_context = {
+                "version": "v1",
+                "draft": {"beat": beat},
+                "source": {
+                    "chapter": {"id": "c-1", "shape": "letter"},
+                    "chapter_shape": {
+                        "shape": "letter",
+                        "beats": ["setup", "complication", "turn", "resolution"],
+                        "letter_beat": "turn",
+                    },
+                },
+            }
+
+        return _service(db_session)._day_shape_inputs(user, journey, _Brief(), errata_count=0)
+
+    # The beat the chapter said was the letter.
+    assert inputs_for("turn").chapter_shape == "letter"
+    assert inputs_for("turn").chapter_beat == "turn"
+    # The other three beats of the same chapter are ordinary days: a chapter that
+    # asked for one letter must not spend four.
+    assert inputs_for("setup").chapter_shape is None
+    assert inputs_for("resolution").chapter_shape is None
 
 
 # ---------------------------------------------------------------------------

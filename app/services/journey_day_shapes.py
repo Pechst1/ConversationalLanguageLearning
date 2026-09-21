@@ -327,7 +327,15 @@ def choose_day_shape(inputs: DayShapeInputs) -> DayShapeDecision:
         return DayShapeDecision(
             shape=DayShape.SHORT, reason="missed_previous_day", eligible=pool
         )
-    if (inputs.chapter_shape or "").strip().lower() == str(DayShape.LETTER):
+    if (
+        (inputs.chapter_shape or "").strip().lower() == str(DayShape.LETTER)
+        # …and yesterday was not already a letter day. Rule 2 above binds the
+        # story's overrides too: the resolution beat has always deferred to it
+        # and this branch did not, so two letter chapters back to back — or one
+        # chapter whose letter beat lands the morning after a letter day the
+        # dice dealt — put the learner in front of two identical days (WP-68).
+        and previous is not DayShape.LETTER
+    ):
         # Defensive on purpose: WP-63 is in flight and the key may not exist
         # yet. When it does, a letter chapter without a letter still cannot be
         # a letter day — the pool is the honest floor under every rule here.
