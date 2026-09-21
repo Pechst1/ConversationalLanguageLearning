@@ -203,3 +203,47 @@ def test_generation_retry_keeps_all_guard_feedback(monkeypatch):
         "gendered_address: Use neutral address",
         "inclusive_dot_form: Rephrase naturally",
     ]
+
+
+def _refusing_engine(monkeypatch, clock):
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(settings, "ATELIER_STORY_MAX_ATTEMPTS", 2)
+    monkeypatch.setattr(living_story, "CRITIC_ENABLED", False)
+    monkeypatch.setattr(living_story, "DUAL_DRAFTS_ENABLED", False)
+    monkeypatch.setattr(living_story, "_record_cost", lambda *args, **kwargs: None)
+    monkeypatch.setattr(living_story.time, "monotonic", lambda: clock["now"])
+    calls = []
+
+    def generate(system, payload, schema, on_usage, *, deadline):
+        calls.append(payload)
+        clock["now"] += clock["step"]
+        return SimpleNamespace(), {}
+
+    def validate(proposal):
+        raise living_story.StoryUnavailable("stale_problem", hint="Move on")
+
+    monkeypatch.setattr(living_story, "_json_call", generate)
+    return calls, validate
+
+
+def test_a_bonus_attempt_is_taken_when_a_whole_window_is_left(monkeypatch):
+    """Two guard rejections at ~20 s leave 35 s: spend them instead of losing the day."""
+    import pytest
+
+    clock = {"now": 0.0, "step": 20.0}
+    calls, validate = _refusing_engine(monkeypatch, clock)
+    with pytest.raises(living_story.StoryUnavailable):
+        living_story._approved("director", {}, living_story.SceneDraft, validate, db=None, user=None)
+    assert len(calls) == 3
+
+
+def test_no_bonus_attempt_is_cut_short_by_the_deadline(monkeypatch):
+    """Two timeouts leave 5 s; a third call would be the lie the budget test forbids."""
+    import pytest
+
+    clock = {"now": 0.0, "step": float(living_story.REQUEST_TIMEOUT_SECONDS)}
+    calls, validate = _refusing_engine(monkeypatch, clock)
+    with pytest.raises(living_story.StoryUnavailable):
+        living_story._approved("director", {}, living_story.SceneDraft, validate, db=None, user=None)
+    assert len(calls) == 2

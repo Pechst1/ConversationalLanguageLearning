@@ -29,6 +29,15 @@ import apiService, { SerialCastMember } from '@/services/api';
 
 const AVATAR_REFERENCE_ASSET = 'assets/serial/characters/user/model-sheet.webp';
 
+/* WP-61: the living story's mood per character (-2..2), said in a sentence that needs
+   no gender agreement. A neutral mood says nothing. */
+const MOOD_LINES: Record<number, string> = {
+  [-2]: 'vous en veut encore.',
+  [-1]: 'garde un peu ses distances.',
+  1: 'vous sourit volontiers.',
+  2: 'se réjouit de vous voir.',
+};
+
 function initial(name?: string | null): string {
   if (!name) return '?';
   return name.trim().charAt(0).toUpperCase() || '?';
@@ -255,6 +264,7 @@ function CastCard({ member }: { member: SerialCastMember }) {
     ? Number(member.relationship.register_switch_episode) + 1
     : null;
   const callbacks = (member.relationship.callbacks || []).slice(0, 4);
+  const moodLine = MOOD_LINES[Math.round(Number(member.relationship.mood ?? 0))];
   const episodes = (member.episodes || []).slice(0, 4);
 
   return (
@@ -293,6 +303,10 @@ function CastCard({ member }: { member: SerialCastMember }) {
           {switchEp != null ? `Tutoiement — ép. ${switchEp}` : 'Pas encore de tutoiement'}
         </span>
       </div>
+
+      {moodLine ? (
+        <p className="av2-body cast-mood" lang="fr">{member.name} {moodLine}</p>
+      ) : null}
 
       <div className="cast-ledger">
         <span className="av2-label">Rappels</span>

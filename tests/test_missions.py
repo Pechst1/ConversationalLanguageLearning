@@ -1456,3 +1456,28 @@ def test_mission_correction_drops_write_more_notes_on_a_one_word_reply(db_sessio
 
     assert correction["errata"] == []
     assert correction["corrected_answer"] == "Oui."
+
+
+def test_courrier_reads_the_living_story_mood_and_trust():
+    """WP-61: the Feuilleton's feeling toward the learner reaches the Courrier's character."""
+    from types import SimpleNamespace
+
+    from app.services.missions import MissionScheduler
+
+    thread = SimpleNamespace(
+        state={
+            "relationships": {"romy": {"closeness": 2, "register": "tu", "callbacks": []}},
+            "living_story": {"moods": {"romy": {"mood": -2, "trust": 1}}},
+        }
+    )
+    payload = MissionScheduler._serial_relationship_payload(
+        thread=thread, brief={"required_cast": ["romy", "marin"]}
+    )
+    assert payload["romy"] == {"closeness": 2, "register": "tu", "callbacks": [], "mood": -2, "trust": 1}
+    assert "mood" not in payload["marin"]
+
+    prompt = {"serial_character_id": "romy", "serial_relationships": payload}
+    direction = MissionScheduler.feeling_toward_learner(prompt)
+    assert "hurt" in direction and "guarded" in direction
+    assert MissionScheduler.feeling_toward_learner({**prompt, "serial_character_id": "marin"}) is None
+    assert MissionScheduler.feeling_toward_learner({}) is None

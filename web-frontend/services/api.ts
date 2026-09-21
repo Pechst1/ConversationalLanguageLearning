@@ -1496,6 +1496,8 @@ export interface SerialCastMember {
     register_switch_episode?: number | null;
     last_summary?: string;
     callbacks?: string[];
+    /** WP-61: -2..2, how the character feels about the learner; null before any exchange. */
+    mood?: number | null;
   };
   episodes?: Array<{
     episode_index: number;

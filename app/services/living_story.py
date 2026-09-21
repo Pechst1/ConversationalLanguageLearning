@@ -86,6 +86,10 @@ DUAL_DRAFT_CANDIDATES = 2
 # A module flag like CRITIC_ENABLED: on in production; the scripted providers of the
 # test suites answer one draft per day, so the fixtures switch it off.
 DUAL_DRAFTS_ENABLED = True
+# Live review 2026-09-19: a day is lost when two drafts in a row fail a guard, each
+# after ~20 s — 35 s of the operation budget are then still unspent. One more attempt is
+# taken in exactly that case; it never shortens a window (tests/test_living_story_budget.py).
+BONUS_ATTEMPT_ENABLED = True
 # The authored deck of complications a chapter's second beat draws from, per learner and
 # per chapter (a seeded pick, never the model's favourite): the same life plays a
 # different hand for every learner.
@@ -674,7 +678,14 @@ def _approved(
     # ``evaluate_turn`` answers with an honest authored ending instead (live review
     # 2026-09-19: day 3 died on two critic rejections). A refused *scene* still raises:
     # the journey retries or serves the prefetched one, and never an invented scene.
-    for attempt in range(settings.ATELIER_STORY_MAX_ATTEMPTS):
+    for attempt in range(settings.ATELIER_STORY_MAX_ATTEMPTS + (1 if BONUS_ATTEMPT_ENABLED else 0)):
+        if (
+            attempt >= settings.ATELIER_STORY_MAX_ATTEMPTS
+            and deadline - time.monotonic() < REQUEST_TIMEOUT_SECONDS
+        ):
+            # The bonus attempt is only taken when a whole request window is left:
+            # two guard rejections at ~20 s leave one, two timeouts do not.
+            break
         try:
             if candidates > 1 and attempt == 0:
                 # WP-59: two drafts side by side, every guard on each, the score keeps
@@ -683,7 +694,7 @@ def _approved(
                 request = {**payload, "previous_rejections": feedback}
                 collected: list[list[dict]] = [[] for _ in range(candidates)]
 
-                def draw(index: int):
+                def draw(index: int, request=request, collected=collected):
                     return _json_call(
                         system, request, schema, collected[index].append, deadline=deadline
                     )[0]

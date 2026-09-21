@@ -44,12 +44,23 @@ learner made true is recorded and none is recorded for index 0; the score
 prefers a hurt character and a draft that follows the branch; prompts carry
 the keys.
 
-## Still open
+## Follow-ups closed 2026-09-21
 
-- The reader does not show a character's mood; a small «Romy est froide
-  depuis mardi» line on the cast page is one label away.
-- Trust is not yet read by the Missions planner (Courrier) — the two surfaces
-  still keep separate relationship state (`relationships.closeness`).
+- **The cast page says the mood.** `SerialThreadService.cast_payload` reads
+  `state.living_story.moods` and serves `relationship.mood` (-2..2, `null` before
+  any exchange); `pages/serial/cast.tsx` prints one agreement-free sentence per
+  non-neutral mood («Romy garde un peu ses distances.»). No date is shown — the
+  mood entry does not store one.
+- **The Courrier reads mood and trust.** `MissionScheduler._serial_relationship_payload`
+  folds both into `serial_relationships`, and `MissionConversationService.respond`
+  passes `feeling_toward_learner(...)` to the actor as `how_you_feel_about_them`
+  (tone only; it never blocks the goals). The value is the snapshot taken when the
+  mission was linked to its episode, not a live read. `relationships.closeness`
+  remains the serial's own counter.
+- **A bonus third attempt, inside the budget.** `BONUS_ATTEMPT_ENABLED`: after
+  `ATELIER_STORY_MAX_ATTEMPTS` refusals one more attempt is taken only while a full
+  `REQUEST_TIMEOUT_SECONDS` window is left of the 75 s operation budget — two guard
+  rejections at ~20 s qualify, two timeouts do not. Not yet observed on a live run.
 
 ## Evidence (`atelier-story-review-A2-2026-09-19h.json`, seed `learner-a2-moods`)
 

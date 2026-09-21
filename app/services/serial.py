@@ -1020,6 +1020,10 @@ class SerialThreadService:
         relationships = (thread.state or {}).get("relationships") if isinstance((thread.state or {}).get("relationships"), dict) else {}
         visual_characters = ((world.get("visual_design") or {}).get("characters") or {}) if isinstance(world.get("visual_design"), dict) else {}
         episodes_by_character = self._cast_episode_index(thread)
+        # WP-61: the living story keeps how each character feels about the learner on the
+        # same thread; the cast page is where the learner gets to read it.
+        living = (thread.state or {}).get("living_story")
+        moods = living.get("moods") if isinstance(living, dict) and isinstance(living.get("moods"), dict) else {}
         rows: list[dict[str, Any]] = []
         for member in world.get("cast") or []:
             if not isinstance(member, dict) or not member.get("id"):
@@ -1028,6 +1032,7 @@ class SerialThreadService:
             relationship = relationships.get(character_id, {})
             visual = visual_characters.get(character_id, {}) if isinstance(visual_characters, dict) else {}
             episodes = episodes_by_character.get(character_id, [])
+            feeling = moods.get(character_id) if isinstance(moods.get(character_id), dict) else None
             rows.append(
                 {
                     "id": character_id,
@@ -1042,6 +1047,8 @@ class SerialThreadService:
                         "register_switch_episode": (relationship or {}).get("register_switch_episode"),
                         "last_summary": (relationship or {}).get("last_summary") or "",
                         "callbacks": (relationship or {}).get("callbacks") or [],
+                        # None until the character has been spoken to in the living story.
+                        "mood": max(-2, min(2, int(feeling.get("mood") or 0))) if feeling else None,
                     },
                     "episodes": episodes,
                 }

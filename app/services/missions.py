@@ -3645,10 +3645,43 @@ class MissionScheduler:
     @staticmethod
     def _serial_relationship_payload(*, thread: SerialThread, brief: dict[str, Any]) -> dict[str, Any]:
         relationships = (thread.state or {}).get("relationships") if isinstance((thread.state or {}).get("relationships"), dict) else {}
-        return {
-            str(character_id): relationships.get(str(character_id), {"closeness": 0, "register": "vous", "callbacks": []})
-            for character_id in brief.get("required_cast") or []
-        }
+        # WP-61: one relationship, two surfaces. The living story's mood and trust ride
+        # along so the Courrier's character answers as the person the Feuilleton left.
+        living = (thread.state or {}).get("living_story")
+        moods = living.get("moods") if isinstance(living, dict) and isinstance(living.get("moods"), dict) else {}
+        payload: dict[str, Any] = {}
+        for character_id in brief.get("required_cast") or []:
+            entry = dict(relationships.get(str(character_id)) or {"closeness": 0, "register": "vous", "callbacks": []})
+            feeling = moods.get(str(character_id))
+            if isinstance(feeling, dict):
+                entry["mood"] = max(-2, min(2, int(feeling.get("mood") or 0)))
+                entry["trust"] = max(0, min(5, int(feeling.get("trust") or 0)))
+            payload[str(character_id)] = entry
+        return payload
+
+    @staticmethod
+    def feeling_toward_learner(prompt_payload: dict[str, Any] | None) -> str | None:
+        """In-world stage direction for the addressed character, or None when neutral/unknown."""
+
+        payload = prompt_payload or {}
+        entry = (payload.get("serial_relationships") or {}).get(str(payload.get("serial_character_id") or ""))
+        if not isinstance(entry, dict) or "mood" not in entry:
+            return None
+        mood, trust = int(entry.get("mood") or 0), int(entry.get("trust") or 0)
+        parts = []
+        if mood <= -2:
+            parts.append("you are still hurt by your last exchange with them; be curt until they make amends")
+        elif mood == -1:
+            parts.append("you are a little cool with them since your last exchange")
+        elif mood == 1:
+            parts.append("you are in a warm mood with them")
+        elif mood >= 2:
+            parts.append("you are delighted to hear from them")
+        if trust >= 4:
+            parts.append("you trust them and can confide a small detail")
+        elif trust <= 1:
+            parts.append("you do not trust them much yet; stay guarded")
+        return "; ".join(parts) or None
 
     def _link_serial_episode(
         self,
@@ -3962,6 +3995,7 @@ class MissionConversationService:
         # context out of the prompt — no target vocabulary, learner level, or
         # teaching instructions that would tempt the model into tutor mode.
         success_objectives = (mission.prompt_payload or {}).get("success_objectives") or []
+        feeling = MissionScheduler.feeling_toward_learner(mission.prompt_payload)
         context = json.dumps(
             {
                 "scene_title": mission.title,
@@ -3971,6 +4005,7 @@ class MissionConversationService:
                 "scene_so_far": mission.source_snapshot,
                 "register": messenger.get("target_register") or (mission.prompt_payload or {}).get("target_register"),
                 "branch_state": preliminary_branch,
+                **({"how_you_feel_about_them": feeling} if feeling else {}),
             },
             ensure_ascii=False,
         )
@@ -3996,6 +4031,7 @@ class MissionConversationService:
             "person would ('Pardon, quel jour exactement ?'). "
             "If branch_state is needs_detail, missing_next_step, or tone_mismatch, stay in character but be confused, blocked, or socially "
             "cool, and ask for the missing thing. "
+            "If how_you_feel_about_them is present, let it colour your tone — never state it outright and never let it block the goals. "
             "RESOLUTION: `your_goals_for_this_scene` lists the concrete things that must be settled for this situation to be solved. "
             "Looking at the whole conversation so far, if the other person has handled ALL of those goals, you MUST wrap up now: give "
             "one warm, satisfying closing line that confirms the outcome and the next concrete step, and end with «Bonne journée !» or a "
