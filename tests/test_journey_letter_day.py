@@ -54,8 +54,11 @@ from app.services.living_story import STATE_KEY, story_context
 from app.services.missions import MissionScheduler
 
 #: A fixed thread id: the story-letter die is seeded on it, so the hand dealt
-#: here is the same one in September 2026 and in CI next year.
-THREAD_SEED = UUID("aaaaaaaa-1111-4111-8111-1111111111a1")
+#: here is the same one in September 2026 and in CI next year. Deliberately not
+#: one of `test_story_correspondence.py`'s seeds — the two files share one
+#: SQLite database in a run, and a repeated primary key is a collision, not a
+#: test.
+THREAD_SEED = UUID("eeeeeeee-5555-4555-8555-5555555555e5")
 
 MONDAY = date(2026, 9, 21)
 
