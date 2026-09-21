@@ -470,9 +470,11 @@ def test_the_rehearsal_entry_is_gated_on_the_servers_own_answer() -> None:
 
     source = _read(ATELIER_PAGE)
     assert "apiService.getRehearsalState()" in source
-    assert "Boolean(envelope?.debrief_due)" in source
+    # WP-67: the row also shows while a rehearsal is open, still on the server's answer.
+    assert "envelope?.debrief_due" in source
+    assert "envelope?.rehearsal?.status" in source
     entries = source.split("const homeEntries: HomeEntry[]", 1)[1].split("const homeTiles", 1)[0]
-    assert "rehearsalDue" in entries
+    assert "rehearsalEntry" in entries
     assert "'/repetition'" in entries
     assert "Comment ça s’est passé ?" in entries
 
