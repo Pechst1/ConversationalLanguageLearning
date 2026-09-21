@@ -149,9 +149,23 @@ def main():
         "events": [],
         "commitments": [],
         "recent_situations": [],
+        # WP-62 long memory, as production projects it. The ledgers themselves live in
+        # `live` below; `context` only ever carries their compact projections.
+        "day_index": 0,
+        "chronicle": [],
+        "consequences": [],
+        "plants_due": [],
+        "callback": None,
+        "secrets": engine.secrets_projection(
+            [c["id"] for c in engine._cast_projection(world) if c.get("id")], {}, seed=args.seed
+        ),
         "legacy_beat": None,
     }
     arc_progress: dict = {}
+    # The same shape `state["living_story"]` has in the database, so the review walks
+    # the real writers rather than a second implementation of them.
+    live: dict = {"chronicle": [], "consequences": [], "planted": [], "secrets": {}}
+    cast_ids = [c["id"] for c in engine._cast_projection(world) if c.get("id")]
     try:
         for day in range(args.days):
             scene, _ = engine._approved(
@@ -257,7 +271,57 @@ def main():
             if not current or current.get("resolved") or current.get("exhausted"):
                 current = engine.open_chapter(scene)
             current = engine.chapter_after_scene(current, scene, result, event_id)
-            context["moods"] = engine.moods_after_turn(context["moods"], scene.character_id, result, event_id)
+            moods_before = context["moods"]
+            context["moods"] = engine.moods_after_turn(moods_before, scene.character_id, result, event_id)
+            # WP-62: the same four writers production runs, in the same order.
+            for index, commitment in enumerate(result.commitments):
+                context["commitments"].append(
+                    {
+                        "id": f"{event_id}:{index}",
+                        **commitment.model_dump(),
+                        "status": "open",
+                        "witnesses": witnesses,
+                        "day": day + 1,
+                    }
+                )
+            live["consequences"] = engine.consequences_after_turn(
+                live["consequences"],
+                character_id=scene.character_id,
+                chapter=current,
+                turn=result,
+                event_id=event_id,
+                day=day + 1,
+                moods_before=moods_before,
+                moods_after=context["moods"],
+                commitments=context["commitments"],
+            )
+            if scene.callback_ref:
+                live["consequences"] = engine.mark_consequence_referenced(
+                    live["consequences"], scene.callback_ref, day + 1
+                )
+            live["chronicle"] = engine.chronicle_after_chapter(
+                live["chronicle"],
+                chapter=current,
+                draft=scene,
+                turn=result,
+                event_id=event_id,
+                day=day + 1,
+            )
+            live["planted"] = engine.plants_after_scene(
+                live["planted"],
+                draft=scene,
+                chapter=current,
+                event_id=event_id,
+                day=day + 1,
+                chapter_index=len(context["resolved_chapter_questions"]) + 1,
+            )
+            live["secrets"] = engine.secrets_after_turn(
+                live["secrets"],
+                scene.character_id,
+                scene.secret_shift,
+                result.secret_shift,
+                allowed_reveal=engine.secrets_projection(cast_ids, live["secrets"], seed=args.seed)["next"],
+            )
             if current.get("resolved"):
                 context["resolved_chapter_questions"].append(current["dramatic_question"])
             arc_progress = engine.arc_progress_after_scene(
@@ -277,15 +341,17 @@ def main():
                 context["world"]["cast"],
                 context["world"]["locations"],
             )
-            for i, commitment in enumerate(result.commitments):
-                context["commitments"].append(
-                    {
-                        "id": f"{event_id}:{i}",
-                        **commitment.model_dump(),
-                        "status": "open",
-                        "witnesses": witnesses,
-                    }
-                )
+            chapter_index = len(context["resolved_chapter_questions"]) + 1
+            live["chapter"] = context["chapter"]
+            live["resolved_chapter_questions"] = context["resolved_chapter_questions"]
+            context["day_index"] = day + 1
+            context["chronicle"] = engine.chronicle_for_prompt(live["chronicle"])
+            context["consequences"] = engine.top_consequences(live["consequences"], day=day + 1)
+            context["plants_due"] = engine.plants_due(live["planted"], chapter_index=chapter_index)
+            context["callback"] = engine.callback_candidate(
+                live, seed=args.seed, beat=engine.required_beats(context["chapter"])[0]
+            )
+            context["secrets"] = engine.secrets_projection(cast_ids, live["secrets"], seed=args.seed)
             print(
                 f"Synthetic scene {day + 1}: accepted; {calls}/{args.max_requests} requests used.",
                 flush=True,

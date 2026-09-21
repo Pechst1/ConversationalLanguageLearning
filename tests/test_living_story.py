@@ -1602,3 +1602,411 @@ def test_the_score_prefers_a_hurt_character_and_a_draft_that_follows_the_branch(
     follows = engine.SceneDraft.model_validate({**draft(base, 1), "premise_fr": "Romy a trouvé une salle pour l'exposition dans le quartier, mais elle est trop petite."}).model_copy(update={"chapter": plain.chapter})
     ignores = engine.SceneDraft.model_validate({**draft(base, 1), "premise_fr": "Marin fait tomber une bague au comptoir du Mistral."}).model_copy(update={"chapter": plain.chapter})
     assert engine._scene_score(follows, branched) > engine._scene_score(ignores, branched)
+
+
+# ---------------------------------------------------------------------------
+# WP-62 — la mémoire longue: chronicle, consequences, plants, callbacks, secrets
+# ---------------------------------------------------------------------------
+
+
+def _wp62_scene(context=None, n=0, **over):
+    context = context if context is not None else _scene_context()
+    return engine.SceneDraft.model_validate({**draft(context, n), **over})
+
+
+def test_a_resolved_chapter_folds_into_one_chronicle_digest():
+    """Day 100 cannot reference day 5 through a rolling tail of forty events. It can
+    through a digest per chapter, written once, when the chapter closes."""
+
+    scene = _wp62_scene(beat="resolution")
+    turn = _wp61_turn(
+        development_index=1,
+        callback_fr="La salle du quartier est réservée pour samedi.",
+        evidence_quotes=["Je réserve la salle."],
+    )
+    opened = engine.open_chapter(scene)
+
+    # An open chapter writes nothing: a digest is what closing costs.
+    still_open = engine.chapter_after_scene(
+        opened, scene.model_copy(update={"beat": "setup"}), turn, "e0"
+    )
+    assert engine.chronicle_after_chapter(
+        [], chapter=still_open, draft=scene, turn=turn, event_id="e0", day=1
+    ) == []
+
+    chapter = engine.chapter_after_scene(opened, scene, turn, "e1")
+    chronicle = engine.chronicle_after_chapter(
+        [], chapter=chapter, draft=scene, turn=turn, event_id="e1", day=4
+    )
+    row = chronicle[0]
+    assert row["day"] == 4 and row["title_fr"] == chapter["title_fr"]
+    assert row["question"] == chapter["dramatic_question"]
+    assert row["resolved_fr"] == "La salle du quartier est réservée pour samedi."
+    assert row["development"] == scene.chapter.possible_developments[0]
+    assert row["quote"] == "Je réserve la salle."
+    assert row["location_id"] == scene.location_id and "romy_tremblay" in row["characters"]
+    assert engine.chronicle_after_chapter(
+        chronicle, chapter=chapter, draft=scene, turn=turn, event_id="e1", day=4
+    ) == chronicle, "idempotent per event: a replayed settle writes no second digest"
+
+    # A chapter replaced because its commitments ran out never wrote a resolution
+    # beat, and used to vanish without trace. It is remembered too.
+    exhausted = {**opened, "resolved_commitments": engine.CHAPTER_RESOLVED_COMMITMENT_LIMIT}
+    assert engine.chapter_closing(exhausted) is True
+    assert engine.chronicle_after_chapter(
+        [], chapter=exhausted, draft=scene, turn=turn, event_id="e2", day=6
+    )
+
+
+def test_the_chronicle_folds_into_a_season_and_still_knows_the_first_week():
+    scene = _wp62_scene(beat="resolution")
+    chronicle: list[dict] = []
+    for index in range(30):
+        chapter = {
+            **engine.open_chapter(scene),
+            "id": f"c{index}",
+            "resolved": True,
+            "title_fr": f"Chapitre {index}",
+            "dramatic_question": f"Question {index} ?",
+            "last_development": f"Développement {index}.",
+        }
+        chronicle = engine.chronicle_after_chapter(
+            chronicle,
+            chapter=chapter,
+            draft=scene,
+            turn=_wp61_turn(callback_fr=f"Fin du chapitre {index}.", evidence_quotes=[f"Jour {index}."]),
+            event_id=f"e{index}",
+            day=index * 4 + 1,
+        )
+
+    detailed = [row for row in chronicle if row.get("kind") != "season"]
+    assert len(detailed) == engine.CHRONICLE_DETAIL_CHAPTERS
+    season = chronicle[0]
+    assert season["kind"] == "season"
+    assert season["chapters"] == 30 - engine.CHRONICLE_DETAIL_CHAPTERS
+    assert season["from_day"] == 1 and season["to_day"] == (30 - engine.CHRONICLE_DETAIL_CHAPTERS - 1) * 4 + 1
+    assert len(season["facts"]) == engine.CHRONICLE_SEASON_FACTS
+    assert "Chapitre 0" in season["facts"][0], (
+        "the beginning of a life is the part a long memory keeps"
+    )
+
+    lines = engine.chronicle_for_prompt(chronicle)
+    assert sum(len(line) + 1 for line in lines) <= engine.CHRONICLE_PROMPT_CHARS
+    assert any("Chapitre 0" in line for line in lines)
+    assert any("Chapitre 29" in line for line in lines)
+
+    # And when the lines themselves are long, the trim takes the middle out: both
+    # ends of the life survive, which is what a reader of a serial remembers.
+    fat = [
+        {**row, "title_fr": "T" * 60, "question": "Q" * 60}
+        for row in detailed
+    ]
+    trimmed = engine.chronicle_for_prompt([season, *fat])
+    assert sum(len(line) + 1 for line in trimmed) <= engine.CHRONICLE_PROMPT_CHARS
+    assert trimmed[0] == season["facts"][0] and "T" * 60 in trimmed[-1]
+
+
+def test_consequences_outlive_their_chapter_and_trust_never_decays():
+    chapter = {"id": "c1", "resolved": True, "last_development": "Romy part à Montréal sans vous."}
+    turn = _wp61_turn(
+        development_index=2,
+        feeling_shift="colder",
+        callback_fr="Romy est partie fâchée.",
+        evidence_quotes=["Je ne viens pas."],
+    )
+    before = {"romy_tremblay": {"mood": -1, "trust": 2}}
+    after = engine.moods_after_turn(before, "romy_tremblay", turn, "e1")
+    rows = engine.consequences_after_turn(
+        [],
+        character_id="romy_tremblay",
+        chapter=chapter,
+        turn=turn,
+        event_id="e1",
+        day=7,
+        moods_before=before,
+        moods_after=after,
+        commitments=[],
+    )
+    assert {row["kind"] for row in rows} == {"branch", "mood_break"}
+    branch = next(row for row in rows if row["kind"] == "branch")
+    assert branch["text_fr"] == "Romy part à Montréal sans vous."
+    assert branch["quote"] == "Je ne viens pas." and branch["weight"] == 3
+    assert branch["day"] == 7 and branch["last_referenced"] is None
+    assert next(row for row in rows if row["kind"] == "mood_break")["weight"] == 3
+    assert engine.consequences_after_turn(
+        rows,
+        character_id="romy_tremblay",
+        chapter=chapter,
+        turn=turn,
+        event_id="e1",
+        day=7,
+        moods_before=before,
+        moods_after=after,
+        commitments=[],
+    ) == rows, "idempotent per event"
+
+    # Chapters come and go; the ledger does not. Forty days later it is still read.
+    assert [row["id"] for row in engine.top_consequences(rows, day=47)] == [
+        row["id"] for row in rows
+    ]
+    # ...and a row a scene really used sinks for a while instead of being replayed.
+    used = engine.mark_consequence_referenced(rows, branch["id"], 46)
+    assert engine.top_consequences(used, day=47)[0]["kind"] == "mood_break"
+
+    # Only surface mood decays. Trust is what the learner earned; a week off does
+    # not take it away.
+    drifted = engine.moods_after_turn(
+        {"lila_bonnet": {"mood": 2, "trust": 4}}, "romy_tremblay", _wp61_turn(), "e9"
+    )
+    assert drifted["lila_bonnet"]["mood"] == 1
+    assert drifted["lila_bonnet"]["trust"] == 4
+
+
+def test_a_promise_nobody_ever_kept_becomes_one_consequence():
+    commitments = [
+        {
+            "id": "c0",
+            "text_fr": "Apporter les affiches samedi.",
+            "source_quote": "Je les apporte samedi.",
+            "status": "open",
+            "witnesses": ["romy_tremblay"],
+            "day": 1,
+        }
+    ]
+
+    def ledger(rows, *, day, event_id):
+        return engine.consequences_after_turn(
+            rows,
+            character_id="marin_leveque",
+            chapter={"id": "ch"},
+            turn=_wp61_turn(),
+            event_id=event_id,
+            day=day,
+            moods_before={},
+            moods_after={},
+            commitments=commitments,
+        )
+
+    early = ledger([], day=engine.COMMITMENT_LAPSE_DAYS, event_id="e1")
+    assert early == [] and "lapsed_at" not in commitments[0]
+    late = ledger([], day=engine.COMMITMENT_LAPSE_DAYS + 1, event_id="e2")
+    assert [row["kind"] for row in late] == ["commitment_broken"]
+    assert late[0]["character_id"] == "romy_tremblay", "the person who was promised"
+    assert late[0]["weight"] == 3 and late[0]["quote"] == "Je les apporte samedi."
+    assert commitments[0]["lapsed_at"] == engine.COMMITMENT_LAPSE_DAYS + 1
+    assert commitments[0]["status"] == "open", (
+        "a promise nobody kept is still owed; the engine does not cancel it"
+    )
+    assert ledger(late, day=40, event_id="e3") == late, "recorded once, not every day"
+
+    # Keeping one is a consequence too.
+    commitments[0].update(status="resolved", resolved_by="e4")
+    kept = ledger([], day=12, event_id="e4")
+    assert [row["kind"] for row in kept] == ["commitment_kept"]
+
+
+def test_an_unpaid_plant_comes_back_to_the_director_until_a_scene_pays_it():
+    planter = _wp62_scene(plant_fr="Une clé en cuivre reste sur le comptoir du Mistral.")
+    planted = engine.plants_after_scene(
+        [], draft=planter, chapter={"id": "c1"}, event_id="e1", day=2, chapter_index=1
+    )
+    assert planted[0]["status"] == "open"
+    assert planted[0]["text_fr"] == "Une clé en cuivre reste sur le comptoir du Mistral."
+    assert engine.plants_due(planted, chapter_index=1) == [], "a fresh plant is not yet owed"
+    due = engine.plants_due(planted, chapter_index=1 + engine.PLANT_OVERDUE_CHAPTERS)
+    assert [row["id"] for row in due] == [planted[0]["id"]]
+
+    payer = _wp62_scene(n=1, pays_plant_id=planted[0]["id"])
+    paid = engine.plants_after_scene(
+        planted, draft=payer, chapter={"id": "c2"}, event_id="e2", day=9, chapter_index=3
+    )
+    assert paid[0]["status"] == "paid" and paid[0]["paid_by"] == "e2" and paid[0]["paid_day"] == 9
+    assert engine.plants_due(paid, chapter_index=99) == []
+    # An id nobody holds is a no-op, never a lost day.
+    stray = _wp62_scene(n=2, pays_plant_id="nobody")
+    assert engine.plants_after_scene(
+        paid, draft=stray, chapter={"id": "c3"}, event_id="e3", day=11, chapter_index=4
+    ) == paid
+
+
+def test_a_callback_to_a_past_that_never_happened_is_refused():
+    """The one memory defect a prompt can never be trusted with: a character who
+    remembers a promise the learner never made."""
+
+    context = _scene_context(
+        chronicle=[
+            "j5 · La cave inondée — Comment vider la cave ? → Vous avez descendu les seaux."
+        ],
+        consequences=[
+            {
+                "id": "x:branch:0",
+                "kind": "branch",
+                "text_fr": "Vous avez promis d'aider Marin à déménager.",
+                "quote": "Je t'aide.",
+                "weight": 3,
+                "day": 5,
+            }
+        ],
+    )
+    invented = _wp62_scene(
+        context, callback_fr="Gus n'a jamais rendu la trompette qu'il avait empruntée."
+    )
+    with pytest.raises(engine.StoryUnavailable, match="fabricated_callback") as caught:
+        engine._validate_scene(invented, context)
+    assert caught.value.hint and "leave callback_fr empty" in caught.value.hint
+
+    grounded = _wp62_scene(
+        context,
+        callback_fr="Vous aviez promis d'aider Marin à déménager samedi.",
+        callback_ref="x:branch:0",
+    )
+    engine._validate_scene(grounded, context)
+    assert grounded.callback_ref == "x:branch:0"
+
+    # Grounded in the text but citing an id nobody holds: the scene stands, the
+    # provenance is dropped — as unknown source_event_ids already are.
+    stray = _wp62_scene(
+        context, callback_fr="La cave inondée a été vidée avec des seaux.", callback_ref="nope"
+    )
+    engine._validate_scene(stray, context)
+    assert stray.callback_ref is None
+
+    # On day one nothing has happened, so every callback is invented.
+    with pytest.raises(engine.StoryUnavailable, match="fabricated_callback"):
+        engine._validate_scene(
+            _wp62_scene(callback_fr="Vous aviez promis d'aider Marin."), _scene_context()
+        )
+
+
+def test_the_score_rewards_a_scene_that_uses_the_callback_it_was_offered():
+    candidate = {
+        "id": "x:branch:0",
+        "kind": "branch",
+        "text_fr": "Vous avez promis d'aider Marin à déménager.",
+        "day": 5,
+        "character_id": "marin_leveque",
+    }
+    context = _scene_context(
+        callback=candidate,
+        plants_due=[{"id": "p1", "text_fr": "Une clé en cuivre est restée sur le comptoir."}],
+        chronicle=["j2 · La cave inondée — Comment vider la cave ? → Les seaux sont descendus."],
+    )
+    plain = _wp62_scene(context)
+    offered = _wp62_scene(
+        context,
+        callback_fr="Vous avez promis d'aider Marin à déménager.",
+        callback_ref="x:branch:0",
+    )
+    elsewhere = _wp62_scene(context, callback_fr="La cave inondée a été vidée avec des seaux.")
+    pays = _wp62_scene(context, pays_plant_id="p1")
+    assert engine._scene_score(offered, context) > engine._scene_score(elsewhere, context)
+    assert engine._scene_score(elsewhere, context) > engine._scene_score(plain, context)
+    assert engine._scene_score(pays, context) > engine._scene_score(plain, context)
+
+
+def test_two_lives_are_dealt_different_callbacks_and_each_life_the_same_ones():
+    live = {
+        "consequences": [
+            {"id": f"e{i}:branch:0", "kind": "branch", "text_fr": f"Choix {i}.", "weight": 1 + i % 3, "day": i}
+            for i in range(6)
+        ],
+        "chronicle": [
+            {"kind": "season", "season": 1, "facts": [f"j{i} · Chapitre {i} — fini." for i in range(5)]},
+            {"id": "c9", "day": 40, "title_fr": "Le dernier", "resolved_fr": "Réglé.", "characters": ["romy_tremblay"]},
+        ],
+    }
+
+    def dealt(seed):
+        return [
+            (engine.callback_candidate({**live, "resolved_chapter_questions": ["q"] * n}, seed=seed) or {}).get("id")
+            for n in range(8)
+        ]
+
+    assert dealt("thread-a") == dealt("thread-a"), "reproducible for one learner"
+    assert dealt("thread-a") != dealt("thread-b"), "different lives, different memories"
+    # A folded season fact is still in the deck: this is how day 5 reaches day 100.
+    assert any(str(value).startswith("season:") for value in dealt("thread-a") + dealt("thread-b"))
+    # Only a setup beat gets one; mid-chapter the story already has its thread.
+    assert engine.callback_candidate(live, seed="thread-a", beat="turn") is None
+    assert engine.callback_candidate({}, seed="thread-a") is None
+
+
+def test_secrets_are_state_and_the_reveal_order_is_seeded():
+    cast = ["romy_tremblay", "marin_leveque", "lila_bonnet", "margaux_barman", "gus_pellerin"]
+    one = engine.secrets_projection(cast, {}, seed="thread-1")
+    two = engine.secrets_projection(cast, {}, seed="thread-2")
+    assert sorted(one["order"]) == sorted(cast) and one["order"] != two["order"]
+    assert engine.secrets_projection(cast, {}, seed="thread-1")["order"] == one["order"]
+    assert set(one["states"].values()) == {"hidden"} and one["next"] == one["order"][0]
+
+    hinted = engine.secrets_after_turn({}, "lila_bonnet", "hinted", None, allowed_reveal=one["next"])
+    assert hinted["lila_bonnet"] == "hinted"
+    # A reveal out of turn is downgraded to a hint, never refused: a deterministic
+    # repair must not cost the learner their day (the WP-58 rule).
+    out_of_turn = next(member for member in cast if member != one["next"])
+    assert (
+        engine.secrets_after_turn({}, out_of_turn, None, "revealed", allowed_reveal=one["next"])[out_of_turn]
+        == "hinted"
+    )
+    assert (
+        engine.secrets_after_turn({}, one["next"], None, "revealed", allowed_reveal=one["next"])[one["next"]]
+        == "revealed"
+    )
+    assert (
+        engine.secrets_after_turn({"lila_bonnet": "revealed"}, "lila_bonnet", "hinted")["lila_bonnet"]
+        == "revealed"
+    ), "a secret never goes back in"
+    assert engine.secrets_after_turn({}, "romy_tremblay", None, None) == {}
+    moved = engine.secrets_projection(cast, {one["order"][0]: "revealed"}, seed="thread-1")
+    assert moved["next"] == one["order"][1]
+
+
+def test_both_prompts_carry_the_long_memory():
+    for word in (
+        "chronicle",
+        "consequences",
+        "callback_fr",
+        "callback_ref",
+        "plants_due",
+        "plant_fr",
+        "pays_plant_id",
+        "secret_shift",
+        "secrets.next",
+    ):
+        assert word in engine.DIRECTOR, word
+    for word in ("story.consequences", "story.secrets", "secret_shift"):
+        assert word in engine.ACTOR, word
+
+
+def test_the_long_memory_reaches_the_director_but_not_the_character(
+    assembled_client, db_session, journey_enabled, clock, provider
+):
+    """The ledgers are written from a real settled day, and the knowledge boundary
+    holds: the chronicle and today's callback are the director's planning surface."""
+
+    d = driver(assembled_client, db_session)
+    d.create()
+    d.play(answer="Je peux apporter les affiches samedi.")
+    d.finish("complete")
+
+    thread = db_session.scalar(select(SerialThread).where(SerialThread.user_id == d.user_id))
+    db_session.refresh(thread)
+    live = (thread.state or {})[engine.STATE_KEY]
+    assert live["day_index"] == 1
+    assert live["commitments"][0]["day"] == 1
+    assert live["consequences"] == [] or all(row["day"] == 1 for row in live["consequences"])
+    assert "chronicle" in live and "planted" in live and "secrets" in live
+
+    clock.advance(days=1)
+    d.create()
+    director = [payload for schema, payload in provider.calls if schema == "SceneDraft"][-1]
+    for key in ("chronicle", "consequences", "plants_due", "callback", "secrets", "day_index"):
+        assert key in director, key
+    assert director["day_index"] == 1
+    assert director["secrets"]["states"] and director["secrets"]["next"]
+
+    d.play(answer="Les affiches sont prêtes pour samedi.")
+    actor = [payload for schema, payload in provider.calls if schema == "SemanticTurn"][-1]
+    assert "chronicle" not in actor["story"] and "callback" not in actor["story"]
+    assert "plants_due" not in actor["story"]
+    assert set(actor["story"]["secrets"]) == {"romy_tremblay"}

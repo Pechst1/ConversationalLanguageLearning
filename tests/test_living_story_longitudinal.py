@@ -119,6 +119,45 @@ QUESTIONS = [
 ]
 
 
+# WP-62: a 120-day life answers thirty chapter questions, and the list above holds
+# nine. Past that the fixture composes one out of two disjoint word banks — any two
+# compositions share at most a third of their content words, far below the engine's
+# 0.6 repetition threshold, so a long run is limited by the engine and not by how many
+# questions a test author happened to type.
+LONG_HAUL_SUBJECTS = [
+    "Le concierge retrouvera-t-il son trousseau",
+    "La fanfare jouera-t-elle sous la verrière",
+    "Le pâtissier acceptera-t-il cette commande",
+    "La brocanteuse rendra-t-elle le miroir",
+    "Le violoniste reviendra-t-il jouer",
+    "La libraire gardera-t-elle sa vitrine",
+    "Le plombier terminera-t-il la colonne",
+    "La fleuriste sauvera-t-elle ses lilas",
+]
+LONG_HAUL_STAKES = [
+    "avant la fête des voisins",
+    "malgré cette promesse oubliée",
+    "sans prévenir la gardienne",
+    "pendant la grève du canal",
+    "après cette longue brouille",
+    "quand tombera la première neige",
+    "si personne ne veut payer",
+]
+
+
+def _composed_question(n: int, retired: set[str]) -> str:
+    subjects, stakes = LONG_HAUL_SUBJECTS, LONG_HAUL_STAKES
+    for step in range(len(subjects) * len(stakes)):
+        index = n + step
+        text = f"{subjects[index % len(subjects)]} {stakes[(index // len(subjects)) % len(stakes)]} ?"
+        if text.casefold() in retired:
+            continue
+        if any(engine._premise_overlap(text, past) >= 0.6 for past in retired):
+            continue
+        return text
+    return f"{subjects[n % len(subjects)]} {stakes[n % len(stakes)]} ?"
+
+
 def _fresh_question(context, n=0):
     """The n-th chapter question, skipping any this life has already answered (WP-58:
     four-scene chapters open more chapters in fourteen days than the list has entries)."""
@@ -127,7 +166,10 @@ def _fresh_question(context, n=0):
     if current:
         retired.add(str(current).casefold())
     ordered = [QUESTIONS[(n + i) % len(QUESTIONS)] for i in range(len(QUESTIONS))]
-    return next((q for q in ordered if q.casefold() not in retired), ordered[0])
+    return next(
+        (q for q in ordered if q.casefold() not in retired),
+        _composed_question(n, retired),
+    )
 
 
 CAST = {
@@ -177,6 +219,10 @@ class ScriptedProvider:
         self.turn = TurnScript()
         self.reject = False
         self.transform = lambda schema, value: value
+        # WP-62: when set, the fake director behaves like a compliant one — it takes
+        # the callback the engine offered, pays an overdue plant, and plants a new
+        # detail. Off by default so every older test keeps the exact draft it pinned.
+        self.long_memory = False
 
     # -- context accessors used by assertions ---------------------------
     def director_contexts(self) -> list[dict]:
@@ -222,7 +268,19 @@ class ScriptedProvider:
             dialogue.append(
                 {"character_id": self.scene.extra_speaker, "text_fr": "Moi j'ai le temps."}
             )
+        memory: dict[str, Any] = {}
+        if self.long_memory:
+            offered = context.get("callback") or {}
+            due = (context.get("plants_due") or [{}])[0]
+            memory = {
+                "callback_fr": offered.get("text_fr") or "",
+                "callback_ref": offered.get("id"),
+                "pays_plant_id": due.get("id"),
+                "plant_fr": f"Un carnet {n} reste ouvert sur la table.",
+                "secret_shift": "hinted" if n % 7 == 0 else None,
+            }
         return {
+            **memory,
             "title_fr": f"Le quartier {n}",
             "premise_fr": PREMISES[n % len(PREMISES)],
             "setup_native": "A small neighborhood question needs an answer.",
@@ -1209,3 +1267,147 @@ def test_a_promise_restated_on_a_later_day_stays_one_open_commitment(
         turn=TurnScript(commitment_text="Apporter les affiches samedi.", commitment_quote=third),
     )
     assert len([c for c in live_state(db_session, d)["commitments"] if c["status"] == "open"]) == 2
+
+
+# ---------------------------------------------------------------------------
+# WP-62 — la mémoire longue over a hundred and twenty days
+# ---------------------------------------------------------------------------
+
+
+LONG_RUN_DAYS = 120
+# The one fact this test follows from one end of the run to the other. It is said
+# inside the first five days and nowhere else.
+FIRST_WEEK_FACT = "Vous avez vidé la cave inondée avec deux seaux."
+
+
+def _director_context(provider, day: int) -> dict:
+    return provider.director_contexts()[day - 1]
+
+
+def test_day_one_hundred_still_knows_the_first_week_and_the_context_stays_bounded(
+    assembled_client, db_session, journey_enabled, clock, provider
+):
+    """The finding WP-62 exists for: «memory is a flat tail — events[-40],
+    story_so_far[-8]; nothing is compacted, so day 100 cannot reference day 5.»
+
+    One learner, a hundred and twenty consecutive days through the assembled API.
+    Nothing here asserts that the French is good; it asserts that the record of this
+    life survives, stays bounded, and reaches the director.
+    """
+
+    provider.long_memory = True
+    d = driver(assembled_client, db_session, cefr="A2.2")
+    speakers = [CAST["romy"], CAST["margaux"], CAST["lila"]]
+    for day in range(1, LONG_RUN_DAYS + 1):
+        play_day(
+            d,
+            provider,
+            answer=f"Je m'en occupe, jour {day}.",
+            # Two days each in turn: a mood only reaches the edge of its range when
+            # the same person is moved twice before the week drifts them back.
+            scene=SceneScript(character_id=speakers[(day // 2) % len(speakers)]),
+            turn=TurnScript(
+                callback_fr=FIRST_WEEK_FACT if day == 4 else f"Vous avez répondu le jour {day}.",
+                summary_native=f"You answered on day {day}.",
+                commitment_text=f"Passer voir le voisin, jour {day}." if day % 9 == 1 else None,
+                resolve_open_commitments=day % 9 == 3,
+                extra={"development_index": 1 + day % 2, "feeling_shift": "colder" if day % 6 == 0 else "warmer"},
+            ),
+        )
+        clock.advance(days=1)
+
+    live = live_state(db_session, d)
+    assert live["day_index"] == LONG_RUN_DAYS, "the day counter outlives the forty-event tail"
+    assert len(live["events"]) == engine.MAX_HISTORY, "the tail is still a tail"
+
+    # 1. The chronicle: a digest per chapter, folded into a season once it is long.
+    chronicle = live["chronicle"]
+    seasons = [row for row in chronicle if row.get("kind") == "season"]
+    detailed = [row for row in chronicle if row.get("kind") != "season"]
+    assert len(detailed) == engine.CHRONICLE_DETAIL_CHAPTERS
+    assert len(seasons) == 1 and seasons[0]["chapters"] >= 15
+    assert seasons[0]["from_day"] <= 5, "the first chapter of this life closed in week one"
+    facts = " ".join(seasons[0]["facts"])
+    assert FIRST_WEEK_FACT in facts, (
+        "the fact from day four is still in the record on day one hundred and twenty"
+    )
+
+    # 2. It reaches the director, on day 100 and on the last day, inside its budget.
+    for day in (100, LONG_RUN_DAYS):
+        context = _director_context(provider, day)
+        assert FIRST_WEEK_FACT in " ".join(context["chronicle"]), (
+            f"day {day} lost the first week"
+        )
+        assert sum(len(line) + 1 for line in context["chronicle"]) <= engine.CHRONICLE_PROMPT_CHARS
+        assert len(context["consequences"]) <= engine.CONSEQUENCE_PROMPT_LIMIT
+        assert len(context["plants_due"]) <= engine.PLANT_PROMPT_LIMIT
+        assert context["day_index"] == day - 1
+
+    # 3. Bounded: the long memory does not grow with the horizon. The whole prompt
+    #    payload on day 120 is no larger than it was on day 20.
+    def prompt_size(day: int) -> int:
+        return len(json.dumps(_director_context(provider, day), ensure_ascii=False))
+
+    assert prompt_size(LONG_RUN_DAYS) <= prompt_size(20) * 1.6, (
+        "a hundred days of memory must not be a hundred days of prompt"
+    )
+    assert len(live["consequences"]) <= engine.CONSEQUENCE_LEDGER_LIMIT
+    assert len([p for p in live["planted"] if p["status"] != "paid"]) <= engine.PLANT_LEDGER_LIMIT
+
+    # 4. The ledgers are not merely present, they are being used.
+    assert any(row["kind"] == "branch" for row in live["consequences"])
+    assert any(row["kind"] == "mood_break" for row in live["consequences"])
+    assert any(row["kind"] == "commitment_kept" for row in live["consequences"])
+    assert any(row["kind"] == "commitment_broken" for row in live["consequences"]), (
+        "a promise nobody kept for ten days is a consequence"
+    )
+    assert any(row["last_referenced"] for row in live["consequences"]), (
+        "a scene really did build on a ledger row"
+    )
+    assert any(plant["status"] == "paid" for plant in live["planted"]), "a plant was paid off"
+    assert set(live["secrets"].values()) <= {"hinted", "revealed"} and live["secrets"]
+
+    # 5. Trust is not eroded by the passage of time; only surface mood decays.
+    assert any(int(entry.get("trust") or 0) > 0 for entry in live["moods"].values())
+
+
+def test_two_lives_are_offered_different_memories(
+    assembled_client, db_session, journey_enabled, clock, provider
+):
+    """Principle 1: non-deterministic, not random. The callback each life is dealt
+    comes from its own seeded dice, so two learners living the same scripted fortnight
+    are not handed the same memory on the same day."""
+
+    provider.long_memory = True
+    offered: list[list[str]] = []
+    for _ in range(2):
+        d = driver(assembled_client, db_session, cefr="A2.2")
+        for day in range(1, 13):
+            play_day(
+                d,
+                provider,
+                answer=f"Je m'en occupe, jour {day}.",
+                turn=TurnScript(
+                    callback_fr=f"Vous avez répondu le jour {day}.",
+                    extra={"development_index": 1 + day % 2},
+                ),
+            )
+            clock.advance(days=1)
+        thread = thread_of(db_session, d)
+        db_session.refresh(thread)
+        live = dict((thread.state or {}).get(engine.STATE_KEY) or {})
+        seed = str(thread.id)
+        offered.append(
+            [
+                (engine.callback_candidate({**live, "resolved_chapter_questions": ["q"] * n}, seed=seed) or {}).get("id")
+                for n in range(8)
+            ]
+        )
+        assert offered[-1] == [
+            (engine.callback_candidate({**live, "resolved_chapter_questions": ["q"] * n}, seed=seed) or {}).get("id")
+            for n in range(8)
+        ], "reproducible for this learner"
+        clock.advance(days=1)
+
+    assert all(any(value for value in row) for row in offered)
+    assert offered[0] != offered[1], "two threads, two sets of dice"
