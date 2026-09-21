@@ -318,6 +318,10 @@ def main():
                 live["chapters_total"] = engine.chapters_total(live) + 1
                 live["season_chapters"] = int(live.get("season_chapters") or 0) + 1
             current = engine.chapter_after_scene(current, scene, result, event_id)
+            # Production stamps every situation with its chapter; three guards and the
+            # `already_asked` projection read it. Paid A2 re-run 2026-09-21: without it
+            # the review never exercised them and lost day 7 to its own chapter.
+            context["recent_situations"][-1]["chapter_title_fr"] = current.get("title_fr")
             moods_before = context["moods"]
             context["moods"] = engine.moods_after_turn(moods_before, scene.character_id, result, event_id)
             # WP-62: the same four writers production runs, in the same order.
@@ -431,7 +435,9 @@ def main():
                     threads=engine.threads_projection(world, live),
                 )
             )
-            context["chapter"] = engine.chapter_state({"chapter": current})
+            context["chapter"] = engine.chapter_state(
+                {"chapter": current, "recent_situations": context["recent_situations"]}
+            )
             context["variety"] = engine._variety(
                 context["recent_situations"],
                 context["world"]["cast"],

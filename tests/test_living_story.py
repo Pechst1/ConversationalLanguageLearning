@@ -2573,3 +2573,17 @@ def test_the_director_is_told_what_the_open_chapter_already_asked():
     assert projected["already_asked"] == ["Offer two times.", "Choose a time."]
     assert "already_asked" not in live["chapter"], "a projection, never stored"
     assert "chapter.already_asked" in engine.DIRECTOR
+
+
+def test_a_parenthetical_constraint_is_not_a_second_ask():
+    """Paid A2 re-run 2026-09-21: "(one sentence, max two short clauses)" cost a day."""
+
+    engine._check_objective_scope(
+        "Write one short sentence in French that Lila can write to Marin to propose a calm, "
+        "private meeting tomorrow (one sentence, max two short clauses).",
+        "A2",
+    )
+    with pytest.raises(engine.StoryUnavailable, match="objective_too_complex"):
+        engine._check_objective_scope(
+            "Greet Marin, then ask about the ring, and also propose a time, and explain why.", "A2"
+        )

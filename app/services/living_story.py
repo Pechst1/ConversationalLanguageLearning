@@ -3114,6 +3114,10 @@ def _check_objective_scope(objective: str, level: str | None) -> None:
     limits = _OBJECTIVE_LIMITS.get(str(level or ""))
     if not limits:
         return
+    # The director's own "(one sentence, max two short clauses)" is a constraint on the
+    # answer, not a second ask; counting it refused a one-act A2 objective three drafts
+    # running (paid A2 re-run 2026-09-21).
+    objective = re.sub(r"\([^)]*\)", " ", objective)
     separators, words = limits
     found = len(_OBJECTIVE_SEPARATORS.findall(objective))
     if found > separators or len(objective.split()) > words:
