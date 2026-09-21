@@ -509,6 +509,8 @@ to love: let characters remember, tease, worry, confide. moods lists, per charac
 their mood (-2 hurt … +2 glowing) and trust (0–5) toward the learner as the last
 scenes left them: write the character as they feel NOW — a hurt character is guarded,
 a trusting one confides — and let the learner's last choice have consequences.
+variety.act_rule says what kind of act the learner may be asked for: a life is not a
+string of people asking for advice — follow it.
 chapter.already_asked lists the tasks the learner has ALREADY done in this chapter, in
 order: those answers happened. Never ask any of them again, reworded or not — the new
 scene starts from their consequence and asks for a different act (on a resolution beat:
@@ -807,6 +809,9 @@ def _scene_score(draft: SceneDraft, context: dict) -> float:
         default=0.0,
     )
     score = 2.0 * premise_novelty + objective_novelty
+    # A third advice ask in a row loses to any draft that asks for another act.
+    if _advice_run(recent) >= ADVICE_RUN_LIMIT and speech_act(draft.objective_native) == "advice":
+        score -= 1.5
     if draft.character_id in (variety.get("unused_characters") or []):
         score += 0.5
     if draft.location_id in (variety.get("unused_locations") or []):
@@ -1151,6 +1156,38 @@ def _cast_for_level(cast: list[dict], level: str) -> list[dict]:
     return cleaned
 
 
+# Paid B1 review 2026-09-21: nine objectives in ten days were "tell X whether they should
+# A or B, and give a reason". The premises differed; the learner's *act* never did. An
+# advice ask is recognisable in the three control languages; everything else is "other".
+_ADVICE_ASK = re.compile(
+    r"\bwhether\b.*\bshould\b|\bshould (he|she|they)\b|\badvise\b|\bconseille"
+    r"|\bs['’ ]?(il|elle|ils|elles) (doit|devrait|doivent|devraient)\b"
+    r"|\bob (er|sie) .*\b(soll|sollte|sollen|sollten)\b|\brate\b.*\bob\b",
+    re.IGNORECASE | re.DOTALL,
+)
+ADVICE_RUN_LIMIT = 2
+OTHER_ACTS = (
+    "refuse politely, apologise, negotiate a condition, tell what happened, ask for "
+    "information, invite, complain, thank, explain a plan, describe someone or something, "
+    "comfort without advising, admit something, make a request of your own"
+)
+
+
+def speech_act(objective: str | None) -> str:
+    """``advice`` when the learner is asked to tell someone what they should do."""
+
+    return "advice" if _ADVICE_ASK.search(str(objective or "")) else "other"
+
+
+def _advice_run(recent: list[dict]) -> int:
+    run = 0
+    for item in reversed(recent):
+        if speech_act(item.get("objective_native")) != "advice":
+            break
+        run += 1
+    return run
+
+
 def _variety(recent: list[dict], cast: list[dict], locations: list[dict]) -> dict:
     """What the director must rotate to, computed from the world bible itself."""
 
@@ -1187,6 +1224,14 @@ def _variety(recent: list[dict], cast: list[dict], locations: list[dict]) -> dic
             {"character_id": item.get("character_id"), "location_id": item.get("location_id")}
             for item in recent[-PREMISE_WINDOW:]
         ],
+        # What the learner has been asked to *do* lately, so the act rotates too.
+        "recent_acts": [speech_act(item.get("objective_native")) for item in recent[-4:]],
+        "act_rule": (
+            "The last objectives all asked the learner to advise someone (\"tell X whether "
+            "they should…\"). This scene must ask for a DIFFERENT act: " + OTHER_ACTS + "."
+            if _advice_run(recent) >= ADVICE_RUN_LIMIT
+            else "Rotate what the learner does, not only where and with whom: " + OTHER_ACTS + "."
+        ),
         "must_change": must_change,
         "rule": (
             "Choose a different character or a different location from must_change."

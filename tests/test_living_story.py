@@ -2587,3 +2587,20 @@ def test_a_parenthetical_constraint_is_not_a_second_ask():
         engine._check_objective_scope(
             "Greet Marin, then ask about the ring, and also propose a time, and explain why.", "A2"
         )
+
+
+def test_the_learners_act_rotates_not_only_the_setting():
+    """Paid B1 review 2026-09-21: nine of ten objectives were «tell X whether they should…»."""
+
+    assert engine.speech_act("Tell Gus whether he should tell the truth now or delay.") == "advice"
+    assert engine.speech_act("Dis à Marin s'il doit demander Lila en mariage maintenant.") == "advice"
+    assert engine.speech_act("Refuse Margaux's invitation politely and propose another day.") == "other"
+    advice = {"objective_native": "Tell Romy whether she should stay in Paris.", "character_id": "romy_tremblay", "location_id": "le_mistral"}
+    other = {"objective_native": "Thank Lila for the portrait.", "character_id": "lila_bonnet", "location_id": "le_mistral"}
+    cast = [{"id": "romy_tremblay"}, {"id": "lila_bonnet"}]
+    places = [{"id": "le_mistral"}]
+    pressed = engine._variety([other, advice, advice], cast, places)
+    assert pressed["recent_acts"] == ["other", "advice", "advice"]
+    assert "DIFFERENT act" in pressed["act_rule"]
+    assert "DIFFERENT act" not in engine._variety([advice, other], cast, places)["act_rule"]
+    assert "variety.act_rule" in engine.DIRECTOR
