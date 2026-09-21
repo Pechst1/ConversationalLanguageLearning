@@ -25,6 +25,8 @@ import apiService, {
 import { ConceptMotif } from '@/components/grammar/ConceptMotif';
 // One constant for where the intake lives, shared with the Courrier's own row.
 import { CR_INTAKE_HREF } from '@/components/courrier/Courrier';
+// WP-65 — the day's second action, as a quiet row. The hook owns the fetch.
+import { useCourrierHomeEntry } from '@/components/courrier/courrier-waiting';
 import { nativePushIsAvailable, registerNativePushToken } from '@/lib/native-push';
 import {
   cacheAtelierEdition,
@@ -2075,6 +2077,19 @@ function TodayView({
       .catch(() => { /* an entry nobody can open is worse than no entry */ });
     return () => { alive = false; };
   }, []);
+  /**
+   * WP-65 — the Courrier's own row.
+   *
+   * It reads `/missions/today`, the same call the Courrier page makes, because
+   * WP-64 materialises the day's second letter *inside* it: the chain
+   * instalment somebody is waiting on, or the letter a character wrote about
+   * yesterday's scene. Any cheaper read would leave those letters unopened
+   * until the learner found the Courrier by hand.
+   *
+   * A row, not a press: an unread letter is the day's second action, and La
+   * Une keeps exactly one primary.
+   */
+  const courrierEntry = useCourrierHomeEntry();
   const vocabularyReviewDue = Math.max(0, Number(dayProgress.vocabularyDue || 0));
   const repairDue = Math.max(0, Number(dayProgress.errataDue || 0));
   const serialAction = serialActionFromToday(today, activeSession);
@@ -2282,6 +2297,9 @@ function TodayView({
   const homeEntries: HomeEntry[] = errorOnlyPage
     ? []
     : [
+        // WP-65: first among the quiet rows — somebody is waiting on an answer,
+        // which the dossier and the rehearsal are not.
+        ...(courrierEntry ? [courrierEntry] : []),
         ...(rehearsalEntry !== 'none'
           ? [{
               id: 'rehearsal-debrief',

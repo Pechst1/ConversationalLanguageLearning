@@ -56,6 +56,7 @@ import {
   seasonHasStory,
   type SeasonPayload,
 } from '@/components/feuilleton/season';
+import { CrStoryLetterRow } from '@/components/courrier/courrier-waiting';
 import { writeLocalDayProgressFlag } from '@/lib/atelier-next';
 import { glossFromMap } from '@/lib/glosses';
 import { panelImageUrl } from '@/lib/graphic-novel-images';
@@ -829,6 +830,12 @@ export default function GraphicNovelPage() {
                     {scene.status === 'generating' && <EditionArtProgress scene={scene} />}
                     {!scene.serial_thread_id && <StandaloneBrief scene={scene} />}
                     <ReaderCastLink scene={scene} />
+                    {/* WP-65 §4 — when a character picked up a pen about a
+                        scene the learner just played, the Feuilleton says so.
+                        A row in the margin, never a second press: the reader's
+                        own press is the episode. Renders nothing unless the
+                        waiting letter is story-born (`courrier.origin`). */}
+                    <CrStoryLetterRow />
                   </>
                 )}
               />

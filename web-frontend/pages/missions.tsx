@@ -36,9 +36,15 @@ import {
   CrSituation,
   CrSlip,
 } from '@/components/courrier/Courrier';
+import {
+  CrCorrespondent,
+  CrDebrief,
+  CrLapsedNotice,
+} from '@/components/courrier/Correspondance';
 import apiService, {
   IntakeArtefact,
   IntakeEnvelope,
+  MissionMeasured,
   MissionToday,
   RealWorldMission,
   SerialToday,
@@ -345,6 +351,9 @@ function deskKicker(mission: RealWorldMission | null, isSerialAct: boolean, actN
 // Status as printed marginalia (never a pill), in the fiction's French.
 function deskStatusLine(mission: RealWorldMission | null, format: MissionFormat, completed: boolean): string {
   if (completed) return `Bouclé · ${frenchDate(mission?.completed_at)}`;
+  // WP-64's fourth status. Marginalia, like the rest: a letter that stopped
+  // waiting is a fact of the correspondence, not a verdict on the learner.
+  if (mission?.status === 'lapsed') return 'Sans réponse';
   if (mission?.status === 'in_progress') return 'En cours';
   if (format === 'email_formal') return 'Reçu · à rédiger';
   if (format === 'admin_form') return 'Dossier · à déposer';
@@ -578,8 +587,12 @@ export default function MissionsPage() {
   const ribbon = useMemo(() => ribbonWords(mission), [mission]);
   const isSerialAct = Boolean(mission?.serial_thread_id || seed.serialThreadId);
   const completed = mission?.status === 'completed';
+  // WP-64: an overdue chain letter stops waiting. There is nothing left to
+  // write, so the situation, the ribbon and the composer come off the screen —
+  // but nothing on it calls it a failure.
+  const lapsed = mission?.status === 'lapsed';
   const interactionReady = hasInteraction(mission);
-  const canSend = reply.trim().length > 0 && !submitting && !completed;
+  const canSend = reply.trim().length > 0 && !submitting && !completed && !lapsed;
   const format = useMemo(() => missionFormat(mission), [mission]);
   const writing = useMemo(() => missionWriting(mission), [mission]);
   const formatPayload = useMemo(() => missionFormatPayload(mission), [mission]);
@@ -877,6 +890,20 @@ export default function MissionsPage() {
   const recapTurns = Number(mission?.recap?.turns || 0);
   const recapErrata = Number(mission?.recap?.errata_logged || 0);
   const recapSaved = Number(mission?.recap?.saved_to_srs?.saved_count || 0);
+  /* WP-65 — the correspondence. Every field is mirrored flat and inside
+     `courrier`; both are read so a payload from either side of WP-64's deploy
+     renders, and `outcome` is only ever in the block (the top-level key is the
+     legacy serial state delta). */
+  const courrier = mission?.courrier || null;
+  const correspondent = mission?.correspondent || courrier?.correspondent || null;
+  const chain = mission?.chain || courrier?.chain || null;
+  const expiresAt = mission?.expires_at || courrier?.expires_at || null;
+  const threadHistory = mission?.thread_history || courrier?.thread_history || [];
+  const letterOutcome = courrier?.outcome || (mission?.recap as Record<string, any>)?.courrier_outcome || null;
+  // `recap.measured` (mission-debrief-v2). Absent on a letter finished before
+  // WP-64 shipped — those keep the three-count grid rather than losing it.
+  const measured = (mission?.recap as Record<string, any>)?.measured as MissionMeasured | undefined;
+  const storySummary = String((mission?.recap as Record<string, any>)?.story_event?.summary_fr || '').trim();
 
   return (
     <>
@@ -1004,7 +1031,24 @@ export default function MissionsPage() {
                 <p className="cr-reason">{mission.recommendation_reason.text}</p>
               )}
 
-              {!completed && (
+              {/* WP-65 — the correspondent view: who is writing, how they feel,
+                  which letter of the affair this is, by when, and the letters
+                  already exchanged with the same person over the weeks. It sits
+                  above the situation because it is the context the situation is
+                  in, and it renders nothing at all when the letter has nobody
+                  behind it (a pre-WP-64 row, a serial act). */}
+              <CrCorrespondent
+                correspondent={correspondent}
+                chain={chain}
+                expiresAt={expiresAt}
+                history={threadHistory}
+                lapsed={lapsed}
+                showMood={!completed}
+              />
+
+              {lapsed && <CrLapsedNotice name={correspondent?.name} />}
+
+              {!completed && !lapsed && (
                 <>
                   <CrSituation frame={frame.frame} ask={frame.ask} translate={translateFrame} />
                   <CrRibbon words={ribbon} />
@@ -1091,24 +1135,35 @@ export default function MissionsPage() {
                       ))}
                     </div>
                   )}
-                  <div className="cr-recap-grid">
-                    <div>
-                      <strong>{recapTurns}</strong>
-                      <span>réponse{recapTurns === 1 ? '' : 's'}</span>
-                    </div>
-                    <div>
-                      <strong>{recapErrata}</strong>
-                      <span>erreur{recapErrata === 1 ? '' : 's'} repérée{recapErrata === 1 ? '' : 's'}</span>
-                    </div>
-                    <div>
-                      <strong>{recapSaved}</strong>
-                      <span>phrase{recapSaved === 1 ? '' : 's'} sauvegardée{recapSaved === 1 ? '' : 's'}</span>
-                    </div>
-                  </div>
-                  {mission.recap?.readiness && (
-                    <div className="cr-readiness">
-                      <span>Prêt pour la vraie vie</span>
-                      <strong>{Number(mission.recap.readiness.overall || 0)}%</strong>
+                  {/* WP-65 — the honest debrief, where `recap.readiness` used
+                      to print «Prêt pour la vraie vie · 91 %» over four figures
+                      of which three were formulas over word count. WP-64
+                      deleted them; what stands here was counted: the outcome
+                      from the corrector's per-objective flags, the measured
+                      rows, and the line the letter actually wrote into the
+                      story. A letter answered before WP-64 shipped has no
+                      `measured` block and keeps the three-count grid. */}
+                  {measured ? (
+                    <CrDebrief
+                      outcome={letterOutcome}
+                      measured={measured}
+                      correspondent={correspondent}
+                      storySummary={storySummary}
+                    />
+                  ) : (
+                    <div className="cr-recap-grid">
+                      <div>
+                        <strong>{recapTurns}</strong>
+                        <span>réponse{recapTurns === 1 ? '' : 's'}</span>
+                      </div>
+                      <div>
+                        <strong>{recapErrata}</strong>
+                        <span>erreur{recapErrata === 1 ? '' : 's'} repérée{recapErrata === 1 ? '' : 's'}</span>
+                      </div>
+                      <div>
+                        <strong>{recapSaved}</strong>
+                        <span>phrase{recapSaved === 1 ? '' : 's'} sauvegardée{recapSaved === 1 ? '' : 's'}</span>
+                      </div>
                     </div>
                   )}
                   {Array.isArray(mission.recap?.objective_results) && mission.recap.objective_results.length > 0 && (
@@ -1143,6 +1198,17 @@ export default function MissionsPage() {
                 </section>
               )}
 
+              {/* A lapsed letter has no composer, so it would otherwise be a
+                  screen with no way forward. One quiet press, and it opens the
+                  next letter rather than re-opening this one: the delay is
+                  past, and offering a retry would be pretending it is not. */}
+              {lapsed && (
+                <div className="cr-nexts">
+                  <CrGhost primary onClick={startFreshMission} disabled={creating}>Nouveau courrier</CrGhost>
+                  <CrGhost href="/atelier" onClick={returnToAtelierHome}>Retour à l’Atelier</CrGhost>
+                </div>
+              )}
+
               {/* WP-37 §2.1: the Courrier's own way in to «Vos documents». A
                   row, not a press — the screen's press is the reply. */}
               <CrIntakeLink />
@@ -1168,7 +1234,7 @@ export default function MissionsPage() {
               )}
             </div>
 
-            {!completed && (
+            {!completed && !lapsed && (
               <CrComposer
                 quick={messenger.quick_replies}
                 onQuick={useQuickReply}

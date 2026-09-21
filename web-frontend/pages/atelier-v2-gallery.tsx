@@ -49,6 +49,12 @@ import {
   type TabKey,
 } from '@/components/atelier-v2/ui';
 import { ErrataReviewSheet } from '@/components/atelier-v2/errata/ErrataReviewSheet';
+import {
+  CrCorrespondent,
+  CrDebrief,
+  CrLapsedNotice,
+  CrLetterRow,
+} from '@/components/courrier/Correspondance';
 import type { AtelierErrataAttemptResult } from '@/services/api';
 import { atelierCopy, CONTROL_LANGUAGES } from '@/lib/atelier-v2-copy';
 import type { ControlLanguage } from '@/types/daily-journey';
@@ -59,6 +65,11 @@ export async function getStaticProps() {
   }
   return { props: {} };
 }
+
+/* Fixed dates, so the soft-deadline line on this page is the same sentence at
+   every review and never drifts with the wall clock. */
+const GALLERY_TODAY = new Date('2026-09-21T10:00:00Z');
+const GALLERY_DEADLINE = '2026-09-24T16:00:00Z';
 
 const OPTIONS = [
   { id: 'a', textFr: 'elle réussira' },
@@ -383,6 +394,58 @@ export default function AtelierV2Gallery() {
                 Open reprise (errata) sheet
               </Action>
             </div>
+          </Section>
+
+          {/* WP-65 — Le Courrier · la correspondance. Every state of the four
+              new surfaces, including the ones no artboard draws: a chain
+              instalment with a soft deadline, a letter that lapsed, the honest
+              debrief for each of the four outcomes, and the waiting-letter row
+              as La Une and the Feuilleton print it. The sample letters are
+              invented for this page and are visibly not a learner's data. */}
+          <Section title="Le Courrier — la correspondance (WP-65)">
+            <CrCorrespondent
+              correspondent={{
+                id: 'samira',
+                name: 'Samira',
+                role: 'boulangère',
+                mood_line: 'Un peu distant(e) en ce moment.',
+              }}
+              chain={{ id: 'chain:samira', index: 2, total: 3 }}
+              expiresAt={GALLERY_DEADLINE}
+              now={GALLERY_TODAY}
+              history={[
+                {
+                  mission_id: 'g1',
+                  summary_fr: 'Le pain mis de côté pour samedi',
+                  outcome: 'kept',
+                  at: '2026-09-12T09:00:00Z',
+                },
+                {
+                  mission_id: 'g2',
+                  summary_fr: 'La commande à changer d’heure',
+                  outcome: 'partial',
+                  at: '2026-09-16T09:00:00Z',
+                },
+              ]}
+            />
+            <CrLapsedNotice name="Samira" />
+            {(['kept', 'partial', 'missed'] as const).map((outcome) => (
+              <CrDebrief
+                key={outcome}
+                outcome={outcome}
+                measured={{
+                  objectives_met: outcome === 'kept' ? 2 : 1,
+                  objectives_total: 2,
+                  repairs: 1,
+                  phrases_saved: 2,
+                  words_written: 64,
+                }}
+                correspondent={{ name: 'Samira', mood_line: 'De bonne humeur avec vous.' }}
+                storySummary="Vous avez promis de passer samedi matin."
+              />
+            ))}
+            <CrLetterRow name="Samira" hint="2ᵉ lettre sur 3, de Samira · répondez avant jeudi" />
+            <CrLetterRow name="Romy" hint="Romy vous écrit après l’épisode." />
           </Section>
 
           <Section title="Navigation">

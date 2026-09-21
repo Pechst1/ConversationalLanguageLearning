@@ -1343,9 +1343,64 @@ export interface SessionMessageList {
   total: number;
 }
 
+/* WP-64 → WP-65 — a letter is a fact in the story, so a mission now carries the
+   person on the other end of it. `serialize_mission` mirrors every field flat
+   *and* inside `courrier`; `outcome` lives only in the block, because the
+   top-level key is already the legacy serial state delta. */
+export type MissionLetterOutcome = 'kept' | 'partial' | 'missed' | 'ignored' | string;
+export type MissionLetterOrigin = 'courrier' | 'chain' | 'story_born' | string;
+
+export interface MissionCorrespondent {
+  id: string;
+  name: string;
+  role?: string | null;
+  initials?: string | null;
+  /** WP-61's feeling as one French line — absent when the story has no opinion. */
+  mood_line?: string | null;
+}
+
+export interface MissionChain {
+  id: string;
+  index: number;
+  total: number;
+}
+
+export interface MissionThreadLetter {
+  mission_id: string;
+  title?: string | null;
+  summary_fr?: string | null;
+  outcome?: MissionLetterOutcome | null;
+  stakes_level?: number | null;
+  chain_index?: number | null;
+  at?: string | null;
+}
+
+export interface MissionCourrier {
+  correspondent: MissionCorrespondent | null;
+  chain: MissionChain | null;
+  expires_at?: string | null;
+  thread_history?: MissionThreadLetter[];
+  outcome?: MissionLetterOutcome | null;
+  origin?: MissionLetterOrigin;
+}
+
+/** `recap.measured` — every figure counted, none of them a formula over word
+ *  count. It replaced `recap.readiness`, which is gone from the payload. */
+export interface MissionMeasured {
+  objectives_met: number;
+  objectives_total: number;
+  objectives_met_all: number;
+  objectives_all: number;
+  repairs: number;
+  phrases_saved: number;
+  replies: number;
+  words_written: number;
+}
+
 export interface RealWorldMission {
   id: string;
-  status: 'available' | 'in_progress' | 'completed' | string;
+  /** `lapsed`: an overdue letter that stopped waiting (WP-64). Never a failure. */
+  status: 'available' | 'in_progress' | 'completed' | 'lapsed' | string;
   cadence: 'weekly' | 'post_session' | 'ad_hoc' | string;
   mission_type: 'message' | 'explain_plan' | 'news_summary' | 'travel_work' | 'conversation' | string;
   mission_format?: 'chat_message' | 'voicemail_reply' | 'email_formal' | 'admin_form' | 'phone_call' | string;
@@ -1366,6 +1421,11 @@ export interface RealWorldMission {
   prompt_payload: Record<string, any>;
   recap: VocabularyRecapPayload;
   outcome?: Record<string, any> | null;
+  correspondent?: MissionCorrespondent | null;
+  chain?: MissionChain | null;
+  expires_at?: string | null;
+  thread_history?: MissionThreadLetter[];
+  courrier?: MissionCourrier | null;
   recommendation_reason?: { text: string; signals: Record<string, any> };
   attempts?: Array<Record<string, any>>;
   turns?: Array<Record<string, any>>;
