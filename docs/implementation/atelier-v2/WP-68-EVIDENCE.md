@@ -316,3 +316,44 @@ python -m scripts.long_horizon_report --days 60 --seeds A --out-dir var/reviews
 
 There is no `--live` and there is nothing to pay for. The sample committed with
 this package is `evidence/long-horizon-A-2026-09-21.md`.
+
+## 7. The paid live review, first pass — 2026-09-21 (owner-consented)
+
+Both §6 commands were run once. **Spend: US$0.158** (A2 US$0.127 for 29 requests, B1
+US$0.031 for 7). The §6 estimate was wrong by ~3×: with the WP-62/63 ledgers a director
+request is 10–12k tokens, **≈ US$0.0044 per request**, not US$0.0017. A capped 60-request
+run is therefore ≈ US$0.26, and a full fortnight at two bands ≈ US$0.40–0.55.
+
+| run | accepted | stopped on | verdict |
+|---|---|---|---|
+| A2 | 7 of 14 days | day 8, `repeated_situation` | guard **right**, director under-informed |
+| B1 | 1 of 14 days | day 2, `repeated_premise_triple` | guard **wrong** (false positive) |
+
+**B1, day 2 — fixed in `2512b68`.** The complication beat of an open chapter was refused
+as a "repeat" of its own setup: same person, same café (a chapter is exactly that), and B1
+objectives share their boilerplate ("…and give a short reason (one or two sentences)"), which
+alone clears the 0.4 Jaccard bar. The open chapter's own scenes are now exempt from the
+triple guard; the premise-twin, novelty-key and three-in-a-row rotation guards still hold them.
+
+**A2, day 8 — fixed in `f0bbbc4`.** Measured offline against the accepted days: two of the
+three refused resolution drafts re-asked day 7's task (objective overlap 0.83 — "choose 9h and
+ask how the technician will enter"). The director only ever learned that from a rejection.
+`chapter.already_asked` now goes out with the *first* draft, with the instruction to start from
+the consequence. The final `StoryUnavailable` also carries every attempt's refusal as its hint
+and the review script stores it (`reason_feedback`), so the next lost day explains itself.
+
+**What the seven A2 days read like** (`var/reviews/atelier-story-review-A2-wp68.json`):
+- Day-to-day coherence holds: chapter 1 (Marin's ring) runs setup → complication (Augustin's
+  joke) → turn → resolution over four days, each scene starting from the previous answer;
+  a learner who walks out on day 2 gets a *colder* Marin. Arc stages advance only on claimed
+  content (`spark` → `near_confession` → `tentpole`), the season thread moves to `developing`,
+  Marin's secret goes `hinted`, and chapter 2 is dealt the `letter` shape.
+- Weak: chapter 2 repeats one stage direction three days running («Romy a le direct dans dix
+  minutes», same newsroom) — under the 0.6 premise-twin bar, so no guard sees it; on day 4
+  Augustin's reply parrots the learner's advice back as if advising himself; chapter 1's
+  "resolution" settles the joke, not the proposal (fine for a season arc, but the learner is
+  not told the proposal is still open).
+- Not observable in 7 days: callbacks, plants paid, agendas/`meanwhile`, finale. Those need the
+  full fortnight at least; none of the new ledgers produced a refusal.
+
+Not re-run: the corrected cost exceeds the figure the owner consented to.
