@@ -81,6 +81,12 @@ from app.services.atelier_rewards import AtelierRewardService, AtelierWorkshopSh
 from app.services.book_library import BookLibraryService
 from app.services.cefr_progress import CEFRProgressService
 from app.services.error_memory import ErrorMemoryService
+from app.services.glosses import DEFAULT_GLOSS_LANGUAGE, normalize_language
+from app.services.learner_copy import (
+    LEARNER_COPY,
+    learner_text,
+    learner_text_for_english,
+)
 from app.services.missions import MissionConversationService
 from app.services.pilot_events import PilotEventService
 from app.services.progress import vocabulary_due_filter
@@ -194,6 +200,49 @@ def _with_fr_titles(
     if isinstance(rule_panel, dict):
         next_payload["rule_panel"] = {**rule_panel, "title": title_fr}
     return next_payload
+
+
+def _with_learner_instructions(payload: dict[str, Any], *, native_language: Any) -> dict[str, Any]:
+    """Read every exercise instruction in the learner's own language (WP-67).
+
+    Exercise sets are generated once and shared across learners, so an
+    instruction cannot be written in one learner's language when it is stored —
+    the same problem `_with_fr_titles` solves for the concept title, and the
+    same answer: localize on the way out.
+
+    Two sources, in order. An item written since WP-67 carries
+    `instruction_key`, the `learner_copy` identifier that produced it. An item
+    cached before it — the rows already sitting in `atelier_exercise_sets` —
+    carries only the English sentence, which is looked up in the copy table's
+    own English column. Anything else (a model-written instruction) is left
+    exactly as it is: this function translates nothing, it only re-reads a row
+    the copy table already holds.
+
+    Nothing that is graded is touched. `expected_answer`, `correct_answer`,
+    `labels` and the French prompts are data the corrector compares against, and
+    moving them to a learner's language would mean marking a right answer wrong.
+    """
+    language = normalize_language(native_language)
+    if language == DEFAULT_GLOSS_LANGUAGE:
+        return payload
+
+    def localize(node: Any) -> Any:
+        if isinstance(node, list):
+            return [localize(child) for child in node]
+        if not isinstance(node, dict):
+            return node
+        next_node = {key: localize(value) for key, value in node.items()}
+        instruction = next_node.get("instruction")
+        if not isinstance(instruction, str) or not instruction.strip():
+            return next_node
+        key = next_node.get("instruction_key")
+        if isinstance(key, str) and key in LEARNER_COPY:
+            next_node["instruction"] = learner_text(key, language)
+        else:
+            next_node["instruction"] = learner_text_for_english(instruction, language)
+        return next_node
+
+    return localize(payload)
 
 
 def _with_serial_conversation(
@@ -1006,6 +1055,10 @@ def _session_response(
             payload,
             concept=selection.concept,
             fr_localizations=fr_localizations,
+        )
+        payload = _with_learner_instructions(
+            payload,
+            native_language=getattr(user, "native_language", None),
         )
         exercise_sets.append(
             {

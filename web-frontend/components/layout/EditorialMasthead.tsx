@@ -3,12 +3,14 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { GearIcon } from '@/components/atelier-v2/ui';
 
+import { readLearnerLanguage } from '@/lib/learner-language';
 import {
   resolveProductSection,
   resolveProductTitle,
   type ProductSection,
 } from '@/lib/product-shell';
 import PhoneProductNav from './PhoneProductNav';
+import type { ControlLanguage } from '@/types/daily-journey';
 
 type MastheadSection =
   | 'home'
@@ -49,8 +51,18 @@ export default function EditorialMasthead({
   mobileAction,
 }: EditorialMastheadProps) {
   const router = useRouter();
+  // WP-67: «Réglages» is the one title that follows the learner's language, so
+  // the masthead needs to know it. Read from the cache the profile load left
+  // behind, in an effect rather than during render — seeding state from
+  // `localStorage` while rendering is a hydration mismatch — and never from the
+  // network: this header is on every page and F-20 is already about one page
+  // load asking the same question nine times.
+  const [learnerLanguage, setLearnerLanguage] = React.useState<ControlLanguage>('en');
+  React.useEffect(() => {
+    setLearnerLanguage(readLearnerLanguage());
+  }, []);
   const mobileSection = resolveProductSection(router.pathname) || productSectionFromMasthead(active);
-  const mobileTitle = resolveProductTitle(mobileSection, router.pathname);
+  const mobileTitle = resolveProductTitle(mobileSection, router.pathname, learnerLanguage);
   const isSettingsActive = active === 'settings' || router.pathname === '/settings';
 
   return (

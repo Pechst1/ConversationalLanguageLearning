@@ -167,8 +167,6 @@ export type SettingsCopyKey =
   | 'notif_streak_hint'
   | 'notif_weekly'
   | 'notif_weekly_hint'
-  | 'notif_achievements'
-  | 'notif_achievements_hint'
   | 'notif_serial'
   | 'notif_serial_hint'
   | 'row_reminder_time'
@@ -368,8 +366,6 @@ const EN: SettingsCopy = {
   notif_streak_hint: 'A signal when your streak can be extended',
   notif_weekly: 'Weekly report',
   notif_weekly_hint: 'A progress summary every week',
-  notif_achievements: 'Distinctions',
-  notif_achievements_hint: 'A note when a distinction is filed',
   notif_serial: 'Serial',
   notif_serial_hint: 'The next instalment as soon as it is ready',
   row_reminder_time: 'Delivery time',
@@ -572,8 +568,6 @@ const DE: SettingsCopy = {
   notif_streak_hint: 'Ein Hinweis, wenn Ihre Serie verlängert werden kann',
   notif_weekly: 'Wochenbericht',
   notif_weekly_hint: 'Eine Bilanz des Fortschritts jede Woche',
-  notif_achievements: 'Auszeichnungen',
-  notif_achievements_hint: 'Eine Nachricht, wenn eine Auszeichnung abgelegt wird',
   notif_serial: 'Fortsetzungsroman',
   notif_serial_hint: 'Die nächste Folge, sobald sie fertig ist',
   row_reminder_time: 'Zustellzeit',
@@ -781,8 +775,6 @@ const FR: SettingsCopy = {
   notif_streak_hint: 'Un signal quand votre série peut être prolongée',
   notif_weekly: 'Relevé hebdomadaire',
   notif_weekly_hint: 'Un bilan de progression chaque semaine',
-  notif_achievements: 'Distinctions',
-  notif_achievements_hint: 'Un avis lorsqu’une distinction est classée',
   notif_serial: 'Feuilleton',
   notif_serial_hint: 'La prochaine parution dès qu’elle est prête',
   row_reminder_time: 'Heure de livraison',

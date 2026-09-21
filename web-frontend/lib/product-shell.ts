@@ -1,4 +1,5 @@
 import { STORY_FEATURE_VISIBLE } from './launch-flags';
+import { resolveSettingsLanguage, settingsCopy } from './settings-copy';
 
 export type ProductSection = 'atelier' | 'missions' | 'feuilleton' | 'notebook';
 
@@ -92,10 +93,25 @@ export function resolveProductSection(pathname: string): ProductSection | undefi
   return PHONE_PRODUCT_TABS.find((item) => item.activeRoutes.includes(pathname))?.id;
 }
 
-export function resolveProductTitle(section: ProductSection | undefined, pathname: string) {
+/**
+ * The title the phone header prints for a route.
+ *
+ * Every product section is French chrome — Atelier, Missions, Feuilleton,
+ * Cahier, Bibliothèque — because the learner is reading a French publication.
+ * Réglages is the one exception the owner carved out (WP-46): it is the
+ * administrative surface, it follows the account's own `native_language`, and
+ * it had been the only title in the app still reading «Settings» for a German
+ * learner. `language` is the account's native language; with none known the
+ * settings copy table's own floor, English, applies.
+ */
+export function resolveProductTitle(
+  section: ProductSection | undefined,
+  pathname: string,
+  language?: unknown,
+) {
   if (STORY_FEATURE_VISIBLE && STORY_ROUTES.includes(pathname)) {
     return 'Bibliothèque';
   }
-  if (pathname === '/settings') return 'Settings';
+  if (pathname === '/settings') return settingsCopy(resolveSettingsLanguage(language)).page_label;
   return PHONE_PRODUCT_TABS.find((item) => item.id === section)?.label || 'Atelier';
 }

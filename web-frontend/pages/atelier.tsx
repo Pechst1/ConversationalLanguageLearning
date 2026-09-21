@@ -2034,11 +2034,25 @@ function TodayView({
    * day it has nothing to ask. The server already answers the question; this
    * only reads it, and a failed read leaves the row off rather than guessing.
    */
-  const [rehearsalDue, setRehearsalDue] = useState(false);
+  const [rehearsalEntry, setRehearsalEntry] = useState<'none' | 'debrief' | 'open'>('none');
   useEffect(() => {
     let alive = true;
     oncePerLoad('rehearsals/state', () => apiService.getRehearsalState())
-      .then((envelope) => { if (alive) setRehearsalDue(Boolean(envelope?.debrief_due)); })
+      .then((envelope) => {
+        if (!alive) return;
+        if (envelope?.debrief_due) {
+          setRehearsalEntry('debrief');
+          return;
+        }
+        // WP-67 (reachability): a rehearsal that is declared, prepared or
+        // half-played is also something waiting, and until now the only way
+        // back to it was Réglages. The row is still gated on the server's own
+        // answer — the four states below are the ones with turns still to
+        // spend — and a finished or abandoned rehearsal shows nothing.
+        const status = String(envelope?.rehearsal?.status || '');
+        const open = ['declared', 'ready', 'not_prepared', 'rehearsing'].includes(status);
+        setRehearsalEntry(open ? 'open' : 'none');
+      })
       .catch(() => { /* an entry nobody can open is worse than no entry */ });
     return () => { alive = false; };
   }, []);
@@ -2268,13 +2282,17 @@ function TodayView({
   const homeEntries: HomeEntry[] = errorOnlyPage
     ? []
     : [
-        ...(rehearsalDue
+        ...(rehearsalEntry !== 'none'
           ? [{
               id: 'rehearsal-debrief',
               label: 'Votre répétition',
-              hint: 'Comment ça s’est passé ?',
+              hint: rehearsalEntry === 'debrief'
+                ? 'Comment ça s’est passé ?'
+                : 'Elle vous attend, quand vous voulez.',
               href: '/repetition',
-              ariaLabel: 'Votre répétition — comment ça s’est passé ?',
+              ariaLabel: rehearsalEntry === 'debrief'
+                ? 'Votre répétition — comment ça s’est passé ?'
+                : 'Votre répétition — elle vous attend, quand vous voulez.',
             }]
           : []),
         ...(intakeOpen

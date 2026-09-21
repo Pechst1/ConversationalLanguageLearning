@@ -1321,12 +1321,20 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                 {copy.action_link_device}
                             </Action>
                         </div>
+                        {/* WP-67: «Distinctions» is not in this list.
+                            The row promised «un avis lorsqu'une distinction est
+                            classée» and nothing sends it: `achievement_notifications`
+                            is stored on the account and read by no sender in the
+                            codebase. The distinctions themselves are real and
+                            already printed, with their dates, in La Collection
+                            (Cahier › Le Relevé); what was false was the note.
+                            The stored preference is left untouched and still
+                            round-trips through this page's save. */}
                         <div className="st-card">
                             {[
                                 { key: 'practiceReminders' as const, label: copy.notif_practice, desc: copy.notif_practice_hint },
                                 { key: 'streakNotifications' as const, label: copy.notif_streak, desc: copy.notif_streak_hint },
                                 { key: 'weeklyEmailSummary' as const, label: copy.notif_weekly, desc: copy.notif_weekly_hint },
-                                { key: 'achievementNotifications' as const, label: copy.notif_achievements, desc: copy.notif_achievements_hint },
                                 { key: 'serialEditionNotifications' as const, label: copy.notif_serial, desc: copy.notif_serial_hint },
                             ].map(item => (
                                 <React.Fragment key={item.key}>

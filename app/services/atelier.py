@@ -1634,13 +1634,48 @@ LOCAL_QUOTES = [
 _GRAMMAR_LEVEL_ORDER = ["A1", "A2", "B1", "B2", "C1", "C2"]
 
 
-def _cefr_levels_at_or_below(user: User) -> list[str]:
-    """Coarse CEFR bucket (A1..C2) a cold-start concept pick should not exceed."""
+def _coarse_band(value: Any) -> str | None:
+    """`A2.2` -> `A2`; anything that is not a CEFR band -> None."""
+    coarse = str(value or "").strip().upper()[:2]
+    return coarse if coarse in _GRAMMAR_LEVEL_ORDER else None
+
+
+def placement_band(db: Session, user: User) -> str | None:
+    """The coarse band of a placement worth trusting, or None (WP-67, F-30).
+
+    The placement service owns "is this worth trusting" — a complete session,
+    with a level, above its own confidence floor — and this function never
+    second-guesses it. Imported lazily for the same reason `cefr_progress` does
+    it: the placement module reads the CEFR ladder, and a module-level import
+    would close the cycle.
+    """
+    try:
+        from app.services.placement import latest_placement_prior
+    except Exception:  # pragma: no cover - defensive
+        return None
+    try:
+        prior = latest_placement_prior(db, user)
+    except Exception:  # pragma: no cover - a level must never 500 a séance
+        return None
+    if not prior:
+        return None
+    return _coarse_band(prior.get("level"))
+
+
+def _cefr_levels_at_or_below(user: User, *, placement: str | None = None) -> list[str]:
+    """Coarse CEFR bucket (A1..C2) a cold-start concept pick should not exceed.
+
+    WP-67 (F-30) adds the placement band. `user.cefr_estimate` folds a placement
+    in, but only once `CEFRProgressService.recompute` has run; a learner who has
+    just been placed at A2.2 and whose estimate is still the signup default was
+    handed the first A1 rule in the catalogue. The ceiling is now the higher of
+    the two, so a measurement can only ever raise it.
+    """
     raw = str(getattr(user, "cefr_estimate", None) or getattr(user, "proficiency_level", None) or "A1.1")
-    coarse = raw.strip().upper()[:2]
-    if coarse not in _GRAMMAR_LEVEL_ORDER:
-        coarse = "A1"
+    coarse = _coarse_band(raw) or "A1"
     index = _GRAMMAR_LEVEL_ORDER.index(coarse)
+    if placement in _GRAMMAR_LEVEL_ORDER:
+        index = max(index, _GRAMMAR_LEVEL_ORDER.index(placement))
     return _GRAMMAR_LEVEL_ORDER[: index + 1]
 
 
@@ -1689,17 +1724,34 @@ class AtelierScheduler:
         # catalog slice that may sit above it. Role is "new" (never attempted)
         # rather than "fragile" (attempted and shaky) -- those are different
         # learner states and the frontend labels them differently.
+        # WP-67 (F-30): the ladder starts *at* the estimate, not under it. The
+        # ceiling above stopped a cold start from overshooting; it did nothing
+        # about the floor, so an A2.2-placed learner still opened on the easiest
+        # A1 foundation rule in the catalogue. The pick now walks down from the
+        # learner's own band and only falls to a lower one when that band has
+        # nothing left — a learner who has never been measured still starts at
+        # A1, because A1 is then their band.
+        band = placement_band(self.db, user)
         if len(selected) < 2:
-            eligible_levels = _cefr_levels_at_or_below(user)
-            cold_start_concepts = (
-                active_query.filter(
-                    GrammarConcept.id.notin_(used_ids),
-                    GrammarConcept.level.in_(eligible_levels),
+            eligible_levels = _cefr_levels_at_or_below(user, placement=band)
+            cold_start_concepts: list[GrammarConcept] = []
+            for level in reversed(eligible_levels):
+                remaining = (2 - len(selected)) - len(cold_start_concepts)
+                if remaining <= 0:
+                    break
+                cold_start_concepts.extend(
+                    active_query.filter(
+                        GrammarConcept.id.notin_(used_ids),
+                        GrammarConcept.level == level,
+                    )
+                    .order_by(
+                        GrammarConcept.is_foundation.desc(),
+                        GrammarConcept.difficulty_order.asc(),
+                        GrammarConcept.id.asc(),
+                    )
+                    .limit(remaining)
+                    .all()
                 )
-                .order_by(GrammarConcept.is_foundation.desc(), GrammarConcept.difficulty_order.asc(), GrammarConcept.id.asc())
-                .limit(2 - len(selected))
-                .all()
-            )
             for concept in cold_start_concepts:
                 selected.append(ConceptSelection(concept=concept, role="new", progress=self._progress_for(user, concept.id)))
                 used_ids.add(concept.id)
@@ -1707,7 +1759,7 @@ class AtelierScheduler:
         contrast = (
             active_query.filter(
                 GrammarConcept.id.notin_(used_ids),
-                GrammarConcept.level.in_(_cefr_levels_at_or_below(user)),
+                GrammarConcept.level.in_(_cefr_levels_at_or_below(user, placement=band)),
                 GrammarConcept.is_foundation.is_(True),
             )
             .order_by(GrammarConcept.difficulty_order.asc(), GrammarConcept.id.asc())
@@ -3109,77 +3161,81 @@ class AtelierExerciseGenerator:
         prefix: str,
     ) -> list[dict[str, Any]]:
         profile = infer_grammar_profile(concept)
-        if profile.key == "article_after_negation":
-            return [
-                {"id": f"{prefix}-fallback-transform-1", "type": "directed_rewrite", "instruction": "Make this negative and change the partitive 'du' to its form after 'pas'.", "source": "Je bois du café.", "expected_answer": "Je ne bois pas de café."},
-                {"id": f"{prefix}-fallback-transform-2", "type": "contrast_rewrite", "instruction": "Negate 'C'est du café' with ne…pas, watching the être exception.", "source": "C'est du café.", "expected_answer": "Ce n'est pas du café."},
-                {"id": f"{prefix}-fallback-transform-3", "type": "repair_rewrite", "instruction": "Repair the article 'une' after 'pas' to its negated quantity form.", "source": "Elle n'a pas une idée.", "expected_answer": "Elle n'a pas d'idée."},
-            ]
-        if profile.key == "tense_aspect":
-            return [
-                {"id": f"{prefix}-fallback-transform-1", "type": "directed_rewrite", "instruction": "Change 'pleut' to the imparfait and 'sors' to the passé composé.", "source": "Il pleut quand je sors.", "expected_answer": "Il pleuvait quand je suis sorti."},
-                {"id": f"{prefix}-fallback-transform-2", "type": "contrast_rewrite", "instruction": "Turn the habit 'lisais' into a single completed event in the passé composé.", "source": "Je lisais souvent ce livre.", "expected_answer": "J'ai lu ce livre hier."},
-                {"id": f"{prefix}-fallback-transform-3", "type": "repair_rewrite", "instruction": "Repair the contrast: put 'suis' in the imparfait and 'sonnait' in the passé composé.", "source": "Je suis fatigué quand le téléphone sonnait.", "expected_answer": "J'étais fatigué quand le téléphone a sonné."},
-            ]
-        if profile.key == "si_present_result_form":
-            return [
-                {"id": f"{prefix}-fallback-transform-1", "type": "directed_rewrite", "instruction": "Rewrite 'Quand il arrivera, on commencera' to start with a si-clause whose condition is in the present.", "source": "Quand il arrivera, on commencera.", "expected_answer": "S'il arrive, on commencera."},
-                {"id": f"{prefix}-fallback-transform-2", "type": "contrast_rewrite", "instruction": "Make this a si type 1: put 'avais' in the present and 'viendrais' in the future.", "source": "Si tu avais le temps, tu viendrais.", "expected_answer": "Si tu as le temps, tu viendras."},
-                {"id": f"{prefix}-fallback-transform-3", "type": "repair_rewrite", "instruction": "Repair the verb 'viendras' after 'si': the condition must be in the present.", "source": "Si tu viendras demain, apporte le livre.", "expected_answer": "Si tu viens demain, apporte le livre."},
-            ]
-        # Every remaining profile gets three hand-authored, verified transform
-        # pairs (source != expected_answer — an unchanged sentence is never a
-        # valid "transform" target). The three profiles above have their own
-        # bespoke pairs; everything else, including any future/unrecognised
-        # profile, resolves through this table with a safe generic pair as the
-        # last resort so this branch can never regress to source == target.
+        # WP-67: the instruction is no longer an English literal. Each pair
+        # carries the `learner_copy` key that wrote it; the stored payload keeps
+        # the English sentence (the structural validator and the AI critic read
+        # it, and both were calibrated on it) plus `instruction_key`, and the
+        # endpoint swaps in the learner's language on the way out. An exercise
+        # set is generated once and shared by every learner, so this is the only
+        # place the choice can be made honestly.
+        #
+        # Every profile gets three hand-authored, verified transform pairs
+        # (source != expected_answer — an unchanged sentence is never a valid
+        # "transform" target), and any future/unrecognised profile resolves
+        # through the generic pairs so this branch can never regress to
+        # source == target.
         transform_pairs: dict[str, list[tuple[str, str, str, str]]] = {
+            "article_after_negation": [
+                ("directed_rewrite", "atelier.transform.negation.1", "Je bois du café.", "Je ne bois pas de café."),
+                ("contrast_rewrite", "atelier.transform.negation.2", "C'est du café.", "Ce n'est pas du café."),
+                ("repair_rewrite", "atelier.transform.negation.3", "Elle n'a pas une idée.", "Elle n'a pas d'idée."),
+            ],
+            "tense_aspect": [
+                ("directed_rewrite", "atelier.transform.tense.1", "Il pleut quand je sors.", "Il pleuvait quand je suis sorti."),
+                ("contrast_rewrite", "atelier.transform.tense.2", "Je lisais souvent ce livre.", "J'ai lu ce livre hier."),
+                ("repair_rewrite", "atelier.transform.tense.3", "Je suis fatigué quand le téléphone sonnait.", "J'étais fatigué quand le téléphone a sonné."),
+            ],
+            "si_present_result_form": [
+                ("directed_rewrite", "atelier.transform.si.1", "Quand il arrivera, on commencera.", "S'il arrive, on commencera."),
+                ("contrast_rewrite", "atelier.transform.si.2", "Si tu avais le temps, tu viendrais.", "Si tu as le temps, tu viendras."),
+                ("repair_rewrite", "atelier.transform.si.3", "Si tu viendras demain, apporte le livre.", "Si tu viens demain, apporte le livre."),
+            ],
             "conditional_mood": [
-                ("directed_rewrite", "Rewrite 'veux' as 'voudrais' so the request sounds polite.", "Je veux partir demain.", "Je voudrais partir demain."),
-                ("contrast_rewrite", "Rewrite as a polite possibility instead of a plain fact: put the verb in the conditional.", "Nous pouvons venir plus tôt.", "Nous pourrions venir plus tôt."),
-                ("repair_rewrite", "Repair the verb: a polite wish needs the conditional, not the present.", "Elle aime parler avec vous.", "Elle aimerait parler avec vous."),
+                ("directed_rewrite", "atelier.transform.conditional_mood.1", "Je veux partir demain.", "Je voudrais partir demain."),
+                ("contrast_rewrite", "atelier.transform.conditional_mood.2", "Nous pouvons venir plus tôt.", "Nous pourrions venir plus tôt."),
+                ("repair_rewrite", "atelier.transform.conditional_mood.3", "Elle aime parler avec vous.", "Elle aimerait parler avec vous."),
             ],
             "mood": [
-                ("directed_rewrite", "Rewrite 'es' as 'sois' after adding 'il faut que'.", "Tu es prêt.", "Il faut que tu sois prêt."),
-                ("contrast_rewrite", "Rewrite as a wish instead of a certainty: keep 'demain' and put the verb in the subjunctive.", "Je sais qu'elle vient demain.", "Je veux qu'elle vienne demain."),
-                ("repair_rewrite", "Repair the verb after 'bien que': this trigger requires the subjunctive.", "Bien qu'il est tard, nous continuons.", "Bien qu'il soit tard, nous continuons."),
+                ("directed_rewrite", "atelier.transform.mood.1", "Tu es prêt.", "Il faut que tu sois prêt."),
+                ("contrast_rewrite", "atelier.transform.mood.2", "Je sais qu'elle vient demain.", "Je veux qu'elle vienne demain."),
+                ("repair_rewrite", "atelier.transform.mood.3", "Bien qu'il est tard, nous continuons.", "Bien qu'il soit tard, nous continuons."),
             ],
             "relative_pronoun": [
-                ("directed_rewrite", "Repair 'qui' to 'que': this relative pronoun replaces a direct object.", "C'est le livre qui j'ai lu.", "C'est le livre que j'ai lu."),
-                ("contrast_rewrite", "Repair the relative pronoun: 'arrive' needs its subject relative pronoun.", "Voici l'ami que arrive.", "Voici l'ami qui arrive."),
-                ("repair_rewrite", "Repair the relative pronoun: this clause names a place, so it needs the locative relative pronoun.", "La ville que j'habite est calme.", "La ville où j'habite est calme."),
+                ("directed_rewrite", "atelier.transform.relative_pronoun.1", "C'est le livre qui j'ai lu.", "C'est le livre que j'ai lu."),
+                ("contrast_rewrite", "atelier.transform.relative_pronoun.2", "Voici l'ami que arrive.", "Voici l'ami qui arrive."),
+                ("repair_rewrite", "atelier.transform.relative_pronoun.3", "La ville que j'habite est calme.", "La ville où j'habite est calme."),
             ],
             "pronoun_choice": [
-                ("directed_rewrite", "Replace 'Marc' with 'le', the direct object pronoun.", "Je vois Marc demain.", "Je le vois demain."),
-                ("contrast_rewrite", "Replace 'à Paul' with the indirect object pronoun, keeping 'parlons'.", "Nous parlons à Paul ce soir.", "Nous lui parlons ce soir."),
-                ("repair_rewrite", "Repair the pronoun: a quantity taken from a group needs 'en', not a direct object pronoun.", "Elle le prend deux.", "Elle en prend deux."),
+                ("directed_rewrite", "atelier.transform.pronoun_choice.1", "Je vois Marc demain.", "Je le vois demain."),
+                ("contrast_rewrite", "atelier.transform.pronoun_choice.2", "Nous parlons à Paul ce soir.", "Nous lui parlons ce soir."),
+                ("repair_rewrite", "atelier.transform.pronoun_choice.3", "Elle le prend deux.", "Elle en prend deux."),
             ],
             "determiner": [
-                ("directed_rewrite", "Rewrite 'une' as 'la': this gare is a specific, already-known one.", "Elle cherche une gare.", "Elle cherche la gare."),
-                ("contrast_rewrite", "Rewrite for several tickets: change the article and noun to plural.", "Nous avons un billet.", "Nous avons des billets."),
-                ("repair_rewrite", "Repair the article: ordering one coffee needs the indefinite article, not the definite one.", "Je prends le café.", "Je prends un café."),
+                ("directed_rewrite", "atelier.transform.determiner.1", "Elle cherche une gare.", "Elle cherche la gare."),
+                ("contrast_rewrite", "atelier.transform.determiner.2", "Nous avons un billet.", "Nous avons des billets."),
+                ("repair_rewrite", "atelier.transform.determiner.3", "Je prends le café.", "Je prends un café."),
             ],
             "agreement": [
-                ("directed_rewrite", "Rewrite 'maison' as the plural 'maisons', agreeing the rest of the sentence.", "La maison est grande.", "Les maisons sont grandes."),
-                ("contrast_rewrite", "Rewrite in the feminine, agreeing the determiner and the adjective with the new noun.", "Ce manteau bleu est joli.", "Cette robe bleue est jolie."),
-                ("repair_rewrite", "Repair the past participle: with être, it must agree with the plural subject.", "Ils sont arrivé hier.", "Ils sont arrivés hier."),
+                ("directed_rewrite", "atelier.transform.agreement.1", "La maison est grande.", "Les maisons sont grandes."),
+                ("contrast_rewrite", "atelier.transform.agreement.2", "Ce manteau bleu est joli.", "Cette robe bleue est jolie."),
+                ("repair_rewrite", "atelier.transform.agreement.3", "Ils sont arrivé hier.", "Ils sont arrivés hier."),
             ],
             "preposition": [
-                ("directed_rewrite", "Rewrite 'au bureau de' as 'chez' to say 'at Marie's place'.", "Je vais au bureau de Marie.", "Je vais chez Marie."),
-                ("contrast_rewrite", "Add the preposition 'parler' needs before its topic.", "Nous parlons ce projet.", "Nous parlons de ce projet."),
-                ("repair_rewrite", "Repair the preposition: living on a street uses 'dans', not 'à'.", "Il habite à cette rue.", "Il habite dans cette rue."),
+                ("directed_rewrite", "atelier.transform.preposition.1", "Je vais au bureau de Marie.", "Je vais chez Marie."),
+                ("contrast_rewrite", "atelier.transform.preposition.2", "Nous parlons ce projet.", "Nous parlons de ce projet."),
+                ("repair_rewrite", "atelier.transform.preposition.3", "Il habite à cette rue.", "Il habite dans cette rue."),
             ],
             "comparison": [
-                ("directed_rewrite", "Rewrite 'aussi' as 'plus': she is faster, not equally fast.", "Elle est aussi rapide que moi.", "Elle est plus rapide que moi."),
-                ("contrast_rewrite", "Rewrite to say this coffee costs less, not more.", "Ce café est plus cher.", "Ce café est moins cher."),
-                ("repair_rewrite", "Repair the comparison: equality between two people needs 'aussi… que', not 'si… que'.", "Il travaille si bien que toi.", "Il travaille aussi bien que toi."),
+                ("directed_rewrite", "atelier.transform.comparison.1", "Elle est aussi rapide que moi.", "Elle est plus rapide que moi."),
+                ("contrast_rewrite", "atelier.transform.comparison.2", "Ce café est plus cher.", "Ce café est moins cher."),
+                ("repair_rewrite", "atelier.transform.comparison.3", "Il travaille si bien que toi.", "Il travaille aussi bien que toi."),
             ],
         }.get(
             profile.key,
             [
-                ("directed_rewrite", "Rewrite 'Je pratique' as 'Nous pratiquons' for the subject 'we'.", "Je pratique cette règle dans une phrase claire.", "Nous pratiquons cette règle dans une phrase claire."),
-                ("contrast_rewrite", "Rewrite in the passé composé, as something already done.", "Nous utilisons ce point de grammaire aujourd'hui.", "Nous avons utilisé ce point de grammaire aujourd'hui."),
-                ("repair_rewrite", "Repair the verb: it must agree with the singular subject 'elle'.", "Elle choisissent la forme correcte dans le contexte.", "Elle choisit la forme correcte dans le contexte."),
+                ("directed_rewrite", "atelier.transform.generic.1", "Je pratique cette règle dans une phrase claire.", "Nous pratiquons cette règle dans une phrase claire."),
+                ("contrast_rewrite", "atelier.transform.generic.2", "Nous utilisons ce point de grammaire aujourd'hui.", "Nous avons utilisé ce point de grammaire aujourd'hui."),
+                ("repair_rewrite", "atelier.transform.generic.3", "Elle choisissent la forme correcte dans le contexte.", "Elle choisit la forme correcte dans le contexte."),
             ],
         )
 
@@ -3187,11 +3243,12 @@ class AtelierExerciseGenerator:
             {
                 "id": f"{prefix}-fallback-transform-{index}",
                 "type": kind,
-                "instruction": instruction,
+                "instruction": _copy(instruction_key, "en"),
+                "instruction_key": instruction_key,
                 "source": source,
                 "expected_answer": expected_answer,
             }
-            for index, (kind, instruction, source, expected_answer) in enumerate(transform_pairs, start=1)
+            for index, (kind, instruction_key, source, expected_answer) in enumerate(transform_pairs, start=1)
         ]
 
     def _fallback_output_item(
@@ -3209,7 +3266,8 @@ class AtelierExerciseGenerator:
         return {
             "id": f"{prefix}-fallback-{round_name}",
             "type": kind,
-            "instruction": "Use the target grammar visibly in your answer.",
+            "instruction": _copy("atelier.fallback.output_instruction", "en"),
+            "instruction_key": "atelier.fallback.output_instruction",
             "prompt": prompt,
             "example_answer": example,
             "requirements": [
@@ -4543,47 +4601,48 @@ class AtelierCorrectionService:
         repair = item.get("repair_hint") or self._repair_for(concept)
         profile_key = infer_grammar_profile(concept).key if concept else ""
 
+        language = self.explanation_language
         if profile_key == "si_present_result_form":
-            label = "Target form needed"
+            label = _copy("atelier.si.label_target_form", language)
             if target_norm == "appellerai":
                 if learner_norm == "appelle":
-                    why = "You used present `appelle` in the result clause. In si type 1, the si-clause stays present and the consequence takes future simple, so the blank needs `appellerai`."
+                    why = _copy("atelier.si.fill_present_in_result", language)
                 elif learner_norm == "appellerais":
-                    why = "You used conditional `appellerais`, which belongs to a hypothetical si frame. This sentence is a real future condition, so the result needs future simple `appellerai`."
+                    why = _copy("atelier.si.fill_conditional_in_result", language)
                 elif learner_norm == "ai appele":
-                    why = "You used past tense `ai appelé`, but the sentence says what will happen if the condition is met. The result needs future simple `appellerai`."
+                    why = _copy("atelier.si.fill_past_in_result", language)
                 else:
-                    why = "This si-clause is in the present, so the result clause needs future simple here."
-                repair = "Keep the verb after si in the present, then put the consequence in future simple."
+                    why = _copy("atelier.si.fill_result_needs_future", language)
+                repair = _copy("atelier.si.repair_present_then_future", language)
             elif target_norm == "prends":
-                label = "Imperative result"
+                label = _copy("atelier.si.label_imperative_result", language)
                 if learner_norm == "prendras":
-                    why = "Future `prendras` can be grammatical in si type 1, but this blank is a direct instruction: `take your coat`. The expected result is imperative `prends`."
+                    why = _copy("atelier.si.fill_imperative_expected", language)
                 else:
-                    why = f"You chose `{learner_text}`, but the result clause is a command, so it needs the imperative `prends`."
-                repair = "When the result tells someone what to do, use the imperative after the si-clause."
+                    why = _copy("atelier.si.fill_imperative_generic", language, learner=learner_text)
+                repair = _copy("atelier.si.repair_imperative_result", language)
             elif target_norm == "irons":
                 if learner_norm == "allons":
-                    why = "You used present `allons` in the result clause. With a present si-clause, the consequence should be future simple: `irons`."
+                    why = _copy("atelier.si.fill_irons_present", language)
                 elif learner_norm == "irions":
-                    why = "You used conditional `irions`, but this is a real future condition, not a hypothetical one. Use future simple `irons`."
+                    why = _copy("atelier.si.fill_irons_conditional", language)
                 else:
-                    why = "The condition is present, so the consequence needs future simple `irons`."
-                repair = "Use present after si, then future simple for the consequence."
+                    why = _copy("atelier.si.fill_irons_generic", language)
+                repair = _copy("atelier.si.repair_present_then_future_short", language)
         elif profile_key == "article_after_negation":
-            label = "Article after negation"
+            label = _copy("atelier.negation.label_article", language)
             if learner_norm in {"du", "de la", "des", "un", "une", "la", "les"}:
-                why = f"You kept `{learner_text}` after `pas`. For a negated quantity, du/de la/des/un/une become `de` or `d'` after `pas`, so this blank needs `{target}`."
+                why = _copy("atelier.negation.fill_kept_article", language, learner=learner_text, target=target)
             else:
-                why = "After `pas`, a negated quantity uses `de` or `d'` before the noun."
-            repair = "Check whether the original article expresses quantity; after ne...pas, change it to de/d' unless the verb is être."
+                why = _copy("atelier.negation.fill_generic", language)
+            repair = _copy("atelier.negation.repair_check_quantity", language)
         elif profile_key == "tense_aspect":
-            label = "Background vs event"
+            label = _copy("atelier.tense.label_background_vs_event", language)
             if target_norm in {"pleuvait", "visitions", "sonnait"}:
-                why = f"You chose `{learner_text}`, but this verb describes the ongoing background of the sentence, so it needs imparfait: `{target}`."
+                why = _copy("atelier.tense.fill_needs_imparfait", language, learner=learner_text, target=target)
             else:
-                why = f"You chose `{learner_text}`, but this verb is the bounded completed event, so it needs passé composé: `{target}`."
-            repair = "Ask whether the verb is ongoing background or a completed event, then choose imparfait or passé composé."
+                why = _copy("atelier.tense.fill_needs_passe_compose", language, learner=learner_text, target=target)
+            repair = _copy("atelier.tense.repair_ask_ongoing", language)
 
         return self._recognize_erratum_payload(
             concept,
@@ -4603,36 +4662,39 @@ class AtelierCorrectionService:
         learner_text: str,
         target: str,
     ) -> dict[str, Any]:
-        prompt = str(item.get("prompt") or "the form")
-        learner_label = learner_text or "no label"
+        prompt = str(item.get("prompt") or "").strip() or _copy(
+            "atelier.generic.this_form", self.explanation_language
+        )
+        learner_label = learner_text or _copy("atelier.generic.no_label", self.explanation_language)
         label = _copy("atelier.recognize.label_classification", self.explanation_language)
         why = _copy("atelier.recognize.classified_as", self.explanation_language, prompt=prompt, learner=learner_label, target=target)
         repair = item.get("repair_hint") or self._repair_for(concept)
         profile_key = infer_grammar_profile(concept).key if concept else ""
 
+        language = self.explanation_language
         if profile_key == "si_present_result_form":
-            label = "Form classification"
+            label = _copy("atelier.si.label_form_classification", language)
             if target == "present":
-                why = f"You classified `{prompt}` as `{learner_label}`, but `{prompt}` is present tense in the si-clause."
+                why = _copy("atelier.si.classify_present", language, prompt=prompt, learner=learner_label)
             elif target == "imperative":
-                why = f"You classified `{prompt}` as `{learner_label}`, but here `{prompt}` is an imperative command form, which can serve as the result in si type 1."
+                why = _copy("atelier.si.classify_imperative", language, prompt=prompt, learner=learner_label)
             elif target == "future":
-                why = f"You classified `{prompt}` as `{learner_label}`, but `{prompt}` is future simple; the `-rai` ending marks the future result."
-            repair = "Name the verb form before reading the whole sentence frame."
+                why = _copy("atelier.si.classify_future", language, prompt=prompt, learner=learner_label)
+            repair = _copy("atelier.si.repair_name_the_form", language)
         elif profile_key == "tense_aspect":
-            label = "Background vs event"
+            label = _copy("atelier.tense.label_background_vs_event", language)
             if target == "background":
-                why = f"You classified `{prompt}` as `{learner_label}`, but it describes an ongoing scene or state, so it belongs to the background/imparfait side."
+                why = _copy("atelier.tense.classify_background", language, prompt=prompt, learner=learner_label)
             else:
-                why = f"You classified `{prompt}` as `{learner_label}`, but it is a bounded completed event, so it belongs to the passé composé side."
-            repair = "Use background for ongoing scene-setting; use bounded event for a completed interruption or action."
+                why = _copy("atelier.tense.classify_event", language, prompt=prompt, learner=learner_label)
+            repair = _copy("atelier.tense.repair_background_or_event", language)
         elif profile_key == "article_after_negation":
-            label = "Negation pattern"
+            label = _copy("atelier.negation.label_pattern", language)
             if _normalize(target) == "etre exception":
-                why = f"You classified this as `{learner_label}`, but with `être`, the original article stays: `ce n'est pas du café`."
+                why = _copy("atelier.negation.classify_etre_exception", language, learner=learner_label)
             else:
-                why = f"You classified this as `{learner_label}`, but this is a normal negated quantity where the article changes to de/d'."
-            repair = "First check whether the verb is être; if it is not, a negated quantity changes to de/d'."
+                why = _copy("atelier.negation.classify_normal", language, learner=learner_label)
+            repair = _copy("atelier.negation.repair_check_etre", language)
 
         return self._recognize_erratum_payload(
             concept,
@@ -4682,9 +4744,16 @@ class AtelierCorrectionService:
     ) -> list[dict[str, Any]]:
         learner_norm = _normalize(learner_text)
         target_norm = _normalize(target)
-        label = _copy("atelier.recognize.label_word_bank", self.explanation_language)
-        why = _copy("atelier.recognize.word_bank_mismatch", self.explanation_language)
-        repair = _copy("atelier.recognize.word_bank_rebuild", self.explanation_language, target=target)
+        language = self.explanation_language
+        label = _copy("atelier.recognize.label_word_bank", language)
+        # WP-67: `label` is now a translated sentence, so the two relabelling
+        # branches at the foot of this method can no longer compare it against
+        # the English "Word bank". They ask this flag instead — otherwise a
+        # German learner who merely mis-ordered the chips was told the sentence
+        # was wrong, because «Wortbank» never matched.
+        label_is_default = True
+        why = _copy("atelier.recognize.word_bank_mismatch", language)
+        repair = _copy("atelier.recognize.word_bank_rebuild", language, target=target)
         task_type = self._task_type_for(concept, item)
         profile_key = infer_grammar_profile(concept).key if concept else ""
 
@@ -4697,11 +4766,11 @@ class AtelierCorrectionService:
                     self._word_bank_erratum_payload(
                         concept,
                         item,
-                        "Conditional vs future",
+                        _copy("atelier.si.label_conditional_vs_future", language),
                         learner_text,
                         target,
-                        "You built the right si-frame, but the result verb is `répondrais`, which is conditional. In a real condition with si + present, the consequence uses future simple: `répondrai`.",
-                        "Keep `Si elle appelle` in the present, then change only the result verb to future simple: `je répondrai`.",
+                        _copy("atelier.si.word_bank_conditional_why", language),
+                        _copy("atelier.si.word_bank_conditional_repair", language),
                         "future_result",
                     )
                 )
@@ -4717,11 +4786,11 @@ class AtelierCorrectionService:
                     self._word_bank_erratum_payload(
                         concept,
                         item,
-                        "Future placed after si",
+                        _copy("atelier.si.label_future_after_si", language),
                         learner_text,
                         target,
-                        "You put future `arriverons` inside the si-clause and present `partons` in the result. In si type 1, the condition stays present: `Si nous partons maintenant`; the consequence carries the future: `nous arriverons tôt`.",
-                        "Put the present action after `si`, then put the future action after the comma: `Si nous partons maintenant, nous arriverons tôt`.",
+                        _copy("atelier.si.word_bank_future_after_si_why", language),
+                        _copy("atelier.si.word_bank_future_after_si_repair", language),
                         "si_clause_frame",
                     )
                 )
@@ -4734,11 +4803,16 @@ class AtelierCorrectionService:
                     self._word_bank_erratum_payload(
                         concept,
                         item,
-                        "Future result",
+                        _copy("atelier.si.label_future_result", language),
                         learner_text,
                         target,
-                        f"The result clause uses `{learner_result_token}`, but si type 1 needs future simple `{target_result_token}` here.",
-                        "Keep the si-clause in the present, then put the consequence in future simple.",
+                        _copy(
+                            "atelier.si.word_bank_future_result_why",
+                            language,
+                            learner_form=learner_result_token,
+                            target_form=target_result_token,
+                        ),
+                        _copy("atelier.si.repair_present_then_future", language),
                         "future_result",
                     )
                 )
@@ -4751,11 +4825,11 @@ class AtelierCorrectionService:
                     self._word_bank_erratum_payload(
                         concept,
                         item,
-                        "Future result",
+                        _copy("atelier.si.label_future_result", language),
                         learner_text,
                         target,
-                        "The si-clause is present, but the result clause does not carry the future or imperative form that this pattern needs.",
-                        "Use present after `si`, then put the consequence in future simple or imperative.",
+                        _copy("atelier.si.word_bank_result_missing_why", language),
+                        _copy("atelier.si.word_bank_result_missing_repair", language),
                         "future_result",
                     )
                 )
@@ -4784,23 +4858,25 @@ class AtelierCorrectionService:
                 return unique_issues
         elif profile_key == "article_after_negation":
             if re.search(r"\bpas\s+(du|de la|des|un|une)\b", learner_norm):
-                label = "Article after negation"
-                why = "After pas, a negated quantity changes du/de la/des/un/une to de or d'."
-                repair = "Keep ne...pas around the verb, then use de or d' before the noun unless the verb is être."
+                label = _copy("atelier.negation.label_article", language)
+                label_is_default = False
+                why = _copy("atelier.negation.word_bank_why", language)
+                repair = _copy("atelier.negation.word_bank_repair", language)
         elif profile_key == "tense_aspect":
             if learner_norm != target_norm:
-                label = "Background vs event"
-                why = "The sentence needs the same background/event contrast as the target."
-            repair = "Use imparfait for the ongoing scene and passé composé for the bounded event."
+                label = _copy("atelier.tense.label_background_vs_event", language)
+                label_is_default = False
+                why = _copy("atelier.tense.word_bank_why", language)
+            repair = _copy("atelier.tense.word_bank_repair", language)
 
         learner_tokens = learner_norm.split()
         target_tokens = target_norm.split()
-        if label == "Word bank" and sorted(learner_tokens) == sorted(target_tokens):
-            label = "Word order"
-            why = "The right words are present, but they are not assembled in the target order."
-            repair = f"Move the chips into this order: {target}"
-        elif label == "Word bank":
-            label = "Target sentence"
+        if label_is_default and sorted(learner_tokens) == sorted(target_tokens):
+            label = _copy("atelier.word_bank.label_word_order", language)
+            why = _copy("atelier.word_bank.order_why", language)
+            repair = _copy("atelier.word_bank.order_repair", language, target=target)
+        elif label_is_default:
+            label = _copy("atelier.word_bank.label_target_sentence", language)
 
         return [self._word_bank_erratum_payload(concept, item, label, learner_text, target, why, repair, task_type)]
 
@@ -4897,11 +4973,20 @@ class AtelierCorrectionService:
                 self._word_bank_erratum_payload(
                     concept,
                     item,
-                    "Spelling slip",
+                    _copy("atelier.word_bank.label_spelling_slip", self.explanation_language),
                     learner_text,
                     target,
-                    f"You wrote `{learner_token}`, but the target word here is `{target_token}`.",
-                    f"Keep the sentence frame, then fix the spelling of `{target_token}`.",
+                    _copy(
+                        "atelier.word_bank.spelling_why",
+                        self.explanation_language,
+                        learner=learner_token,
+                        target=target_token,
+                    ),
+                    _copy(
+                        "atelier.word_bank.spelling_repair",
+                        self.explanation_language,
+                        target=target_token,
+                    ),
                     "orthography",
                 )
             )
@@ -4937,11 +5022,11 @@ class AtelierCorrectionService:
             if not str(learner).strip():
                 errata.append(
                     {
-                        "display_label": "Missing rewrite",
+                        "display_label": _copy("atelier.transform.missing_label", self.explanation_language),
                         "learner_text": "",
                         "corrected_target": target,
-                        "why_wrong": "This rewrite was not attempted.",
-                        "repair_hint": "Submit the rewrite when you want it reviewed; missed transform rows are not scheduled as grammar errata.",
+                        "why_wrong": _copy("atelier.transform.missing_why", self.explanation_language),
+                        "repair_hint": _copy("atelier.transform.missing_repair", self.explanation_language),
                         "severity": 1,
                         "recurring": False,
                         "task_error_type": "task_compliance",
@@ -5028,11 +5113,11 @@ class AtelierCorrectionService:
             errata.append(
                 {
                     "item_id": item.get("id"),
-                    "display_label": "Missing output",
+                    "display_label": _copy("atelier.output.missing_label", self.explanation_language),
                     "learner_text": "",
                     "corrected_target": self._output_ladder_target_hint(concept, item, {}),
-                    "why_wrong": "This output step was left blank, so it cannot strengthen active use yet.",
-                    "repair_hint": "Produce one sentence or turn before submitting; blank output is not scheduled as grammar errata.",
+                    "why_wrong": _copy("atelier.output.missing_why", self.explanation_language),
+                    "repair_hint": _copy("atelier.output.missing_repair", self.explanation_language),
                     "severity": 1,
                     "recurring": False,
                     "task_error_type": "task_compliance",
@@ -5051,7 +5136,13 @@ class AtelierCorrectionService:
                         # rule pattern in corrected_target (it would render as a fake
                         # "corrected" line); the note explains what the step wants.
                         "corrected_target": "",
-                        "why_wrong": f"This step is stronger when you use {req.get('label')} at least {req.get('target_count', 1)} time(s); this answer used it {req.get('detected_count', 0)}.",
+                        "why_wrong": _copy(
+                            "atelier.output.target_count_why",
+                            self.explanation_language,
+                            label=req.get("label"),
+                            target_count=req.get("target_count", 1),
+                            detected_count=req.get("detected_count", 0),
+                        ),
                         "repair_hint": item.get("repair_hint") or self._repair_for(concept),
                         "severity": 1,
                         "recurring": False,
@@ -5092,7 +5183,7 @@ class AtelierCorrectionService:
         if concept:
             profile = infer_grammar_profile(concept)
             if profile.key == "si_present_result_form":
-                return "Use si + present, then a future simple or imperative result."
+                return _copy("atelier.si.output_pattern_hint", self.explanation_language)
             return profile.pattern or profile.principle
         return str(requirement.get("label") or item.get("instruction") or item.get("prompt") or "")
 
@@ -5117,14 +5208,16 @@ class AtelierCorrectionService:
                     "condition_present": True,
                     "erratum": {
                         "item_id": item.get("id"),
-                        "display_label": "Future result",
+                        "display_label": _copy("atelier.si.label_future_result", self.explanation_language),
                         "learner_text": text,
                         "corrected_target": corrected,
-                        "why_wrong": (
-                            f"You wrote `{token}` in the result clause. With si + present for a real condition, "
-                            f"the result uses future simple, so this should be `{future_token}`."
+                        "why_wrong": _copy(
+                            "atelier.si.output_future_result_why",
+                            self.explanation_language,
+                            learner_form=token,
+                            target_form=future_token,
                         ),
-                        "repair_hint": "Keep your si-clause, then change only the result verb from conditional to future simple.",
+                        "repair_hint": _copy("atelier.si.output_future_result_repair", self.explanation_language),
                         "severity": 2,
                         "recurring": True,
                         "task_error_type": "future_result",
@@ -5137,11 +5230,11 @@ class AtelierCorrectionService:
                     "condition_present": True,
                     "erratum": {
                         "item_id": item.get("id"),
-                        "display_label": "Result form needed",
+                        "display_label": _copy("atelier.si.label_result_form_needed", self.explanation_language),
                         "learner_text": text,
                         "corrected_target": self._output_ladder_target_hint(concept, item, {}),
-                        "why_wrong": "Your si-clause is in the present, but the consequence does not show a future simple or imperative result.",
-                        "repair_hint": "After the comma, make the consequence future simple or a direct command.",
+                        "why_wrong": _copy("atelier.si.output_result_missing_why", self.explanation_language),
+                        "repair_hint": _copy("atelier.si.output_result_missing_repair", self.explanation_language),
                         "severity": 2,
                         "recurring": True,
                         "task_error_type": "future_result",
@@ -5152,16 +5245,20 @@ class AtelierCorrectionService:
             return {"condition_present": True, "erratum": None}
 
         if status == "future_after_si":
-            token = str(scan.get("condition_token") or "the verb after si")
+            token = str(scan.get("condition_token") or _copy("atelier.si.the_verb_after_si", self.explanation_language))
             return {
                 "condition_present": False,
                 "erratum": {
                     "item_id": item.get("id"),
-                    "display_label": "Si-clause tense",
+                    "display_label": _copy("atelier.si.label_clause_tense", self.explanation_language),
                     "learner_text": text,
                     "corrected_target": self._output_ladder_target_hint(concept, item, {}),
-                    "why_wrong": f"You put `{token}` inside the si-clause. In si type 1, the verb right after si stays in the present.",
-                    "repair_hint": "Move the future idea to the result clause; keep the condition after si in the present.",
+                    "why_wrong": _copy(
+                        "atelier.si.output_clause_tense_why",
+                        self.explanation_language,
+                        learner_form=token,
+                    ),
+                    "repair_hint": _copy("atelier.si.output_clause_tense_repair", self.explanation_language),
                     "severity": 2,
                     "recurring": True,
                     "task_error_type": "si_clause_tense",
@@ -5294,8 +5391,8 @@ class AtelierCorrectionService:
         result = self._correct_produce_with_llm(concepts, prompt_payload, answer_payload, fallback) or fallback
         return self._apply_produce_length_gate(result, prompt_payload=prompt_payload, answer_payload=answer_payload)
 
-    @staticmethod
     def _apply_produce_length_gate(
+        self,
         correction: dict[str, Any],
         *,
         prompt_payload: dict[str, Any],
@@ -5313,11 +5410,20 @@ class AtelierCorrectionService:
             return correction
         shortfall = min_words - word_total
         shortfall_erratum = {
-            "display_label": "Paragraphe trop court",
+            "display_label": _copy("atelier.writing.too_short_label", self.explanation_language),
             "learner_text": text,
             "corrected_target": text,
-            "why_wrong": f"{word_total} mot(s) écrits, {min_words} requis pour cette consigne.",
-            "repair_hint": f"Ajoutez {shortfall} mot(s) pour compléter le paragraphe.",
+            "why_wrong": _copy(
+                "atelier.writing.too_short_why",
+                self.explanation_language,
+                written=word_total,
+                required=min_words,
+            ),
+            "repair_hint": _copy(
+                "atelier.writing.too_short_repair",
+                self.explanation_language,
+                missing=shortfall,
+            ),
             "severity": 2,
             "recurring": False,
             "task_error_type": "length_compliance",
@@ -5360,11 +5466,16 @@ class AtelierCorrectionService:
                 missing.append({**hit, "missing_count": int(req["target_count"]) - count})
         missing_errata = [
             {
-                "display_label": "Missing writing target",
+                "display_label": _copy("atelier.writing.missing_target_label", self.explanation_language),
                 "learner_text": text,
                 "corrected_target": req["label"],
-                "why_wrong": f"The writing submitted successfully, but it used this target {req['detected_count']} time(s) instead of {req['target_count']}.",
-                "repair_hint": "Add the target naturally in revision; do not block submission for this.",
+                "why_wrong": _copy(
+                    "atelier.writing.missing_target_why",
+                    self.explanation_language,
+                    detected_count=req["detected_count"],
+                    target_count=req["target_count"],
+                ),
+                "repair_hint": _copy("atelier.writing.missing_target_repair", self.explanation_language),
                 "severity": 1,
                 "recurring": False,
                 "task_error_type": "task_compliance",
@@ -5818,11 +5929,16 @@ class AtelierCorrectionService:
             errata.append(
                 {
                     "item_id": "",
-                    "display_label": "Mot en français",
+                    "display_label": _copy("atelier.lexical_gap.label", self.explanation_language),
                     "learner_text": gap["learner_fragment"],
                     "corrected_target": gap["french"],
                     "why_wrong": self._lexical_gap_why(gap),
-                    "repair_hint": f"Remplacez « {gap['learner_fragment']} » par « {gap['french']} ».",
+                    "repair_hint": _copy(
+                        "atelier.lexical_gap.repair",
+                        self.explanation_language,
+                        fragment=gap["learner_fragment"],
+                        french=gap["french"],
+                    ),
                     "severity": 2,
                     "recurring": False,
                     "task_error_type": "lexical_gap",
@@ -5895,16 +6011,26 @@ class AtelierCorrectionService:
             )
         return gaps
 
-    @staticmethod
-    def _lexical_gap_why(gap: dict[str, Any]) -> str:
-        language_name = {"de": "en allemand", "en": "en anglais"}.get(
-            gap.get("source_language") or "", "dans votre langue"
-        )
+    def _lexical_gap_why(self, gap: dict[str, Any]) -> str:
+        """Why a word the learner wrote in their own language is an erratum.
+
+        The sentence used to be half English and half French for everyone; it
+        now follows `explanation_language`, and the name of the language the
+        fragment was written in is a copy row too — «en allemand» is French
+        prose, not a language tag.
+        """
+        language_key = {
+            "de": "atelier.lexical_gap.in_german",
+            "en": "atelier.lexical_gap.in_english",
+        }.get(str(gap.get("source_language") or ""), "atelier.lexical_gap.in_your_language")
         gloss = str(gap.get("gloss") or "").strip()
-        gloss_suffix = f" ({gloss})" if gloss else ""
-        return (
-            f"You wrote « {gap['learner_fragment']} » {language_name}. "
-            f"In French this is « {gap['french']} »{gloss_suffix}."
+        return _copy(
+            "atelier.lexical_gap.why",
+            self.explanation_language,
+            fragment=gap["learner_fragment"],
+            language=_copy(language_key, self.explanation_language),
+            french=gap["french"],
+            gloss=f" ({gloss})" if gloss else "",
         )
 
     def _correction_system_prompt(self) -> str:
@@ -6102,7 +6228,7 @@ class AtelierCorrectionService:
         elif concept:
             label = infer_grammar_profile(concept, task_text=" ".join(str(item.get(key) or "") for key in ("instruction", "prompt", "label"))).label
         else:
-            label = "Grammar target"
+            label = _copy("atelier.generic.label", self.explanation_language)
         return label[:120]
 
     def _task_type_for(self, concept: GrammarConcept | None, item: dict[str, Any]) -> str:
@@ -6111,10 +6237,14 @@ class AtelierCorrectionService:
         return str(item.get("type") or "grammar_target")
 
     def _why_for(self, concept: GrammarConcept | None) -> str:
-        return infer_grammar_profile(concept).principle if concept else "The answer does not match the requested grammar target."
+        if concept:
+            return infer_grammar_profile(concept).principle
+        return _copy("atelier.generic.why", self.explanation_language)
 
     def _repair_for(self, concept: GrammarConcept | None) -> str:
-        return infer_grammar_profile(concept).repair if concept else "Name the trigger, then apply the target form."
+        if concept:
+            return infer_grammar_profile(concept).repair
+        return _copy("atelier.generic.repair", self.explanation_language)
 
 
 def run_atelier_ai_review(attempt_id: UUID | str) -> None:
