@@ -1231,9 +1231,16 @@ def test_fourteen_days_rotate_locations_characters_and_chapters(
 
 
 def test_a_chapter_closes_after_three_resolved_commitments_without_the_model_saying_so(
-    assembled_client, db_session, journey_enabled, clock, provider
+    assembled_client, db_session, journey_enabled, clock, provider, monkeypatch
 ):
     """WP-17 §2: turnover is deterministic, not a favour the model has to remember."""
+
+    # WP-68. WP-63 deals each chapter its own length, and a three-beat two-hander
+    # reaches its resolution beat on day three — before the commitment limit this
+    # test is about can fire. Whether the learner's seeded dice deal one is luck,
+    # which made this test fail about one run in six. The shape is held still so
+    # the assertion is about the commitment limit and nothing else.
+    monkeypatch.setattr(engine, "chapter_shape", lambda *args, **kwargs: engine.DEFAULT_SHAPE)
 
     d = driver(assembled_client, db_session)
     questions = []
