@@ -357,3 +357,32 @@ and the review script stores it (`reason_feedback`), so the next lost day explai
   full fortnight at least; none of the new ledgers produced a refusal.
 
 Not re-run: the corrected cost exceeds the figure the owner consented to.
+
+## 8. The paid live review, second pass — 2026-09-21/22 (owner-consented, 90-request cap)
+
+Spend **US$0.350** (A2 US$0.143 / 33 requests, B1 US$0.207 / 46). Running total US$0.508.
+
+| run | accepted | stopped on | cause |
+|---|---|---|---|
+| A2-b | 6 of 14 | day 7, `objective_too_complex` (+ triple) | guard counted the director's own «(one sentence, max two short clauses)» as extra asks; **and** the review script never stamped `chapter_title_fr`, so §7's two fixes were not exercised by the script at all |
+| B1-b | 10 of 14 | day 11, `mixed_address_register` (+ triple) | same unstamped-chapter harness gap |
+
+Fixed in `0110e0c` (parentheticals ignored by the A2 objective guard; the script stamps
+chapters and projects `already_asked` exactly as production) and `7e3ec46` (below). Production
+always stamped its rows — the harness gap inflated the script's loss rate, not the app's.
+
+**What ten B1 days read like** (`var/reviews/atelier-story-review-B1-wp68-b.json`):
+- Three chapters, three people, four places. Romy's Montréal-or-Paris chapter ends on a promise
+  (the learner will come to Monday's pitch). Marin's ring chapter surfaces Lila's **Berlin
+  envelope** — her secret entering through his arc, not dumped — and the `letter` shape really
+  produces a note that falls out of the portrait and a written reply. Gus's chapter plants a
+  Créteil postcard on day 9 and uses it on day 10. Plants are recorded; moods go colder on a
+  refusal. This is the first run where the season reads like one life rather than a list of scenes.
+- **Monotony of act** — nine of ten objectives were «tell X whether they should A or B, and
+  give a reason». Settings rotate; what the learner *does* never did. `7e3ec46`: `speech_act`,
+  `variety.recent_acts` / `act_rule` sent with every draft, a −1.5 score term on a third advice
+  ask, and the director line. No hard guard on purpose: every lost day so far was a guard.
+- Still weak, not fixed: objectives switch between French and English inside one run (the
+  control language is not enforced); day 2's reply has Romy say «si tu préfères rentrer à
+  Montréal» to the learner (role slip); `secret_shift: hinted` is re-emitted every scene; no
+  setup used the offered callback in ten days (it is only rewarded on dual drafts).
