@@ -325,17 +325,21 @@ export function CrDebrief({
   measured,
   correspondent,
   storySummary,
+  moodAfter,
 }: {
   outcome?: CrLetterOutcome | null;
   measured?: CrMeasured | null;
   correspondent?: CrCorrespondentView | null;
   /** `recap.story_event.summary_fr` — the fact this letter left in the story. */
   storySummary?: string | null;
+  /** `recap.correspondent_mood_after` — the mood once the letter has landed. */
+  moodAfter?: string | null;
 }) {
   const label = crOutcomeLabel(outcome);
   const rows = crMeasuredRows(measured);
   const name = String(correspondent?.name || '').trim();
-  const mood = String(correspondent?.mood_line || '').trim();
+  const after = String(moodAfter || '').trim();
+  const mood = after || String(correspondent?.mood_line || '').trim();
   const story = String(storySummary || '').trim();
   if (!label && rows.length === 0 && !story && !mood) return null;
   const sentence = crOutcomeSentence(outcome, name);
@@ -371,7 +375,7 @@ export function CrDebrief({
           )}
           {mood && (
             <p className="cr-debrief-mood" lang="fr">
-              <span className="cr-debrief-when">À la réception de votre lettre — </span>
+              <span className="cr-debrief-when">{after ? 'Depuis votre lettre — ' : 'À la réception de votre lettre — '}</span>
               {mood}
             </p>
           )}

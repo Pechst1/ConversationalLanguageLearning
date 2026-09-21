@@ -1149,6 +1149,7 @@ export default function MissionsPage() {
                       measured={measured}
                       correspondent={correspondent}
                       storySummary={storySummary}
+                      moodAfter={mission.recap?.correspondent_mood_after}
                     />
                   ) : (
                     <div className="cr-recap-grid">

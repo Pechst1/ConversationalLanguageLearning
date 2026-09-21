@@ -4375,6 +4375,13 @@ class MissionScheduler:
                 "summary_fr": story_event.get("summary_fr"),
                 "witnesses": story_event.get("witnesses") or [],
             }
+            # The mood line on the payload was stamped when the letter was written;
+            # the debrief wants what the correspondent thinks now that it is answered.
+            mood_after = courrier.mood_line(
+                courrier.living_story_thread(self.db, user), mission.correspondent_id
+            )
+            if mood_after:
+                mission.recap_payload["correspondent_mood_after"] = mood_after
         from app.services.pilot_events import PilotEventService
 
         PilotEventService(self.db).record(
