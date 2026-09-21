@@ -509,6 +509,10 @@ to love: let characters remember, tease, worry, confide. moods lists, per charac
 their mood (-2 hurt … +2 glowing) and trust (0–5) toward the learner as the last
 scenes left them: write the character as they feel NOW — a hurt character is guarded,
 a trusting one confides — and let the learner's last choice have consequences.
+chapter.already_asked lists the tasks the learner has ALREADY done in this chapter, in
+order: those answers happened. Never ask any of them again, reworded or not — the new
+scene starts from their consequence and asks for a different act (on a resolution beat:
+the aftermath, a thank-you, a decision about what comes next).
 chapter.last_development is the development the learner's previous answer made true:
 the next beat MUST follow from it, not from the road not taken; when
 chapter.developments lists several, the story has branched — honour every one. open_threads are the season's
@@ -1007,7 +1011,9 @@ def _approved(
             entity_type="living_story",
             payload={"stage": schema.__name__, "reason": reason},
         )
-    raise StoryUnavailable(reason)
+    # The token stays the machine reason; every attempt's refusal rides along as the
+    # hint, so a lost day can be explained from the record instead of re-bought.
+    raise StoryUnavailable(reason, hint=" | ".join(feedback)[:1200] or None)
 
 
 def _active_thread(db: Session, user: User, *, lock=False):
@@ -1478,6 +1484,15 @@ def chapter_state(live: dict) -> dict | None:
     chapter["shape"] = str(chapter.get("shape") or DEFAULT_SHAPE)
     chapter["beats_plan"] = list(chapter_beats(chapter))
     chapter["shape_note"] = shape_note(chapter["shape"], chapter)
+    # Live A2 review 2026-09-21: the resolution re-asked the turn's task three drafts
+    # running and the day was lost. The guard was right; the director only ever learned
+    # it from a rejection. What this chapter already asked goes out with the first draft.
+    chapter["already_asked"] = [
+        str(item.get("objective_native") or "")[:160]
+        for item in (live.get("recent_situations") or [])
+        if item.get("chapter_title_fr") == chapter.get("title_fr")
+        and item.get("objective_native")
+    ][-4:]
     return chapter
 
 
@@ -3885,7 +3900,7 @@ def bind_journey(
                     -ESCALATION_LEDGER_LIMIT:
                 ]
             )
-    for derived in ("exhausted", "required_beat", "beats_plan", "shape_note"):
+    for derived in ("exhausted", "required_beat", "beats_plan", "shape_note", "already_asked"):
         chapter.pop(derived, None)
     live["chapter"] = chapter
     scene.source_snapshot = {

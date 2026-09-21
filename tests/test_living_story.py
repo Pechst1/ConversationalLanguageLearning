@@ -2556,3 +2556,20 @@ def test_a_thread_stored_before_the_season_horizon_still_loads():
     assert engine.letter_chapter_seam(old) is None
     assert engine.season_completion(list(_world()["season_arcs"]), {}) == 0.0
     assert engine.finale_context(old, world=_world(), day=3)["open_threads"]
+
+
+def test_the_director_is_told_what_the_open_chapter_already_asked():
+    """Live A2 review 2026-09-21: the resolution re-asked the turn's task and lost the day."""
+
+    live = {
+        "chapter": {"id": "c1", "title_fr": "Le radiateur", "dramatic_question": "?", "beats": []},
+        "recent_situations": [
+            {"chapter_title_fr": "Autre", "objective_native": "Order a coffee."},
+            {"chapter_title_fr": "Le radiateur", "objective_native": "Offer two times."},
+            {"chapter_title_fr": "Le radiateur", "objective_native": "Choose a time."},
+        ],
+    }
+    projected = engine.chapter_state(live)
+    assert projected["already_asked"] == ["Offer two times.", "Choose a time."]
+    assert "already_asked" not in live["chapter"], "a projection, never stored"
+    assert "chapter.already_asked" in engine.DIRECTOR

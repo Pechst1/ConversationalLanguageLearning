@@ -484,6 +484,9 @@ def main():
     except engine.StoryUnavailable as exc:
         report["status"] = "rejected_or_unavailable"
         report["reason"] = str(exc)
+        # The token alone never said why a day was lost (paid run 2026-09-21): keep the
+        # guard's own sentence — every refusal of the last scene is folded into it.
+        report["reason_feedback"] = str(getattr(exc, "feedback", "") or "")
     finally:
         report["attempted_requests"] = calls
         args.output.parent.mkdir(parents=True, exist_ok=True)
