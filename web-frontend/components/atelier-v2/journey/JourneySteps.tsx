@@ -57,8 +57,14 @@ import type {
 import type { JourneyCopy } from './journey-copy';
 import {
   answerIsBlank,
+  chapterRecapOf,
+  recallAttempt,
+  recallIsPicked,
+  registerNoteOf,
+  sceneOpensOnAudio,
   textOffered,
   voiceOffered,
+  wordBankHasSpareChips,
   type JourneyFeedback,
   type ReplyProvenance,
 } from './journey-state';
@@ -250,6 +256,16 @@ export function SceneStepView({
   const wide = widenCopy(copy);
   return (
     <StepFrame label={copy.today_eyebrow} headline={step.prompt.setup_fr} headlineLang="fr">
+      {/* WP-66 «jour d'écoute». The planner dealt a listening day, so the
+          learner is told the order before they start reading past it. The
+          server withdraws the flag when the deployment cannot speak, so this
+          never promises audio that will not arrive. */}
+      {sceneOpensOnAudio(step.prompt) && (
+        <p className="av2-label" data-state="listen-first-day">
+          {wide.listen_first_day}
+        </p>
+      )}
+
       {step.prompt.image_url && (
         <Surface shape="hero" aria-hidden={false}>
           <Artwork
@@ -327,23 +343,15 @@ export function RecallStepView({
     [step.prompt.options],
   );
 
-  const ready =
-    step.prompt.task_type === 'choice'
-      ? Boolean(choice)
-      : step.prompt.task_type === 'tiles'
-        ? tiles.length > 0
-        : !answerIsBlank(text);
-
+  // WP-66: six formats, three input surfaces. `recallAttempt` owns the mapping
+  // in `journey-state.ts`, so "what the learner sees" and "what gets posted"
+  // cannot drift apart — and a format this build has never heard of falls back
+  // to a written answer rather than to a dead Check button.
+  const attempt = recallAttempt(step.prompt, { choice, tiles, text });
+  const ready = attempt !== null;
+  const picks = recallIsPicked(step.prompt.task_type);
   const submit = () => {
-    if (step.prompt.task_type === 'choice' && choice) {
-      onSubmit({ mode: 'choice', option_id: choice });
-      return;
-    }
-    if (step.prompt.task_type === 'tiles' && tiles.length) {
-      onSubmit({ mode: 'tiles', tile_ids: tiles });
-      return;
-    }
-    onSubmit({ mode: 'text', text });
+    if (attempt) onSubmit(attempt);
   };
 
   return (
@@ -356,11 +364,23 @@ export function RecallStepView({
         <p className="av2-body av2-body--lg">{step.prompt.instruction_native}</p>
       )}
 
-      {step.prompt.task_type === 'choice' && (
+      {/* A transform prints the sentence being rewritten, so the learner knows
+          the headline above is the source and not their answer. */}
+      {step.prompt.task_type === 'transform' && step.prompt.prompt_fr && (
+        <p className="av2-label" data-state="transform-source">
+          {wide.transform_source_label}
+        </p>
+      )}
+
+      {(step.prompt.task_type === 'choice' || step.prompt.task_type === 'classify') && (
         <ChoiceList
           options={options}
           selectedId={choice}
-          label={step.prompt.instruction_native}
+          label={
+            step.prompt.task_type === 'classify'
+              ? wide.classify_label
+              : step.prompt.instruction_native
+          }
           disabled={locked}
           onSelect={setChoice}
           statusLabels={{
@@ -368,6 +388,27 @@ export function RecallStepView({
             correct: wide.status_correct,
             wrong: wide.status_wrong,
           }}
+        />
+      )}
+
+      {/* A word bank is tiles whose chip row is *not* the answer in the wrong
+          order. Saying so is the difference between a puzzle and a count. */}
+      {wordBankHasSpareChips(step.prompt) && (
+        <p className="av2-label" data-state="word-bank-spare">
+          {wide.word_bank_spare_chips}
+        </p>
+      )}
+
+      {(step.prompt.task_type === 'tiles' || step.prompt.task_type === 'word_bank') && (
+        <WordTiles
+          options={options}
+          placed={tiles}
+          label={step.prompt.instruction_native}
+          emptyHint={wide.tiles_empty}
+          removeLabel={wide.remove_last}
+          disabled={locked}
+          onPlace={(id) => setTiles((current) => [...current, id])}
+          onRemoveLast={() => setTiles((current) => current.slice(0, -1))}
         />
       )}
 
@@ -384,7 +425,9 @@ export function RecallStepView({
         />
       )}
 
-      {step.prompt.task_type === 'short_answer' &&
+      {/* Anything that is not picked is written: short answer, transform, and
+          whatever a newer server deals that this build has not met yet. */}
+      {!picks &&
         (graded ? (
           <SentAnswer label={copy.answer_label} text={text} />
         ) : (
@@ -540,13 +583,33 @@ export function RespondStepView({
     </Action>
   );
 
+  // WP-66 «jour de lettre»: the turn is a reply to a Courrier letter rather
+  // than to a spoken line. Absent on every other shape — and on every day
+  // until WP-64 registers a letter provider — so the ordinary respond step is
+  // untouched.
+  const letter = step.prompt.letter ?? null;
+  const wide = widenCopy(copy);
+
   return (
     <StepFrame
-      label={<Byline name={step.prompt.character_name} />}
-      headline={step.prompt.character_line_fr}
+      label={<Byline name={letter?.correspondent_name || step.prompt.character_name} />}
+      headline={letter ? letter.subject_fr : step.prompt.character_line_fr}
       headlineLang="fr"
     >
-      <p className="av2-body av2-body--lg">{step.prompt.objective_native}</p>
+      {letter && (
+        <Surface shape="episode">
+          <p className="av2-label">
+            {wide.letter_from.replace('{name}', letter.correspondent_name)}
+          </p>
+          <p className="av2-fr av2-body av2-body--lg" lang="fr">
+            {letter.body_fr}
+          </p>
+        </Surface>
+      )}
+
+      <p className="av2-body av2-body--lg">
+        {letter ? letter.objective_native : step.prompt.objective_native}
+      </p>
 
       {step.prompt.targets.length > 0 && (
         <div className="av2-help__actions">
@@ -681,6 +744,8 @@ export function ResolutionStepView({
   onContinue,
 }: { step: ResolutionStep } & Pick<StepViewCommonProps, 'copy' | 'busy' | 'onContinue'>) {
   const wide = widenCopy(copy);
+  const register = registerNoteOf(step.prompt);
+  const chapterRecap = chapterRecapOf(step.prompt);
   return (
     <StepFrame
       label={copy.today_eyebrow}
@@ -698,6 +763,35 @@ export function ResolutionStepView({
       )}
 
       <p className="av2-body av2-body--lg">{step.prompt.summary_native}</p>
+
+      {/* WP-66 «jour de reprise»: the chapter that just closed. French, because
+          it is story, and absent rather than empty when there is none. */}
+      {chapterRecap && (
+        <Surface shape="episode">
+          <p className="av2-label">{wide.chapter_recap_label}</p>
+          <p className="av2-fr av2-body" lang="fr">
+            {chapterRecap}
+          </p>
+        </Surface>
+      )}
+
+      {/* WP-33 / WP-66: the register the learner has been graded on since
+          WP-33 and shown since never. One French line, and why it matters in
+          their own language. Nothing at all when it was not evaluated — which
+          is neither a pass nor a failure, and so is not a line. */}
+      {register && (
+        <Notice shape="story">
+          <p className="av2-label" data-state="register">
+            {wide.register_label}
+          </p>
+          <p className="av2-fr av2-body" lang="fr">
+            {register.lineFr}
+          </p>
+          {register.reasonNative && (
+            <p className="av2-body">{register.reasonNative}</p>
+          )}
+        </Notice>
+      )}
 
       <Action tone="primary" pending={busy} pendingLabel={copy.sending} onClick={onContinue}>
         {copy.continue}

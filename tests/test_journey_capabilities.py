@@ -1066,3 +1066,142 @@ def test_the_per_journey_view_writes_nothing(db_session: Session) -> None:
         .count()
         == before
     )
+
+
+# ---------------------------------------------------------------------------
+# WP-66 / WP-33 — the register line the learner finally sees
+#
+# The dimension has been graded on every respond turn since WP-33 and shown
+# nowhere. These tests are about the *showing*: one French line, the reason in
+# the learner's own language, and silence when nothing was observed.
+# ---------------------------------------------------------------------------
+
+def _register_journey(
+    db_session: Session,
+    user: User,
+    *,
+    counterpart_line: str,
+    learner_line: str,
+    local_date: date = date(2026, 9, 5),
+) -> DailyJourney:
+    """One graded respond turn with a real exchange stored on it."""
+
+    word = _word(db_session)
+    _due_progress(db_session, user, word)
+    journey, (step,) = _journey(db_session, user, local_date=local_date)
+    step.public_prompt = {"character_line_fr": counterpart_line}
+    step.private_task = {"turns": [{"learner": learner_line}]}
+    db_session.flush()
+    _turn(
+        db_session,
+        user=user,
+        journey=journey,
+        step=step,
+        observations=[_observation(word)],
+        when=datetime(2026, 9, 5, 10, 0, tzinfo=UTC),
+    )
+    return journey
+
+
+def test_a_held_register_is_one_french_line_and_a_reason_in_the_learners_language(
+    db_session: Session,
+) -> None:
+    user = _user(db_session, native_language="en")
+    journey = _register_journey(
+        db_session,
+        user,
+        counterpart_line="Alors, qu'est-ce que je vous sers ?",
+        learner_line="Je voudrais un café, s'il vous plaît.",
+    )
+    line = journey_capabilities.build_journey_register_line(
+        db_session, user=user, journey_id=journey.id, control_language="en"
+    )
+    assert line is not None and line.respected is True
+    assert "vous" in line.line_fr
+    assert "Margaux" in line.line_fr, "the line names who it was held with"
+    assert line.reason_native and line.reason_native != line.line_fr
+    assert "Kept" in line.reason_native, line.reason_native
+
+
+def test_a_slipped_register_explains_itself_rather_than_scolding(
+    db_session: Session,
+) -> None:
+    user = _user(db_session, native_language="de")
+    journey = _register_journey(
+        db_session,
+        user,
+        counterpart_line="Alors, qu'est-ce que je vous sers ?",
+        learner_line="Tu peux me donner un café ?",
+    )
+    line = journey_capabilities.build_journey_register_line(
+        db_session, user=user, journey_id=journey.id, control_language="de"
+    )
+    assert line is not None and line.respected is False
+    assert line.line_fr and "Margaux" in line.line_fr
+    # The explanation is the same sentence the live corrector would have used.
+    from app.services.learner_copy import learner_text
+
+    assert line.reason_native == learner_text("pragmatics.register_use_vous", "de")
+
+
+def test_a_french_learner_is_not_shown_the_same_sentence_twice(
+    db_session: Session,
+) -> None:
+    user = _user(db_session, native_language="fr")
+    journey = _register_journey(
+        db_session,
+        user,
+        counterpart_line="Alors, qu'est-ce que je vous sers ?",
+        learner_line="Je voudrais un café, s'il vous plaît.",
+    )
+    line = journey_capabilities.build_journey_register_line(
+        db_session, user=user, journey_id=journey.id, control_language="fr"
+    )
+    assert line is not None
+    assert line.reason_native is None, "the reason would only repeat the French line"
+
+
+def test_a_conversation_that_addressed_nobody_gets_no_register_line(
+    db_session: Session,
+) -> None:
+    """«Non évalué» is neither a pass nor a failure, so it is not a line."""
+
+    user = _user(db_session, native_language="en")
+    journey = _register_journey(
+        db_session,
+        user,
+        counterpart_line="Bonjour.",
+        learner_line="Un café.",
+    )
+    assert (
+        journey_capabilities.build_journey_register_line(
+            db_session, user=user, journey_id=journey.id, control_language="en"
+        )
+        is None
+    )
+
+
+def test_the_register_line_never_reads_another_journeys_conversation(
+    db_session: Session,
+) -> None:
+    user = _user(db_session, native_language="en")
+    slipped = _register_journey(
+        db_session,
+        user,
+        counterpart_line="Alors, qu'est-ce que je vous sers ?",
+        learner_line="Tu peux me donner un café ?",
+        local_date=date(2026, 9, 4),
+    )
+    held = _register_journey(
+        db_session,
+        user,
+        counterpart_line="Alors, qu'est-ce que je vous sers ?",
+        learner_line="Je voudrais un café, s'il vous plaît.",
+        local_date=date(2026, 9, 5),
+    )
+    assert journey_capabilities.build_journey_register_line(
+        db_session, user=user, journey_id=slipped.id, control_language="en"
+    ).respected is False
+    assert journey_capabilities.build_journey_register_line(
+        db_session, user=user, journey_id=held.id, control_language="en"
+    ).respected is True

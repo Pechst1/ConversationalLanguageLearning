@@ -18,15 +18,21 @@
 
 import type {
   AssistanceLevel,
+  AttemptInput,
   AttemptResult,
   ControlLanguage,
+  DayShape,
   JourneyErrorCode,
   JourneyErrorDetail,
   JourneyRecap,
   JourneySnapshot,
   PublicStep,
+  RecallFormat,
+  RecallPrompt,
+  ResolutionPrompt,
   RespondPrompt,
   ScenarioDescriptor,
+  ScenePrompt,
   StepKind,
   TaskOutcome,
   TodayEnvelope,
@@ -373,6 +379,107 @@ export function textOffered(prompt: RespondPrompt | null | undefined): boolean {
 /** A blank answer is refused before it can reach the server and cost a turn. */
 export function answerIsBlank(text: string): boolean {
   return text.replace(/\s+/g, '').length === 0;
+}
+
+// ---------------------------------------------------------------------------
+// WP-66 — day shapes and the three formats brought in from the Séance
+// ---------------------------------------------------------------------------
+
+/**
+ * Which kind of day this is.
+ *
+ * A server built before WP-66 sends no `day_shape` at all, and that is a
+ * standard day — which is exactly what it was. An unknown shape is returned
+ * verbatim rather than flattened, so a client can *report* a day it does not
+ * have chrome for while still rendering the steps it was sent.
+ */
+export function dayShapeOf(journey: JourneySnapshot | null): DayShape {
+  const raw = journey?.day_shape;
+  return typeof raw === 'string' && raw.trim() ? raw : 'standard';
+}
+
+/**
+ * How one recall format is answered.
+ *
+ * The three formats WP-66 brought in reuse the renderers that already exist,
+ * so they reuse their input modes too: this is the one table that says so, and
+ * both the renderer and the request builder read it. A format this client has
+ * never heard of is treated as written text, which is the mode every server
+ * accepts for any step.
+ */
+export function recallAnswerMode(
+  format: RecallFormat | string,
+): 'choice' | 'tiles' | 'text' {
+  if (format === 'choice' || format === 'classify') return 'choice';
+  if (format === 'tiles' || format === 'word_bank') return 'tiles';
+  return 'text';
+}
+
+/** Is this format answered by picking a chip/option rather than by writing? */
+export function recallIsPicked(format: RecallFormat | string): boolean {
+  return recallAnswerMode(format) !== 'text';
+}
+
+/**
+ * The attempt body for a recall step, or `null` when nothing was answered.
+ *
+ * Keeping this beside `recallAnswerMode` is the point: a renderer that adds a
+ * format without teaching this function how it is sent would post a blank
+ * answer, and a blank answer costs the learner a turn.
+ */
+export function recallAttempt(
+  prompt: RecallPrompt,
+  answer: { choice: string | null; tiles: string[]; text: string },
+): AttemptInput | null {
+  switch (recallAnswerMode(prompt.task_type)) {
+    case 'choice':
+      return answer.choice ? { mode: 'choice', option_id: answer.choice } : null;
+    case 'tiles':
+      return answer.tiles.length ? { mode: 'tiles', tile_ids: answer.tiles } : null;
+    default:
+      return answerIsBlank(answer.text) ? null : { mode: 'text', text: answer.text };
+  }
+}
+
+/**
+ * A word bank shows chips the answer does not use; tiles show only the answer's
+ * own words. The learner has to be able to tell, so the renderer says so —
+ * and only when it is true of *this* step.
+ */
+export function wordBankHasSpareChips(prompt: RecallPrompt): boolean {
+  return prompt.task_type === 'word_bank' && prompt.options.length > 0;
+}
+
+/** «Écouter d'abord», dealt by the planner rather than chosen by the learner. */
+export function sceneOpensOnAudio(prompt: ScenePrompt | null | undefined): boolean {
+  return Boolean(prompt?.listen_first && prompt?.audio_available);
+}
+
+/**
+ * The register verdict to print under the ending, or `null`.
+ *
+ * `null` covers two different silences and deliberately flattens them, because
+ * they render the same way: a server that predates WP-66, and a conversation
+ * where register was *not evaluated*. Neither is a pass and neither is a
+ * failure, so neither is a line.
+ *
+ * Half a verdict is never shown: without the French line there is nothing to
+ * explain, so the reason is dropped with it.
+ */
+export function registerNoteOf(
+  prompt: ResolutionPrompt | null | undefined,
+): { lineFr: string; reasonNative: string | null } | null {
+  const lineFr = (prompt?.register_note_fr ?? '').trim();
+  if (!lineFr) return null;
+  const reason = (prompt?.register_reason_native ?? '').trim();
+  return { lineFr, reasonNative: reason || null };
+}
+
+/** The chapter recap a «jour de reprise» ends on, or `null`. */
+export function chapterRecapOf(
+  prompt: ResolutionPrompt | null | undefined,
+): string | null {
+  return (prompt?.chapter_recap_fr ?? '').trim() || null;
 }
 
 // ---------------------------------------------------------------------------

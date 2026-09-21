@@ -249,17 +249,66 @@ class Driver:
         self.journey: dict[str, Any] = {}
         self.private_leaks: list[str] = []
 
-    def correct_option_id(self, step: dict[str, Any]) -> str | None:
-        """The right choice, from the database — never from the prompt."""
+    def recall_key(self, step: dict[str, Any]) -> dict[str, Any] | None:
+        """The whole stored answer key for a recall step, from the database.
+
+        WP-66 gave the journey six recall formats instead of three, so a driver
+        that only knew how to click the right radio button could no longer play
+        a real day. It still reads the key the same way — out of
+        ``private_task``, never out of the prompt, which is the D-4 rule this
+        driver exists to keep honest.
+        """
 
         if self.db is None:
             return None
         row = self.db.get(DailyJourneyStep, uuid.UUID(step["id"]))
         if row is None:
             return None
-        return dict(row.private_task or {}).get("recall_task", {}).get(
-            "correct_option_id"
+        task = dict(row.private_task or {}).get("recall_task")
+        return dict(task) if isinstance(task, dict) else None
+
+    def correct_option_id(self, step: dict[str, Any]) -> str | None:
+        """The right choice, from the database — never from the prompt."""
+
+        return (self.recall_key(step) or {}).get("correct_option_id")
+
+    def recall_answer(self, step: dict[str, Any], *, correct: bool) -> dict[str, Any]:
+        """The attempt body that answers this recall step right — or wrong.
+
+        One place that knows how each of the six formats is answered, so a test
+        about evidence or about the wire contract does not have to.
+        """
+
+        task = self.recall_key(step)
+        assert task is not None, (
+            "Driver needs a db session to answer a recall step deliberately"
         )
+        task_type = task.get("task_type")
+        options = step["prompt"]["options"]
+
+        if task_type in {"choice", "classify"}:
+            key = task.get("correct_option_id")
+            assert key is not None, f"{task_type} step has no stored answer key"
+            chosen = next(
+                option for option in options
+                if (option["id"] == key) is correct
+            )
+            return {"mode": "choice", "option_id": chosen["id"]}
+
+        if task_type in {"tiles", "word_bank"}:
+            order = list(task.get("correct_tile_order") or [])
+            assert order, f"{task_type} step has no stored tile order"
+            if correct:
+                return {"mode": "tiles", "tile_ids": order}
+            wrong = list(reversed(order)) if len(order) > 1 else [*order, *order]
+            return {"mode": "tiles", "tile_ids": wrong}
+
+        accepted = list(task.get("accepted_answers") or [])
+        assert accepted, f"{task_type} step has no accepted answer"
+        return {
+            "mode": "text",
+            "text": accepted[0] if correct else "euh je ne sais pas",
+        }
 
     # -- plumbing ---------------------------------------------------------
     def _absorb(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -388,24 +437,12 @@ class Driver:
                 self.advance()
                 continue
             if kind == "recall":
-                options = step["prompt"]["options"]
                 # D-4: the public prompt no longer carries its own answer, so the
                 # key comes from the private task. Without a db session the driver
-                # cannot know which option is right, and must say so rather than
+                # cannot know which answer is right, and must say so rather than
                 # silently answering arbitrarily and calling it "correct".
-                key = self.correct_option_id(step)
-                if recall == "correct":
-                    assert key is not None, (
-                        "Driver needs a db session to answer a recall step correctly"
-                    )
-                    chosen = next(o for o in options if o["id"] == key)
-                else:
-                    assert key is not None, (
-                        "Driver needs a db session to answer a recall step wrongly"
-                    )
-                    chosen = next(o for o in options if o["id"] != key)
                 response = self.attempt(
-                    {"mode": "choice", "option_id": chosen["id"]}
+                    self.recall_answer(step, correct=recall == "correct")
                 )
                 assert response.status_code == 200, response.text
                 results.append(response.json())
@@ -789,9 +826,13 @@ def test_a_copied_suggested_response_is_supported_never_independent(
             solution = driver.help("solution")
             assert solution.status_code == 200, solution.text
             answer = solution.json()["content_fr"]
-            options = step["prompt"]["options"]
-            chosen = next(o for o in options if o["text_fr"] == answer)
-            driver.attempt({"mode": "choice", "option_id": chosen["id"]})
+            assert answer, "a paid solution must reveal something"
+            # WP-66: the revealed solution is the *phrase*, whatever renderer
+            # the day's dice picked for it. Copying it is copying it, and that
+            # is what this test is about — so the answer goes in the way the
+            # format takes answers, and the assertion below is still about the
+            # assistance ledger rather than about a radio button.
+            driver.attempt(driver.recall_answer(step, correct=True))
             driver.advance()
             continue
         suggested = driver.help("suggested_response")
@@ -868,11 +909,11 @@ def test_a_replayed_mutation_never_double_counts(
     assert step is not None and step["kind"] == "recall"
 
     # D-4: the answer key lives in the private task, not in the prompt that asks.
-    correct = driver.correct_option_id(step)
-    assert correct, "the recall step has no stored answer key"
-    chosen = next(o for o in step["prompt"]["options"] if o["id"] == correct)
+    # WP-66: whichever of the six formats today's dice dealt, the same answer
+    # replayed under the same mutation id must not be counted twice.
+    answer = driver.recall_answer(step, correct=True)
     mutation = key()
-    first = driver.attempt({"mode": "choice", "option_id": chosen["id"]}, mutation_id=mutation)
+    first = driver.attempt(answer, mutation_id=mutation)
     assert first.status_code == 200
 
     replay = assembled_client.post(
@@ -881,7 +922,7 @@ def test_a_replayed_mutation_never_double_counts(
         json={
             "mutation_id": mutation,
             "expected_revision": first.json()["journey"]["revision"] - 1,
-            "input": {"mode": "choice", "option_id": chosen["id"]},
+            "input": answer,
         },
     )
     assert replay.status_code == 200
@@ -1666,11 +1707,23 @@ def test_no_surface_ever_ships_answer_key_material(
     row = db_session.get(DailyJourneyStep, uuid.UUID(recall["id"]))
     assert row is not None
     private = dict(row.private_task or {}).get("recall_task", {})
-    assert private.get("correct_option_id"), "the recall step has no stored answer key"
+    # WP-66: six formats, three shapes of answer key. Whichever one today's
+    # dice dealt, the key must exist — and must exist *here*.
+    assert (
+        private.get("correct_option_id")
+        or private.get("correct_tile_order")
+        or private.get("accepted_answers")
+    ), "the recall step has no stored answer key"
     # The option ids are necessarily public — the learner has to pick one. What
     # must never be public is *which* one is right, or any correctness marker.
     blob = str(journey)
-    for marker in ("correct_option_id", "accepted_answers", "is_correct", "solution_fr"):
+    for marker in (
+        "correct_option_id",
+        "correct_tile_order",
+        "accepted_answers",
+        "is_correct",
+        "solution_fr",
+    ):
         assert marker not in blob, marker
     for option in recall["prompt"]["options"]:
         assert set(option) == {"id", "text_fr"}, option
@@ -1714,3 +1767,98 @@ def test_the_recall_prompt_does_not_contain_its_own_answer(
             assert task["solution_fr"] != answer, (
                 f"{prompt['task_type']} step publishes the exact answer {answer!r}"
             )
+
+
+# ---------------------------------------------------------------------------
+# WP-66 — the day has a shape, and the register is finally shown
+# ---------------------------------------------------------------------------
+
+
+def test_the_day_carries_its_shape_all_the_way_to_the_wire(
+    assembled_client: TestClient, journey_enabled: None, clock: Clock, db_session: Session
+) -> None:
+    """The shape is decided once, stored with the plan, and read back."""
+
+    from app.db.models.daily_journey import DailyJourney
+    from app.services.journey_contracts import DayShape
+
+    email = f"wp66-shape-{uuid.uuid4().hex[:8]}@example.com"
+    headers = register(assembled_client, email)
+    seed_due_vocabulary(db_session, learner_id(db_session, email), CAFE_WORDS)
+
+    driver = Driver(assembled_client, headers, db=db_session)
+    journey = driver.create(expect=(201,))
+
+    shape = journey["day_shape"]
+    assert shape in {str(value) for value in DayShape}
+
+    row = db_session.get(DailyJourney, uuid.UUID(journey["id"]))
+    assert row is not None
+    stored = dict(row.plan_selection or {})
+    assert stored["day_shape"] == shape, "the wire and the plan must agree"
+    assert "shape_reason" in stored, "why the dice dealt it is operator-readable"
+
+    # A refresh is not a re-roll: the same day stays the same day.
+    again = assembled_client.get(
+        f"/api/v1/daily-journeys/{journey['id']}", headers=headers
+    ).json()
+    assert again["day_shape"] == shape
+
+
+def test_a_journey_planned_before_wp66_reads_back_as_the_standard_day_it_was(
+    assembled_client: TestClient, journey_enabled: None, clock: Clock, db_session: Session
+) -> None:
+    """Persisted plans from before this change must still load and validate."""
+
+    from app.db.models.daily_journey import DailyJourney
+
+    email = f"wp66-legacy-{uuid.uuid4().hex[:8]}@example.com"
+    headers = register(assembled_client, email)
+    seed_due_vocabulary(db_session, learner_id(db_session, email), CAFE_WORDS)
+
+    driver = Driver(assembled_client, headers, db=db_session)
+    journey = driver.create(expect=(201,))
+    row = db_session.get(DailyJourney, uuid.UUID(journey["id"]))
+    assert row is not None
+
+    # Exactly what a pre-WP-66 row holds: a plan selection with no shape keys.
+    selection = dict(row.plan_selection or {})
+    selection.pop("day_shape", None)
+    selection.pop("shape_reason", None)
+    row.plan_selection = selection
+    db_session.flush()
+
+    reread = assembled_client.get(
+        f"/api/v1/daily-journeys/{journey['id']}", headers=headers
+    )
+    assert reread.status_code == 200, reread.text
+    assert reread.json()["day_shape"] == "standard"
+    assert reread.json()["steps"], "the day is still playable"
+
+
+def test_the_resolution_finally_shows_the_register_it_has_been_grading(
+    assembled_client: TestClient, journey_enabled: None, clock: Clock, db_session: Session
+) -> None:
+    """WP-33 graded it from the start; WP-66 is what puts it on the screen."""
+
+    email = f"wp66-register-{uuid.uuid4().hex[:8]}@example.com"
+    headers = register(assembled_client, email)
+    seed_due_vocabulary(db_session, learner_id(db_session, email), CAFE_WORDS)
+
+    driver = Driver(assembled_client, headers, db=db_session)
+    driver.create(expect=(201,))
+    driver.play(answer="Bonjour, je voudrais un café en terrasse, s'il vous plaît.")
+
+    resolution = step_of(driver.journey, "resolution")
+    assert resolution is not None
+    prompt = resolution["prompt"]
+    # Margaux vouvoie the learner and the learner answered « s'il vous plaît »,
+    # so the register was both evaluated and held. The line is the app's French
+    # chrome; the reason speaks the learner's language.
+    assert prompt["register_note_fr"] == "« vous » tenu avec Margaux."
+    assert prompt["register_reason_native"] == "Kept vous with Margaux."
+    # It is a verdict shown to a learner, never the rubric behind it.
+    blob = str(prompt)
+    for marker in ("rubric", "expected_register", "verdict", "respected"):
+        assert marker not in blob, marker
+

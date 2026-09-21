@@ -1899,3 +1899,271 @@ const noSleep = () => Promise.resolve();
   const session = fs.readFileSync(path.join(__dirname, 'JourneySession.tsx'), 'utf8');
   assert.ok(session.includes("atelierCopy('fr')"), 'the step caption is French chrome');
 }
+
+// ===========================================================================
+// WP-66 — des journées qui ne se ressemblent pas
+//
+// Day shapes on the wire, the three Séance formats in the renderer, the
+// register line under the ending, and the «jour de lettre» seam. Everything
+// here is additive: a payload from a server built before WP-66 must render
+// exactly as it did.
+// ===========================================================================
+{
+  const EN66 = journeyCopy('en');
+  const FR66 = journeyCopy('fr');
+  const returning66 = fixture('returning_due').response;
+  const baseProps = {
+    copy: EN66,
+    busy: false,
+    feedback: { kind: 'idle' },
+    help: null,
+    onHelp: () => {},
+    onSubmit: () => {},
+    onContinue: () => {},
+  };
+  const recallFixture = returning66.steps.find((step) => step.kind === 'recall');
+  const sceneFixture = returning66.steps.find((step) => step.kind === 'scene');
+  const respondFixture = returning66.steps.find((step) => step.kind === 'respond');
+  const resolutionFixture = returning66.steps.find((step) => step.kind === 'resolution');
+  const render = (view, step, extra = {}) =>
+    renderToStaticMarkup(React.createElement(view, { step, ...baseProps, ...extra }));
+
+  // --- the shape -----------------------------------------------------------
+  assert.equal(
+    state.dayShapeOf(returning66),
+    'standard',
+    'a snapshot with no day_shape is the standard day it was',
+  );
+  assert.equal(state.dayShapeOf(null), 'standard');
+  assert.equal(state.dayShapeOf({ ...returning66, day_shape: 'listening' }), 'listening');
+  assert.equal(
+    state.dayShapeOf({ ...returning66, day_shape: 'jour_de_marche' }),
+    'jour_de_marche',
+    'an unknown shape is reported, not flattened: the steps still render',
+  );
+  assert.equal(
+    state.phaseFromJourney({ ...returning66, day_shape: 'jour_de_marche' }).kind,
+    'session',
+    'and a shape this build has never met never costs the learner their day',
+  );
+
+  // --- how each format is answered ----------------------------------------
+  const MODES = {
+    choice: 'choice',
+    classify: 'choice',
+    tiles: 'tiles',
+    word_bank: 'tiles',
+    short_answer: 'text',
+    transform: 'text',
+  };
+  for (const [format, mode] of Object.entries(MODES)) {
+    assert.equal(state.recallAnswerMode(format), mode, `${format} is answered as ${mode}`);
+  }
+  assert.equal(
+    state.recallAnswerMode('a_format_from_the_future'),
+    'text',
+    'an unknown format falls back to writing, which every server accepts',
+  );
+
+  const answered = { choice: 'opt-1', tiles: ['t1', 't2'], text: 'vous prenez un café' };
+  assert.deepEqual(state.recallAttempt({ task_type: 'classify', options: [] }, answered), {
+    mode: 'choice',
+    option_id: 'opt-1',
+  });
+  assert.deepEqual(state.recallAttempt({ task_type: 'word_bank', options: [] }, answered), {
+    mode: 'tiles',
+    tile_ids: ['t1', 't2'],
+  });
+  assert.deepEqual(state.recallAttempt({ task_type: 'transform', options: [] }, answered), {
+    mode: 'text',
+    text: 'vous prenez un café',
+  });
+  // Nothing answered is `null`, never a blank submission — a blank answer
+  // costs the learner a turn.
+  const empty = { choice: null, tiles: [], text: '   ' };
+  for (const format of Object.keys(MODES)) {
+    assert.equal(
+      state.recallAttempt({ task_type: format, options: [] }, empty),
+      null,
+      `${format} refuses an empty answer before it reaches the server`,
+    );
+  }
+
+  // --- the three new renderers --------------------------------------------
+  const classifyStep = {
+    ...recallFixture,
+    prompt: {
+      ...recallFixture.prompt,
+      task_type: 'classify',
+      instruction_native: 'Masculine or feminine?',
+      prompt_fr: 'terrasse',
+      options: [
+        { id: 'cls-m', text_fr: 'masculin' },
+        { id: 'cls-f', text_fr: 'féminin' },
+      ],
+      help_available: ['solution'],
+    },
+  };
+  const classifyHtml = render(steps.RecallStepView, classifyStep);
+  assert.ok(htmlHas(classifyHtml, 'terrasse'), 'the bare noun is the prompt');
+  assert.ok(!htmlHas(classifyHtml, 'une terrasse'), 'and its article is never shown');
+  assert.ok(htmlHas(classifyHtml, 'masculin') && htmlHas(classifyHtml, 'féminin'));
+  assert.ok(classifyHtml.includes('role="radiogroup"'), 'a classify is a real radio group');
+  assert.ok(!classifyHtml.includes('<textarea'), 'and not a writing task');
+
+  const wordBankStep = {
+    ...recallFixture,
+    prompt: {
+      ...recallFixture.prompt,
+      task_type: 'word_bank',
+      instruction_native: 'Build "the bill now". Some chips are not needed.',
+      prompt_fr: null,
+      options: [
+        { id: 'tile-1', text_fr: 'maintenant' },
+        { id: 'chip-1', text_fr: 'café' },
+        { id: 'tile-2', text_fr: "l'addition" },
+      ],
+    },
+  };
+  const wordBankHtml = render(steps.RecallStepView, wordBankStep);
+  for (const option of wordBankStep.prompt.options) {
+    assert.ok(htmlHas(wordBankHtml, option.text_fr), `chip ${option.id} is rendered`);
+  }
+  assert.ok(
+    htmlHas(wordBankHtml, EN66.word_bank_spare_chips),
+    'the learner is told some chips do not belong — otherwise counting solves it',
+  );
+  assert.ok(!wordBankHtml.includes('<textarea'), 'a word bank is built, not written');
+  // Plain tiles say nothing of the kind: every chip there is part of the answer.
+  const tilesHtml = render(steps.RecallStepView, {
+    ...recallFixture,
+    prompt: { ...recallFixture.prompt, task_type: 'tiles', options: wordBankStep.prompt.options },
+  });
+  assert.ok(!htmlHas(tilesHtml, EN66.word_bank_spare_chips));
+
+  const transformStep = {
+    ...recallFixture,
+    prompt: {
+      ...recallFixture.prompt,
+      task_type: 'transform',
+      instruction_native: 'Say the same thing with "vous": change "tu prends".',
+      prompt_fr: 'tu prends un café',
+      options: [],
+      help_available: ['hint'],
+    },
+  };
+  const transformHtml = render(steps.RecallStepView, transformStep);
+  assert.ok(htmlHas(transformHtml, 'tu prends un café'), 'the source sentence is printed');
+  assert.ok(htmlHas(transformHtml, FR66.transform_source_label), 'and labelled as the source');
+  assert.ok(transformHtml.includes('<textarea'), 'a transform is written out');
+  assert.ok(
+    !htmlHas(transformHtml, 'vous prenez un café'),
+    'and the rewrite the learner owes is nowhere on the page',
+  );
+
+  // The three originals are untouched.
+  const choiceHtml = render(steps.RecallStepView, recallFixture);
+  assert.ok(choiceHtml.includes('role="radiogroup"'), 'choice still renders as it did');
+  assert.ok(!htmlHas(choiceHtml, EN66.word_bank_spare_chips));
+  assert.ok(!htmlHas(choiceHtml, FR66.transform_source_label));
+
+  // --- «jour d'écoute» -----------------------------------------------------
+  assert.equal(state.sceneOpensOnAudio(sceneFixture.prompt), false);
+  assert.equal(
+    state.sceneOpensOnAudio({ ...sceneFixture.prompt, listen_first: true, audio_available: false }),
+    false,
+    'a listening day on a silent deployment is not a listening day',
+  );
+  assert.equal(
+    state.sceneOpensOnAudio({ ...sceneFixture.prompt, listen_first: true, audio_available: true }),
+    true,
+  );
+  const listeningHtml = render(steps.SceneStepView, {
+    ...sceneFixture,
+    prompt: { ...sceneFixture.prompt, listen_first: true, audio_available: true },
+  });
+  assert.ok(htmlHas(listeningHtml, EN66.listen_first_day), 'the order is stated before the text');
+  assert.ok(
+    !htmlHas(render(steps.SceneStepView, sceneFixture), EN66.listen_first_day),
+    'and never on an ordinary day',
+  );
+
+  // --- «jour de reprise» + the register line -------------------------------
+  assert.equal(state.registerNoteOf(resolutionFixture.prompt), null);
+  assert.equal(state.chapterRecapOf(resolutionFixture.prompt), null);
+  assert.equal(
+    state.registerNoteOf({ register_note_fr: '   ', register_reason_native: 'Kept vous.' }),
+    null,
+    'half a verdict is never shown: no French line, no reason either',
+  );
+  assert.deepEqual(
+    state.registerNoteOf({ register_note_fr: '« vous » tenu avec Margaux.' }),
+    { lineFr: '« vous » tenu avec Margaux.', reasonNative: null },
+    'a French-speaking learner gets the line alone, not the same sentence twice',
+  );
+
+  const reprise = {
+    ...resolutionFixture,
+    prompt: {
+      ...resolutionFixture.prompt,
+      chapter_recap_fr: 'Le chapitre s’achève : Romy a récupéré ses clés.',
+      register_note_fr: '« vous » tenu avec Margaux.',
+      register_reason_native: 'Kept vous with Margaux.',
+    },
+  };
+  const repriseHtml = render(steps.ResolutionStepView, reprise);
+  assert.ok(htmlHas(repriseHtml, 'Le chapitre s’achève : Romy a récupéré ses clés.'));
+  assert.ok(htmlHas(repriseHtml, FR66.chapter_recap_label));
+  assert.ok(htmlHas(repriseHtml, '« vous » tenu avec Margaux.'), 'the register line is French');
+  assert.ok(htmlHas(repriseHtml, 'Kept vous with Margaux.'), 'the reason is the learner’s');
+  assert.ok(htmlHas(repriseHtml, FR66.register_label));
+  // The ending is still the ending: the additions sit under it.
+  assert.ok(htmlHas(repriseHtml, resolutionFixture.prompt.character_line_fr));
+  assert.ok(
+    repriseHtml.indexOf(escapeHtml(resolutionFixture.prompt.character_line_fr)) <
+      repriseHtml.indexOf(escapeHtml('« vous » tenu avec Margaux.')),
+  );
+
+  // A resolution from a server that predates WP-66 renders exactly as before.
+  const plainResolutionHtml = render(steps.ResolutionStepView, resolutionFixture);
+  assert.ok(!htmlHas(plainResolutionHtml, FR66.register_label));
+  assert.ok(!htmlHas(plainResolutionHtml, FR66.chapter_recap_label));
+
+  // --- «jour de lettre» (WP-64 seam, off until a provider exists) ----------
+  assert.equal(respondFixture.prompt.letter ?? null, null, 'no letter on an ordinary day');
+  const letterStep = {
+    ...respondFixture,
+    prompt: {
+      ...respondFixture.prompt,
+      letter: {
+        mission_id: 'm-1',
+        correspondent_id: 'romy_voisine',
+        correspondent_name: 'Romy',
+        subject_fr: 'Le radiateur',
+        body_fr: 'Le radiateur fuit encore. Tu peux passer ce soir ?',
+        objective_native: 'Answer Romy and say when you can come.',
+      },
+    },
+  };
+  const letterHtml = render(steps.RespondStepView, letterStep);
+  assert.ok(htmlHas(letterHtml, 'Le radiateur fuit encore. Tu peux passer ce soir ?'));
+  assert.ok(htmlHas(letterHtml, 'Romy'), 'the correspondent is named');
+  assert.ok(htmlHas(letterHtml, 'Answer Romy and say when you can come.'));
+  // The turn is still the ordinary respond turn: same answer surface, same
+  // send action. A letter changes what is being answered, not how.
+  const plainRespondHtml = render(steps.RespondStepView, respondFixture);
+  assert.equal(
+    letterHtml.includes('<textarea'),
+    plainRespondHtml.includes('<textarea'),
+    'a letter day answers the same way an ordinary day does',
+  );
+  assert.equal(
+    letterHtml.includes(escapeHtml(EN66.send)),
+    plainRespondHtml.includes(escapeHtml(EN66.send)),
+    'and the same action closes the turn',
+  );
+  // The ordinary respond step never shows a letter block.
+  assert.ok(!htmlHas(render(steps.RespondStepView, respondFixture), 'Le radiateur'));
+}
+
+console.log('WP-66 day shapes and recall formats: ok');

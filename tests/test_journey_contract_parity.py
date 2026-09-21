@@ -481,3 +481,161 @@ def test_an_unfrozen_event_name_is_refused(db_session, learner):
         metadata={"journey_id": str(journey_id)},
     )
     assert refused is None
+
+
+# ---------------------------------------------------------------------------
+# WP-66: day shapes and the three Séance formats, across the seam.
+#
+# The failure a per-package suite cannot catch here is a planner that produces
+# a step the wire schema refuses — or a wire schema that has quietly stopped
+# accepting a payload already sitting in somebody's database.
+# ---------------------------------------------------------------------------
+
+def test_every_recall_format_the_planner_can_pose_validates_on_the_wire(
+    db_session, learner
+):
+    """Six formats in the planner must be six formats in `RecallPrompt`."""
+
+    from app.schemas.daily_journey import RecallPrompt
+    from app.services.journey_contracts import RECALL_FORMATS, TargetKind, TargetRef
+    from app.services.journey_planner import (
+        build_recall_task_in_format,
+        public_recall_target,
+    )
+
+    brief = _brief(db_session, learner, CapabilityKey.ORDER_AT_CAFE)
+    scene = ["un café", "en terrasse", "s'il vous plaît", "au comptoir"]
+    # One target per format, each paired with the scene vocabulary that makes
+    # *that* format the honest way to pose it: a word the scene can distract
+    # (choice), the same word in a scene that affords nothing (short answer), a
+    # phrase with no gloss to choose between (tiles), a phrase the scene can
+    # add spare chips to (word bank), a noun with its article (gender
+    # classify), and a phrase that tutoies (transform).
+    targets = {
+        "choice": (
+            TargetRef(
+                kind=TargetKind.VOCABULARY, id="p1", label_fr="café",
+                label_native="coffee",
+            ),
+            scene,
+        ),
+        "short_answer": (
+            TargetRef(
+                kind=TargetKind.VOCABULARY, id="p3", label_fr="brouillard",
+                label_native="fog",
+            ),
+            [],
+        ),
+        "tiles": (
+            TargetRef(
+                kind=TargetKind.VOCABULARY, id="p2", label_fr="un grand café",
+                label_native=None,
+            ),
+            scene,
+        ),
+        "word_bank": (
+            TargetRef(
+                kind=TargetKind.VOCABULARY, id="p4", label_fr="l'addition maintenant",
+                label_native="the bill now",
+            ),
+            scene,
+        ),
+        "classify": (
+            TargetRef(
+                kind=TargetKind.VOCABULARY, id="p5", label_fr="une terrasse",
+                label_native="a terrace",
+            ),
+            scene,
+        ),
+        "transform": (
+            TargetRef(
+                kind=TargetKind.GRAMMAR, id="p6", label_fr="tu prends un café",
+                label_native="you are having a coffee",
+            ),
+            scene,
+        ),
+    }
+    assert set(targets) == set(RECALL_FORMATS), "a format with no parity coverage"
+
+    posed = 0
+    for task_type, (target, affordances) in targets.items():
+        task = build_recall_task_in_format(
+            task_type,
+            target=target,
+            scenario=brief,
+            affordances=affordances,
+            optional=False,
+        )
+        assert task is not None, f"{task_type} could not be posed at all"
+        assert task.task_type == task_type
+        prompt = RecallPrompt.model_validate(
+            {
+                "task_type": task.task_type,
+                "instruction_native": task.instruction_native,
+                "prompt_fr": task.prompt_fr,
+                "options": [dict(option) for option in task.options],
+                "target": public_recall_target(task.target),
+                "optional": task.optional,
+                "help_available": [],
+            }
+        )
+        serialized = json.dumps(prompt.model_dump(mode="json"), ensure_ascii=False)
+        for marker in PROMPT_LEAK_MARKERS:
+            assert marker not in serialized, f"{task_type} leaks {marker}"
+        posed += 1
+    assert posed == len(RECALL_FORMATS)
+
+
+def test_a_v1_payload_still_validates_after_the_wp66_additions(db_session, learner):
+    """Additive means additive: the frozen fixtures must not need editing."""
+
+    from app.schemas.daily_journey import JourneySnapshot, ResolutionPrompt
+
+    snapshot = _fixture("cafe_journey_created")
+    assert "day_shape" not in snapshot, "the frozen fixture predates WP-66"
+    parsed = JourneySnapshot.model_validate(snapshot)
+    assert parsed.day_shape == "standard", "an old plan is the standard day it was"
+    for step in parsed.steps:
+        if step.kind == "scene":
+            assert step.prompt.listen_first is False
+        if step.kind == "resolution":
+            assert step.prompt.chapter_recap_fr is None
+            assert step.prompt.register_note_fr is None
+
+    # And the new fields are genuinely optional, not merely defaulted somewhere.
+    bare = ResolutionPrompt.model_validate(
+        {
+            "outcome_key": "served_at_counter",
+            "character_line_fr": "Un café pour vous.",
+            "summary_native": "Margaux served your coffee.",
+        }
+    )
+    assert (bare.chapter_recap_fr, bare.register_note_fr, bare.register_reason_native) == (
+        None,
+        None,
+        None,
+    )
+
+
+@pytest.mark.parametrize(
+    "shape", ["standard", "letter", "listening", "reprise", "short"]
+)
+def test_every_day_shape_the_planner_deals_is_a_shape_the_wire_can_carry(shape):
+    from app.schemas.daily_journey import JourneySnapshot
+    from app.services.journey_contracts import DayShape
+
+    assert shape in {str(value) for value in DayShape}
+    snapshot = _fixture("cafe_journey_created")
+    parsed = JourneySnapshot.model_validate({**snapshot, "day_shape": shape})
+    assert parsed.day_shape == shape
+
+
+def test_a_shape_this_build_has_never_heard_of_does_not_break_the_day():
+    """A client (or an older server) meeting a newer deployment's shape."""
+
+    from app.schemas.daily_journey import JourneySnapshot
+
+    snapshot = _fixture("cafe_journey_created")
+    parsed = JourneySnapshot.model_validate({**snapshot, "day_shape": "jour_de_marche"})
+    assert parsed.day_shape == "jour_de_marche"
+    assert parsed.steps, "the steps are still there to render"

@@ -398,6 +398,92 @@ def build_journey_capability_evidence(
     return views
 
 
+@dataclass(frozen=True, slots=True)
+class RegisterLine:
+    """WP-66. The register verdict for one journey, ready to be shown.
+
+    ``line_fr`` is one French sentence — the app's chrome language, beside the
+    French ending it sits under. ``reason_native`` says *why* in the learner's
+    own language, and is ``None`` when it would only repeat the French line
+    (a learner whose control language is already French).
+    """
+
+    line_fr: str
+    reason_native: str | None
+    respected: bool
+
+
+#: ``register_expected -> pragmatics copy key``. The explanation a slip gets is
+#: the same sentence the live corrector would have shown for it, so the recap
+#: and the correction can never say different things about one conversation.
+_REGISTER_SLIP_COPY: dict[str, str] = {
+    "vous": "pragmatics.register_use_vous",
+    "tu": "pragmatics.register_use_tu",
+}
+
+
+def build_journey_register_line(
+    db: Session,
+    *,
+    user: User,
+    journey_id: UUID,
+    control_language: str = "en",
+) -> RegisterLine | None:
+    """What this one journey showed about register, or ``None``.
+
+    WP-33 graded this dimension and WP-66 is what finally shows it: until now it
+    was scored on every respond turn and never printed anywhere, which is the
+    phantom-loop mistake in miniature.
+
+    ``None`` means *not evaluated* — no declared or demonstrated counterpart
+    register, or a conversation that addressed nobody. That is never dressed up
+    as a pass and never as a failure: the resolution step simply carries no
+    register line, exactly as it did before this package.
+
+    Reads through the same :func:`_capability_opportunities` and the same
+    ``_register_verdict`` as :func:`build_register_summary`. There is one
+    rubric; this is a projection of it, not a second opinion.
+    """
+
+    language = normalize_control_language(control_language)
+    try:
+        by_capability, _unknown = _capability_opportunities(
+            db, user=user, language=language
+        )
+    except Exception:  # pragma: no cover - a recap line is never worth the day
+        logger.exception("journey_register_line_unavailable")
+        return None
+
+    mine = [
+        item
+        for items in by_capability.values()
+        for item in items
+        if item.journey_id == journey_id and item.register_evaluated
+    ]
+    if not mine:
+        return None
+    # One conversation, one verdict: a slip anywhere in the exchange is the
+    # verdict, exactly as `_register_verdict` decides it per step.
+    respected = all(item.register_respected for item in mine)
+    item = next((row for row in mine if not row.register_respected), mine[0])
+
+    line_fr = _register_context_line(replace(item, register_respected=respected), language="fr")
+    if respected:
+        reason = _register_context_line(
+            replace(item, register_respected=True), language=language
+        )
+    else:
+        copy_key = _REGISTER_SLIP_COPY.get(
+            str(item.register_expected or ""), "pragmatics.register_mixed"
+        )
+        reason = learner_text(copy_key, language)
+    reason = (reason or "").strip() or None
+    if reason and reason == line_fr:
+        # French chrome plus the same sentence twice is not an explanation.
+        reason = None
+    return RegisterLine(line_fr=line_fr, reason_native=reason, respected=respected)
+
+
 def _capability_opportunities(
     db: Session, *, user: User, language: ControlLanguage
 ) -> tuple[dict[CapabilityKey, list[_Opportunity]], set[CapabilityKey]]:
@@ -907,8 +993,10 @@ __all__ = [
     "KEEPSAKE_EFFECT",
     "MAX_EVIDENCE_PER_CAPABILITY",
     "REPEAT_USE_MIN_SEPARATION",
+    "RegisterLine",
     "build_capability_summary",
     "build_journey_capability_evidence",
+    "build_journey_register_line",
     "build_register_summary",
     "journey_keepsake",
     "mint_journey_keepsake",

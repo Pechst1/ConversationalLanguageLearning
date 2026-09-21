@@ -70,13 +70,55 @@ export type ScenePrompt = {
   image_url: string | null;
   /** WP-49: «Écouter d'abord» is offered only when the server can honour it. */
   audio_available?: boolean;
+  /**
+   * WP-66 «jour d'écoute»: the planner dealt a listening day, so the scene
+   * opens on the audio instead of on the text. Optional — a server built
+   * before WP-66 omits it entirely, and that is a standard day.
+   *
+   * Still subject to `audio_available`: the server turns this off again at
+   * projection time when the deployment's audio has since been switched off,
+   * so the client never opens a player that will never play.
+   */
+  listen_first?: boolean;
 };
+
+/**
+ * WP-66: the five kinds of day the planner deals.
+ *
+ * Deliberately widened with `(string & {})`: a client that meets a shape a
+ * newer server deals must render the steps it was sent rather than refuse the
+ * day, so this is a hint, never an exhaustive switch.
+ */
+export type DayShape =
+  | 'standard'
+  | 'letter'
+  | 'listening'
+  | 'reprise'
+  | 'short'
+  | (string & Record<never, never>);
 
 /** Never carries correctness. */
 export type RecallOption = { id: string; text_fr: string };
 
+/**
+ * WP-66. Six ways to pose one recall opportunity.
+ *
+ * The three additions reuse the renderers that already exist, which is also
+ * how they are answered: a `classify` is a two-label pick answered like a
+ * `choice`, a `word_bank` is tiles with chips that are *not* part of the
+ * answer and is answered like `tiles`, and a `transform` is a written answer
+ * over a printed source sentence.
+ */
+export type RecallFormat =
+  | 'choice'
+  | 'tiles'
+  | 'short_answer'
+  | 'transform'
+  | 'classify'
+  | 'word_bank';
+
 export type RecallPrompt = {
-  task_type: 'choice' | 'tiles' | 'short_answer';
+  task_type: RecallFormat;
   instruction_native: string;
   prompt_fr: string | null;
   /** `[]` for short_answer. */
@@ -102,6 +144,22 @@ export type RespondPrompt = {
   input_modes: InputMode[];
   targets: TargetRef[];
   help_available: HelpKind[];
+  /**
+   * WP-66 «jour de lettre»: the Courrier letter being answered. `null` (or
+   * absent) on every other shape, which is every day until WP-64 registers a
+   * letter provider.
+   */
+  letter?: RespondLetter | null;
+};
+
+/** The public half of a Courrier letter. Never carries a rubric. */
+export type RespondLetter = {
+  mission_id: string;
+  correspondent_id: string;
+  correspondent_name: string;
+  subject_fr: string;
+  body_fr: string;
+  objective_native: string;
 };
 
 export type ResolutionPrompt = {
@@ -109,6 +167,17 @@ export type ResolutionPrompt = {
   character_line_fr: string;
   summary_native: string;
   image_url: string | null;
+  /** WP-66 «jour de reprise»: the chapter that just closed, in French. */
+  chapter_recap_fr?: string | null;
+  /**
+   * WP-33 / WP-66: the graded register dimension, finally shown. One French
+   * line, plus why it matters in the learner's own language.
+   *
+   * Both are absent together whenever register was *not evaluated*. That is
+   * never a pass and never a failure, and it renders as nothing at all.
+   */
+  register_note_fr?: string | null;
+  register_reason_native?: string | null;
 };
 
 type PublicStepBase = {
@@ -184,6 +253,8 @@ export type JourneySnapshot = {
   steps: PublicStep[];
   recap: JourneyRecap | null;
   retry: { allowed: boolean; after_seconds: number } | null;
+  /** WP-66: which kind of day this is. Absent on a pre-WP-66 server. */
+  day_shape?: DayShape;
 };
 
 export type TodayEnvelope = {

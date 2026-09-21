@@ -32,18 +32,23 @@ import hashlib
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Any, Literal
 
+from app.services import pragmatics
 from app.services.journey_content import render_authored_text, scenario_target_affordances
 from app.services.journey_contracts import (
     DEFAULT_BUDGET_SECONDS,
+    DEFAULT_DAY_SHAPE,
     MAX_PLANNED_STEPS,
     MAX_RECALL_STEPS,
     MAX_RESPOND_TURNS,
+    RECALL_FORMATS,
     ControlLanguage,
+    DayShape,
     HelpKind,
     InputMode,
     LearningCandidate,
     PlannedJourney,
     PlannedStep,
+    RecallFormat,
     RecallTask,
     ResponseTask,
     ScenarioBrief,
@@ -51,7 +56,14 @@ from app.services.journey_contracts import (
     StepStatus,
     TargetKind,
     TargetRef,
+    day_shape_rule,
     normalize_answer_text,
+)
+from app.services.journey_day_shapes import (
+    DayShapeInputs,
+    LetterOffer,
+    rotate_recall_formats,
+    shape_allows_format,
 )
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
@@ -110,8 +122,19 @@ MIN_PACE_OBSERVATIONS = 5
 SCENE_BASE_SECONDS = 12
 #: Reading the ending, the summary, and closing the day.
 RESOLUTION_BASE_SECONDS = 45
-#: Answering cost per recall renderer.
-RECALL_ANSWER_SECONDS: dict[str, int] = {"choice": 18, "tiles": 26, "short_answer": 30}
+#: Answering cost per recall renderer. WP-66's three additions are priced from
+#: the renderer they reuse: a classify is a two-option pick (cheaper than a
+#: four-option choice), a word bank is tiles plus the chips that have to be
+#: rejected, and a transform is a short answer the learner has to think about
+#: twice — read the source, then rewrite it.
+RECALL_ANSWER_SECONDS: dict[str, int] = {
+    "choice": 18,
+    "tiles": 26,
+    "short_answer": 30,
+    "classify": 14,
+    "word_bank": 32,
+    "transform": 38,
+}
 #: Reading the normal (non-repair) feedback on a recall step.
 RECALL_FEEDBACK_SECONDS = 10
 #: Composing one learner turn in the response step.
@@ -162,6 +185,57 @@ _HINT_TEMPLATE: dict[str, str] = {
     "en": 'It is {count} word(s) long and starts with "{initial}".',
     "de": 'Es ist {count} Wort/Wörter lang und beginnt mit „{initial}“.',
     "fr": "C'est {count} mot(s) et ça commence par « {initial} ».",
+}
+
+# -- WP-66: the three Séance formats, posed in the journey -------------------
+#: A word bank is tiles with chips that are *not* in the answer, so the chip row
+#: stops being the answer written down in the wrong order.
+_WORD_BANK_INSTRUCTION_WITH_GLOSS: dict[str, str] = {
+    "en": 'Build "{native}". Some chips are not needed.',
+    "de": 'Bau „{native}“. Nicht jeder Baustein wird gebraucht.',
+    "fr": "Construisez « {native} ». Certains mots sont en trop.",
+}
+_WORD_BANK_INSTRUCTION: dict[str, str] = {
+    "en": "Build the phrase. Some chips are not needed.",
+    "de": "Bau den Ausdruck. Nicht jeder Baustein wird gebraucht.",
+    "fr": "Construisez l'expression. Certains mots sont en trop.",
+}
+#: Gender is asked about the bare noun: the article is what answers it, so the
+#: article is exactly what the prompt may not show.
+_CLASSIFY_GENDER_INSTRUCTION: dict[str, str] = {
+    "en": "Masculine or feminine?",
+    "de": "Maskulin oder feminin?",
+    "fr": "Masculin ou féminin ?",
+}
+_CLASSIFY_GENDER_LABELS: dict[str, tuple[str, str]] = {
+    "en": ("masculine", "feminine"),
+    "de": ("maskulin", "feminin"),
+    "fr": ("masculin", "féminin"),
+}
+_CLASSIFY_ADDRESS_INSTRUCTION: dict[str, str] = {
+    "en": "Who is this said to?",
+    "de": "Zu wem wird das gesagt?",
+    "fr": "On s'adresse à qui ?",
+}
+#: The two labels are French forms of address, so they stay French in every
+#: control language: they are the thing being classified, not chrome.
+_CLASSIFY_ADDRESS_LABELS: tuple[str, str] = ("tu", "vous")
+#: A directed rewrite names the form to use and never writes the answer word.
+_TRANSFORM_INSTRUCTION: dict[str, str] = {
+    "en": 'Say the same thing with "{pronoun}": change "{span}".',
+    "de": 'Sag dasselbe mit "{pronoun}": ändere "{span}".',
+    "fr": "Dites la même chose avec « {pronoun} » : changez « {span} ».",
+}
+_TRANSFORM_HINT: dict[str, str] = {
+    "en": 'Only the part with "{span}" changes.',
+    "de": 'Nur der Teil mit "{span}" ändert sich.',
+    "fr": "Seule la partie avec « {span} » change.",
+}
+#: French articles that settle a noun's gender. ``l'`` settles nothing and is
+#: deliberately absent: a classify whose answer is a guess is not a question.
+_GENDER_ARTICLES: dict[str, str] = {
+    "un": "m", "le": "m", "du": "m",
+    "une": "f", "la": "f",
 }
 
 
@@ -613,6 +687,346 @@ def build_recall_task(
     )
 
 
+# --------------------------------------------------------------------------
+# 2b. WP-66 — the three Séance formats, posed from the same authored material
+#
+# Each builder returns ``None`` the moment it cannot pose its format *without
+# revealing the answer*. That is the whole no-spoil rule: a format that cannot
+# be asked honestly is not asked, and the rotation falls through to the next
+# one. None of them calls a model, reads a scheduler, or invents content.
+# --------------------------------------------------------------------------
+
+
+def _extra_chips(target: TargetRef, affordances: list[str], answer_tokens: list[str]) -> list[str]:
+    """Single words from the scene that are plausible here and are not used.
+
+    Drawn from the same authored affordances the choice distractors come from,
+    so a word bank is scene vocabulary the learner could reasonably reach for —
+    never a random string and never a word that is part of the answer.
+    """
+
+    used = {_fold(token) for token in answer_tokens}
+    pool: list[str] = []
+    seen: set[str] = set()
+    for phrase in affordances:
+        for word in str(phrase or "").split():
+            folded = _fold(word)
+            if not folded or folded in used or folded in seen:
+                continue
+            seen.add(folded)
+            pool.append(word)
+    pool.sort(key=lambda word: _digest(target.id, "chip", word))
+    return pool[:2]
+
+
+def build_word_bank_task(
+    *,
+    target: TargetRef,
+    affordances: list[str],
+    optional: bool,
+    control_language: ControlLanguage,
+) -> RecallTask | None:
+    """Build the phrase from chips, *some of which are not needed*.
+
+    The difference from ``tiles`` is the whole point: with only the answer's own
+    words on screen, the chip row is the answer written down in the wrong order,
+    and a learner can solve it by counting. With at least one plausible chip that
+    does not belong, they have to know the phrase.
+    """
+
+    label_fr = (target.label_fr or "").strip()
+    tokens = label_fr.split()
+    if len(tokens) < 2:
+        return None
+    extras = _extra_chips(target, affordances, tokens)
+    if not extras:
+        return None
+    gloss = (target.label_native or "").strip() or None
+
+    answer = [
+        {"id": "tile_" + _digest(target.id, str(index), token)[:8], "text_fr": token}
+        for index, token in enumerate(tokens)
+    ]
+    correct_order = [tile["id"] for tile in answer]
+    chips = [
+        *answer,
+        *(
+            {"id": "chip_" + _digest(target.id, "extra", word)[:8], "text_fr": word}
+            for word in extras
+        ),
+    ]
+    if len({chip["id"] for chip in chips}) != len(chips):
+        # Two chips with the same id cannot be told apart in an answer.
+        return None
+    shown = sorted(chips, key=lambda chip: _digest(target.id, "bank", chip["id"]))
+    instruction = (
+        _localized(_WORD_BANK_INSTRUCTION_WITH_GLOSS, control_language).format(native=gloss)
+        if gloss
+        else _localized(_WORD_BANK_INSTRUCTION, control_language)
+    )
+    return RecallTask(
+        task_type="word_bank",
+        instruction_native=instruction,
+        prompt_fr=None,
+        options=shown,
+        target=target,
+        optional=optional,
+        correct_tile_order=correct_order,
+        accepted_answers=[label_fr],
+        hint_native=_hint_for(target, control_language),
+        translation_native=gloss,
+        solution_fr=label_fr,
+        estimated_seconds=0,
+    )
+
+
+def build_classify_task(
+    *, target: TargetRef, optional: bool, control_language: ControlLanguage
+) -> RecallTask | None:
+    """Sort one French item under two contrastive labels.
+
+    Two sources, both read off the target itself and both genuinely contrastive
+    (the legacy Séance rejects ``true/false`` and ``yes/no`` label pairs for
+    exactly this reason):
+
+    * **gender**, for a noun stored with its article — the article settles the
+      answer, so the article is precisely what the prompt does not show;
+    * **address**, for a phrase that unambiguously says ``tu`` or ``vous``.
+
+    A noun behind ``l'`` has no answer to give and gets no classify step.
+    """
+
+    label_fr = (target.label_fr or "").strip()
+    tokens = label_fr.split()
+    if not tokens:
+        return None
+
+    article = tokens[0].casefold().strip(".,;:!?")
+    gender = _GENDER_ARTICLES.get(article) if len(tokens) >= 2 else None
+    if gender is not None:
+        noun = " ".join(tokens[1:]).strip()
+        if not noun or _GENDER_ARTICLES.get(noun.casefold()) is not None:
+            return None
+        options = [
+            {"id": "cls_" + _digest(target.id, "masculin")[:8], "text_fr": "masculin"},
+            {"id": "cls_" + _digest(target.id, "feminin")[:8], "text_fr": "féminin"},
+        ]
+        correct = options[0]["id"] if gender == "m" else options[1]["id"]
+        return RecallTask(
+            task_type="classify",
+            instruction_native=_localized(_CLASSIFY_GENDER_INSTRUCTION, control_language),
+            prompt_fr=noun,
+            options=options,
+            target=target,
+            optional=optional,
+            correct_option_id=correct,
+            accepted_answers=[label_fr],
+            # Neither the letter hint nor the native gloss may be offered here:
+            # both spell out the article, which *is* the answer.
+            hint_native=None,
+            translation_native=None,
+            solution_fr=label_fr,
+            estimated_seconds=0,
+        )
+
+    if len(tokens) < 2:
+        return None
+    observed = pragmatics.address_register(label_fr)
+    if observed not in _CLASSIFY_ADDRESS_LABELS:
+        return None
+    options = [
+        {"id": "cls_" + _digest(target.id, label)[:8], "text_fr": label}
+        for label in _CLASSIFY_ADDRESS_LABELS
+    ]
+    correct = next(
+        option["id"] for option, label in zip(options, _CLASSIFY_ADDRESS_LABELS, strict=True)
+        if label == observed
+    )
+    return RecallTask(
+        task_type="classify",
+        instruction_native=_localized(_CLASSIFY_ADDRESS_INSTRUCTION, control_language),
+        prompt_fr=label_fr,
+        options=options,
+        target=target,
+        optional=optional,
+        correct_option_id=correct,
+        accepted_answers=[label_fr],
+        hint_native=None,
+        translation_native=(target.label_native or "").strip() or None,
+        solution_fr=label_fr,
+        estimated_seconds=0,
+    )
+
+
+def build_transform_task(
+    *, target: TargetRef, optional: bool, control_language: ControlLanguage
+) -> RecallTask | None:
+    """Say the same thing to the other person — a directed rewrite.
+
+    The source is the learner's own due phrase and the answer is that phrase in
+    the opposite form of address, computed by the same deterministic detectors
+    that grade register live (:mod:`app.services.pragmatics`), so the exercise
+    and the grader can never disagree.
+
+    The three no-spoil conditions, which are the journey's half of the
+    three-gates rule (generation prompt · structural validator · AI critic) and
+    are pinned against the legacy Séance's own validators in
+    ``tests/test_journey_planner.py``:
+
+    1. the answer may not be the sentence already printed above it;
+    2. the instruction quotes the source fragment to change, which is in the
+       source by construction;
+    3. the instruction names the target *form* (``tu``/``vous``) and never the
+       conjugated answer word — so a swap where the pronoun alone is the whole
+       answer (« pour toi » → « pour vous ») is refused rather than given away.
+    """
+
+    label_fr = (target.label_fr or "").strip()
+    if len(label_fr.split()) < 2:
+        return None
+    observed = pragmatics.address_register(label_fr)
+    if observed not in _CLASSIFY_ADDRESS_LABELS:
+        return None
+    wanted = "vous" if observed == "tu" else "tu"
+    span, replacement = pragmatics.slip_span(label_fr, expected=wanted)
+    if not span or not replacement or span not in label_fr:
+        return None
+    if _fold(replacement) == _fold(wanted):
+        # The pronoun *is* the answer; naming the target form would print it.
+        return None
+    expected = label_fr.replace(span, replacement, 1)
+    if _fold(expected) == _fold(label_fr):
+        return None
+    instruction = _localized(_TRANSFORM_INSTRUCTION, control_language).format(
+        pronoun=wanted, span=span
+    )
+    revealed = [
+        word
+        for word in replacement.split()
+        if _fold(word) != _fold(wanted) and _fold(word) in _fold(instruction).split()
+    ]
+    if revealed:  # pragma: no cover - the template names only span and pronoun
+        return None
+    return RecallTask(
+        task_type="transform",
+        instruction_native=instruction,
+        prompt_fr=label_fr,
+        options=[],
+        target=target,
+        optional=optional,
+        accepted_answers=[expected],
+        hint_native=_localized(_TRANSFORM_HINT, control_language).format(span=span),
+        # The stored gloss describes the *source*, not the rewrite that is
+        # being asked for, so offering it as "the translation" would mislead.
+        translation_native=None,
+        solution_fr=expected,
+        estimated_seconds=0,
+    )
+
+
+def build_recall_task_in_format(
+    task_type: str,
+    *,
+    target: TargetRef,
+    scenario: ScenarioBrief,
+    affordances: list[str],
+    optional: bool,
+    learner_text: str | None = None,
+) -> RecallTask | None:
+    """One recall opportunity in one named format, or ``None``.
+
+    ``None`` means "not this format, honestly" — the target may still be posed
+    another way. It is never an error.
+    """
+
+    language = scenario.control_language
+    if task_type == str(RecallFormat.WORD_BANK):
+        return build_word_bank_task(
+            target=target,
+            affordances=affordances,
+            optional=optional,
+            control_language=language,
+        )
+    if task_type == str(RecallFormat.CLASSIFY):
+        return build_classify_task(
+            target=target, optional=optional, control_language=language
+        )
+    if task_type == str(RecallFormat.TRANSFORM):
+        return build_transform_task(
+            target=target, optional=optional, control_language=language
+        )
+    legacy = build_recall_task(
+        target=target,
+        scenario=scenario,
+        affordances=affordances,
+        optional=optional,
+        learner_text=learner_text,
+    )
+    return legacy if legacy is not None and legacy.task_type == task_type else None
+
+
+def build_rotated_recall_task(
+    *,
+    target: TargetRef,
+    scenario: ScenarioBrief,
+    affordances: list[str],
+    optional: bool,
+    formats: list[str],
+    day_shape: DayShape = DEFAULT_DAY_SHAPE,
+    learner_text: str | None = None,
+) -> RecallTask | None:
+    """Walk today's seeded format order and take the first honest fit.
+
+    The legacy builder is the floor, not a competitor: when none of the rotated
+    formats can be posed without revealing the answer, the target is posed the
+    way it always was — and only if *that* is impossible does it lose its step.
+    The floor still respects the day's shape, so a listening day never falls
+    back onto a multiple choice nobody can take down by ear.
+    """
+
+    for task_type in formats:
+        task = build_recall_task_in_format(
+            task_type,
+            target=target,
+            scenario=scenario,
+            affordances=affordances,
+            optional=optional,
+            learner_text=learner_text,
+        )
+        if task is not None:
+            return task
+    fallback = build_recall_task(
+        target=target,
+        scenario=scenario,
+        affordances=affordances,
+        optional=optional,
+        learner_text=learner_text,
+    )
+    if fallback is not None and not shape_allows_format(day_shape, fallback.task_type):
+        return None
+    return fallback
+
+
+def _letter_prompt(letter: LetterOffer | None) -> dict[str, Any] | None:
+    """The public half of a Courrier letter, or ``None``.
+
+    The whole of WP-66's dependency on WP-64 passes through this one function
+    and :func:`app.services.journey_day_shapes.set_letter_provider`. Nothing
+    here knows what a mission is.
+    """
+
+    if letter is None or not letter.is_renderable():
+        return None
+    return {
+        "mission_id": str(letter.mission_id),
+        "correspondent_id": str(letter.correspondent_id),
+        "correspondent_name": letter.correspondent_name,
+        "subject_fr": letter.subject_fr,
+        "body_fr": letter.body_fr,
+        "objective_native": letter.objective_native,
+    }
+
+
 def _recall_help(task: RecallTask) -> list[str]:
     available = [str(HelpKind.HINT)] if task.hint_native else []
     if task.translation_native:
@@ -807,6 +1221,12 @@ def plan_journey(
     pace: PacingProfile | None = None,
     input_mode: InputMode = InputMode.TEXT,
     errata_targets: list[ErrataTarget] | None = None,
+    day_shape: DayShape | str | None = None,
+    shape_reason: str = "",
+    dice: DayShapeInputs | None = None,
+    letter: LetterOffer | None = None,
+    chapter_recap_fr: str | None = None,
+    audio_available: bool = False,
 ) -> PlannedJourney:
     """Build today's immutable plan.
 
@@ -820,9 +1240,27 @@ def plan_journey(
     is stamped with ``target_reason`` — which is what lets Home say the scene
     exists because of a mistake, and telemetry say which one. Omitted, the plan
     is exactly what it was before this package.
+
+    ``day_shape`` and ``dice`` (WP-66) are the day's *kind* and the seed the
+    recall formats are rotated with. Both are optional and both default to what
+    this function did before the package: a standard day whose formats are
+    chosen by the legacy preference order. Nothing about a plan built without
+    them changes — which is also why a plan persisted before WP-66 still loads
+    and still validates.
     """
 
     outcome_key = _require_plannable(scenario)
+    shape = DayShape(str(day_shape)) if day_shape else DEFAULT_DAY_SHAPE
+    rule = day_shape_rule(shape)
+    if letter is not None and not letter.is_renderable():
+        letter = None
+    if shape is DayShape.LETTER and letter is None:
+        # The shape was dealt against a letter that is no longer there. A day
+        # that promises a letter and shows none is the phantom loop, so the day
+        # falls back to the shape that needs nothing extra.
+        shape = DEFAULT_DAY_SHAPE
+        rule = day_shape_rule(shape)
+        shape_reason = "letter_withdrawn"
     profile = pace or PacingProfile()
     spt = profile.effective_seconds_per_token()
     multiplier = profile.effective_step_multiplier()
@@ -880,20 +1318,45 @@ def plan_journey(
     reasons = dict(selection.omission_reasons)
     for entry in selection.selected:
         identity = target_identity(entry.target)
-        if len(recalls) >= MAX_RECALL_STEPS:
+        # The shape may ask for fewer recall steps than the contract allows;
+        # it may never ask for more.
+        if len(recalls) >= min(rule.max_recall, MAX_RECALL_STEPS):
             # Still selected: it is elicited in the reply, it just gets no drill.
             used_targets.append(entry)
+            if rule.max_recall == 0 and shape is DayShape.SHORT:
+                notes.append(f"{identity}: short day, no recall step")
             continue
         planned_real = sum(1 for _e, _t, _c, was_skipped in recalls if not was_skipped)
         optional = entry.demonstrated or entry.candidate.is_new or planned_real >= 1
         metadata = entry.candidate.metadata or {}
-        recall = build_recall_task(
-            target=entry.target,
-            scenario=scenario,
-            affordances=affordances,
-            optional=optional,
-            learner_text=metadata.get("erratum_learner") or metadata.get("original_text"),
-        )
+        learner_wording = metadata.get("erratum_learner") or metadata.get("original_text")
+        if dice is None:
+            recall = build_recall_task(
+                target=entry.target,
+                scenario=scenario,
+                affordances=affordances,
+                optional=optional,
+                learner_text=learner_wording,
+            )
+            if recall is not None and not shape_allows_format(shape, recall.task_type):
+                recall = None
+        else:
+            formats = rotate_recall_formats(
+                inputs=dice,
+                shape=shape,
+                target_kind=str(entry.target.kind),
+                target_id=identity,
+                eligible=RECALL_FORMATS,
+            )
+            recall = build_rotated_recall_task(
+                target=entry.target,
+                scenario=scenario,
+                affordances=affordances,
+                optional=optional,
+                formats=formats,
+                day_shape=shape,
+                learner_text=learner_wording,
+            )
         if recall is None:
             used_targets.append(entry)
             notes.append(f"{identity}: no recall form could be posed without revealing it")
@@ -911,6 +1374,20 @@ def plan_journey(
         headroom -= cost
         recalls.append((entry, recall, cost, False))
         used_targets.append(entry)
+
+    # WP-66. A shape that needs a recall step and could not get one is not a
+    # failure and is certainly not a reason to refuse the learner's day: the
+    # day is simply standard today, and the rationale says why. The shape is
+    # downgraded *before* the steps are built, so `validate()` never has to
+    # reject a plan this function produced.
+    if len(recalls) < rule.min_recall:
+        notes.append(
+            f"{shape} day downgraded to {DEFAULT_DAY_SHAPE}: "
+            f"{len(recalls)} recall step(s), {rule.min_recall} required"
+        )
+        shape = DEFAULT_DAY_SHAPE
+        rule = day_shape_rule(shape)
+        shape_reason = "shape_needs_a_recall_step"
 
     # --- assemble ----------------------------------------------------------
     # WP-24: which of today's kept targets is here because of a past mistake.
@@ -948,6 +1425,11 @@ def plan_journey(
                 "character_line_fr": scenario.opening_line_fr,
                 "character_line_audio_url": None,
                 "image_url": scenario.image_url,
+                # WP-66 «jour d'écoute»: the scene is heard before it is read.
+                # Claimed only when this deployment can actually speak it —
+                # `audio_available` is read at plan time and re-read at
+                # projection time, so a flag flipped off later still wins.
+                "listen_first": bool(shape is DayShape.LISTENING and audio_available),
             },
             private_task=None,
             target=None,
@@ -1003,6 +1485,9 @@ def plan_journey(
                 "input_modes": supported_input_modes(scenario, input_mode=input_mode),
                 "targets": [target.as_public() for target in elicited],
                 "help_available": _respond_help(task),
+                # WP-66 «jour de lettre». `None` on every other shape, which is
+                # every day until WP-64 registers a letter provider.
+                "letter": _letter_prompt(letter) if shape is DayShape.LETTER else None,
             },
             private_task=respond_task,
             target=None,
@@ -1029,6 +1514,20 @@ def plan_journey(
                     scenario.resolution_summaries.get(outcome_key, "")
                 ),
                 "image_url": scenario.image_url,
+                # WP-66 «jour de reprise»: the chapter that just closed, in one
+                # French paragraph. `None` on every other shape, and `None`
+                # here too when the story had no recap to give — an empty
+                # recap block is worse than no recap block.
+                "chapter_recap_fr": (
+                    (chapter_recap_fr or "").strip() or None
+                    if shape is DayShape.REPRISE
+                    else None
+                ),
+                # WP-66 / WP-33: filled in by WP-02 once the respond turns have
+                # actually been graded. The plan cannot know it: nobody has
+                # spoken yet.
+                "register_note_fr": None,
+                "register_reason_native": None,
             },
             private_task=None,
             target=None,
@@ -1054,6 +1553,8 @@ def plan_journey(
         selected_target_ids=[target_identity(entry.target) for entry in used_targets],
         omitted_candidate_ids=[target_identity(item.target) for item in omitted],
         rationale=rationale,
+        day_shape=shape,
+        shape_reason=shape_reason,
     )
     plan.validate()
     if len(plan.steps) > MAX_PLANNED_STEPS:  # pragma: no cover - validate() already raises
@@ -1149,7 +1650,12 @@ __all__ = [
     "PlanUnavailable",
     "SelectedTarget",
     "TargetSelection",
+    "build_classify_task",
     "build_recall_task",
+    "build_recall_task_in_format",
+    "build_rotated_recall_task",
+    "build_transform_task",
+    "build_word_bank_task",
     "candidate_is_demonstrated",
     "merge_errata_candidates",
     "plan_because",

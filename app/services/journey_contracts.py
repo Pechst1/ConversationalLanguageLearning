@@ -25,10 +25,19 @@ from typing import Any, Literal
 from uuid import UUID
 
 CONTRACT_VERSION = 1
+#: WP-66. The *plan* contract, versioned separately from the wire contract.
+#: Version 2 adds :class:`DayShape` and the three Séance recall formats. Both
+#: additions are additive and defaulted, so a plan persisted at version 1 — a
+#: standard day with ``choice``/``tiles``/``short_answer`` recall — still loads
+#: and still validates. Never bump ``CONTRACT_VERSION`` for this: the wire
+#: payloads gained only optional fields.
+PLAN_CONTRACT_VERSION = 2
 DEFAULT_BUDGET_SECONDS = 300
 MAX_PLANNED_STEPS = 5
 MAX_RECALL_STEPS = 2
 MAX_RESPOND_TURNS = 2
+#: A short day still has to be a day: scene, response, ending.
+MIN_PLANNED_STEPS = 3
 
 ControlLanguage = Literal["en", "de", "fr"]
 SUPPORTED_CONTROL_LANGUAGES: tuple[ControlLanguage, ...] = ("en", "de", "fr")
@@ -66,6 +75,80 @@ class StepKind(StrEnum):
     RECALL = "recall"
     RESPOND = "respond"
     RESOLUTION = "resolution"
+
+
+class DayShape(StrEnum):
+    """WP-66 — what *kind* of day this is.
+
+    Before this package every journey was one hard template (scene → ≤2 recall
+    → 1 respond → resolution), so day 1 and day 40 were the same object with
+    different words in it. A shape is not a second content source and not a
+    different product: it is which of the same four step kinds are dealt, in
+    which order, and what the respond and resolution steps are allowed to be.
+
+    Chosen by seeded per-learner-per-week dice in
+    :mod:`app.services.journey_day_shapes` — never a fixed rotation, never a
+    coin flip that changes on refresh.
+
+    * ``STANDARD`` — the shape that existed before this package.
+    * ``LETTER`` — «jour de lettre»: the respond step is a Courrier letter.
+      Behind the WP-64 capability seam and off until a mission is available.
+    * ``LISTENING`` — «jour d'écoute»: the scene is heard before it is read and
+      recall is posed dictation-style (never a multiple choice, which cannot be
+      dictated).
+    * ``REPRISE`` — «jour de reprise»: errata-led, dealt at a chapter's
+      resolution beat, and the ending carries the chapter recap.
+    * ``SHORT`` — «jour court»: three steps, offered after a missed day so
+      coming back costs a scene and a reply, not a full session.
+    """
+
+    STANDARD = "standard"
+    LETTER = "letter"
+    LISTENING = "listening"
+    REPRISE = "reprise"
+    SHORT = "short"
+
+
+#: The default for every plan written before WP-66, and for any plan that names
+#: no shape. Reading a persisted plan must never fail for want of this key.
+DEFAULT_DAY_SHAPE = DayShape.STANDARD
+
+
+class RecallFormat(StrEnum):
+    """How one recall opportunity is posed.
+
+    The first three are the daily loop's originals. The last three are the
+    Séance formats WP-66 brought into the journey; they are posed from the same
+    authored affordances and the same target, never from a model call, and each
+    builder returns ``None`` rather than a format it cannot pose without
+    revealing the answer (the no-spoil rule).
+    """
+
+    CHOICE = "choice"
+    TILES = "tiles"
+    SHORT_ANSWER = "short_answer"
+    TRANSFORM = "transform"
+    CLASSIFY = "classify"
+    WORD_BANK = "word_bank"
+
+
+#: Wire-order tuple. Extending it is additive; reordering it is not, because
+#: the frontend renderer table and the parity fixtures read this order.
+RECALL_FORMATS: tuple[str, ...] = tuple(str(value) for value in RecallFormat)
+#: The three the daily loop had before WP-66. A plan persisted at plan contract
+#: version 1 can only contain these.
+LEGACY_RECALL_FORMATS: tuple[str, ...] = (
+    str(RecallFormat.CHOICE),
+    str(RecallFormat.TILES),
+    str(RecallFormat.SHORT_ANSWER),
+)
+#: Formats a learner can answer with their voice on a listening day. A choice
+#: is excluded on purpose: reading four options is not taking dictation.
+DICTATION_RECALL_FORMATS: tuple[str, ...] = (
+    str(RecallFormat.SHORT_ANSWER),
+    str(RecallFormat.TRANSFORM),
+    str(RecallFormat.WORD_BANK),
+)
 
 
 class StepStatus(StrEnum):
@@ -279,9 +362,19 @@ class LearningCandidate:
 
 @dataclass(frozen=True, slots=True)
 class RecallTask:
-    """The private, complete definition of one recall opportunity."""
+    """The private, complete definition of one recall opportunity.
 
-    task_type: Literal["choice", "tiles", "short_answer"]
+    WP-66 added ``transform``, ``classify`` and ``word_bank`` without adding a
+    field: a classify's labels are its ``options`` and its answer is
+    ``correct_option_id``; a word bank's chips are its ``options`` and its
+    answer is ``correct_tile_order`` (a *subset* of the chips, unlike ``tiles``
+    where every chip is used); a transform's source sentence is ``prompt_fr``
+    and its answer key is ``accepted_answers``.
+    """
+
+    task_type: Literal[
+        "choice", "tiles", "short_answer", "transform", "classify", "word_bank"
+    ]
     instruction_native: str
     prompt_fr: str | None
     options: list[dict[str, str]]
@@ -392,6 +485,58 @@ class PlannedStep:
 
 
 @dataclass(frozen=True, slots=True)
+class DayShapeRule:
+    """What one day shape is allowed to be.
+
+    WP-66 replaced the single hard template with this table. The shared
+    invariants below the table are *not* negotiable per shape — every day still
+    opens on the scene, ends on the ending, and holds exactly one response.
+    """
+
+    min_steps: int = MIN_PLANNED_STEPS
+    max_steps: int = MAX_PLANNED_STEPS
+    min_recall: int = 0
+    max_recall: int = MAX_RECALL_STEPS
+    #: The recall formats this shape may pose. Empty means "any format".
+    allowed_formats: tuple[str, ...] = ()
+
+
+DAY_SHAPE_RULES: dict[DayShape, DayShapeRule] = {
+    # The shape every pre-WP-66 plan has. Its rule is the old template, so a
+    # persisted plan validates exactly as it did before.
+    DayShape.STANDARD: DayShapeRule(),
+    DayShape.LETTER: DayShapeRule(),
+    # A listening day has to give the learner something to write down, and a
+    # multiple choice is not dictation.
+    DayShape.LISTENING: DayShapeRule(
+        min_recall=1, allowed_formats=DICTATION_RECALL_FORMATS
+    ),
+    # A reprise is errata-led: without at least one recall it is just a
+    # standard day wearing a recap.
+    DayShape.REPRISE: DayShapeRule(min_steps=4, min_recall=1),
+    # Three steps, and the third is the ending. Coming back after a missed day
+    # costs a scene and a reply.
+    DayShape.SHORT: DayShapeRule(
+        min_steps=MIN_PLANNED_STEPS, max_steps=MIN_PLANNED_STEPS, max_recall=0
+    ),
+}
+
+
+def day_shape_rule(shape: DayShape | str | None) -> DayShapeRule:
+    """The rule for a shape, defaulting to ``STANDARD``.
+
+    A shape name this build has never heard of — a plan persisted by a newer
+    deployment, read by an older one — falls back to the standard rule rather
+    than refusing to load the learner's day.
+    """
+
+    try:
+        return DAY_SHAPE_RULES[DayShape(str(shape or DEFAULT_DAY_SHAPE))]
+    except (KeyError, ValueError):
+        return DAY_SHAPE_RULES[DEFAULT_DAY_SHAPE]
+
+
+@dataclass(frozen=True, slots=True)
 class PlannedJourney:
     """WP-04 result: an immutable plan the state machine persists verbatim."""
 
@@ -402,12 +547,25 @@ class PlannedJourney:
     selected_target_ids: list[str] = field(default_factory=list)
     omitted_candidate_ids: list[str] = field(default_factory=list)
     rationale: str = ""
+    #: WP-66. Additive and defaulted: a plan written before this package names
+    #: no shape and is read back as ``STANDARD``, which validates under exactly
+    #: the rule it was written against.
+    day_shape: DayShape = DEFAULT_DAY_SHAPE
+    #: Why the dice dealt this shape, for operators and tests. Never rendered.
+    shape_reason: str = ""
 
     def validate(self) -> None:
-        """Guard the CONTRACTS §3/§9 envelope at the producer boundary."""
+        """Guard the CONTRACTS §3/§9 envelope at the producer boundary.
+
+        WP-66: the envelope is now validated *as a set of shapes* rather than
+        against one template. The shared invariants are checked for every shape;
+        the per-shape bounds come from :data:`DAY_SHAPE_RULES`.
+        """
 
         if not self.steps:
             raise ValueError("a planned journey needs at least one step")
+        rule = day_shape_rule(self.day_shape)
+        shape = str(self.day_shape)
         if len(self.steps) > MAX_PLANNED_STEPS:
             raise ValueError(f"plan has {len(self.steps)} steps, max {MAX_PLANNED_STEPS}")
         kinds = [step.kind for step in self.steps]
@@ -417,10 +575,32 @@ class PlannedJourney:
             raise ValueError("a plan must end with the resolution step")
         if kinds.count(StepKind.RESPOND) != 1:
             raise ValueError("a plan needs exactly one respond step")
-        if kinds.count(StepKind.RECALL) > MAX_RECALL_STEPS:
+        recalls = kinds.count(StepKind.RECALL)
+        if recalls > MAX_RECALL_STEPS:
             raise ValueError(f"at most {MAX_RECALL_STEPS} recall steps are allowed")
         if [step.ordinal for step in self.steps] != list(range(len(self.steps))):
             raise ValueError("step ordinals must be a stable 0..n-1 sequence")
+
+        if not rule.min_steps <= len(self.steps) <= rule.max_steps:
+            raise ValueError(
+                f"a {shape} day holds {rule.min_steps}..{rule.max_steps} steps, "
+                f"not {len(self.steps)}"
+            )
+        if not rule.min_recall <= recalls <= rule.max_recall:
+            raise ValueError(
+                f"a {shape} day holds {rule.min_recall}..{rule.max_recall} recall "
+                f"step(s), not {recalls}"
+            )
+        if rule.allowed_formats:
+            for step in self.steps:
+                if step.kind is not StepKind.RECALL:
+                    continue
+                task_type = str(getattr(step.private_task, "task_type", "") or "")
+                if task_type and task_type not in rule.allowed_formats:
+                    raise ValueError(
+                        f"a {shape} day cannot pose a {task_type} recall"
+                    )
+
         mandatory = sum(
             step.estimated_seconds for step in self.steps if not step.optional
         )

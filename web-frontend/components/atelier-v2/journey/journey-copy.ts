@@ -158,7 +158,16 @@ export type JourneyCopyKey =
   | 'radio_audio_offline'
   | 'radio_audio_unsupported'
   | 'radio_audio_empty'
-  | 'radio_read_instead';
+  | 'radio_read_instead'
+  // -- WP-66: day shapes and the three formats brought in from the Séance ----
+  | 'word_bank_spare_chips'
+  | 'transform_source_label'
+  | 'classify_label'
+  | 'listen_first_day'
+  | 'chapter_recap_label'
+  | 'register_label'
+  | 'letter_from'
+  | 'letter_reply_label';
 
 type CopyTable = Record<JourneyCopyKey, string>;
 
@@ -297,6 +306,14 @@ const EN: CopyTable = {
   radio_audio_unsupported: 'This device will not play audio. The scene is here to read.',
   radio_audio_empty: 'This scene has nothing to say aloud. Read it instead.',
   radio_read_instead: 'Read the scene',
+  word_bank_spare_chips: 'Not every word belongs in the answer.',
+  transform_source_label: 'The sentence to rewrite',
+  classify_label: 'Choose one',
+  listen_first_day: 'Listen first — the text comes after.',
+  chapter_recap_label: 'Where the chapter leaves things',
+  register_label: 'How you addressed them',
+  letter_from: 'Letter from {name}',
+  letter_reply_label: 'Your reply',
 };
 
 const DE: CopyTable = {
@@ -434,6 +451,14 @@ const DE: CopyTable = {
   radio_audio_unsupported: 'Dieses Gerät spielt kein Audio ab. Die Szene steht zum Lesen bereit.',
   radio_audio_empty: 'In dieser Szene gibt es nichts vorzulesen. Lies sie stattdessen.',
   radio_read_instead: 'Szene lesen',
+  word_bank_spare_chips: 'Nicht jedes Wort gehört in die Antwort.',
+  transform_source_label: 'Der Satz, den du umschreibst',
+  classify_label: 'Wähle eins',
+  listen_first_day: 'Erst hören — den Text gibt es danach.',
+  chapter_recap_label: 'Wo das Kapitel endet',
+  register_label: 'Wie du sie angesprochen hast',
+  letter_from: 'Brief von {name}',
+  letter_reply_label: 'Deine Antwort',
 };
 
 const FR: CopyTable = {
@@ -571,6 +596,14 @@ const FR: CopyTable = {
   radio_audio_unsupported: 'Cet appareil ne lit pas l’audio. La scène est là, à lire.',
   radio_audio_empty: 'Cette scène n’a rien à dire à voix haute. Lisez-la.',
   radio_read_instead: 'Lire la scène',
+  word_bank_spare_chips: 'Tous les mots ne servent pas.',
+  transform_source_label: 'La phrase à réécrire',
+  classify_label: 'Choisissez',
+  listen_first_day: 'On écoute d’abord — le texte vient après.',
+  chapter_recap_label: 'Où en est le chapitre',
+  register_label: 'Comment vous vous êtes adressé à elle ou lui',
+  letter_from: 'Lettre de {name}',
+  letter_reply_label: 'Votre réponse',
 };
 
 const TABLES: Record<ControlLanguage, CopyTable> = { en: EN, de: DE, fr: FR };
@@ -636,6 +669,14 @@ export const CHROME_KEYS: readonly JourneyCopyKey[] = [
   'radio_reveal',
   'radio_reveal_all',
   'radio_read_instead',
+  // WP-66. These are stage labels and captions beside French rows, so they
+  // read French on every control language — the *content* they label (the
+  // instruction, the recap, the register reason) keeps the learner's language.
+  'transform_source_label',
+  'classify_label',
+  'chapter_recap_label',
+  'register_label',
+  'letter_reply_label',
 ];
 
 const CHROME_FR: Partial<CopyTable> = Object.fromEntries(

@@ -224,22 +224,30 @@ def test_create_read_help_attempt_advance_pause_resume_finish(
     assert state["current_step_id"] == recall["id"]
     assert step_of(state, "scene")["status"] == "completed"
 
-    # help is recorded before the content is returned
+    # help is recorded before the content is returned.
+    # WP-66: which help a recall step offers depends on the format today's
+    # seeded dice dealt it — a gender classify offers no letter hint and no
+    # gloss, because both of them spell out the article that *is* the answer.
+    # The contract under test is "what the step says it offers, it gives", so
+    # the test asks for what this step advertises rather than for a hint it may
+    # honestly not have.
+    offered = recall["prompt"]["help_available"]
+    assert offered, "a recall step must offer some way out"
+    help_kind = offered[0]
     helped = journey_client.post(
         f"/api/v1/daily-journeys/{journey_id}/steps/{recall['id']}/help",
         headers=headers,
         json={
             "mutation_id": key(),
             "expected_revision": state["revision"],
-            "help_kind": "hint",
+            "help_kind": help_kind,
         },
     )
     assert helped.status_code == 200, helped.text
     help_body = helped.json()
-    assert help_body["assistance_level"] == "hint"
-    assert "hint" in recall["prompt"]["help_available"]
+    assert help_body["assistance_level"] == help_kind
     assert help_body["content_fr"] or help_body["content_native"]
-    assert step_of(help_body["journey"], "recall")["assistance_used"] == ["hint"]
+    assert step_of(help_body["journey"], "recall")["assistance_used"] == [help_kind]
 
     # recall attempt
     attempt = journey_client.post(
@@ -254,7 +262,7 @@ def test_create_read_help_attempt_advance_pause_resume_finish(
     assert attempt.status_code == 200, attempt.text
     attempt_body = attempt.json()
     assert attempt_body["task_outcome"] == "met"
-    assert attempt_body["assistance_level"] == "hint"
+    assert attempt_body["assistance_level"] == help_kind
     assert attempt_body["pending"] is False
     assert attempt_body["evidence_ref"].startswith("stub:")
     assert_no_private_material(attempt_body)

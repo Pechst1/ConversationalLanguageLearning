@@ -817,6 +817,18 @@ def test_the_planner_imports_no_ladder_and_no_scheduler() -> None:
         # may name it in an annotation and must not import it at runtime — the
         # next assertion is what actually holds that line.
         "app.services.journey_errata",
+        # WP-66. Two additions, both of which keep the planner pure:
+        # `journey_day_shapes` is seeded dice and value objects with no I/O at
+        # all, and `pragmatics` is the deterministic register detector that
+        # already grades the respond step — importable without the ORM on
+        # purpose, so the exercise and its grader cannot disagree. Note what is
+        # *not* here: `exercise_generation`, whose structural gates the journey
+        # transforms are pinned against in
+        # `test_a_journey_transform_clears_the_legacy_seance_gates`, is imported
+        # by that test and never by the planner, because it pulls in
+        # `unified_srs` — the scheduler this whole assertion exists to keep out.
+        "app.services",
+        "app.services.journey_day_shapes",
     }, imported
     assert _typing_only_imports(PLANNER_SOURCE) >= {
         "app.services.journey_errata"
@@ -1057,3 +1069,673 @@ def test_the_plan_reads_the_learners_wording_from_the_candidate() -> None:
     assert recall.public_prompt["prompt_fr"] == "une homme"
     assert recall.public_prompt["instruction_native"] == "Write this correctly in French."
     assert "How do you say" not in recall.public_prompt["instruction_native"]
+
+
+# ==========================================================================
+# WP-66 — des journées qui ne se ressemblent pas
+#
+# Day shapes validated as a set, three Séance formats brought into the daily
+# loop, and a month of dice that has to produce variety without ever producing
+# a different plan for the same learner on the same day.
+# ==========================================================================
+
+from datetime import date, timedelta  # noqa: E402
+
+from app.services import journey_day_shapes as dice_mod  # noqa: E402
+from app.services.journey_contracts import (  # noqa: E402
+    DICTATION_RECALL_FORMATS,
+    RECALL_FORMATS,
+    DayShape,
+    RecallFormat,
+    day_shape_rule,
+)
+from app.services.journey_day_shapes import (  # noqa: E402
+    DayShapeInputs,
+    LetterOffer,
+    choose_day_shape,
+    letter_offer_for,
+    rotate_recall_formats,
+    set_letter_provider,
+)
+
+LEARNER_A = "11111111-1111-4111-8111-111111111111"
+LEARNER_B = "22222222-2222-4222-8222-222222222222"
+MONDAY = date(2026, 9, 21)
+
+#: A due phrase for each of the three new formats, chosen so each one is
+#: *eligible*: a multi-word phrase with scene words to distract it (word bank),
+#: a noun stored with its article (gender classify), and a phrase that
+#: unambiguously tutoies (transform and address classify).
+WORD_BANK_READY = _candidate(
+    identifier="v-addition", label_fr="l'addition maintenant", label_native="the bill now"
+)
+GENDER_READY = _candidate(
+    identifier="v-terrasse-f", label_fr="une terrasse", label_native="a terrace"
+)
+ADDRESS_READY = _candidate(
+    kind=TargetKind.GRAMMAR,
+    identifier="g-tutoie",
+    label_fr="tu prends un café",
+    label_native="you are having a coffee",
+)
+
+
+def _dice(
+    *,
+    user_id: str = LEARNER_A,
+    day: date = MONDAY,
+    previous: DayShape | None = None,
+    missed: bool = False,
+    beat: str | None = None,
+    audio: bool = True,
+    errata: int = 1,
+    letter: LetterOffer | None = None,
+) -> DayShapeInputs:
+    return DayShapeInputs(
+        user_id=user_id,
+        local_date=day,
+        previous_shape=previous,
+        missed_previous_day=missed,
+        chapter_beat=beat,
+        audio_available=audio,
+        errata_count=errata,
+        letter=letter,
+    )
+
+
+def _letter(mission_id: str = "m-1") -> LetterOffer:
+    return LetterOffer(
+        mission_id=mission_id,
+        correspondent_id="romy_voisine",
+        correspondent_name="Romy",
+        subject_fr="Le radiateur",
+        body_fr="Le radiateur fuit encore. Tu peux passer ce soir ?",
+        objective_native="Answer Romy and say when you can come.",
+    )
+
+
+# --------------------------------------------------------------------------
+# 1. The formats
+# --------------------------------------------------------------------------
+
+
+def test_a_word_bank_always_holds_a_chip_that_is_not_the_answer():
+    """Otherwise the chip row *is* the answer, and counting solves it."""
+
+    task = planner.build_word_bank_task(
+        target=WORD_BANK_READY.target,
+        affordances=["un café", "en terrasse", "s'il vous plaît"],
+        optional=False,
+        control_language="fr",
+    )
+    assert task is not None and task.task_type == str(RecallFormat.WORD_BANK)
+    shown = {option["id"] for option in task.options}
+    answer = set(task.correct_tile_order)
+    assert answer < shown, "a word bank with no spare chip is a tiles task"
+    assert len(task.correct_tile_order) == len(task.accepted_answers[0].split())
+    # The chips spell the answer only in the right order, and the order the
+    # learner is shown is not it.
+    assert [option["id"] for option in task.options] != task.correct_tile_order
+
+
+def test_a_word_bank_is_refused_when_the_scene_affords_no_distractor():
+    assert (
+        planner.build_word_bank_task(
+            target=WORD_BANK_READY.target,
+            affordances=["l'addition maintenant"],
+            optional=False,
+            control_language="fr",
+        )
+        is None
+    )
+
+
+def test_a_gender_classify_never_prints_the_article_that_answers_it():
+    task = planner.build_classify_task(
+        target=GENDER_READY.target, optional=False, control_language="en"
+    )
+    assert task is not None and task.task_type == str(RecallFormat.CLASSIFY)
+    assert task.prompt_fr == "terrasse", "the article is the answer, not the prompt"
+    assert "une" not in (task.prompt_fr or "").split()
+    assert [option["text_fr"] for option in task.options] == ["masculin", "féminin"]
+    correct = next(o for o in task.options if o["id"] == task.correct_option_id)
+    assert correct["text_fr"] == "féminin"
+    # Neither the letter hint nor the gloss may be offered: both spell out the
+    # article. The paid solution still reveals the whole form.
+    assert task.hint_native is None and task.translation_native is None
+    assert task.solution_fr == "une terrasse"
+    assert planner._recall_help(task) == ["solution"]
+
+
+def test_a_noun_behind_an_elided_article_gets_no_gender_classify():
+    """« l'addition » settles nothing, so asking about it would be a coin toss."""
+
+    target = TargetRef(
+        kind=TargetKind.VOCABULARY, id="v-x", label_fr="l'addition", label_native="the bill"
+    )
+    assert (
+        planner.build_classify_task(
+            target=target, optional=False, control_language="fr"
+        )
+        is None
+    )
+
+
+def test_an_address_classify_reads_the_register_off_the_phrase():
+    task = planner.build_classify_task(
+        target=ADDRESS_READY.target, optional=False, control_language="fr"
+    )
+    assert task is not None and task.task_type == str(RecallFormat.CLASSIFY)
+    assert [option["text_fr"] for option in task.options] == ["tu", "vous"]
+    correct = next(o for o in task.options if o["id"] == task.correct_option_id)
+    assert correct["text_fr"] == "tu"
+
+
+def test_a_transform_names_the_target_form_and_never_the_answer_word():
+    task = planner.build_transform_task(
+        target=ADDRESS_READY.target, optional=False, control_language="fr"
+    )
+    assert task is not None and task.task_type == str(RecallFormat.TRANSFORM)
+    assert task.prompt_fr == "tu prends un café"
+    assert task.accepted_answers == ["vous prenez un café"]
+    # The instruction names « vous » — the form — and never « prenez », which
+    # is what the learner has to produce.
+    assert "vous" in task.instruction_native
+    assert "prenez" not in task.instruction_native
+    assert "prenez" not in (task.hint_native or "")
+
+
+@pytest.mark.parametrize("language", ["en", "de", "fr"])
+def test_a_journey_transform_clears_the_legacy_seance_gates(language):
+    """The three-gates rule: one structural bar, whoever built the item.
+
+    The planner may not *import* ``exercise_generation`` — it reaches the
+    scheduler, which ``test_the_planner_imports_no_ladder_and_no_scheduler``
+    exists to keep out — so the alignment between the journey's transforms and
+    the legacy Séance's own validators is pinned here instead, in every control
+    language the app ships.
+    """
+
+    from app.services.exercise_generation import (
+        _directed_rewrite_instruction_errors,
+        _transform_noop_errors,
+    )
+
+    task = planner.build_transform_task(
+        target=ADDRESS_READY.target, optional=False, control_language=language
+    )
+    assert task is not None
+    item = {
+        "type": "directed_rewrite",
+        "instruction": task.instruction_native,
+        "source": task.prompt_fr,
+        "expected_answer": task.accepted_answers[0],
+    }
+    assert _transform_noop_errors(item) == []
+    assert _directed_rewrite_instruction_errors(item) == []
+
+
+def test_a_transform_whose_pronoun_is_the_whole_answer_is_refused():
+    """« pour toi » → « pour vous »: naming the form would print the answer."""
+
+    target = TargetRef(
+        kind=TargetKind.GRAMMAR, id="g-toi", label_fr="c'est pour toi", label_native="for you"
+    )
+    assert (
+        planner.build_transform_task(
+            target=target, optional=False, control_language="fr"
+        )
+        is None
+    )
+
+
+def test_a_target_with_no_register_gets_no_transform():
+    assert (
+        planner.build_transform_task(
+            target=SCENE_FITTING.target, optional=False, control_language="fr"
+        )
+        is None
+    )
+
+
+def test_every_new_format_is_answerable_by_the_grader_it_reuses():
+    """A format nobody can grade is a format nobody may be asked."""
+
+    from app.services.journey_contracts import AttemptAnswer
+    from app.services.journey_contracts import InputMode as Mode
+    from app.services.journey_learning import evaluate_recall
+
+    built = {
+        str(RecallFormat.WORD_BANK): planner.build_word_bank_task(
+            target=WORD_BANK_READY.target,
+            affordances=["un café", "en terrasse"],
+            optional=False,
+            control_language="en",
+        ),
+        str(RecallFormat.CLASSIFY): planner.build_classify_task(
+            target=GENDER_READY.target, optional=False, control_language="en"
+        ),
+        str(RecallFormat.TRANSFORM): planner.build_transform_task(
+            target=ADDRESS_READY.target, optional=False, control_language="en"
+        ),
+    }
+    for task_type, task in built.items():
+        assert task is not None, task_type
+        if task.correct_option_id:
+            answer = AttemptAnswer(mode=Mode.TEXT, text="", option_id=task.correct_option_id)
+        elif task.correct_tile_order:
+            answer = AttemptAnswer(
+                mode=Mode.TEXT, text="", tile_ids=list(task.correct_tile_order)
+            )
+        else:
+            answer = AttemptAnswer(mode=Mode.TEXT, text=task.accepted_answers[0])
+        from app.services.journey_contracts import AssistanceLevel
+
+        evaluation = evaluate_recall(
+            None, user=None, task=task, answer=answer, assistance=AssistanceLevel.NONE
+        )
+        assert str(evaluation.outcome) == "met", task_type
+
+
+# --------------------------------------------------------------------------
+# 2. The shapes, validated as a set
+# --------------------------------------------------------------------------
+
+
+def test_a_plan_written_before_wp66_still_loads_and_still_validates():
+    """The additive-contract promise, made concrete.
+
+    A ``PlannedJourney`` built without ``day_shape`` — which is every plan this
+    codebase wrote before WP-66 — reads back as the standard day it is, and is
+    validated against exactly the rule it was written against.
+    """
+
+    plan = plan_journey(scenario=_brief(), candidates=[SCENE_FITTING, POLITE])
+    assert plan.day_shape is DayShape.STANDARD
+    assert plan.shape_reason == ""
+    rebuilt = PlannedJourney(
+        scenario=plan.scenario,
+        steps=plan.steps,
+        estimated_active_seconds=plan.estimated_active_seconds,
+        budget_seconds=plan.budget_seconds,
+        selected_target_ids=plan.selected_target_ids,
+        omitted_candidate_ids=plan.omitted_candidate_ids,
+        rationale=plan.rationale,
+    )
+    rebuilt.validate()
+    assert rebuilt.day_shape is DayShape.STANDARD
+    assert day_shape_rule("a_shape_this_build_has_never_heard_of") == day_shape_rule(
+        DayShape.STANDARD
+    )
+
+
+def test_a_short_day_is_three_steps_and_owes_no_drill():
+    plan = plan_journey(
+        scenario=_brief(),
+        candidates=[SCENE_FITTING, POLITE, NEW_ANCHOR],
+        day_shape=DayShape.SHORT,
+        shape_reason="missed_previous_day",
+        dice=_dice(),
+    )
+    _assert_envelope(plan)
+    assert plan.day_shape is DayShape.SHORT
+    assert _kinds(plan) == [StepKind.SCENE, StepKind.RESPOND, StepKind.RESOLUTION]
+    # The targets are not silently dropped: they are still elicited in the reply.
+    assert plan.selected_target_ids
+
+
+def test_a_listening_day_never_poses_a_multiple_choice():
+    plan = plan_journey(
+        scenario=_brief(),
+        candidates=[SCENE_FITTING, GENDER_READY],
+        day_shape=DayShape.LISTENING,
+        dice=_dice(),
+        audio_available=True,
+    )
+    _assert_envelope(plan)
+    assert plan.day_shape is DayShape.LISTENING
+    scene = plan.steps[0]
+    assert scene.public_prompt["listen_first"] is True
+    recalls = [step for step in plan.steps if step.kind is StepKind.RECALL]
+    assert recalls, "a listening day owes the learner something to write down"
+    for step in recalls:
+        assert step.private_task.task_type in DICTATION_RECALL_FORMATS
+
+
+def test_a_listening_day_on_a_deployment_with_no_audio_does_not_claim_to_listen():
+    plan = plan_journey(
+        scenario=_brief(),
+        candidates=[SCENE_FITTING],
+        day_shape=DayShape.LISTENING,
+        dice=_dice(),
+        audio_available=False,
+    )
+    assert plan.steps[0].public_prompt["listen_first"] is False
+
+
+def test_a_reprise_day_carries_the_chapter_recap_and_a_reprise_only():
+    plan = plan_journey(
+        scenario=_brief(),
+        candidates=[SCENE_FITTING, GENDER_READY],
+        day_shape=DayShape.REPRISE,
+        dice=_dice(),
+        chapter_recap_fr="Le chapitre s'achève : Romy a récupéré ses clés.",
+    )
+    _assert_envelope(plan)
+    assert plan.day_shape is DayShape.REPRISE
+    resolution = plan.steps[-1]
+    assert resolution.public_prompt["chapter_recap_fr"].startswith("Le chapitre")
+    # Every other shape gets no recap block at all, rather than an empty one.
+    standard = plan_journey(
+        scenario=_brief(),
+        candidates=[SCENE_FITTING],
+        dice=_dice(),
+        chapter_recap_fr="Le chapitre s'achève.",
+    )
+    assert standard.steps[-1].public_prompt["chapter_recap_fr"] is None
+
+
+def test_a_reprise_with_nothing_to_revisit_becomes_a_standard_day():
+    """A shape that cannot be filled is downgraded, never forced or refused."""
+
+    plan = plan_journey(
+        scenario=_brief(), candidates=[], day_shape=DayShape.REPRISE, dice=_dice()
+    )
+    plan.validate()
+    assert plan.day_shape is DayShape.STANDARD
+    assert plan.shape_reason == "shape_needs_a_recall_step"
+
+
+def test_a_plan_whose_shape_does_not_match_its_steps_is_refused():
+    """`validate()` is the producer boundary; it must actually bite."""
+
+    plan = plan_journey(
+        scenario=_brief(), candidates=[SCENE_FITTING, POLITE], dice=_dice()
+    )
+    assert len(plan.steps) > 3
+    mislabelled = replace(plan, day_shape=DayShape.SHORT)
+    with pytest.raises(ValueError, match="short day holds"):
+        mislabelled.validate()
+
+
+# --------------------------------------------------------------------------
+# 3. The «jour de lettre» seam (WP-64, in flight — off until a provider exists)
+# --------------------------------------------------------------------------
+
+
+def test_the_letter_day_is_off_until_somebody_registers_a_provider():
+    assert letter_offer_for(user_id=LEARNER_A, local_date=MONDAY) is None
+    assert DayShape.LETTER not in dice_mod.eligible_shapes(_dice())
+
+
+def test_a_registered_provider_turns_the_respond_step_into_a_letter():
+    """The whole WP-64 dependency, exercised through the one-function seam."""
+
+    try:
+        set_letter_provider(lambda **_kwargs: _letter())
+        offer = letter_offer_for(user_id=LEARNER_A, local_date=MONDAY)
+        assert offer is not None and offer.correspondent_name == "Romy"
+        assert DayShape.LETTER in dice_mod.eligible_shapes(_dice(letter=offer))
+
+        plan = plan_journey(
+            scenario=_brief(),
+            candidates=[SCENE_FITTING],
+            day_shape=DayShape.LETTER,
+            dice=_dice(letter=offer),
+            letter=offer,
+        )
+        _assert_envelope(plan)
+        assert plan.day_shape is DayShape.LETTER
+        respond = next(s for s in plan.steps if s.kind is StepKind.RESPOND)
+        letter = respond.public_prompt["letter"]
+        assert letter["correspondent_name"] == "Romy"
+        assert letter["body_fr"].startswith("Le radiateur")
+        # The letter is what the learner reads; it may carry no rubric.
+        assert set(letter) == {
+            "mission_id",
+            "correspondent_id",
+            "correspondent_name",
+            "subject_fr",
+            "body_fr",
+            "objective_native",
+        }
+    finally:
+        set_letter_provider(None)
+
+
+def test_a_provider_that_raises_costs_the_shape_and_never_the_day():
+    def boom(**_kwargs):
+        raise RuntimeError("the Courrier is down")
+
+    try:
+        set_letter_provider(boom)
+        assert letter_offer_for(user_id=LEARNER_A, local_date=MONDAY) is None
+    finally:
+        set_letter_provider(None)
+
+
+def test_a_letter_day_whose_letter_vanished_falls_back_rather_than_promising_one():
+    plan = plan_journey(
+        scenario=_brief(),
+        candidates=[SCENE_FITTING],
+        day_shape=DayShape.LETTER,
+        dice=_dice(),
+        letter=None,
+    )
+    plan.validate()
+    assert plan.day_shape is DayShape.STANDARD
+    assert plan.shape_reason == "letter_withdrawn"
+    respond = next(s for s in plan.steps if s.kind is StepKind.RESPOND)
+    assert respond.public_prompt["letter"] is None
+
+
+# --------------------------------------------------------------------------
+# 4. The dice
+# --------------------------------------------------------------------------
+
+
+def test_the_same_learner_on_the_same_day_gets_the_same_day():
+    first = choose_day_shape(_dice())
+    second = choose_day_shape(_dice())
+    assert first == second
+    assert (
+        rotate_recall_formats(
+            inputs=_dice(),
+            shape=DayShape.STANDARD,
+            target_kind=str(TargetKind.VOCABULARY),
+            target_id="vocabulary:v1",
+            eligible=RECALL_FORMATS,
+        )
+        == rotate_recall_formats(
+            inputs=_dice(),
+            shape=DayShape.STANDARD,
+            target_kind=str(TargetKind.VOCABULARY),
+            target_id="vocabulary:v1",
+            eligible=RECALL_FORMATS,
+        )
+    )
+
+
+def test_the_target_type_leads_the_format_rotation():
+    """A mistake is posed as the rewrite that repairs it, first."""
+
+    for kind, expected in (
+        (TargetKind.ERROR, RecallFormat.TRANSFORM),
+        (TargetKind.GRAMMAR, RecallFormat.CLASSIFY),
+        (TargetKind.VOCABULARY, RecallFormat.WORD_BANK),
+    ):
+        order = rotate_recall_formats(
+            inputs=_dice(),
+            shape=DayShape.STANDARD,
+            target_kind=str(kind),
+            target_id=f"{kind}:x",
+            eligible=RECALL_FORMATS,
+        )
+        assert order[0] == str(expected), kind
+
+
+def test_a_missed_day_deals_the_short_shape_and_never_two_in_a_row():
+    assert choose_day_shape(_dice(missed=True)).shape is DayShape.SHORT
+    back_again = choose_day_shape(_dice(missed=True, previous=DayShape.SHORT))
+    assert back_again.shape is not DayShape.SHORT
+
+
+def test_a_chapter_resolution_beat_deals_the_reprise():
+    decision = choose_day_shape(_dice(beat="resolution"))
+    assert decision.shape is DayShape.REPRISE
+    assert decision.reason == "chapter_resolution_beat"
+    # Twice in a row would be the fixed rotation the principles forbid.
+    assert choose_day_shape(_dice(beat="resolution", previous=DayShape.REPRISE)).shape is not (
+        DayShape.REPRISE
+    )
+
+
+def test_a_shape_nothing_can_fill_is_never_eligible():
+    bare = _dice(audio=False, errata=0)
+    assert dice_mod.eligible_shapes(bare) == (DayShape.STANDARD,)
+
+
+def _simulate(user_id: str, *, days: int = 28, missed_every: int = 9) -> list[DayShape]:
+    """A month of days for one learner, shapes only.
+
+    Deliberately *not* the planner: this is about the dice. The learner has
+    audio, a non-empty errata queue and a Courrier that occasionally writes,
+    and misses a day now and then — which is the setup the four non-standard
+    shapes exist for.
+    """
+
+    shapes: list[DayShape] = []
+    previous: DayShape | None = None
+    for index in range(days):
+        day = MONDAY + timedelta(days=index)
+        missed = index > 0 and index % missed_every == 0
+        beat = "resolution" if index and index % 11 == 0 else None
+        letter = _letter(f"m-{index}") if index % 5 == 0 else None
+        decision = choose_day_shape(
+            _dice(
+                user_id=user_id,
+                day=day,
+                previous=previous,
+                missed=missed,
+                beat=beat,
+                letter=letter,
+            )
+        )
+        shapes.append(decision.shape)
+        previous = decision.shape
+    return shapes
+
+
+def test_a_month_of_days_does_not_repeat_itself():
+    """The headline claim of WP-66, asserted over 28 days.
+
+    Four of the five shapes at least once, no shape owning half the month, and
+    never the same shape twice running.
+    """
+
+    shapes = _simulate(LEARNER_A)
+    assert len(shapes) == 28
+    distinct = set(shapes)
+    assert len(distinct) >= 4, distinct
+    for shape in distinct:
+        share = shapes.count(shape) / len(shapes)
+        assert share <= 0.5, (shape, share)
+    for earlier, later in zip(shapes, shapes[1:], strict=False):
+        assert earlier is not later, (earlier, later)
+
+
+def test_two_learners_do_not_live_the_same_month():
+    assert _simulate(LEARNER_A) != _simulate(LEARNER_B)
+
+
+def test_a_month_of_plans_poses_at_least_five_of_the_six_formats():
+    """Variety in the *steps*, not only in the dice.
+
+    Runs the real planner for 28 days over a realistic mixed queue — a word,
+    a noun with its article, a phrase that tutoies, a mistake — and asks what
+    the learner was actually shown.
+    """
+
+    # Six due targets, each of which *can* be posed in a different way: a
+    # single word with a gloss and scene distractors (choice), a word the scene
+    # affords nothing against (short answer), a phrase (word bank / tiles), a
+    # noun with its article (gender classify), a phrase that tutoies (transform
+    # and address classify), and a recorded mistake.
+    queue = [
+        _candidate(identifier="v-cafe-1", label_fr="café", label_native="coffee"),
+        _candidate(
+            identifier="v-brouillard",
+            label_fr="brouillard",
+            label_native="fog",
+        ),
+        WORD_BANK_READY,
+        GENDER_READY,
+        ADDRESS_READY,
+        _candidate(
+            kind=TargetKind.ERROR,
+            identifier="e-homme",
+            label_fr="un homme",
+            label_native="wrong article",
+            priority=9.0,
+            metadata={"erratum_learner": "une homme", "target_reason": "erratum:e-homme"},
+        ),
+    ]
+    posed: list[str] = []
+    shapes: list[DayShape] = []
+    previous: DayShape | None = None
+    for index in range(28):
+        day = MONDAY + timedelta(days=index)
+        inputs = _dice(
+            day=day,
+            previous=previous,
+            missed=index > 0 and index % 9 == 0,
+            beat="resolution" if index and index % 11 == 0 else None,
+        )
+        decision = choose_day_shape(inputs)
+        # Rotate which two of the queue are due, the way a scheduler would.
+        due = [queue[index % len(queue)], queue[(index + 2) % len(queue)]]
+        plan = plan_journey(
+            scenario=_brief(),
+            candidates=due,
+            day_shape=decision.shape,
+            shape_reason=decision.reason,
+            dice=inputs,
+            audio_available=True,
+        )
+        plan.validate()
+        previous = plan.day_shape
+        shapes.append(plan.day_shape)
+        posed.extend(
+            step.private_task.task_type
+            for step in plan.steps
+            if step.kind is StepKind.RECALL
+        )
+
+    assert len(set(shapes)) >= 4, set(shapes)
+    formats = set(posed)
+    assert len(formats) >= 5, formats
+    assert formats <= set(RECALL_FORMATS)
+    for task_type in formats:
+        share = posed.count(task_type) / len(posed)
+        assert share <= 0.5, (task_type, share)
+
+
+def test_a_rotated_plan_never_leaks_its_answer_key():
+    """Three new renderers, the same D-4 rule."""
+
+    plan = plan_journey(
+        scenario=_brief(),
+        candidates=[GENDER_READY, ADDRESS_READY],
+        dice=_dice(),
+    )
+    blob = json.dumps(
+        [step.public_prompt for step in plan.steps], default=str, ensure_ascii=False
+    )
+    for marker in ANSWER_KEY_MARKERS:
+        assert marker not in blob, marker
+    for step in plan.steps:
+        if step.kind is not StepKind.RECALL:
+            continue
+        assert step.public_prompt["target"]["label_fr"] == ""
+        for option in step.public_prompt["options"]:
+            assert set(option) == {"id", "text_fr"}

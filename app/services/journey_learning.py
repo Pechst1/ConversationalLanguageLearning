@@ -838,12 +838,19 @@ def evaluate_recall(
             failure_reason="empty_answer",
         )
 
-    if task.task_type == "choice":
+    # WP-66 brought three Séance formats into the journey. Two of them are
+    # answered with the renderers that already exist, so they are graded by the
+    # same two branches: a `classify` is an option pick (two contrastive
+    # labels), and a `word_bank` is a tile order — with distractor chips, so an
+    # answer that uses a chip it should not have used is simply not the
+    # expected order. `transform` is free text and falls through to open
+    # production, which is what it is.
+    if task.task_type in {"choice", "classify"}:
         selected = _selected_option_id(task, answer)
         is_correct = bool(selected) and selected == task.correct_option_id
         learner_text = _option_text(task, selected) or answer.text
         opportunity: OpportunityKind = "choice"
-    elif task.task_type == "tiles":
+    elif task.task_type in {"tiles", "word_bank"}:
         expected = [str(tile) for tile in task.correct_tile_order]
         submitted = [str(tile) for tile in answer.tile_ids]
         is_correct = bool(expected) and submitted == expected

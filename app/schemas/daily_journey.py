@@ -114,6 +114,12 @@ class ScenePrompt(JourneyModel):
     # client offers the listening-first cycle only when this is true, so a
     # learner is never invited into a mode that answers "audio is off".
     audio_available: bool = False
+    #: WP-66 «jour d'écoute»: the planner dealt a listening day, so the client
+    #: opens on the audio rather than on the text. Additive and defaulted —
+    #: every scene persisted before WP-66 reads ``False``. Still subject to
+    #: ``audio_available``: a listening day on a deployment whose audio has
+    #: since been switched off is read aloud by nobody and must not claim to be.
+    listen_first: bool = False
 
 
 class RecallOption(JourneyModel):
@@ -124,13 +130,37 @@ class RecallOption(JourneyModel):
 
 
 class RecallPrompt(JourneyModel):
-    task_type: Literal["choice", "tiles", "short_answer"]
+    #: WP-66 brought three Séance formats into the daily loop. Additive: the
+    #: three originals are unchanged, so a step persisted before this package
+    #: still validates. `classify` renders as a two-label pick and is answered
+    #: with `ChoiceAttemptInput`; `word_bank` renders as tiles with chips that
+    #: are not part of the answer and is answered with `TilesAttemptInput`;
+    #: `transform` renders as a short answer over a printed source sentence.
+    task_type: Literal[
+        "choice", "tiles", "short_answer", "transform", "classify", "word_bank"
+    ]
     instruction_native: str
     prompt_fr: str | None = None
     options: list[RecallOption] = Field(default_factory=list)
     target: TargetRef
     optional: bool
     help_available: list[HelpKind] = Field(default_factory=list)
+
+
+class RespondLetter(JourneyModel):
+    """WP-66 «jour de lettre»: the letter the learner is answering.
+
+    Public by construction — it is what the learner reads — and deliberately
+    flat strings rather than a mission model: WP-64 owns the Courrier and this
+    contract must not depend on its internals. ``None`` on every other shape.
+    """
+
+    mission_id: str
+    correspondent_id: str
+    correspondent_name: str
+    subject_fr: str
+    body_fr: str
+    objective_native: str
 
 
 class RespondPrompt(JourneyModel):
@@ -145,6 +175,9 @@ class RespondPrompt(JourneyModel):
     input_modes: list[InputMode]
     targets: list[TargetRef] = Field(default_factory=list)
     help_available: list[HelpKind] = Field(default_factory=list)
+    #: WP-66. Present only on a «jour de lettre»; ``None`` is the shipping
+    #: value until WP-64 registers a letter provider.
+    letter: RespondLetter | None = None
 
 
 class ResolutionPrompt(JourneyModel):
@@ -152,6 +185,17 @@ class ResolutionPrompt(JourneyModel):
     character_line_fr: str
     summary_native: str
     image_url: str | None = None
+    #: WP-66 «jour de reprise»: one French paragraph recapping the chapter that
+    #: just closed. ``None`` on every other shape, and ``None`` when the story
+    #: had nothing to recap — an empty recap block is worse than none.
+    chapter_recap_fr: str | None = None
+    #: WP-33 / WP-66. The graded register dimension, finally shown: one French
+    #: line about what the learner held (or let slip) in this conversation…
+    register_note_fr: str | None = None
+    #: …and why it matters, in the learner's own language. Both are ``None``
+    #: together whenever register was *not evaluated* — nothing observable
+    #: happened, which is never dressed up as a pass or as a failure.
+    register_reason_native: str | None = None
 
 
 class _PublicStepBase(JourneyModel):
@@ -255,6 +299,12 @@ class JourneySnapshot(JourneyModel):
     steps: list[PublicStep] = Field(default_factory=list)
     recap: JourneyRecap | None = None
     retry: RetryHint | None = None
+    #: WP-66. Which kind of day this is: ``standard``, ``letter``,
+    #: ``listening``, ``reprise`` or ``short``. A free string on the wire on
+    #: purpose — a client that meets a shape a newer server deals must render
+    #: the steps it was sent, not refuse the day. Journeys planned before
+    #: WP-66 read ``standard``, which is what they are.
+    day_shape: str = "standard"
 
 
 class LegacyResume(JourneyModel):
@@ -505,6 +555,7 @@ __all__ = [
     "ReplySource",
     "ResolutionPrompt",
     "ResolutionStep",
+    "RespondLetter",
     "RespondPrompt",
     "RespondStep",
     "RetryHint",

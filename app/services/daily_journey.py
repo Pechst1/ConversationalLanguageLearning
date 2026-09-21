@@ -83,13 +83,16 @@ from app.services.daily_journey_adapters import (
     preview_scenario,
 )
 from app.services.grammar import GrammarService
+from app.services.journey_capabilities import build_journey_register_line
 from app.services.journey_contracts import (
+    DEFAULT_DAY_SHAPE,
     AppliedEvidence,
     AssistanceLevel,
     AttemptAnswer,
     ContentUnavailable,
     ControlLanguage,
     Correction,
+    DayShape,
     EvidenceKind,
     HelpKind,
     InputMode,
@@ -109,6 +112,11 @@ from app.services.journey_contracts import (
     normalize_answer_text,
     normalize_control_language,
     strongest_assistance,
+)
+from app.services.journey_day_shapes import (
+    DayShapeInputs,
+    choose_day_shape,
+    letter_offer_for,
 )
 from app.services.journey_errata import errata_targets_for_user
 from app.services.journey_latency import (
@@ -437,8 +445,32 @@ def _public_prompt_view(step: DailyJourneyStep) -> dict[str, Any]:
     stored: a flag flipped after the journey was planned is still honoured."""
     prompt = dict(step.public_prompt or {})
     if StepKind(step.kind) is StepKind.SCENE:
-        prompt["audio_available"] = bool(settings.ATELIER_EPISODE_AUDIO_ENABLED)
+        audio = bool(settings.ATELIER_EPISODE_AUDIO_ENABLED)
+        prompt["audio_available"] = audio
+        # WP-66. A «jour d'écoute» planned while audio was on, projected after
+        # it was switched off, is a day that cannot be listened to. Say so here
+        # rather than open the learner on a player that will never play.
+        if prompt.get("listen_first") and not audio:
+            prompt["listen_first"] = False
     return prompt
+
+
+def _stored_day_shape(journey: DailyJourney) -> DayShape:
+    """The shape a persisted plan was built with.
+
+    WP-66 stores it inside the existing ``plan_selection`` JSON rather than in a
+    new column: there is no migration, and a journey planned before this
+    package simply has no key — which reads back as ``standard``, which is what
+    it is. A shape name this build does not know (a newer deployment's plan,
+    read by an older one) is also read as standard rather than refusing to load
+    the learner's day.
+    """
+
+    selection = journey.plan_selection if isinstance(journey.plan_selection, dict) else {}
+    try:
+        return DayShape(str(selection.get("day_shape") or DEFAULT_DAY_SHAPE))
+    except ValueError:
+        return DEFAULT_DAY_SHAPE
 
 class DailyJourneyService:
     """Transaction boundary and state machine for the Atelier V2 daily journey."""
@@ -1080,6 +1112,9 @@ class DailyJourneyService:
                 "steps": steps,
                 "recap": journey.recap_snapshot,
                 "retry": self._retry_hint(journey),
+                # WP-66: read from the persisted plan, never recomputed. The
+                # claim is about the day the learner actually has.
+                "day_shape": str(_stored_day_shape(journey)),
             }
         )
 
@@ -1771,11 +1806,17 @@ class DailyJourneyService:
         # cannot be read costs the line, never the day.
         errata = self._errata_targets(user)
         because: dict[str, Any] | None = None
+        # WP-66. Today's *shape* is decided here, where the cheap facts already
+        # are: what yesterday was, whether yesterday happened at all, what beat
+        # the story is on, whether this deployment can speak, and how much the
+        # errata queue is holding. No provider call, no second content source.
+        dice = self._day_shape_inputs(user, fresh, result, errata_count=len(errata))
+        decision = choose_day_shape(dice)
         try:
             candidates = self.adapters.learning.select_learning_candidates(
                 self.db, user=user, scenario=result, limit=CANDIDATE_LIMIT
             )
-            plan = self.adapters.planner.plan_journey(
+            plan = self._plan_with_shape(
                 scenario=result,
                 candidates=list(candidates),
                 budget_seconds=fresh.budget_seconds,
@@ -1785,6 +1826,9 @@ class DailyJourneyService:
                 # can only know about voice if the create request says so.
                 input_mode=input_mode,
                 errata_targets=errata,
+                dice=dice,
+                decision=decision,
+                scenario_result=result,
             )
             plan.validate()
             because = self._plan_because(plan, list(candidates), errata)
@@ -1896,6 +1940,120 @@ class DailyJourneyService:
         journey.revision += 1
         self.db.flush()
         return journey, http_status.HTTP_200_OK
+
+    # ------------------------------------------------------------------
+    # WP-66 — the day's shape
+    # ------------------------------------------------------------------
+
+    def _day_shape_inputs(
+        self,
+        user: User,
+        journey: DailyJourney,
+        brief: ScenarioBrief,
+        *,
+        errata_count: int,
+    ) -> DayShapeInputs:
+        """Everything the seeded dice are allowed to know about today.
+
+        Every field is either already in hand or one cheap indexed read. A
+        failure anywhere in here costs the *variation*, never the day: the
+        fallbacks are the values that deal a standard day.
+        """
+
+        previous_shape: DayShape | None = None
+        missed = False
+        try:
+            yesterday = journey.local_date - timedelta(days=1)
+            previous = self._journey_for_date(user, yesterday)
+            if previous is None:
+                # Nothing yesterday. A learner on their *first* day has not
+                # missed anything, so the short shape is offered only to
+                # somebody who has been here before.
+                missed = self._has_earlier_journey(user, journey.local_date)
+            else:
+                previous_shape = _stored_day_shape(previous)
+        except Exception:  # pragma: no cover - defensive: a shape is not a day
+            logger.exception("daily_journey: previous-day lookup failed")
+
+        story = brief.story_context if isinstance(brief.story_context, dict) else {}
+        draft = story.get("draft") if isinstance(story.get("draft"), dict) else {}
+        beat = story.get("beat") or story.get("chapter_beat") or draft.get("beat")
+
+        return DayShapeInputs(
+            user_id=str(user.id),
+            local_date=journey.local_date,
+            previous_shape=previous_shape,
+            missed_previous_day=missed,
+            chapter_beat=str(beat) if beat else None,
+            audio_available=bool(settings.ATELIER_EPISODE_AUDIO_ENABLED),
+            errata_count=int(errata_count),
+            # The WP-64 seam. `None` until a Courrier provider is registered,
+            # which makes «jour de lettre» ineligible rather than empty.
+            letter=letter_offer_for(user_id=str(user.id), local_date=journey.local_date),
+        )
+
+    def _has_earlier_journey(self, user: User, day: date) -> bool:
+        """Has this learner had any journey before ``day``?"""
+
+        stmt = select(DailyJourney.id).where(
+            DailyJourney.user_id == user.id, DailyJourney.local_date < day
+        )
+        return self.db.execute(stmt.limit(1)).first() is not None
+
+    def _plan_with_shape(
+        self,
+        *,
+        scenario: ScenarioBrief,
+        candidates: list[Any],
+        budget_seconds: int,
+        pace: Any,
+        input_mode: InputMode,
+        errata_targets: list[Any],
+        dice: DayShapeInputs,
+        decision: Any,
+        scenario_result: ScenarioBrief,
+    ) -> Any:
+        """Call the planner with WP-66's arguments, or without them.
+
+        The planner is reached through an adapter, and an adapter built before
+        this package — a stub in a test, an older deployment's module — has a
+        ``plan_journey`` that has never heard of a day shape. Passing the new
+        keywords to it would be a ``TypeError`` on the learner's only path into
+        their day, so the shape arguments are offered and dropped rather than
+        forced. Dropping them yields the standard day, which is exactly what
+        that planner would have built anyway.
+        """
+
+        plan_journey = self.adapters.planner.plan_journey
+        base: dict[str, Any] = {
+            "scenario": scenario,
+            "candidates": candidates,
+            "budget_seconds": budget_seconds,
+            "pace": pace,
+            "input_mode": input_mode,
+            "errata_targets": errata_targets,
+        }
+        try:
+            accepted = set(inspect.signature(plan_journey).parameters)
+        except (TypeError, ValueError):  # pragma: no cover - exotic callables
+            accepted = set()
+        if "day_shape" not in accepted:
+            return plan_journey(**base)
+        story = (
+            scenario_result.story_context
+            if isinstance(scenario_result.story_context, dict)
+            else {}
+        )
+        recap = story.get("chapter_recap_fr") or story.get("chapter_recap")
+        return plan_journey(
+            **base,
+            day_shape=decision.shape,
+            shape_reason=decision.reason,
+            dice=dice,
+            letter=dice.letter,
+            chapter_recap_fr=str(recap).strip() if recap else None,
+            audio_available=dice.audio_available,
+        )
 
     def _errata_targets(self, user: User) -> list[Any]:
         """The learner's ranked due errata. A broken queue is never fatal.
@@ -2022,6 +2180,12 @@ class DailyJourneyService:
             # never recomputed on read: the claim is about the scene the
             # learner actually has, not about the queue as it stands now.
             "because": because,
+            # WP-66. The day's shape and why the dice dealt it, stored with the
+            # plan that was built for it. Inside the existing JSON column on
+            # purpose: no migration, and an old row with no key reads back as
+            # the standard day it was.
+            "day_shape": str(getattr(plan, "day_shape", None) or DEFAULT_DAY_SHAPE),
+            "shape_reason": str(getattr(plan, "shape_reason", "") or ""),
         }
         journey.estimated_active_seconds = plan.estimated_active_seconds
         journey.serial_thread_id = brief.serial_thread_id
@@ -2394,6 +2558,7 @@ class DailyJourneyService:
                 settle_resolution(self.db, user=user, journey=journey, brief=brief, resolution=resolution, proposal=proposal)
             except StoryUnavailable as exc:
                 raise journey_error(409, JourneyErrorCode.VERSION_CONFLICT, "The story changed. Refresh and retry your answer.", current_revision=journey.revision, refresh_href=refresh_href_for(journey.id)) from exc
+            self._attach_register_line(user, journey, resolution)
             return
 
         private = dict(resolution.private_task or {})
@@ -2437,6 +2602,7 @@ class DailyJourneyService:
         prompt["character_line_fr"] = line
         prompt["summary_native"] = summary
         resolution.public_prompt = prompt
+        self._attach_register_line(user, journey, resolution)
 
         if proposal is not None and outcome_key == proposal.outcome_key:
             outcome_ref = self.adapters.conversation.apply_story_outcome(
@@ -2465,6 +2631,42 @@ class DailyJourneyService:
             # learner through the recap's story_outcome instead.
         private["resolution_settled"] = True
         resolution.private_task = private
+
+    def _attach_register_line(
+        self, user: User, journey: DailyJourney, resolution: DailyJourneyStep
+    ) -> None:
+        """WP-66 / WP-33: show the register the learner was already graded on.
+
+        One French line under the ending, plus why it matters in the learner's
+        own language. Nothing is written when the dimension was *not evaluated*
+        — no counterpart register to hold, or a conversation that addressed
+        nobody — because "non évalué" is neither a pass nor a failure and the
+        honest rendering of it is no line at all.
+
+        Never fatal: the day's ending does not depend on this sentence.
+        """
+
+        try:
+            # The turn that decides the verdict was recorded moments ago and is
+            # still pending in this transaction. Flush it first: the register
+            # reader queries the step row, and reading the exchange without the
+            # last thing the learner said would grade half a conversation.
+            self.db.flush()
+            line = build_journey_register_line(
+                self.db,
+                user=user,
+                journey_id=journey.id,
+                control_language=normalize_control_language(user.native_language),
+            )
+        except Exception:  # pragma: no cover - defensive
+            logger.exception("daily_journey: register line unavailable")
+            return
+        if line is None:
+            return
+        prompt = dict(resolution.public_prompt or {})
+        prompt["register_note_fr"] = line.line_fr
+        prompt["register_reason_native"] = line.reason_native
+        resolution.public_prompt = prompt
 
     def _settle_resolution_if_unsettled(
         self, user: User, journey: DailyJourney
