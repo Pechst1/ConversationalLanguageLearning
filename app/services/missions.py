@@ -19,6 +19,10 @@ from app.db.models.mission import RealWorldMission, RealWorldMissionAttempt, Rea
 from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
+
+# WP-64 — every write into `thread.state["living_story"]` on behalf of a letter
+# goes through this module, and nothing here reaches into that ledger directly.
+from app.services import story_correspondence as courrier
 from app.services.atelier_assets import AtelierAssetService
 from app.services.atelier_rewards import AtelierRewardService
 from app.services.daily_words import DailyWordSlateService
@@ -43,6 +47,14 @@ MISSION_CORRECTION_PROMPT_VERSION = "mission-correction-v1"
 MISSION_FAST_CORRECTION_PROMPT_VERSION = "mission-correction-fast-v1"
 MISSION_TEMPLATES = ("message", "explain_plan", "news_summary", "travel_work", "conversation")
 MISSION_FUEL_SOURCES = ("vocab", "theme", "news_seed")
+
+#: Every shape a letter can arrive in. The frontend renders all five.
+MISSION_FORMATS = ("chat_message", "voicemail_reply", "email_formal", "admin_form", "phone_call")
+
+#: The shapes the seeded format die may deal *against* a channel's natural one.
+#: `admin_form` needs its own paperwork and `phone_call` opens a live-voice UI, so
+#: neither is handed out as a surprise: they arrive only from their own channels.
+MISSION_FORMAT_ALTERNATIVES = ("chat_message", "email_formal", "voicemail_reply")
 
 
 REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
@@ -693,12 +705,17 @@ class MissionGenerator:
         active_category: str | None = None,
         recent_variety: list[dict[str, Any]] | None = None,
         fuel_source: str | None = None,
+        seed: tuple[Any, ...] = (),
+        chain: dict[str, Any] | None = None,
+        correspondence: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         mission_type = mission_type if mission_type in MISSION_TEMPLATES else "message"
         custom_context = self._custom_context(custom_context)
         stakes_level = self._stakes_level(stakes_level, cadence=cadence)
         active_category = normalize_category(active_category) if active_category else None
         fuel_source = fuel_source if fuel_source in MISSION_FUEL_SOURCES else "vocab"
+        chain = chain if isinstance(chain, dict) else None
+        correspondence = correspondence if isinstance(correspondence, dict) else {}
         concepts = self._select_concepts(
             user=user,
             atelier_session=atelier_session,
@@ -719,6 +736,8 @@ class MissionGenerator:
             active_category=variety_category,
             recent_variety=recent_variety or [],
             fuel_source=fuel_source,
+            seed=tuple(seed),
+            forced_domain=(chain or {}).get("domain"),
         )
         source_snapshot = await self._source_snapshot(
             user=user,
@@ -765,6 +784,8 @@ class MissionGenerator:
                 vocabulary=vocabulary,
                 variety=variety,
                 recent_variety=recent_variety or [],
+                correspondence=correspondence,
+                chain=chain,
             )
             if scenario:
                 title = scenario.get("title") or title
@@ -773,6 +794,7 @@ class MissionGenerator:
                 variety = {**variety, **scenario.get("variety", {})}
         if vocabulary:
             messenger = self._with_vocabulary_focus(messenger, vocabulary)
+        messenger = self._with_correspondence(messenger, correspondence=correspondence, chain=chain)
         if custom_context:
             title, brief, messenger, custom_objectives = self._customize_mission(
                 mission_type=mission_type,
@@ -806,6 +828,18 @@ class MissionGenerator:
                 "fuel_source": fuel_source,
                 "active_category": variety_category,
                 "recently_avoided": recent_variety or [],
+                "mission_format": variety.get("mission_format"),
+            },
+            # WP-64 — the letter knows who it is from, what was said last time, and
+            # where it sits in the affair. WP-65 renders these; the actor reads them.
+            "chain": dict(chain) if chain else None,
+            "correspondence": {
+                "correspondent_id": correspondence.get("correspondent_id")
+                or courrier.slug(messenger.get("contact_name") or variety.get("contact_name")),
+                "thread_history": list(correspondence.get("thread_history") or []),
+                "mood_line": correspondence.get("mood_line"),
+                "cooling_note": correspondence.get("cooling_note"),
+                "origin": correspondence.get("origin") or "courrier",
             },
             "messenger": messenger,
             "success_objectives": success_objectives_for(
@@ -1170,38 +1204,103 @@ class MissionGenerator:
         active_category: str | None,
         recent_variety: list[dict[str, Any]],
         fuel_source: str,
+        seed: tuple[Any, ...] = (),
+        forced_domain: str | None = None,
     ) -> dict[str, Any]:
+        """Seeded weighted sampling over domain × contact × format (WP-64).
+
+        What this replaces was ``ordered[0]`` over an alphabetical tiebreak: every
+        learner in the product walked the same catalogue in the same order, which
+        is the most visible kind of "this is a content list, not a world".
+
+        Recency is applied in two tiers, and the difference matters. Domain and
+        contact are *excluded* while they are in the recent window — meeting the
+        same baker two days running is not variety, it is a bug — whereas channel
+        and tone only lose weight, because there are fewer of them than there are
+        domains and a hard ban on them would empty the pool. When a chain is
+        running, ``forced_domain`` pins the setup: letter 2 of an affair is from
+        the same person about the same thing, and that is the point.
+        """
+
         category = active_category
         recent_domains = {str(item.get("domain") or "") for item in recent_variety}
         recent_contacts = {str(item.get("contact") or item.get("contact_name") or "") for item in recent_variety}
         recent_channels = {str(item.get("channel") or "") for item in recent_variety}
         recent_tones = {str(item.get("tone") or "") for item in recent_variety}
-        category_candidates = [
-            item
-            for item in REAL_WORLD_MISSION_DOMAINS
-            if category and category in item.get("categories", set())
+        recent_formats = {
+            str(item.get("mission_format") or "") for item in recent_variety if item.get("mission_format")
+        }
+
+        def fresh(item: dict[str, Any]) -> bool:
+            return (
+                str(item.get("domain") or "") not in recent_domains
+                and str(item.get("contact_name") or "") not in recent_contacts
+            )
+
+        pool: list[dict[str, Any]] = []
+        if forced_domain:
+            pool = [item for item in REAL_WORLD_MISSION_DOMAINS if str(item.get("domain")) == str(forced_domain)]
+        if not pool:
+            matching = [
+                item
+                for item in REAL_WORLD_MISSION_DOMAINS
+                if category and category in item.get("categories", set())
+            ]
+            if matching:
+                # A domain whose whole subject *is* this category beats one that
+                # merely touches it: food words belong at the bakery counter, not at
+                # a picnic that happens to mention food.
+                sharpest = min(len(item.get("categories") or ()) for item in matching)
+                matching = [item for item in matching if len(item.get("categories") or ()) == sharpest]
+            fresh_matching = [item for item in matching if fresh(item)]
+            pool = (
+                fresh_matching
+                or [item for item in REAL_WORLD_MISSION_DOMAINS if fresh(item)]
+                or matching
+                or list(REAL_WORLD_MISSION_DOMAINS)
+            )
+        weighted = [
+            (
+                item,
+                1.0
+                * (0.45 if str(item.get("channel") or "") in recent_channels else 1.0)
+                * (0.7 if str(item.get("tone") or "") in recent_tones else 1.0),
+            )
+            for item in pool
         ]
-        candidates = category_candidates if (
-            category_candidates
-            and any(str(item.get("domain") or "") not in recent_domains for item in category_candidates)
-        ) else list(REAL_WORLD_MISSION_DOMAINS)
-        ordered = sorted(
-            candidates,
-            key=lambda item: (
-                str(item.get("domain") or "") in recent_domains,
-                str(item.get("contact_name") or "") in recent_contacts,
-                str(item.get("channel") or "") in recent_channels,
-                str(item.get("tone") or "") in recent_tones,
-                str(item.get("domain") or ""),
-            ),
-        )
-        pick = ordered[0]
+        pick = courrier.weighted_pick(weighted, "variety", *seed) or pool[0]
         variety = {key: value for key, value in pick.items() if key != "categories"}
         variety["active_category"] = category
         variety["fuel_source"] = fuel_source
         variety["fuel_detail"] = self._fuel_detail(fuel_source=fuel_source, active_category=category)
-        variety["mission_format"] = self._mission_format_for_channel(variety.get("channel"))
+        variety["mission_format"] = self._choose_format(
+            channel=variety.get("channel"),
+            recent_formats=recent_formats,
+            seed=seed,
+        )
         return variety
+
+    @staticmethod
+    def _choose_format(
+        *,
+        channel: Any,
+        recent_formats: set[str],
+        seed: tuple[Any, ...] = (),
+    ) -> str:
+        """The shape of the letter: usually the channel's own, sometimes not.
+
+        A support chat is normally a chat message, but an operator who leaves a
+        voicemail is a real thing that happens, and the third identical chat bubble
+        in a row is what makes the Courrier feel like a form rather than a life.
+        """
+
+        natural = MissionGenerator._mission_format_for_channel(channel)
+        alternatives = [item for item in MISSION_FORMAT_ALTERNATIVES if item != natural]
+        weighted = [(natural, 4.0 if natural not in recent_formats else 1.4)]
+        weighted.extend(
+            (item, (0.5 if item not in recent_formats else 0.15)) for item in alternatives
+        )
+        return str(courrier.weighted_pick(weighted, "format", *seed) or natural)
 
     @staticmethod
     def _dominant_vocabulary_category(vocabulary: list[dict[str, Any]]) -> str | None:
@@ -1262,6 +1361,76 @@ class MissionGenerator:
             "realism_rules": realism_rules,
             "vocabulary_focus": vocabulary,
         }
+
+    @staticmethod
+    def _with_correspondence(
+        messenger: dict[str, Any],
+        *,
+        correspondence: dict[str, Any],
+        chain: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        """Give the letter its history: same person, same affair, same grudge (WP-64).
+
+        Three things the Courrier could not say before this package. Letter 2 of an
+        affair is written by the *same* person as letter 1 (so the contact identity
+        is pinned, not re-rolled). Someone who has written three times remembers the
+        three times. And someone the learner left on read says so — once, without
+        reproach, because an ignored letter cools a person; it does not fail a
+        learner.
+        """
+
+        messenger = dict(messenger)
+        rules = list(messenger.get("realism_rules") or [])
+        correspondent = (chain or {}).get("correspondent") or {}
+        if not correspondent.get("name") and correspondence.get("correspondent_name"):
+            # A story-born letter: the writer is the cast member who was in the scene,
+            # not whichever generic contact the custom-scenario templates invented.
+            correspondent = {"name": correspondence["correspondent_name"]}
+        if correspondent.get("name"):
+            messenger["contact_name"] = correspondent["name"]
+            if correspondent.get("role"):
+                messenger["contact_role"] = correspondent["role"]
+            if correspondent.get("initials"):
+                messenger["contact_initials"] = correspondent["initials"]
+        history = list(correspondence.get("thread_history") or [])
+        if history:
+            recap = " · ".join(
+                f"{_compact_text(item.get('summary_fr'), max_length=90)}"
+                f"{' (réglé)' if item.get('outcome') == 'kept' else ''}"
+                for item in history[-3:]
+                if item.get("summary_fr")
+            )
+            if recap:
+                messenger["thread_recap"] = recap
+                rules.append(
+                    "You have written to this person before; you both remember it. "
+                    f"Earlier exchanges, oldest first: {recap}. Refer to at most one of them, in passing."
+                )
+        if chain:
+            previous = _compact_text((chain or {}).get("after_summary_fr"), max_length=120)
+            outcome = str((chain or {}).get("after_outcome") or "")
+            messenger["chain_note"] = (
+                f"Lettre {chain.get('index')} sur {chain.get('total')}"
+                + (f" · suite de « {previous} »" if previous else "")
+            )
+            rules.append(
+                f"This is letter {chain.get('index')} of {chain.get('total')} in the same affair. "
+                + {
+                    "kept": "Last time they handled it, so open warmly and raise the next complication.",
+                    "partial": "Last time they half-handled it, so start from the loose end.",
+                    "missed": "Last time the essential thing went unsaid, so ask for it plainly.",
+                    "ignored": "They never answered you, so write once more, more briefly.",
+                }.get(outcome, "Continue the same matter one step further.")
+            )
+        note = _compact_text(correspondence.get("cooling_note"), max_length=220)
+        if note:
+            rules.append(note)
+        if rules:
+            messenger["realism_rules"] = rules
+        mood_line = _compact_text(correspondence.get("mood_line"), max_length=160)
+        if mood_line:
+            messenger["mood_line"] = mood_line
+        return messenger
 
     def _custom_context(self, value: dict[str, Any] | None) -> dict[str, Any]:
         scenario = _compact_text((value or {}).get("scenario"), max_length=1200)
@@ -1597,6 +1766,8 @@ class MissionGenerator:
         vocabulary: list[dict[str, Any]],
         variety: dict[str, Any],
         recent_variety: list[dict[str, Any]],
+        correspondence: dict[str, Any] | None = None,
+        chain: dict[str, Any] | None = None,
     ) -> dict[str, Any] | None:
         """A vivid, personalized texting scenario. Returns None if the LLM is unavailable,
         so the canned templates remain the deterministic fallback."""
@@ -1621,7 +1792,11 @@ class MissionGenerator:
             "show a vocabulary list. EVERY prose field you return is printed on a French page, so write them all "
             "in French — title, brief, scene_anchor, success_signal, inbox_context and twist included — plainly "
             "enough for the learner's CEFR level. Avoid all recent "
-            "domains, contacts, channels, and tones. Never reuse a train-station arrival. Return JSON only."
+            "domains, contacts, channels, and tones. Never reuse a train-station arrival. "
+            "If letters_with_this_person is non-empty, this is the SAME person writing again: keep their name and "
+            "role exactly, do not re-introduce them, and refer to at most one earlier exchange in passing. If chain "
+            "is present, this is that numbered instalment of one continuing affair — carry the previous outcome "
+            "forward rather than starting a new situation. Return JSON only."
         )
         user_payload = {
             "cefr_level": cefr,
@@ -1631,6 +1806,14 @@ class MissionGenerator:
             "due_vocabulary": vocab,
             "chosen_variety": variety,
             "recent_variety_to_avoid": recent_variety[-8:],
+            # WP-64 — continuity the writer must honour rather than invent. The
+            # history is the *learner's own* past letters; the chain says which
+            # instalment this is. A writer given neither invents a first meeting
+            # every single time, which is what the Courrier used to do.
+            "letters_with_this_person": list((correspondence or {}).get("thread_history") or [])[-3:],
+            "how_they_feel_about_the_learner": (correspondence or {}).get("mood_line"),
+            "unanswered_letter_to_mention_once": (correspondence or {}).get("cooling_note"),
+            "chain": dict(chain) if chain else None,
             # Every field below is printed on Le Courrier, a French publication
             # surface: the headline, the situation, the "on attend de vous" line
             # and the P.S. all sit in the same French fiction as the chrome, with
@@ -2994,7 +3177,6 @@ class MissionDebriefService:
         errata_count: int,
         srs_result: dict[str, Any],
     ) -> dict[str, Any]:
-        latest_correction = self._latest_correction(attempts=attempts, turns=turns)
         # An objective met in turn 1 stays met: reading only the LAST correction
         # scored a whole conversation on its closing "Oui." and reported 0%
         # task fit for a mission the learner had actually completed.
@@ -3017,46 +3199,53 @@ class MissionDebriefService:
             if progress_by_id.get(str(item.get("id")), {}).get("met")
         )
         required_total = max(1, len(scored_objectives))
-        score = max(
-            (float((payload or {}).get("score_0_4") or 0) for payload in self._all_corrections(attempts=attempts, turns=turns)),
-            default=float(latest_correction.get("score_0_4") or 0),
+        # WP-64 — honest numbers only. What the debrief used to print as
+        # "readiness" was four figures, three of which were formulas over word
+        # count and mistake count: `naturalness = 55 + words * 0.45` told a learner
+        # who wrote eighty words that their French was 91 % natural, which nothing
+        # in this system had measured. They are gone. What is left is counted:
+        # which objectives the corrector marked met, how many repairs were filed,
+        # how many phrases went to the review queue, how much was written.
+        courrier_outcome = courrier.outcome_from_objectives(
+            objectives=objectives,
+            progress_by_id=progress_by_id,
+            had_submission=bool(attempts or turns),
         )
-        clarity = min(100, round((score / 4) * 70 + min(len(turns), 3) * 10))
-        task_fit = min(100, round((met_required / required_total) * 100))
-        repair_stability = max(20, 100 - errata_count * 18)
-        naturalness = min(100, round(55 + min(self._word_total(attempts, turns), 80) * 0.45))
-        readiness = round((clarity * 0.3) + (task_fit * 0.3) + (repair_stability * 0.2) + (naturalness * 0.2))
-        outcome = self._outcome_label(readiness=readiness, errata_count=errata_count, turns=len(turns))
+        measured = {
+            "objectives_met": met_required,
+            "objectives_total": required_total,
+            "objectives_met_all": sum(
+                1 for item in objectives if progress_by_id.get(str(item.get("id")), {}).get("met")
+            ),
+            "objectives_all": len(objectives),
+            "repairs": errata_count,
+            "phrases_saved": int((srs_result or {}).get("saved_count") or 0),
+            "replies": len(turns),
+            "words_written": self._word_total(attempts, turns),
+        }
+        label = self._outcome_label(outcome=courrier_outcome, errata_count=errata_count, turns=len(turns))
         return {
-            "debrief_version": "mission-debrief-v1",
-            "readiness": {
-                "overall": readiness,
-                "clarity": clarity,
-                "task_fit": task_fit,
-                "register": self._register_score(mission),
-                "repair_stability": repair_stability,
-                "naturalness": naturalness,
-                "outcome": outcome,
-            },
+            "debrief_version": "mission-debrief-v2",
+            "outcome": courrier_outcome,
+            "measured": measured,
             "branch_outcome": {
-                "state": "resolved" if readiness >= 75 else "needs_follow_up",
-                "label": outcome,
-                "next_best_move": self._next_best_move(mission=mission, errata_count=errata_count, readiness=readiness),
+                "state": "resolved" if courrier_outcome == "kept" else "needs_follow_up",
+                "label": label,
+                "next_best_move": self._next_best_move(
+                    mission=mission, errata_count=errata_count, outcome=courrier_outcome
+                ),
             },
             "objective_results": objective_results,
             "saved_to_srs": srs_result,
-            "next_mission_seed": self._next_mission_seed(mission=mission, readiness=readiness, errata_count=errata_count),
+            "next_mission_seed": self._next_mission_seed(
+                mission=mission, outcome=courrier_outcome, errata_count=errata_count
+            ),
         }
 
-    def _latest_correction(
-        self,
-        *,
-        attempts: list[RealWorldMissionAttempt],
-        turns: list[RealWorldMissionTurn],
-    ) -> dict[str, Any]:
-        turn_correction = [turn.correction_payload or {} for turn in turns if turn.correction_payload]
-        attempt_correction = [attempt.correction_payload or {} for attempt in attempts if attempt.correction_payload]
-        return (turn_correction or attempt_correction or [{}])[-1]
+    # `_latest_correction` lived here and fed only the deleted readiness score: the
+    # highest `score_0_4` any correction had returned, weighted into a percentage.
+    # Nothing measured reads a single correction's score any more — the objective
+    # flags are merged across the whole mission by `_merged_objective_progress`.
 
     @staticmethod
     def _all_corrections(
@@ -3092,39 +3281,40 @@ class MissionDebriefService:
         texts.extend(turn.text for turn in turns)
         return sum(len(re.findall(r"\S+", text or "")) for text in texts)
 
-    def _register_score(self, mission: RealWorldMission) -> int:
-        messenger = (mission.prompt_payload or {}).get("messenger") or {}
-        rules = " ".join(messenger.get("realism_rules") or []).lower()
-        return 86 if "formal" in rules or "informal" in rules else 78
-
     # This label and the next move are printed on the resolved dossier, which is a
-    # publication surface — they speak French like the rest of Le Courrier.
-    def _outcome_label(self, *, readiness: int, errata_count: int, turns: int) -> str:
-        if readiness >= 85 and errata_count == 0:
-            return "Prêt à servir dans une vraie conversation."
-        if readiness >= 70:
-            return "Utilisable, après une relecture attentive."
+    # publication surface — they speak French like the rest of Le Courrier. They now
+    # describe what happened in the situation, not a score: «tout était réglé» is a
+    # fact about the objectives, «91 % naturel» was not a fact about anything.
+    def _outcome_label(self, *, outcome: str, errata_count: int, turns: int) -> str:
+        if outcome == "kept":
+            return (
+                "Tout était réglé."
+                if not errata_count
+                else "Réglé — il reste quelques tournures à revoir."
+            )
+        if outcome == "partial":
+            return "Réglé à moitié : un point est resté en suspens."
         if turns == 0:
-            return "Répétez une réponse en direct avant de vous en servir."
-        return "À reprendre une fois avant de l'envoyer pour de vrai."
+            return "Rien n'a été réglé cette fois. Répondez une fois en direct."
+        return "Rien n'a été réglé cette fois : l'essentiel n'a pas été dit."
 
-    def _next_best_move(self, *, mission: RealWorldMission, errata_count: int, readiness: int) -> str:
+    def _next_best_move(self, *, mission: RealWorldMission, errata_count: int, outcome: str) -> str:
         if errata_count:
             return "Revoyez les corrections dans la séance du jour, puis renvoyez une version plus nette."
-        if readiness < 75:
+        if outcome != "kept":
             return "Ajoutez un détail concret et posez une question plus claire sur la suite."
         return "Refaites la même situation à l'oral, puis replacez la phrase gardée dans la séance."
 
-    def _next_mission_seed(self, *, mission: RealWorldMission, readiness: int, errata_count: int) -> dict[str, Any]:
+    def _next_mission_seed(self, *, mission: RealWorldMission, outcome: str, errata_count: int) -> dict[str, Any]:
         messenger = (mission.prompt_payload or {}).get("messenger") or {}
         if errata_count:
             prompt = f"Repair the same situation with fewer mistakes: {messenger.get('success_signal') or mission.title}"
-        elif readiness < 75:
+        elif outcome != "kept":
             prompt = f"Make the next reply more specific in: {messenger.get('thread_title') or mission.title}"
         else:
             prompt = f"Do a voice-note version of: {messenger.get('thread_title') or mission.title}"
         return {
-            "mission_type": "conversation" if readiness >= 75 else mission.mission_type,
+            "mission_type": "conversation" if outcome == "kept" else mission.mission_type,
             "custom_scenario": prompt,
             "reason": "Generated from your mission debrief and SRS trace.",
         }
@@ -3138,6 +3328,13 @@ class MissionScheduler:
         self.generator = generator or MissionGenerator(db)
 
     async def today(self, user: User) -> dict[str, Any]:
+        # WP-64 — two things happen before the Courrier is read. A letter whose soft
+        # deadline has passed stops waiting (the correspondent cools, and says so the
+        # next time they write); and a character who was in a recent journey scene may
+        # pick up a pen about it. Both are seeded, both are capped, and neither is
+        # allowed to fail the day: the Courrier must open even when the story cannot.
+        self._sweep_correspondence(user)
+        story_mission = await self._ensure_ad_hoc_letter(user)
         weekly = await self.ensure_weekly(user)
         active = (
             self.db.query(RealWorldMission)
@@ -3186,9 +3383,61 @@ class MissionScheduler:
         return {
             "weekly_mission": serialize_mission(weekly),
             "post_session_recommendation": serialize_mission(post_session) if post_session else None,
-            "active_mission": serialize_mission(active) if active else None,
+            "active_mission": serialize_mission(active or story_mission) if (active or story_mission) else None,
             "recent_completed": [serialize_mission(row, include_children=False) for row in recent],
         }
+
+    def _sweep_correspondence(self, user: User) -> list[RealWorldMission]:
+        """Let overdue letters lapse. Never blocks the Courrier from opening."""
+
+        try:
+            return courrier.lapse_overdue_letters(self.db, user=user)
+        except Exception as exc:  # noqa: BLE001 — a cooled correspondent is not worth a 500
+            self.db.rollback()
+            logger.warning("Courrier expiry sweep failed: {}", str(exc))
+            return []
+
+    def _open_ad_hoc_letter(self, user: User) -> RealWorldMission | None:
+        return (
+            self.db.query(RealWorldMission)
+            .filter(
+                RealWorldMission.user_id == user.id,
+                RealWorldMission.cadence == "ad_hoc",
+                RealWorldMission.status.in_(["available", "in_progress"]),
+                RealWorldMission.serial_thread_id.is_(None),
+            )
+            .order_by(RealWorldMission.created_at.desc())
+            .first()
+        )
+
+    async def _ensure_ad_hoc_letter(self, user: User) -> RealWorldMission | None:
+        """The day's second letter, when the story has one to send (WP-64).
+
+        Two kinds, in that order of priority: the next instalment of an affair
+        somebody is waiting on, and a letter born from a journey scene. Only ever
+        one at a time — the one-CTA rule means the Courrier shows the learner a
+        single letter, and a queue of four is a chore, not a correspondence.
+        """
+
+        if self._open_ad_hoc_letter(user) is not None:
+            return None
+        try:
+            story_letter = None
+            if courrier.pending_chain_step(self.db, user=user) is None:
+                story_letter = courrier.story_letter_candidate(self.db, user=user)
+                if not story_letter:
+                    return None
+            return await self.create(
+                user=user,
+                mission_type="message",
+                cadence="ad_hoc",
+                use_news=False,
+                story_letter=story_letter,
+            )
+        except Exception as exc:  # noqa: BLE001 — the day's Courrier outranks the extra
+            self.db.rollback()
+            logger.warning("Extra Courrier letter unavailable: {}", str(exc))
+            return None
 
     async def ensure_weekly(self, user: User) -> RealWorldMission:
         iso = date.today().isocalendar()
@@ -3229,7 +3478,16 @@ class MissionScheduler:
         serial_thread_id: UUID | None = None,
         episode_index: int | None = None,
         stakes_level: int | None = None,
+        story_letter: dict[str, Any] | None = None,
     ) -> RealWorldMission:
+        # WP-64 — a story-born letter: a character who was in yesterday's scene
+        # writes about it. The scenario is built from the stored event, never from
+        # a model's memory of one, so the letter cannot invent a past.
+        if story_letter and not _compact_text(custom_scenario):
+            story_context = courrier.story_letter_context(story_letter)
+            custom_scenario = story_context["scenario"]
+            desired_outcome = desired_outcome or story_context["desired_outcome"]
+            relationship = relationship or story_context["relationship"]
         custom_context = {
             "scenario": custom_scenario,
             "desired_outcome": desired_outcome,
@@ -3270,7 +3528,9 @@ class MissionScheduler:
             atelier_session = None
         standalone = serial_thread is None
         recent_variety = self._recent_variety(user=user, limit=8) if standalone else []
-        fuel_source = self._next_fuel_source(user=user) if standalone else "theme"
+        fuel_source = (
+            self._next_fuel_source(user=user, recent_variety=recent_variety) if standalone else "theme"
+        )
         # Always anchor a standalone mission to a real vocabulary category so the
         # scenario and its target words come from the same theme (food words -> a
         # market scene), instead of generic mid-frequency junk like "abaisser".
@@ -3278,6 +3538,29 @@ class MissionScheduler:
             self._active_coverage_category(user=user)
             if standalone and not has_custom_context
             else None
+        )
+        # WP-64 — one affair at a time. A queued chain step outranks a fresh setup:
+        # someone is waiting for letter 2, and giving the learner an unrelated
+        # bakery instead is exactly the amnesia this package removes.
+        chain_step = (
+            courrier.pending_chain_step(self.db, user=user)
+            if standalone and not story_letter
+            else None
+        )
+        if chain_step:
+            stakes_level = stakes_level or int(chain_step.get("stakes_level") or 2)
+            active_category = None
+        correspondence = self._correspondence_context(
+            user=user,
+            chain_step=chain_step,
+            story_letter=story_letter,
+            origin="story_born" if story_letter else ("chain" if chain_step else "courrier"),
+        )
+        ordinal = self._standalone_count(user=user) if standalone else 0
+        seed = (
+            (user.id, courrier.iso_week_key(), ordinal, cadence)
+            if standalone
+            else (user.id, str(serial_thread_id), episode_index)
         )
         payload = await self.generator.build_payload(
             user=user,
@@ -3293,6 +3576,9 @@ class MissionScheduler:
             active_category=active_category,
             recent_variety=recent_variety,
             fuel_source=fuel_source,
+            seed=seed,
+            chain=chain_step,
+            correspondence=correspondence,
         )
         iso = date.today().isocalendar() if cadence == "weekly" and not has_custom_context else None
         mission = RealWorldMission(
@@ -3310,6 +3596,14 @@ class MissionScheduler:
         self.db.add(mission)
         self.db.commit()
         self.db.refresh(mission)
+        self._stamp_correspondence(
+            user=user,
+            mission=mission,
+            chain_step=chain_step,
+            story_letter=story_letter,
+            standalone=standalone,
+            has_custom_context=has_custom_context,
+        )
         if serial_thread:
             self._apply_serial_mission_contract(
                 mission=mission,
@@ -3339,6 +3633,113 @@ class MissionScheduler:
                 self.db.commit()
                 self.db.refresh(mission)
         return mission
+
+    def _correspondence_context(
+        self,
+        *,
+        user: User,
+        chain_step: dict[str, Any] | None = None,
+        story_letter: dict[str, Any] | None = None,
+        origin: str = "courrier",
+    ) -> dict[str, Any]:
+        """Everything the writer and the card need about *this* person (WP-64).
+
+        Resolved before generation, because the correspondent's identity decides
+        what the letter may refer to. For a chain the person is already known; for a
+        story-born letter it is the cast member who witnessed the scene; otherwise
+        there is nobody yet and the history is empty until the scenario names them.
+        """
+
+        correspondent_id = ""
+        correspondent_name = ""
+        if chain_step:
+            correspondent = chain_step.get("correspondent") or {}
+            correspondent_id = str(correspondent.get("id") or "")
+            correspondent_name = str(correspondent.get("name") or "")
+        elif story_letter:
+            correspondent_id = str(story_letter.get("character_id") or "")
+            correspondent_name = str(story_letter.get("character_name") or "")
+        thread = courrier.active_thread(self.db, user)
+        return {
+            "correspondent_id": correspondent_id or None,
+            "correspondent_name": correspondent_name or None,
+            "origin": origin,
+            "thread_history": courrier.thread_history(
+                self.db, user=user, correspondent_id=correspondent_id, limit=3
+            ),
+            "mood_line": courrier.mood_line(thread, correspondent_id),
+            "cooling_note": courrier.cooling_note(thread, correspondent_id),
+        }
+
+    def _stamp_correspondence(
+        self,
+        *,
+        user: User,
+        mission: RealWorldMission,
+        chain_step: dict[str, Any] | None,
+        story_letter: dict[str, Any] | None,
+        standalone: bool,
+        has_custom_context: bool,
+    ) -> None:
+        """Give the freshly built letter its identity, its affair and its deadline.
+
+        Runs *after* the first commit because the correspondent is only knowable
+        once the scenario exists — the model may have named the contact. Everything
+        here is a column, not a payload key, because all three are queried later:
+        the thread with one person, the affair still waiting, the overdue letters.
+        """
+
+        correspondent = courrier.correspondent_of(mission)
+        # A story-born letter's author is a cast member with an id of their own; a
+        # slug of their display name would open a second, parallel thread with the
+        # same person, which is exactly the amnesia this package removes.
+        mission.correspondent_id = (
+            str((story_letter or {}).get("character_id") or "") or correspondent.get("id") or None
+        )
+        if chain_step:
+            mission.chain_id = str(chain_step.get("chain_id"))
+            mission.chain_index = int(chain_step.get("index") or 2)
+            mission.chain_total = int(chain_step.get("total") or 2)
+            courrier.close_chain(self.db, user=user, chain_id=mission.chain_id)
+        elif standalone and not has_custom_context and mission.correspondent_id:
+            opened = courrier.plan_chain(
+                user=user,
+                correspondent_id=mission.correspondent_id,
+                ordinal=self._standalone_count(user=user),
+                week=courrier.iso_week_key(),
+            )
+            if opened:
+                mission.chain_id = opened["chain_id"]
+                mission.chain_index = opened["index"]
+                mission.chain_total = opened["total"]
+        if mission.chain_id and mission.created_at and mission.cadence != "weekly":
+            # Only an affair carries a deadline, and never the weekly letter: that
+            # one is the learner's standing invitation for the whole week, and the
+            # unique constraint means a lapsed week cannot be replaced. A person
+            # waiting on letter 2 of 3, by contrast, eventually stops waiting.
+            mission.expires_at = courrier.expiry_for(
+                user=user,
+                mission_id=mission.id,
+                created_at=mission.created_at,
+                stakes_level=int(getattr(mission, "stakes_level", None) or 1),
+            )
+        prompt = dict(mission.prompt_payload or {})
+        correspondence = dict(prompt.get("correspondence") or {})
+        correspondence["correspondent_id"] = mission.correspondent_id
+        prompt["correspondence"] = correspondence
+        if mission.chain_id:
+            prompt["chain"] = {
+                **(prompt.get("chain") or {}),
+                "chain_id": mission.chain_id,
+                "index": mission.chain_index,
+                "total": mission.chain_total,
+            }
+        mission.prompt_payload = prompt
+        self.db.add(mission)
+        if story_letter:
+            courrier.note_story_letter(self.db, user=user, candidate=story_letter, mission_id=mission.id)
+        self.db.commit()
+        self.db.refresh(mission)
 
     def _active_coverage_category(self, *, user: User) -> str | None:
         excluded = {"verbs", "uncategorized", "complete", "adjectives_adverbs", "function_words"}
@@ -3388,18 +3789,40 @@ class MissionScheduler:
                     "contact": variety.get("contact") or messenger.get("contact_name"),
                     "channel": variety.get("channel"),
                     "tone": variety.get("tone"),
+                    # WP-64: the seeded dice penalise a recent fuel source and a
+                    # recent letter shape too, so the rotation is a tendency rather
+                    # than a modulo the learner can feel.
+                    "fuel_source": variety.get("fuel_source"),
+                    "mission_format": variety.get("mission_format") or prompt.get("mission_format"),
                     "mission_id": str(row.id),
                 }
             )
         return result
 
-    def _next_fuel_source(self, *, user: User) -> str:
-        recent_count = (
+    def _standalone_count(self, *, user: User) -> int:
+        return (
             self.db.query(RealWorldMission)
             .filter(RealWorldMission.user_id == user.id, RealWorldMission.serial_thread_id.is_(None))
             .count()
         )
-        return MISSION_FUEL_SOURCES[recent_count % len(MISSION_FUEL_SOURCES)]
+
+    def _next_fuel_source(self, *, user: User, recent_variety: list[dict[str, Any]]) -> str:
+        """What this letter is built out of, seeded per learner (WP-64).
+
+        ``MISSION_FUEL_SOURCES[count % 3]`` handed every learner in the product the
+        same three-beat cycle starting on the same beat. What replaces it keeps the
+        one good property — all three sources come round, so the Courrier never
+        spends a fortnight on due vocabulary alone — and drops the shared order: the
+        permutation is drawn from the learner's own seed and re-drawn each week.
+
+        Deliberately not a recency read over ``recent_variety``: ``created_at`` has
+        one-second resolution on SQLite, so six letters made in the same second have
+        no reliable order, and an exclusion built on that ordering silently decays
+        into "whatever came back first".
+        """
+
+        rotation = courrier.seeded_order(MISSION_FUEL_SOURCES, "fuel", user.id, courrier.iso_week_key())
+        return str(rotation[self._standalone_count(user=user) % len(rotation)])
 
     def _existing_serial_mission(
         self,
@@ -3914,8 +4337,14 @@ class MissionScheduler:
                     "state_delta": state_delta,
                     "hook": hook,
                 }
+        courrier_outcome = str(debrief.get("outcome") or "partial")
         mission.status = "completed"
         mission.completed_at = datetime.now(UTC)
+        mission.outcome = courrier_outcome
+        if not mission.correspondent_id:
+            # Letters written before WP-64 shipped, and serial acts, get their
+            # identity here rather than staying outside every future thread.
+            mission.correspondent_id = courrier.correspondent_of(mission).get("id") or None
         minted_collectibles = (
             AtelierRewardService(self.db).mint_logo_token_for_mission(mission)
             if not getattr(mission, "serial_thread_id", None)
@@ -3930,9 +4359,22 @@ class MissionScheduler:
             "objectives": mission.objectives or [],
             "completed_at": mission.completed_at.isoformat(),
             **debrief,
+            "courrier_outcome": courrier_outcome,
+            "courrier_summary_fr": courrier.summarise_letter(mission),
         }
         if outcome:
+            # The legacy serial state delta. Kept under its own key for the existing
+            # reader; `courrier_outcome` above is the per-letter verdict WP-65 reads.
             mission.recap_payload["outcome"] = outcome
+        story_event = self._write_letter_into_story(
+            user=user, mission=mission, outcome=courrier_outcome, attempts=attempts, turns=turns
+        )
+        if story_event:
+            mission.recap_payload["story_event"] = {
+                "id": story_event.get("id"),
+                "summary_fr": story_event.get("summary_fr"),
+                "witnesses": story_event.get("witnesses") or [],
+            }
         from app.services.pilot_events import PilotEventService
 
         PilotEventService(self.db).record(
@@ -3951,6 +4393,54 @@ class MissionScheduler:
         self.db.commit()
         self.db.refresh(mission)
         return mission
+
+    def _write_letter_into_story(
+        self,
+        *,
+        user: User,
+        mission: RealWorldMission,
+        outcome: str,
+        attempts: list[RealWorldMissionAttempt],
+        turns: list[RealWorldMissionTurn],
+    ) -> dict[str, Any] | None:
+        """WP-64 — the Courrier's half of the coupling that never existed.
+
+        The story already coloured the letter (WP-61 carried mood and trust into the
+        actor's voice). Nothing went back: a rude message to Romy changed nothing
+        about tomorrow. This writes the letter into the same ledger the Feuilleton
+        reads — one event witnessed by the correspondent, one mood/trust step, and
+        the promises the learner actually made, opened or closed.
+
+        It runs for any learner who has a living story, with no reference to
+        ``SERIAL_WORLD_ENABLED``: that flag gates the legacy serial surface, and a
+        living-story thread keeps its ledger either way.
+
+        Never fatal. A mission the learner finished must complete even if the story
+        cannot be written, so a failure here is a warning and a missing event row.
+        """
+
+        try:
+            learner_text = " ".join(
+                text
+                for text in [
+                    *[str((attempt.answer_payload or {}).get("text") or "") for attempt in attempts],
+                    *[turn.text or "" for turn in turns],
+                ]
+                if text
+            )
+            event = courrier.record_letter(
+                self.db,
+                user=user,
+                mission=mission,
+                outcome=outcome,
+                learner_text=learner_text,
+            )
+            courrier.clear_cooling(self.db, user=user, correspondent_id=mission.correspondent_id)
+            courrier.open_chain_step(self.db, user=user, mission=mission, outcome=outcome)
+            return event
+        except Exception as exc:  # noqa: BLE001 — a finished letter always finishes
+            logger.warning("Courrier story writeback failed: {}", str(exc))
+            return None
 
     @staticmethod
     def _serial_reply_text(
@@ -4184,55 +4674,66 @@ class MissionConversationService:
         attempts: list[RealWorldMissionAttempt],
         turns: list[RealWorldMissionTurn],
     ) -> dict[str, Any]:
+        """What this letter changed in the world, from the corrector's own flags.
+
+        WP-64 replaced a stub. What stood here was written for episode 1 of the
+        authored Paris pilot and never generalised: two hard-coded keys —
+        ``heating_fixed`` and ``marchand_trust`` — set by matching the words
+        "radiateur" / "chauffage" / "propriétaire" against the mission text. Every
+        other story in the product fell through to ``mission.last_outcome``, a key
+        nothing read, and success itself was decided by a keyword heuristic over the
+        learner's message ("does it contain a question mark?").
+
+        Now the outcome is ``kept | partial | missed``, taken from the per-objective
+        ``met`` flags the corrector already returns. ``branch_state`` survives one
+        rung lower, as a conversational nudge inside the delta — it is a decent read
+        on *why* a message did not land (no detail, no next step, wrong register) and
+        a poor one on whether the situation was settled.
+
+        The radiator keys are still written when the story genuinely tracks them, so
+        an existing pilot thread keeps working; they are simply no longer the shape
+        of every mission's outcome.
+        """
+
         if not getattr(mission, "serial_thread_id", None):
             return {}
         thread = self.db.get(SerialThread, mission.serial_thread_id)
         if not thread:
             return {}
         progress = self._latest_objective_progress(mission)
-        required_ids = {
-            str(item.get("id"))
-            for item in (mission.objectives or [])
-            if item.get("required") is True and item.get("id")
-        }
-        if progress:
-            met_ids = {str(item.get("id")) for item in progress if item.get("met")}
-            required_met = required_ids.issubset(met_ids) if required_ids else all(bool(item.get("met")) for item in progress)
-            all_met = all(bool(item.get("met")) for item in progress)
-        else:
-            required_met = False
-            all_met = False
+        outcome = courrier.outcome_from_objectives(
+            objectives=mission.objectives or [],
+            progress_by_id={str(item.get("id")): item for item in progress if item.get("id")},
+            had_submission=bool(attempts or turns),
+        )
+        success = outcome == "kept"
         score = self._latest_score(attempts=attempts, turns=turns)
         latest_user_text = self._latest_user_text(attempts=attempts, turns=turns)
         latest_assistant_text = self._latest_assistant_text(turns=turns)
         branch = self.branch_state(mission=mission, user_text=latest_user_text, assistant_text=latest_assistant_text)
-        success = score >= 3 and required_met and (all_met or branch.get("state") == "understood")
         tone_failed = branch.get("state") == "tone_mismatch"
         known_state = thread.state or {}
         topic_text = f"{mission.title} {mission.brief} {mission.prompt_payload}".lower()
         is_episode_one = (mission.prompt_payload or {}).get("serial_reference") == "episode-01-beat-a"
-        updates: dict[str, Any] = {}
-        if is_episode_one:
-            updates["heating_fixed"] = "pending_tomorrow" if success else False
-            if success:
-                updates["marchand_trust"] = "ok"
-            elif tone_failed:
-                updates["marchand_trust"] = "cold"
-        elif "heating_fixed" in known_state or any(token in topic_text for token in ("heating", "radiateur", "chauffage")):
-            updates["heating_fixed"] = "pending_tomorrow" if success else False
-            if "marchand_trust" in known_state or "landlord" in topic_text or "propriétaire" in topic_text:
-                updates["marchand_trust"] = "ok" if success else ("cold" if tone_failed else "neutral")
-        else:
-            updates["mission.last_outcome"] = "success" if success else ("tone_mismatch" if tone_failed else "needs_detail")
-            updates["user.last_mission_success"] = success
-        reason = (
-            "Learner's message was clear and hit the required objectives."
-            if success
-            else "The world still needs a clearer detail, next step, or better register."
+        updates: dict[str, Any] = {"mission.last_outcome": outcome, "user.last_mission_success": success}
+        tracks_heating = "heating_fixed" in known_state or any(
+            token in topic_text for token in ("heating", "radiateur", "chauffage")
         )
+        if is_episode_one or tracks_heating:
+            updates["heating_fixed"] = "pending_tomorrow" if success else False
+            if is_episode_one or "marchand_trust" in known_state or "landlord" in topic_text or "propriétaire" in topic_text:
+                updates["marchand_trust"] = "ok" if success else ("cold" if tone_failed else "neutral")
+        reason = {
+            "kept": "Every required objective was handled; the situation is settled.",
+            "partial": "Part of the situation was handled; one required objective is still open.",
+            "missed": "None of the required objectives was handled yet.",
+        }.get(outcome, "The situation is not settled yet.")
         return {
             "set": updates,
+            "outcome": outcome,
             "reason": reason,
+            # A nudge, not a verdict: what the message was missing, in the world's words.
+            "nudge": {"state": branch.get("state"), "pressure": branch.get("pressure")},
             "source": {"type": "mission", "id": str(mission.id), "score_0_4": score},
         }
 
@@ -4301,18 +4802,18 @@ class MissionConversationService:
         if not getattr(mission, "serial_thread_id", None):
             return outcome
         progress = self._latest_objective_progress(mission)
-        required_ids = {
-            str(item.get("id"))
-            for item in (mission.objectives or [])
-            if item.get("required") is True and item.get("id")
-        }
-        if progress:
-            met_ids = {str(item.get("id")) for item in progress if item.get("met")}
-            required_met = required_ids.issubset(met_ids) if required_ids else all(bool(item.get("met")) for item in progress)
-        else:
-            required_met = False
-        ready = bool(progress) and required_met and branch.get("state") == "understood"
+        # WP-64: the corrector's flags decide whether the story may move on. The old
+        # gate also demanded `branch_state == "understood"`, which is a keyword read
+        # on the learner's punctuation — a message that settled every objective but
+        # ended on a statement rather than a question could not advance the story.
+        letter_outcome = courrier.outcome_from_objectives(
+            objectives=mission.objectives or [],
+            progress_by_id={str(item.get("id")): item for item in progress if item.get("id")},
+            had_submission=bool(progress),
+        )
+        ready = bool(progress) and letter_outcome == "kept"
         outcome["ready_to_advance"] = ready
+        outcome["letter_outcome"] = letter_outcome
         if ready:
             state_delta = self.resolve_outcome(
                 mission=mission,
@@ -4671,6 +5172,61 @@ def create_artefact_mission(
     return mission
 
 
+def _courrier_fields(mission: RealWorldMission) -> dict[str, Any]:
+    """The WP-64 surface WP-65 renders: who, which letter, by when, how it went.
+
+    ``outcome`` lives inside the ``courrier`` block rather than at the top level,
+    where the key is already taken by the legacy serial state delta and typed as an
+    object. Everything else is also mirrored flat, because a card reads
+    ``mission.chain`` more naturally than ``mission.courrier.chain``.
+    """
+
+    prompt = mission.prompt_payload or {}
+    recap = mission.recap_payload or {}
+    correspondence = prompt.get("correspondence") if isinstance(prompt.get("correspondence"), dict) else {}
+    identity = courrier.correspondent_of(mission)
+    correspondent = (
+        {
+            "id": getattr(mission, "correspondent_id", None) or identity.get("id"),
+            "name": identity.get("name"),
+            "role": identity.get("role"),
+            "initials": identity.get("initials"),
+            # WP-61's feeling, as one French line. None when the story has no
+            # opinion yet — an absent line is honest; a neutral one is filler.
+            "mood_line": correspondence.get("mood_line"),
+        }
+        if (getattr(mission, "correspondent_id", None) or identity.get("id"))
+        else None
+    )
+    chain = (
+        {
+            "id": mission.chain_id,
+            "index": int(mission.chain_index or 1),
+            "total": int(mission.chain_total or 1),
+        }
+        if getattr(mission, "chain_id", None)
+        else None
+    )
+    expires_at = mission.expires_at.isoformat() if getattr(mission, "expires_at", None) else None
+    history = list(correspondence.get("thread_history") or [])
+    letter_outcome = str(recap.get("courrier_outcome") or getattr(mission, "outcome", None) or "") or None
+    fields: dict[str, Any] = {
+        "correspondent": correspondent,
+        "chain": chain,
+        "expires_at": expires_at,
+        "thread_history": history,
+        "courrier": {
+            "correspondent": correspondent,
+            "chain": chain,
+            "expires_at": expires_at,
+            "thread_history": history,
+            "outcome": letter_outcome,
+            "origin": correspondence.get("origin") or "courrier",
+        },
+    }
+    return fields
+
+
 def serialize_mission(mission: RealWorldMission | None, *, include_children: bool = True) -> dict[str, Any] | None:
     if not mission:
         return None
@@ -4714,6 +5270,7 @@ def serialize_mission(mission: RealWorldMission | None, *, include_children: boo
     outcome = (mission.recap_payload or {}).get("outcome") if mission.recap_payload else None
     if getattr(mission, "serial_thread_id", None) and isinstance(outcome, dict):
         payload["outcome"] = outcome
+    payload.update(_courrier_fields(mission))
     if include_children:
         payload["attempts"] = [
             {

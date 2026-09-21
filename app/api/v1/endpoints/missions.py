@@ -26,6 +26,7 @@ from app.schemas.missions import (
     MissionTurnRequest,
     MissionTurnResponse,
 )
+from app.services import story_correspondence as courrier
 from app.services.cefr_progress import CEFRProgressService
 from app.services.llm_service import LLMProviderError, LLMService
 from app.services.missions import (
@@ -262,6 +263,26 @@ async def transcribe_mission_audio(
         ) from exc
 
 
+def _with_live_thread_history(db: Session, user: User, mission: RealWorldMission, payload: dict) -> dict:
+    """Refresh the correspondent thread at read time (WP-64).
+
+    `serialize_mission` carries the history the letter was *written* with, which is
+    the right thing for a stored payload and the wrong thing for a page opened a
+    week later. The correspondent view reads this one.
+    """
+
+    correspondent_id = getattr(mission, "correspondent_id", None)
+    if not correspondent_id:
+        return payload
+    history = courrier.thread_history(
+        db, user=user, correspondent_id=correspondent_id, limit=3, exclude_mission_id=mission.id
+    )
+    payload["thread_history"] = history
+    if isinstance(payload.get("courrier"), dict):
+        payload["courrier"] = {**payload["courrier"], "thread_history": history}
+    return payload
+
+
 @router.get("/{mission_id}", response_model=MissionResponse)
 def get_mission(
     mission_id: UUID,
@@ -269,7 +290,8 @@ def get_mission(
     current_user: Annotated[User, Depends(get_atelier_user)],
 ) -> MissionResponse:
     mission = _mission_or_404(db, mission_id, current_user)
-    return MissionResponse(mission=serialize_mission(mission) or {})
+    payload = serialize_mission(mission) or {}
+    return MissionResponse(mission=_with_live_thread_history(db, current_user, mission, payload))
 
 
 @router.post("/{mission_id}/submit", response_model=MissionAttemptResponse)
@@ -491,10 +513,16 @@ async def complete_mission(
 
 
 async def _advance_serial_thread(db: Session, mission: RealWorldMission) -> dict[str, Any] | None:
-    """Advance the serial story when a thread-linked mission completes.
+    """Advance the *legacy* serial story when a thread-linked mission completes.
 
     Resilient: if the next Feuilleton beat fails to generate, the thread index
     has already advanced, so /serial/today regenerates it lazily next load.
+
+    WP-64 note: the flag below no longer gates whether a finished letter reaches
+    the story. `MissionScheduler.complete` writes the event, the mood shift and the
+    commitments into `state["living_story"]` for any learner who has a living story,
+    flag or no flag. What `SERIAL_WORLD_ENABLED` still gates is this — the old
+    episode-index machinery of the authored serial.
     """
     if not settings.SERIAL_WORLD_ENABLED or not getattr(mission, "serial_thread_id", None):
         return None

@@ -40,6 +40,25 @@ class RealWorldMission(Base):
     cadence: Mapped[str] = mapped_column(String(30), default="weekly", nullable=False, index=True)
     mission_type: Mapped[str] = mapped_column(String(40), default="message", nullable=False, index=True)
     stakes_level: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    # WP-64 — Le Courrier lives in the story.
+    #
+    # These five are columns rather than `prompt_payload` keys because every one of
+    # them is *queried*: the thread with one person, the affair still waiting for
+    # letter 3, the letters whose soft deadline has passed. A JSON key cannot carry
+    # an index, and the ignored-letter sweep would otherwise scan every mission the
+    # learner has ever been sent.
+    #
+    #: Stable identity of the person on the other side, across standalone letters,
+    #: chains and living-story cast members (`serial_character_id`).
+    correspondent_id: Mapped[str | None] = mapped_column(String(80), nullable=True, index=True)
+    #: The affair this letter belongs to, and its place in it (1-based).
+    chain_id: Mapped[str | None] = mapped_column(String(80), nullable=True, index=True)
+    chain_index: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    chain_total: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    #: Soft deadline. Passing it cools the correspondent; it never fails anybody.
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    #: kept | partial | missed | ignored — from the corrector's per-objective flags.
+    outcome: Mapped[str | None] = mapped_column(String(20), nullable=True)
     iso_year: Mapped[int | None] = mapped_column(Integer, nullable=True)
     iso_week: Mapped[int | None] = mapped_column(Integer, nullable=True)
     title: Mapped[str] = mapped_column(String(180), nullable=False)
@@ -71,6 +90,10 @@ class RealWorldMission(Base):
     __table_args__ = (
         UniqueConstraint("user_id", "cadence", "iso_year", "iso_week", name="uq_real_world_mission_weekly"),
         Index("ix_real_world_missions_user_status", "user_id", "status"),
+        # The two WP-64 reads: "the thread with this person" and "which letters are
+        # overdue for this learner".
+        Index("ix_real_world_missions_correspondent", "user_id", "correspondent_id"),
+        Index("ix_real_world_missions_expiry", "user_id", "expires_at"),
     )
 
 

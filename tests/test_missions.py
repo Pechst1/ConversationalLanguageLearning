@@ -475,7 +475,11 @@ def test_custom_mission_e2e_create_turn_complete_and_queue(client: TestClient, d
     recap = complete.json()["recap"]
     assert complete.json()["mission"]["status"] == "completed"
     assert recap["turns"] == 1
-    assert recap["readiness"]["overall"] >= 0
+    # WP-64: measured numbers only — no invented "readiness" percentage.
+    assert "readiness" not in recap
+    assert recap["outcome"] in {"kept", "partial", "missed"}
+    assert recap["measured"]["objectives_total"] >= 1
+    assert recap["measured"]["repairs"] == recap["errata_logged"]
     assert recap["objective_results"]
     assert all("met" in item and "label" in item for item in recap["objective_results"])
     assert recap["vocabulary_credit"]["produced_correct"] >= 1
@@ -910,7 +914,8 @@ def test_mission_completion_returns_recap(client: TestClient, db_session, monkey
     assert response.status_code == 200
     assert response.json()["mission"]["status"] == "completed"
     assert "completed_at" in response.json()["recap"]
-    assert response.json()["recap"]["readiness"]["overall"] >= 0
+    assert response.json()["recap"]["outcome"] in {"kept", "partial", "missed"}
+    assert response.json()["recap"]["measured"]["phrases_saved"] >= 1
     assert response.json()["recap"]["saved_to_srs"]["saved_count"] >= 1
     assert response.json()["recap"]["minted_collectibles"][0]["kind"] == "logo_token"
 
@@ -1318,7 +1323,8 @@ def test_mission_debrief_keeps_objectives_met_in_an_earlier_turn(db_session):
         mission=mission, attempts=[], turns=turns, errata_count=0, srs_result={"saved_count": 0},
     )
 
-    assert debrief["readiness"]["task_fit"] == 100
+    assert debrief["outcome"] == "kept"
+    assert debrief["measured"]["objectives_met"] == debrief["measured"]["objectives_total"] == 1
     assert [item["met"] for item in debrief["objective_results"]] == [True]
     # The dossier speaks the publication's French.
     assert debrief["branch_outcome"]["next_best_move"].startswith(("Revoyez", "Ajoutez", "Refaites"))
@@ -1481,3 +1487,35 @@ def test_courrier_reads_the_living_story_mood_and_trust():
     assert "hurt" in direction and "guarded" in direction
     assert MissionScheduler.feeling_toward_learner({**prompt, "serial_character_id": "marin"}) is None
     assert MissionScheduler.feeling_toward_learner({}) is None
+
+
+def test_courrier_block_is_on_every_serialized_mission(client: TestClient, db_session, monkeypatch):
+    """WP-64: the fields WP-65 renders survive the API, not just the service."""
+    monkeypatch.setattr(missions_module, "_safe_llm", lambda: None)
+    token = _token(client)
+
+    today = client.get("/api/v1/missions/today", headers={"Authorization": f"Bearer {token}"})
+    assert today.status_code == 200
+    weekly = today.json()["weekly_mission"]
+
+    for key in ("correspondent", "chain", "expires_at", "thread_history", "courrier"):
+        assert key in weekly
+    assert weekly["courrier"]["outcome"] is None
+    assert weekly["correspondent"]["id"]
+    # The weekly letter is the standing invitation for the whole week: it may open
+    # an affair, but it never carries a deadline it could miss.
+    assert weekly["expires_at"] is None
+
+    detail = client.get(
+        f"/api/v1/missions/{weekly['id']}", headers={"Authorization": f"Bearer {token}"}
+    )
+    assert detail.status_code == 200
+    assert detail.json()["mission"]["courrier"]["thread_history"] == []
+
+    complete = client.post(
+        f"/api/v1/missions/{weekly['id']}/complete", headers={"Authorization": f"Bearer {token}"}
+    )
+    assert complete.status_code == 200
+    # Nothing was written, so nothing was settled — and it says so plainly.
+    assert complete.json()["mission"]["courrier"]["outcome"] == "missed"
+    assert complete.json()["recap"]["branch_outcome"]["state"] == "needs_follow_up"
