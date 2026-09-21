@@ -554,3 +554,37 @@ export function writeListenFirst(enabled: boolean): void {
     /* nothing the learner needs to know about */
   }
 }
+
+/**
+ * Where «Écouter d'abord» belongs on this scene (QA finding F-27).
+ *
+ * The offer used to sit on the reader's foot, which a learner reaches by
+ * reading the whole scene — and the cycle it opens then asks them to *predict
+ * how it ends*. An offer you can only accept after the answer is not an offer.
+ *
+ * Three answers, and only three:
+ *
+ * * `'cycle'` — go straight into predict → listen → verify → retain, because
+ *   the learner asked for it or the planner dealt «jour d'écoute»;
+ * * `'before_first_panel'` — the quiet link, above the panels, where it can
+ *   still be taken;
+ * * `'none'` — this deployment cannot speak the scene. No offer is made at all,
+ *   ever: a link that answers "audio is off" is worse than no link.
+ */
+export type ListenFirstPlacement = 'cycle' | 'before_first_panel' | 'none';
+
+export function listenFirstPlacement({
+  audioAvailable,
+  preferred = false,
+  dealt = false,
+}: {
+  /** The server's own answer about this deployment (`prompt.audio_available`). */
+  audioAvailable: boolean;
+  /** The learner's remembered choice. */
+  preferred?: boolean;
+  /** WP-66 dealt a listening day for this scene (`prompt.listen_first`). */
+  dealt?: boolean;
+}): ListenFirstPlacement {
+  if (!audioAvailable) return 'none';
+  return preferred || dealt ? 'cycle' : 'before_first_panel';
+}

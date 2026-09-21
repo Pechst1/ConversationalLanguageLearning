@@ -30,6 +30,7 @@ import type {
   RecallFormat,
   RecallPrompt,
   ResolutionPrompt,
+  RespondLetter,
   RespondPrompt,
   ScenarioDescriptor,
   ScenePrompt,
@@ -453,6 +454,29 @@ export function wordBankHasSpareChips(prompt: RecallPrompt): boolean {
 /** «Écouter d'abord», dealt by the planner rather than chosen by the learner. */
 export function sceneOpensOnAudio(prompt: ScenePrompt | null | undefined): boolean {
   return Boolean(prompt?.listen_first && prompt?.audio_available);
+}
+
+/**
+ * The Courrier letter this respond step answers, or `null`.
+ *
+ * Half a letter is never shown. A letter block with no sender, no body or no
+ * objective would replace the character's line and the day's objective with
+ * blanks — the learner would be told to answer nothing, in a scene that had
+ * stopped talking. When any of the three is missing the step falls back to the
+ * ordinary respond chrome it was built from, which is always complete.
+ *
+ * This is also the one place that reads `prompt.letter`, so a server that sends
+ * a letter this client cannot render is a standard turn rather than an empty
+ * page.
+ */
+export function letterOf(prompt: RespondPrompt | null | undefined): RespondLetter | null {
+  const letter = prompt?.letter ?? null;
+  if (!letter) return null;
+  const name = (letter.correspondent_name ?? '').trim();
+  const body = (letter.body_fr ?? '').trim();
+  const objective = (letter.objective_native ?? '').trim();
+  if (!name || !body || !objective) return null;
+  return letter;
 }
 
 /**

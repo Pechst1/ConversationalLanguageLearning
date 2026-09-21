@@ -26,6 +26,7 @@ Three rules govern everything here:
 from __future__ import annotations
 
 import hashlib
+import inspect
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import date
@@ -182,19 +183,43 @@ def set_letter_provider(provider: LetterProvider | None) -> None:
     _LETTER_PROVIDER = provider
 
 
-def letter_offer_for(*, user_id: str, local_date: date) -> LetterOffer | None:
+def _accepts_db(provider: LetterProvider) -> bool:
+    """Would this provider take a session if it were offered one?"""
+
+    try:
+        parameters = inspect.signature(provider).parameters
+    except (TypeError, ValueError):  # pragma: no cover - exotic callables
+        return False
+    return "db" in parameters or any(
+        parameter.kind is inspect.Parameter.VAR_KEYWORD for parameter in parameters.values()
+    )
+
+
+def letter_offer_for(
+    *, user_id: str, local_date: date, db: Any | None = None
+) -> LetterOffer | None:
     """Today's Courrier letter for this learner, or ``None``.
 
-    ``None`` is the shipping answer today, and it is not a failure: the shape is
-    simply not eligible, and the dice deal one of the other four. A provider
-    that raises costs the shape, never the day.
+    ``None`` is not a failure: the shape is simply not eligible, and the dice
+    deal one of the other four. A provider that raises costs the shape, never
+    the day.
+
+    ``db`` is offered and dropped rather than forced. The real provider reads the
+    letter out of the session the caller is already inside — opening a second one
+    to answer a question about the day's shape would be a transaction the
+    learner's day does not need — while a provider written against WP-66's
+    original two-argument signature (the stub in `test_journey_planner.py`, an
+    older deployment's) still gets called exactly as it was.
     """
 
     provider = _LETTER_PROVIDER
     if provider is None:
         return None
+    extra: dict[str, Any] = {}
+    if db is not None and _accepts_db(provider):
+        extra["db"] = db
     try:
-        offer = provider(user_id=str(user_id), local_date=local_date)
+        offer = provider(user_id=str(user_id), local_date=local_date, **extra)
     except Exception:  # pragma: no cover - a letter is never worth the day
         return None
     if offer is None or not isinstance(offer, LetterOffer) or not offer.is_renderable():
@@ -224,6 +249,11 @@ class DayShapeInputs:
     missed_previous_day: bool = False
     #: The living story's beat for this scene, when there is one.
     chapter_beat: str | None = None
+    #: WP-63's chapter *shape*, when the story engine has dealt one. The only
+    #: value this package acts on is ``"letter"`` — a chapter whose turn beat is
+    #: a letter. Everything else is a chapter shape, not a day shape, and is
+    #: deliberately ignored here rather than half-honoured.
+    chapter_shape: str | None = None
     #: Whether this deployment can actually speak the scene.
     audio_available: bool = False
     #: How many due mistakes the errata queue holds.
@@ -281,9 +311,12 @@ def choose_day_shape(inputs: DayShapeInputs) -> DayShapeDecision:
     1. A missed day deals «jour court» — unless yesterday was already short,
        because two three-step days in a row is a shrinking product, not a
        gentle one.
-    2. A chapter's resolution beat deals «jour de reprise» — unless yesterday
+    2. A chapter the story engine dealt as a **letter chapter** (WP-63) deals
+       «jour de lettre», when a letter is actually waiting. The story said this
+       chapter's turn is a letter; the day should not then argue with it.
+    3. A chapter's resolution beat deals «jour de reprise» — unless yesterday
        was already one.
-    3. Otherwise the seeded dice draw from the eligible set with yesterday's
+    4. Otherwise the seeded dice draw from the eligible set with yesterday's
        shape removed.
     """
 
@@ -294,6 +327,14 @@ def choose_day_shape(inputs: DayShapeInputs) -> DayShapeDecision:
         return DayShapeDecision(
             shape=DayShape.SHORT, reason="missed_previous_day", eligible=pool
         )
+    if (inputs.chapter_shape or "").strip().lower() == str(DayShape.LETTER):
+        # Defensive on purpose: WP-63 is in flight and the key may not exist
+        # yet. When it does, a letter chapter without a letter still cannot be
+        # a letter day — the pool is the honest floor under every rule here.
+        if DayShape.LETTER in pool:
+            return DayShapeDecision(
+                shape=DayShape.LETTER, reason="chapter_letter_shape", eligible=pool
+            )
     beat = (inputs.chapter_beat or "").strip().lower()
     if beat in RESOLUTION_BEATS and previous is not DayShape.REPRISE:
         # A reprise needs something to revisit; without it the beat still

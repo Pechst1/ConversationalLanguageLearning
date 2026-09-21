@@ -455,6 +455,32 @@ def _public_prompt_view(step: DailyJourneyStep) -> dict[str, Any]:
     return prompt
 
 
+#: Evidence kinds that mean the learner *wrote the target*, as opposed to having
+#: recognised it or been carried to it. Only these count as an objective met.
+_PRODUCED_EVIDENCE = frozenset(
+    {str(EvidenceKind.PRODUCED_INDEPENDENT), str(EvidenceKind.PRODUCED_SUPPORTED)}
+)
+
+
+def _produced_target_ids(evaluation: Any) -> list[str]:
+    """``["vocabulary:41", "grammar:7"]`` — what this turn actually produced.
+
+    Written for the WP-64 seam (a letter's optional objectives are marked met
+    from real observations, never from a good overall verdict), and tolerant of
+    an adapter whose evaluation carries no observations at all.
+    """
+
+    produced: list[str] = []
+    for observation in getattr(evaluation, "observations", None) or []:
+        target = getattr(observation, "target", None)
+        if target is None:
+            continue
+        if str(getattr(observation, "evidence_kind", "")) not in _PRODUCED_EVIDENCE:
+            continue
+        produced.append(f"{target.kind}:{target.id}")
+    return produced
+
+
 def _stored_day_shape(journey: DailyJourney) -> DayShape:
     """The shape a persisted plan was built with.
 
@@ -1977,7 +2003,19 @@ class DailyJourneyService:
 
         story = brief.story_context if isinstance(brief.story_context, dict) else {}
         draft = story.get("draft") if isinstance(story.get("draft"), dict) else {}
+        chapter = story.get("chapter") if isinstance(story.get("chapter"), dict) else {}
         beat = story.get("beat") or story.get("chapter_beat") or draft.get("beat")
+        # WP-63 deals a *chapter* shape and one of its five values is «letter»:
+        # a chapter whose turn beat is a Courrier letter. It is read with `.get`
+        # from every place that package could reasonably put it, because none of
+        # them exists yet — and an absent key is simply a chapter that did not
+        # ask for one.
+        chapter_shape = (
+            chapter.get("shape")
+            or story.get("chapter_shape")
+            or draft.get("chapter_shape")
+            or draft.get("shape")
+        )
 
         return DayShapeInputs(
             user_id=str(user.id),
@@ -1985,11 +2023,16 @@ class DailyJourneyService:
             previous_shape=previous_shape,
             missed_previous_day=missed,
             chapter_beat=str(beat) if beat else None,
+            chapter_shape=str(chapter_shape) if chapter_shape else None,
             audio_available=bool(settings.ATELIER_EPISODE_AUDIO_ENABLED),
             errata_count=int(errata_count),
-            # The WP-64 seam. `None` until a Courrier provider is registered,
-            # which makes «jour de lettre» ineligible rather than empty.
-            letter=letter_offer_for(user_id=str(user.id), local_date=journey.local_date),
+            # The WP-64 seam, wired: the letter the Courrier is already showing
+            # this learner, read inside this transaction. `None` — no letter
+            # waiting, or no provider — makes «jour de lettre» ineligible
+            # rather than empty.
+            letter=letter_offer_for(
+                user_id=str(user.id), local_date=journey.local_date, db=self.db
+            ),
         )
 
     def _has_earlier_journey(self, user: User, day: date) -> bool:
@@ -2351,6 +2394,11 @@ class DailyJourneyService:
         # After the turn's own flush, and inside a savepoint: a telemetry row
         # must not be able to take a graded turn down with it.
         self._record_feedback_decision(user, journey, step, evaluation)
+        # Last, because it is the only thing here that reaches outside the
+        # journey: on «jour de lettre» the turn the learner just took *is* the
+        # answer to a Courrier letter, and the Courrier must stop waiting for it.
+        if step.status == str(StepStatus.COMPLETED):
+            self._finish_answered_letter(user, journey, step, evaluation)
 
         return AttemptResult(
             evidence_ref=applied.evidence_ref,
@@ -2481,6 +2529,70 @@ class DailyJourneyService:
                 if text:
                     texts.append(text)
         return texts
+
+    def _finish_answered_letter(
+        self,
+        user: User,
+        journey: DailyJourney,
+        step: DailyJourneyStep,
+        evaluation: Any,
+    ) -> None:
+        """WP-66 ⋈ WP-64 — the letter the learner just answered is answered.
+
+        On «jour de lettre» the respond step *is* the reply to a real Courrier
+        letter. Finishing it here, through `MissionScheduler.complete`, is what
+        keeps the two surfaces from contradicting each other: the mission's
+        writeback into the living story, its `kept | partial | missed` outcome,
+        the correspondent's mood step and the chain's next instalment all happen
+        exactly once, and the letter is no longer sitting in the Courrier as
+        unanswered — which is what a learner who just answered it would find
+        unforgivable.
+
+        Idempotent three ways: the step remembers that it paid (a replayed
+        mutation re-runs this method), the mission carries at most one journey
+        attempt, and `complete()` returns early on a finished mission.
+
+        Never fatal. A Courrier that cannot be reached costs the letter's
+        bookkeeping, never the turn the learner has already taken and already
+        been graded on.
+        """
+
+        prompt = step.public_prompt if isinstance(step.public_prompt, dict) else {}
+        letter = prompt.get("letter") if isinstance(prompt.get("letter"), dict) else None
+        mission_id = str((letter or {}).get("mission_id") or "")
+        if not mission_id:
+            return
+        private = dict(step.private_task or {})
+        if private.get("letter_answered"):
+            return
+        try:
+            from app.services import story_correspondence as courrier
+
+            mission = courrier.answer_letter_from_journey(
+                self.db,
+                user=user,
+                mission_id=mission_id,
+                learner_text=" ".join(self._respond_learner_texts(journey)),
+                outcome=str(getattr(evaluation, "outcome", "") or ""),
+                # What the journey actually observed the learner produce. The
+                # letter's optional objectives are marked met from this and from
+                # nothing else, so a word the letter hoped for and the reply
+                # never used stays unmet.
+                produced_target_ids=_produced_target_ids(evaluation),
+                language=getattr(user, "native_language", None),
+            )
+        except Exception:
+            logger.exception("daily_journey: the answered Courrier letter could not be filed")
+            return
+        if mission is None:
+            return
+        private["letter_answered"] = {
+            "mission_id": mission_id,
+            "outcome": str(getattr(mission, "outcome", "") or ""),
+        }
+        step.private_task = private
+        self.db.add(step)
+        self.db.flush()
 
     def _rendered_ending(
         self,

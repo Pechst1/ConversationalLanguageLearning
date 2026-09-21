@@ -105,6 +105,7 @@ function escapeHtml(value) {
 const htmlHas = (html, text) => html.includes(escapeHtml(text));
 
 const state = require('./journey-state.ts');
+const episodeModel = require('./story-episode-model.ts');
 const requests = require('./journey-requests.ts');
 const { journeyCopy } = require('./journey-copy.ts');
 const steps = require('./JourneySteps.tsx');
@@ -2164,6 +2165,75 @@ const noSleep = () => Promise.resolve();
   );
   // The ordinary respond step never shows a letter block.
   assert.ok(!htmlHas(render(steps.RespondStepView, respondFixture), 'Le radiateur'));
+
+  // --- the seam, wired: one reading of the letter, and F-27 ----------------
+  //
+  // WP-64 now registers a real provider, so `prompt.letter` is a letter a
+  // learner will actually meet. Two properties matter on this side.
+
+  // 1. Half a letter is never shown. The letter block replaces the character's
+  //    line and the day's objective, so a letter missing a sender, a body or an
+  //    objective would leave the learner answering a blank page. It falls back
+  //    to the ordinary respond step instead — which is always complete.
+  assert.equal(state.letterOf(respondFixture.prompt), null, 'no letter, no letter');
+  assert.equal(state.letterOf(null), null);
+  assert.deepEqual(
+    state.letterOf(letterStep.prompt),
+    letterStep.prompt.letter,
+    'a whole letter is the letter',
+  );
+  for (const missing of ['correspondent_name', 'body_fr', 'objective_native']) {
+    const partial = {
+      ...letterStep,
+      prompt: { ...letterStep.prompt, letter: { ...letterStep.prompt.letter, [missing]: '   ' } },
+    };
+    assert.equal(state.letterOf(partial.prompt), null, `${missing} missing is not a letter`);
+    const partialHtml = render(steps.RespondStepView, partial);
+    assert.ok(
+      htmlHas(partialHtml, respondFixture.prompt.objective_native),
+      `${missing} missing falls back to the ordinary objective, never to a blank`,
+    );
+    assert.ok(!htmlHas(partialHtml, 'Le radiateur fuit encore'));
+  }
+
+  // 2. F-27 — «Écouter d'abord» is offered BEFORE the first planche, and only
+  //    when this deployment can actually speak the scene.
+  const placement = (args) => episodeModel.listenFirstPlacement(args);
+  assert.equal(
+    placement({ audioAvailable: false }),
+    'none',
+    'no audio, no offer — a link that answers "audio is off" is worse than none',
+  );
+  assert.equal(
+    placement({ audioAvailable: false, preferred: true, dealt: true }),
+    'none',
+    'and a remembered choice cannot turn a silent deployment into a listening day',
+  );
+  assert.equal(
+    placement({ audioAvailable: true }),
+    'before_first_panel',
+    'the offer sits above the panels, where accepting it still means something',
+  );
+  assert.equal(placement({ audioAvailable: true, preferred: true }), 'cycle');
+  assert.equal(
+    placement({ audioAvailable: true, dealt: true }),
+    'cycle',
+    'a «jour d’écoute» opens on the cycle rather than on an offer',
+  );
+
+  // The component reads that one function and offers nothing on the foot: the
+  // link the QA walk found under the last panel is gone from the file.
+  const episodeStep = fs.readFileSync(path.join(__dirname, 'StoryEpisodeStep.tsx'), 'utf8');
+  assert.ok(episodeStep.includes('listenFirstPlacement('), 'the placement is the model’s call');
+  assert.ok(
+    episodeStep.includes('footLink={null}'),
+    'the reader’s foot no longer carries the offer',
+  );
+  assert.ok(
+    episodeStep.indexOf("data-listen-offer=\"before-first-panel\"") <
+      episodeStep.indexOf('<StoryEpisodeReader'),
+    'and the offer is rendered before the reader, not after it',
+  );
 }
 
 console.log('WP-66 day shapes and recall formats: ok');

@@ -26,6 +26,7 @@ import type { JourneyCopy } from './journey-copy';
 import { SceneStepView } from './JourneySteps';
 import { EpisodeRadio, StoryEpisodeReader } from './StoryEpisodeReader';
 import {
+  listenFirstPlacement,
   readListenFirst,
   writeListenFirst,
   type EpisodeGuessId,
@@ -82,7 +83,20 @@ export function StoryEpisodeStep({
   }, [journeyId, step.id]);
 
   const sceneId = lookup.kind === 'episode' ? lookup.episode.id : null;
-  const audio = useEpisodeAudio({ sceneId, enabled: listenFirst && lookup.kind === 'episode' });
+  // WP-49: the server says whether it can honour the listening-first cycle.
+  // WP-66: the planner may have dealt this day as «jour d'écoute».
+  // F-27: those two facts, plus the remembered choice, decide *where* the offer
+  // goes — and the one place it may not go is after the scene has been read.
+  const audioAvailable = Boolean(step.prompt.audio_available);
+  const placement = listenFirstPlacement({
+    audioAvailable,
+    preferred: listenFirst,
+    dealt: Boolean(step.prompt.listen_first),
+  });
+  const audio = useEpisodeAudio({
+    sceneId,
+    enabled: placement === 'cycle' && lookup.kind === 'episode',
+  });
 
   const chooseMode = useCallback((enabled: boolean) => {
     setListenFirst(enabled);
@@ -107,13 +121,8 @@ export function StoryEpisodeStep({
     return <StateBlock tone="loading" title={copy.preparing_title} body={copy.preparing_body} />;
   }
 
-  // WP-49: the server says whether it can honour the listening-first cycle.
-  // Without it the offer is not made and a remembered choice reads as text —
-  // a learner is never sent into a mode that answers "audio is off".
-  const audioAvailable = Boolean(step.prompt.audio_available);
-
   if (lookup.kind === 'episode') {
-    if (listenFirst && audioAvailable) {
+    if (placement === 'cycle') {
       return (
         <EpisodeRadio
           episode={lookup.episode}
@@ -127,22 +136,19 @@ export function StoryEpisodeStep({
       );
     }
     return (
-      /*
-        WP-44. The offer is one quiet link under the nav, where the artboard
-        puts it: a learner who came to read is not interrupted by a paragraph
-        explaining a mode they did not ask for, and the link is still one tap.
-        The sentence that says what the mode costs lives on the link's own
-        title, and in Réglages, where the preference is set deliberately.
-      */
-      <StoryEpisodeReader
-        episode={lookup.episode}
-        mode="continue"
-        onExit={onExit ?? (() => {})}
-        onContinue={onContinue}
-        continuing={busy}
-        continueLabel={copy.scene_continue}
-        footLink={
-          audioAvailable ? (
+      <>
+        {/*
+          F-27. WP-44 put the offer on the reader's foot — one quiet link under
+          the nav — and the QA walk found what that costs: the learner meets it
+          after reading the whole scene, and the cycle it opens starts by asking
+          them to predict how that scene ends. So the same quiet link, with the
+          same one-sentence title, now sits *before the first planche*, which is
+          the only place where accepting it still means anything. It is still
+          one tap and still nothing to dismiss; a learner who came to read
+          scrolls past one line.
+        */}
+        {placement === 'before_first_panel' && (
+          <p className="av2-body wp66-listen-offer" data-listen-offer="before-first-panel">
             <Action
               tone="quiet"
               inline
@@ -151,9 +157,20 @@ export function StoryEpisodeStep({
             >
               {copy.listen_first_on}
             </Action>
-          ) : null
-        }
-      />
+          </p>
+        )}
+        <StoryEpisodeReader
+          episode={lookup.episode}
+          mode="continue"
+          onExit={onExit ?? (() => {})}
+          onContinue={onContinue}
+          continuing={busy}
+          continueLabel={copy.scene_continue}
+          /* The foot keeps «Lire plutôt»'s counterpart nowhere: the offer is
+             made once, above, and never a second time under the last panel. */
+          footLink={null}
+        />
+      </>
     );
   }
 

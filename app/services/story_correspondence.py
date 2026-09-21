@@ -953,15 +953,301 @@ def story_letter_context(candidate: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+# ---------------------------------------------------------------------------
+# WP-66 ⋈ WP-64 — «le jour de lettre»: the letter answered inside the journey
+# ---------------------------------------------------------------------------
+#
+# WP-66 shipped the day shape behind one function
+# (`journey_day_shapes.set_letter_provider`) and WP-64 shipped the letters; this
+# section is the join. Two rules hold it together:
+#
+# **One letter, one selection.** The letter the journey offers is the letter the
+# Courrier is already showing — read through the scheduler's *own* predicate, not
+# a second query with its own idea of which letter is next. A learner must never
+# meet one letter on Home and a different one in their day.
+#
+# **One completion.** Answering it in the journey finishes the mission through
+# `MissionScheduler.complete`, which is where the writeback, the outcome, the
+# mood step and the chain's next instalment already live. Nothing about the
+# Courrier's consequences is re-implemented here, which is also why answering
+# twice cannot pay twice: `complete()` returns early on a finished mission.
+
+#: Stamped on the attempt the journey writes, so a Courrier attempt and a journey
+#: attempt are distinguishable in the dossier and in telemetry.
+JOURNEY_ANSWER_MODE = "journey"
+
+#: The journey's verdict for the respond turn → the Courrier's word for the
+#: letter. The journey grades the reply the learner actually wrote; this is the
+#: only translation between the two vocabularies, and it is a table rather than a
+#: heuristic on purpose.
+JOURNEY_OUTCOME = {
+    "met": "kept",
+    "partially_met": "partial",
+    "not_yet": "missed",
+    # Nothing was scored: the honest word is the one that claims nothing.
+    "unscored": "missed",
+}
+
+
+def awaiting_letter(db: Session, *, user: User) -> RealWorldMission | None:
+    """The open Courrier letter this learner still owes an answer.
+
+    Deliberately **the scheduler's own** `_open_ad_hoc_letter` rather than an
+    equivalent query written here: chain instalments and story-born letters are
+    exactly the `ad_hoc` rows `/missions/today` materialises, and one predicate
+    means Home and the journey can never disagree about which letter is next.
+    The weekly letter is not offered — it is the Courrier's own standing CTA, it
+    never expires, and spending it on a journey day would empty the Courrier.
+
+    Read-only. Nothing is created here: a day that has no letter waiting is a day
+    whose shape is simply not eligible (WP-66's rule), never a day that stops to
+    write one.
+    """
+
+    from app.services.missions import MissionScheduler
+
+    try:
+        return MissionScheduler(db)._open_ad_hoc_letter(user)
+    except Exception as exc:  # noqa: BLE001 — a letter is never worth the day
+        logger.warning("Courrier: awaiting-letter lookup failed: {}", str(exc))
+        return None
+
+
+def journey_letter_facts(db: Session, *, user: User) -> dict[str, str] | None:
+    """The six flat strings WP-66's seam accepts, or ``None``.
+
+    No mission model crosses the seam and no rubric crosses it either: the
+    journey shows the letter, it does not grade against the Courrier's answer
+    key.
+    """
+
+    mission = awaiting_letter(db, user=user)
+    if mission is None:
+        return None
+    correspondent = correspondent_of(mission)
+    if not correspondent.get("id"):
+        return None
+    prompt = mission.prompt_payload or {}
+    messenger = prompt.get("messenger") if isinstance(prompt.get("messenger"), dict) else {}
+    body = _compact(messenger.get("opening_message"), limit=600)
+    # The objective line is the letter's own required objective — authored
+    # French, the same sentence the dossier prints when the letter is filed.
+    # `mission.brief` is the fallback and is model prose, so it comes second.
+    objective = next(
+        (
+            _compact(item.get("label"), limit=160)
+            for item in (mission.objectives or [])
+            if isinstance(item, dict) and item.get("required") and item.get("label")
+        ),
+        "",
+    ) or _compact(mission.brief, limit=160)
+    if not body or not objective:
+        return None
+    return {
+        "mission_id": str(mission.id),
+        "correspondent_id": str(correspondent["id"]),
+        "correspondent_name": str(correspondent.get("name") or ""),
+        "subject_fr": summarise_letter(mission),
+        "body_fr": body,
+        "objective_native": objective,
+    }
+
+
+def journey_letter_provider(*, user_id: Any, local_date: Any = None, db: Session | None = None) -> Any:
+    """The WP-66 seam's provider, registered by :func:`install_letter_provider`.
+
+    Returns a `journey_day_shapes.LetterOffer` or ``None``. ``db`` is passed by
+    the caller when it has a session; without one there is nothing to read and
+    the answer is ``None`` — which makes «jour de lettre» ineligible, which is
+    exactly what it was before this wiring.
+    """
+
+    from app.services.journey_day_shapes import LetterOffer
+
+    if db is None:
+        return None
+    try:
+        user = db.get(User, user_id if not isinstance(user_id, str) else _as_uuid(user_id))
+    except Exception:  # noqa: BLE001 — an unreadable id is not a letter
+        return None
+    if user is None:
+        return None
+    facts = journey_letter_facts(db, user=user)
+    if not facts:
+        return None
+    return LetterOffer(**facts)
+
+
+def _as_uuid(value: str) -> Any:
+    from uuid import UUID
+
+    try:
+        return UUID(str(value))
+    except (TypeError, ValueError):
+        return value
+
+
+def install_letter_provider() -> None:
+    """Turn «jour de lettre» on. One call, at application wiring time.
+
+    WP-66 shipped the shape with the provider unset, so the day could never be
+    dealt. This is the call that was missing; everything else about the shape was
+    already built and tested.
+    """
+
+    from app.services.journey_day_shapes import set_letter_provider
+
+    set_letter_provider(journey_letter_provider)
+
+
+def objective_progress_from_journey(
+    *,
+    objectives: Sequence[dict[str, Any]] | None,
+    outcome: str,
+    produced_target_ids: Sequence[str] = (),
+    language: Any = None,
+) -> list[dict[str, Any]]:
+    """The letter's per-objective flags, read off what the journey measured.
+
+    Two sources, both measured, neither invented:
+
+    * the **required** objectives — «mener la situation à son terme» and, at
+      higher stakes, the follow-up move and the register — are met when the
+      journey graded the turn ``met``. A ``partially_met`` turn did not meet
+      them: that is what partly means.
+    * the **optional** objectives — place this word, repair that mistake — are
+      met only when the journey's own observations say that *exact* target was
+      produced. A concept the letter hoped for and the journey never saw is not
+      marked met because the reply was good.
+
+    `outcome_from_objectives` then turns the flags into the letter's word, in the
+    one place WP-64 put that decision.
+    """
+
+    produced = {str(item) for item in produced_target_ids}
+    met_required = str(outcome) == "met"
+    note = learner_note("mission.objective_submitted", language)
+    no_answer = learner_note("mission.objective_no_answer", language)
+    rows: list[dict[str, Any]] = []
+    for item in objectives or []:
+        if not isinstance(item, dict) or not item.get("id"):
+            continue
+        if item.get("required"):
+            met = met_required
+        else:
+            met = _objective_was_produced(item, produced)
+        rows.append(
+            {
+                "id": str(item["id"]),
+                "label": item.get("label"),
+                "met": bool(met),
+                "note": note if met else no_answer,
+            }
+        )
+    return rows
+
+
+def _objective_was_produced(objective: dict[str, Any], produced: set[str]) -> bool:
+    """Did the journey observe this optional objective's own target produced?"""
+
+    for key, kind in (("word_id", "vocabulary"), ("concept_id", "grammar"), ("error_id", "error")):
+        value = objective.get(key)
+        if value not in (None, "") and f"{kind}:{value}" in produced:
+            return True
+    return False
+
+
+def learner_note(key: str, language: Any = None) -> str:
+    """One stored note, in the learner's language. Lazy import: `learner_copy`
+    is a large table and the Courrier only needs two of its rows."""
+
+    from app.services.learner_copy import learner_text
+
+    return learner_text(key, language)
+
+
+def answer_letter_from_journey(
+    db: Session,
+    *,
+    user: User,
+    mission_id: Any,
+    learner_text: str,
+    outcome: str,
+    produced_target_ids: Sequence[str] = (),
+    language: Any = None,
+) -> RealWorldMission | None:
+    """Finish, once, the letter the learner just answered in their journey.
+
+    The reply is written onto the mission as its own attempt — so the dossier,
+    the debrief's counted numbers and the story event all read the words the
+    learner actually wrote — and then `MissionScheduler.complete` runs. That call
+    is the whole of WP-64's completion: the `events[]` row witnessed by the
+    correspondent, the mood and trust step, the promises opened or closed, the
+    chain's next instalment, the cooling cleared.
+
+    Idempotent twice over: the attempt is written only when this mission has no
+    journey attempt yet, and `complete()` returns the mission untouched once it
+    is completed. Returns ``None`` when there is no such letter to finish.
+    """
+
+    from app.db.models.mission import RealWorldMissionAttempt
+    from app.services.missions import MissionScheduler
+
+    mission = (
+        db.query(RealWorldMission)
+        .filter(RealWorldMission.id == _as_uuid(str(mission_id)), RealWorldMission.user_id == user.id)
+        .first()
+    )
+    if mission is None or mission.status in {"completed", "lapsed"}:
+        return None
+    already = any(
+        str((attempt.answer_payload or {}).get("source") or "") == JOURNEY_ANSWER_MODE
+        for attempt in (mission.attempts or [])
+    )
+    if not already:
+        text = " ".join(str(learner_text or "").split())
+        progress = objective_progress_from_journey(
+            objectives=mission.objectives,
+            outcome=outcome,
+            produced_target_ids=produced_target_ids,
+            language=language,
+        )
+        db.add(
+            RealWorldMissionAttempt(
+                mission_id=mission.id,
+                user_id=user.id,
+                mode=JOURNEY_ANSWER_MODE,
+                answer_payload={"text": text, "source": JOURNEY_ANSWER_MODE},
+                # The journey's grader filed its own errata against its own turn;
+                # re-filing them here would count one mistake twice in the
+                # dossier. What crosses is the objective reading and nothing else.
+                correction_payload={
+                    "objective_progress": progress,
+                    "errata": [],
+                    "journey_outcome": str(outcome),
+                },
+                verdict="accepted" if str(outcome) == "met" else "needs_revision",
+                score_0_4=4.0 if str(outcome) == "met" else (2.0 if str(outcome) == "partially_met" else 1.0),
+            )
+        )
+        db.flush()
+        db.refresh(mission)
+    return MissionScheduler(db).complete(user=user, mission=mission)
+
+
 __all__ = [
     "CHAIN_LENGTHS",
     "CHAIN_OPEN_PROBABILITY",
     "CORRESPONDENCE_KEY",
     "EVENT_SOURCE",
     "EXPIRY_DAYS",
+    "JOURNEY_ANSWER_MODE",
+    "JOURNEY_OUTCOME",
     "OUTCOMES",
     "STORY_LETTERS_PER_WEEK",
     "active_thread",
+    "answer_letter_from_journey",
+    "awaiting_letter",
     "clear_cooling",
     "close_chain",
     "cooling_note",
@@ -970,12 +1256,16 @@ __all__ = [
     "dice",
     "dice_pick",
     "expiry_for",
+    "install_letter_provider",
     "iso_week_key",
+    "journey_letter_facts",
+    "journey_letter_provider",
     "lapse_overdue_letters",
     "living_story_thread",
     "mood_line",
     "moods_of",
     "note_story_letter",
+    "objective_progress_from_journey",
     "open_chain_step",
     "outcome_from_objectives",
     "pending_chain_step",

@@ -58,6 +58,7 @@ import type { JourneyCopy } from './journey-copy';
 import {
   answerIsBlank,
   chapterRecapOf,
+  letterOf,
   recallAttempt,
   recallIsPicked,
   registerNoteOf,
@@ -584,10 +585,10 @@ export function RespondStepView({
   );
 
   // WP-66 «jour de lettre»: the turn is a reply to a Courrier letter rather
-  // than to a spoken line. Absent on every other shape — and on every day
-  // until WP-64 registers a letter provider — so the ordinary respond step is
-  // untouched.
-  const letter = step.prompt.letter ?? null;
+  // than to a spoken line. Absent on every other shape, so the ordinary
+  // respond step is untouched — and `letterOf` refuses half a letter, so a
+  // letter block can never replace the character's line with a blank one.
+  const letter = letterOf(step.prompt);
   const wide = widenCopy(copy);
 
   return (

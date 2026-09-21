@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_db
 from app.api.v1 import api_router
 from app.config import settings
+from app.services import story_correspondence
 
 tags_metadata: list[dict[str, str]] = [
     {"name": "auth", "description": "Register users and issue authentication tokens."},
@@ -53,6 +54,14 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application instance."""
+
+    # WP-66 ⋈ WP-64. «Jour de lettre» shipped behind one registration point and
+    # nobody had called it, so the shape could never be dealt. This is that call:
+    # the daily journey now asks the Courrier for the letter this learner already
+    # owes an answer to, and answering it in the journey finishes that letter.
+    # Registration is idempotent and costs nothing — the provider only ever reads,
+    # and only when a session is handed to it.
+    story_correspondence.install_letter_provider()
 
     app = FastAPI(
         title=settings.PROJECT_NAME,

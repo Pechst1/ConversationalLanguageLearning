@@ -259,3 +259,106 @@ were made.
    `tests/test_wp37_hooks.py::test_the_rehearsal_entry_is_gated_on_the_servers_own_answer`
    fails against `web-frontend/pages/atelier.tsx` as changed by commit c65e26d
    (WP-67). That file is untouched here.
+
+---
+
+## 7. Integration (2026-09-21) — the seam is closed
+
+§4 shipped «jour de lettre» as a contract with the provider unset, and §6.6 left
+the surface to WP-65. WP-64 has since landed, so the registration that was
+missing is now made — plus F-27 from the QA walk, which belongs to the same
+scene step.
+
+### The letter day answers a real letter
+
+**One selection.** `story_correspondence.awaiting_letter()` calls the
+scheduler's *own* `_open_ad_hoc_letter` rather than re-spelling its predicate:
+chain instalments and story-born letters are exactly the `ad_hoc` rows
+`/missions/today` materialises, so Home and the journey cannot disagree about
+which letter is next. It is read-only — a day with nothing waiting is a shape
+that is not eligible (§1), never a day that stops to write a letter. The weekly
+letter is deliberately not offered: it is the Courrier's standing CTA and it
+never expires.
+
+**The wiring.** `story_correspondence.install_letter_provider()` is called once
+in `create_app()`. The provider is `journey_letter_provider(*, user_id,
+local_date, db=None)`; `letter_offer_for()` now offers a session and drops it
+when the provider does not take one, so WP-66's two-argument contract — and the
+stub in `test_journey_planner.py` — still holds. No session, no letter: the
+answer is the one this file shipped with.
+
+**One completion.** `DailyJourneyService._finish_answered_letter` runs after the
+respond step *completes* (never on a repair turn) and calls
+`story_correspondence.answer_letter_from_journey`, which writes the learner's
+reply onto the mission as one attempt and then runs `MissionScheduler.complete`
+— WP-64's own path, so the `events[]` row, the mood/trust step, the promises and
+the chain's next instalment happen there and only there. Idempotent three ways:
+the step records `private_task["letter_answered"]`, the mission carries at most
+one `mode="journey"` attempt, and `complete()` returns early once finished. The
+finished letter leaves the Courrier's `available | in_progress` window, so it
+cannot be shown again as unanswered. A Courrier that cannot be reached costs the
+letter's bookkeeping and never the graded turn.
+
+**The outcome is measured, not asserted.**
+`objective_progress_from_journey` writes the letter's per-objective flags from
+what the journey actually saw: required objectives are met when the turn graded
+`met`; an optional objective is met only when the journey *observed that exact
+target produced* (`vocabulary:41`, `grammar:7`). `outcome_from_objectives` then
+turns the flags into `kept | partial | missed` in the one place WP-64 put that
+decision. Note the shared limitation: a letter with a single required objective
+cannot land on `partial` unless an optional one was met — true of the Courrier's
+own corrector too, not something this seam introduced.
+
+**WP-63, defensively.** `DayShapeInputs.chapter_shape` is read with `.get` from
+`story_context["chapter"]["shape"]`, `["chapter_shape"]` and the draft's own
+keys — none of which exists yet. When one does and says `"letter"`, the day
+prefers «jour de lettre», reason `chapter_letter_shape`, and still only when a
+letter is in the eligible pool. An unknown value changes nothing.
+
+### F-27 — «Écouter d'abord», before the first planche
+
+The offer sat on the reader's foot, which a learner reaches by reading the whole
+scene — and the cycle it opens then asks them to predict how that scene ends.
+`story-episode-model.listenFirstPlacement()` now returns one of three answers:
+`'cycle'` (the learner asked, or the planner dealt «jour d'écoute»),
+`'before_first_panel'` (the same quiet link, above the panels), or `'none'` when
+`audio_available` is false — no offer at all, ever, on a deployment that cannot
+speak. `StoryEpisodeStep` reads that function and passes `footLink={null}`.
+
+### Tests and results
+
+| Command | Result |
+|---|---|
+| `pytest tests/test_journey_letter_day.py` | 21 passed (new) |
+| `pytest tests/test_journey_planner.py` | 103 passed |
+| `pytest tests/test_story_correspondence.py` · `test_missions.py` | 18 · 36 passed |
+| `pytest tests/test_journey_end_to_end.py` | 53 passed |
+| `pytest tests/test_daily_journey_{api,state,concurrency,fixtures,migration}.py` | passed |
+| `pytest tests/test_journey_{contract_parity,events,learning,conversation,latency}.py` | passed |
+| `pytest tests/test_living_story{,_longitudinal}.py tests/test_wp3{8,9}_*.py` | passed |
+| `ruff check` on every changed file | clean |
+| `npx tsc --noEmit`, `npm run lint` | clean |
+| `node components/atelier-v2/journey/journey.test.js`, `--test {episode-audio,story-episode-model}.test.js` | passed |
+
+The new suite covers the end-to-end claim in one test — a story-born letter
+appears through `/missions/today`, the day deals «jour de lettre», the learner
+answers **over the real API** (`test_a_letter_day_played_over_the_real_api_finishes_the_letter`
+drives the assembled router with only the dice held still), the mission
+completes once, and the next day's `story_context` carries the courrier event
+with the correspondent's mood moved. No provider was called and nothing was
+spent.
+
+### Still open
+
+- `MissionScheduler.complete` commits, and it is now called from inside the
+  respond turn's transaction. The turn's own work is already flushed by then and
+  the test above drives the real path, but a journey that failed *after* this
+  point would find the turn durable rather than rolled back. Worth revisiting if
+  `complete()` ever stops owning its commit.
+- The letter's `objective_native` is the mission's authored French objective
+  label (`mission.brief` is model English). A proper learner's-language line for
+  a letter wants a `learner_copy` key, which is WP-67's table to extend.
+- The journey grades the reply against the *scene's* response task, not the
+  letter's rubric — §4's design, unchanged. A letter day is the scene's turn
+  wearing the letter's clothes; a letter with its own rubric is a larger change
+  than this seam.
