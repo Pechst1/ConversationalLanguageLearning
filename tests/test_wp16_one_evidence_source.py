@@ -407,6 +407,10 @@ def test_the_practice_href_seats_the_learners_own_due_concept(db_session):
 def test_practice_entry_skips_archived_due_concepts(db_session):
     from app.services.daily_journey import DailyJourneyService
 
+    # The suite shares one SQLite database for the whole run: concepts committed by
+    # earlier tests would otherwise be the «active» one. Nothing here commits, so
+    # this is rolled back with the session.
+    db_session.query(GrammarConcept).update({"active": False})
     user = _user(db_session)
     archived = _concept(db_session)
     archived.active = False

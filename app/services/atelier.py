@@ -49,7 +49,6 @@ from app.services.exercise_generation import (
     ExerciseGenerationUnavailable,
 )
 from app.services.exercise_generation import _transform_noop_errors as _transform_noop_errors_shared
-from app.services.learner_copy import learner_text as _copy
 from app.services.glosses import (
     DEFAULT_GLOSS_LANGUAGE,
     EXPLANATION_LANGUAGE_NAMES,
@@ -60,6 +59,7 @@ from app.services.glosses import (
 from app.services.grammar import GrammarService
 from app.services.grammar_catalog import FrenchCoreGrammarCatalog
 from app.services.grammar_feedback import count_concept_hits, infer_grammar_profile
+from app.services.learner_copy import learner_text as _copy
 from app.services.llm_service import LLMProviderError, LLMService
 from app.services.progress import ProgressService
 from app.services.seance_curriculum import lesson_for, lesson_panel

@@ -167,5 +167,5 @@ def test_the_toasts_and_confirmations_come_from_the_table() -> None:
         r"(?:toast\.(?:error|success|loading)|confirm|setSaveMessage)\(\s*'([^']*['’a-zà-ÿ][^']*)'",
         code,
     )
-    literal_sentences = [o for o in offenders if any(l in o for l in FRENCH_LETTERS) or " " in o]
+    literal_sentences = [o for o in offenders if any(letter in o for letter in FRENCH_LETTERS) or " " in o]
     assert literal_sentences == [], literal_sentences

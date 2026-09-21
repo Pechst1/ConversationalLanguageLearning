@@ -64,7 +64,11 @@ def test_public_onboarding_moves_from_minimal_account_creation_to_daily_atelier(
     # WP-25 re-pin: sign-up still hands off to sign-in, but a learner with no
     # destination of their own is carried on to the placement rather than to
     # Home — their level is otherwise self-declared for the whole first week.
-    assert "router.push({ pathname: '/auth/signin', query: afterSignUp })" in signup
+    # WP-47 re-pin: the new account is signed in with what was just typed and lands
+    # directly; the sign-in form is the fallback, with the address kept.
+    assert "auth.signInWithCredentials(data.email, data.password)" in signup
+    assert "router.push(landing);" in signup
+    assert "router.push({ pathname: '/auth/signin', query: { ...afterSignUp, email: data.email } })" in signup
     assert "const PLACEMENT_AFTER_SIGNUP = '/placement';" in signup
 
 
