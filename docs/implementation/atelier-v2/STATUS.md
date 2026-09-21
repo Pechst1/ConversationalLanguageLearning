@@ -1907,3 +1907,79 @@ and the actor answers from that state. The development the learner's answer
 made true is recorded on the chapter and the next beat must follow it. The
 two-draft score prefers a hurt character and a draft that follows the branch.
 See [WP-61-MOODS-AND-BRANCHING.md](WP-61-MOODS-AND-BRANCHING.md).
+
+## 2026-09-21 — WP-62..68: long memory, a season that ends, a Courrier that lives in the story, days that differ
+
+Owner brief (WORK-PACKAGES-2026-09-21.md): coherence, consistent quality, fun,
+diversity of experience; the Courrier and the Feuilleton need depth and a
+long-horizon story that works **without being deterministic**. Seven packages,
+four waves, one shared checkout.
+
+### What landed
+
+| WP | Commit(s) | What it is | Note |
+|---|---|---|---|
+| WP-62 — la mémoire longue | `77b3d93` | `chronicle[]`, `consequences[]`, `planted[]`, `secrets{}` and `day_index` in `state["living_story"]`; a seeded callback candidate per setup beat; guard `fabricated_callback`; trust no longer decays | [WP-62-LONG-MEMORY.md](WP-62-LONG-MEMORY.md) |
+| WP-63 — l'horizon de saison | `148d2e6` | Character agendas ticking off-screen with witness rules; `threads{}` as state; arc gating on an honest stage claim; escalation instead of the blanket `stale_problem` ban; five chapter shapes; finale → interlude → season 2 with the life carried over | [WP-63-SEASON-HORIZON.md](WP-63-SEASON-HORIZON.md) |
+| WP-64 — le Courrier vit dans l'histoire | `7c4a291` | New `app/services/story_correspondence.py`: a finished letter writes an `events[]` row, a mood/trust step and commitments into the living story; correspondent threads; 2–4 letter chains with soft deadlines and a real `ignored` state; story-born letters; seeded selection; the invented debrief numbers deleted | [WP-64-COURRIER-IN-STORY.md](WP-64-COURRIER-IN-STORY.md) |
+| WP-65 — le Courrier, surface | `e51ef92`, `30810a0` | `components/courrier/Correspondance.tsx`: who is writing, how they feel, «2ᵉ lettre sur 3», the soft deadline, the honest debrief, `lapsed` as a real state, La Une's entry row, the Feuilleton's story-born line | [WP-65-COURRIER-SURFACE.md](WP-65-COURRIER-SURFACE.md) |
+| WP-66 — des journées qui ne se ressemblent pas | `1f5b0f3`, `ff1e246`, `6eadbe2` | Five day shapes validated as a set instead of one template, dealt by seeded dice; `transform`, `classify` and `word_bank` brought into the daily loop; the graded register shown as one French line; then the «jour de lettre» seam closed against WP-64 and F-27 «Écouter d'abord» | [WP-66-DAY-SHAPES.md](WP-66-DAY-SHAPES.md) |
+| WP-67 — une seule qualité | `c65e26d`, `f6be02a` | 126 new `learner_copy` keys (the remaining English `why`/fallback strings, localized on the way out so no cached set had to be regenerated), Réglages' page label, the achievements toggle removed rather than faked, Dossier and Répétition reachable, a static test that fails on English chrome. US$0.00 | [WP-67-ONE-QUALITY.md](WP-67-ONE-QUALITY.md) |
+| WP-68 — la preuve | this commit | `tests/test_long_horizon_evidence.py`: two learners × 126 days through the assembled router, planner, story engine and Courrier, with one clock; `scripts/long_horizon_report.py` writes a readable season timeline | [WP-68-EVIDENCE.md](WP-68-EVIDENCE.md) |
+
+### What the long run proved
+
+Over 244 learner-days: a day-126 director context still carries a sentence said on
+day four; a callback reaches 101 days back; the agendas tick and only witnesses
+hear about them; the season reaches a finale, an interlude and a second season with
+chronicle, consequences, secrets and world flags intact, and **no day is ever
+served with no arc and no ending either**; a finished letter is a fact in the next
+day's scene; a chain of four letters climbs its stakes; an ignored letter cools its
+correspondent exactly once; a «jour de lettre» finishes its letter exactly once;
+five day shapes, none above 50 % of the deal, never the same shape dealt twice
+running; the two lives diverge in arcs, shapes, letters and callbacks while each
+deal replays identically; and the day-126 prompt is no larger than 1.6× the day-20
+one, with the two-attempt 75 s budget untouched.
+
+### What it broke, and what is fixed
+
+- **Fixed** — WP-63's chapter shape never reached WP-66's day shape:
+  `_day_shape_inputs` read three keys a real living-story brief does not have (the
+  director context is under `story_context["source"]`), so a letter chapter never
+  once dealt «jour de lettre» in 126 days. Now read from where the engine writes
+  it, and only on the chapter's own letter beat.
+- **Fixed** — the letter-chapter override ignored the module's own «no two
+  identical shapes on consecutive days» rule, which the resolution-beat override
+  has always honoured.
+- **Fixed** — a seed-flaky test in WP-63's suite (a three-beat chapter closes
+  before the commitment limit the test is about); the shape is pinned for that test.
+
+### What is open
+
+- **Two of the six recall formats cannot be posed at all under the story engine.**
+  `choice` and `word_bank` are built from authored scene affordances, and a
+  generated situation has none, so the assembled day poses three formats, not five.
+  The fix is a product decision about what a generated scene affords — a
+  `SceneDraft` field and prompt work — not a plumbing change. WP-68-EVIDENCE §4 L-1.
+- The errata queue outranks due vocabulary, so a learner who writes letters often
+  sees `tiles` on 55–65 % of recall steps (L-2); a shape the planner cannot build
+  is downgraded onto `standard` 12–30 times per 122 days, which is where the served
+  distribution passes 50 % (L-3); the Courrier's week is the wall clock with no
+  injectable `now` at the scheduler's call sites (L-4); no side story appeared in
+  126 days with a compliant director (L-5).
+- **The paid live review with the new ledgers has not been run.** Exact commands
+  and a ≈US$0.10–0.20 estimate for the pair are in WP-68-EVIDENCE §6.
+
+### Owner-only steps
+
+1. **Consent to the paid review** (§6 of WP-68-EVIDENCE) — two runs, A2 and B1,
+   fourteen days each, ≈US$0.10–0.20 together, hard-capped at `--max-requests 60`.
+   Nothing has been spent on this wave.
+2. **Read a season.** `docs/implementation/atelier-v2/evidence/long-horizon-A-2026-09-21.md`
+   is a 126-day life as a timeline. The question no test can answer: does it go
+   anywhere?
+3. **Decide L-1** — whether a generated scene should hand the planner a handful of
+   short French phrases (unlocking `choice` and `word_bank` for every story-engine
+   learner) or whether three formats a day is enough.
+4. Rollout steps unchanged and still owner-only: Render, the cohort list, the Apple
+   team, `TTS_PROVIDER`.
