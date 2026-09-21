@@ -93,8 +93,34 @@ def _fresh_question(context, n=0):
 
 
 
+def _shaped(context, n):
+    """Where this scene happens and who speaks, for a director that obeys its shape.
+
+    WP-63 deals each chapter a shape: a bottle chapter never leaves its room, and
+    three scenes with one character in one place still have to rotate somebody. A
+    fixture that ignored either would be testing an incompetent director.
+    """
+
+    chapter = context.get("chapter") or {}
+    shape = str((context.get("chapter_shape") or {}).get("shape") or chapter.get("shape") or "")
+    location = LOCATIONS[n % len(LOCATIONS)]
+    if shape == "bottle" and chapter.get("location_id"):
+        location = str(chapter["location_id"])
+    speaker = "romy_tremblay"
+    must_change = (context.get("variety") or {}).get("must_change") or {}
+    if must_change.get("character_id") == speaker and must_change.get("location_id") == location:
+        cast = [
+            member
+            for member in (context.get("world") or {}).get("cast") or []
+            if member.get("id") and member["id"] != speaker
+        ]
+        speaker = cast[n % len(cast)]["id"] if cast else speaker
+    return speaker, location
+
+
 def draft(context, n=0):
     chapter = context.get("chapter") or {}
+    speaker, location = _shaped(context, n)
     return {
         "title_fr": f"Les affiches {n}",
         # Seven distinct premises and objectives: the engine rejects either one
@@ -109,8 +135,8 @@ def draft(context, n=0):
             else ""
         ),
         "objective_semantics": "Clearly express an offer or a refusal of help with the exhibition.",
-        "character_id": "romy_tremblay",
-        "location_id": LOCATIONS[n % len(LOCATIONS)],
+        "character_id": speaker,
+        "location_id": location,
         "causal_reason": "Continue the actual proposal from the previous exchange."
         if context.get("events")
         else "Romy invites the newcomer to help.",
@@ -139,7 +165,7 @@ def draft(context, n=0):
             },
             {
                 "narration_fr": "",
-                "dialogue": [{"character_id": "romy_tremblay", "text_fr": "Vous avez une idée ?"}],
+                "dialogue": [{"character_id": speaker, "text_fr": "Vous avez une idée ?"}],
                 "visual_direction": "Romy unfolds a blank poster at the counter.",
             },
         ],
@@ -313,9 +339,19 @@ def test_fourteen_days_causal_context_and_new_chapters(
     contexts = [p for schema, p in provider.calls if schema == "SceneDraft"]
     assert len(contexts) == 14
     assert all(c["events"] and c["commitments"] for c in contexts[1:])
-    assert len(chapter_ids) == 4
+    # WP-63: a chapter is as long as its shape (three beats for a two-hander, five
+    # for an ensemble), so fourteen days no longer divide into exactly four.
+    assert 3 <= len(chapter_ids) <= 6
     thread = db_session.scalar(select(SerialThread).where(SerialThread.user_id == d.user_id))
-    assert len(thread.state["living_story"]["events"]) == 14
+    events = thread.state["living_story"]["events"]
+    played = [e for e in events if not str(e["id"]).startswith(engine.MEANWHILE_PREFIX)]
+    assert len(played) == 14, "one recorded exchange per day"
+    # The rest are the cast's own week: off-screen, witnessed by characters only.
+    assert all(
+        e["kind"] == "meanwhile" and e["witnesses"] and e["summary_fr"]
+        for e in events
+        if e not in played
+    )
     assert (
         len(
             list(
@@ -1350,7 +1386,15 @@ def test_a_new_chapter_cannot_reuse_the_problem_the_last_one_played():
 
 def test_the_resolution_beat_closes_the_chapter_whatever_the_learner_answered():
     scene = engine.SceneDraft.model_validate(
-        {**draft(_scene_context(), 0), "beat": "resolution", "problem_key": "p", "arc_id": "marin_proposal"}
+        {
+            **draft(_scene_context(), 0),
+            "beat": "resolution",
+            "problem_key": "p",
+            "arc_id": "marin_proposal",
+            # WP-63: the arc moves on this claim, and on nothing else.
+            "arc_stage_id": "a",
+            "advances_arc": True,
+        }
     )
     refused = engine.SemanticTurn.model_validate(turn_fixture("Non.", close=False))
     refused = refused.model_copy(update={"outcome": "not_yet"})
@@ -2010,3 +2054,476 @@ def test_the_long_memory_reaches_the_director_but_not_the_character(
     assert "chronicle" not in actor["story"] and "callback" not in actor["story"]
     assert "plants_due" not in actor["story"]
     assert set(actor["story"]["secrets"]) == {"romy_tremblay"}
+
+
+# ---------------------------------------------------------------------------
+# WP-63 — l'horizon de saison: shapes, agendas, threads, arc gates, season end
+# ---------------------------------------------------------------------------
+
+
+def _world():
+    from app.services.serial import SerialThreadService
+
+    return SerialThreadService._load_world_bible()
+
+
+def test_a_chapter_is_dealt_a_shape_and_its_beats_follow_it():
+    """Every chapter used to be the same four beats. It is now a hand, dealt by
+    this life's own dice — and the beat guards simply follow it."""
+
+    first = [engine.chapter_shape("thread-1", n) for n in range(12)]
+    assert first == [engine.chapter_shape("thread-1", n) for n in range(12)], "reproducible"
+    assert first != [engine.chapter_shape("thread-2", n) for n in range(12)], "per learner"
+    assert len(set(first)) >= 3, first
+    # No two identical shapes in a row, when the previous one is handed back.
+    previous = None
+    dealt = []
+    for n in range(20):
+        previous = engine.chapter_shape("thread-1", n, previous)
+        dealt.append(previous)
+    assert all(a != b for a, b in zip(dealt, dealt[1:], strict=False)), dealt
+    assert set(dealt) <= set(engine.CHAPTER_SHAPES)
+
+    # The beats — and therefore the required beat and the chapter's length.
+    assert engine.required_beats({"scene_count": 1, "shape": "two_hander"}) == ("turn", "resolution")
+    assert engine.required_beats({"scene_count": 1, "shape": "ensemble"}) == ("complication",)
+    assert engine.required_beats({"scene_count": 3, "shape": "ensemble"}) == ("turn", "resolution")
+    assert engine.required_beats({"scene_count": 4, "shape": "ensemble"}) == ("resolution",)
+    assert engine.chapter_closing({"scene_count": 3, "shape": "two_hander"}) is True
+    assert engine.chapter_closing({"scene_count": 4, "shape": "ensemble"}) is False
+    # A chapter stored before shapes existed is a standard four-beat chapter.
+    assert engine.required_beats({"scene_count": 2}) == ("turn", "resolution")
+    assert engine.chapter_state({"chapter": {"scene_count": 1}})["shape"] == engine.DEFAULT_SHAPE
+
+
+def test_a_two_hander_keeps_two_voices_and_a_bottle_keeps_one_room():
+    context = _scene_context(chapter_shape={"shape": "two_hander"})
+    crowded = engine.SceneDraft.model_validate(draft(context, 0))
+    crowded.panels[1].dialogue.append(
+        engine.Dialogue(character_id="lila_bonnet", text_fr="Moi j'ai le temps.")
+    )
+    with pytest.raises(engine.StoryUnavailable, match="two_hander_crowded") as info:
+        engine._validate_scene(crowded, context)
+    assert "lila_bonnet" in info.value.feedback and "two-hander" in info.value.feedback
+    engine._validate_scene(engine.SceneDraft.model_validate(draft(context, 0)), context)
+
+    room = {
+        "title_fr": "Le huis clos",
+        "dramatic_question": "Qui restera au comptoir ?",
+        "possible_developments": ["Rester.", "Partir."],
+        "id": "c1",
+        "shape": "bottle",
+        "scene_count": 1,
+        "location_id": "le_mistral",
+        "resolved": False,
+        "resolved_commitments": 0,
+    }
+    bottle = _scene_context(chapter=engine.chapter_state({"chapter": room}))
+    left = engine.SceneDraft.model_validate(
+        {**draft(bottle, 1), "location_id": "brocante", "beat": "complication"}
+    )
+    left = left.model_copy(
+        update={
+            "chapter": engine.Chapter.model_validate(
+                {key: room[key] for key in ("title_fr", "dramatic_question", "possible_developments")}
+            )
+        }
+    )
+    with pytest.raises(engine.StoryUnavailable, match="bottle_left_the_room") as info:
+        engine._validate_scene(left, bottle)
+    assert "le_mistral" in info.value.feedback
+    stayed = left.model_copy(update={"location_id": "le_mistral"})
+    engine._validate_scene(stayed, bottle)
+
+
+def test_an_arc_advances_only_when_its_stage_really_happened():
+    """«an arc stage advances whether or not its content happened» (WP-63 §1).
+
+    The claim is the draft's, the gates are the bible's, and a chapter that claims
+    nothing is a side story — a real evening in this life that did not move the season.
+    """
+
+    arcs = [
+        {
+            "id": "romy_romance",
+            "min_episodes_between_stages": 3,
+            "stages": [
+                {"id": "spark", "sets": {"romy.user_tension": "spark"}},
+                {"id": "first_real", "entry_requires": {"user.has_met_group": True}},
+                {"id": "almost"},
+            ],
+        }
+    ]
+    base = engine.SceneDraft.model_validate(
+        {**draft(_scene_context(), 0), "beat": "resolution", "arc_id": "romy_romance"}
+    )
+    settled = engine.SemanticTurn.model_validate(turn_fixture("D'accord."))
+
+    side = engine.chapter_after_scene(engine.open_chapter(base), base, settled, "e0")
+    assert side["resolved"] is True and side["side_story"] is True
+    assert engine.arc_progress_after_scene({}, side, arcs, "e0", day=4) == {}, (
+        "a chapter that claims no stage leaves the season where it was"
+    )
+    digest = engine.chapter_digest(side, base, settled, event_id="e0", day=4)
+    assert digest["side_story"] is True and digest["shape"] == engine.DEFAULT_SHAPE
+
+    claimed = base.model_copy(update={"advances_arc": True, "arc_stage_id": "spark"})
+    chapter = engine.chapter_after_scene(engine.open_chapter(claimed), claimed, settled, "e1")
+    assert chapter["side_story"] is False and chapter["stage_reached"] is True
+    progress = engine.arc_progress_after_scene({}, chapter, arcs, "e1", day=4)
+    assert progress["romy_romance"] == {"stage": 1, "last_event_id": "e1", "last_day": 4}
+
+    # `min_episodes_between_stages`: three episodes, not three scenes of the same week.
+    too_soon = engine.arc_progress_after_scene(progress, chapter, arcs, "e2", day=6)
+    assert too_soon["romy_romance"]["stage"] == 1, "the next stage is still too close"
+    # …and `entry_requires`: the flag comes from another arc's stage, not from a wish.
+    blocked = engine.arc_progress_after_scene(progress, chapter, arcs, "e3", day=9, flags={})
+    assert blocked["romy_romance"]["stage"] == 1
+    allowed = engine.arc_progress_after_scene(
+        progress, chapter, arcs, "e4", day=9, flags={"user.has_met_group": True}
+    )
+    assert allowed["romy_romance"]["stage"] == 2
+
+    # The flags are derived from the stages this life actually reached.
+    assert engine.arc_flags(arcs, {"romy_romance": {"stage": 1}}) == {"romy.user_tension": "spark"}
+    projection = engine._season_projection(
+        {"season_arcs": arcs, "season_number": 1}, progress, day=6
+    )
+    assert projection["arcs"][0]["blocked_by"] == "entry_requires:user.has_met_group"
+    assert projection["arcs"][0]["next_stage"]["id"] == "first_real"
+    waiting = engine._season_projection(
+        {"season_arcs": arcs, "season_number": 1},
+        progress,
+        day=6,
+        flags={"user.has_met_group": True},
+    )
+    assert waiting["arcs"][0]["blocked_by"] == "min_episodes_between_stages:3"
+    ready = engine._season_projection(
+        {"season_arcs": arcs, "season_number": 1},
+        progress,
+        day=9,
+        flags={"user.has_met_group": True},
+    )
+    assert ready["arcs"][0]["blocked_by"] is None
+    # A blocked arc is not the arc to play — but a season with nothing else left is
+    # still told about one, because silence is not a story.
+    assert projection["suggested_arc"] == "romy_romance"
+
+
+def test_a_played_problem_may_come_back_once_as_an_escalation():
+    """WP-58 forbade any problem from returning, so nothing could ever get worse."""
+
+    context = _scene_context(
+        variety={**engine._variety([], [], []), "used_problems": ["radiateur_fuite"]},
+        consequences=[{"id": "e7:branch:0", "text_fr": "Vous n'avez pas rappelé le plombier."}],
+        plants_due=[{"id": "e9:plant", "text_fr": "La clé du compteur reste sur la table."}],
+        escalated_problems=[],
+    )
+    again = {**draft(context, 0), "beat": "setup", "problem_key": "radiateur_fuite"}
+    with pytest.raises(engine.StoryUnavailable, match="stale_problem") as info:
+        engine._validate_scene(engine.SceneDraft.model_validate(again), context)
+    assert "escalates_ref" in info.value.feedback and "e7:branch:0" in info.value.feedback
+
+    # A ref nobody holds is not a licence.
+    invented = {**again, "escalates_ref": "e99:branch:0"}
+    with pytest.raises(engine.StoryUnavailable, match="stale_problem"):
+        engine._validate_scene(engine.SceneDraft.model_validate(invented), context)
+
+    escalation = {**again, "escalates_ref": "e9:plant"}
+    engine._validate_scene(engine.SceneDraft.model_validate(escalation), context)
+
+    # Once. The second time the same problem returns, the ledger says no.
+    spent = _scene_context(
+        variety=context["variety"],
+        consequences=context["consequences"],
+        plants_due=context["plants_due"],
+        escalated_problems=["radiateur_fuite"],
+    )
+    with pytest.raises(engine.StoryUnavailable, match="stale_problem") as info:
+        engine._validate_scene(engine.SceneDraft.model_validate(escalation), spent)
+    assert "Already escalated once" in info.value.feedback
+    assert engine.escalation_refs(context) == {"e7:branch:0", "e9:plant"}
+
+
+def test_the_cast_has_a_week_of_its_own_and_the_learner_only_hears_about_it():
+    world = _world()
+    plans = engine.character_agendas(world)
+    assert set(plans) == {member["id"] for member in world["cast"]}
+    assert all(4 <= len(steps) <= 6 for steps in plans.values()), {
+        key: len(value) for key, value in plans.items()
+    }
+    assert all(
+        step.get("meanwhile_fr") and step.get("id") and step.get("witnesses")
+        for steps in plans.values()
+        for step in steps
+    )
+
+    agendas: dict = {}
+    ticks = []
+    for chapter_index in range(12):
+        agendas, event = engine.agenda_tick(
+            world, agendas, seed="thread-1", chapter_index=chapter_index, day=chapter_index * 4
+        )
+        ticks.append(event["character_id"] if event else None)
+        if event:
+            # A witness rule, not a broadcast: the learner is nobody's witness, and
+            # the character whose week it was is not their own hearsay.
+            assert event["witnesses"] and event["character_id"] not in event["witnesses"]
+            assert set(event["witnesses"]) <= set(plans)
+            assert event["kind"] == "meanwhile" and event["summary_fr"]
+    assert any(ticks) and any(tick is None for tick in ticks), (
+        "some chapters move somebody's week along, and some are quiet"
+    )
+    assert sum(1 for tick in ticks if tick) <= len(ticks), "at most one agenda per chapter"
+    assert len({tick for tick in ticks if tick}) > 1, "not always the same person"
+
+    other = []
+    theirs: dict = {}
+    for chapter_index in range(12):
+        theirs, event = engine.agenda_tick(
+            world, theirs, seed="thread-2", chapter_index=chapter_index, day=chapter_index * 4
+        )
+        other.append(event["character_id"] if event else None)
+    assert other != ticks, "two lives, two sets of dice"
+
+    # The projection is compact, and a finished agenda drops out of it.
+    projection = engine.agendas_projection(world, agendas)
+    assert len(projection) <= engine.AGENDA_PROMPT_LIMIT
+    assert all(set(row) == {"character_id", "now", "done"} for row in projection)
+    done = {key: {"step": len(steps)} for key, steps in plans.items()}
+    assert engine.agendas_projection(world, done) == []
+    assert engine.agenda_tick(world, done, seed="thread-1", chapter_index=1, day=4)[1] is None
+
+
+def test_the_seasons_long_questions_are_state_not_prose():
+    world = _world()
+    authored = engine.season_threads(world)
+    assert len(authored) == 5 and all(row["key"].startswith("s1:") for row in authored)
+    assert all(row["text_fr"] and row["text"] for row in authored), "French for the page"
+    keys = [row["key"] for row in authored]
+
+    scene = engine.SceneDraft.model_validate(
+        {**draft(_scene_context(), 0), "season_thread": keys[1], "thread_shift": "developing"}
+    )
+    threads = engine.threads_after_scene(
+        {}, draft=scene, known_keys=keys, closing=False, day=3, event_id="e1"
+    )
+    assert threads[keys[1]]["state"] == "developing"
+    # Idempotent per event, and never backwards.
+    assert engine.threads_after_scene(
+        threads, draft=scene, known_keys=keys, closing=False, day=9, event_id="e1"
+    ) == threads
+    back = scene.model_copy(update={"thread_shift": "developing"})
+    assert engine.threads_after_scene(
+        {**threads, keys[1]: {"state": "closed"}},
+        draft=back, known_keys=keys, closing=True, day=9, event_id="e2",
+    )[keys[1]]["state"] == "closed"
+    # `closed` mid-chapter is honest about what happened: the chapter is not over.
+    early = scene.model_copy(update={"thread_shift": "closed"})
+    assert engine.threads_after_scene(
+        {}, draft=early, known_keys=keys, closing=False, day=3, event_id="e3"
+    )[keys[1]]["state"] == "developing"
+    assert engine.threads_after_scene(
+        {}, draft=early, known_keys=keys, closing=True, day=3, event_id="e4"
+    )[keys[1]]["state"] == "closed"
+    # A key nobody authored is dropped by the validator, never a lost day.
+    stray = engine.SceneDraft.model_validate(
+        {**draft(_scene_context(), 0), "season_thread": "s9:9", "thread_shift": "closed"}
+    )
+    context = _scene_context()
+    context["world"]["open_threads"] = authored
+    engine._validate_scene(stray, context)
+    assert stray.season_thread is None and stray.thread_shift is None
+
+    live = {"threads": threads}
+    projected = engine.threads_projection(world, live)
+    assert [row["state"] for row in projected] == [
+        "developing" if row["key"] == keys[1] else "open" for row in projected
+    ]
+    closed = engine.close_open_threads(threads, keys, day=40)
+    assert {row["state"] for row in engine.threads_projection(world, {"threads": closed})} == {"closed"}
+
+
+def test_the_season_ends_in_a_finale_an_interlude_and_a_second_season(tmp_path):
+    world = _world()
+    arcs = list(world["season_arcs"])
+    assert engine.season_completion(arcs, {}) == 0.0
+    # Everything played except the last arc's last two stages: over the ratio, and
+    # not the trivial "every stage done" case.
+    almost = {arc["id"]: {"stage": len(arc["stages"])} for arc in arcs}
+    almost[arcs[-1]["id"]] = {"stage": len(arcs[-1]["stages"]) - 2}
+    assert engine.SEASON_COMPLETE_RATIO <= engine.season_completion(arcs, almost) < 1.0
+
+    live = {"season_chapters": 12, "chapter": {"resolved": True}, "arc_progress": almost}
+    assert engine.season_stage_after_chapter(
+        live, chapter={"resolved": True}, world_arcs=arcs, arc_progress=almost
+    ) == "finale"
+    # A season that never advances an arc still ends: the chapter ceiling is the
+    # promise that `suggested_arc` can never quietly run out with no finale.
+    assert engine.season_stage_after_chapter(
+        {"season_chapters": engine.SEASON_MAX_CHAPTERS},
+        chapter={"resolved": True},
+        world_arcs=arcs,
+        arc_progress={},
+    ) == "finale"
+    assert engine.season_stage_after_chapter(
+        {}, chapter={"finale": True}, world_arcs=arcs, arc_progress=almost
+    ) == "interlude"
+
+    # The finale is built from what this learner did, not from a new plot.
+    finale_live = {
+        "consequences": [
+            {"id": "e1:branch:0", "kind": "branch", "text_fr": "Vous avez couvert Gus.", "weight": 3, "day": 20},
+        ],
+        "planted": [
+            {"id": "e2:plant", "text_fr": "La clé du compteur.", "status": "open", "chapter_index": 0, "day": 9},
+        ],
+        "threads": {},
+        "resolved_chapter_questions": ["q"] * 20,
+    }
+    finale = engine.finale_context(finale_live, world=world, day=80)
+    assert finale["heaviest"][0]["id"] == "e1:branch:0"
+    assert finale["unpaid_plants"][0]["id"] == "e2:plant"
+    assert len(finale["open_threads"]) == 5 and finale["instruction"]
+
+    beat = engine.interlude_beat("thread-1", 30)
+    assert beat["id"] and beat["summary"] and "never present this as a finale" in beat["instruction"]
+
+    # The rollover: a new bible, the same life.
+    thread = SimpleNamespace(id="thread-1", world_bible=world)
+    rolled = {
+        **finale_live,
+        "season_index": 1,
+        "arc_progress": almost,
+        "agendas": {"marin_leveque": {"step": 2}},
+        "escalated_problems": {"radiateur": {"day": 4}},
+        "season_chapters": 30,
+        "secrets": {"lila_bonnet": "revealed"},
+        "chronicle": [{"id": "c1", "season": 1, "day": 4}],
+    }
+    assert engine.roll_over_season(None, thread, rolled, day=90) is True
+    assert rolled["season_index"] == 2
+    assert thread.world_bible["season_number"] == 2
+    assert thread.world_bible["cast"] == world["cast"], "the cast survives the season"
+    # What the learner lived is carried; only the season's own counters reset.
+    assert rolled["chronicle"] and rolled["secrets"] == {"lila_bonnet": "revealed"}
+    assert rolled["consequences"] and rolled["planted"]
+    assert rolled["arc_progress"] == {} and rolled["agendas"] == {}
+    assert rolled["escalated_problems"] == {} and rolled["season_chapters"] == 0
+    assert rolled["season_stage"] == "running"
+    assert rolled["world_flags"], "what season one established is still true"
+    assert rolled["threads_archive"] and rolled["seasons"] == [{"season": 1, "ended_day": 90}]
+
+    # And season two is a season: its own situation, its own arcs, its own agendas.
+    second = thread.world_bible
+    assert engine.season_situation(second)["your_arc"] == second["season_two_situation"]["your_arc"]
+    threads = engine.season_threads(second)
+    assert [row["key"] for row in threads] == [f"s2:{n}" for n in range(5)]
+    assert all(row["text_fr"] for row in threads)
+    assert {arc["id"] for arc in second["season_arcs"]} == {
+        "romy_montreal_deadline",
+        "lila_berlin_opening",
+        "gus_creteil_truth",
+        "marin_father_call",
+        "user_chosen_paris",
+    }
+    assert set(engine.character_agendas(second)) == {member["id"] for member in second["cast"]}
+    assert engine.season_completion(list(second["season_arcs"]), {}) == 0.0
+
+
+def test_the_letter_chapter_is_a_flag_and_a_seam_and_nothing_else():
+    """WP-64/65 own the letter. The story engine only says where one belongs."""
+
+    assert engine.letter_chapter_seam({"chapter": {"shape": "bottle"}}) is None
+    seam = engine.letter_chapter_seam(
+        {"chapter": {"id": "c1", "shape": "letter", "scene_count": 2, "character_id": "romy_tremblay"}}
+    )
+    assert seam == {
+        "chapter_id": "c1",
+        "shape": "letter",
+        "beat": engine.LETTER_BEAT,
+        "character_id": "romy_tremblay",
+        "is_next_beat": True,
+    }
+    assert engine.letter_chapter_seam({"chapter": {"id": "c1", "shape": "letter", "scene_count": 0}})[
+        "is_next_beat"
+    ] is False
+    # The engine writes no letter and needs no new beat for one.
+    assert engine.CHAPTER_SHAPES["letter"] == engine.CHAPTER_BEATS
+
+
+def test_the_director_reads_the_horizon_and_the_character_does_not(
+    assembled_client, db_session, journey_enabled, clock, provider
+):
+    d = driver(assembled_client, db_session)
+    d.create()
+    director = [payload for schema, payload in provider.calls if schema == "SceneDraft"][-1]
+    for key in ("agendas", "chapter_shape", "season", "escalated_problems"):
+        assert key in director, key
+    assert director["season"]["phase"] == "running" and director["season"]["number"] == 1
+    assert director["chapter_shape"]["beats"], director["chapter_shape"]
+    assert director["agendas"] and all(row["now"] for row in director["agendas"])
+    threads = director["world"]["open_threads"]
+    assert all(row["state"] == "open" and row["key"] for row in threads)
+    assert all(arc["blocked_by"] is None or arc["blocked_by"] for arc in director["world"]["arcs"])
+
+    d.play(answer="Je peux apporter les affiches samedi.")
+    actor = [payload for schema, payload in provider.calls if schema == "SemanticTurn"][-1]
+    story = actor["story"]
+    for key in ("season", "escalated_problems", "chapter_shape"):
+        assert key not in story, key
+    assert "open_threads" not in story["world"]
+    assert all(row["character_id"] == "romy_tremblay" for row in story["agendas"])
+
+
+def test_both_prompts_carry_the_season_horizon():
+    for word in (
+        "chapter.shape",
+        "agendas",
+        "season_thread",
+        "thread_shift",
+        "advances_arc",
+        "arc_stage_id",
+        "escalates_ref",
+        "blocked_by",
+        "season.phase",
+        "two_hander",
+        "bottle",
+        "ensemble",
+    ):
+        assert word in engine.DIRECTOR, word
+
+
+def test_a_thread_stored_before_the_season_horizon_still_loads():
+    """No migration: a life mid-chapter on the day this ships keeps playing.
+
+    Every WP-63 read is defaulted, so a chapter with no shape is the four-beat
+    chapter it has always been, a life with no agendas has a cast that has done
+    nothing yet, and a season with no counters is simply running.
+    """
+
+    old = {
+        "chapter": {
+            "id": "c1",
+            "title_fr": "Avant",
+            "dramatic_question": "Qui paiera le plombier ?",
+            "possible_developments": ["Payer.", "Attendre."],
+            "scene_count": 2,
+            "resolved_commitments": 0,
+            "resolved": False,
+        },
+        "events": [{"id": "e1", "witnesses": ["romy_tremblay"], "summary_fr": "…"}],
+        "commitments": [],
+    }
+    assert engine.season_phase(old) == "running"
+    assert engine.chapters_total(old) == 1
+    assert engine.planned_shape(old, seed="thread-1") == engine.DEFAULT_SHAPE
+    state = engine.chapter_state(old)
+    assert state["shape"] == engine.DEFAULT_SHAPE and state["required_beat"] == "turn"
+    assert engine.chapter_beats(state) == engine.CHAPTER_BEATS
+    assert engine.threads_projection(_world(), old)[0]["state"] == "open"
+    assert engine.agendas_projection(_world(), old.get("agendas") or {})
+    assert engine.agenda_tick(_world(), {}, seed="t", chapter_index=0, day=1)[0] is not None
+    assert engine.letter_chapter_seam(old) is None
+    assert engine.season_completion(list(_world()["season_arcs"]), {}) == 0.0
+    assert engine.finale_context(old, world=_world(), day=3)["open_threads"]

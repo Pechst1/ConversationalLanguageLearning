@@ -913,6 +913,17 @@ class SerialThreadService:
             and str(item.get("text_fr") or "").strip()
         ][:3]
 
+        # WP-63: the season's long questions, with the state this life has put them
+        # in. Additive and read-only, like everything else on this page: the text is
+        # the world bible's French line, the state is what the story actually played.
+        from app.services.living_story import threads_projection
+
+        threads = [
+            {"key": row["key"], "text_fr": row["text_fr"], "state": row["state"]}
+            for row in threads_projection(world, live)
+            if str(row.get("text_fr") or "").strip()
+        ]
+
         return {
             "thread_id": str(thread.id) if thread else None,
             "season_number": _int_or(world.get("season_number"), 1),
@@ -924,6 +935,7 @@ class SerialThreadService:
             else None,
             "today": today,
             "commitments": commitments,
+            "threads": threads,
             "read_episodes": read,
         }
 

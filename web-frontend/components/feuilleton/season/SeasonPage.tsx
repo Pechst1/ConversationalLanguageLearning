@@ -25,6 +25,8 @@ import {
   seasonEpisodeMeta,
   seasonHasNothingRead,
   seasonStoryLabel,
+  seasonThreadLabel,
+  seasonThreads,
   seasonTodayLabel,
   type SeasonEpisode,
   type SeasonPayload,
@@ -41,6 +43,7 @@ export function SeasonPage({
   const label = seasonStoryLabel(season);
   const today = season.today;
   const todayArt = today ? resolveMediaUrl(today.image_url) : null;
+  const threads = seasonThreads(season);
 
   return (
     <section className="wp44-season" aria-label="La saison">
@@ -82,6 +85,22 @@ export function SeasonPage({
               {commitment.text_fr}
             </p>
           ))}
+        </div>
+      )}
+
+      {threads.length > 0 && (
+        <div className="wp44-threads" data-season-threads="true">
+          <p className="av2-label av2-label--story">Les fils de la saison</p>
+          <ul className="wp44-threads__list">
+            {threads.map((thread) => (
+              <li className="wp44-threads__row" key={thread.key} data-thread-state={thread.state}>
+                <span className="wp44-threads__text" lang="fr">
+                  {thread.text_fr}
+                </span>
+                <span className="wp44-threads__state">{seasonThreadLabel(thread.state)}</span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 

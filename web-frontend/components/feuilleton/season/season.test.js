@@ -176,3 +176,31 @@ test('the page component starts nothing: one route out, no create call', () => {
     assert.ok(!source.includes(forbidden), `the season page must not reach for ${forbidden}`);
   }
 });
+
+test('the season shows its long questions with the state the story put them in', () => {
+  // WP-63: `threads` is additive. The state comes from the payload; the page
+  // never infers movement, and a payload without the key shows no list at all.
+  const threads = [
+    { key: 's1:2', text_fr: 'La noblesse inventée de Gus va-t-elle tomber ?', state: 'closed' },
+    { key: 's1:0', text_fr: 'Marin trouvera-t-il le courage de demander ?', state: 'open' },
+    { key: 's1:1', text_fr: 'Lila avouera-t-elle que la peinture lui manque ?', state: 'developing' },
+    { key: 's1:3', text_fr: '', state: 'open' },
+  ];
+  assert.deepEqual(
+    model.seasonThreads({ ...season, threads }).map((row) => row.key),
+    ['s1:1', 's1:0', 's1:2'],
+    'what is moving comes first, what is settled comes last, and an empty line is dropped',
+  );
+  assert.equal(model.seasonThreadLabel('developing'), 'ça bouge');
+  assert.equal(model.seasonThreadLabel('closed'), 'réglé');
+  assert.equal(model.seasonThreadLabel(undefined), 'en suspens');
+
+  const html = render({ ...season, threads });
+  assert.ok(html.includes('Les fils de la saison'), html.slice(0, 400));
+  assert.ok(html.includes('Marin trouvera-t-il le courage de demander ?'));
+  assert.ok(html.includes('ça bouge') && html.includes('réglé'));
+  assert.ok(!html.includes('Will Marin'), 'the season page is French chrome, not the bible');
+
+  assert.deepEqual(model.seasonThreads(season), []);
+  assert.ok(!render(season).includes('Les fils de la saison'), 'no key, no section');
+});

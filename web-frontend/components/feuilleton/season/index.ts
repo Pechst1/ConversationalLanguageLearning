@@ -5,6 +5,13 @@ export {
   seasonHasNothingRead,
   seasonHasStory,
   seasonStoryLabel,
+  seasonThreadLabel,
+  seasonThreads,
   seasonTodayLabel,
 } from './season-model';
-export type { SeasonCommitment, SeasonEpisode, SeasonPayload } from './season-model';
+export type {
+  SeasonCommitment,
+  SeasonEpisode,
+  SeasonPayload,
+  SeasonThread,
+} from './season-model';

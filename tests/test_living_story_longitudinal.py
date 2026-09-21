@@ -223,6 +223,10 @@ class ScriptedProvider:
         # the callback the engine offered, pays an overdue plant, and plants a new
         # detail. Off by default so every older test keeps the exact draft it pinned.
         self.long_memory = False
+        # WP-63: when set, it also plays the season — it claims the arc stage it was
+        # offered (and only when the arc is not blocked), and moves one of the
+        # season's long questions. Off by default, same reason.
+        self.season_engine = False
 
     # -- context accessors used by assertions ---------------------------
     def director_contexts(self) -> list[dict]:
@@ -263,6 +267,26 @@ class ScriptedProvider:
             chapter.get("resolved") or chapter.get("exhausted")
         )
         speaker = self.scene.character_id
+        # WP-63: a compliant director also obeys the shape it was dealt. A bottle
+        # chapter stays in its room — and because it cannot move, it is the person
+        # who has to change when the rotation guard says so.
+        shape = str(
+            (context.get("chapter_shape") or {}).get("shape") or chapter.get("shape") or ""
+        )
+        location = self.scene.location_id or LOCATIONS[n % len(LOCATIONS)]
+        if shape == "bottle" and keeps_chapter and chapter.get("location_id"):
+            location = str(chapter["location_id"])
+        must_change = (context.get("variety") or {}).get("must_change") or {}
+        if (
+            must_change.get("character_id") == speaker
+            and must_change.get("location_id") == location
+        ):
+            others = [
+                member["id"]
+                for member in (context.get("world") or {}).get("cast") or []
+                if member.get("id") and member["id"] != speaker
+            ]
+            speaker = others[n % len(others)] if others else speaker
         dialogue = [{"character_id": speaker, "text_fr": "Vous avez une idée ?"}]
         if self.scene.extra_speaker:
             dialogue.append(
@@ -279,6 +303,25 @@ class ScriptedProvider:
                 "plant_fr": f"Un carnet {n} reste ouvert sur la table.",
                 "secret_shift": "hinted" if n % 7 == 0 else None,
             }
+        if self.season_engine:
+            world = context.get("world") or {}
+            arc = next(
+                (item for item in world.get("arcs") or [] if item["id"] == world.get("suggested_arc")),
+                None,
+            )
+            if arc and arc.get("next_stage") and not arc.get("blocked_by"):
+                memory.update(
+                    arc_id=arc["id"],
+                    arc_stage_id=arc["next_stage"]["id"],
+                    advances_arc=True,
+                )
+            movable = [
+                row for row in world.get("open_threads") or [] if row.get("state") != "closed"
+            ]
+            if movable:
+                memory.update(
+                    season_thread=movable[n % len(movable)]["key"], thread_shift="developing"
+                )
         return {
             **memory,
             "title_fr": f"Le quartier {n}",
@@ -293,7 +336,7 @@ class ScriptedProvider:
         ),
             "objective_semantics": "Express an offer, a refusal or a changed plan.",
             "character_id": speaker,
-            "location_id": self.scene.location_id or LOCATIONS[n % len(LOCATIONS)],
+            "location_id": location,
             "causal_reason": (
                 "Follow up on what the learner actually said last time."
                 if context.get("events")
@@ -420,6 +463,27 @@ def event_id_for(journey_id: str) -> str:
     return f"journey:{journey_id}:story"
 
 
+def played(events) -> list[dict]:
+    """The learner's own exchanges.
+
+    WP-63 puts the cast's off-screen week into the same ledger: a `meanwhile` row is
+    something that happened while the learner was away, not a day they played. Tests
+    that count days count these out.
+    """
+
+    return [
+        event
+        for event in events or []
+        if not str(event.get("id") or "").startswith(engine.MEANWHILE_PREFIX)
+    ]
+
+
+def meanwhile(events) -> list[dict]:
+    """The off-screen half of the same ledger."""
+
+    return [event for event in events or [] if event not in played(events)]
+
+
 def play_day(d, provider, *, answer: str, scene=None, turn=None, finish="complete"):
     """One whole learner day; returns the journey id it consumed."""
 
@@ -485,8 +549,13 @@ def test_fourteen_days_stay_one_world_for_each_level(
         )
 
     live = live_state(db_session, d)
-    assert [e["id"] for e in live["events"]] == [event_id_for(j) for j in journeys]
-    assert all(e["outcome"] == "met" for e in live["events"])
+    assert [e["id"] for e in played(live["events"])] == [event_id_for(j) for j in journeys]
+    assert all(e["outcome"] == "met" for e in played(live["events"]))
+    # WP-63: whatever the cast got up to between chapters is in the same ledger, and
+    # only the characters who were there may ever mention it.
+    assert all(
+        row["witnesses"] and d.user_id not in row["witnesses"] for row in meanwhile(live["events"])
+    )
 
     # Fourteen distinct published situations, and chapters that actually close.
     situations = live["recent_situations"]
@@ -599,7 +668,7 @@ def test_three_scenes_form_a_causal_chain_with_real_event_provenance(
         journeys.append(play_day(d, provider, answer=f"Je m'en occupe, jour {day}."))
         clock.advance(days=1)
 
-    events = live_state(db_session, d)["events"]
+    events = played(live_state(db_session, d)["events"])
     assert [e["id"] for e in events] == [event_id_for(j) for j in journeys]
 
     # Scene 2 cites scene 1's event, scene 3 cites scene 2's — from the pinned
@@ -783,9 +852,9 @@ def test_a_skipped_day_creates_nothing_and_the_story_resumes(
 
     day3 = play_day(d, provider, answer="Me revoilà, désolé pour hier.")
     context = provider.director_contexts()[1]
-    assert [e["id"] for e in context["events"]] == [event_id_for(day1)]
+    assert [e["id"] for e in played(context["events"])] == [event_id_for(day1)]
     assert pinned_draft(db_session, day3)["source_event_ids"] == [event_id_for(day1)]
-    assert len(live_state(db_session, d)["events"]) == 2
+    assert len(played(live_state(db_session, d)["events"])) == 2
     assert (
         db_session.scalar(
             select(DailyJourney)
@@ -829,7 +898,7 @@ def test_an_abandoned_draft_invents_no_ending(
     day2 = play_day(d, provider, answer="Aujourd'hui je peux vraiment aider.")
     scenes = scenes_of(db_session, d)
     assert [s.status for s in scenes] == ["abandoned", "completed"]
-    assert live_state(db_session, d)["events"][0]["id"] == event_id_for(day2)
+    assert played(live_state(db_session, d)["events"])[0]["id"] == event_id_for(day2)
 
 
 def test_the_legacy_surface_cannot_complete_the_beat_while_the_journey_settles(
@@ -1307,7 +1376,12 @@ def test_day_one_hundred_still_knows_the_first_week_and_the_context_stays_bounde
             # the same person is moved twice before the week drifts them back.
             scene=SceneScript(character_id=speakers[(day // 2) % len(speakers)]),
             turn=TurnScript(
-                callback_fr=FIRST_WEEK_FACT if day == 4 else f"Vous avez répondu le jour {day}.",
+                # WP-63 deals each chapter its own length, so the day the first
+                # chapter closes is not fixed at four any more. The fact is said
+                # through the first week instead: whichever day closes chapter one
+                # folds it into the chronicle, and `from_day <= 5` still pins it to
+                # week one.
+                callback_fr=FIRST_WEEK_FACT if day <= 5 else f"Vous avez répondu le jour {day}.",
                 summary_native=f"You answered on day {day}.",
                 commitment_text=f"Passer voir le voisin, jour {day}." if day % 9 == 1 else None,
                 resolve_open_commitments=day % 9 == 3,
@@ -1411,3 +1485,175 @@ def test_two_lives_are_offered_different_memories(
 
     assert all(any(value for value in row) for row in offered)
     assert offered[0] != offered[1], "two threads, two sets of dice"
+
+
+# ---------------------------------------------------------------------------
+# WP-63 — two hundred days: a season that ends, and two lives that differ
+# ---------------------------------------------------------------------------
+
+
+SEASON_RUN_DAYS = 200
+
+
+def _chapter_rows(db, driver) -> list[dict]:
+    """Every chapter this life published, in order, as the scene records show it."""
+
+    rows: list[dict] = []
+    for scene in scenes_of(db, driver):
+        chapter = (scene.source_snapshot or {}).get("chapter") or {}
+        if not chapter.get("id"):
+            continue
+        if not rows or rows[-1]["id"] != chapter["id"]:
+            rows.append(dict(chapter))
+    return rows
+
+
+def test_two_hundred_days_reach_a_finale_an_interlude_and_a_second_season(
+    assembled_client, db_session, journey_enabled, clock, provider
+):
+    """The finding WP-63 exists for: «5 arcs × 22 stages ≈ 88 days, then
+    suggested_arc=None — no finale, no season 2, no interlude in the living engine».
+
+    Two hundred consecutive days through the assembled API. Nothing here judges the
+    French; it judges that the season has a horizon — that the arcs are gated, that
+    the story reaches an ending instead of running out of arcs, and that the life
+    carries over into a second season it did not have before.
+    """
+
+    provider.long_memory = True
+    provider.season_engine = True
+    d = driver(assembled_client, db_session, cefr="A2.2")
+    speakers = [CAST["romy"], CAST["margaux"], CAST["lila"]]
+    for day in range(1, SEASON_RUN_DAYS + 1):
+        play_day(
+            d,
+            provider,
+            answer=f"Je m'en occupe, jour {day}.",
+            scene=SceneScript(character_id=speakers[(day // 2) % len(speakers)]),
+            turn=TurnScript(
+                callback_fr=f"Vous avez répondu le jour {day}.",
+                summary_native=f"You answered on day {day}.",
+                extra={"development_index": 1 + day % 2},
+            ),
+        )
+        clock.advance(days=1)
+
+    contexts = provider.director_contexts()
+    live = live_state(db_session, d)
+    thread = thread_of(db_session, d)
+
+    # 1. The story never runs out of season without an ending in sight. Every day
+    #    the director was either given an arc to play, or told it is writing the
+    #    finale or the interlude.
+    for index, context in enumerate(contexts, start=1):
+        phase = context["season"]["phase"]
+        assert phase in {"running", "finale", "interlude"}, (index, phase)
+        assert context["world"]["suggested_arc"] or phase != "running", (
+            f"day {index} had no arc left and no ending either"
+        )
+
+    # 2. The season ended: a finale, then an authored interlude, then season two.
+    phases = [context["season"]["phase"] for context in contexts]
+    assert "finale" in phases and "interlude" in phases, phases[-20:]
+    assert phases.index("finale") < phases.index("interlude"), "the finale comes first"
+    # The finale was handed the season's own weight, not a fresh plot; the interlude
+    # was handed an authored quiet beat and told not to pretend it is an ending.
+    finale = contexts[phases.index("finale")]["season"]["finale"]
+    assert finale["heaviest"] and finale["instruction"]
+    interlude = contexts[phases.index("interlude")]["season"]["interlude"]
+    assert interlude["id"] and "never present this as a finale" in interlude["instruction"]
+    chapters = _chapter_rows(db_session, d)
+    assert int(live["season_index"]) >= 2, "two hundred days must reach a second season"
+    assert int(thread.world_bible["season_number"]) >= 2
+    assert {arc["id"] for arc in thread.world_bible["season_arcs"]} == {
+        "romy_montreal_deadline",
+        "lila_berlin_opening",
+        "gus_creteil_truth",
+        "marin_father_call",
+        "user_chosen_paris",
+    }, "the second season's own arcs"
+    assert live["seasons"] and live["seasons"][0]["season"] == 1
+
+    # 3. What the learner lived came with them, and the chronicle folds per season.
+    seasons = {row["season"] for row in live["chronicle"] if row.get("kind") == "season"}
+    assert 1 in seasons, live["chronicle"][:1]
+    assert live["consequences"] and live["secrets"]
+    assert live["threads_archive"], "season one's questions are kept, with their state"
+    assert all(row["state"] == "closed" for row in live["threads_archive"]), (
+        "the finale settles what the season left open"
+    )
+    assert live["world_flags"], "what season one established is still true in season two"
+
+    # 4. The arcs were gated, not rubber-stamped: side stories exist, and no arc ever
+    #    advanced two stages inside `min_episodes_between_stages` days.
+    assert any(row.get("side_story") for row in live["chronicle"] if row.get("kind") != "season"), (
+        "a chapter that claimed no stage is recorded as a side story"
+    )
+
+    # 5. The chapters are not all the same shape, and never twice the same in a row.
+    shapes = [row.get("shape") for row in chapters]
+    assert len(set(shapes)) >= 4, shapes
+    # The rule is about the deal: a finale is always an ensemble and an interlude is
+    # always the quiet standard chapter, so only a chapter the dice dealt has to
+    # differ from the one before it.
+    for previous, current in zip(chapters, chapters[1:], strict=False):
+        if current.get("finale") or current.get("interlude"):
+            continue
+        assert previous["shape"] != current["shape"], (previous, current)
+    assert any(row.get("letter_beat") for row in chapters), "letter chapters happen"
+
+    # 6. The cast had a life between the chapters, and only witnesses heard about it.
+    offscreen = meanwhile(live["events"])
+    assert offscreen and all(row["witnesses"] for row in offscreen)
+    assert any(int(entry.get("step") or 0) > 0 for entry in live["agendas"].values())
+
+    # 7. Bounded: two hundred days of season are not two hundred days of prompt.
+    def prompt_size(day: int) -> int:
+        return len(json.dumps(contexts[day - 1], ensure_ascii=False))
+
+    assert prompt_size(SEASON_RUN_DAYS) <= prompt_size(20) * 1.6
+
+
+def test_two_seeds_deal_different_arcs_shapes_and_agenda_timings(
+    assembled_client, db_session, journey_enabled, clock, provider
+):
+    """Principle 1 again, one level up: two learners do not live the same season.
+
+    The arcs come in a different order, the chapters are dealt different shapes, and
+    the cast's private weeks move at different moments.
+    """
+
+    provider.season_engine = True
+    lives: list[dict] = []
+    for _ in range(2):
+        start = len(provider.director_contexts())
+        d = driver(assembled_client, db_session, cefr="A2.2")
+        for day in range(1, 25):
+            play_day(
+                d,
+                provider,
+                answer=f"Je m'en occupe, jour {day}.",
+                turn=TurnScript(
+                    callback_fr=f"Vous avez répondu le jour {day}.",
+                    extra={"development_index": 1 + day % 2},
+                ),
+            )
+            clock.advance(days=1)
+        live = live_state(db_session, d)
+        lives.append(
+            {
+                "arcs": [arc["id"] for arc in provider.director_contexts()[start]["world"]["arcs"]],
+                "shapes": [row.get("shape") for row in _chapter_rows(db_session, d)],
+                "agendas": {
+                    key: int(entry.get("last_day") or 0) for key, entry in live["agendas"].items()
+                },
+                "threads": {key: row["state"] for key, row in live["threads"].items()},
+            }
+        )
+        clock.advance(days=1)
+
+    first, second = lives
+    assert first["arcs"] != second["arcs"], "two lives, two orders of the season's arcs"
+    assert first["shapes"] != second["shapes"], "two lives, two hands of chapters"
+    assert first["agendas"] != second["agendas"], "the cast's weeks move at different moments"
+    assert first["threads"] and second["threads"], "both lives moved a season question"

@@ -27,14 +27,47 @@ export type SeasonEpisode = {
 
 export type SeasonCommitment = { id: string; text_fr: string };
 
+/**
+ * One of the season's long questions, with the state the story has put it in
+ * (WP-63). `open` means nothing has touched it yet, `developing` that a chapter
+ * moved it, `closed` that it has been settled — by a chapter or by the finale.
+ */
+export type SeasonThread = { key: string; text_fr: string; state: string };
+
 export type SeasonPayload = {
   thread_id: string | null;
   season_number: number;
   chapter: { number: number; title_fr: string } | null;
   today: SeasonEpisode | null;
   commitments: SeasonCommitment[];
+  /** Absent on a payload served before WP-63; the page then shows no thread list. */
+  threads?: SeasonThread[];
   read_episodes: SeasonEpisode[];
 };
+
+/** The French label a thread's state gets: «en suspens», «ça bouge», «réglé». */
+export function seasonThreadLabel(state: string | null | undefined): string {
+  return (
+    { open: 'en suspens', developing: 'ça bouge', closed: 'réglé' }[String(state || 'open')] ||
+    'en suspens'
+  );
+}
+
+/**
+ * The threads worth printing: the ones with a French line, closed ones last.
+ *
+ * A season question nobody has touched is still a question, so `open` rows stay —
+ * this list is the promise the season made, not a progress bar. What it must never
+ * do is claim movement the story did not make, which is why the state comes from
+ * the payload and is never inferred here.
+ */
+export function seasonThreads(season: SeasonPayload | null | undefined): SeasonThread[] {
+  const rows = (season?.threads || []).filter((row) => String(row?.text_fr || '').trim());
+  const order: Record<string, number> = { developing: 0, open: 1, closed: 2 };
+  return rows
+    .map((row) => ({ ...row, state: String(row.state || 'open') }))
+    .sort((a, b) => (order[a.state] ?? 1) - (order[b.state] ?? 1));
+}
 
 /** The eyebrow: «Saison 1 · chapitre 1 · S'installer, avec complications». */
 export function seasonStoryLabel(season: SeasonPayload | null | undefined): string {

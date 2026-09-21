@@ -123,6 +123,11 @@ def main():
     settings.ATELIER_STORY_MAX_ATTEMPTS = args.attempts
     engine._client = lambda: BoundedClient()
     world = SerialThreadService._load_world_bible()
+    # WP-63: the season rollover swaps the world bible, and it is the production
+    # writer that does it — so this review holds the world on a stand-in "thread"
+    # exactly as the database row holds it, and calls that writer rather than a
+    # second implementation of it.
+    thread = SimpleNamespace(id=args.seed, world_bible=world)
     context = {
         "thread_id": "synthetic-review",
         "revision": "synthetic",
@@ -164,8 +169,38 @@ def main():
     arc_progress: dict = {}
     # The same shape `state["living_story"]` has in the database, so the review walks
     # the real writers rather than a second implementation of them.
-    live: dict = {"chronicle": [], "consequences": [], "planted": [], "secrets": {}}
+    live: dict = {
+        "chronicle": [],
+        "consequences": [],
+        "planted": [],
+        "secrets": {},
+        # WP-63 — l'horizon de saison.
+        "threads": {},
+        "agendas": {},
+        "arc_progress": {},
+        "season_index": 1,
+        "season_stage": "running",
+        "season_chapters": 0,
+        "escalated_problems": {},
+        "events": [],
+    }
     cast_ids = [c["id"] for c in engine._cast_projection(world) if c.get("id")]
+    context["agendas"] = engine.agendas_projection(world, {})
+    context["season"] = {
+        "number": 1,
+        "phase": "running",
+        "completion": 0.0,
+        "chapters": 0,
+        "finale": None,
+        "interlude": None,
+    }
+    context["chapter_shape"] = {
+        "shape": engine.DEFAULT_SHAPE,
+        "beats": list(engine.CHAPTER_SHAPES[engine.DEFAULT_SHAPE]),
+        "note": engine.shape_note(engine.DEFAULT_SHAPE),
+        "letter_beat": None,
+    }
+    context["escalated_problems"] = []
     try:
         for day in range(args.days):
             scene, _ = engine._approved(
@@ -269,7 +304,19 @@ def main():
             # advance per scene, close on the resolution beat, retire the question.
             current = context["chapter"]
             if not current or current.get("resolved") or current.get("exhausted"):
-                current = engine.open_chapter(scene)
+                # WP-63: the hand this chapter is dealt, and the finale/interlude
+                # overrides, exactly as `bind_journey` deals them.
+                phase = engine.season_phase(live)
+                shape = engine.planned_shape(live, seed=args.seed)
+                extra: dict = {}
+                if phase == "finale":
+                    shape, extra = "ensemble", {"finale": True, "side_story": False}
+                elif phase == "interlude":
+                    beat = engine.interlude_beat(args.seed, engine.chapters_total(live))
+                    shape, extra = engine.DEFAULT_SHAPE, {"interlude": True, "interlude_beat_id": beat["id"]}
+                current = engine.open_chapter(scene, shape=shape, **extra)
+                live["chapters_total"] = engine.chapters_total(live) + 1
+                live["season_chapters"] = int(live.get("season_chapters") or 0) + 1
             current = engine.chapter_after_scene(current, scene, result, event_id)
             moods_before = context["moods"]
             context["moods"] = engine.moods_after_turn(moods_before, scene.character_id, result, event_id)
@@ -324,15 +371,64 @@ def main():
             )
             if current.get("resolved"):
                 context["resolved_chapter_questions"].append(current["dramatic_question"])
+            # WP-63: the arc moves only on an honest stage claim, and only when the
+            # authored gates allow it; the season's long questions move from the same
+            # accepted draft; the cast's private week ticks between chapters.
+            world_arcs = list(world.get("season_arcs") or [])
+            flags = {
+                **(live.get("world_flags") or {}),
+                **engine.arc_flags(world_arcs, arc_progress),
+            }
             arc_progress = engine.arc_progress_after_scene(
-                arc_progress, current, world.get("season_arcs") or [], event_id
+                arc_progress, current, world_arcs, event_id, day=day + 1, flags=flags
             )
+            live["arc_progress"] = arc_progress
+            live["threads"] = engine.threads_after_scene(
+                live["threads"],
+                draft=scene,
+                known_keys=[row["key"] for row in engine.season_threads(world)],
+                closing=engine.chapter_closing(current),
+                day=day + 1,
+                event_id=event_id,
+            )
+            live["events"] = list(context["events"])
+            if engine.chapter_closing(current):
+                live["agendas"], meanwhile = engine.agenda_tick(
+                    world,
+                    live["agendas"],
+                    seed=args.seed,
+                    chapter_index=engine.chapters_total(live),
+                    day=day + 1,
+                )
+                if meanwhile and meanwhile["id"] not in {e["id"] for e in context["events"]}:
+                    context["events"].append(meanwhile)
+                    live["events"] = list(context["events"])
+                if current.get("finale"):
+                    live["threads"] = engine.close_open_threads(
+                        live["threads"], [row["key"] for row in engine.season_threads(world)], day=day + 1
+                    )
+                live["season_stage"] = engine.season_stage_after_chapter(
+                    live, chapter=current, world_arcs=world_arcs, arc_progress=arc_progress
+                )
+                if current.get("interlude"):
+                    if engine.roll_over_season(EventSink(), thread, live, day=day + 1):
+                        world = thread.world_bible
+                        arc_progress = {}
+                        cast_ids = [c["id"] for c in engine._cast_projection(world) if c.get("id")]
+                        context["world"]["cast"] = engine._cast_for_level(
+                            engine._cast_projection(world), args.level
+                        )
+                        context["world"]["logline"] = world.get("logline")
+                        print(f"Season {live['season_index']} begins.", flush=True)
             context["world"].update(
                 engine._season_projection(
                     world,
                     arc_progress,
                     seed=args.seed,
                     chapter_index=len(context["resolved_chapter_questions"]) + 1,
+                    flags=engine.arc_flags(world_arcs, arc_progress),
+                    day=day + 1,
+                    threads=engine.threads_projection(world, live),
                 )
             )
             context["chapter"] = engine.chapter_state({"chapter": current})
@@ -352,6 +448,34 @@ def main():
                 live, seed=args.seed, beat=engine.required_beats(context["chapter"])[0]
             )
             context["secrets"] = engine.secrets_projection(cast_ids, live["secrets"], seed=args.seed)
+            # WP-63 projections, as `story_context` builds them.
+            live["chapter"] = context["chapter"]
+            phase = engine.season_phase(live)
+            shape = (context["chapter"] or {}).get("shape") or engine.planned_shape(
+                live, seed=args.seed
+            )
+            context["agendas"] = engine.agendas_projection(world, live["agendas"])
+            context["chapter_shape"] = {
+                "shape": shape,
+                "beats": list(engine.CHAPTER_SHAPES.get(shape, engine.CHAPTER_BEATS)),
+                "note": engine.shape_note(shape, context["chapter"]),
+                "letter_beat": engine.LETTER_BEAT if shape == "letter" else None,
+            }
+            context["season"] = {
+                "number": int(live.get("season_index") or 1),
+                "phase": phase,
+                "completion": engine.season_completion(
+                    list(world.get("season_arcs") or []), arc_progress
+                ),
+                "chapters": int(live.get("season_chapters") or 0),
+                "finale": engine.finale_context(live, world=world, day=day + 1)
+                if phase == "finale"
+                else None,
+                "interlude": engine.interlude_beat(args.seed, engine.chapters_total(live))
+                if phase == "interlude"
+                else None,
+            }
+            context["escalated_problems"] = sorted(live.get("escalated_problems") or {})
             print(
                 f"Synthetic scene {day + 1}: accepted; {calls}/{args.max_requests} requests used.",
                 flush=True,

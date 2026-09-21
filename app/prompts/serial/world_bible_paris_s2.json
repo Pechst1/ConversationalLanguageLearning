@@ -10,7 +10,147 @@
       "Marin has to call his father without turning the call into an omen.",
       "You stop practicing belonging and start deciding what you owe the people who made room for you."
     ],
+    "open_threads_fr": [
+      "Romy ne peut plus garder abstraite sa porte de sortie à Montréal.",
+      "Lila doit décider si Berlin est une perte, un rêve ou une deuxième chance.",
+      "La vraie vie de Gus à Créteil se heurte au costume.",
+      "Marin doit appeler son père sans en faire un présage.",
+      "Vous cessez de vous entraîner à appartenir et décidez ce que vous devez à ceux qui vous ont fait de la place."
+    ],
     "first_episode_seed": "The morning after the season finale, Le Mistral has the same table and a very different silence."
+  },
+
+  "character_agendas": {
+    "marin_leveque": [
+      {
+        "id": "s2_number_dialled",
+        "summary": "Marin dials his father's number and hangs up before the second ring.",
+        "meanwhile_fr": "Marin a composé le numéro de son père et a raccroché avant la deuxième sonnerie.",
+        "witnesses": ["lila_bonnet"]
+      },
+      {
+        "id": "s2_manuscript_sent",
+        "summary": "He sends three chapters of the novel to one stranger and tells nobody.",
+        "meanwhile_fr": "Marin a envoyé trois chapitres à quelqu'un qu'il ne connaît pas ; il n'en a parlé à personne.",
+        "witnesses": ["margaux_barman"]
+      },
+      {
+        "id": "s2_lunch_date",
+        "summary": "A family lunch is fixed for a Sunday he has not yet agreed to.",
+        "meanwhile_fr": "Un déjeuner de famille a été fixé un dimanche que Marin n'a jamais accepté.",
+        "witnesses": ["lila_bonnet", "augustin_de_roncourt"]
+      },
+      {
+        "id": "s2_answer_ready",
+        "summary": "He writes down what he wants to say to his father and carries the paper for a week.",
+        "meanwhile_fr": "Marin garde depuis une semaine un papier plié où il a écrit ce qu'il veut dire à son père.",
+        "witnesses": ["romy_tremblay"]
+      }
+    ],
+    "lila_bonnet": [
+      {
+        "id": "s2_berlin_reply",
+        "summary": "She drafts an answer to Berlin and leaves it unsent for days.",
+        "meanwhile_fr": "Lila a écrit une réponse à Berlin et ne l'a pas envoyée depuis des jours.",
+        "witnesses": ["marin_leveque"]
+      },
+      {
+        "id": "s2_studio_visit",
+        "summary": "She visits a shared studio near the canal and asks about the cheapest slot.",
+        "meanwhile_fr": "Lila est allée voir un atelier partagé près du canal et a demandé le tarif le plus bas.",
+        "witnesses": ["margaux_barman", "romy_tremblay"]
+      },
+      {
+        "id": "s2_class_told",
+        "summary": "She tells her pupils she is a painter before she tells any adult.",
+        "meanwhile_fr": "Lila a dit à ses élèves qu'elle est peintre, avant de le dire à un seul adulte.",
+        "witnesses": ["augustin_de_roncourt"]
+      },
+      {
+        "id": "s2_portrait_shown",
+        "summary": "She shows one corner of the group portrait to exactly one person.",
+        "meanwhile_fr": "Lila a montré un coin du portrait de groupe à une seule personne.",
+        "witnesses": ["marin_leveque", "margaux_barman"]
+      }
+    ],
+    "augustin_de_roncourt": [
+      {
+        "id": "s2_mother_in_paris",
+        "summary": "His mother comes into Paris and he spends the day steering her away from the bar.",
+        "meanwhile_fr": "La mère de Gus est venue à Paris ; il a passé la journée à l'éloigner du Mistral.",
+        "witnesses": ["margaux_barman"]
+      },
+      {
+        "id": "s2_costume_dropped",
+        "summary": "He tells one true story about Créteil and immediately turns it into a joke.",
+        "meanwhile_fr": "Gus a raconté une vraie histoire de Créteil, puis il en a fait une blague aussitôt.",
+        "witnesses": ["romy_tremblay", "lila_bonnet"]
+      },
+      {
+        "id": "s2_invitation_drafted",
+        "summary": "He writes an invitation to Sunday in Créteil and does not send it.",
+        "meanwhile_fr": "Gus a écrit une invitation pour un dimanche à Créteil et ne l'a envoyée à personne.",
+        "witnesses": ["marin_leveque"]
+      },
+      {
+        "id": "s2_method_retired",
+        "summary": "He stops quoting La Méthode for a whole week and nobody dares mention it.",
+        "meanwhile_fr": "Gus n'a pas cité « La Méthode » de toute la semaine et personne n'ose le relever.",
+        "witnesses": ["margaux_barman", "marin_leveque"]
+      }
+    ],
+    "romy_tremblay": [
+      {
+        "id": "s2_lease_alert",
+        "summary": "A lease renewal alert arrives and she snoozes it three times.",
+        "meanwhile_fr": "Une alerte de bail est arrivée chez Romy ; elle l'a repoussée trois fois.",
+        "witnesses": ["lila_bonnet"]
+      },
+      {
+        "id": "s2_apartment_listed",
+        "summary": "She asks a Montréal friend what the apartment would rent for, then says it means nothing.",
+        "meanwhile_fr": "Romy a demandé à Montréal ce que vaudrait son appartement ; elle dit que ça ne veut rien dire.",
+        "witnesses": ["augustin_de_roncourt"]
+      },
+      {
+        "id": "s2_paris_byline",
+        "summary": "A Paris story of hers runs with her name on it and she keeps a copy.",
+        "meanwhile_fr": "Un sujet parisien de Romy est passé avec sa signature ; elle en a gardé un exemplaire.",
+        "witnesses": ["margaux_barman", "marin_leveque"]
+      },
+      {
+        "id": "s2_box_emptied",
+        "summary": "The last box is emptied one evening, alone, and she tells no one.",
+        "meanwhile_fr": "Le dernier carton a été vidé un soir, toute seule ; Romy ne l'a dit à personne.",
+        "witnesses": ["lila_bonnet"]
+      }
+    ],
+    "margaux_barman": [
+      {
+        "id": "s2_second_room",
+        "summary": "She considers opening the back room again and prices the work.",
+        "meanwhile_fr": "Margaux a fait chiffrer les travaux de l'arrière-salle du Mistral.",
+        "witnesses": ["augustin_de_roncourt"]
+      },
+      {
+        "id": "s2_new_hire",
+        "summary": "She trains someone new badly on purpose, to see who complains.",
+        "meanwhile_fr": "Margaux a formé quelqu'un de nouveau, très mal, exprès, pour voir qui râlerait.",
+        "witnesses": ["romy_tremblay", "marin_leveque"]
+      },
+      {
+        "id": "s2_photo_framed",
+        "summary": "The old photograph of the bar goes into a frame, with one new face added beside it.",
+        "meanwhile_fr": "La vieille photo du bar est passée dans un cadre, avec un visage de plus à côté.",
+        "witnesses": ["lila_bonnet"]
+      },
+      {
+        "id": "s2_keys_copied",
+        "summary": "She has a spare set of keys cut and does not yet say who they are for.",
+        "meanwhile_fr": "Margaux a fait refaire un double des clés et ne dit pas encore pour qui.",
+        "witnesses": ["marin_leveque", "lila_bonnet"]
+      }
+    ]
   },
   "season_arcs": [
     {

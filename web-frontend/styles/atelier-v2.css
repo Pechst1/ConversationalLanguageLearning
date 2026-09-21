@@ -2116,6 +2116,46 @@
 
 .av2 .wp44-commitment__text + .wp44-commitment__text { margin-top: 6px; }
 
+/* WP-63 — the season's long questions, with the state the story put them in */
+.av2 .wp44-threads__list {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.av2 .wp44-threads__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--av2-line-2);
+}
+
+.av2 .wp44-threads__row:last-child { border-bottom: 0; }
+
+.av2 .wp44-threads__text {
+  font-family: var(--av2-serif);
+  font-size: 1rem;
+  line-height: 1.35;
+  color: var(--av2-ink);
+}
+
+.av2 .wp44-threads__state {
+  flex: none;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--av2-muted);
+}
+
+.av2 .wp44-threads__row[data-thread-state='developing'] .wp44-threads__state { color: var(--av2-ink); }
+.av2 .wp44-threads__row[data-thread-state='closed'] .wp44-threads__text { color: var(--av2-muted); }
+
 /* the episodes already read */
 .av2 .wp44-read {
   list-style: none;

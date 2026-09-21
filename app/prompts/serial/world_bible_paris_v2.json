@@ -151,7 +151,172 @@
       "Will Romy unpack the last box, or run back to Montréal?",
       "Will you and Romy ever say the thing you both already know?"
     ],
+    "open_threads_fr": [
+      "Marin trouvera-t-il le courage de demander ? (la bague dans la poche)",
+      "Lila avouera-t-elle que la peinture lui manque — et Berlin se saura-t-il ?",
+      "La noblesse inventée de Gus va-t-elle tomber, et l'aimera-t-on quand même ?",
+      "Romy ouvrira-t-elle le dernier carton, ou repartira-t-elle à Montréal ?",
+      "Direz-vous un jour, Romy et vous, ce que vous savez déjà tous les deux ?"
+    ],
     "first_episode_seed": "A rainy first night. Your radiator is dead, you can't reach the landlord, and you duck into Le Mistral to get warm. You meet the four of them by accident. By closing time you have a booth, a nickname, and — improbably — a life beginning."
+  },
+
+  "character_agendas_note": "Each cast member's private season plan (WP-63). The engine advances at most one step between chapters, off-screen; `meanwhile_fr` is the French line the learner may only ever hear SECOND-HAND, from one of `witnesses`. The learner is never a witness, and a step is never played as a scene.",
+  "character_agendas": {
+    "marin_leveque": [
+      {
+        "id": "ring_resized",
+        "summary": "Marin takes his grandmother's ring to be resized and tells the jeweller it is for a friend.",
+        "meanwhile_fr": "Marin est passé chez un bijoutier près du canal ; il a dit que c'était pour un ami.",
+        "witnesses": ["lila_bonnet", "margaux_barman"]
+      },
+      {
+        "id": "novel_chapter",
+        "summary": "He finishes a chapter of the novel nobody is allowed to read and hides the notebook again.",
+        "meanwhile_fr": "Marin a écrit tard au Mistral, puis il a refermé son carnet dès qu'on s'est approché.",
+        "witnesses": ["margaux_barman", "augustin_de_roncourt"]
+      },
+      {
+        "id": "fathers_voicemail",
+        "summary": "His father leaves a voicemail about a family lunch; Marin listens to it four times and answers nothing.",
+        "meanwhile_fr": "Le père de Marin a laissé un message ; Marin l'a réécouté quatre fois sans rappeler.",
+        "witnesses": ["lila_bonnet"]
+      },
+      {
+        "id": "rehearsed_speech",
+        "summary": "He rehearses a proposal speech out loud in the NGO stairwell and is overheard.",
+        "meanwhile_fr": "On a entendu Marin répéter une phrase tout seul dans l'escalier de l'ONG.",
+        "witnesses": ["augustin_de_roncourt", "romy_tremblay"]
+      },
+      {
+        "id": "date_booked",
+        "summary": "He books a table for two somewhere absurdly formal, then moves it twice.",
+        "meanwhile_fr": "Marin a réservé une table pour deux, puis il a changé la date deux fois.",
+        "witnesses": ["margaux_barman", "lila_bonnet"]
+      }
+    ],
+    "lila_bonnet": [
+      {
+        "id": "berlin_letter_reread",
+        "summary": "She rereads the Berlin letter at school between two classes and puts it back under the paint rags.",
+        "meanwhile_fr": "Lila a relu une lettre à l'école entre deux classes, puis l'a rangée sous les chiffons.",
+        "witnesses": ["marin_leveque"]
+      },
+      {
+        "id": "new_canvas",
+        "summary": "She buys a canvas far too big for the flat and says it is for her pupils.",
+        "meanwhile_fr": "Lila a rapporté une toile beaucoup trop grande pour l'appartement ; elle dit que c'est pour sa classe.",
+        "witnesses": ["marin_leveque", "augustin_de_roncourt"]
+      },
+      {
+        "id": "portrait_face",
+        "summary": "She paints one more face into the group portrait and covers it before Marin comes home.",
+        "meanwhile_fr": "Lila a peint un visage de plus sur le portrait, puis elle a tout recouvert d'un drap.",
+        "witnesses": ["margaux_barman"]
+      },
+      {
+        "id": "meddling_plan",
+        "summary": "She quietly arranges for two people who are avoiding each other to need the same favour.",
+        "meanwhile_fr": "Lila a arrangé les choses pour que deux personnes qui s'évitent aient besoin du même service.",
+        "witnesses": ["augustin_de_roncourt", "romy_tremblay"]
+      },
+      {
+        "id": "residency_deadline",
+        "summary": "A residency deadline passes; she says nothing about it all evening.",
+        "meanwhile_fr": "Une date limite est passée cette semaine ; Lila n'en a pas parlé de toute la soirée.",
+        "witnesses": ["marin_leveque", "margaux_barman"]
+      }
+    ],
+    "augustin_de_roncourt": [
+      {
+        "id": "creteil_sunday",
+        "summary": "He spends Sunday in Créteil with his mother and calls it a weekend at the château.",
+        "meanwhile_fr": "Gus a disparu tout le dimanche ; il dit qu'il était « au château ».",
+        "witnesses": ["marin_leveque"]
+      },
+      {
+        "id": "method_seminar",
+        "summary": "He teaches La Méthode to three strangers at a bar and none of it works.",
+        "meanwhile_fr": "Gus a expliqué « La Méthode » à des inconnus dans un bar ; ça n'a marché sur personne.",
+        "witnesses": ["margaux_barman", "romy_tremblay"]
+      },
+      {
+        "id": "quiet_loan",
+        "summary": "He pays someone's overdue bill anonymously and constructs an elaborate lie about why he is short this month.",
+        "meanwhile_fr": "Quelqu'un a réglé une facture en retard sans laisser son nom ; Gus jure que ce n'est pas lui.",
+        "witnesses": ["margaux_barman"]
+      },
+      {
+        "id": "suit_pawned",
+        "summary": "One of the impeccable suits goes to the pawnbroker and he swears it is at the tailor's.",
+        "meanwhile_fr": "Un des beaux costumes de Gus a disparu ; il assure qu'il est chez le tailleur.",
+        "witnesses": ["lila_bonnet", "romy_tremblay"]
+      },
+      {
+        "id": "mother_calls",
+        "summary": "His mother calls the bar looking for him and Margaux takes the message.",
+        "meanwhile_fr": "La mère de Gus a appelé au Mistral pour le chercher ; Margaux a pris le message.",
+        "witnesses": ["margaux_barman", "marin_leveque"]
+      }
+    ],
+    "romy_tremblay": [
+      {
+        "id": "montreal_rent",
+        "summary": "She pays the Montréal rent from a café in Paris and closes the laptop when someone approaches.",
+        "meanwhile_fr": "Romy a payé quelque chose en ligne au café et a fermé son portable quand on est arrivé.",
+        "witnesses": ["margaux_barman"]
+      },
+      {
+        "id": "story_pitch",
+        "summary": "She pitches a story her editor kills, and takes it personally in a way she will deny.",
+        "meanwhile_fr": "Le sujet que Romy proposait a été refusé par sa rédaction ; elle dit que ça lui est égal.",
+        "witnesses": ["lila_bonnet"]
+      },
+      {
+        "id": "last_box",
+        "summary": "She opens the last unpacked box, looks at it for a while, and tapes it shut again.",
+        "meanwhile_fr": "Romy a ouvert le dernier carton, l'a regardé un moment, puis l'a refermé.",
+        "witnesses": ["lila_bonnet", "marin_leveque"]
+      },
+      {
+        "id": "montreal_call",
+        "summary": "An old friend from Montréal calls with news that makes the escape hatch feel real.",
+        "meanwhile_fr": "Une amie de Montréal a appelé Romy avec des nouvelles ; elle est restée silencieuse après.",
+        "witnesses": ["augustin_de_roncourt"]
+      },
+      {
+        "id": "night_shift",
+        "summary": "She takes a night shift she did not have to take, on the evening everyone else was together.",
+        "meanwhile_fr": "Romy a pris une garde de nuit le soir où tout le monde était réuni.",
+        "witnesses": ["margaux_barman", "marin_leveque"]
+      }
+    ],
+    "margaux_barman": [
+      {
+        "id": "booth_kept",
+        "summary": "She turns away a large party to keep the booth free on a night she expects the group.",
+        "meanwhile_fr": "Margaux a refusé une grande tablée pour garder la banquette libre hier soir.",
+        "witnesses": ["marin_leveque", "lila_bonnet"]
+      },
+      {
+        "id": "tab_forgiven",
+        "summary": "She quietly wipes a tab that has been running too long and says the machine lost it.",
+        "meanwhile_fr": "Margaux a effacé une ardoise qui traînait ; elle jure que c'est la caisse qui a tout perdu.",
+        "witnesses": ["augustin_de_roncourt"]
+      },
+      {
+        "id": "licence_trouble",
+        "summary": "A licensing inspection is announced and she tells nobody it worries her.",
+        "meanwhile_fr": "Un contrôle est annoncé au Mistral ; Margaux dit que ça ne l'inquiète pas du tout.",
+        "witnesses": ["romy_tremblay"]
+      },
+      {
+        "id": "old_photo",
+        "summary": "She finds a photograph of the bar from before any of them and puts it behind the till.",
+        "meanwhile_fr": "Margaux a retrouvé une vieille photo du bar et l'a glissée derrière la caisse.",
+        "witnesses": ["lila_bonnet", "romy_tremblay"]
+      }
+    ]
   },
 
   "season_arcs": [
