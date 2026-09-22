@@ -39,6 +39,7 @@ from sqlalchemy.orm import Session
 from app.db.models.mission import RealWorldMission
 from app.db.models.serial import SerialThread
 from app.db.models.user import User
+from app.db.savepoint import run_best_effort
 
 # The living story's own ledger keys. Imported rather than re-spelled so a rename
 # in living_story.py breaks loudly here instead of silently writing a second,
@@ -1006,11 +1007,17 @@ def awaiting_letter(db: Session, *, user: User) -> RealWorldMission | None:
 
     from app.services.missions import MissionScheduler
 
-    try:
-        return MissionScheduler(db)._open_ad_hoc_letter(user)
-    except Exception as exc:  # noqa: BLE001 — a letter is never worth the day
-        logger.warning("Courrier: awaiting-letter lookup failed: {}", str(exc))
-        return None
+    # WP-69: a letter is never worth the day — and on PostgreSQL a swallowed
+    # SQL error *is* the day, because it aborts the transaction the learner's
+    # request is inside (L5: a missing column, a 500 after 40 s, a journey
+    # stuck in `preparing`). The lookup runs inside a SAVEPOINT, so a failure
+    # rolls back only itself.
+    return run_best_effort(
+        db,
+        "Courrier: awaiting-letter lookup",
+        lambda: MissionScheduler(db)._open_ad_hoc_letter(user),
+        default=None,
+    )
 
 
 def journey_letter_facts(db: Session, *, user: User) -> dict[str, str] | None:
@@ -1066,13 +1073,21 @@ def journey_letter_provider(*, user_id: Any, local_date: Any = None, db: Session
 
     if db is None:
         return None
-    try:
-        user = db.get(User, user_id if not isinstance(user_id, str) else _as_uuid(user_id))
-    except Exception:  # noqa: BLE001 — an unreadable id is not a letter
-        return None
+    # WP-69: an unreadable id is not a letter, and not a broken transaction.
+    user = run_best_effort(
+        db,
+        "Courrier: letter-provider learner lookup",
+        lambda: db.get(User, user_id if not isinstance(user_id, str) else _as_uuid(user_id)),
+        default=None,
+    )
     if user is None:
         return None
-    facts = journey_letter_facts(db, user=user)
+    facts = run_best_effort(
+        db,
+        "Courrier: journey letter facts",
+        lambda: journey_letter_facts(db, user=user),
+        default=None,
+    )
     if not facts:
         return None
     return LetterOffer(**facts)

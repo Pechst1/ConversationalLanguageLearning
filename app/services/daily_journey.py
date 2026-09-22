@@ -49,6 +49,7 @@ from app.db.models.daily_journey import (
     DailyJourneyStep,
 )
 from app.db.models.user import User
+from app.db.savepoint import best_effort, run_best_effort, session_is_usable
 from app.schemas.daily_journey import (
     PRACTICE_ERRATA_HREF,
     AttemptResult,
@@ -165,6 +166,14 @@ PREPARING_RETRY_AFTER_SECONDS = 3
 UNAVAILABLE_RETRY_AFTER_SECONDS = 30
 MAX_GENERATION_ATTEMPTS = 3
 CANDIDATE_LIMIT = 3
+#: WP-69. The ``unavailable_reason`` a journey gets when a read finds it in
+#: ``preparing`` with a dead (or no) generation claim: the worker that owned it
+#: is gone, and the learner is offered a retry instead of an endless spinner.
+GENERATION_INTERRUPTED_REASON = "generation_interrupted"
+#: WP-69. Written into ``plan_selection["generation_fallback"]["kind"]`` when the
+#: story engine could not produce the day and an authored scene was served.
+#: Internal telemetry only: the learner is never told which one they got.
+AUTHORED_FALLBACK_KIND = "authored"
 #: How far back the scenario rotation looks. One journey per learner-local day,
 #: so this is a season of history and bounds the query.
 SCENARIO_HISTORY_LIMIT = 120
@@ -514,6 +523,29 @@ def _stored_day_shape(journey: DailyJourney) -> DayShape:
     except ValueError:
         return DEFAULT_DAY_SHAPE
 
+class _GenerationFailure(Exception):
+    """Why a scene could not be turned into a playable day (WP-69).
+
+    Carries exactly what :meth:`DailyJourneyService._mark_unavailable` needs,
+    plus whether an authored scene may stand in for it. Adapter outages are
+    never eligible: the authored path goes through the same adapters.
+    """
+
+    def __init__(
+        self,
+        reason: str,
+        *,
+        retry_allowed: bool = True,
+        retry_after_seconds: int = UNAVAILABLE_RETRY_AFTER_SECONDS,
+        fallback_eligible: bool = False,
+    ) -> None:
+        super().__init__(reason)
+        self.reason = reason
+        self.retry_allowed = retry_allowed
+        self.retry_after_seconds = retry_after_seconds
+        self.fallback_eligible = fallback_eligible
+
+
 class DailyJourneyService:
     """Transaction boundary and state machine for the Atelier V2 daily journey."""
 
@@ -533,6 +565,9 @@ class DailyJourneyService:
         control_language = normalize_control_language(user.native_language)
 
         journey = self._occupying_journey(user)
+        if journey is not None and self._heal_interrupted(journey):
+            # WP-69: a dead `preparing` journey no longer occupies the day.
+            journey = self._occupying_journey(user)
         if journey is None:
             fallback_tz = resolve_timezone(timezone_hint)
             today = local_date_for(fallback_tz)
@@ -580,14 +615,78 @@ class DailyJourneyService:
         safe answer — the client then behaves exactly as it did before.
         """
 
-        try:
-            return has_live_prefetch(self.db, user)
-        except Exception:  # pragma: no cover - a cache must never break the day
-            logger.exception("daily_journey: prefetch warmth lookup failed")
-            return False
+        return run_best_effort(
+            self.db,
+            "daily_journey: prefetch warmth lookup",
+            lambda: bool(has_live_prefetch(self.db, user)),
+            default=False,
+            log=logger,
+        )
 
     def get_journey(self, user: User, journey_id: uuid.UUID) -> JourneySnapshot:
-        return self.snapshot(self._journey_or_404(user, journey_id))
+        journey = self._journey_or_404(user, journey_id)
+        self._heal_interrupted(journey)
+        return self.snapshot(journey)
+
+    def _heal_interrupted(self, journey: DailyJourney) -> bool:
+        """WP-69 (L6): a `preparing` journey whose claim is dead becomes retryable.
+
+        The worker that claimed the generation is gone (crashed, killed, or a
+        request that died on an aborted transaction), so nothing will ever move
+        the journey out of `preparing` and the learner watches «Deine Szene wird
+        gerade vorbereitet» forever. A read cannot generate — `GET` never pays
+        for content (CONTRACTS §4) — so it does the one safe thing: it moves the
+        journey to `unavailable` with a retry offered at once. `POST /retry` then
+        regenerates under a fresh claim.
+
+        Compare-and-set on the revision *and* the claim the read observed, so a
+        worker that reclaimed the journey a moment ago is never overwritten, and
+        two concurrent reads heal it once. Returns whether this call healed it.
+        """
+
+        if JourneyStatus(journey.status) is not JourneyStatus.PREPARING:
+            return False
+        if self._claim_is_live(journey):
+            return False
+        observed_claim = journey.generation_claim_id
+        claim_matches = (
+            DailyJourney.generation_claim_id.is_(None)
+            if observed_claim is None
+            else DailyJourney.generation_claim_id == observed_claim
+        )
+        try:
+            result = self.db.execute(
+                update(DailyJourney)
+                .where(
+                    DailyJourney.id == journey.id,
+                    DailyJourney.status == str(JourneyStatus.PREPARING),
+                    DailyJourney.revision == journey.revision,
+                    claim_matches,
+                )
+                .values(
+                    status=str(JourneyStatus.UNAVAILABLE),
+                    unavailable_reason=GENERATION_INTERRUPTED_REASON,
+                    unavailable_retry_allowed=True,
+                    unavailable_retry_after_seconds=0,
+                    generation_claim_id=None,
+                    generation_claimed_at=None,
+                    revision=journey.revision + 1,
+                )
+                .execution_options(synchronize_session=False)
+            )
+            healed = result.rowcount == 1
+            self.db.commit()
+        except Exception:  # pragma: no cover - a read must never 500 on a repair
+            logger.exception("daily_journey: could not heal an interrupted journey")
+            self._rollback_quietly()
+            return False
+        self.db.refresh(journey)
+        if healed:
+            logger.warning(
+                "daily_journey: journey %s was stuck preparing with a dead claim; now retryable",
+                journey.id,
+            )
+        return healed
 
     def get_capability_progress(self, user: User) -> CapabilityProgress:
         control_language: ControlLanguage = normalize_control_language(
@@ -671,7 +770,7 @@ class DailyJourneyService:
             raise
 
         snapshot = self.snapshot(journey)
-        self._commit_mutation(receipt, journey, status_code, snapshot)
+        self._settle_receipt(receipt, journey, status_code, snapshot)
         return snapshot, status_code
 
     def retry_journey(
@@ -715,8 +814,30 @@ class DailyJourneyService:
             raise
 
         snapshot = self.snapshot(journey)
-        self._commit_mutation(receipt, journey, status_code, snapshot)
+        self._settle_receipt(receipt, journey, status_code, snapshot)
         return snapshot, status_code
+
+    def _settle_receipt(
+        self,
+        receipt: DailyJourneyMutation,
+        journey: DailyJourney,
+        status_code: int,
+        snapshot: JourneySnapshot,
+    ) -> None:
+        """Commit a create/retry receipt — unless the answer was "still preparing".
+
+        WP-69: a 202 says *somebody else is generating, look again*. It has no
+        effect to protect, and committing it as the receipt meant the client's
+        next tap with the same key replayed "preparing" forever — even after
+        that other worker had died. The key is released instead, so the same
+        request asked again is answered again.
+        """
+
+        if status_code == http_status.HTTP_202_ACCEPTED:
+            self._release_mutation(receipt)
+            self.db.commit()
+            return
+        self._commit_mutation(receipt, journey, status_code, snapshot)
 
     # ------------------------------------------------------------------
     # Mutations
@@ -1316,7 +1437,10 @@ class DailyJourneyService:
         if status_value is JourneyStatus.UNAVAILABLE:
             return {
                 "allowed": bool(journey.unavailable_retry_allowed)
-                and journey.generation_attempts < MAX_GENERATION_ATTEMPTS,
+                and (
+                    journey.generation_attempts < MAX_GENERATION_ATTEMPTS
+                    or self._authored_rescue_possible(journey)
+                ),
                 "after_seconds": journey.unavailable_retry_after_seconds,
             }
         return None
@@ -1336,10 +1460,11 @@ class DailyJourneyService:
         the loop composes its own set, exactly as it does today.
         """
 
-        try:
+        with best_effort(
+            self.db, "daily_journey: due-concept lookup for practice_href", log=logger
+        ) as lookup:
             due = GrammarService(self.db).get_due_concepts(user=user, limit=1)
-        except Exception:  # pragma: no cover - the entry must never 500 Today
-            logger.exception("daily_journey: due-concept lookup for practice_href failed")
+        if lookup.failed:
             return practice_href_for(None)
         if not due:
             return practice_href_for(None)
@@ -1451,26 +1576,32 @@ class DailyJourneyService:
         deterministic priority order.
         """
 
-        try:
-            offer = self._offer_scenario(user)
-        except Exception:  # pragma: no cover - defensive: never break generation
-            logger.exception("daily_journey: scenario rotation failed")
-            return None
+        offer = run_best_effort(
+            self.db,
+            "daily_journey: scenario rotation",
+            lambda: self._offer_scenario(user),
+            default=None,
+            log=logger,
+        )
         key = getattr(offer, "scenario_key", None)
         return str(key) if key else None
 
     def _available_descriptor(self, user: User) -> ScenarioDescriptor | None:
+        result: Any = None
         try:
-            result = self._offer_scenario(user)
+            with best_effort(
+                self.db,
+                "daily_journey: scenario preview",
+                reraise=(AdapterUnavailable,),
+                log=logger,
+            ):
+                result = self._offer_scenario(user)
         except AdapterUnavailable as exc:
             # Nothing is on offer, and saying "available: null" is the honest
             # answer. Creation then refuses with generation_unavailable.
             logger.error(
                 "daily_journey: content adapter unavailable (%s)", exc.reason
             )
-            return None
-        except Exception:  # pragma: no cover - defensive: GET must never 500
-            logger.exception("daily_journey: scenario preview failed")
             return None
         if isinstance(result, ContentUnavailable) or result is None:
             return None
@@ -1643,9 +1774,17 @@ class DailyJourneyService:
             if JourneyStatus(occupying.status) is JourneyStatus.PREPARING:
                 if self._claim_is_live(occupying):
                     return occupying, http_status.HTTP_202_ACCEPTED
-                self._reclaim(occupying)
+                if not self._reclaim(occupying):
+                    # Another request took the claim a moment ago.
+                    return occupying, http_status.HTTP_202_ACCEPTED
                 return self._run_generation(
-                    user, occupying, payload.preferred_input_mode
+                    user,
+                    occupying,
+                    payload.preferred_input_mode,
+                    # Past the provider budget, a reclaim serves the authored
+                    # day instead of paying for a fourth story-engine call.
+                    authored_only=occupying.generation_attempts > MAX_GENERATION_ATTEMPTS
+                    and self._authored_fallback_enabled(),
                 )
             # A timezone change never rekeys or duplicates an open journey.
             return occupying, http_status.HTTP_200_OK
@@ -1712,13 +1851,40 @@ class DailyJourneyService:
             )
         return winner, http_status.HTTP_200_OK
 
-    def _reclaim(self, journey: DailyJourney) -> None:
-        """Take over an expired claim durably before calling a provider again."""
+    def _reclaim(self, journey: DailyJourney) -> bool:
+        """Take over an expired claim durably before calling a provider again.
 
-        journey.generation_claim_id = uuid.uuid4().hex
-        journey.generation_claimed_at = _utcnow()
-        journey.generation_attempts += 1
+        WP-69: compare-and-set on the claim this request observed and on the
+        revision, so two requests that both saw a dead claim cannot both take
+        it over and both pay for a generation. Returns whether this one won.
+        """
+
+        observed_claim = journey.generation_claim_id
+        claim_matches = (
+            DailyJourney.generation_claim_id.is_(None)
+            if observed_claim is None
+            else DailyJourney.generation_claim_id == observed_claim
+        )
+        result = self.db.execute(
+            update(DailyJourney)
+            .where(
+                DailyJourney.id == journey.id,
+                DailyJourney.status == str(JourneyStatus.PREPARING),
+                DailyJourney.revision == journey.revision,
+                claim_matches,
+            )
+            .values(
+                generation_claim_id=uuid.uuid4().hex,
+                generation_claimed_at=_utcnow(),
+                generation_attempts=journey.generation_attempts + 1,
+                revision=journey.revision + 1,
+            )
+            .execution_options(synchronize_session=False)
+        )
+        won = result.rowcount == 1
         self.db.commit()
+        self.db.refresh(journey)
+        return won
 
     def _claim_is_live(self, journey: DailyJourney) -> bool:
         claimed_at = _as_aware(journey.generation_claimed_at)
@@ -1748,14 +1914,20 @@ class DailyJourneyService:
                 current_revision=journey.revision,
                 refresh_href=refresh_href_for(journey.id),
             )
+        authored_only = False
         if journey.generation_attempts >= MAX_GENERATION_ATTEMPTS:
-            raise journey_error(
-                http_status.HTTP_503_SERVICE_UNAVAILABLE,
-                JourneyErrorCode.GENERATION_UNAVAILABLE,
-                "This journey could not be prepared. Try again later.",
-                current_revision=journey.revision,
-                refresh_href=refresh_href_for(journey.id),
-            )
+            # WP-69: the provider budget is spent, but the day is not lost while
+            # an authored scene can still be served — one more attempt, with no
+            # provider call in it.
+            if not self._authored_rescue_possible(journey):
+                raise journey_error(
+                    http_status.HTTP_503_SERVICE_UNAVAILABLE,
+                    JourneyErrorCode.GENERATION_UNAVAILABLE,
+                    "This journey could not be prepared. Try again later.",
+                    current_revision=journey.revision,
+                    refresh_href=refresh_href_for(journey.id),
+                )
+            authored_only = True
         if current is JourneyStatus.UNAVAILABLE:
             blocker = self._occupying_journey(user)
             if blocker is not None and blocker.id != journey.id:
@@ -1766,63 +1938,143 @@ class DailyJourneyService:
                     current_revision=journey.revision,
                     refresh_href=refresh_href_for(blocker.id),
                 )
-        journey.status = str(JourneyStatus.PREPARING)
-        journey.unavailable_reason = None
-        journey.generation_claim_id = uuid.uuid4().hex
-        journey.generation_claimed_at = _utcnow()
-        journey.generation_attempts += 1
-        journey.revision += 1
+        # WP-69: the claim is taken with a compare-and-set on the revision this
+        # request read, so two concurrent retries cannot both generate.
+        taken = self.db.execute(
+            update(DailyJourney)
+            .where(
+                DailyJourney.id == journey.id,
+                DailyJourney.revision == journey.revision,
+                DailyJourney.status == journey.status,
+            )
+            .values(
+                status=str(JourneyStatus.PREPARING),
+                unavailable_reason=None,
+                generation_claim_id=uuid.uuid4().hex,
+                generation_claimed_at=_utcnow(),
+                generation_attempts=journey.generation_attempts + 1,
+                revision=journey.revision + 1,
+            )
+            .execution_options(synchronize_session=False)
+        )
+        if taken.rowcount != 1:
+            self.db.rollback()
+            fresh = self.db.get(DailyJourney, journey.id)
+            if fresh is None:  # pragma: no cover - defensive
+                raise _not_found()
+            self.db.refresh(fresh)
+            busy = JourneyStatus(fresh.status) is JourneyStatus.PREPARING
+            return fresh, (http_status.HTTP_202_ACCEPTED if busy else http_status.HTTP_200_OK)
         self.db.commit()
-        return self._run_generation(user, journey, InputMode.TEXT)
+        self.db.refresh(journey)
+        return self._run_generation(
+            user, journey, InputMode.TEXT, authored_only=authored_only
+        )
 
     def _run_generation(
-        self, user: User, journey: DailyJourney, input_mode: InputMode
+        self,
+        user: User,
+        journey: DailyJourney,
+        input_mode: InputMode,
+        *,
+        authored_only: bool = False,
     ) -> tuple[DailyJourney, int]:
-        """Phase 2: provider work outside the lock, then verify the claim."""
+        """Phase 2: provider work outside the lock, then verify the claim.
 
+        WP-69: whatever happens in here, the journey does not stay in
+        `preparing`. An unexpected error is logged, the transaction is rolled
+        back to its last commit (the claim), and — if the claim is still ours —
+        the journey is marked `unavailable` with a retry offered. Before this, a
+        crash here left the learner looking at «wird vorbereitet» for the rest
+        of the day.
+        """
+
+        journey_id = journey.id
+        claim = journey.generation_claim_id
+        try:
+            return self._generate(user, journey, input_mode, authored_only=authored_only)
+        except HTTPException:
+            raise
+        except Exception:
+            logger.exception("daily_journey: generation crashed; journey %s made retryable", journey_id)
+            self._rollback_quietly()
+            fresh = self.db.get(DailyJourney, journey_id)
+            if fresh is None:  # pragma: no cover - defensive
+                raise _not_found() from None
+            self.db.refresh(fresh)
+            if fresh.generation_claim_id != claim or JourneyStatus(
+                fresh.status
+            ) is not JourneyStatus.PREPARING:
+                return fresh, http_status.HTTP_200_OK
+            return self._mark_unavailable(fresh, "generation_crashed")
+
+    def _generate(
+        self,
+        user: User,
+        journey: DailyJourney,
+        input_mode: InputMode,
+        *,
+        authored_only: bool,
+    ) -> tuple[DailyJourney, int]:
         if journey.steps:
             # Already planned. Step ids stay stable through a generation retry:
             # never re-plan a journey that already has a persisted plan.
             return self._activate_prepared(journey)
 
         claim = journey.generation_claim_id
-        # The family was chosen and persisted at create time (phase 1), so a
-        # generation retry re-serves the same scene instead of rotating under an
-        # in-flight journey. Only a journey whose snapshot predates that — or
-        # was written without a key — falls back to choosing now.
-        scenario_key = (journey.scenario_snapshot or {}).get("scenario_key")
-        if not scenario_key:
-            scenario_key = self._rotated_offer_key(user)
-        # WP-26 hot path. A prefetched scene whose cache key still matches the
-        # story revision, learner context and prompt version is served as-is;
-        # anything stale was discarded inside ``take_prefetched_scene`` rather
-        # than handed back. Taking one writes its consume row in this same
-        # transaction, so the scene is never generated or served twice.
         result: Any = None
-        try:
-            result = take_prefetched_scene(self.db, user, input_mode=input_mode)
-        except Exception:  # pragma: no cover - a cache must never break the day
-            logger.exception("daily_journey: prefetched scene lookup failed")
-            result = None
-        self.draft_prefetch_hit = result is not None
-        if result is None:
-            try:
-                result = self.adapters.content.build_scenario_context(
-                    self.db, user=user, scenario_key=scenario_key, input_mode=input_mode
-                )
-            except AdapterUnavailable as exc:
-                # The content module exists but is broken. Honest dead end, and a
-                # retry cannot help until someone fixes the module.
-                logger.error("daily_journey: content adapter unavailable (%s)", exc.reason)
-                result = ContentUnavailable(
-                    reason=f"content_adapter_{exc.reason}",
-                    retry_after_seconds=0,
-                    retry_allowed=False,
-                )
-            except Exception:
-                logger.exception("daily_journey: scenario generation failed")
-                result = ContentUnavailable(reason="generation_failed")
+        if authored_only:
+            # WP-69: the provider budget is spent. No provider call, no
+            # prefetch: straight to the authored day below.
+            result = ContentUnavailable(reason="generation_attempts_exhausted")
+            self.draft_prefetch_hit = False
+        else:
+            # The family was chosen and persisted at create time (phase 1), so a
+            # generation retry re-serves the same scene instead of rotating under
+            # an in-flight journey. Only a journey whose snapshot predates that —
+            # or was written without a key — falls back to choosing now.
+            scenario_key = (journey.scenario_snapshot or {}).get("scenario_key")
+            if not scenario_key:
+                scenario_key = self._rotated_offer_key(user)
+            # WP-26 hot path. A prefetched scene whose cache key still matches the
+            # story revision, learner context and prompt version is served as-is;
+            # anything stale was discarded inside ``take_prefetched_scene`` rather
+            # than handed back. Taking one writes its consume row in this same
+            # transaction, so the scene is never generated or served twice.
+            result = run_best_effort(
+                self.db,
+                "daily_journey: prefetched scene lookup",
+                lambda: take_prefetched_scene(self.db, user, input_mode=input_mode),
+                default=None,
+                log=logger,
+            )
+            self.draft_prefetch_hit = result is not None
+            if result is None:
+                try:
+                    with best_effort(
+                        self.db,
+                        "daily_journey: scenario generation",
+                        reraise=(AdapterUnavailable,),
+                        log=logger,
+                    ) as generation:
+                        result = self.adapters.content.build_scenario_context(
+                            self.db, user=user, scenario_key=scenario_key, input_mode=input_mode
+                        )
+                    if generation.failed:
+                        result = ContentUnavailable(reason="generation_failed")
+                except AdapterUnavailable as exc:
+                    # The content module exists but is broken. Honest dead end, and
+                    # a retry cannot help until someone fixes the module.
+                    logger.error("daily_journey: content adapter unavailable (%s)", exc.reason)
+                    result = ContentUnavailable(
+                        reason=f"content_adapter_{exc.reason}",
+                        retry_after_seconds=0,
+                        retry_allowed=False,
+                    )
 
+        # A generation that committed internally and then failed is outside any
+        # savepoint; make sure the claim check below runs on a live transaction.
+        self._ensure_usable_session()
         self.db.expire(journey)
         fresh = self.db.get(DailyJourney, journey.id)
         if fresh is None:  # pragma: no cover - defensive
@@ -1832,15 +2084,85 @@ class DailyJourneyService:
         ) is not JourneyStatus.PREPARING:
             # Another worker committed first; its result stands.
             return fresh, http_status.HTTP_200_OK
+        if not self._lock_claimed_row(fresh, claim):
+            # Taken over between the read and the lock: theirs stands too.
+            self.db.refresh(fresh)
+            return fresh, http_status.HTTP_200_OK
 
+        failure: _GenerationFailure | None
         if isinstance(result, ContentUnavailable):
-            return self._mark_unavailable(
-                fresh,
+            failure = _GenerationFailure(
                 result.reason,
                 retry_allowed=result.retry_allowed,
                 retry_after_seconds=result.retry_after_seconds,
+                # With the story engine on, every content failure is the
+                # engine's; an adapter outage is not, and the authored path
+                # would meet the same broken module.
+                fallback_eligible=not str(result.reason).startswith("content_adapter_"),
             )
+        else:
+            failure = self._prepare_scene(user, fresh, result, input_mode)
 
+        if failure is not None and failure.fallback_eligible and self._authored_fallback_enabled():
+            failure = self._serve_authored_fallback(user, fresh, input_mode, failure)
+
+        if failure is not None:
+            return self._mark_unavailable(
+                fresh,
+                failure.reason,
+                retry_allowed=failure.retry_allowed,
+                retry_after_seconds=failure.retry_after_seconds,
+            )
+        self._emit(JourneyEventName.STARTED, user, fresh, {})
+        return fresh, http_status.HTTP_201_CREATED
+
+    def _prepare_scene(
+        self,
+        user: User,
+        journey: DailyJourney,
+        brief: ScenarioBrief,
+        input_mode: InputMode,
+        *,
+        fallback: dict[str, Any] | None = None,
+    ) -> _GenerationFailure | None:
+        """Plan, bind and persist one brief as today's day — all or nothing.
+
+        Runs inside a SAVEPOINT (WP-69): a brief that cannot be planned or bound
+        leaves no half-written steps, learning session or serial episode
+        behind, so an authored scene can be tried on the same journey next.
+        Returns ``None`` when the journey is now active, else why not.
+        """
+
+        self._ensure_usable_session()
+        nested = self.db.begin_nested()
+        try:
+            self._plan_and_bind(user, journey, brief, input_mode, fallback=fallback)
+        except _GenerationFailure as failure:
+            self._rollback_savepoint(nested)
+            return failure
+        except HTTPException:
+            self._rollback_savepoint(nested)
+            raise
+        except Exception:
+            logger.exception("daily_journey: preparing the scene failed")
+            self._rollback_savepoint(nested)
+            return _GenerationFailure(
+                "planning_failed", fallback_eligible=bool(brief.story_context)
+            )
+        if nested.is_active:
+            nested.commit()
+        return None
+
+    def _plan_and_bind(
+        self,
+        user: User,
+        fresh: DailyJourney,
+        result: ScenarioBrief,
+        input_mode: InputMode,
+        *,
+        fallback: dict[str, Any] | None,
+    ) -> None:
+        story_brief = bool(result.story_context)
         # WP-24 §5, wired by WP-28. The learner's ranked due errata are read
         # before the plan is built, merged in front of the day's candidates by
         # the planner, and the target the plan actually keeps becomes the
@@ -1876,54 +2198,57 @@ class DailyJourneyService:
             because = self._plan_because(plan, list(candidates), errata)
         except AdapterUnavailable as exc:
             logger.error("daily_journey: %s adapter unavailable (%s)", exc.module_name, exc.reason)
-            return self._mark_unavailable(
-                fresh,
-                f"{exc.module_name}_{exc.reason}",
-                retry_allowed=False,
-                retry_after_seconds=0,
-            )
+            raise _GenerationFailure(
+                f"{exc.module_name}_{exc.reason}", retry_allowed=False, retry_after_seconds=0
+            ) from exc
         except Exception as exc:
             logger.exception("daily_journey: planning failed")
             if self._is_plan_unavailable(exc):
                 # A deterministic content defect (no setup, no ending, too long
                 # for five minutes). Retrying identical content cannot help.
-                return self._mark_unavailable(
-                    fresh,
+                raise _GenerationFailure(
                     str(getattr(exc, "reason", "plan_unavailable")),
                     retry_allowed=False,
                     retry_after_seconds=0,
-                )
-            return self._mark_unavailable(fresh, "planning_failed")
+                    fallback_eligible=story_brief,
+                ) from exc
+            raise _GenerationFailure("planning_failed", fallback_eligible=story_brief) from exc
 
         session = None
         try:
-            session = self.adapters.learning.ensure_journey_learning_session(
-                self.db, user=user, journey_id=fresh.id, scenario_key=str((result.story_context.get("draft") or {}).get("capability_key") or result.scenario_key)
-            )
-            # WP-05 adds and flushes but never commits; the id exists after flush.
-            self.db.flush()
+            with best_effort(
+                self.db,
+                "daily_journey: learning session bootstrap",
+                reraise=(AdapterUnavailable,),
+                log=logger,
+            ):
+                session = self.adapters.learning.ensure_journey_learning_session(
+                    self.db,
+                    user=user,
+                    journey_id=fresh.id,
+                    scenario_key=str(
+                        (result.story_context.get("draft") or {}).get("capability_key")
+                        or result.scenario_key
+                    ),
+                )
+                # WP-05 adds and flushes but never commits; the id exists after flush.
+                self.db.flush()
         except AdapterUnavailable as exc:
             # No canonical session means no canonical credit. Refuse the journey
             # rather than running one whose evidence goes nowhere.
-            logger.error(
-                "daily_journey: learning adapter unavailable (%s)", exc.reason
-            )
-            return self._mark_unavailable(
-                fresh,
-                f"{exc.module_name}_{exc.reason}",
-                retry_allowed=False,
-                retry_after_seconds=0,
-            )
-        except Exception:  # pragma: no cover - defensive
-            logger.exception("daily_journey: learning session bootstrap failed")
+            logger.error("daily_journey: learning adapter unavailable (%s)", exc.reason)
+            raise _GenerationFailure(
+                f"{exc.module_name}_{exc.reason}", retry_allowed=False, retry_after_seconds=0
+            ) from exc
 
-        if result.story_context:
+        if story_brief:
             from app.services.living_story import StoryUnavailable, bind_journey
+
             try:
                 result = bind_journey(self.db, user=user, journey=fresh, brief=result)
             except StoryUnavailable as exc:
-                return self._mark_unavailable(fresh, str(exc))
-        self._persist_plan(fresh, result, plan, input_mode, because=because)
+                raise _GenerationFailure(str(exc), fallback_eligible=True) from exc
+        self._persist_plan(fresh, result, plan, input_mode, because=because, fallback=fallback)
         fresh.learning_session_id = getattr(session, "id", None)
         fresh.status = str(JourneyStatus.ACTIVE)
         fresh.started_at = _utcnow()
@@ -1931,8 +2256,165 @@ class DailyJourneyService:
         fresh.generation_claimed_at = None
         fresh.revision += 1
         self.db.flush()
-        self._emit(JourneyEventName.STARTED, user, fresh, {})
-        return fresh, http_status.HTTP_201_CREATED
+
+    # ------------------------------------------------------------------
+    # WP-69 — the authored day, when the story engine cannot write one
+    # ------------------------------------------------------------------
+
+    def _authored_fallback_enabled(self) -> bool:
+        """Can an authored scene stand in for a failed story-engine day?
+
+        Only when the deployment opts in (``ATELIER_JOURNEY_AUTHORED_FALLBACK_ENABLED``),
+        only with the story engine on — with it off, the content *is* authored
+        and a failure there is the authored content's own — and only through a
+        content adapter that can resolve an authored family without generating
+        (the real ``journey_content``; the deterministic test stub cannot).
+        """
+
+        if not settings.ATELIER_STORY_ENGINE_ENABLED:
+            return False
+        if not getattr(settings, "ATELIER_JOURNEY_AUTHORED_FALLBACK_ENABLED", False):
+            return False
+        content = self.adapters.content
+        return callable(getattr(content, "resolve_scenario_brief", None)) and bool(
+            getattr(content, "SCENARIO_PRIORITY", None)
+        )
+
+    def _authored_rescue_possible(self, journey: DailyJourney) -> bool:
+        """One provider-free attempt past the budget, while the day has no plan."""
+
+        return (
+            self._authored_fallback_enabled()
+            and not journey.steps
+            and journey.generation_attempts <= MAX_GENERATION_ATTEMPTS
+        )
+
+    def _authored_fallback_brief(
+        self, user: User, journey: DailyJourney, input_mode: InputMode
+    ) -> ScenarioBrief | None:
+        """An authored scene for this learner's band, rotated like any other day.
+
+        ``level_band`` is left to the content module, which serves the
+        learner's own band or the nearest authored one (the authored ceiling is
+        A2, so a B1+ learner gets the A2 variant and its honest level note).
+        ``bind_serial=False`` keeps the stand-in out of the living story: it is
+        not a chapter, and it must not claim to be one.
+        """
+
+        content = self.adapters.content
+        resolve = content.resolve_scenario_brief
+        keys = [str(key) for key in (content.SCENARIO_PRIORITY or ())]
+        if not keys:
+            return None
+        first = run_best_effort(
+            self.db,
+            "daily_journey: authored fallback rotation",
+            lambda: self._rotated_scenario_key(user, keys),
+            default=None,
+            log=logger,
+        ) or keys[0]
+        for key in [first, *[item for item in keys if item != first]]:
+            brief = run_best_effort(
+                self.db,
+                f"daily_journey: authored fallback {key}",
+                lambda key=key: resolve(
+                    self.db,
+                    user=user,
+                    scenario_key=key,
+                    input_mode=input_mode,
+                    allow_generation=False,
+                    bind_serial=False,
+                ),
+                default=None,
+                log=logger,
+            )
+            if isinstance(brief, ScenarioBrief):
+                return brief
+        return None
+
+    def _serve_authored_fallback(
+        self,
+        user: User,
+        journey: DailyJourney,
+        input_mode: InputMode,
+        failure: _GenerationFailure,
+    ) -> _GenerationFailure | None:
+        """Try the authored day; ``None`` when it is now the learner's day."""
+
+        brief = self._authored_fallback_brief(user, journey, input_mode)
+        if brief is None:
+            logger.error(
+                "daily_journey: story engine failed (%s) and no authored scene resolved",
+                failure.reason,
+            )
+            return failure
+        marker = {
+            "kind": AUTHORED_FALLBACK_KIND,
+            "reason": str(failure.reason)[:120],
+            "scenario_key": str(brief.scenario_key),
+            "level_band": str(brief.level_band),
+            "at": _utcnow().isoformat(),
+        }
+        rescued = self._prepare_scene(user, journey, brief, input_mode, fallback=marker)
+        if rescued is not None:
+            logger.error(
+                "daily_journey: story engine failed (%s); the authored fallback failed too (%s)",
+                failure.reason,
+                rescued.reason,
+            )
+            return failure
+        logger.warning(
+            "daily_journey: story engine failed (%s); journey %s serves authored %s at %s",
+            failure.reason,
+            journey.id,
+            brief.scenario_key,
+            brief.level_band,
+        )
+        return None
+
+    def _lock_claimed_row(self, journey: DailyJourney, claim: str | None) -> bool:
+        """Write-lock the journey row while it is still ours to finish.
+
+        A no-op UPDATE guarded by the claim: on PostgreSQL it holds the row until
+        the plan commits, so a reclaim cannot interleave with persisting it; on
+        SQLite it opens the write transaction *before* the savepoint, so the
+        savepoint nests inside it instead of opening a read transaction that a
+        concurrent writer would make impossible to upgrade. Returns whether the
+        claim still matched.
+        """
+
+        result = self.db.execute(
+            update(DailyJourney)
+            .where(
+                DailyJourney.id == journey.id,
+                DailyJourney.generation_claim_id == claim,
+                DailyJourney.status == str(JourneyStatus.PREPARING),
+            )
+            .values(revision=DailyJourney.revision)
+            .execution_options(synchronize_session=False)
+        )
+        return result.rowcount == 1
+
+    def _ensure_usable_session(self) -> None:
+        if not session_is_usable(self.db):
+            logger.warning("daily_journey: the transaction was aborted; rolling back to the claim")
+            self._rollback_quietly()
+
+    def _rollback_quietly(self) -> None:
+        try:
+            self.db.rollback()
+        except Exception:  # pragma: no cover - the connection itself is gone
+            logger.exception("daily_journey: rollback failed")
+
+    def _rollback_savepoint(self, nested: Any) -> None:
+        try:
+            if nested.is_active:
+                nested.rollback()
+        except Exception:  # pragma: no cover - the connection itself is gone
+            logger.exception("daily_journey: savepoint rollback failed")
+            self._rollback_quietly()
+            return
+        self._ensure_usable_session()
 
     def _is_plan_unavailable(self, exc: BaseException) -> bool:
         """Is this WP-04's typed ``PlanUnavailable``?
@@ -1971,7 +2453,24 @@ class DailyJourneyService:
         WP-03's deterministic reasons (``scenario_not_authored`` and friends)
         arrive with ``retry_allowed=False``; the public ``retry`` hint then says
         so instead of promising a retry that cannot help.
+
+        WP-69: this must work on a transaction that something before it broke —
+        on 2026-09-22 it did not, and the journey stayed `preparing`. A session
+        that cannot run a statement is rolled back to its last commit (the
+        claim) first; if the claim is no longer this journey's to settle, the
+        row is returned as it stands.
         """
+
+        if not session_is_usable(self.db):
+            logger.warning("daily_journey: marking unavailable on an aborted transaction; rolling back")
+            self._rollback_quietly()
+            fresh = self.db.get(DailyJourney, journey.id)
+            if fresh is None:  # pragma: no cover - defensive
+                raise _not_found()
+            self.db.refresh(fresh)
+            journey = fresh
+            if JourneyStatus(journey.status) is not JourneyStatus.PREPARING:
+                return journey, http_status.HTTP_200_OK
 
         journey.status = str(JourneyStatus.UNAVAILABLE)
         journey.unavailable_reason = reason[:120]
@@ -2004,7 +2503,7 @@ class DailyJourneyService:
 
         previous_shape: DayShape | None = None
         missed = False
-        try:
+        with best_effort(self.db, "daily_journey: previous-day lookup", log=logger):
             yesterday = journey.local_date - timedelta(days=1)
             previous = self._journey_for_date(user, yesterday)
             if previous is None:
@@ -2014,8 +2513,6 @@ class DailyJourneyService:
                 missed = self._has_earlier_journey(user, journey.local_date)
             else:
                 previous_shape = _stored_day_shape(previous)
-        except Exception:  # pragma: no cover - defensive: a shape is not a day
-            logger.exception("daily_journey: previous-day lookup failed")
 
         story = brief.story_context if isinstance(brief.story_context, dict) else {}
         draft = story.get("draft") if isinstance(story.get("draft"), dict) else {}
@@ -2068,8 +2565,16 @@ class DailyJourneyService:
             # this learner, read inside this transaction. `None` — no letter
             # waiting, or no provider — makes «jour de lettre» ineligible
             # rather than empty.
-            letter=letter_offer_for(
-                user_id=str(user.id), local_date=journey.local_date, db=self.db
+            # WP-69: inside a SAVEPOINT. This is the lookup that cost the day
+            # on 2026-09-22 — a letter is never worth the day.
+            letter=run_best_effort(
+                self.db,
+                "daily_journey: Courrier letter offer",
+                lambda: letter_offer_for(
+                    user_id=str(user.id), local_date=journey.local_date, db=self.db
+                ),
+                default=None,
+                log=logger,
             ),
         )
 
@@ -2145,11 +2650,13 @@ class DailyJourneyService:
         learner's day.
         """
 
-        try:
-            return list(errata_targets_for_user(self.db, user))
-        except Exception:  # pragma: no cover - defensive: a queue is not a day
-            logger.exception("daily_journey: errata targets unavailable")
-            return []
+        return run_best_effort(
+            self.db,
+            "daily_journey: errata targets",
+            lambda: list(errata_targets_for_user(self.db, user)),
+            default=[],
+            log=logger,
+        )
 
     def _plan_because(
         self, plan: Any, candidates: list[Any], errata: list[Any]
@@ -2190,6 +2697,7 @@ class DailyJourneyService:
         input_mode: InputMode,
         *,
         because: dict[str, Any] | None = None,
+        fallback: dict[str, Any] | None = None,
     ) -> None:
         for existing in list(journey.steps):
             journey.steps.remove(existing)
@@ -2268,6 +2776,11 @@ class DailyJourneyService:
             "day_shape": str(getattr(plan, "day_shape", None) or DEFAULT_DAY_SHAPE),
             "shape_reason": str(getattr(plan, "shape_reason", "") or ""),
         }
+        if fallback:
+            # WP-69. The story engine could not write this day and an authored
+            # scene stands in. Telemetry only — nothing public reads it, and the
+            # learner is never shown a "fallback" label.
+            journey.plan_selection["generation_fallback"] = dict(fallback)
         journey.estimated_active_seconds = plan.estimated_active_seconds
         journey.serial_thread_id = brief.serial_thread_id
         journey.serial_episode_id = brief.serial_episode_id

@@ -19,6 +19,7 @@ from app.db.models.mission import RealWorldMission, RealWorldMissionAttempt, Rea
 from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
+from app.db.savepoint import best_effort
 
 # WP-64 — every write into `thread.state["living_story"]` on behalf of a letter
 # goes through this module, and nothing here reaches into that ledger directly.
@@ -3390,12 +3391,12 @@ class MissionScheduler:
     def _sweep_correspondence(self, user: User) -> list[RealWorldMission]:
         """Let overdue letters lapse. Never blocks the Courrier from opening."""
 
-        try:
-            return courrier.lapse_overdue_letters(self.db, user=user)
-        except Exception as exc:  # noqa: BLE001 — a cooled correspondent is not worth a 500
-            self.db.rollback()
-            logger.warning("Courrier expiry sweep failed: {}", str(exc))
-            return []
+        # WP-69: inside a SAVEPOINT, so a failed sweep rolls back only itself —
+        # never whatever the caller already has pending in this transaction.
+        lapsed: list[RealWorldMission] = []
+        with best_effort(self.db, "Courrier expiry sweep"):
+            lapsed = courrier.lapse_overdue_letters(self.db, user=user)
+        return lapsed
 
     def _open_ad_hoc_letter(self, user: User) -> RealWorldMission | None:
         return (
@@ -3421,23 +3422,23 @@ class MissionScheduler:
 
         if self._open_ad_hoc_letter(user) is not None:
             return None
-        try:
+        # WP-69: the day's Courrier outranks the extra, so a failure here rolls
+        # back to a SAVEPOINT (only this attempt), never the whole session.
+        created: RealWorldMission | None = None
+        with best_effort(self.db, "Extra Courrier letter"):
             story_letter = None
             if courrier.pending_chain_step(self.db, user=user) is None:
                 story_letter = courrier.story_letter_candidate(self.db, user=user)
                 if not story_letter:
                     return None
-            return await self.create(
+            created = await self.create(
                 user=user,
                 mission_type="message",
                 cadence="ad_hoc",
                 use_news=False,
                 story_letter=story_letter,
             )
-        except Exception as exc:  # noqa: BLE001 — the day's Courrier outranks the extra
-            self.db.rollback()
-            logger.warning("Extra Courrier letter unavailable: {}", str(exc))
-            return None
+        return created
 
     async def ensure_weekly(self, user: User) -> RealWorldMission:
         iso = date.today().isocalendar()
