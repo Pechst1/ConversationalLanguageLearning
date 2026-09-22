@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from loguru import logger
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -139,6 +140,88 @@ def record_client_error(
         payload=payload.model_dump(),
     )
     db.commit()
+
+
+
+# --- WP-73 pre-sign-in crash intake (begin) --------------------------------
+# Onboarding and sign-in crashes happen before there is a token, so the authed
+# intake above never saw them. This door takes no auth, so it is narrow: a hard
+# byte cap read before parsing, a strict schema (unknown fields refused), a
+# source allow-list, a path-only route, and a per-IP limit through WP-70's limiter.
+ANONYMOUS_CLIENT_ERROR_MAX_BYTES = 16_000
+ANONYMOUS_CLIENT_ERROR_LIMIT = 10
+ANONYMOUS_CLIENT_ERROR_WINDOW_SECONDS = 600
+ANONYMOUS_CLIENT_ERROR_SOURCES = frozenset({"web", "capacitor", "ios", "android"})
+
+
+class AnonymousClientErrorRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    message: str = Field(min_length=1, max_length=1000)
+    stack: str | None = Field(default=None, max_length=8000)
+    route: str | None = Field(default=None, max_length=200)
+    source: str = Field(default="web", max_length=20)
+    release: str | None = Field(default=None, max_length=80)
+
+    @field_validator("source")
+    @classmethod
+    def _known_source(cls, value: str) -> str:
+        if value not in ANONYMOUS_CLIENT_ERROR_SOURCES:
+            raise ValueError("unknown source")
+        return value
+
+    @field_validator("route")
+    @classmethod
+    def _path_only(cls, value: str | None) -> str | None:
+        # A query string or fragment can carry a token or a reset code: keep the path.
+        if value is None:
+            return None
+        path = value.split("?", 1)[0].split("#", 1)[0]
+        return path if path.startswith("/") else None
+
+
+def _anonymous_client_error_gate(request: Request) -> None:
+    """Rate limit per IP, then refuse an oversized body before it is parsed."""
+
+    from app.core import rate_limit
+
+    if not rate_limit.is_exempt(request):
+        rate_limit.enforce(
+            f"client-error:{rate_limit.client_ip(request)}",
+            limit=ANONYMOUS_CLIENT_ERROR_LIMIT,
+            window_seconds=ANONYMOUS_CLIENT_ERROR_WINDOW_SECONDS,
+            message="Too many crash reports from this network.",
+        )
+    declared = request.headers.get("content-length")
+    if declared and declared.isdigit() and int(declared) > ANONYMOUS_CLIENT_ERROR_MAX_BYTES:
+        raise HTTPException(status_code=status.HTTP_413_CONTENT_TOO_LARGE, detail="Report too large")
+
+
+@router.post(
+    "/client-error/anonymous",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(_anonymous_client_error_gate)],
+)
+def record_anonymous_client_error(
+    payload: AnonymousClientErrorRequest,
+    db: Session = Depends(deps.get_db),
+) -> None:
+    """Crash intake for the signed-out shell (onboarding, sign-in, placement)."""
+
+    from app.core.observability import current_request_id
+
+    record = payload.model_dump()
+    record["signed_in"] = False
+    record["request_id"] = current_request_id()
+    PilotEventService(db).record("client_crash", user_id=None, entity_type="client", payload=record)
+    db.commit()
+    logger.warning(
+        "Client crash (signed out)",
+        source=payload.source,
+        route=payload.route,
+        error_message=payload.message[:200],
+    )
+# --- WP-73 pre-sign-in crash intake (end) ----------------------------------
 
 
 @router.get("/pilot-daily")

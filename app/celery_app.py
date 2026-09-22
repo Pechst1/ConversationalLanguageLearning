@@ -32,6 +32,7 @@ celery_app = Celery(
         "app.tasks.atelier",
         "app.tasks.book_library",
         "app.tasks.journey_prefetch",
+        "app.tasks.health",
     ],
 )
 
@@ -88,6 +89,75 @@ celery_app.conf.beat_schedule = {
         "task": "app.tasks.atelier.retire_unhealthy_exercise_sets",
         "schedule": crontab(hour=4, minute=45),
     },
+    # WP-73: liveness — a fresh Redis heartbeat proves beat, broker and a worker.
+    "worker-heartbeat": {
+        "task": "app.tasks.health.worker_heartbeat",
+        "schedule": 60.0,
+    },
 }
+
+
+# --- WP-73 observability (begin) -------------------------------------------
+# Celery's own logging setup is skipped (connecting ``setup_logging`` does that)
+# so the worker writes the same JSON lines as the API, and Sentry starts in each
+# worker process only when SENTRY_DSN is set. The request id of the API call
+# that enqueued a task travels in the message headers and is bound while it runs.
+from celery import signals  # noqa: E402
+
+from app.core import observability  # noqa: E402
+
+
+@signals.setup_logging.connect
+def _wp73_setup_logging(**_: object) -> None:
+    observability.configure_logging()
+
+
+@signals.worker_process_init.connect
+@signals.beat_init.connect
+@signals.celeryd_init.connect
+def _wp73_init_sentry(**_: object) -> None:
+    if not observability.sentry_enabled():
+        observability.init_sentry("worker")
+
+
+@signals.worker_ready.connect
+def _wp73_first_heartbeat(**_: object) -> None:
+    try:
+        observability.write_heartbeat()
+    except Exception as exc:  # noqa: BLE001 — never block worker start on Redis
+        observability.logger.warning("Worker heartbeat write failed", error=type(exc).__name__)
+
+
+@signals.before_task_publish.connect
+def _wp73_propagate_request_id(headers: dict | None = None, **_: object) -> None:
+    request_id = observability.current_request_id()
+    if request_id and headers is not None:
+        headers.setdefault("request_id", request_id)
+
+
+_wp73_tokens: dict[str, object] = {}
+
+
+@signals.task_prerun.connect
+def _wp73_bind_request_id(task_id: str | None = None, task: object = None, **_: object) -> None:
+    request = getattr(task, "request", None)
+    incoming = getattr(request, "request_id", None) or (getattr(request, "headers", None) or {}).get("request_id")
+    request_id = observability.accept_request_id(incoming or task_id)
+    if task_id:
+        _wp73_tokens[task_id] = observability.request_id_var.set(request_id)
+    observability._sentry_tag("request_id", request_id)
+    if task is not None:
+        observability._sentry_tag("celery_task", getattr(task, "name", "") or "")
+
+
+@signals.task_postrun.connect
+def _wp73_unbind_request_id(task_id: str | None = None, **_: object) -> None:
+    token = _wp73_tokens.pop(task_id or "", None)
+    if token is not None:
+        try:
+            observability.request_id_var.reset(token)  # type: ignore[arg-type]
+        except ValueError:
+            observability.request_id_var.set(None)
+# --- WP-73 observability (end) ---------------------------------------------
 
 __all__ = ["celery_app"]

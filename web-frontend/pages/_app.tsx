@@ -17,6 +17,7 @@ import {
 import { resolveResumeHref } from '@/lib/journey-resume';
 import { installKeyboardFocusGuard, installKeyboardInsets } from '@/lib/journey-lifecycle';
 import { isNativePlatform } from '@/lib/native-platform';
+import { initObservability, isSignedInForObservability, setObservabilityUser } from '@/lib/observability';
 import '@/styles/globals.css';
 // Atelier V2 design system (WP-01). Next only permits a global stylesheet to be
 // imported from _app, so it is loaded here rather than from the components that
@@ -59,6 +60,14 @@ function AppLifecycle() {
     if (session.status === 'loading') return;
     syncAccountScope(accountScopeKey(identity));
   }, [identity, session.status]);
+
+  // WP-73: error tracking knows the learner by id only, and crash reports
+  // choose the signed-out intake while there is no session.
+  const userId = session.data?.user?.id || '';
+  useEffect(() => {
+    if (session.status === 'loading') return;
+    setObservabilityUser(userId || null);
+  }, [userId, session.status]);
 
   useEffect(() => installKeyboardInsets(), []);
   useEffect(() => installKeyboardFocusGuard(), []);
@@ -121,16 +130,30 @@ export default function App({
   }, [router]);
 
   useEffect(() => {
+    // WP-73: Sentry loads lazily and only when NEXT_PUBLIC_SENTRY_DSN is set.
+    void initObservability();
+  }, []);
+
+  useEffect(() => {
     let sent = false;
     const report = (message: string, stack?: string) => {
       if (sent) return;
       sent = true;
-      void apiService.recordClientError({
+      const body = {
         message: message.slice(0, 1000),
-        stack: stack?.slice(0, 12000),
+        stack: stack?.slice(0, 8000),
         route: window.location.pathname,
         source: isNativePlatform() ? 'capacitor' : 'web',
-      }).catch(() => undefined);
+      };
+      // WP-73: before sign-in (onboarding, placement, sign-in itself) the authed
+      // intake would answer 401, so those crashes go to the signed-out door.
+      const request = isSignedInForObservability()
+        ? apiService.recordClientError(body)
+        : apiService.post('/analytics/client-error/anonymous', body, {
+          skipAuth: true,
+          suppressGlobalError: true,
+        } as Parameters<typeof apiService.post>[2]);
+      void request.catch(() => undefined);
       window.setTimeout(() => { sent = false; }, 5000);
     };
     const onError = (event: ErrorEvent) => report(event.message || 'Unhandled client error', event.error?.stack);
