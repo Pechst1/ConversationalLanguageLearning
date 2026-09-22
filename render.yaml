@@ -27,6 +27,20 @@ services:
       # are false and SMTP_HOST + SMTP_FROM_EMAIL are set (below, dashboard).
       - key: APP_ENV
         value: production
+      # --- WP-73 observability (begin) ---------------------------------
+      # JSON log lines (extras + request_id). Sentry is a no-op until SENTRY_DSN
+      # is entered in the dashboard; the release tag defaults to RENDER_GIT_COMMIT.
+      - key: LOG_FORMAT
+        value: json
+      - key: SENTRY_DSN
+        sync: false
+      - key: SENTRY_ENVIRONMENT
+        value: production
+      - key: SENTRY_TRACES_SAMPLE_RATE
+        value: "0"
+      - key: WORKER_HEARTBEAT_STALE_SECONDS
+        value: "300"
+      # --- WP-73 observability (end) -----------------------------------
       - key: AUTO_CREATE_USERS_ON_LOGIN
         value: "false"
       - key: PASSWORD_RESET_RETURN_TOKEN_IN_RESPONSE
@@ -152,6 +166,17 @@ services:
       # Same environment as the API: the cohort rule below depends on it.
       - key: APP_ENV
         value: production
+      # --- WP-73 observability (begin) ---------------------------------
+      - key: LOG_FORMAT
+        value: json
+      - key: SENTRY_DSN
+        fromService:
+          type: web
+          name: atelier-api
+          envVarKey: SENTRY_DSN
+      - key: SENTRY_ENVIRONMENT
+        value: production
+      # --- WP-73 observability (end) -----------------------------------
       - key: SECRET_KEY
         fromService:
           type: web

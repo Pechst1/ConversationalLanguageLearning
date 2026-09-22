@@ -90,6 +90,15 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    # --- WP-73 observability (begin) -------------------------------------
+    # JSON logs with extras in production, stdlib logging into loguru, Sentry
+    # when SENTRY_DSN is set (no-op otherwise), X-Request-ID in and out, and
+    # GET /health/worker for Celery liveness (never part of /ready).
+    from app.core.observability import install_api_observability
+
+    install_api_observability(app)
+    # --- WP-73 observability (end) ---------------------------------------
+
     if settings.GRAPHIC_NOVEL_IMAGE_STORAGE == "local":
         settings.GRAPHIC_NOVEL_LOCAL_IMAGE_DIR.mkdir(parents=True, exist_ok=True)
         app.mount(

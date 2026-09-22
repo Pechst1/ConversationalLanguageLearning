@@ -1,3 +1,4 @@
+import { captureClientError, newRequestId } from '@/lib/observability';
 import type { StoryEpisode, StoryEpisodePage } from "@/types/daily-journey";
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import toast from 'react-hot-toast';
@@ -1826,6 +1827,8 @@ class ApiService {
         if (!requestConfig.skipAuth && token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
+        // WP-73: one id per call, echoed by the API and bound into its logs and Sentry.
+        if (!config.headers['X-Request-ID']) config.headers['X-Request-ID'] = newRequestId();
         return config;
       },
       (error) => {
@@ -1840,6 +1843,13 @@ class ApiService {
         const detail = error.response?.data?.detail;
         const message = apiErrorMessage(error);
         const requestConfig = error.config as SilentRequestConfig | undefined;
+        if ((error.response?.status ?? 0) >= 500) {
+          // WP-73: a server failure is findable from both sides by its request id.
+          captureClientError(error, {
+            requestId: error.response?.headers?.['x-request-id'] || requestConfig?.headers?.['X-Request-ID'],
+            route: requestConfig?.url,
+          });
+        }
 
         if (isUnauthorized(error) && isNativePlatform() && requestConfig && !requestConfig.skipAuth && !requestConfig._retryAuth) {
           requestConfig._retryAuth = true;
