@@ -3,7 +3,7 @@ import uuid
 from datetime import date, datetime, time
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Integer, String, Time
+from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Index, Integer, String, Time
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -105,10 +105,19 @@ class User(Base):
     pending_email = Column(String(255))
     pending_email_token_hash = Column(String(255))
     pending_email_requested_at = Column(DateTime(timezone=True))
+    # WP-71: the six-digit code a learner types on the phone. Stored as a keyed
+    # digest (never the digits), valid from `password_reset_requested_at` for
+    # 15 minutes, and cleared after five wrong guesses or one right one.
+    password_reset_code_hash = Column(String(128))
+    password_reset_code_attempts = Column(Integer, default=0)
 
     # Relationships
     grammar_progress = relationship("UserGrammarProgress", back_populates="user", lazy="dynamic")
     refresh_tokens = relationship("RefreshToken", back_populates="user", cascade="all, delete-orphan")
+
+    # WP-71: sign-in, reset and duplicate checks match email case-insensitively.
+    # Not unique: legacy rows may differ only by case and must stay readable.
+    __table_args__ = (Index("ix_users_email_lower", func.lower(email)),)
 
     def mark_activity(self, activity_date: date | None = None) -> None:
         """Update last activity and streak metadata."""
@@ -142,5 +151,12 @@ class RefreshToken(Base):
     last_used_at = Column(DateTime(timezone=True))
     user_agent = Column(String(255))
     ip_address = Column(String(64))
+    # WP-71: one sign-in is one family. Rotation records its single successor so
+    # a request that raced the rotation, a few seconds late, is handed that same
+    # successor instead of a 401; replaying a rotated token after the grace
+    # window revokes the whole family.
+    family_id = Column(UUID(as_uuid=True), index=True)
+    replaced_by_id = Column(UUID(as_uuid=True))
+    rotated_at = Column(DateTime(timezone=True))
 
     user = relationship("User", back_populates="refresh_tokens")

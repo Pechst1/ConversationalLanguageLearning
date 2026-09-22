@@ -24,6 +24,31 @@ ProficiencyLevel = Literal["beginner", "A1", "A2", "B1", "B2", "C1", "C2"]
 AddressPreference = Literal["feminine", "masculine", "neutral"]
 
 
+# WP-71. bcrypt reads 72 bytes and bcrypt 5 raises past that, so a longer new
+# password was a 500. Counted in UTF-8 bytes: «é» is two, most emoji four.
+PASSWORD_MAX_BYTES = 72
+PASSWORD_TOO_LONG_MESSAGE = (
+    f"Password is too long: at most {PASSWORD_MAX_BYTES} bytes "
+    "(accented letters count as two, emoji as four)."
+)
+
+
+def normalize_email_input(value: Any) -> Any:
+    """Emails are matched without case: strip and lowercase before validation."""
+
+    if isinstance(value, str):
+        return value.strip().lower()
+    return value
+
+
+def check_new_password_bytes(value: str) -> str:
+    """Refuse a new password bcrypt could not hash in full."""
+
+    if len(value.encode("utf-8")) > PASSWORD_MAX_BYTES:
+        raise ValueError(PASSWORD_TOO_LONG_MESSAGE)
+    return value
+
+
 class UserBase(BaseModel):
     """Shared properties of user representations."""
 
@@ -78,33 +103,66 @@ class UserCreate(UserBase):
 
     password: str = Field(min_length=8, max_length=128)
 
+    _normalize_email = field_validator("email", mode="before")(normalize_email_input)
+    _password_bytes = field_validator("password")(check_new_password_bytes)
+
 
 class UserLogin(BaseModel):
     """Schema for user login request."""
 
     email: EmailStr
-    password: str
+    # Not held to the 72-byte rule: an account created under bcrypt 4 may have a
+    # longer password, and checking it compares the prefix bcrypt stored.
+    password: str = Field(max_length=1024)
+
+    _normalize_email = field_validator("email", mode="before")(normalize_email_input)
 
 
 class PasswordResetRequest(BaseModel):
-    """Request a password reset link for an account email."""
+    """Request a password reset code (and link, where a public app URL exists)."""
 
     email: EmailStr
+
+    _normalize_email = field_validator("email", mode="before")(normalize_email_input)
 
 
 class PasswordResetRequestResponse(BaseModel):
     """Enumeration-safe password reset request response."""
 
     message: str
+    # Dev/test only (PASSWORD_RESET_RETURN_TOKEN_IN_RESPONSE); never in production.
     reset_token: str | None = None
     reset_url: str | None = None
+    reset_code: str | None = None
 
 
 class PasswordResetConfirm(BaseModel):
-    """Confirm a password reset with a one-time token."""
+    """Confirm a password reset with a one-time link token, or email plus code.
 
-    token: str = Field(min_length=16, max_length=256)
+    The six-digit code is the phone path (WP-71): no web host or universal link
+    is needed. The link token stays accepted for emails already sent.
+    """
+
+    token: str | None = Field(default=None, min_length=16, max_length=256)
+    email: EmailStr | None = None
+    code: str | None = Field(default=None, pattern=r"^\s*\d{6}\s*$")
     new_password: str = Field(min_length=8, max_length=128)
+
+    _normalize_email = field_validator("email", mode="before")(normalize_email_input)
+    _password_bytes = field_validator("new_password")(check_new_password_bytes)
+
+    @field_validator("code")
+    @classmethod
+    def strip_code(cls, value: str | None) -> str | None:
+        return value.strip() if value else value
+
+    @model_validator(mode="after")
+    def token_or_code(self) -> PasswordResetConfirm:
+        if self.token:
+            return self
+        if self.email and self.code:
+            return self
+        raise ValueError("Provide either a reset token, or the email and the six-digit code.")
 
 
 class UserRead(UserBase):
@@ -301,9 +359,13 @@ class UserPasswordChange(BaseModel):
     current_password: str
     new_password: str = Field(min_length=8, max_length=128)
 
+    _password_bytes = field_validator("new_password")(check_new_password_bytes)
+
 
 class UserEmailChange(BaseModel):
     """Email change payload for the current user."""
 
     current_password: str
     new_email: EmailStr
+
+    _normalize_email = field_validator("new_email", mode="before")(normalize_email_input)

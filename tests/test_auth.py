@@ -146,7 +146,7 @@ def test_user_login_success(client: TestClient) -> None:
     assert data["token_type"] == "bearer"
 
 
-def test_refresh_rotates_refresh_token(client: TestClient) -> None:
+def test_refresh_rotates_refresh_token(client: TestClient, monkeypatch) -> None:
     registration_payload = {
         "email": "refresh@example.com",
         "password": "supersecure",
@@ -167,6 +167,11 @@ def test_refresh_rotates_refresh_token(client: TestClient) -> None:
     assert data["access_token"]
     assert data["refresh_token"] != refresh_token
 
+    # WP-71: a replay after the grace window is refused (and revokes the family;
+    # tests/test_wp71_accounts.py covers the window itself).
+    from app.services import auth as auth_service
+
+    monkeypatch.setattr(auth_service, "REFRESH_TOKEN_GRACE_SECONDS", -1)
     replay_response = client.post("/api/v1/auth/refresh", json={"refresh_token": refresh_token})
     assert replay_response.status_code == 401
 
