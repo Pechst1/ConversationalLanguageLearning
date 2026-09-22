@@ -566,7 +566,9 @@ good. Never touch a thread already closed.
 world.arcs gives each arc's next_stage and whether it is blocked (blocked_by names
 what is missing: another stage's consequence, or too few days since the last one — a
 blocked arc is not the arc to play today). When the chapter's resolution really plays
-that stage, set arc_id, arc_stage_id and advances_arc true; when the chapter is a
+that stage, set arc_id, arc_stage_id (always that arc's next_stage.id — a stage already
+reached cannot be played again, and a later one cannot be skipped to) and advances_arc
+true; when the chapter is a
 good story that does not move an arc, leave advances_arc false and it is recorded
 honestly as a side story. Never claim a stage that did not happen in the scene.
 A practical problem that was already played may return EXACTLY ONCE, and only as an
@@ -3192,7 +3194,9 @@ def _variety_hint(variety: dict, what: str) -> str:
         f"{what}. Do not reword it: invent a different communicative need. "
         f"Objectives already used: {variety.get('used_objectives') or []}. "
         f"Unused characters: {variety.get('unused_characters') or variety.get('all_characters') or []}. "
-        f"Unused locations: {variety.get('unused_locations') or variety.get('all_locations') or []}."
+        f"Unused locations: {variety.get('unused_locations') or variety.get('all_locations') or []}. "
+        + _PINCER_EXIT
+        + str(variety.get("act_rule") or OTHER_ACTS)
     )
 
 
@@ -3218,7 +3222,18 @@ _ONE_SENTENCE_FRAMING = re.compile(
 _OBJECTIVE_MINIMUM_WORDS = {"B1": 10, "B2": 12, "C1": 14}
 
 
-def _check_objective_scope(objective: str, level: str | None) -> None:
+# Paid B1 review 2026-09-22: a thin objective was widened into the task already asked,
+# refused as a repeat, shrunk again, refused as thin — until the day was lost. Both
+# hints now name the same way out: a different act, not a bigger or smaller wording.
+_PINCER_EXIT = (
+    "Do not make an already-asked task bigger or smaller — a resized task is still a "
+    "repeat. Change what the learner DOES instead: "
+)
+
+
+def _check_objective_scope(
+    objective: str, level: str | None, *, asked: list[str] | None = None
+) -> None:
     floor = _OBJECTIVE_MINIMUM_WORDS.get(str(level or ""))
     if floor:
         if _ONE_SENTENCE_FRAMING.search(objective) or len(objective.split()) < floor:
@@ -3228,7 +3243,11 @@ def _check_objective_scope(objective: str, level: str | None) -> None:
                     f"A {level} learner is not asked for one sentence. Ask for a move: "
                     "a position with a reason, a counter-proposal with a condition, an "
                     "objection answered — two or three sentences, at least "
-                    f"{floor} words of objective. \"{objective}\" is an A2 ask."
+                    f"{floor} words of objective. \"{objective}\" is an A2 ask. "
+                    + _PINCER_EXIT
+                    + OTHER_ACTS
+                    + (f". Already asked: {list(asked)[-3:]}" if asked else "")
+                    + "."
                 ),
             )
         return
@@ -3386,7 +3405,11 @@ def _validate_scene(draft: SceneDraft, context: dict):
     _check_address(learner_text, (context.get("learner") or {}).get("address"))
     _check_register(learner_text, context.get("level"))
     _check_scene_address_register(draft)
-    _check_objective_scope(draft.objective_native, context.get("level"))
+    _check_objective_scope(
+        draft.objective_native,
+        context.get("level"),
+        asked=(context.get("variety") or {}).get("used_objectives"),
+    )
     _check_coverage(learner_text, context)
     # If a chapter is open and not yet exhausted, its question cannot silently disappear.
     chapter = context.get("chapter") or {}
@@ -3481,6 +3504,14 @@ def _validate_scene(draft: SceneDraft, context: dict):
         }
         if draft.arc_stage_id and stage_ids and draft.arc_stage_id not in stage_ids:
             draft.arc_stage_id = None
+        # Paid B1 review 2026-09-22: chapter 2 claimed `first_real` after chapter 1 had
+        # reached `almost`, and the writer — which advances one stage on any claim —
+        # would have credited the stage after `almost` for a scene that replayed an
+        # earlier one. A stage counts only when it is the arc's next stage; a claim of a
+        # stage already reached, or of one further ahead, is dropped, never a lost day.
+        next_id = str(((arc or {}).get("next_stage") or {}).get("id") or "")
+        if draft.arc_stage_id and next_id and draft.arc_stage_id != next_id:
+            draft.arc_stage_id, draft.advances_arc = None, False
     thread_keys = {
         str(row.get("key")) for row in context["world"].get("open_threads") or [] if isinstance(row, dict)
     }

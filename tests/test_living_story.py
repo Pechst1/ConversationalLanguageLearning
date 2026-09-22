@@ -2663,3 +2663,39 @@ def test_scheduling_is_an_act_that_rotates_too():
     again = base.model_copy(update={"objective_native": "Offer two other times to Lila."})
     fresh = base.model_copy(update={"objective_native": "Thank Lila for the portrait."})
     assert engine._scene_score(fresh, context) > engine._scene_score(again, context)
+
+
+def test_the_thin_and_repeat_hints_share_one_exit():
+    """Paid B1 review 2026-09-22: thin → widened into a repeat → shrunk → thin, day lost."""
+
+    asked = ["Say whether you will stay with Romy during the meeting; give one reason."]
+    with pytest.raises(engine.StoryUnavailable) as thin:
+        engine._check_objective_scope("Promise to stay (one sentence).", "B1", asked=asked)
+    assert "a resized task is still a repeat" in thin.value.feedback
+    assert asked[0] in thin.value.feedback
+    hint = engine._variety_hint({"act_rule": "Rotate the act."}, "this objective repeats x")
+    assert "a resized task is still a repeat" in hint and "Rotate the act." in hint
+
+
+def test_a_stage_claim_counts_only_for_the_arcs_next_stage():
+    """Paid B1 review 2026-09-22: chapter 2 claimed a stage chapter 1 had already passed."""
+
+    arcs = [
+        {
+            "id": "romy_romance",
+            "stages": [{"id": "spark"}, {"id": "first_real"}, {"id": "almost"}, {"id": "tentpole"}],
+            "next_stage": {"id": "tentpole"},
+        }
+    ]
+    base = _scene_context()
+    context = {**base, "world": {**base["world"], "arcs": arcs}}
+    proposal = engine.SceneDraft.model_validate(
+        {**draft(context, 0), "arc_id": "romy_romance", "arc_stage_id": "first_real", "advances_arc": True}
+    )
+    engine._validate_scene(proposal, context)
+    assert proposal.arc_stage_id is None and proposal.advances_arc is False
+    honest = engine.SceneDraft.model_validate(
+        {**draft(context, 0), "arc_id": "romy_romance", "arc_stage_id": "tentpole", "advances_arc": True}
+    )
+    engine._validate_scene(honest, context)
+    assert honest.arc_stage_id == "tentpole" and honest.advances_arc is True
