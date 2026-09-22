@@ -107,7 +107,7 @@ const htmlHas = (html, text) => html.includes(escapeHtml(text));
 const state = require('./journey-state.ts');
 const episodeModel = require('./story-episode-model.ts');
 const requests = require('./journey-requests.ts');
-const { journeyCopy } = require('./journey-copy.ts');
+const { journeyCopy, journeyStatusCopy } = require('./journey-copy.ts');
 const steps = require('./JourneySteps.tsx');
 const { JourneySession } = require('./JourneySession.tsx');
 const { JourneyTodayCard } = require('./JourneyTodayCard.tsx');
@@ -931,7 +931,11 @@ const noSleep = () => Promise.resolve();
       onOpen: () => {},
     }),
   );
-  assert.ok(htmlHas(preparingHtml, EN.preparing_title) && htmlHas(preparingHtml, EN.preparing_retry));
+  // WP-69: a status card is one language — the learner's — button included.
+  const STATUS_EN = journeyStatusCopy('en');
+  assert.ok(htmlHas(preparingHtml, STATUS_EN.preparing_title) && htmlHas(preparingHtml, STATUS_EN.preparing_retry));
+  assert.ok(!htmlHas(preparingHtml, EN.preparing_retry), 'no French button under an English status');
+  assert.equal(state.phaseFromJourney(fixture('preparing').response).retryAllowed, Boolean(fixture('preparing').response.retry?.allowed));
   assert.ok(!htmlHas(preparingHtml, EN.start), 'never a second start while one is preparing');
 
   // A finished day is a read: no start, no restart.

@@ -227,7 +227,7 @@ async function main() {
     // The server's generation claim is 90 s and its operation budget 75 s. A
     // client bound below the operation budget would give up on requests the
     // server is about to answer; one that never fires is the dead end.
-    assert.ok(MUTATION_DEADLINE_MS >= 45_000);
+    assert.ok(MUTATION_DEADLINE_MS > 75_000, "WP-69: above the server budget");
     assert.ok(MUTATION_DEADLINE_MS <= 90_000);
     assert.ok(WAIT_HINT_DELAY_MS > 0 && WAIT_HINT_DELAY_MS <= 1000);
   });

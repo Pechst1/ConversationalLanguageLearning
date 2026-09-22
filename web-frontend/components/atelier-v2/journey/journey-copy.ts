@@ -683,6 +683,19 @@ const CHROME_FR: Partial<CopyTable> = Object.fromEntries(
   CHROME_KEYS.map((key) => [key, FR[key]]),
 ) as Partial<CopyTable>;
 
+/**
+ * WP-69 (L6/L7) — status cards speak one language.
+ *
+ * «Heute wird vorbereitet» above a «Vérifier à nouveau» button was two
+ * languages in one card. Preparing / unavailable / load-failed cards carry no
+ * French content, so the whole card — eyebrow, title, body and its button —
+ * reads in the learner's language (WP-82: status in the learner's language up
+ * to A2). Scene cards keep the French chrome of {@link journeyCopy}.
+ */
+export function journeyStatusCopy(language: ControlLanguage | null | undefined): CopyTable {
+  return TABLES[(language ?? 'en') as ControlLanguage] ?? EN;
+}
+
 export function journeyCopy(language: ControlLanguage | null | undefined): CopyTable {
   const table = TABLES[(language ?? 'en') as ControlLanguage] ?? EN;
   return { ...table, ...CHROME_FR };

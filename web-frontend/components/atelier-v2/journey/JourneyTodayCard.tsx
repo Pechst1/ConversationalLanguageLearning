@@ -36,7 +36,7 @@ import {
 } from '@/components/atelier-v2/ui';
 import { atelierCopy, type AtelierCopy } from '@/lib/atelier-v2-copy';
 
-import { journeyCopy } from './journey-copy';
+import { journeyCopy, journeyStatusCopy } from './journey-copy';
 import { formatDuration, joinMeta, type JourneyPhase } from './journey-state';
 import type { DailyJourneyController } from './useDailyJourney';
 
@@ -57,6 +57,10 @@ export function JourneyTodayCard({
     ...atelierCopy(controller.controlLanguage),
     ...journeyCopy(controller.controlLanguage),
   };
+  const statusCopy: AtelierCopy = {
+    ...atelierCopy(controller.controlLanguage),
+    ...journeyStatusCopy(controller.controlLanguage),
+  };
   const { phase, busy, actions, legacyResume } = controller;
 
   if (phase.kind === 'disabled' || phase.kind === 'loading') return null;
@@ -67,6 +71,7 @@ export function JourneyTodayCard({
         <JourneyTodayBody
           phase={phase}
           copy={copy}
+          statusCopy={statusCopy}
           busy={busy}
           onOpen={onOpen}
           onStart={() => {
@@ -172,6 +177,7 @@ function JourneyPrimary({
 function JourneyTodayBody({
   phase,
   copy,
+  statusCopy,
   busy,
   controlLanguage,
   onOpen,
@@ -182,6 +188,7 @@ function JourneyTodayBody({
 }: {
   phase: JourneyPhase;
   copy: AtelierCopy;
+  statusCopy: AtelierCopy;
   busy: boolean;
   controlLanguage: DailyJourneyController['controlLanguage'];
   onOpen: () => void;
@@ -274,23 +281,30 @@ function JourneyTodayBody({
       );
     }
 
+    // WP-69: status cards are one language (the learner's), and the preparing
+    // button asks the server to take over a dead generation, not just re-read.
     case 'preparing':
       return (
-        <Card copy={copy} eyebrow={copy.today_eyebrow} title={copy.preparing_title}>
-          <p className="av2-body av2-body--lg">{copy.preparing_body}</p>
-          <Action tone="secondary" inline disabled={busy} onClick={onRefresh}>
-            {copy.preparing_retry}
+        <Card copy={statusCopy} eyebrow={statusCopy.today_eyebrow} title={statusCopy.preparing_title}>
+          <p className="av2-body av2-body--lg">{statusCopy.preparing_body}</p>
+          <Action
+            tone="secondary"
+            inline
+            disabled={busy}
+            onClick={phase.retryAllowed ? onRetryGeneration : onRefresh}
+          >
+            {statusCopy.preparing_retry}
           </Action>
         </Card>
       );
 
     case 'unavailable':
       return (
-        <Card copy={copy} eyebrow={copy.today_eyebrow} title={copy.unavailable_title}>
-          <p className="av2-body av2-body--lg">{copy.unavailable_body}</p>
+        <Card copy={statusCopy} eyebrow={statusCopy.today_eyebrow} title={statusCopy.unavailable_title}>
+          <p className="av2-body av2-body--lg">{statusCopy.unavailable_body}</p>
           {phase.retryAllowed && (
             <Action tone="secondary" inline disabled={busy} onClick={onRetryGeneration}>
-              {copy.unavailable_retry}
+              {statusCopy.unavailable_retry}
             </Action>
           )}
         </Card>
@@ -308,9 +322,9 @@ function JourneyTodayBody({
 
     case 'load_failed':
       return (
-        <Card copy={copy} eyebrow={copy.today_eyebrow} title={copy.transport_error}>
+        <Card copy={statusCopy} eyebrow={statusCopy.today_eyebrow} title={statusCopy.transport_error}>
           <Action tone="secondary" inline onClick={onRefresh}>
-            {copy.retry}
+            {statusCopy.retry}
           </Action>
         </Card>
       );

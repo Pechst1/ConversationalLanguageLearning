@@ -375,7 +375,12 @@ function JourneyPhaseView({
             tone="loading"
             title={copy.preparing_title}
             body={copy.preparing_body}
-            action={{ label: copy.preparing_retry, onSelect: () => void actions.refresh() }}
+            action={{
+              label: copy.preparing_retry,
+              // WP-69: take over a dead generation when the server allows it.
+              onSelect: () =>
+                void (phase.retryAllowed ? actions.retryGeneration() : actions.refresh()),
+            }}
           />
         </div>
       );

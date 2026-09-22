@@ -232,12 +232,15 @@ export const WARM_WAIT_HINT_DELAY_MS = 2_000;
  *
  * The server's own generation budget is 75 s and its provider window 35 s, so a
  * request still open after this has lost its answer, not merely delayed it.
+ * WP-69: it was 60 s — *under* that budget — so a slow but healthy draft was
+ * abandoned client-side at 60 s while the server finished it at 70. It now sits
+ * above the server budget with room for planning and the round trip.
  * Without this bound a hung socket leaves the journey `busy` forever with no
  * button to press — the dead end WP-26 §4 forbids. Crossing it produces a
  * *retryable* failure, never a verdict, and the mutation id is unchanged: the
  * retry is the same request, so the server's receipt still de-duplicates it.
  */
-export const MUTATION_DEADLINE_MS = 60_000;
+export const MUTATION_DEADLINE_MS = 90_000;
 
 /** The message a timed-out mutation carries into `planFailure`. */
 export const TIMEOUT_MESSAGE = 'request_timed_out';

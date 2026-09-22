@@ -51,7 +51,7 @@ export type JourneyPhase =
   | { kind: 'disabled'; envelope: TodayEnvelope | null }
   /** Enabled, nothing open: today's scenario can be started (or nothing is offered). */
   | { kind: 'offer'; envelope: TodayEnvelope; scenario: ScenarioDescriptor | null }
-  | { kind: 'preparing'; journey: JourneySnapshot; retryAfterSeconds: number }
+  | { kind: 'preparing'; journey: JourneySnapshot; retryAfterSeconds: number; retryAllowed: boolean }
   | {
       kind: 'unavailable';
       journey: JourneySnapshot;
@@ -139,6 +139,9 @@ export function phaseFromJourney(
         kind: 'preparing',
         journey,
         retryAfterSeconds: journey.retry?.after_seconds ?? 3,
+        // WP-69: the server says whether POST /retry may run. A live claim
+        // answers 202 without generating, so the button can always ask.
+        retryAllowed: journey.retry?.allowed ?? false,
       };
     case 'unavailable':
       return {
