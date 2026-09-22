@@ -726,7 +726,11 @@ def test_the_real_first_day_matches_the_frozen_first_journey_fixture(db_session,
         fixture_prompt = fixture_step["prompt"]
         if str(step.kind) == "recall":
             assert prompt["task_type"] == fixture_prompt["task_type"]
-            assert prompt["instruction_native"] == fixture_prompt["instruction_native"]
+            # Which of the two first-day words is posed as the choice follows the
+            # catalogue rows' ids, which a shared test database assigns in run
+            # order: the sentence frame is the contract, the word is either one.
+            frame = fixture_prompt["instruction_native"].split('"')[0]
+            assert prompt["instruction_native"].split('"')[0] == frame
             # Choice distractors are seeded by the catalogue row's id, which a
             # fresh database assigns differently: the count is the contract.
             assert len(prompt["options"]) == len(fixture_prompt["options"])
