@@ -1,17 +1,19 @@
 """LLM service with provider fallback and cost tracking."""
 from __future__ import annotations
 
-import logging
+import re
+import threading
 import time
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from typing import Any, ClassVar, Protocol
+from typing import Any, ClassVar, Protocol, TypeVar
 
 import httpx
 from loguru import logger
-from tenacity import before_sleep_log, retry, stop_after_attempt, wait_exponential
 
 from app.config import settings
+
+_T = TypeVar("_T")
 
 _AUDIO_EXTENSION_BY_MIME = {
     "audio/aac": "aac",
@@ -73,7 +75,316 @@ class LLMResult:
 
 
 class LLMProviderError(RuntimeError):
-    """Raised when a provider returns an error response."""
+    """Raised when a provider returns an error response.
+
+    ``retryable`` is true only for failures a second attempt can fix: timeouts,
+    dropped connections, HTTP 429 and 5xx. A 400/401/403/404 is our request or
+    our key, and asking again only pays again.
+    """
+
+    def __init__(
+        self,
+        message: str = "",
+        *,
+        status_code: int | None = None,
+        retryable: bool = False,
+    ) -> None:
+        super().__init__(message)
+        self.status_code = status_code
+        self.retryable = retryable
+
+
+class ProviderCircuitOpenError(LLMProviderError):
+    """The provider failed repeatedly; calls are refused until it cools down."""
+
+
+# ---------------------------------------------------------------------------
+# WP-70 — prices. Every priced call must carry a price; an unknown model is
+# billed at the highest known rate (and logged once), never at $0.
+# ---------------------------------------------------------------------------
+
+#: US$ per 1,000 tokens. Sources: the rates this table already carried, plus the
+#: OpenAI list prices for the gpt-5 family members the config can select
+#: (gpt-5: $1.25/$10 per 1M; gpt-5-nano: $0.05/$0.40 per 1M). ``gpt-5.5`` — the
+#: premium Feuilleton script model in render.yaml — has no price documented
+#: anywhere in this repository, so it deliberately falls through to the
+#: conservative rate below rather than being guessed.
+TEXT_PRICES_PER_1K_TOKENS: dict[str, dict[str, float]] = {
+    "gpt-5": {"prompt": 0.00125, "completion": 0.01},
+    "gpt-5-mini": {"prompt": 0.00025, "completion": 0.002},
+    "gpt-5-nano": {"prompt": 0.00005, "completion": 0.0004},
+    "gpt-5.4-mini": {"prompt": 0.00075, "completion": 0.0045},
+    "gpt-5.4-nano": {"prompt": 0.0002, "completion": 0.00125},
+    "gpt-4o-mini": {"prompt": 0.00015, "completion": 0.0006},
+    "gpt-4o": {"prompt": 0.0025, "completion": 0.01},
+    "gpt-3.5-turbo": {"prompt": 0.0005, "completion": 0.0015},
+    "claude-3-5-sonnet": {"prompt": 0.003, "completion": 0.015},
+    "claude-3-sonnet": {"prompt": 0.003, "completion": 0.015},
+}
+
+#: OpenAI speech, US$ per 1,000 input characters (tts-1 $15/1M, tts-1-hd $30/1M).
+TTS_PRICES_PER_1K_CHARS: dict[str, float] = {
+    "tts-1": 0.015,
+    "tts-1-hd": 0.030,
+}
+
+#: OpenAI transcription, US$ per minute of audio (mirrors transcription_cost.py).
+TRANSCRIPTION_PRICES_PER_MINUTE: dict[str, float] = {"whisper-1": 0.006}
+
+#: US$ per generated image at the app's default 1024px medium quality. The
+#: gpt-image rate is ``GRAPHIC_NOVEL_IMAGE_COST_USD_PER_PANEL`` (the documented
+#: gpt-image-2.5 price, same list price for -flare and -sunburst); dall-e-3 is
+#: the standard 1024x1024 list price used by the story visualisations.
+IMAGE_PRICES_PER_IMAGE: dict[str, float] = {
+    "gpt-image": float(getattr(settings, "GRAPHIC_NOVEL_IMAGE_COST_USD_PER_PANEL", 0.053) or 0.053),
+    "dall-e-3": 0.04,
+}
+
+#: A dated snapshot ("gpt-4o-mini-2024-07-18", "claude-3-5-sonnet-20241022",
+#: "...-latest") is priced as its family. Only a date or "latest" suffix counts:
+#: "gpt-5.5" must never be priced as "gpt-5".
+_SNAPSHOT_SUFFIX = re.compile(r"^-(\d{4}-\d{2}-\d{2}|\d{8}|latest|preview)$")
+
+_unknown_price_lock = threading.Lock()
+_unknown_price_logged: set[str] = set()
+
+
+def _log_unknown_price_once(kind: str, model: str, fallback: Any) -> None:
+    key = f"{kind}:{model}"
+    with _unknown_price_lock:
+        if key in _unknown_price_logged:
+            return
+        _unknown_price_logged.add(key)
+    logger.warning(
+        "No {} price for model {!r}; billing it at the highest known rate {} until it is added",
+        kind,
+        model,
+        fallback,
+    )
+
+
+def _lookup_price(table: dict[str, _T], model: str) -> _T | None:
+    normalized = (model or "").strip().lower()
+    if normalized in table:
+        return table[normalized]
+    best: str | None = None
+    for key in table:
+        if normalized.startswith(key) and _SNAPSHOT_SUFFIX.match(normalized[len(key):]):
+            if best is None or len(key) > len(best):
+                best = key
+    return table[best] if best is not None else None
+
+
+def conservative_text_price() -> dict[str, float]:
+    """The highest known per-token rates, billed for a model with no price."""
+
+    return {
+        "prompt": max(rates["prompt"] for rates in TEXT_PRICES_PER_1K_TOKENS.values()),
+        "completion": max(rates["completion"] for rates in TEXT_PRICES_PER_1K_TOKENS.values()),
+    }
+
+
+def text_price_for(model: str) -> tuple[dict[str, float], bool]:
+    """``(rates per 1K tokens, known)`` for a chat model."""
+
+    rates = _lookup_price(TEXT_PRICES_PER_1K_TOKENS, model)
+    if rates is not None:
+        return rates, True
+    fallback = conservative_text_price()
+    _log_unknown_price_once("text", model, fallback)
+    return fallback, False
+
+
+def estimate_text_cost_usd(model: str, prompt_tokens: int, completion_tokens: int) -> float:
+    rates, _known = text_price_for(model)
+    cost = (max(0, int(prompt_tokens or 0)) / 1000) * rates["prompt"] + (
+        max(0, int(completion_tokens or 0)) / 1000
+    ) * rates["completion"]
+    return round(cost, 6)
+
+
+def estimate_tts_cost_usd(model: str, char_count: int) -> float:
+    """Declared estimate for ``char_count`` synthesised characters on ``model``."""
+
+    rate = _lookup_price(TTS_PRICES_PER_1K_CHARS, model)
+    if rate is None:
+        rate = max(TTS_PRICES_PER_1K_CHARS.values())
+        _log_unknown_price_once("tts", model, rate)
+    return round(max(0, int(char_count or 0)) / 1000.0 * rate, 6)
+
+
+def estimate_image_cost_usd(model: str, images: int = 1) -> float:
+    """Declared estimate for ``images`` generated images on ``model``."""
+
+    normalized = (model or "").strip().lower()
+    rate = IMAGE_PRICES_PER_IMAGE["gpt-image"] if normalized.startswith("gpt-image") else _lookup_price(
+        IMAGE_PRICES_PER_IMAGE, normalized
+    )
+    if rate is None:
+        rate = max(IMAGE_PRICES_PER_IMAGE.values())
+        _log_unknown_price_once("image", model, rate)
+    return round(max(0, int(images or 0)) * rate, 6)
+
+
+# ---------------------------------------------------------------------------
+# WP-70 — retries under one deadline, and a circuit breaker per provider.
+# ---------------------------------------------------------------------------
+
+
+def _status_error(provider_label: str, status_code: int, message: str) -> LLMProviderError:
+    return LLMProviderError(
+        f"{provider_label} error {status_code}: {message}",
+        status_code=status_code,
+        retryable=status_code == 429 or status_code >= 500,
+    )
+
+
+def _transport_error(provider_label: str, exc: httpx.HTTPError) -> LLMProviderError:
+    kind = "timeout" if isinstance(exc, httpx.TimeoutException) else "transport error"
+    return LLMProviderError(f"{provider_label} {kind}: {exc}", retryable=True)
+
+
+class CircuitBreaker:
+    """Open after ``threshold`` consecutive provider failures, for ``open_seconds``.
+
+    A failure is a *call* that ended on a retryable error (timeout, connection,
+    429, 5xx) after its retries — a 4xx proves the provider is up and resets the
+    count. While open, calls are refused at once, so a provider outage costs a
+    learner a fast fallback instead of a 90-second wait on every request. After
+    the cool-down one call is let through; its failure re-opens the breaker.
+    State is per process (each uvicorn worker keeps its own).
+    """
+
+    def __init__(self, name: str) -> None:
+        self.name = name
+        self._lock = threading.Lock()
+        self._consecutive_failures = 0
+        self._open_until = 0.0
+
+    @staticmethod
+    def _threshold() -> int:
+        return max(1, int(getattr(settings, "LLM_CIRCUIT_BREAKER_THRESHOLD", 5) or 5))
+
+    @staticmethod
+    def _open_seconds() -> float:
+        return max(0.0, float(getattr(settings, "LLM_CIRCUIT_BREAKER_OPEN_SECONDS", 60.0) or 0.0))
+
+    def before_call(self) -> None:
+        with self._lock:
+            remaining = self._open_until - time.monotonic()
+        if remaining > 0:
+            raise ProviderCircuitOpenError(
+                f"{self.name} circuit open for another {remaining:.0f}s after repeated failures",
+                retryable=False,
+            )
+
+    def record_success(self) -> None:
+        with self._lock:
+            self._consecutive_failures = 0
+            self._open_until = 0.0
+
+    def record_failure(self) -> None:
+        with self._lock:
+            self._consecutive_failures += 1
+            if self._consecutive_failures >= self._threshold():
+                self._open_until = time.monotonic() + self._open_seconds()
+                opened = True
+            else:
+                opened = False
+        if opened:
+            logger.warning(
+                "LLM circuit for {} opened after {} consecutive failures",
+                self.name,
+                self._consecutive_failures,
+            )
+
+    @property
+    def is_open(self) -> bool:
+        with self._lock:
+            return self._open_until > time.monotonic()
+
+
+_breakers_lock = threading.Lock()
+_breakers: dict[str, CircuitBreaker] = {}
+
+
+def circuit_breaker_for(name: str) -> CircuitBreaker:
+    with _breakers_lock:
+        breaker = _breakers.get(name)
+        if breaker is None:
+            breaker = _breakers[name] = CircuitBreaker(name)
+        return breaker
+
+
+def reset_circuit_breakers() -> None:
+    """Close every breaker (tests, and an operator who knows the outage ended)."""
+
+    with _breakers_lock:
+        _breakers.clear()
+
+
+#: The first retry waits 1 s, then 2 s, 4 s … capped at 8 s — the old tenacity curve.
+_BACKOFF_BASE_SECONDS = 1.0
+_BACKOFF_MAX_SECONDS = 8.0
+#: No attempt is started with less than this left on the deadline.
+_MIN_ATTEMPT_SECONDS = 1.0
+
+
+def call_with_retries(
+    attempt: Callable[[float], _T],
+    *,
+    breaker: CircuitBreaker,
+    attempts: int,
+    deadline_seconds: float,
+    backoff_base_seconds: float = _BACKOFF_BASE_SECONDS,
+    sleep: Callable[[float], None] | None = None,
+) -> _T:
+    """Run ``attempt(timeout)`` until it succeeds, under one total deadline.
+
+    Only :class:`LLMProviderError` with ``retryable`` set is retried; any other
+    error is raised at once. Each attempt is handed the time still left on the
+    deadline as its timeout, and no retry is started (or slept towards) that
+    could not finish inside it — ``attempts × request_timeout`` is gone.
+    """
+
+    breaker.before_call()
+    total_attempts = max(1, int(attempts or 1))
+    deadline = max(_MIN_ATTEMPT_SECONDS, float(deadline_seconds or 0.0))
+    started = time.monotonic()
+    last_error: LLMProviderError | None = None
+    for index in range(1, total_attempts + 1):
+        remaining = deadline - (time.monotonic() - started)
+        if remaining <= 0 or (index > 1 and remaining < _MIN_ATTEMPT_SECONDS):
+            break
+        try:
+            result = attempt(remaining)
+        except LLMProviderError as exc:
+            last_error = exc
+            if not exc.retryable:
+                # The provider answered; the request was wrong. Not an outage.
+                breaker.record_success()
+                raise
+            if index == total_attempts:
+                break
+            wait = min(_BACKOFF_MAX_SECONDS, backoff_base_seconds * (2 ** (index - 1)))
+            if (time.monotonic() - started) + wait + _MIN_ATTEMPT_SECONDS > deadline:
+                break
+            logger.warning(
+                "{} attempt {}/{} failed, retrying in {:.0f}s: {}",
+                breaker.name,
+                index,
+                total_attempts,
+                wait,
+                str(exc)[:200],
+            )
+            (sleep or time.sleep)(wait)
+            continue
+        breaker.record_success()
+        return result
+    breaker.record_failure()
+    raise last_error or LLMProviderError(
+        f"{breaker.name}: deadline of {deadline:.0f}s exhausted", retryable=True
+    )
 
 
 class BaseLLMProvider(Protocol):
@@ -97,14 +408,12 @@ class OpenAIProvider:
 
     name: str = "openai"
 
-    COST_PER_1K_TOKENS: ClassVar[dict[str, dict[str, float]]] = {
-        "gpt-5-mini": {"prompt": 0.00025, "completion": 0.002},
-        "gpt-5.4-mini": {"prompt": 0.00075, "completion": 0.0045},
-        "gpt-5.4-nano": {"prompt": 0.0002, "completion": 0.00125},
-        "gpt-4o-mini": {"prompt": 0.00015, "completion": 0.0006},
-        "gpt-4o": {"prompt": 0.0025, "completion": 0.01},
-        "gpt-3.5-turbo": {"prompt": 0.0005, "completion": 0.0015},
-    }
+    #: WP-70: one shared table (unknown models are priced conservatively, never $0).
+    COST_PER_1K_TOKENS: ClassVar[dict[str, dict[str, float]]] = TEXT_PRICES_PER_1K_TOKENS
+
+    @property
+    def breaker(self) -> CircuitBreaker:
+        return circuit_breaker_for(f"{self.name}@{self.base_url}")
 
     def _build_headers(self) -> dict[str, str]:
         headers = {
@@ -117,10 +426,11 @@ class OpenAIProvider:
         return headers
 
     def _estimate_cost(self, usage: dict[str, Any], model: str | None = None) -> float:
-        model_rates = self.COST_PER_1K_TOKENS.get(model or self.model, {"prompt": 0.0, "completion": 0.0})
-        prompt_cost = (usage.get("prompt_tokens", 0) / 1000) * model_rates["prompt"]
-        completion_cost = (usage.get("completion_tokens", 0) / 1000) * model_rates["completion"]
-        return round(prompt_cost + completion_cost, 6)
+        return estimate_text_cost_usd(
+            model or self.model,
+            usage.get("prompt_tokens", 0),
+            usage.get("completion_tokens", 0),
+        )
 
     @staticmethod
     def _uses_completion_token_limit(model: str) -> bool:
@@ -129,19 +439,22 @@ class OpenAIProvider:
         return model.startswith("gpt-5")
 
     def generate(self, messages: Sequence[dict[str, str]], **kwargs: Any) -> LLMResult:
-        disable_retries = bool(kwargs.pop("disable_retries", False))
-        if disable_retries:
-            return self._generate_once(messages, **kwargs)
-        return self._generate_with_retries(messages, **kwargs)
+        """One chat completion, retried only on retryable errors.
 
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=1, max=8),
-        before_sleep=before_sleep_log(logger, logging.WARNING),
-        reraise=True,
-    )
-    def _generate_with_retries(self, messages: Sequence[dict[str, str]], **kwargs: Any) -> LLMResult:
-        return self._generate_once(messages, **kwargs)
+        ``request_timeout`` is the call's *total* budget (WP-70): every attempt
+        gets what is left of it. ``max_retries`` — ``LLM_MAX_RETRIES`` — is the
+        total number of attempts, the first included (the old tenacity policy
+        stopped after 3); ``disable_retries`` makes it one.
+        """
+
+        disable_retries = bool(kwargs.pop("disable_retries", False))
+        deadline = float(kwargs.pop("request_timeout", None) or self.request_timeout)
+        return call_with_retries(
+            lambda remaining: self._generate_once(messages, request_timeout=remaining, **kwargs),
+            breaker=self.breaker,
+            attempts=1 if disable_retries else self.max_retries,
+            deadline_seconds=deadline,
+        )
 
     def _generate_once(self, messages: Sequence[dict[str, str]], **kwargs: Any) -> LLMResult:
         model = kwargs.get("model", self.model)
@@ -162,8 +475,11 @@ class OpenAIProvider:
             payload["reasoning_effort"] = kwargs["reasoning_effort"]
 
         request_timeout = kwargs.get("request_timeout", self.request_timeout)
-        with httpx.Client(base_url=self.base_url, timeout=request_timeout) as client:
-            response = client.post("/chat/completions", json=payload, headers=self._build_headers())
+        try:
+            with httpx.Client(base_url=self.base_url, timeout=request_timeout) as client:
+                response = client.post("/chat/completions", json=payload, headers=self._build_headers())
+        except httpx.HTTPError as exc:
+            raise _transport_error("OpenAI", exc) from exc
 
         if response.status_code >= 400:
             try:
@@ -174,9 +490,9 @@ class OpenAIProvider:
 
             # Escape braces to prevent log format errors
             safe_error_msg = str(error_msg).replace("{", "{{").replace("}", "}}")
-            
+
             logger.error("OpenAI returned error", status=response.status_code, body=safe_error_msg)
-            raise LLMProviderError(f"OpenAI error {response.status_code}: {safe_error_msg}")
+            raise _status_error("OpenAI", response.status_code, safe_error_msg)
 
         data = response.json()
         choice = data.get("choices", [{}])[0]
@@ -210,18 +526,42 @@ class OpenAIProvider:
         filename: str | None = None,
         content_type: str | None = None,
     ) -> str:
-        """Transcribe audio using OpenAI Whisper."""
+        """Transcribe audio using OpenAI Whisper.
+
+        Retried (WP-70 policy) only when the upload is bytes — a file object
+        cannot be re-sent — and only on a retryable error.
+        """
         upload_filename, upload_content_type = _audio_upload_metadata(filename, content_type)
-        with httpx.Client(base_url=self.base_url, timeout=self.request_timeout) as client:
-            files = {"file": (upload_filename, file, upload_content_type)}
-            data = {"model": "whisper-1"}
-            response = client.post("/audio/transcriptions", files=files, data=data, headers={"Authorization": f"Bearer {self.api_key}"})
 
-        if response.status_code >= 400:
-            logger.error(f"OpenAI Whisper error: status={response.status_code} body={response.text}")
-            raise LLMProviderError(f"OpenAI Whisper error {response.status_code}: {response.text}")
+        def attempt(timeout: float) -> str:
+            try:
+                with httpx.Client(base_url=self.base_url, timeout=timeout) as client:
+                    files = {"file": (upload_filename, file, upload_content_type)}
+                    data = {"model": "whisper-1"}
+                    response = client.post(
+                        "/audio/transcriptions",
+                        files=files,
+                        data=data,
+                        headers={"Authorization": f"Bearer {self.api_key}"},
+                    )
+            except httpx.HTTPError as exc:
+                raise _transport_error("OpenAI Whisper", exc) from exc
 
-        return response.json().get("text", "")
+            if response.status_code >= 400:
+                logger.error(f"OpenAI Whisper error: status={response.status_code} body={response.text}")
+                raise _status_error("OpenAI Whisper", response.status_code, response.text)
+
+            return response.json().get("text", "")
+
+        return call_with_retries(
+            attempt,
+            breaker=self.breaker,
+            attempts=self.max_retries if isinstance(file, bytes | bytearray) else 1,
+            deadline_seconds=self.request_timeout,
+        )
+
+    #: One deadline for a spoken line, retries included (it was 3 × 60 s).
+    TTS_DEADLINE_SECONDS: ClassVar[float] = 60.0
 
     def text_to_speech(
         self,
@@ -236,35 +576,33 @@ class OpenAIProvider:
             "voice": voice,
             "response_format": "mp3",
         }
+
         # A spoken turn has no second chance on screen: a transient 5xx or a
         # dropped socket used to leave the learner with a silent character, so
         # retry briefly before giving up (kept short to stay inside a live call).
-        attempts = 3
-        last_error: Exception | None = None
-        for attempt in range(1, attempts + 1):
+        def attempt(timeout: float) -> bytes:
             try:
-                with httpx.Client(base_url=self.base_url, timeout=60.0) as client:
+                with httpx.Client(base_url=self.base_url, timeout=timeout) as client:
                     response = client.post(
                         "/audio/speech",
                         json=payload,
                         headers=self._build_headers(),
                     )
             except httpx.HTTPError as exc:
-                last_error = LLMProviderError(f"OpenAI TTS transport error: {exc}")
-            else:
-                if response.status_code < 400:
-                    logger.info("TTS generation success", chars=len(text), voice=voice, model=model)
-                    return response.content
+                raise _transport_error("OpenAI TTS", exc) from exc
+            if response.status_code >= 400:
                 logger.error("OpenAI TTS error", status=response.status_code, body=response.text)
-                last_error = LLMProviderError(
-                    f"OpenAI TTS error {response.status_code}: {response.text}"
-                )
-                if response.status_code < 500:
-                    break
-            if attempt < attempts:
-                time.sleep(0.6 * attempt)
+                raise _status_error("OpenAI TTS", response.status_code, response.text)
+            logger.info("TTS generation success", chars=len(text), voice=voice, model=model)
+            return response.content
 
-        raise last_error or LLMProviderError("OpenAI TTS error")
+        return call_with_retries(
+            attempt,
+            breaker=self.breaker,
+            attempts=3,
+            deadline_seconds=self.TTS_DEADLINE_SECONDS,
+            backoff_base_seconds=0.6,
+        )
 
 @dataclass
 class ElevenLabsProvider:
@@ -337,28 +675,28 @@ class AnthropicProvider:
     model: str
     base_url: str = "https://api.anthropic.com/v1"
     request_timeout: float = 30.0
+    max_retries: int = 3
 
     name: str = "anthropic"
 
-    COST_PER_1K_TOKENS: ClassVar[dict[str, dict[str, float]]] = {
-        "claude-3-5-sonnet": {"prompt": 0.003, "completion": 0.015},
-        "claude-3-sonnet": {"prompt": 0.003, "completion": 0.015},
-    }
+    #: WP-70: one shared table (unknown models are priced conservatively, never $0).
+    COST_PER_1K_TOKENS: ClassVar[dict[str, dict[str, float]]] = TEXT_PRICES_PER_1K_TOKENS
+
+    @property
+    def breaker(self) -> CircuitBreaker:
+        return circuit_breaker_for(f"{self.name}@{self.base_url}")
 
     def generate(self, messages: Sequence[dict[str, str]], **kwargs: Any) -> LLMResult:
-        disable_retries = bool(kwargs.pop("disable_retries", False))
-        if disable_retries:
-            return self._generate_once(messages, **kwargs)
-        return self._generate_with_retries(messages, **kwargs)
+        """Same policy as :meth:`OpenAIProvider.generate`."""
 
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=1, max=8),
-        before_sleep=before_sleep_log(logger, logging.WARNING),
-        reraise=True,
-    )
-    def _generate_with_retries(self, messages: Sequence[dict[str, str]], **kwargs: Any) -> LLMResult:
-        return self._generate_once(messages, **kwargs)
+        disable_retries = bool(kwargs.pop("disable_retries", False))
+        deadline = float(kwargs.pop("request_timeout", None) or self.request_timeout)
+        return call_with_retries(
+            lambda remaining: self._generate_once(messages, request_timeout=remaining, **kwargs),
+            breaker=self.breaker,
+            attempts=1 if disable_retries else self.max_retries,
+            deadline_seconds=deadline,
+        )
 
     def _generate_once(self, messages: Sequence[dict[str, str]], **kwargs: Any) -> LLMResult:
         payload: dict[str, Any] = {
@@ -382,12 +720,15 @@ class AnthropicProvider:
         }
 
         request_timeout = kwargs.get("request_timeout", self.request_timeout)
-        with httpx.Client(base_url=self.base_url, timeout=request_timeout) as client:
-            response = client.post("/messages", json=payload, headers=headers)
+        try:
+            with httpx.Client(base_url=self.base_url, timeout=request_timeout) as client:
+                response = client.post("/messages", json=payload, headers=headers)
+        except httpx.HTTPError as exc:
+            raise _transport_error("Anthropic", exc) from exc
 
         if response.status_code >= 400:
             logger.error("Anthropic returned error", status=response.status_code, body=response.text)
-            raise LLMProviderError(f"Anthropic error {response.status_code}: {response.text}")
+            raise _status_error("Anthropic", response.status_code, response.text)
 
         data = response.json()
         contents = data.get("content", [])
@@ -399,8 +740,7 @@ class AnthropicProvider:
         usage = data.get("usage", {})
         prompt_tokens = usage.get("input_tokens", 0)
         completion_tokens = usage.get("output_tokens", 0)
-        cost_info = self.COST_PER_1K_TOKENS.get(payload["model"], {"prompt": 0.0, "completion": 0.0})
-        cost = round((prompt_tokens / 1000) * cost_info["prompt"] + (completion_tokens / 1000) * cost_info["completion"], 6)
+        cost = estimate_text_cost_usd(payload["model"], prompt_tokens, completion_tokens)
 
         result = LLMResult(
             provider=self.name,
@@ -461,6 +801,7 @@ class LLMService:
                     model=settings.ANTHROPIC_MODEL,
                     base_url=settings.ANTHROPIC_API_BASE or "https://api.anthropic.com/v1",
                     request_timeout=settings.LLM_REQUEST_TIMEOUT_SECONDS,
+                    max_retries=settings.LLM_MAX_RETRIES,
                 )
             )
 
@@ -684,4 +1025,22 @@ class LLMService:
         raise LLMProviderError(f"Unsupported TTS provider: {target_provider}")
 
 
-__all__ = ["LLMService", "LLMResult", "LLMProviderError"]
+__all__ = [
+    "CircuitBreaker",
+    "IMAGE_PRICES_PER_IMAGE",
+    "LLMProviderError",
+    "LLMResult",
+    "LLMService",
+    "ProviderCircuitOpenError",
+    "TEXT_PRICES_PER_1K_TOKENS",
+    "TRANSCRIPTION_PRICES_PER_MINUTE",
+    "TTS_PRICES_PER_1K_CHARS",
+    "call_with_retries",
+    "circuit_breaker_for",
+    "conservative_text_price",
+    "estimate_image_cost_usd",
+    "estimate_text_cost_usd",
+    "estimate_tts_cost_usd",
+    "reset_circuit_breakers",
+    "text_price_for",
+]
