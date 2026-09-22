@@ -8,7 +8,7 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-COPY pyproject.toml README.md /app/
+COPY pyproject.toml README.md constraints.txt /app/
 COPY app /app/app
 COPY alembic /app/alembic
 COPY alembic.ini /app/
@@ -18,7 +18,10 @@ COPY vocabulary_fr_sample.csv /app/vocabulary_fr_sample.csv
 COPY docs/serial-episode-tentpole-*.md docs/serial-season-finale.md /app/docs/
 COPY docker/entrypoint.sh /app/docker/entrypoint.sh
 
-RUN pip install --no-cache-dir . \
+# WP-71: every install resolves against the tested pins in constraints.txt,
+# including the build backend and the spaCy model's own pip call.
+RUN export PIP_CONSTRAINT=/app/constraints.txt \
+    && pip install --no-cache-dir . \
     && python -m spacy download fr_core_news_sm \
     && chmod +x /app/docker/entrypoint.sh
 

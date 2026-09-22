@@ -22,12 +22,29 @@ services:
         value: "1"
       - key: BOOTSTRAP_REFERENCE_DATA
         value: "1"
+      # WP-71: production. app/main.py refuses to start production unless
+      # AUTO_CREATE_USERS_ON_LOGIN and PASSWORD_RESET_RETURN_TOKEN_IN_RESPONSE
+      # are false and SMTP_HOST + SMTP_FROM_EMAIL are set (below, dashboard).
       - key: APP_ENV
-        value: staging   # switch to production for the pilot (requires SMTP_* set)
+        value: production
       - key: AUTO_CREATE_USERS_ON_LOGIN
         value: "false"
       - key: PASSWORD_RESET_RETURN_TOKEN_IN_RESPONSE
         value: "false"
+      # Password reset emails a six-digit code typed in the app. SMTP_HOST and
+      # SMTP_FROM_EMAIL are required at startup; USERNAME/PASSWORD are the
+      # provider's credentials. SMTP_PORT (587) and SMTP_USE_TLS (true) default.
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_FROM_EMAIL
+        sync: false
+      - key: SMTP_USERNAME
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      # PASSWORD_RESET_BASE_URL is deliberately unset: with no public web app the
+      # email carries the code only. Set it to a public https URL of
+      # /auth/forgot-password once one exists and the email adds a link.
       - key: SECRET_KEY
         generateValue: true
       - key: DATABASE_URL
@@ -94,9 +111,10 @@ services:
       # in the dashboard and no learner's address is ever committed here.
       #
       # ROLLOUT §3: the owner's account ALONE for the first clean day, then the
-      # study accounts appended to the same list. Never blank this while the
-      # switch above is on — with APP_ENV=staging an empty cohort means every
-      # account on the service, which is the opposite of shrinking the pilot.
+      # study accounts appended to the same list. With APP_ENV=production an
+      # empty cohort means NOBODY gets the journey and '*' means EVERYONE
+      # (journey_enabled_for); which of the two the pilot runs is the owner's
+      # call, entered in the dashboard.
       - key: ATELIER_DAILY_JOURNEY_COHORT
         sync: false
       - key: PILOT_SERIAL_WEEKLY_COST_GUARDRAIL_USD
@@ -124,8 +142,9 @@ services:
         value: "0"
       - key: BOOTSTRAP_REFERENCE_DATA
         value: "0"
+      # Same environment as the API: the cohort rule below depends on it.
       - key: APP_ENV
-        value: staging
+        value: production
       - key: SECRET_KEY
         fromService:
           type: web
@@ -192,9 +211,10 @@ services:
       # in the dashboard and no learner's address is ever committed here.
       #
       # ROLLOUT §3: the owner's account ALONE for the first clean day, then the
-      # study accounts appended to the same list. Never blank this while the
-      # switch above is on — with APP_ENV=staging an empty cohort means every
-      # account on the service, which is the opposite of shrinking the pilot.
+      # study accounts appended to the same list. With APP_ENV=production an
+      # empty cohort means NOBODY gets the journey and '*' means EVERYONE
+      # (journey_enabled_for); which of the two the pilot runs is the owner's
+      # call, entered in the dashboard.
       - key: ATELIER_DAILY_JOURNEY_COHORT
         sync: false
       - key: APNS_TEAM_ID

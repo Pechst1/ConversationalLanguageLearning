@@ -1,0 +1,140 @@
+# Pinned runtime dependency set for the API and worker image (WP-71).
+#
+# pyproject.toml states the ranges the code accepts (all `>=`); this file pins
+# the exact versions the backend suite passes with, so a rebuild months from now
+# installs what was tested, not whatever PyPI released since. bcrypt 5 already
+# broke sign-up once by raising past 72 bytes where bcrypt 4 truncated.
+#
+# Used by the Dockerfile as a pip constraints file (PIP_CONSTRAINT), which also
+# covers `spacy download`. It is the full transitive closure of
+# [project].dependencies for CPython 3.11 on linux/x86_64 (the image's
+# python:3.11-slim-bookworm); every pin has a cp311 manylinux wheel.
+#
+# Regenerate from a venv that passes `pytest` (dev extras excluded):
+#   walk importlib.metadata from the [project].dependencies roots (with their
+#   extras, evaluating markers for python 3.11 on linux) and write
+#   name==version for every distribution reached.
+# Upgrade one package deliberately: change its line, rebuild, run the suite.
+aiohappyeyeballs==2.6.1
+aiohttp==3.13.5
+aiosignal==1.4.0
+alembic==1.17.2
+amqp==5.3.1
+annotated-doc==0.0.4
+annotated-types==0.7.0
+anyio==4.11.0
+attrs==26.1.0
+bcrypt==5.0.0
+beautifulsoup4==4.15.0
+billiard==4.2.3
+blis==1.3.3
+boto3==1.43.54
+botocore==1.43.54
+catalogue==2.0.10
+celery==5.5.3
+certifi==2025.11.12
+cffi==2.0.0
+charset-normalizer==3.4.4
+click==8.3.1
+click-didyoumean==0.3.1
+click-plugins==1.1.1.2
+click-repl==0.3.0
+cloudpathlib==0.23.0
+confection==0.1.5
+cryptography==46.0.3
+cymem==2.0.13
+defusedxml==0.7.1
+dnspython==2.8.0
+ecdsa==0.19.1
+email-validator==2.3.0
+fastapi==0.121.2
+flower==2.0.1
+frozenlist==1.8.0
+greenlet==3.2.4
+h11==0.16.0
+h2==4.3.0
+hpack==4.2.0
+http-ece==1.2.1
+httpcore==1.0.9
+httptools==0.7.1
+httpx==0.28.1
+humanize==4.14.0
+hyperframe==6.1.0
+idna==3.11
+jinja2==3.1.6
+jmespath==1.1.0
+joblib==1.5.3
+kombu==5.5.4
+loguru==0.7.3
+mako==1.3.10
+markdown-it-py==4.2.0
+markupsafe==3.0.3
+mdurl==0.1.2
+mlconjug3==4.0.1
+multidict==6.7.1
+murmurhash==1.0.15
+narwhals==2.24.0
+numpy==1.26.4
+orjson==3.11.4
+packaging==25.0
+passlib==1.7.4
+pillow==12.3.0
+preshed==3.0.12
+prometheus-client==0.23.1
+prompt-toolkit==3.0.52
+propcache==0.5.2
+psycopg2-binary==2.9.11
+py-vapid==1.9.4
+pyasn1==0.6.1
+pycparser==2.23
+pydantic==2.12.4
+pydantic-core==2.41.5
+pydantic-settings==2.12.0
+pygments==2.19.2
+python-dateutil==2.9.0.post0
+python-dotenv==1.2.1
+python-jose==3.5.0
+python-multipart==0.0.20
+pytz==2025.2
+pywebpush==2.3.0
+pyyaml==6.0.3
+redis==7.0.1
+requests==2.32.4
+rich==13.9.4
+rsa==4.9.1
+s3transfer==0.19.2
+scikit-learn==1.9.0
+scipy==1.17.1
+setuptools==80.9.0
+six==1.17.0
+smart-open==7.5.0
+sniffio==1.3.1
+soupsieve==2.9.1
+spacy==3.8.11
+spacy-legacy==3.0.12
+spacy-loggers==1.0.5
+sqlalchemy==2.0.44
+srsly==2.5.2
+starlette==0.49.3
+tenacity==9.1.2
+thinc==8.3.10
+threadpoolctl==3.6.0
+tomlkit==0.15.1
+tornado==6.5.2
+tqdm==4.67.1
+typer-slim==0.20.0
+typing-extensions==4.15.0
+typing-inspection==0.4.2
+tzdata==2025.2
+urllib3==2.5.0
+uvicorn==0.38.0
+uvloop==0.22.1
+vine==5.1.0
+wasabi==1.1.3
+watchfiles==1.1.1
+wcwidth==0.2.14
+weasel==0.4.3
+websockets==15.0.1
+wrapt==2.0.1
+yarl==1.23.0
+youtube-transcript-api==1.2.4
