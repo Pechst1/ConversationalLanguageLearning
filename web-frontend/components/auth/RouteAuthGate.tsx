@@ -8,6 +8,11 @@ const PUBLIC_PATHNAMES = new Set([
   '/auth/signin',
   '/auth/signup',
   '/auth/forgot-password',
+  // WP-72: the privacy policy and the terms must be readable before an account
+  // exists — sign-up links to them and App Review opens them signed out.
+  '/privacy',
+  '/terms',
+  // Dev/QA only, and pruned from the native export (scripts/native-export-prune.mjs).
   '/mobile-visual-qa',
   // Both of these are development-only: their `getStaticProps` returns
   // `notFound` when NODE_ENV is production, so the route does not exist in a

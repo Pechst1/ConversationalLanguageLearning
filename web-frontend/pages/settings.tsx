@@ -44,6 +44,7 @@ import {
     type AppTheme,
 } from '@/lib/app-preferences';
 import { resolveSettingsLanguage, settingsCopy, type SettingsCopy } from '@/lib/settings-copy';
+import { SETTINGS_LEGAL_COPY, legalHref, resolveLegalLanguage } from '@/lib/legal';
 import { INTEREST_TOPICS, interestTopicKey, interestTopicLabel } from '@/lib/interest-topics';
 import { apiService as api, type AddressPreference } from '@/services/api';
 import { appSignOut, useAppSession } from '@/lib/app-auth';
@@ -453,6 +454,8 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
         nativeLanguageKnown ? settings.nativeLanguage : null,
     );
     const copy = settingsCopy(copyLanguage);
+    const legalLanguage = resolveLegalLanguage(copyLanguage);
+    const legalCopy = SETTINGS_LEGAL_COPY[legalLanguage];
 
     const { confirm, dialog: confirmDialog } = useConfirmDialog(copy);
     const pendingScroll = useRef<SettingsSection | null>(null);
@@ -1497,6 +1500,27 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                     disabled={isSaving && privacyAction !== 'delete'}
                                 >
                                     {copy.action_delete}
+                                </Action>
+                            </Row>
+                            {/* WP-72: the two documents the learner accepted at sign-up. */}
+                            <Row label={legalCopy.privacy} hint={legalCopy.privacy_hint}>
+                                <Action
+                                    tone="secondary"
+                                    inline
+                                    data-legal-link="privacy"
+                                    onClick={() => void router.push(legalHref('privacy', legalLanguage))}
+                                >
+                                    {legalCopy.open}
+                                </Action>
+                            </Row>
+                            <Row label={legalCopy.terms} hint={legalCopy.terms_hint}>
+                                <Action
+                                    tone="secondary"
+                                    inline
+                                    data-legal-link="terms"
+                                    onClick={() => void router.push(legalHref('terms', legalLanguage))}
+                                >
+                                    {legalCopy.open}
                                 </Action>
                             </Row>
                         </div>

@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { ArrowRight, Plus } from 'lucide-react';
-import { Action, Chip } from '@/components/atelier-v2/ui';
+import { Action, BottomSheet, Chip } from '@/components/atelier-v2/ui';
 import {
   AuthChoices,
   AuthEyebrow,
@@ -18,7 +18,15 @@ import {
   AuthSpacer,
   AuthSteps,
 } from '@/components/auth/AuthShell';
+import { LegalDocumentView } from '@/components/legal/LegalDocumentView';
 import { sanitizeAuthCallbackUrl, useAppAuth } from '@/lib/app-auth';
+import {
+  LEGAL_VERSION,
+  SIGNUP_CONSENT,
+  legalDocument,
+  resolveLegalLanguage,
+  type LegalDocumentKind,
+} from '@/lib/legal';
 import { INTEREST_TOPICS } from '@/lib/interest-topics';
 import apiService from '@/services/api';
 import toast from 'react-hot-toast';
@@ -76,6 +84,9 @@ export default function SignUpPage() {
   // that actually shape the first edition.
   const [step, setStep] = React.useState<1 | 2>(1);
   const [selectedTopics, setSelectedTopics] = React.useState<string[]>([]);
+  // WP-72: the terms and the privacy policy open in a sheet, so reading them
+  // never costs the learner what they already typed.
+  const [legalSheet, setLegalSheet] = React.useState<LegalDocumentKind | null>(null);
   const destination = sanitizeAuthCallbackUrl(router.query.callbackUrl);
   const callbackQuery = destination === '/atelier' ? {} : { callbackUrl: destination };
   /* WP-25 — the onboarding hand-off. A learner arriving with no destination of
@@ -123,6 +134,9 @@ export default function SignUpPage() {
     });
   };
 
+  const legalLanguage = resolveLegalLanguage(watch('nativeLanguage'));
+  const consent = SIGNUP_CONSENT[legalLanguage];
+
   const onSubmit = async (data: FormData) => {
     setIsLoading(true);
     try {
@@ -146,6 +160,12 @@ export default function SignUpPage() {
          so nothing is retyped. */
       const signedIn = await auth.signInWithCredentials(data.email, data.password).catch(() => null);
       if (signedIn?.ok) {
+        /* WP-72: the consent line was on screen when the account was created;
+           record which version it named. Best effort — a failed record never
+           blocks the first edition, and the server keeps the timestamp. */
+        await apiService
+          .post('/legal/consent', { version: LEGAL_VERSION, surface: 'signup', language: legalLanguage })
+          .catch(() => undefined);
         router.push(landing);
         return;
       }
@@ -235,6 +255,20 @@ export default function SignUpPage() {
               />
 
               <AuthSpacer />
+
+              {/* WP-72 (Apple 5.1.1 / 5.1.2): one line, in the learner's own
+                  language, naming the AI provider and the two documents. */}
+              <p className="signup-consent" lang={legalLanguage} data-signup-consent>
+                {consent.ai} {consent.accept}{' '}
+                <button type="button" className="signup-consent__link" onClick={() => setLegalSheet('terms')}>
+                  {consent.terms}
+                </button>{' '}
+                {consent.and}{' '}
+                <button type="button" className="signup-consent__link" onClick={() => setLegalSheet('privacy')}>
+                  {consent.privacy}
+                </button>
+                {consent.end}
+              </p>
 
               <Action tone="primary" type="button" onClick={() => void goToSecondStep()}>
                 Continuer
@@ -358,6 +392,14 @@ export default function SignUpPage() {
             </>
           )}
         </form>
+
+        <BottomSheet
+          open={legalSheet !== null}
+          title={legalSheet ? legalDocument(legalSheet, legalLanguage).title : ''}
+          onClose={() => setLegalSheet(null)}
+        >
+          {legalSheet && <LegalDocumentView kind={legalSheet} language={legalLanguage} showTitle={false} />}
+        </BottomSheet>
       </AuthScreen>
 
       <style jsx global>{`
@@ -367,6 +409,23 @@ export default function SignUpPage() {
           flex-direction: column;
           gap: 14px;
           min-width: 0;
+        }
+        .av2 .signup-consent {
+          margin: 0;
+          font-size: 0.875rem;
+          line-height: 1.45;
+          color: var(--av2-muted);
+        }
+        .av2 .signup-consent__link {
+          display: inline;
+          padding: 0;
+          border: 0;
+          background: none;
+          font: inherit;
+          color: var(--av2-blue);
+          text-decoration: underline;
+          text-underline-offset: 2px;
+          cursor: pointer;
         }
         .av2 .signup-topics {
           display: flex;
