@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 
 import { getAppAccessToken } from '@/lib/app-auth';
 import { audioUploadFilename } from '@/lib/audio-recording';
-import { clearNativeAuthSession, refreshNativeAccessToken } from '@/lib/native-auth';
+import { recoverNativeAccessToken } from '@/lib/native-auth';
 import { isNativePlatform } from '@/lib/native-platform';
 import type {
   AdvanceBody,
@@ -1700,9 +1700,16 @@ export interface MissionCompleteResult {
 
 export interface PasswordResetRequestResponse {
   message: string;
+  // Dev/test only; production never returns these.
   reset_token?: string | null;
   reset_url?: string | null;
+  reset_code?: string | null;
 }
+
+/** A reset is confirmed with the emailed six-digit code, or an older link token. */
+export type PasswordResetConfirmPayload =
+  | { token: string; new_password: string }
+  | { email: string; code: string; new_password: string };
 
 export type FeedbackCategory =
   | 'bug'
@@ -1835,17 +1842,22 @@ class ApiService {
 
         if (isUnauthorized(error) && isNativePlatform() && requestConfig && !requestConfig.skipAuth && !requestConfig._retryAuth) {
           requestConfig._retryAuth = true;
-          const token = await refreshNativeAccessToken();
-          if (token) {
+          // WP-71: one shared refresh for every request that got this 401, and
+          // the keychain is cleared only when the server refuses the refresh
+          // token itself — never because the network dropped mid-refresh.
+          const sent = String(requestConfig.headers?.Authorization || '').replace(/^Bearer\s+/i, '');
+          const recovered = await recoverNativeAccessToken(sent || null);
+          if (recovered.status === 'refreshed') {
             requestConfig.headers = {
               ...(requestConfig.headers || {}),
-              Authorization: `Bearer ${token}`,
+              Authorization: `Bearer ${recovered.accessToken}`,
             };
             return this.api.request(requestConfig);
           }
-          await clearNativeAuthSession();
-          if (typeof window !== 'undefined' && window.location.pathname !== '/auth/signin') {
-            window.location.assign('/auth/signin');
+          if (recovered.status === 'signed-out') {
+            if (typeof window !== 'undefined' && window.location.pathname !== '/auth/signin') {
+              window.location.assign('/auth/signin');
+            }
           }
           return Promise.reject(error);
         }
@@ -2000,7 +2012,7 @@ class ApiService {
     } as SilentRequestConfig);
   }
 
-  async confirmPasswordReset(data: { token: string; new_password: string }) {
+  async confirmPasswordReset(data: PasswordResetConfirmPayload) {
     return this.post<void>('/auth/password-reset/confirm', data, {
       skipAuth: true,
       suppressGlobalError: true,
