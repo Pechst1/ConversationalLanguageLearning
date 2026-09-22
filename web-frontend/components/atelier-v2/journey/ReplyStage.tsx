@@ -64,23 +64,22 @@ export function TypedReply({
   /** `true` while the verdict is held back; a settled turn shows it whole. */
   animate: boolean;
 }) {
-  const [total, setTotal] = useState(0);
+  // Computed in render, so the first paint already shows only the first word.
+  const total = animate ? replyRevealMs(reply, { reducedMotion: prefersReducedMotion() }) : 0;
   const [elapsed, setElapsed] = useState(0);
 
   useEffect(() => {
-    const ms = animate ? replyRevealMs(reply, { reducedMotion: prefersReducedMotion() }) : 0;
-    setTotal(ms);
     setElapsed(0);
-    if (ms <= 0) return undefined;
+    if (total <= 0) return undefined;
     const started = Date.now();
     const timer = setInterval(() => {
       const next = Date.now() - started;
       setElapsed(next);
-      if (next >= ms) clearInterval(timer);
+      if (next >= total) clearInterval(timer);
     }, TYPE_TICK_MS);
     return () => clearInterval(timer);
     // `animate` flips to false when the verdict lands; the text is complete by then.
-  }, [reply, animate]);
+  }, [reply, total]);
 
   const shown = total > 0 ? typedReply(reply, elapsed, total) : reply;
 
