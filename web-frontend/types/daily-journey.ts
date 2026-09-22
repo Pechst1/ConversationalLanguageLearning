@@ -255,6 +255,24 @@ export type JourneySnapshot = {
   retry: { allowed: boolean; after_seconds: number } | null;
   /** WP-66: which kind of day this is. Absent on a pre-WP-66 server. */
   day_shape?: DayShape;
+  /**
+   * WP-75: three faces, one line each, on the learner's first (authored) day
+   * only. `null` on every other day; absent on a pre-WP-75 server.
+   */
+  cast_intro?: CastIntroEntry[] | null;
+};
+
+/** WP-75: one character introduced on the first day. */
+export type CastIntroEntry = {
+  /** A directory under `public/assets/serial/characters/`. */
+  character_id: string;
+  name: string;
+  /** One short line in the learner's language: who this is. */
+  role_native: string;
+  /** One short A1 French line the character says (≤ 8 words). */
+  line_fr: string;
+  /** Its translation, in the learner's language. */
+  line_native: string;
 };
 
 export type TodayEnvelope = {

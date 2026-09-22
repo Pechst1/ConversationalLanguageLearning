@@ -1,0 +1,78 @@
+{
+  "version": "first-day-v1",
+  "note": "WP-75. The learner's first day: authored, instant, no model call. The scene is the authored café family at Le Mistral (the world bible's neutral ground, where the friends gather); the two recall items are words that scene and its reply need, so the learner walks into the reply already holding them. Lives beside the content versions as a file, not a directory, so it is never read as one.",
+  "scenario_key": "order_at_cafe",
+  "recall_words": {
+    "A1": [
+      {
+        "word": "un café",
+        "gloss": {"en": "a coffee", "de": "ein Kaffee", "fr": "un café"},
+        "part_of_speech": "noun"
+      },
+      {
+        "word": "s'il vous plaît",
+        "gloss": {"en": "please", "de": "bitte", "fr": "s'il vous plaît"},
+        "part_of_speech": "phrase"
+      }
+    ],
+    "A2": [
+      {
+        "word": "un verre d'eau",
+        "gloss": {"en": "a glass of water", "de": "ein Glas Wasser", "fr": "un verre d'eau"},
+        "part_of_speech": "noun"
+      },
+      {
+        "word": "au comptoir",
+        "gloss": {"en": "at the counter", "de": "am Tresen", "fr": "au comptoir"},
+        "part_of_speech": "phrase"
+      }
+    ]
+  },
+  "cast_intro": [
+    {
+      "character_id": "romy_tremblay",
+      "name": "Romy",
+      "role_native": {
+        "en": "A journalist from Québec, new in Paris too.",
+        "de": "Journalistin aus Québec, auch neu in Paris.",
+        "fr": "Journaliste québécoise, elle aussi nouvelle à Paris."
+      },
+      "line_fr": "Salut ! Moi, c'est Romy.",
+      "line_native": {
+        "en": "Hi! I'm Romy.",
+        "de": "Hallo! Ich bin Romy.",
+        "fr": "Salut ! Moi, c'est Romy."
+      }
+    },
+    {
+      "character_id": "marin_leveque",
+      "name": "Marin",
+      "role_native": {
+        "en": "Your first friend in Paris. Kind, always there.",
+        "de": "Dein erster Freund in Paris. Herzlich, immer da.",
+        "fr": "Ton premier ami à Paris. Gentil, toujours là."
+      },
+      "line_fr": "Bienvenue au Mistral ! Tu es d'où ?",
+      "line_native": {
+        "en": "Welcome to Le Mistral! Where are you from?",
+        "de": "Willkommen im Mistral! Woher kommst du?",
+        "fr": "Bienvenue au Mistral ! Tu es d'où ?"
+      }
+    },
+    {
+      "character_id": "lila_bonnet",
+      "name": "Lila",
+      "role_native": {
+        "en": "A teacher and painter. She has plans for you.",
+        "de": "Lehrerin und Malerin. Sie hat Pläne mit dir.",
+        "fr": "Institutrice et peintre. Elle a des projets pour toi."
+      },
+      "line_fr": "Moi, c'est Lila. Et toi ?",
+      "line_native": {
+        "en": "I'm Lila. And you?",
+        "de": "Ich bin Lila. Und du?",
+        "fr": "Moi, c'est Lila. Et toi ?"
+      }
+    }
+  ]
+}

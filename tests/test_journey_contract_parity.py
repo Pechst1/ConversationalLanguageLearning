@@ -639,3 +639,85 @@ def test_a_shape_this_build_has_never_heard_of_does_not_break_the_day():
     parsed = JourneySnapshot.model_validate({**snapshot, "day_shape": "jour_de_marche"})
     assert parsed.day_shape == "jour_de_marche"
     assert parsed.steps, "the steps are still there to render"
+
+
+# ---------------------------------------------------------------------------
+# WP-75 — the first day's cast introduction, additive on the wire
+#
+# The first-day payload lives beside the frozen bundle, not in it: the v1 bundle
+# is frozen (and the web renderer counts its files), and WP-75 changed no
+# existing shape — it added one optional field.
+# ---------------------------------------------------------------------------
+
+WP75_FIXTURE = FIXTURES.parent.parent / "wp75" / "first_journey_created.json"
+
+
+def _wp75_fixture() -> dict:
+    return json.loads(WP75_FIXTURE.read_text(encoding="utf-8"))["response"]
+
+
+def test_cast_intro_is_optional_and_absent_on_every_older_payload():
+    """A pre-WP-75 payload validates unchanged and reads ``cast_intro=None``."""
+
+    from app.schemas.daily_journey import JourneySnapshot
+
+    snapshot = _fixture("cafe_journey_created")
+    assert "cast_intro" not in snapshot, "the frozen fixture predates WP-75"
+    assert JourneySnapshot.model_validate(snapshot).cast_intro is None
+    assert JourneySnapshot.model_validate({**snapshot, "cast_intro": None}).cast_intro is None
+
+
+def test_cast_intro_entries_refuse_extra_keys():
+    from pydantic import ValidationError
+
+    from app.schemas.daily_journey import JourneySnapshot
+
+    entry = _wp75_fixture()["cast_intro"][0]
+    snapshot = _fixture("cafe_journey_created")
+    with pytest.raises(ValidationError):
+        JourneySnapshot.model_validate(
+            {**snapshot, "cast_intro": [{**entry, "portrait_prompt": "x"}]}
+        )
+
+
+def test_the_first_journey_fixture_validates_against_the_real_schema():
+    from app.schemas.daily_journey import JourneySnapshot
+
+    frozen = _wp75_fixture()
+    parsed = JourneySnapshot.model_validate(frozen)
+    assert parsed.cast_intro is not None and len(parsed.cast_intro) == 3
+    assert not set(PRIVATE_MARKERS) & set(json.dumps(frozen).split('"'))
+
+
+def test_the_real_first_day_matches_the_frozen_first_journey_fixture(db_session, learner):
+    """WP-03 + WP-04's real first day is the payload the frontend codes against."""
+
+    from app.services import journey_planner
+
+    frozen = _wp75_fixture()
+    brief = journey_content.first_day_brief(db_session, user=learner)
+    assert brief.public_descriptor() == frozen["scenario"]
+    candidates = journey_content.first_day_candidates(db_session, user=learner, brief=brief)
+    plan = journey_planner.plan_journey(scenario=brief, candidates=candidates, first_day=True)
+    assert [str(step.kind) for step in plan.steps] == [step["kind"] for step in frozen["steps"]]
+    for step, fixture_step in zip(plan.steps, frozen["steps"], strict=True):
+        prompt = dict(step.public_prompt)
+        fixture_prompt = fixture_step["prompt"]
+        if str(step.kind) == "recall":
+            assert prompt["task_type"] == fixture_prompt["task_type"]
+            assert prompt["instruction_native"] == fixture_prompt["instruction_native"]
+            # Choice distractors are seeded by the catalogue row's id, which a
+            # fresh database assigns differently: the count is the contract.
+            assert len(prompt["options"]) == len(fixture_prompt["options"])
+            if prompt["task_type"] == "tiles":
+                assert sorted(o["text_fr"] for o in prompt["options"]) == sorted(
+                    o["text_fr"] for o in fixture_prompt["options"]
+                )
+            assert prompt["optional"] is False
+        if str(step.kind) == "respond":
+            assert prompt["character_line_fr"] == fixture_prompt["character_line_fr"]
+            assert prompt["max_turns"] == fixture_prompt["max_turns"]
+    assert (
+        journey_content.first_day_cast_intro(learner.native_language) == frozen["cast_intro"]
+    )
+    assert len(frozen["cast_intro"]) == journey_content.CAST_INTRO_SIZE

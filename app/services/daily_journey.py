@@ -36,7 +36,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import HTTPException
 from fastapi import status as http_status
-from sqlalchemy import select, update
+from sqlalchemy import or_, select, update
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import Session
 
@@ -87,6 +87,7 @@ from app.services.grammar import GrammarService
 from app.services.journey_capabilities import build_journey_register_line
 from app.services.journey_contracts import (
     DEFAULT_DAY_SHAPE,
+    FIRST_DAY_KIND,
     AppliedEvidence,
     AssistanceLevel,
     AttemptAnswer,
@@ -523,6 +524,28 @@ def _stored_day_shape(journey: DailyJourney) -> DayShape:
     except ValueError:
         return DEFAULT_DAY_SHAPE
 
+
+def _stored_cast_intro(journey: DailyJourney) -> list[dict[str, Any]] | None:
+    """WP-75: the cast introduction the first day was planned with, or ``None``."""
+
+    first_day = _mapping((journey.plan_selection or {}).get("first_day"))
+    rows = first_day.get("cast_intro")
+    if not isinstance(rows, list) or not rows:
+        return None
+    return [dict(row) for row in rows if isinstance(row, dict)] or None
+
+
+def _journey_input_mode(journey: DailyJourney) -> InputMode:
+    """The mode a journey was created in: voice when its reply offered voice."""
+
+    for step in journey.steps or []:
+        if str(step.kind) == str(StepKind.RESPOND):
+            modes = (step.public_prompt or {}).get("input_modes") or []
+            if str(InputMode.VOICE) in [str(mode) for mode in modes]:
+                return InputMode.VOICE
+    return InputMode.TEXT
+
+
 class _GenerationFailure(Exception):
     """Why a scene could not be turned into a playable day (WP-69).
 
@@ -615,6 +638,16 @@ class DailyJourneyService:
         safe answer — the client then behaves exactly as it did before.
         """
 
+        # WP-75: the authored first day costs no generation — it is as warm as
+        # a scene gets.
+        if run_best_effort(
+            self.db,
+            "daily_journey: first-day warmth",
+            lambda: self._first_day_eligible(user, None),
+            default=False,
+            log=logger,
+        ):
+            return True
         return run_best_effort(
             self.db,
             "daily_journey: prefetch warmth lookup",
@@ -1218,6 +1251,8 @@ class DailyJourneyService:
             journey,
             {"finish_kind": payload.finish_kind},
         )
+        if payload.finish_kind == "complete":
+            self._warm_next_day(user, journey)
         return snapshot
 
     def _close_learning_session(self, journey: DailyJourney, finish_kind: str) -> None:
@@ -1278,6 +1313,8 @@ class DailyJourneyService:
                 # WP-66: read from the persisted plan, never recomputed. The
                 # claim is about the day the learner actually has.
                 "day_shape": str(_stored_day_shape(journey)),
+                # WP-75: only the first day carries it; every other day, null.
+                "cast_intro": _stored_cast_intro(journey),
             }
         )
 
@@ -1548,6 +1585,14 @@ class DailyJourneyService:
         without a catalogue keeps the previous single-offer behaviour.
         """
 
+        # WP-75: a learner's first day is the authored café, and the offer
+        # card says so rather than promising a story scene the day is not.
+        if self._first_day_eligible(user, None):
+            first = self.adapters.content.first_day_brief(
+                self.db, user=user, input_mode=InputMode.TEXT
+            )
+            if isinstance(first, ScenarioBrief):
+                return first
         describe = getattr(self.adapters.content, "describe_available_scenario", None)
         if callable(describe):
             offer = describe(self.db, user=user, input_mode=InputMode.TEXT)
@@ -2023,7 +2068,13 @@ class DailyJourneyService:
 
         claim = journey.generation_claim_id
         result: Any = None
-        if authored_only:
+        # WP-75: a learner's first day is authored and instant — no prefetch
+        # consumed (that scene is day 2's), no provider call.
+        first_day = self._first_day_brief(user, journey, input_mode)
+        if first_day is not None:
+            result = first_day
+            self.draft_prefetch_hit = False
+        elif authored_only:
             # WP-69: the provider budget is spent. No provider call, no
             # prefetch: straight to the authored day below.
             result = ContentUnavailable(reason="generation_attempts_exhausted")
@@ -2101,7 +2152,9 @@ class DailyJourneyService:
                 fallback_eligible=not str(result.reason).startswith("content_adapter_"),
             )
         else:
-            failure = self._prepare_scene(user, fresh, result, input_mode)
+            failure = self._prepare_scene(
+                user, fresh, result, input_mode, first_day=first_day is not None
+            )
 
         if failure is not None and failure.fallback_eligible and self._authored_fallback_enabled():
             failure = self._serve_authored_fallback(user, fresh, input_mode, failure)
@@ -2124,6 +2177,7 @@ class DailyJourneyService:
         input_mode: InputMode,
         *,
         fallback: dict[str, Any] | None = None,
+        first_day: bool = False,
     ) -> _GenerationFailure | None:
         """Plan, bind and persist one brief as today's day — all or nothing.
 
@@ -2136,7 +2190,9 @@ class DailyJourneyService:
         self._ensure_usable_session()
         nested = self.db.begin_nested()
         try:
-            self._plan_and_bind(user, journey, brief, input_mode, fallback=fallback)
+            self._plan_and_bind(
+                user, journey, brief, input_mode, fallback=fallback, first_day=first_day
+            )
         except _GenerationFailure as failure:
             self._rollback_savepoint(nested)
             return failure
@@ -2161,6 +2217,7 @@ class DailyJourneyService:
         input_mode: InputMode,
         *,
         fallback: dict[str, Any] | None,
+        first_day: bool = False,
     ) -> None:
         story_brief = bool(result.story_context)
         # WP-24 §5, wired by WP-28. The learner's ranked due errata are read
@@ -2177,9 +2234,16 @@ class DailyJourneyService:
         dice = self._day_shape_inputs(user, fresh, result, errata_count=len(errata))
         decision = choose_day_shape(dice)
         try:
-            candidates = self.adapters.learning.select_learning_candidates(
-                self.db, user=user, scenario=result, limit=CANDIDATE_LIMIT
-            )
+            if first_day:
+                # WP-75: the scene's own words, not the (empty) queue of a
+                # learner who has never practised.
+                candidates = self.adapters.content.first_day_candidates(
+                    self.db, user=user, brief=result
+                )
+            else:
+                candidates = self.adapters.learning.select_learning_candidates(
+                    self.db, user=user, scenario=result, limit=CANDIDATE_LIMIT
+                )
             plan = self._plan_with_shape(
                 scenario=result,
                 candidates=list(candidates),
@@ -2193,6 +2257,7 @@ class DailyJourneyService:
                 dice=dice,
                 decision=decision,
                 scenario_result=result,
+                first_day=first_day,
             )
             plan.validate()
             because = self._plan_because(plan, list(candidates), errata)
@@ -2249,6 +2314,16 @@ class DailyJourneyService:
             except StoryUnavailable as exc:
                 raise _GenerationFailure(str(exc), fallback_eligible=True) from exc
         self._persist_plan(fresh, result, plan, input_mode, because=because, fallback=fallback)
+        if first_day:
+            fresh.plan_selection = {
+                **dict(fresh.plan_selection or {}),
+                "first_day": {
+                    "kind": FIRST_DAY_KIND,
+                    "cast_intro": self.adapters.content.first_day_cast_intro(
+                        user.native_language
+                    ),
+                },
+            }
         fresh.learning_session_id = getattr(session, "id", None)
         fresh.status = str(JourneyStatus.ACTIVE)
         fresh.started_at = _utcnow()
@@ -2256,6 +2331,92 @@ class DailyJourneyService:
         fresh.generation_claimed_at = None
         fresh.revision += 1
         self.db.flush()
+
+    # ------------------------------------------------------------------
+    # WP-75 — the first day is authored, instant, and introduces the cast
+    # ------------------------------------------------------------------
+
+    def _first_day_eligible(self, user: User, journey: DailyJourney | None) -> bool:
+        """Is this the learner's first day?
+
+        Only with the deployment flag on, only through a content adapter that
+        can author one (the real ``journey_content``; the deterministic test
+        stub cannot), and only for a learner who has never completed a day and
+        whose story has not started — a day the story engine already bound is
+        never rewound to the café.
+        """
+
+        if not getattr(settings, "ATELIER_JOURNEY_FIRST_DAY_AUTHORED_ENABLED", False):
+            return False
+        content = self.adapters.content
+        if not all(
+            callable(getattr(content, name, None))
+            for name in ("first_day_brief", "first_day_candidates", "first_day_cast_intro")
+        ):
+            return False
+        others = [DailyJourney.user_id == user.id]
+        if journey is not None:
+            others.append(DailyJourney.id != journey.id)
+        earlier = self.db.execute(
+            select(DailyJourney.id)
+            .where(
+                *others,
+                or_(
+                    DailyJourney.status == str(JourneyStatus.COMPLETED),
+                    DailyJourney.serial_episode_id.isnot(None),
+                ),
+            )
+            .limit(1)
+        ).first()
+        return earlier is None
+
+    def _first_day_brief(
+        self, user: User, journey: DailyJourney, input_mode: InputMode
+    ) -> ScenarioBrief | None:
+        """The authored first day, or ``None`` (then the day is made as usual)."""
+
+        eligible = run_best_effort(
+            self.db,
+            "daily_journey: first-day eligibility",
+            lambda: self._first_day_eligible(user, journey),
+            default=False,
+            log=logger,
+        )
+        if not eligible:
+            return None
+        brief = run_best_effort(
+            self.db,
+            "daily_journey: first-day brief",
+            lambda: self.adapters.content.first_day_brief(
+                self.db, user=user, input_mode=input_mode
+            ),
+            default=None,
+            log=logger,
+        )
+        return brief if isinstance(brief, ScenarioBrief) else None
+
+    def _warm_next_day(self, user: User, journey: DailyJourney) -> None:
+        """WP-75: after the first day, have day 2's scene ready before it is asked for.
+
+        The WP-26 prefetch, scheduled for the learner's next local day (its own
+        guard refuses a learner who already has today's journey), in the input
+        mode the first day was played in. Cohort, flag and the weekly spend
+        guardrail are the prefetch's own checks. Never fatal: a broker outage
+        costs the warm start, not the finish.
+        """
+
+        if not (journey.plan_selection or {}).get("first_day"):
+            return
+        try:
+            from app.tasks.journey_prefetch import schedule_next_day_warmup
+
+            schedule_next_day_warmup(
+                user,
+                timezone_name=journey.timezone,
+                input_mode=_journey_input_mode(journey),
+            )
+        except Exception:  # pragma: no cover - never fail a finish for a warm-up
+            logger.warning("daily_journey: day-2 warm-up could not be scheduled", exc_info=True)
 
     # ------------------------------------------------------------------
     # WP-69 — the authored day, when the story engine cannot write one
@@ -2598,6 +2759,7 @@ class DailyJourneyService:
         dice: DayShapeInputs,
         decision: Any,
         scenario_result: ScenarioBrief,
+        first_day: bool = False,
     ) -> Any:
         """Call the planner with WP-66's arguments, or without them.
 
@@ -2631,6 +2793,8 @@ class DailyJourneyService:
             else {}
         )
         recap = story.get("chapter_recap_fr") or story.get("chapter_recap")
+        if first_day and "first_day" in accepted:
+            base["first_day"] = True
         return plan_journey(
             **base,
             day_shape=decision.shape,

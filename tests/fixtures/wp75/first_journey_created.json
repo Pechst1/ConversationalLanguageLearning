@@ -1,0 +1,216 @@
+{
+  "fixture": "first_journey_created",
+  "contract_version": 1,
+  "endpoint": "/api/v1/daily-journeys",
+  "method": "POST",
+  "http_status": 201,
+  "response": {
+    "id": "00000000-0000-4000-8000-000000000001",
+    "contract_version": 1,
+    "revision": 2,
+    "status": "active",
+    "local_date": "2026-03-10",
+    "timezone": "Europe/Paris",
+    "budget_seconds": 300,
+    "estimated_active_seconds": 248,
+    "current_step_id": "00000000-0000-4000-8000-000000000002",
+    "scenario": {
+      "scenario_key": "order_at_cafe",
+      "content_version": "journey-content-v1",
+      "title_fr": "Un café au Mistral",
+      "objective_key": "order_at_cafe.counter_drink",
+      "objective_native": "Order a hot drink at the counter and say where you want to sit.",
+      "level_band": "A1",
+      "character_id": "margaux_barman",
+      "character_name": "Margaux",
+      "location_id": "le_mistral",
+      "location_name": "Le Mistral",
+      "image_url": "/assets/serial/locations/le_mistral-counter.webp",
+      "serial_thread_id": null,
+      "serial_episode_id": null,
+      "estimated_seconds": 264
+    },
+    "steps": [
+      {
+        "id": "00000000-0000-4000-8000-000000000002",
+        "ordinal": 0,
+        "status": "active",
+        "estimated_seconds": 39,
+        "assistance_used": [],
+        "kind": "scene",
+        "prompt": {
+          "setup_fr": "Il pleut sur le canal. Tu pousses la porte du Mistral. Margaux essuie le zinc.",
+          "setup_native": "It is raining on the canal. You push open the door of Le Mistral. Margaux is wiping down the zinc counter.",
+          "objective_native": "Order a hot drink at the counter and say where you want to sit.",
+          "character_line_fr": "Tiens, bonjour ! Vous vous installez ou c'est à emporter ?",
+          "character_line_audio_url": null,
+          "image_url": "/assets/serial/locations/le_mistral-counter.webp",
+          "audio_available": false,
+          "listen_first": false
+        }
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000003",
+        "ordinal": 1,
+        "status": "pending",
+        "estimated_seconds": 34,
+        "assistance_used": [],
+        "kind": "recall",
+        "prompt": {
+          "task_type": "choice",
+          "instruction_native": "Which French phrase means \"a coffee\"?",
+          "prompt_fr": null,
+          "options": [
+            {
+              "id": "opt_6428cc9c",
+              "text_fr": "un café"
+            },
+            {
+              "id": "opt_41150344",
+              "text_fr": "en terrasse"
+            },
+            {
+              "id": "opt_2110f227",
+              "text_fr": "un chocolat chaud"
+            }
+          ],
+          "target": {
+            "kind": "vocabulary",
+            "id": "4101",
+            "label_fr": "",
+            "label_native": "a coffee"
+          },
+          "optional": false,
+          "help_available": [
+            "hint",
+            "translation",
+            "solution"
+          ]
+        }
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000004",
+        "ordinal": 2,
+        "status": "pending",
+        "estimated_seconds": 41,
+        "assistance_used": [],
+        "kind": "recall",
+        "prompt": {
+          "task_type": "tiles",
+          "instruction_native": "Put the words in order to say \"please\".",
+          "prompt_fr": null,
+          "options": [
+            {
+              "id": "tile_524755b0",
+              "text_fr": "plaît"
+            },
+            {
+              "id": "tile_4895eaaa",
+              "text_fr": "vous"
+            },
+            {
+              "id": "tile_bae107e3",
+              "text_fr": "s'il"
+            }
+          ],
+          "target": {
+            "kind": "vocabulary",
+            "id": "4102",
+            "label_fr": "",
+            "label_native": "please"
+          },
+          "optional": false,
+          "help_available": [
+            "hint",
+            "translation",
+            "solution"
+          ]
+        }
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000005",
+        "ordinal": 3,
+        "status": "pending",
+        "estimated_seconds": 82,
+        "assistance_used": [],
+        "kind": "respond",
+        "prompt": {
+          "turn_index": 0,
+          "max_turns": 1,
+          "repair_allowed": true,
+          "character_id": "margaux_barman",
+          "character_name": "Margaux",
+          "character_line_fr": "Alors, qu'est-ce que je vous sers ?",
+          "character_line_audio_url": null,
+          "objective_native": "Say what you would like to drink and where you want to sit.",
+          "input_modes": [
+            "text"
+          ],
+          "targets": [
+            {
+              "kind": "vocabulary",
+              "id": "4101",
+              "label_fr": "un café",
+              "label_native": "a coffee"
+            },
+            {
+              "kind": "vocabulary",
+              "id": "4102",
+              "label_fr": "s'il vous plaît",
+              "label_native": "please"
+            }
+          ],
+          "help_available": [
+            "hint",
+            "translation",
+            "suggested_response"
+          ],
+          "letter": null
+        }
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000006",
+        "ordinal": 4,
+        "status": "pending",
+        "estimated_seconds": 52,
+        "assistance_used": [],
+        "kind": "resolution",
+        "prompt": {
+          "outcome_key": "served_at_counter",
+          "character_line_fr": "Voilà pour vous, au comptoir. Je vous l'apporte.",
+          "summary_native": "Margaux served your order at the counter.",
+          "image_url": "/assets/serial/locations/le_mistral-counter.webp",
+          "chapter_recap_fr": null,
+          "register_note_fr": null,
+          "register_reason_native": null
+        }
+      }
+    ],
+    "recap": null,
+    "retry": null,
+    "day_shape": "standard",
+    "cast_intro": [
+      {
+        "character_id": "romy_tremblay",
+        "name": "Romy",
+        "role_native": "A journalist from Québec, new in Paris too.",
+        "line_fr": "Salut ! Moi, c'est Romy.",
+        "line_native": "Hi! I'm Romy."
+      },
+      {
+        "character_id": "marin_leveque",
+        "name": "Marin",
+        "role_native": "Your first friend in Paris. Kind, always there.",
+        "line_fr": "Bienvenue au Mistral ! Tu es d'où ?",
+        "line_native": "Welcome to Le Mistral! Where are you from?"
+      },
+      {
+        "character_id": "lila_bonnet",
+        "name": "Lila",
+        "role_native": "A teacher and painter. She has plans for you.",
+        "line_fr": "Moi, c'est Lila. Et toi ?",
+        "line_native": "I'm Lila. And you?"
+      }
+    ]
+  }
+}

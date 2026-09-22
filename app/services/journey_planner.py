@@ -33,7 +33,12 @@ from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Any, Literal
 
 from app.services import pragmatics
-from app.services.journey_content import render_authored_text, scenario_target_affordances
+from app.services.journey_content import (
+    SPOILER_SIMILARITY,
+    line_spoils_reply,
+    render_authored_text,
+    scenario_target_affordances,
+)
 from app.services.journey_contracts import (
     DEFAULT_BUDGET_SECONDS,
     DEFAULT_DAY_SHAPE,
@@ -441,7 +446,10 @@ def default_outcome_key(scenario: ScenarioBrief) -> str | None:
 
 
 def select_plan_targets(
-    scenario: ScenarioBrief, candidates: list[LearningCandidate]
+    scenario: ScenarioBrief,
+    candidates: list[LearningCandidate],
+    *,
+    max_new: int = MAX_NEW_TARGETS,
 ) -> TargetSelection:
     """At most two existing due/fragile targets plus at most one new anchor.
 
@@ -491,7 +499,7 @@ def select_plan_targets(
     for _key, entry in ranked:
         identity = target_identity(entry.target)
         if entry.candidate.is_new:
-            if new_used >= MAX_NEW_TARGETS:
+            if new_used >= max_new:
                 omitted.append(entry.candidate)
                 reasons[identity] = "new_anchor_cap_reached"
                 continue
@@ -1213,6 +1221,57 @@ def plan_because(
     return None
 
 
+# --------------------------------------------------------------------------
+# WP-75 — the first day's recall, and the respond step that must not answer
+# itself (walk L9)
+# --------------------------------------------------------------------------
+
+#: What the character says instead: an invitation to speak that carries no
+#: content and no register, so it fits a tu scene and a vous scene alike.
+SPOILER_SAFE_OPENING_FR = "Alors ?"
+
+
+def guard_opening_line(task: ResponseTask) -> ResponseTask:
+    """Refuse a respond opening line that speaks the objective's expected reply."""
+
+    if line_spoils_reply(task.opening_line_fr, task.suggested_response_fr):
+        return replace(task, opening_line_fr=SPOILER_SAFE_OPENING_FR)
+    return task
+
+
+def _scene_line_without_spoiler(scenario: ScenarioBrief) -> str | None:
+    line = scenario.opening_line_fr
+    if line_spoils_reply(line, scenario.response_task.suggested_response_fr):
+        return None
+    return line
+
+
+def _first_day_recall(
+    *,
+    target: TargetRef,
+    scenario: ScenarioBrief,
+    affordances: list[str],
+    optional: bool,
+    position: int,
+) -> RecallTask | None:
+    """Choice first, then tiles: two different quick wins, neither typed.
+
+    Tiles are posed by withholding the distractors — the legacy builder turns a
+    glossed phrase into a choice whenever the scene offers two other phrases —
+    and only for a phrase of two words or more, which is what tiles need.
+    """
+
+    if position % 2 and len((target.label_fr or "").split()) >= 2:
+        tiles = build_recall_task(
+            target=target, scenario=scenario, affordances=[], optional=optional
+        )
+        if tiles is not None and tiles.task_type == str(RecallFormat.TILES):
+            return tiles
+    return build_recall_task(
+        target=target, scenario=scenario, affordances=affordances, optional=optional
+    )
+
+
 def plan_journey(
     *,
     scenario: ScenarioBrief,
@@ -1227,8 +1286,16 @@ def plan_journey(
     letter: LetterOffer | None = None,
     chapter_recap_fr: str | None = None,
     audio_available: bool = False,
+    first_day: bool = False,
 ) -> PlannedJourney:
     """Build today's immutable plan.
+
+    ``first_day`` (WP-75) is the learner's very first day: the candidates are
+    the authored scene's own words, every one of them new, so up to
+    :data:`MAX_RECALL_STEPS` new anchors are kept (not one) and their recall
+    steps are required rather than optional — a first day is a few quick wins
+    before the reply, not a reply alone. The shape is always the standard day
+    and formats are posed choice first, then tiles.
 
     ``input_mode`` is a coordination addition, not a contract change: the frozen
     :class:`ScenarioBrief` carries no modality and ``RespondPrompt.input_modes``
@@ -1250,6 +1317,9 @@ def plan_journey(
     """
 
     outcome_key = _require_plannable(scenario)
+    if first_day:
+        day_shape, dice, letter = DEFAULT_DAY_SHAPE, None, None
+        shape_reason = "first_day"
     shape = DayShape(str(day_shape)) if day_shape else DEFAULT_DAY_SHAPE
     rule = day_shape_rule(shape)
     if letter is not None and not letter.is_renderable():
@@ -1279,12 +1349,22 @@ def plan_journey(
         for candidate in candidates
         if (reason := target_reason(candidate))
     }
-    selection = select_plan_targets(scenario, candidates)
+    selection = select_plan_targets(
+        scenario,
+        candidates,
+        max_new=MAX_RECALL_STEPS if first_day else MAX_NEW_TARGETS,
+    )
     affordances = _affordances_for(scenario)
-    task = scenario.response_task
+    task = guard_opening_line(scenario.response_task)
+    if task.opening_line_fr != scenario.response_task.opening_line_fr:
+        notes.append("respond opening line replaced: it spoke the expected reply")
 
     # --- fit the non-removable core (scene, response, resolution) -----------
     turns = max(1, min(int(task.max_turns or MAX_RESPOND_TURNS), MAX_RESPOND_TURNS))
+    if first_day:
+        # WP-75: the first reply is one turn (a repair is still allowed), so
+        # the two quick recall wins fit in front of it inside five minutes.
+        turns = 1
     scene_cost = scene_seconds(scenario, spt=spt, multiplier=multiplier)
     resolution_cost = resolution_seconds(scenario, outcome_key, spt=spt, multiplier=multiplier)
     respond_cost = respond_seconds(task, turns=turns, spt=spt, multiplier=multiplier)
@@ -1328,9 +1408,19 @@ def plan_journey(
             continue
         planned_real = sum(1 for _e, _t, _c, was_skipped in recalls if not was_skipped)
         optional = entry.demonstrated or entry.candidate.is_new or planned_real >= 1
+        if first_day:
+            optional = bool(entry.demonstrated)
         metadata = entry.candidate.metadata or {}
         learner_wording = metadata.get("erratum_learner") or metadata.get("original_text")
-        if dice is None:
+        if first_day:
+            recall = _first_day_recall(
+                target=entry.target,
+                scenario=scenario,
+                affordances=affordances,
+                optional=optional,
+                position=len(recalls),
+            )
+        elif dice is None:
             recall = build_recall_task(
                 target=entry.target,
                 scenario=scenario,
@@ -1422,7 +1512,7 @@ def plan_journey(
                 "setup_fr": scenario.setup_fr,
                 "setup_native": scenario.setup_native,
                 "objective_native": scenario.objective_native,
-                "character_line_fr": scenario.opening_line_fr,
+                "character_line_fr": _scene_line_without_spoiler(scenario),
                 "character_line_audio_url": None,
                 "image_url": scenario.image_url,
                 # WP-66 «jour d'écoute»: the scene is heard before it is read.
@@ -1672,4 +1762,9 @@ __all__ = [
     "supported_input_modes",
     "target_identity",
     "target_reason",
+    # WP-75
+    "SPOILER_SAFE_OPENING_FR",
+    "SPOILER_SIMILARITY",
+    "guard_opening_line",
+    "line_spoils_reply",
 ]

@@ -25,6 +25,7 @@ from app.services.placement import (
     PLACEMENT_VERSION,
     PlacementService,
     latest_placement_prior,
+    placement_offer,
 )
 
 router = APIRouter(prefix="/placement", tags=["placement"])
@@ -131,6 +132,23 @@ def read_state(
     # The offer is made once. A learner who took it or declined it is never
     # asked again; Réglages is where they go to re-run it.
     return _envelope(db, current_user, latest, offer=latest is None)
+
+
+class PlacementOffer(BaseModel):
+    """WP-75: whether to offer the placement now. Never true at sign-up."""
+
+    offer: bool
+
+
+@router.get("/offer", response_model=PlacementOffer)
+def read_offer(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> PlacementOffer:
+    """True after three completed days, before any placement was taken or
+    declined, and only when it can tell the learner something (they declared
+    more than «Nouveau», or their days say they are above their band)."""
+    return PlacementOffer(offer=placement_offer(db, current_user))
 
 
 @router.post("/start", response_model=PlacementEnvelope)

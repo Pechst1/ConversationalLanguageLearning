@@ -350,17 +350,109 @@ def clamp_band(index: int) -> str:
     return PLACEMENT_BANDS[max(0, min(len(PLACEMENT_BANDS) - 1, index))]
 
 
-def opening_band(user: User | None) -> str:
+def opening_band(user: User | None, evidence: dict[str, Any] | None = None) -> str:
     """Where the ladder starts.
 
     One rung **below** what the learner said about themselves, floored at A1.2.
     Starting at the declaration and failing is a demoralising first minute; the
     ladder climbs quickly, so a rung of headroom costs at most one turn.
+
+    WP-75: the learner's own days are a prior too. When
+    :func:`journey_placement_evidence` says they met their band's objectives
+    unaided, the ladder starts no lower than the top rung of that band — never
+    higher: a few café orders are evidence of a band, not of the next one.
     """
     declared = declared_level_floor(user) if user is not None else None
-    if not declared:
-        return "A1.2"
-    return clamp_band(max(1, band_index(declared) - 1))
+    start = 1 if not declared else max(1, band_index(declared) - 1)
+    if evidence and evidence.get("above_band") and evidence.get("band"):
+        top_rung = f"{str(evidence['band']).upper()[:2]}.2"
+        if top_rung in PLACEMENT_BANDS:
+            start = max(start, band_index(top_rung))
+    return clamp_band(start)
+
+
+# ---------------------------------------------------------------------------
+# WP-75 — placement is offered after the learner's own days, never at sign-up
+# ---------------------------------------------------------------------------
+
+#: Completed days before placement is offered at all.
+PLACEMENT_OFFER_MIN_DAYS = 3
+#: How many of the learner's latest completed days the evidence reads.
+JOURNEY_EVIDENCE_WINDOW = 5
+#: Unaided, fully met replies within that window that say "above this band".
+JOURNEY_EVIDENCE_MET_UNAIDED = 3
+#: A declaration at or below this floor is «Nouveau» (``starting_point="new"``).
+NEW_LEARNER_FLOOR = "A1.1"
+
+
+def journey_placement_evidence(db: Session, user: User) -> dict[str, Any]:
+    """What the learner's completed days say about their band. Reads, never writes.
+
+    Deliberately simple and honest: a day's reply either met its objective with
+    no help recorded by the server, or it did not. ``above_band`` needs
+    :data:`JOURNEY_EVIDENCE_MET_UNAIDED` such replies among the latest
+    :data:`JOURNEY_EVIDENCE_WINDOW` days, each at (or above) the band the
+    learner is currently estimated at — a learner meeting A1 objectives with no
+    help has outgrown A1 as far as the days can tell.
+    """
+
+    from app.db.models.daily_journey import DailyJourney
+
+    completed = (
+        db.query(DailyJourney)
+        .filter(DailyJourney.user_id == user.id, DailyJourney.status == "completed")
+        .order_by(DailyJourney.completed_at.desc(), DailyJourney.local_date.desc())
+    )
+    total = int(completed.count())
+    recent = completed.limit(JOURNEY_EVIDENCE_WINDOW).all()
+    current_band = str(getattr(user, "cefr_estimate", "") or declared_level_floor(user) or "A1.1")[:2].upper()
+    met_unaided = 0
+    met_bands: list[str] = []
+    for journey in recent:
+        band = str(journey.level_band or "").upper()[:2]
+        for step in journey.steps or []:
+            if str(step.kind) != "respond":
+                continue
+            result = (step.private_task or {}).get("result") or {}
+            if result.get("outcome") != "met" or result.get("assistance_level") not in (None, "none"):
+                continue
+            if band and band >= current_band:
+                met_unaided += 1
+                met_bands.append(band)
+    return {
+        "completed_days": total,
+        "window": len(recent),
+        "met_unaided": met_unaided,
+        "band": min(met_bands) if met_bands else None,
+        "above_band": met_unaided >= JOURNEY_EVIDENCE_MET_UNAIDED,
+    }
+
+
+def placement_offer(db: Session, user: User) -> bool:
+    """Should the app offer the placement now?
+
+    Only after :data:`PLACEMENT_OFFER_MIN_DAYS` completed days, only to a
+    learner who has neither taken nor declined one, and only when it can tell
+    them something: they declared more than «Nouveau», or their days suggest
+    they are above the band they are working at. Never at sign-up.
+    """
+
+    evidence = journey_placement_evidence(db, user)
+    if evidence["completed_days"] < PLACEMENT_OFFER_MIN_DAYS:
+        return False
+    decided = (
+        db.query(PlacementSession.id)
+        .filter(
+            PlacementSession.user_id == user.id,
+            PlacementSession.status.in_(("complete", "skipped")),
+        )
+        .first()
+    )
+    if decided is not None:
+        return False
+    declared = declared_level_floor(user) or NEW_LEARNER_FLOOR
+    declared_new = level_index(declared) <= level_index(NEW_LEARNER_FLOOR)
+    return (not declared_new) or bool(evidence["above_band"])
 
 
 def next_band(
@@ -668,7 +760,7 @@ class PlacementService:
             user_id=user.id,
             status="in_progress",
             version=PLACEMENT_VERSION,
-            current_band=opening_band(user),
+            current_band=opening_band(user, self._journey_evidence(user)),
             turns=[],
             estimate={},
             estimate_level=None,
@@ -678,6 +770,14 @@ class PlacementService:
         self.db.commit()
         self.db.refresh(session)
         return session
+
+    def _journey_evidence(self, user: User) -> dict[str, Any] | None:
+        """WP-75: the learner's days as a prior for where the ladder starts."""
+        try:
+            return journey_placement_evidence(self.db, user)
+        except Exception:  # pragma: no cover - a prior never blocks a placement
+            logger.warning("placement: journey evidence unavailable")
+            return None
 
     def skip(self, user: User) -> PlacementSession:
         """The learner declined. Recorded, so the offer is made once."""
@@ -907,14 +1007,19 @@ __all__ = [
     "PlacementEstimate",
     "PlacementPrompt",
     "PlacementService",
+    "JOURNEY_EVIDENCE_MET_UNAIDED",
+    "JOURNEY_EVIDENCE_WINDOW",
+    "PLACEMENT_OFFER_MIN_DAYS",
     "band_index",
     "clamp_band",
     "demonstrated_index",
     "estimate_from_turns",
+    "journey_placement_evidence",
     "latest_placement_prior",
     "next_band",
     "normalize_grading",
     "opening_band",
+    "placement_offer",
     "prompt_for_session",
     "record_placement_cost",
     "should_continue",

@@ -35,8 +35,10 @@ Public entry points
 """
 from __future__ import annotations
 
+import difflib
 import json
 import re
+import unicodedata
 from dataclasses import dataclass, replace
 from datetime import date
 from functools import lru_cache
@@ -54,6 +56,7 @@ from app.db.models.user import User
 from app.services.journey_contracts import (
     DEFAULT_BUDGET_SECONDS,
     FALLBACK_CONTROL_LANGUAGE,
+    FIRST_DAY_KIND,
     JOURNEY_CONTENT_VERSION,
     MAX_RESPOND_TURNS,
     CapabilityKey,
@@ -1684,3 +1687,214 @@ def describe_available_scenario(db: Session, *, user: User, input_mode: InputMod
         return None
     from app.services.living_story import describe_next
     return describe_next(db, user=user, input_mode=input_mode)
+
+
+# --------------------------------------------------------------------------
+# WP-75 — the first day: authored, instant, and the cast on the doorstep
+# --------------------------------------------------------------------------
+
+#: A file beside the content-version directories, never a directory itself, so
+#: :func:`available_content_versions` never mistakes it for one.
+FIRST_DAY_DATA_PATH = SCENARIO_DATA_ROOT / "first_day_v1.json"
+#: The cast introduction is three faces, one short line each.
+CAST_INTRO_SIZE = 3
+CAST_LINE_MAX_WORDS = 8
+
+
+@lru_cache(maxsize=1)
+def _first_day_data() -> dict[str, Any]:
+    try:
+        loaded = json.loads(FIRST_DAY_DATA_PATH.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:  # pragma: no cover - shipped with the app
+        logger.error("first-day content unreadable: {}", exc)
+        return {}
+    return loaded if isinstance(loaded, dict) else {}
+
+
+def first_day_scenario_key() -> str:
+    return str(_first_day_data().get("scenario_key") or SCENARIO_PRIORITY[0])
+
+
+def first_day_brief(
+    db: Session, *, user: User, input_mode: InputMode = InputMode.TEXT
+) -> ScenarioContextResult:
+    """The learner's first scene, for their band, with no model call.
+
+    The authored café at Le Mistral — the world bible's neutral ground, where
+    the friends the story engine takes over with on day 2 already gather.
+    ``allow_generation=False`` is the no-provider guarantee;
+    ``bind_serial=False`` keeps it out of the living story (it is not a
+    chapter and must not claim to be one); nothing to ground in a prior day
+    because there is none.
+    """
+
+    return resolve_scenario_brief(
+        db,
+        user=user,
+        scenario_key=first_day_scenario_key(),
+        input_mode=input_mode,
+        allow_generation=False,
+        bind_serial=False,
+        ground_in_prior_day=False,
+    )
+
+
+def _first_day_word(db: Session, *, surface: str, gloss: dict[str, str], pos: str | None):
+    """The catalogue row for one authored first-day word, created if missing.
+
+    The catalogue is shared, not the learner's: a row here claims nothing about
+    anyone's progress. Its glosses are authored with the scene, never generated
+    and never the learner's own text (the WP-74 rule).
+    """
+
+    from sqlalchemy import func, or_, select
+
+    from app.db.models.vocabulary import VocabularyWord
+
+    lowered = surface.strip().lower()
+    existing = db.scalars(
+        select(VocabularyWord)
+        .where(
+            VocabularyWord.language == "fr",
+            or_(
+                VocabularyWord.normalized_word == lowered,
+                func.lower(VocabularyWord.word) == lowered,
+            ),
+        )
+        .order_by(VocabularyWord.id.asc())
+        .limit(1)
+    ).first()
+    if existing is not None:
+        return existing
+    word = VocabularyWord(
+        language="fr",
+        word=surface,
+        normalized_word=lowered,
+        part_of_speech=pos,
+        english_translation=gloss.get("en") or None,
+        german_translation=gloss.get("de") or None,
+        difficulty_level=1,
+        topic_tags=["journey_first_day", "cafe"],
+        usage_notes="Mot de la première scène au Mistral.",
+    )
+    db.add(word)
+    db.flush([word])
+    return word
+
+
+def first_day_candidates(db: Session, *, user: User, brief: ScenarioBrief) -> list[Any]:
+    """The two words the first scene's reply needs, as recall candidates.
+
+    Every candidate is a real catalogue row (evidence lands on it like any
+    other), marked ``is_new`` with full scene relevance. A French-speaking
+    control language gets no gloss — the gloss would be the answer — which the
+    planner reads as "pose it as tiles, or not at all".
+    """
+
+    from app.services.journey_contracts import LearningCandidate, TargetKind, TargetRef
+
+    words = (_first_day_data().get("recall_words") or {}).get(str(brief.level_band)) or []
+    language = brief.control_language
+    candidates: list[Any] = []
+    for row in words:
+        if not isinstance(row, dict) or not row.get("word"):
+            continue
+        surface = str(row["word"])
+        gloss_map = {str(k): str(v) for k, v in (row.get("gloss") or {}).items()}
+        word = _first_day_word(
+            db, surface=surface, gloss=gloss_map, pos=row.get("part_of_speech")
+        )
+        gloss = gloss_map.get(language) or ""
+        if _fold(gloss) == _fold(surface):
+            gloss = ""
+        candidates.append(
+            LearningCandidate(
+                target=TargetRef(
+                    kind=TargetKind.VOCABULARY,
+                    id=str(word.id),
+                    label_fr=surface,
+                    label_native=gloss or None,
+                ),
+                priority_score=0.0,
+                due_since_days=0,
+                estimated_seconds=30,
+                is_new=True,
+                relevance=1.0,
+                source_item_type="vocab",
+                metadata={"word_id": word.id, "anchor": FIRST_DAY_KIND},
+            )
+        )
+    return candidates
+
+
+def first_day_cast_intro(native_language: str | None) -> list[dict[str, str]]:
+    """Three faces, one A1 line each, explained in the learner's language."""
+
+    language = normalize_control_language(native_language)
+    rows: list[dict[str, str]] = []
+    for row in _first_day_data().get("cast_intro") or []:
+        if not isinstance(row, dict):
+            continue
+        rows.append(
+            {
+                "character_id": str(row.get("character_id") or ""),
+                "name": str(row.get("name") or ""),
+                "role_native": _localized(row.get("role_native"), language),
+                "line_fr": str(row.get("line_fr") or ""),
+                "line_native": _localized(row.get("line_native"), language),
+            }
+        )
+    return rows[:CAST_INTRO_SIZE]
+
+
+# --------------------------------------------------------------------------
+# WP-75 / walk L9 — a character line must not be the learner's answer
+# --------------------------------------------------------------------------
+
+#: A character line this close to the reply the learner is asked to produce
+#: *is* the answer, printed above the task (walk L9: «Marin, tu vas demander à
+#: Lila ?» under Marin's name, the exact sentence the learner had to say).
+#: Lives here, not in the planner, because the planner is kept import-pure.
+SPOILER_SIMILARITY = 0.72
+_SPOILER_TOKEN = re.compile(r"[a-z0-9]+")
+
+
+def _spoiler_tokens(text: str | None) -> list[str]:
+    from app.services.journey_contracts import normalize_answer_text
+
+    folded = unicodedata.normalize("NFKD", normalize_answer_text(text).lower())
+    ascii_text = folded.encode("ascii", "ignore").decode("ascii")
+    return _SPOILER_TOKEN.findall(ascii_text)
+
+
+def line_spoils_reply(line: str | None, expected: str | None) -> bool:
+    """Does this character line say (nearly) what the learner must say?
+
+    Fuzzy on purpose: accents, punctuation, case and a vocative name must not
+    let the answer through. A line matches when its word sequence is close to
+    the expected reply's (``SequenceMatcher`` over tokens), or when it contains
+    the whole reply of three words or more. Short, content-free lines never
+    match: «Alors ?» cannot spoil anything.
+    """
+
+    said = _spoiler_tokens(line)
+    wanted = _spoiler_tokens(expected)
+    if len(said) < 3 or len(wanted) < 3:
+        return False
+    ratio = difflib.SequenceMatcher(a=said, b=wanted, autojunk=False).ratio()
+    if ratio >= SPOILER_SIMILARITY:
+        return True
+    return " ".join(wanted) in " ".join(said)
+
+
+__all__ += [
+    "SPOILER_SIMILARITY",
+    "line_spoils_reply",
+    "CAST_INTRO_SIZE",
+    "CAST_LINE_MAX_WORDS",
+    "FIRST_DAY_KIND",
+    "first_day_brief",
+    "first_day_candidates",
+    "first_day_cast_intro",
+    "first_day_scenario_key",
+]

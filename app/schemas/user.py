@@ -98,13 +98,63 @@ class UserBase(BaseModel):
     show_grammar_explanations: bool = True
 
 
+#: WP-75. The one onboarding question left on sign-up: «Nouveau / Quelques
+#: bases / À l'aise». It is a declaration, not a measurement, so it only ever
+#: sets the *declared* level (``proficiency_level``) and the honest floor of
+#: the estimate; a placement or the learner's own journeys move it from there.
+StartingPoint = Literal["new", "some", "comfortable"]
+STARTING_POINT_LEVELS: dict[str, str] = {"new": "A1", "some": "A2", "comfortable": "B1"}
+#: The estimate a declaration starts at: the floor of the declared band.
+STARTING_POINT_ESTIMATES: dict[str, tuple[str, str]] = {
+    "new": ("A1.1", "A1.2"),
+    "some": ("A2.1", "A2.2"),
+    "comfortable": ("B1.1", "B1.2"),
+}
+
+
 class UserCreate(UserBase):
-    """Schema for user registration input."""
+    """Schema for user registration input.
+
+    WP-75: email and password are the only required fields. Every profile field
+    has a default (``UserBase``) and moves to Réglages; ``starting_point`` is
+    the one question sign-up still asks.
+    """
 
     password: str = Field(min_length=8, max_length=128)
+    starting_point: StartingPoint | None = None
 
     _normalize_email = field_validator("email", mode="before")(normalize_email_input)
     _password_bytes = field_validator("password")(check_new_password_bytes)
+
+    @field_validator("native_language", mode="before")
+    @classmethod
+    def _native_language_default(cls, value: Any) -> Any:
+        # The client sends its interface language; an empty value is "not said".
+        if value is None or (isinstance(value, str) and not value.strip()):
+            return "en"
+        return value
+
+    @model_validator(mode="after")
+    def _apply_starting_point(self) -> UserCreate:
+        """«Nouveau / Quelques bases / À l'aise» → A1 / A2 / B1.
+
+        Only when the client did not state a level itself: an explicit
+        ``proficiency_level`` (every pre-WP-75 client) wins, and so does an
+        explicit ``cefr_estimate``.
+        """
+
+        point = self.starting_point
+        if point is None:
+            return self
+        explicit = self.model_fields_set
+        if "proficiency_level" not in explicit:
+            self.proficiency_level = STARTING_POINT_LEVELS[point]
+            if "cefr_estimate" not in explicit:
+                estimate, target = STARTING_POINT_ESTIMATES[point]
+                self.cefr_estimate = estimate
+                if "cefr_target_level" not in explicit:
+                    self.cefr_target_level = target
+        return self
 
 
 class UserLogin(BaseModel):

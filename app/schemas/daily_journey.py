@@ -285,6 +285,22 @@ class RetryHint(JourneyModel):
     after_seconds: int
 
 
+class CastIntroEntry(JourneyModel):
+    """WP-75. One face of the cast, introduced on the learner's first day.
+
+    ``character_id`` names a directory under
+    ``web-frontend/public/assets/serial/characters/``; ``role_native`` and
+    ``line_native`` are in the learner's language, ``line_fr`` is one short A1
+    line the character says.
+    """
+
+    character_id: str
+    name: str
+    role_native: str
+    line_fr: str
+    line_native: str
+
+
 class JourneySnapshot(JourneyModel):
     id: str
     contract_version: ContractVersion = CONTRACT_VERSION
@@ -305,6 +321,10 @@ class JourneySnapshot(JourneyModel):
     #: the steps it was sent, not refuse the day. Journeys planned before
     #: WP-66 read ``standard``, which is what they are.
     day_shape: str = "standard"
+    #: WP-75. Three faces, one line each — only on the learner's first
+    #: (authored) day; ``None`` on every other day and on every journey
+    #: planned before WP-75.
+    cast_intro: list[CastIntroEntry] | None = None
 
 
 class LegacyResume(JourneyModel):
@@ -522,6 +542,7 @@ class JourneyRetryRequest(JourneyRequest):
 
 
 __all__ = [
+    "CastIntroEntry",
     "AttemptInput",
     "AttemptResult",
     "BUDGET_SECONDS",

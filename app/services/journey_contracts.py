@@ -38,6 +38,10 @@ MAX_RECALL_STEPS = 2
 MAX_RESPOND_TURNS = 2
 #: A short day still has to be a day: scene, response, ending.
 MIN_PLANNED_STEPS = 3
+#: WP-75. Marks the learner's authored first day in
+#: ``plan_selection["first_day"]["kind"]``. Additive: no wire shape changes
+#: except the optional ``JourneySnapshot.cast_intro`` it feeds.
+FIRST_DAY_KIND = "first_day"
 
 ControlLanguage = Literal["en", "de", "fr"]
 SUPPORTED_CONTROL_LANGUAGES: tuple[ControlLanguage, ...] = ("en", "de", "fr")
