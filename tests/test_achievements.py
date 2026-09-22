@@ -1,23 +1,24 @@
-"""Tests for achievement service and endpoints."""
+"""Achievement endpoints over the WP-79 catalogue.
+
+Reachability of every catalogue entry lives in ``tests/test_wp79_achievements.py``.
+"""
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import date, timedelta
 
-import pytest
 from fastapi.testclient import TestClient
 
+from app.db.models.achievement import Achievement
 from app.db.models.progress import UserVocabularyProgress
-from app.db.models.session import LearningSession
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
-from app.services.achievement import AchievementDefinition, AchievementService
+from app.services.achievement import CATALOGUE, CATALOGUE_KEYS, AchievementDefinition, AchievementService
+from app.services.streak import record_practice_day
 
 TEST_PASSWORD = "securepass123"
 
 
-def register_and_login(
-    client: TestClient, email: str, password: str = TEST_PASSWORD
-) -> str:
+def register_and_login(client: TestClient, email: str, password: str = TEST_PASSWORD) -> str:
     payload = {
         "email": email,
         "password": password,
@@ -25,261 +26,87 @@ def register_and_login(
         "native_language": "en",
     }
     client.post("/api/v1/auth/register", json=payload)
-    login_response = client.post(
-        "/api/v1/auth/login", json={"email": email, "password": password}
-    )
+    login_response = client.post("/api/v1/auth/login", json={"email": email, "password": password})
     return login_response.json()["access_token"]
 
 
-@pytest.fixture()
-def seeded_achievements(db_session):
-    """Seed basic achievements for testing."""
-
-    service = AchievementService(db_session)
-    definitions = [
-        AchievementDefinition(
-            key="first_session",
-            name="First Steps",
-            description="Complete your first session",
-            category="session",
-            tier="bronze",
-            xp_reward=50,
-        ),
-        AchievementDefinition(
-            key="session_streak_3",
-            name="Three Day Streak",
-            description="Complete sessions 3 days in a row",
-            category="streak",
-            tier="bronze",
-            xp_reward=100,
-        ),
-        AchievementDefinition(
-            key="vocabulary_learner",
-            name="Vocabulary Learner",
-            description="Master 50 words",
-            category="vocabulary",
-            tier="bronze",
-            xp_reward=200,
-        ),
-        AchievementDefinition(
-            key="xp_bronze",
-            name="XP Bronze",
-            description="Earn 500 XP",
-            category="xp",
-            tier="bronze",
-            xp_reward=100,
-        ),
-    ]
-    service.seed_achievements(definitions)
-    try:
-        yield
-    finally:
-        pass
+def _headers(client: TestClient, email: str) -> dict[str, str]:
+    return {"Authorization": f"Bearer {register_and_login(client, email)}"}
 
 
-def test_list_achievements(client: TestClient, seeded_achievements):
-    token = register_and_login(client, "achievements-list@example.com")
-    headers = {"Authorization": f"Bearer {token}"}
-
-    response = client.get("/api/v1/achievements", headers=headers)
+def test_the_catalogue_seeds_itself_on_the_first_read(client: TestClient, db_session):
+    response = client.get("/api/v1/achievements", headers=_headers(client, "ach-list@example.com"))
 
     assert response.status_code == 200
-    achievements = response.json()
-    assert len(achievements) >= 4
-    assert any(a["achievement_key"] == "first_session" for a in achievements)
+    keys = [a["achievement_key"] for a in response.json()]
+    assert keys == [item.key for item in CATALOGUE]
+    # Idempotent: a second read neither duplicates nor reorders.
+    again = client.get("/api/v1/achievements", headers=_headers(client, "ach-list2@example.com"))
+    assert [a["achievement_key"] for a in again.json()] == keys
+    rows = db_session.query(Achievement).filter(Achievement.achievement_key.in_(CATALOGUE_KEYS)).count()
+    assert rows == len(CATALOGUE)
 
 
-def test_get_my_achievements_empty(client: TestClient, seeded_achievements):
-    token = register_and_login(client, "achievements-empty@example.com")
-    headers = {"Authorization": f"Bearer {token}"}
-
-    response = client.get("/api/v1/achievements/my", headers=headers)
-
-    assert response.status_code == 200
-    progress = response.json()
-    assert len(progress) == 0
-
-
-def test_get_my_achievements_with_locked(client: TestClient, seeded_achievements):
-    token = register_and_login(client, "achievements-locked@example.com")
-    headers = {"Authorization": f"Bearer {token}"}
-
+def test_retired_keys_are_never_listed(client: TestClient, db_session):
+    AchievementService(db_session).seed_achievements(
+        [
+            AchievementDefinition(
+                key="xp_bronze", name="XP Bronze", description="Earn 500 XP", category="xp", tier="bronze"
+            )
+        ]
+    )
     response = client.get(
         "/api/v1/achievements/my",
         params={"include_locked": True},
-        headers=headers,
+        headers=_headers(client, "ach-retired@example.com"),
     )
-
     assert response.status_code == 200
-    progress = response.json()
-    assert len(progress) >= 4
-    assert all(item["completed"] is False for item in progress)
+    assert {a["achievement_key"] for a in response.json()} == set(CATALOGUE_KEYS)
 
 
-def test_check_achievements_first_session(
-    client: TestClient, db_session, seeded_achievements
-):
-    email = "achievements-first@example.com"
-    token = register_and_login(client, email)
-    headers = {"Authorization": f"Bearer {token}"}
+def test_a_new_learner_has_nothing_unlocked(client: TestClient):
+    headers = _headers(client, "ach-empty@example.com")
+    assert client.get("/api/v1/achievements/my", headers=headers).json() == []
 
+    locked = client.get("/api/v1/achievements/my", params={"include_locked": True}, headers=headers).json()
+    assert len(locked) == len(CATALOGUE)
+    assert all(item["completed"] is False for item in locked)
+    assert all(item["xp_reward"] == 0 for item in locked), "no XP economy nobody can see"
+
+
+def test_locked_progress_is_the_real_count(client: TestClient, db_session):
+    email = "ach-progress@example.com"
+    headers = _headers(client, email)
     user = db_session.query(User).filter(User.email == email).one()
-    session = LearningSession(
-        user_id=user.id,
-        planned_duration_minutes=15,
-        status="completed",
-        xp_earned=120,
-        started_at=datetime.now(UTC),
-        completed_at=datetime.now(UTC),
-    )
-    db_session.add(session)
+    for i in range(20):
+        word = VocabularyWord(
+            language="fr", word=f"prog{i}", normalized_word=f"prog{i}", english_translation=f"p{i}", frequency_rank=i + 1
+        )
+        db_session.add(word)
+        db_session.flush()
+        db_session.add(UserVocabularyProgress(user_id=user.id, word_id=word.id, state="new"))
     db_session.commit()
 
-    response = client.post("/api/v1/achievements/check", headers=headers)
+    items = client.get("/api/v1/achievements/my", params={"include_locked": True}, headers=headers).json()
+    words = next(a for a in items if a["achievement_key"] == "words_kept_50")
+    assert (words["current_progress"], words["target_progress"], words["completed"]) == (20, 50, False)
 
-    assert response.status_code == 200
-    result = response.json()
-    assert result["total_unlocked"] == 1
-    assert result["newly_unlocked"][0]["achievement_key"] == "first_session"
 
+def test_check_unlocks_once(client: TestClient, db_session):
+    email = "ach-once@example.com"
+    headers = _headers(client, email)
+    user = db_session.query(User).filter(User.email == email).one()
+    start = date(2026, 9, 1)
+    for offset in range(3):
+        record_practice_day(db_session, user, on_date=start + timedelta(days=offset))
+    db_session.commit()
+
+    first = client.post("/api/v1/achievements/check", headers=headers).json()
+    assert [a["achievement_key"] for a in first["newly_unlocked"]] == ["session_streak_3"]
+    second = client.post("/api/v1/achievements/check", headers=headers).json()
+    assert second["total_unlocked"] == 0
+
+    mine = client.get("/api/v1/achievements/my", headers=headers).json()
+    assert [a["achievement_key"] for a in mine] == ["session_streak_3"]
     db_session.refresh(user)
-    assert user.total_xp >= 50
-
-
-def test_check_achievements_streak(client: TestClient, db_session, seeded_achievements):
-    email = "achievements-streak@example.com"
-    token = register_and_login(client, email)
-    headers = {"Authorization": f"Bearer {token}"}
-
-    user = db_session.query(User).filter(User.email == email).one()
-    user.current_streak = 3
-    db_session.commit()
-
-    response = client.post("/api/v1/achievements/check", headers=headers)
-
-    assert response.status_code == 200
-    result = response.json()
-    assert any(
-        a["achievement_key"] == "session_streak_3" for a in result["newly_unlocked"]
-    )
-
-
-def test_check_achievements_vocabulary(
-    client: TestClient, db_session, seeded_achievements
-):
-    email = "achievements-vocab@example.com"
-    token = register_and_login(client, email)
-    headers = {"Authorization": f"Bearer {token}"}
-
-    user = db_session.query(User).filter(User.email == email).one()
-
-    for i in range(50):
-        word = VocabularyWord(
-            language="fr",
-            word=f"mot{i}",
-            normalized_word=f"mot{i}",
-            english_translation=f"word{i}",
-            frequency_rank=i + 1,
-        )
-        db_session.add(word)
-        db_session.flush()
-
-        progress = UserVocabularyProgress(
-            user_id=user.id,
-            word_id=word.id,
-            state="mastered",
-        )
-        db_session.add(progress)
-
-    db_session.commit()
-
-    response = client.post("/api/v1/achievements/check", headers=headers)
-
-    assert response.status_code == 200
-    result = response.json()
-    assert any(
-        a["achievement_key"] == "vocabulary_learner" for a in result["newly_unlocked"]
-    )
-
-
-def test_check_achievements_xp(client: TestClient, db_session, seeded_achievements):
-    email = "achievements-xp@example.com"
-    token = register_and_login(client, email)
-    headers = {"Authorization": f"Bearer {token}"}
-
-    user = db_session.query(User).filter(User.email == email).one()
-    user.total_xp = 500
-    db_session.commit()
-
-    response = client.post("/api/v1/achievements/check", headers=headers)
-
-    assert response.status_code == 200
-    result = response.json()
-    assert any(a["achievement_key"] == "xp_bronze" for a in result["newly_unlocked"])
-
-
-def test_achievement_not_unlocked_twice(
-    client: TestClient, db_session, seeded_achievements
-):
-    email = "achievements-duplicate@example.com"
-    token = register_and_login(client, email)
-    headers = {"Authorization": f"Bearer {token}"}
-
-    user = db_session.query(User).filter(User.email == email).one()
-    user.total_xp = 500
-    db_session.commit()
-
-    first_check = client.post("/api/v1/achievements/check", headers=headers)
-    assert first_check.status_code == 200
-    assert first_check.json()["total_unlocked"] >= 1
-
-    second_check = client.post("/api/v1/achievements/check", headers=headers)
-    assert second_check.status_code == 200
-    assert second_check.json()["total_unlocked"] == 0
-
-
-def test_achievement_progress_tracking(
-    client: TestClient, db_session, seeded_achievements
-):
-    email = "achievements-progress@example.com"
-    token = register_and_login(client, email)
-    headers = {"Authorization": f"Bearer {token}"}
-
-    user = db_session.query(User).filter(User.email == email).one()
-
-    for i in range(25):
-        word = VocabularyWord(
-            language="fr",
-            word=f"test{i}",
-            normalized_word=f"test{i}",
-            english_translation=f"test{i}",
-            frequency_rank=i + 1,
-        )
-        db_session.add(word)
-        db_session.flush()
-
-        progress = UserVocabularyProgress(
-            user_id=user.id,
-            word_id=word.id,
-            state="mastered",
-        )
-        db_session.add(progress)
-
-    db_session.commit()
-
-    response = client.get(
-        "/api/v1/achievements/my",
-        params={"include_locked": True},
-        headers=headers,
-    )
-
-    assert response.status_code == 200
-    progress_list = response.json()
-    vocab_achievement = next(
-        (a for a in progress_list if a["achievement_key"] == "vocabulary_learner"),
-        None,
-    )
-    assert vocab_achievement is not None
-    assert vocab_achievement["current_progress"] == 0
-    assert vocab_achievement["target_progress"] == 50
-    assert vocab_achievement["completed"] is False
+    assert (user.total_xp or 0) == 0

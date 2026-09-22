@@ -71,19 +71,18 @@ const COLLECTIBLE_ORDER = [
   'colophon',
 ];
 
+/* WP-79: the one catalogue (`app/services/achievement.py::CATALOGUE`). Every
+   entry is earned from a row the app really writes; a retired key is never
+   sent, and an unknown one falls back to a neutral line below. */
 const ACHIEVEMENT_COPY: Record<string, { title: string; note: string }> = {
-  first_session: { title: 'Première séance', note: 'La première séance est bouclée.' },
+  first_scene: { title: 'Première scène', note: 'La première journée bouclée.' },
+  scenes_10: { title: 'Dix scènes', note: 'Dix journées bouclées.' },
   session_streak_3: { title: 'Trois jours de suite', note: 'Trois jours d’affilée à l’Atelier.' },
   session_streak_7: { title: 'Une semaine de suite', note: 'Sept jours d’affilée à l’Atelier.' },
   session_streak_30: { title: 'Trente jours de suite', note: 'Trente jours d’affilée à l’Atelier.' },
-  vocabulary_learner: { title: 'Cinquante mots acquis', note: 'Cinquante mots passés en acquis.' },
-  vocabulary_expert: { title: 'Deux cents mots acquis', note: 'Deux cents mots passés en acquis.' },
-  vocabulary_master: { title: 'Cinq cents mots acquis', note: 'Cinq cents mots passés en acquis.' },
-  xp_bronze: { title: 'Palier bronze', note: 'Cinq cents points cumulés.' },
-  xp_silver: { title: 'Palier argent', note: 'Deux mille points cumulés.' },
-  xp_gold: { title: 'Palier or', note: 'Cinq mille points cumulés.' },
-  accuracy_perfectionist: { title: 'Le perfectionniste', note: 'Cent séances tenues au-dessus de 95 %.' },
-  review_champion: { title: 'Mille reprises', note: 'Mille reprises de vocabulaire classées.' },
+  first_letter: { title: 'Première lettre', note: 'Une première réponse au Courrier.' },
+  words_kept_50: { title: 'Cinquante mots gardés', note: 'Cinquante mots dans votre Lexique.' },
+  first_chapter: { title: 'Premier chapitre bouclé', note: 'Le premier chapitre du feuilleton s’est refermé.' },
 };
 
 /* The tier is printed as a word beside the reward token — never colour alone. */
