@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
 from app.config import settings
+from app.core.offload import off_event_loop
 from app.db.models.library import UserBook
 from app.db.models.user import User
 from app.schemas.story import (
@@ -138,6 +139,7 @@ def _enqueue_library_processing(
 
 
 @router.post("/upload-book")
+@off_event_loop
 async def upload_book(
     *,
     file: Annotated[UploadFile, File(...)],
@@ -187,7 +189,7 @@ async def upload_book(
     )
 
 @router.get("/upload-status/{task_id}")
-async def get_upload_status(
+def get_upload_status(
     task_id: str,
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
@@ -203,6 +205,7 @@ async def get_upload_status(
     return BookLibraryService(db).upload_status_payload(book)
 
 @router.post("/library/upload")
+@off_event_loop
 async def upload_library_book(
     *,
     file: Annotated[UploadFile, File(...)],
@@ -240,7 +243,7 @@ async def upload_library_book(
 
 
 @router.get("/library")
-async def list_library_books(
+def list_library_books(
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> list[dict]:
@@ -250,7 +253,7 @@ async def list_library_books(
 
 
 @router.get("/library/{book_id}")
-async def get_library_book(
+def get_library_book(
     book_id: str,
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
@@ -265,7 +268,7 @@ async def get_library_book(
 
 
 @router.get("/library/{book_id}/episodes/{order_index}")
-async def get_library_episode(
+def get_library_episode(
     book_id: str,
     order_index: int,
     db: Annotated[Session, Depends(get_db)],
@@ -286,7 +289,7 @@ async def get_library_episode(
 
 
 @router.post("/library/{book_id}/episodes/{order_index}/complete")
-async def complete_library_episode(
+def complete_library_episode(
     book_id: str,
     order_index: int,
     db: Annotated[Session, Depends(get_db)],
@@ -305,7 +308,7 @@ class ContentImportRequest(BaseModel):
     url: str
 
 @router.post("/import")
-async def import_content(
+def import_content(
     request: ContentImportRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -329,7 +332,7 @@ async def import_content(
         ) from exc
 
 @router.post("/{story_id}/discuss", response_model=dict)
-async def start_story_discussion(
+def start_story_discussion(
     story_id: str,
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
@@ -452,6 +455,7 @@ def _calculate_story_xp(
 # ============================================================================
 
 @router.get("/{story_id}/scene/{scene_id}/visualization")
+@off_event_loop
 async def get_scene_visualization(
     story_id: str,
     scene_id: str,
@@ -499,6 +503,7 @@ async def get_scene_visualization(
 
 
 @router.get("/{story_id}/chapter/{chapter_id}/cover")
+@off_event_loop
 async def get_chapter_cover(
     story_id: str,
     chapter_id: str,
@@ -536,7 +541,7 @@ async def get_chapter_cover(
 # ============================================================================
 
 @router.get("", response_model=list[StoryWithProgressRead])
-async def list_stories(
+def list_stories(
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
 ):
@@ -571,7 +576,7 @@ async def list_stories(
 
 
 @router.get("/{story_id}", response_model=StoryWithProgressRead)
-async def get_story(
+def get_story(
     story_id: str,
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
@@ -611,7 +616,7 @@ async def get_story(
 
 
 @router.post("/{story_id}/start", response_model=StoryStartResponse)
-async def start_story(
+def start_story(
     story_id: str,
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
@@ -709,7 +714,7 @@ async def start_story(
 
 
 @router.get("/{story_id}/scene", response_model=SceneRead | None)
-async def get_current_scene(
+def get_current_scene(
     story_id: str,
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
@@ -763,7 +768,7 @@ async def get_current_scene(
 
 
 @router.get("/{story_id}/progress", response_model=StoryProgressRead | None)
-async def get_story_progress(
+def get_story_progress(
     story_id: str,
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
@@ -798,6 +803,7 @@ async def get_story_progress(
 
 
 @router.post("/{story_id}/input", response_model=StoryInputResponse)
+@off_event_loop
 async def process_story_input(
     story_id: str,
     request: StoryInputRequest,
@@ -1203,7 +1209,7 @@ async def process_story_input(
 # ============================================================================
 
 @router.get("/{story_id}/chapters", response_model=list[ChapterWithStatusRead])
-async def get_story_chapters(
+def get_story_chapters(
     story_id: str,
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
@@ -1273,7 +1279,7 @@ async def get_story_chapters(
 
 
 @router.post("/{story_id}/chapters/{chapter_id}/check-goals")
-async def check_chapter_goals(
+def check_chapter_goals(
     story_id: str,
     chapter_id: str,
     request: GoalCheckRequest,
@@ -1316,7 +1322,7 @@ async def check_chapter_goals(
 
 
 @router.post("/{story_id}/chapters/{chapter_id}/complete")
-async def complete_chapter(
+def complete_chapter(
     story_id: str,
     chapter_id: str,
     request: ChapterCompletionRequest,
@@ -1393,7 +1399,7 @@ async def complete_chapter(
 
 
 @router.post("/{story_id}/make-choice")
-async def make_narrative_choice(
+def make_narrative_choice(
     story_id: str,
     request: NarrativeChoiceRequest,
     db: Annotated[Session, Depends(get_db)],

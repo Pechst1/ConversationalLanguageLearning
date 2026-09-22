@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_db
 from app.api.v1.endpoints.atelier import get_atelier_user
 from app.config import settings
+from app.core.offload import off_event_loop
 from app.db.models.graphic_novel import GraphicNovelScene
 from app.db.models.mission import RealWorldMission
 from app.db.models.serial import SerialThread
@@ -41,6 +42,7 @@ def _thread_or_404(db: Session, thread_id: UUID, user: User) -> SerialThread:
 
 
 @router.get("/today")
+@off_event_loop
 async def get_serial_today(
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_atelier_user)],
@@ -51,6 +53,7 @@ async def get_serial_today(
 
 @router.post("/threads", response_model=SerialThreadRead)
 @router.post("/threads/", response_model=SerialThreadRead)
+@off_event_loop
 async def create_serial_thread(
     request: SerialThreadCreateRequest,
     db: Annotated[Session, Depends(get_db)],
@@ -67,6 +70,7 @@ async def create_serial_thread(
 
 
 @router.get("/threads/current/episodes")
+@off_event_loop
 async def list_current_serial_episodes(
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_atelier_user)],
@@ -86,7 +90,7 @@ async def list_current_serial_episodes(
 
 
 @router.get("/season")
-async def get_serial_season(
+def get_serial_season(
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_atelier_user)],
 ) -> dict:
@@ -102,6 +106,7 @@ async def get_serial_season(
 
 
 @router.get("/threads/current/cast")
+@off_event_loop
 async def get_current_serial_cast(
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_atelier_user)],
@@ -113,6 +118,7 @@ async def get_current_serial_cast(
 
 
 @router.post("/threads/current/avatar")
+@off_event_loop
 async def set_current_serial_avatar(
     request: SerialAvatarRequest,
     db: Annotated[Session, Depends(get_db)],
@@ -131,7 +137,7 @@ async def set_current_serial_avatar(
 
 
 @router.post("/onboarding/seen")
-async def mark_serial_onboarding_seen(
+def mark_serial_onboarding_seen(
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_atelier_user)],
 ) -> dict:
@@ -143,6 +149,7 @@ async def mark_serial_onboarding_seen(
 
 
 @router.post("/threads/{thread_id}/advance")
+@off_event_loop
 async def advance_serial_thread(
     thread_id: UUID,
     request: SerialAdvanceRequest,

@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_db, harden_demo_user_password
 from app.config import settings
+from app.core.offload import off_event_loop
 from app.core.security import (
     InvalidTokenError,
     decode_token,
@@ -1090,6 +1091,7 @@ def _session_response(
 
 
 @router.get("/today", response_model=AtelierTodayResponse)
+@off_event_loop
 async def get_today(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),

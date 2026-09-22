@@ -28,6 +28,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_db
 from app.api.v1.endpoints.atelier import get_atelier_user
 from app.config import settings
+from app.core.offload import off_event_loop
 from app.db.models.user import User
 from app.services.intake import (
     INTAKE_VERSION,
@@ -169,6 +170,7 @@ def submit_text(
 
 
 @router.post("/photo", response_model=IntakeEnvelope)
+@off_event_loop
 async def submit_photo(
     file: Annotated[UploadFile, File()],
     db: Annotated[Session, Depends(get_db)],

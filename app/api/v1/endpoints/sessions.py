@@ -16,6 +16,7 @@ from app.api.v1.endpoints.session_utils import (
     session_to_overview,
     word_feedback_to_schema,
 )
+from app.core.offload import off_event_loop
 from app.db.models.session import LearningSession
 from app.db.models.user import User
 from app.schemas import (
@@ -68,6 +69,7 @@ def create_session(
 
 
 @router.post("/quick-start", response_model=SessionStartResponse, status_code=status.HTTP_201_CREATED)
+@off_event_loop
 async def create_quick_session(
     payload: QuickStartRequest | None = None,
     *,
