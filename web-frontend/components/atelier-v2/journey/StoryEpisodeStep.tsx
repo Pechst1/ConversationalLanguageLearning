@@ -23,6 +23,7 @@ import { getStoryEpisodeForJourney, recordEpisodePrediction } from '@/services/d
 import type { SceneStep, StoryEpisode } from '@/types/daily-journey';
 
 import type { JourneyCopy } from './journey-copy';
+import type { JourneySpeaker } from './journey-faces';
 import { SceneStepView } from './JourneySteps';
 import { EpisodeRadio, StoryEpisodeReader } from './StoryEpisodeReader';
 import {
@@ -43,6 +44,7 @@ export function StoryEpisodeStep({
   busy,
   onContinue,
   onExit,
+  speaker = null,
 }: {
   journeyId: string;
   step: SceneStep;
@@ -50,6 +52,8 @@ export function StoryEpisodeStep({
   busy: boolean;
   onContinue: () => void;
   onExit?: () => void;
+  /** WP-77: who says the scene's line, so the plain scene shows their face. */
+  speaker?: JourneySpeaker | null;
 }) {
   // Server rendering (and the node test harness) has no effects: render the
   // scene prompt straight away rather than a loading state that never ends.
@@ -174,7 +178,9 @@ export function StoryEpisodeStep({
     );
   }
 
-  return <SceneStepView step={step} copy={copy} busy={busy} onContinue={onContinue} />;
+  return (
+    <SceneStepView step={step} copy={copy} busy={busy} onContinue={onContinue} speaker={speaker} />
+  );
 }
 
 export default StoryEpisodeStep;

@@ -13,9 +13,11 @@
  * keeps it true in the pixels.
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
+import { faceSrcFor } from '@/lib/cast-faces';
 import { resolveMediaUrl } from '@/lib/media-url';
+import type { PortraitMood } from '@/lib/onboarding-portraits';
 
 import { CheckIcon, PendingIcon, RepairIcon, ShapeToken, type ShapeKind } from './Shapes';
 
@@ -28,13 +30,19 @@ export type FeedbackBandProps = {
   /** One supporting line. The character's reply, or why it was supported. */
   detail?: React.ReactNode;
   children?: React.ReactNode;
+  /**
+   * WP-77: the character's face reacting to the answer. Decorative — the
+   * verdict word and the icon already carry the meaning.
+   */
+  face?: React.ReactNode;
 };
 
-export function FeedbackBand({ tone, title, detail, children }: FeedbackBandProps) {
+export function FeedbackBand({ tone, title, detail, children, face }: FeedbackBandProps) {
   return (
     <div
       className="av2-feedback"
       data-tone={tone}
+      data-face={face ? 'true' : undefined}
       role="status"
       // The verdict must be announced as one unit; assertive would interrupt
       // the learner mid-sentence if they are still typing elsewhere.
@@ -51,6 +59,11 @@ export function FeedbackBand({ tone, title, detail, children }: FeedbackBandProp
         {detail && <p className="av2-feedback__sub">{detail}</p>}
         {children}
       </div>
+      {face && (
+        <span className="av2-feedback__face" aria-hidden="true">
+          {face}
+        </span>
+      )}
     </div>
   );
 }
@@ -190,30 +203,57 @@ export function characterAccent(name: string | null | undefined): string | undef
 export type PortraitProps = {
   /** The character's name, as the server sent it. Its initial is drawn. */
   name: string;
+  /**
+   * WP-77: the character's id, when the payload has one. With it (or with a
+   * name that resolves to the drawn cast) the disc shows their face instead of
+   * the initial; anyone outside the cast keeps the initial.
+   */
+  characterId?: string | null;
+  mood?: PortraitMood;
   size?: 'sm' | 'md';
 };
 
-export function Portrait({ name, size = 'md' }: PortraitProps) {
+export function Portrait({ name, characterId = null, mood = 'neutral', size = 'md' }: PortraitProps) {
   const accent = characterAccent(name);
   const initial = name.trim().charAt(0).toUpperCase() || '·';
+  const face = faceSrcFor([characterId, name], mood);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [face]);
+  const showFace = Boolean(face) && !failed;
   return (
     <span
       className={['av2-portrait', size === 'sm' ? 'av2-portrait--sm' : null]
         .filter(Boolean)
         .join(' ')}
       style={accent ? ({ ['--av2-char' as string]: accent } as React.CSSProperties) : undefined}
+      data-face={showFace ? mood : undefined}
       aria-hidden="true"
     >
-      {initial}
+      {showFace ? (
+        // eslint-disable-next-line @next/next/no-img-element -- static export: no image optimiser
+        <img key={face} src={face as string} alt="" decoding="async" onError={() => setFailed(true)} />
+      ) : (
+        initial
+      )}
     </span>
   );
 }
 
 /** Portrait + name, as one labelled unit. */
-export function Byline({ name, meta }: { name: string; meta?: React.ReactNode }) {
+export function Byline({
+  name,
+  meta,
+  characterId = null,
+  mood = 'neutral',
+}: {
+  name: string;
+  meta?: React.ReactNode;
+  characterId?: string | null;
+  mood?: PortraitMood;
+}) {
   return (
     <span className="av2-byline">
-      <Portrait name={name} size="sm" />
+      <Portrait name={name} characterId={characterId} mood={mood} size="sm" />
       <span className="av2-label">
         {name}
         {meta ? <> · {meta}</> : null}

@@ -8,7 +8,8 @@
 
 import React from 'react';
 
-import { characterAccent } from '@/components/atelier-v2/ui';
+import { characterAccent } from '@/components/atelier-v2/ui/Feedback';
+import { castIdFor } from '@/lib/cast-faces';
 import { portraitInitial, portraitSrc, type PortraitMood } from '@/lib/onboarding-portraits';
 
 export type CastPortraitProps = {
@@ -16,15 +17,17 @@ export type CastPortraitProps = {
   /** The character's display name: the fallback initial and the accent. */
   name?: string;
   mood?: PortraitMood;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'xs' | 'sm' | 'md' | 'lg';
   /** Empty (the default) marks the image decorative — a name sits beside it. */
   alt?: string;
 };
 
-const PX = { sm: 40, md: 64, lg: 112 } as const;
+const PX = { xs: 30, sm: 40, md: 64, lg: 112 } as const;
 
 export function CastPortrait({ characterId, name, mood = 'neutral', size = 'md', alt = '' }: CastPortraitProps) {
-  const src = portraitSrc(characterId, mood);
+  // WP-77: an id from any payload («marin», «Augustin « Gus » de Roncourt»)
+  // resolves to the drawn cast; the exact directory id still works as before.
+  const src = portraitSrc(castIdFor(characterId, name) ?? characterId, mood);
   const [failed, setFailed] = React.useState(false);
   React.useEffect(() => setFailed(false), [src]);
 

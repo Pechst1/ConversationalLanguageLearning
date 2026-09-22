@@ -27,6 +27,7 @@ import {
   CrossIcon,
   SpinnerToken,
 } from '@/components/atelier-v2/ui';
+import { CastPortrait } from '@/components/onboarding/Portrait';
 import { enterImmersiveSurface } from '@/lib/immersive-surface';
 import { resolveMediaUrl } from '@/lib/media-url';
 import apiService from '@/services/api';
@@ -503,6 +504,12 @@ export function FeuilletonReader({
   );
 }
 
+/* WP-77: a drawn cast member's face, small, beside the name. */
+function SpeakerFace({ line }: { line: ReaderLine }) {
+  if (!line.faceId) return null;
+  return <CastPortrait characterId={line.faceId} name={line.who} mood={line.faceMood ?? 'neutral'} size="xs" />;
+}
+
 /* One reply, as a card. The legacy layout keeps its accent dot; the WP-44
    artboards print the name alone in the story blue. */
 function SpeechBody({
@@ -524,8 +531,13 @@ function SpeechBody({
   return (
     <div className="fr-speech" data-char={line.character || stage.character || undefined}>
       {line.who && (
-        <p className="fr-speaker">
-          {glyph && <span className="glyph" aria-hidden="true" />}
+        <p className="fr-speaker" data-face={line.faceId ? 'true' : undefined}>
+          {/* WP-77: the speaker's face beside their line; the narrator has none. */}
+          {line.faceId ? (
+            <SpeakerFace line={line} />
+          ) : (
+            glyph && <span className="glyph" aria-hidden="true" />
+          )}
           {line.who}
         </p>
       )}
@@ -593,7 +605,10 @@ function PanelBody({
                 className="fr-bubble"
                 data-char={bubbleLine.character || stage.character || undefined}
               >
-                <p className="fr-speaker">{bubbleLine.who}</p>
+                <p className="fr-speaker" data-face={bubbleLine.faceId ? 'true' : undefined}>
+                  {bubbleLine.faceId && <SpeakerFace line={bubbleLine} />}
+                  {bubbleLine.who}
+                </p>
                 <p className="fr-line" lang="fr">
                   <TappableFrench
                     text={bubbleLine.fr}
@@ -791,6 +806,10 @@ function TaskCard({
             (taskIsClosed(task) ? (
               <input
                 className="fr-field"
+                lang="fr"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
                 value={value}
                 onChange={(event) => setValue(event.target.value)}
                 placeholder="Votre réponse"
@@ -799,6 +818,10 @@ function TaskCard({
             ) : (
               <textarea
                 className="fr-field"
+                lang="fr"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
                 rows={3}
                 value={value}
                 onChange={(event) => setValue(event.target.value)}

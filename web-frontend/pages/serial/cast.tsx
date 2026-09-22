@@ -25,6 +25,7 @@ import {
   textAnswerField,
 } from '@/components/atelier-v2/ui';
 import { FeuilletonReaderStyles } from '@/components/feuilleton/reader';
+import { expressionForMood, faceSrcFor } from '@/lib/cast-faces';
 import apiService, { SerialCastMember } from '@/services/api';
 
 const AVATAR_REFERENCE_ASSET = 'assets/serial/characters/user/model-sheet.webp';
@@ -265,6 +266,7 @@ function CastCard({ member }: { member: SerialCastMember }) {
     : null;
   const callbacks = (member.relationship.callbacks || []).slice(0, 4);
   const moodLine = MOOD_LINES[Math.round(Number(member.relationship.mood ?? 0))];
+  const face = faceSrcFor([member.id, member.name], expressionForMood(Number(member.relationship.mood ?? 0)));
   const episodes = (member.episodes || []).slice(0, 4);
 
   return (
@@ -276,7 +278,11 @@ function CastCard({ member }: { member: SerialCastMember }) {
     >
       <div className="cast-card__top">
         <span className="cast-portrait" aria-hidden="true">
-          {member.model_sheet_url ? (
+          {face ? (
+            // WP-77: the face that matches how they feel about you right now.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={face} alt="" data-mood={expressionForMood(member.relationship.mood ?? 0)} />
+          ) : member.model_sheet_url ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={member.model_sheet_url} alt="" />
           ) : (

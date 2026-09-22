@@ -24,6 +24,7 @@ import React, {
 import { FeuilletonReader, FeuilletonReaderStyles } from '@/components/feuilleton/reader';
 import {
   Action,
+  Byline,
   ChoiceList,
   Notice,
   StateBlock,
@@ -430,7 +431,8 @@ export function EpisodeRadio({
             {lines.map((line, index) => (
               <li key={line.key}>
                 <Surface>
-                  {line.who && <p className="av2-label">{line.who}</p>}
+                  {/* WP-77: the speaker's face with their name; narration has none. */}
+                  {line.who && <Byline name={line.who} characterId={line.characterId} />}
                   {index < state.revealed ? (
                     <p className="av2-fr" lang="fr">
                       {line.fr}

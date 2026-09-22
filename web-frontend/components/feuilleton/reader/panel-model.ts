@@ -7,6 +7,9 @@
  * Kept free of React so it can be unit-tested with `node --test`.
  */
 
+// Relative, not `@/`: the reader's node tests load this model without the alias.
+import { castIdFor } from '../../../lib/cast-faces';
+
 export type ReaderScene = {
   id: string;
   status?: string;
@@ -40,6 +43,14 @@ export type ReaderLine = {
   fr: string;
   en: string;
   character: string;
+  /**
+   * WP-77: the drawn cast member speaking (`lib/cast-faces` id), or absent for
+   * anyone without a face. Unlike `character` it is never guessed: an unknown
+   * speaker gets no face rather than someone else's.
+   */
+  faceId?: string | null;
+  /** WP-77: which of the three faces, from the story's live mood when sent. */
+  faceMood?: 'neutral' | 'happy' | 'cross';
 };
 
 export type ReaderArtStatus = 'ready' | 'printing' | 'missing';
@@ -183,6 +194,7 @@ export function panelLines(panel: ReaderPanelSource): ReaderLine[] {
         fr: String(bubble.fr).trim(),
         en: String(bubble.en || '').trim(),
         character,
+        faceId: castIdFor(bubble.speaker_id, bubble.speaker),
       };
     });
 }

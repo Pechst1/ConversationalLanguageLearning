@@ -21,6 +21,8 @@ import {
   type ReaderLine,
   type ReaderStage,
 } from '@/components/feuilleton/reader/panel-model';
+import { castIdFor, expressionForMood } from '@/lib/cast-faces';
+import type { PortraitMood } from '@/lib/onboarding-portraits';
 
 /**
  * One dialogue line as the engine actually sends it.
@@ -87,7 +89,29 @@ export function stripPanelPrefix(text: string | null | undefined): string {
     .trim();
 }
 
-function panelLines(panel: StoryPanel): ReaderLine[] {
+/**
+ * WP-77: the story's live mood for one character, when the payload carries it.
+ *
+ * The living story keeps `moods: { [character_id]: { mood: -2…2 } }`. The
+ * episode projection does not publish it yet, so it is read structurally —
+ * from the episode or from one line — and a payload without it is a neutral
+ * face, never an invented one.
+ */
+export function storyMoodFor(
+  episode: StoryEpisode | null | undefined,
+  characterId: string | null | undefined,
+  line?: Record<string, unknown> | null,
+): PortraitMood {
+  const own = line ? (line.mood ?? line.expression) : undefined;
+  if (own != null) return expressionForMood(own);
+  const moods = (episode as unknown as { moods?: Record<string, { mood?: unknown } | number> } | null)?.moods;
+  const id = String(characterId || '');
+  if (!moods || !id) return 'neutral';
+  const entry = moods[id];
+  return expressionForMood(typeof entry === 'object' && entry ? entry.mood : entry);
+}
+
+function panelLines(panel: StoryPanel, episode?: StoryEpisode | null): ReaderLine[] {
   return ((panel.dialogue || []) as StoryDialogueLine[])
     .filter((line) => line && String(line.text_fr || '').trim())
     .map((line, index) => ({
@@ -98,6 +122,9 @@ function panelLines(panel: StoryPanel): ReaderLine[] {
       // The visual accent stays keyed to the canonical id, so a renamed
       // character keeps its colour; the display name is only a fallback seed.
       character: readerCharacterKey(line.character_id) || readerCharacterKey(line.character_name) || '',
+      // WP-77: a face beside every line a drawn character speaks.
+      faceId: castIdFor(line.character_id, line.character_name),
+      faceMood: storyMoodFor(episode, line.character_id, line as unknown as Record<string, unknown>),
     }));
 }
 
@@ -106,7 +133,7 @@ export function buildStoryStages(episode: StoryEpisode | null | undefined): Read
   if (!episode) return [];
   const panels = [...(episode.panels || [])].sort((a, b) => a.index - b.index);
   const stages: ReaderStage[] = panels.map((panel, ordinal) => {
-    const lines = panelLines(panel);
+    const lines = panelLines(panel, episode);
     const character = lines.map((line) => line.character).find(Boolean) || '';
     return {
       kind: 'panel',
