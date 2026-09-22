@@ -512,3 +512,30 @@ def test_a_thin_queue_borrows_context_cards_and_fragile_words_never_obligations(
         db_session, user=user, scenario=_brief(), limit=3
     )
     assert not any((c.metadata or {}).get("partner_only") for c in classic)
+
+
+def test_a_shape_that_could_not_be_built_is_not_dealt_straight_back() -> None:
+    """The WP-68 finding: a listening day served as standard used to exclude
+    only *standard* the next morning, so the dice dealt listening again."""
+
+    from app.services.journey_day_shapes import choose_day_shape
+
+    for offset in range(40):
+        inputs = DayShapeInputs(
+            user_id="learner-c",
+            local_date=(datetime(2026, 1, 5) + timedelta(days=offset)).date(),
+            previous_shape=DayShape.STANDARD,
+            previous_dealt_shape=DayShape.LISTENING,
+            audio_available=True,
+            errata_count=1,
+        )
+        assert choose_day_shape(inputs).shape is DayShape.REPRISE
+    # With nothing else left, the day is still dealt — never refused.
+    lonely = DayShapeInputs(
+        user_id="learner-c",
+        local_date=datetime(2026, 1, 5).date(),
+        previous_shape=DayShape.STANDARD,
+        previous_dealt_shape=DayShape.LISTENING,
+        audio_available=True,
+    )
+    assert choose_day_shape(lonely).shape is DayShape.LISTENING

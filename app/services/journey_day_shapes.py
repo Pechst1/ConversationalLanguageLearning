@@ -260,6 +260,10 @@ class DayShapeInputs:
     errata_count: int = 0
     #: The WP-64 seam's answer for today. ``None`` disables «jour de lettre».
     letter: LetterOffer | None = None
+    #: WP-78. The shape the dice dealt yesterday when the planner could not
+    #: build it and served a standard day instead (``None`` otherwise). Not
+    #: part of the seed: it only removes a shape that just failed to build.
+    previous_dealt_shape: DayShape | None = None
 
     @property
     def seed_parts(self) -> tuple[str, ...]:
@@ -353,7 +357,14 @@ def choose_day_shape(inputs: DayShapeInputs) -> DayShapeDecision:
             )
 
     unrepeated = tuple(shape for shape in pool if shape is not previous)
-    drawn_from = unrepeated or pool
+    # WP-78 (the WP-68 finding): a shape dealt yesterday that could not be
+    # built was served as a standard day, so excluding only *standard* dealt
+    # the failed shape again and again. It sits out today too — when anything
+    # else is left to deal.
+    untried = tuple(
+        shape for shape in unrepeated if shape is not inputs.previous_dealt_shape
+    )
+    drawn_from = untried or unrepeated or pool
     choice = weighted_choice(
         [(shape, SHAPE_WEIGHTS.get(shape, 1)) for shape in drawn_from],
         *inputs.seed_parts,
