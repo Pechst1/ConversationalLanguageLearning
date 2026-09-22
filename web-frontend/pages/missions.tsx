@@ -1273,6 +1273,9 @@ export default function MissionsPage() {
                     ref={replyRef}
                     className={'av2-field__control cr-draft' + (format === 'email_formal' || format === 'admin_form' ? ' cr-draft--tall' : '')}
                     lang="fr"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck={false}
                     rows={1}
                     value={reply}
                     onChange={(event) => setReply(event.target.value)}

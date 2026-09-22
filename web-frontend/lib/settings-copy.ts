@@ -190,6 +190,8 @@ export type SettingsCopyKey =
   | 'row_autoplay_hint'
   | 'row_listen_first'
   | 'row_listen_first_hint'
+  | 'row_sounds'
+  | 'row_sounds_hint'
   | 'row_tts_speed'
   | 'speed_slow'
   | 'speed_fast'
@@ -389,6 +391,8 @@ const EN: SettingsCopy = {
   row_autoplay_hint: 'Start a word’s audio without a further tap',
   row_listen_first: 'Listen first',
   row_listen_first_hint: 'Guess, listen, check — then read. The episode opens with the sound.',
+  row_sounds: 'Sounds',
+  row_sounds_hint: 'A short tone for right, wrong and a finished day.',
   row_tts_speed: 'Reading speed',
   speed_slow: 'Slow',
   speed_fast: 'Fast',
@@ -591,6 +595,8 @@ const DE: SettingsCopy = {
   row_autoplay_hint: 'Den Ton eines Wortes ohne weiteren Tipp starten',
   row_listen_first: 'Zuerst hören',
   row_listen_first_hint: 'Raten, hören, prüfen — dann lesen. Die Folge beginnt mit dem Ton.',
+  row_sounds: 'Töne',
+  row_sounds_hint: 'Ein kurzer Ton für richtig, falsch und einen geschafften Tag.',
   row_tts_speed: 'Lesegeschwindigkeit',
   speed_slow: 'Langsam',
   speed_fast: 'Schnell',
@@ -798,6 +804,8 @@ const FR: SettingsCopy = {
   row_autoplay_hint: 'Lancer le son du mot sans geste supplémentaire',
   row_listen_first: 'Écouter d’abord',
   row_listen_first_hint: 'Deviner, écouter, vérifier — puis lire. L’épisode commence par le son.',
+  row_sounds: 'Sons',
+  row_sounds_hint: 'Un son bref pour juste, faux et la journée terminée.',
   row_tts_speed: 'Vitesse de lecture',
   speed_slow: 'Lente',
   speed_fast: 'Rapide',

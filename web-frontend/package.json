@@ -39,7 +39,9 @@
     "test:settings-copy": "node --test lib/settings-copy.test.js",
     "test:media-url": "node --test lib/media-url.test.js",
     "test:observability": "node --test lib/observability.test.js",
-    "test:onboarding": "node --test lib/onboarding.test.js"
+    "test:onboarding": "node --test lib/onboarding.test.js",
+    "test:push": "node --test lib/push-opt-in.test.js",
+    "test:feel-faces": "node --test components/atelier-v2/journey/feel-faces.test.js"
   },
   "dependencies": {
     "@capacitor/cli": "^8.4.0",

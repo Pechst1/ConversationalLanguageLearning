@@ -104,6 +104,12 @@ export type WordTilesProps = {
   disabled?: boolean;
   onPlace: (id: string) => void;
   onRemoveLast: () => void;
+  /**
+   * WP-76: the assembled sentence, graded — on the device first, then by the
+   * server. Paired with a glyph and a hidden word, never colour alone.
+   */
+  verdict?: 'correct' | 'wrong' | null;
+  verdictLabel?: string;
 };
 
 export function WordTiles({
@@ -115,6 +121,8 @@ export function WordTiles({
   disabled = false,
   onPlace,
   onRemoveLast,
+  verdict = null,
+  verdictLabel,
 }: WordTilesProps) {
   const byId = new Map(options.map((option) => [option.id, option]));
   const remaining = options.filter((option) => !placed.includes(option.id));
@@ -127,12 +135,19 @@ export function WordTiles({
         className="av2-tiles__line"
         lang="fr"
         data-empty={placed.length === 0 ? 'true' : undefined}
+        data-verdict={verdict ?? undefined}
         aria-live="polite"
         aria-label={label}
       >
         {placed.length === 0
           ? emptyHint
           : placed.map((id) => byId.get(id)?.textFr ?? '').join(' ')}
+        {verdict && (
+          <span className="av2-tiles__mark" aria-hidden="true">
+            {verdict === 'correct' ? <CheckIcon size={13} /> : <RepairIcon size={13} />}
+          </span>
+        )}
+        {verdict && verdictLabel && <span className="av2-sr">{verdictLabel}</span>}
       </p>
 
       <div className="av2-tiles__bank">
@@ -205,6 +220,10 @@ export function textAnswerField({
         ref={inputRef}
         className="av2-field__control"
         lang="fr"
+        // WP-76: French typed on an English keyboard must not be "corrected".
+        autoCorrect="off"
+        autoCapitalize="off"
+        spellCheck={false}
         rows={rows}
         value={value}
         disabled={disabled}
