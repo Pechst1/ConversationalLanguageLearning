@@ -4,6 +4,17 @@ default_platform(:ios)
 # directory as the working directory.
 SIGNING_XCCONFIG = File.expand_path("../ios/App/Signing.xcconfig", __dir__).freeze
 SIGNING_XCCONFIG_LABEL = "ios/App/Signing.xcconfig".freeze
+WEB_ROOT = File.expand_path("..", __dir__).freeze
+
+# WP-72: the archive builds its own web bundle, so an App Store build can never
+# carry whatever a developer last synced for the simulator. These are forced;
+# the API host must come from the environment.
+RELEASE_WEB_ENV = {
+  "NATIVE_RELEASE" => "true",
+  "NEXT_PUBLIC_NATIVE_PUSH_ENABLED" => "true",
+  "NEXT_PUBLIC_APNS_ENVIRONMENT" => "production",
+}.freeze
+RELEASE_FORBIDDEN_ENV = %w[ALLOW_LOCAL_NATIVE_API ALLOW_PLACEHOLDER_NATIVE_API CAPACITOR_SERVER_URL].freeze
 
 # Writes the gitignored ios/App/Signing.xcconfig from the environment so the
 # Xcode project never carries a real team id. Both target configurations pull
@@ -31,6 +42,37 @@ def write_signing_xcconfig
   UI.message("Wrote #{SIGNING_XCCONFIG_LABEL} for team #{team.strip}.")
 end
 
+def with_env(overrides)
+  previous = overrides.keys.to_h { |key| [key, ENV[key]] }
+  overrides.each { |key, value| ENV[key] = value }
+  yield
+ensure
+  previous&.each { |key, value| value.nil? ? ENV.delete(key) : ENV[key] = value }
+end
+
+# Builds the production static export (build:native, which prunes dev/QA pages
+# and writes native-build.json), copies it into the iOS shell with `cap sync`,
+# then reads the copied bundle back and refuses it unless the API is HTTPS and
+# not localhost/127.0.0.1/example, native push is on and APNs is production.
+def build_release_web_bundle
+  RELEASE_FORBIDDEN_ENV.each do |key|
+    next if ENV[key].to_s.strip.empty?
+    UI.user_error!("#{key} is set. Unset it: an App Store archive talks to the hosted API only.")
+  end
+  api = ENV["NEXT_PUBLIC_API_BASE_URL"].to_s.strip
+  api = ENV["NEXT_PUBLIC_API_URL"].to_s.strip if api.empty?
+  if api.empty?
+    UI.user_error!("Export NEXT_PUBLIC_API_BASE_URL=https://<api-host>/api/v1 before archiving.")
+  end
+
+  with_env(RELEASE_WEB_ENV) do
+    Dir.chdir(WEB_ROOT) do
+      sh("npm", "run", "cap:sync:ios")
+      sh("node", "scripts/verify-native-bundle.mjs", "--release", "ios/App/App/public")
+    end
+  end
+end
+
 def connect_api_key
   key_id = ENV["APP_STORE_CONNECT_KEY_ID"]
   issuer_id = ENV["APP_STORE_CONNECT_ISSUER_ID"]
@@ -50,6 +92,7 @@ platform :ios do
   desc "Build a signed App Store archive without uploading it"
   lane :archive do
     write_signing_xcconfig
+    build_release_web_bundle
     build_number = ENV["CI_BUILD_NUMBER"] || Time.now.utc.strftime("%Y%m%d%H%M")
     # Deliberately not increment_build_number: agvtool also rewrites
     # App/Info.plist, replacing $(CURRENT_PROJECT_VERSION) with a literal and
@@ -61,9 +104,12 @@ platform :ios do
       configuration: "Release",
       export_method: "app-store",
       clean: true,
-      xcargs: "CURRENT_PROJECT_VERSION=#{build_number}",
+      # -allowProvisioningUpdates lets automatic signing create or refresh the
+      # App Store profile (Push included) instead of failing on a fresh machine.
+      xcargs: "CURRENT_PROJECT_VERSION=#{build_number} -allowProvisioningUpdates",
+      export_xcargs: "-allowProvisioningUpdates",
       output_directory: "build/testflight",
-      output_name: "Feuilleton.ipa"
+      output_name: "LAtelier.ipa"
     )
   end
 
