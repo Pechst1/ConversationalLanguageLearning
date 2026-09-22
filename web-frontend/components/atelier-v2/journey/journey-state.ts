@@ -475,8 +475,11 @@ export function dayShapeOf(journey: JourneySnapshot | null): DayShape {
 export function recallAnswerMode(
   format: RecallFormat | string,
 ): 'choice' | 'tiles' | 'text' {
-  if (format === 'choice' || format === 'classify') return 'choice';
-  if (format === 'tiles' || format === 'word_bank') return 'tiles';
+  if (format === 'choice' || format === 'classify' || format === 'listen_tap') return 'choice';
+  // WP-78: an unscramble is tiles; a matching item sends the pairs it made,
+  // in order, as consecutive `[fr, native]` tile ids.
+  if (format === 'tiles' || format === 'word_bank' || format === 'unscramble') return 'tiles';
+  if (format === 'match_pairs') return 'tiles';
   return 'text';
 }
 

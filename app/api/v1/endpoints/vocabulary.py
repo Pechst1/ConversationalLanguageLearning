@@ -6,6 +6,7 @@ from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.api import deps
@@ -324,7 +325,9 @@ def _example_payloads(db: Session, *, user: User, word: Any) -> list[VocabularyB
             VocabularyBiographyExample(
                 sentence=sentence,
                 translation=interaction.correction,
-                source="conversation",
+                # WP-78: a word kept from the story shows the sentence it was
+                # kept with, and its meaning in the learner's language.
+                source="story" if interaction.interaction_type == "kept_from_story" else "conversation",
                 occurred_at=interaction.created_at,
             )
         )
@@ -738,6 +741,60 @@ def submit_conjugation_review(
         lapses=progress.lapses or 0,
         next_review=progress.next_review_date,
     )
+
+
+class KeepWordRequest(BaseModel):
+    """WP-78 «Garder»: a word tapped in the story, and the sentence it was in."""
+
+    term: str = Field(..., min_length=1, max_length=80)
+    sentence: str = Field(..., min_length=1, max_length=2000)
+    surface: str | None = Field(default=None, max_length=80)
+    journey_id: UUID | None = None
+
+
+#: What the sheet says when a word cannot be kept. French: this is chrome.
+_KEEP_REFUSAL_FR = {
+    "empty_term": "Ce mot ne peut pas être gardé.",
+    "no_sentence": "Ce mot ne peut être gardé qu'avec sa phrase.",
+    "not_in_lexicon": "Ce mot n'est pas encore dans le lexique.",
+    "no_gloss_in_learner_language": "Pas encore de traduction dans votre langue pour ce mot.",
+}
+
+
+@router.post("/keep")
+def keep_vocabulary_word(
+    payload: KeepWordRequest,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> dict[str, Any]:
+    """WP-78 — keep a tapped word in the learner's Lexique, with its sentence.
+
+    Learner-scoped by construction (``app/services/kept_words.py``): the shared
+    catalogue row is never written. Idempotent for the same word and sentence.
+    """
+
+    from app.services.kept_words import KeepRefused, keep_word
+
+    try:
+        kept = keep_word(
+            db,
+            user=current_user,
+            term=payload.term,
+            sentence=payload.sentence,
+            surface=payload.surface,
+            journey_id=payload.journey_id,
+        )
+    except KeepRefused as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": exc.reason,
+                "message": _KEEP_REFUSAL_FR.get(exc.reason, _KEEP_REFUSAL_FR["empty_term"]),
+            },
+        ) from exc
+    db.commit()
+    return kept.as_public()
 
 
 @router.get("/lookup", response_model=VocabularyWordRead)

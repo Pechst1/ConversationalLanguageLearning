@@ -11,6 +11,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { learnerGloss } from '@/lib/glosses';
+import { KEEP_COPY, canKeep, keepRefusalMessage, keepStatusLine, type KeepState } from '@/lib/kept-words';
 import apiService from '@/services/api';
 
 export type WordHelpRequest = {
@@ -25,6 +26,8 @@ export type WordHelpRequest = {
   /** who said it, for the accent scope */
   character?: string;
   speaker?: string;
+  /** WP-78: today's journey, when the word was tapped inside its scene. */
+  journeyId?: string | null;
 };
 
 type GlossState =
@@ -48,6 +51,7 @@ export function WordHelpSheet({
   const restoreRef = useRef<HTMLElement | null>(null);
   const [gloss, setGloss] = useState<GlossState>({ kind: 'loading' });
   const [sentenceEn, setSentenceEn] = useState('');
+  const [keep, setKeep] = useState<KeepState>({ kind: 'idle' });
 
   const open = Boolean(request);
 
@@ -113,6 +117,7 @@ export function WordHelpSheet({
     if (!term) return undefined;
     let alive = true;
     setGloss({ kind: 'loading' });
+    setKeep({ kind: 'idle' });
     setSentenceEn(suppliedEn);
     (async () => {
       try {
@@ -156,6 +161,23 @@ export function WordHelpSheet({
 
   const handleScrim = useCallback(() => onClose(), [onClose]);
 
+  /* WP-78 «Garder»: the word joins the learner's Lexique with this sentence. */
+  const keepWord = useCallback(async () => {
+    if (!request) return;
+    setKeep({ kind: 'saving' });
+    try {
+      const kept = await apiService.keepWord({
+        term: request.term,
+        sentence: request.sentence,
+        surface: request.surface,
+        journey_id: request.journeyId ?? null,
+      });
+      setKeep({ kind: 'kept', already: Boolean(kept?.already_kept) });
+    } catch (error) {
+      setKeep({ kind: 'refused', message: keepRefusalMessage(error) });
+    }
+  }, [request]);
+
   if (!request) return null;
 
   return (
@@ -193,6 +215,25 @@ export function WordHelpSheet({
               <p className="fr-quote-fr">« {sentence} »</p>
               {sentenceEn && <p className="fr-quote-en">{sentenceEn}</p>}
             </blockquote>
+          )}
+          {canKeep(gloss.kind, sentence) && (
+            <div className="fr-keep">
+              {keep.kind === 'idle' || keep.kind === 'saving' ? (
+                <button
+                  type="button"
+                  className="fr-keep-btn"
+                  onClick={() => void keepWord()}
+                  disabled={keep.kind === 'saving'}
+                >
+                  {keep.kind === 'saving' ? KEEP_COPY.saving : KEEP_COPY.action}
+                </button>
+              ) : null}
+              {keep.kind !== 'idle' && keep.kind !== 'saving' && (
+                <p className="fr-keep-status" role="status">
+                  {keepStatusLine(keep)}
+                </p>
+              )}
+            </div>
           )}
           <p className="fr-sheet-note">
             Consulter l’aide ne compte pas comme une réponse et ne fait pas avancer l’épisode.

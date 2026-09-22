@@ -852,6 +852,15 @@ export function FeuilletonReaderStyles() {
         color: var(--fr-muted);
       }
       .av2 .fr-sheet-note { margin: 0; font-size: 0.875rem; color: var(--fr-muted); line-height: 1.5; }
+      /* WP-78 «Garder»: one soft pill, sentence case, then a quiet status line. */
+      .av2 .fr-keep { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+      .av2 .fr-keep-btn {
+        min-height: 44px; padding: 0.5rem 1.25rem; border-radius: 999px;
+        border: 2px solid var(--fr-ink, currentColor); background: transparent; color: inherit;
+        font: inherit; font-weight: 600; cursor: pointer;
+      }
+      .av2 .fr-keep-btn:disabled { opacity: 0.6; cursor: default; }
+      .av2 .fr-keep-status { margin: 0; font-size: 0.9375rem; line-height: 1.45; }
 
       /* ================= the season list ("Le feuilleton") =================
          Verbatim from the design's FEUILLETON artboard: kicker + one Garamond

@@ -38,8 +38,8 @@ import hashlib
 import re
 import unicodedata
 from collections.abc import Iterable, Sequence
-from dataclasses import dataclass, field
-from datetime import UTC, date, datetime
+from dataclasses import dataclass, field, replace
+from datetime import UTC, date, datetime, timedelta
 from typing import Any, Literal
 from uuid import NAMESPACE_URL, UUID, uuid5
 from zoneinfo import ZoneInfo
@@ -127,6 +127,24 @@ OBJECTIVE_TARGET_FALLBACK = "response_turn"
 
 MAX_DUE_CANDIDATES = 2
 MAX_NEW_CANDIDATES = 1
+#: WP-78. A ``limit`` above ``MAX_DUE_CANDIDATES + MAX_NEW_CANDIDATES`` is a
+#: practice day asking for its pool: up to this many new scene words, the rest
+#: due items. The planner still elicits at most two due targets and one new
+#: anchor in the reply — the extra candidates become quick items.
+MAX_PRACTICE_NEW_CANDIDATES = 2
+#: Words the learner kept from a story (tap-to-keep) that are not due yet are
+#: still offered, this many at most, so a kept word comes back the next day.
+MAX_KEPT_EXTRA_CANDIDATES = 2
+#: WP-78. Words the learner already owns, offered to a practice day as the
+#: *other* cards of a matching or listen-and-tap item — never as a target, so
+#: they gain no evidence and no schedule moves (``metadata["partner_only"]``).
+MAX_PARTNER_WORDS = 5
+#: WP-78. When too little is due for a practice day, *fragile* words — ones the
+#: learner has studied that come due within this window — fill the quick items
+#: (CONTRACTS §9 already names due **or fragile** targets). Recognition only is
+#: credited for them, and nothing is rescheduled until the learner answers.
+FRAGILE_WINDOW_DAYS = 2
+PRACTICE_TARGET_POOL = 5
 
 #: Per-candidate journey budget (CONTRACTS §9). Deliberately larger than the
 #: flashcard estimates in :mod:`app.services.unified_srs`: a journey recall step
@@ -546,12 +564,37 @@ def select_learning_candidates(
             )
         )
 
+    practice = limit > MAX_DUE_CANDIDATES + MAX_NEW_CANDIDATES
+    kept = _kept_words(db, user=user, now=now) if practice else {}
+    if kept:
+        scored = [
+            (
+                (-1.0, *row[1:4], _mark_kept(row[4], kept))
+                if _kept_id(row[4]) in kept
+                else row
+            )
+            for row in scored
+        ]
     scored.sort(key=lambda row: row[:4])
-    due_cap = min(MAX_DUE_CANDIDATES, limit)
+    if practice:
+        new_room = MAX_PRACTICE_NEW_CANDIDATES
+        due_cap = max(MAX_DUE_CANDIDATES, limit - new_room)
+    else:
+        new_room = MAX_NEW_CANDIDATES
+        due_cap = min(MAX_DUE_CANDIDATES, limit)
     selected = [row[4] for row in scored[:due_cap]]
 
-    new_cap = min(MAX_NEW_CANDIDATES, limit - len(selected))
-    if new_cap > 0:
+    if practice and kept:
+        # A kept word that is not due yet still comes back tomorrow: keeping it
+        # was the learner asking to see it again.
+        present = {c.target.id for c in selected if c.target.kind is TargetKind.VOCABULARY}
+        extras = _kept_extra_candidates(
+            db, user=user, kept=kept, exclude=present, history=history
+        )
+        selected = extras[:MAX_KEPT_EXTRA_CANDIDATES] + selected
+
+    new_cap = min(new_room, limit - len(selected))
+    for _ in range(max(0, new_cap)):
         anchor = _new_vocabulary_anchor(
             db,
             user=user,
@@ -560,9 +603,235 @@ def select_learning_candidates(
             exclude={(str(c.target.kind), c.target.id) for c in selected},
             history=history,
         )
-        if anchor is not None:
-            selected.append(anchor)
+        if anchor is None:
+            break
+        selected.append(anchor)
+    if practice:
+        targets = sum(1 for c in selected if not (c.metadata or {}).get("partner_only"))
+        if targets < PRACTICE_TARGET_POOL:
+            selected.extend(
+                _fragile_words(
+                    db,
+                    user=user,
+                    now=now,
+                    exclude={
+                        c.target.id for c in selected if c.target.kind is TargetKind.VOCABULARY
+                    },
+                    room=PRACTICE_TARGET_POOL - targets,
+                    history=history,
+                )
+            )
+        selected.extend(
+            _partner_words(
+                db,
+                user=user,
+                exclude={c.target.id for c in selected if c.target.kind is TargetKind.VOCABULARY},
+            )
+        )
     return selected
+
+
+def _fragile_words(
+    db: Session,
+    *,
+    user: User,
+    now: datetime,
+    exclude: set[str],
+    room: int,
+    history: dict[tuple[str, str], tuple[EvidenceKind | None, bool]],
+) -> list[LearningCandidate]:
+    """WP-78. Studied words about to come due, soonest first — read-only."""
+
+    if room <= 0:
+        return []
+    horizon = now + timedelta(days=FRAGILE_WINDOW_DAYS)
+    try:
+        with db.begin_nested():
+            rows = (
+                db.query(VocabularyWord, UserVocabularyProgress)
+                .join(UserVocabularyProgress, UserVocabularyProgress.word_id == VocabularyWord.id)
+                .filter(
+                    UserVocabularyProgress.user_id == user.id,
+                    UserVocabularyProgress.reps > 0,
+                    UserVocabularyProgress.due_at.isnot(None),
+                    UserVocabularyProgress.due_at <= horizon,
+                )
+                .order_by(UserVocabularyProgress.due_at.asc(), VocabularyWord.id.asc())
+                .limit(room * 3)
+                .all()
+            )
+    except Exception:  # noqa: BLE001 - a fuller day is never worth the day
+        logger.warning("journey_learning_fragile_words_unavailable")
+        return []
+    fragile: list[LearningCandidate] = []
+    for word, _progress in rows:
+        if str(word.id) in exclude:
+            continue
+        gloss = word_gloss(word, user.native_language)
+        target = TargetRef(
+            kind=TargetKind.VOCABULARY,
+            id=str(word.id),
+            label_fr=str(word.word),
+            label_native=gloss or None,
+        )
+        fragile.append(
+            LearningCandidate(
+                target=target,
+                priority_score=0.0,
+                due_since_days=0,
+                estimated_seconds=CANDIDATE_SECONDS[ItemType.VOCAB],
+                is_new=False,
+                relevance=0.0,
+                source_item_type=str(ItemType.VOCAB),
+                metadata={
+                    "word_id": word.id,
+                    "anchor": "fragile_word",
+                    "fragile": True,
+                    **_history_metadata(history, target),
+                },
+            )
+        )
+        if len(fragile) >= room:
+            break
+    return fragile
+
+
+def _partner_words(db: Session, *, user: User, exclude: set[str]) -> list[LearningCandidate]:
+    """WP-78. A few glossed words the learner has already studied.
+
+    Context cards only: a matching item needs four meanings on the table and a
+    listen-and-tap item three, and a learner with one due word still deserves
+    the format. Read-only, and flagged so the planner never makes them a target.
+    """
+
+    try:
+        with db.begin_nested():
+            rows = (
+                db.query(VocabularyWord)
+                .join(UserVocabularyProgress, UserVocabularyProgress.word_id == VocabularyWord.id)
+                .filter(
+                    UserVocabularyProgress.user_id == user.id,
+                    UserVocabularyProgress.reps > 0,
+                )
+                .order_by(
+                    UserVocabularyProgress.last_review_date.desc().nullslast(),
+                    VocabularyWord.id.asc(),
+                )
+                .limit(MAX_PARTNER_WORDS * 3)
+                .all()
+            )
+    except Exception:  # noqa: BLE001 - context cards never cost the day
+        logger.warning("journey_learning_partner_words_unavailable")
+        return []
+    partners: list[LearningCandidate] = []
+    for word in rows:
+        if str(word.id) in exclude:
+            continue
+        gloss = word_gloss(word, user.native_language)
+        if not gloss:
+            continue
+        partners.append(
+            LearningCandidate(
+                target=TargetRef(
+                    kind=TargetKind.VOCABULARY,
+                    id=str(word.id),
+                    label_fr=str(word.word),
+                    label_native=gloss,
+                ),
+                priority_score=0.0,
+                due_since_days=0,
+                estimated_seconds=0,
+                is_new=False,
+                relevance=0.0,
+                source_item_type=str(ItemType.VOCAB),
+                metadata={"word_id": word.id, "partner_only": True},
+            )
+        )
+        if len(partners) >= MAX_PARTNER_WORDS:
+            break
+    return partners
+
+
+def _kept_id(candidate: LearningCandidate) -> int | None:
+    if candidate.target.kind is not TargetKind.VOCABULARY:
+        return None
+    try:
+        return int(candidate.target.id)
+    except (TypeError, ValueError):
+        return None
+
+
+def _kept_words(db: Session, *, user: User, now: datetime) -> dict[int, Any]:
+    """WP-78. The learner's recently kept words; ``{}`` when they cannot be read.
+
+    Best effort inside a SAVEPOINT (WP-69): the preference is worth a lot less
+    than the day.
+    """
+
+    from app.services.kept_words import recent_kept_words
+
+    try:
+        with db.begin_nested():
+            return recent_kept_words(db, user_id=user.id, now=now)
+    except Exception:  # noqa: BLE001 - a preference never costs the day
+        logger.warning("journey_learning_kept_words_unavailable")
+        return {}
+
+
+def _mark_kept(candidate: LearningCandidate, kept: dict[int, Any]) -> LearningCandidate:
+    row = kept.get(_kept_id(candidate) or -1)
+    if row is None:
+        return candidate
+    # Ranked first by the caller, but its *relevance* is left alone: a kept word
+    # the scene does not use must not become an obligation in the reply.
+    return replace(
+        candidate,
+        metadata={**candidate.metadata, "kept": True, "example_fr": row.example_fr},
+    )
+
+
+def _kept_extra_candidates(
+    db: Session,
+    *,
+    user: User,
+    kept: dict[int, Any],
+    exclude: set[str],
+    history: dict[tuple[str, str], tuple[EvidenceKind | None, bool]],
+) -> list[LearningCandidate]:
+    """Kept words the due pool did not already return, as practice candidates."""
+
+    extras: list[LearningCandidate] = []
+    for word_id, row in kept.items():
+        if str(word_id) in exclude:
+            continue
+        word = db.get(VocabularyWord, word_id)
+        if word is None:
+            continue
+        target = TargetRef(
+            kind=TargetKind.VOCABULARY,
+            id=str(word_id),
+            label_fr=str(word.word),
+            label_native=word_gloss(word, user.native_language) or row.gloss or None,
+        )
+        extras.append(
+            LearningCandidate(
+                target=target,
+                priority_score=0.0,
+                due_since_days=0,
+                estimated_seconds=CANDIDATE_SECONDS[ItemType.VOCAB],
+                is_new=False,
+                relevance=0.0,
+                source_item_type=str(ItemType.VOCAB),
+                metadata={
+                    "word_id": word_id,
+                    "anchor": "kept_word",
+                    "kept": True,
+                    "example_fr": row.example_fr,
+                    **_history_metadata(history, target),
+                },
+            )
+        )
+    return extras
 
 
 def _new_vocabulary_anchor(
@@ -808,6 +1077,29 @@ def _option_text(task: RecallTask, option_id: str | None) -> str | None:
     return None
 
 
+def match_pairs_target_correct(task: RecallTask, tile_ids: Sequence[str]) -> bool:
+    """Did the learner pair the day's target right the *first* time?
+
+    ``correct_tile_order`` is ``[fr, native, …]`` with the target first. The
+    submission is every pairing the learner made, in order, wrong ones
+    included. Only the first pairing that touches either of the target's two
+    cards counts: a learner who found the target's meaning by eliminating the
+    other three still paired it right, and one who tried it against the wrong
+    meaning first did not know it.
+    """
+
+    order = [str(item) for item in task.correct_tile_order]
+    if len(order) < 2:
+        return False
+    target_fr, target_native = order[0], order[1]
+    submitted = [str(item) for item in tile_ids]
+    for index in range(0, len(submitted) - 1, 2):
+        pair = submitted[index], submitted[index + 1]
+        if target_fr in pair or target_native in pair:
+            return pair == (target_fr, target_native)
+    return False
+
+
 def evaluate_recall(
     db: Session,
     *,
@@ -845,12 +1137,19 @@ def evaluate_recall(
     # answer that uses a chip it should not have used is simply not the
     # expected order. `transform` is free text and falls through to open
     # production, which is what it is.
-    if task.task_type in {"choice", "classify"}:
+    # WP-78: `listen_tap` is a pick, `unscramble` a tile order, and a
+    # `match_pairs` item is graded on the day's target alone (see
+    # `match_pairs_target_correct`). All three are recognition.
+    if task.task_type in {"choice", "classify", "listen_tap"}:
         selected = _selected_option_id(task, answer)
         is_correct = bool(selected) and selected == task.correct_option_id
         learner_text = _option_text(task, selected) or answer.text
         opportunity: OpportunityKind = "choice"
-    elif task.task_type in {"tiles", "word_bank"}:
+    elif task.task_type == "match_pairs":
+        is_correct = match_pairs_target_correct(task, answer.tile_ids)
+        learner_text = task.target.label_fr if is_correct else None
+        opportunity = "tiles"
+    elif task.task_type in {"tiles", "word_bank", "unscramble"}:
         expected = [str(tile) for tile in task.correct_tile_order]
         submitted = [str(tile) for tile in answer.tile_ids]
         is_correct = bool(expected) and submitted == expected

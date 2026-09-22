@@ -38,8 +38,12 @@ from app.services.journey_contracts import normalize_answer_text
 ANSWER_KEY_VERSION = 1
 
 #: Formats graded by option id (a single pick) or by tile-id order.
-PICK_FORMATS = frozenset({"choice", "classify"})
-ORDER_FORMATS = frozenset({"tiles", "word_bank"})
+PICK_FORMATS = frozenset({"choice", "classify", "listen_tap"})
+ORDER_FORMATS = frozenset({"tiles", "word_bank", "unscramble"})
+#: WP-78. A matching item carries one digest *per pair* (material: the French
+#: card's id and the meaning card's id, joined like tiles), so the device can
+#: colour each pair the moment it is made — the whole point of the format.
+PAIR_FORMATS = frozenset({"match_pairs"})
 
 #: Joins tile ids. A unit separator can never appear in an id the planner mints.
 TILE_JOINER = "\u001f"
@@ -76,12 +80,22 @@ def answer_material(task_type: str, *, option_id: Any = None, tile_ids: Iterable
     if task_type in PICK_FORMATS:
         part = normalize_key_part(option_id)
         return part or None
-    if task_type in ORDER_FORMATS:
+    if task_type in ORDER_FORMATS or task_type in PAIR_FORMATS:
         parts = [normalize_key_part(tile) for tile in tile_ids]
         if not parts or not all(parts):
             return None
+        if task_type in PAIR_FORMATS and len(parts) != 2:
+            return None
         return TILE_JOINER.join(parts)
     return None
+
+
+def _pairs(order: Any) -> list[list[str]]:
+    """``[fr, native, fr, native, …]`` read as pairs; ``[]`` when malformed."""
+
+    if not isinstance(order, list) or not order or len(order) % 2:
+        return []
+    return [[str(order[index]), str(order[index + 1])] for index in range(0, len(order), 2)]
 
 
 def answer_digest(salt: str, material: str) -> str:
@@ -106,6 +120,19 @@ def answer_key_for(
     elif task_type in ORDER_FORMATS:
         order = recall_task.get("correct_tile_order")
         material = answer_material(task_type, tile_ids=order if isinstance(order, list) else ())
+    elif task_type in PAIR_FORMATS:
+        pairs = _pairs(recall_task.get("correct_tile_order"))
+        materials = [answer_material(task_type, tile_ids=pair) for pair in pairs]
+        if not materials or not all(materials):
+            return None
+        salt = answer_key_salt(str(step_id), secret=secret)
+        # Sorted, so the digest order says nothing about which pair is the
+        # day's target (the first pair of the stored order).
+        return {
+            "version": ANSWER_KEY_VERSION,
+            "salt": salt,
+            "digests": sorted(answer_digest(salt, str(item)) for item in materials),
+        }
     else:
         return None
     if not material:
@@ -129,6 +156,14 @@ def answer_matches_key(
 
     if not key:
         return None
+    if task_type in PAIR_FORMATS:
+        pairs = _pairs(list(tile_ids))
+        digests = set(key.get("digests") or [])
+        salt = str(key.get("salt") or "")
+        return bool(pairs) and all(
+            answer_digest(salt, str(answer_material(task_type, tile_ids=pair))) in digests
+            for pair in pairs
+        )
     material = answer_material(task_type, option_id=option_id, tile_ids=tile_ids)
     if material is None:
         return False

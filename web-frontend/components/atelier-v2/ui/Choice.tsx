@@ -28,6 +28,11 @@ export type ChoiceOption = {
   /** French answer text. Rendered `lang="fr"` so it is spoken correctly. */
   textFr: string;
   state?: ChoiceState;
+  /**
+   * WP-78. A meaning card (listen-and-tap) is in the learner's language:
+   * `null` drops `lang="fr"`. Omitted means French, as before.
+   */
+  lang?: string | null;
 };
 
 export type ChoiceListProps = {
@@ -75,7 +80,7 @@ export function ChoiceList({
               disabled={disabled}
               onClick={() => onSelect(option.id)}
             >
-              <span lang="fr">{option.textFr}</span>
+              <span lang={option.lang === undefined ? 'fr' : option.lang ?? undefined}>{option.textFr}</span>
               <span className="av2-choice__dot" aria-hidden="true">
                 {state === 'correct' ? <CheckIcon size={13} /> : null}
                 {state === 'wrong' ? <RepairIcon size={13} /> : null}

@@ -40,12 +40,14 @@ from app.services.journey_content import (
     scenario_target_affordances,
 )
 from app.services.journey_contracts import (
+    CLASSIC_RECALL_FORMATS,
     DEFAULT_BUDGET_SECONDS,
     DEFAULT_DAY_SHAPE,
     MAX_PLANNED_STEPS,
+    MAX_PRACTICE_RECALL_STEPS,
     MAX_RECALL_STEPS,
     MAX_RESPOND_TURNS,
-    RECALL_FORMATS,
+    MAX_WARMUP_RECALL_STEPS,
     ControlLanguage,
     DayShape,
     HelpKind,
@@ -63,6 +65,7 @@ from app.services.journey_contracts import (
     TargetRef,
     day_shape_rule,
     normalize_answer_text,
+    practice_day_shape_rule,
 )
 from app.services.journey_day_shapes import (
     DayShapeInputs,
@@ -151,6 +154,34 @@ REPAIR_ALLOWANCE_SECONDS = 20
 #: Listening to a character line when audio actually exists.
 AUDIO_PLAYBACK_SECONDS_PER_TOKEN = 0.55
 
+#: WP-78 — what one *quick* item costs on a practice day, before reading.
+#: Priors, not measurements: WP-11 records step boundaries but no per-format
+#: medians exist yet, so these are the owner's «≤ 10 s per item» written down
+#: per renderer, and a trusted :class:`PacingProfile` multiplier scales them
+#: exactly as it scales everything else. With WP-76's answer key the verdict
+#: lands on the device in milliseconds, so a quick item is priced without the
+#: ten seconds of server-graded feedback the classic recall step carries.
+QUICK_ANSWER_SECONDS: dict[str, int] = {
+    "classify": 3,
+    "listen_tap": 4,
+    "choice": 5,
+    "tiles": 6,
+    "word_bank": 7,
+    "unscramble": 7,
+    "short_answer": 8,
+    "match_pairs": 9,
+    "transform": 12,
+}
+#: Seeing the colour and tapping «Continuer».
+QUICK_FEEDBACK_SECONDS = 2
+#: A practice day aims for this many quick items: with the reply that is six
+#: graded interactions (WORK-PACKAGES-2026-09-22 WP-78).
+PRACTICE_TARGET_ITEMS = 5
+#: How often one target may come back in one day, always in a different format.
+PRACTICE_MAX_USES_PER_TARGET = 2
+#: The cards a matching item shows per side.
+MATCH_PAIR_COUNT = 4
+
 RecallTaskType = Literal["choice", "tiles", "short_answer"]
 
 # --------------------------------------------------------------------------
@@ -236,6 +267,26 @@ _TRANSFORM_HINT: dict[str, str] = {
     "de": 'Nur der Teil mit "{span}" ändert sich.',
     "fr": "Seule la partie avec « {span} » change.",
 }
+# -- WP-78: the quick formats --------------------------------------------------
+_MATCH_INSTRUCTION: dict[str, str] = {
+    "en": "Tap the pairs that mean the same.",
+    "de": "Tippe die Paare an, die dasselbe bedeuten.",
+    "fr": "Touchez les paires qui veulent dire la même chose.",
+}
+_LISTEN_TAP_INSTRUCTION: dict[str, str] = {
+    "en": "What does it mean?",
+    "de": "Was bedeutet das?",
+    "fr": "Qu'est-ce que ça veut dire ?",
+}
+_UNSCRAMBLE_INSTRUCTION: dict[str, str] = {
+    "en": "Put the sentence from the scene back in order.",
+    "de": "Bring den Satz aus der Szene wieder in die richtige Reihenfolge.",
+    "fr": "Remettez dans l'ordre la phrase de la scène.",
+}
+#: A scene sentence is rebuilt only when it is short enough to be a quick item
+#: and long enough to be a puzzle.
+UNSCRAMBLE_WORDS = (3, 9)
+
 #: French articles that settle a noun's gender. ``l'`` settles nothing and is
 #: deliberately absent: a classify whose answer is a guess is not a question.
 _GENDER_ARTICLES: dict[str, str] = {
@@ -932,6 +983,260 @@ def build_transform_task(
     )
 
 
+# --------------------------------------------------------------------------
+# 2c. WP-78 — the quick formats of a practice day
+#
+# Same rule as §2b: no model call, no invented content, and ``None`` whenever
+# the format cannot be posed honestly. The material is the learner's own due
+# words (with the glosses the evidence layer already resolved in their
+# language) and the sentences of the scene they have just read.
+# --------------------------------------------------------------------------
+
+
+def _glossed(target: TargetRef) -> str | None:
+    """The target's gloss when it *is* a gloss — never an erratum's explanation
+    and never a grammar concept's category label."""
+
+    if target.kind is not TargetKind.VOCABULARY:
+        return None
+    gloss = " ".join(str(target.label_native or "").split())
+    if not gloss or not (target.label_fr or "").strip():
+        return None
+    return gloss
+
+
+def _gloss_partners(
+    target: TargetRef, pool: list[TargetRef] | tuple[TargetRef, ...], count: int
+) -> list[TargetRef]:
+    """Other glossed words of today, none sharing a French side or a meaning."""
+
+    taken_fr = {_fold(target.label_fr)}
+    taken_gloss = {_fold(_glossed(target))}
+    partners: list[TargetRef] = []
+    ranked = sorted(pool, key=lambda item: _digest(target.id, "partner", target_identity(item)))
+    for item in ranked:
+        gloss = _glossed(item)
+        if gloss is None or target_identity(item) == target_identity(target):
+            continue
+        if _fold(item.label_fr) in taken_fr or _fold(gloss) in taken_gloss:
+            continue
+        taken_fr.add(_fold(item.label_fr))
+        taken_gloss.add(_fold(gloss))
+        partners.append(item)
+        if len(partners) == count:
+            break
+    return partners
+
+
+def build_match_pairs_task(
+    *,
+    target: TargetRef,
+    pool: list[TargetRef] | tuple[TargetRef, ...],
+    optional: bool,
+    control_language: ControlLanguage,
+) -> RecallTask | None:
+    """Four French cards, four meanings, tap to pair.
+
+    Graded on the day's target alone: it is the first pair in
+    ``correct_tile_order``, and only the first pairing the learner makes with
+    either of its two cards counts. The other three pairs are today's other
+    words, there so the one that counts has to be *known*, not guessed by
+    elimination. Needs four glossed words with four different meanings.
+    """
+
+    gloss = _glossed(target)
+    if gloss is None:
+        return None
+    partners = _gloss_partners(target, pool, MATCH_PAIR_COUNT - 1)
+    if len(partners) < MATCH_PAIR_COUNT - 1:
+        return None
+    words = [target, *partners]
+    fr_cards = [
+        {"id": "mfr_" + _digest(target.id, "match-fr", target_identity(word))[:8],
+         "text_fr": word.label_fr.strip(), "side": "fr"}
+        for word in words
+    ]
+    native_cards = [
+        {"id": "mna_" + _digest(target.id, "match-na", target_identity(word))[:8],
+         "text_fr": str(_glossed(word)), "side": "native"}
+        for word in words
+    ]
+    ids = [card["id"] for card in (*fr_cards, *native_cards)]
+    if len(set(ids)) != len(ids):
+        return None
+    order: list[str] = []
+    for fr_card, native_card in zip(fr_cards, native_cards, strict=True):
+        order.extend((fr_card["id"], native_card["id"]))
+    shown_fr = sorted(fr_cards, key=lambda card: _digest(target.id, "col-fr", card["id"]))
+    shown_native = sorted(
+        native_cards, key=lambda card: _digest(target.id, "col-na", card["id"])
+    )
+    fr_rank = {card["id"]: index for index, card in enumerate(fr_cards)}
+    native_rank = {card["id"]: index for index, card in enumerate(native_cards)}
+    if [fr_rank[c["id"]] for c in shown_fr] == [native_rank[c["id"]] for c in shown_native]:
+        # Two columns in the same order would be the answer drawn as rows.
+        shown_native = shown_native[1:] + shown_native[:1]
+    return RecallTask(
+        task_type="match_pairs",
+        instruction_native=_localized(_MATCH_INSTRUCTION, control_language),
+        prompt_fr=None,
+        options=[*shown_fr, *shown_native],
+        target=target,
+        optional=optional,
+        correct_tile_order=order,
+        accepted_answers=[target.label_fr.strip()],
+        # Every meaning is already on the table; a hint or a translation would
+        # be the answer, so a quick item offers neither.
+        hint_native=None,
+        translation_native=None,
+        solution_fr=None,
+        estimated_seconds=0,
+    )
+
+
+def build_listen_tap_task(
+    *,
+    target: TargetRef,
+    pool: list[TargetRef] | tuple[TargetRef, ...],
+    optional: bool,
+    control_language: ControlLanguage,
+) -> RecallTask | None:
+    """A French phrase, three meanings in the learner's language, one tap.
+
+    «Écouter et toucher» when the deployment can speak the phrase; the phrase
+    is printed instead when it cannot (no audio is synthesised for it yet —
+    the episode-audio flag stays off), which is read-and-tap: the
+    same question, answered the same way. The distractors are today's other
+    words' meanings, so no scene affordance is needed — which is what lets a
+    story-engine day, whose scene affords nothing, pose a recognition item.
+    """
+
+    gloss = _glossed(target)
+    if gloss is None:
+        return None
+    partners = _gloss_partners(target, pool, 2)
+    if len(partners) < 2:
+        return None
+    options = [
+        {"id": "lt_" + _digest(target.id, "listen", target_identity(word))[:8],
+         "text_fr": str(_glossed(word)), "side": "native"}
+        for word in (target, *partners)
+    ]
+    correct = options[0]["id"]
+    shown = sorted(options, key=lambda option: _digest(target.id, "listen-order", option["id"]))
+    return RecallTask(
+        task_type="listen_tap",
+        instruction_native=_localized(_LISTEN_TAP_INSTRUCTION, control_language),
+        prompt_fr=target.label_fr.strip(),
+        options=shown,
+        target=target,
+        optional=optional,
+        correct_option_id=correct,
+        accepted_answers=[target.label_fr.strip()],
+        hint_native=None,
+        translation_native=None,
+        solution_fr=None,
+        estimated_seconds=0,
+    )
+
+
+_SENTENCE_END = frozenset(".!?…")
+_QUOTE_MARKS = "«»“”\"„"
+
+
+def scene_sentences(*texts: str | None) -> list[str]:
+    """The sentences of what the learner reads, in order, without repeats."""
+
+    sentences: list[str] = []
+    seen: set[str] = set()
+    for text in texts:
+        current: list[str] = []
+        for raw in " ".join(str(text or "").split()).split(" "):
+            # Quotation marks are layout, not words: a tile reading «»
+            # would be a puzzle about typography.
+            word = raw.strip(_QUOTE_MARKS)
+            if not word:
+                continue
+            current.append(word)
+            if word[-1] in _SENTENCE_END:
+                sentence = " ".join(current)
+                current = []
+                if _fold(sentence) not in seen:
+                    seen.add(_fold(sentence))
+                    sentences.append(sentence)
+        if current:
+            sentence = " ".join(current)
+            if _fold(sentence) not in seen:
+                seen.add(_fold(sentence))
+                sentences.append(sentence)
+    return sentences
+
+
+def _contains_label(sentence: str, label: str) -> bool:
+    words = [word.strip(".,;:!?…«»\"'()") for word in _fold(sentence).split()]
+    needle = [word.strip(".,;:!?…«»\"'()") for word in _fold(label).split()]
+    needle = [word for word in needle if word]
+    if not needle:
+        return False
+    return any(words[index:index + len(needle)] == needle for index in range(len(words)))
+
+
+def build_unscramble_task(
+    *,
+    target: TargetRef,
+    sentences: list[str] | tuple[str, ...],
+    optional: bool,
+    control_language: ControlLanguage,
+) -> RecallTask | None:
+    """Rebuild the scene's sentence that holds today's word.
+
+    Posed only *after* the scene (``PlannedJourney`` refuses it before), from a
+    sentence the learner has just read — or, for a word they kept from a story
+    (tap-to-keep), from the sentence they kept it with. Tiles, so it is graded
+    by identity and coloured on the device.
+    """
+
+    label = (target.label_fr or "").strip()
+    if not label or target.kind is TargetKind.ERROR:
+        return None
+    low, high = UNSCRAMBLE_WORDS
+    chosen = next(
+        (
+            sentence
+            for sentence in sentences
+            if low <= len(sentence.split()) <= high and _contains_label(sentence, label)
+        ),
+        None,
+    )
+    if chosen is None:
+        return None
+    tokens = chosen.split()
+    ordered = [
+        {"id": "tile_" + _digest(target.id, "unscramble", str(index), token)[:8], "text_fr": token}
+        for index, token in enumerate(tokens)
+    ]
+    correct_order = [tile["id"] for tile in ordered]
+    if len(set(correct_order)) != len(correct_order):
+        return None
+    shown = sorted(ordered, key=lambda tile: _digest(target.id, "unscramble-layout", tile["id"]))
+    if [tile["id"] for tile in shown] == correct_order:
+        shown = shown[1:] + shown[:1]
+    return RecallTask(
+        task_type="unscramble",
+        instruction_native=_localized(_UNSCRAMBLE_INSTRUCTION, control_language),
+        prompt_fr=None,
+        options=shown,
+        target=target,
+        optional=optional,
+        correct_tile_order=correct_order,
+        accepted_answers=[chosen],
+        hint_native=None,
+        translation_native=None,
+        solution_fr=chosen,
+        estimated_seconds=0,
+    )
+
+
 def build_recall_task_in_format(
     task_type: str,
     *,
@@ -940,14 +1245,29 @@ def build_recall_task_in_format(
     affordances: list[str],
     optional: bool,
     learner_text: str | None = None,
+    pool: list[TargetRef] | tuple[TargetRef, ...] = (),
+    sentences: list[str] | tuple[str, ...] = (),
 ) -> RecallTask | None:
     """One recall opportunity in one named format, or ``None``.
 
     ``None`` means "not this format, honestly" — the target may still be posed
-    another way. It is never an error.
+    another way. It is never an error. ``pool`` (today's other words) and
+    ``sentences`` (what the learner reads today) feed WP-78's quick formats.
     """
 
     language = scenario.control_language
+    if task_type == str(RecallFormat.MATCH_PAIRS):
+        return build_match_pairs_task(
+            target=target, pool=pool, optional=optional, control_language=language
+        )
+    if task_type == str(RecallFormat.LISTEN_TAP):
+        return build_listen_tap_task(
+            target=target, pool=pool, optional=optional, control_language=language
+        )
+    if task_type == str(RecallFormat.UNSCRAMBLE):
+        return build_unscramble_task(
+            target=target, sentences=sentences, optional=optional, control_language=language
+        )
     if task_type == str(RecallFormat.WORD_BANK):
         return build_word_bank_task(
             target=target,
@@ -1093,6 +1413,15 @@ def recall_seconds(task: RecallTask, *, spt: float, multiplier: float) -> int:
     texts.extend(str(option.get("text_fr") or "") for option in task.options)
     fixed = RECALL_ANSWER_SECONDS.get(task.task_type, 30) + RECALL_FEEDBACK_SECONDS
     return max(1, round(fixed * multiplier + _reading_seconds(spt, *texts)))
+
+
+def quick_recall_seconds(task: RecallTask, *, spt: float, multiplier: float) -> int:
+    """WP-78 — one quick item: read the instruction and the prompt, answer,
+    see the colour. The cards themselves are priced inside the answer."""
+
+    fixed = QUICK_ANSWER_SECONDS.get(task.task_type, 10) + QUICK_FEEDBACK_SECONDS
+    reading = _reading_seconds(spt, task.instruction_native, task.prompt_fr)
+    return max(1, round(fixed * multiplier + reading))
 
 
 def respond_seconds(task: ResponseTask, *, turns: int, spt: float, multiplier: float) -> int:
@@ -1287,8 +1616,14 @@ def plan_journey(
     chapter_recap_fr: str | None = None,
     audio_available: bool = False,
     first_day: bool = False,
+    practice: bool = False,
 ) -> PlannedJourney:
     """Build today's immutable plan.
+
+    ``practice`` (WP-78) builds a *practice day*: quick recall items around the
+    one open reply — warm-ups before the scene, one or two between the scene
+    and the reply, one after it on a word from today. Off by default, so a
+    caller that does not ask gets exactly the day it always got.
 
     ``first_day`` (WP-75) is the learner's very first day: the candidates are
     the authored scene's own words, every one of them new, so up to
@@ -1343,6 +1678,16 @@ def plan_journey(
     if scenario.is_authored_fallback:
         notes.append("scene is the authored fallback; no serial episode was bound")
 
+    # WP-78. Context cards for a matching/listen-and-tap item: words the learner
+    # already owns, never a target of today (no evidence, no schedule).
+    partners = [
+        candidate.target
+        for candidate in candidates
+        if (candidate.metadata or {}).get("partner_only")
+    ]
+    candidates = [
+        candidate for candidate in candidates if not (candidate.metadata or {}).get("partner_only")
+    ]
     candidates = merge_errata_candidates(candidates, errata_targets)
     reasons_by_identity = {
         target_identity(candidate.target): reason
@@ -1390,6 +1735,32 @@ def plan_journey(
         # five-minute journey, and saying so beats shipping a false promise.
         raise PlanUnavailable("scene_exceeds_budget")
 
+    if practice and not first_day and practice_day_shape_rule(shape).max_recall > 0:
+        return _plan_practice_day(
+            scenario=scenario,
+            task=task,
+            outcome_key=outcome_key,
+            candidates=candidates,
+            selection=selection,
+            affordances=affordances,
+            reasons_by_identity=reasons_by_identity,
+            shape=shape,
+            shape_reason=shape_reason,
+            dice=dice,
+            letter=letter,
+            chapter_recap_fr=chapter_recap_fr,
+            audio_available=audio_available,
+            input_mode=input_mode,
+            budget_seconds=budget_seconds,
+            turns=turns,
+            spt=spt,
+            multiplier=multiplier,
+            scene_cost=scene_cost,
+            resolution_cost=resolution_cost,
+            notes=notes,
+            partners=partners,
+        )
+
     # --- shape the recall steps inside whatever headroom is left -----------
     headroom = budget_seconds - (scene_cost + respond_cost + resolution_cost)
     recalls: list[tuple[SelectedTarget, RecallTask, int, bool]] = []
@@ -1436,7 +1807,7 @@ def plan_journey(
                 shape=shape,
                 target_kind=str(entry.target.kind),
                 target_id=identity,
-                eligible=RECALL_FORMATS,
+                eligible=CLASSIC_RECALL_FORMATS,
             )
             recall = build_rotated_recall_task(
                 target=entry.target,
@@ -1652,6 +2023,546 @@ def plan_journey(
     return plan
 
 
+# --------------------------------------------------------------------------
+# 5. WP-78 — the practice day
+# --------------------------------------------------------------------------
+
+#: Which formats each position of a practice day tries, in preference order.
+#: Warm-ups are recognition (the scene has not been read yet); between the scene
+#: and the reply the learner builds; after the reply one word from today comes
+#: back, produced if it can be.
+PRACTICE_SLOT_FORMATS: dict[str, tuple[str, ...]] = {
+    "warmup": (
+        str(RecallFormat.MATCH_PAIRS),
+        str(RecallFormat.LISTEN_TAP),
+        str(RecallFormat.CLASSIFY),
+        str(RecallFormat.CHOICE),
+    ),
+    "mid": (
+        str(RecallFormat.UNSCRAMBLE),
+        str(RecallFormat.WORD_BANK),
+        str(RecallFormat.TILES),
+        str(RecallFormat.TRANSFORM),
+        str(RecallFormat.SHORT_ANSWER),
+        str(RecallFormat.LISTEN_TAP),
+    ),
+    "post": (
+        str(RecallFormat.SHORT_ANSWER),
+        str(RecallFormat.TILES),
+        str(RecallFormat.WORD_BANK),
+        str(RecallFormat.UNSCRAMBLE),
+        str(RecallFormat.LISTEN_TAP),
+        str(RecallFormat.CLASSIFY),
+        str(RecallFormat.CHOICE),
+    ),
+}
+#: The order positions are *filled* in, so a tight budget still gets one of
+#: each (a warm-up, a build, a word from today) before it gets a second warm-up.
+PRACTICE_FILL_ORDER: tuple[tuple[str, int], ...] = (
+    ("warmup", 0),
+    ("mid", 0),
+    ("post", 0),
+    ("warmup", 1),
+    ("mid", 1),
+    ("warmup", 2),
+)
+#: «Jour d'écoute»: the scene is heard first, so nothing is posed before it.
+LISTENING_FILL_ORDER: tuple[tuple[str, int], ...] = (
+    ("mid", 0),
+    ("post", 0),
+    ("mid", 1),
+    ("mid", 2),
+    ("mid", 3),
+)
+
+
+@dataclass(frozen=True, slots=True)
+class PracticeItem:
+    """One quick item placed on a practice day."""
+
+    slot: str
+    position: int
+    entry: SelectedTarget
+    task: RecallTask
+    cost: int
+
+
+def _kept(candidate: LearningCandidate) -> bool:
+    return bool((candidate.metadata or {}).get("kept"))
+
+
+def practice_entries(
+    scenario: ScenarioBrief,
+    selection: TargetSelection,
+    affordances: list[str],
+) -> list[SelectedTarget]:
+    """Every target today may practise, best first.
+
+    The selected targets (the reply's obligations) first, then the rest of the
+    ranked queue the selection cap left out — a practice day has room to *see*
+    more words than it can ask the learner to say. A word the learner kept from
+    a story (tap-to-keep) leads, because keeping it was asking to see it again.
+    A target already produced independently is not drilled.
+    """
+
+    entries = list(selection.selected)
+    seen = {target_identity(entry.target) for entry in entries}
+    for candidate in selection.omitted:
+        identity = target_identity(candidate.target)
+        if identity in seen:
+            continue
+        seen.add(identity)
+        entries.append(
+            SelectedTarget(
+                candidate=candidate,
+                fit=scenario_fit(candidate.target, affordances, scenario),
+                demonstrated=candidate_is_demonstrated(candidate),
+            )
+        )
+    ranked = [entry for entry in entries if not entry.demonstrated]
+    return sorted(
+        ranked, key=lambda entry: (0 if _kept(entry.candidate) else 1, ranked.index(entry))
+    )
+
+
+def practice_task(
+    task_type: str,
+    *,
+    target: TargetRef,
+    scenario: ScenarioBrief,
+    affordances: list[str],
+    optional: bool,
+    learner_text: str | None,
+    pool: list[TargetRef],
+    sentences: list[str],
+) -> RecallTask | None:
+    """One quick item in one named format, or ``None``.
+
+    Two formats are posed more directly than the legacy builder poses them,
+    because on a practice day the format is *chosen* rather than inferred from
+    what the scene affords: tiles are tiles even when the scene could have
+    offered a multiple choice (the distractors are withheld, as on day one),
+    and a glossed word may be asked for in writing whatever its length.
+    """
+
+    if task_type == str(RecallFormat.TILES) and target.kind is not TargetKind.ERROR:
+        tiles = build_recall_task(
+            target=target, scenario=scenario, affordances=[], optional=optional
+        )
+        return tiles if tiles is not None and tiles.task_type == task_type else None
+    if task_type == str(RecallFormat.SHORT_ANSWER) and _glossed(target) is not None:
+        label = target.label_fr.strip()
+        return RecallTask(
+            task_type="short_answer",
+            instruction_native=_localized(
+                _SHORT_ANSWER_INSTRUCTION, scenario.control_language
+            ).format(native=_glossed(target)),
+            prompt_fr=None,
+            options=[],
+            target=target,
+            optional=optional,
+            accepted_answers=[label],
+            hint_native=_hint_for(target, scenario.control_language),
+            translation_native=None,
+            solution_fr=label,
+            estimated_seconds=0,
+        )
+    return build_recall_task_in_format(
+        task_type,
+        target=target,
+        scenario=scenario,
+        affordances=affordances,
+        optional=optional,
+        learner_text=learner_text,
+        pool=pool,
+        sentences=sentences,
+    )
+
+
+def _slot_formats(
+    slot: str,
+    *,
+    shape: DayShape,
+    dice: DayShapeInputs | None,
+    identity: str,
+    used_today: dict[str, int],
+    used_by_target: set[str],
+) -> list[str]:
+    declared = PRACTICE_SLOT_FORMATS[slot]
+    allowed = [
+        task_type
+        for task_type in declared
+        if shape_allows_format(shape, task_type) and task_type not in used_by_target
+    ]
+
+    def key(task_type: str) -> tuple[int, str]:
+        tie = (
+            _digest(*dice.seed_parts, identity, slot, task_type)
+            if dice is not None
+            else f"{declared.index(task_type):04d}"
+        )
+        return (used_today.get(task_type, 0), tie)
+
+    return sorted(allowed, key=key)
+
+
+def fill_practice_items(
+    *,
+    scenario: ScenarioBrief,
+    shape: DayShape,
+    entries: list[SelectedTarget],
+    affordances: list[str],
+    sentences: list[str],
+    safe_sentences: list[str],
+    dice: DayShapeInputs | None,
+    headroom: int,
+    spt: float,
+    multiplier: float,
+    max_items: int = MAX_PRACTICE_RECALL_STEPS,
+    partners: list[TargetRef] | tuple[TargetRef, ...] = (),
+) -> list[PracticeItem]:
+    """Place the day's quick items inside ``headroom`` seconds.
+
+    Deterministic: the same inputs place the same items. A target comes back
+    at most :data:`PRACTICE_MAX_USES_PER_TARGET` times and never twice in the
+    same format; across the day the least-used format is tried first, so a day
+    is a mix and not five matching grids.
+    """
+
+    pool = [entry.target for entry in entries if _glossed(entry.target) is not None]
+    pool.extend(target for target in partners if _glossed(target) is not None)
+    order = LISTENING_FILL_ORDER if shape is DayShape.LISTENING else PRACTICE_FILL_ORDER
+    rule = practice_day_shape_rule(shape)
+    cap = min(max_items, rule.max_recall, MAX_PRACTICE_RECALL_STEPS)
+    items: list[PracticeItem] = []
+    uses: dict[str, int] = {}
+    formats_by_target: dict[str, set[str]] = {}
+    used_today: dict[str, int] = {}
+    in_scene = {
+        target_identity(entry.target)
+        for entry in entries
+        if any(_contains_label(sentence, entry.target.label_fr or "") for sentence in sentences)
+    }
+
+    def today_rank(entry: SelectedTarget) -> int:
+        identity = target_identity(entry.target)
+        if entry.candidate.is_new or _kept(entry.candidate) or identity in in_scene:
+            return 0
+        return 1 if uses.get(identity) else 2
+
+    for slot, position in order:
+        if len(items) >= cap:
+            break
+        if slot == "warmup" and position >= MAX_WARMUP_RECALL_STEPS:
+            continue
+        ranked = [
+            entry
+            for entry in entries
+            if uses.get(target_identity(entry.target), 0) < PRACTICE_MAX_USES_PER_TARGET
+        ]
+        if slot == "post":
+            ranked.sort(key=lambda entry: (today_rank(entry), entries.index(entry)))
+        else:
+            ranked.sort(
+                key=lambda entry: (uses.get(target_identity(entry.target), 0), entries.index(entry))
+            )
+        placed: PracticeItem | None = None
+        for entry in ranked:
+            identity = target_identity(entry.target)
+            metadata = entry.candidate.metadata or {}
+            learner_wording = metadata.get("erratum_learner") or metadata.get("original_text")
+            kept_example = str(metadata.get("example_fr") or "").strip()
+            readable = list(sentences if slot == "post" else safe_sentences)
+            if kept_example:
+                readable.append(kept_example)
+            for task_type in _slot_formats(
+                slot,
+                shape=shape,
+                dice=dice,
+                identity=identity,
+                used_today=used_today,
+                used_by_target=formats_by_target.get(identity, set()),
+            ):
+                task = practice_task(
+                    task_type,
+                    target=entry.target,
+                    scenario=scenario,
+                    affordances=affordances,
+                    optional=bool(entry.candidate.is_new),
+                    learner_text=learner_wording,
+                    pool=pool,
+                    sentences=readable,
+                )
+                if task is None:
+                    continue
+                cost = quick_recall_seconds(task, spt=spt, multiplier=multiplier)
+                if cost > headroom:
+                    continue
+                placed = PracticeItem(slot=slot, position=position, entry=entry, task=task, cost=cost)
+                break
+            if placed is not None:
+                break
+        if placed is None:
+            continue
+        identity = target_identity(placed.entry.target)
+        headroom -= placed.cost
+        uses[identity] = uses.get(identity, 0) + 1
+        formats_by_target.setdefault(identity, set()).add(placed.task.task_type)
+        used_today[placed.task.task_type] = used_today.get(placed.task.task_type, 0) + 1
+        items.append(placed)
+    return items
+
+
+def _recall_step(ordinal: int, item: PracticeItem) -> PlannedStep:
+    recall = item.task
+    prompt: dict[str, Any] = {
+        "task_type": recall.task_type,
+        "instruction_native": recall.instruction_native,
+        "prompt_fr": recall.prompt_fr,
+        "options": [dict(option) for option in recall.options],
+        "target": public_recall_target(recall.target),
+        "optional": recall.optional,
+        "help_available": _recall_help(recall),
+    }
+    if recall.task_type == str(RecallFormat.LISTEN_TAP):
+        # No clip is synthesised for a single phrase yet, so the item is
+        # read-and-tap: the phrase is printed and the renderer says nothing
+        # about listening. A deployment that speaks fills this in.
+        prompt["audio_url"] = None
+    return PlannedStep(
+        ordinal=ordinal,
+        kind=StepKind.RECALL,
+        estimated_seconds=item.cost,
+        public_prompt=prompt,
+        private_task=replace(recall, estimated_seconds=item.cost),
+        target=item.entry.target,
+        optional=recall.optional,
+        initial_status=StepStatus.PENDING,
+    )
+
+
+def _plan_practice_day(
+    *,
+    scenario: ScenarioBrief,
+    task: ResponseTask,
+    outcome_key: str,
+    candidates: list[LearningCandidate],
+    selection: TargetSelection,
+    affordances: list[str],
+    reasons_by_identity: dict[str, str],
+    shape: DayShape,
+    shape_reason: str,
+    dice: DayShapeInputs | None,
+    letter: LetterOffer | None,
+    chapter_recap_fr: str | None,
+    audio_available: bool,
+    input_mode: InputMode,
+    budget_seconds: int,
+    turns: int,
+    spt: float,
+    multiplier: float,
+    scene_cost: int,
+    resolution_cost: int,
+    notes: list[str],
+    partners: list[TargetRef] | None = None,
+) -> PlannedJourney:
+    """WP-78 — warm-ups → scene → build → reply → a word from today → ending."""
+
+    entries = practice_entries(scenario, selection, affordances)
+    scene_line = _scene_line_without_spoiler(scenario)
+    sentences = scene_sentences(scenario.setup_fr, scene_line)
+    expected = task.suggested_response_fr
+    # A sentence rebuilt *before* the reply must not be the reply.
+    safe_sentences = [line for line in sentences if not line_spoils_reply(line, expected)]
+
+    def attempt(turn_count: int) -> tuple[int, list[PracticeItem]]:
+        cost = respond_seconds(task, turns=turn_count, spt=spt, multiplier=multiplier)
+        headroom = budget_seconds - (scene_cost + cost + resolution_cost)
+        return cost, fill_practice_items(
+            scenario=scenario,
+            shape=shape,
+            entries=entries,
+            affordances=affordances,
+            sentences=sentences,
+            safe_sentences=safe_sentences,
+            dice=dice,
+            headroom=max(0, headroom),
+            spt=spt,
+            multiplier=multiplier,
+            partners=partners or [],
+        )
+
+    respond_cost, items = attempt(turns)
+    if len(items) < PRACTICE_TARGET_ITEMS and turns > 1:
+        # The reply keeps its repair; it gives up its second turn so the day
+        # can hold its quick items — the same trade WP-75 made for day one.
+        shorter_cost, shorter = attempt(turns - 1)
+        if len(shorter) > len(items):
+            turns, respond_cost, items = turns - 1, shorter_cost, shorter
+            notes.append("reply reduced to one turn so the practice items fit the budget")
+
+    rule = practice_day_shape_rule(shape)
+    if len(items) < rule.min_recall:
+        notes.append(
+            f"{shape} day downgraded to {DEFAULT_DAY_SHAPE}: "
+            f"{len(items)} recall step(s), {rule.min_recall} required"
+        )
+        shape = DEFAULT_DAY_SHAPE
+        shape_reason = "shape_needs_a_recall_step"
+        if not items:
+            respond_cost, items = attempt(turns)
+
+    practised = {target_identity(item.entry.target) for item in items}
+    used_targets = list(selection.selected)
+    selected_ids = {target_identity(entry.target) for entry in used_targets}
+    for item in items:
+        identity = target_identity(item.entry.target)
+        if identity not in selected_ids:
+            selected_ids.add(identity)
+            used_targets.append(item.entry)
+    omitted = [
+        candidate
+        for candidate in selection.omitted
+        if target_identity(candidate.target) not in practised
+    ]
+    for entry in selection.selected:
+        if entry.demonstrated:
+            notes.append(
+                f"{target_identity(entry.target)}: already produced independently, not drilled"
+            )
+    notes.append(
+        "practice day: "
+        + ", ".join(f"{item.slot}:{item.task.task_type}" for item in sorted(
+            items, key=lambda item: ({"warmup": 0, "mid": 1, "post": 2}[item.slot], item.position)
+        ))
+    )
+    primary_reason = next(
+        (
+            reason
+            for reason in (
+                reasons_by_identity.get(target_identity(entry.target)) for entry in used_targets
+            )
+            if reason
+        ),
+        None,
+    )
+    if primary_reason:
+        notes.append(f"today's targets include {primary_reason}")
+
+    def placed(slot: str) -> list[PracticeItem]:
+        return sorted((item for item in items if item.slot == slot), key=lambda item: item.position)
+
+    steps: list[PlannedStep] = []
+    for item in placed("warmup"):
+        steps.append(_recall_step(len(steps), item))
+    steps.append(
+        PlannedStep(
+            ordinal=len(steps),
+            kind=StepKind.SCENE,
+            estimated_seconds=scene_cost,
+            public_prompt={
+                "setup_fr": scenario.setup_fr,
+                "setup_native": scenario.setup_native,
+                "objective_native": scenario.objective_native,
+                "character_line_fr": scene_line,
+                "character_line_audio_url": None,
+                "image_url": scenario.image_url,
+                "listen_first": bool(shape is DayShape.LISTENING and audio_available),
+            },
+        )
+    )
+    for item in placed("mid"):
+        steps.append(_recall_step(len(steps), item))
+
+    elicited = [entry.target for entry in selection.selected if entry.is_elicitable]
+    respond_task = replace(
+        task, max_turns=turns, targets=list(elicited), estimated_seconds=respond_cost
+    )
+    steps.append(
+        PlannedStep(
+            ordinal=len(steps),
+            kind=StepKind.RESPOND,
+            estimated_seconds=respond_cost,
+            public_prompt={
+                "turn_index": 0,
+                "max_turns": turns,
+                "repair_allowed": bool(task.repair_allowed),
+                "character_id": task.character_id,
+                "character_name": task.character_name,
+                "character_line_fr": task.opening_line_fr,
+                "character_line_audio_url": None,
+                "objective_native": task.objective_native,
+                "input_modes": supported_input_modes(scenario, input_mode=input_mode),
+                "targets": [target.as_public() for target in elicited],
+                "help_available": _respond_help(task),
+                "letter": _letter_prompt(letter) if shape is DayShape.LETTER else None,
+            },
+            private_task=respond_task,
+        )
+    )
+    for item in placed("post"):
+        steps.append(_recall_step(len(steps), item))
+    steps.append(
+        PlannedStep(
+            ordinal=len(steps),
+            kind=StepKind.RESOLUTION,
+            estimated_seconds=resolution_cost,
+            public_prompt={
+                "outcome_key": outcome_key,
+                "character_line_fr": render_authored_text(
+                    scenario.resolution_lines.get(outcome_key, "")
+                ),
+                "summary_native": render_authored_text(
+                    scenario.resolution_summaries.get(outcome_key, "")
+                ),
+                "image_url": scenario.image_url,
+                "chapter_recap_fr": (
+                    (chapter_recap_fr or "").strip() or None
+                    if shape is DayShape.REPRISE
+                    else None
+                ),
+                "register_note_fr": None,
+                "register_reason_native": None,
+            },
+        )
+    )
+
+    rationale = _rationale(
+        selected=used_targets,
+        recalls=[(item.entry, item.task, item.cost, False) for item in items],
+        omitted=omitted,
+        reasons=dict(selection.omission_reasons),
+        candidates=candidates,
+        notes=notes,
+    )
+    plan = PlannedJourney(
+        scenario=scenario,
+        steps=steps,
+        estimated_active_seconds=sum(step.estimated_seconds for step in steps),
+        budget_seconds=budget_seconds,
+        selected_target_ids=[target_identity(entry.target) for entry in used_targets],
+        omitted_candidate_ids=[target_identity(item.target) for item in omitted],
+        rationale=rationale,
+        day_shape=shape,
+        shape_reason=shape_reason,
+        practice=True,
+    )
+    plan.validate()
+    return plan
+
+
+def graded_interactions(plan: PlannedJourney) -> int:
+    """How many things the learner answers today: every recall step that is
+    not skipped, plus the reply."""
+
+    return sum(
+        1
+        for step in plan.steps
+        if step.kind is StepKind.RESPOND
+        or (step.kind is StepKind.RECALL and step.initial_status is not StepStatus.SKIPPED)
+    )
+
+
 def _require_plannable(scenario: ScenarioBrief) -> str:
     """Refuse to plan a scene that cannot honestly end."""
 
@@ -1741,6 +2652,25 @@ __all__ = [
     "SelectedTarget",
     "TargetSelection",
     "build_classify_task",
+    # WP-78
+    "LISTENING_FILL_ORDER",
+    "MATCH_PAIR_COUNT",
+    "PRACTICE_FILL_ORDER",
+    "PRACTICE_MAX_USES_PER_TARGET",
+    "PRACTICE_SLOT_FORMATS",
+    "PRACTICE_TARGET_ITEMS",
+    "QUICK_ANSWER_SECONDS",
+    "QUICK_FEEDBACK_SECONDS",
+    "PracticeItem",
+    "build_listen_tap_task",
+    "build_match_pairs_task",
+    "build_unscramble_task",
+    "fill_practice_items",
+    "graded_interactions",
+    "practice_entries",
+    "practice_task",
+    "quick_recall_seconds",
+    "scene_sentences",
     "build_recall_task",
     "build_recall_task_in_format",
     "build_rotated_recall_task",

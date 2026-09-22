@@ -1998,6 +1998,20 @@ class ApiService {
     return response.translation || '';
   }
 
+  /**
+   * WP-78 «Garder»: keep a word tapped in the story, with the sentence it was
+   * in, in the learner's own Lexique. A 422 carries a French `detail.message`
+   * (no entry, no meaning in the learner's language) the sheet shows as is.
+   */
+  async keepWord(payload: {
+    term: string;
+    sentence: string;
+    surface?: string;
+    journey_id?: string | null;
+  }): Promise<{ word_id: number; word: string; gloss: string; example_fr: string; already_kept: boolean }> {
+    return this.post('/vocabulary/keep', payload, { suppressGlobalError: true } as SilentRequestConfig);
+  }
+
   /** @deprecated the server no longer targets English; kept for old call sites. */
   async translateToEnglish(text: string): Promise<string> {
     return this.translateForLearner(text);

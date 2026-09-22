@@ -24,8 +24,14 @@ export type LocalVerdict = 'correct' | 'wrong';
 export const ANSWER_KEY_VERSION = 1;
 export const TILE_JOINER = '\u001f';
 
-const PICK_FORMATS: ReadonlySet<string> = new Set(['choice', 'classify']);
-const ORDER_FORMATS: ReadonlySet<string> = new Set(['tiles', 'word_bank']);
+const PICK_FORMATS: ReadonlySet<string> = new Set(['choice', 'classify', 'listen_tap']);
+const ORDER_FORMATS: ReadonlySet<string> = new Set(['tiles', 'word_bank', 'unscramble']);
+/**
+ * WP-78. A matching item's key holds one digest per pair (the French card's id
+ * and the meaning card's id, joined like tiles), so each pair is coloured the
+ * moment it is made. `tileIds` is then exactly one `[fr, native]` pair.
+ */
+const PAIR_FORMATS: ReadonlySet<string> = new Set(['match_pairs']);
 
 /** Mirror of `journey_contracts._QUOTE_FOLD`. Keep the two tables identical. */
 const QUOTE_FOLD: Record<string, string> = {
@@ -54,7 +60,11 @@ export function normalizeKeyPart(value: unknown): string {
 }
 
 export function isKeyedFormat(taskType: RecallFormat | string | null | undefined): boolean {
-  return PICK_FORMATS.has(String(taskType)) || ORDER_FORMATS.has(String(taskType));
+  return (
+    PICK_FORMATS.has(String(taskType)) ||
+    ORDER_FORMATS.has(String(taskType)) ||
+    PAIR_FORMATS.has(String(taskType))
+  );
 }
 
 /** The string that is hashed for one answer, or `null` when there is none. */
@@ -66,9 +76,10 @@ export function answerMaterial(
     const part = normalizeKeyPart(answer.optionId);
     return part || null;
   }
-  if (ORDER_FORMATS.has(taskType)) {
+  if (ORDER_FORMATS.has(taskType) || PAIR_FORMATS.has(taskType)) {
     const parts = (answer.tileIds ?? []).map(normalizeKeyPart);
     if (!parts.length || parts.some((part) => !part)) return null;
+    if (PAIR_FORMATS.has(taskType) && parts.length !== 2) return null;
     return parts.join(TILE_JOINER);
   }
   return null;
