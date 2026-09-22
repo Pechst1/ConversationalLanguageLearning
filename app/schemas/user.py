@@ -318,6 +318,8 @@ class UserSettingsRead(BaseModel):
     weekly_email_summary: bool
     achievement_notifications: bool
     serial_edition_notifications: bool
+    #: WP-80: the IANA zone the reminder time is in.
+    timezone: str | None = "Europe/Paris"
 
     theme: str
     font_size: str
@@ -375,6 +377,8 @@ class UserSettingsUpdate(BaseModel):
     weekly_email_summary: bool | None = None
     achievement_notifications: bool | None = None
     serial_edition_notifications: bool | None = None
+    #: WP-80: an IANA zone name; anything else is refused, never guessed.
+    timezone: str | None = Field(default=None, max_length=64)
 
     theme: Theme | None = None
     font_size: FontSize | None = None
@@ -395,6 +399,18 @@ class UserSettingsUpdate(BaseModel):
     @classmethod
     def normalize_language_code(cls, value: str | None) -> str | None:
         return value.lower() if value else value
+
+    @field_validator("timezone")
+    @classmethod
+    def validate_timezone(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        from app.services.streak import valid_timezone
+
+        zone = valid_timezone(value)
+        if zone is None:
+            raise ValueError("timezone must be an IANA zone name, e.g. Europe/Paris")
+        return zone
 
     @model_validator(mode="after")
     def ensure_payload_not_empty(self) -> UserSettingsUpdate:

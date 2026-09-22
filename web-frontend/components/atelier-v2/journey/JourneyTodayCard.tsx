@@ -35,6 +35,8 @@ import {
   Surface,
 } from '@/components/atelier-v2/ui';
 import { atelierCopy, type AtelierCopy } from '@/lib/atelier-v2-copy';
+import { gentleReturnLabel } from '@/lib/gentle-return';
+import { preparingLine } from '@/lib/journey-reply-reveal';
 
 import { journeyCopy, journeyStatusCopy } from './journey-copy';
 import { formatDuration, joinMeta, type JourneyPhase } from './journey-state';
@@ -93,6 +95,7 @@ export function JourneyTodayCard({
           phase={phase}
           copy={copy}
           busy={busy}
+          controlLanguage={controller.controlLanguage}
           onOpen={onOpen}
           onStart={() => {
             void actions.start().then(onOpen);
@@ -133,6 +136,7 @@ function JourneyPrimary({
   phase,
   copy,
   busy,
+  controlLanguage,
   onOpen,
   onStart,
   onResume,
@@ -140,6 +144,7 @@ function JourneyPrimary({
   phase: JourneyPhase;
   copy: AtelierCopy;
   busy: boolean;
+  controlLanguage: DailyJourneyController['controlLanguage'];
   onOpen: () => void;
   onStart: () => void;
   onResume: () => void;
@@ -147,8 +152,19 @@ function JourneyPrimary({
   switch (phase.kind) {
     case 'offer':
       if (!phase.scenario) return null;
+      // WP-76: a cold scene takes ~20 s. The button says what is happening in
+      // the story («Le Mistral s’anime…»), not «Envoi…».
       return (
-        <Action tone="primary" pending={busy} pendingLabel={copy.sending} onClick={onStart}>
+        <Action
+          tone="primary"
+          pending={busy}
+          pendingLabel={preparingLine(
+            phase.scenario.location_name,
+            phase.scenario.character_name,
+            controlLanguage,
+          )}
+          onClick={onStart}
+        >
           {copy.start}
         </Action>
       );
@@ -210,15 +226,19 @@ function JourneyTodayBody({
         );
       }
       // WP-43: the estimate is chrome («5 min»), French on every screen.
-      const estimate = formatDuration(scenario.estimated_seconds, 'fr');
+      // WP-80: after an absence the day is short, so the standard estimate is
+      // not printed beside «Reprise en douceur».
+      const gentle = gentleReturnLabel({ missedDays: phase.envelope.missed_days, dayShape: null, estimatedSeconds: null });
+      const estimate = gentle ? null : formatDuration(scenario.estimated_seconds, 'fr');
       return (
         <Card
           copy={copy}
-          eyebrow={joinMeta(copy.today_eyebrow, scenario.location_name)}
+          eyebrow={joinMeta(gentle ?? copy.today_eyebrow, scenario.location_name)}
           title={scenario.title_fr}
           lang="fr"
           imageUrl={scenario.image_url}
           imageAlt={scenario.objective_native}
+          preparing={busy}
           byline={
             scenario.character_name ? (
               <Byline
@@ -241,10 +261,15 @@ function JourneyTodayBody({
     case 'session':
     case 'paused': {
       const scenario = phase.journey.scenario;
+      const gentle = gentleReturnLabel({
+        missedDays: phase.journey.missed_days,
+        dayShape: phase.journey.day_shape ?? 'standard',
+        estimatedSeconds: phase.journey.estimated_active_seconds,
+      });
       return (
         <Card
           copy={copy}
-          eyebrow={joinMeta(copy.today_eyebrow, scenario.location_name)}
+          eyebrow={joinMeta(gentle ?? copy.today_eyebrow, scenario.location_name)}
           title={scenario.title_fr}
           lang="fr"
           imageUrl={scenario.image_url}
@@ -343,6 +368,7 @@ function Card({
   imageAlt,
   byline,
   done,
+  preparing = false,
   children,
 }: {
   copy: AtelierCopy;
@@ -353,10 +379,17 @@ function Card({
   imageAlt?: string;
   byline?: React.ReactNode;
   done?: boolean;
+  /** WP-76: the scene is being prepared — the place breathes, no spinner. */
+  preparing?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <Surface as="section" shape="episode" className="journey-today-card">
+    <Surface
+      as="section"
+      shape="episode"
+      className={preparing ? 'journey-today-card journey-today-card--preparing' : 'journey-today-card'}
+      aria-busy={preparing || undefined}
+    >
       {imageUrl && (
         <Artwork
           url={imageUrl}

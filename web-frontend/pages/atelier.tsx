@@ -27,7 +27,6 @@ import { ConceptMotif } from '@/components/grammar/ConceptMotif';
 import { CR_INTAKE_HREF } from '@/components/courrier/Courrier';
 // WP-65 — the day's second action, as a quiet row. The hook owns the fetch.
 import { useCourrierHomeEntry } from '@/components/courrier/courrier-waiting';
-import { nativePushIsAvailable, registerNativePushToken } from '@/lib/native-push';
 import {
   cacheAtelierEdition,
   clearResumeActivity,
@@ -1240,19 +1239,8 @@ export default function AtelierPage() {
         setRewardMoment({ id: `${mintedGiltSeal.id}:${Date.now()}`, kind: 'gilt_seal', collectible: mintedGiltSeal });
       }
       pulseAtelierHaptic('complete');
-      if (
-        nativePushIsAvailable()
-        && window.localStorage.getItem('pilot:native-push-prompted:v1') !== 'true'
-      ) {
-        window.localStorage.setItem('pilot:native-push-prompted:v1', 'true');
-        try {
-          const token = await registerNativePushToken();
-          await apiService.subscribeToNativeNotifications(token);
-          toast.success("L’édition de demain pourra vous prévenir.");
-        } catch (pushError) {
-          console.info('Native push was not enabled after the first session.', pushError);
-        }
-      }
+      // WP-80: push permission is no longer asked after a drill séance. It is
+      // offered once, with a face, after the first finished day (PushOptIn).
     } catch (error) {
       console.error(error);
       toast.error('La séance n’a pas pu être terminée.');

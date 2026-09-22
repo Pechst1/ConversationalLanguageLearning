@@ -26,6 +26,10 @@ try {
 const buildEnv = {
   ...process.env,
   ...resolved,
+  // WP-80: push is on by default in the native build — the app asks for the
+  // permission itself, once, after the first finished day. Only an explicit
+  // NEXT_PUBLIC_NATIVE_PUSH_ENABLED=false turns it off.
+  NEXT_PUBLIC_NATIVE_PUSH_ENABLED: process.env.NEXT_PUBLIC_NATIVE_PUSH_ENABLED === 'false' ? 'false' : 'true',
   NATIVE_STATIC_EXPORT: 'true',
 };
 

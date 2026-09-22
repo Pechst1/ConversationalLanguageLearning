@@ -41,6 +41,9 @@ class AtelierTodayResponse(BaseModel):
     serial_episode: dict[str, Any] | None = None
     serial: dict[str, Any] | None = None
     phrase_of_day: dict[str, Any] | None = None
+    #: WP-80: ``{days, today_done, freeze_available, freeze_used_on}``, checked
+    #: against the learner's local date on this read.
+    streak: dict[str, Any] | None = None
 
 
 class AtelierSessionStartRequest(BaseModel):

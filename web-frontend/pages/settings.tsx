@@ -44,6 +44,7 @@ import {
     type AppTheme,
 } from '@/lib/app-preferences';
 import { resolveSettingsLanguage, settingsCopy, type SettingsCopy } from '@/lib/settings-copy';
+import { playFeelSound, setSoundsEnabled, soundsEnabled } from '@/lib/sound';
 import { SETTINGS_LEGAL_COPY, legalHref, resolveLegalLanguage } from '@/lib/legal';
 import { INTEREST_TOPICS, interestTopicKey, interestTopicLabel } from '@/lib/interest-topics';
 import { apiService as api, type AddressPreference } from '@/services/api';
@@ -70,6 +71,8 @@ interface UserSettings {
     // Notifications
     practiceReminders: boolean;
     reminderTime: string;
+    /** WP-80: the IANA zone the reminder time is in (set from this device). */
+    timezone: string;
     streakNotifications: boolean;
     weeklyEmailSummary: boolean;
     achievementNotifications: boolean;
@@ -107,6 +110,7 @@ const defaultSettings: UserSettings = {
     defaultVocabDirection: 'fr_to_de',
     practiceReminders: true,
     reminderTime: '09:00',
+    timezone: 'Europe/Paris',
     streakNotifications: true,
     weeklyEmailSummary: true,
     achievementNotifications: true,
@@ -432,6 +436,10 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
      */
     const [listenFirst, setListenFirst] = useState(false);
     useEffect(() => { setListenFirst(readListenFirst()); }, []);
+    // WP-76 «Sons»: this device only, read after mount like «Écouter d’abord».
+    // On in the app (the ringer switch still silences it), off on the web.
+    const [sounds, setSounds] = useState(false);
+    useEffect(() => { setSounds(soundsEnabled()); }, []);
     // WP-49: the row exists only where the server can read an episode aloud.
     const [episodeAudioEnabled, setEpisodeAudioEnabled] = useState(false);
 
@@ -522,6 +530,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
 
                     practiceReminders: user.practice_reminders ?? prev.practiceReminders,
                     reminderTime: user.reminder_time || prev.reminderTime,
+                    timezone: user.timezone || prev.timezone,
                     streakNotifications: user.streak_notifications ?? prev.streakNotifications,
                     weeklyEmailSummary: user.weekly_email_summary ?? prev.weeklyEmailSummary,
                     achievementNotifications: user.achievement_notifications ?? prev.achievementNotifications,
@@ -1350,7 +1359,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                         />
                                     </Row>
                                     {item.key === 'practiceReminders' && settings.practiceReminders && (
-                                        <Row label={copy.row_reminder_time} id="st-reminder-label">
+                                        <Row label={copy.row_reminder_time} id="st-reminder-label" hint={settings.timezone.replace(/_/g, ' ')}>
                                             <input
                                                 type="time"
                                                 className="av2-field__control st-time"
@@ -1441,6 +1450,19 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                 />
                             </Row>
                             )}
+                            <Row id="st-sounds-label" label={copy.row_sounds} hint={copy.row_sounds_hint}>
+                                <Switch
+                                    copy={copy}
+                                    labelledBy="st-sounds-label"
+                                    checked={sounds}
+                                    onChange={(next) => {
+                                        setSoundsEnabled(next);
+                                        setSounds(next);
+                                        // Turning it on answers with the sound itself.
+                                        if (next) playFeelSound('correct');
+                                    }}
+                                />
+                            </Row>
                             <Row label={copy.row_tts_speed} value={`${settings.ttsSpeed}×`} stacked>
                                 <div className="st-range">
                                     <span className="st-row__hint">{copy.speed_slow}</span>

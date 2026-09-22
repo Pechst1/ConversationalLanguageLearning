@@ -62,9 +62,15 @@ celery_app.conf.beat_schedule = {
         "task": "app.tasks.notifications.send_morning_editions",
         "schedule": crontab(minute="*/15"),
     },
+    # WP-80: every 15 minutes, because "19:00" and "18:00" are each learner's
+    # own local time; the task picks the learners whose evening it is.
     "send-streak-reminders": {
         "task": "app.tasks.notifications.send_streak_reminders",
-        "schedule": crontab(hour=18, minute=0),
+        "schedule": crontab(minute="*/15"),
+    },
+    "send-review-reminders": {
+        "task": "app.tasks.notifications.send_daily_srs_reminders",
+        "schedule": crontab(minute="*/15"),
     },
     "sync-anki-cards-daily": {
         "task": "app.tasks.anki_sync.sync_anki_cards_for_all_users",

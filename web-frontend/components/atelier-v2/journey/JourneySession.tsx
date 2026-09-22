@@ -52,7 +52,13 @@ import type { ConnectionView } from '@/lib/journey-recovery';
 import type { PublicStep } from '@/types/daily-journey';
 
 import { journeyCopy } from './journey-copy';
-import { formatDuration, joinMeta, recapView, type JourneyPhase } from './journey-state';
+import {
+  formatDuration,
+  joinMeta,
+  journeyHeaderCaption,
+  recapView,
+  type JourneyPhase,
+} from './journey-state';
 import {
   JourneyFeedbackView,
   RecallStepView,
@@ -60,7 +66,10 @@ import {
   ResolutionStepView,
 } from './JourneySteps';
 import { StoryEpisodeStep } from './StoryEpisodeStep';
+import { journeySpeaker } from './journey-faces';
+import { useJourneyFeel } from './useJourneyFeel';
 import { CastIntro, castIntroOf, castIntroSeen, rememberCastIntroSeen } from './CastIntro';
+import { PushOptIn } from './PushOptIn';
 import type { DailyJourneyController } from './useDailyJourney';
 
 export type JourneySessionProps = {
@@ -99,32 +108,23 @@ function segmentsOf(steps: PublicStep[], currentId: string | null): StepSegment[
   }));
 }
 
-/**
- * The 1-based position of the step actually on screen, or null when there is
- * none. Counting finished steps instead advances the header the instant an
- * answer is graded, while the graded step is still the one being read.
- */
-function positionOnScreen(steps: PublicStep[], currentId: string | null): number | null {
-  if (!currentId) return null;
-  const index = steps.findIndex((step) => step.id === currentId);
-  return index < 0 ? null : index + 1;
-}
-
 export function JourneySession({ controller, onExit, morePractice, onPractice }: JourneySessionProps) {
   // WP-27: the respond step owns the microphone itself (`useVoiceAnswer`), so
   // the controller's own voice fields are no longer read here.
-  const { phase, feedback, step, progress, busy, help, actions } = controller;
+  const { phase, feedback, step, busy, help, actions } = controller;
   const copy: AtelierCopy = {
     ...atelierCopy(controller.controlLanguage),
     ...journeyCopy(controller.controlLanguage),
   };
   const journey = controller.journey;
   const recovery = controller.recovery;
+  // WP-76/77: a haptic (and a sound, when on) per state; the face on screen.
+  useJourneyFeel(phase.kind, step?.id ?? null, feedback);
+  const speaker = journeySpeaker(journey, step);
 
   // WP-43: the step caption is chrome, so it is French on every screen
-  // («Étape 1 sur 3 · 3 min»); the learner's language stays for what is said
-  // about the scene.
-  const remaining = formatDuration(progress.remainingSeconds, 'fr');
+  // («Étape 1 sur 3»); the learner's language stays for what is said about the
+  // scene. WP-76: steps only — no clock that a server wait can move.
   const chrome = atelierCopy('fr');
 
   // Draft persistence (WP-10). The accessors are stable callbacks, so the field
@@ -145,15 +145,9 @@ export function JourneySession({ controller, onExit, morePractice, onPractice }:
   }, [currentStepId]);
 
   const segments = journey ? segmentsOf(journey.steps, journey.current_step_id) : [];
-  const position = journey ? positionOnScreen(journey.steps, journey.current_step_id) : null;
-  const caption =
-    progress.total > 0
-      ? `${stepOfLabel(
-          chrome,
-          position ?? Math.min(progress.done + 1, progress.total),
-          progress.total,
-        )}${remaining ? ` · ${remaining} ${copy.time_left}` : ''}`
-      : undefined;
+  const caption = journeyHeaderCaption(journey, (position, total) =>
+    stepOfLabel(chrome, position, total),
+  );
 
   /* The story-engine reader is a full-screen surface with its own exit and its
      own progress rail. While it is up the session's header would be a second,
@@ -242,6 +236,7 @@ export function JourneySession({ controller, onExit, morePractice, onPractice }:
                   busy={busy}
                   onContinue={actions.continueJourney}
                   onExit={onExit}
+                  speaker={speaker}
                 />
               )}
               {step.kind === 'recall' && (
@@ -285,6 +280,7 @@ export function JourneySession({ controller, onExit, morePractice, onPractice }:
                 onContinue={actions.continueJourney}
                 onRetry={actions.retryLastAnswer}
                 onDismiss={actions.clearFeedback}
+                speaker={speaker}
               />
 
               {/* Third tier. Quiet by construction, so the step's own primary
@@ -609,6 +605,10 @@ export function JourneyRecapView({
           </p>
         </Surface>
       )}
+
+      {/* WP-80: the push pre-prompt, once, after a finished day. Renders
+          nothing unless this device has something to ask. */}
+      <PushOptIn language={controller.controlLanguage} dayFinished />
 
       <div className="av2-recap__actions">
         {onExit && (

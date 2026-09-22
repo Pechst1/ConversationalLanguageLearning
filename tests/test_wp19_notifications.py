@@ -87,8 +87,9 @@ def test_journey_morning_copy_announces_the_scene_for_a_cohort_learner(
 
     assert copy is not None
     title, message = copy
-    assert title == "Votre scène du jour est prête"
-    assert title == DAILY_JOURNEY_MORNING_TITLE
+    # WP-80: the push is a character speaking, not the app announcing.
+    assert title == "Marin"
+    assert title != DAILY_JOURNEY_MORNING_TITLE
     assert message
 
 
@@ -101,8 +102,9 @@ def test_journey_morning_copy_offers_to_resume_an_unfinished_scene(
 
     title, message = daily_journey_morning_copy(db_session, user, today=TODAY)
 
-    assert title == DAILY_JOURNEY_MORNING_TITLE
-    assert "5 minutes" in message
+    # WP-80: the character picks the unfinished scene up where it stopped.
+    assert title != DAILY_JOURNEY_MORNING_TITLE
+    assert "continue" in message or "reprend" in message
 
 
 def test_journey_morning_copy_stays_silent_after_the_scene_is_finished(
@@ -127,7 +129,7 @@ def test_journey_morning_copy_ignores_yesterdays_finished_scene(
     copy = daily_journey_morning_copy(db_session, user, today=TODAY)
 
     assert copy is not None
-    assert copy[0] == DAILY_JOURNEY_MORNING_TITLE
+    assert copy[0] != DAILY_JOURNEY_MORNING_TITLE
 
 
 def test_scheduler_copy_uses_the_journey_title_for_cohort_learners(
@@ -139,7 +141,7 @@ def test_scheduler_copy_uses_the_journey_title_for_cohort_learners(
 
     title, _message = _morning_copy(db_session, user, TODAY)
 
-    assert title == DAILY_JOURNEY_MORNING_TITLE
+    assert title == "Marin"
 
 
 def test_scheduler_copy_keeps_the_legacy_edition_for_everyone_else(

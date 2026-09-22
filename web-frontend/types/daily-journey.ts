@@ -127,7 +127,16 @@ export type RecallPrompt = {
   /** Only optional recall may be dropped for budget. */
   optional: boolean;
   help_available: HelpKind[];
+  /**
+   * WP-76. A key a pick can be checked against on the device but not read
+   * from: SHA-256 of `salt + ":" + material`. Choice, classify, tiles and word
+   * bank only; absent from written formats and older servers. A preview — the
+   * server's verdict stays authoritative.
+   */
+  answer_key?: RecallAnswerKey | null;
 };
+
+export type RecallAnswerKey = { version: number; salt: string; digests: string[] };
 
 export type RespondPrompt = {
   /** 0-based. */
@@ -260,6 +269,23 @@ export type JourneySnapshot = {
    * only. `null` on every other day; absent on a pre-WP-75 server.
    */
   cast_intro?: CastIntroEntry[] | null;
+  /** WP-80: the practice streak on the journey's local day. Absent on older servers. */
+  streak?: StreakView | null;
+  /** WP-80: whole local days with no practice before this day. From 2: «Reprise en douceur». */
+  missed_days?: number;
+};
+
+/**
+ * WP-80: the practice streak, checked against the learner's local date on the
+ * server — `days` is 0 the moment a day was missed without a banked «jour de
+ * relâche». Never computed on the client.
+ */
+export type StreakView = {
+  days: number;
+  today_done: boolean;
+  freeze_available: boolean;
+  /** YYYY-MM-DD, the local day the last «jour de relâche» covered. */
+  freeze_used_on: string | null;
 };
 
 /** WP-75: one character introduced on the first day. */
@@ -305,6 +331,10 @@ export type TodayEnvelope = {
    * generated as usual, so this delays the wait copy — it never suppresses it.
    */
   is_warm: boolean;
+  /** WP-80: the streak on this read. Absent on older servers. */
+  streak?: StreakView | null;
+  /** WP-80: whole local days with no practice before today. */
+  missed_days?: number;
 };
 
 /** The because-line payload. `kind` is the only field a renderer may branch on. */

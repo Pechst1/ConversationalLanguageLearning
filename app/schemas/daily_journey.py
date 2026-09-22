@@ -129,6 +129,19 @@ class RecallOption(JourneyModel):
     text_fr: str
 
 
+class RecallAnswerKey(JourneyModel):
+    """WP-76. A key the client can check a pick against but cannot read.
+
+    ``digests`` are SHA-256 of ``salt + ":" + material`` (see
+    ``app/services/journey_answer_key.py``). A preview only: the server's
+    verdict on the attempt stays authoritative.
+    """
+
+    version: int = 1
+    salt: str
+    digests: list[str] = Field(default_factory=list)
+
+
 class RecallPrompt(JourneyModel):
     #: WP-66 brought three Séance formats into the daily loop. Additive: the
     #: three originals are unchanged, so a step persisted before this package
@@ -145,6 +158,9 @@ class RecallPrompt(JourneyModel):
     target: TargetRef
     optional: bool
     help_available: list[HelpKind] = Field(default_factory=list)
+    #: WP-76. Choice, classify, tiles and word bank only; added at projection
+    #: time, never stored. ``None`` for written formats and older servers.
+    answer_key: RecallAnswerKey | None = None
 
 
 class RespondLetter(JourneyModel):
@@ -301,6 +317,19 @@ class CastIntroEntry(JourneyModel):
     line_native: str
 
 
+class StreakView(JourneyModel):
+    """WP-80. The practice streak, checked against the learner's local date.
+
+    ``days`` is 0 the moment a day was missed without a banked «jour de
+    relâche»; ``freeze_used_on`` is the local day the last one covered.
+    """
+
+    days: int
+    today_done: bool
+    freeze_available: bool
+    freeze_used_on: date | None = None
+
+
 class JourneySnapshot(JourneyModel):
     id: str
     contract_version: ContractVersion = CONTRACT_VERSION
@@ -325,6 +354,11 @@ class JourneySnapshot(JourneyModel):
     #: (authored) day; ``None`` on every other day and on every journey
     #: planned before WP-75.
     cast_intro: list[CastIntroEntry] | None = None
+    #: WP-80. Additive; ``None`` only when the learner row is unreadable.
+    streak: StreakView | None = None
+    #: WP-80. Whole local days with no practice before this day. From 2, the
+    #: day is labelled «Reprise en douceur».
+    missed_days: int = 0
 
 
 class LegacyResume(JourneyModel):
@@ -380,6 +414,10 @@ class TodayEnvelope(JourneyModel):
     #: still discarded at serve time, so this is a promise about the cache, not
     #: about the wire: the client must stay honest if the draft turns cold.
     is_warm: bool = False
+    #: WP-80. The streak on this read, a missed day already settled.
+    streak: StreakView | None = None
+    #: WP-80. Whole local days with no practice before today.
+    missed_days: int = 0
 
 
 # ---------------------------------------------------------------------------

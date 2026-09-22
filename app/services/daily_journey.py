@@ -127,6 +127,7 @@ from app.services.journey_latency import (
     PHASE_RESPOND,
     has_live_prefetch,
     measure_phase,
+    server_wait_ms_since_last_event,
     take_prefetched_scene,
 )
 from app.services.journey_learning import record_daily_practice_streak
@@ -217,6 +218,18 @@ def resolve_timezone(value: str | None, fallback: str = "UTC") -> str:
         else:
             return candidate
     return fallback
+
+
+def _streak_snapshot_fields(db: Session, journey: DailyJourney) -> dict[str, Any]:
+    """WP-80: ``streak`` and ``missed_days`` for a snapshot; never costs the day."""
+
+    from app.services.streak import snapshot_fields
+
+    try:
+        return snapshot_fields(db, journey.user_id, journey.local_date)
+    except Exception:  # pragma: no cover - defensive
+        logger.exception("daily_journey: streak snapshot fields unavailable")
+        return {}
 
 
 def local_date_for(timezone_name: str, *, now: datetime | None = None) -> date:
@@ -462,6 +475,16 @@ def _public_prompt_view(step: DailyJourneyStep) -> dict[str, Any]:
         # rather than open the learner on a player that will never play.
         if prompt.get("listen_first") and not audio:
             prompt["listen_first"] = False
+    elif StepKind(step.kind) is StepKind.RECALL:
+        # WP-76: the one deliberate read of `private_task` in a projection. It
+        # leaves as a salted digest the client can check a pick against, never
+        # as the answer (`journey_answer_key`).
+        from app.services.journey_answer_key import answer_key_for
+
+        private = step.private_task if isinstance(step.private_task, dict) else {}
+        key = answer_key_for(str(step.id), private.get("recall_task"))
+        if key is not None:
+            prompt["answer_key"] = key
     return prompt
 
 
@@ -598,6 +621,11 @@ class DailyJourneyService:
 
         timezone_name = journey.timezone if journey else resolve_timezone(timezone_hint)
         today = local_date_for(timezone_name)
+        # WP-80: the client's zone is the learner's zone (it moves the streak
+        # day and the push schedule), and the streak is settled on this read.
+        from app.services.streak import today_fields
+
+        streak_fields = today_fields(self.db, user, timezone_hint=timezone_hint)
 
         available: ScenarioDescriptor | None = None
         if enabled and journey is None:
@@ -614,6 +642,7 @@ class DailyJourneyService:
             practice_href=self._practice_href(user),
             because=self._because_for(journey),
             is_warm=self._draft_is_warm(user) if enabled and journey is None else False,
+            **streak_fields,
         )
 
     def _because_for(self, journey: DailyJourney | None) -> JourneyBecause | None:
@@ -1078,8 +1107,21 @@ class DailyJourneyService:
                 "step_kind": str(step.kind),
                 "ordinal": step.ordinal,
                 "estimated_seconds": step.estimated_seconds,
+                # WP-76: the graded answers of this step were server time, not
+                # learner time. WP-11 subtracts what the closing event declares.
+                "provider_wait_ms": server_wait_ms_since_last_event(
+                    self.db, journey_id=journey.id
+                ),
             },
         )
+        # WP-76: the event is added after the mutation's commit, and the request
+        # session (autoflush off) closes without another one — so it was dropped
+        # and WP-11 never saw a step boundary. Telemetry only; never fails the step.
+        try:
+            self.db.commit()
+        except Exception:  # pragma: no cover - telemetry must never break a flow
+            logger.exception("daily_journey: step_completed event not persisted")
+            self.db.rollback()
         return snapshot
 
     def pause(
@@ -1315,6 +1357,8 @@ class DailyJourneyService:
                 "day_shape": str(_stored_day_shape(journey)),
                 # WP-75: only the first day carries it; every other day, null.
                 "cast_intro": _stored_cast_intro(journey),
+                # WP-80: the streak and the absence, read, never written here.
+                **_streak_snapshot_fields(self.db, journey),
             }
         )
 

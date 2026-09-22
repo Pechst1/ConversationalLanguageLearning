@@ -734,7 +734,9 @@ const noSleep = () => Promise.resolve();
 
   const correctHtml = renderFeedback(cleanFeedback);
   assert.ok(correctHtml.includes('data-state="correct"') && htmlHas(correctHtml, EN.correct));
-  assert.ok(htmlHas(correctHtml, clean.character_reply_fr));
+  // WP-76: the reply is the character's own speech in RespondStepView; the
+  // verdict card no longer repeats it.
+  assert.ok(!htmlHas(correctHtml, clean.character_reply_fr));
 
   const supportedHtml = renderFeedback(supportedFeedback);
   assert.ok(supportedHtml.includes('data-state="supported"') && htmlHas(supportedHtml, EN.supported));
@@ -1269,7 +1271,9 @@ const noSleep = () => Promise.resolve();
       draft: recallDrafts,
     }),
   );
-  assert.ok(!htmlHas(recallDraftHtml, EN.correct) && !htmlHas(recallDraftHtml, EN.wrong));
+  // Text only: the field's `autoCorrect="off"` (WP-76) is an attribute, not a verdict.
+  const recallDraftText = recallDraftHtml.replace(/<[^>]*>/g, ' ');
+  assert.ok(!htmlHas(recallDraftText, EN.correct) && !htmlHas(recallDraftText, EN.wrong));
 
   // A renderer given no store still works; it simply keeps nothing.
   const noStore = mountView(steps.RecallStepView, { ...stepProps, step: shortAnswerStep });
@@ -1511,8 +1515,9 @@ const noSleep = () => Promise.resolve();
   assert.equal(attempts[0].args[2].expected_revision, serverJourney.revision);
 
   // The learner sees the feedback they never got — built from the server's own
-  // AttemptResult, not invented locally.
-  assert.equal(live.feedback.kind, 'graded');
+  // AttemptResult, not invented locally. WP-76: a respond reply is staged
+  // (`replying`, then `graded` for the very same result).
+  assert.ok(['graded', 'replying'].includes(live.feedback.kind), live.feedback.kind);
   assert.equal(live.feedback.result.evidence_ref, storedReceipt.evidence_ref);
 
   // The recovery layer is exposed on the controller and has settled.
