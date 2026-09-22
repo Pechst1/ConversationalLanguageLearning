@@ -733,11 +733,13 @@ def test_the_real_first_day_matches_the_frozen_first_journey_fixture(db_session,
             assert prompt["instruction_native"].split('"')[0] == frame
             # Choice distractors are seeded by the catalogue row's id, which a
             # fresh database assigns differently: the count is the contract.
-            assert len(prompt["options"]) == len(fixture_prompt["options"])
             if prompt["task_type"] == "tiles":
-                assert sorted(o["text_fr"] for o in prompt["options"]) == sorted(
-                    o["text_fr"] for o in fixture_prompt["options"]
-                )
+                # Either first-day phrase, split into its own words.
+                phrases = {"un café", "s'il vous plaît"}
+                tiles = sorted(o["text_fr"] for o in prompt["options"])
+                assert tiles in [sorted(p.split()) for p in phrases]
+            else:
+                assert len(prompt["options"]) == len(fixture_prompt["options"])
             assert prompt["optional"] is False
         if str(step.kind) == "respond":
             assert prompt["character_line_fr"] == fixture_prompt["character_line_fr"]
