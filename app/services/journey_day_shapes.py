@@ -359,12 +359,14 @@ def choose_day_shape(inputs: DayShapeInputs) -> DayShapeDecision:
     unrepeated = tuple(shape for shape in pool if shape is not previous)
     # WP-78 (the WP-68 finding): a shape dealt yesterday that could not be
     # built was served as a standard day, so excluding only *standard* dealt
-    # the failed shape again and again. It sits out today too — when anything
-    # else is left to deal.
-    untried = tuple(
-        shape for shape in unrepeated if shape is not inputs.previous_dealt_shape
-    )
-    drawn_from = untried or unrepeated or pool
+    # the failed shape again and again. It sits out today too. When nothing
+    # else is left, yesterday's *served* standard day may come again (it was
+    # served in place of the failed shape, so it is not the dice repeating a
+    # deal) before the shape that just failed is dealt again.
+    failed = inputs.previous_dealt_shape
+    untried = tuple(shape for shape in unrepeated if shape is not failed)
+    not_failed = tuple(shape for shape in pool if shape is not failed) if failed else ()
+    drawn_from = untried or not_failed or unrepeated or pool
     choice = weighted_choice(
         [(shape, SHAPE_WEIGHTS.get(shape, 1)) for shape in drawn_from],
         *inputs.seed_parts,

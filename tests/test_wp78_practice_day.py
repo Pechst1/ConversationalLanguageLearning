@@ -530,7 +530,8 @@ def test_a_shape_that_could_not_be_built_is_not_dealt_straight_back() -> None:
             errata_count=1,
         )
         assert choose_day_shape(inputs).shape is DayShape.REPRISE
-    # With nothing else left, the day is still dealt — never refused.
+    # With nothing else left, yesterday's served standard day comes again
+    # rather than the shape that just failed.
     lonely = DayShapeInputs(
         user_id="learner-c",
         local_date=datetime(2026, 1, 5).date(),
@@ -538,4 +539,4 @@ def test_a_shape_that_could_not_be_built_is_not_dealt_straight_back() -> None:
         previous_dealt_shape=DayShape.LISTENING,
         audio_available=True,
     )
-    assert choose_day_shape(lonely).shape is DayShape.LISTENING
+    assert choose_day_shape(lonely).shape is DayShape.STANDARD
