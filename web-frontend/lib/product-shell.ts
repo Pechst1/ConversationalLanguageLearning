@@ -82,6 +82,10 @@ const OWN_SHELL_ROUTES = new Set([
   '/vocabulary/review',
   '/vocabulary/conjugation',
   '/audio-session',
+  // WP-72: the legal pages draw their own bar (back + language) and are read
+  // signed out, so no masthead.
+  '/privacy',
+  '/terms',
   ...(STORY_FEATURE_VISIBLE ? STORY_ROUTES : []),
 ]);
 
