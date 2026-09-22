@@ -60,6 +60,7 @@ import {
   ResolutionStepView,
 } from './JourneySteps';
 import { StoryEpisodeStep } from './StoryEpisodeStep';
+import { CastIntro, castIntroOf, castIntroSeen, rememberCastIntroSeen } from './CastIntro';
 import type { DailyJourneyController } from './useDailyJourney';
 
 export type JourneySessionProps = {
@@ -161,6 +162,21 @@ export function JourneySession({ controller, onExit, morePractice, onPractice }:
      surface on screen. */
   const immersive = useImmersiveSurface();
 
+  /* WP-75: the first journey meets the cast before its opening scene. Shown
+     in place of that scene until «Continuer», remembered per journey. */
+  const castIntro = castIntroOf(journey);
+  const journeyId = journey?.id ?? '';
+  const [castIntroDone, setCastIntroDone] = React.useState(true);
+  React.useEffect(() => {
+    setCastIntroDone(!journeyId || castIntroSeen(journeyId));
+  }, [journeyId]);
+  const showCastIntro =
+    castIntro.length > 0 &&
+    !castIntroDone &&
+    phase.kind === 'session' &&
+    step?.kind === 'scene' &&
+    journey?.steps[0]?.id === step.id;
+
   return (
     <AtelierV2Root as="main" language={controller.controlLanguage} className="journey-shell">
       <div className="av2-screen">
@@ -206,7 +222,17 @@ export function JourneySession({ controller, onExit, morePractice, onPractice }:
               exactly one action rather than a half-live step behind a notice. */}
           {phase.kind === 'session' && step && (
             <>
-              {step.kind === 'scene' && (
+              {showCastIntro && (
+                <CastIntro
+                  cast={castIntro}
+                  language={controller.controlLanguage}
+                  onContinue={() => {
+                    rememberCastIntroSeen(journeyId);
+                    setCastIntroDone(true);
+                  }}
+                />
+              )}
+              {step.kind === 'scene' && !showCastIntro && (
                 // Story-engine panels when the engine published them for this
                 // journey; the plain scene prompt otherwise (WP-14E).
                 <StoryEpisodeStep
@@ -264,7 +290,7 @@ export function JourneySession({ controller, onExit, morePractice, onPractice }:
               {/* Third tier. Quiet by construction, so the step's own primary
                   stays the only primary in the composition. Hidden under the
                   immersive reader, which owns its whole screen. */}
-              {!immersive && (
+              {!immersive && !showCastIntro && (
                 <div className="av2-session__secondary">
                   <Action
                     tone="quiet"

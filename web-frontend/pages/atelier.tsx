@@ -1450,6 +1450,63 @@ export default function AtelierPage() {
     }
   };
 
+  // --- WP-75: `/atelier?start=today` — sign-up lands inside the scene --------
+  // Opens today's journey directly: resumes an open one, starts one when none
+  // exists (the first journey is authored, so there is no model wait), or
+  // re-reads a preparing one. Anything else — flag off, `/today` failed, day
+  // already done, a start that failed — leaves the learner on Home. Fires once
+  // per landing, then drops the parameter so a reload is an ordinary visit.
+  const startTodayRef = useRef<'idle' | 'opening' | 'done'>('idle');
+  useEffect(() => {
+    if (!router.isReady || startTodayRef.current !== 'idle') return;
+    if (String(router.query.start || '') !== 'today') return;
+    if (loading || !journey.envelope) {
+      if (loadError || journey.phase.kind === 'load_failed') startTodayRef.current = 'done';
+      return;
+    }
+    startTodayRef.current = 'done';
+    void router.replace('/atelier', undefined, { shallow: true });
+    if (!journeyEnabled) return;
+    if (recommendation.kind === 'journey_start') {
+      // The view switches only once the scene exists (effect below), so a
+      // failed start never flashes an empty journey shell.
+      startTodayRef.current = 'opening';
+      void journey.actions.start();
+      return;
+    }
+    if (recommendation.kind === 'journey_resume' || recommendation.kind === 'journey_preparing') {
+      handleRecommendedAction(recommendation);
+    }
+    // `handleRecommendedAction` is re-created every render; the ref guard is
+    // what makes this run exactly once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router.isReady, router.query.start, loading, loadError, journey.envelope, journeyEnabled, recommendation]);
+  const startTodaySawBusyRef = useRef(false);
+  useEffect(() => {
+    if (startTodayRef.current !== 'opening') return;
+    if (journey.busy) {
+      startTodaySawBusyRef.current = true;
+      return;
+    }
+    const kind = journey.phase.kind;
+    if (kind === 'offer') {
+      // Still the offer: only a start that has run and come back counts.
+      if (!startTodaySawBusyRef.current) return;
+      startTodayRef.current = 'done';
+      setView('today');
+      return;
+    }
+    if (kind === 'load_failed' || kind === 'disabled' || kind === 'unavailable') {
+      // The start did not produce a scene: back to Home, which says why.
+      startTodayRef.current = 'done';
+      setView('today');
+      return;
+    }
+    if (kind === 'loading') return;
+    startTodayRef.current = 'done';
+    setView('journey');
+  }, [journey.phase.kind, journey.busy]);
+
   // Where the recognition rung resumes for a concept, skipping every mode the
   // learner has already earned out of. Returns null when the whole rung is done.
   const firstOpenRecognizeMode = (conceptId?: number | null): RecognizeMode | null => {

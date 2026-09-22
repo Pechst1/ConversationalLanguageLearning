@@ -17,6 +17,8 @@
 import React from 'react';
 import Link from 'next/link';
 
+import { PlacementOfferChip } from '@/components/onboarding/PlacementOfferChip';
+
 import {
   Action,
   ArrowRightIcon,
@@ -288,6 +290,10 @@ export function HomeScreen({
           ))}
         </div>
       )}
+
+      {/* WP-75: the placement, offered only after day three and never to a
+          «Nouveau» learner. Renders nothing until the server says so. */}
+      <PlacementOfferChip className="av2-home__section" />
 
       {phrase && (
         <div className="av2-home__section">

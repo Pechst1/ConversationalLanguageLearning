@@ -1,17 +1,28 @@
 /* La page d'accueil publique — the quietest sheet in the app.
-   One nameplate, one dateline, one truthful serif sentence, two actions.
-   No fake queue, no placeholder numbers, no time promises: the edition
-   speaks for itself once the reader signs in. */
+   One nameplate, one dateline, the promise in the learner's own language, and
+   one primary action: «Commencer», which plays the sixty-second taste right
+   here, before any account (WP-75). «J'ai déjà un compte» is a quiet link.
+   No fake queue, no placeholder numbers: the promise is the one the taste
+   keeps. */
 
 import Head from 'next/head';
 import Link from 'next/link';
+import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import { AtelierMark, AuthScreen, AuthSpacer } from '@/components/auth/AuthShell';
+import { Action } from '@/components/atelier-v2/ui';
+import { LanguageSwitch, useOnboardingLanguage } from '@/components/onboarding/LanguageSwitch';
+import { Taste } from '@/components/onboarding/Taste';
 import { useAppSession } from '@/lib/app-auth';
+import { TASTE_COPY, TASTE_NAV } from '@/lib/onboarding-taste';
 
 export default function HomePage() {
+  const router = useRouter();
   const { status } = useAppSession();
   const authed = status === 'authenticated';
+  const [language, setLanguage] = useOnboardingLanguage();
+  const [tasting, setTasting] = useState(false);
+  const copy = TASTE_COPY[language];
 
   /* The dateline is set on the client so the statically generated HTML never
      carries a stale build-day date. The line's space is reserved; the text
@@ -46,53 +57,60 @@ export default function HomePage() {
       </Head>
 
       <AuthScreen label="L’Atelier">
-        <header className="la-une" lang="fr">
-          <AtelierMark size={26} />
-          <p className="la-une__nameplate">L’Atelier</p>
-          {/* The dateline's space is reserved so the line never reflows when the
-              client fills it in; only its opacity changes. */}
-          <p className={`la-une__folio${dateline ? ' is-shown' : ''}`}>
-            Quotidien de français
-            {dateline && (
-              <>
-                {' · '}
-                <time dateTime={dateline.iso}>{dateline.text}</time>
-              </>
-            )}
-          </p>
-          <div className="la-une__rule" aria-hidden="true" />
-        </header>
+        {!tasting && (
+          <header className="la-une" lang="fr">
+            <AtelierMark size={26} />
+            <p className="la-une__nameplate">L’Atelier</p>
+            {/* The dateline's space is reserved so the line never reflows when the
+                client fills it in; only its opacity changes. */}
+            <p className={`la-une__folio${dateline ? ' is-shown' : ''}`}>
+              Quotidien de français
+              {dateline && (
+                <>
+                  {' · '}
+                  <time dateTime={dateline.iso}>{dateline.text}</time>
+                </>
+              )}
+            </p>
+            <div className="la-une__rule" aria-hidden="true" />
+          </header>
+        )}
 
-        <AuthSpacer />
+        {tasting ? (
+          <Taste language={language} onKeep={() => void router.push('/auth/signup')} />
+        ) : (
+          <>
+            <AuthSpacer />
 
-        <section className="la-une__pitch" aria-label="Présentation" lang="fr">
-          <h1 className="av2-headline av2-headline--screen">
-            Chaque jour, une édition de français dont vous êtes un personnage.
-          </h1>
-          <p className="av2-body av2-body--lg">
-            Un épisode de feuilleton où vous tenez votre rôle, une courte séance
-            d’exercices, des progrès consignés noir sur blanc.
-          </p>
-        </section>
+            <section className="la-une__pitch" aria-label="L’Atelier">
+              <h1 className="av2-headline av2-headline--screen" lang={language}>
+                {copy.promise}
+              </h1>
+            </section>
 
-        <AuthSpacer />
+            <AuthSpacer />
 
-        <div className="la-une__actions">
-          {authed ? (
-            <Link className="av2-btn av2-btn--primary" href="/atelier">
-              Ouvrir votre édition
-            </Link>
-          ) : (
-            <>
-              <Link className="av2-btn av2-btn--primary" href="/auth/signin">
-                Se connecter
-              </Link>
-              <Link className="av2-btn av2-btn--secondary" href="/auth/signup">
-                Créer un compte
-              </Link>
-            </>
-          )}
-        </div>
+            <div className="la-une__actions">
+              {authed ? (
+                <Link className="av2-btn av2-btn--primary" href="/atelier">
+                  Ouvrir votre édition
+                </Link>
+              ) : (
+                <>
+                  <Action tone="primary" onClick={() => setTasting(true)}>
+                    {TASTE_NAV.start}
+                  </Action>
+                  <Link className="av2-btn av2-btn--quiet" href="/auth/signin">
+                    {TASTE_NAV.have_account}
+                  </Link>
+                  <div className="la-une__lang">
+                    <LanguageSwitch value={language} onChange={setLanguage} label={copy.language} />
+                  </div>
+                </>
+              )}
+            </div>
+          </>
+        )}
       </AuthScreen>
 
       <style jsx global>{`
@@ -142,6 +160,11 @@ export default function HomePage() {
           flex-direction: column;
           gap: 10px;
           min-width: 0;
+        }
+        .av2 .la-une__lang {
+          display: flex;
+          justify-content: center;
+          margin-top: 6px;
         }
       `}</style>
     </>

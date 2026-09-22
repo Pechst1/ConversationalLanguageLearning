@@ -26,8 +26,11 @@ def test_public_onboarding_moves_from_minimal_account_creation_to_daily_atelier(
     # redirect, and the signed-out pair is French.
     assert "const authed = status === 'authenticated';" in home
     assert "Ouvrir votre édition" in home
+    # WP-75: «Commencer» plays the taste on this page; the taste's last button
+    # opens sign-up, and «J'ai déjà un compte» is the quiet way to sign in.
     assert 'href="/auth/signin"' in home
-    assert 'href="/auth/signup"' in home
+    assert "router.push('/auth/signup')" in home
+    assert "<Taste " in home
     assert "~15 min" not in home
     assert "Learning hub" not in home
 
@@ -45,31 +48,23 @@ def test_public_onboarding_moves_from_minimal_account_creation_to_daily_atelier(
     assert "NEXTAUTH_URL: process.env.NEXTAUTH_URL || 'http://localhost:3000'" not in next_config
     assert "NEXTAUTH_URL=http://localhost:3001 npm run dev -- -p 3001" in frontend_readme
 
-    # French since 2026-09-10; the contract is that the rule is stated, not the
-    # language it is stated in.
-    assert "Au moins 8 caractères" in signup
+    # WP-75: one screen in the learner's language (en/de/fr); the rules are
+    # stated in the copy table, the payload is the backend contract.
+    signup_copy = read(WEB / "lib" / "onboarding-signup.ts")
+    assert "Au moins 8 caractères" in signup_copy
     assert "function authErrorMessage" in signup
     assert "Array.isArray(detail)" in signup
-    assert "defaultValues" in signup
-    assert "nativeLanguage: 'en'" in signup
-    assert "targetLanguage: 'fr'" in signup
-    assert "proficiencyLevel: 'A1'" in signup
-    # The extra profile fields used to hide behind a <details>; they are step
-    # two of a two-step form now. Same contract — not everything at once — with
-    # a mechanism a learner can see the shape of.
-    assert "AuthSteps" in signup and "step === 1" in signup
-    assert "apiService.register" in signup
-    assert "full_name: data.name" in signup
-    assert "interests: selectedTopics.join(',')" in signup
-    # WP-25 re-pin: sign-up still hands off to sign-in, but a learner with no
-    # destination of their own is carried on to the placement rather than to
-    # Home — their level is otherwise self-declared for the whole first week.
-    # WP-47 re-pin: the new account is signed in with what was just typed and lands
-    # directly; the sign-in form is the fallback, with the address kept.
-    assert "auth.signInWithCredentials(data.email, data.password)" in signup
-    assert "router.push(landing);" in signup
-    assert "router.push({ pathname: '/auth/signin', query: { ...afterSignUp, email: data.email } })" in signup
-    assert "const PLACEMENT_AFTER_SIGNUP = '/placement';" in signup
+    assert "useOnboardingLanguage()" in signup
+    assert "AuthSteps" not in signup
+    assert "buildRegisterPayload(data)" in signup
+    assert "apiService.post('/auth/register', payload)" in signup
+    # WP-47 re-pin: the new account is signed in with what was just typed and
+    # lands directly; the sign-in form is the fallback, with the address kept.
+    # WP-75 re-pin: it lands in today's scene, never on the placement.
+    assert "auth.signInWithCredentials(payload.email, data.password)" in signup
+    assert "router.replace(landing);" in signup
+    assert "query: { callbackUrl: landing, email: payload.email }" in signup
+    assert "const landing = afterSignUpDestination(destination);" in signup
 
 
 def test_phone_shell_keeps_the_primary_product_modes_simple_and_reachable() -> None:

@@ -316,7 +316,11 @@ def test_auth_pages_speak_one_language_and_wear_the_soft_pill():
     # learner's native_language is unknown before they have an account, so there
     # is no personal control language to honour here — only the publication's
     # own voice. English chrome on the way in was the island, not the rule.
-    assert "Votre première édition" in signup
+    # WP-75 (2026-09-22): sign-up explains itself in the learner's language
+    # (en/de/fr, guessed from the browser, switchable) from one copy table;
+    # the navigation labels stay French.
+    assert "SIGNUP_COPY[language]" in signup
+    assert "SIGNUP_NAV.submit" in signup
     for english_island in (
         "Your first edition",
         "Start with the essentials",
@@ -328,7 +332,8 @@ def test_auth_pages_speak_one_language_and_wear_the_soft_pill():
         assert english_island not in signup
 
     # Endonyms carry their own accents.
-    assert "'Français'" in signup and "'Francais'" not in signup
+    locale = _source("lib/onboarding-locale.ts")
+    assert "'Français'" in locale and "'Francais'" not in locale
 
     # Owner's soft-button direction, now inherited rather than restated: these
     # screens use the design system's own Action, whose radius is

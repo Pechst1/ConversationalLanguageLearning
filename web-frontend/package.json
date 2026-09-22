@@ -38,7 +38,8 @@
     "test:once-per-load": "node --test lib/once-per-load.test.js",
     "test:settings-copy": "node --test lib/settings-copy.test.js",
     "test:media-url": "node --test lib/media-url.test.js",
-    "test:observability": "node --test lib/observability.test.js"
+    "test:observability": "node --test lib/observability.test.js",
+    "test:onboarding": "node --test lib/onboarding.test.js"
   },
   "dependencies": {
     "@capacitor/cli": "^8.4.0",

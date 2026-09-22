@@ -15,18 +15,28 @@ def _source(relative_path: str) -> str:
     return (FRONTEND / relative_path).read_text(encoding="utf-8")
 
 
-def test_signup_hands_a_brand_new_learner_to_the_placement():
-    """The whole package hangs off this one redirect."""
+def test_signup_lands_in_the_scene_not_on_the_placement():
+    """WP-75 flipped WP-25's hand-off: the placement is never the first task."""
     page = _source("pages/auth/signup.tsx")
-    assert "const PLACEMENT_AFTER_SIGNUP = '/placement';" in page
-    # A learner who arrived from a deep link keeps their own destination; only
-    # the default '/atelier' landing is replaced by the placement.
-    assert "const landing = destination === '/atelier' ? PLACEMENT_AFTER_SIGNUP : destination;" in page
+    helper = _source("lib/onboarding-signup.ts")
+    assert "export const AFTER_SIGNUP_DESTINATION = '/atelier?start=today';" in helper
+    # A learner who arrived from a deep link keeps their own destination.
+    assert "const landing = afterSignUpDestination(destination);" in page
     # WP-47: the account is signed in with the credentials just typed and sent
     # straight to that landing; the sign-in form is the fallback, address kept.
-    assert "auth.signInWithCredentials(data.email, data.password)" in page
-    assert "router.push(landing);" in page
-    assert "query: { ...afterSignUp, email: data.email }" in page
+    assert "auth.signInWithCredentials(payload.email, data.password)" in page
+    assert "router.replace(landing);" in page
+    assert "query: { callbackUrl: landing, email: payload.email }" in page
+    assert "'/placement'" not in page
+
+
+def test_home_offers_the_placement_only_when_the_server_says_so():
+    home = _source("components/atelier-v2/home/HomeScreen.tsx")
+    chip = _source("components/onboarding/PlacementOfferChip.tsx")
+    assert "<PlacementOfferChip" in home
+    assert "'/placement/offer'" in chip
+    assert "body?.offer === true" in chip
+    assert "Faire le point sur votre niveau" in chip
 
 
 def test_the_placement_route_exists_and_is_not_public():
@@ -41,7 +51,7 @@ def test_the_offer_is_skippable_and_says_what_skipping_costs():
     page = _source("pages/placement.tsx")
     assert "Passer pour l’instant" in page
     assert "api.skipPlacement()" in page
-    assert "Sans bilan, nous gardons le niveau que vous avez indiqué à l’inscription." in page
+    assert "Sans bilan, votre niveau continue de suivre vos scènes." in page
 
 
 def test_an_unmeasured_placement_says_so_instead_of_naming_a_level():

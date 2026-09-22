@@ -1,8 +1,10 @@
 /**
  * WP-25 — «Trouvons votre niveau», the five-minute placement.
  *
- * Offered once, right after the first sign-in, and re-runnable from Réglages
- * (`/placement?rerun=1`). Four to six French prompts, each drawn from the band
+ * WP-75: never the first task. Sign-up lands in the day-1 scene; a learner who
+ * did not start as «Nouveau» is offered this from Home after three completed
+ * days (`/placement?from=offer`, when `GET /placement/offer` says so), and
+ * anyone can re-run it from Réglages (`/placement?rerun=1`). Four to six French prompts, each drawn from the band
  * the previous answer earned; the server does the grading and the ladder, so
  * this screen is a thin renderer over one envelope — which is why it has one
  * state machine rather than four screens.
@@ -219,7 +221,7 @@ export default function PlacementPage() {
           </p>
           <Surface tone="outline">
             <p className="pl-fine">
-              Sans bilan, nous gardons le niveau que vous avez indiqué à l’inscription.
+              Sans bilan, votre niveau continue de suivre vos scènes.
               Vous pouvez faire ce bilan plus tard depuis les Réglages.
             </p>
           </Surface>
