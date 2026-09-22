@@ -14,6 +14,11 @@ os.environ.setdefault("SECRET_KEY", "test-secret-key")
 os.environ.setdefault("ATELIER_STORY_ENGINE_ENABLED", "false")
 os.environ.setdefault("ATELIER_LLM_ENABLED", "false")
 os.environ.setdefault("GRAPHIC_NOVEL_IMAGE_GENERATION_ENABLED", "false")
+# WP-75: a learner's first day is authored (the café, the cast, two quick
+# recall items). The suite's existing journey tests are about the day the
+# rotation / story engine makes, so they keep that premise; tests/test_wp75_*
+# switch the first day on explicitly.
+os.environ.setdefault("ATELIER_JOURNEY_FIRST_DAY_AUTHORED_ENABLED", "false")
 # The unauthenticated local-demo fallback (`app/api/deps.get_current_user_or_demo`)
 # is a developer convenience that the owner's `.env` switches on. Left to the
 # environment, the suite inherited it: three tests passed on that machine and

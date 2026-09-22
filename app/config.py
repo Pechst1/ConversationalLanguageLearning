@@ -384,6 +384,18 @@ class Settings(BaseSettings):
         ),
     )
     # ---- WP-69 (end) -------------------------------------------------------
+    # ---- WP-75: a win before an account (begin) ----------------------------
+    ATELIER_JOURNEY_FIRST_DAY_AUTHORED_ENABLED: bool = Field(
+        True,
+        description=(
+            "A learner with no completed day gets an authored first day for their "
+            "band — the café at Le Mistral, two quick recall items, one reply, the "
+            "cast introduced — with no model call, so it is ready the moment it is "
+            "asked for. The story engine takes over from day 2. Off restores the "
+            "pre-WP-75 first day (generated like any other)."
+        ),
+    )
+    # ---- WP-75 (end) -------------------------------------------------------
 
     ATELIER_DAILY_JOURNEY_COHORT: str = Field(
         "",
