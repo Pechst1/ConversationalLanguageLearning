@@ -239,6 +239,26 @@ def db_session(db_engine) -> Generator[Session, None, None]:
         db.close()
 
 
+#: WP-78. Suites written before the practice day pin the classic envelope
+#: (scene first, at most two recalls) and run with the practice day off; these
+#: modules pin the practice day and run it on, as production does. A module-
+#: scoped fixture (the 126-day harness) sees the production default either way.
+PRACTICE_DAY_MODULE_PREFIXES = ("test_wp78_", "test_long_horizon_evidence")
+
+
+@pytest.fixture(autouse=True)
+def classic_day_unless_practice_suite(request, monkeypatch) -> None:
+    from app.config import settings
+
+    module = getattr(request, "module", None)
+    name = str(getattr(module, "__name__", "")).rsplit(".", 1)[-1]
+    monkeypatch.setattr(
+        settings,
+        "ATELIER_JOURNEY_PRACTICE_DAY_ENABLED",
+        name.startswith(PRACTICE_DAY_MODULE_PREFIXES),
+    )
+
+
 @pytest.fixture(autouse=True)
 def clear_cache() -> Generator[None, None, None]:
     cache_backend.clear()

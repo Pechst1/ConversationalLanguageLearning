@@ -168,6 +168,11 @@ PREPARING_RETRY_AFTER_SECONDS = 3
 UNAVAILABLE_RETRY_AFTER_SECONDS = 30
 MAX_GENERATION_ATTEMPTS = 3
 CANDIDATE_LIMIT = 3
+#: WP-78. A practice day sees more of the queue than the reply may oblige: the
+#: planner still elicits at most two due targets plus one new anchor in the
+#: reply, and the rest become quick items (``journey_learning`` reads a limit
+#: above three as room for the practice pool).
+PRACTICE_CANDIDATE_LIMIT = 8
 #: WP-69. The ``unavailable_reason`` a journey gets when a read finds it in
 #: ``preparing`` with a dead (or no) generation claim: the worker that owned it
 #: is gone, and the learner is offered a retry instead of an endless spinner.
@@ -2286,7 +2291,14 @@ class DailyJourneyService:
                 )
             else:
                 candidates = self.adapters.learning.select_learning_candidates(
-                    self.db, user=user, scenario=result, limit=CANDIDATE_LIMIT
+                    self.db,
+                    user=user,
+                    scenario=result,
+                    limit=(
+                        PRACTICE_CANDIDATE_LIMIT
+                        if settings.ATELIER_JOURNEY_PRACTICE_DAY_ENABLED
+                        else CANDIDATE_LIMIT
+                    ),
                 )
             plan = self._plan_with_shape(
                 scenario=result,
@@ -2358,6 +2370,12 @@ class DailyJourneyService:
             except StoryUnavailable as exc:
                 raise _GenerationFailure(str(exc), fallback_eligible=True) from exc
         self._persist_plan(fresh, result, plan, input_mode, because=because, fallback=fallback)
+        # WP-78: what the dice dealt, so tomorrow's dice do not deal a shape
+        # that could not be built today straight back (`previous_dealt_shape`).
+        fresh.plan_selection = {
+            **dict(fresh.plan_selection or {}),
+            "dealt_shape": str(decision.shape),
+        }
         if first_day:
             fresh.plan_selection = {
                 **dict(fresh.plan_selection or {}),
@@ -2707,6 +2725,7 @@ class DailyJourneyService:
         """
 
         previous_shape: DayShape | None = None
+        previous_dealt: DayShape | None = None
         missed = False
         with best_effort(self.db, "daily_journey: previous-day lookup", log=logger):
             yesterday = journey.local_date - timedelta(days=1)
@@ -2718,6 +2737,12 @@ class DailyJourneyService:
                 missed = self._has_earlier_journey(user, journey.local_date)
             else:
                 previous_shape = _stored_day_shape(previous)
+                dealt_name = _shape_name(_mapping(previous.plan_selection).get("dealt_shape"))
+                if dealt_name and dealt_name != str(previous_shape):
+                    try:
+                        previous_dealt = DayShape(dealt_name)
+                    except ValueError:
+                        previous_dealt = None
 
         story = brief.story_context if isinstance(brief.story_context, dict) else {}
         draft = story.get("draft") if isinstance(story.get("draft"), dict) else {}
@@ -2761,6 +2786,7 @@ class DailyJourneyService:
             user_id=str(user.id),
             local_date=journey.local_date,
             previous_shape=previous_shape,
+            previous_dealt_shape=previous_dealt,
             missed_previous_day=missed,
             chapter_beat=str(beat) if beat else None,
             chapter_shape=chapter_shape,
@@ -2839,6 +2865,9 @@ class DailyJourneyService:
         recap = story.get("chapter_recap_fr") or story.get("chapter_recap")
         if first_day and "first_day" in accepted:
             base["first_day"] = True
+        elif "practice" in accepted and settings.ATELIER_JOURNEY_PRACTICE_DAY_ENABLED:
+            # WP-78: quick items around the one open reply.
+            base["practice"] = True
         return plan_journey(
             **base,
             day_shape=decision.shape,
@@ -2983,6 +3012,8 @@ class DailyJourneyService:
             # the standard day it was.
             "day_shape": str(getattr(plan, "day_shape", None) or DEFAULT_DAY_SHAPE),
             "shape_reason": str(getattr(plan, "shape_reason", "") or ""),
+            # WP-78. Telemetry: a practice day, and what it poses.
+            "practice": bool(getattr(plan, "practice", False)),
         }
         if fallback:
             # WP-69. The story engine could not write this day and an authored
@@ -3834,7 +3865,32 @@ class DailyJourneyService:
             # WP-02 does not measure active time; a fabricated number would be
             # worse than an honest null (CONTRACTS §9).
             active_seconds=self._measure_active_seconds(journey),
+            # WP-79: streak-free reward facts (the streak rides on the
+            # snapshot): words, the character's mood, the keepsake, the
+            # teaser and a level move — each read, none invented.
+            **self._recap_extras(user, journey, practiced, collectible_ids),
         )
+
+    def _recap_extras(
+        self,
+        user: User,
+        journey: DailyJourney,
+        practiced: list[PracticedTarget],
+        collectible_ids: list[str],
+    ) -> dict[str, Any]:
+        from app.services.achievement_recap import recap_extras
+
+        try:
+            return recap_extras(
+                self.db,
+                user=user,
+                journey=journey,
+                practiced=practiced,
+                collectible_ids=collectible_ids,
+            )
+        except Exception:  # pragma: no cover - a reward is never worth the day
+            logger.exception("daily_journey: WP-79 recap extras failed")
+            return {}
 
     # ------------------------------------------------------------------
     # Internals — events

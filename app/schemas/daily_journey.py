@@ -12,10 +12,10 @@ in this module:
 from __future__ import annotations
 
 from datetime import date
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 from urllib.parse import quote
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_serializer
 
 from app.services.journey_contracts import (
     AssistanceLevel,
@@ -127,6 +127,19 @@ class RecallOption(JourneyModel):
 
     id: str
     text_fr: str
+    #: WP-78. Which language the card's text is in: ``"fr"`` or ``"native"``
+    #: (the learner's language). A matching item shows both sides; a
+    #: listen-and-tap item's cards are meanings. ``None`` on every older format,
+    #: whose cards are all French.
+    side: Literal["fr", "native"] | None = None
+
+    @model_serializer(mode="wrap")
+    def _omit_absent_side(self, handler: Any) -> Any:
+        # WP-78: additive means byte-identical for every older format.
+        data = handler(self)
+        if isinstance(data, dict) and data.get("side") is None:
+            data.pop("side", None)
+        return data
 
 
 class RecallAnswerKey(JourneyModel):
@@ -149,8 +162,20 @@ class RecallPrompt(JourneyModel):
     #: with `ChoiceAttemptInput`; `word_bank` renders as tiles with chips that
     #: are not part of the answer and is answered with `TilesAttemptInput`;
     #: `transform` renders as a short answer over a printed source sentence.
+    #: WP-78 added three quick formats, again additively: `match_pairs` is
+    #: answered with `TilesAttemptInput` (the pairs the learner made, as
+    #: consecutive fr/native ids), `listen_tap` with `ChoiceAttemptInput`, and
+    #: `unscramble` with `TilesAttemptInput`.
     task_type: Literal[
-        "choice", "tiles", "short_answer", "transform", "classify", "word_bank"
+        "choice",
+        "tiles",
+        "short_answer",
+        "transform",
+        "classify",
+        "word_bank",
+        "match_pairs",
+        "listen_tap",
+        "unscramble",
     ]
     instruction_native: str
     prompt_fr: str | None = None
@@ -160,7 +185,21 @@ class RecallPrompt(JourneyModel):
     help_available: list[HelpKind] = Field(default_factory=list)
     #: WP-76. Choice, classify, tiles and word bank only; added at projection
     #: time, never stored. ``None`` for written formats and older servers.
+    #: WP-78: listen-and-tap and unscramble too, and one digest *per pair* for
+    #: a matching item, so each pair is coloured the moment it is made.
     answer_key: RecallAnswerKey | None = None
+    #: WP-78. A listen-and-tap item's clip. ``None`` while no clip is
+    #: synthesised for single phrases: the phrase is then printed and the item
+    #: is read-and-tap.
+    audio_url: str | None = None
+
+    @model_serializer(mode="wrap")
+    def _omit_absent_audio(self, handler: Any) -> Any:
+        # WP-78: only a listen-and-tap item speaks of audio at all.
+        data = handler(self)
+        if isinstance(data, dict) and data.get("audio_url") is None and self.task_type != "listen_tap":
+            data.pop("audio_url", None)
+        return data
 
 
 class RespondLetter(JourneyModel):
@@ -284,6 +323,68 @@ class StoryOutcome(JourneyModel):
     callback_fr: str | None = None
 
 
+# --- WP-79 (begin): the end-of-day reward, every field read, none invented ---
+
+
+class RecapWord(JourneyModel):
+    """One vocabulary target the day actually practised (not a "not yet")."""
+
+    id: str
+    label_fr: str
+    label_native: str | None = None
+    evidence_kind: EvidenceKind
+
+
+class RecapMood(JourneyModel):
+    """The day's character, as the living story's WP-61 mood ledger left them.
+
+    ``shift`` is ``None`` unless the ledger's last move was *this* journey's
+    exchange (``last_event_id``), so a face never claims a change the day did
+    not make. ``mood`` is the ledger's −2 … +2.
+    """
+
+    character_id: str
+    character_name: str
+    mood: int = 0
+    shift: Literal["warmer", "colder", "steady"] | None = None
+
+
+class RecapKeepsake(JourneyModel):
+    """The vignette minted for a completed day (WP-09 §4), finally shown."""
+
+    collectible_id: str
+    title_fr: str
+    location_name: str | None = None
+    image_url: str | None = None
+    local_date: date
+
+
+class RecapTeaser(JourneyModel):
+    """«La suite demain» — one French line in a character's voice.
+
+    ``source``: ``engine`` (the living story's ``next_teaser``), ``resolution``
+    (the resolution's last forward-looking line) or ``authored`` (a line per
+    band that promises no plot point). Same order as WP-80's morning push.
+    """
+
+    text_fr: str
+    character_id: str | None = None
+    character_name: str | None = None
+    source: Literal["engine", "resolution", "authored"]
+
+
+class RecapLevelUp(JourneyModel):
+    """The CEFR estimate moved up since the previous recap (shown once)."""
+
+    from_level: str
+    to_level: str
+    mastered_vocabulary: int = 0
+    mastered_grammar: int = 0
+
+
+# --- WP-79 (end) -------------------------------------------------------------
+
+
 class JourneyRecap(JourneyModel):
     completion_kind: Literal["complete", "early"]
     objective_outcome: TaskOutcome
@@ -294,6 +395,21 @@ class JourneyRecap(JourneyModel):
     story_outcome: StoryOutcome | None = None
     #: Measured active seconds. ``None`` when the runtime was not measurable.
     active_seconds: int | None = None
+    # WP-79. All additive and defaulted: a recap persisted before WP-79 reads
+    # with none of them, and the client derives nothing it was not sent.
+    #: Steps the learner completed (not skipped) — the honest count shown
+    #: when ``active_seconds`` is not measurable.
+    steps_done: int = 0
+    words: list[RecapWord] = Field(default_factory=list)
+    mood: RecapMood | None = None
+    keepsake: RecapKeepsake | None = None
+    teaser: RecapTeaser | None = None
+    #: The story-written teaser only (engine or resolution), never an authored
+    #: line: WP-80's morning push reads this key and calls it the engine's.
+    teaser_fr: str | None = None
+    #: The CEFR estimate when this recap was written; the next recap compares.
+    level: str | None = None
+    level_up: RecapLevelUp | None = None
 
 
 class RetryHint(JourneyModel):

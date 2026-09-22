@@ -110,7 +110,6 @@ export type JourneyCopyKey =
   | 'evidence_not_yet'
   | 'evidence_unscored'
   | 'next_focus'
-  | 'duration_not_measured'
   | 'more_practice'
   | 'more_practice_note'
   // WP-16 / D-0: the recap's pointer into the «Plus de pratique» drill loop
@@ -262,7 +261,6 @@ const EN: CopyTable = {
   evidence_not_yet: 'not yet',
   evidence_unscored: 'not checked',
   next_focus: 'Worth another look',
-  duration_not_measured: 'Duration is not measured yet.',
   more_practice: 'More practice',
   more_practice_note: 'Optional. It does not reopen today’s scene.',
   practice_this: 'Practise this',
@@ -407,7 +405,6 @@ const DE: CopyTable = {
   evidence_not_yet: 'noch nicht',
   evidence_unscored: 'nicht geprüft',
   next_focus: 'Noch einmal ansehen',
-  duration_not_measured: 'Die Dauer wird noch nicht gemessen.',
   more_practice: 'Mehr üben',
   more_practice_note: 'Optional. Die heutige Szene wird dadurch nicht neu geöffnet.',
   practice_this: 'Das üben',
@@ -552,7 +549,6 @@ const FR: CopyTable = {
   evidence_not_yet: 'pas encore',
   evidence_unscored: 'non évalué',
   next_focus: 'À revoir',
-  duration_not_measured: 'La durée n’est pas encore mesurée.',
   more_practice: 'Plus d’exercices',
   more_practice_note: 'Facultatif. Cela ne rouvre pas la scène du jour.',
   practice_this: 'Retravailler',

@@ -289,7 +289,15 @@ class Driver:
         task_type = task.get("task_type")
         options = step["prompt"]["options"]
 
-        if task_type in {"choice", "classify"}:
+        if task_type == "match_pairs":
+            # WP-78: every pairing made, in order; only the target's counts.
+            order = list(task.get("correct_tile_order") or [])
+            assert len(order) >= 4, "match_pairs step has no stored pairs"
+            if correct:
+                return {"mode": "tiles", "tile_ids": order}
+            return {"mode": "tiles", "tile_ids": [order[0], order[3], *order]}
+
+        if task_type in {"choice", "classify", "listen_tap"}:
             key = task.get("correct_option_id")
             assert key is not None, f"{task_type} step has no stored answer key"
             chosen = next(
@@ -298,7 +306,7 @@ class Driver:
             )
             return {"mode": "choice", "option_id": chosen["id"]}
 
-        if task_type in {"tiles", "word_bank"}:
+        if task_type in {"tiles", "word_bank", "unscramble"}:
             order = list(task.get("correct_tile_order") or [])
             assert order, f"{task_type} step has no stored tile order"
             if correct:

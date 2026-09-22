@@ -57,8 +57,10 @@ from app.services import journey_errata as journey_errata_module
 from app.services import journey_learning as journey_learning_module
 from app.services import living_story as engine
 from app.services import missions as missions_module
+from app.services import progress as progress_module
 from app.services import story_correspondence as courrier
 from app.services import unified_srs as unified_srs_module
+from app.services import vocabulary_credit as vocabulary_credit_module
 from app.services.daily_journey_adapters import build_default_adapters
 from app.services.journey_contracts import RECALL_FORMATS, DayShape
 from app.services.journey_day_shapes import choose_day_shape
@@ -75,6 +77,12 @@ _CLOCK_READERS = (
     journey_errata_module,
     journey_learning_module,
     unified_srs_module,
+    # WP-78: the SRS that reschedules a practised word. Left on the wall clock,
+    # every word the run practises is next due in the real month of the run
+    # (months past the simulated one), so the queue drained on day two and the
+    # remaining four months measured an empty queue rather than a learner's.
+    progress_module,
+    vocabulary_credit_module,
 )
 
 #: Long enough for a season to end and a second one to begin, and for a fact

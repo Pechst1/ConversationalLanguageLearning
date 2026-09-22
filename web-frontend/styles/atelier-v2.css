@@ -2433,3 +2433,183 @@
   .av2 .av2-reply__dots i { opacity: 0.7; }
 }
 /* end WP-76 latency */
+
+/* ===========================================================================
+   WP-79 — the end of the day, as a reward (JourneyRecap.tsx) and the Home
+   streak's «bouclé» mark. Append-only; tokens only, both themes. The one
+   motion (the vignette settling) is removed by Reduce Motion with every other
+   `.av2` animation.
+   =========================================================================== */
+
+.av2 .av2-reward__keepsake {
+  margin: 0 0 14px;
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.av2 .av2-reward__vignette {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--av2-r-episode);
+  box-shadow: 0 var(--av2-press-md) 0 var(--av2-line);
+  aspect-ratio: 16 / 9;
+  background: var(--av2-card);
+  animation: av2-feel-pop 0.42s ease-out;
+}
+.av2 .av2-reward__vignette .av2-art,
+.av2 .av2-reward__vignette .av2-art__fallback {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 0;
+}
+.av2 .av2-reward__stamp {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--av2-card);
+  box-shadow: 0 var(--av2-press-sm) 0 var(--av2-line);
+}
+.av2 .av2-reward__caption { display: grid; gap: 2px; min-width: 0; }
+.av2 .av2-reward__title {
+  font-family: var(--av2-serif);
+  font-style: italic;
+  font-size: var(--av2-t-rule);
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.av2 .av2-reward__facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  min-width: 0;
+}
+.av2 .av2-reward__fact {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: var(--av2-r-tile);
+  background: var(--av2-card);
+  box-shadow: 0 var(--av2-press-sm) 0 var(--av2-line);
+}
+.av2 .av2-reward__fact dd { margin: 0; }
+.av2 .av2-reward__value {
+  font-family: var(--av2-serif);
+  font-style: italic;
+  font-weight: 600;
+  font-size: var(--av2-t-title);
+  line-height: 1.1;
+  color: var(--av2-ink);
+  overflow-wrap: anywhere;
+}
+
+.av2 .av2-reward__words {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+.av2 .av2-reward__word {
+  padding: 6px 12px;
+  border-radius: var(--av2-r-pill);
+  background: var(--av2-card);
+  box-shadow: inset 0 0 0 1px var(--av2-line);
+  font-size: var(--av2-t-body);
+  overflow-wrap: anywhere;
+}
+.av2 .av2-reward__gloss { color: var(--av2-muted); font-size: var(--av2-t-label); }
+
+.av2 .av2-reward__face {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+.av2 .av2-reward__face-body { display: grid; gap: 4px; min-width: 0; }
+.av2 .av2-reward__face [data-mood='up'] { color: var(--av2-green); }
+.av2 .av2-reward__face [data-mood='down'] { color: var(--av2-red); }
+
+.av2 .av2-reward__teaser {
+  display: grid;
+  gap: 4px;
+  padding: 4px 2px 0;
+  min-width: 0;
+}
+.av2 .av2-reward__teaser-line {
+  margin: 0;
+  font-family: var(--av2-serif);
+  font-style: italic;
+  font-size: var(--av2-t-rule);
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.av2 .av2-reward__teaser-by {
+  font-family: var(--av2-sans);
+  font-style: normal;
+  font-size: var(--av2-t-meta);
+  color: var(--av2-muted);
+}
+
+/* Home: the day is done — the streak carries the ink «done» square. */
+.av2 .av2-home__streak-l .av2-shape { vertical-align: -1px; margin-right: 4px; }
+/* end WP-79 */
+
+/* WP-78 (begin): matching pairs — two columns of cards on the tile spec. */
+.av2 .av2-match { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; min-width: 0; }
+.av2 .av2-match__col { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.av2 .av2-match__card {
+  min-height: var(--av2-tap);
+  padding: 0.5rem 0.75rem;
+  border: 2px solid var(--av2-line-2);
+  border-radius: var(--av2-r-card);
+  background: var(--av2-card);
+  color: var(--av2-ink);
+  box-shadow: 0 var(--av2-press-sm) 0 var(--av2-line-2);
+  font-family: var(--av2-serif);
+  font-size: var(--av2-t-body);
+  line-height: 1.3;
+  text-align: center;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+  transition: transform var(--av2-press-dur), box-shadow var(--av2-press-dur),
+    background 0.15s, border-color 0.15s, opacity 0.2s;
+}
+.av2 .av2-match__card[lang='fr'] { font-style: italic; }
+.av2 .av2-match__card:not(:disabled):active {
+  transform: translateY(var(--av2-press-sm));
+  box-shadow: 0 0 0 transparent;
+}
+.av2 .av2-match__card[data-state='selected'] {
+  border-color: var(--av2-blue);
+  box-shadow: 0 var(--av2-press-sm) 0 var(--av2-blue);
+}
+.av2 .av2-match__card[data-state='paired'] { border-color: var(--av2-blue); }
+.av2 .av2-match__card[data-state='matched'] {
+  background: var(--av2-green);
+  border-color: var(--av2-green-deep);
+  color: var(--av2-on-green);
+  box-shadow: none;
+  opacity: 0.55;
+}
+.av2 .av2-match__card[data-state='wrong'] {
+  background: var(--av2-red);
+  border-color: var(--av2-red-deep);
+  color: var(--av2-on-red);
+}
+.av2 .av2-match__card:disabled { cursor: default; }
+.av2 .av2-listen { width: 100%; }
+@media (prefers-reduced-motion: reduce) {
+  .av2 .av2-match__card { transition: none; }
+}
+/* end WP-78 */

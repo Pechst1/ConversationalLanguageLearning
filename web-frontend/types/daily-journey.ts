@@ -97,8 +97,12 @@ export type DayShape =
   | 'short'
   | (string & Record<never, never>);
 
-/** Never carries correctness. */
-export type RecallOption = { id: string; text_fr: string };
+/**
+ * Never carries correctness. WP-78: `side` says which language the card is in
+ * (`'native'` = the learner's language) for matching and listen-and-tap;
+ * absent on every older format, whose cards are all French.
+ */
+export type RecallOption = { id: string; text_fr: string; side?: 'fr' | 'native' | null };
 
 /**
  * WP-66. Six ways to pose one recall opportunity.
@@ -115,7 +119,13 @@ export type RecallFormat =
   | 'short_answer'
   | 'transform'
   | 'classify'
-  | 'word_bank';
+  | 'word_bank'
+  /** WP-78: four French cards, four meanings, tap to pair (sent as tiles). */
+  | 'match_pairs'
+  /** WP-78: a French phrase heard (or read, with no audio) → tap its meaning. */
+  | 'listen_tap'
+  /** WP-78: rebuild a sentence from the scene (sent as tiles). */
+  | 'unscramble';
 
 export type RecallPrompt = {
   task_type: RecallFormat;
@@ -134,6 +144,8 @@ export type RecallPrompt = {
    * server's verdict stays authoritative.
    */
   answer_key?: RecallAnswerKey | null;
+  /** WP-78. A listen-and-tap clip; `null`/absent means read-and-tap. */
+  audio_url?: string | null;
 };
 
 export type RecallAnswerKey = { version: number; salt: string; digests: string[] };
@@ -244,6 +256,65 @@ export type JourneyRecap = {
   } | null;
   /** Measured; `null` when the runtime was not measurable. */
   active_seconds: number | null;
+  // WP-79 — all additive; absent on recaps written before WP-79.
+  /** Steps completed (not skipped): the honest fallback when minutes are unmeasured. */
+  steps_done?: number;
+  /** Vocabulary the day's graded steps observed, minus the "not yet"s. */
+  words?: RecapWord[];
+  mood?: RecapMood | null;
+  keepsake?: RecapKeepsake | null;
+  teaser?: RecapTeaser | null;
+  /** The story-written teaser only (engine or resolution). */
+  teaser_fr?: string | null;
+  /** The CEFR estimate when the recap was written. */
+  level?: string | null;
+  level_up?: RecapLevelUp | null;
+};
+
+/** WP-79: one word the day practised. */
+export type RecapWord = {
+  id: string;
+  label_fr: string;
+  label_native: string | null;
+  evidence_kind: EvidenceKind;
+};
+
+/**
+ * WP-79: the day's character in the living story's mood ledger. `shift` is
+ * `null` unless the ledger's last move was this day's exchange.
+ */
+export type RecapMood = {
+  character_id: string;
+  character_name: string;
+  /** −2 … +2 */
+  mood: number;
+  shift: 'warmer' | 'colder' | 'steady' | null;
+};
+
+/** WP-79: the vignette minted for a completed day. */
+export type RecapKeepsake = {
+  collectible_id: string;
+  title_fr: string;
+  location_name: string | null;
+  image_url: string | null;
+  /** YYYY-MM-DD */
+  local_date: string;
+};
+
+/** WP-79: «La suite demain» — engine, resolution or an authored line. */
+export type RecapTeaser = {
+  text_fr: string;
+  character_id: string | null;
+  character_name: string | null;
+  source: 'engine' | 'resolution' | 'authored';
+};
+
+/** WP-79: the CEFR estimate moved up since the previous recap. */
+export type RecapLevelUp = {
+  from_level: string;
+  to_level: string;
+  mastered_vocabulary: number;
+  mastered_grammar: number;
 };
 
 export type JourneySnapshot = {

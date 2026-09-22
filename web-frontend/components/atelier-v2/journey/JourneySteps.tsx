@@ -92,6 +92,8 @@ import {
   type AnswerMode,
 } from './voice-answer';
 import { useVoiceAnswer } from './useVoiceAnswer';
+import { MatchPairs } from './MatchPairs';
+import { listenTapHasAudio, optionLang } from './practice-formats';
 import { CharacterTyping, TypedReply, respondSpeaker } from './ReplyStage';
 
 /**
@@ -409,7 +411,8 @@ export function RecallStepView({
           // The learner has committed; showing the right card is feedback.
           state = 'correct';
         }
-        return { id: option.id, textFr: option.text_fr, state };
+        // WP-78: a meaning card is in the learner's language, not French.
+        return { id: option.id, textFr: option.text_fr, state, lang: optionLang(option) ?? null };
       }),
     [step.prompt.options, shown, choice, serverSaysRight, localHere?.correctOptionId],
   );
@@ -448,14 +451,46 @@ export function RecallStepView({
     onSubmit(attempt);
   };
 
+  // WP-78. A matching grid posts itself when its last pair lands: the pairs
+  // were graded one by one on the device already, so a Check would be a
+  // second tap for nothing. A clean grid is coloured correct at once; one with
+  // a slip waits for the server, which grades the target's first pairing.
+  const isMatch = step.prompt.task_type === 'match_pairs';
+  const completeMatch = React.useCallback(
+    (pairs: string[], clean: boolean) => {
+      const stepId = step.id;
+      setTiles(pairs);
+      if (clean) {
+        setLocal({ stepId, verdict: 'correct', correctOptionId: null });
+        markVerdictFelt(stepId, 'correct');
+        feel('correct');
+      }
+      onSubmit({ mode: 'tiles', tile_ids: pairs });
+    },
+    [onSubmit, step.id],
+  );
+  // WP-78. Read-and-tap until a clip exists: the phrase is the headline. With
+  // a clip, the phrase stays unprinted until the answer is graded.
+  const heard = listenTapHasAudio(step.prompt);
+  const headline =
+    heard && !graded
+      ? step.prompt.instruction_native
+      : step.prompt.prompt_fr || step.prompt.instruction_native;
+
   return (
     <StepFrame
       label={copy.today_eyebrow}
-      headline={step.prompt.prompt_fr || step.prompt.instruction_native}
-      headlineLang={step.prompt.prompt_fr ? 'fr' : undefined}
+      headline={headline}
+      headlineLang={headline === step.prompt.prompt_fr && step.prompt.prompt_fr ? 'fr' : undefined}
     >
-      {step.prompt.prompt_fr && (
+      {step.prompt.prompt_fr && headline !== step.prompt.instruction_native && (
         <p className="av2-body av2-body--lg">{step.prompt.instruction_native}</p>
+      )}
+      {!step.prompt.prompt_fr && isMatch && (
+        <p className="av2-body av2-body--lg">{step.prompt.instruction_native}</p>
+      )}
+      {heard && step.prompt.audio_url && (
+        <audio className="av2-listen" controls preload="auto" src={step.prompt.audio_url} />
       )}
 
       {/* A transform prints the sentence being rewritten, so the learner knows
@@ -466,7 +501,18 @@ export function RecallStepView({
         </p>
       )}
 
-      {(step.prompt.task_type === 'choice' || step.prompt.task_type === 'classify') && (
+      {isMatch && (
+        <MatchPairs
+          key={step.id}
+          prompt={step.prompt}
+          disabled={locked}
+          onComplete={completeMatch}
+        />
+      )}
+
+      {(step.prompt.task_type === 'choice' ||
+        step.prompt.task_type === 'classify' ||
+        step.prompt.task_type === 'listen_tap') && (
         <ChoiceList
           options={options}
           selectedId={choice}
@@ -495,7 +541,9 @@ export function RecallStepView({
 
       {/* One bank for both formats (WP-76: a second copy used to render for
           plain tiles). */}
-      {(step.prompt.task_type === 'tiles' || step.prompt.task_type === 'word_bank') && (
+      {(step.prompt.task_type === 'tiles' ||
+        step.prompt.task_type === 'word_bank' ||
+        step.prompt.task_type === 'unscramble') && (
         <WordTiles
           options={options}
           placed={tiles}
@@ -537,15 +585,17 @@ export function RecallStepView({
           graded; checking again and asking for a hint are both spent. */}
       {!graded && (
         <>
-          <Action
-            tone="primary"
-            disabled={locked || !ready}
-            pending={feedback.kind === 'submitting'}
-            pendingLabel={copy.sending}
-            onClick={submit}
-          >
-            {copy.check}
-          </Action>
+          {!isMatch && (
+            <Action
+              tone="primary"
+              disabled={locked || !ready}
+              pending={feedback.kind === 'submitting'}
+              pendingLabel={copy.sending}
+              onClick={submit}
+            >
+              {copy.check}
+            </Action>
+          )}
 
           <HelpRow
             available={step.prompt.help_available}

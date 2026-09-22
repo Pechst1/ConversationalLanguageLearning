@@ -364,6 +364,17 @@ class Settings(BaseSettings):
         True, description="Generate new daily situations and semantic responses from shared serial state."
     )
     ATELIER_STORY_MAX_ATTEMPTS: int = Field(2, ge=1, le=3)
+    # ---- WP-78: a real day's worth of practice -------------------------------
+    ATELIER_JOURNEY_PRACTICE_DAY_ENABLED: bool = Field(
+        True,
+        description=(
+            "WP-78: plan each daily journey as a practice day — quick recall items "
+            "(matching pairs, read-and-tap, unscramble, …) before the scene, between "
+            "the scene and the reply, and one after it — inside the same stated "
+            "budget. Off restores the pre-WP-78 day (scene, at most two recalls, "
+            "reply, ending). Journeys already planned keep the shape they were built with."
+        ),
+    )
     # ---- WP-69: never lose a day (begin) -----------------------------------
     ATELIER_JOURNEY_AUTHORED_FALLBACK_ENABLED: bool = Field(
         True,

@@ -2436,6 +2436,8 @@ function TodayView({
       dateLabel={formatAtelierEditionDate()}
       editionLabel={editionLabel}
       streak={streak}
+      // WP-79: the server's checked `streak.today_done` (WP-80), never inferred.
+      dayDone={Boolean((today as { streak?: { today_done?: boolean } } | null)?.streak?.today_done)}
       settingsHref="/settings"
       notice={loadError ? { label: loadError.label, message: loadError.message, onRetry: onRetry } : null}
       episode={homeEpisode}

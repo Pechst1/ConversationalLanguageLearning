@@ -555,6 +555,25 @@ def test_every_recall_format_the_planner_can_pose_validates_on_the_wire(
             scene,
         ),
     }
+    # WP-78: the three quick formats are posed from today's other glossed words
+    # (matching, listen-and-tap) and from the scene's sentences (unscramble).
+    pool = [
+        TargetRef(kind=TargetKind.VOCABULARY, id=f"q{index}", label_fr=fr, label_native=native)
+        for index, (fr, native) in enumerate(
+            [("la clé", "the key"), ("le volet", "the shutter"), ("brouillard", "fog")]
+        )
+    ]
+    quick = TargetRef(
+        kind=TargetKind.VOCABULARY, id="p7", label_fr="un café", label_native="a coffee"
+    )
+    targets.update(
+        {
+            "match_pairs": (quick, scene),
+            "listen_tap": (quick, scene),
+            "unscramble": (quick, scene),
+        }
+    )
+    sentences = ["Je voudrais un café au comptoir."]
     assert set(targets) == set(RECALL_FORMATS), "a format with no parity coverage"
 
     posed = 0
@@ -565,6 +584,8 @@ def test_every_recall_format_the_planner_can_pose_validates_on_the_wire(
             scenario=brief,
             affordances=affordances,
             optional=False,
+            pool=pool,
+            sentences=sentences,
         )
         assert task is not None, f"{task_type} could not be posed at all"
         assert task.task_type == task_type

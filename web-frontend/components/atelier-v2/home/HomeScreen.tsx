@@ -130,6 +130,12 @@ export type HomeScreenProps = {
   editionLabel: string;
   /** Real consecutive-day count. 0 hides the slot entirely. */
   streak: number;
+  /**
+   * WP-79: today's practice is done (the server's `streak.today_done`). The
+   * streak carries the ink «done» square, and the Séance tile — extra practice
+   * once the journey owns the day — stops reading like unfinished work.
+   */
+  dayDone?: boolean;
   settingsHref?: string;
   notice?: { label: string; message: string; onRetry?: () => void } | null;
   episode: HomeEpisode | null;
@@ -164,6 +170,7 @@ export function HomeScreen({
   dateLabel,
   editionLabel,
   streak,
+  dayDone = false,
   settingsHref = '/settings',
   notice,
   episode,
@@ -189,13 +196,19 @@ export function HomeScreen({
           <h1 className="av2-headline av2-headline--screen av2-home__date">{dateLabel}</h1>
         </div>
         {streak > 0 ? (
+          // WP-79: at 0 the slot stays the gear (the July rule — a zero is
+          // not a reward, and no placeholder number is ever drawn).
           <Link
             className="av2-home__streak"
             href={settingsHref}
-            aria-label={`${streak} ${streak === 1 ? 'jour' : 'jours de suite'} · réglages`}
+            data-state={dayDone ? 'done' : undefined}
+            aria-label={`${streak} ${streak === 1 ? 'jour' : 'jours de suite'}${dayDone ? ' · journée bouclée' : ''} · réglages`}
           >
             <span className="av2-home__streak-n">{streak}</span>
-            <span className="av2-home__streak-l">{streak === 1 ? '1ᵉʳ jour' : 'jours de suite'}</span>
+            <span className="av2-home__streak-l">
+              {dayDone && <ShapeToken kind="done" size="sm" />}
+              {streak === 1 ? '1ᵉʳ jour' : 'jours de suite'}
+            </span>
           </Link>
         ) : (
           <Link className="av2-icon-btn" href={settingsHref} aria-label="Réglages">
@@ -263,7 +276,7 @@ export function HomeScreen({
       {tiles.length > 0 && (
         <div className="av2-home__tiles">
           {tiles.map((tile) => (
-            <DayTile key={tile.id} tile={tile} />
+            <DayTile key={tile.id} tile={dayDone ? settledTile(tile) : tile} />
           ))}
         </div>
       )}
@@ -435,6 +448,23 @@ function EpisodeArt({ episode }: { episode: HomeEpisode }) {
       </span>
     </div>
   );
+}
+
+/**
+ * WP-79 (L13): once the day is done, the Séance tile that only offers extra
+ * practice («Plus de pratique» under it) reads as a closed day, not as work
+ * left. It still opens the drill loop; only its words and marks change.
+ */
+function settledTile(tile: HomeTile): HomeTile {
+  if (tile.id !== 'seance' || !tile.secondary) return tile;
+  return {
+    ...tile,
+    meta: 'Journée bouclée',
+    mark: 'done',
+    bars: ['done', 'done', 'done'],
+    done: true,
+    ariaLabel: tile.ariaLabel || 'Séance — journée bouclée',
+  };
 }
 
 function DayTile({ tile }: { tile: HomeTile }) {

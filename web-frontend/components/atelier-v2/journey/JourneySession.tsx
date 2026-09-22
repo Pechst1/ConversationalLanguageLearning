@@ -40,10 +40,8 @@ import {
   CrossIcon,
   IconAction,
   Notice,
-  ShapeToken,
   StateBlock,
   StepProgress,
-  Surface,
   type StepSegment,
 } from '@/components/atelier-v2/ui';
 import { atelierCopy, stepOfLabel, type AtelierCopy } from '@/lib/atelier-v2-copy';
@@ -53,10 +51,8 @@ import type { PublicStep } from '@/types/daily-journey';
 
 import { journeyCopy } from './journey-copy';
 import {
-  formatDuration,
   joinMeta,
   journeyHeaderCaption,
-  recapView,
   type JourneyPhase,
 } from './journey-state';
 import {
@@ -69,7 +65,9 @@ import { StoryEpisodeStep } from './StoryEpisodeStep';
 import { journeySpeaker } from './journey-faces';
 import { useJourneyFeel } from './useJourneyFeel';
 import { CastIntro, castIntroOf, castIntroSeen, rememberCastIntroSeen } from './CastIntro';
+import { firstSceneStepId } from './practice-formats';
 import { PushOptIn } from './PushOptIn';
+import { JourneyRecap } from './JourneyRecap';
 import type { DailyJourneyController } from './useDailyJourney';
 
 export type JourneySessionProps = {
@@ -169,7 +167,8 @@ export function JourneySession({ controller, onExit, morePractice, onPractice }:
     !castIntroDone &&
     phase.kind === 'session' &&
     step?.kind === 'scene' &&
-    journey?.steps[0]?.id === step.id;
+    // WP-78: a practice day opens on warm-ups, so «the first scene», not steps[0].
+    firstSceneStepId(journey) === step.id;
 
   return (
     <AtelierV2Root as="main" language={controller.controlLanguage} className="journey-shell">
@@ -485,7 +484,7 @@ function JourneyPhaseView({
 }
 
 // ---------------------------------------------------------------------------
-// Completion recap — the server's evidence, and nothing invented
+// Completion recap — WP-79: one reward screen (`JourneyRecap.tsx`)
 // ---------------------------------------------------------------------------
 
 export function JourneyRecapView({
@@ -499,131 +498,29 @@ export function JourneyRecapView({
   controller: DailyJourneyController;
   onExit?: () => void;
   morePractice?: { label: string; onSelect: () => void } | null;
+  /** WP-16 / D-0: the recap opens the drill loop at the server's own href. */
   onPractice?: (href: string) => void;
 }) {
-  const copy: AtelierCopy = {
-    ...atelierCopy(controller.controlLanguage),
-    ...journeyCopy(controller.controlLanguage),
-  };
-  const view = recapView(phase.recap);
-  const partial = view?.partial ?? phase.journey.status === 'ended_early';
-  const duration = formatDuration(view?.activeSeconds ?? null, controller.controlLanguage);
-
+  const speaker = journeySpeaker(phase.journey);
   return (
-    <section className="journey-recap av2-stack" data-state={partial ? 'partial' : 'complete'}>
-      <Surface tone={partial ? 'outline' : 'paper'} shape="hero" className="av2-recap__header">
-        <p className="av2-label">{copy.today_eyebrow}</p>
-        <h2 className="av2-headline">
-          {partial ? copy.finished_partial_title : copy.finished_title}
-        </h2>
-        {partial && <p className="av2-body av2-body--lg">{copy.finished_partial_body}</p>}
-
-        {/* `recap.active_seconds` is null by design until WP-11 measures it.
-            Say so rather than printing an invented duration. */}
-        <p className="av2-label" style={{ marginTop: 8 }}>
-          {duration ? duration : copy.duration_not_measured}
-        </p>
-      </Surface>
-
-      {view && view.practiced.length > 0 && (
-        <Surface>
-          <p className="av2-label">{copy.practiced}</p>
-          <ul className="av2-recap__list">
-            {view.practiced.map((item) => (
-              <li key={`${item.target.kind}:${item.target.id}`}>
-                <ShapeToken kind="reward" size="sm" />
-                <span>
-                  <span className="av2-fr" lang="fr">
-                    {item.target.label_fr}
-                  </span>
-                  {item.target.label_native ? ` — ${item.target.label_native}` : ''}{' '}
-                  <span className="av2-label" style={{ display: 'inline' }}>
-                    · {copy[`evidence_${item.evidence_kind}` as const]}
-                  </span>
-                  {/* WP-16 / D-0: the drill loop is where this target is worked
-                      again. The href is the server's own; the recap never
-                      composes one and never reopens the finished journey. */}
-                  {onPractice && item.practice_href && (
-                    <>
-                      {' · '}
-                      <button
-                        type="button"
-                        className="av2-recap__practice"
-                        onClick={() => onPractice(item.practice_href as string)}
-                        aria-label={`${copy.practice_this} — ${item.target.label_fr}`}
-                      >
-                        {copy.practice_this}
-                      </button>
-                    </>
-                  )}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </Surface>
-      )}
-
-      {/* Server-recorded capability evidence. Not a second headline: it is what
-          the learner actually did, in the server's own words. */}
-      {view && view.capabilities.length > 0 && (
-        <Surface>
-          <p className="av2-label">{copy.capability_shown}</p>
-          <ul className="av2-recap__list">
-            {view.capabilities.map((item, index) => (
-              <li key={`${item.capability_key}-${index}`}>
-                <ShapeToken kind="done" size="sm" />
-                <span>
-                  {item.context_native}{' '}
-                  <span className="av2-label" style={{ display: 'inline' }}>
-                    · {copy[`capability_state_${item.state}` as const]}
-                  </span>
-                </span>
-              </li>
-            ))}
-          </ul>
-        </Surface>
-      )}
-
-      {/* At most ONE headline. */}
-      {view?.headline && (
-        <Surface tone="blue">
-          <p className="av2-label">{copy.next_focus}</p>
-          <p className="av2-headline av2-headline--rule" lang="fr">
-            {view.headline.labelFr}
-          </p>
-          <p className="av2-body av2-body--lg">{view.headline.reasonNative}</p>
-        </Surface>
-      )}
-
-      {/* The callback is a character's line, so it is attributed rather than
-          left as a bare French fragment with no speaker. */}
-      {view?.storyCallbackFr && (
-        <Surface>
-          <p className="av2-label">{phase.journey.scenario.character_name}</p>
-          <p className="av2-fr av2-headline av2-headline--rule" lang="fr">
-            {view.storyCallbackFr}
-          </p>
-        </Surface>
-      )}
-
-      {/* WP-80: the push pre-prompt, once, after a finished day. Renders
-          nothing unless this device has something to ask. */}
-      <PushOptIn language={controller.controlLanguage} dayFinished />
-
-      <div className="av2-recap__actions">
-        {onExit && (
-          <Action tone="primary" onClick={onExit}>
-            {copy.continue}
-          </Action>
-        )}
-        {morePractice && (
-          <Action tone="secondary" onClick={morePractice.onSelect}>
-            {morePractice.label || copy.more_practice}
-          </Action>
-        )}
-      </div>
-      {morePractice && <p className="av2-label">{copy.more_practice_note}</p>}
-    </section>
+    <JourneyRecap
+      journey={phase.journey}
+      recap={phase.recap}
+      language={controller.controlLanguage}
+      onExit={onExit}
+      morePractice={morePractice}
+      onPractice={onPractice}
+      pushOptIn={
+        // WP-80: the push pre-prompt, once, after a finished day. Renders
+        // nothing unless this device has something to ask.
+        <PushOptIn
+          language={controller.controlLanguage}
+          dayFinished
+          characterId={phase.recap?.teaser?.character_id || speaker?.id || undefined}
+          characterName={phase.recap?.teaser?.character_name || speaker?.name || undefined}
+        />
+      }
+    />
   );
 }
 

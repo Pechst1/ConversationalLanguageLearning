@@ -31,13 +31,23 @@ CONTRACT_VERSION = 1
 #: standard day with ``choice``/``tiles``/``short_answer`` recall — still loads
 #: and still validates. Never bump ``CONTRACT_VERSION`` for this: the wire
 #: payloads gained only optional fields.
-PLAN_CONTRACT_VERSION = 2
+PLAN_CONTRACT_VERSION = 3
 DEFAULT_BUDGET_SECONDS = 300
 MAX_PLANNED_STEPS = 5
 MAX_RECALL_STEPS = 2
 MAX_RESPOND_TURNS = 2
 #: A short day still has to be a day: scene, response, ending.
 MIN_PLANNED_STEPS = 3
+#: WP-78 — «une vraie journée de pratique». Plan contract version 3 adds the
+#: *practice day*: quick recall items around the one open reply — warm-ups
+#: before the scene, one or two between the scene and the reply, one after it.
+#: A plan is a practice day only when ``PlannedJourney.practice`` says so, so
+#: every plan persisted before WP-78 validates under exactly the envelope it
+#: was built for (the five-step constants above).
+MAX_PRACTICE_STEPS = 10
+MAX_PRACTICE_RECALL_STEPS = 6
+#: Warm-ups are the only steps that may come before the scene.
+MAX_WARMUP_RECALL_STEPS = 3
 #: WP-75. Marks the learner's authored first day in
 #: ``plan_selection["first_day"]["kind"]``. Additive: no wire shape changes
 #: except the optional ``JourneySnapshot.cast_intro`` it feeds.
@@ -134,11 +144,28 @@ class RecallFormat(StrEnum):
     TRANSFORM = "transform"
     CLASSIFY = "classify"
     WORD_BANK = "word_bank"
+    #: WP-78. Four French cards, four cards in the learner's language, tap to
+    #: pair. Graded on the day's target only: the other three pairs are context.
+    MATCH_PAIRS = "match_pairs"
+    #: WP-78. Hear (or, with no audio on the deployment, read) a French phrase
+    #: and tap its meaning among three cards in the learner's language.
+    LISTEN_TAP = "listen_tap"
+    #: WP-78. Rebuild a sentence the learner has just read in the scene.
+    UNSCRAMBLE = "unscramble"
 
 
 #: Wire-order tuple. Extending it is additive; reordering it is not, because
 #: the frontend renderer table and the parity fixtures read this order.
 RECALL_FORMATS: tuple[str, ...] = tuple(str(value) for value in RecallFormat)
+#: The six a plan could pose before WP-78 (plan contract version 2).
+CLASSIC_RECALL_FORMATS: tuple[str, ...] = RECALL_FORMATS[:6]
+#: WP-78. The formats a practice day poses as quick items — each answered in a
+#: few taps, each gradable on the device from the hashed key (WP-76).
+QUICK_RECALL_FORMATS: tuple[str, ...] = (
+    str(RecallFormat.MATCH_PAIRS),
+    str(RecallFormat.LISTEN_TAP),
+    str(RecallFormat.UNSCRAMBLE),
+)
 #: The three the daily loop had before WP-66. A plan persisted at plan contract
 #: version 1 can only contain these.
 LEGACY_RECALL_FORMATS: tuple[str, ...] = (
@@ -374,10 +401,25 @@ class RecallTask:
     answer is ``correct_tile_order`` (a *subset* of the chips, unlike ``tiles``
     where every chip is used); a transform's source sentence is ``prompt_fr``
     and its answer key is ``accepted_answers``.
+
+    WP-78 added three more, again without a field: a ``match_pairs`` item's
+    cards are its ``options`` (each with ``side`` ``"fr"`` or ``"native"``) and
+    its answer is ``correct_tile_order`` read as consecutive ``(fr, native)``
+    pairs, the day's target first; a ``listen_tap`` item's French phrase is
+    ``prompt_fr``, its cards (``side="native"``) are ``options`` and its answer
+    is ``correct_option_id``; an ``unscramble`` is tiles over a scene sentence.
     """
 
     task_type: Literal[
-        "choice", "tiles", "short_answer", "transform", "classify", "word_bank"
+        "choice",
+        "tiles",
+        "short_answer",
+        "transform",
+        "classify",
+        "word_bank",
+        "match_pairs",
+        "listen_tap",
+        "unscramble",
     ]
     instruction_native: str
     prompt_fr: str | None
@@ -526,6 +568,26 @@ DAY_SHAPE_RULES: dict[DayShape, DayShapeRule] = {
 }
 
 
+def practice_day_shape_rule(shape: DayShape | str | None) -> DayShapeRule:
+    """WP-78 — a shape's rule on a practice day.
+
+    The same shape, with room for the quick items: a «jour court» stays three
+    steps (coming back after a missed day still costs a scene and a reply),
+    and a «jour d'écoute» still poses only what can be taken down by ear.
+    """
+
+    rule = day_shape_rule(shape)
+    if rule.max_steps == MIN_PLANNED_STEPS and rule.max_recall == 0:
+        return rule
+    return DayShapeRule(
+        min_steps=rule.min_steps,
+        max_steps=MAX_PRACTICE_STEPS,
+        min_recall=rule.min_recall,
+        max_recall=MAX_PRACTICE_RECALL_STEPS,
+        allowed_formats=rule.allowed_formats,
+    )
+
+
 def day_shape_rule(shape: DayShape | str | None) -> DayShapeRule:
     """The rule for a shape, defaulting to ``STANDARD``.
 
@@ -557,6 +619,10 @@ class PlannedJourney:
     day_shape: DayShape = DEFAULT_DAY_SHAPE
     #: Why the dice dealt this shape, for operators and tests. Never rendered.
     shape_reason: str = ""
+    #: WP-78. A practice day: quick recall items may come before the scene and
+    #: after the reply. ``False`` for every plan written before plan contract
+    #: version 3, which then validates exactly as it did.
+    practice: bool = False
 
     def validate(self) -> None:
         """Guard the CONTRACTS §3/§9 envelope at the producer boundary.
@@ -568,6 +634,9 @@ class PlannedJourney:
 
         if not self.steps:
             raise ValueError("a planned journey needs at least one step")
+        if self.practice:
+            self._validate_practice()
+            return
         rule = day_shape_rule(self.day_shape)
         shape = str(self.day_shape)
         if len(self.steps) > MAX_PLANNED_STEPS:
@@ -612,6 +681,60 @@ class PlannedJourney:
             raise ValueError(
                 f"mandatory estimate {mandatory}s exceeds budget {self.budget_seconds}s"
             )
+
+    def _validate_practice(self) -> None:
+        """WP-78 — the practice day's envelope.
+
+        Still one scene, one reply, one ending, and the ending last. What
+        changes: up to :data:`MAX_WARMUP_RECALL_STEPS` recall steps may come
+        *before* the scene, recall steps may follow the reply, and the whole
+        day — not only its mandatory part — has to fit the stated budget,
+        because the learner is told the whole day's minutes.
+        """
+
+        rule = practice_day_shape_rule(self.day_shape)
+        shape = str(self.day_shape)
+        kinds = [step.kind for step in self.steps]
+        if len(self.steps) > MAX_PRACTICE_STEPS:
+            raise ValueError(f"plan has {len(self.steps)} steps, max {MAX_PRACTICE_STEPS}")
+        if kinds.count(StepKind.SCENE) != 1:
+            raise ValueError("a plan needs exactly one scene step")
+        if kinds.count(StepKind.RESPOND) != 1:
+            raise ValueError("a plan needs exactly one respond step")
+        if kinds.count(StepKind.RESOLUTION) != 1 or kinds[-1] is not StepKind.RESOLUTION:
+            raise ValueError("a plan must end with the resolution step")
+        scene_at = kinds.index(StepKind.SCENE)
+        if any(kind is not StepKind.RECALL for kind in kinds[:scene_at]):
+            raise ValueError("only warm-up recall steps may come before the scene")
+        if scene_at > MAX_WARMUP_RECALL_STEPS:
+            raise ValueError(f"at most {MAX_WARMUP_RECALL_STEPS} warm-ups before the scene")
+        if kinds.index(StepKind.RESPOND) < scene_at:
+            raise ValueError("the reply comes after the scene")
+        if [step.ordinal for step in self.steps] != list(range(len(self.steps))):
+            raise ValueError("step ordinals must be a stable 0..n-1 sequence")
+        recalls = kinds.count(StepKind.RECALL)
+        if not rule.min_steps <= len(self.steps) <= rule.max_steps:
+            raise ValueError(
+                f"a {shape} day holds {rule.min_steps}..{rule.max_steps} steps, "
+                f"not {len(self.steps)}"
+            )
+        if not rule.min_recall <= recalls <= rule.max_recall:
+            raise ValueError(
+                f"a {shape} day holds {rule.min_recall}..{rule.max_recall} recall "
+                f"step(s), not {recalls}"
+            )
+        for index, step in enumerate(self.steps):
+            if step.kind is not StepKind.RECALL:
+                continue
+            task_type = str(getattr(step.private_task, "task_type", "") or "")
+            if rule.allowed_formats and task_type and task_type not in rule.allowed_formats:
+                raise ValueError(f"a {shape} day cannot pose a {task_type} recall")
+            if task_type == str(RecallFormat.UNSCRAMBLE) and index < scene_at:
+                # The sentence is the scene's: it cannot be rebuilt before it is read.
+                raise ValueError("an unscramble cannot come before the scene")
+        total = sum(step.estimated_seconds for step in self.steps)
+        if total > self.budget_seconds:
+            raise ValueError(f"estimate {total}s exceeds budget {self.budget_seconds}s")
 
 
 @dataclass(frozen=True, slots=True)

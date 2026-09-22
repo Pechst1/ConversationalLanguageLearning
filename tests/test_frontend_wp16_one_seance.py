@@ -103,7 +103,16 @@ def test_the_cahier_concept_fiche_still_seats_its_concept():
 # --------------------------------------------------------------------------
 
 def test_the_recap_points_at_the_servers_own_practice_href():
-    source = _read(JOURNEY_SESSION)
+    # WP-79: the recap body moved to JourneyRecap.tsx and its pure model.
+    journey_dir = JOURNEY_SESSION.parent
+    source = "\n".join(
+        _read(path)
+        for path in (
+            JOURNEY_SESSION,
+            journey_dir / "JourneyRecap.tsx",
+            journey_dir / "journey-recap-model.ts",
+        )
+    )
     assert "onPractice?: (href: string) => void;" in source
     assert "item.practice_href" in source
     assert "copy.practice_this" in source

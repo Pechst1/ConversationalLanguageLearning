@@ -814,23 +814,18 @@ const noSleep = () => Promise.resolve();
     }),
   );
   assert.ok(htmlHas(recapHtml, EN.finished_title));
-  assert.ok(htmlHas(recapHtml, EN.duration_not_measured), 'an unmeasured duration is stated, not invented');
-  assert.ok(htmlHas(recapHtml, 'en terrasse'), 'the single focus headline is shown');
-  assert.ok(htmlHas(recapHtml, EN.next_focus));
-  // Server-recorded capability evidence, in the server's own words.
-  const capability = finishedJourney.recap.capability_evidence[0];
-  assert.ok(htmlHas(recapHtml, EN.capability_shown));
-  assert.ok(htmlHas(recapHtml, capability.context_native));
-  assert.ok(htmlHas(recapHtml, EN[`capability_state_${capability.state}`]));
-  // Practised targets use readable labels, not raw enum text.
-  assert.ok(htmlHas(recapHtml, EN.evidence_produced_independent));
-  assert.ok(!recapHtml.includes('produced_independent'), 'no raw enum leaks into the recap');
+  // WP-79: an unmeasured duration reads as the steps the learner did, and the
+  // two deleted lines stay deleted.
+  assert.ok(!/pas encore mesur|not measured yet|nicht gemessen/i.test(recapHtml), 'no "not measured" line');
+  assert.ok(!/does not reopen|ne rouvre pas|nicht neu ge/i.test(recapHtml), 'no "does not reopen" line');
+  assert.ok(/data-fact="scene"/.test(recapHtml), 'the scene fact is shown');
   // A story callback is attributed to the character, not left as a bare fragment.
   assert.ok(
     htmlHas(recapHtml, finishedJourney.scenario.character_name)
       && htmlHas(recapHtml, finishedJourney.recap.story_outcome.callback_fr),
   );
-  assert.ok(!/\b\d+\s?min\b/.test(recapHtml.split(escapeHtml(EN.practiced))[0]), 'no fabricated duration');
+  assert.ok(!recapHtml.includes('produced_independent'), 'no raw enum leaks into the recap');
+  assert.ok(!/\b\d+\s?min\b/.test(recapHtml), 'no fabricated duration');
 
   const partialJourney = fixture('ended_early').response;
   const partialHtml = renderToStaticMarkup(
