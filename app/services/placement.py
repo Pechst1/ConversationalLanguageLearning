@@ -30,6 +30,7 @@ event per real call, telemetry failures swallowed.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import statistics
 from dataclasses import dataclass, field
@@ -99,54 +100,194 @@ class PlacementPrompt:
     intent: str
     #: A gentle nudge, shown under the field. Never an answer.
     hint_fr: str
+    #: WP-69. Stable id, stored on the turn: the grader is told this prompt's
+    #: own intent, and a session never shows the same id twice.
+    prompt_id: str = ""
 
 
-#: One prompt per band. Each asks for a *production*, not a recognition, because
-#: a placement that can be passed by picking an option measures nothing.
-PROMPT_BANK: dict[str, PlacementPrompt] = {
-    "A1.1": PlacementPrompt(
-        band="A1.1",
-        prompt_fr="Bonjour ! Présentez-vous en une ou deux phrases : votre prénom et d’où vous venez.",
-        intent="introduce oneself: name and origin, present tense",
-        hint_fr="Une ou deux phrases suffisent.",
+def _rung(band: str, suffix: str, prompt_fr: str, intent: str, hint_fr: str) -> PlacementPrompt:
+    return PlacementPrompt(
+        band=band,
+        prompt_fr=prompt_fr,
+        intent=intent,
+        hint_fr=hint_fr,
+        prompt_id=f"{band}-{suffix}",
+    )
+
+
+#: WP-69 (L3). Six prompts per band. The ladder *holds* a band on a middle score
+#: and gives a second chance on a first low one, so one learner can meet the same
+#: band on every turn of a session — and on 2026-09-22 did, three times, with the
+#: same question. Six per band is :data:`MAX_TURNS`, so a session can never run
+#: out of fresh prompts at any band. Every prompt in a band keeps that band's one
+#: intent family and one speech act; each asks for a *production*, never a
+#: recognition, because a placement that can be passed by picking an option
+#: measures nothing. The first entry of each band is the original WP-25 prompt.
+PROMPT_VARIANTS: dict[str, tuple[PlacementPrompt, ...]] = {
+    # Introduce oneself — present tense, personal facts.
+    "A1.1": (
+        _rung("A1.1", "a", "Bonjour ! Présentez-vous en une ou deux phrases : votre prénom et d’où vous venez.",
+              "introduce oneself: name and origin, present tense", "Une ou deux phrases suffisent."),
+        _rung("A1.1", "b", "Vous rencontrez une nouvelle voisine. Dites-lui votre prénom et dans quelle ville vous habitez.",
+              "introduce oneself: name and city of residence, present tense", "Deux phrases courtes suffisent."),
+        _rung("A1.1", "c", "C’est votre premier cours de français. Dites votre prénom, votre âge et votre nationalité.",
+              "introduce oneself: name, age and nationality, present tense", "Trois informations, en phrases courtes."),
+        _rung("A1.1", "d", "Présentez-vous à votre nouveau professeur : votre prénom et votre travail ou vos études.",
+              "introduce oneself: name and job or studies, present tense", "Une ou deux phrases suffisent."),
+        _rung("A1.1", "e", "Un collègue français vous demande : « Vous parlez quelles langues ? » Répondez en une ou deux phrases.",
+              "say which languages one speaks, present tense", "Une ou deux phrases suffisent."),
+        _rung("A1.1", "f", "Écrivez deux phrases sur votre famille : combien vous êtes, et le prénom d’une personne.",
+              "introduce one's family simply: how many and one name, present tense", "Deux phrases simples."),
     ),
-    "A1.2": PlacementPrompt(
-        band="A1.2",
-        prompt_fr="Vous êtes au café. Commandez une boisson et demandez le prix.",
-        intent="order a drink and ask the price, polite present tense",
-        hint_fr="Deux phrases, à voix haute dans votre tête d’abord.",
+    # A simple polite request in a shop, café or street — present tense.
+    "A1.2": (
+        _rung("A1.2", "a", "Vous êtes au café. Commandez une boisson et demandez le prix.",
+              "order a drink and ask the price, polite present tense", "Deux phrases, à voix haute dans votre tête d’abord."),
+        _rung("A1.2", "b", "Vous êtes à la boulangerie. Demandez poliment deux croissants et une baguette.",
+              "order items in a bakery politely, present tense", "Pensez à la politesse."),
+        _rung("A1.2", "c", "Au marché, vous voulez des pommes. Demandez un kilo et demandez combien ça coûte.",
+              "ask for a quantity and the price at a market, polite present tense", "Deux phrases suffisent."),
+        _rung("A1.2", "d", "Dans la rue, vous cherchez la gare. Demandez poliment le chemin à un passant.",
+              "politely ask a passer-by for directions, present tense", "Commencez par saluer."),
+        _rung("A1.2", "e", "À la réception d’un hôtel, demandez une chambre pour deux nuits.",
+              "request a hotel room for two nights, polite present tense", "Une ou deux phrases polies."),
+        _rung("A1.2", "f", "Au restaurant, demandez la carte au serveur, puis commandez un plat.",
+              "ask for the menu and order a dish, polite present tense", "Deux phrases, une pour chaque demande."),
     ),
-    "A2.1": PlacementPrompt(
-        band="A2.1",
-        prompt_fr="Racontez ce que vous avez fait le week-end dernier, en trois phrases.",
-        intent="narrate a past weekend in three sentences, past tense required",
-        hint_fr="Le temps du passé est attendu ici.",
+    # Narrate a recent past event — past tense required.
+    "A2.1": (
+        _rung("A2.1", "a", "Racontez ce que vous avez fait le week-end dernier, en trois phrases.",
+              "narrate a past weekend in three sentences, past tense required", "Le temps du passé est attendu ici."),
+        _rung("A2.1", "b", "Racontez ce que vous avez fait hier soir, en trois phrases.",
+              "narrate the previous evening in three sentences, past tense required", "Le temps du passé est attendu ici."),
+        _rung("A2.1", "c", "Racontez votre dernière journée de vacances, en trois phrases.",
+              "narrate a recent holiday day in three sentences, past tense required", "Trois phrases au passé."),
+        _rung("A2.1", "d", "Racontez votre dernier anniversaire : où vous étiez, avec qui, et ce que vous avez fait.",
+              "narrate a past birthday: place, people, activities; past tenses required", "Le temps du passé est attendu ici."),
+        _rung("A2.1", "e", "Racontez un bon repas que vous avez pris récemment, en trois phrases.",
+              "narrate a recent meal: where, what, with whom; past tense required", "Trois phrases au passé."),
+        _rung("A2.1", "f", "Racontez votre dernier voyage en train ou en avion, en trois phrases.",
+              "narrate a recent journey in three sentences, past tense required", "Le temps du passé est attendu ici."),
     ),
-    "A2.2": PlacementPrompt(
-        band="A2.2",
-        prompt_fr="Vous arrivez en retard à un rendez-vous. Écrivez le message que vous envoyez pour vous excuser et proposer une autre heure.",
-        intent="apologise for lateness and propose a new time, register-appropriate",
-        hint_fr="Excusez-vous, puis proposez une heure.",
+    # A short practical message: apologise and rearrange — register-appropriate.
+    "A2.2": (
+        _rung("A2.2", "a", "Vous arrivez en retard à un rendez-vous. Écrivez le message que vous envoyez pour vous excuser et proposer une autre heure.",
+              "apologise for lateness and propose a new time, register-appropriate", "Excusez-vous, puis proposez une heure."),
+        _rung("A2.2", "b", "Vous ne pouvez pas venir au dîner de samedi chez une amie. Écrivez-lui un message pour vous excuser et proposer un autre jour.",
+              "decline an invitation with an apology and propose another day, informal register", "Excusez-vous, puis proposez un jour."),
+        _rung("A2.2", "c", "Vous devez annuler un rendez-vous chez le médecin. Écrivez un message au cabinet pour vous excuser et demander un autre rendez-vous.",
+              "cancel an appointment with an apology and ask for a new one, formal register", "Vous écrivez à un cabinet : restez poli."),
+        _rung("A2.2", "d", "Vous ne pouvez pas aller à la réunion de demain. Écrivez un message à votre responsable pour vous excuser et proposer un autre moment.",
+              "excuse oneself from a meeting and propose another time, professional register", "Excusez-vous, puis proposez un moment."),
+        _rung("A2.2", "e", "Votre train a du retard et vous allez manquer le début du cours. Écrivez un message au professeur pour le prévenir et vous excuser.",
+              "warn of a delay and apologise, polite register", "Prévenez, puis excusez-vous."),
+        _rung("A2.2", "f", "Vous avez oublié l’anniversaire d’un collègue. Écrivez-lui un petit message pour vous excuser et l’inviter à prendre un café.",
+              "apologise for forgetting and make an invitation, friendly-professional register", "Excusez-vous, puis invitez."),
     ),
-    "B1.1": PlacementPrompt(
-        band="B1.1",
-        prompt_fr="Un ami hésite entre vivre en ville et vivre à la campagne. Donnez votre avis et une raison, en quatre phrases.",
-        intent="give an opinion with a reason, connectors expected",
-        hint_fr="Une opinion, puis pourquoi.",
+    # An opinion with a reason — connectors expected.
+    "B1.1": (
+        _rung("B1.1", "a", "Un ami hésite entre vivre en ville et vivre à la campagne. Donnez votre avis et une raison, en quatre phrases.",
+              "give an opinion with a reason, connectors expected", "Une opinion, puis pourquoi."),
+        _rung("B1.1", "b", "Une amie se demande s’il vaut mieux voyager seule ou en groupe. Donnez votre avis et une raison, en quatre phrases.",
+              "give an opinion with a reason, connectors expected", "Une opinion, puis pourquoi."),
+        _rung("B1.1", "c", "Vaut-il mieux apprendre une langue avec une application ou avec un professeur ? Donnez votre avis et justifiez-le, en quatre phrases.",
+              "give an opinion with a reason, connectors expected", "Une opinion, puis pourquoi."),
+        _rung("B1.1", "d", "Votre collègue pense que le télétravail est meilleur que le bureau. Êtes-vous d’accord ? Expliquez pourquoi, en quatre phrases.",
+              "agree or disagree with an opinion and give a reason, connectors expected", "Dites si vous êtes d’accord, puis pourquoi."),
+        _rung("B1.1", "e", "Un ami veut acheter une voiture alors qu’il habite en ville. Est-ce une bonne idée ? Donnez votre avis et une raison, en quatre phrases.",
+              "give an opinion with a reason, connectors expected", "Une opinion, puis pourquoi."),
+        _rung("B1.1", "f", "Est-ce une bonne idée de lire les nouvelles tous les matins ? Donnez votre avis et une raison, en quatre phrases.",
+              "give an opinion with a reason, connectors expected", "Une opinion, puis pourquoi."),
     ),
-    "B1.2": PlacementPrompt(
-        band="B1.2",
-        prompt_fr="Racontez une fois où un projet ne s’est pas passé comme prévu : ce que vous aviez espéré, ce qui est arrivé, ce que vous feriez autrement.",
-        intent="narrate a failed plan across tenses, including a hypothetical",
-        hint_fr="Trois temps différents sont attendus.",
+    # Narrate across tenses, including a hypothetical.
+    "B1.2": (
+        _rung("B1.2", "a", "Racontez une fois où un projet ne s’est pas passé comme prévu : ce que vous aviez espéré, ce qui est arrivé, ce que vous feriez autrement.",
+              "narrate a failed plan across tenses, including a hypothetical", "Trois temps différents sont attendus."),
+        _rung("B1.2", "b", "Racontez un voyage qui ne s’est pas passé comme prévu : ce que vous aviez prévu, ce qui s’est passé, ce que vous feriez autrement.",
+              "narrate a trip that went wrong across tenses, including a hypothetical", "Trois temps différents sont attendus."),
+        _rung("B1.2", "c", "Racontez une décision que vous regrettez un peu : la situation, ce que vous avez choisi, ce que vous feriez aujourd’hui.",
+              "narrate a regretted decision across tenses, including a hypothetical", "Trois temps différents sont attendus."),
+        _rung("B1.2", "d", "Racontez une fête que vous aviez organisée et qui a mal tourné : ce que vous aviez prévu, ce qui est arrivé, ce que vous changeriez.",
+              "narrate an event that went wrong across tenses, including a hypothetical", "Trois temps différents sont attendus."),
+        _rung("B1.2", "e", "Racontez une fois où vous vous êtes perdu : où vous alliez, ce qui s’est passé, ce que vous feriez autrement.",
+              "narrate getting lost across tenses, including a hypothetical", "Trois temps différents sont attendus."),
+        _rung("B1.2", "f", "Racontez votre premier jour dans un nouveau travail ou une nouvelle école : ce que vous imaginiez, comment il s’est passé, ce que vous conseilleriez à quelqu’un.",
+              "narrate a first day across tenses, including a conditional piece of advice", "Trois temps différents sont attendus."),
     ),
-    "B2.1": PlacementPrompt(
-        band="B2.1",
-        prompt_fr="On propose d’interdire les voitures dans le centre de votre ville. Défendez une position en tenant compte d’une objection sérieuse.",
-        intent="argue a position while conceding a counter-argument, abstract register",
-        hint_fr="Nommez l’objection avant d’y répondre.",
+    # Argue a position while answering a serious objection.
+    "B2.1": (
+        _rung("B2.1", "a", "On propose d’interdire les voitures dans le centre de votre ville. Défendez une position en tenant compte d’une objection sérieuse.",
+              "argue a position while conceding a counter-argument, abstract register", "Nommez l’objection avant d’y répondre."),
+        _rung("B2.1", "b", "Certains proposent de rendre les transports publics gratuits. Défendez une position en répondant à une objection sérieuse.",
+              "argue a position while conceding a counter-argument, abstract register", "Nommez l’objection avant d’y répondre."),
+        _rung("B2.1", "c", "Faut-il interdire les téléphones portables à l’école ? Prenez position et répondez à l’argument le plus fort du camp opposé.",
+              "argue a position while conceding a counter-argument, abstract register", "Nommez l’objection avant d’y répondre."),
+        _rung("B2.1", "d", "La semaine de quatre jours devrait-elle devenir la norme ? Défendez votre point de vue en tenant compte d’une objection sérieuse.",
+              "argue a position while conceding a counter-argument, abstract register", "Nommez l’objection avant d’y répondre."),
+        _rung("B2.1", "e", "Faut-il limiter le nombre de touristes dans les villes très visitées ? Argumentez en répondant à une objection sérieuse.",
+              "argue a position while conceding a counter-argument, abstract register", "Nommez l’objection avant d’y répondre."),
+        _rung("B2.1", "f", "Le vote devrait-il être obligatoire ? Défendez une position en discutant un contre-argument sérieux.",
+              "argue a position while conceding a counter-argument, abstract register", "Nommez l’objection avant d’y répondre."),
     ),
 }
+
+#: Every prompt by id. The stored turn names its prompt by this id.
+PROMPTS_BY_ID: dict[str, PlacementPrompt] = {
+    prompt.prompt_id: prompt for variants in PROMPT_VARIANTS.values() for prompt in variants
+}
+
+#: One prompt per band — the original WP-25 bank, kept for callers that only
+#: need *a* prompt at a band. The session itself uses :func:`prompt_for_session`.
+PROMPT_BANK: dict[str, PlacementPrompt] = {
+    band: variants[0] for band, variants in PROMPT_VARIANTS.items()
+}
+
+
+def _used_prompt_ids(turns: list[dict[str, Any]] | None) -> set[str]:
+    """The prompts a session has already shown, legacy turns included.
+
+    A turn written before WP-69 carries no ``prompt_id``; its text still names
+    the prompt, so it is matched on that.
+    """
+
+    by_text = {prompt.prompt_fr: prompt.prompt_id for prompt in PROMPTS_BY_ID.values()}
+    used: set[str] = set()
+    for turn in turns or []:
+        if not isinstance(turn, dict):
+            continue
+        prompt_id = turn.get("prompt_id")
+        if prompt_id:
+            used.add(str(prompt_id))
+            continue
+        legacy = by_text.get(str(turn.get("prompt_fr") or ""))
+        if legacy:
+            used.add(legacy)
+    return used
+
+
+def prompt_for_session(
+    band: str, *, session_key: str, turns: list[dict[str, Any]] | None = None
+) -> PlacementPrompt:
+    """The prompt this session shows at ``band`` now: fresh, and deterministic.
+
+    Deterministic per session — the envelope that *shows* the prompt and the
+    ``respond`` that *grades* the answer compute the same one from the same
+    turns, and a reload shows the same question — but ordered differently for
+    different sessions, so two learners (or one learner's re-run) do not walk
+    the same sequence. A prompt already shown in this session is never chosen
+    while the band has another; with six per band and at most six turns that
+    never happens.
+    """
+
+    resolved = clamp_band(band_index(band))
+    variants = PROMPT_VARIANTS[resolved]
+    used = _used_prompt_ids(turns)
+
+    def order(prompt: PlacementPrompt) -> str:
+        return hashlib.sha256(f"{session_key}:{prompt.prompt_id}".encode()).hexdigest()
+
+    fresh = [prompt for prompt in variants if prompt.prompt_id not in used]
+    return min(fresh or list(variants), key=order)
 
 
 _GRADING_RESPONSE_FORMAT: dict[str, Any] = {
@@ -566,7 +707,12 @@ class PlacementService:
 
     @staticmethod
     def current_prompt(session: PlacementSession) -> PlacementPrompt:
-        return PROMPT_BANK[clamp_band(band_index(session.current_band))]
+        """The question on screen now — never one this session already asked (WP-69)."""
+        return prompt_for_session(
+            str(session.current_band or ""),
+            session_key=str(session.id or ""),
+            turns=list(session.turns or []),
+        )
 
     def respond(self, session: PlacementSession, *, answer: str, turn_index: int) -> PlacementSession:
         """Grade one answer and move the ladder.
@@ -594,6 +740,7 @@ class PlacementService:
             {
                 "index": len(turns),
                 "band": prompt.band,
+                "prompt_id": prompt.prompt_id,
                 "prompt_fr": prompt.prompt_fr,
                 "answer": text,
                 "answer_truncated": truncated,
@@ -755,6 +902,8 @@ __all__ = [
     "PLACEMENT_EVENT_TYPE",
     "PLACEMENT_VERSION",
     "PROMPT_BANK",
+    "PROMPT_VARIANTS",
+    "PROMPTS_BY_ID",
     "PlacementEstimate",
     "PlacementPrompt",
     "PlacementService",
@@ -766,6 +915,7 @@ __all__ = [
     "next_band",
     "normalize_grading",
     "opening_band",
+    "prompt_for_session",
     "record_placement_cost",
     "should_continue",
 ]
