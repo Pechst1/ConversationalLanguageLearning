@@ -386,3 +386,35 @@ always stamped its rows — the harness gap inflated the script's loss rate, not
   control language is not enforced); day 2's reply has Romy say «si tu préfères rentrer à
   Montréal» to the learner (role slip); `secret_shift: hinted` is re-emitted every scene; no
   setup used the offered callback in ten days (it is only rewarded on dual drafts).
+
+## 9. The paid live review, third pass — 2026-09-22 (owner-consented, 90-request cap)
+
+Spend **US$0.416** (A2 US$0.256 / 58 requests, B1 US$0.160 / 35). Running total **US$0.924**.
+These runs loaded the engine at `7e3ec46`; the fixes after it (`2acf022`, `ba62a77`,
+`4ddd656`, `3ef8434`) are not in them.
+
+| run | accepted | fallbacks | stopped on |
+|---|---|---|---|
+| A2-c | **14 of 14** — the first full fortnight | 0 | — |
+| B1-c | 7 of 14 | 1 (day 7 turn, critic: invented reply) | day 8, `mixed_address_register` ← `objective_too_thin` ↔ `repeated_situation` |
+
+**A2-c reads like a life**: four chapters, five people, five places. Marin's ring (Lila's
+secret goes `revealed` on day 4, the season thread `closed`) → the radiator repair with Romy
+(a letter chapter: a note from the syndic, a written reply, Margaux hands over the repairer's
+note on the resolution) → Gus's «Méthode» lesson at the brocante with the Créteil parcel
+(his secret, not yet surfaced) → Lila's hidden portrait and Berlin letter. Weakness: once advice
+was discouraged, eleven of fourteen objectives became *arrange a time* — fixed in `3ef8434`
+(`speech_act` now knows `scheduling`, and the rule is generic: two same acts in a row → a
+different one). Marin's ring resolves as «Marin, vas-y» — the proposal itself never lands.
+
+**B1-c regressed on variety**: seven days, all Romy, five in the learner's flat; chapter 2
+replays chapter 1 (the Montréal visitor on Sunday) and claims an earlier arc stage than chapter 1
+reached. The day-5 callback worked, but pulled the new chapter back into the old one. Fixed in
+`4ddd656`: a callback is a line, never a replay; `variety.previous_lead` and a −1.0 score term
+on a setup led by the last chapter's lead. Day 8 was the guard pincer again — one "will you
+stay with her" promise reworded until `objective_too_thin` and `repeated_situation` refused
+every draft.
+
+Open, not fixed: arc stages can be *claimed* backwards (`arc_stage_id` earlier than the stage
+already reached — the writers ignore it, the prompt does not know); the B1 guard pincer (thin ↔
+repeat) has no exit except a new situation; `secret_shift: hinted` is re-sent every scene.
