@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_db
 from app.api.v1.endpoints.atelier import get_atelier_user
 from app.config import settings
+from app.core.offload import off_event_loop
 from app.db.models.mission import RealWorldMission, RealWorldMissionAttempt, RealWorldMissionTurn
 from app.db.models.serial import SerialThread
 from app.db.models.user import User
@@ -37,6 +38,7 @@ from app.services.missions import (
     serialize_mission,
 )
 from app.services.serial import SerialThreadService
+from app.services.transcription_cost import record_transcription_cost
 
 router = APIRouter(prefix="/missions", tags=["missions"])
 MAX_AUDIO_UPLOAD_BYTES = 25 * 1024 * 1024
@@ -180,6 +182,7 @@ def _duplicate_turn(
 
 
 @router.get("/today", response_model=MissionTodayResponse)
+@off_event_loop
 async def get_missions_today(
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_atelier_user)],
@@ -190,6 +193,7 @@ async def get_missions_today(
 
 @router.post("", response_model=MissionResponse)
 @router.post("/", response_model=MissionResponse)
+@off_event_loop
 async def create_mission(
     request: MissionCreateRequest,
     db: Annotated[Session, Depends(get_db)],
@@ -219,9 +223,11 @@ async def create_mission(
 
 
 @router.post("/audio/transcribe")
+@off_event_loop
 async def transcribe_mission_audio(
     file: Annotated[UploadFile, File()],
     current_user: Annotated[User, Depends(get_atelier_user)],
+    db: Annotated[Session, Depends(get_db)],
 ) -> dict[str, str]:
     """Transcribe mission voice input while keeping Atelier's demo-auth behavior."""
     if not current_user:
@@ -240,13 +246,21 @@ async def transcribe_mission_audio(
                 status_code=status.HTTP_413_CONTENT_TOO_LARGE,
                 detail="Audio file exceeds the 25 MB limit",
             )
-        return {
-            "text": LLMService().transcribe_audio(
-                content,
-                filename=file.filename,
-                content_type=file.content_type,
-            )
-        }
+        text = LLMService().transcribe_audio(
+            content,
+            filename=file.filename,
+            content_type=file.content_type,
+        )
+        # WP-70: this transcription was the one paid call with no ledger row.
+        record_transcription_cost(
+            db,
+            user_id=current_user.id,
+            byte_count=len(content),
+            content_type=file.content_type,
+            surface="mission",
+        )
+        db.commit()
+        return {"text": text}
     except HTTPException:
         raise
     except (LLMProviderError, ValueError) as exc:
@@ -493,6 +507,7 @@ def submit_mission_turn(
 
 
 @router.post("/{mission_id}/complete", response_model=MissionCompleteResponse)
+@off_event_loop
 async def complete_mission(
     mission_id: UUID,
     db: Annotated[Session, Depends(get_db)],
