@@ -532,7 +532,9 @@ each with a weight and when it was last referred to; the heavier ones are what t
 life is actually about. callback is ONE thing out of this life's past to bring back
 today, dealt on a setup beat. When it is set, the new chapter MUST reach back to it: one
 concrete line of the premise follows from that fact (a person remembers it, an object
-from it returns, its consequence is today's problem). Put the fact in callback_fr and copy
+from it returns, someone who was there mentions it). A callback is a LINE, never a replay:
+the new chapter still has a new problem, and preferably a different lead character (see
+variety.previous_lead). Put the fact in callback_fr and copy
 callback.id into callback_ref — a callback that carries the offered id is always
 accepted (paid B1 review 2026-09-21: two chapter openings ignored their callback). For
 ANY OTHER past you reach for, the rule is strict — NEVER invent a past: if you cannot honestly
@@ -821,6 +823,9 @@ def _scene_score(draft: SceneDraft, context: dict) -> float:
     written = objective_language(draft.objective_native)
     if control and written and written != control:
         score -= 2.0
+    # A new chapter led by the person who led the last one is the old chapter again.
+    if draft.beat == "setup" and recent and recent[-1].get("character_id") == draft.character_id:
+        score -= 1.0
     # A third advice ask in a row loses to any draft that asks for another act.
     if _advice_run(recent) >= ADVICE_RUN_LIMIT and speech_act(draft.objective_native) == "advice":
         score -= 1.5
@@ -1253,6 +1258,10 @@ def _variety(recent: list[dict], cast: list[dict], locations: list[dict]) -> dic
             {"character_id": item.get("character_id"), "location_id": item.get("location_id")}
             for item in recent[-PREMISE_WINDOW:]
         ],
+        # Paid B1 review 2026-09-22: seven days, one character, and chapter 2 replayed
+        # chapter 1. The lead of the chapter that just ended is named, so a new chapter
+        # can turn to someone else.
+        "previous_lead": (recent[-1].get("character_id") if recent else None),
         # What the learner has been asked to *do* lately, so the act rotates too.
         "recent_acts": [speech_act(item.get("objective_native")) for item in recent[-4:]],
         "act_rule": (

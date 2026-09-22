@@ -2628,7 +2628,21 @@ def test_the_offered_callback_is_owed_and_always_safe():
     """Paid B1 review 2026-09-21: both chapter openings left the offered callback unused."""
 
     assert "the new chapter MUST reach back to it" in engine.DIRECTOR
+    assert "A callback is a LINE, never a replay" in engine.DIRECTOR
     assert "copy\ncallback.id into callback_ref" in engine.DIRECTOR
     ledger = [("chronicle:1", "La bague de Marin — Marin parlera à Lila ce soir.")]
     assert engine._callback_grounded("Tout autre chose.", "chronicle:1", ledger)
     assert not engine._callback_grounded("Un souvenir inventé de Montréal.", "made-up", ledger)
+
+
+def test_a_new_chapter_turns_to_someone_else():
+    """Paid B1 review 2026-09-22: seven days of Romy; chapter 2 replayed chapter 1."""
+
+    recent = [{"character_id": "romy_tremblay", "location_id": "le_mistral", "objective_native": "x"}]
+    cast = [{"id": "romy_tremblay"}, {"id": "lila_bonnet"}]
+    context = {**_scene_context(recent_situations=recent), "variety": engine._variety(recent, cast, [{"id": "le_mistral"}])}
+    assert context["variety"]["previous_lead"] == "romy_tremblay"
+    base = engine.SceneDraft.model_validate({**draft(context, 0), "beat": "setup"})
+    same = base.model_copy(update={"character_id": "romy_tremblay"})
+    other = base.model_copy(update={"character_id": "lila_bonnet"})
+    assert engine._scene_score(other, context) > engine._scene_score(same, context)
