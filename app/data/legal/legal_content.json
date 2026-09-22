@@ -1,0 +1,144 @@
+{
+  "_note": "WP-72 canonical source for the privacy policy and the terms. DRAFT — the owner reviews it before App Store submission and fills operator + contact_email. The API serves it at /privacy and /terms (app/api/legal.py); web-frontend/lib/legal-content.json is a byte-identical copy written by `node web-frontend/scripts/sync-legal-content.mjs` and guarded by tests/test_wp72_legal.py. Bump `version` whenever the substance changes: the sign-up consent records it.",
+  "version": "2026-09-22",
+  "operator": "Pixel Lab",
+  "contact_email": "[contact e-mail]",
+  "languages": ["en", "de", "fr"],
+  "labels": {
+    "en": { "privacy": "Privacy", "terms": "Terms", "updated": "Version of", "contact": "Contact" },
+    "de": { "privacy": "Datenschutz", "terms": "Nutzungsbedingungen", "updated": "Stand", "contact": "Kontakt" },
+    "fr": { "privacy": "Confidentialité", "terms": "Conditions", "updated": "Version du", "contact": "Contact" }
+  },
+  "documents": {
+    "privacy": {
+      "en": {
+        "title": "Privacy policy",
+        "lead": "L’Atelier is a French course. We collect what the course needs to correct you and remember your progress, nothing for advertising, and we never sell it.",
+        "sections": [
+          { "h": "Who is responsible", "p": ["{operator} operates L’Atelier. Write to {contact} about anything in this policy."] },
+          { "h": "What we collect", "p": [
+            "Your account: name, e-mail address, a hash of your password (never the password itself), your languages, level and settings.",
+            "What you write and choose: answers, letters, journal entries, story choices, corrections and your vocabulary review history.",
+            "Your voice, when you tap the microphone: the recording is sent for transcription and then discarded. Only the text is kept, like a typed answer.",
+            "Photos, when you use «Photographier» in the Courrier: the photo is sent once to be read and is not stored. The text read from it is kept until you delete the document.",
+            "Usage and diagnostics: which steps you completed and when, error reports from the app, and the cost of each AI request. No advertising identifiers and no tracking across other apps or websites.",
+            "A push token, only if you allow notifications."
+          ] },
+          { "h": "Why", "p": ["To run the course: correct your French, answer you, write your stories, schedule reviews, send the reminders you turned on, and fix what breaks."] },
+          { "h": "Who processes it for us", "p": [
+            "OpenAI (USA) reads your answers, voice recordings and photos to correct and respond, and creates the story images and audio. Under OpenAI’s API terms this data is not used to train its models and is kept for at most 30 days for abuse monitoring.",
+            "If enabled: Anthropic (USA) as a fallback for text when OpenAI is unavailable, and ElevenLabs for reading text aloud (it only receives the text to be read).",
+            "Render (servers in Frankfurt, EU) hosts the app and its database. An e-mail provider sends sign-in and password e-mails. Apple delivers push notifications."
+          ] },
+          { "h": "How long we keep it", "p": ["For as long as your account exists. Deleting a document deletes it. Deleting your account deletes your account data; anonymous counters that no longer point to you may remain. Server backups expire on the host’s schedule."] },
+          { "h": "Your choices and rights", "p": [
+            "In the app, Réglages → Données: export your data as a file, sign out every device, or delete your account for good.",
+            "You may ask us to access, correct, delete or transfer your data, or object to its use, and you may complain to a data-protection authority."
+          ] },
+          { "h": "Children", "p": ["L’Atelier is not intended for children under 16."] },
+          { "h": "Changes", "p": ["When this policy changes in substance, the app asks you again. The version date is at the top."] }
+        ]
+      },
+      "de": {
+        "title": "Datenschutzerklärung",
+        "lead": "L’Atelier ist ein Französischkurs. Wir erheben, was der Kurs braucht, um Sie zu korrigieren und Ihren Fortschritt zu speichern – nichts für Werbung, und wir verkaufen nichts.",
+        "sections": [
+          { "h": "Verantwortlich", "p": ["{operator} betreibt L’Atelier. Schreiben Sie an {contact} zu allem, was diese Erklärung betrifft."] },
+          { "h": "Was wir erheben", "p": [
+            "Ihr Konto: Name, E-Mail-Adresse, ein Hash Ihres Passworts (nie das Passwort selbst), Ihre Sprachen, Ihr Niveau und Ihre Einstellungen.",
+            "Was Sie schreiben und wählen: Antworten, Briefe, Tagebucheinträge, Entscheidungen in der Geschichte, Korrekturen und Ihren Wiederholungsverlauf.",
+            "Ihre Stimme, wenn Sie das Mikrofon antippen: Die Aufnahme wird zur Transkription gesendet und danach verworfen. Nur der Text bleibt, wie eine getippte Antwort.",
+            "Fotos, wenn Sie im Courrier «Photographier» nutzen: Das Foto wird einmal zum Lesen gesendet und nicht gespeichert. Der daraus gelesene Text bleibt, bis Sie das Dokument löschen.",
+            "Nutzung und Diagnose: welche Schritte Sie wann abgeschlossen haben, Fehlerberichte der App und die Kosten jeder KI-Anfrage. Keine Werbe-IDs und kein Tracking über andere Apps oder Websites.",
+            "Ein Push-Token, nur wenn Sie Mitteilungen erlauben."
+          ] },
+          { "h": "Wozu", "p": ["Um den Kurs zu betreiben: Ihr Französisch korrigieren, Ihnen antworten, Ihre Geschichten schreiben, Wiederholungen planen, die von Ihnen eingeschalteten Erinnerungen senden und Fehler beheben."] },
+          { "h": "Wer für uns verarbeitet", "p": [
+            "OpenAI (USA) liest Ihre Antworten, Sprachaufnahmen und Fotos, um zu korrigieren und zu antworten, und erstellt Bilder und Audio der Geschichte. Laut den API-Bedingungen von OpenAI werden diese Daten nicht zum Training genutzt und höchstens 30 Tage zur Missbrauchskontrolle aufbewahrt.",
+            "Falls aktiviert: Anthropic (USA) als Ersatz für Text, wenn OpenAI nicht erreichbar ist, und ElevenLabs zum Vorlesen (erhält nur den vorzulesenden Text).",
+            "Render (Server in Frankfurt, EU) betreibt die App und ihre Datenbank. Ein E-Mail-Anbieter versendet Anmelde- und Passwort-E-Mails. Apple stellt Push-Mitteilungen zu."
+          ] },
+          { "h": "Wie lange", "p": ["Solange Ihr Konto besteht. Wenn Sie ein Dokument löschen, ist es gelöscht. Wenn Sie Ihr Konto löschen, werden Ihre Kontodaten gelöscht; anonyme Zähler ohne Bezug zu Ihnen können bleiben. Server-Backups verfallen nach dem Zeitplan des Hosters."] },
+          { "h": "Ihre Möglichkeiten und Rechte", "p": [
+            "In der App unter Réglages → Données: Ihre Daten als Datei exportieren, alle Geräte abmelden oder Ihr Konto endgültig löschen.",
+            "Sie können Auskunft, Berichtigung, Löschung oder Übertragung Ihrer Daten verlangen, der Nutzung widersprechen und sich bei einer Datenschutzbehörde beschweren."
+          ] },
+          { "h": "Kinder", "p": ["L’Atelier richtet sich nicht an Kinder unter 16 Jahren."] },
+          { "h": "Änderungen", "p": ["Ändert sich diese Erklärung wesentlich, fragt die App Sie erneut. Das Datum der Fassung steht oben."] }
+        ]
+      },
+      "fr": {
+        "title": "Politique de confidentialité",
+        "lead": "L’Atelier est un cours de français. Nous collectons ce dont le cours a besoin pour vous corriger et garder vos progrès, rien pour la publicité, et nous ne vendons rien.",
+        "sections": [
+          { "h": "Responsable", "p": ["{operator} exploite L’Atelier. Écrivez à {contact} pour toute question sur cette politique."] },
+          { "h": "Ce que nous collectons", "p": [
+            "Votre compte : nom, adresse e-mail, une empreinte de votre mot de passe (jamais le mot de passe lui-même), vos langues, votre niveau et vos réglages.",
+            "Ce que vous écrivez et choisissez : réponses, lettres, journal, choix dans l’histoire, corrections et historique de révision.",
+            "Votre voix, quand vous touchez le micro : l’enregistrement est envoyé pour transcription puis supprimé. Seul le texte est gardé, comme une réponse tapée.",
+            "Vos photos, quand vous utilisez «Photographier» dans le Courrier : la photo est envoyée une fois pour être lue et n’est pas conservée. Le texte lu est gardé jusqu’à ce que vous supprimiez le document.",
+            "Usage et diagnostic : les étapes terminées et quand, les rapports d’erreur de l’app et le coût de chaque requête d’IA. Aucun identifiant publicitaire, aucun suivi dans d’autres apps ou sites.",
+            "Un jeton de notification, seulement si vous autorisez les notifications."
+          ] },
+          { "h": "Pourquoi", "p": ["Pour faire fonctionner le cours : corriger votre français, vous répondre, écrire vos histoires, planifier les révisions, envoyer les rappels que vous avez activés et réparer ce qui casse."] },
+          { "h": "Qui les traite pour nous", "p": [
+            "OpenAI (États-Unis) lit vos réponses, enregistrements et photos pour vous corriger et vous répondre, et crée les images et l’audio de l’histoire. Selon les conditions de l’API d’OpenAI, ces données ne servent pas à entraîner ses modèles et sont gardées au plus 30 jours pour la détection d’abus.",
+            "Si activés : Anthropic (États-Unis) en secours pour le texte quand OpenAI est indisponible, et ElevenLabs pour la lecture à voix haute (il ne reçoit que le texte à lire).",
+            "Render (serveurs à Francfort, UE) héberge l’app et sa base de données. Un prestataire d’e-mail envoie les messages de connexion et de mot de passe. Apple achemine les notifications."
+          ] },
+          { "h": "Durée de conservation", "p": ["Tant que votre compte existe. Un document supprimé est supprimé. La suppression du compte efface les données du compte ; des compteurs anonymes qui ne renvoient plus à vous peuvent rester. Les sauvegardes du serveur expirent selon le calendrier de l’hébergeur."] },
+          { "h": "Vos choix et vos droits", "p": [
+            "Dans l’app, Réglages → Données : exporter vos données dans un fichier, déconnecter tous les appareils ou supprimer définitivement votre compte.",
+            "Vous pouvez demander l’accès, la rectification, l’effacement ou la portabilité de vos données, vous opposer à leur usage et saisir une autorité de protection des données (en France, la CNIL)."
+          ] },
+          { "h": "Enfants", "p": ["L’Atelier ne s’adresse pas aux enfants de moins de 16 ans."] },
+          { "h": "Modifications", "p": ["Si cette politique change sur le fond, l’app vous le redemande. La date de version figure en haut."] }
+        ]
+      }
+    },
+    "terms": {
+      "en": {
+        "title": "Terms of use",
+        "lead": "By creating an account you accept these terms and the privacy policy.",
+        "sections": [
+          { "h": "The service", "p": ["L’Atelier is a French course whose corrections, replies, stories, images and audio are written by AI. It is a learning aid, not a certification."] },
+          { "h": "AI can be wrong", "p": ["AI-generated content can be inaccurate or unexpected. Do not rely on it for legal, medical, financial or other important decisions, and tell us at {contact} if something is wrong or inappropriate."] },
+          { "h": "Your account", "p": ["Use a real e-mail address, keep your password to yourself, and use the account for one person."] },
+          { "h": "Your content", "p": ["What you write, say or photograph stays yours. You allow us to process it, including through the providers named in the privacy policy, only to run the course for you. Only photograph documents you are entitled to share, and nothing unlawful."] },
+          { "h": "Fair use", "p": ["Do not attack, overload, scrape or reverse-engineer the service, and do not use it to create harmful content."] },
+          { "h": "Availability", "p": ["L’Atelier is in an early, free version. Features may change or stop. We may suspend an account that breaks these terms."] },
+          { "h": "Liability", "p": ["We provide the service with care but without guarantees, as far as the law allows. Nothing here limits your rights as a consumer."] },
+          { "h": "Ending", "p": ["You can delete your account at any time in Réglages → Données. Questions: {contact}."] }
+        ]
+      },
+      "de": {
+        "title": "Nutzungsbedingungen",
+        "lead": "Mit dem Anlegen eines Kontos akzeptieren Sie diese Bedingungen und die Datenschutzerklärung.",
+        "sections": [
+          { "h": "Der Dienst", "p": ["L’Atelier ist ein Französischkurs, dessen Korrekturen, Antworten, Geschichten, Bilder und Audio von KI geschrieben werden. Er ist eine Lernhilfe, kein Zertifikat."] },
+          { "h": "KI kann sich irren", "p": ["KI-Inhalte können falsch oder unerwartet sein. Verlassen Sie sich nicht darauf bei rechtlichen, medizinischen, finanziellen oder anderen wichtigen Entscheidungen, und melden Sie Fehlerhaftes oder Unangemessenes an {contact}."] },
+          { "h": "Ihr Konto", "p": ["Nutzen Sie eine echte E-Mail-Adresse, behalten Sie Ihr Passwort für sich und nutzen Sie das Konto für eine Person."] },
+          { "h": "Ihre Inhalte", "p": ["Was Sie schreiben, sprechen oder fotografieren, bleibt Ihres. Sie erlauben uns, es – auch über die in der Datenschutzerklärung genannten Anbieter – nur zu verarbeiten, um den Kurs für Sie zu betreiben. Fotografieren Sie nur Dokumente, die Sie teilen dürfen, und nichts Rechtswidriges."] },
+          { "h": "Faire Nutzung", "p": ["Greifen Sie den Dienst nicht an, überlasten, scrapen oder zerlegen Sie ihn nicht, und erzeugen Sie damit keine schädlichen Inhalte."] },
+          { "h": "Verfügbarkeit", "p": ["L’Atelier ist eine frühe, kostenlose Version. Funktionen können sich ändern oder enden. Wir können ein Konto sperren, das gegen diese Bedingungen verstößt."] },
+          { "h": "Haftung", "p": ["Wir betreiben den Dienst sorgfältig, aber ohne Gewähr, soweit das Gesetz es erlaubt. Ihre Verbraucherrechte bleiben unberührt."] },
+          { "h": "Beenden", "p": ["Sie können Ihr Konto jederzeit unter Réglages → Données löschen. Fragen: {contact}."] }
+        ]
+      },
+      "fr": {
+        "title": "Conditions d’utilisation",
+        "lead": "En créant un compte, vous acceptez ces conditions et la politique de confidentialité.",
+        "sections": [
+          { "h": "Le service", "p": ["L’Atelier est un cours de français dont les corrections, réponses, histoires, images et sons sont écrits par une IA. C’est une aide à l’apprentissage, pas une certification."] },
+          { "h": "L’IA peut se tromper", "p": ["Les contenus générés peuvent être inexacts ou inattendus. Ne vous y fiez pas pour une décision juridique, médicale, financière ou importante, et signalez-nous toute erreur ou tout contenu inapproprié à {contact}."] },
+          { "h": "Votre compte", "p": ["Utilisez une vraie adresse e-mail, gardez votre mot de passe pour vous et réservez le compte à une seule personne."] },
+          { "h": "Vos contenus", "p": ["Ce que vous écrivez, dites ou photographiez reste à vous. Vous nous autorisez à le traiter, y compris par les prestataires cités dans la politique de confidentialité, uniquement pour faire fonctionner le cours. Ne photographiez que des documents que vous avez le droit de partager, et rien d’illicite."] },
+          { "h": "Usage loyal", "p": ["N’attaquez pas, ne surchargez pas, n’aspirez pas et ne décompilez pas le service, et ne l’utilisez pas pour produire des contenus nuisibles."] },
+          { "h": "Disponibilité", "p": ["L’Atelier est une version précoce et gratuite. Des fonctions peuvent changer ou s’arrêter. Nous pouvons suspendre un compte qui enfreint ces conditions."] },
+          { "h": "Responsabilité", "p": ["Nous fournissons le service avec soin mais sans garantie, dans les limites de la loi. Rien ici ne limite vos droits de consommateur."] },
+          { "h": "Fin", "p": ["Vous pouvez supprimer votre compte à tout moment dans Réglages → Données. Questions : {contact}."] }
+        ]
+      }
+    }
+  }
+}
