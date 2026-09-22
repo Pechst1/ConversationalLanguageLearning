@@ -31,6 +31,13 @@ services:
         value: "false"
       - key: PASSWORD_RESET_RETURN_TOKEN_IN_RESPONSE
         value: "false"
+      # WP-70: two workers fit the 512 MB starter plan (~184 MB each).
+      - key: WEB_CONCURRENCY
+        value: "2"
+      - key: USER_DAILY_SPEND_CAP_USD
+        value: "0.50"
+      - key: RATE_LIMIT_TRUSTED_PROXY_HOPS
+        value: "1"
       # Password reset emails a six-digit code typed in the app. SMTP_HOST and
       # SMTP_FROM_EMAIL are required at startup; USERNAME/PASSWORD are the
       # provider's credentials. SMTP_PORT (587) and SMTP_USE_TLS (true) default.

@@ -1760,6 +1760,7 @@ type SilentRequestConfig = AxiosRequestConfig & {
   suppressGlobalError?: boolean;
   skipAuth?: boolean;
   _retryAuth?: boolean;
+  _retry429?: boolean;
 };
 
 function isUnauthorized(error: any): boolean {
@@ -1863,6 +1864,27 @@ class ApiService {
         }
 
         if (detail?.code === 'feuilleton_generation_failed') {
+          return Promise.reject(error);
+        }
+
+        // WP-70: a 429 is never an auth problem — no refresh, no sign-out.
+        if (error.response?.status === 429) {
+          const code = detail?.code;
+          const waitSeconds = Math.max(1, Number(error.response?.headers?.['retry-after']) || 5);
+          const method = String(requestConfig?.method || 'get').toLowerCase();
+          if (code === 'rate_limited' && method === 'get' && requestConfig && !requestConfig._retry429 && waitSeconds <= 10) {
+            requestConfig._retry429 = true;
+            await new Promise((resolve) => setTimeout(resolve, waitSeconds * 1000));
+            return this.api.request(requestConfig);
+          }
+          if (!requestConfig?.suppressGlobalError) {
+            toast(
+              code === 'daily_budget_reached'
+                ? 'C’est tout pour aujourd’hui. À demain !'
+                : `Doucement — réessayez dans ${waitSeconds} s.`,
+              { id: code || 'rate_limited' },
+            );
+          }
           return Promise.reject(error);
         }
 
