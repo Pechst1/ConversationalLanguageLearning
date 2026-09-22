@@ -34,7 +34,12 @@ import toast from 'react-hot-toast';
 const schema = yup.object({
   name: yup.string().required('Indiquez votre nom'),
   email: yup.string().email('Adresse e-mail invalide').required('Indiquez votre adresse'),
-  password: yup.string().min(8, 'Au moins 8 caractères').required('Choisissez un mot de passe'),
+  password: yup
+    .string()
+    .min(8, 'Au moins 8 caractères')
+    // bcrypt reads 72 bytes; the server refuses more (accents count double).
+    .test('bytes', 'Trop long : 72 octets au plus', (value) => !value || new TextEncoder().encode(value).length <= 72)
+    .required('Choisissez un mot de passe'),
   confirmPassword: yup.string().oneOf([yup.ref('password')], 'Les deux ne correspondent pas').required('Confirmez le mot de passe'),
   nativeLanguage: yup.string().required('Choisissez une langue'),
   targetLanguage: yup.string().required('Choisissez une langue'),
