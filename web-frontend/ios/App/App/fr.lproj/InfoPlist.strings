@@ -1,0 +1,5 @@
+/* WP-72 — demandes d’autorisation et nom sur l’écran d’accueil, français. */
+"CFBundleDisplayName" = "L’Atelier";
+"NSCameraUsageDescription" = "L’Atelier utilise l’appareil photo quand vous photographiez un document dans le Courrier, pour le lire et en faire un exercice.";
+"NSMicrophoneUsageDescription" = "L’Atelier utilise le micro quand vous répondez à voix haute. L’enregistrement est transcrit puis supprimé.";
+"NSPhotoLibraryUsageDescription" = "L’Atelier ouvre vos photos quand vous choisissez un document pour le Courrier. Seule la photo choisie est envoyée pour être lue.";
