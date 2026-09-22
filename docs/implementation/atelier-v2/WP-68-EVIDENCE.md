@@ -418,3 +418,14 @@ every draft.
 Open, not fixed: arc stages can be *claimed* backwards (`arc_stage_id` earlier than the stage
 already reached — the writers ignore it, the prompt does not know); the B1 guard pincer (thin ↔
 repeat) has no exit except a new situation; `secret_shift: hinted` is re-sent every scene.
+
+**Both §9 open problems fixed without spend (`git log -1 --grep "next one"`):**
+- *Backward stage claims.* The arc writer advances one stage on any claim, so chapter 2's
+  claim of `first_real` (after `almost`) would have been credited with the stage *after*
+  `almost` for a scene that replayed an earlier one. `_validate_scene` now keeps a stage claim
+  only when it names the arc's `next_stage.id`; any other claim is dropped with
+  `advances_arc=False` (recorded as a side story, never a lost day). The director rule says so.
+- *The thin ↔ repeat pincer.* Both hints now carry the same exit — "a resized task is still a
+  repeat; change what the learner DOES" plus the act list / `variety.act_rule` — and the
+  thin hint lists the already-asked objectives, so widening the refused task is visibly not an
+  option. No new guard.
