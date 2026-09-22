@@ -30,6 +30,7 @@ import time
 import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
+from contextvars import ContextVar
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
@@ -500,8 +501,15 @@ def record_latency(
     prefetch_hit: bool | None = None,
     journey_id: uuid.UUID | str | None = None,
     outcome: str = "ok",
+    reply_ready_seconds: float | None = None,
 ) -> PilotEvent:
-    """One durable row per learner-facing wait. Never raises into the request."""
+    """One durable row per learner-facing wait. Never raises into the request.
+
+    WP-76: a respond turn also carries ``reply_ready_ms`` — the moment inside
+    the request at which the character's reply was final — next to ``ms``,
+    which is when the whole verdict was ready. The difference is what a
+    reply-first transport could ever win on this turn.
+    """
 
     event = PilotEvent(
         user_id=getattr(user, "id", None),
@@ -514,6 +522,11 @@ def record_latency(
             "ms": int(max(0.0, float(seconds)) * 1000),
             "outcome": str(outcome),
             **({} if prefetch_hit is None else {"prefetch_hit": bool(prefetch_hit)}),
+            **(
+                {}
+                if reply_ready_seconds is None
+                else {"reply_ready_ms": int(max(0.0, float(reply_ready_seconds)) * 1000)}
+            ),
         },
         cost_usd=0.0,
     )
@@ -529,6 +542,34 @@ class PhaseTiming:
         self.prefetch_hit: bool | None = None
         self.outcome: str = "ok"
         self.journey_id: uuid.UUID | str | None = None
+        self.started: float = time.monotonic()
+        #: WP-76: seconds from the start of the request to the final reply.
+        self.reply_ready_seconds: float | None = None
+
+
+#: The measured request this thread is serving, if any. FastAPI runs a sync
+#: route in one worker thread with a copied context, so a mark made deep in the
+#: conversation module lands on the right request and never on another one.
+_CURRENT_TIMING: ContextVar[PhaseTiming | None] = ContextVar(
+    "journey_latency_current_timing", default=None
+)
+
+
+def mark_reply_ready() -> float | None:
+    """WP-76: the character's reply for this turn is now final.
+
+    Called by ``journey_conversation.evaluate_response`` once every policy that
+    may still append to the reply (self-repair question, register note) has run.
+    A no-op outside a measured request; only the first mark counts, so a nested
+    evaluation cannot move it later. Returns the offset in seconds, if any.
+    """
+
+    timing = _CURRENT_TIMING.get()
+    if timing is None:
+        return None
+    if timing.reply_ready_seconds is None:
+        timing.reply_ready_seconds = max(0.0, time.monotonic() - timing.started)
+    return timing.reply_ready_seconds
 
 
 @contextmanager
@@ -549,13 +590,15 @@ def measure_phase(
 
     timing = PhaseTiming()
     timing.journey_id = journey_id
-    started = time.monotonic()
+    started = timing.started
+    token = _CURRENT_TIMING.set(timing)
     try:
         yield timing
     except BaseException:
         timing.outcome = "failed"
         raise
     finally:
+        _CURRENT_TIMING.reset(token)
         try:
             record_latency(
                 db,
@@ -565,6 +608,7 @@ def measure_phase(
                 prefetch_hit=timing.prefetch_hit,
                 journey_id=timing.journey_id or journey_id,
                 outcome=timing.outcome,
+                reply_ready_seconds=timing.reply_ready_seconds,
             )
             if commit:
                 # The measured mutation has already committed its own effects by
@@ -576,6 +620,61 @@ def measure_phase(
                 db.rollback()
             except Exception:  # noqa: S110 - nothing useful is left to say
                 logger.debug("journey_latency: rollback after a failed record")
+
+
+def _aware(moment: datetime | None) -> datetime | None:
+    if moment is None:
+        return None
+    return moment if moment.tzinfo is not None else moment.replace(tzinfo=UTC)
+
+
+def server_wait_ms_since_last_event(db: Session, *, journey_id: uuid.UUID | str) -> float:
+    """WP-76: server time the learner spent waiting since the journey's last event.
+
+    ``measure_journey_duration`` (WP-11) already subtracts ``provider_wait_ms``
+    declared on the event that closes an interval, but nothing declared it for
+    a graded answer, so a 12–17 s reply turn was booked as learner time. This
+    sums the measured ``respond`` requests (every answer, recall or reply, and
+    every outcome: a failed request was waited on too) that landed after the
+    journey's latest recorded event, so the caller can declare them on the
+    event that closes that interval. ``0.0`` when nothing is known.
+    """
+
+    from app.services.journey_events import JOURNEY_ENTITY_TYPE, JOURNEY_EVENT_NAMES
+
+    identifier = str(journey_id)
+    try:
+        last = db.scalars(
+            select(PilotEvent.occurred_at)
+            .where(
+                PilotEvent.entity_type == JOURNEY_ENTITY_TYPE,
+                PilotEvent.entity_id == identifier,
+                PilotEvent.event_type.in_(sorted(JOURNEY_EVENT_NAMES)),
+            )
+            .order_by(PilotEvent.occurred_at.desc())
+            .limit(1)
+        ).first()
+        since = _aware(last)
+        rows = db.scalars(
+            select(PilotEvent).where(
+                PilotEvent.event_type == LATENCY_EVENT,
+                PilotEvent.entity_type == LATENCY_ENTITY_TYPE,
+                PilotEvent.entity_id == identifier,
+            )
+        ).all()
+    except Exception:  # pragma: no cover - telemetry must never break a flow
+        logger.exception("journey_latency: could not sum server waits")
+        return 0.0
+    total = 0.0
+    for row in rows:
+        payload = row.payload or {}
+        if str(payload.get("phase") or "") != PHASE_RESPOND:
+            continue
+        at = _aware(row.occurred_at)
+        if since is not None and (at is None or at <= since):
+            continue
+        total += max(0.0, float(payload.get("ms") or 0.0))
+    return round(total, 3)
 
 
 # ---------------------------------------------------------------------------
@@ -613,6 +712,9 @@ def latency_rollup(
 
     seconds: dict[str, list[float]] = {phase: [] for phase in MEASURED_PHASES}
     failures: dict[str, int] = dict.fromkeys(MEASURED_PHASES, 0)
+    # WP-76: reply-ready offsets and reply→verdict gaps of measured reply turns.
+    reply_ready: list[float] = []
+    reply_to_verdict: list[float] = []
     draft_hits = 0
     draft_measured = 0
     prefetched = 0
@@ -639,6 +741,10 @@ def latency_rollup(
             failures[phase] += 1
             continue
         seconds[phase].append(float(payload.get("seconds") or 0.0))
+        if phase == PHASE_RESPOND and payload.get("reply_ready_ms") is not None:
+            ready = float(payload.get("reply_ready_ms") or 0.0) / 1000.0
+            reply_ready.append(ready)
+            reply_to_verdict.append(max(0.0, float(payload.get("seconds") or 0.0) - ready))
         if phase == PHASE_DRAFT and "prefetch_hit" in payload:
             draft_measured += 1
             if payload.get("prefetch_hit"):
@@ -657,6 +763,13 @@ def latency_rollup(
     return {
         "day": day.isoformat(),
         "phases": phases,
+        "reply": {
+            "samples": len(reply_ready),
+            "ready_p50_seconds": _percentile(reply_ready, 0.5),
+            "ready_p95_seconds": _percentile(reply_ready, 0.95),
+            "to_verdict_p50_seconds": _percentile(reply_to_verdict, 0.5),
+            "to_verdict_p95_seconds": _percentile(reply_to_verdict, 0.95),
+        },
         "prefetch": {
             "generated": prefetched,
             "consumed": consumed,
@@ -732,6 +845,13 @@ def format_latency_lines(rollup: dict[str, Any]) -> list[str]:
         if stats.get("failures"):
             line += f" · {stats['failures']} failed request(s)"
         lines.append(line)
+    reply = rollup.get("reply") or {}
+    if reply.get("samples"):
+        lines.append(
+            f"  reply turns: n={int(reply['samples'])} · reply final at p50 "
+            f"{float(reply.get('ready_p50_seconds') or 0.0):.1f}s · verdict "
+            f"+{float(reply.get('to_verdict_p50_seconds') or 0.0):.1f}s later (p50)"
+        )
     prefetch = rollup.get("prefetch") or {}
     hit_rate = prefetch.get("hit_rate")
     if prefetch.get("draft_requests"):
@@ -779,11 +899,13 @@ __all__ = [
     "format_latency_lines",
     "has_live_prefetch",
     "latency_rollup",
+    "mark_reply_ready",
     "measure_phase",
     "prefetch_enabled_for",
     "prefetch_scene_for",
     "record_latency",
     "scene_cache_key",
+    "server_wait_ms_since_last_event",
     "sweep_expired_prefetches",
     "take_prefetched_scene",
 ]

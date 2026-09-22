@@ -92,6 +92,7 @@ from app.services.journey_contracts import (
     effect_source_key,
     normalize_answer_text,
 )
+from app.services.journey_latency import mark_reply_ready
 from app.services.journey_learning import (
     answer_matches,
     classify_observation,
@@ -2916,6 +2917,39 @@ def _stamped(evaluation: ResponseEvaluation, decision: FeedbackDecision) -> Resp
 
 
 def evaluate_response(
+    db: Session,
+    *,
+    user: User,
+    scenario: ScenarioBrief,
+    task: ResponseTask,
+    answer: AttemptAnswer,
+    turn_index: int,
+    assistance: AssistanceLevel,
+    history: list[dict] | None = None,
+) -> ResponseEvaluation:
+    """Grade one bounded turn of the purposeful response step (see ``_evaluate_response``).
+
+    WP-76: the moment the character's reply is *final* — after every policy
+    that may still append to it — is marked on the measured request, so the
+    latency digest can tell reply-ready time from verdict-ready time.
+    """
+
+    evaluation = _evaluate_response(
+        db,
+        user=user,
+        scenario=scenario,
+        task=task,
+        answer=answer,
+        turn_index=turn_index,
+        assistance=assistance,
+        history=history,
+    )
+    if evaluation.character_reply_fr and not evaluation.pending:
+        mark_reply_ready()
+    return evaluation
+
+
+def _evaluate_response(
     db: Session,
     *,
     user: User,
