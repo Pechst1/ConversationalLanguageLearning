@@ -313,7 +313,12 @@ def _play_life(
 ) -> LifeRecord:
     start_context = len(provider.director_contexts())
     d = story.driver(client, db, cefr="A2.2")
-    support.seed_due_vocabulary(db, d.user_id, HORIZON_WORDS, overdue_days=4)
+    # Due on the *simulated* clock. Seeded against the wall clock (September)
+    # while the run lives in January–May, these words were never due at all,
+    # and the recall variety this file asserts came only from the learner's own
+    # uncorrected mission replies that the pre-WP-74 phrase bank queued as
+    # vocabulary. The words below are what a real learner's queue holds.
+    support.seed_due_vocabulary(db, d.user_id, HORIZON_WORDS, overdue_days=4, now=clock.moment)
     speakers = [story.CAST["romy"], story.CAST["margaux"], story.CAST["lila"]]
     records: list[DayRecord] = []
     courrier_log: list[dict[str, Any]] = []

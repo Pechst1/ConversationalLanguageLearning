@@ -166,6 +166,7 @@ def seed_due_vocabulary(
     words: tuple[tuple[str, str], ...],
     *,
     overdue_days: int = 3,
+    now: datetime | None = None,
 ) -> list[VocabularyWord]:
     """Genuinely due French vocabulary for one explicit test account.
 
@@ -173,7 +174,9 @@ def seed_due_vocabulary(
     schedule is only ever moved backwards so the queue is real rather than faked.
     """
 
-    now = datetime.now(UTC)
+    # ``now``: a run on a simulated clock must pass its own moment, or the words
+    # are due relative to the wall clock and never come due inside the run.
+    now = now or datetime.now(UTC)
     created: list[VocabularyWord] = []
     for word, english in words:
         row = (
