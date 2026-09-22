@@ -108,7 +108,10 @@ export default function Layout({ children, showSidebar = true, className }: Layo
       <main className={cn('app-main-shell min-h-screen flex flex-col', className)}>
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
-            key={router.asPath}
+            // The route, not the query: a shallow `router.replace` that only
+            // changes `?…` (Missions, Cahier sections, `?start=today`) must not
+            // unmount the page and drop its state (WP-75 / WP-83).
+            key={router.asPath.split(/[?#]/)[0]}
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -12 }}
