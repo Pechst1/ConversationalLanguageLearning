@@ -44,6 +44,15 @@ class User(Base):
     grammar_streak_days = Column(Integer, default=0)
     grammar_last_review_date = Column(Date)
     grammar_longest_streak = Column(Integer, default=0)
+    # WP-80: one «jour de relâche» earned per full seven-day week of the streak
+    # above (at most one banked), and the local day the last one covered. The
+    # streak itself is read through `app.services.streak`, never directly.
+    streak_freezes = Column(Integer, default=0, server_default="0")
+    streak_freeze_used_on = Column(Date)
+
+    # WP-80: the learner's IANA zone. Every "today" — the streak, the morning
+    # push, the evening reminder — is a day in this zone, not the server's.
+    timezone = Column(String(64), default="Europe/Paris", server_default="Europe/Paris")
 
     # Settings - Practice
     daily_goal_minutes = Column(Integer, default=15)

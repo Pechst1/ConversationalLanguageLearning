@@ -1,9 +1,13 @@
 self.addEventListener('push', function (event) {
     if (event.data) {
         const data = event.data.json();
+        // WP-80: the speaking character's portrait, when the server names one.
+        const image = data.data && typeof data.data.image === 'string' && data.data.image.charAt(0) === '/'
+            ? data.data.image
+            : null;
         const options = {
             body: data.body,
-            icon: '/favicon.ico',
+            icon: image || '/favicon.ico',
             vibrate: [100, 50, 100],
             data: {
                 dateOfArrival: Date.now(),

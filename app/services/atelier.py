@@ -63,6 +63,7 @@ from app.services.learner_copy import learner_text as _copy
 from app.services.llm_service import LLMProviderError, LLMService
 from app.services.progress import ProgressService
 from app.services.seance_curriculum import lesson_for, lesson_panel
+from app.services.streak import read_streak, record_practice_day
 from app.services.vocabulary_credit import VocabularyCreditService
 
 ATELIER_GENERATOR_VERSION = "atelier-v11"
@@ -1844,7 +1845,9 @@ class AtelierScheduler:
             "due": due,
             "fragile": fragile,
             "due_errata": len(self.due_errata(user)),
-            "streak": getattr(user, "grammar_streak_days", 0) or 0,
+            # WP-80: checked against the learner's local date, never the stale
+            # count of the last practised day.
+            "streak": read_streak(user).days,
             "longest_streak": getattr(user, "grammar_longest_streak", 0) or 0,
         }
 
@@ -6437,18 +6440,9 @@ class AtelierSRSService:
         return recap
 
     def _update_streak(self, user: User) -> None:
-        today = date.today()
-        last = getattr(user, "grammar_last_review_date", None)
-        if last == today:
-            return
-        if last == today - timedelta(days=1):
-            user.grammar_streak_days = (user.grammar_streak_days or 0) + 1
-        else:
-            user.grammar_streak_days = 1
-        user.grammar_last_review_date = today
-        user.grammar_longest_streak = max(user.grammar_longest_streak or 0, user.grammar_streak_days or 0)
-        user.mark_activity(today)
-        self.db.add(user)
+        # WP-80: the one streak rule (local day, «jour de relâche»), shared
+        # with the daily journey.
+        record_practice_day(self.db, user)
 
 
 def serialize_concept(

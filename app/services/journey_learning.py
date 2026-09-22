@@ -39,7 +39,7 @@ import re
 import unicodedata
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime
 from typing import Any, Literal
 from uuid import NAMESPACE_URL, UUID, uuid5
 from zoneinfo import ZoneInfo
@@ -1167,29 +1167,17 @@ def record_drill_credit(
 def record_daily_practice_streak(db: Session, user: User, *, on_date: date | None = None) -> int:
     """Move the learner's practice streak, at most once per local day.
 
-    Byte-for-byte the rule the legacy Atelier session already applies
-    (`AtelierService._update_streak`), deliberately: both surfaces write the
-    same three user columns and both are no-ops once the day is marked, so a
+    WP-80: a thin door onto :mod:`app.services.streak`, the one place the rule
+    lives (local day, checked on read, one «jour de relâche» per full week).
+    The legacy Atelier session (`AtelierService._update_streak`) goes through
+    the same function, and both are no-ops once the day is marked, so a
     learner who finishes the journey and then drills gets one increment, not
     two. Returns the streak after the call.
     """
 
-    day = on_date or date.today()
-    last = getattr(user, "grammar_last_review_date", None)
-    if last == day:
-        return int(getattr(user, "grammar_streak_days", 0) or 0)
-    if last == day - timedelta(days=1):
-        user.grammar_streak_days = (user.grammar_streak_days or 0) + 1
-    else:
-        user.grammar_streak_days = 1
-    user.grammar_last_review_date = day
-    user.grammar_longest_streak = max(
-        user.grammar_longest_streak or 0, user.grammar_streak_days or 0
-    )
-    user.mark_activity(day)
-    db.add(user)
-    db.flush([user])
-    return int(user.grammar_streak_days or 0)
+    from app.services.streak import record_practice_day
+
+    return record_practice_day(db, user, on_date=on_date).days
 
 
 def _apply_vocabulary_credit(

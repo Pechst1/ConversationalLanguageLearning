@@ -92,6 +92,7 @@ from app.services.missions import MissionConversationService
 from app.services.pilot_events import PilotEventService
 from app.services.progress import vocabulary_due_filter
 from app.services.serial import SerialThreadService
+from app.services.streak import settle_streak
 
 router = APIRouter(prefix="/atelier", tags=["atelier"])
 atelier_oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login", auto_error=False)
@@ -1109,6 +1110,10 @@ async def get_today(
         )
         if not has_open_session:
             background_tasks.add_task(pregenerate_next_atelier_session, current_user.id)
+    # WP-80: an honest streak — a missed day reads 0, a banked «jour de
+    # relâche» is spent and written down before anything prints the number.
+    streak = settle_streak(db, current_user)
+    db.commit()
     scheduler = AtelierScheduler(db)
     selections = scheduler.select_today(current_user)
     asset_service = AtelierAssetService(db)
@@ -1159,6 +1164,7 @@ async def get_today(
         serial_episode=serial_episode,
         serial=serial_episode,
         phrase_of_day=AtelierSRSService(db).phrase_for_la_une(user=current_user),
+        streak=streak.as_payload(),
     )
 
 

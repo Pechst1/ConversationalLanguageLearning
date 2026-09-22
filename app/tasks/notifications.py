@@ -1,7 +1,8 @@
 """Celery tasks for user notifications and reminders."""
 from __future__ import annotations
 
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime
+from typing import Any
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
@@ -15,7 +16,18 @@ from app.db.models.serial import SerialThread
 from app.db.models.user import User
 from app.db.session import SessionLocal
 
+#: Kept for callers that computed "now" in Paris. WP-80: every schedule below is
+#: the learner's own zone (`User.timezone`), which defaults to this one.
 PARIS_TZ = ZoneInfo("Europe/Paris")
+#: WP-80: the streak-at-risk push goes out at this local time…
+STREAK_REMINDER_MINUTE = 19 * 60
+#: …and the Lexique review reminder at this one, only once the day is done.
+REVIEW_REMINDER_MINUTE = 18 * 60
+#: A beat run every 15 minutes finds each learner inside this window once.
+SCHEDULE_WINDOW_MINUTES = 15
+STREAK_REMINDER_EVENT = "streak_reminder_sent"
+REVIEW_REMINDER_EVENT = "review_reminder_sent"
+MORNING_EVENT = "morning_edition_sent"
 FRENCH_MONTHS = (
     "janvier", "février", "mars", "avril", "mai", "juin",
     "juillet", "août", "septembre", "octobre", "novembre", "décembre",
@@ -34,6 +46,49 @@ def _preferred_notification_minute(user: User) -> int:
     return preferred.hour * 60 + preferred.minute if preferred else 9 * 60
 
 
+def _utc_now(now: datetime | str | None = None) -> datetime:
+    """The one clock seam. Beat passes nothing; tests pass an ISO instant."""
+
+    if isinstance(now, str) and now:
+        now = datetime.fromisoformat(now)
+    moment = now if isinstance(now, datetime) else datetime.now(UTC)
+    return moment if moment.tzinfo else moment.replace(tzinfo=UTC)
+
+
+def _local_now(user: User, now: datetime) -> datetime:
+    from app.services.streak import local_now
+
+    return local_now(user, now)
+
+
+def _minute_of(moment: datetime) -> int:
+    return moment.hour * 60 + moment.minute
+
+
+def _near(current_minute: int, target_minute: int, tolerance: int = 7) -> bool:
+    delta = abs(current_minute - target_minute)
+    return min(delta, 24 * 60 - delta) <= tolerance
+
+
+def _in_window(current_minute: int, target_minute: int) -> bool:
+    """``target <= now < target + window``: never early, at most one run late."""
+
+    return 0 <= current_minute - target_minute < SCHEDULE_WINDOW_MINUTES
+
+
+def _record_sent(db, user: User, event_type: str, key: str, payload: dict[str, Any]) -> None:
+    from app.services.pilot_events import PilotEventService
+
+    PilotEventService(db).record(
+        event_type,
+        user_id=user.id,
+        entity_type="notification",
+        entity_id=key,
+        payload=payload,
+    )
+    db.commit()
+
+
 def _morning_copy(db, user: User, today: date) -> tuple[str, str]:
     """Build truthful copy only from the currently persisted prescription."""
     from app.services.atelier import AtelierScheduler
@@ -41,8 +96,8 @@ def _morning_copy(db, user: User, today: date) -> tuple[str, str]:
     from app.services.serial import SerialThreadService
     from app.services.serial_notifications import daily_journey_morning_copy
 
-    # WP-19: cohort learners live in the V2 daily journey, so their morning push
-    # points at today's scene instead of the legacy prescription. Everyone else
+    # WP-19 / WP-80: cohort learners live in the V2 daily journey, so their
+    # morning push is the story's teaser in a character's voice. Everyone else
     # keeps the edition copy below.
     journey_copy = daily_journey_morning_copy(db, user, today=today)
     if journey_copy is not None:
@@ -114,7 +169,7 @@ def _send_rehearsal_reminder(db, user: User, now: datetime) -> int:
     from app.services.pilot_events import PilotEventService
     from app.services.serial_notifications import rehearsal_reminder_copy
 
-    today = now.date()
+    today = _local_now(user, now).date()
     key = f"rehearsal-ready:{user.id}:{today.isoformat()}"
     if _already_sent(db, user, REHEARSAL_REMINDER_EVENT, key):
         return 0
@@ -143,52 +198,69 @@ def _send_rehearsal_reminder(db, user: User, now: datetime) -> int:
     return count
 
 
-@celery_app.task(name="app.tasks.notifications.send_morning_editions")
-def send_morning_editions() -> dict[str, int]:
-    """Send each capable device its real edition near the learner's preferred time."""
-    from app.services.notification_service import NotificationService
-    from app.services.pilot_events import PilotEventService
+def _morning_message(db, user: User, today: date) -> tuple[str, str, dict[str, Any]] | None:
+    """(title, message, data) for one learner's morning, or ``None`` for silence.
 
-    now = datetime.now(PARIS_TZ)
-    current_minute = now.hour * 60 + now.minute
+    A journey learner gets WP-80's character push — or nothing once today's
+    scene is done. Everyone else keeps the legacy edition.
+    """
+
+    from app.services.daily_journey import journey_enabled_for
+    from app.services.serial_notifications import daily_journey_morning_push
+
+    key = today.isoformat()
+    if journey_enabled_for(user):
+        push = daily_journey_morning_push(db, user, today=today)
+        if push is None:
+            return None
+        return push.title, push.message, push.data("morning_teaser", key)
+    title, message = _morning_copy(db, user, today)
+    return title, message, {"route": "/atelier", "kind": "morning_edition", "notification_id": key}
+
+
+def _push_users(db) -> list[User]:
+    return list(
+        db.scalars(
+            select(User)
+            .join(PushSubscription, PushSubscription.user_id == User.id)
+            .where(User.is_active.is_(True), User.notifications_enabled.is_(True))
+            .distinct()
+        ).all()
+    )
+
+
+@celery_app.task(name="app.tasks.notifications.send_morning_editions")
+def send_morning_editions(now: str | None = None) -> dict[str, int]:
+    """Send each device its morning at the learner's reminder time, in their zone."""
+    from app.services.notification_service import NotificationService
+
+    moment = _utc_now(now)
     db = SessionLocal()
     eligible = delivered = reminders = 0
     try:
-        users = db.scalars(
-            select(User)
-            .join(PushSubscription, PushSubscription.user_id == User.id)
-            .where(
-                User.is_active.is_(True),
-                User.notifications_enabled.is_(True),
-                User.practice_reminders.is_(True),
-            )
-            .distinct()
-        ).all()
-        for user in users:
-            minute_delta = abs(current_minute - _preferred_notification_minute(user))
-            if min(minute_delta, 24 * 60 - minute_delta) > 7:
+        for user in _push_users(db):
+            if not getattr(user, "practice_reminders", True):
                 continue
-            dedupe_key = now.date().isoformat()
-            if not _already_sent(db, user, "morning_edition_sent", dedupe_key):
+            local = _local_now(user, moment)
+            if not _near(_minute_of(local), _preferred_notification_minute(user)):
+                continue
+            dedupe_key = local.date().isoformat()
+            if not _already_sent(db, user, MORNING_EVENT, dedupe_key):
                 eligible += 1
                 try:
-                    title, message = _morning_copy(db, user, now.date())
-                    count = NotificationService(db).send_notification(
-                        user.id,
-                        message,
-                        title,
-                        data={"route": "/atelier", "kind": "morning_edition", "notification_id": dedupe_key},
-                    )
-                    if count:
-                        delivered += count
-                        PilotEventService(db).record(
-                            "morning_edition_sent",
-                            user_id=user.id,
-                            entity_type="notification",
-                            entity_id=dedupe_key,
-                            payload={"title": title, "message": message, "deliveries": count},
+                    prepared = _morning_message(db, user, local.date())
+                    if prepared is not None:
+                        title, message, data = prepared
+                        count = NotificationService(db).send_notification(
+                            user.id, message, title, data=data
                         )
-                        db.commit()
+                        if count:
+                            delivered += count
+                            _record_sent(
+                                db, user, MORNING_EVENT, dedupe_key,
+                                {"title": title, "message": message, "deliveries": count,
+                                 "kind": data.get("kind"), "teaser_source": data.get("teaser_source")},
+                            )
                 except Exception:
                     db.rollback()
                     logger.exception("Failed to prepare morning edition", user_id=str(user.id))
@@ -196,7 +268,7 @@ def send_morning_editions() -> dict[str, int]:
             # learner whose edition already went out today must still hear that
             # the real thing is tomorrow.
             try:
-                reminders += _send_rehearsal_reminder(db, user, now)
+                reminders += _send_rehearsal_reminder(db, user, moment)
             except Exception:
                 db.rollback()
                 logger.exception("Failed to send rehearsal reminder", user_id=str(user.id))
@@ -209,128 +281,128 @@ def send_morning_editions() -> dict[str, int]:
         db.close()
 
 
+def _day_done(db, user: User, today: date, streak_today_done: bool) -> bool:
+    """Today's practice is done: the journey scene, or any streak-moving session."""
+
+    from app.services.serial_notifications import scene_done_today
+
+    return streak_today_done or scene_done_today(db, user, today=today)
+
+
 @celery_app.task(name="app.tasks.notifications.send_streak_reminders")
-def send_streak_reminders() -> dict[str, int]:
-    """Send reminders to users with active streaks who missed today."""
+def send_streak_reminders(now: str | None = None) -> dict[str, int]:
+    """WP-80: the evening push for a live streak (≥ 2 days) not yet extended today.
+
+    At the learner's local 19:00, once per local day, in a character's voice.
+    The streak is read through `app.services.streak` — checked on the date, so
+    a learner whose chain already broke is not told it is at risk.
+    """
     from app.services.notification_service import NotificationService
+    from app.services.serial_notifications import streak_at_risk_push
+    from app.services.streak import settle_streak
 
+    moment = _utc_now(now)
     db = SessionLocal()
-    notification_service = NotificationService(db)
-    today = date.today()
-    yesterday = today - timedelta(days=1)
-
+    eligible = delivered = 0
     try:
-        users = db.scalars(
-            select(User)
-            .where(User.is_active.is_(True))
-            .where(User.notifications_enabled.is_(True))
-            .where(User.current_streak >= 3)
-            .where(User.last_activity_date == yesterday)
-        ).all()
-
-        notification_count = 0
-
-        for user in users:
+        for user in _push_users(db):
             if not getattr(user, "streak_notifications", True):
                 continue
-            if user.preferred_session_time is not None:
-                preferred_hour = user.preferred_session_time.hour
-                current_hour = datetime.now(UTC).hour
-                if abs(current_hour - preferred_hour) > 2:
+            local = _local_now(user, moment)
+            if not _in_window(_minute_of(local), STREAK_REMINDER_MINUTE):
+                continue
+            today = local.date()
+            key = today.isoformat()
+            try:
+                if _already_sent(db, user, STREAK_REMINDER_EVENT, key):
                     continue
-
-            delivered = notification_service.send_notification(
-                user_id=user.id,
-                title="Votre série continue aujourd’hui",
-                message=f"Une courte édition suffit pour prolonger vos {user.current_streak} jours.",
-                data={"route": "/atelier"},
-            )
-            notification_count += delivered
-
-        logger.info(
-            "Streak reminders processed",
-            total_users=len(users),
-            notifications_sent=notification_count,
-        )
-
-        return {
-            "eligible_users": len(users),
-            "notifications_sent": notification_count,
-        }
-
+                state = settle_streak(db, user, today=today)
+                db.commit()
+                if state.days < 2 or _day_done(db, user, today, state.today_done):
+                    continue
+                eligible += 1
+                push = streak_at_risk_push(db, user, days=state.days)
+                count = NotificationService(db).send_notification(
+                    user.id, push.message, push.title,
+                    data=push.data("streak_reminder", key),
+                )
+                if count:
+                    delivered += count
+                    _record_sent(
+                        db, user, STREAK_REMINDER_EVENT, key,
+                        {"title": push.title, "message": push.message, "days": state.days, "deliveries": count},
+                    )
+            except Exception:
+                db.rollback()
+                logger.exception("Failed to send streak reminder", user_id=str(user.id))
+        logger.info("Streak reminders processed", eligible_users=eligible, notifications_sent=delivered)
+        return {"eligible_users": eligible, "notifications_sent": delivered}
     finally:
         db.close()
 
 
+def review_reminder_copy(total_due: int) -> tuple[str, str]:
+    """«vous», no emoji, an honest count."""
+
+    if total_due == 1:
+        return "Le Lexique", "Un mot vous attend pour une révision rapide."
+    return "Le Lexique", f"{total_due} mots vous attendent pour une révision rapide."
+
+
 @celery_app.task(name="app.tasks.notifications.send_daily_srs_reminders")
-def send_daily_srs_reminders() -> dict[str, int]:
-    """Send push notifications to users with due SRS items."""
+def send_daily_srs_reminders(now: str | None = None) -> dict[str, int]:
+    """WP-80: the Lexique review reminder, finally scheduled.
+
+    At the learner's local 18:00, once per local day, only when something is
+    due — and, for a journey learner, only once today's scene is done: the
+    review is the extra, never a second call to the day's main thing.
+    """
+    from app.services.daily_journey import journey_enabled_for
     from app.services.notification_service import NotificationService
+    from app.services.streak import read_streak
     from app.services.unified_srs import UnifiedSRSService
-    
+
+    moment = _utc_now(now)
     db = SessionLocal()
-    notification_service = NotificationService(db)
-    srs_service = UnifiedSRSService(db)
-    
+    total = delivered = 0
     try:
-        # Get all users with push subscriptions
-        users = db.scalars(
-            select(User).where(User.is_active.is_(True))
-        ).all()
-        
-        sent_count = 0
-        
-        for user in users:
+        for user in _push_users(db):
+            if not getattr(user, "practice_reminders", True):
+                continue
+            local = _local_now(user, moment)
+            if not _in_window(_minute_of(local), REVIEW_REMINDER_MINUTE):
+                continue
+            today = local.date()
+            key = today.isoformat()
+            total += 1
             try:
-                if not user.notifications_enabled or not getattr(user, "practice_reminders", True):
+                if _already_sent(db, user, REVIEW_REMINDER_EVENT, key):
                     continue
-                # Get due summary for user
-                summary = srs_service.get_due_summary(user.id)
-                total_due = summary.total_due
-                
-                if total_due == 0:
+                if journey_enabled_for(user) and not _day_done(
+                    db, user, today, read_streak(user, today=today).today_done
+                ):
                     continue
-                
-                # Build message
-                if total_due == 1:
-                    message = "Tu as 1 révision qui t'attend ! 📚"
-                elif total_due < 10:
-                    message = f"Tu as {total_due} révisions à faire aujourd'hui ! 📚"
-                else:
-                    message = f"Tu as {total_due} révisions ! C'est parti ! 💪"
-                
-                # Send notification
-                delivered = notification_service.send_notification(
+                total_due = int(UnifiedSRSService(db).get_due_summary(user.id).total_due or 0)
+                if total_due <= 0:
+                    continue
+                title, message = review_reminder_copy(total_due)
+                count = NotificationService(db).send_notification(
                     user_id=user.id,
                     message=message,
-                    title="Votre édition du jour",
-                    data={"route": "/atelier"},
+                    title=title,
+                    data={"route": "/vocabulary/review", "kind": "review_reminder", "notification_id": key},
                 )
-                sent_count += delivered
-                
-                logger.debug(
-                    "SRS reminder sent",
-                    user_id=str(user.id),
-                    due_items=total_due,
-                )
-            except Exception as e:
-                logger.warning(
-                    "Failed to send SRS reminder",
-                    user_id=str(user.id),
-                    error=str(e),
-                )
-        
-        logger.info(
-            "Daily SRS reminders sent",
-            total_users=len(users),
-            notifications_sent=sent_count,
-        )
-        
-        return {
-            "total_users": len(users),
-            "notifications_sent": sent_count,
-        }
-        
+                if count:
+                    delivered += count
+                    _record_sent(
+                        db, user, REVIEW_REMINDER_EVENT, key,
+                        {"title": title, "message": message, "due": total_due, "deliveries": count},
+                    )
+            except Exception as exc:
+                db.rollback()
+                logger.warning("Failed to send SRS reminder", user_id=str(user.id), error=str(exc))
+        logger.info("Daily SRS reminders processed", total_users=total, notifications_sent=delivered)
+        return {"total_users": total, "notifications_sent": delivered}
     finally:
         db.close()
 
