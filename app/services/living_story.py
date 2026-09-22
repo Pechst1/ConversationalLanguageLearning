@@ -529,9 +529,13 @@ back further than events does, and a fact in it is as true as a fact in events.
 consequences is what the learner's own choices left behind — a branch they made true,
 a character they hurt or delighted, a promise kept or a promise nobody ever kept —
 each with a weight and when it was last referred to; the heavier ones are what this
-life is actually about. callback is ONE suggested thing to bring back today: when it
-is set, prefer a scene that genuinely follows from it, and put the fact you used in
-callback_fr with its id in callback_ref. NEVER invent a past: if you cannot honestly
+life is actually about. callback is ONE thing out of this life's past to bring back
+today, dealt on a setup beat. When it is set, the new chapter MUST reach back to it: one
+concrete line of the premise follows from that fact (a person remembers it, an object
+from it returns, its consequence is today's problem). Put the fact in callback_fr and copy
+callback.id into callback_ref — a callback that carries the offered id is always
+accepted (paid B1 review 2026-09-21: two chapter openings ignored their callback). For
+ANY OTHER past you reach for, the rule is strict — NEVER invent a past: if you cannot honestly
 build on chronicle, consequences, events or commitments, write callback_fr as an empty
 string rather than a memory that did not happen. plants_due lists concrete details an
 earlier scene planted and nobody has paid off yet — paying one is the most satisfying

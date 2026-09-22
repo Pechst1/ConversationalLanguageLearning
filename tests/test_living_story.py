@@ -2622,3 +2622,13 @@ def test_an_objective_in_the_wrong_language_loses_the_draw():
     )
     assert engine._scene_score(english, context) > engine._scene_score(french, context)
     assert "control_language — the learner's OWN language" in engine.DIRECTOR
+
+
+def test_the_offered_callback_is_owed_and_always_safe():
+    """Paid B1 review 2026-09-21: both chapter openings left the offered callback unused."""
+
+    assert "the new chapter MUST reach back to it" in engine.DIRECTOR
+    assert "copy\ncallback.id into callback_ref" in engine.DIRECTOR
+    ledger = [("chronicle:1", "La bague de Marin — Marin parlera à Lila ce soir.")]
+    assert engine._callback_grounded("Tout autre chose.", "chronicle:1", ledger)
+    assert not engine._callback_grounded("Un souvenir inventé de Montréal.", "made-up", ledger)
