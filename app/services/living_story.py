@@ -827,7 +827,8 @@ def _scene_score(draft: SceneDraft, context: dict) -> float:
     if draft.beat == "setup" and recent and recent[-1].get("character_id") == draft.character_id:
         score -= 1.0
     # A third advice ask in a row loses to any draft that asks for another act.
-    if _advice_run(recent) >= ADVICE_RUN_LIMIT and speech_act(draft.objective_native) == "advice":
+    act, run = _act_run(recent)
+    if run >= ADVICE_RUN_LIMIT and speech_act(draft.objective_native) == act:
         score -= 1.5
     if draft.character_id in (variety.get("unused_characters") or []):
         score += 0.5
@@ -1186,7 +1187,8 @@ ADVICE_RUN_LIMIT = 2
 OTHER_ACTS = (
     "refuse politely, apologise, negotiate a condition, tell what happened, ask for "
     "information, invite, complain, thank, explain a plan, describe someone or something, "
-    "comfort without advising, admit something, make a request of your own"
+    "comfort without advising, admit something, make a request of your own — and not only "
+    "arrange a time"
 )
 
 
@@ -1207,19 +1209,60 @@ def objective_language(text: str | None) -> str | None:
     return best if ranked[0] >= 2 and ranked[0] > ranked[1] else None
 
 
-def speech_act(objective: str | None) -> str:
-    """``advice`` when the learner is asked to tell someone what they should do."""
+# Paid A2 review 2026-09-22: eleven of fourteen objectives negotiated a time slot
+# (radiator repair, Gus's lesson, Lila's viewing) once advice was discouraged.
+_SCHEDULING_ASK = re.compile(
+    r"\b(time|times|slot|available|availability|appointment|reschedul\w*|day \+ time"
+    r"|créneau\w*|rendez-vous|disponible|heure|horaire"
+    r"|termin\w*|uhrzeit|zeitpunkt|verfügbar)\b",
+    re.IGNORECASE,
+)
 
-    return "advice" if _ADVICE_ASK.search(str(objective or "")) else "other"
+
+def speech_act(objective: str | None) -> str:
+    """The kind of act an objective asks for: ``advice``, ``scheduling`` or ``other``."""
+
+    text = str(objective or "")
+    if _ADVICE_ASK.search(text):
+        return "advice"
+    if _SCHEDULING_ASK.search(text):
+        return "scheduling"
+    return "other"
+
+
+def _act_run(recent: list[dict]) -> tuple[str, int]:
+    """The act the latest objectives share, and how many in a row asked for it."""
+
+    acts = [speech_act(item.get("objective_native")) for item in recent]
+    if not acts or acts[-1] == "other":
+        return "other", 0
+    run = 0
+    for act in reversed(acts):
+        if act != acts[-1]:
+            break
+        run += 1
+    return acts[-1], run
 
 
 def _advice_run(recent: list[dict]) -> int:
-    run = 0
-    for item in reversed(recent):
-        if speech_act(item.get("objective_native")) != "advice":
-            break
-        run += 1
-    return run
+    act, run = _act_run(recent)
+    return run if act == "advice" else 0
+
+
+_ACT_LABELS = {
+    "advice": 'advise someone ("tell X whether they should…")',
+    "scheduling": "fix or move a time (a slot, an appointment, a day and an hour)",
+}
+
+
+def _act_rule(recent: list[dict]) -> str:
+    act, run = _act_run(recent)
+    if run >= ADVICE_RUN_LIMIT:
+        return (
+            f"The last {run} objectives all asked the learner to {_ACT_LABELS[act]}. This "
+            "scene must ask for a DIFFERENT act: " + OTHER_ACTS + "."
+        )
+    return "Rotate what the learner does, not only where and with whom: " + OTHER_ACTS + "."
 
 
 def _variety(recent: list[dict], cast: list[dict], locations: list[dict]) -> dict:
@@ -1264,12 +1307,7 @@ def _variety(recent: list[dict], cast: list[dict], locations: list[dict]) -> dic
         "previous_lead": (recent[-1].get("character_id") if recent else None),
         # What the learner has been asked to *do* lately, so the act rotates too.
         "recent_acts": [speech_act(item.get("objective_native")) for item in recent[-4:]],
-        "act_rule": (
-            "The last objectives all asked the learner to advise someone (\"tell X whether "
-            "they should…\"). This scene must ask for a DIFFERENT act: " + OTHER_ACTS + "."
-            if _advice_run(recent) >= ADVICE_RUN_LIMIT
-            else "Rotate what the learner does, not only where and with whom: " + OTHER_ACTS + "."
-        ),
+        "act_rule": _act_rule(recent),
         "must_change": must_change,
         "rule": (
             "Choose a different character or a different location from must_change."

@@ -2646,3 +2646,20 @@ def test_a_new_chapter_turns_to_someone_else():
     same = base.model_copy(update={"character_id": "romy_tremblay"})
     other = base.model_copy(update={"character_id": "lila_bonnet"})
     assert engine._scene_score(other, context) > engine._scene_score(same, context)
+
+
+def test_scheduling_is_an_act_that_rotates_too():
+    """Paid A2 review 2026-09-22: eleven of fourteen objectives negotiated a time slot."""
+
+    assert engine.speech_act("Offer two alternative times for the repair.") == "scheduling"
+    assert engine.speech_act("Propose un autre créneau à Gus.") == "scheduling"
+    assert engine.speech_act("Thank Lila for the portrait.") == "other"
+    slot = {"objective_native": "Confirm one of the proposed times.", "character_id": "romy_tremblay", "location_id": "le_mistral"}
+    cast = [{"id": "romy_tremblay"}, {"id": "lila_bonnet"}]
+    variety = engine._variety([slot, slot], cast, [{"id": "le_mistral"}])
+    assert "fix or move a time" in variety["act_rule"]
+    context = {**_scene_context(recent_situations=[slot, slot]), "variety": variety}
+    base = engine.SceneDraft.model_validate(draft(context, 0))
+    again = base.model_copy(update={"objective_native": "Offer two other times to Lila."})
+    fresh = base.model_copy(update={"objective_native": "Thank Lila for the portrait."})
+    assert engine._scene_score(fresh, context) > engine._scene_score(again, context)
