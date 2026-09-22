@@ -271,6 +271,7 @@ def main():
                     "scene": scene.model_dump(mode="json"),
                     "learner_text": text,
                     "reply_source": reply_source,
+                    "objective_language": engine.objective_language(scene.objective_native),
                     "turn": result.model_dump(mode="json"),
                 }
             )

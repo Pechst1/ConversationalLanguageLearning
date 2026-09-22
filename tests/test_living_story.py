@@ -2604,3 +2604,21 @@ def test_the_learners_act_rotates_not_only_the_setting():
     assert "DIFFERENT act" in pressed["act_rule"]
     assert "DIFFERENT act" not in engine._variety([advice, other], cast, places)["act_rule"]
     assert "variety.act_rule" in engine.DIRECTOR
+
+
+def test_an_objective_in_the_wrong_language_loses_the_draw():
+    """Paid B1 review 2026-09-21: objectives switched between French and English in one run."""
+
+    assert engine.objective_language("Tell Romy whether she should stay, and give one reason.") == "en"
+    assert engine.objective_language("Dis à Marin s'il doit demander Lila en mariage et donne une raison.") == "fr"
+    assert engine.objective_language("Sag Romy, ob sie bleiben soll, und gib einen Grund.") == "de"
+    assert engine.objective_language("Bonjour.") is None
+    context = {**_scene_context(), "control_language": "en"}
+    english = engine.SceneDraft.model_validate(
+        {**draft(context, 0), "objective_native": "Tell Romy whether she should stay, and give one reason."}
+    )
+    french = english.model_copy(
+        update={"objective_native": "Dis à Romy si elle doit rester et donne une raison."}
+    )
+    assert engine._scene_score(english, context) > engine._scene_score(french, context)
+    assert "control_language — the learner's OWN language" in engine.DIRECTOR

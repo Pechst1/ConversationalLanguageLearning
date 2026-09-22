@@ -415,7 +415,10 @@ Leave an unresolved thread grounded in what the learner has actually witnessed,
 without deciding their answer or claiming an outcome before they respond.
 All panel narration and premise text belong inside the fiction. Never narrate
 the teaching task (for example, 'It is time to express a simple need'). Put
-learning instructions only in objective_native and hint_native.
+learning instructions only in objective_native and hint_native, and write both in
+control_language — the learner's OWN language ("en" English, "de" German, "fr" French),
+never in French unless control_language is "fr": the learner reads the task before they
+can read the scene.
 The cast has desires, contradictions and a life between scenes. Be concrete, warm,
 sometimes funny or surprising; earn surprises through cause and effect. Invent a new
 present situation, never invent a past learner choice or retroactively change a fact.
@@ -809,6 +812,11 @@ def _scene_score(draft: SceneDraft, context: dict) -> float:
         default=0.0,
     )
     score = 2.0 * premise_novelty + objective_novelty
+    # An objective in the wrong language is a task the learner may not be able to read.
+    control = str(context.get("control_language") or "")
+    written = objective_language(draft.objective_native)
+    if control and written and written != control:
+        score -= 2.0
     # A third advice ask in a row loses to any draft that asks for another act.
     if _advice_run(recent) >= ADVICE_RUN_LIMIT and speech_act(draft.objective_native) == "advice":
         score -= 1.5
@@ -1171,6 +1179,23 @@ OTHER_ACTS = (
     "information, invite, complain, thank, explain a plan, describe someone or something, "
     "comfort without advising, admit something, make a request of your own"
 )
+
+
+_LANGUAGE_MARKERS = {
+    "en": {"the", "and", "you", "your", "tell", "whether", "should", "with", "what", "one", "give", "ask"},
+    "de": {"der", "die", "das", "und", "du", "dein", "sag", "ob", "soll", "mit", "einen", "eine", "gib"},
+    "fr": {"le", "la", "les", "et", "tu", "ton", "dis", "si", "doit", "avec", "une", "donne", "que"},
+}
+
+
+def objective_language(text: str | None) -> str | None:
+    """The control language an objective is written in, or ``None`` when unclear."""
+
+    words = re.findall(r"[a-zäöüßàâçéèêëîïôûùœ]+", str(text or "").casefold())
+    counts = {lang: sum(word in markers for word in words) for lang, markers in _LANGUAGE_MARKERS.items()}
+    best = max(counts, key=counts.get)
+    ranked = sorted(counts.values(), reverse=True)
+    return best if ranked[0] >= 2 and ranked[0] > ranked[1] else None
 
 
 def speech_act(objective: str | None) -> str:
