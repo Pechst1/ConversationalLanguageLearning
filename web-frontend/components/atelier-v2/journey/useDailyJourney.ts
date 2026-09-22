@@ -60,11 +60,11 @@ import {
   markJourneyResume,
 } from '@/lib/journey-resume';
 import type { PendingPlan, ReplayableKind } from '@/lib/journey-recovery';
+import { createReplySequencer, prefersReducedMotion } from '@/lib/journey-reply-reveal';
 
 import {
   answerIsBlank,
   currentStepOf,
-  feedbackFromAttempt,
   journeyAwaitsFinish,
   journeyProgress,
   phaseFromEnvelope,
@@ -79,6 +79,7 @@ import {
   planFailure,
   runMutation,
   runWithWaitHint,
+  stageAttemptFeedback,
   WAIT_HINT_DELAY_MS,
   WARM_WAIT_HINT_DELAY_MS,
   type MutationOutcome,
@@ -257,6 +258,12 @@ export function useDailyJourney(
   }, [envelope, journey]);
 
   const mountedRef = useRef(true);
+  /**
+   * WP-76: holds the verdict back while the character's reply types in. One
+   * per controller; a newer attempt, a continue or an unmount cancels it so a
+   * stale verdict can never land on a newer turn.
+   */
+  const revealRef = useRef(createReplySequencer());
   /** Has the capability read ever produced an answer? Silence is not a refusal. */
   const capabilityReadRef = useRef(false);
   /** Stable idempotency keys: one per logical intent, reused on every replay. */
@@ -296,8 +303,10 @@ export function useDailyJourney(
 
   useEffect(() => {
     mountedRef.current = true;
+    const reveal = revealRef.current;
     return () => {
       mountedRef.current = false;
+      reveal.cancel();
     };
   }, []);
 
@@ -613,6 +622,7 @@ export function useDailyJourney(
       const intent = `attempt:${journeyId}:${stepId}:${expectedRevision}:${JSON.stringify(input)}`;
       await once(intent, async () => {
         setBusy(true);
+        revealRef.current.cancel();
         setFeedback({ kind: 'submitting' });
         try {
           const result = await unwrap(intent, { kind: 'attempt', stepId, body: input }, (id) =>
@@ -624,8 +634,21 @@ export function useDailyJourney(
           );
           if (result.ok) {
             const attempt = result.value;
+            // Read before the snapshot moves on: the kind of the step answered.
+            const answered = attempt.journey.steps.find((item) => item.id === stepId);
             applySnapshot(attempt.journey);
-            if (mountedRef.current) setFeedback(feedbackFromAttempt(attempt));
+            if (mountedRef.current) {
+              // WP-76: a reply is read before it is judged.
+              stageAttemptFeedback(
+                attempt,
+                answered?.kind ?? null,
+                revealRef.current,
+                (next) => {
+                  if (mountedRef.current) setFeedback(next);
+                },
+                { reducedMotion: prefersReducedMotion() },
+              );
+            }
             return;
           }
           await handleFailure(result.detail, result.error, journeyId);
@@ -796,7 +819,8 @@ export function useDailyJourney(
    * active with no step and no recap.
    */
   const continueJourney = useCallback(async () => {
-    if (feedback.kind === 'graded' && feedback.result.next_turn) {
+    revealRef.current.cancel();
+    if ((feedback.kind === 'graded' || feedback.kind === 'replying') && feedback.result.next_turn) {
       setFeedback({ kind: 'idle' });
       setHelp(null);
       return;
@@ -849,7 +873,10 @@ export function useDailyJourney(
     });
   }, [applySnapshot, handleFailure, journey, once, unwrap]);
 
-  const clearFeedback = useCallback(() => setFeedback({ kind: 'idle' }), []);
+  const clearFeedback = useCallback(() => {
+    revealRef.current.cancel();
+    setFeedback({ kind: 'idle' });
+  }, []);
 
   // -----------------------------------------------------------------------
   // Derived

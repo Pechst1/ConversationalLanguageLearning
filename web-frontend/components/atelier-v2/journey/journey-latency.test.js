@@ -44,8 +44,59 @@ const {
   WARM_WAIT_HINT_DELAY_MS,
   isJourneyTimeout,
   planFailure,
+  runMutation,
   runWithWaitHint,
+  stageAttemptFeedback,
 } = require('./journey-requests');
+const {
+  REPLY_REVEAL_MAX_MS,
+  VERDICT_BEAT_MS,
+  createReplySequencer,
+  preparingLine,
+  replyRevealMs,
+  typedReply,
+  typingLine,
+  verdictDelayMs,
+} = require('../../../lib/journey-reply-reveal');
+const { journeyHeaderCaption, journeyProgress } = require('./journey-state');
+
+// ---------------------------------------------------------------------------
+// WP-76 fixtures — a three-step day, before and after the reply turn
+// ---------------------------------------------------------------------------
+
+const REPLY = 'Samedi, parfait ! Je garde deux cafés au Mistral pour nous.';
+
+function day({ respondStatus = 'active', revision = 4 } = {}) {
+  return {
+    id: 'j-76',
+    status: 'active',
+    revision,
+    current_step_id: 's-respond',
+    estimated_active_seconds: 300,
+    steps: [
+      { id: 's-scene', kind: 'scene', status: 'completed', estimated_seconds: 75 },
+      { id: 's-respond', kind: 'respond', status: respondStatus, estimated_seconds: 180 },
+      { id: 's-resolution', kind: 'resolution', status: 'pending', estimated_seconds: 45 },
+    ],
+  };
+}
+
+function attemptResult(overrides = {}) {
+  return {
+    evidence_ref: 'ev-1',
+    task_outcome: 'met',
+    assistance_level: 'none',
+    correction: null,
+    character_reply_fr: REPLY,
+    reply_source: 'model',
+    next_turn: null,
+    pending: false,
+    journey: day({ respondStatus: 'completed', revision: 5 }),
+    ...overrides,
+  };
+}
+
+const stepOf = (position, total) => `Étape ${position} sur ${total}`;
 
 let passed = 0;
 const failures = [];
@@ -265,6 +316,184 @@ async function main() {
     assert.equal(await pending, 'late');
     assert.deepEqual(seen, [true, false]);
     assert.equal(clock.pending(), 0);
+  });
+
+
+  // -------------------------------------------------------------------------
+  // WP-76 — reply first, verdict second (slow fake provider)
+  // -------------------------------------------------------------------------
+
+  await test('WP-76: a 12 s reply turn shows the reply before the verdict', async () => {
+    const clock = fakeClock();
+    const sequencer = createReplySequencer({
+      setTimer: clock.setTimer,
+      clearTimer: clock.clearTimer,
+    });
+    const timeline = [];
+    let elapsed = 0;
+    const apply = (feedback) => timeline.push({ at: elapsed, feedback });
+
+    // The learner taps «Envoyer»: in flight, the character is typing.
+    apply({ kind: 'submitting' });
+    const inflight = runMutation({
+      mutationId: 'm-76',
+      invoke: () =>
+        new Promise((resolve) => {
+          clock.setTimer(() => resolve(attemptResult()), 12_600);
+        }),
+      sleep: (ms) => new Promise((resolve) => clock.setTimer(resolve, ms)),
+    });
+    await clock.advance(12_600);
+    elapsed = 12_600;
+    const outcome = await inflight;
+    assert.equal(outcome.ok, true);
+    stageAttemptFeedback(outcome.value, 'respond', sequencer, apply);
+
+    // The instant the result lands: the reply is on screen, the verdict is not.
+    const landed = timeline[timeline.length - 1];
+    assert.equal(landed.feedback.kind, 'replying');
+    assert.equal(landed.feedback.result.character_reply_fr, REPLY);
+    assert.ok(
+      typedReply(REPLY, 0, replyRevealMs(REPLY)).length > 0,
+      'the first words are visible the moment the result arrives',
+    );
+    assert.ok(!timeline.some((entry) => entry.feedback.kind === 'graded'));
+
+    // Halfway through the typing: still no verdict.
+    const delay = verdictDelayMs(REPLY);
+    await clock.advance(delay - 1);
+    elapsed += delay - 1;
+    assert.ok(!timeline.some((entry) => entry.feedback.kind === 'graded'));
+
+    // Then the verdict joins the reply — the same result, the same verdict.
+    await clock.advance(1);
+    elapsed += 1;
+    const verdict = timeline[timeline.length - 1];
+    assert.equal(verdict.feedback.kind, 'graded');
+    assert.equal(verdict.feedback.result, landed.feedback.result);
+    assert.equal(verdict.feedback.verdict, landed.feedback.verdict);
+    assert.deepEqual(
+      timeline.map((entry) => entry.feedback.kind),
+      ['submitting', 'replying', 'graded'],
+    );
+    assert.ok(delay <= REPLY_REVEAL_MAX_MS + VERDICT_BEAT_MS, 'a long reply never holds the verdict long');
+    assert.equal(clock.pending(), 0);
+  });
+
+  await test('WP-76: recall, unscored and reduced-motion results are never staged', async () => {
+    const seen = [];
+    const sequencer = createReplySequencer({ setTimer: () => 1, clearTimer: () => {} });
+    stageAttemptFeedback(attemptResult(), 'recall', sequencer, (f) => seen.push(f.kind));
+    stageAttemptFeedback(
+      attemptResult({ pending: true, task_outcome: 'unscored' }),
+      'respond',
+      sequencer,
+      (f) => seen.push(f.kind),
+    );
+    stageAttemptFeedback(attemptResult({ character_reply_fr: null }), 'respond', sequencer, (f) =>
+      seen.push(f.kind),
+    );
+    stageAttemptFeedback(attemptResult(), 'respond', sequencer, (f) => seen.push(f.kind), {
+      reducedMotion: true,
+    });
+    assert.deepEqual(seen, ['graded', 'unscored', 'graded', 'graded']);
+  });
+
+  await test('WP-76: a newer attempt cancels the stale verdict', async () => {
+    const clock = fakeClock();
+    const sequencer = createReplySequencer({ setTimer: clock.setTimer, clearTimer: clock.clearTimer });
+    const seen = [];
+    stageAttemptFeedback(attemptResult(), 'respond', sequencer, (f) => seen.push(f.kind));
+    sequencer.cancel(); // what `performAttempt` / `continueJourney` do first
+    await clock.advance(10_000);
+    assert.deepEqual(seen, ['replying']);
+    assert.equal(clock.pending(), 0);
+  });
+
+  await test('WP-76: a replayed mutation stages to the same final feedback', async () => {
+    const clock = fakeClock();
+    const sequencer = createReplySequencer({ setTimer: clock.setTimer, clearTimer: clock.clearTimer });
+    const sent = [];
+    let calls = 0;
+    const outcome = await runMutation({
+      mutationId: 'm-replay',
+      invoke: async (id) => {
+        sent.push(id);
+        calls += 1;
+        // The first answer is the server's 202 `processing` for the same key.
+        return calls === 1
+          ? { detail: { code: 'processing', retry_after_seconds: 0 } }
+          : attemptResult();
+      },
+      sleep: async () => undefined,
+    });
+    assert.deepEqual(sent, ['m-replay', 'm-replay'], 'the replay reuses the key');
+    const finals = [];
+    stageAttemptFeedback(outcome.value, 'respond', sequencer, (f) => finals.push(f));
+    await clock.advance(verdictDelayMs(REPLY));
+    stageAttemptFeedback(attemptResult(), 'respond', sequencer, (f) => finals.push(f));
+    await clock.advance(verdictDelayMs(REPLY));
+    const graded = finals.filter((f) => f.kind === 'graded');
+    assert.equal(graded.length, 2);
+    assert.deepEqual(graded[0].result, graded[1].result);
+    assert.equal(graded[0].verdict, graded[1].verdict);
+  });
+
+  await test('WP-76: typed reply reveals whole words and ends complete', () => {
+    const total = replyRevealMs(REPLY);
+    assert.ok(total > 0);
+    const early = typedReply(REPLY, 1, total);
+    assert.equal(early, 'Samedi,', 'the first whole word at once');
+    const mid = typedReply(REPLY, total / 2, total);
+    assert.ok(REPLY.startsWith(mid) && mid.length < REPLY.length);
+    assert.ok(mid === REPLY || REPLY[mid.length] === ' ', 'never half a word');
+    assert.equal(typedReply(REPLY, total, total), REPLY);
+    assert.equal(replyRevealMs(REPLY, { reducedMotion: true }), 0);
+  });
+
+  // -------------------------------------------------------------------------
+  // WP-76 — the header counts steps, never a clock
+  // -------------------------------------------------------------------------
+
+  await test('WP-76: the header does not move while a request is in flight or when it lands', () => {
+    const before = day();
+    const inFlight = day(); // the snapshot does not change while the POST is open
+    const after = attemptResult().journey; // respond completed, still on screen
+    const captions = [before, inFlight, after].map((journey) => journeyHeaderCaption(journey, stepOf));
+    assert.deepEqual(captions, ['Étape 2 sur 3', 'Étape 2 sur 3', 'Étape 2 sur 3']);
+    // The bug it replaces: the plan's remaining estimate dropped 225 s → 45 s
+    // the moment the server answered — the wait, charged to the learner.
+    assert.equal(journeyProgress(before).remainingSeconds, 225);
+    assert.equal(journeyProgress(after).remainingSeconds, 45);
+    assert.ok(!/min|restant|\ds\b/.test(captions.join(' ')), 'no clock in the header');
+    // Only the learner's own «Continuer» moves it.
+    const advanced = {
+      ...after,
+      current_step_id: 's-resolution',
+      steps: after.steps.map((step) =>
+        step.id === 's-resolution' ? { ...step, status: 'active' } : step,
+      ),
+    };
+    assert.equal(journeyHeaderCaption(advanced, stepOf), 'Étape 3 sur 3');
+    assert.equal(journeyHeaderCaption(null, stepOf), undefined);
+  });
+
+  // -------------------------------------------------------------------------
+  // WP-76 — the waits speak in the story, in the learner's language
+  // -------------------------------------------------------------------------
+
+  await test('WP-76: typing and preparing lines', () => {
+    assert.equal(typingLine('Marin', 'fr'), 'Marin écrit…');
+    assert.equal(typingLine('Marin', 'de'), 'Marin schreibt…');
+    assert.equal(typingLine('Marin', 'en'), 'Marin is typing…');
+    assert.equal(typingLine('', 'fr'), 'Réponse en cours…');
+    assert.equal(preparingLine('Le Mistral', 'Marin', 'fr'), 'Le Mistral s’anime…');
+    assert.equal(preparingLine('', 'Marin', 'fr'), 'Marin arrive…', 'the engine often ships no place');
+    assert.equal(preparingLine(null, null, 'de'), 'Deine Szene wird vorbereitet…');
+    assert.equal(preparingLine('Le Mistral', null, 'xx'), 'Le Mistral comes to life…');
+    for (const line of [typingLine('Marin', 'fr'), preparingLine('Le Mistral', null, 'fr')]) {
+      assert.ok(!/Envoi/.test(line));
+    }
   });
 
   if (failures.length) {

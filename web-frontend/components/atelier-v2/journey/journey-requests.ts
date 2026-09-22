@@ -15,10 +15,27 @@
  * unchanged because it reuses the same hook.
  */
 
+import {
+  stagesReplyFirst,
+  verdictDelayMs,
+  type ReplySequencer,
+  type RevealOptions,
+} from '@/lib/journey-reply-reveal';
 import { journeyErrorCode, journeyErrorDetail, mutationId } from '@/services/daily-journey';
-import type { JourneyErrorCode, JourneyErrorDetail } from '@/types/daily-journey';
+import type {
+  AttemptResult,
+  JourneyErrorCode,
+  JourneyErrorDetail,
+  StepKind,
+} from '@/types/daily-journey';
 
-import { detailOfPayload, isReconcileCode } from './journey-state';
+import {
+  detailOfPayload,
+  feedbackFromAttempt,
+  isReconcileCode,
+  replyingOf,
+  type JourneyFeedback,
+} from './journey-state';
 
 /** Bounded replay of one `processing` request before the learner is asked. */
 export const PROCESSING_MAX_RETRIES = 4;
@@ -330,4 +347,38 @@ export async function runWithWaitHint<T>(
     stop();
     onWait?.(false);
   }
+}
+
+// ---------------------------------------------------------------------------
+// WP-76 — reply first, verdict second
+// ---------------------------------------------------------------------------
+
+/**
+ * Turn a scored `AttemptResult` into what the learner sees, in order.
+ *
+ * A respond turn with a reply is staged: `replying` (the reply types in, the
+ * verdict is held) and then `graded` once the reply has been read in — the
+ * same result, the same verdict, nothing re-derived. Every other result goes
+ * straight to its feedback. Returns the cancel for the pending verdict, which
+ * a newer attempt or an unmount must call.
+ */
+export function stageAttemptFeedback(
+  result: AttemptResult,
+  stepKind: StepKind | null | undefined,
+  sequencer: ReplySequencer,
+  apply: (feedback: JourneyFeedback) => void,
+  options: RevealOptions = {},
+): () => void {
+  const graded = feedbackFromAttempt(result);
+  if (graded.kind !== 'graded' || !stagesReplyFirst(result, stepKind)) {
+    sequencer.cancel();
+    apply(graded);
+    return sequencer.cancel;
+  }
+  return sequencer.stage(
+    replyingOf(graded),
+    graded,
+    verdictDelayMs(result.character_reply_fr, options),
+    apply,
+  );
 }

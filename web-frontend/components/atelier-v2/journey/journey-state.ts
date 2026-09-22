@@ -106,6 +106,18 @@ export type JourneyFeedback =
       result: AttemptResult;
       replySource: ReplyProvenance;
     }
+  /**
+   * WP-76: the same graded result, staged. The character's reply is typing in
+   * on the respond step and the verdict card is held back until it has — words
+   * first, judgement second. Always followed by `graded` for the same result
+   * (`lib/journey-reply-reveal.ts`); inputs stay locked exactly as in `graded`.
+   */
+  | {
+      kind: 'replying';
+      verdict: Exclude<AttemptVerdict, 'unscored'>;
+      result: AttemptResult;
+      replySource: ReplyProvenance;
+    }
   /** `pending: true` — retryable grading, `task_outcome: 'unscored'`. */
   | { kind: 'unscored'; message: string; result: AttemptResult }
   /** A 409 that was refetched and reconciled. The learner lost nothing. */
@@ -324,6 +336,55 @@ export function feedbackFromAttempt(result: AttemptResult): JourneyFeedback {
     return { kind: 'unscored', message: 'still_grading', result };
   }
   return { kind: 'graded', verdict, result, replySource: replySourceOf(result) };
+}
+
+/** WP-76: the staged twin of a `graded` feedback (reply on screen, verdict held). */
+export function replyingOf(feedback: JourneyFeedback): JourneyFeedback {
+  return feedback.kind === 'graded' ? { ...feedback, kind: 'replying' } : feedback;
+}
+
+/** A turn that is answered — graded, or staged on its way to graded. */
+export function feedbackIsAnswered(feedback: JourneyFeedback): boolean {
+  return feedback.kind === 'graded' || feedback.kind === 'replying';
+}
+
+// ---------------------------------------------------------------------------
+// WP-76 — the header counts steps, never a clock
+// ---------------------------------------------------------------------------
+
+/**
+ * The 1-based position of the step actually on screen, or null when there is
+ * none. Counting finished steps instead advances the header the instant an
+ * answer is graded, while the graded step is still the one being read.
+ */
+export function stepPositionOnScreen(journey: JourneySnapshot | null): number | null {
+  if (!journey?.current_step_id) return null;
+  const index = journey.steps.findIndex((step) => step.id === journey.current_step_id);
+  return index < 0 ? null : index + 1;
+}
+
+/**
+ * «Étape 2 sur 3» and nothing else.
+ *
+ * The header used to append the plan's remaining estimate («3 min restant»).
+ * That number drops by a whole step's estimate the moment a turn is graded, so
+ * after a 12 s wait for the reply it read «45 s restant»: the server's wait,
+ * billed to the learner. A countdown also adds pressure while someone is
+ * composing French and helps no decision mid-scene. The estimate stays where it
+ * helps choose — on the Today card, before starting — and the header shows
+ * where the learner is, which nothing but the learner's own «Continuer» moves.
+ */
+export function journeyHeaderCaption(
+  journey: JourneySnapshot | null,
+  stepOf: (position: number, total: number) => string,
+): string | undefined {
+  if (!journey || journey.steps.length === 0) return undefined;
+  const total = journey.steps.length;
+  const done = journey.steps.filter(
+    (step) => step.status === 'completed' || step.status === 'skipped',
+  ).length;
+  const position = stepPositionOnScreen(journey) ?? Math.min(done + 1, total);
+  return stepOf(position, total);
 }
 
 // ---------------------------------------------------------------------------
