@@ -90,6 +90,44 @@ class Settings(BaseSettings):
     )
     LLM_REQUEST_TIMEOUT_SECONDS: float = Field(90.0, description="Timeout for LLM HTTP calls")
     LLM_MAX_RETRIES: int = Field(3, description="Retry attempts for failed LLM calls")
+    # ---- WP-70: resilience, rate limits, spend ceiling (begin) -------------
+    # LLM_MAX_RETRIES above is the total attempt count per call (first try
+    # included); only timeouts, connection errors, 429 and 5xx are retried, all
+    # inside the call's one request_timeout deadline.
+    LLM_CIRCUIT_BREAKER_THRESHOLD: int = Field(
+        5,
+        ge=1,
+        description="Consecutive failed provider calls (after retries) that open the circuit.",
+    )
+    LLM_CIRCUIT_BREAKER_OPEN_SECONDS: float = Field(
+        60.0,
+        ge=0,
+        description="How long an open provider circuit refuses calls before letting one through.",
+    )
+    RATE_LIMIT_ENABLED: bool = Field(True, description="Master switch for the WP-70 rate limits.")
+    RATE_LIMIT_AUTH_MAX_REQUESTS: int = Field(
+        10, ge=0, description="Per-IP requests to one auth door (login/register/reset) per window. 0 = off."
+    )
+    RATE_LIMIT_AUTH_WINDOW_SECONDS: int = Field(60, ge=1)
+    RATE_LIMIT_PAID_MAX_REQUESTS: int = Field(
+        60, ge=0, description="Per-learner requests to paid routes per window. 0 = off."
+    )
+    RATE_LIMIT_PAID_WINDOW_SECONDS: int = Field(60, ge=1)
+    RATE_LIMIT_TRUSTED_PROXY_HOPS: int = Field(
+        1,
+        ge=0,
+        description="Proxies we run in front of the API (Render = 1); the client IP is that many X-Forwarded-For entries from the right. 0 = trust only the socket peer.",
+    )
+    RATE_LIMIT_EXEMPT_PEERS: str = Field(
+        "testclient",
+        description="Comma-separated raw ASGI peers never limited (Starlette's TestClient reports 'testclient', which no socket can).",
+    )
+    USER_DAILY_SPEND_CAP_USD: float = Field(
+        0.50,
+        ge=0,
+        description="Per-learner spend per UTC day across the cost ledgers; paid routes answer 429 daily_budget_reached beyond it. 0 = off. A normal day costs ~US$0.05.",
+    )
+    # ---- WP-70 (end) -------------------------------------------------------
     FRENCH_NLP_MODEL: str = Field(
         "fr_core_news_sm",
         description="spaCy model used for French linguistic analysis",
@@ -326,6 +364,26 @@ class Settings(BaseSettings):
         True, description="Generate new daily situations and semantic responses from shared serial state."
     )
     ATELIER_STORY_MAX_ATTEMPTS: int = Field(2, ge=1, le=3)
+    # ---- WP-69: never lose a day (begin) -----------------------------------
+    ATELIER_JOURNEY_AUTHORED_FALLBACK_ENABLED: bool = Field(
+        True,
+        description=(
+            "When the story engine cannot write today's scene (both attempts rejected, "
+            "provider down, story conflict), serve an authored scene for the learner's "
+            "band instead of an 'unavailable' day. Recorded in "
+            "plan_selection.generation_fallback only; the learner is not told. Off "
+            "restores the pre-WP-69 honest dead end."
+        ),
+    )
+    SCHEMA_GUARD_ENABLED: bool = Field(
+        True,
+        description=(
+            "At startup compare the database's alembic revision with the migration head. "
+            "APP_ENV=production refuses to start when they differ; other environments "
+            "log loudly. /ready answers 503 while the database is behind."
+        ),
+    )
+    # ---- WP-69 (end) -------------------------------------------------------
 
     ATELIER_DAILY_JOURNEY_COHORT: str = Field(
         "",

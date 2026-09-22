@@ -366,11 +366,42 @@ def test_fourteen_days_causal_context_and_new_chapters(
     )
 
 
-def test_generation_failure_never_serves_authored_scene(
+def test_generation_failure_serves_an_authored_day(
     assembled_client, db_session, journey_enabled, clock, provider, monkeypatch
 ):
+    """WP-69: a story engine that exhausts its attempts no longer costs the day.
+
+    The learner gets an authored scene for their band, playable like any other
+    day. It is not a chapter: nothing is published into the living story, and
+    only the plan records that the stand-in was used — the learner is not told.
+    """
+    from app.db.models.daily_journey import DailyJourney
+
+    monkeypatch.setattr(settings, "ATELIER_JOURNEY_AUTHORED_FALLBACK_ENABLED", True)
     provider.reject = True
     # Exercises the scene-stage critic explicitly; the default is turns only.
+    monkeypatch.setattr(engine, "CRITIC_STAGES", frozenset({"SceneDraft", "SemanticTurn"}))
+    d = driver(assembled_client, db_session)
+    d.create(expect=(201,))
+    assert d.journey["status"] == "active"
+    assert d.journey["steps"]
+    assert d.journey["scenario"]["scenario_key"] in {"order_at_cafe", "arrange_meeting", "explain_delay"}
+    assert (
+        db_session.scalar(select(GraphicNovelScene).where(GraphicNovelScene.user_id == d.user_id))
+        is None
+    )
+    db_session.expire_all()
+    row = db_session.get(DailyJourney, UUID(d.journey["id"]))
+    assert row.plan_selection["generation_fallback"]["kind"] == "authored"
+    assert "fallback" not in json.dumps(d.journey)
+
+
+def test_generation_failure_without_the_fallback_is_an_honest_dead_end(
+    assembled_client, db_session, journey_enabled, clock, provider, monkeypatch
+):
+    """ATELIER_JOURNEY_AUTHORED_FALLBACK_ENABLED off keeps the pre-WP-69 rule."""
+    monkeypatch.setattr(settings, "ATELIER_JOURNEY_AUTHORED_FALLBACK_ENABLED", False)
+    provider.reject = True
     monkeypatch.setattr(engine, "CRITIC_STAGES", frozenset({"SceneDraft", "SemanticTurn"}))
     d = driver(assembled_client, db_session)
     d.create(expect=(200,))
@@ -1106,9 +1137,12 @@ def test_spend_on_a_scene_nobody_can_use_is_still_recorded(
 
     provider.cost_usd = 0.004
     provider.reject = True
+    # WP-69: the learner is served an authored day instead; the spend on the
+    # scene nobody could use is still on the ledger.
+    monkeypatch.setattr(settings, "ATELIER_JOURNEY_AUTHORED_FALLBACK_ENABLED", True)
     d = driver(assembled_client, db_session)
-    d.create(expect=(200,))
-    assert d.journey["status"] == "unavailable"
+    d.create(expect=(201,))
+    assert d.journey["status"] == "active"
     db_session.expire_all()
     rows = [
         row

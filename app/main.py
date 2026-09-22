@@ -29,7 +29,7 @@ tags_metadata: list[dict[str, str]] = [
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Validate production settings and report optional-service gaps at startup."""
 
     if settings.APP_ENV.strip().lower() == "production":
@@ -48,6 +48,15 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
             "serial episodes after the opener will enter delayed state until OPENAI_API_KEY and "
             "OPENAI_GRAPHIC_NOVEL_SCRIPT_MODEL are configured."
         )
+
+    # --- WP-69 schema guard (begin) ---------------------------------------
+    # Production refuses to start while the database is behind the migration
+    # head this image ships; other environments log it loudly.
+    if getattr(settings, "SCHEMA_GUARD_ENABLED", True):
+        from app.db.schema_guard import run_startup_guard
+
+        await run_startup_guard(app, app_env=settings.APP_ENV)
+    # --- WP-69 schema guard (end) -----------------------------------------
 
     yield
 
@@ -100,6 +109,16 @@ def create_app() -> FastAPI:
 
     app.include_router(api_router, prefix=settings.API_V1_STR)
 
+    # --- WP-72 legal pages (begin) ---------------------------------------
+    # Public /privacy and /terms on the API host (the App Store Connect privacy
+    # URL) and the sign-up consent record under /api/v1/legal/consent.
+    from app.api.legal import api_router as legal_api_router
+    from app.api.legal import public_router as legal_public_router
+
+    app.include_router(legal_public_router)
+    app.include_router(legal_api_router, prefix=settings.API_V1_STR)
+    # --- WP-72 legal pages (end) -----------------------------------------
+
     @app.get("/health", include_in_schema=False)
     async def health() -> dict[str, str]:
         return {"status": "ok"}
@@ -116,6 +135,18 @@ def create_app() -> FastAPI:
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="database unavailable",
             ) from exc
+        # --- WP-69 schema guard (begin) -----------------------------------
+        if getattr(settings, "SCHEMA_GUARD_ENABLED", True):
+            from app.db.schema_guard import check_schema
+
+            schema = check_schema(db)
+            if schema.is_behind:
+                logger.error("Readiness check failed: {}", schema.message())
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="database schema behind",
+                )
+        # --- WP-69 schema guard (end) -------------------------------------
         return {"status": "ready"}
 
     return app
