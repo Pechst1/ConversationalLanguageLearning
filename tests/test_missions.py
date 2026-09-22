@@ -483,7 +483,8 @@ def test_custom_mission_e2e_create_turn_complete_and_queue(client: TestClient, d
     assert recap["objective_results"]
     assert all("met" in item and "label" in item for item in recap["objective_results"])
     assert recap["vocabulary_credit"]["produced_correct"] >= 1
-    assert recap["saved_to_srs"]["saved_count"] >= 1
+    # WP-74: missions no longer invent catalogue rows from the learner's text.
+    assert recap["saved_to_srs"]["saved_count"] == 0
     assert recap["minted_collectibles"][0]["kind"] == "logo_token"
     assert recap["minted_collectibles"][0]["source_kind"] == "mission"
 
@@ -521,7 +522,8 @@ def test_mission_submit_and_turns_are_persisted(client: TestClient, db_session, 
     )
 
     assert submit.status_code == 200
-    assert submit.json()["correction"]["verdict"] in {"accepted", "partial", "needs_revision"}
+    # WP-74: no grader in tests -> a non-empty answer is "unassessed", never "accepted".
+    assert submit.json()["correction"]["verdict"] in {"unassessed", "partial", "needs_revision"}
     assert "the learner" not in str(submit.json()["correction"]).lower()
     assert turn.status_code == 200
     assert turn.json()["user_turn"]["role"] == "user"
@@ -915,8 +917,9 @@ def test_mission_completion_returns_recap(client: TestClient, db_session, monkey
     assert response.json()["mission"]["status"] == "completed"
     assert "completed_at" in response.json()["recap"]
     assert response.json()["recap"]["outcome"] in {"kept", "partial", "missed"}
-    assert response.json()["recap"]["measured"]["phrases_saved"] >= 1
-    assert response.json()["recap"]["saved_to_srs"]["saved_count"] >= 1
+    # WP-74: quick-reply scaffolds with a placeholder gloss are not vocabulary.
+    assert response.json()["recap"]["measured"]["phrases_saved"] == 0
+    assert response.json()["recap"]["saved_to_srs"]["saved_count"] == 0
     assert response.json()["recap"]["minted_collectibles"][0]["kind"] == "logo_token"
 
     again = client.post(

@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 import re
 import unicodedata
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime
 from typing import Any
 from uuid import UUID
 
@@ -34,6 +34,7 @@ from app.services.glosses import (
     gloss_from_map,
     gloss_payload,
     normalize_language,
+    resolve_gloss,
     word_gloss,
 )
 from app.services.learner_copy import learner_text
@@ -504,6 +505,64 @@ MISSION_CORRECTION_RESPONSE_FORMAT: dict[str, Any] = {
         },
     },
 }
+
+
+MISSION_LLM_COST_EVENT_TYPE = "mission_llm_cost"
+
+#: The English placeholders the pre-WP-74 phrase bank wrote as "glosses".
+MISSION_PLACEHOLDER_GLOSSES = frozenset(
+    {
+        "mission-ready phrase",
+        "reusable opening or reply fragment",
+        "polished mission dispatch",
+        "conversation reply from a mission",
+    }
+)
+
+
+def is_polluted_mission_word(word: Any) -> bool:
+    """A catalogue row the old mission phrase bank invented (placeholder gloss or tag)."""
+
+    tags = {str(tag) for tag in (getattr(word, "topic_tags", None) or [])}
+    gloss = str(getattr(word, "english_translation", "") or "").strip().lower()
+    return "mission_phrase" in tags or gloss in MISSION_PLACEHOLDER_GLOSSES
+
+
+def _record_mission_llm_cost(
+    db: Session,
+    *,
+    user_id: Any,
+    result: Any,
+    purpose: str,
+    mission_id: Any = None,
+) -> None:
+    """WP-74 — every paid mission call lands on the ``PilotEvent`` ledger.
+
+    ``spend_guard.spend_today_usd`` only sees what is written there; mission
+    scenario, correction, character and hook calls used to be invisible to it.
+    """
+
+    if user_id is None or result is None:
+        return
+    try:
+        from app.services.pilot_events import PilotEventService
+
+        PilotEventService(db).record(
+            MISSION_LLM_COST_EVENT_TYPE,
+            user_id=user_id,
+            entity_type="real_world_mission" if mission_id is not None else None,
+            entity_id=mission_id,
+            payload={
+                "purpose": purpose,
+                "provider": getattr(result, "provider", None),
+                "model": getattr(result, "model", None),
+                "prompt_tokens": int(getattr(result, "prompt_tokens", 0) or 0),
+                "completion_tokens": int(getattr(result, "completion_tokens", 0) or 0),
+            },
+            cost_usd=float(getattr(result, "cost", 0.0) or 0.0),
+        )
+    except Exception:  # pragma: no cover - a ledger row is never worth the reply
+        logger.warning("Mission cost row could not be written", purpose=purpose)
 
 
 def _safe_llm() -> LLMService | None:
@@ -1849,6 +1908,7 @@ class MissionGenerator:
                 reasoning_effort=settings.ATELIER_EXERCISE_LLM_REASONING_EFFORT,
                 disable_retries=True,
             )
+            _record_mission_llm_cost(self.db, user_id=getattr(user, "id", None), result=result, purpose="scenario")
             data = json.loads(result.content)
         except (LLMProviderError, json.JSONDecodeError, ValueError, TypeError, KeyError) as exc:
             logger.info("Mission scenario generation unavailable", error=str(exc))
@@ -2460,6 +2520,13 @@ class MissionCorrectionService:
                 reasoning_effort="minimal",
                 request_timeout=25.0,
             )
+            _record_mission_llm_cost(
+                self.db,
+                user_id=getattr(user, "id", None),
+                result=result,
+                purpose="correction",
+                mission_id=getattr(mission, "id", None),
+            )
             parsed = json.loads(result.content)
             parsed["_model"] = result.model
             parsed["_fallback_used"] = False
@@ -2480,13 +2547,16 @@ class MissionCorrectionService:
         stripped = text.strip()
         objectives = mission.objectives or []
         words = re.findall(r"\S+", stripped)
+        # WP-74 — no grader ran. A sent reply is not a met objective: the flags
+        # say "not assessed" (``assessed: False``) and claim nothing either way.
         objective_progress = [
             {
                 "id": obj.get("id"),
                 "label": obj.get("label"),
-                "met": bool(stripped) if obj.get("kind") == "communication" else False,
+                "met": False,
+                "assessed": False if stripped else True,
                 "note": (
-                    learner_text("mission.objective_submitted", language)
+                    learner_text("mission.objective_unassessed", language)
                     if stripped
                     else learner_text("mission.objective_no_answer", language)
                 ),
@@ -2533,12 +2603,15 @@ class MissionCorrectionService:
                     "external_id": "MISSION_TASK",
                 }
             )
-        score = 3 if len(words) >= 8 else (2 if stripped else 1)
-        verdict = "accepted" if stripped else "needs_revision"
+        # WP-74 — the grader was unavailable (or never asked, on the fast path):
+        # a non-empty answer is ``unassessed``, never ``accepted``. Only the
+        # deterministic rules below are real evidence, and they can only lower it.
+        score = None if stripped else 1
+        verdict = "unassessed" if stripped else "needs_revision"
         if deterministic_errata:
             max_severity = max(int(item.get("severity") or 1) for item in deterministic_errata)
             verdict = "needs_revision" if max_severity >= 2 else "partial"
-            score = min(score, 2 if max_severity >= 2 else 3)
+            score = 2 if max_severity >= 2 else 3
         return {
             "verdict": verdict,
             "score_0_4": score,
@@ -3045,24 +3118,41 @@ class MissionSRSService:
         self.db = db
 
     def seed_phrase_bank(self, *, user: User, mission: RealWorldMission) -> dict[str, Any]:
+        """Queue the corrected French a mission surfaced — honestly (WP-74).
+
+        ``VocabularyWord`` is a catalogue shared by every learner. This used to
+        write each learner's own (often uncorrected) sentence into it with a
+        placeholder English gloss («Polished mission dispatch») and mark it as
+        answered correctly without any review. Now:
+
+        * only French a grader actually produced — a repaired fragment or a
+          vocabulary link — is a candidate; quick-reply scaffolds and the
+          learner's unrepaired text are not;
+        * a candidate is queued only when the catalogue already holds it with a
+          real gloss in the learner's own language; missions never create rows;
+        * queuing is not a review: no correct/seen counts are credited.
+        """
+
         now = datetime.now(UTC)
-        phrases = self._phrase_bank(mission)
+        native = getattr(user, "native_language", None)
         saved: list[dict[str, Any]] = []
-        for phrase in phrases[:5]:
+        for phrase in self._phrase_bank(mission)[:5]:
             normalized = _normalize_phrase(phrase["phrase"])
-            if not normalized or len(normalized) < 4:
+            if not normalized or len(normalized) < 2:
                 continue
-            word = self._get_or_create_phrase(user=user, phrase=phrase, normalized=normalized)
+            word = self._catalogue_word(user=user, normalized=normalized)
+            if word is None:
+                continue
+            gloss, gloss_language = resolve_gloss(word, native)
+            if not gloss or gloss_language != normalize_language(native):
+                continue
             progress = ProgressService(self.db).get_or_create_progress(user_id=user.id, word_id=word.id)
-            progress.times_seen = (progress.times_seen or 0) + 1
-            progress.times_used_correctly = (progress.times_used_correctly or 0) + 1
-            progress.correct_count = (progress.correct_count or 0) + 1
-            progress.state = "learning"
-            progress.phase = "learn"
+            if progress.state in (None, "", "new"):
+                progress.state = "new"
+                progress.due_at = now
+                progress.next_review_date = now
+                progress.due_date = now.date()
             progress.scheduler = progress.scheduler or "fsrs"
-            progress.due_at = now + timedelta(hours=12)
-            progress.next_review_date = progress.due_at
-            progress.due_date = progress.due_at.date()
             progress.updated_at = now
             existing_types = list(progress.error_types or [])
             marker = f"mission_phrase:{mission.mission_type}"
@@ -3075,7 +3165,7 @@ class MissionSRSService:
                     "word_id": word.id,
                     "progress_id": str(progress.id),
                     "phrase": word.word,
-                    "translation": word.english_translation,
+                    "translation": gloss,
                     "due_at": progress.due_at.isoformat() if progress.due_at else None,
                     "source": "mission_phrase_bank",
                 }
@@ -3089,72 +3179,40 @@ class MissionSRSService:
             "queue_note": "Saved mission phrases are due in the unified SRS queue.",
         }
 
-    def _get_or_create_phrase(self, *, user: User, phrase: dict[str, Any], normalized: str) -> VocabularyWord:
+    def _catalogue_word(self, *, user: User, normalized: str) -> VocabularyWord | None:
         language = (user.target_language or "fr").strip() or "fr"
-        existing = (
+        rows = (
             self.db.query(VocabularyWord)
             .filter(VocabularyWord.language == language, VocabularyWord.normalized_word == normalized)
-            .first()
+            .limit(5)
+            .all()
         )
-        if existing:
-            return existing
-        word = VocabularyWord(
-            language=language,
-            word=phrase["phrase"],
-            normalized_word=normalized,
-            english_translation=phrase.get("translation") or "Mission-ready phrase",
-            definition=phrase.get("role") or "Reusable phrase from a real-world mission",
-            example_sentence=phrase.get("example") or phrase["phrase"],
-            usage_notes=phrase.get("note") or "Saved from Missions for spaced review.",
-            difficulty_level=2,
-            topic_tags=["mission_phrase", "real_world", str(phrase.get("mission_type") or "mission")],
-        )
-        self.db.add(word)
-        self.db.flush([word])
-        return word
+        return next((row for row in rows if not is_polluted_mission_word(row)), None)
 
     def _phrase_bank(self, mission: RealWorldMission) -> list[dict[str, Any]]:
-        messenger = (mission.prompt_payload or {}).get("messenger") or {}
-        phrases: list[dict[str, Any]] = []
-        for item in messenger.get("quick_replies") or []:
-            text = _compact_text(item, max_length=140)
-            if text:
-                phrases.append(
-                    {
-                        "phrase": text,
-                        "translation": "Reusable opening or reply fragment",
-                        "role": "quick reply scaffold",
-                        "note": "Use this as a flexible start, then add the real detail.",
-                        "mission_type": mission.mission_type,
-                    }
-                )
+        """Corrected French only: repaired fragments and vocabulary links a grader wrote."""
+
+        corrections: list[dict[str, Any]] = []
         for attempt in sorted(mission.attempts or [], key=lambda item: item.created_at):
-            correction = attempt.correction_payload or {}
-            text = _compact_text(correction.get("corrected_answer") or (attempt.answer_payload or {}).get("text"), max_length=180)
-            if text:
-                phrases.append(
-                    {
-                        "phrase": text,
-                        "translation": "Polished mission dispatch",
-                        "role": "ready-to-send phrase",
-                        "note": "Review this as a real message pattern.",
-                        "mission_type": mission.mission_type,
-                    }
-                )
+            corrections.append(attempt.correction_payload or {})
         for turn in sorted(mission.turns or [], key=lambda item: item.turn_index):
-            if turn.role != "user":
+            if turn.role == "user":
+                corrections.append(turn.correction_payload or {})
+        phrases: list[dict[str, Any]] = []
+        for correction in corrections:
+            if not isinstance(correction, dict) or correction.get("verdict") == "unassessed":
                 continue
-            text = _compact_text((turn.correction_payload or {}).get("corrected_answer") or turn.text, max_length=160)
-            if text:
-                phrases.append(
-                    {
-                        "phrase": text,
-                        "translation": "Conversation reply from a mission",
-                        "role": "spoken or chat reply",
-                        "note": "Practise this as a natural response under pressure.",
-                        "mission_type": mission.mission_type,
-                    }
-                )
+            for erratum in correction.get("errata") or []:
+                if not isinstance(erratum, dict) or erratum.get("task_error_type") == "task_compliance":
+                    continue
+                target = _compact_text(erratum.get("corrected_target"), max_length=140)
+                if target and _normalize_phrase(target) != _normalize_phrase(erratum.get("learner_text")):
+                    phrases.append({"phrase": target, "mission_type": mission.mission_type})
+            for link in correction.get("vocabulary_links") or []:
+                if isinstance(link, dict):
+                    target = _compact_text(link.get("target"), max_length=140)
+                    if target:
+                        phrases.append({"phrase": target, "mission_type": mission.mission_type})
         unique: list[dict[str, Any]] = []
         seen: set[str] = set()
         for phrase in phrases:
@@ -3189,6 +3247,8 @@ class MissionDebriefService:
                 "label": item.get("label") or item.get("id") or "Mission objective",
                 "required": bool(item.get("required")),
                 "met": bool(progress_by_id.get(str(item.get("id")), {}).get("met")),
+                # WP-74 — False when no grader ever looked at this objective.
+                "assessed": progress_by_id.get(str(item.get("id")), {}).get("assessed") is not False,
                 "note": progress_by_id.get(str(item.get("id")), {}).get("note"),
             }
             for item in objectives
@@ -3225,6 +3285,13 @@ class MissionDebriefService:
             "words_written": self._word_total(attempts, turns),
         }
         label = self._outcome_label(outcome=courrier_outcome, errata_count=errata_count, turns=len(turns))
+        # WP-74 — the grader never looked: say so instead of «partly settled».
+        unassessed = bool(scored_objectives) and all(
+            progress_by_id.get(str(item.get("id")), {}).get("assessed") is False for item in scored_objectives
+        )
+        if unassessed:
+            label = "Pas encore corrigée : le correcteur n’était pas disponible."
+        measured["assessed"] = not unassessed
         return {
             "debrief_version": "mission-debrief-v2",
             "outcome": courrier_outcome,
@@ -3273,7 +3340,12 @@ class MissionDebriefService:
                     continue
                 key = str(item["id"])
                 current = merged.get(key)
-                if current is None or (item.get("met") and not current.get("met")):
+                if (
+                    current is None
+                    or (item.get("met") and not current.get("met"))
+                    # WP-74 — a graded "not met" outranks an ungraded reply.
+                    or (current.get("assessed") is False and item.get("assessed") is not False)
+                ):
                     merged[key] = item
         return merged
 
@@ -4546,6 +4618,7 @@ class MissionConversationService:
                 model=settings.OPENAI_MISSION_FAST_MODEL,
                 request_timeout=settings.MISSION_CHAT_TIMEOUT_SECONDS,
             )
+            _record_mission_llm_cost(self.db, user_id=getattr(user, "id", None), result=result, purpose="character_reply", mission_id=getattr(mission, "id", None))
             return result.content
         except LLMProviderError as exc:
             logger.debug("Mission conversation fallback", error=str(exc))
@@ -4558,6 +4631,7 @@ class MissionConversationService:
         opener: str,
         scene_context: str,
         user_text: str,
+        user_id: Any = None,
     ) -> str:
         """Run an Atelier final turn through the same in-character world engine.
 
@@ -4602,6 +4676,7 @@ class MissionConversationService:
                 model=settings.OPENAI_MISSION_FAST_MODEL,
                 request_timeout=settings.MISSION_CHAT_TIMEOUT_SECONDS,
             )
+            _record_mission_llm_cost(self.db, user_id=user_id, result=result, purpose="atelier_character_reply")
             return _compact_text(result.content, max_length=600)
         except LLMProviderError as exc:
             logger.debug("Atelier serial conversation fallback", error=str(exc))
@@ -4765,6 +4840,13 @@ class MissionConversationService:
                     max_tokens=260,
                     model=settings.OPENAI_MISSION_FAST_MODEL,
                     request_timeout=settings.MISSION_CHAT_TIMEOUT_SECONDS,
+                )
+                _record_mission_llm_cost(
+                    self.db,
+                    user_id=getattr(mission, "user_id", None),
+                    result=result,
+                    purpose="story_hook",
+                    mission_id=getattr(mission, "id", None),
                 )
                 parsed = json.loads(result.content)
                 if isinstance(parsed, dict) and parsed.get("text") and parsed.get("unresolved_question"):

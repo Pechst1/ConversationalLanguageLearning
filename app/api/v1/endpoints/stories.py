@@ -484,7 +484,7 @@ async def get_scene_visualization(
             detail="Scene not found",
         )
     
-    viz_service = StoryVisualizationService(db)
+    viz_service = StoryVisualizationService(db, user_id=current_user.id)
     
     result = await viz_service.generate_scene_image(
         scene,
@@ -522,7 +522,7 @@ async def get_chapter_cover(
             detail="Chapter not found",
         )
     
-    viz_service = StoryVisualizationService(db)
+    viz_service = StoryVisualizationService(db, user_id=current_user.id)
     
     result = await viz_service.generate_chapter_cover(
         chapter,

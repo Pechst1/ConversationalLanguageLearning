@@ -967,6 +967,7 @@ export function CourrierStyles() {
       .av2 .cr-turn--mine { align-items: flex-end; }
       .av2 .cr-turn .av2-bubble { white-space: pre-wrap; }
       .av2 .cr-turn-time { font-size: var(--av2-t-meta); color: var(--av2-muted); font-variant-numeric: tabular-nums; padding: 0 6px; }
+      .av2 .cr-unassessed { margin: 4px 0 0 auto; max-width: 80%; text-align: right; font-size: var(--av2-t-meta); color: var(--av2-muted); }
       .av2 .cr-typing {
         display: inline-flex; align-items: center; gap: 8px;
         font-size: var(--av2-t-meta); font-weight: 600; color: var(--av2-blue);

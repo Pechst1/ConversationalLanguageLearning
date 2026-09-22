@@ -401,6 +401,12 @@ def outcome_from_objectives(
     scored = [item for item in objectives if item.get("required")] or objectives
     if not scored:
         return "partial"
+    # WP-74 — the grader was down: nothing was measured, so the letter moves the
+    # relationship neither way ("partial" carries no mood or trust shift).
+    if all(
+        progress_by_id.get(str(item.get("id")), {}).get("assessed") is False for item in scored
+    ):
+        return "partial"
     met = sum(1 for item in scored if progress_by_id.get(str(item.get("id")), {}).get("met"))
     if met >= len(scored):
         return "kept"

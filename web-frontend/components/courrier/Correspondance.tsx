@@ -72,6 +72,8 @@ export type CrMeasured = {
   phrases_saved?: number;
   replies?: number;
   words_written?: number;
+  /** WP-74 — false when no grader assessed the letter. */
+  assessed?: boolean;
 };
 
 /* ---------- the French for an outcome ----------
@@ -175,7 +177,8 @@ export function crMeasuredRows(measured?: CrMeasured | null): { label: string; v
     const met = Number(measured.objectives_met || 0);
     rows.push({
       label: 'Objectifs tenus',
-      value: `${met} sur ${total}`,
+      // WP-74: no grader ran — «0 sur 2» would be a verdict nobody gave.
+      value: measured.assessed === false ? 'pas encore corrigés' : `${met} sur ${total}`,
     });
   }
   const repairs = Number(measured.repairs || 0);

@@ -1458,6 +1458,7 @@ def submit_attempt(
                 opener=str(serial_context.get("opener") or conversation_item.get("prompt") or ""),
                 scene_context=str(serial_context.get("scene_context") or ""),
                 user_text=learner_text,
+                user_id=current_user.id,
             )
             attempt.correction_payload = {
                 **(attempt.correction_payload or {}),

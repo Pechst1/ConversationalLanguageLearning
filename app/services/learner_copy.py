@@ -693,6 +693,11 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "de": "Abgeschickt",
         "fr": "Envoyé",
     },
+    "mission.objective_unassessed": {
+        "en": "Not corrected yet",
+        "de": "Noch nicht korrigiert",
+        "fr": "Pas encore corrigé",
+    },
     "mission.objective_no_answer": {
         "en": "No answer yet",
         "de": "Noch keine Antwort",

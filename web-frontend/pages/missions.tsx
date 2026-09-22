@@ -1087,6 +1087,13 @@ export default function MissionsPage() {
                       >
                         {turn.text}
                       </CrSlip>
+                      {/* WP-74: the corrector was unavailable. Not a pass, not a
+                          fault — say plainly that nobody has corrected it yet. */}
+                      {isUser && correction?.verdict === 'unassessed' && lines.length === 0 && !correctedAnswer && (
+                        <p className="cr-unassessed" role="status" lang="fr">
+                          Pas encore corrigé — le correcteur n’était pas disponible.
+                        </p>
+                      )}
                       {isUser && (lines.length > 0 || correctedAnswer) && (
                         <CrRepair
                           correctedAnswer={correctedAnswer}
@@ -1175,7 +1182,9 @@ export default function MissionsPage() {
                           <ShapeToken kind={objective.met ? 'done' : 'action'} size="sm" />
                           <span>
                             {String(objective.label || 'Objectif de mission')}
-                            <span className="av2-sr">{objective.met ? ' · atteint' : ' · à revoir'}</span>
+                            <span className="av2-sr">
+                              {objective.met ? ' · atteint' : objective.assessed === false ? ' · pas encore corrigé' : ' · à revoir'}
+                            </span>
                           </span>
                         </div>
                       ))}

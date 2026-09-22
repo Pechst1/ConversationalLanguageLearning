@@ -5,7 +5,6 @@ import uuid
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api import deps
@@ -19,7 +18,8 @@ from app.schemas import (
     UserSettingsUpdate,
     UserUpdate,
 )
-from app.services.auth import AuthService
+from app.services.auth import AuthService, normalize_email
+from app.services.gdpr_export import export_learner_records
 from app.services.users import UserNotFoundError, UserService
 from app.utils.cache import build_cache_key, cache_backend
 
@@ -123,8 +123,12 @@ def change_current_user_email(
 
     if not verify_password(payload.current_password, current_user.hashed_password):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Current password is incorrect.")
-    new_email = str(payload.new_email).lower()
-    existing = db.scalar(select(User).where(User.email == new_email, User.id != current_user.id))
+    # WP-71/74: one normal form, and a duplicate is a duplicate whatever its case.
+    new_email = normalize_email(str(payload.new_email))
+    existing = next(
+        (user for user in AuthService(db).users_with_email(new_email) if user.id != current_user.id),
+        None,
+    )
     if existing:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="A user with this email already exists.")
     current_user.email = new_email
@@ -304,6 +308,10 @@ def export_user_data(
             }
             for unlocked, definition in achievements
         ],
+        # WP-74 — everything else the learner wrote or the app recorded about
+        # them: journal, missions and the Courrier, intake artefacts, rehearsals,
+        # the living story, placement, daily journeys… (bounded, secrets omitted).
+        "learner_records": export_learner_records(db, user_id=current_user.id),
     }
 
 

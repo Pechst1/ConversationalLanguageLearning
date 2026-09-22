@@ -19,6 +19,18 @@ from app.services.progress import ProgressService
 from app.utils.cache import cache_backend
 
 
+def acquired_word_count(db: Session, *, user: User, now: datetime | None = None) -> int:
+    """The one honest «mots acquis»: words this learner's FSRS rows say are nailed.
+
+    Same definition the Dossier prints as «acquis par vos révisions»
+    (``lexical_coverage.nailed_lemmas`` → ``KnownWordSet.nailed_count``).
+    """
+
+    from app.services.lexical_coverage import nailed_lemmas
+
+    return len(nailed_lemmas(db, user=user, now=now))
+
+
 def _duration_expr() -> Any:
     """Return a SQLAlchemy expression for session minutes."""
 
@@ -94,7 +106,10 @@ class AnalyticsService:
             .all()
         )
         state_totals = {state: int(count or 0) for state, count in state_counts}
-        words_mastered = state_totals.get("mastered", 0)
+        # WP-74 — «Mots acquis» used to count state == "mastered", which the
+        # scheduler never writes: it was 0 for everyone while the Dossier showed a
+        # real number. Both surfaces now read the same function.
+        words_mastered = acquired_word_count(self.db, user=user)
         words_learning = sum(
             count
             for state, count in state_totals.items()
