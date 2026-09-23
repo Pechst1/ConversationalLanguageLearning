@@ -156,7 +156,210 @@ def simulate_learner(
     )
 
 
+# ---------------------------------------------------------------------------
+# WP-L7/L8 — a learner walking one sub-band
+# ---------------------------------------------------------------------------
+
+#: WP-L7's word rule: retrievability ≥ 0.85 on a card seen at least twice.
+_WORD_KNOWN_R = 0.85
+_R_FACTOR = 0.9 ** (1 / -0.5) - 1
+
+
+def _retrievability(stability: float, elapsed_days: float) -> float:
+    if stability <= 0:
+        return 0.0
+    return (1 + _R_FACTOR * max(0.0, elapsed_days) / stability) ** -0.5
+
+
+@dataclass
+class BandDay:
+    """The learner's state at the end of one simulated day."""
+
+    day: int
+    units_introduced: int
+    units_held: int
+    words_introduced: int
+    words_known: int
+    #: Items introduced 7–60 days ago, and how many of them stuck.
+    retention_sample: int
+    retention_kept: int
+    units_sample: int = 0
+    units_kept: int = 0
+    #: Cumulative graded observations and how many were right (reviews and introductions).
+    observations: int = 0
+    correct: int = 0
+    #: Days since introduction of every unit introduced but not yet held.
+    pending_elapsed: tuple[int, ...] = ()
+
+
+@dataclass
+class BandSimulation:
+    accuracy: float
+    units_per_week: float
+    words_per_day: float
+    units_total: int
+    words_total: int
+    units_required: int
+    words_required: int
+    days: list[BandDay]
+    #: First day both coverage criteria are met (``None`` if never, in the horizon).
+    coverage_day: int | None
+
+
+def simulate_band_coverage(
+    *,
+    accuracy: float,
+    units_per_week: float,
+    words_per_day: float,
+    units_total: int,
+    words_total: int,
+    units_share: float = 0.85,
+    words_share: float = 0.80,
+    held_stability: float = 21.0,
+    horizon_days: int = 400,
+    seed: int = 20260924,
+) -> BandSimulation:
+    """One learner, one sub-band: intake at a rhythm, every due item reviewed.
+
+    * **units** are introduced as §2.4 introduces them (guided Essai + Emploi in
+      the reply) and reviewed on their due day in a format that grows with
+      stability; held = stability ≥ ``held_stability`` and the last review not a
+      lapse (WP-L7's fallback rule until WP-L4), and once held a unit stays
+      counted in the band's coverage (a lapse brings it back, it does not
+      uncover the band);
+    * **words** are self-rated cards (right → Good, wrong → Again), introduced
+      then reviewed on their due day; known = seen twice, last answer right and
+      retrievability ≥ 0.85 that evening;
+    * intake stops once every unit / word of the band has been introduced.
+    """
+
+    import math
+
+    rng = random.Random(f"band:{seed}:{accuracy}:{units_per_week}:{words_per_day}")  # noqa: S311
+    units_required = math.ceil(units_total * units_share)
+    words_required = math.ceil(words_total * words_share)
+
+    @dataclass
+    class _Item:
+        introduced: int
+        state: MemoryState = field(default_factory=MemoryState)
+        due: int = 0
+        last: int = 0
+        last_correct: bool = False
+        lapsed: bool = False
+        ever_held: bool = False
+
+    tally = {"observations": 0, "correct": 0}
+
+    def observe(item: _Item, day: int, evidence: Evidence, correct: bool) -> None:
+        tally["observations"] += 1
+        tally["correct"] += 1 if correct else 0
+        decision = review(item.state, evidence, now=SIMULATION_START + dt.timedelta(days=day))
+        if decision is None:  # pragma: no cover - a graded observation always schedules
+            raise RuntimeError("a graded observation must schedule")
+        item.state = MemoryState(
+            stability=decision.stability,
+            difficulty=decision.difficulty,
+            reps=decision.reps,
+            lapses=decision.lapses,
+        )
+        item.due = day + decision.interval_days
+        item.last = day
+        item.last_correct = correct
+        item.lapsed = decision.is_lapse
+
+    units: list[_Item] = []
+    words: list[_Item] = []
+    history: list[BandDay] = []
+    coverage_day: int | None = None
+    for day in range(horizon_days):
+        for item in units:
+            if item.due <= day:
+                correct = rng.random() < accuracy
+                observe(item, day, Evidence(rappel_format(item.state.stability), correct=correct), correct)
+        for item in words:
+            if item.due <= day:
+                correct = rng.random() < accuracy
+                observe(item, day, Evidence.rated(Rating.GOOD if correct else Rating.AGAIN), correct)
+        # Intake by exact quota (``floor((day + 1) · rate)``), not a float
+        # accumulator: 7 × (1/7) must make one unit, not 0.999….
+        unit_quota = math.floor((day + 1) * units_per_week / 7.0 + 1e-9)
+        while len(units) < min(unit_quota, units_total):
+            item = _Item(introduced=day)
+            for fmt in (EvidenceFormat.GUIDED, EvidenceFormat.PRODUCE):
+                correct = rng.random() < accuracy
+                observe(item, day, Evidence(fmt, correct=correct), correct)
+            units.append(item)
+        word_quota = math.floor((day + 1) * words_per_day + 1e-9)
+        while len(words) < min(word_quota, words_total):
+            item = _Item(introduced=day)
+            correct = rng.random() < accuracy
+            observe(item, day, Evidence.rated(Rating.GOOD if correct else Rating.AGAIN), correct)
+            words.append(item)
+
+        for item in units:
+            if item.state.stability >= held_stability and not item.lapsed:
+                item.ever_held = True
+        # Coverage counts a unit once held: a later lapse makes it fragile and it
+        # comes back in the reviews, but the band's coverage does not fall.
+        held = sum(1 for item in units if item.ever_held)
+        known = sum(
+            1
+            for item in words
+            if item.state.reps >= 2
+            and item.last_correct
+            and _retrievability(item.state.stability, day - item.last) >= _WORD_KNOWN_R
+        )
+        sample = kept = 0
+        units_sample = units_kept = 0
+        for item in units:
+            if 7 <= day - item.introduced <= 60:
+                units_sample += 1
+                units_kept += 0 if item.lapsed else 1
+        for item in words:
+            if 7 <= day - item.introduced <= 60:
+                sample += 1
+                kept += 1 if (
+                    item.state.reps >= 2
+                    and item.last_correct
+                    and _retrievability(item.state.stability, day - item.last) >= _WORD_KNOWN_R
+                ) else 0
+        history.append(
+            BandDay(
+                day=day,
+                units_introduced=len(units),
+                units_held=held,
+                words_introduced=len(words),
+                words_known=known,
+                retention_sample=sample,
+                retention_kept=kept,
+                units_sample=units_sample,
+                units_kept=units_kept,
+                observations=tally["observations"],
+                correct=tally["correct"],
+                pending_elapsed=tuple(day - item.introduced for item in units if not item.ever_held),
+            )
+        )
+        if coverage_day is None and held >= units_required and known >= words_required:
+            coverage_day = day
+            break
+    return BandSimulation(
+        accuracy=accuracy,
+        units_per_week=units_per_week,
+        words_per_day=words_per_day,
+        units_total=units_total,
+        words_total=words_total,
+        units_required=units_required,
+        words_required=words_required,
+        days=history,
+        coverage_day=coverage_day,
+    )
+
+
 __all__ = [
+    "BandDay",
+    "BandSimulation",
+    "simulate_band_coverage",
     "MAX_INTERVAL_DAYS",
     "SimulatedItem",
     "SimulationResult",
