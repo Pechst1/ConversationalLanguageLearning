@@ -2613,3 +2613,54 @@
   .av2 .av2-match__card { transition: none; }
 }
 /* end WP-78 */
+
+/* WP-86 — «Qui a dit ça ?»: three faces in a row, the name under each. */
+.av2 .av2-who-said {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
+  gap: 10px;
+  min-width: 0;
+}
+
+.av2 .av2-who-said__card {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 8px;
+  border: 2px solid var(--av2-line-2);
+  border-radius: 16px;
+  background: var(--av2-card);
+  color: var(--av2-ink);
+  box-shadow: 0 3px 0 var(--av2-line-2);
+  cursor: pointer;
+}
+
+.av2 .av2-who-said__card:disabled {
+  cursor: default;
+}
+
+.av2 .av2-who-said__card[data-state='selected'] {
+  border-color: var(--av2-blue);
+}
+
+.av2 .av2-who-said__card[data-state='correct'] {
+  border-color: var(--av2-green-deep);
+  background: var(--av2-green);
+  color: var(--av2-on-green);
+}
+
+.av2 .av2-who-said__card[data-state='wrong'] {
+  border-color: var(--av2-red-deep);
+  background: var(--av2-red);
+  color: var(--av2-on-red);
+}
+
+.av2 .av2-who-said__name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}

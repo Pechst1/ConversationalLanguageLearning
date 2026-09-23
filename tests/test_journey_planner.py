@@ -817,6 +817,9 @@ def test_the_planner_imports_no_ladder_and_no_scheduler() -> None:
         # may name it in an annotation and must not import it at runtime — the
         # next assertion is what actually holds that line.
         "app.services.journey_errata",
+        # WP-86: the scene's lexicon and floor builders — pure functions over the
+        # brief's own draft, no Session and no model call.
+        "app.services.scene_items",
         # WP-66. Two additions, both of which keep the planner pure:
         # `journey_day_shapes` is seeded dice and value objects with no I/O at
         # all, and `pragmatics` is the deterministic register detector that

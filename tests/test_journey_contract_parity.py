@@ -574,7 +574,9 @@ def test_every_recall_format_the_planner_can_pose_validates_on_the_wire(
         }
     )
     sentences = ["Je voudrais un café au comptoir."]
-    assert set(targets) == set(RECALL_FORMATS), "a format with no parity coverage"
+    # WP-86: «Qui a dit ça ?» is posed from a scene line and the cast, never
+    # from a target alone — it is covered below, from `scene_items`.
+    assert set(targets) | {"who_said"} == set(RECALL_FORMATS), "a format with no parity coverage"
 
     posed = 0
     for task_type, (target, affordances) in targets.items():
@@ -604,6 +606,33 @@ def test_every_recall_format_the_planner_can_pose_validates_on_the_wire(
         for marker in PROMPT_LEAK_MARKERS:
             assert marker not in serialized, f"{task_type} leaks {marker}"
         posed += 1
+    from app.services.scene_items import SceneLine, build_who_said_task
+
+    who = build_who_said_task(
+        target=quick,
+        line=SceneLine("romy_tremblay", "Vous prenez un café ?", "panel:1:line:0"),
+        names={"romy_tremblay": "Romy", "lila_bonnet": "Lila", "marin_leveque": "Marin"},
+        optional=True,
+        control_language=brief.control_language,
+    )
+    assert who is not None and who.task_type == "who_said"
+    prompt = RecallPrompt.model_validate(
+        {
+            "task_type": who.task_type,
+            "instruction_native": who.instruction_native,
+            "prompt_fr": who.prompt_fr,
+            "options": [dict(option) for option in who.options],
+            "target": public_recall_target(who.target),
+            "optional": who.optional,
+            "help_available": [],
+        }
+    )
+    dumped = prompt.model_dump(mode="json")
+    assert {option["character_id"] for option in dumped["options"]} >= {"romy_tremblay"}
+    serialized = json.dumps(dumped, ensure_ascii=False)
+    for marker in PROMPT_LEAK_MARKERS:
+        assert marker not in serialized, f"who_said leaks {marker}"
+    posed += 1
     assert posed == len(RECALL_FORMATS)
 
 

@@ -102,7 +102,13 @@ export type DayShape =
  * (`'native'` = the learner's language) for matching and listen-and-tap;
  * absent on every older format, whose cards are all French.
  */
-export type RecallOption = { id: string; text_fr: string; side?: 'fr' | 'native' | null };
+export type RecallOption = {
+  id: string;
+  text_fr: string;
+  side?: 'fr' | 'native' | null;
+  /** WP-86: «Qui a dit ça ?» — the cast member this card names (their face). */
+  character_id?: string | null;
+};
 
 /**
  * WP-66. Six ways to pose one recall opportunity.
@@ -125,7 +131,9 @@ export type RecallFormat =
   /** WP-78: a French phrase heard (or read, with no audio) → tap its meaning. */
   | 'listen_tap'
   /** WP-78: rebuild a sentence from the scene (sent as tiles). */
-  | 'unscramble';
+  | 'unscramble'
+  /** WP-86: «Qui a dit ça ?» — a line of the scene, tap the face (sent as a pick). */
+  | 'who_said';
 
 export type RecallPrompt = {
   task_type: RecallFormat;

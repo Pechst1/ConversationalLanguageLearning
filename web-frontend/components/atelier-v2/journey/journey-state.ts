@@ -476,6 +476,8 @@ export function recallAnswerMode(
   format: RecallFormat | string,
 ): 'choice' | 'tiles' | 'text' {
   if (format === 'choice' || format === 'classify' || format === 'listen_tap') return 'choice';
+  // WP-86: «Qui a dit ça ?» is a pick among faces.
+  if (format === 'who_said') return 'choice';
   // WP-78: an unscramble is tiles; a matching item sends the pairs it made,
   // in order, as consecutive `[fr, native]` tile ids.
   if (format === 'tiles' || format === 'word_bank' || format === 'unscramble') return 'tiles';

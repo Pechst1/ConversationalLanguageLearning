@@ -353,6 +353,12 @@ def main():
                 }
             )
             context["story_so_far"].append(result.callback_fr)
+            # WP-86: what this scene taught, as the next director is reminded of it.
+            taught = [entry.lemma for entry in scene.lexicon]
+            context["lexicon_history"] = list(
+                dict.fromkeys([*taught, *(context.get("lexicon_history") or [])])
+            )[:15]
+            context.setdefault("kept_words", [])
             context["recent_situations"].append(
                 {
                     "novelty_key": scene.novelty_key,
@@ -548,6 +554,19 @@ def main():
             context["escalated_problems"] = sorted(live.get("escalated_problems") or {})
             print(
                 f"Synthetic scene {day + 1}: accepted; {calls}/{args.max_requests} requests used.",
+                flush=True,
+            )
+            print(
+                "  lexicon: "
+                + (
+                    "; ".join(
+                        f"{entry.surface_fr} ({entry.lemma}{', ' + entry.gender if entry.gender else ''})"
+                        f" = {entry.gloss_native} @ {entry.line_ref}"
+                        + (f" fit {entry.band_fit}" if entry.band_fit is not None else "")
+                        for entry in scene.lexicon
+                    )
+                    or "none kept"
+                ),
                 flush=True,
             )
         report["status"] = "sample_ready_for_human_review"

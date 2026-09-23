@@ -94,6 +94,7 @@ import {
 } from './voice-answer';
 import { useVoiceAnswer } from './useVoiceAnswer';
 import { MatchPairs } from './MatchPairs';
+import { WhoSaid } from './WhoSaid';
 import { listenTapHasAudio, optionLang } from './practice-formats';
 import { CharacterTyping, StoryWriting, TypedReply, respondSpeaker } from './ReplyStage';
 
@@ -508,6 +509,23 @@ export function RecallStepView({
           prompt={step.prompt}
           disabled={locked}
           onComplete={completeMatch}
+        />
+      )}
+
+      {/* WP-86: «Qui a dit ça ?» — the line is the headline, the faces the cards. */}
+      {step.prompt.task_type === 'who_said' && (
+        <WhoSaid
+          options={step.prompt.options}
+          states={options}
+          selectedId={choice}
+          label={step.prompt.instruction_native}
+          disabled={locked}
+          onSelect={setChoice}
+          statusLabels={{
+            selected: wide.status_selected,
+            correct: wide.status_correct,
+            wrong: wide.status_wrong,
+          }}
         />
       )}
 

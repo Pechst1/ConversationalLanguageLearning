@@ -24,7 +24,7 @@ export type LocalVerdict = 'correct' | 'wrong';
 export const ANSWER_KEY_VERSION = 1;
 export const TILE_JOINER = '\u001f';
 
-const PICK_FORMATS: ReadonlySet<string> = new Set(['choice', 'classify', 'listen_tap']);
+const PICK_FORMATS: ReadonlySet<string> = new Set(['choice', 'classify', 'listen_tap', 'who_said']);
 const ORDER_FORMATS: ReadonlySet<string> = new Set(['tiles', 'word_bank', 'unscramble']);
 /**
  * WP-78. A matching item's key holds one digest per pair (the French card's id

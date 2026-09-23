@@ -152,6 +152,9 @@ class RecallFormat(StrEnum):
     LISTEN_TAP = "listen_tap"
     #: WP-78. Rebuild a sentence the learner has just read in the scene.
     UNSCRAMBLE = "unscramble"
+    #: WP-86. «Qui a dit ça ?» — a line of today's scene and the cast's faces;
+    #: tap who said it. A pick graded by option id, posed only after the scene.
+    WHO_SAID = "who_said"
 
 
 #: Wire-order tuple. Extending it is additive; reordering it is not, because
@@ -165,6 +168,7 @@ QUICK_RECALL_FORMATS: tuple[str, ...] = (
     str(RecallFormat.MATCH_PAIRS),
     str(RecallFormat.LISTEN_TAP),
     str(RecallFormat.UNSCRAMBLE),
+    str(RecallFormat.WHO_SAID),
 )
 #: The three the daily loop had before WP-66. A plan persisted at plan contract
 #: version 1 can only contain these.
@@ -420,6 +424,7 @@ class RecallTask:
         "match_pairs",
         "listen_tap",
         "unscramble",
+        "who_said",
     ]
     instruction_native: str
     prompt_fr: str | None
@@ -729,7 +734,7 @@ class PlannedJourney:
             task_type = str(getattr(step.private_task, "task_type", "") or "")
             if rule.allowed_formats and task_type and task_type not in rule.allowed_formats:
                 raise ValueError(f"a {shape} day cannot pose a {task_type} recall")
-            if task_type == str(RecallFormat.UNSCRAMBLE) and index < scene_at:
+            if task_type in (str(RecallFormat.UNSCRAMBLE), str(RecallFormat.WHO_SAID)) and index < scene_at:
                 # The sentence is the scene's: it cannot be rebuilt before it is read.
                 raise ValueError("an unscramble cannot come before the scene")
         total = sum(step.estimated_seconds for step in self.steps)

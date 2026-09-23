@@ -115,6 +115,45 @@ HORIZON_WORDS: tuple[tuple[str, str], ...] = (
 )
 
 
+#: WP-86. What a compliant director teaches: one word out of each premise, and
+#: three of the four words the fixture's panels always print. Glossed in the
+#: harness learner's language (English); nouns carry their gender.
+PREMISE_WORDS: dict[str, tuple[str, str, str, str | None]] = {
+    "exposition": ("exposition", "exhibition", "noun", "f"),
+    "four": ("four", "oven", "noun", "m"),
+    "vélo": ("vélo", "bike", "noun", "m"),
+    "colis": ("colis", "parcel", "noun", "m"),
+    "affiche": ("affiche", "poster", "noun", "f"),
+    "cave": ("cave", "cellar", "noun", "f"),
+    "chat": ("chat", "cat", "noun", "m"),
+    "poubelles": ("poubelle", "bin", "noun", "f"),
+    "chien": ("chien", "dog", "noun", "m"),
+}
+PANEL_WORDS: tuple[dict[str, Any], ...] = (
+    {"surface_fr": "pluie", "lemma": "pluie", "gloss_native": "rain", "part_of_speech": "noun", "gender": "f", "line_ref": "panel:0:narration"},
+    {"surface_fr": "vitre", "lemma": "vitre", "gloss_native": "window pane", "part_of_speech": "noun", "gender": "f", "line_ref": "panel:0:narration"},
+    {"surface_fr": "idée", "lemma": "idée", "gloss_native": "idea", "part_of_speech": "noun", "gender": "f", "line_ref": "panel:1:line:0"},
+    {"surface_fr": "aider", "lemma": "aider", "gloss_native": "to help", "part_of_speech": "verb", "gender": None, "line_ref": "opening"},
+)
+
+
+def _with_lexicon(schema: str, value: dict[str, Any]) -> dict[str, Any]:
+    """The fake director's draft, plus the lexicon a compliant one writes."""
+
+    if schema != "SceneDraft":
+        return value
+    premise = str(value.get("premise_fr") or "")
+    lexicon: list[dict[str, Any]] = [
+        {"surface_fr": surface, "lemma": lemma, "gloss_native": gloss,
+         "part_of_speech": pos, "gender": gender, "line_ref": "premise"}
+        for surface, (lemma, gloss, pos, gender) in PREMISE_WORDS.items()
+        if surface in premise.split() or surface + "." in premise.split()
+    ][:1]
+    turn = len(premise) % len(PANEL_WORDS)
+    lexicon += [PANEL_WORDS[(turn + index) % len(PANEL_WORDS)] for index in range(3)]
+    return {**value, "lexicon": lexicon}
+
+
 # ---------------------------------------------------------------------------
 # One clock for six packages
 # ---------------------------------------------------------------------------
@@ -541,6 +580,8 @@ def horizon_run(
     provider = story.ScriptedProvider()
     provider.long_memory = True
     provider.season_engine = True
+    # WP-86: the fake director also teaches words, as the DIRECTOR prompt asks.
+    provider.transform = _with_lexicon
 
     dice: list[tuple[Any, Any]] = []
     real_choice = daily_journey_service.choose_day_shape
@@ -1112,6 +1153,19 @@ def test_the_prompt_does_not_grow_with_the_horizon(horizon: Horizon) -> None:
         )
 
 
+def test_the_median_day_holds_six_graded_interactions(horizon: Horizon) -> None:
+    """WP-86: the scene teaches words and the floor builds from its lines, so a
+    median day is six things answered (five quick items and the reply) — every
+    one of them inside the stated minutes, which the practice day's own
+    `PlannedJourney.validate()` refuses to break."""
+
+    for life in horizon.lives:
+        graded = sorted(len(row.recall_formats) + 1 for row in life.played)
+        assert graded[len(graded) // 2] >= 6, (life.label, Counter(graded))
+        # The scene-derived floor is actually dealt, not merely possible.
+        assert "who_said" in life.formats(), life.label
+
+
 def test_the_run_is_written_down(horizon: Horizon, capsys) -> None:
     """The numbers this run actually produced, printed for the evidence note."""
 
@@ -1121,6 +1175,13 @@ def test_the_run_is_written_down(horizon: Horizon, capsys) -> None:
             print("  day shapes      :", dict(Counter(life.shapes())))
             print("  shape reasons   :", dict(Counter(row.shape_reason for row in life.played)))
             print("  recall formats  :", dict(Counter(life.formats())))
+            graded = sorted(len(row.recall_formats) + 1 for row in life.played)
+            print(
+                "  graded per day  :",
+                "median",
+                graded[len(graded) // 2] if graded else None,
+                dict(Counter(graded)),
+            )
             print("  chapter shapes  :", dict(Counter(row.get("shape") for row in life.chapters)))
             print(
                 "  season phases   :",

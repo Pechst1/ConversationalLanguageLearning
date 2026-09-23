@@ -132,6 +132,9 @@ class RecallOption(JourneyModel):
     #: listen-and-tap item's cards are meanings. ``None`` on every older format,
     #: whose cards are all French.
     side: Literal["fr", "native"] | None = None
+    #: WP-86. «Qui a dit ça ?»: the cast member this card names, so the device
+    #: draws their face. ``None`` (and omitted) on every other format.
+    character_id: str | None = None
 
     @model_serializer(mode="wrap")
     def _omit_absent_side(self, handler: Any) -> Any:
@@ -139,6 +142,8 @@ class RecallOption(JourneyModel):
         data = handler(self)
         if isinstance(data, dict) and data.get("side") is None:
             data.pop("side", None)
+        if isinstance(data, dict) and data.get("character_id") is None:
+            data.pop("character_id", None)
         return data
 
 
@@ -176,6 +181,8 @@ class RecallPrompt(JourneyModel):
         "match_pairs",
         "listen_tap",
         "unscramble",
+        # WP-86: «Qui a dit ça ?», answered with `ChoiceAttemptInput`.
+        "who_said",
     ]
     instruction_native: str
     prompt_fr: str | None = None

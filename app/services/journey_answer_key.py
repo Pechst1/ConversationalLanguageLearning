@@ -38,7 +38,7 @@ from app.services.journey_contracts import normalize_answer_text
 ANSWER_KEY_VERSION = 1
 
 #: Formats graded by option id (a single pick) or by tile-id order.
-PICK_FORMATS = frozenset({"choice", "classify", "listen_tap"})
+PICK_FORMATS = frozenset({"choice", "classify", "listen_tap", "who_said"})
 ORDER_FORMATS = frozenset({"tiles", "word_bank", "unscramble"})
 #: WP-78. A matching item carries one digest *per pair* (material: the French
 #: card's id and the meaning card's id, joined like tiles), so the device can
