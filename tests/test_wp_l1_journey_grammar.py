@@ -317,10 +317,9 @@ def test_a_mastered_concept_past_its_interval_is_in_the_due_pool(db_session):
 def test_a_grammar_title_never_becomes_a_recall_question():
     """«Which French phrase means "Definite articles"?» is a fake question (WP-L1)."""
 
-    from tests.test_journey_planner import _brief
-
     from app.services.journey_contracts import TargetKind, TargetRef
     from app.services.journey_planner import build_recall_task, build_word_bank_task
+    from tests.test_journey_planner import _brief
 
     target = TargetRef(
         kind=TargetKind.GRAMMAR,

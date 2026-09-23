@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, date, datetime
+from zoneinfo import ZoneInfo
 
 from fastapi.testclient import TestClient
 from sqlalchemy import select
@@ -189,7 +190,10 @@ def test_client_error_becomes_a_client_crash_in_the_pilot_ledger(
     assert response.status_code == 204
 
     user = db_session.scalar(select(User).where(User.email == "crash@example.com"))
-    report = PilotEventService(db_session).daily_rollup(date.today(), user_id=str(user.id))
+    # The rollup's day is a Europe/Berlin day (`pilot_events._day_bounds`), not
+    # the host's local date: they differ on a UTC CI runner late in the evening.
+    pilot_today = datetime.now(ZoneInfo("Europe/Berlin")).date()
+    report = PilotEventService(db_session).daily_rollup(pilot_today, user_id=str(user.id))
     rows = [row for row in report["users"] if row["user_id"] == str(user.id)]
     assert rows, report
     assert rows[0]["events"]["client_crash"] == 1

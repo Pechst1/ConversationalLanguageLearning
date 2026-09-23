@@ -531,4 +531,5 @@ def test_the_three_new_node_suites_are_in_package_json_and_in_ci() -> None:
     workflow = _read(ROOT / ".github" / "workflows" / "ci.yml")
     for script in ("test:rehearsal", "test:dossier", "test:courrier-intake"):
         assert script in package, f"{script} missing from package.json"
-        assert f"npm run {script}" in workflow, f"{script} is not run in CI"
+        # CI runs every *.test.js through `npm test` (WP-85; see test_wp85_ci.py).
+        assert "npm test" in workflow, "the node suites are not run in CI"

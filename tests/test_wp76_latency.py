@@ -19,6 +19,7 @@ from __future__ import annotations
 import time
 import uuid
 from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import pytest
 from sqlalchemy import select
@@ -326,7 +327,9 @@ def test_rollup_and_digest_report_reply_ready_against_the_verdict(
     from tests.test_journey_latency import make_user
 
     user = make_user(db_session, f"wp76-digest-{uuid.uuid4()}@example.com")
-    today = datetime.now(UTC).date()
+    # The pilot ledger's day is a Europe/Berlin day (`pilot_events._day_bounds`);
+    # the UTC date is yesterday's between 00:00 and 02:00 Berlin time.
+    today = datetime.now(ZoneInfo("Europe/Berlin")).date()
     for ready, total in ((11.0, 12.6), (13.0, 13.4), (15.5, 17.0)):
         record_latency(
             db_session,

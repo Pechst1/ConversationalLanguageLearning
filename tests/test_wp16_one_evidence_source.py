@@ -14,7 +14,7 @@ untouched by this package; the policy lives in the WP-05 adapters.
 """
 from __future__ import annotations
 
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from app.db.models.grammar import GrammarConcept, UserGrammarProgress
@@ -40,6 +40,7 @@ from app.services.journey_learning import (
     journey_credited_today,
     record_daily_practice_streak,
 )
+from app.services.streak import local_today
 from app.services.vocabulary_credit import VocabularyCreditService
 
 # --------------------------------------------------------------------------
@@ -324,7 +325,9 @@ def test_yesterdays_journey_credit_does_not_fold_todays_practice(db_session):
         .one()
     )
     payload = dict(moment.prompt_payload or {})
-    payload["observed_on"] = (date.today() - timedelta(days=1)).isoformat()
+    # `journey_credited_today` compares against the UTC date, not the host's
+    # local one (a day ahead just after local midnight).
+    payload["observed_on"] = (datetime.now(UTC).date() - timedelta(days=1)).isoformat()
     moment.prompt_payload = payload
     db_session.add(moment)
     db_session.flush()
@@ -351,12 +354,15 @@ def test_yesterdays_journey_credit_does_not_fold_todays_practice(db_session):
 def test_journey_then_drill_loop_moves_the_streak_once(db_session):
     user = _user(db_session)
     user.grammar_streak_days = 4
-    user.grammar_last_review_date = date.today() - timedelta(days=1)
+    # The streak's day is the learner's local day (`streak.local_today`), which
+    # need not be the host's `date.today()` — CI runs in UTC.
+    today = local_today(user)
+    user.grammar_last_review_date = today - timedelta(days=1)
     db_session.flush()
 
     # The journey finishing marks the day.
     assert record_daily_practice_streak(db_session, user) == 5
-    assert user.grammar_last_review_date == date.today()
+    assert user.grammar_last_review_date == today
 
     # «Plus de pratique» afterwards is the same day: the legacy rule
     # (`AtelierService._update_streak`) short-circuits on the same marker, and
@@ -370,7 +376,7 @@ def test_a_broken_streak_restarts_at_one(db_session):
     user = _user(db_session)
     user.grammar_streak_days = 9
     user.grammar_longest_streak = 9
-    user.grammar_last_review_date = date.today() - timedelta(days=3)
+    user.grammar_last_review_date = local_today(user) - timedelta(days=3)
     db_session.flush()
 
     assert record_daily_practice_streak(db_session, user) == 1

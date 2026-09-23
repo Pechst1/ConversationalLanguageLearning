@@ -124,7 +124,8 @@ def test_atelier_is_the_daily_session_and_review_handoff_center() -> None:
     assert "void router.push(`/missions${action.query}`);" in atelier
     assert "void router.push(`/graphic-novel${action.query}`);" in atelier
     assert "session_id: result.session_id" in atelier
-    assert "printed-hook" in atelier
+    # (A `printed-hook` pin lived here: by WP-85 it matched only a CSS rule
+    # whose class no markup rendered, and the rule went with the dead styles.)
 
     # The deck's aria labels and end-of-deck copy are French now; "Vocabulary
     # review" / "Queue claire" were the last English strings on the surface.

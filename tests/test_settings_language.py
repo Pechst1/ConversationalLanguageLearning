@@ -45,7 +45,7 @@ def test_the_copy_table_exists_and_covers_three_languages() -> None:
     # The behavioural contract — identical keys, no blanks, English fallback —
     # is pinned by lib/settings-copy.test.js, which is wired into CI.
     assert '"test:settings-copy": "node --test lib/settings-copy.test.js"' in _source("package.json")
-    assert "npm run test:settings-copy" in (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    assert "npm test" in (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
 
 
 def test_the_three_tables_hold_the_same_keys() -> None:

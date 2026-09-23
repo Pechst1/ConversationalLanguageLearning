@@ -47,7 +47,7 @@ def _completed_days(db: Session, user, count: int, first: date) -> None:
     db.commit()
 
 
-def test_every_listed_achievement_is_reachable(db_session: Session, enabled: None) -> None:
+def test_every_listed_achievement_is_reachable(db_session: Session, enabled: None) -> None:  # noqa: F811 - pytest fixture
     user = make_user(db_session, "wp79-reach@example.com")
     service = AchievementService(db_session)
     assert _unlock(db_session, user) == set(), "a new learner has earned nothing"
