@@ -15,7 +15,7 @@ from __future__ import annotations
 import json
 import uuid
 from collections.abc import Generator, Iterator
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -402,4 +402,6 @@ def test_the_entries_list_is_the_learners_own_writing(journal_client, db_session
     rows = journal_client.get("/api/v1/journal/entries", headers=headers).json()
     assert len(rows) == 1
     assert rows[0]["entry_text"] == "J’ai rapporté le livre à Romy mardi."
-    assert rows[0]["scene_date"] == (date.today() - timedelta(days=1)).isoformat()
+    # `_seed_scene` dates the journey from the UTC day; compare against the same
+    # day, not the host's local `date.today()` (a day ahead after local midnight).
+    assert rows[0]["scene_date"] == (datetime.now(UTC).date() - timedelta(days=1)).isoformat()

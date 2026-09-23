@@ -146,11 +146,15 @@ def test_telemetry_never_costs_a_learner_their_transcript(db_session):
 
 def test_the_digest_says_the_money_is_an_estimate(db_session):
     import sys
-    from datetime import UTC, date, datetime
+    from datetime import UTC, datetime
 
     sys.path.insert(0, str(REPO / "scripts"))
     from pilot_digest import format_transcription_line
 
+    # The digest buckets by the stored UTC date: one timestamp for the rows and
+    # the queried day, never the host's local `date.today()` (a day ahead of UTC
+    # just after local midnight).
+    stamp = datetime.now(UTC)
     user_id = uuid4()
     record_transcription_cost(
         db_session,
@@ -163,10 +167,10 @@ def test_the_digest_says_the_money_is_an_estimate(db_session):
         .filter(PilotEvent.event_type == TRANSCRIPTION_EVENT_TYPE)
         .all()
     ):
-        row.occurred_at = datetime.now(UTC)
+        row.occurred_at = stamp
     db_session.flush()
 
-    line = format_transcription_line(db_session, date.today(), str(user_id))
+    line = format_transcription_line(db_session, stamp.date(), str(user_id))
     assert line.startswith("Transcriptions: 1 calls")
     assert "estimated from upload size" in line
     assert "journey_respond 1" in line

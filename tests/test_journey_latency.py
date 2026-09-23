@@ -16,6 +16,7 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import pytest
 from sqlalchemy import select
@@ -53,6 +54,13 @@ from app.services.journey_latency import (
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
+
+# The pilot ledger's day is a Europe/Berlin calendar day (`pilot_events._day_bounds`).
+# Asking for the host's local date (or the UTC date) instead made these tests fail
+# between 00:00 and 02:00 Berlin time — or, on a UTC CI runner, 22:00-24:00 UTC.
+def _pilot_today():
+    return datetime.now(ZoneInfo("Europe/Berlin")).date()
 
 
 def make_user(db: Session, email: str) -> User:
@@ -469,7 +477,7 @@ def test_rollup_reports_percentiles_and_the_prefetch_hit_rate(
         _seed(db_session, user, PHASE_RESPOND, 2.0 + index * 0.1)
         _seed(db_session, user, PHASE_RECAP, 0.2)
 
-    today = datetime.now(UTC).astimezone().date()
+    today = _pilot_today()
     rollup = latency_rollup(db_session, today, user_id=user.id)
     draft = rollup["phases"][PHASE_DRAFT]
     assert draft["samples"] == 10
@@ -495,7 +503,7 @@ def test_the_gate_fails_a_slow_draft(db_session: Session) -> None:
         _seed(db_session, user, PHASE_RESPOND, 3.0)
         _seed(db_session, user, PHASE_RECAP, 0.2)
     rollup = latency_rollup(
-        db_session, datetime.now(UTC).astimezone().date(), user_id=user.id
+        db_session, _pilot_today(), user_id=user.id
     )
     verdict = evaluate_gate(rollup)
     assert verdict["status"] == "fail"
@@ -508,7 +516,7 @@ def test_the_gate_refuses_to_pass_on_thin_data(db_session: Session) -> None:
     user = make_user(db_session, "gate-thin@example.com")
     _seed(db_session, user, PHASE_DRAFT, 0.2, prefetch_hit=True)
     rollup = latency_rollup(
-        db_session, datetime.now(UTC).astimezone().date(), user_id=user.id
+        db_session, _pilot_today(), user_id=user.id
     )
     verdict = evaluate_gate(rollup)
     assert verdict["status"] == "insufficient_data"
@@ -520,7 +528,7 @@ def test_the_gate_refuses_to_pass_on_thin_data(db_session: Session) -> None:
 def test_the_digest_line_survives_an_empty_day(db_session: Session) -> None:
     user = make_user(db_session, "empty-day@example.com")
     rollup = latency_rollup(
-        db_session, datetime.now(UTC).astimezone().date(), user_id=user.id
+        db_session, _pilot_today(), user_id=user.id
     )
     lines = format_latency_lines(rollup)
     assert "  draft: no measured requests" in lines
