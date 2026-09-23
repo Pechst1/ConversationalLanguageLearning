@@ -109,8 +109,11 @@ def _user(db_session, *, estimate: str = "A1.1", declared: str = "A1", payload: 
     return user
 
 
-def _hold(db_session, user: User, concept: GrammarConcept, *, stability: float = 30.0, lapsed: bool = False) -> None:
-    interval = timedelta(days=1 if lapsed else stability)
+def _hold(
+    db_session, user: User, concept: GrammarConcept, *, stability: float = 30.0, held: bool = True
+) -> None:
+    """A practised unit; ``held`` writes WP-L4's «Tenue» (``held_at``)."""
+
     db_session.add(
         UserGrammarProgress(
             user_id=user.id,
@@ -122,7 +125,9 @@ def _hold(db_session, user: User, concept: GrammarConcept, *, stability: float =
             difficulty=4.0,
             lapses=0,
             last_review=NOW - timedelta(days=1),
-            next_review=NOW - timedelta(days=1) + interval,
+            next_review=NOW - timedelta(days=1) + timedelta(days=stability),
+            introduced_at=NOW - timedelta(days=40),
+            held_at=NOW - timedelta(days=2) if held else None,
         )
     )
     db_session.commit()
@@ -190,13 +195,12 @@ def test_band_words_are_the_sub_bands_lemmas_without_closed_class_words():
     assert level_coverage.band_words("B2.1") == frozenset()  # the lexicon stops at B1
 
 
-def test_held_is_stability_21_days_without_a_lapse_until_wp_l4(db_session, isolated_catalog):
+def test_held_is_wp_l4_tenue_whatever_the_stability(db_session, isolated_catalog):
     user = _user(db_session)
-    strong, lapsed, young = (isolated_catalog("A1", n) for n in (1, 2, 3))
-    _hold(db_session, user, strong, stability=25)
-    _hold(db_session, user, lapsed, stability=25, lapsed=True)
-    _hold(db_session, user, young, stability=10)
-    assert level_coverage.held_unit_ids(db_session, user) == {strong.id}
+    held, strong_not_held = (isolated_catalog("A1", n) for n in (1, 2))
+    _hold(db_session, user, held, stability=3)
+    _hold(db_session, user, strong_not_held, stability=60, held=False)
+    assert level_coverage.held_unit_ids(db_session, user) == {held.id}
 
 
 def test_a_word_is_known_at_retrievability_085_on_a_settled_card(db_session):
@@ -328,9 +332,8 @@ def test_a_unit_once_held_stays_counted_in_its_bands_coverage(db_session, isolat
     first = CEFRProgressService(db_session).recompute(user, source="test")
     assert first["coverage"]["units"]["held"] == 1
     progress = db_session.query(UserGrammarProgress).filter_by(user_id=user.id, concept_id=units[0].id).one()
-    progress.stability, progress.next_review = 5.0, progress.last_review + timedelta(days=1)  # a lapse
+    progress.stability, progress.next_review = 1.0, progress.last_review + timedelta(days=1)  # a lapse
     db_session.commit()
-    assert level_coverage.held_unit_ids(db_session, user) == set()
     again = CEFRProgressService(db_session).recompute(user, source="test")
     assert again["coverage"]["units"]["held"] == 1
 

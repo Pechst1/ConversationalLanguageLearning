@@ -22,6 +22,7 @@ from __future__ import annotations
 import datetime as dt
 import random
 from dataclasses import dataclass, field
+from types import SimpleNamespace
 
 from app.core.srs.memory import (
     MAX_INTERVAL_DAYS,
@@ -206,6 +207,28 @@ class BandSimulation:
     coverage_day: int | None
 
 
+def new_unit_life() -> SimpleNamespace:
+    """A grammar unit's WP-L4 life, as ``UserGrammarProgress`` stores it."""
+
+    return SimpleNamespace(
+        created_at=None,
+        reps=0,
+        introduced_at=None,
+        free_use_first_at=None,
+        free_use_last_at=None,
+        spaced_success_at=None,
+        held_at=None,
+    )
+
+
+def note_unit_life(life: SimpleNamespace, evidence: Evidence, *, day: int) -> None:
+    """One observation through the app's own «Tenue» bookkeeping."""
+
+    from app.services.concept_life import note_concept_evidence
+
+    note_concept_evidence(life, evidence, now=SIMULATION_START + dt.timedelta(days=day))
+
+
 def simulate_band_coverage(
     *,
     accuracy: float,
@@ -215,7 +238,6 @@ def simulate_band_coverage(
     words_total: int,
     units_share: float = 0.85,
     words_share: float = 0.80,
-    held_stability: float = 21.0,
     horizon_days: int = 400,
     seed: int = 20260924,
 ) -> BandSimulation:
@@ -223,9 +245,9 @@ def simulate_band_coverage(
 
     * **units** are introduced as §2.4 introduces them (guided Essai + Emploi in
       the reply) and reviewed on their due day in a format that grows with
-      stability; held = stability ≥ ``held_stability`` and the last review not a
-      lapse (WP-L7's fallback rule until WP-L4), and once held a unit stays
-      counted in the band's coverage (a lapse brings it back, it does not
+      stability; held is WP-L4's «Tenue», kept by the same code the app runs
+      (:func:`new_unit_life` / :func:`app.services.concept_life.note_concept_evidence`),
+      and once held a unit stays counted (a lapse brings it back, it does not
       uncover the band);
     * **words** are self-rated cards (right → Good, wrong → Again), introduced
       then reviewed on their due day; known = seen twice, last answer right and
@@ -247,7 +269,11 @@ def simulate_band_coverage(
         last: int = 0
         last_correct: bool = False
         lapsed: bool = False
-        ever_held: bool = False
+        life: object | None = None
+
+        @property
+        def ever_held(self) -> bool:
+            return getattr(self.life, "held_at", None) is not None
 
     tally = {"observations": 0, "correct": 0}
 
@@ -267,6 +293,8 @@ def simulate_band_coverage(
         item.last = day
         item.last_correct = correct
         item.lapsed = decision.is_lapse
+        if item.life is not None:
+            note_unit_life(item.life, evidence, day=day)
 
     units: list[_Item] = []
     words: list[_Item] = []
@@ -285,7 +313,7 @@ def simulate_band_coverage(
         # accumulator: 7 × (1/7) must make one unit, not 0.999….
         unit_quota = math.floor((day + 1) * units_per_week / 7.0 + 1e-9)
         while len(units) < min(unit_quota, units_total):
-            item = _Item(introduced=day)
+            item = _Item(introduced=day, life=new_unit_life())
             for fmt in (EvidenceFormat.GUIDED, EvidenceFormat.PRODUCE):
                 correct = rng.random() < accuracy
                 observe(item, day, Evidence(fmt, correct=correct), correct)
@@ -297,11 +325,8 @@ def simulate_band_coverage(
             observe(item, day, Evidence.rated(Rating.GOOD if correct else Rating.AGAIN), correct)
             words.append(item)
 
-        for item in units:
-            if item.state.stability >= held_stability and not item.lapsed:
-                item.ever_held = True
-        # Coverage counts a unit once held: a later lapse makes it fragile and it
-        # comes back in the reviews, but the band's coverage does not fall.
+        # «Tenue» is written once and never cleared: a later lapse makes a unit
+        # fragile and it comes back in the reviews, the band stays covered.
         held = sum(1 for item in units if item.ever_held)
         known = sum(
             1
@@ -359,6 +384,8 @@ def simulate_band_coverage(
 __all__ = [
     "BandDay",
     "BandSimulation",
+    "new_unit_life",
+    "note_unit_life",
     "simulate_band_coverage",
     "MAX_INTERVAL_DAYS",
     "SimulatedItem",

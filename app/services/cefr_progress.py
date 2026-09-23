@@ -166,9 +166,9 @@ class CEFRProgressService:
         track: bool | None = None,
     ) -> dict[str, Any]:
         """Compute the estimate. ``persist`` stores it and commits; ``track``
-        (default: ``persist``) writes the checkpoint rows — the held units of the
-        band in force, ``ready``, the release-day and confirmed-prior credits —
-        with a flush only, for callers that own their transaction."""
+        (default: ``persist``) writes the checkpoint rows — the band in force
+        turning ``ready``, the release-day and confirmed-prior credits — with a
+        flush only, for callers that own their transaction."""
 
         from app.services import level_checkpoint as checkpoints
 
@@ -499,32 +499,20 @@ class CEFRProgressService:
         state: dict[str, Any] = {"coverage": None, "checkpoint": None, "forecast": None, "rhythm_priors": None}
         try:
             row = rows.get(band)
-            held_now = held_unit_ids(self.db, user, now=now)
-            # WP-L7: a unit once held stays counted in its band's coverage — a
-            # lapse makes it fragile and it comes back in the reviews; it does
-            # not uncover the band.
-            held_before = checkpoints.held_ever(row)
             closed = row is not None and row.status in checkpoints.CLOSED_STATES
+            # «Held» is WP-L4's Tenue (``held_at``, never cleared): a lapse makes
+            # a unit fragile and it comes back, it does not uncover the band.
             coverage = band_coverage(
                 self.db,
                 user,
                 band,
                 now=now,
-                held=held_now | held_before,
+                held=held_unit_ids(self.db, user, now=now),
                 checkpoint_passed=closed,
             )
-            if persist and not closed:
-                band_held = held_before | (held_now & set(coverage.unit_ids))
-                if band_held != held_before or (coverage.coverage_met and (row is None or row.status == checkpoints.STATE_OPEN)):
-                    row = checkpoints.track_band(
-                        self.db,
-                        user.id,
-                        band,
-                        held_unit_ids=band_held,
-                        coverage_met=coverage.coverage_met,
-                        now=now,
-                    )
-                    rows[band] = row
+            if persist and coverage.coverage_met and (row is None or row.status == checkpoints.STATE_OPEN):
+                row = checkpoints.mark_ready(self.db, user.id, band, now=now)
+                rows[band] = row
             view = checkpoints.checkpoint_view(band, row, coverage_met=coverage.coverage_met, now=now)
             state["coverage"] = coverage
             state["checkpoint"] = view

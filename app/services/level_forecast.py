@@ -77,35 +77,36 @@ FORECAST_TRIALS = 200
 
 
 def _held_after(accuracy: float, rng: random.Random) -> int:
-    """Days from one unit's introduction until the held rule first counts it."""
+    """Days from one unit's introduction until WP-L4's «Tenue» first holds it."""
 
     from app.core.srs.memory import Evidence, EvidenceFormat, MemoryState, review
-    from app.core.srs.simulation import SIMULATION_START, rappel_format
-    from app.services.level_coverage import HELD_FALLBACK_STABILITY_DAYS
+    from app.core.srs.simulation import (
+        SIMULATION_START,
+        new_unit_life,
+        note_unit_life,
+        rappel_format,
+    )
 
     state = MemoryState()
+    life = new_unit_life()
     day = 0
     interval = 0
-    lapsed = False
-    for fmt in (EvidenceFormat.GUIDED, EvidenceFormat.PRODUCE):
-        correct = rng.random() < accuracy
-        decision = review(state, Evidence(fmt, correct=correct), now=SIMULATION_START)
+
+    def observe(fmt: EvidenceFormat) -> None:
+        nonlocal state, interval
+        evidence = Evidence(fmt, correct=rng.random() < accuracy)
+        decision = review(state, evidence, now=SIMULATION_START + dt.timedelta(days=day))
         if decision is None:  # pragma: no cover - a graded observation always schedules
             raise RuntimeError("a graded observation must schedule")
         state = MemoryState(decision.stability, decision.difficulty, decision.reps, decision.lapses)
-        interval, lapsed = decision.interval_days, decision.is_lapse
-    while not (state.stability >= HELD_FALLBACK_STABILITY_DAYS and not lapsed) and day < 365:
+        interval = decision.interval_days
+        note_unit_life(life, evidence, day=day)
+
+    observe(EvidenceFormat.GUIDED)  # Essai
+    observe(EvidenceFormat.PRODUCE)  # Emploi, the reply
+    while life.held_at is None and day < 365:
         day += interval
-        correct = rng.random() < accuracy
-        decision = review(
-            state,
-            Evidence(rappel_format(state.stability), correct=correct),
-            now=SIMULATION_START + dt.timedelta(days=day),
-        )
-        if decision is None:  # pragma: no cover - a graded observation always schedules
-            raise RuntimeError("a graded observation must schedule")
-        state = MemoryState(decision.stability, decision.difficulty, decision.reps, decision.lapses)
-        interval, lapsed = decision.interval_days, decision.is_lapse
+        observe(rappel_format(state.stability))
     return day
 
 
@@ -115,9 +116,11 @@ def hold_lag_samples(accuracy_percent: int) -> tuple[int, ...]:
 
     Replays the memory model: guided Essai + Emploi on the day of introduction,
     every Rappel on its due day in the format its stability calls for, each
-    observation right with probability ``accuracy``; «held» is
-    :func:`app.services.level_coverage.held_unit_ids`'s rule. When WP-L4's
-    Tenue rule replaces that fallback, this sampler should follow it.
+    observation right with probability ``accuracy``; «held» is WP-L4's «Tenue»
+    through the app's own bookkeeping (``concept_life.note_concept_evidence``):
+    free use on two days ≥ 7 apart plus a spaced item ≥ 14 days in. Free use
+    here comes only from the Rappel's production format, so the lag is
+    conservative for a learner whose scenes weave the unit into replies.
     """
 
     accuracy = max(RETENTION_FLOOR, min(1.0, accuracy_percent / 100.0))

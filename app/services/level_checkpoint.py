@@ -19,10 +19,8 @@ States per (learner, band)::
     before this rule shipped (release day), or a placement / declaration that
     in-app work confirmed.
 
-* ``locked`` has no row, or an ``open`` row: the band is being worked through
-  and the row only remembers which of its units have been held
-  (``payload.held_unit_ids``), because a unit once held stays counted in the
-  band's coverage. The row turns ``ready`` the first time coverage is met.
+* ``locked`` has no row. The row is written ``ready`` the first time coverage
+  is met (``open`` is accepted as a stored synonym of locked).
 * Coverage that later slips does **not** take ``ready`` away: fragile items
   simply come back in the reviews, and the épreuve itself is the test.
 * A pass closes the band for good — demotion is never visible.
@@ -41,7 +39,7 @@ from app.db.models.cefr import UserLevelCheckpoint
 from app.services.level_coverage import SUB_BANDS, band_index
 
 STATE_LOCKED = "locked"
-#: Stored only: a band in progress whose row tracks the units held so far.
+#: Stored only, read as locked: a band row written before its coverage was met.
 STATE_OPEN = "open"
 STATE_READY = "ready"
 STATE_PASSED = "passed"
@@ -155,43 +153,6 @@ def checkpoint_view(
 def _iso(value: datetime | None) -> str | None:
     value = _aware(value)
     return value.isoformat() if value is not None else None
-
-
-def held_ever(row: UserLevelCheckpoint | None) -> set[int]:
-    """The band's units this learner has held at least once."""
-
-    values = ((row.payload or {}) if row is not None else {}).get("held_unit_ids") or []
-    out: set[int] = set()
-    for value in values:
-        try:
-            out.add(int(value))
-        except (TypeError, ValueError):
-            continue
-    return out
-
-
-def track_band(
-    db: Session,
-    user_id: Any,
-    band: str,
-    *,
-    held_unit_ids: set[int],
-    coverage_met: bool,
-    now: datetime,
-) -> UserLevelCheckpoint:
-    """Remember the band's held units; turn the row ``ready`` when coverage is met."""
-
-    row = db.query(UserLevelCheckpoint).filter_by(user_id=user_id, band=band).one_or_none()
-    if row is None:
-        row = UserLevelCheckpoint(user_id=user_id, band=band, status=STATE_OPEN, attempts=0, payload={})
-        db.add(row)
-    row.payload = {**(row.payload or {}), "held_unit_ids": sorted(held_unit_ids)}
-    if coverage_met and row.status == STATE_OPEN:
-        row.status = STATE_READY
-        row.source = SOURCE_COVERAGE
-        row.ready_at = now
-    db.flush()
-    return row
 
 
 def mark_ready(db: Session, user_id: Any, band: str, *, now: datetime) -> UserLevelCheckpoint:
@@ -311,11 +272,9 @@ __all__ = [
     "checkpoint_view",
     "credit_band",
     "current_checkpoint",
-    "held_ever",
     "highest_closed_band",
     "mark_ready",
     "record_checkpoint_result",
     "rows_by_band",
     "state_of",
-    "track_band",
 ]

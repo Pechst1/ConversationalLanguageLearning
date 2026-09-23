@@ -4,7 +4,7 @@ The level a learner is shown is the sub-band they are working through
 (A1.1 … B2.2). A band is *covered* when three things are true:
 
 * **units held** — at least :data:`UNITS_HELD_SHARE` (85 %) of the band's
-  grammar units are held (:func:`held_unit_ids`);
+  grammar units are held (:func:`held_unit_ids`: WP-L4's «Tenue»);
 * **words known** — at least :data:`WORDS_KNOWN_SHARE` (80 %) of the band's core
   words are known: a card for the lemma with retrievability ≥
   :data:`WORD_KNOWN_RETRIEVABILITY` (0.85), seen at least twice and not in
@@ -39,7 +39,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from app.db.models.grammar import GrammarConcept, UserGrammarProgress
+from app.db.models.grammar import GrammarConcept
 from app.db.models.progress import UserVocabularyProgress
 from app.db.models.vocabulary import VocabularyWord
 
@@ -54,12 +54,6 @@ WORD_KNOWN_RETRIEVABILITY = 0.85
 #: just shown.
 WORD_KNOWN_MIN_REPS = 2
 _WORD_UNSETTLED_STATES = frozenset({"new", "learning", "relearning", "relearn", "learn"})
-
-#: WP-L4 FALLBACK — see :func:`held_unit_ids`.
-HELD_FALLBACK_STABILITY_DAYS = 21.0
-#: A last review that granted at most this many days was a lapse (memory.py
-#: sends a lapse back in one day).
-_LAPSE_INTERVAL_MAX_DAYS = 1.5
 
 #: How the percent shown beside the band («A1.1 · 60 %») is made up: the two
 #: coverage criteria, each capped at its threshold, and the checkpoint. Coverage
@@ -156,32 +150,18 @@ def band_unit_ids(db: Session, band: str) -> list[int]:
 
 
 def held_unit_ids(db: Session, user: Any, *, now: datetime | None = None) -> set[int]:
-    """The grammar units this learner *holds* («Tenue»).
+    """The grammar units this learner *holds* («Tenue», §2.4).
 
-    **TEMPORARY FALLBACK — WP-L4 replaces this body** with its own held rule
-    (correct free use on two days ≥ 7 days apart plus a correct spaced item after
-    ≥ 14 days, §2.4). Everything in WP-L7/L8 reads «held» through this one
-    function, so swapping the rule is a one-function change.
-
-    Until then: a concept is held when its memory's stability is at least
-    :data:`HELD_FALLBACK_STABILITY_DAYS` (21 days) and its last review was not a
-    lapse (the last scheduled interval was more than a day).
+    WP-L4's rule (:func:`app.services.concept_life.held_concept_ids`): correct
+    free use on two days at least 7 days apart plus a correct spaced item at
+    least 14 days after the introduction. ``held_at`` is written the first time
+    that is true and never cleared, so a lapse makes a unit fragile (it comes
+    back through the scheduler) without uncovering its band.
     """
 
-    from app.services.grammar import grammar_memory_state
+    from app.services.concept_life import held_concept_ids
 
-    rows = db.query(UserGrammarProgress).filter(UserGrammarProgress.user_id == user.id).all()
-    held: set[int] = set()
-    for row in rows:
-        state = grammar_memory_state(row)
-        if state.stability < HELD_FALLBACK_STABILITY_DAYS:
-            continue
-        last, nxt = row.last_review, row.next_review
-        if last is not None and nxt is not None:
-            if (nxt - last).total_seconds() / 86_400 <= _LAPSE_INTERVAL_MAX_DAYS:
-                continue
-        held.add(int(row.concept_id))
-    return held
+    return held_concept_ids(db, user.id)
 
 
 # ---------------------------------------------------------------------------
@@ -339,7 +319,7 @@ class BandCoverage:
                 "units_held_share": UNITS_HELD_SHARE,
                 "words_known_share": WORDS_KNOWN_SHARE,
                 "word_retrievability": WORD_KNOWN_RETRIEVABILITY,
-                "held_rule": "fallback_stability_21d",  # WP-L4 replaces
+                "held_rule": "wp-l4-tenue",
             },
         }
 
@@ -372,7 +352,6 @@ def band_coverage(
 
 __all__ = [
     "CLOSED_CLASS_WORDS",
-    "HELD_FALLBACK_STABILITY_DAYS",
     "SUB_BANDS",
     "UNITS_HELD_SHARE",
     "WORDS_KNOWN_SHARE",

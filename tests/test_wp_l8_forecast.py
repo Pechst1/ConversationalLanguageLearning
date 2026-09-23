@@ -10,6 +10,7 @@ Pins:
 """
 from __future__ import annotations
 
+import math
 import statistics
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -132,10 +133,10 @@ def test_after_seven_active_days_the_forecast_is_measured(db_session, monkeypatc
     # The 14 cards introduced 7–60 days ago all stuck.
     assert fc["basis"]["word_sample"] == 14
     assert fc["basis"]["word_retention"] == pytest.approx(1.0)
-    # None of these cards is a band word: 253 of A1.1's words are still
+    # None of these cards is a band word: 80 % of A1.1's words are still
     # needed, at two a day.
     words_needed = fc["basis"]["words_needed"]
-    assert words_needed == 253
+    assert words_needed == math.ceil(0.8 * len(band_words("A1.1")))
     assert fc["base_days"] == round(words_needed / 2.0 + forecast.CHECKPOINT_DAYS)
     assert fc["capped"] is False
 
@@ -247,8 +248,9 @@ def test_a_regulier_learner_at_85_percent_reaches_a12_as_the_forecast_said():
     actual_median = statistics.median(actual)
     predicted_median = statistics.median(predicted)
     assert abs(predicted_median - actual_median) <= 0.2 * actual_median, (actual, predicted)
-    # Plausible: about three to five months for the first sub-band at ten minutes a day.
-    assert 90 <= actual_median <= 150
+    # Plausible: about four to five and a half months for the first sub-band at
+    # ten minutes a day (WP-L4's «Tenue» takes a unit ~6 weeks on a clean run).
+    assert 100 <= actual_median <= 170
     # And the measured range brackets what happened for most learners.
     inside = sum(1 for got, said in zip(actual, predicted, strict=True) if 0.8 * said <= got <= 1.3 * said)
     assert inside >= 5

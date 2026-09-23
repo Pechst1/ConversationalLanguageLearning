@@ -6,8 +6,8 @@ later) and bands credited without an épreuve (``credited``: the level each
 learner was shown before the coverage rule shipped, so nobody's level drops on
 release day — written lazily by ``CEFRProgressService`` on the first recompute).
 
-Revision ID: f2a4c6e8b0d1
-Revises: e1f3a5b7c9d2
+Revision ID: b7d9f1a3c5e8
+Revises: f2a4c6e8b0d1
 """
 from __future__ import annotations
 
@@ -16,8 +16,8 @@ from sqlalchemy.dialects import postgresql
 
 from alembic import op
 
-revision = "f2a4c6e8b0d1"
-down_revision = "e1f3a5b7c9d2"
+revision = "b7d9f1a3c5e8"
+down_revision = "f2a4c6e8b0d1"
 branch_labels = None
 depends_on = None
 
