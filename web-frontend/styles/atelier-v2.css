@@ -2720,16 +2720,19 @@
 
 /* Home: one row of four shape + word labels under the primary. */
 .av2 .av2-day-plan {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 16px;
+  /* One row of equal columns, shape above word: four parts fit a 320 px phone without wrapping. */
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 8px;
   margin: 14px 0 0;
   padding: 0;
   list-style: none;
   font-size: var(--av2-t-label);
   color: var(--av2-muted);
 }
-.av2 .av2-day-plan__part { display: inline-flex; align-items: center; gap: 6px; }
+.av2 .av2-day-plan__part { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; }
+.av2 .av2-day-plan__word { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
 .av2 .av2-day-plan__part[data-state='todo'] .av2-shape,
 .av2 .av2-day-plan__part[data-state='active'] .av2-shape { color: var(--av2-line); }
 .av2 .av2-day-plan__part[data-state='active'] { color: var(--av2-ink); font-weight: 700; }

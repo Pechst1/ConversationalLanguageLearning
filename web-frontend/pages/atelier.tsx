@@ -1705,23 +1705,22 @@ export default function AtelierPage() {
             {/* The journey entry appears exactly when the frozen precedence puts
                 it in front of the legacy chain (branches 1–3 and 5), plus the
                 finished case, where branch 4 makes re-entry a read. */}
-            {journeyEntryVisible && (
-              <div
-                className="atelier-journey-entry"
-                style={{ maxWidth: 720, margin: '0 auto', padding: '16px 16px 0', width: '100%' }}
-              >
-                <JourneyTodayCard
-                  controller={journey}
-                  onOpen={() => setView('journey')}
-                  onOpenLegacy={(href) => {
-                    // The old Atelier session is resumed on its own terms: the
-                    // journey never converts, replaces or completes it.
-                    void router.push(href);
-                  }}
-                />
-              </div>
-            )}
             <TodayView
+              // WP-81: the journey's entry sits in Home's hero slot, under the
+              // masthead, instead of above the whole page.
+              journeyCard={
+                journeyEntryVisible ? (
+                  <JourneyTodayCard
+                    controller={journey}
+                    onOpen={() => setView('journey')}
+                    onOpenLegacy={(href) => {
+                      // The old Atelier session is resumed on its own terms: the
+                      // journey never converts, replaces or completes it.
+                      void router.push(href);
+                    }}
+                  />
+                ) : null
+              }
               today={today}
               activeSession={session}
               dayProgress={dayProgress}
@@ -2048,6 +2047,7 @@ function TodayView({
   practiceEntry,
   becauseLine,
   dayJourney = null,
+  journeyCard = null,
   journeyEditionNo = null,
 }: {
   today: AtelierToday | null;
@@ -2078,6 +2078,8 @@ function TodayView({
    * carries the day's plan and the plan row replaces the tiles.
    */
   dayJourney?: JourneySnapshot | null;
+  /** WP-81: the journey's entry card, rendered in Home's hero slot under the masthead. */
+  journeyCard?: React.ReactNode;
   /** WP-D4: `journey.edition_no` from the day's journey, when there is one. */
   journeyEditionNo?: number | null;
 }) {
@@ -2490,6 +2492,7 @@ function TodayView({
 
   return (
     <HomeScreen
+      hero={journeyCard}
       dateLabel={formatAtelierEditionDate()}
       editionLabel={editionLabel}
       streak={streak}
@@ -2745,7 +2748,8 @@ function formatAtelierEditionDate(date = new Date()) {
   const formatted = new Intl.DateTimeFormat('fr-FR', {
     weekday: 'long',
     day: 'numeric',
-    month: 'long',
+    // «Mercredi 23 sept.» — the short month keeps the headline on one line.
+    month: 'short',
   }).format(date);
   return formatted.charAt(0).toUpperCase() + formatted.slice(1);
 }

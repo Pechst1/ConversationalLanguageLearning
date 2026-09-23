@@ -179,6 +179,11 @@ export type HomeScreenProps = {
    */
   day?: DayMarkState | null;
   colophon: { lead: string; focus: string; focusHref: string; tail?: string } | null;
+  /**
+   * WP-81: the day's scene card (the journey's entry), directly under the masthead —
+   * logo, date and streak first, then the one thing the day asks for.
+   */
+  hero?: React.ReactNode;
   /** The tab bar, rendered last so it sits under the page in the same scroll. */
   children?: React.ReactNode;
 };
@@ -204,6 +209,7 @@ export function HomeScreen({
   tiles,
   day,
   colophon,
+  hero,
   children,
 }: HomeScreenProps) {
   return (
@@ -241,8 +247,10 @@ export function HomeScreen({
         )}
       </header>
 
+      {hero && <div className="av2-home__section av2-home__section--first av2-home__hero">{hero}</div>}
+
       {notice && (
-        <div className="av2-home__section av2-home__section--first">
+        <div className={`av2-home__section${hero ? '' : ' av2-home__section--first'}`}>
           <Notice tone="alert" live="alert" shape="action">
             <p>
               <strong>{notice.label}</strong>
@@ -258,7 +266,7 @@ export function HomeScreen({
       )}
 
       {episode && (
-        <div className={`av2-home__section${notice ? '' : ' av2-home__section--first'}`}>
+        <div className={`av2-home__section${notice || hero ? '' : ' av2-home__section--first'}`}>
           <EpisodeCard episode={episode} />
         </div>
       )}
@@ -531,8 +539,10 @@ function DayPlanRow({ day }: { day: DayMarkState }) {
         return (
           <li key={group} className="av2-day-plan__part" data-part={group} data-state={state}>
             <ShapeToken kind={STEP_SHAPE[group]} />
-            {DAY_MARK_WORD[group]}
-            {state === 'done' && <CheckIcon size={12} />}
+            <span className="av2-day-plan__word">
+              {DAY_MARK_WORD[group]}
+              {state === 'done' && <CheckIcon size={12} />}
+            </span>
             <span className="av2-sr"> — {PART_STATE_WORD[state]}</span>
           </li>
         );
