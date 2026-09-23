@@ -2311,6 +2311,11 @@ function TodayView({
   // ---- Home (design direction 1a): one story, one action, three tiles. ----
   const levelLabel = cefr?.estimate ? ` · ${cefr.estimate}` : '';
   const editionLabel = `Édition Nº ${episodeNumber}${levelLabel}`;
+  // WP-L7: «A1.1 · 60 %» — the band in force and its coverage, from the server.
+  const homeLevel =
+    cefr?.coverage && typeof cefr.coverage.percent === 'number' && cefr.coverage.band
+      ? { band: String(cefr.coverage.band), percent: Number(cefr.coverage.percent) }
+      : null;
   // For engine-managed learners `/serial/today` answers `journey_required`
   // with no scene: the story is today's journey (its card is above), so the
   // page does not draw an episode it cannot open.
@@ -2515,6 +2520,7 @@ function TodayView({
       hero={journeyCard}
       dateLabel={formatAtelierEditionDate()}
       editionLabel={editionLabel}
+      level={homeLevel}
       streak={streak}
       // WP-79: the server's checked `streak.today_done` (WP-80), never inferred.
       dayDone={Boolean((today as { streak?: { today_done?: boolean } } | null)?.streak?.today_done)}

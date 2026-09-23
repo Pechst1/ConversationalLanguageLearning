@@ -51,12 +51,16 @@ import {
   capabilityEvidenceSentence,
   capabilityStateLabel,
   capabilityTitle,
+  coverageRows,
+  coverageRuleSentence,
   errataCounters,
   errataStateLabel,
   errataTotalSentence,
   evidenceSentence,
   frenchDate,
+  forecastSentence,
   frenchShortDate,
+  levelHeadline,
   levelLadderSentence,
   levelSentence,
   levelSourceLine,
@@ -125,6 +129,8 @@ function LevelSection({
 }) {
   const level = dossier.level as LevelWithAttempts;
   const unavailable = !level || level.available === false || !level.estimate;
+  const rows = coverageRows(level);
+  const forecast = forecastSentence(level);
   return (
     <Surface as="section" className="ds-card" aria-labelledby="ds-level">
       <p className="av2-label" id="ds-level">
@@ -134,10 +140,25 @@ function LevelSection({
         <p className="av2-body av2-body--lg">{levelSentence(level)}</p>
       ) : (
         <div className="ds-level">
-          <span className="ds-level__value">{level.estimate}</span>
+          {/* WP-L7: the band and how much of it is covered, «A1.1 · 60 %». */}
+          <span className="ds-level__value">{levelHeadline(level)}</span>
           <span className="ds-level__source">{levelSourceLine(level)}</span>
         </div>
       )}
+      {!unavailable && rows.length > 0 && (
+        <>
+          <ul className="ds-rows" aria-label="Ce que compte le niveau">
+            {rows.map((row) => (
+              <li key={row.key} className="ds-row">
+                <span className="ds-row__label">{row.label}</span>
+                <span className="ds-row__value">{row.value}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="ds-fine">{coverageRuleSentence(level)}</p>
+        </>
+      )}
+      {!unavailable && forecast && <p className="av2-body">{forecast}</p>}
       <p className="av2-body">{levelLadderSentence(level)}</p>
       <EvidenceLine>{evidenceSentence(level?.evidence)}</EvidenceLine>
       {onOpenPlacement && (

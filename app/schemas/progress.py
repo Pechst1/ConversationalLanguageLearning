@@ -120,12 +120,31 @@ class CEFRProgressResponse(BaseModel):
     target: str
     next_level: str | None = None
     daily_minutes: int | None = None
+    rhythm: str | None = None
     signals: dict[str, Any] = Field(default_factory=dict)
+    #: WP-L7: the performance gates (no longer promotion thresholds).
     thresholds: dict[str, dict[str, float]] = Field(default_factory=dict)
     breakdown: dict[str, Any] = Field(default_factory=dict)
+    #: WP-L7: «A1.1 · 60 %», the band's coverage and its épreuve.
+    level_label: str | None = None
+    coverage: dict[str, Any] | None = None
+    checkpoint: dict[str, Any] | None = None
+    release_floor: str | None = None
+    #: WP-L8: an estimate (``status`` "prior" before 7 active days, "available" measured).
     forecast: dict[str, Any] | None = None
+    rhythm_priors: dict[str, Any] | None = None
     today_delta: dict[str, Any] = Field(default_factory=dict)
     generated_at: str | None = None
+
+
+class LevelCheckpointResultRequest(BaseModel):
+    """WP-L7: the story engine reports the band's épreuve."""
+
+    band: str = Field(pattern=r"^(A1\.1|A1\.2|A2\.1|A2\.2|B1\.1|B1\.2|B2\.1|B2\.2)$")
+    passed: bool
+    episode_id: str | None = Field(default=None, max_length=80)
+    #: Free-form grading detail (can-dos met, concept evidence), kept on the row.
+    evidence: dict[str, Any] | None = None
 
 
 class VocabularyRecommendationTranslations(BaseModel):

@@ -46,7 +46,7 @@ import {
   type DayMarkState,
 } from '@/components/atelier-v2/journey/day-mark';
 import { atelierCopy } from '@/lib/atelier-v2-copy';
-import { frenchQuote } from '@/lib/french-typography';
+import { NNBSP, frenchQuote } from '@/lib/french-typography';
 import type { ControlLanguage } from '@/types/daily-journey';
 
 export type HomeTileMark = 'story' | 'reward' | 'done' | 'action';
@@ -164,6 +164,12 @@ export type HomeScreenProps = {
   /** Real consecutive-day count. 0 hides the slot entirely. */
   streak: number;
   /**
+   * WP-L7: the sub-band in force and how much of it is covered («A1.1 · 60 %»),
+   * from the server's `coverage`. Drawn as one quiet label line in the masthead
+   * while the journey owns the day; omitted, nothing is drawn.
+   */
+  level?: { band: string; percent: number } | null;
+  /**
    * WP-79: today's practice is done (the server's `streak.today_done`). The
    * streak carries the ink «done» square, and the Séance tile — extra practice
    * once the journey owns the day — stops reading like unfinished work.
@@ -230,6 +236,7 @@ export function HomeScreen({
   dateLabel,
   editionLabel,
   streak,
+  level = null,
   dayDone = false,
   settingsHref = '/settings',
   streakHref = '/notebook?mode=releve#sceaux',
@@ -270,6 +277,19 @@ export function HomeScreen({
           {/* WP-81: with the day on, the mark and the date are the header; the
               edition kicker is cut (≤ 25 words on Home). */}
           {!oneThing && <p className="av2-home__kicker">{editionLabel}</p>}
+          {/* WP-L7: the level, back as one quiet label — never a second
+              Garamond line (the date is the screen's one headline). */}
+          {oneThing && level && (
+            <p className="av2-home__kicker av2-home__level">
+              <span className="av2-sr">
+                {copy.home_level_aria.replace('{band}', level.band).replace('{percent}', String(level.percent))}
+              </span>
+              <span aria-hidden="true" data-level-figure="">
+                {level.band} · {level.percent}
+                {NNBSP}%
+              </span>
+            </p>
+          )}
           <h1 className="av2-headline av2-headline--screen av2-home__date">{dateLabel}</h1>
         </div>
         {streak > 0 ? (

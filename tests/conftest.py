@@ -68,7 +68,7 @@ from app.db.models.atelier import (
     AtelierLanguagePack,
     AtelierSession,
 )
-from app.db.models.cefr import UserCEFRProgressHistory
+from app.db.models.cefr import UserCEFRProgressHistory, UserLevelCheckpoint
 from app.db.models.daily_journey import (
     DailyJourney,
     DailyJourneyMutation,
@@ -145,6 +145,7 @@ def db_engine():
             GrammarConceptLocalization.__table__,
             UserGrammarProgress.__table__,
             UserCEFRProgressHistory.__table__,
+            UserLevelCheckpoint.__table__,
             AtelierLanguagePack.__table__,
             AtelierConceptBlueprint.__table__,
             AtelierSession.__table__,
@@ -223,6 +224,7 @@ def db_engine():
                 AtelierConceptBlueprint.__table__,
                 AtelierLanguagePack.__table__,
                 UserGrammarProgress.__table__,
+                UserLevelCheckpoint.__table__,
                 UserCEFRProgressHistory.__table__,
                 GrammarConceptLocalization.__table__,
                 GrammarConceptArchive.__table__,

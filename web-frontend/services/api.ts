@@ -476,6 +476,12 @@ export interface DossierLevel {
   next_level?: string | null;
   evidence?: DossierEvidence | null;
   reason?: string | null;
+  /** WP-L7: «A1.1 · 60 %», the band's coverage and its épreuve. */
+  level_label?: string | null;
+  coverage?: LevelCoverage | null;
+  checkpoint?: LevelCheckpoint | null;
+  /** WP-L8: always an estimate. */
+  forecast?: LevelForecast | null;
 }
 
 export interface DossierCapabilityEvidence {
@@ -643,9 +649,52 @@ export interface CEFRProgress {
   signals: Record<string, any>;
   thresholds: Record<string, Record<string, number>>;
   breakdown: Record<string, any>;
-  forecast?: Record<string, any> | null;
+  forecast?: LevelForecast | null;
+  rhythm?: string | null;
+  /** WP-L7: «A1.1 · 60 %» — the band in force and its coverage. */
+  level_label?: string | null;
+  coverage?: LevelCoverage | null;
+  checkpoint?: LevelCheckpoint | null;
+  release_floor?: string | null;
+  /** WP-L8: each rhythm's planning prior for finishing A1 (Réglages' cards). */
+  rhythm_priors?: Record<string, { rhythm?: string; target?: string; range_days?: number[]; range_months?: number[] }> | null;
   today_delta?: Record<string, any>;
   generated_at?: string | null;
+}
+
+/** WP-L7 — a sub-band's coverage: units held, words known, against what the band asks. */
+export interface LevelCoverage {
+  band: string;
+  percent: number;
+  label: string;
+  units: { held: number; total: number; required: number; met: boolean };
+  words: { known: number; total: number; required: number; met: boolean };
+  coverage_met: boolean;
+}
+
+/** WP-L7 — the band's épreuve (the story engine stages it once `checkpoint_ready`). */
+export interface LevelCheckpoint {
+  band: string;
+  state: 'locked' | 'ready' | 'failed' | 'passed' | 'credited';
+  checkpoint_ready: boolean;
+  attempts: number;
+  retry_after?: string | null;
+  passed_at?: string | null;
+}
+
+/** WP-L8 — always an estimate: `prior` before 7 active days, `available` (measured) after. */
+export interface LevelForecast {
+  status: 'prior' | 'available' | string;
+  kind?: 'estimate';
+  band?: string;
+  target?: string | null;
+  rhythm?: string;
+  base_days?: number;
+  range_days?: number[];
+  range_months?: number[];
+  projected_dates?: string[];
+  capped?: boolean;
+  basis?: Record<string, any>;
 }
 
 /** GET /analytics/summary — headline counters, all scoped to the signed-in learner. */

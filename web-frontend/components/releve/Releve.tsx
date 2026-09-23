@@ -204,13 +204,17 @@ export default function Releve() {
       : at.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
   }, [cefr]);
   const forecastAvailable = cefr?.forecast?.status === 'available';
-  const forecastDays = useMemo(() => {
+  // WP-L8: a range, worded as an estimate — never one number read as a promise.
+  const forecastRange = useMemo(() => {
+    if (cefr?.forecast?.capped) return null;
     const range = cefr?.forecast?.range_days;
     if (!Array.isArray(range) || range.length < 2) return null;
-    const days = Math.round((Number(range[0]) + Number(range[1])) / 2);
-    return Number.isFinite(days) && days > 0 ? days : null;
+    const low = Math.round(Number(range[0]));
+    const high = Math.round(Number(range[1]));
+    return Number.isFinite(low) && Number.isFinite(high) && low > 0 ? { low, high } : null;
   }, [cefr]);
-  const nextLevel = cefr?.target || cefr?.next_level || null;
+  // WP-L8: the forecast is for the next sub-band, so the arrow points there.
+  const nextLevel = cefr?.forecast?.target || cefr?.next_level || cefr?.target || null;
   const coursWords: [number, number] = [
     Number(cefr?.breakdown?.vocabulary?.current || 0),
     Number(cefr?.breakdown?.vocabulary?.target || 0),
@@ -310,8 +314,10 @@ export default function Releve() {
                 ? `Niveau estimé (placement)${placementDate ? `, ${placementDate}` : ''}. L’Atelier le vérifie au fil des séances.`
                 : declared
                 ? 'Niveau que vous avez indiqué. L’Atelier le vérifie au fil des séances.'
-                : forecastAvailable && forecastDays
-                ? `Environ ${forecastDays} jours à ce rythme.`
+                : forecastAvailable && forecastRange
+                ? `Estimation : ${forecastRange.low} à ${forecastRange.high} jours à ce rythme.`
+                : forecastAvailable && cefr?.forecast?.capped
+                ? 'Estimation : plus de deux ans à ce rythme.'
                 : 'Prévisions après sept jours actifs.'}
             </p>
             {/* Gauges count what the Atelier has verified. Against a level it has

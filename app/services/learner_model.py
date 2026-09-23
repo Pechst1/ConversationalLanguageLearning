@@ -301,6 +301,13 @@ def _level_belief(db: Session, *, user: User) -> dict[str, Any]:
         "target": payload.get("target"),
         "next_level": payload.get("next_level"),
         "evidence": evidence.as_dict(),
+        # WP-L7: «A1.1 · 60 %» and the numbers behind it — units held, words
+        # known, the épreuve — read from the estimator, never recomputed here.
+        "level_label": payload.get("level_label"),
+        "coverage": payload.get("coverage"),
+        "checkpoint": payload.get("checkpoint"),
+        # WP-L8: always an estimate (prior before 7 active days, then measured).
+        "forecast": payload.get("forecast"),
     }
 
 

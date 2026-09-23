@@ -134,7 +134,7 @@ export function levelBasisSentence(level: DossierLevel | null | undefined): stri
     const answers = turns > 0 ? `${turns} réponses corrigées` : 'un bilan corrigé';
     return `Mesuré par le bilan de niveau, sur ${answers}. ${confidence}`;
   }
-  return 'Calculé sur votre travail dans l’application : mots et notions acquis, score récent, taux d’erreur.';
+  return 'Calculé sur votre travail dans l’application : notions tenues, mots connus et l’épreuve de chaque niveau.';
 }
 
 /**
@@ -172,6 +172,103 @@ export function levelLadderSentence(level: LevelWithAttempts | null | undefined)
     return `Estimé par le bilan, ${basis}. Il deviendra « mesuré » après ${required} réponses en séance.`;
   }
   return `Le niveau devient « estimé » après le bilan, et « mesuré » après ${required} réponses en séance.`;
+}
+
+/* ---------------------------------------------------------------------------
+   WP-L7 / WP-L8 — the level as coverage of a sub-band, its épreuve, and the
+   forecast. Every number comes from the server (`coverage`, `checkpoint`,
+   `forecast` on the level); nothing here computes a level.
+   --------------------------------------------------------------------------- */
+
+/** «A1.1 · 60 %» when the server sent the coverage, else the bare band. */
+export function levelHeadline(level: DossierLevel | null | undefined): string | null {
+  if (!level || level.available === false || !level.estimate) return null;
+  return (level.level_label || '').trim() || level.estimate;
+}
+
+/** The Dossier's breakdown: units held, words known, the épreuve — each x / y. */
+export function coverageRows(
+  level: DossierLevel | null | undefined,
+): Array<{ key: string; label: string; value: string }> {
+  const coverage = level?.coverage;
+  if (!level || level.available === false || !coverage) return [];
+  const rows: Array<{ key: string; label: string; value: string }> = [];
+  if (coverage.units && coverage.units.total > 0) {
+    rows.push({
+      key: 'units',
+      label: 'Notions tenues',
+      value: `${coverage.units.held} / ${coverage.units.required} (sur ${coverage.units.total})`,
+    });
+  }
+  if (coverage.words && coverage.words.total > 0) {
+    rows.push({
+      key: 'words',
+      label: 'Mots connus',
+      value: `${coverage.words.known} / ${coverage.words.required} (sur ${coverage.words.total})`,
+    });
+  }
+  rows.push({ key: 'checkpoint', label: 'Épreuve', value: checkpointLabel(level.checkpoint) });
+  return rows;
+}
+
+/** What the numbers above mean — the rule, stated once. */
+export function coverageRuleSentence(level: DossierLevel | null | undefined): string | null {
+  const coverage = level?.coverage;
+  if (!coverage) return null;
+  return (
+    `Pour passer ${coverage.band} : tenir 85 % de ses notions, connaître 80 % de ses mots, ` +
+    'puis réussir l’épreuve de fin de niveau dans l’histoire.'
+  );
+}
+
+export function checkpointLabel(checkpoint: DossierLevel['checkpoint']): string {
+  switch (checkpoint?.state) {
+    case 'ready':
+      return 'prête — elle arrive dans l’histoire';
+    case 'failed':
+      return checkpoint.retry_after
+        ? `à repasser à partir du ${frenchShortDate(checkpoint.retry_after)}`
+        : 'à repasser après une semaine de consolidation';
+    case 'passed':
+      return 'réussie';
+    case 'credited':
+      return 'validée';
+    default:
+      return 'après la couverture du niveau';
+  }
+}
+
+function spanWords(days: number[] | undefined, months: number[] | undefined): string | null {
+  if (!Array.isArray(days) || days.length < 2) return null;
+  const [low, high] = days.map(Number);
+  if (!Number.isFinite(low) || !Number.isFinite(high)) return null;
+  if (high < 60 || !Array.isArray(months) || months.length < 2) {
+    return low === high ? `${low} jours` : `${low} à ${high} jours`;
+  }
+  const lowM = Math.max(1, Math.floor(Number(months[0])));
+  const highM = Math.max(lowM, Math.ceil(Number(months[1])));
+  return lowM === highM ? `${lowM} mois` : `${lowM} à ${highM} mois`;
+}
+
+/**
+ * WP-L8. The forecast in one sentence, always as an estimate: the rhythm's
+ * prior before seven active days, the learner's own pace after, and never a
+ * date dressed as a promise.
+ */
+export function forecastSentence(level: DossierLevel | null | undefined): string | null {
+  const forecast = level?.forecast;
+  if (!level || level.available === false || !forecast) return null;
+  const target = forecast.target || level.next_level;
+  if (!target) return null;
+  if (forecast.capped) {
+    return `Estimation : à votre rythme actuel, ${target} demanderait plus de deux ans. Un peu de régularité change vite ce chiffre.`;
+  }
+  const span = spanWords(forecast.range_days, forecast.range_months);
+  if (!span) return null;
+  if (forecast.status === 'prior') {
+    return `Estimation avant mesure, d’après votre rythme : ${target} dans ${span}. Elle sera recalculée sur votre propre rythme après sept jours actifs.`;
+  }
+  return `Estimation sur vos quatorze derniers jours : ${target} dans ${span}, épreuve comprise.`;
 }
 
 /** The capability's name on a French screen. Falls back, never invents. */

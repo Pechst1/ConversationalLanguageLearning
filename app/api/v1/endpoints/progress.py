@@ -19,6 +19,7 @@ from app.schemas import (
     AnkiProgressSummary,
     AnkiWordProgressRead,
     CEFRProgressResponse,
+    LevelCheckpointResultRequest,
     ProgressDetail,
     QueueWord,
     ReviewRequest,
@@ -62,6 +63,59 @@ def recompute_cefr_progress(
     """Recompute and persist a CEFR estimate snapshot."""
 
     return CEFRProgressResponse(**CEFRProgressService(db).recompute(current_user, source="api"))
+
+
+@router.get("/cefr/checkpoint")
+def get_level_checkpoint(
+    *,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_or_demo),
+) -> dict:
+    """WP-L7 — the épreuve's state for the band in force, computed fresh.
+
+    The story engine's one question is ``checkpoint_ready``: stage the band's
+    finale-like épreuve episode now. Read-only (no row is written).
+    """
+
+    from app.services.level_checkpoint import current_checkpoint
+
+    return current_checkpoint(db, current_user)
+
+
+@router.post("/cefr/checkpoint", response_model=CEFRProgressResponse)
+def record_level_checkpoint(
+    *,
+    body: LevelCheckpointResultRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> CEFRProgressResponse:
+    """WP-L7 — record the épreuve's result; a pass raises the level.
+
+    409 when the band is not the one in force, not ready, already closed, or a
+    failed épreuve is still inside its week of consolidation.
+    """
+
+    from app.services.level_checkpoint import CheckpointError, record_checkpoint_result
+
+    service = CEFRProgressService(db)
+    current = service.current(current_user)
+    if body.band != current.get("estimate"):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"code": "wrong_band", "message": f"The band in force is {current.get('estimate')}."},
+        )
+    evidence = dict(body.evidence or {})
+    if body.episode_id:
+        evidence["episode_id"] = body.episode_id
+    try:
+        record_checkpoint_result(db, current_user, band=body.band, passed=body.passed, evidence=evidence)
+    except CheckpointError as error:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"code": error.code, "message": error.message},
+        ) from error
+    return CEFRProgressResponse(**service.recompute(current_user, source="checkpoint"))
 
 
 def _progress_due(progress: UserVocabularyProgress | None, now: datetime) -> bool:

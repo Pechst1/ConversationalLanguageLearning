@@ -42,3 +42,16 @@ test('the pace stays inside 1–50', () => {
   assert.equal(clampNewWords(80), 50);
   assert.equal(clampNewWords(Number.NaN), 10);
 });
+
+test('WP-L8: a rhythm card prints its prior as a range of whole months, as an estimate', () => {
+  const { priorMonths, formatRhythmForecast } = require('./rhythm.ts');
+  assert.deepEqual(priorMonths({ range_months: [3.7, 6.0] }), { low: 3, high: 6 });
+  assert.deepEqual(priorMonths({ range_months: [2.8, 4.5] }), { low: 2, high: 5 });
+  assert.equal(priorMonths(null), null);
+  assert.equal(priorMonths({ range_months: [] }), null);
+  assert.equal(
+    formatRhythmForecast('Estimation : {target} en {low} à {high} mois.', { target: 'A1', range_months: [3.7, 6] }),
+    'Estimation : A1 en 3 à 6 mois.',
+  );
+  assert.equal(formatRhythmForecast('x {low}', undefined), null);
+});
